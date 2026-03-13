@@ -18,6 +18,8 @@
               <div class="alert-name">{{ a.name || a.rule_id || '预警' }}</div>
               <div class="alert-meta">
                 {{ a.bed || '--' }}床 · {{ a.patient_name || '未知' }} · {{ fmtTime(a.created_at) }}
+                <span v-if="a.category"> · {{ a.category }}</span>
+                <span v-if="a.alert_type"> · {{ a.alert_type }}</span>
               </div>
             </div>
             <div class="alert-val">{{ a.value ?? '—' }}</div>

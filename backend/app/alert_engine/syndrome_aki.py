@@ -53,8 +53,3 @@ class AkiMixin:
         if triggered > 0:
             self._log_info("AKI预警", triggered)
 
-    def _log_info(self, name: str, count: int) -> None:
-        import logging
-
-        logger = logging.getLogger("icu-alert")
-        logger.info(f"[{name}] 本轮触发 {count} 条预警")

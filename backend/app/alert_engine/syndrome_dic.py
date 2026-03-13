@@ -1,6 +1,8 @@
 """DIC ISTH"""
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 
 class DicMixin:
     async def scan_dic(self) -> None:
@@ -23,8 +25,23 @@ class DicMixin:
             if not his_pid:
                 continue
 
+            pid_str = str(p.get("_id"))
             diag = (str(p.get("clinicalDiagnosis", "")) + str(p.get("admissionDiagnosis", ""))).lower()
-            high_risk = any(k in diag for k in ["脓毒", "感染", "sepsis", "创伤", "肿瘤", "恶性", "产后"])
+            dic_risk_kw = [
+                "脓毒", "感染", "sepsis", "创伤", "trauma",
+                "肿瘤", "恶性", "cancer", "产后", "产科",
+                "烧伤", "burn", "移植", "transplant",
+                "胰腺炎", "pancreatitis", "蛇咬",
+                "大手术", "hellp", "羊水栓塞",
+            ]
+            high_risk = any(k in diag for k in dic_risk_kw)
+            if not high_risk:
+                recent_sepsis = await self.db.col("alert_records").find_one({
+                    "patient_id": pid_str,
+                    "rule_id": {"$in": ["SEPSIS_QSOFA", "SEPSIS_SOFA", "SEPSIS_SHOCK"]},
+                    "created_at": {"$gte": datetime.now() - timedelta(hours=24)},
+                })
+                high_risk = recent_sepsis is not None
             if not high_risk:
                 continue
 
@@ -40,7 +57,7 @@ class DicMixin:
             severity = "critical" if total >= 5 else "warning"
             name = "显性DIC" if total >= 5 else "疑似DIC"
 
-            if await self._is_suppressed(str(p.get("_id")), rule_id, same_rule_sec, max_per_hour):
+            if await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                 continue
 
             alert = await self._create_alert(
@@ -52,7 +69,7 @@ class DicMixin:
                 parameter="dic_score",
                 condition={"score": total},
                 value=total,
-                patient_id=str(p.get("_id")),
+                patient_id=pid_str,
                 patient_doc=p,
                 device_id=None,
                 source_time=dic.get("time"),
@@ -64,8 +81,3 @@ class DicMixin:
         if triggered > 0:
             self._log_info("DIC预警", triggered)
 
-    def _log_info(self, name: str, count: int) -> None:
-        import logging
-
-        logger = logging.getLogger("icu-alert")
-        logger.info(f"[{name}] 本轮触发 {count} 条预警")

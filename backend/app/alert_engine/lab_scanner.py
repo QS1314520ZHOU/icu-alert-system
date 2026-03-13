@@ -61,29 +61,54 @@ class LabScannerMixin:
                 if not item:
                     continue
                 value = item["value"]
+                raw_flag = str(item.get("raw_flag") or "").strip()
 
-                cond = rule["condition"]
-                op, thr = list(cond.items())[0]
-                if not _eval_condition(value, {"operator": op, "threshold": thr}):
-                    continue
+                rule_id = rule["rule_id"]
+                severity = rule["severity"]
+                name = rule["name"]
+                condition = None
 
-                if await self._is_suppressed(pid_str, rule["rule_id"], same_rule_sec, max_per_hour):
+                if rule["test"] == "trop":
+                    flag_lower = raw_flag.lower()
+                    if ("危急" in raw_flag) or ("critical" in flag_lower) or ("↑↑" in raw_flag):
+                        rule_id = "LAB_TROP_CRIT"
+                        severity = "critical"
+                        name = "肌钙蛋白危急升高"
+                        condition = {"flag": raw_flag}
+                    elif ("↑" in raw_flag) or ("high" in flag_lower):
+                        severity = "high"
+                        name = "肌钙蛋白显著升高"
+                        condition = {"flag": raw_flag}
+                    else:
+                        cond = rule["condition"]
+                        op, thr = list(cond.items())[0]
+                        if not _eval_condition(value, {"operator": op, "threshold": thr}):
+                            continue
+                        condition = {"operator": op, "threshold": thr}
+                else:
+                    cond = rule["condition"]
+                    op, thr = list(cond.items())[0]
+                    if not _eval_condition(value, {"operator": op, "threshold": thr}):
+                        continue
+                    condition = {"operator": op, "threshold": thr}
+
+                if await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                     continue
 
                 alert = await self._create_alert(
-                    rule_id=rule["rule_id"],
-                    name=rule["name"],
+                    rule_id=rule_id,
+                    name=name,
                     category="lab_results",
                     alert_type="lab_threshold",
-                    severity=rule["severity"],
+                    severity=severity,
                     parameter=rule["test"],
-                    condition={"operator": op, "threshold": thr},
+                    condition=condition or {},
                     value=value,
                     patient_id=pid_str,
                     patient_doc=p,
                     device_id=None,
                     source_time=item.get("time") or now,
-                    extra={"unit": item.get("unit"), "raw_name": item.get("raw_name")},
+                    extra={"unit": item.get("unit"), "raw_name": item.get("raw_name"), "raw_flag": raw_flag},
                 )
                 if alert:
                     triggered += 1
@@ -91,8 +116,3 @@ class LabScannerMixin:
         if triggered > 0:
             self._log_info("检验预警", triggered)
 
-    def _log_info(self, name: str, count: int) -> None:
-        import logging
-
-        logger = logging.getLogger("icu-alert")
-        logger.info(f"[{name}] 本轮触发 {count} 条预警")

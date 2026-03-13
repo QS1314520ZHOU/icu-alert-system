@@ -119,7 +119,10 @@
                     <div class="alert-sub">
                       {{ fmtTime(item.created_at) }} · {{ item.parameter || '' }}
                       {{ item.condition?.operator || '' }} {{ item.condition?.threshold || '' }}
+                      <span v-if="item.category"> · {{ item.category }}</span>
+                      <span v-if="item.alert_type"> · {{ item.alert_type }}</span>
                     </div>
+                    <pre v-if="item.extra" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
                   </div>
                 </div>
                 <div class="alert-value">{{ item.value ?? '—' }}</div>
@@ -286,6 +289,14 @@ function fmtTime(t: any) {
 function fmtTimeShort(t: any) {
   if (!t) return ''
   try { return dayjs(t).format('MM-DD HH:mm') } catch { return '' }
+}
+
+function formatAlertExtra(extra: any) {
+  try {
+    return JSON.stringify(extra, null, 2)
+  } catch {
+    return ''
+  }
 }
 
 function labFlag(item: any) {
@@ -533,6 +544,13 @@ onMounted(async () => {
   font-family: 'JetBrains Mono', 'Consolas', monospace;
   color: #e5e7eb;
   font-weight: 700;
+}
+.alert-extra {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.4;
 }
 .ai-grid {
   display: grid;

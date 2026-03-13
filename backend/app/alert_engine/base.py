@@ -122,26 +122,26 @@ def _detect_trend(values: list[float], window: int = 5) -> dict:
 # =============================================
 # 检验结果解析工具
 # =============================================
-_LAB_TESTS = {
-    "k": {"keywords": ["钾", "potassium", "k+"], "unit": "mmol/L"},
-    "na": {"keywords": ["钠", "sodium", "na+"], "unit": "mmol/L"},
-    "ica": {"keywords": ["离子钙", "离子鈣", "ionized calcium", "ica"], "unit": "mmol/L"},
-    "ca": {"keywords": ["钙", "calcium"], "unit": "mmol/L"},
-    "lac": {"keywords": ["乳酸", "lactate", "lac"], "unit": "mmol/L"},
-    "glu": {"keywords": ["葡萄糖", "血糖", "glucose", "glu"], "unit": "mmol/L"},
-    "hb": {"keywords": ["血红蛋白", "血紅蛋白", "hemoglobin", "hb"], "unit": "g/L"},
-    "plt": {"keywords": ["血小板", "platelet", "plt"], "unit": "10^9/L"},
-    "cr": {"keywords": ["肌酐", "creatinine", "cr"], "unit": "umol/L"},
-    "pct": {"keywords": ["降钙素原", "pCT", "procalcitonin"], "unit": "ng/mL"},
-    "inr": {"keywords": ["inr"], "unit": ""},
-    "pt": {"keywords": ["凝血酶原时间", "pt"], "unit": "s"},
-    "fib": {"keywords": ["纤维蛋白原", "fibrinogen", "fib"], "unit": "g/L"},
-    "ddimer": {"keywords": ["d-dimer", "d二聚体", "d二聚体"], "unit": ""},
-    "trop": {"keywords": ["肌钙蛋白", "troponin"], "unit": ""},
-    "bnp": {"keywords": ["bnp", "nt-probnp", "ntprobnp"], "unit": "pg/mL"},
-    "bil": {"keywords": ["胆红素", "bilirubin", "tbil"], "unit": "umol/L"},
-    "pao2": {"keywords": ["pao2", "po2", "氧分压"], "unit": "mmHg"},
-}
+_LAB_TESTS_ORDERED = [
+    ("ica", {"keywords": ["离子钙", "离子鈣", "ionized calcium", "ica", "ica²⁺"], "unit": "mmol/L"}),
+    ("ca", {"keywords": ["总钙", "钙", "calcium", "ca"], "unit": "mmol/L"}),
+    ("k", {"keywords": ["钾", "potassium", "k+"], "unit": "mmol/L"}),
+    ("na", {"keywords": ["钠", "sodium", "na+"], "unit": "mmol/L"}),
+    ("lac", {"keywords": ["乳酸", "lactate", "lac"], "unit": "mmol/L"}),
+    ("glu", {"keywords": ["葡萄糖", "血糖", "glucose", "glu"], "unit": "mmol/L"}),
+    ("hb", {"keywords": ["血红蛋白", "血紅蛋白", "hemoglobin", "hb"], "unit": "g/L"}),
+    ("plt", {"keywords": ["血小板", "platelet", "plt"], "unit": "10^9/L"}),
+    ("cr", {"keywords": ["肌酐", "creatinine", "cr"], "unit": "umol/L"}),
+    ("pct", {"keywords": ["降钙素原", "pct", "procalcitonin"], "unit": "ng/mL"}),
+    ("inr", {"keywords": ["inr"], "unit": ""}),
+    ("pt", {"keywords": ["凝血酶原时间", "pt"], "unit": "s"}),
+    ("fib", {"keywords": ["纤维蛋白原", "fibrinogen", "fib"], "unit": "g/L"}),
+    ("ddimer", {"keywords": ["d-dimer", "d二聚体", "d二聚体"], "unit": ""}),
+    ("trop", {"keywords": ["肌钙蛋白", "troponin"], "unit": ""}),
+    ("bnp", {"keywords": ["bnp", "nt-probnp", "ntprobnp"], "unit": "pg/mL"}),
+    ("bil", {"keywords": ["胆红素", "bilirubin", "tbil"], "unit": "umol/L"}),
+    ("pao2", {"keywords": ["pao2", "po2", "氧分压"], "unit": "mmHg"}),
+]
 
 
 def _parse_number(value: Any) -> float | None:
@@ -196,7 +196,7 @@ def _match_lab_test(name: str) -> str | None:
     if not name:
         return None
     n = str(name).lower()
-    for k, meta in _LAB_TESTS.items():
+    for k, meta in _LAB_TESTS_ORDERED:
         for kw in meta["keywords"]:
             if kw.lower() in n:
                 return k
@@ -216,6 +216,9 @@ class BaseEngine:
         self.db = db
         self.config = config
         self.ws = ws_manager
+
+    def _log_info(self, name: str, count: int) -> None:
+        logger.info(f"[{name}] 本轮触发 {count} 条预警")
 
     def _cfg(self, *path, default=None):
         cfg = self.config.yaml_cfg
@@ -331,6 +334,31 @@ class BaseEngine:
                 points.append({"time": doc.get("recordTime"), "value": v})
         return points
 
+    async def _get_assessment_value_in_window(self, pid, kind: str, start: datetime, end: datetime) -> float | None:
+        code = self._cfg("assessments", kind, "code", default=None)
+        if not code:
+            return None
+
+        doc = await self.db.col("score_records").find_one(
+            {"patient_id": pid, "score_type": kind, "calc_time": {"$gte": start, "$lte": end}},
+            sort=[("calc_time", -1)]
+        )
+        if doc:
+            val = doc.get("score") or doc.get("value") or doc.get("score_value")
+            num = _parse_number(val)
+            if num is not None:
+                return num
+
+        cursor = self.db.col("bedside").find(
+            {"pid": pid, "recordTime": {"$gte": start, "$lte": end}},
+            {"recordTime": 1, "params": 1},
+        ).sort("recordTime", -1).limit(50)
+        async for doc in cursor:
+            v = _extract_param(doc, code)
+            if v is not None:
+                return v
+        return None
+
     async def _get_gcs_drop(self, pid) -> dict | None:
         series = await self._get_assessment_series(pid, "gcs", hours=24)
         if len(series) < 2:
@@ -399,15 +427,25 @@ class BaseEngine:
                 "unit": unit,
                 "raw_name": name,
                 "raw_value": raw_val,
+                "raw_flag": doc.get("resultFlag") or doc.get("flag") or doc.get("abnormalFlag"),
             }
         return results
 
-    async def _get_lab_series(self, his_pid, test_key: str, since: datetime, limit: int = 200) -> list[dict]:
+    async def _get_lab_series(
+        self,
+        his_pid,
+        test_key: str,
+        since: datetime,
+        end: datetime | None = None,
+        limit: int = 200,
+    ) -> list[dict]:
         cursor = self.db.dc_col("VI_ICU_EXAM_ITEM").find({"hisPid": his_pid}).sort("requestTime", -1).limit(limit)
         series = []
         async for doc in cursor:
             t = _lab_time(doc)
             if not t or t < since:
+                continue
+            if end and t > end:
                 continue
             name = doc.get("itemCnName") or doc.get("itemName") or doc.get("item")
             if _match_lab_test(name) != test_key:
@@ -480,10 +518,10 @@ class BaseEngine:
                 liver_score = 1
 
         map_value = self._get_map(cap) if cap else None
-        on_vaso = await self._has_vasopressor(pid)
+        vaso_level = await self._get_vasopressor_level(pid)
         cardio_score = 0
-        if on_vaso:
-            cardio_score = 3
+        if vaso_level > 0:
+            cardio_score = vaso_level
         elif map_value is not None and map_value < 70:
             cardio_score = 1
 
@@ -516,9 +554,16 @@ class BaseEngine:
         baseline_score = 0
         baseline_available = False
         if his_pid:
-            since = datetime.now() - timedelta(hours=48)
+            admission_time = _parse_dt(patient_doc.get("icuAdmissionTime"))
+            if admission_time:
+                baseline_start = admission_time - timedelta(hours=24)
+                baseline_end = admission_time + timedelta(hours=24)
+            else:
+                baseline_start = datetime.now() - timedelta(days=7)
+                baseline_end = datetime.now() - timedelta(hours=48)
+
             baseline_available = True
-            if (series := await self._get_lab_series(his_pid, "pao2", since)):
+            if (series := await self._get_lab_series(his_pid, "pao2", baseline_start, baseline_end)):
                 pf_list = []
                 for s in series:
                     if fio2_frac:
@@ -533,7 +578,7 @@ class BaseEngine:
                         baseline_score += 2
                     elif pf_best < 400:
                         baseline_score += 1
-            if (series := await self._get_lab_series(his_pid, "plt", since)):
+            if (series := await self._get_lab_series(his_pid, "plt", baseline_start, baseline_end)):
                 best = max(s["value"] for s in series)
                 if best < 20:
                     baseline_score += 4
@@ -543,7 +588,7 @@ class BaseEngine:
                     baseline_score += 2
                 elif best < 150:
                     baseline_score += 1
-            if (series := await self._get_lab_series(his_pid, "bil", since)):
+            if (series := await self._get_lab_series(his_pid, "bil", baseline_start, baseline_end)):
                 best = min(s["value"] for s in series)
                 if best > 204:
                     baseline_score += 4
@@ -553,7 +598,7 @@ class BaseEngine:
                     baseline_score += 2
                 elif best >= 20:
                     baseline_score += 1
-            if (series := await self._get_lab_series(his_pid, "cr", since)):
+            if (series := await self._get_lab_series(his_pid, "cr", baseline_start, baseline_end)):
                 best = min(s["value"] for s in series)
                 if best > 440:
                     baseline_score += 4
@@ -563,14 +608,14 @@ class BaseEngine:
                     baseline_score += 2
                 elif best >= 110:
                     baseline_score += 1
-            if gcs is not None:
-                if gcs < 6:
+            if (baseline_gcs := await self._get_assessment_value_in_window(pid, "gcs", baseline_start, baseline_end)) is not None:
+                if baseline_gcs < 6:
                     baseline_score += 4
-                elif gcs < 10:
+                elif baseline_gcs < 10:
                     baseline_score += 3
-                elif gcs < 13:
+                elif baseline_gcs < 13:
                     baseline_score += 2
-                elif gcs < 15:
+                elif baseline_gcs < 15:
                     baseline_score += 1
         else:
             baseline_available = False
@@ -617,7 +662,7 @@ class BaseEngine:
         for key in ["weight", "bodyWeight", "body_weight", "weightKg", "weight_kg"]:
             val = patient_doc.get(key)
             num = _parse_number(val)
-            if num is not None and num > 0:
+            if num is not None and 20 < num < 300:
                 return num
         return None
 
@@ -790,13 +835,27 @@ class BaseEngine:
                 names.append(name)
         return names
 
-    async def _has_vasopressor(self, pid) -> bool:
+    async def _get_vasopressor_level(self, pid) -> int:
+        """返回心血管SOFA子分: 0-4（剂量未知时保守估计）"""
         drugs = await self._get_recent_drugs(pid, hours=6)
         if not drugs:
-            return False
-        default_vaso = ["去甲肾上腺素", "肾上腺素", "多巴胺", "去氧肾上腺素", "血管加压素"]
-        vaso_kw = self._get_cfg_list(("alert_engine", "drug_mapping", "vasopressors"), default_vaso)
-        return any(any(k in d for k in vaso_kw) for d in drugs)
+            return 0
+
+        drug_text = " ".join(drugs).lower()
+        has_dopa = "多巴胺" in drug_text
+        has_dobu = "多巴酚丁胺" in drug_text
+        has_ne = "去甲肾上腺素" in drug_text
+        has_epi = ("肾上腺素" in drug_text) and ("去甲" not in drug_text)
+        has_vaso = "血管加压素" in drug_text
+
+        if has_ne or has_epi or has_vaso:
+            return 3
+        if has_dopa or has_dobu:
+            return 2
+        return 0
+
+    async def _has_vasopressor(self, pid) -> bool:
+        return (await self._get_vasopressor_level(pid)) > 0
 
     # =============================================
     # 通用方法
