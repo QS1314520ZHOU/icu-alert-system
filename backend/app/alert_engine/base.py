@@ -136,7 +136,7 @@ _LAB_TESTS_ORDERED = [
     ("inr", {"keywords": ["inr"], "unit": ""}),
     ("pt", {"keywords": ["凝血酶原时间", "pt"], "unit": "s"}),
     ("fib", {"keywords": ["纤维蛋白原", "fibrinogen", "fib"], "unit": "g/L"}),
-    ("ddimer", {"keywords": ["d-dimer", "d二聚体", "d二聚体"], "unit": "mg/L"}),
+    ("ddimer", {"keywords": ["d-dimer", "d二聚体", "d-二聚体", "fdp"], "unit": "mg/L"}),
     ("trop", {"keywords": ["肌钙蛋白", "troponin"], "unit": ""}),
     ("bnp", {"keywords": ["bnp", "nt-probnp", "ntprobnp"], "unit": "pg/mL"}),
     ("bil", {"keywords": ["胆红素", "bilirubin", "tbil"], "unit": "umol/L"}),
@@ -199,10 +199,10 @@ def _convert_lab_value(test_key: str, value: float, unit: str) -> float:
         if "mg/dl" in u:
             converted = value * 10.0
             return converted * 2 if is_ddu else converted
-        if "ug/l" in u or "µg/l" in u or "ng/ml" in u:
+        if "ug/l" in u or "ng/ml" in u:
             converted = value / 1000.0
             return converted * 2 if is_ddu else converted
-        if "ug/ml" in u or "µg/ml" in u:
+        if "ug/ml" in u:
             return value * 2 if is_ddu else value
         if "ng/l" in u:
             converted = value / 1_000_000.0

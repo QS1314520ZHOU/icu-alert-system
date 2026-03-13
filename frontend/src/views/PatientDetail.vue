@@ -122,7 +122,13 @@
                       <span v-if="item.category"> · {{ item.category }}</span>
                       <span v-if="item.alert_type"> · {{ item.alert_type }}</span>
                     </div>
-                    <pre v-if="item.extra" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
+                    <div v-if="alertDetailFields(item).length" class="alert-detail-grid">
+                      <div v-for="f in alertDetailFields(item)" :key="f.label" class="alert-detail-item">
+                        <span class="detail-label">{{ f.label }}</span>
+                        <span class="detail-value">{{ f.value ?? '—' }}</span>
+                      </div>
+                    </div>
+                    <pre v-else-if="item.extra" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
                   </div>
                 </div>
                 <div class="alert-value">{{ item.value ?? '—' }}</div>
@@ -289,6 +295,117 @@ function fmtTime(t: any) {
 function fmtTimeShort(t: any) {
   if (!t) return ''
   try { return dayjs(t).format('MM-DD HH:mm') } catch { return '' }
+}
+
+function alertDetailFields(item: any) {
+  const t = String(item?.alert_type || '')
+  const extra = item?.extra || {}
+  const fields: { label: string, value: any }[] = []
+
+  if (t === 'sofa' || t === 'septic_shock') {
+    const sofa = extra?.sofa || extra
+    const comps = sofa?.components || {}
+    fields.push(
+      { label: 'SOFA', value: sofa?.score ?? item?.value },
+      { label: 'ΔSOFA', value: sofa?.delta },
+      { label: '呼吸', value: comps?.resp },
+      { label: '凝血', value: comps?.coag },
+      { label: '肝脏', value: comps?.liver },
+      { label: '循环', value: comps?.cardio },
+      { label: '神经', value: comps?.neuro },
+      { label: '肾脏', value: comps?.renal },
+    )
+    return fields
+  }
+
+  if (t === 'ards') {
+    fields.push(
+      { label: 'P/F', value: item?.value ?? item?.condition?.pf_ratio },
+      { label: 'PaO₂', value: extra?.pao2 },
+      { label: 'FiO₂', value: extra?.fio2 },
+      { label: 'PEEP', value: extra?.peep },
+    )
+    return fields
+  }
+
+  if (t === 'aki') {
+    const cond = extra?.condition || {}
+    fields.push(
+      { label: '分期', value: extra?.stage ?? item?.value },
+      { label: '当前Cr', value: extra?.current },
+      { label: '基线Cr', value: extra?.baseline },
+      { label: 'Δ48h', value: cond?.delta_48h },
+      { label: '尿量(6h)', value: cond?.urine_6h_ml_kg_h },
+      { label: '尿量(12h)', value: cond?.urine_12h_ml_kg_h },
+      { label: '尿量(24h)', value: cond?.urine_24h_ml_kg_h },
+    )
+    return fields
+  }
+
+  if (t === 'dic') {
+    const detail = extra?.detail || {}
+    fields.push(
+      { label: 'ISTH评分', value: extra?.score ?? item?.value },
+      { label: 'PLT', value: detail?.plt },
+      { label: 'D-Dimer', value: detail?.ddimer },
+      { label: 'PT/INR', value: detail?.pt },
+      { label: 'Fib', value: detail?.fib },
+    )
+    return fields
+  }
+
+  if (t === 'gcs_drop') {
+    fields.push(
+      { label: 'GCS下降', value: extra?.drop },
+      { label: '基线GCS', value: extra?.baseline },
+      { label: '当前GCS', value: extra?.current },
+    )
+    return fields
+  }
+
+  if (t === 'icp' || t === 'cpp') {
+    fields.push({ label: '当前值', value: item?.value })
+    return fields
+  }
+
+  if (t === 'gi_bleeding') {
+    fields.push(
+      { label: 'Hb下降', value: item?.condition?.drop },
+      { label: 'HR', value: extra?.hr },
+      { label: 'SBP', value: extra?.sbp },
+    )
+    return fields
+  }
+
+  if (t === 'weaning') {
+    fields.push(
+      { label: 'FiO₂', value: extra?.fio2 },
+      { label: 'PEEP', value: extra?.peep },
+      { label: 'MAP', value: extra?.map },
+      { label: 'GCS', value: extra?.gcs },
+    )
+    return fields
+  }
+
+  if (t === 'hit' || t === 'nephrotoxicity') {
+    fields.push(
+      { label: '当前值', value: item?.value },
+      { label: '基线', value: extra?.baseline },
+    )
+    return fields
+  }
+
+  if (t === 'sedation') {
+    fields.push({ label: 'RASS', value: extra?.rass })
+    return fields
+  }
+
+  if (t === 'qt_risk') {
+    fields.push({ label: '药物数量', value: item?.value })
+    return fields
+  }
+
+  return []
 }
 
 function formatAlertExtra(extra: any) {
@@ -545,6 +662,25 @@ onMounted(async () => {
   color: #e5e7eb;
   font-weight: 700;
 }
+.alert-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+.alert-detail-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #9ca3af;
+  background: #0b1626;
+  border: 1px solid #14243b;
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+.detail-label { color: #7aa2d6; }
+.detail-value { color: #e5e7eb; font-weight: 600; }
 .alert-extra {
   margin-top: 6px;
   white-space: pre-wrap;
