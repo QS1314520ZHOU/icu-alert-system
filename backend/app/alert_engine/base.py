@@ -136,7 +136,7 @@ _LAB_TESTS_ORDERED = [
     ("inr", {"keywords": ["inr"], "unit": ""}),
     ("pt", {"keywords": ["凝血酶原时间", "pt"], "unit": "s"}),
     ("fib", {"keywords": ["纤维蛋白原", "fibrinogen", "fib"], "unit": "g/L"}),
-    ("ddimer", {"keywords": ["d-dimer", "d二聚体", "d二聚体"], "unit": ""}),
+    ("ddimer", {"keywords": ["d-dimer", "d二聚体", "d二聚体"], "unit": "mg/L"}),
     ("trop", {"keywords": ["肌钙蛋白", "troponin"], "unit": ""}),
     ("bnp", {"keywords": ["bnp", "nt-probnp", "ntprobnp"], "unit": "pg/mL"}),
     ("bil", {"keywords": ["胆红素", "bilirubin", "tbil"], "unit": "umol/L"}),
@@ -187,6 +187,30 @@ def _convert_lab_value(test_key: str, value: float, unit: str) -> float:
     if test_key == "pao2":
         if "kpa" in u:
             return value * 7.5
+        return value
+
+    if test_key == "ddimer":
+        # 标准化为 mg/L FEU
+        # DDU 单位需 ×2 换算为 FEU（DDU ≈ FEU / 2）
+        is_ddu = "ddu" in u
+        if "g/l" in u:
+            converted = value * 1000.0
+            return converted * 2 if is_ddu else converted
+        if "mg/dl" in u:
+            converted = value * 10.0
+            return converted * 2 if is_ddu else converted
+        if "ug/l" in u or "µg/l" in u or "ng/ml" in u:
+            converted = value / 1000.0
+            return converted * 2 if is_ddu else converted
+        if "ug/ml" in u or "µg/ml" in u:
+            return value * 2 if is_ddu else value
+        if "ng/l" in u:
+            converted = value / 1_000_000.0
+            return converted * 2 if is_ddu else converted
+        if "mg/l" in u or not u:
+            # mg/L 直接使用; 无单位时假定 mg/L（最常见 ICU 报告单位）
+            return value * 2 if is_ddu else value
+        logger.warning(f"D-Dimer 单位无法识别: '{unit}'，按 mg/L FEU 处理")
         return value
 
     return value
@@ -751,6 +775,8 @@ class BaseEngine:
             else:
                 detail["plt"] = 0
 
+        # D-Dimer 阈值基于 ISTH DIC 评分标准，单位: mg/L FEU
+        # _convert_lab_value 已将 µg/L、ng/mL、DDU 等统一换算为 mg/L FEU
         dd = labs.get("ddimer", {}).get("value")
         if dd is not None:
             if dd >= 5:
@@ -838,7 +864,27 @@ class BaseEngine:
         return names
 
     async def _get_vasopressor_level(self, pid) -> int:
-        """返回心血管SOFA子分: 0-4（剂量未知时保守估计）"""
+        """
+        返回心血管SOFA子分: 0-4（剂量未知时保守估计）
+
+        SOFA 心血管评分标准 (Vincent 1996):
+          - 0分: MAP ≥ 70 mmHg
+          - 1分: MAP < 70 mmHg
+          - 2分: 多巴胺 ≤5 µg/kg/min 或任意剂量多巴酚丁胺
+          - 3分: 去甲肾上腺素/肾上腺素 ≤0.1 µg/kg/min 或多巴胺 >5
+          - 4分: 去甲肾上腺素/肾上腺素 >0.1 µg/kg/min 或多巴胺 >15
+
+        当前系统限制:
+          - drugExe 记录仅含药品名称，无法获取实时输注速率（µg/kg/min）
+          - 从 drugName 自由文本中提取剂量既脆弱又易出错
+
+        保守策略:
+          - 去甲肾上腺素/肾上腺素/血管加压素 → 3分（不评4分，因无法确认剂量 >0.1）
+          - 多巴胺/多巴酚丁胺 → 2分（使用最低升压药评分）
+          - 避免SOFA过高估计导致误报脓毒症/脓毒性休克
+
+        未来改进: 接入输液泵数据可实现精确剂量计算，区分3分与4分
+        """
         drugs = await self._get_recent_drugs(pid, hours=6)
         if not drugs:
             return 0
@@ -847,6 +893,7 @@ class BaseEngine:
         has_epi = any(("肾上腺素" in d) and ("去甲" not in d) for d in drugs)
         has_vaso = any("血管加压素" in d for d in drugs)
         has_dopa = any(("多巴胺" in d) and ("多巴酚" not in d) for d in drugs)
+        # 多巴酚丁胺是正性肌力药（非血管升压药），但 SOFA 心血管评分纳入
         has_dobu = any("多巴酚丁胺" in d for d in drugs)
 
         if has_ne or has_epi or has_vaso:

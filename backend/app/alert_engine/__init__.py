@@ -65,7 +65,7 @@ class AlertEngine(
             asyncio.create_task(self._loop("ai_analysis", self.scan_ai_risk, 1800)),
             asyncio.create_task(self._loop("nurse_reminders", self.scan_nurse_reminders, int(intervals.get("assessments", 600)))),
         ]
-        logger.info("✅ 预警引擎启动完成 (12 个扫描任务)")
+        logger.info(f"✅ 预警引擎启动完成 ({len(self._tasks)} 个扫描任务)")
 
     async def stop(self) -> None:
         self._stop_event.set()
