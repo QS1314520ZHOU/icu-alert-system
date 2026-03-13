@@ -131,6 +131,14 @@ alert_engine:
   scan_intervals:
     vital_signs: 60
     lab_results: 300
+    sepsis: 300
+    ards: 300
+    aki: 600
+    dic: 900
+    tbi: 300
+    bleeding: 600
+    ventilator: 3600
+    drug_safety: 1800
     assessments: 600
     trend_analysis: 900
 
@@ -142,6 +150,19 @@ alert_engine:
   suppression:
     same_rule_same_patient_seconds: 1800
     max_alerts_per_patient_per_hour: 10
+
+  data_mapping:
+    urine_output:
+      codes: ["param_urine", "param_尿量", "urine_output", "urine_ml_h"]
+    icp_codes: ["param_ICP", "param_icp"]
+    cpp_codes: ["param_CPP", "param_cpp"]
+
+  drug_mapping:
+    vasopressors: ["去甲肾上腺素", "肾上腺素", "多巴胺", "去氧肾上腺素", "血管加压素"]
+    heparin: ["肝素"]
+    vancomycin: ["万古霉素"]
+    sedatives: ["咪达唑仑", "丙泊酚", "右美托咪定", "地西泮", "芬太尼", "瑞芬太尼"]
+    qt_risk: ["胺碘酮", "左氧氟沙星", "环丙沙星", "红霉素", "阿奇霉素", "氟哌啶醇", "奥氮平", "喹硫平"]
 
 # ==================== 护理提醒 ====================
 nurse_reminders:
