@@ -13,9 +13,12 @@ class AiRiskMixin:
         if not ai_cfg:
             return
 
+        base_url = str(self.config.settings.LLM_BASE_URL or "").lower()
         llm_key = self.config.settings.LLM_API_KEY
-        if not llm_key or llm_key in ("ollama", "your_api_key", ""):
-            return
+        is_ollama = ("ollama" in base_url) or ("11434" in base_url)
+        if not is_ollama:
+            if not llm_key or llm_key in ("your_api_key", ""):
+                return
 
         binds = [b async for b in self.db.col("deviceBind").find({"unBindTime": None}, {"pid": 1, "deviceID": 1})]
         if not binds:

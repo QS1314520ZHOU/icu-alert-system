@@ -567,6 +567,8 @@ class BaseEngine:
                 pf_list = []
                 for s in series:
                     if fio2_frac:
+                        # NOTE: 基线P/F使用当前FiO2近似，可能导致SOFA呼吸子分baseline偏高
+                        # 理想实现应使用基线时间窗内的FiO2，但呼吸机历史参数可能不完整
                         pf_list.append(s["value"] / fio2_frac)
                 if pf_list:
                     pf_best = max(pf_list)
@@ -841,12 +843,11 @@ class BaseEngine:
         if not drugs:
             return 0
 
-        drug_text = " ".join(drugs).lower()
-        has_dopa = "多巴胺" in drug_text
-        has_dobu = "多巴酚丁胺" in drug_text
-        has_ne = "去甲肾上腺素" in drug_text
-        has_epi = ("肾上腺素" in drug_text) and ("去甲" not in drug_text)
-        has_vaso = "血管加压素" in drug_text
+        has_ne = any("去甲肾上腺素" in d for d in drugs)
+        has_epi = any(("肾上腺素" in d) and ("去甲" not in d) for d in drugs)
+        has_vaso = any("血管加压素" in d for d in drugs)
+        has_dopa = any(("多巴胺" in d) and ("多巴酚" not in d) for d in drugs)
+        has_dobu = any("多巴酚丁胺" in d for d in drugs)
 
         if has_ne or has_epi or has_vaso:
             return 3
