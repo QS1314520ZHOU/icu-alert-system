@@ -113,6 +113,12 @@ class AppConfig:
         )
 
     @property
+    def llm_model_medical(self) -> str:
+        return self.yaml_cfg.get("ai", {}).get(
+            "llm_model_medical", self.settings.LLM_MODEL_MEDICAL
+        )
+
+    @property
     def redis_url(self) -> str:
         if self.settings.REDIS_PASSWORD:
             encoded_pwd = quote_plus(str(self.settings.REDIS_PASSWORD))
