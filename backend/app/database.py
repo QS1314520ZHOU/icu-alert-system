@@ -120,6 +120,12 @@ class DatabaseManager:
                 [("patient_id", 1), ("score_type", 1), ("calc_time", -1)]
             )
 
+            # 护理提醒索引
+            reminder_col = self.col("nurse_reminders")
+            await reminder_col.create_index(
+                [("patient_id", 1), ("score_type", 1), ("is_active", 1)]
+            )
+
             logger.info("✅ 预警系统索引创建完成")
         except Exception as e:
             logger.warning(f"创建索引时出错（非致命）: {e}")

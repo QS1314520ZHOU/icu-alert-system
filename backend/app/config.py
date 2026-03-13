@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "http://127.0.0.1:11434/v1"
     LLM_API_KEY: str = "ollama"
     LLM_MODEL: str = "qwen2.5:32b"
+    LLM_MODEL_MEDICAL: str = ""
+    LLM_FALLBACK_MODEL: str = ""
 
     # Security
     SECRET_KEY: str = "change-me-in-production"

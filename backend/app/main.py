@@ -1,17 +1,22 @@
 """
 ICU智能预警系统 - FastAPI 主入口 (v2 - 专业临床界面)
 """
+import asyncio
 import logging
 import re
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Any
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
+import httpx
 
 from app.config import get_config
 from app.database import DatabaseManager
+from app.ws_manager import WebSocketManager
+from app.alert_engine import AlertEngine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,13 +26,17 @@ logger = logging.getLogger("icu-alert")
 
 config = get_config()
 db = DatabaseManager(config)
+ws_manager = WebSocketManager()
+alert_engine = AlertEngine(db, config, ws_manager)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 ICU智能预警系统 v2 启动中...")
     await db.connect()
+    await alert_engine.start()
     yield
+    await alert_engine.stop()
     await db.disconnect()
     logger.info("ICU智能预警系统已关闭")
 
@@ -41,6 +50,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================
+#  WebSocket
+# ============================================================
+
+@app.websocket("/ws/alerts")
+async def ws_alerts(ws: WebSocket):
+    await ws_manager.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        await ws_manager.disconnect(ws)
+    except Exception:
+        await ws_manager.disconnect(ws)
 
 
 # ============================================================
@@ -99,6 +123,102 @@ def calc_icu_days(icu_time) -> int:
         return (datetime.now() - icu_time.replace(tzinfo=None)).days
     except Exception:
         return -1
+
+
+def parse_dt(value) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def safe_object_id(value) -> ObjectId | None:
+    if isinstance(value, ObjectId):
+        return value
+    try:
+        return ObjectId(str(value))
+    except Exception:
+        return None
+
+
+def parse_window(window: str) -> tuple[timedelta, str]:
+    w = (window or "24h").lower().strip()
+    if w.endswith("h"):
+        try:
+            hours = int(w[:-1])
+            return timedelta(hours=hours), f"{hours}h"
+        except Exception:
+            pass
+    if w.endswith("d"):
+        try:
+            days = int(w[:-1])
+            return timedelta(days=days), f"{days}d"
+        except Exception:
+            pass
+    return timedelta(hours=24), "24h"
+
+
+async def fetch_patient(patient_id: str) -> tuple[dict | None, list]:
+    oid = safe_object_id(patient_id)
+    patient = None
+    if oid:
+        patient = await db.col("patient").find_one({"_id": oid})
+    if not patient:
+        patient = await db.col("patient").find_one({"_id": patient_id})
+    pid_candidates = [patient_id]
+    if oid:
+        pid_candidates.append(oid)
+    if patient and patient.get("_id") not in pid_candidates:
+        pid_candidates.append(patient.get("_id"))
+    return patient, pid_candidates
+
+
+async def fetch_bind_device_id(pid_candidates: list) -> str | None:
+    bind = await db.col("deviceBind").find_one(
+        {"pid": {"$in": pid_candidates}, "unBindTime": None},
+        {"deviceID": 1}
+    )
+    if not bind:
+        return None
+    return bind.get("deviceID")
+
+
+async def call_llm(messages: list[dict[str, str]], model: str | None = None) -> dict[str, Any]:
+    base = (config.settings.LLM_BASE_URL or "").rstrip("/")
+    api_key = config.settings.LLM_API_KEY
+    if not base:
+        return {"error": "LLM_BASE_URL 未配置"}
+    model_name = model or config.settings.LLM_MODEL
+    if not model_name:
+        return {"error": "LLM_MODEL 未配置"}
+
+    ai_cfg = config.yaml_cfg.get("ai_service", {}).get("llm", {})
+    timeout = int(ai_cfg.get("timeout", 60))
+    temperature = float(ai_cfg.get("temperature", 0.1))
+    max_tokens = int(ai_cfg.get("max_tokens", 1024))
+
+    url = f"{base}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    payload = {
+        "model": model_name,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            return {"content": content}
+    except Exception as e:
+        return {"error": f"LLM 调用失败: {e}"}
 
 
 def infer_clinical_tags(patient: dict, vitals: dict, nursing_level: str = "") -> list:
@@ -350,6 +470,303 @@ async def get_patient_labs(patient_id: str):
         "name": patient.get("name", ""),
         "his_pid": his_pid,
         "exams": exams
+    }
+
+
+@app.get("/api/patients/{patient_id}/vitals/trend")
+async def get_patient_vitals_trend(
+    patient_id: str,
+    window: str = Query(default="24h", description="时间窗口: 24h/48h/7d")
+):
+    patient, pid_candidates = await fetch_patient(patient_id)
+    if not patient:
+        return {"error": "患者不存在"}
+
+    device_id = await fetch_bind_device_id(pid_candidates)
+    if not device_id:
+        return {
+            "patient_id": patient_id,
+            "device_id": None,
+            "window": window,
+            "points": []
+        }
+
+    delta, window_key = parse_window(window)
+    start = datetime.now() - delta
+
+    cursor = db.col("deviceCap").find(
+        {"deviceID": device_id, "time": {"$gte": start}},
+        {
+            "time": 1,
+            "param_HR": 1,
+            "param_resp": 1,
+            "param_spo2": 1,
+            "param_T": 1,
+            "param_nibp_s": 1,
+            "param_nibp_d": 1,
+            "param_nibp_m": 1,
+            "param_ibp_s": 1,
+            "param_ibp_d": 1,
+            "param_ibp_m": 1,
+        }
+    ).sort("time", 1).limit(5000)
+
+    points = []
+    async for doc in cursor:
+        t = doc.get("time")
+        if isinstance(t, datetime):
+            t = t.isoformat()
+        points.append({
+            "time": t,
+            "hr": doc.get("param_HR"),
+            "rr": doc.get("param_resp"),
+            "spo2": doc.get("param_spo2"),
+            "temp": doc.get("param_T"),
+            "nibp_sys": doc.get("param_nibp_s"),
+            "nibp_dia": doc.get("param_nibp_d"),
+            "nibp_map": doc.get("param_nibp_m"),
+            "ibp_sys": doc.get("param_ibp_s"),
+            "ibp_dia": doc.get("param_ibp_d"),
+            "ibp_map": doc.get("param_ibp_m"),
+        })
+
+    return {
+        "patient_id": patient_id,
+        "device_id": device_id,
+        "window": window_key,
+        "points": points
+    }
+
+
+@app.get("/api/patients/{patient_id}/drugs")
+async def get_patient_drugs(patient_id: str, limit: int = Query(100, ge=1, le=500)):
+    patient, pid_candidates = await fetch_patient(patient_id)
+    if not patient:
+        return {"error": "患者不存在"}
+
+    cursor = db.col("drugExe").find(
+        {"pid": {"$in": pid_candidates}}
+    ).sort("executeTime", -1).limit(limit)
+
+    records = []
+    async for doc in cursor:
+        records.append(serialize_doc(doc))
+
+    return {
+        "patient_id": patient_id,
+        "records": records
+    }
+
+
+@app.get("/api/patients/{patient_id}/assessments")
+async def get_patient_assessments(patient_id: str, limit: int = Query(200, ge=1, le=500)):
+    patient, pid_candidates = await fetch_patient(patient_id)
+    if not patient:
+        return {"error": "患者不存在"}
+
+    assess_cfg = config.yaml_cfg.get("assessments", {})
+    if "braden" not in assess_cfg:
+        assess_cfg = {
+            **assess_cfg,
+            "braden": {"code": "param_score_braden", "name": "Braden评分"}
+        }
+
+    codes = [v.get("code") for v in assess_cfg.values() if v.get("code")]
+    if not codes:
+        return {"patient_id": patient_id, "records": []}
+
+    or_query = [{code: {"$exists": True}} for code in codes]
+    cursor = db.col("bedside").find(
+        {"pid": {"$in": pid_candidates}, "$or": or_query}
+    ).sort("recordTime", -1).limit(limit)
+
+    records = []
+    async for doc in cursor:
+        item = {
+            "time": serialize_doc({"t": doc.get("recordTime")}).get("t"),
+        }
+        for key, cfg in assess_cfg.items():
+            code = cfg.get("code")
+            if not code:
+                continue
+            item[key] = doc.get(code)
+        records.append(item)
+
+    return {
+        "patient_id": patient_id,
+        "records": records
+    }
+
+
+@app.get("/api/patients/{patient_id}/alerts")
+async def get_patient_alerts(patient_id: str, limit: int = Query(100, ge=1, le=500)):
+    oid = safe_object_id(patient_id)
+    pid_candidates: list[Any] = [patient_id]
+    if oid:
+        pid_candidates.extend([str(oid), oid])
+
+    cursor = db.col("alert_records").find(
+        {"patient_id": {"$in": pid_candidates}}
+    ).sort("created_at", -1).limit(limit)
+
+    records = []
+    async for doc in cursor:
+        records.append(serialize_doc(doc))
+
+    return {
+        "patient_id": patient_id,
+        "records": records
+    }
+
+
+@app.get("/api/alerts/recent")
+async def get_recent_alerts(limit: int = Query(50, ge=1, le=200)):
+    cursor = db.col("alert_records").find(
+        {}
+    ).sort("created_at", -1).limit(limit)
+
+    records = []
+    async for doc in cursor:
+        records.append(serialize_doc(doc))
+
+    return {
+        "records": records
+    }
+
+
+@app.get("/api/alerts/stats")
+async def get_alert_stats(window: str = Query(default="24h")):
+    delta, window_key = parse_window(window)
+    start = datetime.now() - delta
+
+    pipeline = [
+        {"$match": {"created_at": {"$gte": start}}},
+        {"$project": {
+            "hour": {"$dateToString": {"format": "%Y-%m-%d %H:00", "date": "$created_at"}},
+            "severity": 1
+        }},
+        {"$group": {
+            "_id": {"hour": "$hour", "severity": "$severity"},
+            "count": {"$sum": 1}
+        }},
+        {"$group": {
+            "_id": "$_id.hour",
+            "items": {"$push": {"severity": "$_id.severity", "count": "$count"}}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+
+    cursor = await db.col("alert_records").aggregate(pipeline)
+    raw = [doc async for doc in cursor]
+
+    series = []
+    for doc in raw:
+        row = {"time": doc["_id"], "warning": 0, "high": 0, "critical": 0}
+        for item in doc.get("items", []):
+            sev = item.get("severity") or "warning"
+            row[sev] = item.get("count", 0)
+        row["total"] = row["warning"] + row["high"] + row["critical"]
+        series.append(row)
+
+    return {
+        "window": window_key,
+        "series": series
+    }
+
+
+@app.get("/api/ai/lab-summary/{patient_id}")
+async def ai_lab_summary(patient_id: str):
+    patient, _ = await fetch_patient(patient_id)
+    if not patient or "hisPid" not in patient:
+        return {"error": "患者不存在或无HIS编号"}
+
+    his_pid = patient["hisPid"]
+    exam = await db.dc_col("VI_ICU_EXAM").find_one(
+        {"hisPid": his_pid},
+        sort=[("requestTime", -1)]
+    )
+    if not exam:
+        return {"error": "暂无检验数据"}
+
+    items = []
+    item_cursor = db.dc_col("VI_ICU_EXAM_ITEM").find({
+        "hisPid": his_pid,
+        "requestId": exam.get("requestId")
+    })
+    async for item in item_cursor:
+        items.append(serialize_doc(item))
+
+    prompt = (
+        f"患者: {patient.get('name','')} | 诊断: "
+        f"{patient.get('clinicalDiagnosis') or patient.get('admissionDiagnosis') or ''}\n"
+        f"最新检验(仅供分析): {items}\n"
+        "请找出可能异常或成组异常的指标，给出简洁的临床摘要和建议关注点。"
+    )
+    messages = [
+        {"role": "system", "content": "你是ICU临床智能助手，用中文回答，简洁明确。"},
+        {"role": "user", "content": prompt}
+    ]
+    res = await call_llm(messages, model=config.settings.LLM_MODEL_MEDICAL or None)
+    return {
+        "patient_id": patient_id,
+        "summary": res.get("content"),
+        "error": res.get("error"),
+        "exam": serialize_doc(exam)
+    }
+
+
+@app.get("/api/ai/rule-recommendations/{patient_id}")
+async def ai_rule_recommendations(patient_id: str):
+    patient, pid_candidates = await fetch_patient(patient_id)
+    if not patient:
+        return {"error": "患者不存在"}
+
+    device_id = await fetch_bind_device_id(pid_candidates)
+    latest_cap = None
+    if device_id:
+        latest_cap = await db.col("deviceCap").find_one(
+            {"deviceID": device_id},
+            sort=[("time", -1)]
+        )
+
+    prompt = (
+        f"患者: {patient.get('name','')} | 诊断: "
+        f"{patient.get('clinicalDiagnosis') or patient.get('admissionDiagnosis') or ''}\n"
+        f"最新生命体征: {serialize_doc(latest_cap) if latest_cap else '无'}\n"
+        "请根据诊断和体征，推荐应关注的预警规则(格式: 规则名, 参数, 阈值, 严重度)。"
+    )
+    messages = [
+        {"role": "system", "content": "你是ICU临床智能助手，用中文回答，条目化输出。"},
+        {"role": "user", "content": prompt}
+    ]
+    res = await call_llm(messages)
+    return {
+        "patient_id": patient_id,
+        "recommendations": res.get("content"),
+        "error": res.get("error")
+    }
+
+
+@app.get("/api/ai/risk-forecast/{patient_id}")
+async def ai_risk_forecast(patient_id: str):
+    trend = await get_patient_vitals_trend(patient_id, window="24h")
+    if trend.get("error"):
+        return trend
+    points = trend.get("points", [])[-80:]
+
+    prompt = (
+        f"患者生命体征趋势(最近24h): {points}\n"
+        "请根据趋势判断是否存在恶化风险，并给出简短理由与建议关注的指标。"
+    )
+    messages = [
+        {"role": "system", "content": "你是ICU临床智能助手，用中文回答，简洁判断。"},
+        {"role": "user", "content": prompt}
+    ]
+    res = await call_llm(messages)
+    return {
+        "patient_id": patient_id,
+        "risk_summary": res.get("content"),
+        "error": res.get("error")
     }
 
 

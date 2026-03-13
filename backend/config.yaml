@@ -104,6 +104,7 @@ assessments:
   pain:           { code: "param_tengTong_score",   name: "疼痛评分",    range: [0, 10] }
   delirium:       { code: "param_delirium_score",   name: "谵妄评分" }
   consciousness:  { code: "param_Yishi",            name: "意识" }
+  braden:         { code: "param_score_braden",     name: "Braden评分",  range: [0, 23] }
   pupil_left:     { code: "param_左瞳孔/光反射",    name: "左瞳孔" }
   pupil_right:    { code: "param_右瞳孔/光反射",    name: "右瞳孔" }
 

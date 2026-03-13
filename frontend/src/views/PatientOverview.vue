@@ -59,7 +59,7 @@
     <!-- ====== 卡片网格 ====== -->
     <section v-else class="grid">
       <article v-for="p in showList" :key="p._id"
-               :class="['card', `card--${p.alertLevel || 'none'}`]"
+               :class="['card', `card--${p.alertLevel || 'none'}`, { 'card--flash': p.alertFlash }]"
                @click="goDetail(p._id)">
 
         <!-- 行1: 床号 + 状态灯 -->
@@ -141,6 +141,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDepartments, getPatients, getPatientVitals } from '../api'
+import { onAlertMessage } from '../services/alertSocket'
 import maleChild from '../assets/avatars/male-child.svg'
 import maleAdult from '../assets/avatars/male-adult.svg'
 import maleElder from '../assets/avatars/male-elder.svg'
@@ -157,6 +158,7 @@ const curDept = ref('全部')
 const tagFilter = ref('')
 const alertFilter = ref('')
 let iv: any = null
+let offAlert: any = null
 
 const routeDeptCode = computed(() => {
   const raw = route.query.dept_code
@@ -217,13 +219,19 @@ const tagStats = computed(() => {
 const showList = computed(() => {
   let ls = byDept.value
   if (tagFilter.value) ls = ls.filter(p => (p.clinicalTags || []).some((t: any) => t.tag === tagFilter.value))
-  if (alertFilter.value) ls = ls.filter(p => p.alertLevel === alertFilter.value)
+  if (alertFilter.value) {
+    if (alertFilter.value === 'warning') {
+      ls = ls.filter(p => ['warning', 'high'].includes(p.alertLevel))
+    } else {
+      ls = ls.filter(p => p.alertLevel === alertFilter.value)
+    }
+  }
   return ls
 })
 
 /* ── 统计 ── */
 const criticalCount = computed(() => byDept.value.filter(p => p.alertLevel === 'critical').length)
-const warningCount = computed(() => byDept.value.filter(p => p.alertLevel === 'warning').length)
+const warningCount = computed(() => byDept.value.filter(p => ['warning', 'high'].includes(p.alertLevel)).length)
 const normalCount = computed(() => byDept.value.filter(p => p.alertLevel === 'normal').length)
 
 /* ── toggle ── */
@@ -322,6 +330,35 @@ function calcLevel(v: any): string {
   return 'normal'
 }
 
+function severityPriority(level: string) {
+  const p: Record<string, number> = { none: 0, normal: 1, warning: 2, high: 3, critical: 4 }
+  return p[level] ?? 0
+}
+
+function mergeAlertLevel(p: any, computed: string) {
+  const holdUntil = p.alertHoldUntil || 0
+  if (holdUntil > Date.now()) {
+    if (severityPriority(p.alertLevel || 'none') >= severityPriority(computed)) {
+      return p.alertLevel
+    }
+  }
+  return computed
+}
+
+function applyAlert(alert: any) {
+  const pid = String(alert?.patient_id || '')
+  if (!pid) return
+  const target = patients.value.find(p => String(p._id) === pid)
+  if (!target) return
+  const sev = String(alert?.severity || 'warning')
+  if (severityPriority(sev) >= severityPriority(target.alertLevel || 'none')) {
+    target.alertLevel = sev
+  }
+  target.alertHoldUntil = Date.now() + 30 * 60 * 1000
+  target.alertFlash = true
+  window.setTimeout(() => { target.alertFlash = false }, 15000)
+}
+
 /* ── fmt ── */
 function bp(v: any) {
   const s = v?.nibp_sys, d = v?.nibp_dia
@@ -382,7 +419,7 @@ async function load() {
     const done = await Promise.all(head.map(async (p: any) => {
       try { p.vitals = (await getPatientVitals(p._id)).data.vitals || {} }
       catch { p.vitals = {} }
-      p.alertLevel = calcLevel(p.vitals)
+      p.alertLevel = mergeAlertLevel(p, calcLevel(p.vitals))
       return p
     }))
 
@@ -407,7 +444,15 @@ watch(
 )
 
 onMounted(() => { iv = setInterval(load, 60000) })
-onUnmounted(() => clearInterval(iv))
+onMounted(() => {
+  offAlert = onAlertMessage(msg => {
+    if (msg?.type === 'alert') applyAlert(msg.data)
+  })
+})
+onUnmounted(() => {
+  clearInterval(iv)
+  if (offAlert) offAlert()
+})
 </script>
 
 <style scoped>
@@ -479,6 +524,10 @@ onUnmounted(() => clearInterval(iv))
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg) } }
+@keyframes flash-border {
+  0%, 100% { box-shadow: 0 0 0 rgba(239,68,68,0); }
+  50% { box-shadow: 0 0 18px rgba(239,68,68,0.35); }
+}
 
 /* ── 网格 ── */
 .grid {
@@ -515,7 +564,14 @@ onUnmounted(() => clearInterval(iv))
   border-color: #f59e0b28;
   background: linear-gradient(170deg, #1a150a 0%, #111119 35%);
 }
+.card--high {
+  border-color: #f9731628;
+  background: linear-gradient(170deg, #1a120a 0%, #111119 35%);
+}
 .card--normal { border-color: #22c55e18; }
+.card--flash {
+  animation: flash-border 1.2s ease-in-out infinite;
+}
 
 /* 床号 + 灯 */
 .card-head { display: flex; justify-content: space-between; align-items: center; }
@@ -553,6 +609,7 @@ onUnmounted(() => clearInterval(iv))
 }
 .lamp--critical { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: blink 1.4s infinite; }
 .lamp--warning  { background: #f59e0b; box-shadow: 0 0 6px #f59e0b88; }
+.lamp--high     { background: #f97316; box-shadow: 0 0 6px #f9731688; }
 .lamp--normal   { background: #22c55e; }
 .lamp--none     { background: #333; }
 

@@ -25,6 +25,42 @@ export const getPatientDetail = (patientId: string) =>
 export const getPatientLabs = (patientId: string) =>
   api.get(`/api/patients/${patientId}/labs`)
 
+// 获取生命体征趋势
+export const getPatientVitalsTrend = (patientId: string, window = '24h') =>
+  api.get(`/api/patients/${patientId}/vitals/trend`, { params: { window } })
+
+// 获取用药记录
+export const getPatientDrugs = (patientId: string) =>
+  api.get(`/api/patients/${patientId}/drugs`)
+
+// 获取护理评估历史
+export const getPatientAssessments = (patientId: string) =>
+  api.get(`/api/patients/${patientId}/assessments`)
+
+// 获取预警历史
+export const getPatientAlerts = (patientId: string) =>
+  api.get(`/api/patients/${patientId}/alerts`)
+
+// 获取最近预警
+export const getRecentAlerts = (limit = 50) =>
+  api.get('/api/alerts/recent', { params: { limit } })
+
+// 获取预警统计
+export const getAlertStats = (window = '24h') =>
+  api.get('/api/alerts/stats', { params: { window } })
+
+// AI: 检验摘要
+export const getAiLabSummary = (patientId: string) =>
+  api.get(`/api/ai/lab-summary/${patientId}`)
+
+// AI: 规则推荐
+export const getAiRuleRecommendations = (patientId: string) =>
+  api.get(`/api/ai/rule-recommendations/${patientId}`)
+
+// AI: 风险预测
+export const getAiRiskForecast = (patientId: string) =>
+  api.get(`/api/ai/risk-forecast/${patientId}`)
+
 // 健康检查
 export const healthCheck = () => api.get('/health')
 
