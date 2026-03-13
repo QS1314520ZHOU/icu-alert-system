@@ -34,7 +34,6 @@ class DatabaseManager:
         logger.info(f"正在连接 SmartCare ({smartcare_db_name})...")
 
         self.smartcare_client = AsyncMongoClient(self.config.smartcare_uri)
-        await self.smartcare_client.aconnect()
         self.smartcare_db = self.smartcare_client[smartcare_db_name]
 
         await self.smartcare_client.admin.command("ping")
@@ -45,7 +44,6 @@ class DatabaseManager:
         logger.info(f"正在连接 DataCenter ({datacenter_db_name})...")
 
         self.datacenter_client = AsyncMongoClient(self.config.datacenter_uri)
-        await self.datacenter_client.aconnect()
         self.datacenter_db = self.datacenter_client[datacenter_db_name]
 
         await self.datacenter_client.admin.command("ping")
@@ -127,8 +125,124 @@ class DatabaseManager:
             )
 
             logger.info("✅ 预警系统索引创建完成")
+            await self._seed_default_rules()
         except Exception as e:
             logger.warning(f"创建索引时出错（非致命）: {e}")
+
+    async def _seed_default_rules(self):
+        """插入默认预警规则（如果集合为空）"""
+        try:
+            col = self.col("alert_rules")
+            count = await col.count_documents({})
+            if count > 0:
+                return
+
+            default_rules = [
+                {
+                    "rule_id": "VITAL_HR_HIGH",
+                    "name": "心率过快",
+                    "category": "vital_signs",
+                    "parameter": "param_HR",
+                    "condition": {"operator": ">", "threshold": 130},
+                    "severity": "warning",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_HR_CRIT_HIGH",
+                    "name": "心率极速",
+                    "category": "vital_signs",
+                    "parameter": "param_HR",
+                    "condition": {"operator": ">", "threshold": 150},
+                    "severity": "critical",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_HR_LOW",
+                    "name": "心率过缓",
+                    "category": "vital_signs",
+                    "parameter": "param_HR",
+                    "condition": {"operator": "<", "threshold": 50},
+                    "severity": "warning",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_SPO2_LOW",
+                    "name": "血氧饱和度偏低",
+                    "category": "vital_signs",
+                    "parameter": "param_spo2",
+                    "condition": {"operator": "<", "threshold": 92},
+                    "severity": "warning",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_SPO2_CRIT",
+                    "name": "血氧饱和度危急",
+                    "category": "vital_signs",
+                    "parameter": "param_spo2",
+                    "condition": {"operator": "<", "threshold": 85},
+                    "severity": "critical",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_TEMP_HIGH",
+                    "name": "高热",
+                    "category": "vital_signs",
+                    "parameter": "param_T",
+                    "condition": {"operator": ">", "threshold": 39.0},
+                    "severity": "warning",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_TEMP_CRIT",
+                    "name": "超高热",
+                    "category": "vital_signs",
+                    "parameter": "param_T",
+                    "condition": {"operator": ">", "threshold": 40.5},
+                    "severity": "critical",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_SBP_HIGH",
+                    "name": "收缩压过高",
+                    "category": "vital_signs",
+                    "parameter": "param_nibp_s",
+                    "condition": {"operator": ">", "threshold": 180},
+                    "severity": "warning",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_SBP_LOW",
+                    "name": "收缩压过低",
+                    "category": "vital_signs",
+                    "parameter": "param_nibp_s",
+                    "condition": {"operator": "<", "threshold": 80},
+                    "severity": "critical",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_RR_HIGH",
+                    "name": "呼吸频率过快",
+                    "category": "vital_signs",
+                    "parameter": "param_resp",
+                    "condition": {"operator": ">", "threshold": 30},
+                    "severity": "warning",
+                    "enabled": True,
+                },
+                {
+                    "rule_id": "VITAL_RR_LOW",
+                    "name": "呼吸频率过缓",
+                    "category": "vital_signs",
+                    "parameter": "param_resp",
+                    "condition": {"operator": "<", "threshold": 8},
+                    "severity": "critical",
+                    "enabled": True,
+                },
+            ]
+
+            await col.insert_many(default_rules)
+            logger.info(f"✅ 已插入 {len(default_rules)} 条默认预警规则")
+        except Exception as e:
+            logger.warning(f"插入默认预警规则失败（非致命）: {e}")
 
     def col(self, name: str):
         """获取 SmartCare 集合"""

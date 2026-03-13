@@ -131,6 +131,48 @@ def _pv(params: dict, key: str):
         return None
 
 
+def infer_clinical_tags(doc: dict) -> list:
+    """根据诊断、护理级别等信息推断临床标签"""
+    tags = []
+    diag = (
+        str(doc.get("clinicalDiagnosis", ""))
+        + str(doc.get("admissionDiagnosis", ""))
+    ).lower()
+    nursing = str(doc.get("nursingLevel", "")).lower()
+
+    vent_kw = ["呼吸机", "机械通气", "气管插管", "气管切开", "ventilator", "mv"]
+    if any(k in diag for k in vent_kw):
+        tags.append({"tag": "ventilator", "label": "呼吸机", "icon": "🫁", "color": "#3b82f6"})
+
+    crrt_kw = ["crrt", "血滤", "血液净化", "透析"]
+    if any(k in diag for k in crrt_kw):
+        tags.append({"tag": "crrt", "label": "CRRT", "icon": "🩸", "color": "#8b5cf6"})
+
+    if "压疮" in diag or "压力性损伤" in diag:
+        tags.append({"tag": "pressure_ulcer", "label": "压疮", "icon": "⚠️", "color": "#ef4444"})
+
+    infect_kw = ["脓毒", "感染", "sepsis", "肺炎", "pneumonia"]
+    if any(k in diag for k in infect_kw):
+        tags.append({"tag": "infection", "label": "感染", "icon": "🦠", "color": "#f59e0b"})
+
+    bleed_kw = ["出血", "hemorrhage", "bleeding"]
+    if any(k in diag for k in bleed_kw):
+        tags.append({"tag": "bleeding", "label": "出血", "icon": "🩹", "color": "#dc2626"})
+
+    cons_kw = ["昏迷", "意识障碍", "脑出血", "脑梗", "coma"]
+    if any(k in diag for k in cons_kw):
+        tags.append({"tag": "consciousness", "label": "意识障碍", "icon": "🧠", "color": "#a855f7"})
+
+    if "特级" in nursing or "特护" in nursing:
+        tags.append({"tag": "special_care", "label": "特护", "icon": "⭐", "color": "#eab308"})
+
+    mods_kw = ["mods", "多器官", "多脏器"]
+    if any(k in diag for k in mods_kw):
+        tags.append({"tag": "mods", "label": "MODS", "icon": "💔", "color": "#b91c1c"})
+
+    return tags
+
+
 async def _call_llm(system_prompt: str, user_prompt: str, model: str = None) -> str:
     """统一调用 LLM"""
     cfg = get_config()
@@ -211,7 +253,9 @@ async def get_patients(
     cursor = col.find(query).sort("hisBed", 1)
     patients = []
     async for doc in cursor:
-        patients.append(serialize_doc(doc))
+        p = serialize_doc(doc)
+        p["clinicalTags"] = infer_clinical_tags(doc)
+        patients.append(p)
     return {"code": 0, "patients": patients}
 
 
@@ -253,6 +297,7 @@ async def patient_vitals(patient_id: str):
     if bedside_doc:
         params = bedside_doc.get("params", {})
         vitals = {
+            "source": "monitor",
             "time": bedside_doc.get("recordTime").isoformat()
             if isinstance(bedside_doc.get("recordTime"), datetime)
             else str(bedside_doc.get("recordTime")),
@@ -283,6 +328,7 @@ async def patient_vitals(patient_id: str):
             if cap_doc:
                 params = cap_doc.get("params", cap_doc)
                 vitals = {
+                    "source": "device",
                     "time": cap_doc.get("time").isoformat()
                     if isinstance(cap_doc.get("time"), datetime)
                     else str(cap_doc.get("time")),
@@ -491,7 +537,7 @@ async def patient_alerts(patient_id: str):
 
     col = db.col("alert_records")
     cursor = col.find(
-        {"patient_id": pid}
+        {"patient_id": {"$in": [patient_id, pid]}}
     ).sort("created_at", -1).limit(100)
 
     records = []
