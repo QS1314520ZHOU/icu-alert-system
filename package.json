@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
+    "ant-design-vue": "^4.2.6",
+    "axios": "^1.13.6",
+    "dayjs": "^1.11.19",
+    "echarts": "^6.0.0",
+    "pinia": "^3.0.4",
+    "vue-echarts": "^8.0.1",
+    "vue-router": "^4.6.4"
+  }
+}

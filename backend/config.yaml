@@ -1,0 +1,164 @@
+# ============================================================
+# ICU智能预警系统 - 主配置文件
+# ============================================================
+
+system:
+  name: "ICU智能预警系统"
+  version: "1.0.0"
+  timezone: "Asia/Shanghai"
+  log_level: "INFO"
+  log_dir: "./logs"
+
+# ==================== 数据库配置 ====================
+databases:
+  smartcare:
+    database: "SmartCare"
+    # 已有Collection
+    collections:
+      patient: "patient"
+      bedside: "bedside"
+      device_cap: "deviceCap"
+      device_online: "deviceOnline"
+      device_bind: "deviceBind"
+      drug_exe: "drugExe"
+      config_param: "configParam"
+      config_drug: "configDrug"
+    # 预警系统新建Collection
+    alert_collections:
+      alert_records: "alert_records"
+      alert_rules: "alert_rules"
+      field_mapping: "field_mapping"
+      score_records: "score_records"
+      nurse_reminders: "nurse_reminders"
+      audit_log: "audit_log"
+
+  datacenter:
+    database: "DataCenter"
+    collections:
+      exam: "VI_ICU_EXAM"
+      exam_item: "VI_ICU_EXAM_ITEM"
+      report: "VI_ICU_report"
+
+# ==================== 数据关联 ====================
+data_linking:
+  # SmartCare库内关联: patient._id ←→ bedside.pid / drugExe.pid / deviceBind.pid
+  # 跨库关联: patient.hisPid ←→ VI_ICU_EXAM.hisPid / VI_ICU_EXAM_ITEM.hisPid
+  # 设备关联: deviceCap.deviceID → deviceBind.deviceID(unBindTime=null) → deviceBind.pid → patient._id
+  cross_db_patient_key:
+    smartcare: "_id"
+    datacenter: "hisPid"
+  device_to_patient:
+    method: "device_bind"
+    bind_collection: "deviceBind"
+    active_condition: "unBindTime == null"
+
+# ==================== 监护仪参数映射 ====================
+vital_signs:
+  temperature:    { code: "param_T",         name: "体温",      unit: "℃" }
+  heart_rate:     { code: "param_HR",        name: "心率",      unit: "bpm" }
+  resp_rate:      { code: "param_resp",      name: "呼吸频率",  unit: "次/分" }
+  spo2:           { code: "param_spo2",      name: "血氧饱和度", unit: "%" }
+  pulse_rate:     { code: "param_PR",        name: "脉率",      unit: "bpm" }
+  rhythm:         { code: "param_xinLvLv",   name: "心律",      unit: "" }
+  cvp:            { code: "param_cvp",       name: "中心静脉压", unit: "cmH2O" }
+  etco2:          { code: "param_ETCO2",     name: "呼气末CO2", unit: "mmHg" }
+  # 血压 - 有创（优先）
+  ibp_systolic:   { code: "param_ibp_s",     name: "有创收缩压", unit: "mmHg" }
+  ibp_diastolic:  { code: "param_ibp_d",     name: "有创舒张压", unit: "mmHg" }
+  ibp_mean:       { code: "param_ibp_m",     name: "有创平均压", unit: "mmHg" }
+  # 血压 - 无创
+  nibp_systolic:  { code: "param_nibp_s",    name: "无创收缩压", unit: "mmHg" }
+  nibp_diastolic: { code: "param_nibp_d",    name: "无创舒张压", unit: "mmHg" }
+  nibp_mean:      { code: "param_nibp_m",    name: "无创平均压", unit: "mmHg" }
+
+  # 取值优先级: 有创 > 无创
+  map_priority: ["param_ibp_m", "param_nibp_m"]
+  sbp_priority: ["param_ibp_s", "param_nibp_s"]
+  dbp_priority: ["param_ibp_d", "param_nibp_d"]
+
+# ==================== 呼吸机参数映射 ====================
+ventilator:
+  # 设置参数
+  vent_mode:      { code: "param_HuXiMoShi",           name: "呼吸模式" }
+  fio2:           { code: "param_FiO2",                 name: "FiO2",           unit: "%" }
+  vt_set:         { code: "param_vent_set_vt",          name: "设置潮气量",     unit: "ml" }
+  peep_set:       { code: "param_vent_peep",            name: "PEEP(设置)",     unit: "cmH2O" }
+  ps_set:         { code: "param_vent_ps",              name: "PS(设置)",       unit: "cmH2O" }
+  ipap:           { code: "param_vent_pc",              name: "IPAP",           unit: "cmH2O" }
+  rr_set:         { code: "param_HuXiPinLv",            name: "设置频率",       unit: "次/分" }
+  # 实测参数
+  minute_vent:    { code: "param_vent_VE",              name: "分钟通气量",     unit: "L/min" }
+  rr_measured:    { code: "param_vent_resp",             name: "实测呼吸率",     unit: "次/分" }
+  vte:            { code: "param_vent_vt",               name: "呼出潮气量",     unit: "ml" }
+  peep_measured:  { code: "param_vent_measure_peep",     name: "PEEP(实测)",     unit: "cmH2O" }
+  pip:            { code: "param_vent_pip",              name: "气道峰压",       unit: "cmH2O" }
+  pplat:          { code: "param_vent_plat_pressure",    name: "平台压",         unit: "cmH2O" }
+  pmean:          { code: "param_vent_measure_Pmean",    name: "平均气道压",     unit: "cmH2O" }
+  compliance:     { code: "param_vent_compliance",       name: "呼吸顺应性",     unit: "ml/cmH2O" }
+  c_stat:         { code: "param_vent_C_STAT",           name: "静态顺应性",     unit: "ml/cmH2O" }
+
+# ==================== 评分参数映射 ====================
+assessments:
+  gcs:            { code: "param_score_gcs_obs",    name: "GCS评分",     range: [3, 15] }
+  rass:           { code: "param_score_rass_obs",   name: "RASS评分",    range: [-5, 4] }
+  pain:           { code: "param_tengTong_score",   name: "疼痛评分",    range: [0, 10] }
+  delirium:       { code: "param_delirium_score",   name: "谵妄评分" }
+  consciousness:  { code: "param_Yishi",            name: "意识" }
+  pupil_left:     { code: "param_左瞳孔/光反射",    name: "左瞳孔" }
+  pupil_right:    { code: "param_右瞳孔/光反射",    name: "右瞳孔" }
+
+# ==================== AI配置 ====================
+ai_service:
+  llm:
+    timeout: 60
+    temperature: 0.1
+    max_tokens: 4096
+
+  task_routing:
+    lab_item_mapping:
+      temperature: 0.0
+    rule_generation:
+      temperature: 0.2
+
+  lab_mapping:
+    auto_init_on_startup: false
+    confidence_threshold: 0.8
+    batch_size: 50
+
+# ==================== 预警引擎配置 ====================
+alert_engine:
+  scan_intervals:
+    vital_signs: 60
+    lab_results: 300
+    assessments: 600
+    trend_analysis: 900
+
+  severity_levels:
+    warning:  { color: "#ffab00", priority: 1 }
+    high:     { color: "#ff5252", priority: 2 }
+    critical: { color: "#d500f9", priority: 3 }
+
+  suppression:
+    same_rule_same_patient_seconds: 1800
+    max_alerts_per_patient_per_hour: 10
+
+# ==================== 护理提醒 ====================
+nurse_reminders:
+  gcs:       { code: "param_score_gcs_obs",   interval_hours: 4 }
+  rass:      { code: "param_score_rass_obs",   interval_hours: 4 }
+  pain:      { code: "param_tengTong_score",   interval_hours: 4 }
+  delirium:  { code: "param_delirium_score",   interval_hours: 12 }
+
+# ==================== 通知（纯内网）====================
+notification:
+  websocket:
+    enabled: true
+  screen_alert:
+    enabled: true
+    critical_flash: true
+    sound_enabled: true
+
+# ==================== UI ====================
+ui:
+  theme: "dark"
+  refresh_interval_seconds: 10
