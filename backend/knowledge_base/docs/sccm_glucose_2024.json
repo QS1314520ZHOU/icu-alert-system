@@ -1,0 +1,15 @@
+{
+  "doc_id": "sccm_glucose_2024",
+  "title": "SCCM Glucose Control Update 2024",
+  "summary": "ICU血糖目标与避免低血糖、血糖波动。",
+  "sections": [
+    {
+      "id": "sccm2024_glucose",
+      "section_title": "Glycemic target",
+      "recommendation": "Glycemic Target",
+      "recommendation_grade": "target_range",
+      "tags": ["glucose", "insulin", "hypoglycemia"],
+      "text": "Reasonable ICU glucose target range is generally 140-180 mg/dL for most adults, while avoiding hypoglycemia and large glucose variability."
+    }
+  ]
+}

@@ -1,11 +1,153 @@
 """药物不良反应/相互作用"""
 from __future__ import annotations
 
+import re
+from datetime import datetime, timedelta
+from typing import Any
+
+
+def _parse_dt(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _to_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip()
+    if not s:
+        return None
+    m = re.search(r"[-+]?\d+(?:\.\d+)?", s)
+    if not m:
+        return None
+    try:
+        return float(m.group(0))
+    except Exception:
+        return None
+
 
 class DrugSafetyMixin:
+    def _text_has_any(self, text: str, keywords: list[str]) -> bool:
+        t = str(text or "").lower()
+        return any(str(k).strip().lower() in t for k in keywords if str(k).strip())
+
+    def _event_time(self, doc: dict) -> datetime | None:
+        return (
+            _parse_dt(doc.get("executeTime"))
+            or _parse_dt(doc.get("startTime"))
+            or _parse_dt(doc.get("orderTime"))
+        )
+
+    async def _get_recent_drug_docs(self, pid_str: str, since: datetime) -> list[dict]:
+        cursor = self.db.col("drugExe").find(
+            {"pid": pid_str},
+            {
+                "executeTime": 1,
+                "startTime": 1,
+                "orderTime": 1,
+                "drugName": 1,
+                "orderName": 1,
+                "drugSpec": 1,
+                "dose": 1,
+                "doseUnit": 1,
+                "unit": 1,
+                "route": 1,
+                "routeName": 1,
+                "orderType": 1,
+            },
+        ).sort("executeTime", -1).limit(6000)
+
+        rows: list[dict] = []
+        async for doc in cursor:
+            t = self._event_time(doc)
+            if not t or t < since:
+                continue
+            rows.append({**doc, "_event_time": t})
+        rows.sort(key=lambda x: x["_event_time"])
+        return rows
+
+    def _extract_dose_mg(self, doc: dict) -> float | None:
+        dose = _to_float(doc.get("dose"))
+        unit = str(doc.get("doseUnit") or doc.get("unit") or "").lower().replace(" ", "")
+        if dose is not None and dose > 0:
+            if any(k in unit for k in ("mg", "毫克")):
+                return dose
+            if any(k in unit for k in ("ug", "μg", "mcg", "微克")):
+                return dose / 1000.0
+            if any(k in unit for k in ("g", "克")) and "mg" not in unit:
+                return dose * 1000.0
+            return dose
+
+        text = " ".join(str(doc.get(k) or "") for k in ("dose", "drugSpec", "orderName", "drugName"))
+        m = re.search(r"(\d+(?:\.\d+)?)\s*(mg|毫克|ug|μg|mcg|微克|g|克)", text, flags=re.I)
+        if not m:
+            return None
+        val = _to_float(m.group(1))
+        u = str(m.group(2)).lower()
+        if val is None or val <= 0:
+            return None
+        if u in ("ug", "μg", "mcg", "微克"):
+            return val / 1000.0
+        if u in ("g", "克"):
+            return val * 1000.0
+        return val
+
+    def _opioid_med_factor(self, text: str, factors: dict) -> float | None:
+        t = str(text or "").lower()
+        key_to_keywords = [
+            ("morphine", ["吗啡", "morphine"]),
+            ("fentanyl", ["芬太尼", "fentanyl"]),
+            ("sufentanil", ["舒芬太尼", "sufentanil"]),
+            ("remifentanil", ["瑞芬太尼", "remifentanil"]),
+            ("oxycodone", ["羟考酮", "oxycodone"]),
+            ("hydromorphone", ["氢吗啡酮", "hydromorphone"]),
+            ("pethidine", ["哌替啶", "pethidine"]),
+            ("meperidine", ["杜冷丁", "meperidine"]),
+            ("tramadol", ["曲马多", "tramadol"]),
+            ("codeine", ["可待因", "codeine"]),
+            ("butorphanol", ["布托啡诺", "butorphanol"]),
+        ]
+        for key, kws in key_to_keywords:
+            if any(k in t for k in kws):
+                try:
+                    return float(factors.get(key, 1.0))
+                except Exception:
+                    return 1.0
+        return None
+
+    def _continuous_opioid_course(self, opioid_events: list[dict], now: datetime, course_gap_hours: float) -> dict | None:
+        if not opioid_events:
+            return None
+        times = sorted([e["_event_time"] for e in opioid_events if isinstance(e.get("_event_time"), datetime)])
+        if not times:
+            return None
+        last_t = times[-1]
+        start_t = last_t
+        prev = last_t
+        for t in reversed(times[:-1]):
+            if (prev - t).total_seconds() / 3600.0 <= course_gap_hours:
+                start_t = t
+                prev = t
+            else:
+                break
+        return {
+            "start": start_t,
+            "last": last_t,
+            "duration_hours": round((last_t - start_t).total_seconds() / 3600.0, 2),
+            "since_last_hours": round((now - last_t).total_seconds() / 3600.0, 2),
+        }
+
     async def scan_drug_safety(self) -> None:
         patient_cursor = self.db.col("patient").find(
-            {"isLeave": {"$ne": True}},
+            self._active_patient_query(),
             {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1,
              "weight": 1, "bodyWeight": 1, "body_weight": 1, "weightKg": 1, "weight_kg": 1},
         )
@@ -27,8 +169,31 @@ class DrugSafetyMixin:
             ("alert_engine", "drug_mapping", "qt_risk"),
             ["胺碘酮", "左氧氟沙星", "环丙沙星", "红霉素", "阿奇霉素", "氟哌啶醇", "奥氮平", "喹硫平"],
         )
+        steroid_kw = self._get_cfg_list(
+            ("alert_engine", "drug_mapping", "steroids"),
+            ["氢化可的松", "甲泼尼龙", "地塞米松", "泼尼松", "泼尼松龙", "methylpred", "hydrocortisone", "dexamethasone"],
+        )
+        opioid_kw = self._get_cfg_list(
+            ("alert_engine", "drug_mapping", "opioids"),
+            ["吗啡", "芬太尼", "舒芬太尼", "瑞芬太尼", "羟考酮", "氢吗啡酮", "哌替啶", "曲马多", "可待因", "布托啡诺", "opioid"],
+        )
+
+        opioid_cfg = self.config.yaml_cfg.get("alert_engine", {}).get("drug_safety", {})
+        opioid_med_warn = float(opioid_cfg.get("opioid_med_warning_mg_per_day", 200))
+        opioid_min_days = float(opioid_cfg.get("opioid_min_long_term_days", 3))
+        opioid_stop_gap_h = float(opioid_cfg.get("opioid_stop_gap_hours", 24))
+        opioid_withdraw_window_h = float(opioid_cfg.get("opioid_withdrawal_window_hours", 72))
+        opioid_course_gap_h = float(opioid_cfg.get("opioid_course_gap_hours", 36))
+        rr_threshold = float(opioid_cfg.get("opioid_resp_rr_threshold", 10))
+        rr_critical = float(opioid_cfg.get("opioid_resp_rr_critical", 8))
+        spo2_low = float(opioid_cfg.get("opioid_spo2_low_threshold", 92))
+        spo2_critical = float(opioid_cfg.get("opioid_spo2_critical_threshold", 90))
+        spo2_drop_th = float(opioid_cfg.get("opioid_spo2_drop_threshold", 4))
+        spo2_drop_window_h = float(opioid_cfg.get("opioid_spo2_drop_window_hours", 2))
+        opioid_med_factors = opioid_cfg.get("opioid_med_factors", {}) if isinstance(opioid_cfg, dict) else {}
 
         triggered = 0
+        now = datetime.now()
         for p in patients:
             pid = p.get("_id")
             if not pid:
@@ -133,6 +298,230 @@ class DrugSafetyMixin:
                     )
                     if alert:
                         triggered += 1
+
+            # 阿片类相关规则
+            since_10d = now - timedelta(days=10)
+            opioid_docs_all = await self._get_recent_drug_docs(pid_str, since_10d)
+            opioid_events = []
+            for d in opioid_docs_all:
+                text = " ".join(str(d.get(k) or "") for k in ("drugName", "orderName", "drugSpec", "route", "routeName")).lower()
+                if not self._text_has_any(text, opioid_kw):
+                    continue
+                factor = self._opioid_med_factor(text, opioid_med_factors)
+                if factor is None:
+                    factor = 1.0
+                dose_mg = self._extract_dose_mg(d)
+                med_mg = (dose_mg * factor) if (dose_mg is not None) else None
+                opioid_events.append({**d, "_opioid_text": text, "_med_mg": med_mg})
+
+            if opioid_events:
+                # (1) 高剂量阿片（MED > 200 mg/d）
+                med_24h = sum(
+                    float(e["_med_mg"])
+                    for e in opioid_events
+                    if e.get("_med_mg") is not None and (now - e["_event_time"]).total_seconds() <= 24 * 3600
+                )
+                if med_24h > opioid_med_warn:
+                    rule_id = "DRUG_OPIOID_HIGH_DOSE_RESP_RISK"
+                    if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                        alert = await self._create_alert(
+                            rule_id=rule_id,
+                            name="高剂量阿片用药呼吸抑制风险",
+                            category="drug_safety",
+                            alert_type="opioid_high_dose_resp_risk",
+                            severity="high",
+                            parameter="opioid_med_24h",
+                            condition={"operator": ">", "threshold_mg_per_day": opioid_med_warn},
+                            value=round(med_24h, 2),
+                            patient_id=pid_str,
+                            patient_doc=p,
+                            device_id=None,
+                            source_time=now,
+                            extra={"opioid_med_24h_mg": round(med_24h, 2), "threshold_mg_per_day": opioid_med_warn},
+                        )
+                        if alert:
+                            triggered += 1
+
+                # (2) 阿片 + RR<10 或 SpO2突然下降 => 呼吸抑制
+                opioid_active = any((now - e["_event_time"]).total_seconds() <= 24 * 3600 for e in opioid_events)
+                if opioid_active:
+                    vitals = await self._get_latest_vitals_by_patient(pid)
+                    rr = _to_float(vitals.get("rr")) if isinstance(vitals, dict) else None
+                    rr_low = rr is not None and rr < rr_threshold
+
+                    spo2_series = await self._get_param_series_by_pid(
+                        pid,
+                        "param_spo2",
+                        now - timedelta(hours=max(1.0, spo2_drop_window_h)),
+                    )
+                    latest_spo2 = None
+                    spo2_drop = None
+                    spo2_sudden_drop = False
+                    if spo2_series:
+                        latest_spo2 = _to_float(spo2_series[-1].get("value"))
+                        if len(spo2_series) >= 2 and latest_spo2 is not None:
+                            prev_vals = [_to_float(x.get("value")) for x in spo2_series[:-1]]
+                            prev_vals = [x for x in prev_vals if x is not None]
+                            if prev_vals:
+                                prev_high = max(prev_vals)
+                                spo2_drop = round(prev_high - latest_spo2, 2)
+                                spo2_sudden_drop = spo2_drop >= spo2_drop_th and latest_spo2 <= spo2_low
+
+                    if rr_low or spo2_sudden_drop:
+                        sev = "high"
+                        if (rr is not None and rr < rr_critical) or (latest_spo2 is not None and latest_spo2 <= spo2_critical):
+                            sev = "critical"
+                        rule_id = "DRUG_OPIOID_RESP_DEPRESSION"
+                        if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                            alert = await self._create_alert(
+                                rule_id=rule_id,
+                                name="阿片相关呼吸抑制风险",
+                                category="drug_safety",
+                                alert_type="opioid_respiratory_depression",
+                                severity=sev,
+                                parameter="respiratory_status",
+                                condition={
+                                    "opioid_active": True,
+                                    "rr_lt": rr_threshold,
+                                    "spo2_drop_ge": spo2_drop_th,
+                                    "spo2_low_le": spo2_low,
+                                },
+                                value=rr if rr is not None else latest_spo2,
+                                patient_id=pid_str,
+                                patient_doc=p,
+                                device_id=None,
+                                source_time=vitals.get("time") if isinstance(vitals, dict) else now,
+                                extra={
+                                    "rr": rr,
+                                    "latest_spo2": latest_spo2,
+                                    "spo2_drop": spo2_drop,
+                                    "spo2_sudden_drop": spo2_sudden_drop,
+                                    "opioid_med_24h_mg": round(med_24h, 2),
+                                },
+                            )
+                            if alert:
+                                triggered += 1
+
+                # (3) 长期阿片后突然停药 => 戒断风险
+                course = self._continuous_opioid_course(opioid_events, now, opioid_course_gap_h)
+                if course:
+                    long_term = course["duration_hours"] >= opioid_min_days * 24
+                    stopped = course["since_last_hours"] >= opioid_stop_gap_h
+                    still_in_withdraw_window = course["since_last_hours"] <= opioid_withdraw_window_h
+                    if long_term and stopped and still_in_withdraw_window:
+                        rule_id = "DRUG_OPIOID_WITHDRAWAL_RISK"
+                        if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                            alert = await self._create_alert(
+                                rule_id=rule_id,
+                                name="阿片停药后戒断风险",
+                                category="drug_safety",
+                                alert_type="opioid_withdrawal_risk",
+                                severity="warning",
+                                parameter="opioid_stop_gap_hours",
+                                condition={
+                                    "long_term_days_gte": opioid_min_days,
+                                    "stop_gap_hours_gte": opioid_stop_gap_h,
+                                },
+                                value=round(course["since_last_hours"], 2),
+                                patient_id=pid_str,
+                                patient_doc=p,
+                                device_id=None,
+                                source_time=course["last"],
+                                extra={
+                                    "course_start": course["start"],
+                                    "course_last": course["last"],
+                                    "course_duration_hours": course["duration_hours"],
+                                    "since_last_opioid_hours": course["since_last_hours"],
+                                },
+                            )
+                            if alert:
+                                triggered += 1
+
+            # 激素相关规则
+            steroid_docs = await self._find_recent_drug_docs(pid, steroid_kw, hours=24 * 14, limit=1000)
+            if steroid_docs:
+                last_steroid = steroid_docs[-1]
+                had_vaso_48h = await self._has_recent_drug(pid, ["去甲肾上腺素", "肾上腺素", "多巴胺", "血管加压素"], hours=48)
+                on_vaso_12h = await self._has_recent_drug(pid, ["去甲肾上腺素", "肾上腺素", "多巴胺", "血管加压素"], hours=12)
+                if had_vaso_48h and not on_vaso_12h:
+                    rule_id = "DRUG_STEROID_TAPER_AFTER_VASO"
+                    if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                        alert = await self._create_alert(
+                            rule_id=rule_id,
+                            name="评估激素减停（升压药已停用）",
+                            category="drug_safety",
+                            alert_type="steroid_taper_after_vaso",
+                            severity="warning",
+                            parameter="steroid_vaso_linkage",
+                            condition={"vasopressor_off_hours": 12},
+                            value=12,
+                            patient_id=pid_str,
+                            patient_doc=p,
+                            device_id=None,
+                            source_time=last_steroid.get("_event_time"),
+                            extra={
+                                "steroids": [self._drug_text(d) for d in steroid_docs[-5:]],
+                                "vasopressor_off_gt_hours": 12,
+                            },
+                        )
+                        if alert:
+                            triggered += 1
+
+                duration_hours = 0.0
+                if steroid_docs and steroid_docs[0].get("_event_time") and steroid_docs[-1].get("_event_time"):
+                    duration_hours = (steroid_docs[-1]["_event_time"] - steroid_docs[0]["_event_time"]).total_seconds() / 3600.0
+                if duration_hours >= 7 * 24:
+                    rule_id = "DRUG_LONG_TERM_STEROID_TAPER"
+                    if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                        alert = await self._create_alert(
+                            rule_id=rule_id,
+                            name="长程激素减停提醒",
+                            category="drug_safety",
+                            alert_type="steroid_long_term_taper",
+                            severity="warning",
+                            parameter="steroid_duration_days",
+                            condition={"operator": ">=", "threshold_days": 7},
+                            value=round(duration_hours / 24.0, 1),
+                            patient_id=pid_str,
+                            patient_doc=p,
+                            device_id=None,
+                            source_time=last_steroid.get("_event_time"),
+                            extra={
+                                "duration_days": round(duration_hours / 24.0, 1),
+                                "message": "需要逐步减量，警惕肾上腺功能不全",
+                            },
+                        )
+                        if alert:
+                            triggered += 1
+
+                his_pid = p.get("hisPid")
+                if his_pid:
+                    glu_series = await self._get_lab_series(his_pid, "glu", now - timedelta(hours=24), limit=200)
+                    high_glu = [x for x in glu_series if x.get("value") is not None and x["value"] > 10]
+                    if len(high_glu) >= 2:
+                        rule_id = "DRUG_STEROID_HYPERGLYCEMIA"
+                        if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                            alert = await self._create_alert(
+                                rule_id=rule_id,
+                                name="激素相关高血糖",
+                                category="drug_safety",
+                                alert_type="steroid_hyperglycemia",
+                                severity="high",
+                                parameter="glu",
+                                condition={"consecutive_gt_mmol": 10, "count": 2},
+                                value=high_glu[-1]["value"],
+                                patient_id=pid_str,
+                                patient_doc=p,
+                                device_id=None,
+                                source_time=high_glu[-1]["time"],
+                                extra={
+                                    "latest_glucose": high_glu[-1]["value"],
+                                    "high_glucose_count": len(high_glu),
+                                    "message": "建议评估胰岛素方案调整",
+                                },
+                            )
+                            if alert:
+                                triggered += 1
 
         if triggered > 0:
             self._log_info("药物安全", triggered)

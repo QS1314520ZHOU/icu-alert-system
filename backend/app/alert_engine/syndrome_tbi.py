@@ -6,8 +6,12 @@ from .base import _extract_param
 
 class TbiMixin:
     async def scan_tbi(self) -> None:
-        binds = [b async for b in self.db.col("deviceBind").find({"unBindTime": None}, {"pid": 1, "deviceID": 1})]
-        if not binds:
+        patient_cursor = self.db.col("patient").find(
+            self._active_patient_query(),
+            {"_id": 1, "name": 1, "hisBed": 1, "dept": 1, "hisDept": 1},
+        )
+        patients = [p async for p in patient_cursor]
+        if not patients:
             return
 
         suppression = self.config.yaml_cfg.get("alert_engine", {}).get("suppression", {})
@@ -18,17 +22,16 @@ class TbiMixin:
         cpp_codes = self._get_cfg_list(("alert_engine", "data_mapping", "cpp_codes"), ["param_CPP", "param_cpp"])
 
         triggered = 0
-        for b in binds:
-            pid = b.get("pid")
-            device_id = b.get("deviceID")
-            if not pid or not device_id:
+        for patient_doc in patients:
+            pid = patient_doc.get("_id")
+            if not pid:
                 continue
+            pid_str = str(pid)
+            device_id = await self._get_device_id_for_patient(patient_doc, ["monitor"])
 
-            patient_doc, pid_str = await self._load_patient(pid)
-            if not patient_doc or not pid_str:
-                continue
-
-            cap = await self._get_latest_device_cap(device_id)
+            cap = None
+            if device_id:
+                cap = await self._get_latest_device_cap(device_id)
             if not cap:
                 continue
 

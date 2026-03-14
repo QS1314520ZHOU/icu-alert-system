@@ -18,6 +18,23 @@ class DatabaseManager:
         self.datacenter_db = None
         self.redis = None
 
+    async def _connect_mongo(self, name: str, uri: str, db_name: str, host: str, port: int):
+        client = AsyncMongoClient(uri)
+        db = client[db_name]
+        try:
+            await client.admin.command("ping")
+            return client, db
+        except Exception as e:
+            msg = str(e).lower()
+            if "auth" in msg or "authentication" in msg or "not authorized" in msg:
+                logger.warning(f"⚠️ {name} 认证失败，尝试无认证连接...")
+                no_auth_uri = f"mongodb://{host}:{port}/"
+                client = AsyncMongoClient(no_auth_uri)
+                db = client[db_name]
+                await client.admin.command("ping")
+                return client, db
+            raise
+
     async def connect(self):
         """连接所有数据库"""
 
@@ -33,20 +50,26 @@ class DatabaseManager:
         smartcare_db_name = smartcare_cfg.get("db_name") or smartcare_cfg.get("database", "SmartCare")
         logger.info(f"正在连接 SmartCare ({smartcare_db_name})...")
 
-        self.smartcare_client = AsyncMongoClient(self.config.smartcare_uri)
-        self.smartcare_db = self.smartcare_client[smartcare_db_name]
-
-        await self.smartcare_client.admin.command("ping")
+        self.smartcare_client, self.smartcare_db = await self._connect_mongo(
+            "SmartCare",
+            self.config.smartcare_uri,
+            smartcare_db_name,
+            self.config.settings.SMARTCARE_DB_HOST,
+            self.config.settings.SMARTCARE_DB_PORT,
+        )
         logger.info("✅ SmartCare 数据库连接成功")
 
         # ---- DataCenter (HIS/LIS，只读) ----
         datacenter_db_name = datacenter_cfg.get("db_name") or datacenter_cfg.get("database", "DataCenter")
         logger.info(f"正在连接 DataCenter ({datacenter_db_name})...")
 
-        self.datacenter_client = AsyncMongoClient(self.config.datacenter_uri)
-        self.datacenter_db = self.datacenter_client[datacenter_db_name]
-
-        await self.datacenter_client.admin.command("ping")
+        self.datacenter_client, self.datacenter_db = await self._connect_mongo(
+            "DataCenter",
+            self.config.datacenter_uri,
+            datacenter_db_name,
+            self.config.settings.DATACENTER_DB_HOST,
+            self.config.settings.DATACENTER_DB_PORT,
+        )
         logger.info("✅ DataCenter 数据库连接成功")
 
         # ---- Redis ----
@@ -71,7 +94,12 @@ class DatabaseManager:
         """打印关键统计信息"""
         try:
             patient_count = await self.col("patient").count_documents(
-                {"isLeave": {"$ne": True}}
+                {
+                    "$or": [
+                        {"status": {"$nin": ["discharged", "invalid", "invaild"]}},
+                        {"status": {"$exists": False}},
+                    ]
+                }
             )
             logger.info(f"📊 当前在院患者: {patient_count}")
         except Exception as e:
@@ -84,6 +112,14 @@ class DatabaseManager:
             logger.info(f"📊 当前绑定设备: {device_count}")
         except Exception as e:
             logger.warning(f"查询设备数失败: {e}")
+
+        try:
+            online_count = await self.col("deviceOnline").count_documents(
+                {"isConnected": True}
+            )
+            logger.info(f"📊 当前在线设备: {online_count}")
+        except Exception as e:
+            logger.warning(f"查询在线设备数失败: {e}")
 
         try:
             exam_count = await self.dc_col("VI_ICU_EXAM_ITEM").count_documents({})
@@ -255,9 +291,13 @@ class DatabaseManager:
     async def disconnect(self):
         """关闭所有连接"""
         if self.smartcare_client:
-            self.smartcare_client.close()
+            res = self.smartcare_client.close()
+            if hasattr(res, "__await__"):
+                await res
         if self.datacenter_client:
-            self.datacenter_client.close()
+            res = self.datacenter_client.close()
+            if hasattr(res, "__await__"):
+                await res
         if self.redis:
             await self.redis.close()
         logger.info("🔌 所有数据库连接已关闭")

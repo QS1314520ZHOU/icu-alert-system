@@ -9,6 +9,7 @@ build/
 # Environment
 .env
 backend/.env
+backend/.venv/
 *.env.local
 
 # Node

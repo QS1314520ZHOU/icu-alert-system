@@ -8,8 +8,12 @@ from .base import _extract_param
 
 class SepsisMixin:
     async def scan_sepsis(self) -> None:
-        binds = [b async for b in self.db.col("deviceBind").find({"unBindTime": None}, {"pid": 1, "deviceID": 1})]
-        if not binds:
+        patient_cursor = self.db.col("patient").find(
+            self._active_patient_query(),
+            {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1},
+        )
+        patients = [p async for p in patient_cursor]
+        if not patients:
             return
 
         suppression = self.config.yaml_cfg.get("alert_engine", {}).get("suppression", {})
@@ -18,18 +22,18 @@ class SepsisMixin:
 
         triggered = 0
         now = datetime.now()
-        for b in binds:
-            pid = b.get("pid")
-            device_id = b.get("deviceID")
-            if not pid or not device_id:
+        for patient_doc in patients:
+            pid = patient_doc.get("_id")
+            if not pid:
                 continue
-
-            patient_doc, pid_str = await self._load_patient(pid)
-            if not patient_doc or not pid_str:
-                continue
+            pid_str = str(pid)
+            device_id = await self._get_device_id_for_patient(patient_doc, ["monitor"])
 
             gcs = await self._get_latest_assessment(pid, "gcs")
-            latest_cap = await self._get_latest_device_cap(device_id)
+            cap_codes = ["param_resp", "param_nibp_s", "param_ibp_s", "param_nibp_m", "param_ibp_m"]
+            latest_cap = await self._get_latest_param_snapshot_by_pid(pid, codes=cap_codes)
+            if not latest_cap and device_id:
+                latest_cap = await self._get_latest_device_cap(device_id, codes=cap_codes)
             if not latest_cap:
                 continue
 

@@ -1,0 +1,23 @@
+{
+  "doc_id": "drug_safety_notes",
+  "title": "ICU高危药物安全提示",
+  "summary": "用于AI风险分析与用药联动的本地药品标签摘要。",
+  "sections": [
+    {
+      "id": "drug_vanco_renal",
+      "section_title": "Vancomycin renal monitoring",
+      "recommendation": "Renal Monitoring",
+      "recommendation_grade": "drug_label_summary",
+      "tags": ["drug", "vancomycin", "renal"],
+      "text": "Vancomycin exposure is associated with nephrotoxicity risk, especially with high trough concentration, prolonged duration, or concomitant nephrotoxic agents. Monitor renal function and drug levels."
+    },
+    {
+      "id": "drug_heparin_hit",
+      "section_title": "Heparin HIT monitoring",
+      "recommendation": "HIT Monitoring",
+      "recommendation_grade": "drug_label_summary",
+      "tags": ["drug", "heparin", "hit", "platelet"],
+      "text": "Heparin-induced thrombocytopenia should be suspected with platelet fall >50 percent typically between day 5 and 10 of heparin exposure."
+    }
+  ]
+}

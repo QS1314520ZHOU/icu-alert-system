@@ -8,8 +8,12 @@ from .base import _detect_trend, _extract_param
 
 class TrendMixin:
     async def scan_trends(self) -> None:
-        binds = [b async for b in self.db.col("deviceBind").find({"unBindTime": None}, {"pid": 1, "deviceID": 1})]
-        if not binds:
+        patient_cursor = self.db.col("patient").find(
+            self._active_patient_query(),
+            {"_id": 1, "name": 1, "hisBed": 1, "dept": 1, "hisDept": 1},
+        )
+        patients = [p async for p in patient_cursor]
+        if not patients:
             return
 
         since = datetime.now() - timedelta(hours=2)
@@ -28,27 +32,16 @@ class TrendMixin:
         max_per_hour = int(suppression.get("max_alerts_per_patient_per_hour", 10))
 
         triggered = 0
-        for b in binds:
-            device_id = b.get("deviceID")
-            pid = b.get("pid")
-            if not device_id or not pid:
+        for p in patients:
+            pid = p.get("_id")
+            if not pid:
                 continue
-
-            cursor = self.db.col("deviceCap").find(
-                {"deviceID": device_id, "time": {"$gte": since}},
-                {"time": 1, "params": 1}
-            ).sort("time", 1)
-            docs = [d async for d in cursor]
-            if len(docs) < 5:
-                continue
-
-            patient_doc, pid_str = await self._load_patient(pid)
-            if not pid_str:
-                continue
+            pid_str = str(pid)
+            patient_doc = p
 
             for tr in trend_rules:
-                values = [_extract_param(d, tr["param"]) for d in docs]
-                values = [v for v in values if v is not None]
+                series = await self._get_param_series_by_pid(pid, tr["param"], since, prefer_device_types=["monitor"])
+                values = [v["value"] for v in series if v.get("value") is not None]
                 if len(values) < 5:
                     continue
 
@@ -78,8 +71,8 @@ class TrendMixin:
                     value=values[-1],
                     patient_id=pid_str,
                     patient_doc=patient_doc,
-                    device_id=device_id,
-                    source_time=docs[-1].get("time"),
+                    device_id=None,
+                    source_time=series[-1]["time"] if series else None,
                     extra={"trend": trend, "recent_values": values[-5:]},
                 )
                 if alert:

@@ -1,0 +1,25 @@
+{
+  "doc_id": "icu_local_sepsis_sop",
+  "title": "院内脓毒症处置SOP",
+  "scope": "institutional",
+  "topic": "sepsis_initial_management",
+  "summary": "用于内网 ICU 场景的本地处置流程摘要。优先级高于公开通用指南摘要。",
+  "sections": [
+    {
+      "id": "local_sepsis_triage",
+      "section_title": "院内脓毒症初始评估",
+      "recommendation": "本院初始处置流程",
+      "recommendation_grade": "hospital_sop",
+      "tags": ["sepsis", "shock", "institutional"],
+      "text": "当 ICU 系统触发脓毒症或脓毒性休克预警时，值班医生需在 15 分钟内完成：1) 确认感染灶与是否存在低灌注；2) 核对乳酸、血培养、抗菌药与液体复苏执行状态；3) 若乳酸 >=4 mmol/L 或 MAP <65 mmHg，优先进入本院脓毒症快速处置路径。"
+    },
+    {
+      "id": "local_sepsis_bundle_execution",
+      "section_title": "院内 1h Bundle 执行要求",
+      "recommendation": "本院Bundle执行顺序",
+      "recommendation_grade": "hospital_sop",
+      "tags": ["sepsis", "bundle", "antibiotic", "institutional"],
+      "text": "本院要求在 1 小时内依次确认：血培养是否已留取、广谱抗菌药是否已下达并开始执行、液体复苏目标量是否达成、MAP 是否维持 >=65 mmHg。若液体复苏后仍低灌注，应立即复核升压药启动与中心静脉通路需求。"
+    }
+  ]
+}

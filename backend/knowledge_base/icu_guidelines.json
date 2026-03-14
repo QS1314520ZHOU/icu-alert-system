@@ -1,0 +1,82 @@
+[
+  {
+    "id": "ssc2021_1h_bundle",
+    "title": "Surviving Sepsis Campaign 2021",
+    "source": "SSC 2021",
+    "recommendation": "1h Bundle",
+    "tags": ["sepsis", "shock", "lactate", "antibiotic"],
+    "text": "For suspected septic shock or sepsis with hypoperfusion, complete the 1-hour bundle: measure lactate level, obtain blood cultures before antibiotics, administer broad-spectrum antibiotics, begin rapid administration of 30 mL/kg crystalloid for hypotension or lactate >=4 mmol/L, and apply vasopressors if hypotensive during or after fluid resuscitation to maintain MAP >=65 mmHg."
+  },
+  {
+    "id": "ssc2021_vasopressor_map",
+    "title": "Surviving Sepsis Campaign 2021",
+    "source": "SSC 2021",
+    "recommendation": "MAP Target",
+    "tags": ["sepsis", "vasopressor", "map"],
+    "text": "Recommend an initial target mean arterial pressure of 65 mmHg in adults with septic shock. Norepinephrine is recommended as the first-line vasopressor."
+  },
+  {
+    "id": "kdigo_aki_stage",
+    "title": "KDIGO AKI Guideline",
+    "source": "KDIGO",
+    "recommendation": "Staging",
+    "tags": ["aki", "creatinine", "urine"],
+    "text": "KDIGO defines AKI stage by serum creatinine rise and urine output decline. Stage 2 includes creatinine 2.0-2.9 times baseline or urine output <0.5 mL/kg/h for >=12 hours. Stage 3 includes creatinine >=3.0 times baseline or anuria for >=12 hours."
+  },
+  {
+    "id": "berlin_ards_definition",
+    "title": "Berlin ARDS Definition",
+    "source": "Berlin 2012",
+    "recommendation": "Severity",
+    "tags": ["ards", "pf", "peep"],
+    "text": "ARDS severity by PaO2/FiO2 with PEEP or CPAP >=5 cmH2O: mild 200-300, moderate 100-200, severe <=100 mmHg."
+  },
+  {
+    "id": "isth_dic_score",
+    "title": "ISTH DIC Scoring System",
+    "source": "ISTH",
+    "recommendation": "Overt DIC",
+    "tags": ["dic", "platelet", "inr", "fibrinogen"],
+    "text": "ISTH overt DIC score integrates platelet count, fibrin-related markers, PT prolongation, and fibrinogen level. A score >=5 suggests overt DIC and warrants repeated daily reassessment."
+  },
+  {
+    "id": "padis2018_delirium",
+    "title": "PADIS Guideline",
+    "source": "PADIS 2018",
+    "recommendation": "Sedation and Delirium",
+    "tags": ["delirium", "sedation", "rass"],
+    "text": "Use protocolized sedation with light sedation target when feasible, and routine delirium monitoring with validated tools. Minimize benzodiazepines and promote non-pharmacologic delirium prevention."
+  },
+  {
+    "id": "espen2019_icu_nutrition",
+    "title": "ESPEN ICU Nutrition Guideline",
+    "source": "ESPEN",
+    "recommendation": "Early Enteral Nutrition",
+    "tags": ["nutrition", "icu", "feeding"],
+    "text": "In critically ill adults, early enteral nutrition is preferred when the gut is functional. Increase feeding progressively while monitoring intolerance and aspiration risk."
+  },
+  {
+    "id": "sccm2024_glucose",
+    "title": "SCCM Glucose Control Update",
+    "source": "SCCM 2024",
+    "recommendation": "Glycemic Target",
+    "tags": ["glucose", "insulin", "hypoglycemia"],
+    "text": "Reasonable ICU glucose target range is generally 140-180 mg/dL for most adults, while avoiding hypoglycemia and large glucose variability."
+  },
+  {
+    "id": "drug_vanco_renal",
+    "title": "Vancomycin Safety Note",
+    "source": "Drug Label",
+    "recommendation": "Renal Monitoring",
+    "tags": ["drug", "vancomycin", "renal"],
+    "text": "Vancomycin exposure is associated with nephrotoxicity risk, especially with high trough concentration, prolonged duration, or concomitant nephrotoxic agents. Monitor renal function and drug levels."
+  },
+  {
+    "id": "drug_heparin_hit",
+    "title": "Heparin Safety Note",
+    "source": "Drug Label",
+    "recommendation": "HIT Monitoring",
+    "tags": ["drug", "heparin", "hit", "platelet"],
+    "text": "Heparin-induced thrombocytopenia should be suspected with platelet fall >50 percent typically between day 5 and 10 of heparin exposure."
+  }
+]

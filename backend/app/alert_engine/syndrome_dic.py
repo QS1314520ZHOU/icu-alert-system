@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 class DicMixin:
     async def scan_dic(self) -> None:
         patient_cursor = self.db.col("patient").find(
-            {"isLeave": {"$ne": True}},
+            self._active_patient_query(),
             {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1,
              "clinicalDiagnosis": 1, "admissionDiagnosis": 1},
         )

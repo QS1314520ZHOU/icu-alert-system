@@ -4,13 +4,14 @@ ICU智能预警系统 - FastAPI 主应用
 import json
 import logging
 import re
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
 from bson import ObjectId
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 # =============================================
@@ -29,11 +30,23 @@ from app.config import AppConfig, get_config
 from app.database import DatabaseManager
 from app.ws_manager import WebSocketManager
 from app.alert_engine import AlertEngine
+from app.alert_engine.acid_base_analyzer import (
+    SUPPORTIVE_FALLBACK_FIELDS,
+    extract_acid_base_snapshot,
+    interpret_acid_base,
+    is_blood_gas_snapshot,
+)
+from app.services.ai_handoff import AiHandoffService
+from app.services.ai_monitor import AiMonitor
+from app.services.rag_service import RagService
 
 db: DatabaseManager = None        # type: ignore[assignment]
 config: AppConfig = None          # type: ignore[assignment]
 ws_mgr: WebSocketManager = None   # type: ignore[assignment]
 alert_engine: AlertEngine = None  # type: ignore[assignment]
+ai_handoff_service: AiHandoffService = None  # type: ignore[assignment]
+ai_monitor: AiMonitor = None  # type: ignore[assignment]
+ai_rag_service: RagService = None  # type: ignore[assignment]
 
 
 # =============================================
@@ -41,7 +54,7 @@ alert_engine: AlertEngine = None  # type: ignore[assignment]
 # =============================================
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    global db, config, ws_mgr, alert_engine
+    global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service
 
     # 启动
     logger.info("🚀 ICU智能预警系统启动中...")
@@ -54,12 +67,18 @@ async def lifespan(application: FastAPI):
 
     alert_engine = AlertEngine(db, config, ws_mgr)
     await alert_engine.start()
+    ai_handoff_service = AiHandoffService(db, config)
+    ai_monitor = AiMonitor(db, config)
+    ai_rag_service = RagService(config)
 
     # 挂到 app.state 以便需要时通过 request.app.state 访问
     application.state.db = db
     application.state.config = config
     application.state.ws_mgr = ws_mgr
     application.state.alert_engine = alert_engine
+    application.state.ai_handoff_service = ai_handoff_service
+    application.state.ai_monitor = ai_monitor
+    application.state.ai_rag_service = ai_rag_service
 
     logger.info("✅ ICU智能预警系统启动完成")
     yield
@@ -833,11 +852,38 @@ async def _call_llm(system_prompt: str, user_prompt: str, model: str = None) -> 
         ],
     }
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(llm_url, json=payload, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+    start = time.perf_counter()
+    text = ""
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(llm_url, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            text = data["choices"][0]["message"]["content"]
+    except Exception:
+        if ai_monitor:
+            await ai_monitor.log_llm_call(
+                module="api_llm",
+                model=llm_model,
+                prompt=(system_prompt or "") + "\n\n" + (user_prompt or ""),
+                output=text,
+                latency_ms=(time.perf_counter() - start) * 1000.0,
+                success=False,
+                meta={"url": llm_url},
+            )
+        raise
+
+    if ai_monitor:
+        await ai_monitor.log_llm_call(
+            module="api_llm",
+            model=llm_model,
+            prompt=(system_prompt or "") + "\n\n" + (user_prompt or ""),
+            output=text,
+            latency_ms=(time.perf_counter() - start) * 1000.0,
+            success=True,
+            meta={"url": llm_url},
+        )
+    return text
 
 
 # =============================================
@@ -916,6 +962,97 @@ async def get_patient(patient_id: str):
     if not doc:
         return {"code": 404, "message": "患者不存在"}
     return {"code": 0, "patient": serialize_doc(doc)}
+
+
+@app.post("/api/patients/bundle-status")
+async def patient_bundle_statuses(patient_ids: list[str] = Body(default=[])):
+    """批量获取患者 ABCDEF bundle 状态。"""
+    results: dict[str, dict] = {}
+    ids = []
+    for raw in patient_ids or []:
+        try:
+            ids.append(ObjectId(str(raw)))
+        except Exception:
+            continue
+    if not ids:
+        return {"code": 0, "statuses": results}
+    cursor = db.col("patient").find({"_id": {"$in": ids}})
+    async for patient in cursor:
+        try:
+            status = await alert_engine.get_liberation_bundle_status(patient)
+        except Exception as e:
+            logger.warning(f"bundle status error: {e}")
+            status = {"lights": {}}
+        results[str(patient["_id"])] = serialize_doc(status)
+    return {"code": 0, "statuses": results}
+
+
+@app.get("/api/bundle/overview")
+async def bundle_overview(
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    """全病区 bundle 合规汇总。"""
+    query: dict = _active_patient_query()
+    if dept:
+        query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}]}]}
+    elif dept_code:
+        query = {"$and": [query, {"deptCode": dept_code}]}
+
+    counts = {"green": 0, "yellow": 0, "red": 0}
+    patient_count = 0
+    cursor = db.col("patient").find(query)
+    async for patient in cursor:
+        patient_count += 1
+        status = await alert_engine.get_liberation_bundle_status(patient)
+        for state in (status.get("lights") or {}).values():
+            if state in counts:
+                counts[state] += 1
+    return {"code": 0, "patient_count": patient_count, "counts": counts}
+
+
+@app.get("/api/device-risk/heatmap")
+async def device_risk_heatmap(
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    """床位导管感染/装置风险热力图。"""
+    query: dict = _active_patient_query()
+    if dept:
+        query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}]}]}
+    elif dept_code:
+        query = {"$and": [query, {"deptCode": dept_code}]}
+
+    rows = []
+    cursor = db.col("patient").find(query, {"_id": 1, "name": 1, "hisBed": 1, "dept": 1, "hisDept": 1, "hisPid": 1, "clinicalDiagnosis": 1})
+    async for patient in cursor:
+        summary = await alert_engine._device_management_summary(patient)
+        for device in summary.get("devices", []):
+            risk_score = {"low": 1, "medium": 2, "high": 3}.get(device.get("risk"), 0)
+            rows.append({
+                "patient_id": str(patient["_id"]),
+                "bed": patient.get("hisBed") or "--",
+                "patient_name": patient.get("name") or "",
+                "device_type": device.get("type"),
+                "line_days": device.get("line_days"),
+                "risk": device.get("risk"),
+                "risk_score": risk_score,
+            })
+    return {"code": 0, "rows": rows}
+
+
+@app.get("/api/patients/{patient_id}/discharge-readiness")
+async def patient_discharge_readiness(patient_id: str):
+    """转出风险评估。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    patient = await db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+    result = await alert_engine.evaluate_discharge_readiness(patient)
+    return {"code": 0, "assessment": serialize_doc(result)}
 
 
 # =============================================
@@ -1029,6 +1166,17 @@ async def patient_labs(patient_id: str):
                 exam_name_by_data[data_id] = str(name)
 
         grouped: dict = {}
+        global_snapshot = extract_acid_base_snapshot(item_docs, {})
+        acid_fallback = {
+            k: {
+                "value": v.get("value"),
+                "unit": v.get("unit", ""),
+                "raw_name": v.get("source_name", k),
+                "time": v.get("time"),
+            }
+            for k, v in (global_snapshot.get("fields") or {}).items()
+            if k in SUPPORTIVE_FALLBACK_FIELDS
+        }
         for doc in item_docs:
             key = _lab_group_key(doc)
             report_id = str(doc.get("examID") or doc.get("orderID") or "")
@@ -1047,6 +1195,7 @@ async def patient_labs(patient_id: str):
                     "examName": exam_name,
                     "requestTime": _lab_time(doc),
                     "items": [],
+                    "_raw_docs": [],
                 }
             item = {
                 "itemName": doc.get("itemName"),
@@ -1057,10 +1206,21 @@ async def patient_labs(patient_id: str):
                 "resultFlag": doc.get("resultFlag") or doc.get("abnormalFlag") or doc.get("seriousFlag") or doc.get("resultStatus"),
             }
             grouped[key]["items"].append(item)
+            grouped[key]["_raw_docs"].append(doc)
             if not grouped[key].get("requestTime"):
                 grouped[key]["requestTime"] = _lab_time(doc)
 
         exams = sorted(grouped.values(), key=lambda x: x.get("requestTime") or datetime.min, reverse=True)
+        for exam in exams:
+            snapshot = extract_acid_base_snapshot(exam.get("_raw_docs") or [], acid_fallback)
+            if is_blood_gas_snapshot(snapshot, exam.get("_raw_docs") or [], exam.get("examName")):
+                interpretation = interpret_acid_base(snapshot)
+            else:
+                interpretation = None
+            if interpretation:
+                interpretation["snapshot_time"] = exam.get("requestTime") or interpretation.get("snapshot_time")
+                exam["acidBaseInterpretation"] = serialize_doc(interpretation)
+            exam.pop("_raw_docs", None)
         exams = [serialize_doc(e) for e in exams]
 
     return {"code": 0, "exams": exams}
@@ -1669,6 +1829,136 @@ async def alerts_analytics_rankings(
 # =============================================
 # AI 辅助接口
 # =============================================
+@app.get("/api/patients/{patient_id}/handoff-summary")
+async def patient_handoff_summary(patient_id: str):
+    """AI 交班摘要（I-PASS）"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        cfg = get_config()
+        result = await ai_handoff_service.generate(
+            patient_id=str(pid),
+            patient_doc=patient,
+            llm_call=_call_llm,
+            model=cfg.llm_model_medical or None,
+        )
+        return {"code": 0, **result}
+    except Exception as e:
+        logger.error(f"AI handoff summary error: {e}")
+        return {"code": 0, "summary": {}, "error": f"AI服务异常: {str(e)[:120]}"}
+
+
+@app.post("/api/ai/feedback")
+async def ai_feedback(payload: dict = Body(...)):
+    """记录AI输出事后反馈，用于准确率闭环。"""
+    prediction_id = str(payload.get("prediction_id") or "").strip()
+    outcome = str(payload.get("outcome") or "").strip().lower()
+    module = str(payload.get("module") or "ai_risk").strip() or "ai_risk"
+    detail = payload.get("detail") if isinstance(payload.get("detail"), dict) else {}
+
+    if not prediction_id:
+        return {"code": 400, "message": "prediction_id不能为空"}
+    if outcome not in {"confirmed", "dismissed", "inaccurate"}:
+        return {"code": 400, "message": "outcome必须为 confirmed/dismissed/inaccurate"}
+
+    try:
+        await ai_monitor.log_prediction_feedback(
+            module=module,
+            prediction_id=prediction_id,
+            outcome=outcome,
+            detail=detail,
+        )
+    except Exception as e:
+        logger.error(f"AI feedback log error: {e}")
+
+    oid = _safe_oid(prediction_id)
+    if oid is not None:
+        try:
+            await db.col("alert_records").update_one(
+                {"_id": oid},
+                {
+                    "$set": {
+                        "ai_feedback.outcome": outcome,
+                        "ai_feedback.detail": detail,
+                        "ai_feedback.updated_at": datetime.now(),
+                    }
+                },
+            )
+        except Exception as e:
+            logger.error(f"AI feedback alert update error: {e}")
+
+    return {"code": 0, "prediction_id": prediction_id, "outcome": outcome}
+
+
+@app.get("/api/knowledge/chunks/{chunk_id}")
+async def get_knowledge_chunk(chunk_id: str):
+    """离线知识库证据详情。"""
+    try:
+        bundle = ai_rag_service.get_chunk_bundle(chunk_id)
+    except Exception as e:
+        logger.error(f"Knowledge chunk error: {e}")
+        return {"code": 0, "chunk": {}, "error": f"知识库查询异常: {str(e)[:120]}"}
+
+    if not bundle:
+        return {"code": 404, "message": "未找到知识片段"}
+    return {"code": 0, "chunk": bundle}
+
+
+@app.get("/api/knowledge/documents")
+async def list_knowledge_documents():
+    """列出本地离线知识包文档。"""
+    try:
+        docs = ai_rag_service.list_documents()
+    except Exception as e:
+        logger.error(f"Knowledge documents error: {e}")
+        return {"code": 0, "documents": [], "error": f"知识库查询异常: {str(e)[:120]}"}
+    return {"code": 0, "documents": docs}
+
+
+@app.get("/api/knowledge/status")
+async def get_knowledge_status():
+    """离线知识包状态。"""
+    try:
+        status = ai_rag_service.status()
+    except Exception as e:
+        logger.error(f"Knowledge status error: {e}")
+        return {"code": 0, "status": {}, "error": f"知识库状态异常: {str(e)[:120]}"}
+    return {"code": 0, "status": status}
+
+
+@app.get("/api/knowledge/documents/{doc_id}")
+async def get_knowledge_document(doc_id: str):
+    """获取本地离线知识文档及其章节。"""
+    try:
+        doc = ai_rag_service.get_document(doc_id, include_chunks=True)
+    except Exception as e:
+        logger.error(f"Knowledge document detail error: {e}")
+        return {"code": 0, "document": {}, "error": f"知识库查询异常: {str(e)[:120]}"}
+    if not doc:
+        return {"code": 404, "message": "未找到知识文档"}
+    return {"code": 0, "document": doc}
+
+
+@app.post("/api/knowledge/reload")
+async def reload_knowledge():
+    """热更新离线知识包，无需重启服务。"""
+    try:
+        status = ai_rag_service.reload()
+        if getattr(alert_engine, "_rag_service", None) is not None:
+            alert_engine._rag_service = ai_rag_service
+    except Exception as e:
+        logger.error(f"Knowledge reload error: {e}")
+        return {"code": 0, "status": {}, "error": f"知识库热更新失败: {str(e)[:120]}"}
+    return {"code": 0, "status": status, "message": "知识库已热更新"}
+
+
 @app.get("/api/ai/lab-summary/{patient_id}")
 async def ai_lab_summary(patient_id: str):
     """AI分析患者近期检验异常"""

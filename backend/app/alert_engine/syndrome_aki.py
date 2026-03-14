@@ -5,7 +5,7 @@ from __future__ import annotations
 class AkiMixin:
     async def scan_aki(self) -> None:
         patient_cursor = self.db.col("patient").find(
-            {"isLeave": {"$ne": True}},
+            self._active_patient_query(),
             {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1,
              "weight": 1, "bodyWeight": 1, "body_weight": 1, "weightKg": 1, "weight_kg": 1},
         )

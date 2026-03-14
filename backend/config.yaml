@@ -102,6 +102,8 @@ assessments:
   gcs:            { code: "param_score_gcs_obs",    name: "GCS评分",     range: [3, 15] }
   rass:           { code: "param_score_rass_obs",   name: "RASS评分",    range: [-5, 4] }
   pain:           { code: "param_tengTong_score",   name: "疼痛评分",    range: [0, 10] }
+  cpot:           { code: "param_score_cpot",       name: "CPOT评分",    range: [0, 8] }
+  bps:            { code: "param_score_bps",        name: "BPS评分",     range: [3, 12] }
   delirium:       { code: "param_delirium_score",   name: "谵妄评分" }
   consciousness:  { code: "param_Yishi",            name: "意识" }
   braden:         { code: "param_score_braden",     name: "Braden评分",  range: [0, 23] }
@@ -130,6 +132,15 @@ ai_service:
     confidence_threshold: 0.8
     batch_size: 50
 
+  rag:
+    enabled: true
+    provider: "local"
+    knowledge_dir: "knowledge_base"
+    top_k: 4
+
+  monitor:
+    enabled: true
+
 # ==================== 预警引擎配置 ====================
 alert_engine:
   scan_intervals:
@@ -143,6 +154,13 @@ alert_engine:
     bleeding: 600
     ventilator: 3600
     drug_safety: 1800
+    antibiotic_stewardship: 1800
+    delirium_risk: 900
+    fluid_balance: 600
+    glycemic_control: 300
+    vte_prophylaxis: 900
+    nutrition_monitor: 900
+    composite_deterioration: 300
     assessments: 600
     trend_analysis: 900
 
@@ -158,14 +176,235 @@ alert_engine:
   data_mapping:
     urine_output:
       codes: ["param_urine", "param_尿量", "urine_output", "urine_ml_h", "param_udd_urine_total"]
+    fluid_output:
+      drainage_codes: ["param_drainage", "param_引流量", "drainage_output"]
+      ultrafiltration_codes: ["param_uf", "param_超滤量", "ultrafiltration_output"]
+      gi_decompression_codes: ["param_gi_decompression", "param_胃肠减压", "gi_decompression_output"]
+    glucose:
+      codes: ["param_blood_glucose", "param_glu", "param_血糖", "blood_glucose"]
+    qtc_codes: ["param_qtc", "param_QTc", "ecg_qtc", "qtc"]
     icp_codes: ["param_ICP", "param_icp"]
     cpp_codes: ["param_CPP", "param_cpp"]
+
+  vital_signs_advanced:
+    af_hr_threshold: 100
+    af_irregular_duration_seconds: 300
+    af_max_gap_seconds: 120
+    af_new_onset_lookback_hours: 6
+    af_rhythm_lookback_minutes: 30
+    af_keywords: ["房颤", "AF", "atrial fibrillation"]
+    afl_keywords: ["房扑", "AFL", "atrial flutter"]
+    irregular_keywords: ["不规则", "irregular", "arrhythmia", "房颤", "房扑"]
+    rhythm_codes: ["param_xinLvLv", "rhythm_type", "param_rhythm_type", "arrhythmia_flag", "param_arrhythmia_flag"]
+    arrhythmia_flag_codes: ["arrhythmia_flag", "param_arrhythmia_flag"]
+    brady_hr_threshold: 50
+    brady_sbp_drop_threshold: 20
+    brady_sbp_window_minutes: 30
+    qtc_threshold_ms: 500
+    qtc_critical_ms: 550
+    qtc_lookback_hours: 2
+
+  composite_deterioration:
+    window_hours: 4
+    organ_threshold: 3
+    min_alert_count: 3
+    max_source_alerts: 300
+    ignore_categories: ["assessments", "ai_analysis", "composite_deterioration"]
+    ignore_alert_types: ["nurse_reminder", "multi_organ_deterioration_trend"]
+    organ_mapping:
+      respiratory:
+        alert_types: ["ards", "weaning", "opioid_respiratory_depression"]
+        categories: ["ventilator"]
+        parameters: ["param_resp", "param_spo2", "pao2", "oxygen", "fio2", "peep"]
+        keywords: ["呼吸", "氧", "spo2", "p/f", "呼吸机", "resp"]
+      circulatory:
+        alert_types: ["septic_shock", "qsofa", "sofa", "brady_hypotension", "af_afl_new_onset"]
+        categories: ["vital_signs"]
+        parameters: ["param_ibp_m", "param_nibp_m", "param_ibp_s", "param_nibp_s", "map", "sbp", "hr", "shock"]
+        keywords: ["循环", "休克", "低血压", "心动过缓", "房颤", "房扑", "map", "sbp"]
+      renal:
+        alert_types: ["aki", "nephrotoxicity", "fluid_balance"]
+        categories: []
+        parameters: ["cr", "creatinine", "urine", "尿", "renal"]
+        keywords: ["肾", "肌酐", "尿量", "液体平衡", "renal", "aki"]
+      coagulation:
+        alert_types: ["dic", "hit", "gi_bleeding"]
+        categories: []
+        parameters: ["plt", "inr", "pt", "fib", "ddimer", "coag"]
+        keywords: ["凝血", "血小板", "d-dimer", "出血", "coag"]
+      hepatic:
+        alert_types: []
+        categories: []
+        parameters: ["bil", "bilirubin", "tbil", "liver", "hepatic"]
+        keywords: ["肝", "胆红素", "liver", "hepatic"]
+      neurologic:
+        alert_types: ["pupil", "tbi", "icp", "cpp", "gcs_drop", "delirium_risk", "sedation_delirium_conversion"]
+        categories: ["tbi"]
+        parameters: ["gcs", "rass", "icp", "cpp", "pupil", "neuro"]
+        keywords: ["神经", "意识", "谵妄", "瞳孔", "颅脑", "neuro", "gcs", "rass"]
+
+  fluid_balance:
+    windows_hours: [6, 12, 24]
+    positive_balance_warning_pct: 5
+    positive_balance_critical_pct: 10
+    rapid_infusion_ml_per_kg_6h: 30
+    urine_response_ml_per_kg_h: 0.5
+    linkage_lookback_hours: 24
+
+  delirium_risk:
+    warning_score: 4
+    high_score: 7
+    critical_score: 10
+    benzodiazepine_keywords: ["咪达唑仑", "地西泮", "劳拉西泮", "阿普唑仑", "艾司唑仑", "氯硝西泮"]
+    morphine_keywords: ["吗啡", "morphine"]
+    factor_weights:
+      age_gt_65: 1
+      benzodiazepine: 2
+      emergency_admission: 1
+      mechanical_ventilation: 2
+      metabolic_acidosis: 2
+      morphine_use: 1
+      bun_elevated: 2
+      deep_sedation: 1
+      gcs_low: 1
+
+  glycemic_control:
+    cv_warning_pct: 36
+    low_warning_mmol: 3.9
+    low_critical_mmol: 2.2
+    drop_rate_warning_mmol_per_h: 3
+    insulin_recheck_hours: 2
+    high_threshold_mmol: 10
+    high_consecutive_count: 3
+    insulin_lookback_hours: 12
+    min_points_for_cv: 4
+    insulin_keywords: ["胰岛素", "insulin", "门冬胰岛素", "甘精胰岛素", "赖脯胰岛素", "地特胰岛素"]
+    pump_keywords: ["泵", "微泵", "泵入", "泵注", "insulin pump", "pump"]
+
+  antibiotic_stewardship:
+    empiric_timeout_hours: 48
+    pct_stop_eval_days: 5
+    vanco_tdm_days: 3
+    duration_limit_days: 7
+    antibiotic_type_keywords: ["抗生素", "抗菌", "抗感染", "antibiotic", "antimicrobial"]
+    broad_type_keywords: ["广谱", "碳青霉烯", "三四代头孢", "broad", "carbapenem"]
+    antibiotic_keywords: ["头孢", "青霉素", "美罗培南", "左氧氟沙星", "万古霉素", "阿奇霉素", "哌拉西林"]
+    broad_spectrum_keywords: ["美罗培南", "亚胺培南", "哌拉西林他唑巴坦", "头孢哌酮舒巴坦", "头孢吡肟", "替加环素"]
+    culture_keywords: ["培养", "culture", "药敏", "细菌", "真菌"]
+    culture_pending_keywords: ["待报", "待回", "进行中", "pending", "未出"]
+    culture_positive_keywords: ["阳性", "positive", "生长", "检出", "分离出"]
+    vancomycin_keywords: ["万古霉素", "vancomycin"]
+    aminoglycoside_keywords: ["阿米卡星", "庆大霉素", "妥布霉素", "依替米星", "奈替米星", "链霉素"]
+    vanco_tdm_keywords: ["万古霉素谷", "万古霉素浓度", "万古霉素血药浓度", "vancomycin trough"]
+    aminoglycoside_tdm_keywords: ["阿米卡星谷", "庆大霉素谷", "妥布霉素谷", "氨基糖苷", "amikacin trough", "gentamicin trough"]
+
+  vte_prophylaxis:
+    padua_high_risk_score: 4
+    caprini_high_risk_score: 5
+    immobility_hours_threshold: 48
+    prophylaxis_lookback_hours: 72
+    pharm_prophylaxis_keywords: ["依诺肝素", "那曲肝素", "达肝素", "低分子肝素", "普通肝素", "肝素", "fondaparinux", "利伐沙班"]
+    mechanical_prophylaxis_keywords: ["间歇充气", "IPC", "SCD", "气压治疗", "弹力袜", "机械预防", "下肢气压泵", "梯度压力袜"]
+    mechanical_negative_keywords: ["未做", "未行", "未实施", "none", "no", "否"]
+    active_bleeding_alert_types: ["gi_bleeding"]
+    immobility_keywords: ["卧床", "制动", "绝对卧床", "不能下床", "bed rest", "immobile", "瘫痪", "昏迷"]
+    mobility_positive_keywords: ["下床", "活动", "行走", "可活动", "ambulation", "walking"]
+    cancer_keywords: ["恶性肿瘤", "癌", "cancer", "肿瘤"]
+    previous_vte_keywords: ["静脉血栓", "肺栓塞", "DVT", "PE", "VTE"]
+    thrombophilia_keywords: ["易栓症", "抗磷脂", "thrombophilia"]
+    heart_resp_failure_keywords: ["心衰", "呼衰", "heart failure", "respiratory failure"]
+    acute_mi_stroke_keywords: ["急性心梗", "脑卒中", "stroke", "MI"]
+    infection_rheum_keywords: ["感染", "sepsis", "肺炎", "风湿", "rheum"]
+    recent_surgery_keywords: ["术后", "手术", "surgery", "trauma", "外伤", "骨折手术"]
+    hormonal_treatment_keywords: ["雌激素", "孕激素", "激素替代", "tamoxifen", "他莫昔芬"]
+    padua_weights:
+      active_cancer: 3
+      previous_vte: 3
+      reduced_mobility: 3
+      thrombophilia: 3
+      recent_trauma_surgery: 2
+      age_ge_70: 1
+      heart_or_resp_failure: 1
+      acute_mi_or_stroke: 1
+      acute_infection_or_rheum: 1
+      obesity_bmi_ge_30: 1
+      hormonal_treatment: 1
+    caprini_weights:
+      age_41_60: 1
+      age_61_74: 2
+      age_ge_75: 3
+      bmi_gt_25: 1
+      bedrest_gt_72h: 1
+      recent_surgery: 2
+      active_cancer: 2
+      previous_vte: 3
+      thrombophilia: 3
+      acute_stroke_or_mi: 5
+
+  nutrition_monitor:
+    start_delay_hours: 48
+    calorie_target_kcal_per_kg_day: 25
+    calorie_coverage_threshold: 0.6
+    calorie_under_target_persist_hours: 72
+    feeding_intolerance_lookback_hours: 72
+    grv_threshold_ml: 500
+    refeeding_monitor_hours: 72
+    malnutrition_bmi_threshold: 18.5
+    malnutrition_albumin_g_l_threshold: 25
+    albumin_baseline_lookback_days: 7
+    electrolyte_drop_ratio_threshold: 0.2
+    electrolyte_drop_abs_threshold:
+      k: 0.5
+      phosphate: 0.3
+      magnesium: 0.2
+    electrolyte_low_threshold:
+      k: 3.5
+      phosphate: 0.8
+      magnesium: 0.75
+    default_enteral_kcal_per_ml: 1.0
+    default_parenteral_kcal_per_ml: 0.8
+    default_rate_duration_hours: 1.0
+    enteral_keywords: ["肠内营养", "鼻饲", "胃管", "enteral", "tube feeding", "营养泵"]
+    parenteral_keywords: ["肠外营养", "TPN", "全肠外", "静脉营养", "脂肪乳", "复方氨基酸", "葡萄糖注射液"]
+    grv_keywords: ["胃残余", "胃潴留", "GRV", "gastric residual"]
+    vomit_keywords: ["呕吐", "返流", "反流", "vomit", "emesis", "regurgitation"]
+    abdominal_distension_keywords: ["腹胀", "腹部膨隆", "abdominal distension", "bloating"]
+    feeding_interrupt_keywords: ["中断喂养", "暂停喂养", "停止喂养", "禁食", "NPO", "hold feeding", "feeding interrupted"]
+    albumin_keywords: ["白蛋白", "albumin", "ALB"]
+    phosphate_keywords: ["磷", "无机磷", "血磷", "phosphate", "phos", "phosphorus"]
+    magnesium_keywords: ["镁", "血镁", "magnesium"]
+
+  drug_safety:
+    opioid_med_warning_mg_per_day: 200
+    opioid_min_long_term_days: 3
+    opioid_stop_gap_hours: 24
+    opioid_withdrawal_window_hours: 72
+    opioid_course_gap_hours: 36
+    opioid_resp_rr_threshold: 10
+    opioid_resp_rr_critical: 8
+    opioid_spo2_low_threshold: 92
+    opioid_spo2_critical_threshold: 90
+    opioid_spo2_drop_threshold: 4
+    opioid_spo2_drop_window_hours: 2
+    opioid_med_factors:
+      morphine: 1.0
+      fentanyl: 100.0
+      sufentanil: 1000.0
+      remifentanil: 200.0
+      oxycodone: 1.5
+      hydromorphone: 5.0
+      pethidine: 0.1
+      meperidine: 0.1
+      tramadol: 0.1
+      codeine: 0.15
+      butorphanol: 7.0
 
   drug_mapping:
     vasopressors: ["去甲肾上腺素", "肾上腺素", "多巴胺", "去氧肾上腺素", "血管加压素"]
     heparin: ["肝素"]
     vancomycin: ["万古霉素"]
     sedatives: ["咪达唑仑", "丙泊酚", "右美托咪定", "地西泮", "芬太尼", "瑞芬太尼"]
+    opioids: ["吗啡", "芬太尼", "舒芬太尼", "瑞芬太尼", "羟考酮", "氢吗啡酮", "哌替啶", "曲马多", "可待因", "布托啡诺", "morphine", "fentanyl", "sufentanil", "remifentanil", "oxycodone", "hydromorphone", "tramadol", "codeine", "opioid"]
     qt_risk: ["胺碘酮", "左氧氟沙星", "环丙沙星", "红霉素", "阿奇霉素", "氟哌啶醇", "奥氮平", "喹硫平"]
 
 # ==================== 护理提醒 ====================
@@ -173,7 +412,56 @@ nurse_reminders:
   gcs:       { code: "param_score_gcs_obs",   interval_hours: 4 }
   rass:      { code: "param_score_rass_obs",   interval_hours: 4 }
   pain:      { code: "param_tengTong_score",   interval_hours: 4 }
+  cpot:
+    code: "param_score_cpot"
+    interval_hours: 4
+    name: "CPOT评估超时"
+    analgesic_adjustment_enabled: true
+    adjustment_lookback_hours: 8
+    assessment_before_hours: 1
+    assessment_after_hours: 1
+    dose_change_ratio_threshold: 0.25
+    adjustment_name: "CPOT评估(镇痛药调整前后)"
+  bps:
+    code: "param_score_bps"
+    interval_hours: 4
+    name: "BPS评估超时"
+    analgesic_adjustment_enabled: true
+    adjustment_lookback_hours: 8
+    assessment_before_hours: 1
+    assessment_after_hours: 1
+    dose_change_ratio_threshold: 0.25
+    adjustment_name: "BPS评估(镇痛药调整前后)"
   delirium:  { code: "param_delirium_score",   interval_hours: 12 }
+  braden:    { code: "param_score_braden",     interval_hours: 24, name: "BRADEN压疮风险评估超时" }
+  cam_icu:   { code: "param_delirium_score", rass_gte: -3, interval_hours: 8 }
+  turning:
+    code: "nurse_turning"
+    interval_hours: 2
+    very_high_risk_interval_hours: 1.5
+    braden_high_risk_threshold: 12
+    deep_sedation_rass_threshold: -2
+    bmi_low_threshold: 18.5
+    bmi_high_threshold: 30
+    turning_event_lookback_hours: 96
+    turning_keywords: ["翻身", "体位变换", "更换体位", "reposition", "turn", "侧卧", "俯卧位", "半卧位", "卧位调整"]
+  early_mobility:
+    code: "nurse_early_mobility"
+    interval_hours: 8
+    icu_hours_threshold: 48
+    inactivity_hours: 24
+    map_threshold: 60
+    norepi_threshold_ug_kg_min: 0.2
+    norepi_lookback_hours: 12
+    norepi_taper_min_drop_ratio: 0.1
+    fio2_threshold: 0.6
+    peep_threshold: 10
+    rass_min: -1
+    rass_max: 1
+    activity_keywords: ["活动", "下床", "坐起", "坐位", "站立", "行走", "床边活动", "早期活动", "康复训练", "转移到椅", "步行"]
+    norepi_keywords: ["去甲肾上腺素", "norepinephrine", "noradrenaline", "去甲"]
+    name: "建议评估早期活动"
+    rule_id: "NURSE_EARLY_MOBILITY"
 
 # ==================== 通知（纯内网）====================
 notification:

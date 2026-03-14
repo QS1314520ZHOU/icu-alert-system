@@ -1,0 +1,15 @@
+{
+  "doc_id": "isth_dic",
+  "title": "ISTH DIC Scoring System",
+  "summary": "DIC显性评分的核心组成。",
+  "sections": [
+    {
+      "id": "isth_dic_score",
+      "section_title": "Overt DIC score",
+      "recommendation": "Overt DIC",
+      "recommendation_grade": "diagnostic_standard",
+      "tags": ["dic", "platelet", "inr", "fibrinogen"],
+      "text": "ISTH overt DIC score integrates platelet count, fibrin-related markers, PT prolongation, and fibrinogen level. A score >=5 suggests overt DIC and warrants repeated daily reassessment."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "doc_id": "berlin_ards",
+  "title": "Berlin ARDS Definition",
+  "summary": "ARDS按P/F比值与PEEP进行严重度分层。",
+  "sections": [
+    {
+      "id": "berlin_ards_definition",
+      "section_title": "ARDS severity definition",
+      "recommendation": "Severity",
+      "recommendation_grade": "diagnostic_standard",
+      "tags": ["ards", "pf", "peep"],
+      "text": "ARDS severity by PaO2/FiO2 with PEEP or CPAP >=5 cmH2O: mild 200-300, moderate 100-200, severe <=100 mmHg."
+    }
+  ]
+}

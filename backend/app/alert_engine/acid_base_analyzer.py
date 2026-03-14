@@ -1,0 +1,413 @@
+"""血气酸碱自动分析工具。"""
+from __future__ import annotations
+
+import re
+from datetime import datetime
+from typing import Any
+
+
+def _parse_num(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    m = re.search(r"[-+]?\d+(?:\.\d+)?", text)
+    if not m:
+        return None
+    try:
+        return float(m.group(0))
+    except Exception:
+        return None
+
+
+def _norm_unit(unit: Any) -> str:
+    return str(unit or "").strip().lower().replace("μ", "u")
+
+
+def _lab_time(doc: dict) -> datetime | None:
+    value = (
+        doc.get("authTime")
+        or doc.get("collectTime")
+        or doc.get("requestTime")
+        or doc.get("reportTime")
+        or doc.get("resultTime")
+        or doc.get("time")
+    )
+    if isinstance(value, datetime):
+        return value
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _item_name(doc: dict) -> str:
+    return str(
+        doc.get("itemCnName")
+        or doc.get("itemName")
+        or doc.get("item")
+        or doc.get("itemCode")
+        or ""
+    ).strip()
+
+
+def _item_code(doc: dict) -> str:
+    return str(doc.get("itemCode") or doc.get("code") or "").strip()
+
+
+def _doc_text(doc: dict) -> str:
+    return " ".join(
+        str(v).strip()
+        for v in [
+            doc.get("examName"),
+            doc.get("requestName"),
+            doc.get("orderName"),
+            _item_name(doc),
+            _item_code(doc),
+        ]
+        if v
+    ).lower()
+
+
+def _convert_field_value(field: str, value: float, unit: str) -> float:
+    u = _norm_unit(unit)
+    if field == "albumin":
+        if "g/dl" in u:
+            return value
+        if "g/l" in u:
+            return value / 10.0
+    if field in {"paco2"} and "kpa" in u:
+        return value * 7.50062
+    if field in {"po4"}:
+        if "mmol/l" in u:
+            return value * 3.1
+    if field in {"mg"} and "mmol/l" in u:
+        return value * 2.43
+    return value
+
+
+FIELD_KEYWORDS: dict[str, list[str]] = {
+    "ph": ["ph", "酸碱度"],
+    "paco2": ["paco2", "pco2", "二氧化碳分压", "二氧化碳"],
+    "pao2": ["pao2", "po2", "氧分压"],
+    "hco3": ["hco3", "碳酸氢根", "碳酸氢盐", "标准碳酸氢根", "实际碳酸氢根", "sbc", "abc"],
+    "na": ["na+", "na", "钠", "sodium"],
+    "k": ["k+", "k", "钾", "potassium"],
+    "cl": ["cl-", "cl", "氯", "chloride"],
+    "albumin": ["albumin", "alb", "白蛋白"],
+    "lactate": ["lactate", "lac", "乳酸"],
+    "mg": ["mg", "镁", "magnesium"],
+    "po4": ["po4", "phos", "phosphate", "磷", "无机磷", "血磷"],
+    "ica": ["ica", "离子钙", "ionized calcium"],
+}
+
+
+BLOOD_GAS_HINT_KEYWORDS = [
+    "血气",
+    "a-ado2",
+    "p/f ratio",
+    "fio2",
+    "pao2",
+    "po2",
+    "pco2",
+    "hco3act",
+    "hco3std",
+    "be(",
+    "so2",
+    "cohb",
+    "methb",
+    "o2hb",
+]
+
+NON_BLOOD_HINT_KEYWORDS = [
+    "爱威",
+    "优利特",
+    "微白蛋白",
+    "尿常规",
+    "尿沉渣",
+    "fa280",
+    "粪便",
+]
+
+SUPPORTIVE_FALLBACK_FIELDS = ("na", "k", "cl", "albumin", "lactate", "mg", "po4", "ica")
+
+
+def _is_non_blood_context(doc: dict) -> bool:
+    text = _doc_text(doc)
+    item_name = _item_name(doc).lower()
+    item_code = _item_code(doc).lower()
+
+    if item_code.startswith("ny"):
+        return True
+    if any(keyword in text for keyword in NON_BLOOD_HINT_KEYWORDS):
+        return True
+    if any(keyword in item_name for keyword in ["尿胆", "尿糖", "尿胆原", "微白蛋白", "尿白蛋白"]):
+        return True
+    return False
+
+
+def _value_is_plausible(field: str, value: float) -> bool:
+    ranges = {
+        "ph": (6.8, 7.8),
+        "paco2": (10.0, 120.0),
+        "pao2": (20.0, 500.0),
+        "hco3": (3.0, 60.0),
+        "na": (100.0, 180.0),
+        "k": (1.0, 10.0),
+        "cl": (60.0, 140.0),
+        "albumin": (0.5, 6.5),
+        "lactate": (0.1, 30.0),
+        "mg": (0.2, 10.0),
+        "po4": (0.2, 20.0),
+        "ica": (0.2, 3.0),
+    }
+    lo_hi = ranges.get(field)
+    if not lo_hi:
+        return True
+    lo, hi = lo_hi
+    return lo <= value <= hi
+
+
+def _match_field(doc: dict) -> str | None:
+    normalized = " ".join(filter(None, [_item_name(doc), _item_code(doc)])).strip().lower()
+    if not normalized or _is_non_blood_context(doc):
+        return None
+    for field, keywords in FIELD_KEYWORDS.items():
+        for kw in keywords:
+            kw_l = kw.lower()
+            if kw_l in normalized:
+                if field == "k" and "肌酐" in normalized:
+                    continue
+                if field == "mg" and ("image" in normalized or "mg/dl" in normalized):
+                    continue
+                if field == "albumin" and any(x in normalized for x in ["微白蛋白", "尿白蛋白", "microalbumin", " ma "]):
+                    continue
+                return field
+    return None
+
+
+def _field_row(field: str, value: float | None, unit: str = "", abnormal: bool = False) -> dict[str, Any]:
+    return {"field": field, "value": value, "unit": unit, "abnormal": abnormal}
+
+
+def extract_acid_base_snapshot(items: list[dict], fallback_latest: dict[str, dict] | None = None) -> dict[str, Any]:
+    snapshot: dict[str, Any] = {"fields": {}, "time": None}
+    fallback_latest = fallback_latest or {}
+    latest_by_field: dict[str, tuple[datetime | None, float, str, str]] = {}
+
+    for doc in items:
+        name = _item_name(doc)
+        field = _match_field(doc)
+        if not field:
+            continue
+        raw = doc.get("result") or doc.get("resultValue") or doc.get("value")
+        num = _parse_num(raw)
+        if num is None:
+            continue
+        unit = str(doc.get("unit") or doc.get("resultUnit") or "")
+        converted = _convert_field_value(field, num, unit)
+        if not _value_is_plausible(field, converted):
+            continue
+        t = _lab_time(doc)
+        prev = latest_by_field.get(field)
+        if prev is None or (t or datetime.min) >= (prev[0] or datetime.min):
+            latest_by_field[field] = (t, converted, unit, name)
+
+    for field, info in latest_by_field.items():
+        t, value, unit, name = info
+        snapshot["fields"][field] = {"value": value, "unit": unit, "source_name": name, "time": t}
+        if t and (snapshot["time"] is None or t > snapshot["time"]):
+            snapshot["time"] = t
+
+    # albumin 等可从非血气同次之外的最近检验补齐
+    for field in ("na", "k", "cl", "albumin", "lactate", "mg", "po4", "ica"):
+        if field in snapshot["fields"]:
+            continue
+        fallback = fallback_latest.get(field)
+        if not fallback:
+            continue
+        snapshot["fields"][field] = {
+            "value": fallback.get("value"),
+            "unit": fallback.get("unit", ""),
+            "source_name": fallback.get("raw_name", field),
+            "fallback": True,
+            "time": fallback.get("time"),
+        }
+        f_time = fallback.get("time")
+        if snapshot["time"] is None and isinstance(f_time, datetime):
+            snapshot["time"] = f_time
+
+    return snapshot
+
+
+def is_blood_gas_snapshot(
+    snapshot: dict[str, Any],
+    items: list[dict] | None = None,
+    exam_name: str | None = None,
+) -> bool:
+    fields = snapshot.get("fields") or {}
+    if not fields:
+        return False
+
+    joined = " ".join(
+        [str(exam_name or "").lower(), *[_doc_text(doc) for doc in (items or [])]]
+    )
+    if joined and any(keyword in joined for keyword in NON_BLOOD_HINT_KEYWORDS):
+        if not any(keyword in joined for keyword in BLOOD_GAS_HINT_KEYWORDS):
+            return False
+
+    ph = _parse_num(fields.get("ph", {}).get("value"))
+    has_ph = ph is not None and 6.8 <= ph <= 7.8
+    has_paco2 = _parse_num(fields.get("paco2", {}).get("value")) is not None
+    has_pao2 = _parse_num(fields.get("pao2", {}).get("value")) is not None
+    has_hco3 = _parse_num(fields.get("hco3", {}).get("value")) is not None
+    has_gas_hint = any(keyword in joined for keyword in BLOOD_GAS_HINT_KEYWORDS)
+
+    if has_gas_hint and (has_ph or has_paco2 or has_pao2 or has_hco3):
+        return True
+    if has_ph and (has_paco2 or has_pao2 or has_hco3):
+        return True
+    if has_paco2 and has_pao2:
+        return True
+    return False
+
+
+def interpret_acid_base(snapshot: dict[str, Any]) -> dict[str, Any] | None:
+    fields = snapshot.get("fields") or {}
+    ph = _parse_num(fields.get("ph", {}).get("value"))
+    paco2 = _parse_num(fields.get("paco2", {}).get("value"))
+    hco3 = _parse_num(fields.get("hco3", {}).get("value"))
+    na = _parse_num(fields.get("na", {}).get("value"))
+    k = _parse_num(fields.get("k", {}).get("value"))
+    cl = _parse_num(fields.get("cl", {}).get("value"))
+    albumin_g_dl = _parse_num(fields.get("albumin", {}).get("value"))
+    lactate = _parse_num(fields.get("lactate", {}).get("value"))
+
+    if ph is None and hco3 is None and paco2 is None:
+        return None
+
+    acidemia = ph is not None and ph < 7.35
+    alkalemia = ph is not None and ph > 7.45
+    ag = None
+    corrected_ag = None
+    delta_ratio = None
+    lactate_corrected_ag = None
+    compensation = "未知"
+    primary = "未定"
+    secondary = ""
+    tertiary = ""
+
+    if na is not None and k is not None and cl is not None and hco3 is not None:
+        ag = round(na + k - cl - hco3, 1)
+        albumin_use = albumin_g_dl if albumin_g_dl is not None else 4.0
+        corrected_ag = round(ag + 2.5 * (4.0 - albumin_use), 1)
+        if lactate is not None:
+            lactate_corrected_ag = round(corrected_ag - lactate, 1)
+        delta_hco3 = 24.0 - hco3
+        if corrected_ag is not None and delta_hco3 > 0:
+            delta_ratio = round((corrected_ag - 12.0) / delta_hco3, 2)
+
+    # 主要紊乱
+    if acidemia:
+        if hco3 is not None and hco3 < 22:
+            if corrected_ag is not None and corrected_ag > 12:
+                primary = "代谢性酸中毒(AG增高)"
+            else:
+                primary = "代谢性酸中毒(AG正常)"
+        elif paco2 is not None and paco2 > 45:
+            primary = "呼吸性酸中毒"
+        else:
+            primary = "酸血症(待定型)"
+    elif alkalemia:
+        if hco3 is not None and hco3 > 26:
+            primary = "代谢性碱中毒"
+        elif paco2 is not None and paco2 < 35:
+            primary = "呼吸性碱中毒"
+        else:
+            primary = "碱血症(待定型)"
+    else:
+        if hco3 is not None and hco3 < 22:
+            if corrected_ag is not None and corrected_ag > 12:
+                primary = "代谢性酸中毒(已代偿/混合)"
+            else:
+                primary = "代谢性酸中毒(AG正常)"
+        elif hco3 is not None and hco3 > 26:
+            primary = "代谢性碱中毒(已代偿/混合)"
+        elif paco2 is not None and paco2 > 45:
+            primary = "呼吸性酸中毒(已代偿/混合)"
+        elif paco2 is not None and paco2 < 35:
+            primary = "呼吸性碱中毒(已代偿/混合)"
+
+    # Winter 公式
+    if hco3 is not None and paco2 is not None and "代谢性酸中毒" in primary:
+        expected = 1.5 * hco3 + 8
+        low = expected - 2
+        high = expected + 2
+        if low <= paco2 <= high:
+            compensation = "适当"
+        else:
+            compensation = "不适当"
+            if paco2 > high:
+                secondary = f"呼吸性酸中毒(代偿不足，PaCO₂ {round(paco2,1)} > 预计{round(high,1)})"
+            elif paco2 < low:
+                secondary = f"呼吸性碱中毒(代偿不足，PaCO₂ {round(paco2,1)} < 预计{round(low,1)})"
+    elif "代谢性碱中毒" in primary and paco2 is not None and hco3 is not None:
+        expected = 0.7 * (hco3 - 24) + 40
+        if abs(paco2 - expected) <= 5:
+            compensation = "适当"
+        else:
+            compensation = "不适当"
+            secondary = "合并呼吸性紊乱"
+
+    if delta_ratio is not None:
+        if delta_ratio > 2:
+            tertiary = f"合并代谢性碱中毒(Delta ratio {delta_ratio})"
+        elif delta_ratio < 1:
+            tertiary = f"合并非AG代谢性酸中毒(Delta ratio {delta_ratio})"
+
+    lactate_context = ""
+    if lactate is not None and lactate > 2 and corrected_ag is not None:
+        if lactate_corrected_ag is not None and lactate_corrected_ag > 4:
+            lactate_context = "乳酸升高，但仍存在其他未测有机酸负荷"
+        else:
+            lactate_context = "乳酸性酸中毒为主"
+
+    abnormalities = [
+        _field_row("ph", ph, abnormal=ph is not None and (ph < 7.35 or ph > 7.45)),
+        _field_row("paco2", paco2, "mmHg", abnormal=paco2 is not None and (paco2 < 35 or paco2 > 45)),
+        _field_row("hco3", hco3, "mmol/L", abnormal=hco3 is not None and (hco3 < 22 or hco3 > 26)),
+        _field_row("na", na, "mmol/L", abnormal=na is not None and (na < 135 or na > 145)),
+        _field_row("k", k, "mmol/L", abnormal=k is not None and (k < 3.5 or k > 5.5)),
+        _field_row("cl", cl, "mmol/L", abnormal=cl is not None and (cl < 98 or cl > 107)),
+        _field_row("albumin", albumin_g_dl, "g/dL", abnormal=albumin_g_dl is not None and albumin_g_dl < 3.5),
+        _field_row("lactate", lactate, "mmol/L", abnormal=lactate is not None and lactate > 2),
+    ]
+
+    return {
+        "primary": primary,
+        "secondary": secondary,
+        "tertiary": tertiary,
+        "AG": ag,
+        "corrected_AG": corrected_ag,
+        "delta_ratio": delta_ratio,
+        "lactate_corrected_AG": lactate_corrected_ag,
+        "lactate_context": lactate_context,
+        "compensation": compensation,
+        "snapshot_time": snapshot.get("time"),
+        "abnormal_components": abnormalities,
+        "inputs": {
+            "ph": ph,
+            "PaCO2": paco2,
+            "HCO3": hco3,
+            "Na": na,
+            "K": k,
+            "Cl": cl,
+            "Albumin_g_dL": albumin_g_dl,
+            "Lactate": lactate,
+        },
+    }
