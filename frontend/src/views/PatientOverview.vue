@@ -330,14 +330,15 @@ function vc(k: string, v: any): string {
   if (v == null || v === '') return ''
   const n = Number(v)
   if (isNaN(n)) return ''
-  const T: Record<string, number[]> = {
+  const T: Record<string, [number, number, number, number]> = {
     hr: [40, 50, 110, 130], spo2: [85, 92, 999, 999],
     sys: [70, 85, 160, 200], temp: [34, 35.5, 38.5, 40],
     rr: [6, 10, 25, 35],
   }
   const t = T[k]; if (!t) return ''
-  if (n < t[0] || n > t[3]) return 'crit'
-  if (n < t[1] || n > t[2]) return 'warn'
+  const [critLow, warnLow, warnHigh, critHigh] = t
+  if (n < critLow || n > critHigh) return 'crit'
+  if (n < warnLow || n > warnHigh) return 'warn'
   return 'ok'
 }
 
@@ -397,7 +398,7 @@ function clock(t: any) {
 }
 function shortDiag(s: string) {
   if (!s) return '—'
-  const f = s.split('|')[0]
+  const f = s.split('|')[0] ?? s
   return f.length > 16 ? f.slice(0, 16) + '…' : f
 }
 
