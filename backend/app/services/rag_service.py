@@ -38,6 +38,7 @@ class RagService:
     def __init__(self, config: Any, knowledge_dir: str | None = None) -> None:
         self.config = config
         rag_cfg = (config.yaml_cfg or {}).get("ai_service", {}).get("rag", {})
+        engine_rag_cfg = (config.yaml_cfg or {}).get("alert_engine", {}).get("rag", {})
         configured_dir = rag_cfg.get("knowledge_dir") if isinstance(rag_cfg, dict) else None
         base = Path(__file__).resolve().parents[2]
         self.knowledge_dir = Path(knowledge_dir or configured_dir or (base / "knowledge_base"))
@@ -52,6 +53,7 @@ class RagService:
         self._source_map: dict[str, list[GuidelineChunk]] = {}
         self._documents: dict[str, dict[str, Any]] = {}
         self._package_meta: dict[str, Any] = {}
+        self._synonym_map = self._build_synonym_map(engine_rag_cfg if isinstance(engine_rag_cfg, dict) else {})
 
     def reload(self) -> dict[str, Any]:
         self._loaded = False
@@ -627,7 +629,40 @@ class RagService:
             if re.fullmatch(r"[\u4e00-\u9fff]{2,4}", t):
                 for i in range(len(t) - 1):
                     tokens.append(t[i : i + 2])
-        return tokens
+        return self._expand_synonyms(tokens)
+
+    def _build_synonym_map(self, rag_cfg: dict[str, Any]) -> dict[str, list[str]]:
+        raw = rag_cfg.get("synonyms", {}) if isinstance(rag_cfg, dict) else {}
+        if not isinstance(raw, dict):
+            return {}
+        out: dict[str, list[str]] = {}
+        for key, values in raw.items():
+            base = str(key or "").strip().lower()
+            if not base:
+                continue
+            syns = [str(v).strip().lower() for v in (values or []) if str(v).strip()]
+            if syns:
+                out[base] = syns
+        return out
+
+    def _expand_synonyms(self, tokens: list[str]) -> list[str]:
+        if not tokens or not self._synonym_map:
+            return tokens
+        expanded = list(tokens)
+        token_set = set(tokens)
+        for token in list(token_set):
+            synonyms = self._synonym_map.get(token, [])
+            for synonym in synonyms:
+                if synonym not in token_set:
+                    expanded.append(synonym)
+                    token_set.add(synonym)
+                if re.fullmatch(r"[\u4e00-\u9fff]{2,6}", synonym):
+                    for i in range(len(synonym) - 1):
+                        bg = synonym[i : i + 2]
+                        if bg not in token_set:
+                            expanded.append(bg)
+                            token_set.add(bg)
+        return expanded
 
     def _tfidf(self, tokens: list[str]) -> dict[str, float]:
         if not tokens:

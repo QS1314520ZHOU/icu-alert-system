@@ -225,46 +225,64 @@ class FluidBalanceMixin:
             "gi_decompression": gi_codes,
         }
         all_codes = set().union(*code_map.values())
+        projection = {
+            "time": 1,
+            "code": 1,
+            "name": 1,
+            "paramName": 1,
+            "itemName": 1,
+            "remark": 1,
+            "fVal": 1,
+            "intVal": 1,
+            "strVal": 1,
+            "value": 1,
+            "unit": 1,
+        }
 
-        query: dict = {"pid": pid_str, "time": {"$gte": since}}
+        async def _load_events(query: dict, *, fallback: bool = False) -> list[dict]:
+            cursor = self.db.col("bedside").find(query, projection).sort("time", -1).limit(3000)
+            rows: list[dict] = []
+            async for doc in cursor:
+                t = _parse_dt(doc.get("time"))
+                if not t or t < since:
+                    continue
+
+                category = self._classify_output(doc, code_map)
+                if not category:
+                    continue
+
+                volume_ml = None
+                for field in ("fVal", "intVal", "value"):
+                    volume_ml = self._volume_to_ml(doc.get(field), doc.get("unit"), assume_ml=True)
+                    if volume_ml:
+                        break
+                if not volume_ml:
+                    volume_ml = self._volume_to_ml(doc.get("strVal"), doc.get("unit"), assume_ml=True)
+                if not volume_ml or volume_ml <= 0:
+                    continue
+
+                rows.append(
+                    {
+                        "time": t,
+                        "volume_ml": round(volume_ml, 1),
+                        "category": category,
+                        "source": "bedside",
+                        "code": doc.get("code"),
+                        "fallback": fallback,
+                    }
+                )
+            return rows
+
+        exact_query: dict = {"pid": pid_str, "time": {"$gte": since}}
         if all_codes:
-            query["code"] = {"$in": list(all_codes)}
+            exact_query["code"] = {"$in": list(all_codes)}
+        events = await _load_events(exact_query, fallback=False)
+        if events or not all_codes:
+            return events
 
-        cursor = self.db.col("bedside").find(
-            query,
-            {"time": 1, "code": 1, "name": 1, "paramName": 1, "itemName": 1, "remark": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1, "unit": 1},
-        ).sort("time", -1).limit(3000)
-
-        events: list[dict] = []
-        async for doc in cursor:
-            t = _parse_dt(doc.get("time"))
-            if not t or t < since:
-                continue
-
-            category = self._classify_output(doc, code_map)
-            if not category:
-                continue
-
-            volume_ml = None
-            for field in ("fVal", "intVal", "value"):
-                volume_ml = self._volume_to_ml(doc.get(field), doc.get("unit"), assume_ml=True)
-                if volume_ml:
-                    break
-            if not volume_ml:
-                volume_ml = self._volume_to_ml(doc.get("strVal"), doc.get("unit"), assume_ml=True)
-            if not volume_ml or volume_ml <= 0:
-                continue
-
-            events.append(
-                {
-                    "time": t,
-                    "volume_ml": round(volume_ml, 1),
-                    "category": category,
-                    "source": "bedside",
-                    "code": doc.get("code"),
-                }
-            )
-        return events
+        # fallback: 若配置 code 与库内实际编码不匹配，退化为关键词/文本识别
+        fuzzy_query = {"pid": pid_str, "time": {"$gte": since}}
+        return await _load_events(fuzzy_query, fallback=True)
 
     async def _has_recent_aki_or_ards(self, pid_str: str, now: datetime, lookback_hours: int) -> bool:
         since = now - timedelta(hours=max(1, lookback_hours))

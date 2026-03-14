@@ -870,19 +870,21 @@ JSON结构:
         monitor = self._get_ai_monitor()
         start_ms = AiMonitor.now_ms() if monitor else 0.0
         raw_text = ""
+        usage = None
 
-        async def _do_request(request_client: httpx.AsyncClient) -> str:
+        async def _do_request(request_client: httpx.AsyncClient) -> tuple[str, dict | None]:
             resp = await request_client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+            data = resp.json()
+            return data["choices"][0]["message"]["content"], (data.get("usage") if isinstance(data, dict) else None)
 
         try:
             if client is None:
                 timeout_sec = float(llm_cfg.get("timeout", 30) or 30)
                 async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_sec)) as local_client:
-                    raw_text = await _do_request(local_client)
+                    raw_text, usage = await _do_request(local_client)
             else:
-                raw_text = await _do_request(client)
+                raw_text, usage = await _do_request(client)
         except Exception:
             if monitor:
                 await monitor.log_llm_call(
@@ -893,6 +895,7 @@ JSON结构:
                     latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
                     success=False,
                     meta={"url": url},
+                    usage=usage,
                 )
             raise
 
@@ -916,6 +919,7 @@ JSON结构:
                     latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
                     success=True,
                     meta={"url": url},
+                    usage=usage,
                 )
             return parsed
         except json.JSONDecodeError:
@@ -928,5 +932,6 @@ JSON结构:
                     latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
                     success=False,
                     meta={"url": url, "error": "json_decode_error"},
+                    usage=usage,
                 )
             return None

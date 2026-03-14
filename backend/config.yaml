@@ -9,6 +9,16 @@ system:
   log_level: "INFO"
   log_dir: "./logs"
 
+security:
+  cors_allowed_origins:
+    - "http://127.0.0.1:5173"
+    - "http://localhost:5173"
+    - "http://127.0.0.1:4173"
+    - "http://localhost:4173"
+  websocket:
+    require_token: auto
+    tokens: []
+
 # ==================== 数据库配置 ====================
 databases:
   smartcare:
@@ -140,9 +150,14 @@ ai_service:
 
   monitor:
     enabled: true
+    aggregate_interval_seconds: 300
+    success_rate_alert_threshold: 0.9
+    p95_latency_alert_ms: 15000
+    min_samples_for_alert: 5
 
 # ==================== 预警引擎配置 ====================
 alert_engine:
+  max_concurrent_scans: 4
   scan_intervals:
     vital_signs: 60
     lab_results: 300
@@ -163,6 +178,7 @@ alert_engine:
     composite_deterioration: 300
     assessments: 600
     trend_analysis: 900
+    discharge_readiness: 1800
 
   severity_levels:
     warning:  { color: "#ffab00", priority: 1 }
@@ -305,6 +321,7 @@ alert_engine:
     prophylaxis_lookback_hours: 72
     pharm_prophylaxis_keywords: ["依诺肝素", "那曲肝素", "达肝素", "低分子肝素", "普通肝素", "肝素", "fondaparinux", "利伐沙班"]
     mechanical_prophylaxis_keywords: ["间歇充气", "IPC", "SCD", "气压治疗", "弹力袜", "机械预防", "下肢气压泵", "梯度压力袜"]
+    mechanical_order_keywords: ["间歇充气", "IPC", "SCD", "气压治疗", "弹力袜", "机械预防", "下肢气压泵", "梯度压力袜", "静脉泵", "足底泵"]
     mechanical_negative_keywords: ["未做", "未行", "未实施", "none", "no", "否"]
     active_bleeding_alert_types: ["gi_bleeding"]
     immobility_keywords: ["卧床", "制动", "绝对卧床", "不能下床", "bed rest", "immobile", "瘫痪", "昏迷"]
@@ -340,6 +357,14 @@ alert_engine:
       previous_vte: 3
       thrombophilia: 3
       acute_stroke_or_mi: 5
+
+  discharge_readiness:
+    high_alert_lookback_hours: 12
+    sofa_lookback_hours: 24
+    urine_lookback_hours: 6
+    monitoring_density_window_hours: 6
+    monitoring_density_drop_ratio: 0.4
+    candidate_keywords: ["转出", "下转", "普通病房", "stepdown", "hdu", "准备转出", "出icu"]
 
   nutrition_monitor:
     start_delay_hours: 48
@@ -406,6 +431,14 @@ alert_engine:
     sedatives: ["咪达唑仑", "丙泊酚", "右美托咪定", "地西泮", "芬太尼", "瑞芬太尼"]
     opioids: ["吗啡", "芬太尼", "舒芬太尼", "瑞芬太尼", "羟考酮", "氢吗啡酮", "哌替啶", "曲马多", "可待因", "布托啡诺", "morphine", "fentanyl", "sufentanil", "remifentanil", "oxycodone", "hydromorphone", "tramadol", "codeine", "opioid"]
     qt_risk: ["胺碘酮", "左氧氟沙星", "环丙沙星", "红霉素", "阿奇霉素", "氟哌啶醇", "奥氮平", "喹硫平"]
+
+  rag:
+    synonyms:
+      脓毒症: ["sepsis", "感染性休克", "脓毒性休克"]
+      感染性休克: ["septic shock", "脓毒症", "脓毒性休克"]
+      急性呼吸窘迫综合征: ["ards", "急性肺损伤"]
+      谵妄: ["delirium", "cam-icu", "cam icu"]
+      急性肾损伤: ["aki", "acute kidney injury"]
 
 # ==================== 护理提醒 ====================
 nurse_reminders:

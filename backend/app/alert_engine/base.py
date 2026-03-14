@@ -152,6 +152,8 @@ _LAB_TESTS_ORDERED = [
     ("pt", {"keywords": ["凝血酶原时间", "pt"], "unit": "s"}),
     ("fib", {"keywords": ["纤维蛋白原", "fibrinogen", "fib"], "unit": "g/L"}),
     ("ddimer", {"keywords": ["d-dimer", "d二聚体", "d-二聚体", "fdp"], "unit": "mg/L"}),
+    ("alt", {"keywords": ["谷丙转氨酶", "丙氨酸氨基转移酶", "alanine aminotransferase", "alt"], "unit": "U/L"}),
+    ("ast", {"keywords": ["谷草转氨酶", "天门冬氨酸氨基转移酶", "aspartate aminotransferase", "ast"], "unit": "U/L"}),
     ("act", {"keywords": ["act", "活化凝血时间"], "unit": "s"}),
     ("trop", {"keywords": ["肌钙蛋白", "troponin"], "unit": ""}),
     ("bnp", {"keywords": ["bnp", "nt-probnp", "ntprobnp"], "unit": "pg/mL"}),
@@ -805,6 +807,85 @@ class BaseEngine:
                 return doc["value"]
         return None
 
+    def _is_positive_text_result(self, value: Any) -> bool | None:
+        if value is None:
+            return None
+        num = _parse_number(value)
+        if num is not None:
+            return num > 0
+        text = str(value).strip().lower()
+        if not text:
+            return None
+        positive_keywords = ["阳性", "positive", "pos", "yes", "是", "谵妄", "存在", "异常"]
+        negative_keywords = ["阴性", "negative", "neg", "no", "否", "未见", "正常", "无"]
+        if any(k in text for k in negative_keywords):
+            return False
+        if any(k in text for k in positive_keywords):
+            return True
+        return None
+
+    async def _get_latest_cam_icu_status(self, pid, lookback_hours: int = 48) -> dict | None:
+        pid_str = self._pid_str(pid)
+        if not pid_str:
+            return None
+        since = datetime.now() - timedelta(hours=lookback_hours)
+        code = self._cfg("assessments", "cam_icu", "code", default="param_delirium_score")
+
+        # 1) score_records
+        doc = await self.db.col("score_records").find_one(
+            {
+                "patient_id": {"$in": [pid, pid_str]},
+                "score_type": {"$in": ["cam_icu", "cam-icu", "delirium", "camicu"]},
+                "calc_time": {"$gte": since},
+            },
+            sort=[("calc_time", -1)],
+        )
+        if doc:
+            raw = doc.get("score") or doc.get("value") or doc.get("score_value") or doc.get("result")
+            positive = self._is_positive_text_result(raw)
+            if positive is not None:
+                return {"positive": positive, "time": _parse_dt(doc.get("calc_time")), "source": "score_records", "raw": raw}
+
+        # 2) score
+        doc = await self.db.col("score").find_one(
+            {
+                "pid": pid_str,
+                "scoreType": {"$in": ["cam_icu", "cam-icu", "camicu", "CAMICU", "deliriumScore"]},
+                "time": {"$gte": since},
+            },
+            sort=[("time", -1)],
+        )
+        if doc:
+            raw = doc.get("total") or doc.get("score") or doc.get("result")
+            positive = self._is_positive_text_result(raw)
+            if positive is not None:
+                return {"positive": positive, "time": _parse_dt(doc.get("time")), "source": "score", "raw": raw}
+
+        # 3) bedside: 先精确 code，再关键词兜底
+        exact_doc = await self.db.col("bedside").find_one(
+            {"pid": pid_str, "code": code, "time": {"$gte": since}},
+            sort=[("time", -1)],
+        )
+        candidates = [exact_doc] if exact_doc else []
+        if not candidates:
+            cursor = self.db.col("bedside").find(
+                {"pid": pid_str, "time": {"$gte": since}},
+                {"time": 1, "code": 1, "strVal": 1, "value": 1},
+            ).sort("time", -1).limit(300)
+            async for row in cursor:
+                text = " ".join(str(row.get(k) or "") for k in ("code", "strVal", "value")).lower()
+                if any(k in text for k in ["cam-icu", "cam icu", "cam_icu", "谵妄"]):
+                    candidates.append(row)
+                    break
+        for doc in candidates:
+            raw = doc.get("strVal")
+            if raw is None:
+                raw = doc.get("value")
+            positive = self._is_positive_text_result(raw)
+            if positive is not None:
+                return {"positive": positive, "time": _cap_time(doc), "source": "bedside", "raw": raw}
+        return None
+
     async def _get_gcs_drop(self, pid) -> dict | None:
         series = await self._get_assessment_series(pid, "gcs", hours=24)
         if len(series) < 2:
@@ -1117,6 +1198,25 @@ class BaseEngine:
             v = _cap_value(doc)
             if v is not None:
                 points.append({"time": doc.get("time"), "value": v})
+        if points:
+            return points
+
+        fallback_keywords = self._get_cfg_list(
+            ("alert_engine", "data_mapping", "urine_output", "keywords"),
+            ["尿量", "urine", "output", "foley"],
+        )
+        cursor = self.db.col("bedside").find(
+            {"pid": pid_str, "time": {"$gte": since}},
+            {"time": 1, "strVal": 1, "intVal": 1, "fVal": 1, "code": 1, "value": 1},
+        ).sort("time", 1).limit(4000)
+        keywords = [str(x).lower() for x in [*codes, *fallback_keywords] if str(x).strip()]
+        for doc in cursor:
+            text = " ".join(str(doc.get(k) or "") for k in ("code", "strVal")).lower()
+            if not any(k in text for k in keywords):
+                continue
+            v = _cap_value(doc)
+            if v is not None:
+                points.append({"time": doc.get("time"), "value": v, "fallback": True, "code": doc.get("code")})
         return points
 
     def _get_patient_weight(self, patient_doc: dict | None) -> float | None:

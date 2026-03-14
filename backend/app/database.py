@@ -160,6 +160,18 @@ class DatabaseManager:
                 [("patient_id", 1), ("score_type", 1), ("is_active", 1)]
             )
 
+            # AI 监控索引
+            ai_log_col = self.col("ai_monitor_logs")
+            await ai_log_col.create_index([("created_at", -1), ("module", 1)])
+            await ai_log_col.create_index([("module", 1), ("success", 1), ("created_at", -1)])
+
+            ai_daily_col = self.col("ai_monitor_daily_stats")
+            await ai_daily_col.create_index([("date", 1), ("module", 1)], unique=True)
+
+            ai_alert_col = self.col("ai_monitor_alerts")
+            await ai_alert_col.create_index([("date", 1), ("module", 1), ("alert_code", 1)], unique=True)
+            await ai_alert_col.create_index([("is_active", 1), ("updated_at", -1)])
+
             logger.info("✅ 预警系统索引创建完成")
             await self._seed_default_rules()
         except Exception as e:

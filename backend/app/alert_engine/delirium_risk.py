@@ -231,6 +231,28 @@ class DeliriumRiskMixin:
             if not pid:
                 continue
             pid_str = str(pid)
+            cam_status = await self._get_latest_cam_icu_status(pid, lookback_hours=24)
+            if cam_status and cam_status.get("positive"):
+                rule_id = "DELIRIUM_CAM_ICU_POSITIVE"
+                if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                    alert = await self._create_alert(
+                        rule_id=rule_id,
+                        name="CAM-ICU 阳性：谵妄已发生",
+                        category="syndrome",
+                        alert_type="cam_icu_positive",
+                        severity="critical",
+                        parameter="cam_icu",
+                        condition={"operator": "positive"},
+                        value=1,
+                        patient_id=pid_str,
+                        patient_doc=patient_doc,
+                        device_id=None,
+                        source_time=cam_status.get("time") or now,
+                        extra=cam_status,
+                    )
+                    if alert:
+                        triggered_risk += 1
+                continue
 
             age_years = self._parse_age_years(patient_doc)
             has_age_risk = age_years is not None and age_years > 65

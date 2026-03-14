@@ -142,7 +142,7 @@ class GlycemicControlMixin:
         mean = sum(nums) / len(nums)
         if mean <= 0:
             return None
-        var = sum((x - mean) ** 2 for x in nums) / len(nums)
+        var = sum((x - mean) ** 2 for x in nums) / max(1, (len(nums) - 1))
         sd = math.sqrt(var)
         return round(sd / mean * 100.0, 2)
 

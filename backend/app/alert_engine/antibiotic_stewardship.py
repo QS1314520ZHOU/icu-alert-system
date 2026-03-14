@@ -340,8 +340,13 @@ class AntibioticStewardshipMixin:
             # (2) PCT 指导停药
             if all_course and all_course["duration_hours"] >= stop_eval_days * 24 and his_pid:
                 pct_series = await self._get_lab_series(his_pid, "pct", since_14d, limit=300)
+                pct_series = [
+                    x for x in pct_series
+                    if x.get("value") is not None and x.get("time") and x["time"] >= all_course["start"]
+                ]
                 if len(pct_series) >= 2:
-                    peak = max(float(x["value"]) for x in pct_series if x.get("value") is not None)
+                    peak = max(float(x["value"]) for x in pct_series)
+                    peak_idx = next(idx for idx, item in enumerate(pct_series) if float(item["value"]) == peak)
                     latest = float(pct_series[-1]["value"])
                     decline_ratio = ((peak - latest) / peak) if peak > 0 else 0.0
                     meets_stop = (decline_ratio > 0.8) or (latest < 0.25)
@@ -366,6 +371,8 @@ class AntibioticStewardshipMixin:
                                 device_id=None,
                                 source_time=pct_series[-1].get("time"),
                                 extra={
+                                    "pct_series_start": pct_series[0].get("time"),
+                                    "pct_peak_time": pct_series[peak_idx].get("time"),
                                     "pct_peak": peak,
                                     "pct_latest": latest,
                                     "pct_decline_ratio": round(decline_ratio, 3),

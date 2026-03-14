@@ -42,6 +42,9 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "change-me-in-production"
+    CORS_ALLOWED_ORIGINS: str = ""
+    WEBSOCKET_TOKENS: str = ""
+    WEBSOCKET_REQUIRE_TOKEN: bool | None = None
 
     class Config:
         env_file = ".env"
@@ -126,9 +129,66 @@ class AppConfig:
                 f"redis://:{encoded_pwd}"
                 f"@{self.settings.REDIS_HOST}:{self.settings.REDIS_PORT}/0"
             )
-        return (
-            f"redis://{self.settings.REDIS_HOST}:{self.settings.REDIS_PORT}/0"
+            return (
+                f"redis://{self.settings.REDIS_HOST}:{self.settings.REDIS_PORT}/0"
+            )
+
+    @staticmethod
+    def _split_csv_list(value) -> list[str]:
+        if isinstance(value, list):
+            return [str(v).strip() for v in value if str(v).strip()]
+        if value is None:
+            return []
+        text = str(value).strip()
+        if not text:
+            return []
+        return [part.strip() for part in text.split(",") if part.strip()]
+
+    @property
+    def cors_allowed_origins(self) -> list[str]:
+        env_origins = self._split_csv_list(self.settings.CORS_ALLOWED_ORIGINS)
+        if env_origins:
+            return env_origins
+        security_cfg = self.yaml_cfg.get("security", {})
+        return self._split_csv_list(
+            security_cfg.get(
+                "cors_allowed_origins",
+                [
+                    "http://127.0.0.1:5173",
+                    "http://localhost:5173",
+                    "http://127.0.0.1:4173",
+                    "http://localhost:4173",
+                ],
+            )
         )
+
+    @property
+    def websocket_tokens(self) -> list[str]:
+        env_tokens = self._split_csv_list(self.settings.WEBSOCKET_TOKENS)
+        if env_tokens:
+            return env_tokens
+        security_cfg = self.yaml_cfg.get("security", {})
+        ws_cfg = security_cfg.get("websocket", {}) if isinstance(security_cfg, dict) else {}
+        tokens = self._split_csv_list(ws_cfg.get("tokens", []))
+        if tokens:
+            return tokens
+        secret = str(self.settings.SECRET_KEY or "").strip()
+        if secret and secret != "change-me-in-production":
+            return [secret]
+        return []
+
+    @property
+    def websocket_require_token(self) -> bool:
+        if self.settings.WEBSOCKET_REQUIRE_TOKEN is not None:
+            return bool(self.settings.WEBSOCKET_REQUIRE_TOKEN)
+        security_cfg = self.yaml_cfg.get("security", {})
+        ws_cfg = security_cfg.get("websocket", {}) if isinstance(security_cfg, dict) else {}
+        raw = ws_cfg.get("require_token")
+        if isinstance(raw, str) and raw.strip().lower() == "auto":
+            return bool(self.websocket_tokens)
+        if raw is not None:
+            return bool(raw)
+        return bool(self.websocket_tokens)
 
 
 # 单例

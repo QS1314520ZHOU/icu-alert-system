@@ -84,10 +84,11 @@ def _convert_field_value(field: str, value: float, unit: str) -> float:
     if field in {"paco2"} and "kpa" in u:
         return value * 7.50062
     if field in {"po4"}:
-        if "mmol/l" in u:
-            return value * 3.1
-    if field in {"mg"} and "mmol/l" in u:
-        return value * 2.43
+        if "mg/dl" in u:
+            return value / 3.1
+    if field == "mg":
+        if "mg/dl" in u:
+            return value / 2.43
     return value
 
 
@@ -104,6 +105,7 @@ FIELD_KEYWORDS: dict[str, list[str]] = {
     "mg": ["mg", "镁", "magnesium"],
     "po4": ["po4", "phos", "phosphate", "磷", "无机磷", "血磷"],
     "ica": ["ica", "离子钙", "ionized calcium"],
+    "ca": ["ca", "总钙", "calcium", "钙"],
 }
 
 
@@ -134,7 +136,7 @@ NON_BLOOD_HINT_KEYWORDS = [
     "粪便",
 ]
 
-SUPPORTIVE_FALLBACK_FIELDS = ("na", "k", "cl", "albumin", "lactate", "mg", "po4", "ica")
+SUPPORTIVE_FALLBACK_FIELDS = ("na", "k", "cl", "albumin", "lactate", "mg", "po4", "ica", "ca")
 
 
 def _is_non_blood_context(doc: dict) -> bool:
@@ -165,6 +167,7 @@ def _value_is_plausible(field: str, value: float) -> bool:
         "mg": (0.2, 10.0),
         "po4": (0.2, 20.0),
         "ica": (0.2, 3.0),
+        "ca": (0.5, 5.0),
     }
     lo_hi = ranges.get(field)
     if not lo_hi:
@@ -225,7 +228,7 @@ def extract_acid_base_snapshot(items: list[dict], fallback_latest: dict[str, dic
             snapshot["time"] = t
 
     # albumin 等可从非血气同次之外的最近检验补齐
-    for field in ("na", "k", "cl", "albumin", "lactate", "mg", "po4", "ica"):
+    for field in ("na", "k", "cl", "albumin", "lactate", "mg", "po4", "ica", "ca"):
         if field in snapshot["fields"]:
             continue
         fallback = fallback_latest.get(field)
@@ -277,6 +280,104 @@ def is_blood_gas_snapshot(
     return False
 
 
+def _dominant_primary(ph: float | None, paco2: float | None, hco3: float | None) -> str:
+    if ph is None:
+        return "undetermined"
+    acidemia = ph < 7.35
+    alkalemia = ph > 7.45
+    if acidemia:
+        if paco2 is not None and paco2 > 45 and (hco3 is None or hco3 >= 22):
+            return "resp_acidosis"
+        if hco3 is not None and hco3 < 22 and (paco2 is None or paco2 <= 45):
+            return "met_acidosis"
+        resp_score = max(0.0, ((paco2 or 40.0) - 40.0) / 5.0)
+        met_score = max(0.0, (24.0 - (hco3 or 24.0)) / 2.0)
+        return "resp_acidosis" if resp_score > met_score else "met_acidosis"
+    if alkalemia:
+        if paco2 is not None and paco2 < 35 and (hco3 is None or hco3 <= 26):
+            return "resp_alkalosis"
+        if hco3 is not None and hco3 > 26 and (paco2 is None or paco2 >= 35):
+            return "met_alkalosis"
+        resp_score = max(0.0, (40.0 - (paco2 or 40.0)) / 5.0)
+        met_score = max(0.0, ((hco3 or 24.0) - 24.0) / 2.0)
+        return "resp_alkalosis" if resp_score > met_score else "met_alkalosis"
+    if hco3 is not None and hco3 < 22:
+        return "met_acidosis"
+    if hco3 is not None and hco3 > 26:
+        return "met_alkalosis"
+    if paco2 is not None and paco2 > 45:
+        return "resp_acidosis"
+    if paco2 is not None and paco2 < 35:
+        return "resp_alkalosis"
+    return "undetermined"
+
+
+def _respiratory_compensation(paco2: float | None, hco3: float | None) -> dict[str, Any] | None:
+    if paco2 is None or hco3 is None:
+        return None
+
+    if paco2 > 45:
+        delta = (paco2 - 40.0) / 10.0
+        acute_expected = 24.0 + delta * 1.0
+        chronic_expected = 24.0 + delta * 3.5
+        acute_gap = abs(hco3 - acute_expected)
+        chronic_gap = abs(hco3 - chronic_expected)
+        chronicity = "急性" if acute_gap <= chronic_gap else "慢性"
+        expected = acute_expected if chronicity == "急性" else chronic_expected
+        if hco3 < acute_expected - 2:
+            mixed = "合并代谢性酸中毒"
+        elif hco3 > chronic_expected + 2:
+            mixed = "合并代谢性碱中毒"
+        else:
+            mixed = ""
+        return {
+            "type": "呼吸性酸中毒",
+            "chronicity": chronicity,
+            "expected_hco3": round(expected, 1),
+            "acute_expected_hco3": round(acute_expected, 1),
+            "chronic_expected_hco3": round(chronic_expected, 1),
+            "mixed": mixed,
+        }
+
+    if paco2 < 35:
+        delta = (40.0 - paco2) / 10.0
+        acute_expected = 24.0 - delta * 2.0
+        chronic_expected = 24.0 - delta * 4.0
+        acute_gap = abs(hco3 - acute_expected)
+        chronic_gap = abs(hco3 - chronic_expected)
+        chronicity = "急性" if acute_gap <= chronic_gap else "慢性"
+        expected = acute_expected if chronicity == "急性" else chronic_expected
+        if hco3 > acute_expected + 2:
+            mixed = "合并代谢性碱中毒"
+        elif hco3 < chronic_expected - 2:
+            mixed = "合并代谢性酸中毒"
+        else:
+            mixed = ""
+        return {
+            "type": "呼吸性碱中毒",
+            "chronicity": chronicity,
+            "expected_hco3": round(expected, 1),
+            "acute_expected_hco3": round(acute_expected, 1),
+            "chronic_expected_hco3": round(chronic_expected, 1),
+            "mixed": mixed,
+        }
+    return None
+
+
+def _field_mmol_value(field_info: dict[str, Any] | None, *, default_factor: float | None = None) -> float | None:
+    if not field_info:
+        return None
+    value = _parse_num(field_info.get("value"))
+    if value is None:
+        return None
+    unit = _norm_unit(field_info.get("unit"))
+    if not unit:
+        return value if default_factor is None else value / default_factor
+    if "mg/dl" in unit:
+        return value if default_factor is None else value / default_factor
+    return value
+
+
 def interpret_acid_base(snapshot: dict[str, Any]) -> dict[str, Any] | None:
     fields = snapshot.get("fields") or {}
     ph = _parse_num(fields.get("ph", {}).get("value"))
@@ -287,20 +388,27 @@ def interpret_acid_base(snapshot: dict[str, Any]) -> dict[str, Any] | None:
     cl = _parse_num(fields.get("cl", {}).get("value"))
     albumin_g_dl = _parse_num(fields.get("albumin", {}).get("value"))
     lactate = _parse_num(fields.get("lactate", {}).get("value"))
+    mg_mmol = _field_mmol_value(fields.get("mg"), default_factor=2.43)
+    ica = _field_mmol_value(fields.get("ica"))
+    ca = _field_mmol_value(fields.get("ca"))
 
     if ph is None and hco3 is None and paco2 is None:
         return None
 
+    dominant_primary = _dominant_primary(ph, paco2, hco3)
     acidemia = ph is not None and ph < 7.35
     alkalemia = ph is not None and ph > 7.45
     ag = None
     corrected_ag = None
     delta_ratio = None
     lactate_corrected_ag = None
+    sid = None
+    stewart_summary = ""
     compensation = "未知"
     primary = "未定"
     secondary = ""
     tertiary = ""
+    respiratory_analysis = None
 
     if na is not None and k is not None and cl is not None and hco3 is not None:
         ag = round(na + k - cl - hco3, 1)
@@ -312,36 +420,46 @@ def interpret_acid_base(snapshot: dict[str, Any]) -> dict[str, Any] | None:
         if corrected_ag is not None and delta_hco3 > 0:
             delta_ratio = round((corrected_ag - 12.0) / delta_hco3, 2)
 
+    sid_terms = [x for x in [na, k, ca or ica, mg_mmol] if x is not None]
+    if sid_terms and cl is not None:
+        sid = round(sum(sid_terms) - cl - (lactate or 0.0), 1)
+        if sid < 38:
+            stewart_summary = "SID降低，支持强离子差相关代谢性酸中毒"
+        elif sid > 42:
+            stewart_summary = "SID升高，支持强离子差相关代谢性碱中毒"
+        else:
+            stewart_summary = "SID大致正常"
+
     # 主要紊乱
     if acidemia:
-        if hco3 is not None and hco3 < 22:
+        if dominant_primary == "resp_acidosis":
+            primary = "呼吸性酸中毒"
+        elif hco3 is not None and hco3 < 22:
             if corrected_ag is not None and corrected_ag > 12:
                 primary = "代谢性酸中毒(AG增高)"
             else:
                 primary = "代谢性酸中毒(AG正常)"
-        elif paco2 is not None and paco2 > 45:
-            primary = "呼吸性酸中毒"
         else:
             primary = "酸血症(待定型)"
     elif alkalemia:
-        if hco3 is not None and hco3 > 26:
-            primary = "代谢性碱中毒"
-        elif paco2 is not None and paco2 < 35:
+        if dominant_primary == "resp_alkalosis":
             primary = "呼吸性碱中毒"
+        elif hco3 is not None and hco3 > 26:
+            primary = "代谢性碱中毒"
         else:
             primary = "碱血症(待定型)"
     else:
-        if hco3 is not None and hco3 < 22:
+        if dominant_primary == "resp_acidosis":
+            primary = "呼吸性酸中毒(已代偿/混合)"
+        elif dominant_primary == "resp_alkalosis":
+            primary = "呼吸性碱中毒(已代偿/混合)"
+        elif hco3 is not None and hco3 < 22:
             if corrected_ag is not None and corrected_ag > 12:
                 primary = "代谢性酸中毒(已代偿/混合)"
             else:
                 primary = "代谢性酸中毒(AG正常)"
         elif hco3 is not None and hco3 > 26:
             primary = "代谢性碱中毒(已代偿/混合)"
-        elif paco2 is not None and paco2 > 45:
-            primary = "呼吸性酸中毒(已代偿/混合)"
-        elif paco2 is not None and paco2 < 35:
-            primary = "呼吸性碱中毒(已代偿/混合)"
 
     # Winter 公式
     if hco3 is not None and paco2 is not None and "代谢性酸中毒" in primary:
@@ -363,6 +481,13 @@ def interpret_acid_base(snapshot: dict[str, Any]) -> dict[str, Any] | None:
         else:
             compensation = "不适当"
             secondary = "合并呼吸性紊乱"
+    elif "呼吸性" in primary and paco2 is not None and hco3 is not None:
+        respiratory_analysis = _respiratory_compensation(paco2, hco3)
+        if respiratory_analysis:
+            primary = f"{respiratory_analysis['type']}({respiratory_analysis['chronicity']})"
+            compensation = f"{respiratory_analysis['chronicity']}代偿"
+            if respiratory_analysis.get("mixed"):
+                secondary = respiratory_analysis["mixed"]
 
     if delta_ratio is not None:
         if delta_ratio > 2:
@@ -397,7 +522,10 @@ def interpret_acid_base(snapshot: dict[str, Any]) -> dict[str, Any] | None:
         "delta_ratio": delta_ratio,
         "lactate_corrected_AG": lactate_corrected_ag,
         "lactate_context": lactate_context,
+        "SID": sid,
+        "stewart_summary": stewart_summary,
         "compensation": compensation,
+        "respiratory_compensation": respiratory_analysis,
         "snapshot_time": snapshot.get("time"),
         "abnormal_components": abnormalities,
         "inputs": {
@@ -409,5 +537,8 @@ def interpret_acid_base(snapshot: dict[str, Any]) -> dict[str, Any] | None:
             "Cl": cl,
             "Albumin_g_dL": albumin_g_dl,
             "Lactate": lactate,
+            "Mg_mmol_L": mg_mmol,
+            "iCa_mmol_L": ica,
+            "Ca_mmol_L": ca,
         },
     }

@@ -71,6 +71,8 @@ class AlertEngine(
         super().__init__(db, config, ws_manager)
         self._stop_event = asyncio.Event()
         self._tasks: list[asyncio.Task] = []
+        max_concurrent = int(self.config.yaml_cfg.get("alert_engine", {}).get("max_concurrent_scans", 4) or 4)
+        self._scan_semaphore = asyncio.Semaphore(max(1, max_concurrent))
 
     async def start(self) -> None:
         self._stop_event.clear()
@@ -99,6 +101,7 @@ class AlertEngine(
             asyncio.create_task(self._loop("liberation_bundle", self.scan_liberation_bundle, int(intervals.get("liberation_bundle", 900)))),
             asyncio.create_task(self._loop("hemodynamic_advisor", self.scan_hemodynamic_advisor, int(intervals.get("hemodynamic_advisor", 300)))),
             asyncio.create_task(self._loop("dose_adjustment", self.scan_dose_adjustment, int(intervals.get("dose_adjustment", 1800)))),
+            asyncio.create_task(self._loop("discharge_readiness", self.scan_discharge_readiness, int(intervals.get("discharge_readiness", 1800)))),
             asyncio.create_task(self._loop("trend_analysis", self.scan_trends, int(intervals.get("trend_analysis", 900)))),
             asyncio.create_task(self._loop("ai_analysis", self.scan_ai_risk, 1800)),
             asyncio.create_task(self._loop("nurse_reminders", self.scan_nurse_reminders, int(intervals.get("assessments", 600)))),
@@ -120,30 +123,32 @@ class AlertEngine(
             "ards": 20,
             "aki": 25,
             "dic": 30,
-            "tbi": 20,
-            "bleeding": 25,
+            "tbi": 22,
+            "bleeding": 27,
             "ventilator": 40,
             "drug_safety": 45,
-            "antibiotic_stewardship": 40,
+            "antibiotic_stewardship": 42,
             "delirium_risk": 35,
-            "device_management": 35,
-            "fluid_balance": 35,
-            "glycemic_control": 35,
-            "vte_prophylaxis": 35,
-            "nutrition_monitor": 35,
-            "composite_deterioration": 35,
-            "crrt_monitor": 35,
-            "liberation_bundle": 35,
-            "hemodynamic_advisor": 35,
-            "dose_adjustment": 35,
+            "device_management": 37,
+            "fluid_balance": 39,
+            "glycemic_control": 41,
+            "vte_prophylaxis": 43,
+            "nutrition_monitor": 47,
+            "composite_deterioration": 49,
+            "crrt_monitor": 51,
+            "liberation_bundle": 53,
+            "hemodynamic_advisor": 55,
+            "dose_adjustment": 57,
+            "discharge_readiness": 59,
             "trend_analysis": 30,
             "ai_analysis": 60,
-            "nurse_reminders": 15,
+            "nurse_reminders": 17,
         }
         await self._sleep(delays.get(name, 5))
         while not self._stop_event.is_set():
             try:
-                await func()
+                async with self._scan_semaphore:
+                    await func()
             except Exception as e:
                 logger.exception(f"[{name}] 扫描失败: {e}")
             await self._sleep(interval)

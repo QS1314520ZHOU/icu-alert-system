@@ -4,6 +4,7 @@ ICU智能预警系统 - FastAPI 主应用
 import json
 import logging
 import re
+import secrets
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -47,6 +48,7 @@ alert_engine: AlertEngine = None  # type: ignore[assignment]
 ai_handoff_service: AiHandoffService = None  # type: ignore[assignment]
 ai_monitor: AiMonitor = None  # type: ignore[assignment]
 ai_rag_service: RagService = None  # type: ignore[assignment]
+bootstrap_config = get_config()
 
 
 # =============================================
@@ -99,10 +101,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS（开发环境允许所有来源）
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=bootstrap_config.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -237,6 +239,48 @@ def _parse_gcs_text(v) -> int | None:
     verbal = 0 if m.group(2) == "T" else int(m.group(2))
     motor = int(m.group(3))
     return eye + verbal + motor
+
+
+def _get_valid_ws_tokens() -> list[str]:
+    cfg = config or bootstrap_config
+    return cfg.websocket_tokens
+
+
+def _ws_token_required() -> bool:
+    cfg = config or bootstrap_config
+    return cfg.websocket_require_token
+
+
+def _ws_origin_allowed(origin: str | None) -> bool:
+    allowed = set((config or bootstrap_config).cors_allowed_origins)
+    if not origin:
+        return False
+    return origin in allowed
+
+
+def _extract_ws_token(ws: WebSocket) -> str:
+    auth = ws.headers.get("authorization") or ws.headers.get("Authorization") or ""
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    for key in ("token", "access_token", "ws_token"):
+        val = ws.query_params.get(key)
+        if val:
+            return str(val).strip()
+    header_token = ws.headers.get("x-ws-token") or ws.headers.get("x-access-token")
+    return str(header_token or "").strip()
+
+
+def _is_ws_authorized(ws: WebSocket) -> bool:
+    origin = ws.headers.get("origin") or ws.headers.get("Origin")
+    if origin and not _ws_origin_allowed(origin):
+        return False
+    if not _ws_token_required():
+        return _ws_origin_allowed(origin)
+    token = _extract_ws_token(ws)
+    for valid in _get_valid_ws_tokens():
+        if valid and secrets.compare_digest(token, valid):
+            return True
+    return False
 
 
 def _patient_his_pid_candidates(patient: dict | None) -> list[str]:
@@ -854,11 +898,13 @@ async def _call_llm(system_prompt: str, user_prompt: str, model: str = None) -> 
 
     start = time.perf_counter()
     text = ""
+    usage = None
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(llm_url, json=payload, headers=headers)
             resp.raise_for_status()
             data = resp.json()
+            usage = data.get("usage") if isinstance(data, dict) else None
             text = data["choices"][0]["message"]["content"]
     except Exception:
         if ai_monitor:
@@ -870,6 +916,7 @@ async def _call_llm(system_prompt: str, user_prompt: str, model: str = None) -> 
                 latency_ms=(time.perf_counter() - start) * 1000.0,
                 success=False,
                 meta={"url": llm_url},
+                usage=usage,
             )
         raise
 
@@ -882,6 +929,7 @@ async def _call_llm(system_prompt: str, user_prompt: str, model: str = None) -> 
             latency_ms=(time.perf_counter() - start) * 1000.0,
             success=True,
             meta={"url": llm_url},
+            usage=usage,
         )
     return text
 
@@ -1897,6 +1945,17 @@ async def ai_feedback(payload: dict = Body(...)):
     return {"code": 0, "prediction_id": prediction_id, "outcome": outcome}
 
 
+@app.get("/api/ai/monitor/summary")
+async def ai_monitor_summary(date: str | None = Query(default=None)):
+    """AI调用监控汇总（含日聚合与活跃告警）。"""
+    try:
+        summary = await ai_monitor.get_daily_summary(date=date)
+        return {"code": 0, **summary}
+    except Exception as e:
+        logger.error(f"AI monitor summary error: {e}")
+        return {"code": 0, "date": date or datetime.now().strftime('%Y-%m-%d'), "stats": [], "active_alerts": [], "error": f"监控汇总异常: {str(e)[:120]}"}
+
+
 @app.get("/api/knowledge/chunks/{chunk_id}")
 async def get_knowledge_chunk(chunk_id: str):
     """离线知识库证据详情。"""
@@ -2102,6 +2161,9 @@ async def ai_risk_forecast(patient_id: str):
 # =============================================
 @app.websocket("/ws/alerts")
 async def ws_alerts(ws: WebSocket):
+    if not _is_ws_authorized(ws):
+        await ws.close(code=4401, reason="Unauthorized")
+        return
     await ws_mgr.connect(ws)
     try:
         while True:

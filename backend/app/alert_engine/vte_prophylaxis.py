@@ -140,10 +140,16 @@ class VteProphylaxisMixin:
             ("alert_engine", "vte_prophylaxis", "mechanical_prophylaxis_keywords"),
             ["间歇充气", "ipc", "scd", "气压治疗", "弹力袜", "机械预防", "下肢气压泵", "梯度压力袜"],
         )
+        mech_order_kw = self._get_cfg_list(
+            ("alert_engine", "vte_prophylaxis", "mechanical_order_keywords"),
+            mech_kw,
+        )
         neg_kw = self._get_cfg_list(
             ("alert_engine", "vte_prophylaxis", "mechanical_negative_keywords"),
             ["未做", "未行", "未实施", "none", "no", "否"],
         )
+
+        # 1) 护理/床旁记录
         cursor = self.db.col("bedside").find(
             {"pid": pid_str, "time": {"$gte": since}},
             {"time": 1, "code": 1, "name": 1, "paramName": 1, "itemName": 1, "remark": 1, "strVal": 1},
@@ -152,6 +158,20 @@ class VteProphylaxisMixin:
             text = " ".join(str(doc.get(k) or "") for k in ("code", "name", "paramName", "itemName", "remark", "strVal")).lower()
             if not text:
                 continue
+            if self._contains_any(text, mech_kw) and not self._contains_any(text, neg_kw):
+                return True
+
+        # 2) 医嘱/执行记录：扩大到 orderName/route/orderType 等文本
+        drug_docs = await self._get_recent_drug_docs(pid_str, since)
+        for doc in drug_docs:
+            text = self._drug_name_text(doc)
+            if self._contains_any(text, mech_order_kw) and not self._contains_any(text, neg_kw):
+                return True
+
+        # 3) 文本兜底（部分系统将护理措施写在自由文本中）
+        text_events = await self._get_recent_text_events(pid_str, mech_kw, hours=max(1, int((datetime.now() - since).total_seconds() / 3600)), limit=800)
+        for doc in text_events:
+            text = " ".join(str(doc.get(k) or "") for k in ("code", "strVal", "value")).lower()
             if self._contains_any(text, mech_kw) and not self._contains_any(text, neg_kw):
                 return True
         return False
