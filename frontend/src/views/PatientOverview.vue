@@ -58,114 +58,23 @@
 
     <!-- ====== 卡片网格 ====== -->
     <section v-else class="grid">
-      <article v-for="p in showList" :key="p._id"
-               :class="['card', `card--${p.alertLevel || 'none'}`, { 'card--flash': p.alertFlash }]"
-               @click="goDetail(p._id)">
-
-        <!-- 行1: 床号 + 状态灯 -->
-        <div class="card-head">
-          <div class="head-left">
-            <span class="avatar-wrap" :style="{ '--av': avatarAccent(p) }">
-              <img class="avatar" :src="avatarFor(p)" :alt="avatarAlt(p)" />
-            </span>
-            <span class="bed">{{ p.hisBed }}<small>床</small></span>
-          </div>
-          <span :class="['lamp', `lamp--${p.alertLevel || 'none'}`]"></span>
-        </div>
-
-        <!-- 行2: 姓名 性别年龄 ICU天数 -->
-        <div class="card-id">
-          <strong class="name">{{ p.name || '—' }}</strong>
-          <span class="demo">
-            <em :class="p.gender === 'Male' ? 'm' : 'f'">{{ p.genderText }}</em>
-            <em v-if="p.age">{{ p.age }}</em>
-            <em v-if="p.icuDays != null && p.icuDays >= 0"
-                :class="['icu-d', { long: p.icuDays > 14 }]">D{{ p.icuDays }}</em>
-          </span>
-        </div>
-
-        <!-- 行3: 临床标签（最多3个） -->
-        <div class="tags" v-if="p.clinicalTags?.length">
-          <span v-for="t in p.clinicalTags.slice(0, 3)" :key="t.tag"
-                class="tag" :style="{ color: t.color, borderColor: t.color + '66' }">
-            {{ t.label }}
-          </span>
-          <span v-if="p.clinicalTags.length > 3" class="tag tag-more">
-            +{{ p.clinicalTags.length - 3 }}
-          </span>
-        </div>
-
-        <!-- 行4: 诊断 -->
-        <p class="diag" :title="p.clinicalDiagnosis || p.admissionDiagnosis">
-          {{ shortDiag(p.clinicalDiagnosis || p.admissionDiagnosis) }}
-        </p>
-
-        <!-- 行4.5: 饮食/隔离 -->
-        <div class="care-flags" v-if="patientDiet(p) || patientIsolation(p)">
-          <span
-            v-if="patientDiet(p)"
-            class="care-pill care-pill--diet"
-            :title="`饮食：${patientDiet(p)}`"
-          >
-            饮食 · {{ shortCare(patientDiet(p), 8) }}
-          </span>
-          <span
-            v-if="patientIsolation(p)"
-            class="care-pill care-pill--iso"
-            :title="`隔离：${patientIsolation(p)}`"
-          >
-            隔离 · {{ shortCare(patientIsolation(p), 8) }}
-          </span>
-        </div>
-
-        <!-- 行5: 生命体征 -->
-        <div class="vitals" v-if="p.vitals?.source">
-          <div class="vg">
-            <div :class="['vi', vc('hr', p.vitals.hr)]">
-              <label>HR</label>
-              <span>{{ p.vitals.hr ?? '–' }}</span>
-            </div>
-            <div :class="['vi vi-spo2', vc('spo2', p.vitals.spo2)]">
-              <label>SpO₂</label>
-              <span>{{ p.vitals.spo2 != null ? p.vitals.spo2 + '%' : '–' }}</span>
-            </div>
-            <div :class="['vi', vc('rr', p.vitals.rr)]">
-              <label>RR</label>
-              <span>{{ p.vitals.rr ?? '–' }}</span>
-            </div>
-          </div>
-          <div class="vg">
-            <div :class="['vi vi-bp', vc('sys', p.vitals.nibp_sys)]">
-              <label>BP</label>
-              <span>{{ bp(p.vitals) }}</span>
-            </div>
-            <div :class="['vi', vc('temp', p.vitals.temp)]">
-              <label>T</label>
-              <span>{{ temp(p.vitals.temp) }}</span>
-            </div>
-          </div>
-          <time class="vt">{{ clock(p.vitals.time) }}</time>
-        </div>
-        <div class="vitals vitals--empty" v-else>无监护数据</div>
-
-        <!-- 主管医生小字 -->
-        <div class="doc" v-if="p.bedDoctor">{{ p.bedDoctor }}</div>
-      </article>
+      <PatientOverviewCard
+        v-for="p in showList"
+        :key="p._id"
+        :patient="p"
+        @select="goDetail"
+      />
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientVitals } from '../api'
+import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
-import maleChild from '../assets/avatars/male-child.svg'
-import maleAdult from '../assets/avatars/male-adult.svg'
-import maleElder from '../assets/avatars/male-elder.svg'
-import femaleChild from '../assets/avatars/female-child.svg'
-import femaleAdult from '../assets/avatars/female-adult.svg'
-import femaleElder from '../assets/avatars/female-elder.svg'
+
+const PatientOverviewCard = defineAsyncComponent(() => import('../components/overview/PatientOverviewCard.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -191,12 +100,6 @@ const routeDeptName = computed(() => {
   return ''
 })
 const showDeptNav = computed(() => !routeDeptCode.value && !routeDeptName.value)
-
-const avatarMap = {
-  male: { child: maleChild, adult: maleAdult, elder: maleElder },
-  female: { child: femaleChild, adult: femaleAdult, elder: femaleElder },
-  neutral: { child: maleChild, adult: maleAdult, elder: maleElder },
-} as const
 
 /* ── 科室标签 ── */
 const deptTabs = computed(() => {
@@ -257,44 +160,6 @@ const normalCount = computed(() =>
 
 /* ── toggle ── */
 function toggleAlert(a: string) { alertFilter.value = alertFilter.value === a ? '' : a }
-
-function ageGroup(age: any): 'child' | 'adult' | 'elder' {
-  const s = String(age ?? '').trim()
-  if (!s) return 'adult'
-  if (s.endsWith('天') || s.endsWith('月')) return 'child'
-  const m = s.match(/(\d+)/)
-  if (m) {
-    const n = Number(m[1])
-    if (Number.isFinite(n)) {
-      if (n < 14) return 'child'
-      if (n >= 60) return 'elder'
-      return 'adult'
-    }
-  }
-  return 'adult'
-}
-
-function avatarFor(p: any) {
-  const gender =
-    p?.gender === 'Female' ? 'female' :
-    p?.gender === 'Male' ? 'male' : 'neutral'
-  return avatarMap[gender][ageGroup(p?.age)]
-}
-
-function avatarAlt(p: any) {
-  const genderText = p?.gender === 'Female' ? '女性' : p?.gender === 'Male' ? '男性' : '未知性别'
-  const group = ageGroup(p?.age)
-  const groupText = group === 'child' ? '儿童' : group === 'elder' ? '老年' : '成人'
-  return `${genderText}${groupText}头像`
-}
-
-function avatarAccent(p: any) {
-  const level = String(p?.alertLevel || 'none')
-  if (level === 'critical') return '#f5222d'
-  if (level === 'warning') return '#faad14'
-  if (level === 'normal') return '#52c41a'
-  return '#1890ff'
-}
 
 function syncDeptQuery(dept: string) {
   const nextQuery: Record<string, any> = { ...route.query }
@@ -382,52 +247,6 @@ function applyAlert(alert: any) {
 }
 
 /* ── fmt ── */
-function bp(v: any) {
-  const s = v?.nibp_sys, d = v?.nibp_dia
-  return s != null || d != null ? `${s ?? '–'}/${d ?? '–'}` : '–'
-}
-function temp(v: any) {
-  if (v == null) return '–'
-  const n = Number(v)
-  return isNaN(n) ? '–' : n.toFixed(1)
-}
-function clock(t: any) {
-  if (!t) return ''
-  try { const d = new Date(t); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
-  catch { return '' }
-}
-function shortDiag(s: string) {
-  if (!s) return '—'
-  const f = s.split('|')[0] ?? s
-  return f.length > 16 ? f.slice(0, 16) + '…' : f
-}
-
-function patientDiet(p: any) {
-  return String(
-    p?.diet ??
-    p?.dietType ??
-    p?.dietName ??
-    p?.nutritionType ??
-    ''
-  ).trim()
-}
-
-function patientIsolation(p: any) {
-  return String(
-    p?.isolation ??
-    p?.isolationType ??
-    p?.isolateType ??
-    p?.infectionIsolation ??
-    ''
-  ).trim()
-}
-
-function shortCare(v: any, n = 8) {
-  const s = String(v ?? '').trim()
-  if (!s) return ''
-  return s.length > n ? `${s.slice(0, n)}…` : s
-}
-
 /* ── 数据加载 ── */
 async function load() {
   loading.value = true
@@ -470,6 +289,18 @@ async function load() {
       p.alertLevel = mergeAlertLevel(p, calcLevel(p.vitals))
       return p
     }))
+
+    try {
+      const statusRes = await getPatientBundleStatuses(ls.map((p: any) => p._id))
+      const statuses = statusRes.data?.statuses || {}
+      for (const item of [...done, ...tail]) {
+        item.bundleStatus = statuses[String(item._id)] || { lights: {} }
+      }
+    } catch {
+      for (const item of [...done, ...tail]) {
+        item.bundleStatus = { lights: {} }
+      }
+    }
 
     const ord: Record<string, number> = { critical: 0, warning: 1, none: 2, normal: 3 }
     const all = [...done, ...tail].sort((a, b) => {
@@ -715,6 +546,29 @@ onUnmounted(() => {
   background: #f59e0b12;
 }
 
+.bundle-lights {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.bundle-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.bundle-green { background: #22c55e; }
+.bundle-yellow { background: #f59e0b; color: #111827; }
+.bundle-red { background: #ef4444; }
+.bundle-unknown { background: #475569; }
+
 /* 医生 */
 .doc { font-size: 10px; color: #444; margin-top: auto; padding-top: 2px; }
 
@@ -865,6 +719,7 @@ onUnmounted(() => {
 :global(html[data-theme='light']) .name { color: #0f172a; }
 :global(html[data-theme='light']) .icu-d { background: #e9eef8; color: #51607a; }
 :global(html[data-theme='light']) .tag-more { color: #677893; border-color: #bcc9dc; }
+:global(html[data-theme='light']) .bundle-dot { border-color: rgba(15, 23, 42, 0.08); }
 :global(html[data-theme='light']) .vitals {
   background: #f2f6fc;
   border: 1px solid #d9e2f1;

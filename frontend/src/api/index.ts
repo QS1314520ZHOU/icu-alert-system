@@ -27,6 +27,10 @@ export const getPatientVitals = (patientId: string) =>
 export const getPatientDetail = (patientId: string) =>
   api.get(`/api/patients/${patientId}`)
 
+// 批量获取患者 Bundle 灯状态
+export const getPatientBundleStatuses = (patientIds: string[]) =>
+  api.post('/api/patients/bundle-status', patientIds)
+
 // 获取患者检验结果
 export const getPatientLabs = (patientId: string) =>
   api.get(`/api/patients/${patientId}/labs`)
@@ -54,6 +58,14 @@ export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?
 // 获取预警统计
 export const getAlertStats = (window = '24h') =>
   api.get('/api/alerts/stats', { params: { window } })
+
+// Bundle 合规总览
+export const getBundleOverview = (params?: { dept?: string; dept_code?: string }) =>
+  api.get('/api/bundle/overview', { params })
+
+// 导管/装置风险热力图
+export const getDeviceRiskHeatmap = (params?: { dept?: string; dept_code?: string }) =>
+  api.get('/api/device-risk/heatmap', { params })
 
 // Analytics: 预警频率
 export const getAlertAnalyticsFrequency = (params?: {
@@ -90,6 +102,38 @@ export const getAiRuleRecommendations = (patientId: string) =>
 // AI: 风险预测
 export const getAiRiskForecast = (patientId: string) =>
   aiApi.get(`/api/ai/risk-forecast/${patientId}`)
+
+// AI: 反馈闭环
+export const postAiFeedback = (payload: {
+  prediction_id: string
+  outcome: 'confirmed' | 'dismissed' | 'inaccurate'
+  module?: string
+  detail?: Record<string, any>
+}) => aiApi.post('/api/ai/feedback', payload)
+
+// AI/RAG: 离线知识片段详情
+export const getKnowledgeChunk = (chunkId: string) =>
+  aiApi.get(`/api/knowledge/chunks/${encodeURIComponent(chunkId)}`)
+
+export const getKnowledgeDocuments = () =>
+  aiApi.get('/api/knowledge/documents')
+
+export const getKnowledgeDocument = (docId: string) =>
+  aiApi.get(`/api/knowledge/documents/${encodeURIComponent(docId)}`)
+
+export const getKnowledgeStatus = () =>
+  aiApi.get('/api/knowledge/status')
+
+export const reloadKnowledge = () =>
+  aiApi.post('/api/knowledge/reload')
+
+// AI: 交班摘要(I-PASS)
+export const getPatientHandoffSummary = (patientId: string) =>
+  aiApi.get(`/api/patients/${patientId}/handoff-summary`)
+
+// 转出风险评估
+export const getPatientDischargeReadiness = (patientId: string) =>
+  aiApi.get(`/api/patients/${patientId}/discharge-readiness`)
 
 // 健康检查
 export const healthCheck = () => api.get('/health')

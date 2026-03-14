@@ -1,23 +1,22 @@
 import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart, PieChart, BarChart, HeatmapChart } from 'echarts/charts'
+import { HeatmapChart, LineChart, PieChart } from 'echarts/charts'
 import {
+  GraphicComponent,
   GridComponent,
   LegendComponent,
   TooltipComponent,
-  TitleComponent,
   VisualMapComponent,
 } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 
 use([
   CanvasRenderer,
+  HeatmapChart,
   LineChart,
   PieChart,
-  BarChart,
-  HeatmapChart,
+  GraphicComponent,
   GridComponent,
   LegendComponent,
   TooltipComponent,
-  TitleComponent,
   VisualMapComponent,
 ])

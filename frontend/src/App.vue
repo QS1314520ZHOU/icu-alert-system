@@ -1,7 +1,7 @@
 <template>
   <a-config-provider :theme="themeConfig">
-    <a-layout class="root" :class="`theme-${themeMode}`">
-      <a-layout-header class="hdr">
+    <div class="root" :class="`theme-${themeMode}`">
+      <header class="hdr">
         <div class="hdr-l">
           <span class="hdr-icon">🏥</span>
           <div>
@@ -9,45 +9,42 @@
             <div class="hdr-sub">Intelligent Early Warning System</div>
           </div>
         </div>
-        <a-menu mode="horizontal" :selected-keys="[navKey]" :theme="themeMode === 'dark' ? 'dark' : 'light'" class="hdr-menu"
-                @click="({ key }: any) => onNav(key)">
-          <a-menu-item key="overview">📋 患者总览</a-menu-item>
-          <a-menu-item key="analytics">📈 预警分析</a-menu-item>
-          <a-menu-item key="bigscreen">🖥 护士站大屏</a-menu-item>
-        </a-menu>
+        <nav class="hdr-menu">
+          <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">📋 患者总览</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">📈 预警分析</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'bigscreen' }]" @click="onNav('bigscreen')">🖥 护士站大屏</button>
+        </nav>
         <div class="hdr-tools">
           <div class="theme-toggle">
-            <a-switch
-              size="small"
-              :checked="notifyEnabled"
-              checked-children="通知开"
-              un-checked-children="通知关"
-              @change="onNotifyToggle"
-            />
+            <span class="toggle-text">{{ notifyEnabled ? '通知开' : '通知关' }}</span>
+            <label class="switch">
+              <input type="checkbox" :checked="notifyEnabled" @change="onNotifyToggle(($event.target as HTMLInputElement)?.checked)" />
+              <span class="switch-slider"></span>
+            </label>
           </div>
           <div class="theme-toggle" :title="themeMode === 'dark' ? '当前夜间模式' : '当前白天模式'">
             <span class="theme-lbl">🌞</span>
-            <a-switch
-              size="small"
-              :checked="themeMode === 'dark'"
-              checked-children="夜"
-              un-checked-children="日"
-              @change="onThemeToggle"
-            />
+            <label class="switch switch--compact">
+              <input type="checkbox" :checked="themeMode === 'dark'" @change="onThemeToggle(($event.target as HTMLInputElement)?.checked)" />
+              <span class="switch-slider switch-slider--compact"></span>
+            </label>
             <span class="theme-lbl">🌙</span>
           </div>
           <span class="hdr-clock">{{ now }}</span>
         </div>
-      </a-layout-header>
-      <a-layout-content class="body"><router-view /></a-layout-content>
-    </a-layout>
+      </header>
+      <main class="body"><router-view /></main>
+    </div>
   </a-config-provider>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { theme } from 'ant-design-vue'
+import {
+  ConfigProvider as AConfigProvider,
+  theme,
+} from 'ant-design-vue'
 import {
   getAlertNotifyEnabled,
   requestAlertNotificationPermission,
@@ -87,16 +84,18 @@ function initTheme() {
   applyTheme(themeMode.value)
 }
 
-function onThemeToggle(checked: boolean) {
-  themeMode.value = checked ? 'dark' : 'light'
+function onThemeToggle(checked: any) {
+  const enabled = checked === true || checked === 'true'
+  themeMode.value = enabled ? 'dark' : 'light'
 }
 
 function initNotify() {
   notifyEnabled.value = getAlertNotifyEnabled()
 }
 
-async function onNotifyToggle(checked: boolean) {
-  if (!checked) {
+async function onNotifyToggle(checked: any) {
+  const enabled = checked === true || checked === 'true'
+  if (!enabled) {
     notifyEnabled.value = false
     setAlertNotifyEnabled(false)
     return
@@ -145,7 +144,23 @@ onUnmounted(() => clearInterval(t))
 .hdr-icon { font-size: 20px; }
 .hdr-title { font-size: 15px; font-weight: 700; color: var(--hdr-title); letter-spacing: 0.5px; line-height: 1.25; }
 .hdr-sub { font-size: 10px; color: var(--hdr-sub); letter-spacing: 0.3px; line-height: 1.2; margin-top: 2px; }
-.hdr-menu { flex: 1; }
+.hdr-menu { flex: 1; display: flex; align-items: center; gap: 8px; }
+.nav-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--hdr-sub);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.nav-btn:hover { color: var(--hdr-title); background: rgba(255,255,255,0.05); }
+.nav-btn.active {
+  color: var(--hdr-title);
+  background: rgba(59,130,246,0.16);
+  border-color: rgba(59,130,246,0.35);
+}
 .hdr-tools {
   display: flex;
   align-items: center;
@@ -165,12 +180,60 @@ onUnmounted(() => clearInterval(t))
   line-height: 1;
   opacity: 0.8;
 }
+.toggle-text {
+  font-size: 11px;
+  color: var(--hdr-sub);
+}
+.switch {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #334155;
+  transition: 0.2s ease;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #fff;
+  transition: 0.2s ease;
+}
+.switch input:checked + .switch-slider {
+  background: #2563eb;
+}
+.switch input:checked + .switch-slider::before {
+  transform: translateX(14px);
+}
+.switch--compact { width: 30px; height: 18px; }
+.switch-slider--compact::before {
+  width: 12px;
+  height: 12px;
+}
+.switch--compact input:checked + .switch-slider--compact::before {
+  transform: translateX(12px);
+}
 .hdr-clock { font-family: 'SF Mono','Consolas',monospace; color: var(--hdr-sub); font-size: 12px; white-space: nowrap; }
 .body { background: var(--app-bg); min-height: calc(100vh - 60px); }
 
 @media (max-width: 1200px) {
   .hdr { gap: 12px; padding: 8px 12px; }
   .hdr-sub { display: none; }
+  .nav-btn { padding: 7px 10px; font-size: 12px; }
 }
 
 @media (max-width: 920px) {

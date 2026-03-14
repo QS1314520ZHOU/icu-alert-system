@@ -60,7 +60,7 @@
             <a-button size="small" @click="loadTrend">刷新</a-button>
           </div>
           <div v-if="trendPoints.length" class="chart-wrap">
-            <VChart :option="trendOption" autoresize />
+            <DetailChart :option="trendOption" autoresize />
           </div>
           <div v-else class="tab-empty">暂无趋势数据</div>
         </a-tab-pane>
@@ -82,6 +82,31 @@
                   {{ item.result || item.resultValue || item.value }}
                   {{ item.unit || '' }}
                 </span>
+              </div>
+              <div v-if="exam.acidBaseInterpretation" class="acid-base-card">
+                <div class="acid-base-head">
+                  <strong>血气自动解读</strong>
+                  <span>{{ exam.acidBaseInterpretation.compensation || '—' }}</span>
+                </div>
+                <div class="acid-base-summary">
+                  <span class="acid-pill acid-primary">{{ exam.acidBaseInterpretation.primary }}</span>
+                  <span v-if="exam.acidBaseInterpretation.secondary" class="acid-pill acid-secondary">{{ exam.acidBaseInterpretation.secondary }}</span>
+                  <span v-if="exam.acidBaseInterpretation.tertiary" class="acid-pill acid-tertiary">{{ exam.acidBaseInterpretation.tertiary }}</span>
+                </div>
+                <div class="acid-base-metrics">
+                  <span>AG {{ exam.acidBaseInterpretation.AG ?? '—' }}</span>
+                  <span>校正AG {{ exam.acidBaseInterpretation.corrected_AG ?? '—' }}</span>
+                  <span>Δ比 {{ exam.acidBaseInterpretation.delta_ratio ?? '—' }}</span>
+                </div>
+                <div v-if="exam.acidBaseInterpretation.abnormal_components?.length" class="acid-base-components">
+                  <span
+                    v-for="comp in exam.acidBaseInterpretation.abnormal_components"
+                    :key="comp.field"
+                    :class="['acid-comp', { abnormal: comp.abnormal }]"
+                  >
+                    {{ comp.field }} {{ comp.value ?? '—' }}{{ comp.unit || '' }}
+                  </span>
+                </div>
               </div>
             </a-timeline-item>
           </a-timeline>
@@ -109,6 +134,30 @@
         </a-tab-pane>
 
         <a-tab-pane key="alerts" tab="预警历史">
+          <div v-if="latestCompositeAlert" class="modi-panel">
+            <div class="modi-head">
+              <div>
+                <div class="modi-title">多器官恶化指数 (MODI)</div>
+                <div class="modi-sub">
+                  {{ fmtTime(latestCompositeAlert.created_at) || '时间未知' }} · 最近{{ latestCompositeWindowHours }}h
+                </div>
+              </div>
+              <div class="modi-kpi-group">
+                <div class="modi-kpi">
+                  <span>MODI</span>
+                  <strong>{{ latestCompositeModi ?? '—' }}</strong>
+                </div>
+                <div class="modi-kpi">
+                  <span>器官系统</span>
+                  <strong>{{ latestCompositeOrganCount }}</strong>
+                </div>
+              </div>
+            </div>
+            <div class="modi-organs">{{ latestCompositeInvolvedText }}</div>
+            <div class="modi-chart">
+              <DetailChart :option="compositeRadarOption" autoresize />
+            </div>
+          </div>
           <div v-if="alerts.length" class="alert-feed">
             <article
               v-for="(item, idx) in alerts"
@@ -150,6 +199,87 @@
                   <div v-for="f in alertDetailFields(item)" :key="f.label" class="alert-detail-item">
                     <span class="detail-label">{{ f.label }}</span>
                     <span class="detail-value">{{ f.value ?? '—' }}</span>
+                  </div>
+                </div>
+                <div v-if="isAiRiskAlert(item)" class="ai-risk-panel">
+                  <div class="ai-risk-head">
+                    <div :class="['ai-risk-summary', aiConfidenceClass(aiRiskConfidenceLevel(item))]">
+                      <strong>{{ item.extra?.primary_risk || item.name || 'AI综合风险' }}</strong>
+                      <span>风险等级 {{ aiRiskLevelText(item.extra?.risk_level || item.condition?.risk_level || item.value) }}</span>
+                      <span v-if="item.ai_feedback?.outcome">反馈 {{ feedbackOutcomeText(item.ai_feedback.outcome) }}</span>
+                    </div>
+                    <div class="ai-risk-feedback">
+                      <a-button size="small" @click="submitAiFeedback(item, 'confirmed')">采纳</a-button>
+                      <a-button size="small" @click="submitAiFeedback(item, 'dismissed')">忽略</a-button>
+                      <a-button size="small" danger ghost @click="submitAiFeedback(item, 'inaccurate')">不准确</a-button>
+                    </div>
+                  </div>
+
+                  <div v-if="aiRiskOrganRows(item).length" class="ai-risk-organ-grid">
+                    <div
+                      v-for="row in aiRiskOrganRows(item)"
+                      :key="row.key"
+                      :class="['ai-risk-organ', aiConfidenceClass(row.confidence_level)]"
+                    >
+                      <div class="ai-risk-organ-top">
+                        <span class="ai-risk-organ-name">{{ row.label }}</span>
+                        <span class="ai-risk-organ-status">{{ row.status_text }}</span>
+                      </div>
+                      <div class="ai-risk-organ-evidence">{{ row.evidence || '未见证据' }}</div>
+                      <div class="ai-risk-organ-conf">置信度 {{ row.confidence_level }}</div>
+                    </div>
+                  </div>
+
+                  <div v-if="aiRiskValidationIssues(item).length" class="ai-risk-section">
+                    <div class="ai-risk-section-title">安全校验</div>
+                    <ul class="ai-risk-list ai-risk-list-warning">
+                      <li v-for="(issue, issueIdx) in aiRiskValidationIssues(item)" :key="issueIdx">
+                        {{ issue.message || issue.type || '存在校验问题' }}
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div v-if="aiRiskHallucinations(item).length" class="ai-risk-section">
+                    <div class="ai-risk-section-title">幻觉检测</div>
+                    <ul class="ai-risk-list ai-risk-list-hallucination">
+                      <li
+                        v-for="(flag, flagIdx) in aiRiskHallucinations(item)"
+                        :key="flagIdx"
+                        :class="['hallucination-pill', `hallucination-${flag.level || 'warning'}`]"
+                      >
+                        {{ flag.metric || '指标' }}: 输出 {{ flag.claimed }} / 实测 {{ flag.observed }}
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div v-if="aiRiskEvidenceList(item).length" class="ai-risk-section">
+                    <div class="ai-risk-section-title">证据脚注</div>
+                    <ol class="ai-risk-evidence-list">
+                      <li v-for="(evidence, evidenceIdx) in aiRiskEvidenceList(item)" :key="evidence.chunk_id || evidenceIdx">
+                        <a-popover placement="topLeft">
+                          <template #content>
+                            <div class="ai-evidence-popover">
+                              <div><strong>{{ evidence.source || '指南证据' }}</strong></div>
+                              <div v-if="evidence.recommendation">{{ evidence.recommendation }}</div>
+                              <div class="ai-evidence-quote">{{ evidence.quote || '暂无原文片段' }}</div>
+                            </div>
+                          </template>
+                          <a class="ai-evidence-link" @click.prevent="openEvidence(evidence)">
+                            [{{ evidenceIdx + 1 }}] {{ evidence.source || '未知来源' }}<span v-if="evidence.recommendation"> · {{ evidence.recommendation }}</span>
+                          </a>
+                        </a-popover>
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div v-if="aiRiskExplainabilityRows(item).length" class="ai-risk-section">
+                    <div class="ai-risk-section-title">归因解释</div>
+                    <ul class="ai-risk-list">
+                      <li v-for="(factor, factorIdx) in aiRiskExplainabilityRows(item)" :key="factorIdx">
+                        {{ factor.factor }}<span v-if="factor.weight != null"> ({{ Math.round(Number(factor.weight || 0) * 100) }}%)</span>
+                        <span v-if="factor.evidence">：{{ factor.evidence }}</span>
+                      </li>
+                    </ul>
                   </div>
                 </div>
                 <pre v-else-if="item.extra" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
@@ -200,22 +330,176 @@
                 <a-button size="small" type="link" :loading="aiRiskLoading" @click="loadAiRisk">重新生成</a-button>
               </div>
               <a-spin :spinning="aiRiskLoading">
-                <div v-if="aiRiskText" class="ai-rich" v-html="renderAiRichText(aiRiskText)"></div>
+                <div v-if="latestAiRiskAlert" :class="['ai-risk-card', aiConfidenceClass(aiRiskConfidenceLevel(latestAiRiskAlert))]">
+                  <p><strong>主要风险:</strong> {{ latestAiRiskAlert.extra?.primary_risk || latestAiRiskAlert.name || '综合风险' }}</p>
+                  <p><strong>风险等级:</strong> {{ aiRiskLevelText(latestAiRiskAlert.extra?.risk_level || latestAiRiskAlert.condition?.risk_level || latestAiRiskAlert.value) }}</p>
+                  <p><strong>安全校验:</strong> {{ latestAiRiskAlert.extra?.safety_validation?.status || 'ok' }}</p>
+                  <p v-if="aiRiskEvidenceList(latestAiRiskAlert).length">
+                    <strong>证据脚注:</strong>
+                    <span
+                      v-for="(evidence, idx) in aiRiskEvidenceList(latestAiRiskAlert)"
+                      :key="evidence.chunk_id || idx"
+                      class="ai-evidence-inline"
+                    >
+                      <a-popover placement="topLeft">
+                        <template #content>
+                          <div class="ai-evidence-popover">
+                            <div><strong>{{ evidence.source || '指南证据' }}</strong></div>
+                            <div v-if="evidence.recommendation">{{ evidence.recommendation }}</div>
+                            <div class="ai-evidence-quote">{{ evidence.quote || '暂无原文片段' }}</div>
+                          </div>
+                        </template>
+                        <a class="ai-evidence-link" @click.prevent="openEvidence(evidence)">
+                          [{{ idx + 1 }}]
+                        </a>
+                      </a-popover>
+                    </span>
+                  </p>
+                  <p v-if="aiRiskHallucinations(latestAiRiskAlert).length" class="handoff-warning">
+                    幻觉检测提示 {{ aiRiskHallucinations(latestAiRiskAlert).length }} 条
+                  </p>
+                </div>
+                <div v-else-if="aiRiskText" class="ai-rich" v-html="renderAiRichText(aiRiskText)"></div>
                 <div v-else class="ai-empty">暂无内容</div>
               </a-spin>
               <div v-if="aiRiskError" class="ai-error">{{ aiRiskError }}</div>
+            </a-card>
+            <a-card title="交班摘要(I-PASS)" :bordered="false" class="ai-card">
+              <div class="ai-card-head">
+                <span class="ai-card-note">最近12h自动归纳</span>
+                <div>
+                  <a-button size="small" type="link" :loading="aiHandoffLoading" @click="loadAiHandoff">重新生成</a-button>
+                  <a-button size="small" type="link" :disabled="!aiHandoff" @click="copyHandoffSummary">复制</a-button>
+                </div>
+              </div>
+              <a-spin :spinning="aiHandoffLoading">
+                <div v-if="aiHandoff" :class="['handoff-wrap', aiConfidenceClass(aiHandoffConfidence)]">
+                  <p><strong>Illness severity:</strong> {{ aiHandoff.illness_severity || 'watcher' }}</p>
+                  <p><strong>Patient summary:</strong> {{ aiHandoff.patient_summary || '—' }}</p>
+                  <p><strong>Action list:</strong> {{ normalizeList(aiHandoff.action_list).join('；') || '—' }}</p>
+                  <p><strong>Situation awareness:</strong> {{ normalizeList(aiHandoff.situation_awareness).join('；') || '—' }}</p>
+                  <p><strong>Synthesis:</strong> {{ aiHandoff.synthesis_by_receiver || '—' }}</p>
+                  <p><strong>Confidence:</strong> {{ aiHandoff.confidence_level || 'low' }}</p>
+                  <p v-if="aiHandoff?.validation?.issues?.length" class="handoff-warning">
+                    数值校验告警 {{ aiHandoff.validation.issues.length }} 条
+                  </p>
+                </div>
+                <div v-else class="ai-empty">暂无内容</div>
+              </a-spin>
+              <div v-if="aiHandoffError" class="ai-error">{{ aiHandoffError }}</div>
+            </a-card>
+            <a-card title="离线知识包" :bordered="false" class="ai-card">
+                <div class="ai-card-head">
+                  <span class="ai-card-note">内网离线知识证据浏览</span>
+                  <div>
+                    <a-button size="small" type="link" :loading="knowledgeLoading" @click="loadKnowledgeDocs">刷新列表</a-button>
+                    <a-button size="small" type="link" :loading="knowledgeLoading" @click="handleReloadKnowledge">热更新</a-button>
+                  </div>
+                </div>
+                <a-spin :spinning="knowledgeLoading">
+                  <div v-if="knowledgeDocs.length" class="kb-browser">
+                    <div v-if="knowledgeStatus" class="kb-status">
+                      <span>{{ knowledgeStatus.package_name || '离线知识包' }}</span>
+                      <span v-if="knowledgeStatus.package_version">v{{ knowledgeStatus.package_version }}</span>
+                      <span>文档 {{ knowledgeStatus.document_count ?? 0 }}</span>
+                      <span>院内SOP {{ knowledgeStatus.institutional_document_count ?? 0 }}</span>
+                    </div>
+                    <a-select
+                      v-model:value="selectedKnowledgeDocId"
+                      size="small"
+                    style="width: 100%; margin-bottom: 8px;"
+                    placeholder="选择离线文档"
+                    @change="loadKnowledgeDocument"
+                  >
+                    <a-select-option v-for="doc in knowledgeDocs" :key="doc.doc_id" :value="doc.doc_id">
+                      {{ doc.title }} · P{{ doc.priority ?? 0 }}
+                    </a-select-option>
+                  </a-select>
+                    <div v-if="selectedKnowledgeDoc" class="kb-doc-meta">
+                      <p><strong>来源:</strong> {{ selectedKnowledgeDoc.source || '本地知识库' }}</p>
+                      <p><strong>知识包:</strong> {{ selectedKnowledgeDoc.package_name || '离线知识包' }} <span v-if="selectedKnowledgeDoc.package_version">v{{ selectedKnowledgeDoc.package_version }}</span></p>
+                      <p><strong>作用域:</strong> {{ knowledgeScopeText(selectedKnowledgeDoc.scope) }}<span v-if="selectedKnowledgeDoc.overridden" class="kb-overridden"> · 已被 {{ selectedKnowledgeDoc.overridden_by }} 覆盖</span></p>
+                      <p><strong>优先级:</strong> {{ selectedKnowledgeDoc.priority ?? '—' }}</p>
+                      <p v-if="selectedKnowledgeDoc.local_ref"><strong>离线路径:</strong> <code>{{ selectedKnowledgeDoc.local_ref }}</code></p>
+                    </div>
+                  <div v-if="selectedKnowledgeDoc?.chunks?.length" class="kb-chunk-list">
+                    <div
+                      v-for="chunk in selectedKnowledgeDoc.chunks"
+                      :key="chunk.chunk_id"
+                      class="kb-chunk-item"
+                    >
+                      <div class="kb-chunk-title">
+                        {{ chunk.recommendation || chunk.section_title || chunk.chunk_id }}
+                        <span v-if="chunk.recommendation_grade">· {{ chunk.recommendation_grade }}</span>
+                      </div>
+                      <div class="kb-chunk-content">{{ chunk.content }}</div>
+                    </div>
+                  </div>
+                  <div v-else class="ai-empty">暂无章节内容</div>
+                </div>
+                <div v-else class="ai-empty">暂无离线知识文档</div>
+              </a-spin>
+              <div v-if="knowledgeError" class="ai-error">{{ knowledgeError }}</div>
             </a-card>
           </div>
         </a-tab-pane>
       </a-tabs>
     </a-card>
+
+    <a-modal
+      v-model:open="evidenceModalOpen"
+      :title="evidenceModal.title || '离线指南证据'"
+      width="860px"
+      :footer="null"
+    >
+      <div class="evidence-modal">
+        <p><strong>来源:</strong> {{ evidenceModal.source || '本地知识库' }}</p>
+        <p v-if="evidenceModal.package_name"><strong>知识包:</strong> {{ evidenceModal.package_name }} <span v-if="evidenceModal.package_version">v{{ evidenceModal.package_version }}</span></p>
+        <p v-if="evidenceModal.category"><strong>类型:</strong> {{ evidenceModal.category }}</p>
+        <p v-if="evidenceModal.owner"><strong>维护方:</strong> {{ evidenceModal.owner }}</p>
+        <p v-if="evidenceModal.updated_at"><strong>更新时间:</strong> {{ evidenceModal.updated_at }}</p>
+        <p v-if="evidenceModal.priority != null"><strong>优先级:</strong> {{ evidenceModal.priority }}</p>
+        <p v-if="evidenceModal.local_ref"><strong>离线路径:</strong> <code>{{ evidenceModal.local_ref }}</code></p>
+        <p v-if="evidenceModal.recommendation"><strong>推荐:</strong> {{ evidenceModal.recommendation }}</p>
+        <p v-if="evidenceModal.recommendation_grade"><strong>等级:</strong> {{ evidenceModal.recommendation_grade }}</p>
+        <p v-if="evidenceModal.section_title"><strong>章节:</strong> {{ evidenceModal.section_title }}</p>
+        <p v-if="evidenceModal.tags?.length"><strong>标签:</strong> {{ evidenceModal.tags.join('、') }}</p>
+        <div class="evidence-modal-content">{{ evidenceModal.content || '暂无内容' }}</div>
+        <div v-if="evidenceModal.related_chunks?.length" class="evidence-modal-related">
+          <div class="ai-risk-section-title">同来源离线片段</div>
+          <ul class="ai-risk-evidence-list">
+            <li v-for="(chunk, idx) in evidenceModal.related_chunks" :key="chunk.chunk_id || idx">
+              <a class="ai-evidence-link" @click.prevent="openEvidence(chunk)">{{ chunk.recommendation || chunk.title || chunk.chunk_id }}</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import {
+  Button as AButton,
+  Card as ACard,
+  Modal as AModal,
+  PageHeader as APageHeader,
+  Popover as APopover,
+  RadioButton as ARadioButton,
+  RadioGroup as ARadioGroup,
+  Select as ASelect,
+  SelectOption as ASelectOption,
+  Spin as ASpin,
+  TabPane as ATabPane,
+  Table as ATable,
+  Tabs as ATabs,
+  Timeline as ATimeline,
+  TimelineItem as ATimelineItem,
+  message,
+} from 'ant-design-vue'
 import {
   getPatientDetail,
   getPatientVitals,
@@ -227,7 +511,20 @@ import {
   getAiLabSummary,
   getAiRuleRecommendations,
   getAiRiskForecast,
+  getPatientHandoffSummary,
+  getKnowledgeChunk,
+  getKnowledgeDocument,
+  getKnowledgeDocuments,
+  getKnowledgeStatus,
+  postAiFeedback,
+  reloadKnowledge,
 } from '../api'
+
+const DetailChart = defineAsyncComponent(async () => {
+  await import('../charts/patient-detail')
+  const mod = await import('vue-echarts')
+  return mod.default
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -242,16 +539,53 @@ const drugs = ref<any[]>([])
 const assessments = ref<any[]>([])
 const alerts = ref<any[]>([])
 
+const compositeOrganOrder = ['respiratory', 'circulatory', 'renal', 'coagulation', 'hepatic', 'neurologic']
+const compositeOrganLabelDefault: Record<string, string> = {
+  respiratory: '呼吸',
+  circulatory: '循环',
+  renal: '肾脏',
+  coagulation: '凝血',
+  hepatic: '肝脏',
+  neurologic: '神经',
+}
+
 const aiLabSummary = ref('')
 const aiRuleText = ref('')
 const aiRiskText = ref('')
+const aiHandoff = ref<any>(null)
 const aiLabError = ref('')
 const aiRuleError = ref('')
 const aiRiskError = ref('')
+const aiHandoffError = ref('')
 const aiLabLoading = ref(false)
 const aiRuleLoading = ref(false)
 const aiRiskLoading = ref(false)
+const aiHandoffLoading = ref(false)
 const aiAutoLoaded = ref(false)
+const knowledgeDocs = ref<any[]>([])
+const selectedKnowledgeDocId = ref<string>('')
+const selectedKnowledgeDoc = ref<any>(null)
+const knowledgeLoading = ref(false)
+const knowledgeError = ref('')
+const knowledgeStatus = ref<any>(null)
+const evidenceModalOpen = ref(false)
+const evidenceModal = ref<any>({
+  title: '',
+  source: '',
+  package_name: '',
+  package_version: '',
+  category: '',
+  owner: '',
+  updated_at: '',
+  priority: null,
+  local_ref: '',
+  recommendation: '',
+  recommendation_grade: '',
+  section_title: '',
+  tags: [],
+  content: '',
+  related_chunks: [],
+})
 
 const displayName = computed(() =>
   patient.value?.name || patient.value?.hisName || '加载中...'
@@ -282,6 +616,76 @@ const vitalsSourceText = computed(() => {
   if (vitals.value.source === 'monitor') return '监护仪'
   if (vitals.value.source === 'nurse_manual') return '护士录入'
   return '未知'
+})
+
+const latestCompositeAlert = computed(() =>
+  alerts.value.find((a: any) =>
+    String(a?.alert_type || '') === 'multi_organ_deterioration_trend' ||
+    String(a?.category || '') === 'composite_deterioration')
+)
+const latestAiRiskAlert = computed(() =>
+  alerts.value.find((a: any) => String(a?.alert_type || '') === 'ai_risk')
+)
+
+const latestCompositeExtra = computed(() => latestCompositeAlert.value?.extra || {})
+const latestCompositeWindowHours = computed(() => latestCompositeExtra.value?.window_hours ?? 4)
+const latestCompositeModi = computed(() => latestCompositeExtra.value?.modi ?? latestCompositeAlert.value?.value ?? null)
+const latestCompositeOrganCount = computed(() => {
+  const count = latestCompositeExtra.value?.organ_count
+  if (count != null) return count
+  const involved = latestCompositeExtra.value?.involved_organs
+  return Array.isArray(involved) ? involved.length : 0
+})
+const latestCompositeInvolvedText = computed(() => {
+  const labels = latestCompositeExtra.value?.organ_labels_cn || {}
+  const involved = Array.isArray(latestCompositeExtra.value?.involved_organs)
+    ? latestCompositeExtra.value.involved_organs
+    : []
+  const names = involved
+    .map((k: any) => labels?.[String(k)] || compositeOrganLabelDefault[String(k)] || String(k))
+    .filter(Boolean)
+  return names.length ? `涉及系统: ${names.join(' / ')}` : '涉及系统: 暂无'
+})
+
+const compositeRadarOption = computed(() => {
+  const extra = latestCompositeExtra.value || {}
+  const scoreMap = extra?.organ_scores || {}
+  const labels = extra?.organ_labels_cn || {}
+  const values = compositeOrganOrder.map((k) => {
+    const raw = Number(scoreMap?.[k] ?? 0)
+    if (Number.isNaN(raw)) return 0
+    return Math.max(0, Math.min(3, raw))
+  })
+  const indicator = compositeOrganOrder.map((k) => ({
+    name: labels?.[k] || compositeOrganLabelDefault[k] || k,
+    max: 3,
+  }))
+  return {
+    tooltip: { trigger: 'item', confine: true },
+    radar: {
+      indicator,
+      radius: '63%',
+      splitNumber: 3,
+      axisName: { color: '#7d93b5', fontSize: 12 },
+      axisLine: { lineStyle: { color: '#214368' } },
+      splitLine: { lineStyle: { color: ['#183357', '#1f3f67', '#26547c'] } },
+      splitArea: { areaStyle: { color: ['rgba(15, 33, 56, 0.28)', 'rgba(17, 37, 63, 0.22)', 'rgba(24, 53, 90, 0.16)'] } },
+    },
+    series: [
+      {
+        type: 'radar',
+        data: [
+          {
+            value: values,
+            name: '器官严重程度',
+            areaStyle: { color: 'rgba(56, 189, 248, 0.24)' },
+            lineStyle: { color: '#38bdf8', width: 2 },
+            itemStyle: { color: '#0ea5e9' },
+          },
+        ],
+      },
+    ],
+  }
 })
 
 const trendOption = computed(() => {
@@ -378,6 +782,14 @@ function fmtTimeShort(t: any) {
   try { return dayjs(t).format('MM-DD HH:mm') } catch { return '' }
 }
 
+function knowledgeScopeText(scope: any) {
+  const value = String(scope || '').toLowerCase()
+  if (value === 'institutional') return '院内SOP/制度'
+  if (value === 'external') return '外部指南'
+  if (value === 'local') return '本地资料'
+  return value || '未知'
+}
+
 function escapeHtml(raw: string) {
   return raw
     .replace(/&/g, '&amp;')
@@ -462,6 +874,275 @@ function parseAiRuleRows(raw: any): AiRuleRow[] {
 }
 
 const aiRuleRows = computed(() => parseAiRuleRows(aiRuleText.value))
+const aiHandoffConfidence = computed(() => String(aiHandoff.value?.confidence_level || '').toLowerCase())
+void aiHandoffConfidence
+
+function aiConfidenceClass(level: string) {
+  const v = String(level || '').toLowerCase()
+  if (v === 'low') return 'ai-confidence-low'
+  if (v === 'medium') return 'ai-confidence-medium'
+  return 'ai-confidence-high'
+}
+void aiConfidenceClass
+
+function normalizeConfidenceLevel(raw: any) {
+  const v = String(raw || '').toLowerCase()
+  if (v === 'low' || v === 'medium' || v === 'high') return v
+  return 'medium'
+}
+
+function isAiRiskAlert(item: any) {
+  return String(item?.alert_type || '') === 'ai_risk'
+}
+
+function aiRiskConfidenceLevel(item: any) {
+  return normalizeConfidenceLevel(
+    item?.extra?.confidence?.overall ||
+    item?.extra?.explainability?.confidence_level ||
+    'medium'
+  )
+}
+
+function aiRiskLevelText(raw: any) {
+  const v = String(raw || '').toLowerCase()
+  if (v === 'critical' || v === '极高') return '极高'
+  if (v === 'high' || v === '高') return '高'
+  if (v === 'medium' || v === '中') return '中'
+  if (v === 'low' || v === '低') return '低'
+  return String(raw || '—')
+}
+
+function feedbackOutcomeText(raw: any) {
+  const v = String(raw || '').toLowerCase()
+  if (v === 'confirmed') return '采纳'
+  if (v === 'dismissed') return '忽略'
+  if (v === 'inaccurate') return '不准确'
+  return String(raw || '—')
+}
+
+function aiRiskOrganRows(item: any) {
+  const organ = item?.extra?.organ_assessment
+  const organLabels: Record<string, string> = {
+    respiratory: '呼吸',
+    cardiovascular: '循环',
+    renal: '肾脏',
+    hepatic: '肝脏',
+    coagulation: '凝血',
+    neurological: '神经',
+  }
+  const statusLabels: Record<string, string> = {
+    normal: '正常',
+    impaired: '受损',
+    failure: '衰竭',
+  }
+  if (!organ || typeof organ !== 'object') return []
+  return Object.entries(organ)
+    .map(([key, val]: [string, any]) => ({
+      key,
+      label: organLabels[key] || key,
+      status_text: statusLabels[String(val?.status || '').toLowerCase()] || String(val?.status || '—'),
+      evidence: String(val?.evidence || ''),
+      confidence_level: normalizeConfidenceLevel(val?.confidence_level),
+    }))
+    .filter((x) => x.label)
+}
+
+function aiRiskValidationIssues(item: any) {
+  const issues = item?.extra?.safety_validation?.issues
+  return Array.isArray(issues) ? issues : []
+}
+
+function aiRiskHallucinations(item: any) {
+  const flags = item?.extra?.hallucination_flags
+  return Array.isArray(flags) ? flags : []
+}
+
+function aiRiskEvidenceList(item: any) {
+  const evidence = item?.extra?.evidence_sources
+  return Array.isArray(evidence) ? evidence : []
+}
+
+function aiRiskExplainabilityRows(item: any) {
+  const rows = item?.extra?.explainability?.top_factors
+  return Array.isArray(rows) ? rows : []
+}
+
+async function openEvidence(evidence: any) {
+  const chunkId = String(evidence?.chunk_id || '').trim()
+  if (!chunkId) {
+    message.warning('缺少本地证据ID')
+    return
+  }
+  try {
+    const res = await getKnowledgeChunk(chunkId)
+    const chunk = res.data?.chunk || {}
+    evidenceModal.value = {
+      title: chunk.title || evidence.title || '离线指南证据',
+      source: chunk.source || evidence.source || '',
+      package_name: chunk.package_name || '',
+      package_version: chunk.package_version || '',
+      category: chunk.category || '',
+      owner: chunk.owner || '',
+      updated_at: chunk.updated_at || '',
+      priority: chunk.priority ?? null,
+      local_ref: chunk.local_ref || '',
+      recommendation: chunk.recommendation || evidence.recommendation || '',
+      recommendation_grade: chunk.recommendation_grade || '',
+      section_title: chunk.section_title || '',
+      tags: Array.isArray(chunk.tags) ? chunk.tags : [],
+      content: chunk.content || evidence.quote || '',
+      related_chunks: Array.isArray(chunk.related_chunks) ? chunk.related_chunks : [],
+    }
+    evidenceModalOpen.value = true
+  } catch {
+    evidenceModal.value = {
+      title: evidence.title || '离线指南证据',
+      source: evidence.source || '',
+      package_name: evidence.package_name || '',
+      package_version: evidence.package_version || '',
+      category: evidence.category || '',
+      owner: evidence.owner || '',
+      updated_at: evidence.updated_at || '',
+      priority: evidence.priority ?? null,
+      local_ref: evidence.local_ref || '',
+      recommendation: evidence.recommendation || '',
+      recommendation_grade: evidence.recommendation_grade || '',
+      section_title: evidence.section_title || '',
+      tags: Array.isArray(evidence.tags) ? evidence.tags : [],
+      content: evidence.quote || '本地知识片段加载失败',
+      related_chunks: [],
+    }
+    evidenceModalOpen.value = true
+  }
+}
+
+function normalizeList(raw: any): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((x) => String(x || '').trim()).filter(Boolean)
+}
+
+function handoffPlainText() {
+  const s = aiHandoff.value || {}
+  const lines: string[] = []
+  lines.push(`Illness severity: ${s.illness_severity || 'watcher'}`)
+  lines.push(`Patient summary: ${s.patient_summary || ''}`)
+  lines.push(`Action list: ${normalizeList(s.action_list).join('；')}`)
+  lines.push(`Situation awareness: ${normalizeList(s.situation_awareness).join('；')}`)
+  lines.push(`Synthesis by receiver: ${s.synthesis_by_receiver || ''}`)
+  lines.push(`Confidence: ${s.confidence_level || 'low'}`)
+  if (s?.validation?.status) {
+    lines.push(`Validation: ${s.validation.status}`)
+  }
+  return lines.join('\n')
+}
+
+async function copyHandoffSummary() {
+  if (!aiHandoff.value) return
+  try {
+    await navigator.clipboard.writeText(handoffPlainText())
+    aiHandoffError.value = '交班摘要已复制'
+    setTimeout(() => {
+      if (aiHandoffError.value === '交班摘要已复制') aiHandoffError.value = ''
+    }, 1500)
+  } catch {
+    aiHandoffError.value = '复制失败'
+  }
+}
+void copyHandoffSummary
+
+async function submitAiFeedback(item: any, outcome: 'confirmed' | 'dismissed' | 'inaccurate') {
+  const predictionId = String(item?._id || '').trim()
+  if (!predictionId) {
+    message.error('缺少预警ID，无法提交反馈')
+    return
+  }
+  try {
+    await postAiFeedback({
+      prediction_id: predictionId,
+      outcome,
+      module: 'ai_risk',
+      detail: {
+        patient_id: String(item?.patient_id || ''),
+        rule_id: String(item?.rule_id || ''),
+        alert_type: String(item?.alert_type || ''),
+      },
+    })
+    if (!item.ai_feedback) item.ai_feedback = {}
+    item.ai_feedback.outcome = outcome
+    item.ai_feedback.updated_at = new Date().toISOString()
+    message.success('AI反馈已记录')
+  } catch {
+    message.error('AI反馈提交失败')
+  }
+}
+
+async function loadKnowledgeDocs() {
+  if (knowledgeLoading.value) return
+  knowledgeLoading.value = true
+  knowledgeError.value = ''
+  try {
+    const [res, statusRes] = await Promise.all([getKnowledgeDocuments(), getKnowledgeStatus()])
+    const docs = Array.isArray(res.data?.documents) ? res.data.documents : []
+    knowledgeDocs.value = docs
+    knowledgeStatus.value = statusRes.data?.status || null
+    if (!selectedKnowledgeDocId.value && docs.length) {
+      selectedKnowledgeDocId.value = String(docs[0].doc_id || '')
+      await loadKnowledgeDocument(selectedKnowledgeDocId.value)
+    }
+  } catch {
+    knowledgeError.value = '离线知识包加载失败'
+  } finally {
+    knowledgeLoading.value = false
+  }
+}
+
+async function loadKnowledgeDocument(docId?: any) {
+  const id = String(docId || selectedKnowledgeDocId.value || '').trim()
+  if (!id) return
+  knowledgeLoading.value = true
+  knowledgeError.value = ''
+  try {
+    const res = await getKnowledgeDocument(id)
+    selectedKnowledgeDoc.value = res.data?.document || null
+  } catch {
+    knowledgeError.value = '离线文档加载失败'
+  } finally {
+    knowledgeLoading.value = false
+  }
+}
+
+async function handleReloadKnowledge() {
+  if (knowledgeLoading.value) return
+  knowledgeLoading.value = true
+  knowledgeError.value = ''
+  try {
+    const res = await reloadKnowledge()
+    const [docsRes, statusRes] = await Promise.all([getKnowledgeDocuments(), getKnowledgeStatus()])
+    const docs = Array.isArray(docsRes.data?.documents) ? docsRes.data.documents : []
+    knowledgeDocs.value = docs
+    knowledgeStatus.value = statusRes.data?.status || res.data?.status || null
+    if (selectedKnowledgeDocId.value) {
+      const stillExists = docs.some((doc: any) => String(doc?.doc_id || '') === selectedKnowledgeDocId.value)
+      if (!stillExists) {
+        selectedKnowledgeDocId.value = ''
+        selectedKnowledgeDoc.value = null
+      }
+    }
+    if (!selectedKnowledgeDocId.value && docs.length) {
+      selectedKnowledgeDocId.value = String(docs[0].doc_id || '')
+    }
+    if (selectedKnowledgeDocId.value) {
+      const detailRes = await getKnowledgeDocument(selectedKnowledgeDocId.value)
+      selectedKnowledgeDoc.value = detailRes.data?.document || null
+    }
+    message.success(res.data?.message || '知识库已热更新')
+  } catch {
+    knowledgeError.value = '知识库热更新失败'
+    message.error('知识库热更新失败')
+  } finally {
+    knowledgeLoading.value = false
+  }
+}
 
 function alertDetailFields(item: any) {
   const t = String(item?.alert_type || '')
@@ -532,11 +1213,18 @@ function alertDetailFields(item: any) {
 
   if (t === 'lab_threshold') {
     const unit = extra?.unit ? ` ${extra.unit}` : ''
+    const plan = extra?.correction_plan
     fields.push(
       { label: '指标', value: extra?.raw_name || item?.parameter },
       { label: '结果', value: item?.value != null ? `${item.value}${unit}` : '—' },
       { label: '标志', value: extra?.raw_flag },
     )
+    if (plan?.title) {
+      fields.push({ label: '纠正建议', value: Array.isArray(plan.actions) ? plan.actions.join('；') : plan.title })
+    }
+    if (plan?.aki_note) {
+      fields.push({ label: 'AKI提示', value: plan.aki_note })
+    }
     return fields
   }
 
@@ -612,6 +1300,62 @@ function alertDetailFields(item: any) {
     return fields
   }
 
+  if (t === 'af_afl_new_onset') {
+    fields.push(
+      { label: '峰值HR', value: extra?.hr_peak_in_segment != null ? `${extra.hr_peak_in_segment} bpm` : item?.value },
+      { label: '不规则时长', value: extra?.irregular_duration_seconds != null ? `${extra.irregular_duration_seconds}s` : '—' },
+      { label: 'AF标签', value: extra?.has_af_tag ? '是' : '否' },
+      { label: 'AFL标签', value: extra?.has_afl_tag ? '是' : '否' },
+    )
+    return fields
+  }
+
+  if (t === 'brady_hypotension') {
+    fields.push(
+      { label: 'HR', value: extra?.latest_hr != null ? `${extra.latest_hr} bpm` : item?.value },
+      { label: '当前SBP', value: extra?.latest_sbp != null ? `${extra.latest_sbp} mmHg` : '—' },
+      { label: '基线SBP', value: extra?.baseline_sbp != null ? `${extra.baseline_sbp} mmHg` : '—' },
+      { label: 'SBP下降', value: extra?.drop_sbp != null ? `${extra.drop_sbp} mmHg` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'qtc_prolonged') {
+    fields.push(
+      { label: 'QTc', value: extra?.qtc_ms != null ? `${extra.qtc_ms} ms` : (item?.value != null ? `${item.value} ms` : '—') },
+      { label: '阈值', value: extra?.qtc_threshold_ms != null ? `${extra.qtc_threshold_ms} ms` : '—' },
+      { label: '来源', value: extra?.source_code || '—' },
+    )
+    return fields
+  }
+
+  if (t === 'opioid_high_dose_resp_risk') {
+    fields.push(
+      { label: '24h吗啡当量', value: extra?.opioid_med_24h_mg != null ? `${extra.opioid_med_24h_mg} mg` : item?.value },
+      { label: '阈值', value: extra?.threshold_mg_per_day != null ? `${extra.threshold_mg_per_day} mg/d` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'opioid_respiratory_depression') {
+    fields.push(
+      { label: 'RR', value: extra?.rr != null ? `${extra.rr} 次/分` : '—' },
+      { label: 'SpO₂', value: extra?.latest_spo2 != null ? `${extra.latest_spo2}%` : '—' },
+      { label: 'SpO₂下降', value: extra?.spo2_drop != null ? `${extra.spo2_drop}%` : '—' },
+      { label: '24h吗啡当量', value: extra?.opioid_med_24h_mg != null ? `${extra.opioid_med_24h_mg} mg` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'opioid_withdrawal_risk') {
+    fields.push(
+      { label: '持续用药时长', value: extra?.course_duration_hours != null ? `${extra.course_duration_hours} h` : '—' },
+      { label: '停药时长', value: extra?.since_last_opioid_hours != null ? `${extra.since_last_opioid_hours} h` : (item?.value != null ? `${item.value} h` : '—') },
+      { label: '末次用药', value: fmtTime(extra?.course_last) || '—' },
+    )
+    return fields
+  }
+
   if (t === 'nurse_reminder') {
     fields.push(
       { label: '评估项', value: item?.parameter || item?.rule_id },
@@ -623,9 +1367,224 @@ function alertDetailFields(item: any) {
   if (t === 'ai_risk') {
     const synd = Array.isArray(extra?.syndromes_detected) ? extra.syndromes_detected.map((s: any) => s?.name).filter(Boolean) : []
     const det = Array.isArray(extra?.deterioration_signals) ? extra.deterioration_signals : []
+    const halluc = Array.isArray(extra?.hallucination_flags) ? extra.hallucination_flags : []
+    const evid = Array.isArray(extra?.evidence_sources) ? extra.evidence_sources : []
     fields.push(
+      { label: '置信度', value: extra?.confidence?.overall || '—' },
+      { label: '安全校验', value: extra?.safety_validation?.status || '—' },
+      { label: '证据条目', value: evid.length || 0 },
+      { label: '幻觉标记', value: halluc.length || 0 },
       { label: '综合征', value: synd.length ? synd.join('、') : '—' },
       { label: '恶化信号', value: det.length ? det.slice(0, 3).join('；') : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'fluid_balance') {
+    const win24 = extra?.windows?.['24h'] || {}
+    fields.push(
+      { label: '体重(kg)', value: extra?.weight_kg },
+      { label: '24h入量', value: win24?.intake_ml != null ? `${win24.intake_ml} mL` : '—' },
+      { label: '24h出量', value: win24?.output_ml != null ? `${win24.output_ml} mL` : '—' },
+      { label: '24h净平衡', value: win24?.net_ml != null ? `${win24.net_ml} mL` : '—' },
+      { label: '占体重%', value: win24?.pct_body_weight != null ? `${win24.pct_body_weight}%` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'delirium_risk') {
+    const factors = Array.isArray(extra?.factors) ? extra.factors : []
+    const top = factors.slice(0, 3).map((f: any) => `${f.factor}(${f.weight})`).join('；')
+    fields.push(
+      { label: '风险评分', value: item?.value },
+      { label: 'RASS', value: extra?.observations?.latest_rass },
+      { label: 'GCS', value: extra?.observations?.latest_gcs },
+      { label: '主要因素', value: top || '—' },
+    )
+    return fields
+  }
+
+  if (t === 'sedation_delirium_conversion') {
+    fields.push(
+      { label: 'RASS', value: extra?.latest_rass ?? item?.value },
+      { label: 'GCS', value: extra?.latest_gcs },
+      { label: '深镇静时长(h)', value: extra?.deep_sedation_hours },
+    )
+    return fields
+  }
+
+  if (t === 'glucose_variability') {
+    fields.push(
+      { label: 'CV%', value: extra?.cv_percent ?? item?.value },
+      { label: '24h采样数', value: extra?.points_24h },
+      { label: '最新血糖', value: extra?.latest_glucose != null ? `${extra.latest_glucose} mmol/L` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'hypoglycemia') {
+    fields.push(
+      { label: '当前血糖', value: item?.value != null ? `${item.value} mmol/L` : '—' },
+      { label: '阈值', value: item?.condition?.threshold != null ? `${item.condition.threshold} mmol/L` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'glucose_drop_fast') {
+    fields.push(
+      { label: '下降速率', value: extra?.drop_rate_mmol_per_h != null ? `${extra.drop_rate_mmol_per_h} mmol/L/h` : item?.value },
+      { label: '起点', value: extra?.from?.value != null ? `${extra.from.value} mmol/L` : '—' },
+      { label: '终点', value: extra?.to?.value != null ? `${extra.to.value} mmol/L` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'glucose_recheck_reminder') {
+    fields.push(
+      { label: '上次血糖时间', value: fmtTime(extra?.last_glucose_time) || '—' },
+      { label: '距今(小时)', value: extra?.hours_since_last_check ?? item?.value },
+    )
+    return fields
+  }
+
+  if (t === 'hyperglycemia_no_insulin') {
+    fields.push(
+      { label: '连续高血糖次数', value: extra?.consecutive_high_count },
+      { label: '当前血糖', value: extra?.latest_glucose != null ? `${extra.latest_glucose} mmol/L` : (item?.value != null ? `${item.value} mmol/L` : '—') },
+      { label: '阈值', value: extra?.high_threshold_mmol != null ? `${extra.high_threshold_mmol} mmol/L` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'abx_timeout') {
+    fields.push(
+      { label: '广谱疗程(h)', value: extra?.broad_duration_hours ?? item?.value },
+      { label: '培养结果时间', value: fmtTime(extra?.culture_latest?.time) || '—' },
+      { label: '建议', value: extra?.suggestion || '降阶梯评估' },
+    )
+    return fields
+  }
+
+  if (t === 'abx_stop_recommendation') {
+    fields.push(
+      { label: 'PCT峰值', value: extra?.pct_peak },
+      { label: 'PCT当前', value: extra?.pct_latest ?? item?.value },
+      { label: '降幅', value: extra?.pct_decline_ratio != null ? `${Math.round(extra.pct_decline_ratio * 100)}%` : '—' },
+      { label: '抗生素疗程(h)', value: extra?.antibiotic_duration_hours },
+    )
+    return fields
+  }
+
+  if (t === 'abx_tdm_reminder') {
+    fields.push(
+      { label: '药物组', value: extra?.drug_group || item?.parameter },
+      { label: '疗程(h)', value: extra?.course_duration_hours ?? item?.value },
+      { label: '已做TDM', value: extra?.tdm_detected ? '是' : '否' },
+    )
+    return fields
+  }
+
+  if (t === 'abx_duration_exceeded') {
+    fields.push(
+      { label: '疗程(天)', value: extra?.course_duration_days ?? item?.value },
+      { label: '培养阳性依据', value: extra?.culture_positive ? '有' : '无' },
+      { label: '培养记录数', value: extra?.culture_records_count },
+    )
+    return fields
+  }
+
+  if (t === 'vte_prophylaxis_omission') {
+    fields.push(
+      { label: 'Padua', value: extra?.padua_score ?? item?.value },
+      { label: 'Caprini', value: extra?.caprini_score },
+      { label: '药物预防', value: extra?.has_drug_prophylaxis ? '有' : '无' },
+      { label: '机械预防', value: extra?.has_mechanical_prophylaxis ? '有' : '无' },
+    )
+    return fields
+  }
+
+  if (t === 'vte_bleeding_linkage') {
+    fields.push(
+      { label: 'Padua', value: extra?.padua_score ?? item?.value },
+      { label: 'PLT', value: extra?.platelet },
+      { label: 'INR', value: extra?.inr },
+      { label: '建议', value: extra?.advice || '机械预防优先' },
+    )
+    return fields
+  }
+
+  if (t === 'vte_immobility_no_prophylaxis') {
+    fields.push(
+      { label: '制动时长(h)', value: extra?.immobility_hours ?? item?.value },
+      { label: 'Padua', value: extra?.padua_score },
+      { label: 'Caprini', value: extra?.caprini_score },
+      { label: '机械预防', value: extra?.has_mechanical_prophylaxis ? '有' : '无' },
+    )
+    return fields
+  }
+
+  if (t === 'nutrition_start_delay') {
+    fields.push(
+      { label: 'ICU停留(h)', value: extra?.icu_stay_hours ?? item?.value },
+      { label: '延迟阈值(h)', value: extra?.start_delay_hours },
+      { label: 'EN/PN医嘱', value: extra?.nutrition_order_found ? '有' : '无' },
+    )
+    return fields
+  }
+
+  if (t === 'nutrition_calorie_not_reached') {
+    fields.push(
+      { label: '覆盖率', value: extra?.coverage_percent != null ? `${extra.coverage_percent}%` : (item?.value != null ? `${item.value}%` : '—') },
+      { label: '目标热卡/天', value: extra?.target_kcal_day != null ? `${extra.target_kcal_day} kcal` : '—' },
+      { label: '近窗口实际热卡', value: extra?.actual_kcal_window != null ? `${extra.actual_kcal_window} kcal` : '—' },
+      { label: '近窗口目标热卡', value: extra?.target_kcal_window != null ? `${extra.target_kcal_window} kcal` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'nutrition_feeding_intolerance') {
+    fields.push(
+      { label: '高胃残余次数', value: extra?.high_grv_count ?? 0 },
+      { label: '最近GRV', value: extra?.latest_grv_ml != null ? `${extra.latest_grv_ml} mL` : '—' },
+      { label: '呕吐次数', value: extra?.vomiting_count ?? 0 },
+      { label: '腹胀次数', value: extra?.abdominal_distension_count ?? 0 },
+      { label: '喂养中断次数', value: extra?.feeding_interrupt_count ?? 0 },
+      { label: '建议', value: extra?.suggestion || '评估喂养方式' },
+    )
+    return fields
+  }
+
+  if (t === 'nutrition_refeeding_risk') {
+    fields.push(
+      { label: '触发电解质', value: Array.isArray(extra?.triggered_electrolytes) ? extra.triggered_electrolytes.join('/') : '—' },
+      { label: 'BMI', value: extra?.malnutrition?.bmi },
+      { label: '白蛋白(g/L)', value: extra?.malnutrition?.albumin_g_l },
+      { label: 'K下降', value: extra?.k_trend?.drop_ratio != null ? `${Math.round(extra.k_trend.drop_ratio * 100)}%` : '—' },
+      { label: 'P下降', value: extra?.phosphate_trend?.drop_ratio != null ? `${Math.round(extra.phosphate_trend.drop_ratio * 100)}%` : '—' },
+      { label: 'Mg下降', value: extra?.magnesium_trend?.drop_ratio != null ? `${Math.round(extra.magnesium_trend.drop_ratio * 100)}%` : '—' },
+    )
+    return fields
+  }
+
+  if (t === 'multi_organ_deterioration_trend') {
+    const labels = extra?.organ_labels_cn || {}
+    const scores = extra?.organ_scores || {}
+    const involved = Array.isArray(extra?.involved_organs) ? extra.involved_organs : []
+    const involvedText = involved
+      .map((k: any) => labels?.[String(k)] || compositeOrganLabelDefault[String(k)] || String(k))
+      .join(' / ')
+
+    fields.push(
+      { label: 'MODI', value: extra?.modi ?? item?.value },
+      { label: '器官系统数', value: extra?.organ_count ?? involved.length },
+      { label: '统计窗口', value: extra?.window_hours != null ? `${extra.window_hours}h` : '—' },
+      { label: '涉及系统', value: involvedText || '—' },
+      { label: '呼吸', value: scores?.respiratory ?? 0 },
+      { label: '循环', value: scores?.circulatory ?? 0 },
+      { label: '肾脏', value: scores?.renal ?? 0 },
+      { label: '凝血', value: scores?.coagulation ?? 0 },
+      { label: '肝脏', value: scores?.hepatic ?? 0 },
+      { label: '神经', value: scores?.neurologic ?? 0 },
     )
     return fields
   }
@@ -667,6 +1626,152 @@ function formatAlertValue(a: any) {
   }
   if (t === 'nurse_reminder') {
     return '—'
+  }
+
+  if (t === 'fluid_balance') {
+    const net = v ?? extra?.windows?.['24h']?.net_ml
+    const pct = extra?.max_positive_pct_body_weight
+    if (net != null && pct != null) return `净平衡=${net}mL (${pct}%)`
+    if (net != null) return `净平衡=${net}mL`
+    return '—'
+  }
+
+  if (t === 'delirium_risk') {
+    return v != null ? `谵妄评分=${v}` : '—'
+  }
+
+  if (t === 'sedation_delirium_conversion') {
+    const h = extra?.deep_sedation_hours
+    return h != null ? `深镇静${h}h` : '—'
+  }
+
+  if (t === 'glucose_variability') {
+    const cv = extra?.cv_percent ?? v
+    return cv != null ? `CV=${cv}%` : '—'
+  }
+
+  if (t === 'hypoglycemia') {
+    return v != null ? `Glu=${v} mmol/L` : '—'
+  }
+
+  if (t === 'glucose_drop_fast') {
+    const r = extra?.drop_rate_mmol_per_h ?? v
+    return r != null ? `降速=${r} mmol/L/h` : '—'
+  }
+
+  if (t === 'glucose_recheck_reminder') {
+    const h = extra?.hours_since_last_check ?? v
+    return h != null ? `超时${h}h` : '—'
+  }
+
+  if (t === 'hyperglycemia_no_insulin') {
+    const c = extra?.consecutive_high_count
+    const lv = extra?.latest_glucose ?? v
+    if (c != null && lv != null) return `${c}次>10, Glu=${lv}`
+    return lv != null ? `Glu=${lv}` : '—'
+  }
+
+  if (t === 'abx_timeout') {
+    const h = extra?.broad_duration_hours ?? v
+    return h != null ? `广谱${h}h` : '—'
+  }
+
+  if (t === 'abx_stop_recommendation') {
+    const pct = extra?.pct_latest ?? v
+    const ratio = extra?.pct_decline_ratio
+    if (pct != null && ratio != null) return `PCT=${pct}, ↓${Math.round(ratio * 100)}%`
+    return pct != null ? `PCT=${pct}` : '—'
+  }
+
+  if (t === 'abx_tdm_reminder') {
+    const g = extra?.drug_group || p
+    return g ? `${g} TDM缺失` : 'TDM缺失'
+  }
+
+  if (t === 'abx_duration_exceeded') {
+    const d = extra?.course_duration_days ?? v
+    return d != null ? `疗程${d}天` : '—'
+  }
+
+  if (t === 'af_afl_new_onset') {
+    const hr = extra?.hr_peak_in_segment ?? v
+    return hr != null ? `AF/AFL HR峰值=${hr}` : '新发AF/AFL'
+  }
+
+  if (t === 'brady_hypotension') {
+    const hr = extra?.latest_hr ?? v
+    const drop = extra?.drop_sbp
+    if (hr != null && drop != null) return `HR=${hr}, SBP↓${drop}`
+    return hr != null ? `HR=${hr}` : '心动过缓+低压'
+  }
+
+  if (t === 'qtc_prolonged') {
+    const qtc = extra?.qtc_ms ?? v
+    return qtc != null ? `QTc=${qtc}ms` : 'QTc延长'
+  }
+
+  if (t === 'opioid_high_dose_resp_risk') {
+    const med = extra?.opioid_med_24h_mg ?? v
+    return med != null ? `MED24h=${med}mg` : '阿片高剂量'
+  }
+
+  if (t === 'opioid_respiratory_depression') {
+    const rr = extra?.rr
+    const spo2 = extra?.latest_spo2
+    if (rr != null && spo2 != null) return `RR=${rr}, SpO₂=${spo2}%`
+    if (rr != null) return `RR=${rr}`
+    if (spo2 != null) return `SpO₂=${spo2}%`
+    return '呼吸抑制风险'
+  }
+
+  if (t === 'opioid_withdrawal_risk') {
+    const h = extra?.since_last_opioid_hours ?? v
+    return h != null ? `停药${h}h` : '戒断风险'
+  }
+
+  if (t === 'vte_prophylaxis_omission') {
+    const p = extra?.padua_score ?? v
+    return p != null ? `Padua=${p}` : '—'
+  }
+
+  if (t === 'vte_bleeding_linkage') {
+    const p = extra?.padua_score ?? v
+    return p != null ? `Padua=${p}, 机械优先` : '机械优先'
+  }
+
+  if (t === 'vte_immobility_no_prophylaxis') {
+    const h = extra?.immobility_hours ?? v
+    return h != null ? `制动${h}h` : '—'
+  }
+
+  if (t === 'nutrition_start_delay') {
+    const h = extra?.icu_stay_hours ?? v
+    return h != null ? `ICU停留${h}h未见EN/PN` : '未见EN/PN'
+  }
+
+  if (t === 'nutrition_calorie_not_reached') {
+    const pct = extra?.coverage_percent ?? v
+    return pct != null ? `热卡达标${pct}%` : '热卡不足'
+  }
+
+  if (t === 'nutrition_feeding_intolerance') {
+    const grv = extra?.latest_grv_ml ?? v
+    if (grv != null) return `GRV=${grv}mL + 喂养中断`
+    return '喂养不耐受'
+  }
+
+  if (t === 'nutrition_refeeding_risk') {
+    const items = extra?.triggered_electrolytes
+    if (Array.isArray(items) && items.length > 0) return `电解质下降:${items.join('/')}`
+    return v != null ? `最大降幅${v}%` : '再喂养风险'
+  }
+
+  if (t === 'multi_organ_deterioration_trend') {
+    const modi = extra?.modi ?? v
+    const n = extra?.organ_count
+    if (modi != null && n != null) return `MODI=${modi} (${n}系统)`
+    if (modi != null) return `MODI=${modi}`
+    return '多器官恶化趋势'
   }
 
   if (t === 'lab_threshold') {
@@ -767,9 +1872,52 @@ function alertTypeText(raw: any) {
     nephrotoxicity: '肾毒性',
     sedation: '镇静风险',
     qt_risk: 'QT风险',
+    af_afl_new_onset: '新发房颤/房扑',
+    brady_hypotension: '心动过缓合并低压',
+    qtc_prolonged: 'QTc明显延长',
+    opioid_high_dose_resp_risk: '阿片高剂量呼吸抑制风险',
+    opioid_respiratory_depression: '阿片呼吸抑制',
+    opioid_withdrawal_risk: '阿片戒断风险',
     weaning: '撤机评估',
     nurse_reminder: '护理提醒',
     ai_risk: 'AI风险',
+    fluid_balance: '液体平衡',
+    delirium_risk: '谵妄风险',
+    sedation_delirium_conversion: '镇静转谵妄',
+    glucose_variability: '血糖波动',
+    hypoglycemia: '低血糖',
+    glucose_drop_fast: '血糖快速下降',
+    glucose_recheck_reminder: '血糖复查提醒',
+    hyperglycemia_no_insulin: '高血糖未启胰岛素',
+    abx_timeout: '抗生素time-out',
+    abx_stop_recommendation: 'PCT停药评估',
+    abx_tdm_reminder: '抗生素TDM提醒',
+    abx_duration_exceeded: '抗生素疗程超限',
+    vte_prophylaxis_omission: 'VTE预防遗漏',
+    vte_bleeding_linkage: 'VTE出血风险联动',
+    vte_immobility_no_prophylaxis: '制动无VTE预防',
+    nutrition_start_delay: '营养启动延迟',
+    nutrition_calorie_not_reached: '热卡未达标',
+    nutrition_feeding_intolerance: '喂养不耐受',
+    nutrition_refeeding_risk: '再喂养风险',
+    multi_organ_deterioration_trend: '多器官恶化趋势',
+    cvc_review: 'CVC评估',
+    foley_review: '导尿管评估',
+    ett_extubation_delay: '拔管延迟',
+    liberation_bundle: 'ABCDEF Bundle',
+    fluid_responsiveness: '容量反应性',
+    crrt_filter_clotting: '滤器凝堵',
+    crrt_citrate_ica: '枸橼酸 iCa',
+    crrt_heparin_act: '肝素 ACT',
+    crrt_dose_low: 'CRRT剂量不足',
+    renal_dose_adjustment: '肾功能剂量调整',
+    driving_pressure: '驱动压升高',
+    pplat_high: '平台压升高',
+    lung_protective_ventilation: '肺保护通气未达标',
+    mechanical_power: '机械功率升高',
+    steroid_taper_after_vaso: '激素减停提醒',
+    steroid_long_term_taper: '长程激素减停',
+    steroid_hyperglycemia: '激素相关高血糖',
   }
   return map[t] || t.split('_').join(' ')
 }
@@ -786,6 +1934,17 @@ function alertCategoryText(raw: any) {
     ai: 'AI',
     ventilator: '呼吸机',
     drug_safety: '用药安全',
+    fluid_balance: '液体平衡',
+    glycemic_control: '血糖管理',
+    antibiotic_stewardship: '抗菌药管理',
+    vte_prophylaxis: 'VTE预防',
+    nutrition_monitor: '营养监测',
+    composite_deterioration: '复合恶化',
+    device_management: '装置管理',
+    bundle: 'Bundle',
+    hemodynamic: '血流动力学',
+    crrt: 'CRRT',
+    dose_adjustment: '剂量调整',
   }
   return map[t] || t.split('_').join(' ')
 }
@@ -909,10 +2068,27 @@ async function loadAiRisk() {
   }
 }
 
+async function loadAiHandoff() {
+  if (aiHandoffLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  aiHandoffError.value = ''
+  aiHandoffLoading.value = true
+  try {
+    const res = await getPatientHandoffSummary(patientId)
+    aiHandoff.value = res.data.summary || null
+    aiHandoffError.value = formatAiError(res.data.error || '')
+  } catch (e) {
+    aiHandoffError.value = 'AI服务不可用'
+  } finally {
+    aiHandoffLoading.value = false
+  }
+}
+
 async function loadAiAll() {
   if (aiAutoLoaded.value) return
   aiAutoLoaded.value = true
-  await Promise.allSettled([loadAiLab(), loadAiRules(), loadAiRisk()])
+  await Promise.allSettled([loadAiLab(), loadAiRules(), loadAiRisk(), loadAiHandoff(), loadKnowledgeDocs()])
 }
 
 function resetDetailState() {
@@ -926,9 +2102,15 @@ function resetDetailState() {
   aiLabSummary.value = ''
   aiRuleText.value = ''
   aiRiskText.value = ''
+  aiHandoff.value = null
+  knowledgeDocs.value = []
+  selectedKnowledgeDocId.value = ''
+  selectedKnowledgeDoc.value = null
   aiLabError.value = ''
   aiRuleError.value = ''
   aiRiskError.value = ''
+  aiHandoffError.value = ''
+  knowledgeError.value = ''
   aiAutoLoaded.value = false
 }
 
@@ -1011,6 +2193,44 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
 }
+.acid-base-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #214368;
+  background: rgba(15, 33, 56, 0.72);
+}
+.acid-base-head,
+.acid-base-summary,
+.acid-base-metrics,
+.acid-base-components {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.acid-base-head {
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: #cbd5f5;
+}
+.acid-base-summary {
+  margin-bottom: 6px;
+}
+.acid-pill,
+.acid-comp {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.acid-primary { background: rgba(59, 130, 246, 0.16); color: #93c5fd; }
+.acid-secondary { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+.acid-tertiary { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+.acid-base-metrics { color: #9fb3d1; font-size: 12px; margin-bottom: 6px; }
+.acid-comp { background: rgba(148, 163, 184, 0.14); color: #cbd5f5; }
+.acid-comp.abnormal { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
 .v-item {
   background: #0d1f3a;
   border: 1px solid #1b2d4d;
@@ -1087,6 +2307,61 @@ onMounted(() => {
 }
 .lab-item.lab-high { color: #fca5a5; background: #3f1d1d; }
 .lab-item.lab-low { color: #93c5fd; background: #172554; }
+.modi-panel {
+  margin-bottom: 12px;
+  border: 1px solid #1a385d;
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(13, 34, 58, 0.95) 0%, rgba(10, 25, 45, 0.95) 100%);
+}
+.modi-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.modi-title {
+  color: #eaf2ff;
+  font-size: 15px;
+  font-weight: 800;
+}
+.modi-sub {
+  margin-top: 4px;
+  color: #8da4c7;
+  font-size: 12px;
+}
+.modi-kpi-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(100px, 1fr));
+  gap: 8px;
+}
+.modi-kpi {
+  border: 1px solid #274970;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(9, 22, 40, 0.75);
+  text-align: right;
+}
+.modi-kpi > span {
+  display: block;
+  color: #8da4c7;
+  font-size: 11px;
+}
+.modi-kpi > strong {
+  color: #f1f6ff;
+  font-size: 18px;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+.modi-organs {
+  margin-top: 8px;
+  color: #a4b8d5;
+  font-size: 12px;
+}
+.modi-chart {
+  height: 300px;
+  margin-top: 6px;
+}
 .alert-feed {
   display: grid;
   gap: 12px;
@@ -1235,6 +2510,190 @@ onMounted(() => {
   border-radius: 6px;
   padding: 8px;
 }
+.ai-risk-panel {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+.ai-risk-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ai-risk-summary,
+.ai-risk-card {
+  border: 1px solid #214064;
+  border-radius: 8px;
+  background: #0d2036;
+  padding: 10px 12px;
+}
+.ai-risk-summary {
+  display: grid;
+  gap: 4px;
+  min-width: 240px;
+}
+.ai-risk-summary strong,
+.ai-risk-card strong {
+  color: #eef4ff;
+}
+.ai-risk-summary span,
+.ai-risk-card p {
+  color: #b9cae8;
+  font-size: 12px;
+  margin: 0;
+}
+.ai-risk-feedback {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-risk-organ-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.ai-risk-organ {
+  border: 1px solid #1c3a5b;
+  border-radius: 8px;
+  background: #0c1d31;
+  padding: 8px 10px;
+  transition: opacity .2s ease;
+}
+.ai-risk-organ-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.ai-risk-organ-name {
+  color: #d9e8ff;
+  font-weight: 700;
+}
+.ai-risk-organ-status {
+  color: #93c5fd;
+  font-size: 11px;
+}
+.ai-risk-organ-evidence {
+  margin-top: 6px;
+  color: #a9bbda;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ai-risk-organ-conf {
+  margin-top: 6px;
+  color: #7fa0d0;
+  font-size: 11px;
+}
+.ai-risk-section {
+  border: 1px solid #1d3554;
+  border-radius: 8px;
+  background: #0a1829;
+  padding: 10px 12px;
+}
+.ai-risk-section-title {
+  color: #dbe9ff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.ai-risk-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #bfd0ec;
+  font-size: 12px;
+}
+.ai-risk-list-warning {
+  color: #fecaca;
+}
+.ai-risk-list-hallucination {
+  list-style: none;
+  padding-left: 0;
+}
+.hallucination-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid transparent;
+}
+.hallucination-warning {
+  color: #fde68a;
+  background: #3c2d06;
+  border-color: #6b4f11;
+}
+.hallucination-high {
+  color: #fecaca;
+  background: #47131d;
+  border-color: #7f1d32;
+}
+.ai-risk-evidence-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+.ai-evidence-link {
+  color: #93c5fd;
+  cursor: pointer;
+}
+.ai-evidence-link:hover {
+  color: #bfdbfe;
+}
+.ai-evidence-inline {
+  margin-left: 4px;
+}
+.ai-evidence-popover {
+  max-width: 420px;
+  display: grid;
+  gap: 6px;
+  color: #334155;
+}
+.ai-evidence-quote {
+  max-width: 420px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.evidence-modal {
+  display: grid;
+  gap: 10px;
+}
+.evidence-modal p {
+  margin: 0;
+  color: #334155;
+}
+.evidence-modal-content {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  max-height: 52vh;
+  overflow: auto;
+  background: #f8fbff;
+  border: 1px solid #dce7f5;
+  border-radius: 8px;
+  padding: 12px;
+  color: #334155;
+}
+.evidence-modal-related {
+  margin-top: 4px;
+}
+.ai-risk-card {
+  display: grid;
+  gap: 8px;
+}
+.ai-confidence-low {
+  opacity: 0.58;
+}
+.ai-confidence-medium {
+  opacity: 0.82;
+}
+.ai-confidence-high {
+  opacity: 1;
+}
 .ai-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
@@ -1299,6 +2758,45 @@ onMounted(() => {
   border-radius: 3px;
   padding: 1px 4px;
   color: #b8c9eb;
+}
+.kb-browser {
+  display: grid;
+  gap: 8px;
+}
+.kb-doc-meta {
+  border: 1px solid #1d3554;
+  border-radius: 8px;
+  background: #0a1829;
+  padding: 10px 12px;
+}
+.kb-doc-meta p {
+  margin: 0 0 4px;
+  color: #c3d3ec;
+  font-size: 12px;
+}
+.kb-chunk-list {
+  display: grid;
+  gap: 8px;
+  max-height: 52vh;
+  overflow: auto;
+}
+.kb-chunk-item {
+  border: 1px solid #1c3a5b;
+  border-radius: 8px;
+  background: #0c1d31;
+  padding: 10px 12px;
+}
+.kb-chunk-title {
+  color: #dce8fb;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.kb-chunk-content {
+  white-space: pre-wrap;
+  color: #b6c8e4;
+  line-height: 1.65;
+  font-size: 12px;
 }
 .ai-rule-table {
   margin-top: 2px;
@@ -1397,6 +2895,19 @@ onMounted(() => {
   background: #eff6ff;
   border-color: #bfdbfe;
 }
+:global(html[data-theme='light']) .modi-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
+  border-color: #d9e2f1;
+}
+:global(html[data-theme='light']) .modi-title { color: #0f172a; }
+:global(html[data-theme='light']) .modi-sub { color: #64748b; }
+:global(html[data-theme='light']) .modi-kpi {
+  background: #f5f8fe;
+  border-color: #dce5f3;
+}
+:global(html[data-theme='light']) .modi-kpi > span { color: #5e7395; }
+:global(html[data-theme='light']) .modi-kpi > strong { color: #1f2937; }
+:global(html[data-theme='light']) .modi-organs { color: #475569; }
 :global(html[data-theme='light']) .alert-line {
   background: linear-gradient(180deg, #b3c3dc 0%, #d4deee 100%);
 }
@@ -1424,6 +2935,64 @@ onMounted(() => {
   border-color: #dce6f3;
   color: #60759a;
 }
+:global(html[data-theme='light']) .ai-risk-summary,
+:global(html[data-theme='light']) .ai-risk-card {
+  background: #f7fbff;
+  border-color: #d7e6f5;
+}
+:global(html[data-theme='light']) .ai-risk-summary strong,
+:global(html[data-theme='light']) .ai-risk-card strong {
+  color: #0f172a;
+}
+:global(html[data-theme='light']) .ai-risk-summary span,
+:global(html[data-theme='light']) .ai-risk-card p {
+  color: #475569;
+}
+:global(html[data-theme='light']) .ai-risk-organ {
+  background: #f8fbff;
+  border-color: #dbe7f5;
+}
+:global(html[data-theme='light']) .ai-risk-organ-name {
+  color: #0f172a;
+}
+:global(html[data-theme='light']) .ai-risk-organ-status {
+  color: #2563eb;
+}
+:global(html[data-theme='light']) .ai-risk-organ-evidence,
+:global(html[data-theme='light']) .ai-risk-organ-conf {
+  color: #475569;
+}
+:global(html[data-theme='light']) .ai-risk-section {
+  background: #f8fbff;
+  border-color: #dce7f5;
+}
+:global(html[data-theme='light']) .ai-risk-section-title {
+  color: #0f172a;
+}
+:global(html[data-theme='light']) .ai-risk-list {
+  color: #475569;
+}
+:global(html[data-theme='light']) .ai-risk-list-warning {
+  color: #b91c1c;
+}
+:global(html[data-theme='light']) .hallucination-warning {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+:global(html[data-theme='light']) .hallucination-high {
+  color: #b91c1c;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+:global(html[data-theme='light']) .ai-evidence-link {
+  color: #2563eb;
+}
+:global(html[data-theme='light']) .evidence-modal-content {
+  background: #f8fbff;
+  border-color: #dce7f5;
+  color: #334155;
+}
 :global(html[data-theme='light']) .ai-card {
   background: #ffffff;
   border-color: #d9e2f1;
@@ -1436,6 +3005,23 @@ onMounted(() => {
   background: #f2f6fc;
   border-color: #dce6f3;
   color: #3b4e6d;
+}
+:global(html[data-theme='light']) .kb-doc-meta {
+  background: #f8fbff;
+  border-color: #dce7f5;
+}
+:global(html[data-theme='light']) .kb-doc-meta p {
+  color: #475569;
+}
+:global(html[data-theme='light']) .kb-chunk-item {
+  background: #f8fbff;
+  border-color: #dbe7f5;
+}
+:global(html[data-theme='light']) .kb-chunk-title {
+  color: #0f172a;
+}
+:global(html[data-theme='light']) .kb-chunk-content {
+  color: #475569;
 }
 :global(html[data-theme='light']) .ai-rule-wrap {
   border-color: #dce5f3;
@@ -1491,6 +3077,9 @@ onMounted(() => {
     text-align: left;
     font-size: 16px;
   }
+  .modi-chart {
+    height: 260px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1507,6 +3096,16 @@ onMounted(() => {
   .tab-toolbar {
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .modi-kpi-group {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .modi-kpi {
+    text-align: left;
+  }
+  .modi-chart {
+    height: 240px;
   }
   .lab-head {
     flex-direction: column;

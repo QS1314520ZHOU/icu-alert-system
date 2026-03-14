@@ -6,7 +6,39 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const backendTarget = env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000'
 
-  return {
+    return {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (id.includes('ant-design-vue') || id.includes('@ant-design')) {
+              const antId = id.toLowerCase()
+              if (
+                antId.includes('/config-provider') ||
+                antId.includes('/layout') ||
+                antId.includes('/menu') ||
+                antId.includes('/switch')
+              ) {
+                return 'vendor-antd-shell'
+              }
+            }
+            if (id.includes('vue-router')) {
+              return 'vendor-router'
+            }
+            if (id.includes('pinia')) {
+              return 'vendor-pinia'
+            }
+            if (id.includes('axios')) {
+              return 'vendor-axios'
+            }
+            if (id.includes('/vue/') || id.includes('\\vue\\') || id.includes('@vue')) {
+              return 'vendor-vue'
+            }
+          },
+        },
+      },
+    },
     plugins: [
       vue(),
       VitePWA({

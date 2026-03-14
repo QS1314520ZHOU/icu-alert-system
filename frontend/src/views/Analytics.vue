@@ -29,21 +29,21 @@
     <section class="analytics-grid">
       <a-card title="预警触发频率" :bordered="false" class="panel panel-wide">
         <div v-if="freqSeries.length" class="chart-wrap chart-lg">
-          <VChart :option="frequencyOption" autoresize />
+          <AnalyticsChart :option="frequencyOption" autoresize />
         </div>
         <div v-else class="empty">暂无频率数据</div>
       </a-card>
 
       <a-card title="规则类型热力图" :bordered="false" class="panel panel-wide">
         <div v-if="heatmapY.length" class="chart-wrap chart-lg">
-          <VChart :option="heatmapOption" autoresize />
+          <AnalyticsChart :option="heatmapOption" autoresize />
         </div>
         <div v-else class="empty">暂无规则热力图数据</div>
       </a-card>
 
       <a-card title="科室预警排名" :bordered="false" class="panel">
         <div v-if="deptRankings.length" class="chart-wrap chart-md">
-          <VChart :option="deptRankOption" autoresize />
+          <AnalyticsChart :option="deptRankOption" autoresize />
         </div>
         <a-table
           class="rank-table"
@@ -57,7 +57,7 @@
 
       <a-card title="床位预警排名" :bordered="false" class="panel">
         <div v-if="bedRankings.length" class="chart-wrap chart-md">
-          <VChart :option="bedRankOption" autoresize />
+          <AnalyticsChart :option="bedRankOption" autoresize />
         </div>
         <a-table
           class="rank-table"
@@ -74,13 +74,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import {
+  Button as AButton,
+  Card as ACard,
+  InputNumber as AInputNumber,
+  Segmented as ASegmented,
+  Space as ASpace,
+  Table as ATable,
+} from 'ant-design-vue'
 import {
   getAlertAnalyticsFrequency,
   getAlertAnalyticsHeatmap,
   getAlertAnalyticsRankings,
 } from '../api'
+
+const AnalyticsChart = defineAsyncComponent(async () => {
+  await import('../charts/analytics')
+  const mod = await import('vue-echarts')
+  return mod.default
+})
 
 const route = useRoute()
 const loading = ref(false)
