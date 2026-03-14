@@ -100,6 +100,24 @@
           {{ shortDiag(p.clinicalDiagnosis || p.admissionDiagnosis) }}
         </p>
 
+        <!-- 行4.5: 饮食/隔离 -->
+        <div class="care-flags" v-if="patientDiet(p) || patientIsolation(p)">
+          <span
+            v-if="patientDiet(p)"
+            class="care-pill care-pill--diet"
+            :title="`饮食：${patientDiet(p)}`"
+          >
+            饮食 · {{ shortCare(patientDiet(p), 8) }}
+          </span>
+          <span
+            v-if="patientIsolation(p)"
+            class="care-pill care-pill--iso"
+            :title="`隔离：${patientIsolation(p)}`"
+          >
+            隔离 · {{ shortCare(patientIsolation(p), 8) }}
+          </span>
+        </div>
+
         <!-- 行5: 生命体征 -->
         <div class="vitals" v-if="p.vitals?.source">
           <div class="vg">
@@ -232,7 +250,10 @@ const showList = computed(() => {
 /* ── 统计 ── */
 const criticalCount = computed(() => byDept.value.filter(p => p.alertLevel === 'critical').length)
 const warningCount = computed(() => byDept.value.filter(p => ['warning', 'high'].includes(p.alertLevel)).length)
-const normalCount = computed(() => byDept.value.filter(p => p.alertLevel === 'normal').length)
+// 没有预警的也算“正常”，避免全部为0
+const normalCount = computed(() =>
+  byDept.value.filter(p => !['warning', 'high', 'critical'].includes(p.alertLevel)).length
+)
 
 /* ── toggle ── */
 function toggleAlert(a: string) { alertFilter.value = alertFilter.value === a ? '' : a }
@@ -378,6 +399,32 @@ function shortDiag(s: string) {
   if (!s) return '—'
   const f = s.split('|')[0]
   return f.length > 16 ? f.slice(0, 16) + '…' : f
+}
+
+function patientDiet(p: any) {
+  return String(
+    p?.diet ??
+    p?.dietType ??
+    p?.dietName ??
+    p?.nutritionType ??
+    ''
+  ).trim()
+}
+
+function patientIsolation(p: any) {
+  return String(
+    p?.isolation ??
+    p?.isolationType ??
+    p?.isolateType ??
+    p?.infectionIsolation ??
+    ''
+  ).trim()
+}
+
+function shortCare(v: any, n = 8) {
+  const s = String(v ?? '').trim()
+  if (!s) return ''
+  return s.length > n ? `${s.slice(0, n)}…` : s
 }
 
 /* ── 数据加载 ── */
@@ -638,6 +685,35 @@ onUnmounted(() => {
 /* 诊断 */
 .diag { font-size: 12px; color: #666; line-height: 1.3; margin: 0; }
 
+/* 饮食/隔离 */
+.care-flags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.care-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  border-radius: 4px;
+  padding: 1px 7px;
+  border: 1px solid;
+  max-width: 100%;
+  white-space: nowrap;
+}
+.care-pill--diet {
+  color: #34d399;
+  border-color: #34d39966;
+  background: #34d39912;
+}
+.care-pill--iso {
+  color: #f59e0b;
+  border-color: #f59e0b66;
+  background: #f59e0b12;
+}
+
 /* 医生 */
 .doc { font-size: 10px; color: #444; margin-top: auto; padding-top: 2px; }
 
@@ -703,4 +779,71 @@ onUnmounted(() => {
   font-size: 9px; color: #333; margin-top: 3px;
   font-family: monospace;
 }
+
+/* ===== Light Theme ===== */
+:global(html[data-theme='light']) .overview {
+  background: #f4f7fb;
+}
+:global(html[data-theme='light']) .sum-block {
+  background: #ffffff;
+  border: 1px solid #d9e2f1;
+}
+:global(html[data-theme='light']) .sum-lbl { color: #64748b; }
+:global(html[data-theme='light']) .sum-val { color: #0f172a; }
+:global(html[data-theme='light']) .sum-divider { background: #d6deea; }
+:global(html[data-theme='light']) .dept-pill {
+  border-color: #ccd8ea;
+  color: #4c5f7f;
+  background: #fff;
+}
+:global(html[data-theme='light']) .dept-pill:hover {
+  border-color: #9db2d4;
+  color: #1e3a8a;
+}
+:global(html[data-theme='light']) .chip {
+  background: #ffffff;
+  color: #4c5f7f;
+  border-color: #d8e2f0;
+}
+:global(html[data-theme='light']) .loader { color: #5a6d89; }
+:global(html[data-theme='light']) .card {
+  background: #ffffff;
+  border-color: #d8e2f0;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+:global(html[data-theme='light']) .card:hover {
+  border-color: #9bb1d1;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+}
+:global(html[data-theme='light']) .card--critical {
+  background: linear-gradient(170deg, #fff2f2 0%, #ffffff 45%);
+}
+:global(html[data-theme='light']) .card--warning,
+:global(html[data-theme='light']) .card--high {
+  background: linear-gradient(170deg, #fff8ed 0%, #ffffff 45%);
+}
+:global(html[data-theme='light']) .card--normal {
+  background: linear-gradient(170deg, #f2fff7 0%, #ffffff 45%);
+}
+:global(html[data-theme='light']) .bed small,
+:global(html[data-theme='light']) .demo,
+:global(html[data-theme='light']) .diag,
+:global(html[data-theme='light']) .doc,
+:global(html[data-theme='light']) .vt {
+  color: #6b7b94;
+}
+:global(html[data-theme='light']) .name { color: #0f172a; }
+:global(html[data-theme='light']) .icu-d { background: #e9eef8; color: #51607a; }
+:global(html[data-theme='light']) .tag-more { color: #677893; border-color: #bcc9dc; }
+:global(html[data-theme='light']) .vitals {
+  background: #f2f6fc;
+  border: 1px solid #d9e2f1;
+}
+:global(html[data-theme='light']) .vitals--empty { color: #90a0b8; }
+:global(html[data-theme='light']) .vi {
+  background: #ffffff;
+  border: 1px solid #dee6f4;
+}
+:global(html[data-theme='light']) .vi label { color: #5f6f8d; }
+:global(html[data-theme='light']) .vi span { color: #22314d; }
 </style>

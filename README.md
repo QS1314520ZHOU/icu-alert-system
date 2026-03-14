@@ -74,6 +74,7 @@ npm run dev -- --host 0.0.0.0 --port 5173
 - `run-dev.bat`：前后端 + 自动安装依赖
 - `run-dev-fast.bat`：快速启动（不安装依赖）
 - `run-dev-open.bat`：快速启动 + 自动打开浏览器
+- 脚本会先检查 `http://127.0.0.1:8000/health`，后端健康后再启动前端
 
 ## 环境变量说明
 
@@ -83,6 +84,10 @@ npm run dev -- --host 0.0.0.0 --port 5173
 - Redis：`REDIS_HOST` / `REDIS_PORT`
 - LLM：`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` / `LLM_MODEL_MEDICAL`
 - 系统：`SECRET_KEY`
+
+前端开发代理可选配置（`frontend/.env.development`）：
+
+- `VITE_PROXY_TARGET`：Vite 代理后端地址，默认 `http://127.0.0.1:8000`
 
 ## API 接口
 
