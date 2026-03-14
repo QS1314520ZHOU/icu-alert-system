@@ -592,12 +592,15 @@ function aiRiskConfidenceLevel(item: any) {
 }
 
 function aiRiskLevelText(raw: any) {
-  const v = String(raw || '').toLowerCase()
+  let v = String(raw || '').toLowerCase()
+  // Strip Coze footnote tags like [^thread://...] before matching
+  v = v.replace(/\[\^[^\]]+\]/g, '').trim()
+  
   if (v === 'critical' || v === '极高') return '极高'
   if (v === 'high' || v === '高') return '高'
   if (v === 'medium' || v === '中') return '中'
   if (v === 'low' || v === '低') return '低'
-  return String(raw || '—')
+  return v || '—'
 }
 
 function feedbackOutcomeText(raw: any) {
@@ -1275,6 +1278,18 @@ function alertDetailFields(item: any) {
       { label: '神经', value: scores?.neurologic ?? 0 },
     )
     return fields
+  }
+  
+  if (t === 'liberation_bundle') {
+    return [
+      { label: '合规度', value: extra?.compliance != null ? `${extra.compliance}/6` : '—' },
+      { label: 'A', value: { green: '通过', yellow: '异常', red: '未通过' }[extra?.lights?.['A']] || '—' },
+      { label: 'B', value: { green: '通过', yellow: '异常', red: '未通过' }[extra?.lights?.['B']] || '—' },
+      { label: 'C', value: { green: '通过', yellow: '异常', red: '未通过' }[extra?.lights?.['C']] || '—' },
+      { label: 'D', value: { green: '通过', yellow: '异常', red: '未通过' }[extra?.lights?.['D']] || '—' },
+      { label: 'E', value: { green: '通过', yellow: '异常', red: '未通过' }[extra?.lights?.['E']] || '—' },
+      { label: 'F', value: { green: '通过', yellow: '异常', red: '未通过' }[extra?.lights?.['F']] || '—' },
+    ]
   }
 
   return []

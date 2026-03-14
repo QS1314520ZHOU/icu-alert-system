@@ -120,7 +120,7 @@ const heatmapData = ref<number[][]>([])
 const deptRankings = ref<any[]>([])
 const bedRankings = ref<any[]>([])
 
-const deptCode = computed(() => String(route.query.dept_code || '').trim())
+const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
 
 function commonParams() {

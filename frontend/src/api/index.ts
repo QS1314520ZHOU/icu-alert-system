@@ -27,6 +27,10 @@ export const getPatientVitals = (patientId: string) =>
 export const getPatientDetail = (patientId: string) =>
   api.get(`/api/patients/${patientId}`)
 
+// 获取患者床旁概览卡片数据 (增强型)
+export const getPatientBedcard = (patientId: string) =>
+  api.get(`/api/patients/${patientId}/bedcard`)
+
 // 批量获取患者 Bundle 灯状态
 export const getPatientBundleStatuses = (patientIds: string[]) =>
   api.post('/api/patients/bundle-status', patientIds)

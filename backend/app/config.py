@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: str = ""
     WEBSOCKET_TOKENS: str = ""
     WEBSOCKET_REQUIRE_TOKEN: bool | None = None
+    WS_TOKEN_SECRET: str = ""
+    WS_TOKEN_ALGORITHM: str = ""
 
     class Config:
         env_file = ".env"
@@ -129,9 +131,9 @@ class AppConfig:
                 f"redis://:{encoded_pwd}"
                 f"@{self.settings.REDIS_HOST}:{self.settings.REDIS_PORT}/0"
             )
-            return (
-                f"redis://{self.settings.REDIS_HOST}:{self.settings.REDIS_PORT}/0"
-            )
+        return (
+            f"redis://{self.settings.REDIS_HOST}:{self.settings.REDIS_PORT}/0"
+        )
 
     @staticmethod
     def _split_csv_list(value) -> list[str]:
@@ -151,15 +153,14 @@ class AppConfig:
             return env_origins
         security_cfg = self.yaml_cfg.get("security", {})
         return self._split_csv_list(
-            security_cfg.get(
-                "cors_allowed_origins",
-                [
-                    "http://127.0.0.1:5173",
-                    "http://localhost:5173",
-                    "http://127.0.0.1:4173",
-                    "http://localhost:4173",
-                ],
-            )
+            security_cfg.get("cors_origins")
+            or security_cfg.get("cors_allowed_origins")
+            or [
+                "http://127.0.0.1:5173",
+                "http://localhost:5173",
+                "http://127.0.0.1:4173",
+                "http://localhost:4173",
+            ]
         )
 
     @property
@@ -189,6 +190,25 @@ class AppConfig:
         if raw is not None:
             return bool(raw)
         return bool(self.websocket_tokens)
+
+    @property
+    def ws_token_secret(self) -> str:
+        env_secret = str(self.settings.WS_TOKEN_SECRET or "").strip()
+        if env_secret:
+            return env_secret
+        security_cfg = self.yaml_cfg.get("security", {})
+        yaml_secret = str(security_cfg.get("ws_token_secret") or "").strip()
+        if yaml_secret:
+            return yaml_secret
+        return str(self.settings.SECRET_KEY or "").strip()
+
+    @property
+    def ws_token_algorithm(self) -> str:
+        env_alg = str(self.settings.WS_TOKEN_ALGORITHM or "").strip()
+        if env_alg:
+            return env_alg
+        security_cfg = self.yaml_cfg.get("security", {})
+        return str(security_cfg.get("ws_token_algorithm") or "HS256").strip() or "HS256"
 
 
 # 单例

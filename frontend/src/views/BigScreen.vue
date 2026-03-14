@@ -166,7 +166,7 @@ const deviceHeatmapOption = computed(() => {
   }
 })
 
-const routeDeptCode = computed(() => String(route.query.dept_code || ''))
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || ''))
 
 function buildPatientParams() {

@@ -18,6 +18,8 @@ security:
   websocket:
     require_token: auto
     tokens: []
+    ws_token_secret: "替换为随机密钥"
+    ws_token_algorithm: "HS256"
 
 # ==================== 数据库配置 ====================
 databases:
@@ -147,6 +149,8 @@ ai_service:
     provider: "local"
     knowledge_dir: "knowledge_base"
     top_k: 4
+    backend: "tfidf"                      # "tfidf" | "embedding"
+    embedding_model: "BAAI/bge-small-zh-v1.5"
 
   monitor:
     enabled: true

@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import numpy as np
+
+logger = logging.getLogger("icu-alert")
 
 
 @dataclass
@@ -45,6 +50,10 @@ class RagService:
         if not self.knowledge_dir.is_absolute():
             self.knowledge_dir = base / self.knowledge_dir
 
+        # backend selection: "embedding" or "tfidf" (default)
+        self._backend = str(rag_cfg.get("backend", "tfidf")).strip().lower() if isinstance(rag_cfg, dict) else "tfidf"
+        self._embedding_model_name = str(rag_cfg.get("embedding_model", "BAAI/bge-small-zh-v1.5")).strip() if isinstance(rag_cfg, dict) else "BAAI/bge-small-zh-v1.5"
+
         self._loaded = False
         self._chunks: list[GuidelineChunk] = []
         self._idf: dict[str, float] = {}
@@ -55,6 +64,11 @@ class RagService:
         self._package_meta: dict[str, Any] = {}
         self._synonym_map = self._build_synonym_map(engine_rag_cfg if isinstance(engine_rag_cfg, dict) else {})
 
+        # Embedding backend state (lazy-loaded)
+        self._embed_model: Any = None
+        self._embed_matrix: np.ndarray | None = None  # (N, dim) float32
+        self._embed_norms: np.ndarray | None = None    # (N,) precomputed L2 norms
+
     def reload(self) -> dict[str, Any]:
         self._loaded = False
         self._chunks = []
@@ -64,6 +78,8 @@ class RagService:
         self._source_map = {}
         self._documents = {}
         self._package_meta = {}
+        self._embed_matrix = None
+        self._embed_norms = None
         self._ensure_loaded()
         return self.status()
 
@@ -98,22 +114,35 @@ class RagService:
         if not self._chunks:
             return []
 
-        q_vec = self._build_query_vec(query)
-        if not q_vec:
-            return []
+        use_embedding = (self._backend == "embedding" and self._embed_matrix is not None)
+
+        # Build query representation
+        if use_embedding:
+            q_emb = self._encode_query(query)
+            if q_emb is None:
+                return []
+        else:
+            q_vec = self._build_query_vec(query)
+            if not q_vec:
+                return []
 
         tag_set = {str(t).lower() for t in (tags or []) if t}
 
         best_by_topic: dict[str, tuple[float, GuidelineChunk]] = {}
         scored: list[tuple[float, GuidelineChunk]] = []
-        for chunk, vec in zip(self._chunks, self._vectors, strict=False):
+        for idx, chunk in enumerate(self._chunks):
             if not chunk.active:
                 continue
             if tag_set:
                 chunk_tags = {t.lower() for t in chunk.tags}
                 if not (chunk_tags & tag_set):
                     continue
-            score = self._cosine(q_vec, vec)
+
+            if use_embedding:
+                score = self._cosine_embedding(q_emb, idx)
+            else:
+                score = self._cosine(q_vec, self._vectors[idx])
+
             if score <= 0:
                 continue
             scope_boost = 0.08 if chunk.scope == "institutional" else 0.0
@@ -323,6 +352,10 @@ class RagService:
 
         self._idf = {t: math.log((1 + doc_count) / (1 + n)) + 1.0 for t, n in df.items()}
         self._vectors = [self._tfidf(tokens) for tokens in doc_tokens]
+
+        # Build embedding matrix if backend is 'embedding'
+        if self._backend == "embedding":
+            self._build_embedding_index()
 
     def _load_chunks(self) -> list[GuidelineChunk]:
         if not self.knowledge_dir.exists():
@@ -699,3 +732,69 @@ class RagService:
             return 0.0
         return dot / (na * nb)
 
+    # ------------------------------------------------------------------
+    # Embedding backend helpers
+    # ------------------------------------------------------------------
+    def _get_embed_model(self):
+        """Lazy-load the sentence-transformers model."""
+        if self._embed_model is not None:
+            return self._embed_model
+        try:
+            from sentence_transformers import SentenceTransformer
+            logger.info(f"Loading embedding model: {self._embedding_model_name}")
+            self._embed_model = SentenceTransformer(self._embedding_model_name)
+            logger.info("Embedding model loaded successfully")
+        except ImportError:
+            logger.warning(
+                "sentence-transformers not installed; falling back to tfidf. "
+                "Install with: pip install sentence-transformers"
+            )
+            self._backend = "tfidf"
+            self._embed_model = None
+        except Exception as e:
+            logger.warning(f"Failed to load embedding model: {e}; falling back to tfidf")
+            self._backend = "tfidf"
+            self._embed_model = None
+        return self._embed_model
+
+    def _build_embedding_index(self) -> None:
+        """Encode all chunks into a dense numpy matrix."""
+        model = self._get_embed_model()
+        if model is None:
+            return
+        texts = [f"{c.title} {c.section_title} {c.text}" for c in self._chunks]
+        if not texts:
+            return
+        try:
+            embeddings = model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
+            self._embed_matrix = np.asarray(embeddings, dtype=np.float32)
+            self._embed_norms = np.linalg.norm(self._embed_matrix, axis=1)
+            logger.info(f"Built embedding index: {self._embed_matrix.shape}")
+        except Exception as e:
+            logger.warning(f"Embedding encode failed: {e}; falling back to tfidf")
+            self._backend = "tfidf"
+            self._embed_matrix = None
+            self._embed_norms = None
+
+    def _encode_query(self, query: str) -> np.ndarray | None:
+        """Encode a single query string into an embedding vector."""
+        model = self._get_embed_model()
+        if model is None:
+            return None
+        try:
+            vec = model.encode([query], show_progress_bar=False, normalize_embeddings=True)
+            return np.asarray(vec[0], dtype=np.float32)
+        except Exception:
+            return None
+
+    def _cosine_embedding(self, q_vec: np.ndarray, idx: int) -> float:
+        """Compute cosine similarity between query vector and chunk at idx."""
+        if self._embed_matrix is None:
+            return 0.0
+        chunk_vec = self._embed_matrix[idx]
+        dot = float(np.dot(q_vec, chunk_vec))
+        q_norm = float(np.linalg.norm(q_vec))
+        c_norm = float(self._embed_norms[idx]) if self._embed_norms is not None else float(np.linalg.norm(chunk_vec))
+        if q_norm <= 1e-12 or c_norm <= 1e-12:
+            return 0.0
+        return dot / (q_norm * c_norm)

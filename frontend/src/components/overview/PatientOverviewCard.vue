@@ -3,107 +3,84 @@
     :class="['card', `card--${patient.alertLevel || 'none'}`, { 'card--flash': patient.alertFlash }]"
     @click="emit('select', patient._id)"
   >
-    <div class="card-head">
-      <div class="head-left">
-        <span class="avatar-wrap" :style="{ '--av': avatarAccent(patient) }">
-          <img class="avatar" :src="avatarFor(patient)" :alt="avatarAlt(patient)" />
+    <!-- Section 1: Top Bar & Diagnosis -->
+    <section class="sec-top">
+      <header class="card-header">
+        <div class="header-main">
+          <span class="bed-no">{{ patient.hisBed }}</span>
+          <h2 class="patient-name">{{ patient.name || '—' }}</h2>
+          <span class="patient-meta">{{ patient.gender === 'Female' ? '女' : '男' }}/{{ patient.age }}</span>
+        </div>
+      </header>
+      <div class="subtitle-row">
+        <span class="diag-text" :title="patient.clinicalDiagnosis">{{ shortDiag(patient.clinicalDiagnosis) || '无初步诊断' }}</span>
+        <span v-if="bedcard?.identity?.allergies || patient.allergies" class="allergy-tag">
+          ⚠️{{ bedcard?.identity?.allergies || patient.allergies }}
         </span>
-        <span class="bed">{{ patient.hisBed }}<small>床</small></span>
       </div>
-      <span :class="['lamp', `lamp--${patient.alertLevel || 'none'}`]"></span>
-    </div>
+    </section>
 
-    <div class="card-id">
-      <strong class="name">{{ patient.name || '—' }}</strong>
-      <span class="demo">
-        <em :class="patient.gender === 'Male' ? 'm' : 'f'">{{ patient.genderText }}</em>
-        <em v-if="patient.age">{{ patient.age }}</em>
-        <em
-          v-if="patient.icuDays != null && patient.icuDays >= 0"
-          :class="['icu-d', { long: patient.icuDays > 14 }]"
-        >D{{ patient.icuDays }}</em>
-      </span>
-    </div>
-
-    <div class="tags" v-if="patient.clinicalTags?.length">
-      <span
-        v-for="tag in patient.clinicalTags.slice(0, 3)"
-        :key="tag.tag"
-        class="tag"
-        :style="{ color: tag.color, borderColor: tag.color + '66' }"
-      >
-        {{ tag.label }}
-      </span>
-      <span v-if="patient.clinicalTags.length > 3" class="tag tag-more">
-        +{{ patient.clinicalTags.length - 3 }}
-      </span>
-    </div>
-
-    <p class="diag" :title="patient.clinicalDiagnosis || patient.admissionDiagnosis">
-      {{ shortDiag(patient.clinicalDiagnosis || patient.admissionDiagnosis) }}
-    </p>
-
-    <div class="care-flags" v-if="patientDiet(patient) || patientIsolation(patient)">
-      <span
-        v-if="patientDiet(patient)"
-        class="care-pill care-pill--diet"
-        :title="`饮食：${patientDiet(patient)}`"
-      >
-        饮食 · {{ shortCare(patientDiet(patient), 8) }}
-      </span>
-      <span
-        v-if="patientIsolation(patient)"
-        class="care-pill care-pill--iso"
-        :title="`隔离：${patientIsolation(patient)}`"
-      >
-        隔离 · {{ shortCare(patientIsolation(patient), 8) }}
-      </span>
-    </div>
-
-    <div v-if="bundleLights(patient).length" class="bundle-lights" :title="bundleTooltip(patient)">
-      <span
-        v-for="light in bundleLights(patient)"
-        :key="light.key"
-        :class="['bundle-dot', `bundle-${light.state}`]"
-      >
-        {{ light.key }}
-      </span>
-    </div>
-
-    <div class="vitals" v-if="patient.vitals?.source">
-      <div class="vg">
-        <div :class="['vi', vc('hr', patient.vitals.hr)]">
-          <label>HR</label>
-          <span>{{ patient.vitals.hr ?? '–' }}</span>
-        </div>
-        <div :class="['vi', 'vi-spo2', vc('spo2', patient.vitals.spo2)]">
-          <label>SpO₂</label>
-          <span>{{ patient.vitals.spo2 != null ? patient.vitals.spo2 + '%' : '–' }}</span>
-        </div>
-        <div :class="['vi', vc('rr', patient.vitals.rr)]">
-          <label>RR</label>
-          <span>{{ patient.vitals.rr ?? '–' }}</span>
+    <!-- Section 2: Vitals Telemetry (The Focus) -->
+    <section class="sec-vitals">
+      <div class="vital-grid">
+        <div v-for="v in vitalsData" :key="v.label" :class="['vital-item', v.colorClass]">
+          <span class="v-label">{{ v.label }}</span>
+          <span class="v-val">{{ v.value }}<small v-if="v.unit && v.value !== '--'">{{ v.unit }}</small></span>
         </div>
       </div>
-      <div class="vg">
-        <div :class="['vi', 'vi-bp', vc('sys', patient.vitals.nibp_sys)]">
-          <label>BP</label>
-          <span>{{ bp(patient.vitals) }}</span>
-        </div>
-        <div :class="['vi', vc('temp', patient.vitals.temp)]">
-          <label>T</label>
-          <span>{{ temp(patient.vitals.temp) }}</span>
-        </div>
-      </div>
-      <time class="vt">{{ clock(patient.vitals.time) }}</time>
-    </div>
-    <div class="vitals vitals--empty" v-else>无监护数据</div>
+    </section>
 
-    <div class="doc" v-if="patient.bedDoctor">{{ patient.bedDoctor }}</div>
+    <!-- Section 3: Devices & Tubes (Clean) -->
+    <section class="sec-logistics" v-if="bedcard?.devices?.length || bedcard?.tubes?.length">
+      <div v-if="bedcard?.devices?.length" class="dev-line">
+        <span v-for="(dev, idx) in bedcard.devices.slice(0, 1)" :key="idx" class="dev-span">
+          <i class="dev-dot"></i>{{ dev.name }}
+        </span>
+      </div>
+      <div v-if="bedcard?.tubes?.length" class="tube-line" :class="{ 'is-hover-expand': !showAllTubes }">
+        <span :class="['tube-inline-list', { 'is-folded': !showAllTubes }]">
+          <span v-for="(t, idx) in formattedTubesList" :key="idx" class="tube-item-wrap">
+            <span :class="['tube-item', tubeClass(t.dwellDays)]">{{ t.name }} D{{ t.dwellDays }}</span>
+            <span v-if="idx < formattedTubesList.length - 1" class="sep"> · </span>
+          </span>
+        </span>
+        <span v-if="bedcard.tubes.length > 2" class="tube-extra" @click.stop="showAllTubes = !showAllTubes">
+          {{ showAllTubes ? '收起' : `+${bedcard.tubes.length - 2}根` }}
+        </span>
+      </div>
+    </section>
+
+    <!-- Section 4: Alerts Tickers -->
+    <section class="sec-alerts" v-if="bedcard?.notes?.length || bundleProgress">
+      <div class="alert-line" v-if="bundleProgress">
+        <span class="alert-dot alert-dot--yellow"></span> Bundle {{ bundleProgress }}
+      </div>
+      <div v-for="(note, idx) in bedcard?.notes?.slice(0, 1)" :key="idx" class="alert-line">
+        <span class="alert-dot alert-dot--red"></span> {{ note }}
+      </div>
+    </section>
+
+    <!-- Section 5: Footer (Micro Dots + Pills) -->
+    <section class="sec-footer">
+      <div class="bundle-dots">
+        <span
+          v-for="light in bundleLights(patient)"
+          :key="light.key"
+          :class="['mini-dot', `mini--${light.state}`]"
+          :title="light.name"
+        >{{ light.key }}</span>
+      </div>
+      <div class="footer-pills">
+        <span v-if="bedcard?.identity?.isolation" class="pill pill--iso">{{ bedcard.identity.isolation }}</span>
+        <span v-if="patientDiet(patient)" class="pill pill--diet">{{ patientDiet(patient) }}</span>
+      </div>
+    </section>
   </article>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, watch, computed } from 'vue'
+import { getPatientBedcard } from '../../api'
 import maleChild from '../../assets/avatars/male-child.svg'
 import maleAdult from '../../assets/avatars/male-adult.svg'
 import maleElder from '../../assets/avatars/male-elder.svg'
@@ -118,6 +95,77 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'select', id: string): void
 }>()
+
+const bedcard = ref<any>(null)
+const showAllTubes = ref(false)
+
+const vitalsData = computed(() => {
+  const v = bedcard.value?.metrics?.vitals || props.patient?.vitals || {}
+  return [
+    { label: 'HR', value: v.hr ?? '--', colorClass: vitalClass('hr', v.hr) },
+    { label: 'BP', value: v.sbp ? `${v.sbp}/${v.dbp || '--'}` : '--', colorClass: vitalClass('bp', v.sbp) },
+    { label: 'SpO₂', value: v.spo2 ?? '--', unit: '%', colorClass: vitalClass('spo2', v.spo2) },
+    { label: 'T', value: temp(v.t || v.temp), unit: '℃', colorClass: vitalClass('t', v.t || v.temp) }
+  ]
+})
+
+const formattedTubesList = computed(() => {
+  return bedcard.value?.tubes || []
+})
+
+const bundleProgress = computed(() => {
+  const lights = (bundleLights(props.patient) || []).filter(l => l.state !== 'unknown')
+  if (!lights.length) return ''
+  const done = lights.filter(l => l.state === 'green').length
+  return `${done}/${lights.length}`
+})
+
+async function loadBedcard() {
+  if (!props.patient?._id) return
+  try {
+    const res = await getPatientBedcard(props.patient._id)
+    if (res.data?.code === 0) {
+      bedcard.value = res.data.data
+    }
+  } catch (err) {
+    console.error('Failed to load bedcard:', err)
+  }
+}
+
+onMounted(loadBedcard)
+watch(() => props.patient?._id, loadBedcard)
+
+function vitalClass(type: string, val: any) {
+  if (val == null) return ''
+  const n = parseFloat(val)
+  if (isNaN(n)) return ''
+  
+  if (type === 'hr') {
+    if (n >= 120 || n <= 40) return 'vital--red'
+    if (n >= 100 || n <= 50) return 'vital--orange'
+  }
+  if (type === 'bp') {
+    if (n >= 180 || n <= 80) return 'vital--red'
+    if (n >= 140 || n <= 90) return 'vital--orange'
+  }
+  if (type === 'spo2') {
+    if (n <= 85) return 'vital--red'
+    if (n <= 90) return 'vital--orange'
+  }
+  if (type === 't') {
+    if (n >= 39 || n <= 35) return 'vital--red'
+    if (n >= 38 || n <= 36) return 'vital--orange'
+  }
+  return ''
+}
+
+function tubeClass(days: any) {
+  const d = parseInt(days)
+  if (isNaN(d)) return ''
+  if (d >= 14) return 'tube--red'
+  if (d >= 7) return 'tube--orange'
+  return ''
+}
 
 const avatarMap = {
   male: { child: maleChild, adult: maleAdult, elder: maleElder },
@@ -135,99 +183,49 @@ function ageGroup(age: any): 'child' | 'adult' | 'elder' {
     if (Number.isFinite(n)) {
       if (n < 14) return 'child'
       if (n >= 60) return 'elder'
-      return 'adult'
     }
   }
   return 'adult'
 }
 
 function avatarFor(patient: any) {
-  const gender =
-    patient?.gender === 'Female' ? 'female' :
-    patient?.gender === 'Male' ? 'male' : 'neutral'
+  const gender = patient?.gender === 'Female' ? 'female' : (patient?.gender === 'Male' ? 'male' : 'neutral')
   return avatarMap[gender][ageGroup(patient?.age)]
 }
 
 function avatarAlt(patient: any) {
-  const genderText = patient?.gender === 'Female' ? '女性' : patient?.gender === 'Male' ? '男性' : '未知性别'
+  const genderText = patient?.gender === 'Female' ? '女性' : (patient?.gender === 'Male' ? '男性' : '未知性别')
   const group = ageGroup(patient?.age)
-  const groupText = group === 'child' ? '儿童' : group === 'elder' ? '老年' : '成人'
+  const groupText = group === 'child' ? '儿童' : (group === 'elder' ? '老年' : '成人')
   return `${genderText}${groupText}头像`
 }
 
 function avatarAccent(patient: any) {
   const level = String(patient?.alertLevel || 'none')
-  if (level === 'critical') return '#f5222d'
-  if (level === 'warning') return '#faad14'
-  if (level === 'normal') return '#52c41a'
-  return '#1890ff'
-}
-
-function vc(k: string, v: any): string {
-  if (v == null || v === '') return ''
-  const n = Number(v)
-  if (Number.isNaN(n)) return ''
-  const t: Record<string, [number, number, number, number]> = {
-    hr: [40, 50, 110, 130],
-    spo2: [85, 92, 999, 999],
-    sys: [70, 85, 160, 200],
-    temp: [34, 35.5, 38.5, 40],
-    rr: [6, 10, 25, 35],
-  }
-  const current = t[k]
-  if (!current) return ''
-  const [critLow, warnLow, warnHigh, critHigh] = current
-  if (n < critLow || n > critHigh) return 'crit'
-  if (n < warnLow || n > warnHigh) return 'warn'
-  return 'ok'
-}
-
-function bp(vitals: any) {
-  const s = vitals?.nibp_sys
-  const d = vitals?.nibp_dia
-  return s != null || d != null ? `${s ?? '–'}/${d ?? '–'}` : '–'
+  if (level === 'critical') return '#ef4444'
+  if (level === 'warning') return '#f59e0b'
+  if (level === 'normal') return '#10b981'
+  return '#3b82f6'
 }
 
 function temp(v: any) {
-  if (v == null) return '–'
+  if (v == null) return '--'
   const n = Number(v)
-  return Number.isNaN(n) ? '–' : n.toFixed(1)
-}
-
-function clock(t: any) {
-  if (!t) return ''
-  try {
-    const d = new Date(t)
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  } catch {
-    return ''
-  }
+  return Number.isNaN(n) ? '--' : n.toFixed(1)
 }
 
 function shortDiag(s: string) {
-  if (!s) return '—'
+  if (!s) return '无初步诊断'
   const first = s.split('|')[0] ?? s
-  return first.length > 16 ? `${first.slice(0, 16)}…` : first
+  return first.length > 20 ? `${first.slice(0, 20)}…` : first
 }
 
 function patientDiet(patient: any) {
-  return String(
-    patient?.diet ??
-    patient?.dietType ??
-    patient?.dietName ??
-    patient?.nutritionType ??
-    '',
-  ).trim()
+  return String(patient?.diet || patient?.dietType || patient?.nutritionType || '').trim()
 }
 
 function patientIsolation(patient: any) {
-  return String(
-    patient?.isolation ??
-    patient?.isolationType ??
-    patient?.isolateType ??
-    patient?.infectionIsolation ??
-    '',
-  ).trim()
+  return String(patient?.isolation || patient?.isolationType || '').trim()
 }
 
 function shortCare(v: any, n = 8) {
@@ -238,252 +236,125 @@ function shortCare(v: any, n = 8) {
 
 function bundleLights(patient: any) {
   const lights = patient?.bundleStatus?.lights || {}
-  return ['A', 'B', 'C', 'D', 'E', 'F'].map((key) => ({
-    key,
-    state: lights[key] || 'unknown',
-  }))
-}
-
-function bundleTooltip(patient: any) {
-  const rows = bundleLights(patient).map((x: any) => `${x.key}:${x.state}`)
-  return `ABCDEF Bundle - ${rows.join(' / ')}`
+  const items = [
+    { key: 'A', name: '镇痛' }, { key: 'B', name: '呼吸' },
+    { key: 'C', name: '镇静' }, { key: 'D', name: '谵妄' },
+    { key: 'E', name: '活动' }, { key: 'F', name: '家属' }
+  ]
+  const stateMap: Record<string, string> = { green: '依从', yellow: '部分', red: '未评', unknown: '空' }
+  return items.map(i => ({ ...i, state: lights[i.key] || 'unknown', statusText: stateMap[lights[i.key]] || '未知' }))
 }
 </script>
 
 <style scoped>
 .card {
-  position: relative;
-  background: #111119;
-  border: 1px solid #1a1a28;
-  border-radius: 12px;
-  padding: 14px 14px 10px;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  width: 280px;
+  max-height: 360px;
+  background: #12182B; /* Deep Sea Blue */
+  border-radius: 6px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  scrollbar-width: none;
+  border: 1px solid rgba(99,130,255,0.08); /* Faint blue border */
+  border-left: 3px solid transparent; 
+  position: relative;
 }
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-  border-color: #2a2a3c;
-}
-.card--critical {
-  border-color: #ef444433;
-  background: linear-gradient(170deg, #1a0a0e 0%, #111119 35%);
-}
-.card--warning {
-  border-color: #f59e0b28;
-  background: linear-gradient(170deg, #1a150a 0%, #111119 35%);
-}
-.card--high {
-  border-color: #f9731628;
-  background: linear-gradient(170deg, #1a120a 0%, #111119 35%);
-}
-.card--normal { border-color: #22c55e18; }
-.card--flash { animation: flash-border 1.2s ease-in-out infinite; }
+.card::-webkit-scrollbar { display: none; }
+.card:hover { transform: translateY(-2px); background: #1A2240; border-color: rgba(99,130,255,0.15); }
 
-.card-head { display: flex; justify-content: space-between; align-items: center; }
-.head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.avatar-wrap {
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--av) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--av) 60%, #1a1a28);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--av) 45%, transparent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+/* 3px Left Border Severity (8px Radius as requested) */
+.card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  background: transparent;
 }
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
-  background: #0b0b14;
-  border: 1px solid #1a1a28;
-  padding: 3px;
-  object-fit: contain;
-}
-.bed {
-  font-size: 22px;
-  font-weight: 900;
-  color: #60a5fa;
-  font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
-  letter-spacing: -0.5px;
-}
-.bed small { font-size: 11px; font-weight: 400; color: #444; margin-left: 1px; }
-.lamp { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.lamp--critical { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: blink 1.4s infinite; }
-.lamp--warning { background: #f59e0b; box-shadow: 0 0 6px #f59e0b88; }
-.lamp--high { background: #f97316; box-shadow: 0 0 6px #f9731688; }
-.lamp--normal { background: #22c55e; }
-.lamp--none { background: #333; }
+.card--critical::before { background: #F87171; }
+.card--high::before { background: #FB923C; }
+.card--warning::before { background: #FBBF24; }
+.card--normal::before { background: #34D399; }
 
-.card-id { display: flex; align-items: baseline; gap: 8px; }
-.name { font-size: 15px; color: #e2e2e2; letter-spacing: 0.3px; }
-.demo { display: flex; gap: 5px; font-size: 11px; color: #666; }
-.demo em { font-style: normal; }
-.demo .m { color: #60a5fa; }
-.demo .f { color: #f472b6; }
-.icu-d {
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 11px;
-  color: #888;
-  background: #1a1a28;
-  padding: 0 4px;
-  border-radius: 3px;
-}
-.icu-d.long { color: #f59e0b; background: #f59e0b15; }
+/* Critical Text Glow */
+.card--critical .patient-name, .card--critical .bed-no { color: #F87171; }
 
-.tags { display: flex; gap: 4px; flex-wrap: wrap; }
-.tag {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 7px;
-  border: 1px solid;
-  border-radius: 3px;
-  line-height: 16px;
-  letter-spacing: 0.3px;
-}
-.tag-more { color: #555; border-color: #333; }
-.diag { font-size: 12px; color: #666; line-height: 1.3; margin: 0; }
+section { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+section:first-of-type { margin-top: 0; }
 
-.care-flags { display: flex; gap: 4px; flex-wrap: wrap; }
-.care-pill {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 16px;
+/* Section 1: Top Bar */
+.card-header { display: flex; justify-content: space-between; align-items: baseline; }
+.header-main { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; }
+.bed-no { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 900; color: #E8ECF4; }
+.patient-name { font-size: 16px; font-weight: 700; color: #E8ECF4; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.patient-meta { font-size: 12px; color: #7B8BA5; font-weight: 600; }
+
+.subtitle-row { display: flex; align-items: center; gap: 6px; }
+.diag-text { font-size: 11px; color: #7B8BA5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.allergy-tag { font-size: 10px; font-weight: 800; background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.4); color: #F87171; padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
+
+/* Section 2: Vitals Telemetry (Deepened Background) */
+.sec-vitals {
+  padding: 6px 4px 8px 4px;
+  background: #0F1525;
   border-radius: 4px;
-  padding: 1px 7px;
-  border: 1px solid;
-  max-width: 100%;
-  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.02);
 }
-.care-pill--diet { color: #34d399; border-color: #34d39966; background: #34d39912; }
-.care-pill--iso { color: #f59e0b; border-color: #f59e0b66; background: #f59e0b12; }
+.vital-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+.vital-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.v-label { font-size: 10px; color: #4A5568; font-weight: 800; text-transform: uppercase; margin-bottom: -2px; }
+.v-val { font-size: 28px; font-weight: 800; font-family: 'DM Mono', monospace; color: #E8ECF4; line-height: 1; font-variant-numeric: tabular-nums; }
+.v-val small { font-size: 10px; opacity: 0.5; margin-left: 1px; font-weight: 400; }
 
-.bundle-lights { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-.bundle-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 800;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-.bundle-green { background: #22c55e; }
-.bundle-yellow { background: #f59e0b; color: #111827; }
-.bundle-red { background: #ef4444; }
-.bundle-unknown { background: #475569; }
+/* Alerting Colors */
+.vital--orange .v-val { color: #FB923C; }
+.vital--red .v-val { color: #F87171; animation: flash-crit 1.5s infinite; }
+@keyframes flash-crit { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 
-.doc { font-size: 10px; color: #444; margin-top: auto; padding-top: 2px; }
+/* No data color */
+.v-val:empty, .v-val:contains('--') { color: #2A3348; }
 
-.vitals {
-  background: #0b0b14;
-  border-radius: 8px;
-  padding: 8px;
-  margin-top: 2px;
-}
-.vitals--empty { text-align: center; color: #333; font-size: 11px; padding: 12px; }
-.vg { display: flex; gap: 4px; margin-bottom: 4px; }
-.vg:last-of-type { margin-bottom: 0; }
-.vi {
-  flex: 1;
-  text-align: center;
-  background: #0f0f1c;
-  border-radius: 5px;
-  padding: 5px 2px 4px;
-}
-.vi-bp { flex: 1.4; }
-.vi label {
-  display: block;
-  font-size: 9px;
-  font-weight: 600;
-  color: #555;
-  letter-spacing: 0.5px;
-  margin-bottom: 1px;
-}
-.vi span {
-  font-size: 17px;
-  font-weight: 800;
-  font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
-  color: #ccc;
-  line-height: 1;
-}
-.vi:first-child label { color: #22c55e88; }
-.vi:first-child.ok span { color: #22c55e; }
-.vi-spo2 label { color: #06b6d488; }
-.vi-spo2.ok span { color: #06b6d4; }
-.vi.crit { background: #ef444412; }
-.vi.crit span { color: #ef4444; }
-.vi.crit label { color: #ef444488; }
-.vi.warn { background: #f59e0b10; }
-.vi.warn span { color: #f59e0b; }
-.vi.warn label { color: #f59e0b88; }
-.vi.ok span { color: #a3e635; }
-.vi-bp label { color: #ef444466; }
-.vi-bp.ok span { color: #f87171; }
-.vi:last-child label { color: #fb923c66; }
-.vi:last-child.ok span { color: #fb923c; }
-.vt {
-  display: block;
-  text-align: right;
-  font-size: 9px;
-  color: #333;
-  margin-top: 3px;
-  font-family: monospace;
-}
+/* Section 3: Logistics (Refined Pills) */
+.sec-logistics { font-size: 11px; color: #7B8BA5; gap: 4px; }
+.dev-line { color: #7B8BA5; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.dev-dot { width: 6px; height: 6px; border-radius: 50%; background: #60A5FA; display: inline-block; }
+.tube-line { display: flex; align-items: baseline; gap: 6px; color: #4A5568; position: relative; }
+.tube-item { transition: all 0.2s; padding: 0 4px; border-radius: 3px; background: #1E293B; color: #7B8BA5; line-height: 1.6; }
+.tube--orange { background: #292015; color: #FBBF24; }
+.tube--red { background: #2D1519; color: #F87171; }
+.tube-inline-list { flex: 1; display: block; overflow: hidden; }
+.tube-inline-list.is-folded { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card:hover .tube-inline-list.is-folded { -webkit-line-clamp: unset; display: block; }
+.card:hover .tube-extra { display: none; }
+.tube-extra { color: #4A5568; font-weight: 700; cursor: pointer; flex-shrink: 0; padding-top: 4px; font-size: 10px; }
 
-@keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
-@keyframes flash-border {
-  0%, 100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
-  50% { box-shadow: 0 0 18px rgba(239, 68, 68, 0.35); }
-}
+/* Section 4: Alerts Tickers */
+.sec-alerts { font-size: 11px; font-weight: 700; gap: 3px; }
+.alert-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #7B8BA5; display: flex; align-items: center; gap: 5px; }
+.alert-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.alert-dot--red { background: #F87171; }
+.alert-dot--yellow { background: #FBBF24; }
+.alert-dot--green { background: #34D399; }
 
-@media (max-width: 640px) {
-  .card { padding: 12px 12px 10px; }
-}
+/* Section 5: Footer Cluster */
+.sec-footer { flex-direction: row; align-items: center; justify-content: space-between; padding-top: 6px; gap: 8px; }
+.bundle-dots { display: flex; gap: 3px; }
+.mini-dot { width: 12px; height: 12px; border-radius: 50%; font-size: 8px; font-weight: 900; display: flex; align-items: center; justify-content: center; color: #0A0E17; border: 1px solid rgba(255,255,255,0.05); }
+.mini--green { background: #34D399; }
+.mini--yellow { background: #FBBF24; }
+.mini--red { background: #F87171; }
+.mini--unknown { background: #2A3348; color: #7B8BA5; }
 
-:global(html[data-theme='light']) .card {
-  background: #ffffff;
-  border-color: #d8e2f0;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
-}
-:global(html[data-theme='light']) .card:hover {
-  border-color: #9bb1d1;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
-}
-:global(html[data-theme='light']) .card--critical { background: linear-gradient(170deg, #fff2f2 0%, #ffffff 45%); }
-:global(html[data-theme='light']) .card--warning,
-:global(html[data-theme='light']) .card--high { background: linear-gradient(170deg, #fff8ed 0%, #ffffff 45%); }
-:global(html[data-theme='light']) .card--normal { background: linear-gradient(170deg, #f2fff7 0%, #ffffff 45%); }
-:global(html[data-theme='light']) .bed small,
-:global(html[data-theme='light']) .demo,
-:global(html[data-theme='light']) .diag,
-:global(html[data-theme='light']) .doc,
-:global(html[data-theme='light']) .vt { color: #6b7b94; }
-:global(html[data-theme='light']) .name { color: #0f172a; }
-:global(html[data-theme='light']) .icu-d { background: #e9eef8; color: #51607a; }
-:global(html[data-theme='light']) .tag-more { color: #677893; border-color: #bcc9dc; }
-:global(html[data-theme='light']) .bundle-dot { border-color: rgba(15, 23, 42, 0.08); }
-:global(html[data-theme='light']) .vitals {
-  background: #f2f6fc;
-  border: 1px solid #d9e2f1;
-}
-:global(html[data-theme='light']) .vitals--empty { color: #90a0b8; }
-:global(html[data-theme='light']) .vi {
-  background: #ffffff;
-  border: 1px solid #dee6f4;
-}
-:global(html[data-theme='light']) .vi label { color: #5f6f8d; }
-:global(html[data-theme='light']) .vi span { color: #22314d; }
+.footer-pills { display: flex; gap: 6px; }
+.pill { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid transparent; }
+.pill--iso { background: rgba(251, 146, 60, 0.08); border-color: rgba(251, 146, 60, 0.4); color: #FB923C; }
+.pill--diet { background: rgba(52, 211, 153, 0.08); border-color: rgba(52, 211, 153, 0.4); color: #34D399; }
 </style>

@@ -10,6 +10,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Optional
 
+from jose import jwt, JWTError
+
 import httpx
 from bson import ObjectId
 from fastapi import Body, FastAPI, Query, WebSocket, WebSocketDisconnect
@@ -114,6 +116,30 @@ app.add_middleware(
 # =============================================
 # 辅助函数
 # =============================================
+def _calculate_age(birthday) -> str:
+    """从出生日期计算年龄字符串"""
+    if not birthday:
+        return ""
+    try:
+        if isinstance(birthday, str):
+            birthday = datetime.fromisoformat(birthday.replace("Z", "+00:00"))
+        
+        now = datetime.now()
+        diff = now - birthday
+        days = diff.days
+        
+        if days < 0: return "0天"
+        if days < 30: return f"{days}天"
+        if days < 365: return f"{days // 30}月"
+        
+        years = now.year - birthday.year
+        if (now.month, now.day) < (birthday.month, birthday.day):
+            years -= 1
+        return f"{years}岁"
+    except Exception:
+        return ""
+
+
 def serialize_doc(doc: dict) -> dict:
     """将 MongoDB 文档转换为 JSON 可序列化的字典（ObjectId→str，datetime→isoformat）"""
     if doc is None:
@@ -277,6 +303,19 @@ def _is_ws_authorized(ws: WebSocket) -> bool:
     if not _ws_token_required():
         return _ws_origin_allowed(origin)
     token = _extract_ws_token(ws)
+    if not token:
+        return False
+    # --- JWT decode path ---
+    cfg = config or bootstrap_config
+    jwt_secret = cfg.ws_token_secret
+    jwt_algorithm = cfg.ws_token_algorithm
+    if jwt_secret and "." in token:
+        try:
+            jwt.decode(token, jwt_secret, algorithms=[jwt_algorithm])
+            return True
+        except JWTError:
+            return False  # invalid JWT → reject (caller closes 4001)
+    # --- static token fallback ---
     for valid in _get_valid_ws_tokens():
         if valid and secrets.compare_digest(token, valid):
             return True
@@ -744,12 +783,13 @@ async def _get_device_id(pid_str: str, prefer_type: str | None = None, patient_d
     return None
 
 
-async def _latest_params_by_pid(pid_str: str, codes: list[str], lookback_minutes: int = 60) -> dict | None:
-    if not pid_str or not codes:
+async def _latest_params_by_pid(pid_input: str | list[str], codes: list[str], lookback_minutes: int = 60) -> dict | None:
+    if not pid_input or not codes:
         return None
+    pids = [pid_input] if isinstance(pid_input, str) else pid_input
     since = datetime.now() - timedelta(minutes=lookback_minutes)
     cursor = db.col("bedside").find(
-        {"pid": pid_str, "code": {"$in": codes}, "time": {"$gte": since}},
+        {"pid": {"$in": pids}, "code": {"$in": codes}, "time": {"$gte": since}},
         {"code": 1, "time": 1, "strVal": 1, "intVal": 1, "fVal": 1},
     ).sort("time", -1).limit(2000)
     params = {}
@@ -803,8 +843,12 @@ async def _latest_params_by_device(device_id: str, codes: list[str], lookback_mi
 async def _param_series_by_pid(pid_str: str, code: str, since: datetime) -> list[dict]:
     if not pid_str or not code:
         return []
+    pids = [pid_str]
+    hp = _patient_his_pid(await db.col("patient").find_one({"_id": pid}, {"hisPid": 1, "hisPID": 1}))
+    if hp and hp not in pids: pids.append(hp)
+
     cursor = db.col("bedside").find(
-        {"pid": pid_str, "code": code, "time": {"$gte": since}},
+        {"pid": {"$in": pids}, "code": code, "time": {"$gte": since}},
         {"time": 1, "strVal": 1, "intVal": 1, "fVal": 1},
     ).sort("time", 1).limit(2000)
     points = []
@@ -990,6 +1034,8 @@ async def get_patients(
     patients = []
     async for doc in cursor:
         p = serialize_doc(doc)
+        if not p.get("age"):
+            p["age"] = _calculate_age(doc.get("birthday"))
         p["clinicalTags"] = infer_clinical_tags(doc)
         patients.append(p)
     return {"code": 0, "patients": patients}
@@ -1009,7 +1055,10 @@ async def get_patient(patient_id: str):
     doc = await db.col("patient").find_one({"_id": pid})
     if not doc:
         return {"code": 404, "message": "患者不存在"}
-    return {"code": 0, "patient": serialize_doc(doc)}
+    p = serialize_doc(doc)
+    if not p.get("age"):
+        p["age"] = _calculate_age(doc.get("birthday"))
+    return {"code": 0, "patient": p}
 
 
 @app.post("/api/patients/bundle-status")
@@ -1124,6 +1173,10 @@ async def patient_vitals(patient_id: str):
     ]
 
     snapshot = await _latest_params_by_pid(pid_str, codes)
+    if not snapshot:
+        hp = _patient_his_pid(await db.col("patient").find_one({"_id": pid}, {"hisPid": 1, "hisPID": 1}))
+        if hp:
+            snapshot = await _latest_params_by_pid(hp, codes)
     source = None
     if snapshot:
         source = "monitor"
@@ -1589,6 +1642,192 @@ async def patient_alerts(patient_id: str):
 
     return {"code": 0, "records": records}
 
+
+# =============================================
+# 患者床旁卡片增强数据 (Bedcard)
+# =============================================
+@app.get("/api/patients/{patient_id}/bedcard")
+async def patient_bedcard(patient_id: str):
+    """
+    聚合患者床旁卡片展示所需的增强数据：
+    1. 身份安全（年龄、性别、过敏史）
+    2. 生命支持设备（呼吸机、CRRT等）
+    3. 管路层（名称、部位、留置天数、类别）
+    4. 指标速览（生命体征、SOFA、出入量）
+    5. 注意事项摘要（过去24h内的高优预警）
+    """
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "未找到患者"}
+
+    pid_str = str(pid)
+    
+    # 1. 身份安全 (Identity & Safety)
+    age = patient.get("age")
+    if not age:
+        age = _calculate_age(patient.get("birthday"))
+
+    identity = {
+        "name": patient.get("name", ""),
+        "gender": patient.get("gender", ""),
+        "age": age,
+        "bed": patient.get("hisBed") or patient.get("bed", ""),
+        "allergies": patient.get("allergies") or patient.get("allergyHistory", ""),
+        "diagnosis": patient.get("clinicalDiagnosis") or patient.get("admissionDiagnosis", ""),
+        "isolation": "保护性隔离" if "特级" in str(patient.get("nursingLevel", "")) else "",
+    }
+
+    # 2. 生命支持设备 (Life Support Devices)
+    active_devices = []
+    device_binds = db.col("deviceBind").find({"pid": pid_str, "unBindTime": None})
+    async for bind in device_binds:
+        device_id = bind.get("deviceID")
+        if not device_id: continue
+        
+        info = await db.col("deviceInfo").find_one({"_id": _safe_oid(device_id)})
+        dname = info.get("deviceName", "") if info else bind.get("type", "")
+        dtype = _infer_device_type(dname) or bind.get("type", "unknown")
+        
+        dev = {"name": dname, "type": dtype, "bindTime": bind.get("bindTime")}
+        
+        # 尝试查询最新运行参数以丰富展示 (例如呼吸机模式/FiO2, CRRT时长等)
+        caps = await _latest_params_by_device(device_id, ["param_vent_mode", "param_fio2", "param_peep", "param_crrt_mode"])
+        if caps and caps.get("params"):
+            pms = caps["params"]
+            if dtype == "vent":
+                mode = pms.get("param_vent_mode", "")
+                fio2 = pms.get("param_fio2", "")
+                peep = pms.get("param_peep", "")
+                details = []
+                if mode: details.append(str(mode))
+                if fio2: details.append(f"FiO₂{fio2}%")
+                if peep: details.append(f"PEEP{peep}")
+                dev["details"] = " ".join(details)
+            elif dtype == "crrt":
+                mode = pms.get("param_crrt_mode", "")
+                if mode: dev["details"] = f"模式:{mode}"
+                
+        active_devices.append(dev)
+
+    # 3. 管路层 (Tubes & Lines)
+    active_tubes = []
+    # 使用正确的字段名：name, type, startTime, body; 状态判断使用 stopTime 或 unFinishTime (如果有)
+    # 根据之前的调研，未拔除的管路通常没有 stopTime
+    tubes_cursor = db.col("tubeExe").find({"pid": pid_str, "stopTime": None}).sort("startTime", 1)
+    now = datetime.now()
+    async for t in tubes_cursor:
+        # 兼容 startTime (Date对象或ISO字符串)
+        start_time = t.get("startTime")
+        dwell_days = 0
+        if start_time:
+            try:
+                if isinstance(start_time, datetime):
+                    dt = start_time
+                else:
+                    # 处理可能的字符串格式
+                    s = str(start_time).replace("Z", "+00:00")
+                    # 有些格式可能带毫秒，有些不带
+                    if "." in s:
+                        dt = datetime.fromisoformat(s)
+                    else:
+                        dt = datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
+                
+                dwell_days = max(0, (now - dt).days)
+            except Exception as e:
+                logger.warning(f"Failed to parse tube startTime {start_time}: {e}")
+        
+        # 推断大类 (气道/血管/引流/泌尿)
+        # 使用 name 字段
+        t_name = str(t.get("name") or t.get("type") or "").lower()
+        cat = "other"
+        if any(k in t_name for k in ["气管", "插管", "气切", "ett", "tracheo"]): cat = "airway"
+        elif any(k in t_name for k in ["cvc", "picc", "动脉", "静脉", "导管", "穿刺", "swan", "留置针"]): cat = "vascular"
+        elif any(k in t_name for k in ["引流", "胸管", "胃管", "t管", "造瘘", "鼻肠"]): cat = "drain"
+        elif any(k in t_name for k in ["导尿", "尿管", "foley"]): cat = "urinary"
+
+        active_tubes.append({
+            "name": t.get("name") or t.get("type") or "未知管路",
+            "category": cat,
+            "site": t.get("body") or "",
+            "dwellDays": dwell_days,
+            "startTime": start_time
+        })
+
+    # 4. 关键指标速览 (Latest Metrics)
+    metrics = {
+        "sofa": None,
+        "netFluid24h": None,
+        "glucose": None,
+        "vitals": {}
+    }
+    
+    # 获取最新 SOFA
+    sofa_doc = await db.col("score_records").find_one(
+        {"patient_id": pid_str, "score_type": "sofa"},
+        sort=[("calc_time", -1)]
+    )
+    if sofa_doc: metrics["sofa"] = sofa_doc.get("score")
+    
+    # 获取 最新生命体征 & 血糖
+    v_pids = [pid_str]
+    hp = _patient_his_pid(patient)
+    if hp and hp not in v_pids: v_pids.append(hp)
+
+    cap_res = await _latest_params_by_pid(v_pids, ["param_HR", "param_nibp_s", "param_nibp_d", "param_spo2", "param_T", "param_glu_lab", "param_glu_poc"], lookback_minutes=24*60)
+    if cap_res and cap_res.get("params"):
+        pms = cap_res["params"]
+        metrics["vitals"] = {
+            "hr": pms.get("param_HR"),
+            "sbp": pms.get("param_nibp_s"),
+            "dbp": pms.get("param_nibp_d"),
+            "spo2": pms.get("param_spo2"),
+            "t": pms.get("param_T")
+        }
+        metrics["glucose"] = pms.get("param_glu_lab") or pms.get("param_glu_poc")
+
+    # 获取近24h净平衡预警中的出入量数据
+    fluid_alert = await db.col("alert_records").find_one(
+        {"patient_id": pid_str, "alert_type": "fluid_balance"},
+        sort=[("created_at", -1)]
+    )
+    if fluid_alert and fluid_alert.get("extra"):
+        win24 = fluid_alert["extra"].get("windows", {}).get("24h", {})
+        net_ml = win24.get("net_ml")
+        if net_ml is not None:
+            metrics["netFluid24h"] = net_ml
+
+    # 5. 当日注意事项 (Daily Notes via High/Critical Alerts)
+    notes = []
+    since_24h = datetime.now() - timedelta(hours=24)
+    alert_cursor = db.col("alert_records").find(
+        {
+            "patient_id": pid_str, 
+            "is_active": True,
+            "severity": {"$in": ["high", "critical"]},
+            "created_at": {"$gte": since_24h}
+        }
+    ).sort("created_at", -1).limit(5)
+    async for a in alert_cursor:
+        name = a.get("name") or a.get("rule_id", "高危预警")
+        notes.append(f"{name}")
+        
+    # 去重
+    unique_notes = list(dict.fromkeys(notes))
+
+    merged_data = {
+        "identity": identity,
+        "devices": active_devices,
+        "tubes": active_tubes,
+        "metrics": metrics,
+        "notes": unique_notes
+    }
+
+    return {"code": 0, "data": serialize_doc(merged_data)}
 
 # =============================================
 # 最近预警列表（大屏用）
@@ -2115,10 +2354,12 @@ async def ai_risk_forecast(patient_id: str):
         return {"code": 404, "message": "患者不存在"}
 
     # 收集最近生命体征
-    vitals = []
-    pid_str = str(pid)
     codes = ["param_HR", "param_spo2", "param_resp", "param_nibp_s", "param_ibp_s", "param_T"]
-    snapshot = await _latest_params_by_pid(pid_str, codes)
+    v_pids = [pid_str]
+    hp = _patient_his_pid(patient)
+    if hp and hp not in v_pids: v_pids.append(hp)
+    
+    snapshot = await _latest_params_by_pid(v_pids, codes)
     if not snapshot:
         device_id = await _get_device_id(pid_str, "monitor")
         snapshot = await _latest_params_by_device(device_id, codes) if device_id else None
@@ -2162,7 +2403,7 @@ async def ai_risk_forecast(patient_id: str):
 @app.websocket("/ws/alerts")
 async def ws_alerts(ws: WebSocket):
     if not _is_ws_authorized(ws):
-        await ws.close(code=4401, reason="Unauthorized")
+        await ws.close(code=4001, reason="Unauthorized")
         return
     await ws_mgr.connect(ws)
     try:
