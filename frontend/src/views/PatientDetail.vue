@@ -51,430 +51,128 @@
     <a-card class="tabs-card" :bordered="false">
       <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="trend" tab="生命体征趋势">
-          <div class="tab-toolbar">
-            <a-radio-group v-model:value="trendWindow" size="small">
-              <a-radio-button value="24h">24h</a-radio-button>
-              <a-radio-button value="48h">48h</a-radio-button>
-              <a-radio-button value="7d">7d</a-radio-button>
-            </a-radio-group>
-            <a-button size="small" @click="loadTrend">刷新</a-button>
-          </div>
-          <div v-if="trendPoints.length" class="chart-wrap">
-            <DetailChart :option="trendOption" autoresize />
-          </div>
-          <div v-else class="tab-empty">暂无趋势数据</div>
+          <PatientTrendTab
+            v-if="activeTab === 'trend'"
+            v-model:trend-window="trendWindow"
+            :trend-points="trendPoints"
+            :trend-option="trendOption"
+            :on-refresh="loadTrend"
+          />
         </a-tab-pane>
 
         <a-tab-pane key="labs" tab="检验结果时间线">
-          <a-timeline>
-            <a-timeline-item v-for="exam in labs" :key="exam.requestId">
-              <div class="lab-head">
-                <strong>{{ exam.examName || exam.requestName || '检验' }}</strong>
-                <span>{{ fmtTime(exam.requestTime) }}</span>
-              </div>
-              <div class="lab-items">
-                <span
-                  v-for="item in exam.items || []"
-                  :key="item.itemId || item.itemCode || item.itemName"
-                  :class="['lab-item', labFlag(item)]"
-                >
-                  {{ item.itemName || item.itemCnName || '指标' }}:
-                  {{ item.result || item.resultValue || item.value }}
-                  {{ item.unit || '' }}
-                </span>
-              </div>
-              <div v-if="exam.acidBaseInterpretation" class="acid-base-card">
-                <div class="acid-base-head">
-                  <strong>血气自动解读</strong>
-                  <span>{{ exam.acidBaseInterpretation.compensation || '—' }}</span>
-                </div>
-                <div class="acid-base-summary">
-                  <span class="acid-pill acid-primary">{{ exam.acidBaseInterpretation.primary }}</span>
-                  <span v-if="exam.acidBaseInterpretation.secondary" class="acid-pill acid-secondary">{{ exam.acidBaseInterpretation.secondary }}</span>
-                  <span v-if="exam.acidBaseInterpretation.tertiary" class="acid-pill acid-tertiary">{{ exam.acidBaseInterpretation.tertiary }}</span>
-                </div>
-                <div class="acid-base-metrics">
-                  <span>AG {{ exam.acidBaseInterpretation.AG ?? '—' }}</span>
-                  <span>校正AG {{ exam.acidBaseInterpretation.corrected_AG ?? '—' }}</span>
-                  <span>Δ比 {{ exam.acidBaseInterpretation.delta_ratio ?? '—' }}</span>
-                </div>
-                <div v-if="exam.acidBaseInterpretation.abnormal_components?.length" class="acid-base-components">
-                  <span
-                    v-for="comp in exam.acidBaseInterpretation.abnormal_components"
-                    :key="comp.field"
-                    :class="['acid-comp', { abnormal: comp.abnormal }]"
-                  >
-                    {{ comp.field }} {{ comp.value ?? '—' }}{{ comp.unit || '' }}
-                  </span>
-                </div>
-              </div>
-            </a-timeline-item>
-          </a-timeline>
-          <div v-if="!labs.length" class="tab-empty">暂无检验记录</div>
+          <PatientLabsTab
+            v-if="activeTab === 'labs'"
+            :labs="labs"
+            :fmt-time="fmtTime"
+            :lab-flag="labFlag"
+          />
         </a-tab-pane>
 
         <a-tab-pane key="drugs" tab="用药记录">
-          <a-table
+          <PatientDataTableTab
+            v-if="activeTab === 'drugs'"
             :columns="drugColumns"
-            :data-source="drugs"
-            size="small"
-            :pagination="{ pageSize: 8 }"
+            :rows="drugs"
             row-key="_id"
           />
         </a-tab-pane>
 
         <a-tab-pane key="assess" tab="护理评估">
-          <a-table
+          <PatientDataTableTab
+            v-if="activeTab === 'assess'"
             :columns="assessmentColumns"
-            :data-source="assessments"
-            size="small"
-            :pagination="{ pageSize: 8 }"
+            :rows="assessments"
             row-key="time"
           />
         </a-tab-pane>
 
         <a-tab-pane key="alerts" tab="预警历史">
-          <div v-if="latestCompositeAlert" class="modi-panel">
-            <div class="modi-head">
-              <div>
-                <div class="modi-title">多器官恶化指数 (MODI)</div>
-                <div class="modi-sub">
-                  {{ fmtTime(latestCompositeAlert.created_at) || '时间未知' }} · 最近{{ latestCompositeWindowHours }}h
-                </div>
-              </div>
-              <div class="modi-kpi-group">
-                <div class="modi-kpi">
-                  <span>MODI</span>
-                  <strong>{{ latestCompositeModi ?? '—' }}</strong>
-                </div>
-                <div class="modi-kpi">
-                  <span>器官系统</span>
-                  <strong>{{ latestCompositeOrganCount }}</strong>
-                </div>
-              </div>
-            </div>
-            <div class="modi-organs">{{ latestCompositeInvolvedText }}</div>
-            <div class="modi-chart">
-              <DetailChart :option="compositeRadarOption" autoresize />
-            </div>
-          </div>
-          <div v-if="alerts.length" class="alert-feed">
-            <article
-              v-for="(item, idx) in alerts"
-              :key="item._id || item.created_at || idx"
-              :class="['alert-card', `sev-${normalizeSeverity(item.severity)}`]"
-            >
-              <div class="alert-rail">
-                <span :class="['alert-dot', `sev-${normalizeSeverity(item.severity)}`]"></span>
-                <span v-if="idx < alerts.length - 1" class="alert-line"></span>
-              </div>
-
-              <div class="alert-body">
-                <div class="alert-head">
-                  <div class="alert-title-row">
-                    <h4 class="alert-title">{{ item.name || item.rule_id || '预警' }}</h4>
-                    <span :class="['alert-pill', `sev-${normalizeSeverity(item.severity)}`]">
-                      {{ alertSeverityText(item.severity) }}
-                    </span>
-                  </div>
-                  <div class="alert-value">{{ formatAlertValue(item) }}</div>
-                </div>
-
-                <div class="alert-meta">
-                  <span>{{ fmtTime(item.created_at) || '时间未知' }}</span>
-                  <span v-if="item.alert_type">{{ alertTypeText(item.alert_type) }}</span>
-                  <span v-if="item.category">{{ alertCategoryText(item.category) }}</span>
-                </div>
-
-                <div
-                  v-if="item.parameter || item.condition?.operator || item.condition?.threshold"
-                  class="alert-rule"
-                >
-                  {{ item.parameter || '参数' }}
-                  {{ item.condition?.operator || '' }}
-                  {{ item.condition?.threshold || '' }}
-                </div>
-
-                <div v-if="alertDetailFields(item).length" class="alert-detail-grid">
-                  <div v-for="f in alertDetailFields(item)" :key="f.label" class="alert-detail-item">
-                    <span class="detail-label">{{ f.label }}</span>
-                    <span class="detail-value">{{ f.value ?? '—' }}</span>
-                  </div>
-                </div>
-                <div v-if="isAiRiskAlert(item)" class="ai-risk-panel">
-                  <div class="ai-risk-head">
-                    <div :class="['ai-risk-summary', aiConfidenceClass(aiRiskConfidenceLevel(item))]">
-                      <strong>{{ item.extra?.primary_risk || item.name || 'AI综合风险' }}</strong>
-                      <span>风险等级 {{ aiRiskLevelText(item.extra?.risk_level || item.condition?.risk_level || item.value) }}</span>
-                      <span v-if="item.ai_feedback?.outcome">反馈 {{ feedbackOutcomeText(item.ai_feedback.outcome) }}</span>
-                    </div>
-                    <div class="ai-risk-feedback">
-                      <a-button size="small" @click="submitAiFeedback(item, 'confirmed')">采纳</a-button>
-                      <a-button size="small" @click="submitAiFeedback(item, 'dismissed')">忽略</a-button>
-                      <a-button size="small" danger ghost @click="submitAiFeedback(item, 'inaccurate')">不准确</a-button>
-                    </div>
-                  </div>
-
-                  <div v-if="aiRiskOrganRows(item).length" class="ai-risk-organ-grid">
-                    <div
-                      v-for="row in aiRiskOrganRows(item)"
-                      :key="row.key"
-                      :class="['ai-risk-organ', aiConfidenceClass(row.confidence_level)]"
-                    >
-                      <div class="ai-risk-organ-top">
-                        <span class="ai-risk-organ-name">{{ row.label }}</span>
-                        <span class="ai-risk-organ-status">{{ row.status_text }}</span>
-                      </div>
-                      <div class="ai-risk-organ-evidence">{{ row.evidence || '未见证据' }}</div>
-                      <div class="ai-risk-organ-conf">置信度 {{ row.confidence_level }}</div>
-                    </div>
-                  </div>
-
-                  <div v-if="aiRiskValidationIssues(item).length" class="ai-risk-section">
-                    <div class="ai-risk-section-title">安全校验</div>
-                    <ul class="ai-risk-list ai-risk-list-warning">
-                      <li v-for="(issue, issueIdx) in aiRiskValidationIssues(item)" :key="issueIdx">
-                        {{ issue.message || issue.type || '存在校验问题' }}
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div v-if="aiRiskHallucinations(item).length" class="ai-risk-section">
-                    <div class="ai-risk-section-title">幻觉检测</div>
-                    <ul class="ai-risk-list ai-risk-list-hallucination">
-                      <li
-                        v-for="(flag, flagIdx) in aiRiskHallucinations(item)"
-                        :key="flagIdx"
-                        :class="['hallucination-pill', `hallucination-${flag.level || 'warning'}`]"
-                      >
-                        {{ flag.metric || '指标' }}: 输出 {{ flag.claimed }} / 实测 {{ flag.observed }}
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div v-if="aiRiskEvidenceList(item).length" class="ai-risk-section">
-                    <div class="ai-risk-section-title">证据脚注</div>
-                    <ol class="ai-risk-evidence-list">
-                      <li v-for="(evidence, evidenceIdx) in aiRiskEvidenceList(item)" :key="evidence.chunk_id || evidenceIdx">
-                        <a-popover placement="topLeft">
-                          <template #content>
-                            <div class="ai-evidence-popover">
-                              <div><strong>{{ evidence.source || '指南证据' }}</strong></div>
-                              <div v-if="evidence.recommendation">{{ evidence.recommendation }}</div>
-                              <div class="ai-evidence-quote">{{ evidence.quote || '暂无原文片段' }}</div>
-                            </div>
-                          </template>
-                          <a class="ai-evidence-link" @click.prevent="openEvidence(evidence)">
-                            [{{ evidenceIdx + 1 }}] {{ evidence.source || '未知来源' }}<span v-if="evidence.recommendation"> · {{ evidence.recommendation }}</span>
-                          </a>
-                        </a-popover>
-                      </li>
-                    </ol>
-                  </div>
-
-                  <div v-if="aiRiskExplainabilityRows(item).length" class="ai-risk-section">
-                    <div class="ai-risk-section-title">归因解释</div>
-                    <ul class="ai-risk-list">
-                      <li v-for="(factor, factorIdx) in aiRiskExplainabilityRows(item)" :key="factorIdx">
-                        {{ factor.factor }}<span v-if="factor.weight != null"> ({{ Math.round(Number(factor.weight || 0) * 100) }}%)</span>
-                        <span v-if="factor.evidence">：{{ factor.evidence }}</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <pre v-else-if="item.extra" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
-              </div>
-            </article>
-          </div>
-          <div v-if="!alerts.length" class="tab-empty">暂无预警记录</div>
+          <PatientAlertsTab
+            v-if="activeTab === 'alerts'"
+            :latest-composite-alert="latestCompositeAlert"
+            :latest-composite-window-hours="latestCompositeWindowHours"
+            :latest-composite-modi="latestCompositeModi"
+            :latest-composite-organ-count="latestCompositeOrganCount"
+            :latest-composite-involved-text="latestCompositeInvolvedText"
+            :composite-radar-option="compositeRadarOption"
+            :alerts="alerts"
+            :fmt-time="fmtTime"
+            :normalize-severity="normalizeSeverity"
+            :alert-severity-text="alertSeverityText"
+            :format-alert-value="formatAlertValue"
+            :alert-type-text="alertTypeText"
+            :alert-category-text="alertCategoryText"
+            :alert-detail-fields="alertDetailFields"
+            :is-ai-risk-alert="isAiRiskAlert"
+            :ai-confidence-class="aiConfidenceClass"
+            :ai-risk-confidence-level="aiRiskConfidenceLevel"
+            :ai-risk-level-text="aiRiskLevelText"
+            :feedback-outcome-text="feedbackOutcomeText"
+            :submit-ai-feedback="submitAiFeedback"
+            :ai-risk-organ-rows="aiRiskOrganRows"
+            :ai-risk-validation-issues="aiRiskValidationIssues"
+            :ai-risk-hallucinations="aiRiskHallucinations"
+            :ai-risk-evidence-list="aiRiskEvidenceList"
+            :open-evidence="openEvidence"
+            :ai-risk-explainability-rows="aiRiskExplainabilityRows"
+            :format-alert-extra="formatAlertExtra"
+          />
         </a-tab-pane>
 
         <a-tab-pane key="ai" tab="AI辅助">
-          <div class="ai-grid">
-            <a-card title="检验异常摘要" :bordered="false" class="ai-card">
-              <div class="ai-card-head">
-                <span class="ai-card-note">进入详情自动生成</span>
-                <a-button size="small" type="link" :loading="aiLabLoading" @click="loadAiLab">重新生成</a-button>
-              </div>
-              <a-spin :spinning="aiLabLoading">
-                <div v-if="aiLabSummary" class="ai-rich" v-html="renderAiRichText(aiLabSummary)"></div>
-                <div v-else class="ai-empty">暂无内容</div>
-              </a-spin>
-              <div v-if="aiLabError" class="ai-error">{{ aiLabError }}</div>
-            </a-card>
-            <a-card title="规则推荐" :bordered="false" class="ai-card">
-              <div class="ai-card-head">
-                <span class="ai-card-note">进入详情自动生成</span>
-                <a-button size="small" type="link" :loading="aiRuleLoading" @click="loadAiRules">重新生成</a-button>
-              </div>
-              <a-spin :spinning="aiRuleLoading">
-                <div v-if="aiRuleRows.length" class="ai-rule-wrap">
-                  <a-table
-                    size="small"
-                    class="ai-rule-table"
-                    :columns="aiRuleColumns"
-                    :data-source="aiRuleRows"
-                    :pagination="{ pageSize: 8, hideOnSinglePage: true }"
-                    :scroll="{ x: 920 }"
-                    row-key="key"
-                  />
-                </div>
-                <div v-else-if="aiRuleText" class="ai-rich" v-html="renderAiRichText(aiRuleText)"></div>
-                <div v-else class="ai-empty">暂无内容</div>
-              </a-spin>
-              <div v-if="aiRuleError" class="ai-error">{{ aiRuleError }}</div>
-            </a-card>
-            <a-card title="恶化风险预测" :bordered="false" class="ai-card">
-              <div class="ai-card-head">
-                <span class="ai-card-note">进入详情自动生成</span>
-                <a-button size="small" type="link" :loading="aiRiskLoading" @click="loadAiRisk">重新生成</a-button>
-              </div>
-              <a-spin :spinning="aiRiskLoading">
-                <div v-if="latestAiRiskAlert" :class="['ai-risk-card', aiConfidenceClass(aiRiskConfidenceLevel(latestAiRiskAlert))]">
-                  <p><strong>主要风险:</strong> {{ latestAiRiskAlert.extra?.primary_risk || latestAiRiskAlert.name || '综合风险' }}</p>
-                  <p><strong>风险等级:</strong> {{ aiRiskLevelText(latestAiRiskAlert.extra?.risk_level || latestAiRiskAlert.condition?.risk_level || latestAiRiskAlert.value) }}</p>
-                  <p><strong>安全校验:</strong> {{ latestAiRiskAlert.extra?.safety_validation?.status || 'ok' }}</p>
-                  <p v-if="aiRiskEvidenceList(latestAiRiskAlert).length">
-                    <strong>证据脚注:</strong>
-                    <span
-                      v-for="(evidence, idx) in aiRiskEvidenceList(latestAiRiskAlert)"
-                      :key="evidence.chunk_id || idx"
-                      class="ai-evidence-inline"
-                    >
-                      <a-popover placement="topLeft">
-                        <template #content>
-                          <div class="ai-evidence-popover">
-                            <div><strong>{{ evidence.source || '指南证据' }}</strong></div>
-                            <div v-if="evidence.recommendation">{{ evidence.recommendation }}</div>
-                            <div class="ai-evidence-quote">{{ evidence.quote || '暂无原文片段' }}</div>
-                          </div>
-                        </template>
-                        <a class="ai-evidence-link" @click.prevent="openEvidence(evidence)">
-                          [{{ idx + 1 }}]
-                        </a>
-                      </a-popover>
-                    </span>
-                  </p>
-                  <p v-if="aiRiskHallucinations(latestAiRiskAlert).length" class="handoff-warning">
-                    幻觉检测提示 {{ aiRiskHallucinations(latestAiRiskAlert).length }} 条
-                  </p>
-                </div>
-                <div v-else-if="aiRiskText" class="ai-rich" v-html="renderAiRichText(aiRiskText)"></div>
-                <div v-else class="ai-empty">暂无内容</div>
-              </a-spin>
-              <div v-if="aiRiskError" class="ai-error">{{ aiRiskError }}</div>
-            </a-card>
-            <a-card title="交班摘要(I-PASS)" :bordered="false" class="ai-card">
-              <div class="ai-card-head">
-                <span class="ai-card-note">最近12h自动归纳</span>
-                <div>
-                  <a-button size="small" type="link" :loading="aiHandoffLoading" @click="loadAiHandoff">重新生成</a-button>
-                  <a-button size="small" type="link" :disabled="!aiHandoff" @click="copyHandoffSummary">复制</a-button>
-                </div>
-              </div>
-              <a-spin :spinning="aiHandoffLoading">
-                <div v-if="aiHandoff" :class="['handoff-wrap', aiConfidenceClass(aiHandoffConfidence)]">
-                  <p><strong>Illness severity:</strong> {{ aiHandoff.illness_severity || 'watcher' }}</p>
-                  <p><strong>Patient summary:</strong> {{ aiHandoff.patient_summary || '—' }}</p>
-                  <p><strong>Action list:</strong> {{ normalizeList(aiHandoff.action_list).join('；') || '—' }}</p>
-                  <p><strong>Situation awareness:</strong> {{ normalizeList(aiHandoff.situation_awareness).join('；') || '—' }}</p>
-                  <p><strong>Synthesis:</strong> {{ aiHandoff.synthesis_by_receiver || '—' }}</p>
-                  <p><strong>Confidence:</strong> {{ aiHandoff.confidence_level || 'low' }}</p>
-                  <p v-if="aiHandoff?.validation?.issues?.length" class="handoff-warning">
-                    数值校验告警 {{ aiHandoff.validation.issues.length }} 条
-                  </p>
-                </div>
-                <div v-else class="ai-empty">暂无内容</div>
-              </a-spin>
-              <div v-if="aiHandoffError" class="ai-error">{{ aiHandoffError }}</div>
-            </a-card>
-            <a-card title="离线知识包" :bordered="false" class="ai-card">
-                <div class="ai-card-head">
-                  <span class="ai-card-note">内网离线知识证据浏览</span>
-                  <div>
-                    <a-button size="small" type="link" :loading="knowledgeLoading" @click="loadKnowledgeDocs">刷新列表</a-button>
-                    <a-button size="small" type="link" :loading="knowledgeLoading" @click="handleReloadKnowledge">热更新</a-button>
-                  </div>
-                </div>
-                <a-spin :spinning="knowledgeLoading">
-                  <div v-if="knowledgeDocs.length" class="kb-browser">
-                    <div v-if="knowledgeStatus" class="kb-status">
-                      <span>{{ knowledgeStatus.package_name || '离线知识包' }}</span>
-                      <span v-if="knowledgeStatus.package_version">v{{ knowledgeStatus.package_version }}</span>
-                      <span>文档 {{ knowledgeStatus.document_count ?? 0 }}</span>
-                      <span>院内SOP {{ knowledgeStatus.institutional_document_count ?? 0 }}</span>
-                    </div>
-                    <a-select
-                      v-model:value="selectedKnowledgeDocId"
-                      size="small"
-                    style="width: 100%; margin-bottom: 8px;"
-                    placeholder="选择离线文档"
-                    @change="loadKnowledgeDocument"
-                  >
-                    <a-select-option v-for="doc in knowledgeDocs" :key="doc.doc_id" :value="doc.doc_id">
-                      {{ doc.title }} · P{{ doc.priority ?? 0 }}
-                    </a-select-option>
-                  </a-select>
-                    <div v-if="selectedKnowledgeDoc" class="kb-doc-meta">
-                      <p><strong>来源:</strong> {{ selectedKnowledgeDoc.source || '本地知识库' }}</p>
-                      <p><strong>知识包:</strong> {{ selectedKnowledgeDoc.package_name || '离线知识包' }} <span v-if="selectedKnowledgeDoc.package_version">v{{ selectedKnowledgeDoc.package_version }}</span></p>
-                      <p><strong>作用域:</strong> {{ knowledgeScopeText(selectedKnowledgeDoc.scope) }}<span v-if="selectedKnowledgeDoc.overridden" class="kb-overridden"> · 已被 {{ selectedKnowledgeDoc.overridden_by }} 覆盖</span></p>
-                      <p><strong>优先级:</strong> {{ selectedKnowledgeDoc.priority ?? '—' }}</p>
-                      <p v-if="selectedKnowledgeDoc.local_ref"><strong>离线路径:</strong> <code>{{ selectedKnowledgeDoc.local_ref }}</code></p>
-                    </div>
-                  <div v-if="selectedKnowledgeDoc?.chunks?.length" class="kb-chunk-list">
-                    <div
-                      v-for="chunk in selectedKnowledgeDoc.chunks"
-                      :key="chunk.chunk_id"
-                      class="kb-chunk-item"
-                    >
-                      <div class="kb-chunk-title">
-                        {{ chunk.recommendation || chunk.section_title || chunk.chunk_id }}
-                        <span v-if="chunk.recommendation_grade">· {{ chunk.recommendation_grade }}</span>
-                      </div>
-                      <div class="kb-chunk-content">{{ chunk.content }}</div>
-                    </div>
-                  </div>
-                  <div v-else class="ai-empty">暂无章节内容</div>
-                </div>
-                <div v-else class="ai-empty">暂无离线知识文档</div>
-              </a-spin>
-              <div v-if="knowledgeError" class="ai-error">{{ knowledgeError }}</div>
-            </a-card>
-          </div>
+          <PatientAiTab
+            v-if="activeTab === 'ai'"
+            :ai-lab-loading="aiLabLoading"
+            :ai-lab-summary="aiLabSummary"
+            :load-ai-lab="loadAiLab"
+            :render-ai-rich-text="renderAiRichText"
+            :ai-lab-error="aiLabError"
+            :ai-rule-loading="aiRuleLoading"
+            :load-ai-rules="loadAiRules"
+            :ai-rule-rows="aiRuleRows"
+            :ai-rule-columns="aiRuleColumns"
+            :ai-rule-text="aiRuleText"
+            :ai-rule-error="aiRuleError"
+            :ai-risk-loading="aiRiskLoading"
+            :load-ai-risk="loadAiRisk"
+            :latest-ai-risk-alert="latestAiRiskAlert"
+            :ai-confidence-class="aiConfidenceClass"
+            :ai-risk-confidence-level="aiRiskConfidenceLevel"
+            :ai-risk-level-text="aiRiskLevelText"
+            :ai-risk-evidence-list="aiRiskEvidenceList"
+            :open-evidence="openEvidence"
+            :ai-risk-hallucinations="aiRiskHallucinations"
+            :ai-risk-text="aiRiskText"
+            :ai-risk-error="aiRiskError"
+            :ai-handoff-loading="aiHandoffLoading"
+            :load-ai-handoff="loadAiHandoff"
+            :copy-handoff-summary="copyHandoffSummary"
+            :ai-handoff="aiHandoff"
+            :ai-handoff-confidence="aiHandoffConfidence"
+            :normalize-list="normalizeList"
+            :ai-handoff-error="aiHandoffError"
+            :knowledge-loading="knowledgeLoading"
+            :load-knowledge-docs="loadKnowledgeDocs"
+            :handle-reload-knowledge="handleReloadKnowledge"
+            :knowledge-docs="knowledgeDocs"
+            :knowledge-status="knowledgeStatus"
+            :selected-knowledge-doc-id="selectedKnowledgeDocId"
+            :load-knowledge-document="loadKnowledgeDocument"
+            :selected-knowledge-doc="selectedKnowledgeDoc"
+            :knowledge-scope-text="knowledgeScopeText"
+            :knowledge-error="knowledgeError"
+          />
         </a-tab-pane>
       </a-tabs>
     </a-card>
 
-    <a-modal
+    <PatientEvidenceModal
+      v-if="evidenceModalOpen"
       v-model:open="evidenceModalOpen"
-      :title="evidenceModal.title || '离线指南证据'"
-      width="860px"
-      :footer="null"
-    >
-      <div class="evidence-modal">
-        <p><strong>来源:</strong> {{ evidenceModal.source || '本地知识库' }}</p>
-        <p v-if="evidenceModal.package_name"><strong>知识包:</strong> {{ evidenceModal.package_name }} <span v-if="evidenceModal.package_version">v{{ evidenceModal.package_version }}</span></p>
-        <p v-if="evidenceModal.category"><strong>类型:</strong> {{ evidenceModal.category }}</p>
-        <p v-if="evidenceModal.owner"><strong>维护方:</strong> {{ evidenceModal.owner }}</p>
-        <p v-if="evidenceModal.updated_at"><strong>更新时间:</strong> {{ evidenceModal.updated_at }}</p>
-        <p v-if="evidenceModal.priority != null"><strong>优先级:</strong> {{ evidenceModal.priority }}</p>
-        <p v-if="evidenceModal.local_ref"><strong>离线路径:</strong> <code>{{ evidenceModal.local_ref }}</code></p>
-        <p v-if="evidenceModal.recommendation"><strong>推荐:</strong> {{ evidenceModal.recommendation }}</p>
-        <p v-if="evidenceModal.recommendation_grade"><strong>等级:</strong> {{ evidenceModal.recommendation_grade }}</p>
-        <p v-if="evidenceModal.section_title"><strong>章节:</strong> {{ evidenceModal.section_title }}</p>
-        <p v-if="evidenceModal.tags?.length"><strong>标签:</strong> {{ evidenceModal.tags.join('、') }}</p>
-        <div class="evidence-modal-content">{{ evidenceModal.content || '暂无内容' }}</div>
-        <div v-if="evidenceModal.related_chunks?.length" class="evidence-modal-related">
-          <div class="ai-risk-section-title">同来源离线片段</div>
-          <ul class="ai-risk-evidence-list">
-            <li v-for="(chunk, idx) in evidenceModal.related_chunks" :key="chunk.chunk_id || idx">
-              <a class="ai-evidence-link" @click.prevent="openEvidence(chunk)">{{ chunk.recommendation || chunk.title || chunk.chunk_id }}</a>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </a-modal>
+      :modal="evidenceModal"
+      :open-evidence="openEvidence"
+    />
   </div>
 </template>
 
@@ -483,21 +181,10 @@ import { ref, computed, defineAsyncComponent, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import {
-  Button as AButton,
   Card as ACard,
-  Modal as AModal,
   PageHeader as APageHeader,
-  Popover as APopover,
-  RadioButton as ARadioButton,
-  RadioGroup as ARadioGroup,
-  Select as ASelect,
-  SelectOption as ASelectOption,
-  Spin as ASpin,
   TabPane as ATabPane,
-  Table as ATable,
   Tabs as ATabs,
-  Timeline as ATimeline,
-  TimelineItem as ATimelineItem,
   message,
 } from 'ant-design-vue'
 import {
@@ -520,11 +207,12 @@ import {
   reloadKnowledge,
 } from '../api'
 
-const DetailChart = defineAsyncComponent(async () => {
-  await import('../charts/patient-detail')
-  const mod = await import('vue-echarts')
-  return mod.default
-})
+const PatientTrendTab = defineAsyncComponent(() => import('../components/patient-detail/TrendTab.vue'))
+const PatientLabsTab = defineAsyncComponent(() => import('../components/patient-detail/LabsTab.vue'))
+const PatientDataTableTab = defineAsyncComponent(() => import('../components/patient-detail/DataTableTab.vue'))
+const PatientAlertsTab = defineAsyncComponent(() => import('../components/patient-detail/AlertsTab.vue'))
+const PatientAiTab = defineAsyncComponent(() => import('../components/patient-detail/AiTab.vue'))
+const PatientEvidenceModal = defineAsyncComponent(() => import('../components/patient-detail/EvidenceModal.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -2659,28 +2347,6 @@ onMounted(() => {
   white-space: pre-wrap;
   line-height: 1.6;
 }
-.evidence-modal {
-  display: grid;
-  gap: 10px;
-}
-.evidence-modal p {
-  margin: 0;
-  color: #334155;
-}
-.evidence-modal-content {
-  white-space: pre-wrap;
-  line-height: 1.7;
-  max-height: 52vh;
-  overflow: auto;
-  background: #f8fbff;
-  border: 1px solid #dce7f5;
-  border-radius: 8px;
-  padding: 12px;
-  color: #334155;
-}
-.evidence-modal-related {
-  margin-top: 4px;
-}
 .ai-risk-card {
   display: grid;
   gap: 8px;
@@ -2987,11 +2653,6 @@ onMounted(() => {
 }
 :global(html[data-theme='light']) .ai-evidence-link {
   color: #2563eb;
-}
-:global(html[data-theme='light']) .evidence-modal-content {
-  background: #f8fbff;
-  border-color: #dce7f5;
-  color: #334155;
 }
 :global(html[data-theme='light']) .ai-card {
   background: #ffffff;
