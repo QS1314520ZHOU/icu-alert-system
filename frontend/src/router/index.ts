@@ -20,6 +20,12 @@ const router = createRouter({
       name: 'bigscreen',
       component: () => import('../views/BigScreen.vue'),
       meta: { title: '护士站大屏' }
+    },
+    {
+      path: '/analytics',
+      name: 'analytics',
+      component: () => import('../views/Analytics.vue'),
+      meta: { title: '历史预警分析' }
     }
   ]
 })

@@ -6,6 +6,12 @@ const api = axios.create({
   timeout: 10000,
 })
 
+// AI 调用可能耗时较长，单独加长超时
+const aiApi = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
+  timeout: 90000,
+})
+
 // 获取科室列表
 export const getDepartments = () => api.get('/api/departments')
 
@@ -42,24 +48,48 @@ export const getPatientAlerts = (patientId: string) =>
   api.get(`/api/patients/${patientId}/alerts`)
 
 // 获取最近预警
-export const getRecentAlerts = (limit = 50) =>
-  api.get('/api/alerts/recent', { params: { limit } })
+export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string }) =>
+  api.get('/api/alerts/recent', { params: { limit, ...(params || {}) } })
 
 // 获取预警统计
 export const getAlertStats = (window = '24h') =>
   api.get('/api/alerts/stats', { params: { window } })
 
+// Analytics: 预警频率
+export const getAlertAnalyticsFrequency = (params?: {
+  window?: string
+  bucket?: 'hour' | 'day'
+  dept?: string
+  dept_code?: string
+}) => api.get('/api/alerts/analytics/frequency', { params })
+
+// Analytics: 规则热力图
+export const getAlertAnalyticsHeatmap = (params?: {
+  window?: string
+  top_n?: number
+  dept?: string
+  dept_code?: string
+}) => api.get('/api/alerts/analytics/heatmap', { params })
+
+// Analytics: 科室/床位排名
+export const getAlertAnalyticsRankings = (params?: {
+  window?: string
+  top_n?: number
+  dept?: string
+  dept_code?: string
+}) => api.get('/api/alerts/analytics/rankings', { params })
+
 // AI: 检验摘要
 export const getAiLabSummary = (patientId: string) =>
-  api.get(`/api/ai/lab-summary/${patientId}`)
+  aiApi.get(`/api/ai/lab-summary/${patientId}`)
 
 // AI: 规则推荐
 export const getAiRuleRecommendations = (patientId: string) =>
-  api.get(`/api/ai/rule-recommendations/${patientId}`)
+  aiApi.get(`/api/ai/rule-recommendations/${patientId}`)
 
 // AI: 风险预测
 export const getAiRiskForecast = (patientId: string) =>
-  api.get(`/api/ai/risk-forecast/${patientId}`)
+  aiApi.get(`/api/ai/risk-forecast/${patientId}`)
 
 // 健康检查
 export const healthCheck = () => api.get('/health')

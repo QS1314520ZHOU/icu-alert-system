@@ -566,6 +566,47 @@ def _infer_device_type(name: str | None) -> str | None:
     return None
 
 
+def _window_to_hours(window: str, default: int = 168) -> int:
+    v = str(window or "").strip().lower()
+    if not v:
+        return default
+    fixed = {
+        "6h": 6,
+        "12h": 12,
+        "24h": 24,
+        "48h": 48,
+        "72h": 72,
+        "7d": 168,
+        "14d": 336,
+        "30d": 720,
+    }
+    if v in fixed:
+        return fixed[v]
+    m = re.match(r"^(\d+)\s*([hd])$", v)
+    if not m:
+        return default
+    num = int(m.group(1))
+    unit = m.group(2)
+    if unit == "h":
+        return max(1, min(num, 24 * 90))
+    return max(24, min(num * 24, 24 * 180))
+
+
+def _bucket_dt_format(bucket: str) -> tuple[str, str]:
+    b = str(bucket or "").strip().lower()
+    if b == "day":
+        return "day", "%Y-%m-%d"
+    return "hour", "%Y-%m-%d %H:00"
+
+
+def _severity_projection() -> dict:
+    return {
+        "warning": {"$sum": {"$cond": [{"$eq": ["$severity", "warning"]}, 1, 0]}},
+        "high": {"$sum": {"$cond": [{"$eq": ["$severity", "high"]}, 1, 0]}},
+        "critical": {"$sum": {"$cond": [{"$eq": ["$severity", "critical"]}, 1, 0]}},
+    }
+
+
 def _device_type_match(name: str | None, prefer_type: str | None) -> bool:
     if not prefer_type:
         return True
@@ -1416,6 +1457,213 @@ async def alert_stats(window: str = Query("24h")):
 
     series = sorted(results.values(), key=lambda x: x["time"])
     return {"code": 0, "series": series}
+
+
+# =============================================
+# 预警统计分析（质控 Analytics）
+# =============================================
+@app.get("/api/alerts/analytics/frequency")
+async def alerts_analytics_frequency(
+    window: str = Query("7d", description="时间窗口: 24h/7d/30d 或 12h/14d"),
+    bucket: str = Query("hour", description="聚合粒度: hour/day"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    """按时间维度统计预警触发频率"""
+    hours = _window_to_hours(window, default=168)
+    bucket_norm, fmt = _bucket_dt_format(bucket)
+    since = datetime.utcnow() - timedelta(hours=hours)
+
+    query: dict = {"created_at": {"$gte": since}}
+    if dept:
+        query["dept"] = dept
+    if dept_code:
+        query["deptCode"] = dept_code
+
+    col = db.col("alert_records")
+    pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": {
+                "time": {"$dateToString": {"format": fmt, "date": "$created_at"}},
+                "severity": "$severity",
+            },
+            "count": {"$sum": 1},
+        }},
+        {"$sort": {"_id.time": 1}},
+    ]
+
+    timeline: dict[str, dict] = {}
+    cursor = await col.aggregate(pipeline)
+    async for doc in cursor:
+        t = str(doc.get("_id", {}).get("time") or "")
+        if not t:
+            continue
+        sev = str(doc.get("_id", {}).get("severity") or "")
+        cnt = int(doc.get("count", 0) or 0)
+        if t not in timeline:
+            timeline[t] = {"time": t, "total": 0, "warning": 0, "high": 0, "critical": 0}
+        timeline[t]["total"] += cnt
+        if sev in ("warning", "high", "critical"):
+            timeline[t][sev] += cnt
+
+    series = sorted(timeline.values(), key=lambda x: x["time"])
+    return {
+        "code": 0,
+        "window": window,
+        "bucket": bucket_norm,
+        "series": series,
+    }
+
+
+@app.get("/api/alerts/analytics/heatmap")
+async def alerts_analytics_heatmap(
+    window: str = Query("7d", description="时间窗口"),
+    top_n: int = Query(12, ge=3, le=30, description="规则类型数量"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    """按规则类型+小时分布生成热力图"""
+    hours = _window_to_hours(window, default=168)
+    since = datetime.utcnow() - timedelta(hours=hours)
+    match_query: dict = {"created_at": {"$gte": since}}
+    if dept:
+        match_query["dept"] = dept
+    if dept_code:
+        match_query["deptCode"] = dept_code
+
+    col = db.col("alert_records")
+    rule_expr = {"$ifNull": ["$alert_type", {"$ifNull": ["$category", {"$ifNull": ["$rule_id", "unknown"]}]}]}
+
+    pipeline_top = [
+        {"$match": match_query},
+        {"$group": {"_id": rule_expr, "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": top_n},
+    ]
+    top_rules: list[str] = []
+    cursor_top = await col.aggregate(pipeline_top)
+    async for doc in cursor_top:
+        top_rules.append(str(doc.get("_id") or "unknown"))
+
+    if not top_rules:
+        return {
+            "code": 0,
+            "window": window,
+            "x_labels": [f"{h:02d}" for h in range(24)],
+            "y_labels": [],
+            "data": [],
+        }
+
+    pipeline = [
+        {"$match": match_query},
+        {"$project": {
+            "rule_type": rule_expr,
+            "hour": {"$hour": "$created_at"},
+        }},
+        {"$match": {"rule_type": {"$in": top_rules}}},
+        {"$group": {
+            "_id": {"rule_type": "$rule_type", "hour": "$hour"},
+            "count": {"$sum": 1},
+        }},
+    ]
+
+    heatmap_data: list[list[int]] = []
+    y_index = {rule: idx for idx, rule in enumerate(top_rules)}
+    cursor = await col.aggregate(pipeline)
+    async for doc in cursor:
+        obj = doc.get("_id", {})
+        rule = str(obj.get("rule_type") or "unknown")
+        hour = int(obj.get("hour", 0) or 0)
+        count = int(doc.get("count", 0) or 0)
+        if rule not in y_index or hour < 0 or hour > 23:
+            continue
+        heatmap_data.append([hour, y_index[rule], count])
+
+    return {
+        "code": 0,
+        "window": window,
+        "x_labels": [f"{h:02d}" for h in range(24)],
+        "y_labels": top_rules,
+        "data": heatmap_data,
+    }
+
+
+@app.get("/api/alerts/analytics/rankings")
+async def alerts_analytics_rankings(
+    window: str = Query("7d", description="时间窗口"),
+    top_n: int = Query(10, ge=3, le=30, description="排名数量"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    """按科室/床位统计高频预警来源"""
+    hours = _window_to_hours(window, default=168)
+    since = datetime.utcnow() - timedelta(hours=hours)
+    match_query: dict = {"created_at": {"$gte": since}}
+    if dept:
+        match_query["dept"] = dept
+    if dept_code:
+        match_query["deptCode"] = dept_code
+
+    col = db.col("alert_records")
+
+    dept_pipeline = [
+        {"$match": match_query},
+        {"$group": {
+            "_id": {"$ifNull": ["$dept", "未知科室"]},
+            "count": {"$sum": 1},
+            **_severity_projection(),
+        }},
+        {"$sort": {"count": -1}},
+        {"$limit": top_n},
+    ]
+
+    dept_rankings: list[dict] = []
+    dept_cursor = await col.aggregate(dept_pipeline)
+    async for doc in dept_cursor:
+        dept_rankings.append({
+            "dept": str(doc.get("_id") or "未知科室"),
+            "count": int(doc.get("count", 0) or 0),
+            "warning": int(doc.get("warning", 0) or 0),
+            "high": int(doc.get("high", 0) or 0),
+            "critical": int(doc.get("critical", 0) or 0),
+        })
+
+    bed_pipeline = [
+        {"$match": match_query},
+        {"$project": {
+            "dept": {"$ifNull": ["$dept", "未知科室"]},
+            "bed": {"$ifNull": ["$bed", "未标注床位"]},
+            "severity": "$severity",
+        }},
+        {"$group": {
+            "_id": {"dept": "$dept", "bed": "$bed"},
+            "count": {"$sum": 1},
+            **_severity_projection(),
+        }},
+        {"$sort": {"count": -1}},
+        {"$limit": top_n},
+    ]
+
+    bed_rankings: list[dict] = []
+    bed_cursor = await col.aggregate(bed_pipeline)
+    async for doc in bed_cursor:
+        key = doc.get("_id", {})
+        bed_rankings.append({
+            "dept": str(key.get("dept") or "未知科室"),
+            "bed": str(key.get("bed") or "未标注床位"),
+            "count": int(doc.get("count", 0) or 0),
+            "warning": int(doc.get("warning", 0) or 0),
+            "high": int(doc.get("high", 0) or 0),
+            "critical": int(doc.get("critical", 0) or 0),
+        })
+
+    return {
+        "code": 0,
+        "window": window,
+        "dept_rankings": dept_rankings,
+        "bed_rankings": bed_rankings,
+    }
 
 
 # =============================================

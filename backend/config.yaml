@@ -110,8 +110,12 @@ assessments:
 
 # ==================== AI配置 ====================
 ai_service:
+  max_patients: 30
+  suppression_seconds: 3600
   llm:
     timeout: 60
+    max_concurrency: 4
+    cache_ttl_seconds: 1800
     temperature: 0.1
     max_tokens: 4096
 
@@ -153,7 +157,7 @@ alert_engine:
 
   data_mapping:
     urine_output:
-      codes: ["param_urine", "param_尿量", "urine_output", "urine_ml_h"]
+      codes: ["param_urine", "param_尿量", "urine_output", "urine_ml_h", "param_udd_urine_total"]
     icp_codes: ["param_ICP", "param_icp"]
     cpp_codes: ["param_CPP", "param_cpp"]
 

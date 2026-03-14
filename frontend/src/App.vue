@@ -12,9 +12,19 @@
         <a-menu mode="horizontal" :selected-keys="[navKey]" :theme="themeMode === 'dark' ? 'dark' : 'light'" class="hdr-menu"
                 @click="({ key }: any) => onNav(key)">
           <a-menu-item key="overview">📋 患者总览</a-menu-item>
+          <a-menu-item key="analytics">📈 预警分析</a-menu-item>
           <a-menu-item key="bigscreen">🖥 护士站大屏</a-menu-item>
         </a-menu>
         <div class="hdr-tools">
+          <div class="theme-toggle">
+            <a-switch
+              size="small"
+              :checked="notifyEnabled"
+              checked-children="通知开"
+              un-checked-children="通知关"
+              @change="onNotifyToggle"
+            />
+          </div>
           <div class="theme-toggle" :title="themeMode === 'dark' ? '当前夜间模式' : '当前白天模式'">
             <span class="theme-lbl">🌞</span>
             <a-switch
@@ -38,22 +48,32 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { theme } from 'ant-design-vue'
+import {
+  getAlertNotifyEnabled,
+  requestAlertNotificationPermission,
+  setAlertNotifyEnabled,
+} from './services/alertSocket'
 
 const { darkAlgorithm, defaultAlgorithm } = theme
 const route = useRoute()
 const router = useRouter()
 const now = ref('')
 const themeMode = ref<'dark' | 'light'>('dark')
+const notifyEnabled = ref(false)
 let t: any
 const THEME_KEY = 'icu_theme_mode'
 
-const navKey = computed(() => route.path.startsWith('/bigscreen') ? 'bigscreen' : 'overview')
+const navKey = computed(() => {
+  if (route.path.startsWith('/bigscreen')) return 'bigscreen'
+  if (route.path.startsWith('/analytics')) return 'analytics'
+  return 'overview'
+})
 const themeConfig = computed(() => ({
   algorithm: themeMode.value === 'dark' ? darkAlgorithm : defaultAlgorithm,
 }))
 
 function onNav(key: string) {
-  const path = key === 'overview' ? '/' : '/bigscreen'
+  const path = key === 'overview' ? '/' : key === 'analytics' ? '/analytics' : '/bigscreen'
   router.push({ path, query: route.query })
 }
 
@@ -71,6 +91,22 @@ function onThemeToggle(checked: boolean) {
   themeMode.value = checked ? 'dark' : 'light'
 }
 
+function initNotify() {
+  notifyEnabled.value = getAlertNotifyEnabled()
+}
+
+async function onNotifyToggle(checked: boolean) {
+  if (!checked) {
+    notifyEnabled.value = false
+    setAlertNotifyEnabled(false)
+    return
+  }
+  const permission = await requestAlertNotificationPermission()
+  const ok = permission === 'granted'
+  notifyEnabled.value = ok
+  setAlertNotifyEnabled(ok)
+}
+
 function tick() {
   now.value = new Date().toLocaleString('zh-CN', {
     month: '2-digit', day: '2-digit',
@@ -85,6 +121,7 @@ watch(themeMode, (mode) => {
 
 onMounted(() => {
   initTheme()
+  initNotify()
   tick()
   t = setInterval(tick, 1000)
 })
@@ -141,5 +178,11 @@ onUnmounted(() => clearInterval(t))
   .hdr-menu { order: 3; width: 100%; flex: 0 0 100%; }
   .hdr-tools { margin-left: auto; }
   .hdr-clock { display: none; }
+}
+
+@media (max-width: 600px) {
+  .hdr-title { font-size: 13px; }
+  .hdr-icon { font-size: 16px; }
+  .theme-toggle { padding: 3px 6px; }
 }
 </style>

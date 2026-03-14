@@ -1492,4 +1492,36 @@ onMounted(() => {
     font-size: 16px;
   }
 }
+
+@media (max-width: 640px) {
+  .detail-page-header {
+    margin-bottom: 10px;
+  }
+  .tabs-card :deep(.ant-tabs-nav) {
+    overflow-x: auto;
+  }
+  .tabs-card :deep(.ant-tabs-nav-list) {
+    flex-wrap: nowrap;
+    width: max-content;
+  }
+  .tab-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .lab-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .alert-card {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .alert-rail {
+    display: none;
+  }
+  .alert-body {
+    padding: 10px 10px;
+  }
+}
 </style>

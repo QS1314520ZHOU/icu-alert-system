@@ -781,6 +781,35 @@ onUnmounted(() => {
   font-family: monospace;
 }
 
+@media (max-width: 960px) {
+  .overview { padding: 10px; }
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .summary-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .sum-block {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
+  }
+  .sum-divider {
+    display: none;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .card {
+    padding: 12px 12px 10px;
+  }
+}
+
 /* ===== Light Theme ===== */
 :global(html[data-theme='light']) .overview {
   background: #f4f7fb;
