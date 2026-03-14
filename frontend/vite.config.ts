@@ -12,17 +12,6 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return
-            if (id.includes('ant-design-vue') || id.includes('@ant-design')) {
-              const antId = id.toLowerCase()
-              if (
-                antId.includes('/config-provider') ||
-                antId.includes('/layout') ||
-                antId.includes('/menu') ||
-                antId.includes('/switch')
-              ) {
-                return 'vendor-antd-shell'
-              }
-            }
             if (id.includes('vue-router')) {
               return 'vendor-router'
             }

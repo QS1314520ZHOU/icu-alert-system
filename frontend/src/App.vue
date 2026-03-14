@@ -1,5 +1,5 @@
 <template>
-  <a-config-provider :theme="themeConfig">
+  <component :is="themeWrapperComponent" v-bind="themeWrapperProps">
     <div class="root" :class="`theme-${themeMode}`">
       <header class="hdr">
         <div class="hdr-l">
@@ -35,43 +35,65 @@
       </header>
       <main class="body"><router-view /></main>
     </div>
-  </a-config-provider>
+  </component>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  ConfigProvider as AConfigProvider,
-  theme,
-} from 'ant-design-vue'
-import {
-  getAlertNotifyEnabled,
-  requestAlertNotificationPermission,
-  setAlertNotifyEnabled,
-} from './services/alertSocket'
-
-const { darkAlgorithm, defaultAlgorithm } = theme
 const route = useRoute()
 const router = useRouter()
 const now = ref('')
 const themeMode = ref<'dark' | 'light'>('dark')
 const notifyEnabled = ref(false)
+const antTheme = ref<any>(null)
+const antThemeReady = ref(false)
+const themeWrapper = shallowRef<any>('div')
 let t: any
 const THEME_KEY = 'icu_theme_mode'
+let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> | null = null
 
 const navKey = computed(() => {
   if (route.path.startsWith('/bigscreen')) return 'bigscreen'
   if (route.path.startsWith('/analytics')) return 'analytics'
   return 'overview'
 })
-const themeConfig = computed(() => ({
-  algorithm: themeMode.value === 'dark' ? darkAlgorithm : defaultAlgorithm,
-}))
+const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
+const themeConfig = computed(() => {
+  if (!antThemeReady.value || !antTheme.value) return undefined
+  return {
+    algorithm: themeMode.value === 'dark'
+      ? antTheme.value.darkAlgorithm
+      : antTheme.value.defaultAlgorithm,
+  }
+})
+const themeWrapperComponent = computed(() =>
+  routeNeedsAntdTheme.value && antThemeReady.value ? themeWrapper.value : 'div'
+)
+const themeWrapperProps = computed(() =>
+  routeNeedsAntdTheme.value && antThemeReady.value && themeConfig.value
+    ? { theme: themeConfig.value }
+    : {}
+)
 
 function onNav(key: string) {
   const path = key === 'overview' ? '/' : key === 'analytics' ? '/analytics' : '/bigscreen'
   router.push({ path, query: route.query })
+}
+
+async function ensureAntdTheme() {
+  if (antThemeReady.value) return
+  const { ConfigProvider, theme } = await import('ant-design-vue')
+  themeWrapper.value = markRaw(ConfigProvider)
+  antTheme.value = theme
+  antThemeReady.value = true
+}
+
+function loadAlertSocketModule() {
+  if (!alertSocketModulePromise) {
+    alertSocketModulePromise = import('./services/alertSocket')
+  }
+  return alertSocketModulePromise
 }
 
 function applyTheme(mode: 'dark' | 'light') {
@@ -89,21 +111,23 @@ function onThemeToggle(checked: any) {
   themeMode.value = enabled ? 'dark' : 'light'
 }
 
-function initNotify() {
-  notifyEnabled.value = getAlertNotifyEnabled()
+async function initNotify() {
+  const mod = await loadAlertSocketModule()
+  notifyEnabled.value = mod.getAlertNotifyEnabled()
 }
 
 async function onNotifyToggle(checked: any) {
+  const mod = await loadAlertSocketModule()
   const enabled = checked === true || checked === 'true'
   if (!enabled) {
     notifyEnabled.value = false
-    setAlertNotifyEnabled(false)
+    mod.setAlertNotifyEnabled(false)
     return
   }
-  const permission = await requestAlertNotificationPermission()
+  const permission = await mod.requestAlertNotificationPermission()
   const ok = permission === 'granted'
   notifyEnabled.value = ok
-  setAlertNotifyEnabled(ok)
+  mod.setAlertNotifyEnabled(ok)
 }
 
 function tick() {
@@ -118,9 +142,13 @@ watch(themeMode, (mode) => {
   applyTheme(mode)
 })
 
+watch(routeNeedsAntdTheme, (needs) => {
+  if (needs) void ensureAntdTheme()
+}, { immediate: true })
+
 onMounted(() => {
   initTheme()
-  initNotify()
+  void initNotify()
   tick()
   t = setInterval(tick, 1000)
 })

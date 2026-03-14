@@ -13,7 +13,7 @@ const router = createRouter({
       path: '/patient/:id',
       name: 'patient-detail',
       component: () => import('../views/PatientDetail.vue'),
-      meta: { title: '患者详情' }
+      meta: { title: '患者详情', useAntdTheme: true }
     },
     {
       path: '/bigscreen',
@@ -25,7 +25,7 @@ const router = createRouter({
       path: '/analytics',
       name: 'analytics',
       component: () => import('../views/Analytics.vue'),
-      meta: { title: '历史预警分析' }
+      meta: { title: '历史预警分析', useAntdTheme: true }
     }
   ]
 })
