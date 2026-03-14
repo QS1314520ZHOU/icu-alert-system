@@ -55,10 +55,8 @@ class AiHandoffService:
         since = now - timedelta(hours=12)
 
         pid_list = [patient_id]
-        try:
-            pid_list.append(str(patient_doc.get("_id")))
-        except Exception:
-            pass
+        if hp := (patient_doc.get("hisPid") or patient_doc.get("hisPID")):
+            if str(hp) not in pid_list: pid_list.append(str(hp))
 
         # 12h vitals trend (bedside)
         vitals_codes = ["param_HR", "param_spo2", "param_resp", "param_nibp_s", "param_ibp_s", "param_T"]

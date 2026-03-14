@@ -844,7 +844,7 @@ async def _param_series_by_pid(pid_str: str, code: str, since: datetime) -> list
     if not pid_str or not code:
         return []
     pids = [pid_str]
-    hp = _patient_his_pid(await db.col("patient").find_one({"_id": pid}, {"hisPid": 1, "hisPID": 1}))
+    hp = _patient_his_pid(await db.col("patient").find_one({"_id": _safe_oid(pid_str)}, {"hisPid": 1, "hisPID": 1}))
     if hp and hp not in pids: pids.append(hp)
 
     cursor = db.col("bedside").find(
@@ -2355,7 +2355,7 @@ async def ai_risk_forecast(patient_id: str):
 
     # 收集最近生命体征
     codes = ["param_HR", "param_spo2", "param_resp", "param_nibp_s", "param_ibp_s", "param_T"]
-    v_pids = [pid_str]
+    v_pids = [str(pid)]
     hp = _patient_his_pid(patient)
     if hp and hp not in v_pids: v_pids.append(hp)
     

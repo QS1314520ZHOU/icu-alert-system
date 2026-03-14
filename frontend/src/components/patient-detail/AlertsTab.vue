@@ -139,7 +139,7 @@
               </ul>
             </div>
           </div>
-          <pre v-else-if="item.extra" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
+          <pre v-else-if="item.extra && !alertDetailFields(item).length" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
         </div>
       </article>
     </div>

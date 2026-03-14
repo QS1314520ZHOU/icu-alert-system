@@ -1049,9 +1049,13 @@ function alertDetailFields(item: any) {
 
   if (t === 'nurse_reminder') {
     fields.push(
-      { label: '评估项', value: item?.parameter || item?.rule_id },
+      { label: '提醒类型', value: item?.parameter || item?.rule_id },
       { label: '上次时间', value: fmtTime(item?.source_time) || '—' },
     )
+    if (extra?.risk_level) fields.push({ label: '风险等级', value: extra.risk_level === 'high' ? '高' : (extra.risk_level === 'medium' ? '中' : '低') })
+    if (extra?.braden != null) fields.push({ label: 'Braden', value: extra.braden })
+    if (extra?.rass != null) fields.push({ label: 'RASS', value: extra.rass })
+    if (extra?.interval_hours) fields.push({ label: '翻身频率', value: `${extra.interval_hours}h` })
     return fields
   }
 
