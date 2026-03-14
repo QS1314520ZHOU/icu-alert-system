@@ -783,10 +783,20 @@ async def _get_device_id(pid_str: str, prefer_type: str | None = None, patient_d
     return None
 
 
-async def _latest_params_by_pid(pid_input: str | list[str], codes: list[str], lookback_minutes: int = 60) -> dict | None:
+async def _latest_params_by_pid(pid_input: str | list[str], codes: list[str], lookback_minutes: int = 10080) -> dict | None:
     if not pid_input or not codes:
         return None
-    pids = [pid_input] if isinstance(pid_input, str) else pid_input
+    
+    if isinstance(pid_input, list):
+        pids = [str(p) for p in pid_input]
+    else:
+        pids = [str(pid_input)]
+        # 自动补全 HIS ID 以确保数据完整性
+        p_doc = await db.col("patient").find_one({"_id": _safe_oid(pid_input)}, {"hisPid": 1, "hisPID": 1})
+        if p_doc:
+            hp = p_doc.get("hisPid") or p_doc.get("hisPID")
+            if hp and str(hp) not in pids: pids.append(str(hp))
+
     since = datetime.now() - timedelta(minutes=lookback_minutes)
     cursor = db.col("bedside").find(
         {"pid": {"$in": pids}, "code": {"$in": codes}, "time": {"$gte": since}},
@@ -1165,6 +1175,12 @@ async def patient_vitals(patient_id: str):
 
     vitals: dict = {}
     pid_str = str(pid)
+    v_pids = [pid_str]
+    patient = await db.col("patient").find_one({"_id": pid}, {"hisPid": 1, "hisPID": 1})
+    hp = _patient_his_pid(patient)
+    if hp: v_pids.append(hp)
+
+    # 包含 NIBP 和 IBP 以便 Fallback
     codes = [
         "param_HR", "param_spo2", "param_resp", "param_T",
         "param_nibp_s", "param_nibp_d", "param_nibp_m",
@@ -1172,16 +1188,12 @@ async def patient_vitals(patient_id: str):
         "param_cvp", "param_ETCO2",
     ]
 
-    snapshot = await _latest_params_by_pid(pid_str, codes)
-    if not snapshot:
-        hp = _patient_his_pid(await db.col("patient").find_one({"_id": pid}, {"hisPid": 1, "hisPID": 1}))
-        if hp:
-            snapshot = await _latest_params_by_pid(hp, codes)
+    snapshot = await _latest_params_by_pid(v_pids, codes)
     source = None
     if snapshot:
         source = "monitor"
     else:
-        device_id = await _get_device_id(pid_str, "monitor")
+        device_id = await _get_device_id(pid_str, "monitor", patient_doc=patient)
         if device_id:
             snapshot = await _latest_params_by_device(device_id, codes)
             if snapshot:
@@ -1197,9 +1209,9 @@ async def patient_vitals(patient_id: str):
             "spo2": params.get("param_spo2"),
             "rr": params.get("param_resp"),
             "temp": params.get("param_T"),
-            "nibp_sys": params.get("param_nibp_s"),
-            "nibp_dia": params.get("param_nibp_d"),
-            "nibp_map": params.get("param_nibp_m"),
+            "nibp_sys": params.get("param_nibp_s") or params.get("param_ibp_s"),
+            "nibp_dia": params.get("param_nibp_d") or params.get("param_ibp_d"),
+            "nibp_map": params.get("param_nibp_m") or params.get("param_ibp_m"),
             "ibp_sys": params.get("param_ibp_s"),
             "ibp_dia": params.get("param_ibp_d"),
             "ibp_map": params.get("param_ibp_m"),
@@ -1778,13 +1790,13 @@ async def patient_bedcard(patient_id: str):
     hp = _patient_his_pid(patient)
     if hp and hp not in v_pids: v_pids.append(hp)
 
-    cap_res = await _latest_params_by_pid(v_pids, ["param_HR", "param_nibp_s", "param_nibp_d", "param_spo2", "param_T", "param_glu_lab", "param_glu_poc"], lookback_minutes=24*60)
+    cap_res = await _latest_params_by_pid(v_pids, ["param_HR", "param_nibp_s", "param_nibp_d", "param_ibp_s", "param_ibp_d", "param_spo2", "param_T", "param_glu_lab", "param_glu_poc"], lookback_minutes=10080)
     if cap_res and cap_res.get("params"):
         pms = cap_res["params"]
         metrics["vitals"] = {
             "hr": pms.get("param_HR"),
-            "sbp": pms.get("param_nibp_s"),
-            "dbp": pms.get("param_nibp_d"),
+            "sbp": pms.get("param_ibp_s") or pms.get("param_nibp_s"),
+            "dbp": pms.get("param_ibp_d") or pms.get("param_nibp_d"),
             "spo2": pms.get("param_spo2"),
             "t": pms.get("param_T")
         }
