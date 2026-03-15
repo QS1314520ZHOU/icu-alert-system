@@ -81,12 +81,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { getPatientBedcard } from '../../api'
-import maleChild from '../../assets/avatars/male-child.svg'
-import maleAdult from '../../assets/avatars/male-adult.svg'
-import maleElder from '../../assets/avatars/male-elder.svg'
-import femaleChild from '../../assets/avatars/female-child.svg'
-import femaleAdult from '../../assets/avatars/female-adult.svg'
-import femaleElder from '../../assets/avatars/female-elder.svg'
 
 const props = defineProps<{
   patient: any
@@ -167,26 +161,7 @@ function tubeClass(days: any) {
   return ''
 }
 
-const avatarMap = {
-  male: { child: maleChild, adult: maleAdult, elder: maleElder },
-  female: { child: femaleChild, adult: femaleAdult, elder: femaleElder },
-  neutral: { child: maleChild, adult: maleAdult, elder: maleElder },
-} as const
 
-function ageGroup(age: any): 'child' | 'adult' | 'elder' {
-  const s = String(age ?? '').trim()
-  if (!s) return 'adult'
-  if (s.endsWith('天') || s.endsWith('月')) return 'child'
-  const m = s.match(/(\d+)/)
-  if (m) {
-    const n = Number(m[1])
-    if (Number.isFinite(n)) {
-      if (n < 14) return 'child'
-      if (n >= 60) return 'elder'
-    }
-  }
-  return 'adult'
-}
 
 
 function temp(v: any) {
