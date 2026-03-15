@@ -338,7 +338,12 @@ onUnmounted(() => {
 /* ================================================================
    ICU Overview v3 — 精致医疗级暗色主题
    ================================================================ */
-.overview { background: #0A0E17; padding: 14px 18px; min-height: 100%; }
+.overview { 
+  background: var(--app-bg); 
+  padding: 16px 24px; 
+  min-height: 100%; 
+  color: var(--text-main);
+}
 
 /* ── 顶部 ── */
 .top-bar {
@@ -355,33 +360,37 @@ onUnmounted(() => {
 .sum-block {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.03);
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  transition: all 0.2s;
 }
-.sum-block.clickable { cursor: pointer; transition: background 0.15s; }
-.sum-block.clickable:hover { background: rgba(255,255,255,0.06); }
-.sum-block.chosen { background: rgba(255,255,255,0.08); outline: 1px solid rgba(255,255,255,0.1); }
-.sum-val { font-size: 20px; font-weight: 800; color: #eee; font-variant-numeric: tabular-nums; }
-.sum-lbl { font-size: 11px; color: #666; }
+.sum-block.clickable { cursor: pointer; }
+.sum-block.clickable:hover { background: var(--card-hover); transform: translateY(-1px); }
+.sum-block.chosen { background: var(--tab-active-bg); border-color: var(--tab-active-border); }
+.sum-val { font-size: 22px; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; }
+.sum-lbl { font-size: 11px; color: var(--text-muted); font-weight: 600; }
 .sum-dot { width: 8px; height: 8px; border-radius: 50%; }
-.dot-crit { background: #F87171; box-shadow: 0 0 8px rgba(248, 113, 113, 0.4); animation: blink 1.4s infinite; }
-.dot-warn { background: #FBBF24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.4); }
-.dot-ok { background: #34D399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.4); }
-.sum-divider { width: 1px; height: 22px; background: #222; margin: 0 4px; }
+.dot-crit { background: #F87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.4); animation: blink 1.4s infinite; }
+.dot-warn { background: #FBBF24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
+.dot-ok { background: #34D399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.4); }
+.sum-divider { width: 1px; height: 24px; background: var(--card-border); margin: 0 6px; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 
 /* 科室 */
 .dept-nav { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px; }
 .dept-pill {
-  background: none; border: 1px solid #1e1e30; border-radius: 14px;
-  padding: 3px 12px; color: #777; font-size: 12px; cursor: pointer;
-  white-space: nowrap; transition: all 0.15s;
+  background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px;
+  padding: 4px 14px; color: var(--text-muted); font-size: 13px; cursor: pointer;
+  white-space: nowrap; transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-.dept-pill i { font-style: normal; font-size: 10px; opacity: 0.5; margin-left: 3px; }
-.dept-pill:hover { color: #aaa; border-color: #333; }
-.dept-pill.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.dept-pill i { font-style: normal; font-size: 10px; opacity: 0.7; margin-left: 4px; font-weight: 700; }
+.dept-pill:hover { color: var(--text-main); border-color: var(--tab-active-border); background: var(--card-hover); }
+.dept-pill.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; box-shadow: 0 4px 10px rgba(29, 78, 216, 0.3); }
 .dept-pill.active i { opacity: 0.8; }
 
 /* 标签 chip */
@@ -415,30 +424,5 @@ onUnmounted(() => {
   gap: 10px;
 }
 
-/* ===== Light Theme ===== */
-:global(html[data-theme='light']) .overview {
-  background: #f4f7fb;
-}
-:global(html[data-theme='light']) .sum-block {
-  background: #ffffff;
-  border: 1px solid #d9e2f1;
-}
-:global(html[data-theme='light']) .sum-lbl { color: #64748b; }
-:global(html[data-theme='light']) .sum-val { color: #0f172a; }
-:global(html[data-theme='light']) .sum-divider { background: #d6deea; }
-:global(html[data-theme='light']) .dept-pill {
-  border-color: #ccd8ea;
-  color: #4c5f7f;
-  background: #fff;
-}
-:global(html[data-theme='light']) .dept-pill:hover {
-  border-color: #9db2d4;
-  color: #1e3a8a;
-}
-:global(html[data-theme='light']) .chip {
-  background: #ffffff;
-  color: #4c5f7f;
-  border-color: #d8e2f0;
-}
-:global(html[data-theme='light']) .loader { color: #5a6d89; }
+/* Removed redundant Light Theme block - now fully driven by CSS variables */
 </style>

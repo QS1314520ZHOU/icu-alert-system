@@ -41,7 +41,7 @@
         <span :class="['tube-inline-list', { 'is-folded': !showAllTubes }]">
           <span v-for="(t, idx) in formattedTubesList" :key="idx" class="tube-item-wrap">
             <span :class="['tube-item', tubeClass(t.dwellDays)]">{{ t.name }} D{{ t.dwellDays }}</span>
-            <span v-if="idx < formattedTubesList.length - 1" class="sep"> · </span>
+            <span v-if="Number(idx) < formattedTubesList.length - 1" class="sep"> · </span>
           </span>
         </span>
         <span v-if="bedcard.tubes.length > 2" class="tube-extra" @click.stop="showAllTubes = !showAllTubes">
@@ -188,25 +188,6 @@ function ageGroup(age: any): 'child' | 'adult' | 'elder' {
   return 'adult'
 }
 
-function avatarFor(patient: any) {
-  const gender = patient?.gender === 'Female' ? 'female' : (patient?.gender === 'Male' ? 'male' : 'neutral')
-  return avatarMap[gender][ageGroup(patient?.age)]
-}
-
-function avatarAlt(patient: any) {
-  const genderText = patient?.gender === 'Female' ? '女性' : (patient?.gender === 'Male' ? '男性' : '未知性别')
-  const group = ageGroup(patient?.age)
-  const groupText = group === 'child' ? '儿童' : (group === 'elder' ? '老年' : '成人')
-  return `${genderText}${groupText}头像`
-}
-
-function avatarAccent(patient: any) {
-  const level = String(patient?.alertLevel || 'none')
-  if (level === 'critical') return '#ef4444'
-  if (level === 'warning') return '#f59e0b'
-  if (level === 'normal') return '#10b981'
-  return '#3b82f6'
-}
 
 function temp(v: any) {
   if (v == null) return '--'
@@ -224,15 +205,6 @@ function patientDiet(patient: any) {
   return String(patient?.diet || patient?.dietType || patient?.nutritionType || '').trim()
 }
 
-function patientIsolation(patient: any) {
-  return String(patient?.isolation || patient?.isolationType || '').trim()
-}
-
-function shortCare(v: any, n = 8) {
-  const s = String(v ?? '').trim()
-  if (!s) return ''
-  return s.length > n ? `${s.slice(0, n)}…` : s
-}
 
 function bundleLights(patient: any) {
   const lights = patient?.bundleStatus?.lights || {}
@@ -249,32 +221,36 @@ function bundleLights(patient: any) {
 <style scoped>
 .card {
   width: 280px;
-  max-height: 360px;
-  background: #12182B; /* Deep Sea Blue */
-  border-radius: 6px;
-  padding: 12px 14px;
+  max-height: 380px; /* Increased slightly for content */
+  background: var(--card-bg);
+  border-radius: 8px; /* Slightly smoother */
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 0;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
   scrollbar-width: none;
-  border: 1px solid rgba(99,130,255,0.08); /* Faint blue border */
-  border-left: 3px solid transparent; 
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
   position: relative;
 }
 .card::-webkit-scrollbar { display: none; }
-.card:hover { transform: translateY(-2px); background: #1A2240; border-color: rgba(99,130,255,0.15); }
+.card:hover { 
+  transform: translateY(-3px); 
+  background: var(--card-hover);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
 
-/* 3px Left Border Severity (8px Radius as requested) */
+/* 3px Left Border Severity */
 .card::before {
   content: "";
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
+  width: 4px; /* Slightly thicker */
   border-top-left-radius: 8px;
   border-bottom-left-radius: 8px;
   background: transparent;
@@ -284,77 +260,74 @@ function bundleLights(patient: any) {
 .card--warning::before { background: #FBBF24; }
 .card--normal::before { background: #34D399; }
 
-/* Critical Text Glow */
+/* Severity-based text coloring */
 .card--critical .patient-name, .card--critical .bed-no { color: #F87171; }
 
-section { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+section { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
 section:first-of-type { margin-top: 0; }
 
 /* Section 1: Top Bar */
 .card-header { display: flex; justify-content: space-between; align-items: baseline; }
-.header-main { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; }
-.bed-no { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 900; color: #E8ECF4; }
-.patient-name { font-size: 16px; font-weight: 700; color: #E8ECF4; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.patient-meta { font-size: 12px; color: #7B8BA5; font-weight: 600; }
+.header-main { display: flex; align-items: baseline; gap: 10px; flex: 1; min-width: 0; }
+.bed-no { font-family: 'SF Mono', 'Consolas', monospace; font-size: 20px; font-weight: 900; color: var(--text-main); }
+.patient-name { font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.patient-meta { font-size: 12px; color: var(--text-muted); font-weight: 600; }
 
 .subtitle-row { display: flex; align-items: center; gap: 6px; }
-.diag-text { font-size: 11px; color: #7B8BA5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.diag-text { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; opacity: 0.85; }
 .allergy-tag { font-size: 10px; font-weight: 800; background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.4); color: #F87171; padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
 
-/* Section 2: Vitals Telemetry (Deepened Background) */
+/* Section 2: Vitals Telemetry */
 .sec-vitals {
-  padding: 6px 4px 8px 4px;
-  background: #0F1525;
-  border-radius: 4px;
-  border: 1px solid rgba(255,255,255,0.02);
+  padding: 10px 8px;
+  background: var(--vitals-bg);
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
 }
-.vital-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+.vital-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .vital-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.v-label { font-size: 10px; color: #4A5568; font-weight: 800; text-transform: uppercase; margin-bottom: -2px; }
-.v-val { font-size: 28px; font-weight: 800; font-family: 'DM Mono', monospace; color: #E8ECF4; line-height: 1; font-variant-numeric: tabular-nums; }
+.v-label { font-size: 10px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: -1px; opacity: 0.7; }
+.v-val { font-size: 26px; font-weight: 800; font-family: 'SF Mono', 'Consolas', monospace; color: var(--text-main); line-height: 1; font-variant-numeric: tabular-nums; }
 .v-val small { font-size: 10px; opacity: 0.5; margin-left: 1px; font-weight: 400; }
 
 /* Alerting Colors */
 .vital--orange .v-val { color: #FB923C; }
 .vital--red .v-val { color: #F87171; animation: flash-crit 1.5s infinite; }
-@keyframes flash-crit { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes flash-crit { 0%, 100% { opacity: 1; } 50% { opacity: 0.75; } }
 
-/* No data color */
-.v-val:empty, .v-val:contains('--') { color: #2A3348; }
-
-/* Section 3: Logistics (Refined Pills) */
-.sec-logistics { font-size: 11px; color: #7B8BA5; gap: 4px; }
-.dev-line { color: #7B8BA5; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+/* Section 3: Logistics */
+.sec-logistics { font-size: 11px; color: var(--text-muted); gap: 6px; }
+.dev-line { font-weight: 600; display: flex; align-items: center; gap: 6px; color: var(--text-main); opacity: 0.9; }
 .dev-dot { width: 6px; height: 6px; border-radius: 50%; background: #60A5FA; display: inline-block; }
-.tube-line { display: flex; align-items: baseline; gap: 6px; color: #4A5568; position: relative; }
-.tube-item { transition: all 0.2s; padding: 0 4px; border-radius: 3px; background: #1E293B; color: #7B8BA5; line-height: 1.6; }
-.tube--orange { background: #292015; color: #FBBF24; }
-.tube--red { background: #2D1519; color: #F87171; }
+.tube-line { display: flex; align-items: baseline; gap: 6px; color: var(--text-muted); position: relative; }
+.tube-item { transition: all 0.2s; padding: 0 5px; border-radius: 4px; background: var(--pill-bg); color: var(--text-muted); line-height: 1.7; border: 1px solid var(--card-border); }
+.tube--orange { background: rgba(251, 146, 60, 0.1); color: #FB923C; border-color: rgba(251, 146, 60, 0.2); }
+.tube--red { background: rgba(248, 113, 113, 0.1); color: #F87171; border-color: rgba(248, 113, 113, 0.2); }
 .tube-inline-list { flex: 1; display: block; overflow: hidden; }
 .tube-inline-list.is-folded { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card:hover .tube-inline-list.is-folded { -webkit-line-clamp: unset; display: block; }
 .card:hover .tube-extra { display: none; }
-.tube-extra { color: #4A5568; font-weight: 700; cursor: pointer; flex-shrink: 0; padding-top: 4px; font-size: 10px; }
+.tube-extra { color: var(--text-muted); font-weight: 700; cursor: pointer; flex-shrink: 0; padding-top: 4px; font-size: 10px; }
 
 /* Section 4: Alerts Tickers */
-.sec-alerts { font-size: 11px; font-weight: 700; gap: 3px; }
-.alert-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #7B8BA5; display: flex; align-items: center; gap: 5px; }
+.sec-alerts { font-size: 11px; font-weight: 700; gap: 4px; }
+.alert-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
 .alert-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .alert-dot--red { background: #F87171; }
 .alert-dot--yellow { background: #FBBF24; }
 .alert-dot--green { background: #34D399; }
 
 /* Section 5: Footer Cluster */
-.sec-footer { flex-direction: row; align-items: center; justify-content: space-between; padding-top: 6px; gap: 8px; }
-.bundle-dots { display: flex; gap: 3px; }
-.mini-dot { width: 12px; height: 12px; border-radius: 50%; font-size: 8px; font-weight: 900; display: flex; align-items: center; justify-content: center; color: #0A0E17; border: 1px solid rgba(255,255,255,0.05); }
+.sec-footer { flex-direction: row; align-items: center; justify-content: space-between; padding-top: 8px; gap: 8px; border-top: 1px solid var(--card-border); }
+.bundle-dots { display: flex; gap: 4px; }
+.mini-dot { width: 14px; height: 14px; border-radius: 50%; font-size: 9px; font-weight: 900; display: flex; align-items: center; justify-content: center; color: #fff; border: 1px solid var(--card-border); }
 .mini--green { background: #34D399; }
 .mini--yellow { background: #FBBF24; }
 .mini--red { background: #F87171; }
-.mini--unknown { background: #2A3348; color: #7B8BA5; }
+.mini--unknown { background: var(--pill-bg); color: var(--text-muted); }
 
 .footer-pills { display: flex; gap: 6px; }
-.pill { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; white-space: nowrap; border: 1px solid transparent; }
-.pill--iso { background: rgba(251, 146, 60, 0.08); border-color: rgba(251, 146, 60, 0.4); color: #FB923C; }
-.pill--diet { background: rgba(52, 211, 153, 0.08); border-color: rgba(52, 211, 153, 0.4); color: #34D399; }
+.pill { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px; white-space: nowrap; border: 1px solid transparent; }
+.pill--iso { background: rgba(251, 146, 60, 0.1); border-color: rgba(251, 146, 60, 0.3); color: #FB923C; }
+.pill--diet { background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3); color: #34D399; }
 </style>

@@ -357,39 +357,46 @@ onMounted(() => {
 
 <style scoped>
 .analytics-page {
-  padding: 12px;
+  padding: 16px 24px;
+  background: var(--app-bg);
+  min-height: 100%;
 }
 
 .filter-card {
-  background: #0e1728;
-  border: 1px solid #192d4a;
-  margin-bottom: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  margin-bottom: 16px;
+  border-radius: 10px;
+  box-shadow: var(--card-shadow);
 }
 
 .filter-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .left-tools .label {
   font-size: 12px;
-  color: #8fa3c1;
-  margin-right: 2px;
+  color: var(--text-muted);
+  margin-right: 4px;
+  font-weight: 600;
 }
 
 .analytics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .panel {
-  background: #0d1728;
-  border: 1px solid #192d4a;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   min-height: 440px;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 
 .panel-wide {
@@ -409,45 +416,32 @@ onMounted(() => {
 }
 
 .rank-table {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .empty {
-  color: #7b8ba3;
+  color: var(--text-muted);
   font-size: 12px;
-  padding: 14px 4px;
+  padding: 16px 8px;
 }
 
-:global(html[data-theme='light']) .analytics-page {
-  background: #f4f7fb;
+.rank-table :deep(.ant-table) {
+  background: transparent;
 }
 
-:global(html[data-theme='light']) .filter-card,
-:global(html[data-theme='light']) .panel {
-  background: #ffffff;
-  border-color: #d9e2f1;
+.rank-table :deep(.ant-table-thead > tr > th) {
+  background: var(--panel-soft);
+  color: var(--text-muted);
+  border-bottom-color: var(--card-border);
 }
 
-:global(html[data-theme='light']) .left-tools .label,
-:global(html[data-theme='light']) .empty {
-  color: #64748b;
+.rank-table :deep(.ant-table-tbody > tr > td) {
+  background: transparent;
+  color: var(--text-main);
+  border-bottom-color: var(--card-border);
 }
 
-:global(html[data-theme='light']) .rank-table :deep(.ant-table) {
-  background: #ffffff;
-}
-
-:global(html[data-theme='light']) .rank-table :deep(.ant-table-thead > tr > th) {
-  background: #f1f6ff;
-  color: #334155;
-  border-bottom-color: #dce5f3;
-}
-
-:global(html[data-theme='light']) .rank-table :deep(.ant-table-tbody > tr > td) {
-  background: #ffffff;
-  color: #334155;
-  border-bottom-color: #e6edf8;
-}
+/* Removed redundant Light Theme block - now fully driven by CSS variables */
 
 @media (max-width: 980px) {
   .analytics-page {
@@ -470,3 +464,4 @@ onMounted(() => {
   }
 }
 </style>
+```

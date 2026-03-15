@@ -48,29 +48,31 @@ const emit = defineEmits<{
 <style scoped>
 .evidence-modal {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 .evidence-modal p {
   margin: 0;
-  color: #334155;
+  color: var(--text-main);
+  font-size: 13px;
 }
 .evidence-modal-content {
   white-space: pre-wrap;
   line-height: 1.7;
   max-height: 52vh;
   overflow: auto;
-  background: #f8fbff;
-  border: 1px solid #dce7f5;
+  background: var(--panel-soft);
+  border: 1px solid var(--card-border);
   border-radius: 8px;
-  padding: 12px;
-  color: #334155;
+  padding: 16px;
+  color: var(--text-main);
+  font-size: 13px;
 }
 .evidence-modal-related {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 .ai-risk-section-title {
-  color: #0f172a;
-  font-size: 12px;
+  color: var(--text-main);
+  font-size: 13px;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -78,13 +80,14 @@ const emit = defineEmits<{
   margin: 0;
   padding-left: 18px;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 .ai-evidence-link {
-  color: #2563eb;
+  color: #3b82f6;
   cursor: pointer;
+  transition: opacity 0.2s;
 }
 .ai-evidence-link:hover {
-  color: #1d4ed8;
+  opacity: 0.8;
 }
 </style>

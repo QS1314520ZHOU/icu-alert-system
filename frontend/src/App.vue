@@ -160,12 +160,15 @@ onUnmounted(() => clearInterval(t))
 .hdr {
   display: flex; align-items: center; gap: 20px;
   background: var(--hdr-bg) !important;
-  padding: 8px 20px;
-  min-height: 60px;
+  backdrop-filter: blur(12px); /* Glassmorphism */
+  padding: 8px 24px;
+  min-height: 64px;
   height: auto !important;
   line-height: normal !important;
   overflow: visible;
   border-bottom: 1px solid var(--hdr-border);
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05); /* Subtle lift */
+  position: sticky; top: 0; z-index: 100;
 }
 .hdr-l { display: flex; align-items: center; gap: 8px; }
 .hdr-l > div { display: flex; flex-direction: column; justify-content: center; }
@@ -186,8 +189,8 @@ onUnmounted(() => clearInterval(t))
 .nav-btn:hover { color: var(--hdr-title); background: rgba(255,255,255,0.05); }
 .nav-btn.active {
   color: var(--hdr-title);
-  background: rgba(59,130,246,0.16);
-  border-color: rgba(59,130,246,0.35);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
 }
 .hdr-tools {
   display: flex;

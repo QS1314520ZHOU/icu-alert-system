@@ -1,31 +1,53 @@
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --app-bg: #0a0a14;
-  --text-main: #d0d0d0;
-  --text-muted: #8a8fa3;
-  --panel-bg: #111119;
-  --panel-soft: #14162a;
-  --panel-border: #1a1a28;
-  --hdr-bg: #0e0e1a;
-  --hdr-border: #161625;
-  --hdr-title: #ddd;
-  --hdr-sub: #5f6b86;
-  --tab-active-bg: rgba(59, 130, 246, 0.15);
+  /* Dark Mode - Deep Sea Tactical */
+  --app-bg: #06080F;
+  --hdr-bg: rgba(10, 14, 26, 0.8);
+  --hdr-border: rgba(99, 130, 255, 0.1);
+  --hdr-title: #E2E8F0;
+  --hdr-sub: #64748B;
+  
+  --card-bg: #0D121F;
+  --card-hover: #151B2E;
+  --card-border: rgba(99, 130, 255, 0.08);
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  
+  --panel-bg: #0A0E1A;
+  --panel-soft: #111827;
+  --vitals-bg: #060912;
+  
+  --text-main: #CBD5E1;
+  --text-muted: #64748B;
+  --tab-active-bg: rgba(59, 130, 246, 0.16);
+  --tab-active-border: rgba(59, 130, 246, 0.4);
+  
+  --pill-bg: rgba(255, 255, 255, 0.04);
 }
 
 html[data-theme='light'] {
-  --app-bg: #f4f7fb;
-  --text-main: #1f2937;
-  --text-muted: #6b7280;
-  --panel-bg: #ffffff;
-  --panel-soft: #f5f8ff;
-  --panel-border: #d9e2f1;
-  --hdr-bg: #ffffff;
-  --hdr-border: #d9e2f1;
-  --hdr-title: #0f172a;
-  --hdr-sub: #5b6b85;
-  --tab-active-bg: rgba(59, 130, 246, 0.12);
+  /* Light Mode - Premium Porcelain */
+  --app-bg: #F8FAFC;
+  --hdr-bg: rgba(255, 255, 255, 0.85);
+  --hdr-border: rgba(226, 232, 240, 0.8);
+  --hdr-title: #0F172A;
+  --hdr-sub: #64748B;
+  
+  --card-bg: #FFFFFF;
+  --card-hover: #F1F5F9;
+  --card-border: rgba(203, 213, 225, 0.4);
+  --card-shadow: 0 4px 12px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
+  
+  --panel-bg: #FFFFFF;
+  --panel-soft: #F1F5F9;
+  --vitals-bg: #F8FAFC;
+  
+  --text-main: #1E293B;
+  --text-muted: #64748B;
+  --tab-active-bg: rgba(59, 130, 246, 0.08);
+  --tab-active-border: rgba(59, 130, 246, 0.3);
+  
+  --pill-bg: #F1F5F9;
 }
 
 body {
@@ -36,10 +58,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #333; }
+::-webkit-scrollbar-thumb { 
+  background: var(--text-muted); 
+  border-radius: 10px; 
+  opacity: 0.3;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-main); }
 
 .ant-layout-header { line-height: normal !important; }
 .ant-menu-dark { background: transparent !important; }
