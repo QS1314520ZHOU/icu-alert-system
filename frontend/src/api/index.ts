@@ -95,6 +95,20 @@ export const getAlertAnalyticsRankings = (params?: {
   dept_code?: string
 }) => api.get('/api/alerts/analytics/rankings', { params })
 
+// Analytics: Sepsis 1h Bundle 月度合规率
+export const getSepsisBundleCompliance = (params?: {
+  month?: string
+  dept?: string
+  dept_code?: string
+}) => api.get('/api/analytics/sepsis-bundle/compliance', { params })
+
+// Analytics: 脱机 / 再插管月度统计
+export const getWeaningSummary = (params?: {
+  month?: string
+  dept?: string
+  dept_code?: string
+}) => api.get('/api/analytics/weaning-summary', { params })
+
 // AI: 检验摘要
 export const getAiLabSummary = (patientId: string) =>
   aiApi.get(`/api/ai/lab-summary/${patientId}`)
@@ -138,6 +152,22 @@ export const getPatientHandoffSummary = (patientId: string) =>
 // 转出风险评估
 export const getPatientDischargeReadiness = (patientId: string) =>
   aiApi.get(`/api/patients/${patientId}/discharge-readiness`)
+
+// Sepsis 1h Bundle 患者状态
+export const getPatientSepsisBundleStatus = (patientId: string) =>
+  api.get(`/api/patients/${patientId}/sepsis-bundle-status`)
+
+// 脱机评估 / SBT 状态
+export const getPatientWeaningStatus = (patientId: string) =>
+  api.get(`/api/patients/${patientId}/weaning-status`)
+
+// SBT 结构化记录时间线
+export const getPatientSbtRecords = (patientId: string, limit = 20) =>
+  api.get(`/api/patients/${patientId}/sbt-records`, { params: { limit } })
+
+// 相似病例结局回溯
+export const getPatientSimilarCaseOutcomes = (patientId: string, limit = 10) =>
+  api.get(`/api/patients/${patientId}/similar-case-outcomes`, { params: { limit } })
 
 // 健康检查
 export const healthCheck = () => api.get('/health')

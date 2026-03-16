@@ -7,6 +7,10 @@
           <span class="sum-val">{{ filteredPatients.length }}</span>
           <span class="sum-lbl">在院</span>
         </div>
+        <div v-if="refreshing && !loading" class="sum-sync">
+          <span class="sum-sync-dot"></span>
+          <span>后台同步中</span>
+        </div>
         <div class="sum-divider"></div>
         <div class="sum-block clickable" :class="{ chosen: alertFilter === 'critical' }"
              @click="toggleAlert('critical')">
@@ -39,7 +43,14 @@
       </nav>
 
       <!-- 标签快筛 -->
-      <div class="tag-chips" v-if="tagStats.length">
+      <div class="tag-chips" v-if="tagStats.length || rescueRiskCount">
+        <span
+          :class="['chip', 'chip--rescue', { chosen: rescueOnly }]"
+          @click="rescueOnly = !rescueOnly"
+        >
+          🚨 抢救期风险
+          <b>{{ rescueRiskCount }}</b>
+        </span>
         <span v-for="ts in tagStats" :key="ts.tag"
               :class="['chip', { chosen: tagFilter === ts.tag }]"
               :style="tagFilter === ts.tag ? { background: ts.color + '33', color: ts.color } : {}"
@@ -71,7 +82,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses } from '../api'
+import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getRecentAlerts } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 
 const PatientOverviewCard = defineAsyncComponent(() => import('../components/overview/PatientOverviewCard.vue'))
@@ -79,11 +90,13 @@ const PatientOverviewCard = defineAsyncComponent(() => import('../components/ove
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
+const refreshing = ref(false)
 const patients = ref<any[]>([])
 const depts = ref<any[]>([])
 const curDept = ref('全部')
 const tagFilter = ref('')
 const alertFilter = ref('')
+const rescueOnly = ref(false)
 let iv: any = null
 let offAlert: any = null
 
@@ -136,9 +149,12 @@ const tagStats = computed(() => {
   return Object.values(m).sort((a: any, b: any) => b.count - a.count)
 })
 
+const rescueRiskCount = computed(() => byDept.value.filter(p => p.hasRescueRisk).length)
+
 /* ── 最终列表 ── */
 const showList = computed(() => {
   let ls = byDept.value
+  if (rescueOnly.value) ls = ls.filter(p => p.hasRescueRisk)
   if (tagFilter.value) ls = ls.filter(p => (p.clinicalTags || []).some((t: any) => t.tag === tagFilter.value))
   if (alertFilter.value) {
     if (alertFilter.value === 'warning') {
@@ -222,6 +238,26 @@ function severityPriority(level: string) {
   return p[level] ?? 0
 }
 
+function isRescueRiskAlert(alert: any) {
+  const sev = String(alert?.severity || '').toLowerCase()
+  if (sev !== 'high' && sev !== 'critical') return false
+  const alertType = String(alert?.alert_type || '').toLowerCase()
+  const ruleId = String(alert?.rule_id || '').toLowerCase()
+  const category = String(alert?.category || '').toLowerCase()
+  if (alertType === 'ai_risk' || category === 'ai_analysis') return false
+  const rescueKeywords = [
+    'shock', 'sepsis', 'septic', 'cardiac_arrest', 'cardiac', 'pea',
+    'pe_', 'embol', 'bleed', 'bleeding', 'resp', 'hypoxia', 'hypotension',
+    'deterioration', 'multi_organ', 'post_extubation',
+  ]
+  const haystack = `${alertType} ${ruleId} ${category}`.toLowerCase()
+  const extra = alert?.extra && typeof alert.extra === 'object' ? alert.extra : {}
+  return rescueKeywords.some((key) => haystack.includes(key))
+    || !!extra?.context_snapshot
+    || !!extra?.clinical_chain
+    || (Array.isArray(extra?.aggregated_groups) && extra.aggregated_groups.length > 0)
+}
+
 function mergeAlertLevel(p: any, computed: string) {
   const holdUntil = p.alertHoldUntil || 0
   if (holdUntil > Date.now()) {
@@ -241,6 +277,10 @@ function applyAlert(alert: any) {
   if (severityPriority(sev) >= severityPriority(target.alertLevel || 'none')) {
     target.alertLevel = sev
   }
+  if (isRescueRiskAlert(alert)) {
+    target.hasRescueRisk = true
+    target.rescueRiskSeverity = sev
+  }
   target.alertHoldUntil = Date.now() + 30 * 60 * 1000
   target.alertFlash = true
   window.setTimeout(() => { target.alertFlash = false }, 15000)
@@ -248,8 +288,13 @@ function applyAlert(alert: any) {
 
 /* ── fmt ── */
 /* ── 数据加载 ── */
-async function load() {
-  loading.value = true
+async function load(options?: { silent?: boolean }) {
+  const silent = !!options?.silent
+  if (silent) {
+    refreshing.value = true
+  } else {
+    loading.value = true
+  }
   try {
     const deptCode = routeDeptCode.value
     const deptName = routeDeptName.value
@@ -259,9 +304,28 @@ async function load() {
         ? { dept: deptName }
         : undefined
 
-    const [dr, pr] = await Promise.all([getDepartments(), getPatients(params)])
+    const [dr, pr, recentAlertRes] = await Promise.all([
+      getDepartments(),
+      getPatients(params),
+      getRecentAlerts(200, params).catch(() => ({ data: { records: [] } })),
+    ])
     const allDepts = dr.data.departments || []
     const ls = pr.data.patients || []
+    const recentAlerts = recentAlertRes.data?.records || []
+    const rescueSeverityMap = new Map<string, string>()
+    const rescuePidSet = new Set(
+      recentAlerts
+        .filter((alert: any) => isRescueRiskAlert(alert))
+        .map((alert: any) => {
+          const pid = String(alert?.patient_id || '')
+          const sev = String(alert?.severity || 'warning').toLowerCase()
+          if (pid && severityPriority(sev) > severityPriority(rescueSeverityMap.get(pid) || 'none')) {
+            rescueSeverityMap.set(pid, sev)
+          }
+          return pid
+        })
+        .filter(Boolean)
+    )
 
     if (deptCode) {
       depts.value = allDepts.filter((d: any) => d.deptCode === deptCode)
@@ -281,12 +345,24 @@ async function load() {
     }
 
     const head = ls.slice(0, 100)
-    const tail = ls.slice(100).map((p: any) => ({ ...p, vitals: {}, alertLevel: 'none' }))
+    const tail = ls.slice(100).map((p: any) => ({
+      ...p,
+      vitals: {},
+      alertLevel: rescueSeverityMap.get(String(p._id)) || 'none',
+      hasRescueRisk: rescuePidSet.has(String(p._id)),
+      rescueRiskSeverity: rescueSeverityMap.get(String(p._id)) || 'none',
+    }))
 
     const done = await Promise.all(head.map(async (p: any) => {
       try { p.vitals = (await getPatientVitals(p._id)).data.vitals || {} }
       catch { p.vitals = {} }
       p.alertLevel = mergeAlertLevel(p, calcLevel(p.vitals))
+      const rescueSeverity = rescueSeverityMap.get(String(p._id)) || 'none'
+      if (severityPriority(rescueSeverity) > severityPriority(p.alertLevel || 'none')) {
+        p.alertLevel = rescueSeverity
+      }
+      p.hasRescueRisk = rescuePidSet.has(String(p._id))
+      p.rescueRiskSeverity = rescueSeverity
       return p
     }))
 
@@ -309,7 +385,10 @@ async function load() {
     })
     patients.value = all
   } catch (e) { console.error(e) }
-  finally { loading.value = false }
+  finally {
+    if (silent) refreshing.value = false
+    else loading.value = false
+  }
 }
 
 watch(
@@ -317,12 +396,13 @@ watch(
   () => {
     tagFilter.value = ''
     alertFilter.value = ''
+    rescueOnly.value = false
     load()
   },
   { immediate: true }
 )
 
-onMounted(() => { iv = setInterval(load, 60000) })
+onMounted(() => { iv = setInterval(() => load({ silent: true }), 60000) })
 onMounted(() => {
   offAlert = onAlertMessage(msg => {
     if (msg?.type === 'alert') applyAlert(msg.data)
@@ -427,6 +507,27 @@ onUnmounted(() => {
 .dot-warn { background: #ffbf3c; box-shadow: 0 0 12px rgba(255, 191, 60, 0.44); }
 .dot-ok { background: #3ee7c0; box-shadow: 0 0 12px rgba(62, 231, 192, 0.44); }
 .sum-divider { width: 1px; height: 28px; background: rgba(72, 193, 255, 0.16); margin: 0 2px; }
+.sum-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  background: rgba(8, 28, 44, 0.72);
+  color: #8fe0f2;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sum-sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #3ee7c0;
+  box-shadow: 0 0 12px rgba(62, 231, 192, 0.46);
+  animation: blink 1.1s infinite;
+}
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 
 .dept-nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
@@ -472,6 +573,20 @@ onUnmounted(() => {
   box-shadow: 0 0 16px rgba(34, 211, 238, 0.08) inset;
 }
 .chip b { font-weight: 700; margin-left: 3px; }
+.chip--rescue {
+  color: #ffb4c1;
+  border-color: rgba(251, 113, 133, 0.2);
+  background: linear-gradient(180deg, rgba(53, 15, 28, 0.9) 0%, rgba(31, 11, 18, 0.92) 100%);
+}
+.chip--rescue:hover {
+  background: linear-gradient(180deg, rgba(76, 19, 37, 0.94) 0%, rgba(41, 12, 22, 0.96) 100%);
+  border-color: rgba(251, 113, 133, 0.28);
+}
+.chip--rescue.chosen {
+  color: #ffe6eb;
+  border-color: rgba(251, 113, 133, 0.4);
+  box-shadow: inset 0 0 18px rgba(251, 113, 133, 0.16), 0 0 18px rgba(251, 113, 133, 0.08);
+}
 
 .loader {
   display: flex;

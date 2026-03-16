@@ -332,6 +332,7 @@ class BaseEngine:
         self.ws = ws_manager
         self._param_codes_all = self._collect_param_codes()
         self._temporal_model_runtime: TemporalRiskModelRuntime | None = None
+        self._baseline_cache: dict[tuple[str, str, int], dict[str, Any] | None] = {}
 
     def _log_info(self, name: str, count: int) -> None:
         logger.info(f"[{name}] 本轮触发 {count} 条预警")
@@ -356,6 +357,93 @@ class BaseEngine:
         if self._temporal_model_runtime is None:
             self._temporal_model_runtime = TemporalRiskModelRuntime(self.config)
         return self._temporal_model_runtime
+
+    def _patient_icu_start_time(self, patient_doc: dict | None) -> datetime | None:
+        if not isinstance(patient_doc, dict):
+            return None
+        for key in ("icuAdmissionTime", "admissionTime", "admitTime", "inTime", "createTime"):
+            dt = _parse_dt(patient_doc.get(key))
+            if dt:
+                return dt
+        return None
+
+    async def _get_patient_baseline(
+        self,
+        pid,
+        parameter: str,
+        hours: int = 12,
+        patient_doc: dict | None = None,
+        prefer_device_types: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        pid_str = self._pid_str(pid)
+        param_key = str(parameter or "").strip()
+        if not pid_str or not param_key:
+            return None
+
+        cache_key = (pid_str, param_key, int(hours))
+        if cache_key in self._baseline_cache:
+            return self._baseline_cache[cache_key]
+
+        if patient_doc is None:
+            patient_doc, _ = await self._load_patient(pid)
+        baseline_start = self._patient_icu_start_time(patient_doc)
+        series: list[dict] = []
+        source = "vital"
+
+        if baseline_start:
+            baseline_end = baseline_start + timedelta(hours=max(1, int(hours)))
+        else:
+            since = datetime.now() - timedelta(hours=max(24, int(hours) * 2))
+            if param_key.startswith("param_"):
+                fallback_series = await self._get_param_series_by_pid(
+                    pid,
+                    param_key,
+                    since,
+                    prefer_device_types=prefer_device_types or ["monitor"],
+                    limit=4000,
+                )
+                if fallback_series:
+                    baseline_start = fallback_series[0]["time"]
+                    baseline_end = baseline_start + timedelta(hours=max(1, int(hours)))
+                else:
+                    baseline_end = None
+            else:
+                baseline_end = None
+
+        if param_key.startswith("param_") and baseline_start and baseline_end:
+            series = await self._get_param_series_by_pid(
+                pid,
+                param_key,
+                baseline_start,
+                prefer_device_types=prefer_device_types or ["monitor"],
+                limit=4000,
+            )
+            series = [s for s in series if baseline_start <= s.get("time", baseline_start) <= baseline_end]
+        elif patient_doc and patient_doc.get("hisPid") and baseline_start and baseline_end:
+            source = "lab"
+            series = await self._get_lab_series(patient_doc.get("hisPid"), param_key, baseline_start, baseline_end, limit=400)
+
+        values = [float(s["value"]) for s in series if _parse_number(s.get("value")) is not None]
+        if not values:
+            self._baseline_cache[cache_key] = None
+            return None
+
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / max(len(values), 1)
+        std = math.sqrt(max(variance, 0.0))
+        result = {
+            "parameter": param_key,
+            "mean": round(mean, 4),
+            "std": round(std, 4),
+            "min": round(min(values), 4),
+            "max": round(max(values), 4),
+            "count": len(values),
+            "start": series[0]["time"] if series else baseline_start,
+            "end": series[-1]["time"] if series else baseline_end,
+            "source": source,
+        }
+        self._baseline_cache[cache_key] = result
+        return result
 
     def _infer_device_type(self, name: str | None) -> str | None:
         if not name:
@@ -1258,6 +1346,10 @@ class BaseEngine:
             return None
         current = series[-1]
         baseline = min(s["value"] for s in series)
+        baseline_meta = await self._get_patient_baseline(pid, "cr", hours=12, patient_doc=patient_doc)
+        baseline_mean = _parse_number((baseline_meta or {}).get("mean"))
+        if baseline_mean is not None and baseline_mean > 0:
+            baseline = min(baseline, baseline_mean)
         ratio = current["value"] / baseline if baseline > 0 else None
 
         since_48h = datetime.now() - timedelta(hours=48)
@@ -1272,13 +1364,21 @@ class BaseEngine:
             stage = max(stage, 1)
             condition["delta_48h"] = inc_48
         if ratio is not None:
-            if ratio >= 3 or current["value"] >= 353.6:
+            absolute_cr_stage3 = False
+            if current["value"] >= 353.6:
+                if (ratio is not None and ratio >= 1.5) or (inc_48 is not None and inc_48 >= 26.5):
+                    absolute_cr_stage3 = True
+                elif baseline_mean is not None and current["value"] >= baseline_mean + 88.4:
+                    absolute_cr_stage3 = True
+            if ratio >= 3 or absolute_cr_stage3:
                 stage = max(stage, 3)
             elif ratio >= 2:
                 stage = max(stage, 2)
             elif ratio >= 1.5:
                 stage = max(stage, 1)
             condition["ratio"] = ratio
+            if absolute_cr_stage3:
+                condition["absolute_cr_stage3"] = True
 
         if pid is not None:
             u6 = await self._get_urine_rate(pid, patient_doc, hours=6)
@@ -1300,6 +1400,7 @@ class BaseEngine:
         return {
             "stage": stage,
             "baseline": baseline,
+            "baseline_mean_12h": baseline_mean,
             "current": current["value"],
             "time": current["time"],
             "condition": condition,
@@ -2241,6 +2342,219 @@ class BaseEngine:
             logger.debug(f"收集预警解释上下文失败: {e}")
         return context
 
+    def _sanitize_context_vital(self, code: str, value: Any) -> float | None:
+        num = _parse_number(value)
+        if num is None:
+            return None
+        code_l = str(code or "").lower()
+        if "hr" in code_l:
+            return None if num <= 0 or num > 250 else round(float(num), 1)
+        if "resp" in code_l:
+            return None if num <= 0 or num > 80 else round(float(num), 1)
+        if "spo2" in code_l:
+            return None if num < 30 or num > 100 else round(float(num), 1)
+        if code_l.endswith("_m") or "map" in code_l or "ibp" in code_l or "nibp" in code_l:
+            return None if num < 20 or num > 280 else round(float(num), 1)
+        if code_l.endswith("_t") or code_l == "param_t":
+            return None if num < 30 or num > 43 else round(float(num), 1)
+        return round(float(num), 1)
+
+    def _context_rate_to_ug_kg_min(self, value: Any, unit: Any, weight_kg: float | None) -> float | None:
+        num = _parse_number(value)
+        if num is None or num <= 0:
+            return None
+        u = str(unit or "").lower().replace(" ", "").replace("μ", "u")
+        if "mcg/kg/min" in u or "ug/kg/min" in u:
+            return round(float(num), 4)
+        if "mg/kg/min" in u:
+            return round(float(num) * 1000.0, 4)
+        if "mg/kg/h" in u or "mg/kg/hr" in u:
+            return round(float(num) * 1000.0 / 60.0, 4)
+        if weight_kg is None or weight_kg <= 0:
+            return None
+        if "mg/h" in u or "mg/hr" in u:
+            return round(float(num) * 1000.0 / 60.0 / weight_kg, 4)
+        if "mg/min" in u:
+            return round(float(num) * 1000.0 / weight_kg, 4)
+        if "ug/h" in u or "mcg/h" in u:
+            return round(float(num) / 60.0 / weight_kg, 4)
+        if "ug/min" in u or "mcg/min" in u:
+            return round(float(num) / weight_kg, 4)
+        return None
+
+    def _extract_vasopressor_rate_ug_kg_min(self, doc: dict, weight_kg: float | None) -> float | None:
+        value_unit_pairs = [
+            (doc.get("dose"), doc.get("doseUnit") or doc.get("unit")),
+            (doc.get("rate"), doc.get("rateUnit") or doc.get("unit")),
+            (doc.get("speed"), doc.get("speedUnit") or doc.get("unit")),
+            (doc.get("flowRate"), doc.get("flowRateUnit") or doc.get("unit")),
+        ]
+        for value, unit in value_unit_pairs:
+            dose = self._context_rate_to_ug_kg_min(value, unit, weight_kg)
+            if dose is not None:
+                return dose
+
+        text = " ".join(str(doc.get(k) or "") for k in ("dose", "drugSpec", "orderName", "drugName", "remark"))
+        m = re.search(
+            r"(\d+(?:\.\d+)?)\s*(mcg/kg/min|ug/kg/min|mg/kg/min|mg/kg/h|mg/kg/hr|mg/h|mg/hr|mg/min|ug/h|mcg/h|ug/min|mcg/min)",
+            text,
+            flags=re.I,
+        )
+        if not m:
+            return None
+        return self._context_rate_to_ug_kg_min(m.group(1), m.group(2), weight_kg)
+
+    async def _get_current_vasopressor_snapshot(
+        self,
+        pid,
+        patient_doc: dict | None,
+        *,
+        hours: int = 8,
+        max_items: int = 4,
+    ) -> list[dict[str, Any]]:
+        docs = await self._get_recent_drug_docs_window(pid, hours=hours, limit=800)
+        if not docs:
+            return []
+
+        weight_kg = self._get_patient_weight(patient_doc)
+        drug_specs = [
+            ("去甲肾上腺素", ["去甲肾上腺素", "norepinephrine", "noradrenaline"]),
+            ("肾上腺素", ["肾上腺素", "epinephrine", "adrenaline"]),
+            ("多巴胺", ["多巴胺", "dopamine"]),
+            ("多巴酚丁胺", ["多巴酚丁胺", "dobutamine"]),
+            ("血管加压素", ["血管加压素", "vasopressin"]),
+            ("去氧肾上腺素", ["去氧肾上腺素", "phenylephrine"]),
+        ]
+        infusion_keywords = ["泵", "微泵", "泵入", "泵注", "持续", "静脉", "iv", "静滴", "维持"]
+
+        latest_by_name: dict[str, dict[str, Any]] = {}
+        for doc in docs:
+            text = " ".join(
+                str(doc.get(k) or "")
+                for k in ("drugName", "orderName", "drugSpec", "route", "routeName", "remark", "orderType")
+            ).lower()
+            matched_name = None
+            for display_name, keywords in drug_specs:
+                if any(str(k).lower() in text for k in keywords):
+                    matched_name = display_name
+                    break
+            if not matched_name:
+                continue
+
+            route_text = str(doc.get("routeName") or doc.get("route") or "").strip()
+            dose = self._extract_vasopressor_rate_ug_kg_min(doc, weight_kg)
+            infusion_like = dose is not None or any(k in text for k in infusion_keywords)
+            if not infusion_like:
+                continue
+
+            t = _parse_dt(doc.get("_event_time")) or _parse_dt(doc.get("executeTime")) or _parse_dt(doc.get("startTime")) or _parse_dt(doc.get("orderTime"))
+            entry = {
+                "drug": matched_name,
+                "dose_ug_kg_min": dose,
+                "dose_display": f"{dose:.3f} μg/kg/min" if dose is not None else None,
+                "route": route_text or None,
+                "frequency": str(doc.get("frequency") or "").strip() or None,
+                "time": t,
+                "raw_name": str(doc.get("drugName") or doc.get("orderName") or "").strip() or matched_name,
+            }
+            prev = latest_by_name.get(matched_name)
+            if prev is None or (isinstance(t, datetime) and (prev.get("time") is None or t >= prev.get("time"))):
+                latest_by_name[matched_name] = entry
+
+        rows = list(latest_by_name.values())
+        rows.sort(key=lambda x: x.get("time") or datetime.min, reverse=True)
+        return rows[:max_items]
+
+    async def _build_alert_context_snapshot(
+        self,
+        *,
+        patient_id,
+        patient_doc: dict | None,
+        device_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        patient = patient_doc
+        pid = (patient or {}).get("_id")
+        if patient is None or pid is None:
+            patient, _ = await self._load_patient(patient_id)
+            pid = (patient or {}).get("_id") or patient_id
+        if not pid:
+            return None
+
+        monitor_codes = ["param_HR", "param_resp", "param_ibp_m", "param_nibp_m", "param_spo2", "param_T"]
+        cap = await self._get_latest_param_snapshot_by_pid(pid, codes=monitor_codes, lookback_minutes=180)
+        if not cap:
+            monitor_id = device_id or (await self._get_device_id_for_patient(patient, ["monitor"]) if patient else None)
+            cap = await self._get_latest_device_cap(monitor_id, codes=monitor_codes) if monitor_id else None
+
+        vitals: dict[str, Any] = {
+            "hr": {"value": None, "unit": "bpm", "time": None},
+            "rr": {"value": None, "unit": "次/分", "time": None},
+            "map": {"value": None, "unit": "mmHg", "time": None},
+            "spo2": {"value": None, "unit": "%", "time": None},
+            "temp": {"value": None, "unit": "℃", "time": None},
+        }
+        snapshot_times: list[datetime] = []
+        cap_time = _parse_dt((cap or {}).get("time"))
+        if isinstance(cap_time, datetime):
+            snapshot_times.append(cap_time)
+        if cap:
+            hr = self._sanitize_context_vital("param_HR", _extract_param(cap, "param_HR"))
+            rr = self._sanitize_context_vital("param_resp", _extract_param(cap, "param_resp"))
+            map_value = self._sanitize_context_vital("param_map", self._get_map(cap))
+            spo2 = self._sanitize_context_vital("param_spo2", _extract_param(cap, "param_spo2"))
+            temp = self._sanitize_context_vital("param_T", _extract_param(cap, "param_T"))
+            for key, value_num, unit in [
+                ("hr", hr, "bpm"),
+                ("rr", rr, "次/分"),
+                ("map", map_value, "mmHg"),
+                ("spo2", spo2, "%"),
+                ("temp", temp, "℃"),
+            ]:
+                if value_num is not None:
+                    vitals[key] = {"value": value_num, "unit": unit, "time": cap_time}
+
+        labs_snapshot: dict[str, Any] = {
+            "lac": {"value": None, "unit": "mmol/L", "time": None, "raw_name": None},
+            "cr": {"value": None, "unit": "μmol/L", "time": None, "raw_name": None},
+            "pct": {"value": None, "unit": "ng/mL", "time": None, "raw_name": None},
+        }
+        his_pid = str((patient or {}).get("hisPid") or "").strip()
+        if his_pid:
+            labs = await self._get_latest_labs_map(his_pid, lookback_hours=72)
+            for key, unit in [("lac", "mmol/L"), ("cr", "μmol/L"), ("pct", "ng/mL")]:
+                item = labs.get(key) if isinstance(labs, dict) else None
+                if not isinstance(item, dict):
+                    continue
+                value_num = _parse_number(item.get("value"))
+                if value_num is None:
+                    continue
+                item_time = _parse_dt(item.get("time"))
+                if isinstance(item_time, datetime):
+                    snapshot_times.append(item_time)
+                labs_snapshot[key] = {
+                    "value": round(float(value_num), 3),
+                    "unit": item.get("unit") or unit,
+                    "time": item_time,
+                    "raw_name": item.get("raw_name"),
+                }
+
+        vasopressors = await self._get_current_vasopressor_snapshot(pid, patient, hours=8, max_items=4)
+        for row in vasopressors:
+            if isinstance(row.get("time"), datetime):
+                snapshot_times.append(row["time"])
+
+        has_vital = any(isinstance(v, dict) and v.get("value") is not None for v in vitals.values())
+        has_lab = any(isinstance(v, dict) and v.get("value") is not None for v in labs_snapshot.values())
+        if not has_vital and not has_lab and not vasopressors:
+            return None
+
+        return {
+            "vitals": vitals,
+            "labs": labs_snapshot,
+            "vasopressors": vasopressors,
+            "snapshot_time": max(snapshot_times) if snapshot_times else datetime.now(),
+        }
+
     def _split_explanation_text(self, text: str) -> tuple[str, str | None]:
         raw = str(text or "").strip().strip("；;")
         if not raw:
@@ -2549,6 +2863,68 @@ class BaseEngine:
             if extra.get("target_range") is not None:
                 evidence.append(f"目标范围 {extra.get('target_range')}")
 
+        elif alert_type == "ecash_sat_stress_reaction":
+            sat_window = extra.get("sat_window") if isinstance(extra.get("sat_window"), dict) else {}
+            if sat_window.get("baseline_rass") is not None and sat_window.get("latest_rass") is not None:
+                evidence.append(f"SAT中 RASS {sat_window.get('baseline_rass')}→{sat_window.get('latest_rass')}")
+            matched_signals = extra.get("matched_signals") if isinstance(extra.get("matched_signals"), list) else []
+            evidence.extend(str(x) for x in matched_signals[:3] if str(x).strip())
+            if extra.get("map") is not None:
+                evidence.append(f"MAP {extra.get('map')} mmHg")
+            if extra.get("sbp") is not None:
+                evidence.append(f"SBP {extra.get('sbp')} mmHg")
+            if extra.get("hr") is not None:
+                evidence.append(f"HR {extra.get('hr')} 次/分")
+            if extra.get("new_arrhythmia"):
+                evidence.append("SAT期间新发心律失常")
+
+        elif alert_type == "icu_aw_risk":
+            if extra.get("risk_score") is not None:
+                evidence.append(f"ICU-AW评分 {extra.get('risk_score')}")
+            if extra.get("ventilation_days") is not None:
+                evidence.append(f"机械通气 {extra.get('ventilation_days')} 天")
+            if extra.get("sedative_days") is not None:
+                evidence.append(f"镇静药暴露 {extra.get('sedative_days')} 天")
+            if extra.get("immobility_hours") is not None:
+                evidence.append(f"卧床 {extra.get('immobility_hours')} h")
+
+        elif alert_type == "early_mobility_recommendation":
+            if extra.get("recommended_level") is not None:
+                evidence.append(f"建议活动等级 L{extra.get('recommended_level')}")
+            if extra.get("immobility_hours") is not None:
+                evidence.append(f"持续卧床 {extra.get('immobility_hours')} h")
+            readiness = extra.get("mobility_readiness") if isinstance(extra.get("mobility_readiness"), dict) else {}
+            if readiness.get("fio2_fraction") is not None or readiness.get("peep") is not None:
+                evidence.append(f"FiO₂/PEEP {readiness.get('fio2_fraction')} / {readiness.get('peep')}")
+
+        elif alert_type == "fluid_responsiveness_lost":
+            map_info = extra.get("map") if isinstance(extra.get("map"), dict) else {}
+            lac_info = extra.get("lactate") if isinstance(extra.get("lactate"), dict) else {}
+            if extra.get("intake_6h_ml") is not None:
+                evidence.append(f"6h入量 {extra.get('intake_6h_ml')} mL")
+            if map_info.get("change") is not None:
+                evidence.append(f"MAP变化 {map_info.get('change')} mmHg")
+            if lac_info.get("ratio") is not None:
+                evidence.append(f"乳酸比值 {lac_info.get('ratio')}")
+
+        elif alert_type == "fluid_deresuscitation":
+            if extra.get("percent_fluid_overload") is not None:
+                evidence.append(f"%FO {extra.get('percent_fluid_overload')}%")
+            if extra.get("net_24h_ml") is not None:
+                evidence.append(f"24h净平衡 {extra.get('net_24h_ml')} mL")
+            lac_info = extra.get("lactate") if isinstance(extra.get("lactate"), dict) else {}
+            if lac_info.get("latest") is not None:
+                evidence.append(f"乳酸 {lac_info.get('baseline')}→{lac_info.get('latest')}")
+
+        elif alert_type in {"sepsis_abx_overdue_1h", "sepsis_abx_overdue_3h"}:
+            if extra.get("elapsed_minutes") is not None:
+                evidence.append(f"已延迟 {extra.get('elapsed_minutes')} 分钟")
+            if extra.get("bundle_started_at") is not None:
+                evidence.append(f"起点 {extra.get('bundle_started_at')}")
+            sources = extra.get("source_rules") if isinstance(extra.get("source_rules"), list) else []
+            if sources:
+                evidence.append("触发来源：" + " / ".join(str(x) for x in sources[:3]))
+
         elif alert_type == "cardiac_arrest_risk":
             snapshots = extra.get("snapshots") if isinstance(extra.get("snapshots"), dict) else {}
             for key in ("hr", "sbp", "map", "k", "ica", "lac_latest", "qrs_duration"):
@@ -2697,6 +3073,20 @@ class BaseEngine:
         device_id=None, source_time=None, extra=None, explanation: Any | None = None,
     ) -> dict | None:
         now = datetime.now()
+        severity_l = str(severity or "").lower()
+        extra_payload = dict(extra) if isinstance(extra, dict) else ({"raw_extra": extra} if extra is not None else {})
+        if severity_l in {"high", "critical"} and "context_snapshot" not in extra_payload:
+            try:
+                context_snapshot = await self._build_alert_context_snapshot(
+                    patient_id=patient_id,
+                    patient_doc=patient_doc,
+                    device_id=device_id,
+                )
+                if context_snapshot:
+                    extra_payload["context_snapshot"] = context_snapshot
+            except Exception as e:
+                logger.debug(f"生成预警上下文快照失败: {e}")
+        extra = extra_payload or None
         if explanation is None:
             try:
                 explanation = await self._generate_alert_explanation(

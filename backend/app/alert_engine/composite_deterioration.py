@@ -1,6 +1,7 @@
 """多器官恶化趋势（MODI）"""
 from __future__ import annotations
 
+from fnmatch import fnmatch
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -119,6 +120,103 @@ class CompositeDeteriorationMixin:
         ).sort("created_at", -1).limit(max_records)
         return [doc async for doc in cursor]
 
+    def _composite_group_defaults(self) -> dict[str, list[str]]:
+        return {
+            "sepsis_group": ["SEPSIS_*", "*qsofa*", "*sofa*", "*septic_shock*", "*lac*", "*map*"],
+            "bleeding_group": ["*BLEEDING*", "*gi_bleeding*", "*hb*", "*hr*", "*sbp*"],
+            "respiratory_group": ["*ARDS*", "*VENT*", "*spo2*", "*resp*", "*weaning*"],
+        }
+
+    def _alert_theme_key(self, alert_doc: dict) -> str:
+        return " ".join(
+            str(alert_doc.get(k) or "").lower()
+            for k in ("rule_id", "alert_type", "parameter", "name", "category")
+        )
+
+    def _aggregate_alert_groups(self, alerts: list[dict]) -> list[dict[str, Any]]:
+        mapping = self._cfg("alert_engine", "alert_grouping", default=None)
+        groups = mapping if isinstance(mapping, dict) else self._composite_group_defaults()
+        rows: list[dict[str, Any]] = []
+        for group_name, patterns in groups.items():
+            hits = []
+            for alert in alerts:
+                key = self._alert_theme_key(alert)
+                if any(fnmatch(key, str(p).lower()) for p in patterns or []):
+                    hits.append(alert)
+            if not hits:
+                continue
+            rows.append(
+                {
+                    "group": group_name,
+                    "count": len(hits),
+                    "severity": max((str(h.get("severity") or "warning") for h in hits), key=_severity_weight),
+                    "alerts": [
+                        {
+                            "rule_id": h.get("rule_id"),
+                            "name": h.get("name"),
+                            "severity": h.get("severity"),
+                            "time": h.get("created_at"),
+                        }
+                        for h in hits[:10]
+                    ],
+                }
+            )
+        return rows
+
+    def _match_clinical_chain(
+        self,
+        alerts: list[dict],
+        organ_scores: dict[str, int],
+        temporal_signal: dict | None = None,
+    ) -> dict[str, Any] | None:
+        text = " ".join(self._alert_theme_key(a) for a in alerts)
+        has_lactate = "lac" in text or "乳酸" in text
+        has_map_low = "map" in text or "低血压" in text or "shock" in text
+        has_tachy = "param_hr" in text or "心动过速" in text or "af_afl" in text
+        has_renal = "aki" in text or "尿" in text or organ_scores.get("renal", 0) > 0
+        has_spo2 = "spo2" in text or "呼吸" in text
+        has_bleed = "bleeding" in text or "hb" in text or "出血" in text
+        has_sepsis = "sepsis" in text or "qsofa" in text or "sofa" in text or "pct" in text
+
+        if has_lactate and has_map_low and has_tachy and has_renal:
+            return {
+                "chain_type": "shock_chain",
+                "summary": "循环衰竭征象：低灌注（乳酸↑）→ 低血压（MAP↓）→ 代偿性心动过速 → 终末器官受损（少尿/肾损伤）。",
+                "evidence": ["乳酸升高", "MAP下降或休克相关预警", "心率增快", "肾脏/尿量异常"],
+                "suggestion": "请评估容量状态、血管活性药物需求及组织灌注恢复情况。",
+            }
+        if has_spo2 and organ_scores.get("respiratory", 0) > 0 and organ_scores.get("circulatory", 0) > 0:
+            return {
+                "chain_type": "respiratory_failure_chain",
+                "summary": "呼吸衰竭进展征象：氧合下降伴呼吸负荷增加，并出现循环代偿迹象。",
+                "evidence": ["SpO₂/呼吸相关预警", "呼吸系统参与", "循环系统同步受累"],
+                "suggestion": "建议复核氧疗/通气支持强度，警惕进一步呼衰或需升级呼吸支持。",
+            }
+        if has_sepsis and has_lactate and has_map_low:
+            return {
+                "chain_type": "sepsis_progression_chain",
+                "summary": "脓毒症进展链：感染相关评分异常合并乳酸升高与低灌注征象。",
+                "evidence": ["qSOFA/SOFA/脓毒症相关预警", "乳酸升高", "低血压或MAP下降"],
+                "suggestion": "请结合感染灶控制、液体复苏及抗感染时效重新评估脓毒症 Bundle。",
+            }
+        if has_bleed and has_tachy and has_map_low:
+            return {
+                "chain_type": "bleeding_chain",
+                "summary": "失血链征象：出血/血红蛋白异常伴心率增快和血压下降，提示容量不足可能。",
+                "evidence": ["出血或Hb异常", "心率增快", "血压下降"],
+                "suggestion": "建议尽快复核出血来源、Hb动态及输血/止血策略。",
+            }
+        if temporal_signal and temporal_signal.get("enabled"):
+            contributors = temporal_signal.get("contributors") or []
+            evidences = [str(c.get("evidence") or c.get("feature") or "") for c in contributors[:3] if c]
+            return {
+                "chain_type": "multi_organ_progression",
+                "summary": "多器官恶化风险正在累积，短时窗预测提示进一步失代偿可能。",
+                "evidence": evidences,
+                "suggestion": "建议加强连续监测，优先处理排名靠前的高风险器官系统。",
+            }
+        return None
+
     async def scan_composite_deterioration(self) -> None:
         suppression = self.config.yaml_cfg.get("alert_engine", {}).get("suppression", {})
         same_rule_sec = int(suppression.get("same_rule_same_patient_seconds", 1800))
@@ -166,6 +264,7 @@ class CompositeDeteriorationMixin:
             organ_scores: dict[str, int] = {k: 0 for k in mapping.keys()}
             organ_counts: dict[str, int] = {k: 0 for k in mapping.keys()}
             source_rows: list[dict] = []
+            relevant_alerts: list[dict] = []
 
             for a in alerts:
                 category = str(a.get("category") or "").lower()
@@ -181,6 +280,7 @@ class CompositeDeteriorationMixin:
                     organ_counts[organ] += 1
                     if sev_w > organ_scores[organ]:
                         organ_scores[organ] = sev_w
+                relevant_alerts.append(a)
                 source_rows.append(
                     {
                         "alert_type": a.get("alert_type"),
@@ -223,6 +323,15 @@ class CompositeDeteriorationMixin:
             rule_id = "COMPOSITE_MODI_CRITICAL"
             if await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                 continue
+            grouped_alerts = self._aggregate_alert_groups(relevant_alerts)
+            clinical_chain = self._match_clinical_chain(relevant_alerts, organ_scores, temporal_signal if isinstance(temporal_signal, dict) else None)
+            explanation = None
+            if clinical_chain:
+                explanation = {
+                    "summary": clinical_chain.get("summary"),
+                    "evidence": clinical_chain.get("evidence") or [],
+                    "suggestion": clinical_chain.get("suggestion"),
+                }
 
             alert = await self._create_alert(
                 rule_id=rule_id,
@@ -251,6 +360,8 @@ class CompositeDeteriorationMixin:
                     "source_alert_count": len(source_rows),
                     "source_alerts": source_rows[:80],
                     "temporal_risk_signal": temporal_forecast if temporal_signal.get("enabled") else None,
+                    "clinical_chain": clinical_chain,
+                    "aggregated_groups": grouped_alerts,
                     "organ_labels_cn": {
                         "respiratory": "呼吸",
                         "circulatory": "循环",
@@ -260,6 +371,7 @@ class CompositeDeteriorationMixin:
                         "neurologic": "神经",
                     },
                 },
+                explanation=explanation,
             )
             if alert:
                 triggered += 1

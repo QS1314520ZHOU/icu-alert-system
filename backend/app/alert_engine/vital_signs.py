@@ -26,6 +26,120 @@ def _to_float(value: Any) -> float | None:
 
 
 class VitalSignsMixin:
+    async def _baseline_guard(
+        self,
+        *,
+        pid,
+        patient_doc: dict | None,
+        param: str,
+        value: float,
+        direction: str | None,
+    ) -> tuple[bool, bool, dict | None]:
+        cfg = self._cfg("alert_engine", "patient_baseline", default={}) or {}
+        if not bool(cfg.get("enabled", True)):
+            return False, False, None
+        baseline = await self._get_patient_baseline(
+            pid,
+            param,
+            hours=int(cfg.get("hours", 12)),
+            patient_doc=patient_doc,
+            prefer_device_types=["monitor"],
+        )
+        if not baseline or baseline.get("count", 0) < int(cfg.get("min_points", 3)):
+            return False, False, baseline
+        mean = float(baseline.get("mean") or 0.0)
+        std = float(baseline.get("std") or 0.0)
+        abs_floor = float(cfg.get("absolute_floor", 2.0))
+        rel_floor = abs(mean) * float(cfg.get("relative_tolerance", 0.08))
+        tol = max(std * float(cfg.get("zscore_tolerance", 2.0)), abs_floor, rel_floor)
+        baseline["tolerance"] = round(tol, 4)
+        delta = float(value) - mean
+        baseline["delta"] = round(delta, 4)
+        baseline["within_baseline"] = False
+        baseline["deviation_triggered"] = False
+        if direction == "low":
+            within = float(value) >= mean - tol
+            deviated = float(value) < mean - tol
+        elif direction == "high":
+            within = float(value) <= mean + tol
+            deviated = float(value) > mean + tol
+        else:
+            within = abs(delta) <= tol
+            deviated = abs(delta) > tol
+        baseline["within_baseline"] = within
+        baseline["deviation_triggered"] = deviated
+        return within, deviated, baseline
+
+    async def _confirm_vital_rule(
+        self,
+        *,
+        pid,
+        patient_doc: dict | None,
+        param: str,
+        value: float,
+        condition: dict,
+        cap: dict,
+        now: datetime,
+    ) -> tuple[bool, dict[str, Any]]:
+        op = str((condition or {}).get("operator") or "")
+        threshold = _to_float((condition or {}).get("threshold"))
+        detail: dict[str, Any] = {}
+
+        map_codes = set(self._cfg("vital_signs", "map_priority", default=["param_ibp_m", "param_nibp_m"]) or [])
+        sbp_codes = set(self._cfg("vital_signs", "sbp_priority", default=["param_ibp_s", "param_nibp_s"]) or [])
+        rr = _extract_param(cap, self._cfg("vital_signs", "resp_rate", "code", default="param_resp"))
+        hr = _extract_param(cap, self._cfg("vital_signs", "heart_rate", "code", default="param_HR"))
+        temp = _extract_param(cap, self._cfg("vital_signs", "temperature", "code", default="param_T"))
+
+        if param in map_codes and op in {"<", "<="} and threshold is not None:
+            code = param
+            series = await self._get_param_series_by_pid(pid, code, now - timedelta(minutes=20), prefer_device_types=["monitor"], limit=30)
+            series = self._filter_series_quality(code, series)
+            low_points = [s for s in series[-3:] if _to_float(s.get("value")) is not None and float(s["value"]) < threshold]
+            detail["confirm_low_points"] = len(low_points)
+            if len(low_points) >= 2:
+                return True, detail
+            if value < threshold and hr is not None and hr > 100:
+                detail["tachycardia_support"] = round(float(hr), 2)
+                return True, detail
+            return False, detail
+
+        if param in sbp_codes and op in {"<", "<="} and threshold is not None:
+            code = param
+            series = await self._get_param_series_by_pid(pid, code, now - timedelta(minutes=20), prefer_device_types=["monitor"], limit=30)
+            series = self._filter_series_quality(code, series)
+            low_points = [s for s in series[-3:] if _to_float(s.get("value")) is not None and float(s["value"]) < threshold]
+            detail["confirm_low_points"] = len(low_points)
+            if len(low_points) >= 2:
+                return True, detail
+            if value < threshold and hr is not None and hr > 100:
+                detail["tachycardia_support"] = round(float(hr), 2)
+                return True, detail
+            return False, detail
+
+        if param == self._cfg("vital_signs", "spo2", "code", default="param_spo2") and op in {"<", "<="} and threshold is not None:
+            series = await self._get_param_series_by_pid(pid, param, now - timedelta(minutes=15), prefer_device_types=["monitor"], limit=30)
+            series = self._filter_series_quality(param, series)
+            low_points = [s for s in series[-3:] if _to_float(s.get("value")) is not None and float(s["value"]) < threshold]
+            detail["confirm_low_points"] = len(low_points)
+            if len(low_points) >= 2:
+                return True, detail
+            if value < threshold and rr is not None and rr > 25:
+                detail["rr_support"] = round(float(rr), 2)
+                return True, detail
+            return False, detail
+
+        if param == self._cfg("vital_signs", "heart_rate", "code", default="param_HR") and op in {">", ">="}:
+            if value >= 130:
+                detail["high_hr_direct"] = round(float(value), 2)
+                return True, detail
+            if value > 110 and temp is not None and 36 <= temp <= 38:
+                detail["normothermia_support"] = round(float(temp), 2)
+                return True, detail
+            return False, detail
+
+        return True, detail
+
     def _text_has_any(self, text: str, keywords: list[str]) -> bool:
         t = str(text or "").lower()
         return any(str(k).strip().lower() in t for k in keywords if str(k).strip())
@@ -317,6 +431,15 @@ class VitalSignsMixin:
             patient_doc, pid_str = await self._load_patient(pid)
             if not pid_str:
                 continue
+            cap, quality_issues = await self._filter_snapshot_quality(
+                pid=pid,
+                pid_str=pid_str,
+                patient_doc=patient_doc,
+                cap=cap,
+                device_id=device_id,
+                same_rule_sec=same_rule_sec,
+                max_per_hour=max_per_hour,
+            )
 
             # 现有阈值规则
             for rule in rules:
@@ -325,7 +448,34 @@ class VitalSignsMixin:
                     continue
 
                 value = _extract_param(cap, param)
-                if not _eval_condition(value, rule.get("condition", {})):
+                if value is None:
+                    continue
+                condition = rule.get("condition", {}) or {}
+                absolute_match = _eval_condition(value, condition)
+                operator = str(condition.get("operator") or "")
+                direction = "low" if operator in {"<", "<="} else ("high" if operator in {">", ">="} else None)
+                within_baseline, baseline_deviation, baseline_meta = await self._baseline_guard(
+                    pid=pid,
+                    patient_doc=patient_doc,
+                    param=param,
+                    value=float(value),
+                    direction=direction,
+                )
+                if absolute_match and within_baseline and direction in {"low", "high"}:
+                    continue
+                if not absolute_match and not baseline_deviation:
+                    continue
+
+                confirmed, confirm_detail = await self._confirm_vital_rule(
+                    pid=pid,
+                    patient_doc=patient_doc,
+                    param=param,
+                    value=float(value),
+                    condition=condition,
+                    cap=cap,
+                    now=now,
+                )
+                if not confirmed:
                     continue
 
                 if await self._is_suppressed(pid_str, rule.get("rule_id"), same_rule_sec, max_per_hour):
@@ -338,12 +488,23 @@ class VitalSignsMixin:
                     alert_type="threshold",
                     severity=rule.get("severity", "warning"),
                     parameter=param,
-                    condition=rule.get("condition", {}),
+                    condition={
+                        **condition,
+                        "trigger_mode": "absolute_or_baseline",
+                        "baseline_used": bool(baseline_meta),
+                        "confirmed_by_multi_param": bool(confirm_detail),
+                    },
                     value=value,
                     patient_id=pid_str,
                     patient_doc=patient_doc,
                     device_id=device_id,
                     source_time=cap.get("time"),
+                    extra={
+                        "trigger_reason": "absolute_threshold" if absolute_match else "patient_baseline_deviation",
+                        "patient_baseline": baseline_meta,
+                        "confirmation": confirm_detail,
+                        "data_quality_issues": quality_issues[:3],
+                    } if (baseline_meta or confirm_detail or quality_issues) else None,
                 )
                 if alert:
                     triggered += 1

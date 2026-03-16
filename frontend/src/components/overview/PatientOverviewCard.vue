@@ -44,6 +44,28 @@
       </div>
     </section>
 
+    <section
+      v-if="summaryCard && isRescueSummary(summaryCard)"
+      class="sec-rescue-spotlight"
+    >
+      <div class="rescue-spotlight-head">
+        <span class="rescue-spotlight-tag">抢救期风险卡</span>
+        <span :class="['rescue-spotlight-sev', `rescue-spotlight-sev--${severityTone(summaryCard.severity)}`]">{{ severityLabel(summaryCard.severity) }}</span>
+      </div>
+      <div class="rescue-spotlight-title">{{ summaryRescueTitle(summaryCard) }}</div>
+      <div v-if="summaryCard.summary" class="rescue-spotlight-main">{{ summaryCard.summary }}</div>
+      <div v-if="summaryEvidence(summaryCard).length" class="summary-chip-row summary-chip-row--rescue">
+        <span v-for="(ev, idx) in summaryEvidence(summaryCard)" :key="`spot-ev-${idx}`" class="summary-chip summary-chip--rescue">{{ ev }}</span>
+      </div>
+      <div v-if="summarySnapshotRows(summaryCard).length" class="summary-mini-snapshot">
+        <span v-for="(chip, idx) in summarySnapshotRows(summaryCard)" :key="`spot-chip-${idx}`" class="summary-mini-chip">
+          <span class="summary-mini-chip-label">{{ chip.label }}</span>
+          <strong class="summary-mini-chip-value">{{ chip.value }}</strong>
+        </span>
+      </div>
+      <div v-if="summaryCard.suggestion" class="rescue-spotlight-suggestion">{{ summaryCard.suggestion }}</div>
+    </section>
+
     <section class="sec-logistics" v-if="bedcard?.devices?.length || bedcard?.tubes?.length">
       <div class="section-head">
         <span class="section-title">设备与管路</span>
@@ -86,17 +108,156 @@
           </div>
           <span class="alert-card-time">{{ noteTimeText(note.created_at) }}</span>
         </div>
-        <div v-if="note.summary" class="alert-card-summary">{{ note.summary }}</div>
-        <ul v-if="note.evidence?.length" class="alert-card-evidence">
-          <li v-for="(ev, eIdx) in note.evidence" :key="`${idx}-${eIdx}`">{{ ev }}</li>
-        </ul>
-        <div v-if="note.suggestion" class="alert-card-suggestion">建议：{{ note.suggestion }}</div>
+        <div :class="['alert-card-summary', { 'alert-card-summary--rescue': isRescueSummary(note) }]">{{ note.summary }}</div>
+        <div v-if="summaryEvidence(note).length" :class="['summary-chip-row', 'summary-chip-row--inline', { 'summary-chip-row--rescue': isRescueSummary(note) }]">
+          <span v-for="(ev, eIdx) in summaryEvidence(note)" :key="`${idx}-${eIdx}`" :class="['summary-chip', { 'summary-chip--rescue': isRescueSummary(note) }]">
+            {{ ev }}
+          </span>
+        </div>
+        <div v-if="summarySnapshotRows(note).length" class="summary-mini-snapshot">
+          <span v-for="(chip, chipIdx) in summarySnapshotRows(note)" :key="`note-shot-${idx}-${chipIdx}`" class="summary-mini-chip">
+            <span class="summary-mini-chip-label">{{ chip.label }}</span>
+            <strong class="summary-mini-chip-value">{{ chip.value }}</strong>
+          </span>
+        </div>
+        <div v-if="note.suggestion" :class="['alert-card-suggestion', { 'alert-card-suggestion--rescue': isRescueSummary(note) }]">{{ note.suggestion }}</div>
       </div>
       <div v-if="!alertNotes.length" v-for="(note, idx) in bedcard?.notes?.slice(0, 2)" :key="idx" class="alert-line">
         <span class="alert-dot alert-dot--red"></span>
         <span class="alert-text">{{ note }}</span>
       </div>
     </section>
+
+    <section
+      v-if="summaryCard && (summaryCard.summary || summaryChain(summaryCard) || summaryGroups(summaryCard).length)"
+      class="sec-summary"
+    >
+      <div class="section-head">
+        <span class="section-title">{{ isRescueSummary(summaryCard) ? '抢救期风险卡' : '综合预警卡' }}</span>
+        <span class="section-desc">{{ noteTimeText(summaryCard.created_at) }}</span>
+      </div>
+      <div :class="['summary-top', { 'summary-top--rescue': isRescueSummary(summaryCard) }]">
+        <div v-if="isRescueSummary(summaryCard)" class="summary-rescue-head">
+          <span class="summary-rescue-tag">抢救期风险卡</span>
+          <span :class="['summary-rescue-sev', `summary-rescue-sev--${severityTone(summaryCard.severity)}`]">{{ severityLabel(summaryCard.severity) }}</span>
+        </div>
+        <div class="summary-title-row">
+          <span :class="['alert-dot', `alert-dot--${summaryCard.severity || 'red'}`]"></span>
+          <span class="summary-title">{{ isRescueSummary(summaryCard) ? summaryRescueTitle(summaryCard) : (summaryCard.title || '综合预警') }}</span>
+        </div>
+      </div>
+      <div v-if="summaryCard.summary" :class="['summary-main-wrap', { 'summary-main-wrap--rescue': isRescueSummary(summaryCard) }]">
+        <div class="summary-block-label">{{ isRescueSummary(summaryCard) ? '当前判断' : '摘要' }}</div>
+        <div :class="['summary-main', { 'summary-main--rescue': isRescueSummary(summaryCard) }]">{{ summaryCard.summary }}</div>
+      </div>
+      <div v-if="summaryChain(summaryCard)" class="summary-chain">
+        <div class="summary-chain-head">
+          <span class="summary-chain-tag">{{ isRescueSummary(summaryCard) ? '病理生理链' : '临床链' }}</span>
+          <span class="summary-chain-code">{{ chainLabel(summaryChain(summaryCard)?.chain_type) }}</span>
+        </div>
+        <div class="summary-chain-text">{{ summaryChain(summaryCard)?.summary }}</div>
+      </div>
+      <div v-if="summaryEvidence(summaryCard).length" :class="['summary-chip-row', { 'summary-chip-row--rescue': isRescueSummary(summaryCard) }]">
+        <div class="summary-block-label">{{ isRescueSummary(summaryCard) ? '主要依据' : '证据' }}</div>
+        <span v-for="(ev, idx) in summaryEvidence(summaryCard)" :key="`sum-ev-${idx}`" :class="['summary-chip', { 'summary-chip--rescue': isRescueSummary(summaryCard) }]">
+          {{ ev }}
+        </span>
+      </div>
+      <div v-if="summarySnapshot(summaryCard)" class="summary-snapshot">
+        <div class="summary-snapshot-head">
+          <span class="summary-chain-tag">{{ isRescueSummary(summaryCard) ? '风险快照' : '微型快照' }}</span>
+          <span class="summary-chain-code">{{ snapshotTime(summaryCard) }}</span>
+        </div>
+        <div v-if="summaryVitals(summaryCard).length" class="summary-snapshot-row">
+          <span class="summary-snapshot-label">生命体征</span>
+          <div class="summary-snapshot-chip-row">
+            <span v-for="(chip, idx) in summaryVitals(summaryCard)" :key="`sum-vital-${idx}`" class="summary-mini-chip">
+              <span class="summary-mini-chip-label">{{ chip.label }}</span>
+              <strong class="summary-mini-chip-value">{{ chip.value }}</strong>
+            </span>
+          </div>
+        </div>
+        <div v-if="summaryLabs(summaryCard).length" class="summary-snapshot-row">
+          <span class="summary-snapshot-label">关键检验</span>
+          <div class="summary-snapshot-chip-row">
+            <span v-for="(chip, idx) in summaryLabs(summaryCard)" :key="`sum-lab-${idx}`" class="summary-mini-chip summary-mini-chip--lab">
+              <span class="summary-mini-chip-label">{{ chip.label }}</span>
+              <strong class="summary-mini-chip-value">{{ chip.value }}</strong>
+            </span>
+          </div>
+        </div>
+        <div v-if="summaryVaso(summaryCard).length" class="summary-snapshot-row">
+          <span class="summary-snapshot-label">血管活性药</span>
+          <div class="summary-snapshot-badge-row">
+            <span v-for="(badge, idx) in summaryVaso(summaryCard)" :key="`sum-vaso-${idx}`" class="summary-vaso-badge">
+              <span class="summary-vaso-name">{{ badge.drug }}</span>
+              <span class="summary-vaso-dose">{{ badge.dose }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div v-if="summaryGroups(summaryCard).length" class="summary-chip-row">
+        <span
+          v-for="(group, idx) in summaryGroups(summaryCard)"
+          :key="`sum-group-${idx}`"
+          :class="['summary-chip', 'summary-chip--group', `summary-chip--${severityTone(group.severity)}`]"
+        >
+          {{ groupLabel(group.group) }} · {{ group.count || 0 }}
+        </span>
+      </div>
+      <div v-if="summaryCard.suggestion" :class="['summary-suggestion', { 'summary-suggestion--rescue': isRescueSummary(summaryCard) }]">
+        <div class="summary-block-label">{{ isRescueSummary(summaryCard) ? '处置建议' : '建议' }}</div>
+        {{ summaryCard.suggestion }}
+      </div>
+    </section>
+
+    <aside
+      v-if="summaryCard && (summaryCard.summary || summarySnapshot(summaryCard) || summaryEvidence(summaryCard).length)"
+      :class="['hover-drawer', { 'hover-drawer--rescue': isRescueSummary(summaryCard) }]"
+    >
+      <div class="hover-drawer-head">
+        <span class="hover-drawer-tag">{{ isRescueSummary(summaryCard) ? '抢救期风险卡' : '综合预警摘要' }}</span>
+        <span :class="['hover-drawer-sev', `hover-drawer-sev--${severityTone(summaryCard.severity)}`]">{{ severityLabel(summaryCard.severity) }}</span>
+      </div>
+      <div class="hover-drawer-title">{{ summaryRescueTitle(summaryCard) }}</div>
+      <div v-if="summaryCard.summary" class="hover-drawer-block hover-drawer-block--summary">
+        <div class="hover-drawer-label">当前判断</div>
+        <div class="hover-drawer-main">{{ summaryCard.summary }}</div>
+      </div>
+      <div v-if="summaryChain(summaryCard)" class="hover-drawer-block hover-drawer-block--chain">
+        <div class="summary-chain-head">
+          <span class="summary-chain-tag">病理生理链</span>
+          <span class="summary-chain-code">{{ chainLabel(summaryChain(summaryCard)?.chain_type) }}</span>
+        </div>
+        <div class="summary-chain-text">{{ summaryChain(summaryCard)?.summary }}</div>
+      </div>
+      <div v-if="summaryEvidence(summaryCard).length" class="summary-chip-row summary-chip-row--rescue">
+        <div class="hover-drawer-label">主要依据</div>
+        <span v-for="(ev, idx) in summaryEvidence(summaryCard)" :key="`hover-ev-${idx}`" class="summary-chip summary-chip--rescue">{{ ev }}</span>
+      </div>
+      <div v-if="summarySnapshotRows(summaryCard).length" class="hover-drawer-block hover-drawer-block--snapshot">
+        <div class="hover-drawer-label">风险快照</div>
+        <div class="summary-mini-snapshot">
+        <span v-for="(chip, idx) in summarySnapshotRows(summaryCard)" :key="`hover-shot-${idx}`" class="summary-mini-chip">
+          <span class="summary-mini-chip-label">{{ chip.label }}</span>
+          <strong class="summary-mini-chip-value">{{ chip.value }}</strong>
+        </span>
+        </div>
+      </div>
+      <div v-if="summaryGroups(summaryCard).length" class="summary-chip-row">
+        <span
+          v-for="(group, idx) in summaryGroups(summaryCard)"
+          :key="`hover-group-${idx}`"
+          :class="['summary-chip', 'summary-chip--group', `summary-chip--${severityTone(group.severity)}`]"
+        >
+          {{ groupLabel(group.group) }} · {{ group.count || 0 }}
+        </span>
+      </div>
+      <div v-if="summaryCard.suggestion" class="hover-drawer-suggestion">
+        <div class="hover-drawer-label">处置建议</div>
+        {{ summaryCard.suggestion }}
+      </div>
+    </aside>
 
     <section class="sec-footer">
       <div class="bundle-panel">
@@ -170,6 +331,8 @@ const alertNotes = computed(() => {
   return list.slice(0, 2)
 })
 
+const summaryCard = computed(() => bedcard.value?.alert_summary_card || null)
+
 const bundleProgress = computed(() => {
   const lights = (bundleLights(props.patient) || []).filter(l => l.state !== 'unknown')
   if (!lights.length) return ''
@@ -224,6 +387,155 @@ function tubeClass(days: any) {
   return ''
 }
 
+function summaryChain(card: any) {
+  const chain = card?.clinical_chain
+  return chain && typeof chain === 'object' ? chain : null
+}
+
+function summaryGroups(card: any) {
+  const rows = card?.aggregated_groups
+  return Array.isArray(rows) ? rows.filter((x: any) => x && typeof x === 'object').slice(0, 3) : []
+}
+
+function summaryEvidence(card: any) {
+  return Array.isArray(card?.evidence) ? card.evidence.filter((x: any) => String(x || '').trim()).slice(0, 3) : []
+}
+
+function summarySnapshot(card: any) {
+  const ctx = card?.context_snapshot
+  return ctx && typeof ctx === 'object' ? ctx : null
+}
+
+function postExtubationSnapshot(card: any) {
+  const row = card?.post_extubation_snapshot
+  return row && typeof row === 'object' ? row : null
+}
+
+function snapshotValue(entry: any, digits = 0) {
+  const raw = entry?.value
+  if (raw == null || raw === '') return ''
+  const num = Number(raw)
+  const unit = String(entry?.unit || '').trim()
+  if (Number.isFinite(num)) {
+    const valueText = digits > 0 ? num.toFixed(digits) : (Math.abs(num - Math.round(num)) < 0.05 ? String(Math.round(num)) : num.toFixed(1))
+    return unit ? `${valueText}${unit}` : valueText
+  }
+  return unit ? `${raw}${unit}` : String(raw)
+}
+
+function summaryVitals(card: any) {
+  const vitals = summarySnapshot(card)?.vitals || {}
+  const defs = [
+    { key: 'hr', label: 'HR', digits: 0 },
+    { key: 'rr', label: 'RR', digits: 0 },
+    { key: 'map', label: 'MAP', digits: 0 },
+    { key: 'spo2', label: 'SpO₂', digits: 0 },
+    { key: 'temp', label: 'T', digits: 1 },
+  ]
+  return defs.map((def) => {
+    const value = snapshotValue(vitals?.[def.key], def.digits)
+    return value ? { label: def.label, value } : null
+  }).filter(Boolean) as Array<{ label: string; value: string }>
+}
+
+function summaryLabs(card: any) {
+  const labs = summarySnapshot(card)?.labs || {}
+  const defs = [
+    { key: 'lac', label: 'Lac', digits: 1 },
+    { key: 'cr', label: 'Cr', digits: 0 },
+    { key: 'pct', label: 'PCT', digits: 2 },
+  ]
+  return defs.map((def) => {
+    const value = snapshotValue(labs?.[def.key], def.digits)
+    return value ? { label: def.label, value } : null
+  }).filter(Boolean) as Array<{ label: string; value: string }>
+}
+
+function summaryVaso(card: any) {
+  const rows = summarySnapshot(card)?.vasopressors
+  if (!Array.isArray(rows)) return []
+  return rows.map((row: any) => {
+    const drug = String(row?.drug || row?.raw_name || '').trim()
+    if (!drug) return null
+    return { drug, dose: String(row?.dose_display || row?.route || '在用').trim() }
+  }).filter(Boolean) as Array<{ drug: string; dose: string }>
+}
+
+function summarySnapshotRows(card: any) {
+  const rows = [...summaryVitals(card), ...summaryLabs(card)]
+  if (rows.length) return rows.slice(0, 6)
+  const postExtub = postExtubationSnapshot(card)
+  if (!postExtub) return []
+  const mapped = [
+    postExtub?.rr != null ? { label: 'RR', value: String(postExtub.rr) } : null,
+    postExtub?.spo2 != null ? { label: 'SpO₂', value: `${postExtub.spo2}%` } : null,
+    postExtub?.hours_since_extubation != null ? { label: '拔管后', value: `${postExtub.hours_since_extubation}h` } : null,
+    postExtub?.accessory_muscle_use ? { label: '辅助肌', value: '有' } : null,
+  ]
+  return mapped.filter(Boolean) as Array<{ label: string; value: string }>
+}
+
+function snapshotTime(card: any) {
+  return noteTimeText(summarySnapshot(card)?.snapshot_time)
+}
+
+function isRescueSummary(card: any) {
+  const sev = severityTone(card?.severity)
+  if (sev !== 'high' && sev !== 'critical') return false
+  const haystack = `${String(card?.alert_type || '').toLowerCase()} ${String(card?.rule_id || '').toLowerCase()} ${String(card?.category || '').toLowerCase()}`
+  const keywords = [
+    'shock', 'sepsis', 'septic', 'cardiac_arrest', 'cardiac', 'pea', 'pe_',
+    'embol', 'bleed', 'bleeding', 'resp', 'hypoxia', 'hypotension', 'deterioration', 'multi_organ', 'post_extubation',
+  ]
+  return keywords.some((key) => haystack.includes(key)) || !!summarySnapshot(card) || !!summaryChain(card)
+}
+
+function summaryRescueTitle(card: any) {
+  const haystack = `${String(card?.alert_type || '').toLowerCase()} ${String(card?.rule_id || '').toLowerCase()}`
+  if (haystack.includes('cardiac_arrest')) return '心脏骤停前高风险'
+  if (haystack.includes('shock') || haystack.includes('sepsis') || haystack.includes('septic')) return '循环衰竭 / 脓毒症抢救风险'
+  if (haystack.includes('pe_') || haystack.includes('embol')) return '急性肺栓塞高风险'
+  if (haystack.includes('bleed')) return '活动性出血风险'
+  if (haystack.includes('post_extubation')) return '拔管后再插管高风险'
+  if (haystack.includes('resp') || haystack.includes('hypoxia')) return '呼吸衰竭风险'
+  return String(card?.title || '综合预警')
+}
+
+function groupLabel(raw: any) {
+  const key = String(raw || '')
+  const map: Record<string, string> = {
+    sepsis_group: '脓毒症主题',
+    bleeding_group: '出血主题',
+    respiratory_group: '呼吸主题',
+  }
+  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+}
+
+function chainLabel(raw: any) {
+  const key = String(raw || '')
+  const map: Record<string, string> = {
+    shock_chain: '休克链',
+    respiratory_failure_chain: '呼衰链',
+    sepsis_progression_chain: '脓毒症进展链',
+    bleeding_chain: '失血链',
+    multi_organ_progression: '多器官进展',
+  }
+  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+}
+
+function severityTone(raw: any) {
+  const s = String(raw || '').toLowerCase()
+  if (s === 'critical' || s.includes('crit')) return 'critical'
+  if (s === 'high' || s.includes('high')) return 'high'
+  return 'warning'
+}
+
+function severityLabel(raw: any) {
+  const tone = severityTone(raw)
+  if (tone === 'critical') return '危急'
+  if (tone === 'high') return '高危'
+  return '预警'
+}
 
 
 
@@ -296,6 +608,10 @@ function bundleLights(patient: any) {
   transform: translateY(-4px);
   border-color: rgba(103, 232, 249, 0.34);
   box-shadow: 0 20px 38px rgba(2, 6, 23, 0.5), 0 0 18px rgba(34, 211, 238, 0.1);
+}
+.card:hover .hover-drawer {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .card::before {
@@ -491,14 +807,80 @@ section { display: flex; flex-direction: column; gap: 7px; }
 }
 
 .sec-vitals,
+.sec-rescue-spotlight,
 .sec-logistics,
 .sec-alerts,
+.sec-summary,
 .sec-footer {
   padding: 10px;
   background: linear-gradient(180deg, rgba(5, 18, 31, 0.92) 0%, rgba(7, 16, 28, 0.86) 100%);
   border: 1px solid rgba(71, 196, 255, 0.12);
   border-radius: 10px;
   box-shadow: inset 0 1px 0 rgba(171, 237, 255, 0.04);
+}
+.sec-rescue-spotlight {
+  border-color: rgba(251, 113, 133, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(251, 113, 133, 0.1), rgba(251, 113, 133, 0) 28%),
+    linear-gradient(180deg, rgba(20, 22, 38, 0.96) 0%, rgba(10, 15, 28, 0.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 10px 22px rgba(244, 63, 94, 0.08);
+}
+.rescue-spotlight-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rescue-spotlight-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(74, 19, 31, 0.86);
+  border: 1px solid rgba(251, 113, 133, 0.18);
+  color: #fda4af;
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+.rescue-spotlight-sev {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 9px;
+  font-weight: 700;
+}
+.rescue-spotlight-sev--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
+.rescue-spotlight-sev--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
+.rescue-spotlight-sev--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.rescue-spotlight-title {
+  color: #ffe4ea;
+  font-size: 12px;
+  font-weight: 700;
+}
+.rescue-spotlight-main {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 113, 133, 0.16);
+  background: linear-gradient(180deg, rgba(58, 16, 29, 0.72) 0%, rgba(24, 20, 34, 0.82) 100%);
+  color: #fff1f3;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.rescue-spotlight-suggestion {
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(8, 38, 30, 0.72) 0%, rgba(6, 27, 22, 0.82) 100%);
+  border: 1px solid rgba(55, 199, 147, 0.16);
+  color: #b4f3ca;
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 600;
 }
 .vital-grid {
   display: grid;
@@ -685,6 +1067,10 @@ section { display: flex; flex-direction: column; gap: 7px; }
   line-height: 1.4;
   color: #c7e6f5;
 }
+.alert-card-summary--rescue {
+  color: #fff1f3;
+  font-weight: 700;
+}
 .alert-card-evidence {
   margin: 0;
   padding-left: 16px;
@@ -700,6 +1086,10 @@ section { display: flex; flex-direction: column; gap: 7px; }
   font-size: 10px;
   line-height: 1.45;
 }
+.alert-card-suggestion--rescue {
+  color: #baf2cb;
+  font-weight: 600;
+}
 .alert-dot {
   width: 8px;
   height: 8px;
@@ -711,6 +1101,349 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .alert-dot--yellow { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.32); }
 .alert-dot--high { background: #fb923c; box-shadow: 0 0 8px rgba(251, 146, 60, 0.3); }
 .alert-dot--critical { background: #fb5a7a; box-shadow: 0 0 8px rgba(251, 90, 122, 0.36); }
+
+.sec-summary {
+  gap: 8px;
+}
+.summary-top,
+.summary-chain {
+  display: grid;
+  gap: 6px;
+}
+.summary-top--rescue {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 113, 133, 0.16);
+  background: linear-gradient(180deg, rgba(55, 16, 28, 0.54) 0%, rgba(18, 17, 30, 0.78) 100%);
+}
+.summary-rescue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.summary-rescue-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(74, 19, 31, 0.86);
+  border: 1px solid rgba(251, 113, 133, 0.18);
+  color: #fda4af;
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+.summary-rescue-sev {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 9px;
+  font-weight: 700;
+}
+.summary-rescue-sev--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
+.summary-rescue-sev--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
+.summary-rescue-sev--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.summary-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.summary-title {
+  color: #ebfbff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.summary-main-wrap {
+  display: grid;
+  gap: 6px;
+}
+.summary-main-wrap--rescue {
+  gap: 7px;
+}
+.summary-block-label {
+  color: #8fe6f4;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.summary-main {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: linear-gradient(180deg, rgba(8, 29, 44, 0.88) 0%, rgba(6, 20, 33, 0.92) 100%);
+  color: #edfaff;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.summary-main--rescue {
+  background: linear-gradient(180deg, rgba(58, 16, 29, 0.74) 0%, rgba(25, 20, 34, 0.82) 100%);
+  border-color: rgba(251, 113, 133, 0.18);
+  color: #fff1f3;
+}
+.summary-chain {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: linear-gradient(180deg, rgba(7, 24, 39, 0.86) 0%, rgba(7, 18, 30, 0.92) 100%);
+}
+.summary-chain-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.summary-chain-tag {
+  color: #72e4f7;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.summary-chain-code {
+  color: #9dd8ff;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(8, 28, 44, 0.78);
+}
+.summary-chain-text {
+  color: #e9fbff;
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.summary-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.summary-chip-row .summary-block-label {
+  width: 100%;
+  margin-bottom: 1px;
+}
+.summary-chip-row--inline {
+  margin-top: 2px;
+}
+.summary-chip-row--rescue .summary-chip {
+  border-color: rgba(96, 165, 250, 0.18);
+  background: rgba(12, 31, 50, 0.9);
+}
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(11, 35, 54, 0.84);
+  color: #dffbff;
+}
+.summary-chip--rescue {
+  color: #edf7ff;
+}
+.summary-chip--group {
+  font-weight: 700;
+}
+.summary-chip--warning { color: #fcd34d; border-color: rgba(245, 158, 11, 0.2); }
+.summary-chip--high { color: #fdba74; border-color: rgba(249, 115, 22, 0.24); }
+.summary-chip--critical { color: #fda4af; border-color: rgba(244, 63, 94, 0.24); }
+.summary-suggestion {
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: rgba(8, 38, 56, 0.82);
+  border: 1px solid rgba(62, 215, 255, 0.12);
+  color: #96efff;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.summary-suggestion--rescue {
+  background: linear-gradient(180deg, rgba(8, 38, 30, 0.72) 0%, rgba(6, 27, 22, 0.82) 100%);
+  border-color: rgba(55, 199, 147, 0.16);
+  color: #b4f3ca;
+  font-weight: 600;
+}
+.summary-snapshot {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: linear-gradient(180deg, rgba(7, 24, 39, 0.88) 0%, rgba(7, 18, 30, 0.94) 100%);
+}
+.summary-snapshot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.summary-snapshot-row {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 8px;
+  align-items: flex-start;
+}
+.summary-snapshot-label {
+  color: #8ed8ee;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding-top: 4px;
+  text-transform: uppercase;
+}
+.summary-snapshot-chip-row,
+.summary-snapshot-badge-row,
+.summary-mini-snapshot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.summary-mini-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(11, 35, 54, 0.84);
+}
+.summary-mini-chip--lab {
+  border-color: rgba(96, 165, 250, 0.18);
+  background: rgba(12, 31, 50, 0.9);
+}
+.summary-mini-chip-label {
+  color: #84bfd7;
+  font-size: 9px;
+}
+.summary-mini-chip-value {
+  color: #effbff;
+  font-size: 10px;
+  font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
+  font-weight: 700;
+}
+.summary-vaso-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(51, 27, 7, 0.66);
+}
+.summary-vaso-name {
+  color: #fde68a;
+  font-size: 10px;
+  font-weight: 700;
+}
+.summary-vaso-dose {
+  color: #ffe9b2;
+  font-size: 10px;
+  font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
+}
+.hover-drawer {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: min(320px, calc(100% - 24px));
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 113, 133, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(251, 113, 133, 0.1), rgba(251, 113, 133, 0) 28%),
+    linear-gradient(180deg, rgba(11, 23, 38, 0.98) 0%, rgba(6, 13, 24, 0.99) 100%);
+  box-shadow: 0 16px 36px rgba(2, 6, 23, 0.62);
+  display: grid;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  z-index: 8;
+}
+.hover-drawer--rescue {
+  border-color: rgba(251, 113, 133, 0.22);
+  box-shadow: 0 22px 44px rgba(2, 6, 23, 0.6), 0 0 28px rgba(244, 63, 94, 0.16);
+}
+.hover-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hover-drawer-tag {
+  color: #fda4af;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+.hover-drawer-sev {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 9px;
+  font-weight: 700;
+}
+.hover-drawer-sev--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
+.hover-drawer-sev--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
+.hover-drawer-sev--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.hover-drawer-title {
+  color: #ffe4ea;
+  font-size: 12px;
+  font-weight: 700;
+}
+.hover-drawer-block {
+  display: grid;
+  gap: 6px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(9, 27, 42, 0.76);
+}
+.hover-drawer-block--summary {
+  border-color: rgba(251, 113, 133, 0.16);
+  background: linear-gradient(180deg, rgba(58, 16, 29, 0.72) 0%, rgba(24, 20, 34, 0.82) 100%);
+}
+.hover-drawer-block--snapshot {
+  border-color: rgba(96, 165, 250, 0.16);
+  background: linear-gradient(180deg, rgba(9, 29, 46, 0.92) 0%, rgba(7, 19, 34, 0.96) 100%);
+}
+.hover-drawer-block--chain {
+  background: linear-gradient(180deg, rgba(11, 31, 49, 0.92) 0%, rgba(6, 21, 36, 0.96) 100%);
+}
+.hover-drawer-label {
+  color: #8fe6f4;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.hover-drawer-main {
+  color: #fff1f3;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.hover-drawer-suggestion {
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(8, 38, 30, 0.72) 0%, rgba(6, 27, 22, 0.82) 100%);
+  border: 1px solid rgba(55, 199, 147, 0.16);
+  color: #b4f3ca;
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 600;
+}
 
 .sec-footer {
   margin-top: auto;
@@ -819,6 +1552,16 @@ section { display: flex; flex-direction: column; gap: 7px; }
   .sec-footer {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .summary-snapshot-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .summary-snapshot-label {
+    padding-top: 0;
+  }
+  .hover-drawer {
+    display: none;
   }
   .bundle-panel,
   .footer-pills {

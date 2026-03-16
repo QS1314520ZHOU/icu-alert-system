@@ -18,6 +18,12 @@
             />
             <span class="label">TopN</span>
             <a-input-number v-model:value="topN" :min="5" :max="30" size="small" />
+            <button
+              :class="['rescue-toggle', { active: rescueOnly }]"
+              @click="rescueOnly = !rescueOnly"
+            >
+              🚨 抢救期风险快筛
+            </button>
           </a-space>
         </div>
         <div class="right-tools">
@@ -56,24 +62,51 @@
 
       <div class="kpi-tile kpi-tile--risk">
         <div class="kpi-head">
-          <span class="kpi-label">高危占比</span>
+          <span class="kpi-label">{{ rescueOnly ? '抢救期占比' : '高危占比' }}</span>
           <span class="kpi-code">HIGH+CRIT</span>
         </div>
         <div class="kpi-value">{{ highRiskRatio.ratio }}</div>
         <div class="kpi-sub">{{ highRiskRatio.meta }}</div>
       </div>
+
+      <div class="kpi-tile kpi-tile--bundle">
+        <div class="kpi-head">
+          <span class="kpi-label">Sepsis 1h Bundle</span>
+          <span class="kpi-code">{{ sepsisBundleMonthCode }}</span>
+        </div>
+        <div class="kpi-value">{{ sepsisBundleKpi.rate }}</div>
+        <div class="kpi-sub">{{ sepsisBundleKpi.meta }}</div>
+      </div>
+
+      <div class="kpi-tile kpi-tile--weaning">
+        <div class="kpi-head">
+          <span class="kpi-label">本月再插管风险</span>
+          <span class="kpi-code">{{ analyticsMonthCode }}</span>
+        </div>
+        <div class="kpi-value">{{ reintubationRiskKpi.rate }}</div>
+        <div class="kpi-sub">{{ reintubationRiskKpi.meta }}</div>
+      </div>
+
+      <div class="kpi-tile kpi-tile--weaning-high">
+        <div class="kpi-head">
+          <span class="kpi-label">脱机失败高风险占比</span>
+          <span class="kpi-code">WEAN HIGH</span>
+        </div>
+        <div class="kpi-value">{{ weaningHighRiskKpi.rate }}</div>
+        <div class="kpi-sub">{{ weaningHighRiskKpi.meta }}</div>
+      </div>
     </section>
 
     <section class="analytics-grid">
       <a-card title="预警触发频率" :bordered="false" class="panel panel-wide">
-        <div v-if="freqSeries.length" class="chart-wrap chart-lg">
+        <div v-if="displayFreqSeries.length" class="chart-wrap chart-lg">
           <AnalyticsChart :option="frequencyOption" autoresize />
         </div>
         <div v-else class="empty">暂无频率数据</div>
       </a-card>
 
       <a-card title="规则类型热力图" :bordered="false" class="panel panel-wide panel-heatmap">
-        <div v-if="heatmapY.length" class="heatmap-summary">
+        <div v-if="displayHeatmapY.length" class="heatmap-summary">
           <div class="summary-chip">
             <span class="summary-k">规则数</span>
             <b class="summary-v">{{ heatmapSummary.ruleCount }}</b>
@@ -87,38 +120,59 @@
             <b class="summary-v">{{ heatmapSummary.peakText }}</b>
           </div>
         </div>
-        <div v-if="heatmapY.length" class="chart-wrap chart-lg chart-heatmap">
+        <div v-if="displayHeatmapY.length" class="chart-wrap chart-lg chart-heatmap">
           <AnalyticsChart :option="heatmapOption" autoresize />
         </div>
         <div v-else class="empty">暂无规则热力图数据</div>
       </a-card>
 
       <a-card title="科室预警排名" :bordered="false" class="panel">
-        <div v-if="deptRankings.length" class="chart-wrap chart-md">
+        <div v-if="displayDeptRankings.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="deptRankOption" autoresize />
         </div>
         <a-table
           class="rank-table"
           size="small"
           :columns="deptColumns"
-          :data-source="deptRankings"
+          :data-source="displayDeptRankings"
           :pagination="false"
           row-key="dept"
         />
       </a-card>
 
       <a-card title="床位预警排名" :bordered="false" class="panel">
-        <div v-if="bedRankings.length" class="chart-wrap chart-md">
+        <div v-if="displayBedRankings.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="bedRankOption" autoresize />
         </div>
         <a-table
           class="rank-table"
           size="small"
           :columns="bedColumns"
-          :data-source="bedRankings"
+          :data-source="displayBedRankings"
           :pagination="false"
           :scroll="{ x: 560 }"
           row-key="bedKey"
+        />
+      </a-card>
+
+      <a-card title="月度脱机评估趋势" :bordered="false" class="panel panel-wide">
+        <div v-if="weaningTrendRows.length" class="chart-wrap chart-lg">
+          <AnalyticsChart :option="weaningTrendOption" autoresize />
+        </div>
+        <div v-else class="empty">暂无月度脱机评估趋势数据</div>
+      </a-card>
+
+      <a-card title="科室脱机 / 再插管风险对比" :bordered="false" class="panel">
+        <div v-if="weaningDeptCompare.length" class="chart-wrap chart-md">
+          <AnalyticsChart :option="weaningDeptCompareOption" autoresize />
+        </div>
+        <a-table
+          class="rank-table"
+          size="small"
+          :columns="weaningDeptColumns"
+          :data-source="weaningDeptCompare"
+          :pagination="false"
+          row-key="dept"
         />
       </a-card>
     </section>
@@ -140,6 +194,9 @@ import {
   getAlertAnalyticsFrequency,
   getAlertAnalyticsHeatmap,
   getAlertAnalyticsRankings,
+  getRecentAlerts,
+  getSepsisBundleCompliance,
+  getWeaningSummary,
 } from '../api'
 import {
   icuCategoryAxis,
@@ -160,6 +217,7 @@ const loading = ref(false)
 const windowRange = ref('7d')
 const bucket = ref<'hour' | 'day'>('hour')
 const topN = ref(10)
+const rescueOnly = ref(false)
 
 const windowOptions = [
   { label: '24h', value: '24h' },
@@ -178,6 +236,9 @@ const heatmapY = ref<string[]>([])
 const heatmapData = ref<number[][]>([])
 const deptRankings = ref<any[]>([])
 const bedRankings = ref<any[]>([])
+const sepsisBundleCompliance = ref<any>(null)
+const weaningSummary = ref<any>(null)
+const recentAlerts = ref<any[]>([])
 
 const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
@@ -190,12 +251,145 @@ const analyticsWindowLabel = computed(() => {
   }
   return map[windowRange.value] || windowRange.value
 })
+const sepsisBundleMonth = computed(() => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = `${now.getMonth() + 1}`.padStart(2, '0')
+  return `${y}-${m}`
+})
+const sepsisBundleMonthCode = computed(() => sepsisBundleMonth.value.replace('-', '.'))
+const analyticsMonthCode = computed(() => sepsisBundleMonthCode.value)
 
 function commonParams() {
   const params: Record<string, any> = { window: windowRange.value }
   if (deptCode.value) params.dept_code = deptCode.value
   else if (deptName.value) params.dept = deptName.value
   return params
+}
+
+function windowRangeMs() {
+  const map: Record<string, number> = {
+    '24h': 24 * 3600 * 1000,
+    '7d': 7 * 24 * 3600 * 1000,
+    '14d': 14 * 24 * 3600 * 1000,
+    '30d': 30 * 24 * 3600 * 1000,
+  }
+  return map[windowRange.value] || 7 * 24 * 3600 * 1000
+}
+
+function alertTimeValue(alert: any) {
+  const raw = alert?.created_at || alert?.source_time || alert?.time
+  const val = new Date(raw).getTime()
+  return Number.isFinite(val) ? val : 0
+}
+
+function isRescueRiskAlert(alert: any) {
+  const sev = String(alert?.severity || '').toLowerCase()
+  if (sev !== 'high' && sev !== 'critical') return false
+  const alertType = String(alert?.alert_type || '').toLowerCase()
+  const ruleId = String(alert?.rule_id || '').toLowerCase()
+  const category = String(alert?.category || '').toLowerCase()
+  if (alertType === 'ai_risk' || category === 'ai_analysis') return false
+  const rescueKeywords = [
+    'shock', 'sepsis', 'septic', 'cardiac_arrest', 'cardiac', 'pea',
+    'pe_', 'embol', 'bleed', 'bleeding', 'resp', 'hypoxia', 'hypotension',
+    'deterioration', 'multi_organ', 'post_extubation',
+  ]
+  const haystack = `${alertType} ${ruleId} ${category}`.toLowerCase()
+  const extra = alert?.extra && typeof alert.extra === 'object' ? alert.extra : {}
+  return rescueKeywords.some((key) => haystack.includes(key))
+    || !!extra?.context_snapshot
+    || !!extra?.clinical_chain
+    || (Array.isArray(extra?.aggregated_groups) && extra.aggregated_groups.length > 0)
+}
+
+function bucketLabelByTime(ts: number) {
+  const d = new Date(ts)
+  const mm = `${d.getMonth() + 1}`.padStart(2, '0')
+  const dd = `${d.getDate()}`.padStart(2, '0')
+  if (bucket.value === 'day') return `${mm}-${dd}`
+  const hh = `${d.getHours()}`.padStart(2, '0')
+  return `${mm}-${dd} ${hh}:00`
+}
+
+function aggregateRescueFrequency(alertsInput: any[]) {
+  const counter = new Map<string, { time: string; total: number; warning: number; high: number; critical: number }>()
+  alertsInput.forEach((alert) => {
+    const label = bucketLabelByTime(alertTimeValue(alert))
+    const sev = String(alert?.severity || '').toLowerCase()
+    if (!counter.has(label)) {
+      counter.set(label, { time: label, total: 0, warning: 0, high: 0, critical: 0 })
+    }
+    const row = counter.get(label)!
+    row.total += 1
+    if (sev === 'critical') row.critical += 1
+    else if (sev === 'high') row.high += 1
+    else row.warning += 1
+  })
+  return Array.from(counter.values()).sort((a, b) => a.time.localeCompare(b.time))
+}
+
+function aggregateRescueHeatmap(alertsInput: any[]) {
+  const bucketSet = new Set<string>()
+  const ruleCounter = new Map<string, number>()
+  const matrix = new Map<string, number>()
+  alertsInput.forEach((alert) => {
+    const bucketLabel = bucketLabelByTime(alertTimeValue(alert))
+    const ruleLabel = String(alert?.name || alert?.rule_id || alert?.alert_type || '抢救期预警')
+    bucketSet.add(bucketLabel)
+    ruleCounter.set(ruleLabel, (ruleCounter.get(ruleLabel) || 0) + 1)
+    const key = `${bucketLabel}__${ruleLabel}`
+    matrix.set(key, (matrix.get(key) || 0) + 1)
+  })
+  const xLabels = Array.from(bucketSet).sort((a, b) => a.localeCompare(b))
+  const yLabels = Array.from(ruleCounter.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, topN.value)
+    .map(([name]) => name)
+  const data: number[][] = []
+  xLabels.forEach((x, xi) => {
+    yLabels.forEach((y, yi) => {
+      const count = matrix.get(`${x}__${y}`) || 0
+      if (count > 0) data.push([xi, yi, count])
+    })
+  })
+  return { xLabels, yLabels, data }
+}
+
+function aggregateRescueDeptRankings(alertsInput: any[]) {
+  const counter = new Map<string, any>()
+  alertsInput.forEach((alert) => {
+    const key = String(alert?.dept || '未知科室')
+    if (!counter.has(key)) {
+      counter.set(key, { dept: key, count: 0, critical: 0, high: 0, warning: 0 })
+    }
+    const row = counter.get(key)
+    const sev = String(alert?.severity || '').toLowerCase()
+    row.count += 1
+    if (sev === 'critical') row.critical += 1
+    else if (sev === 'high') row.high += 1
+    else row.warning += 1
+  })
+  return Array.from(counter.values()).sort((a, b) => b.count - a.count).slice(0, topN.value)
+}
+
+function aggregateRescueBedRankings(alertsInput: any[]) {
+  const counter = new Map<string, any>()
+  alertsInput.forEach((alert) => {
+    const dept = String(alert?.dept || '未知科室')
+    const bed = String(alert?.bed || alert?.hisBed || '—')
+    const key = `${dept}-${bed}`
+    if (!counter.has(key)) {
+      counter.set(key, { dept, bed, count: 0, critical: 0, high: 0, warning: 0, bedKey: key })
+    }
+    const row = counter.get(key)
+    const sev = String(alert?.severity || '').toLowerCase()
+    row.count += 1
+    if (sev === 'critical') row.critical += 1
+    else if (sev === 'high') row.high += 1
+    else row.warning += 1
+  })
+  return Array.from(counter.values()).sort((a, b) => b.count - a.count).slice(0, topN.value)
 }
 
 function toShortTime(v: string) {
@@ -235,8 +429,29 @@ function tooltipRow(label: string, value: any, color = '#67e8f9') {
   `
 }
 
+const rescueWindowAlerts = computed(() => {
+  const cutoff = Date.now() - windowRangeMs()
+  return recentAlerts.value
+    .filter((alert: any) => isRescueRiskAlert(alert))
+    .filter((alert: any) => alertTimeValue(alert) >= cutoff)
+})
+
+const rescueFrequencySeries = computed(() => aggregateRescueFrequency(rescueWindowAlerts.value))
+const rescueHeatmap = computed(() => aggregateRescueHeatmap(rescueWindowAlerts.value))
+const displayFreqSeries = computed(() => rescueOnly.value ? rescueFrequencySeries.value : freqSeries.value)
+const displayHeatmapX = computed(() => rescueOnly.value ? rescueHeatmap.value.xLabels : heatmapX.value)
+const displayHeatmapY = computed(() => rescueOnly.value ? rescueHeatmap.value.yLabels : heatmapY.value)
+const displayHeatmapData = computed(() => rescueOnly.value ? rescueHeatmap.value.data : heatmapData.value)
+const displayDeptRankings = computed(() =>
+  rescueOnly.value ? aggregateRescueDeptRankings(rescueWindowAlerts.value) : deptRankings.value
+)
+const displayBedRankings = computed(() =>
+  rescueOnly.value ? aggregateRescueBedRankings(rescueWindowAlerts.value) : bedRankings.value
+)
+
 const frequencyOption = computed(() => {
-  const xs = freqSeries.value.map((p: any) => toShortTime(p.time || ''))
+  const source = displayFreqSeries.value
+  const xs = source.map((p: any) => rescueOnly.value ? String(p.time || '') : toShortTime(p.time || ''))
   return {
     backgroundColor: 'transparent',
     tooltip: icuTooltip({
@@ -257,7 +472,7 @@ const frequencyOption = computed(() => {
       {
         name: '总量',
         type: 'bar',
-        data: freqSeries.value.map((p: any) => p.total || 0),
+        data: source.map((p: any) => p.total || 0),
         itemStyle: {
           color: '#0ea5b7',
           borderRadius: [6, 6, 0, 0],
@@ -274,7 +489,7 @@ const frequencyOption = computed(() => {
         symbolSize: 6,
         lineStyle: { width: 2, color: '#fbbf24' },
         itemStyle: { color: '#fbbf24' },
-        data: freqSeries.value.map((p: any) => p.warning || 0),
+        data: source.map((p: any) => p.warning || 0),
       },
       {
         name: 'High',
@@ -284,7 +499,7 @@ const frequencyOption = computed(() => {
         symbolSize: 6,
         lineStyle: { width: 2, color: '#fb923c' },
         itemStyle: { color: '#fb923c' },
-        data: freqSeries.value.map((p: any) => p.high || 0),
+        data: source.map((p: any) => p.high || 0),
       },
       {
         name: 'Critical',
@@ -294,21 +509,24 @@ const frequencyOption = computed(() => {
         symbolSize: 6,
         lineStyle: { width: 2, color: '#fb5a7a' },
         itemStyle: { color: '#fb5a7a' },
-        data: freqSeries.value.map((p: any) => p.critical || 0),
+        data: source.map((p: any) => p.critical || 0),
       },
     ],
   }
 })
 
 const heatmapOption = computed(() => {
-  const maxVal = heatmapData.value.reduce((m, cur) => Math.max(m, cur[2] || 0), 0)
+  const sourceX = displayHeatmapX.value
+  const sourceY = displayHeatmapY.value
+  const sourceData = displayHeatmapData.value
+  const maxVal = sourceData.reduce((m, cur) => Math.max(m, cur[2] || 0), 0)
   return {
     backgroundColor: 'transparent',
     tooltip: icuTooltip({
       extraCssText: 'box-shadow: 0 12px 28px rgba(0,0,0,.28); border-radius: 10px;',
       formatter: (params: any) => {
-        const x = heatmapX.value[params.value[0]]
-        const y = heatmapY.value[params.value[1]]
+        const x = sourceX[params.value[0]]
+        const y = sourceY[params.value[1]]
         return tooltipShell(
           `${y || '规则类型'}`,
           [
@@ -320,13 +538,13 @@ const heatmapOption = computed(() => {
       },
     }),
     grid: icuGrid({ left: 128, right: 22, top: 20, bottom: 62 }),
-    xAxis: icuCategoryAxis(heatmapX.value, {
+    xAxis: icuCategoryAxis(sourceX, {
       axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
       axisLabel: { color: '#79d7ea', fontSize: 10, margin: 12 },
       splitArea: { show: false },
       splitLine: { show: true, lineStyle: { color: 'rgba(61, 118, 145, 0.12)' } },
     }),
-    yAxis: icuCategoryAxis(heatmapY.value, {
+    yAxis: icuCategoryAxis(sourceY, {
       axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
       axisLabel: { color: '#b7ddec', fontSize: 10, margin: 14 },
       splitArea: { show: false },
@@ -352,7 +570,7 @@ const heatmapOption = computed(() => {
       {
         name: '触发频次',
         type: 'heatmap',
-        data: heatmapData.value,
+        data: sourceData,
         label: {
           show: true,
           formatter: ({ value }: any) => (value?.[2] ? value[2] : ''),
@@ -379,32 +597,35 @@ const heatmapOption = computed(() => {
 })
 
 const heatmapSummary = computed(() => {
+  const sourceX = displayHeatmapX.value
+  const sourceY = displayHeatmapY.value
+  const sourceData = displayHeatmapData.value
   let peak = { val: 0, x: '', y: '' }
-  for (const item of heatmapData.value) {
+  for (const item of sourceData) {
     const xi = Number(item?.[0])
     const yi = Number(item?.[1])
     const v = item?.[2] || 0
     if (v >= peak.val) {
       peak = {
         val: v,
-        x: heatmapX.value[xi] || '',
-        y: heatmapY.value[yi] || '',
+        x: sourceX[xi] || '',
+        y: sourceY[yi] || '',
       }
     }
   }
   return {
-    ruleCount: heatmapY.value.length,
-    slotCount: heatmapX.value.length,
+    ruleCount: sourceY.length,
+    slotCount: sourceX.length,
     peakText: peak.val ? `${peak.y} · ${peak.x} · ${peak.val}次` : '暂无峰值',
   }
 })
 
 const topRuleSummary = computed(() => {
   const totals = new Map<string, number>()
-  for (const item of heatmapData.value) {
+  for (const item of displayHeatmapData.value) {
     const yi = Number(item?.[1])
     const value = Number(item?.[2] || 0)
-    const name = heatmapY.value[yi] || ''
+    const name = displayHeatmapY.value[yi] || ''
     if (!name) continue
     totals.set(name, (totals.get(name) || 0) + value)
   }
@@ -415,7 +636,7 @@ const topRuleSummary = computed(() => {
   const topRow = rows[0] || ['', 0]
   const name = topRow[0]
   const count = topRow[1]
-  const ratio = heatmapData.value.length ? Math.round((count / Math.max(1, rows.reduce((s, [, v]) => s + v, 0))) * 100) : 0
+  const ratio = displayHeatmapData.value.length ? Math.round((count / Math.max(1, rows.reduce((s, [, v]) => s + v, 0))) * 100) : 0
   return {
     name,
     meta: `累计 ${count} 次 · 占规则触发 ${ratio}%`,
@@ -435,16 +656,70 @@ const peakSlotSummary = computed(() => {
 })
 
 const highRiskRatio = computed(() => {
-  const total = freqSeries.value.reduce((sum: number, item: any) => sum + Number(item?.total || 0), 0)
-  const high = freqSeries.value.reduce((sum: number, item: any) => sum + Number(item?.high || 0), 0)
-  const critical = freqSeries.value.reduce((sum: number, item: any) => sum + Number(item?.critical || 0), 0)
+  const source = displayFreqSeries.value
+  const total = source.reduce((sum: number, item: any) => sum + Number(item?.total || 0), 0)
+  const high = source.reduce((sum: number, item: any) => sum + Number(item?.high || 0), 0)
+  const critical = source.reduce((sum: number, item: any) => sum + Number(item?.critical || 0), 0)
   const severe = high + critical
   const ratio = total > 0 ? `${Math.round((severe / total) * 100)}%` : '0%'
   return {
     ratio,
-    meta: `${severe} / ${total} 次为 High 或 Critical`,
+    meta: rescueOnly.value
+      ? `${severe} / ${total} 次为抢救期 High / Critical`
+      : `${severe} / ${total} 次为 High 或 Critical`,
   }
 })
+
+const sepsisBundleKpi = computed(() => {
+  const summary = sepsisBundleCompliance.value || {}
+  const total = Number(summary?.total_cases || 0)
+  const met = Number(summary?.compliant_1h_cases || 0)
+  const overdue1h = Number(summary?.overdue_1h_cases || 0)
+  const overdue3h = Number(summary?.overdue_3h_cases || 0)
+  const pending = Number(summary?.pending_active_cases || 0)
+  const rateValue = Number(summary?.compliance_rate || 0)
+  return {
+    rate: total ? `${(rateValue * 100).toFixed(1)}%` : '0%',
+    meta: total
+      ? `${met} / ${total} 达标 · 超1h ${overdue1h} · 超3h ${overdue3h}${pending ? ` · 进行中 ${pending}` : ''}`
+      : '本月暂无脓毒症 Bundle 病例',
+  }
+})
+
+const reintubationRiskKpi = computed(() => {
+  const summary = weaningSummary.value || {}
+  const extubated = Number(summary?.extubated_patients || 0)
+  const risk = Number(summary?.reintubation_risk_patients || 0)
+  const critical = Number(summary?.critical_post_extubation_patients || 0)
+  const rate = Number(summary?.reintubation_risk_ratio || 0)
+  return {
+    rate: extubated ? `${(rate * 100).toFixed(1)}%` : '0%',
+    meta: extubated
+      ? `${risk} / ${extubated} 例拔管后触发风险 · 危急 ${critical} 例`
+      : '本月暂无拔管患者',
+  }
+})
+
+const weaningHighRiskKpi = computed(() => {
+  const summary = weaningSummary.value || {}
+  const total = Number(summary?.weaning_assessed_patients || 0)
+  const high = Number(summary?.high_risk_patients || 0)
+  const rate = Number(summary?.high_risk_ratio || 0)
+  return {
+    rate: total ? `${(rate * 100).toFixed(1)}%` : '0%',
+    meta: total
+      ? `${high} / ${total} 例为 High/Critical`
+      : '本月暂无脱机评估',
+  }
+})
+
+const weaningTrendRows = computed(() =>
+  Array.isArray(weaningSummary.value?.daily_trend) ? weaningSummary.value.daily_trend : []
+)
+
+const weaningDeptCompare = computed(() =>
+  Array.isArray(weaningSummary.value?.dept_compare) ? weaningSummary.value.dept_compare : []
+)
 
 const deptRankOption = computed(() => ({
   backgroundColor: 'transparent',
@@ -462,14 +737,14 @@ const deptRankOption = computed(() => ({
   }),
   grid: icuGrid({ left: 84, right: 18, top: 16, bottom: 24 }),
   xAxis: icuValueAxis({ axisLabel: { fontSize: 10 } }),
-  yAxis: icuCategoryAxis(deptRankings.value.map((d: any) => d.dept), {
+  yAxis: icuCategoryAxis(displayDeptRankings.value.map((d: any) => d.dept), {
     axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.18)' } },
     axisLabel: { color: '#b7ddec', fontSize: 10 },
   }),
   series: [
     {
       type: 'bar',
-      data: deptRankings.value.map((d: any) => d.count || 0),
+      data: displayDeptRankings.value.map((d: any) => d.count || 0),
       itemStyle: {
         color: (params: any) => {
           const colors = ['#16b3c9', '#0ea5b7', '#0891b2', '#0369a1']
@@ -504,14 +779,14 @@ const bedRankOption = computed(() => ({
   }),
   grid: icuGrid({ left: 102, right: 18, top: 16, bottom: 24 }),
   xAxis: icuValueAxis({ axisLabel: { fontSize: 10 } }),
-  yAxis: icuCategoryAxis(bedRankings.value.map((d: any) => `${d.dept}-${d.bed}`), {
+  yAxis: icuCategoryAxis(displayBedRankings.value.map((d: any) => `${d.dept}-${d.bed}`), {
     axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.18)' } },
     axisLabel: { color: '#b7ddec', fontSize: 10 },
   }),
   series: [
     {
       type: 'bar',
-      data: bedRankings.value.map((d: any) => d.count || 0),
+      data: displayBedRankings.value.map((d: any) => d.count || 0),
       itemStyle: {
         color: (params: any) => {
           const colors = ['#f59e0b', '#fb923c', '#fb7185', '#f43f5e']
@@ -526,6 +801,96 @@ const bedRankOption = computed(() => ({
         color: '#dffbff',
         fontSize: 10,
       },
+    },
+  ],
+}))
+
+const weaningTrendOption = computed(() => {
+  const xs = weaningTrendRows.value.map((row: any) => String(row.date || '').slice(5))
+  return {
+    backgroundColor: 'transparent',
+    tooltip: icuTooltip({
+      trigger: 'axis',
+      formatter: (params: any[]) => {
+        const list = Array.isArray(params) ? params : [params]
+        const title = list[0]?.axisValueLabel || list[0]?.name || '日期'
+        const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', item.value ?? 0, item.color || '#67e8f9'))
+        return tooltipShell(title, rows, 'Weaning Monthly Trend')
+      },
+    }),
+    legend: icuLegend({ textStyle: { fontSize: 10 } }),
+    grid: icuGrid({ left: 42, right: 18, top: 34, bottom: 34 }),
+    xAxis: icuCategoryAxis(xs, { axisLabel: { fontSize: 10, margin: 10 } }),
+    yAxis: icuValueAxis({ axisLabel: { fontSize: 10 } }),
+    series: [
+      {
+        name: '脱机评估',
+        type: 'bar',
+        data: weaningTrendRows.value.map((row: any) => Number(row.assessed || 0)),
+        itemStyle: { color: '#0ea5b7', borderRadius: [6, 6, 0, 0] },
+        barMaxWidth: 14,
+      },
+      {
+        name: '高风险',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { width: 2, color: '#f59e0b' },
+        itemStyle: { color: '#f59e0b' },
+        data: weaningTrendRows.value.map((row: any) => Number(row.high_risk || 0)),
+      },
+      {
+        name: '拔管后风险',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { width: 2, color: '#fb5a7a' },
+        itemStyle: { color: '#fb5a7a' },
+        data: weaningTrendRows.value.map((row: any) => Number(row.reintubation_risk || 0)),
+      },
+    ],
+  }
+})
+
+const weaningDeptCompareOption = computed(() => ({
+  backgroundColor: 'transparent',
+  tooltip: icuTooltip({
+    trigger: 'axis',
+    axisPointer: { type: 'shadow' },
+    formatter: (params: any[]) => {
+      const list = Array.isArray(params) ? params : [params]
+      const title = list[0]?.name || '科室'
+      const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', `${item.value ?? 0}%`, item.color || '#67e8f9'))
+      return tooltipShell(title, rows, 'Department Compare')
+    },
+  }),
+  legend: icuLegend({ textStyle: { fontSize: 10 } }),
+  grid: icuGrid({ left: 52, right: 18, top: 28, bottom: 34 }),
+  xAxis: icuCategoryAxis(weaningDeptCompare.value.map((row: any) => row.dept || '未知科室'), {
+    axisLabel: { color: '#b7ddec', fontSize: 10, interval: 0, rotate: 18 },
+  }),
+  yAxis: icuValueAxis({
+    axisLabel: {
+      fontSize: 10,
+      formatter: (value: number) => `${value}%`,
+    },
+  }),
+  series: [
+    {
+      name: '脱机高风险占比',
+      type: 'bar',
+      data: weaningDeptCompare.value.map((row: any) => Math.round(Number(row.high_risk_ratio || 0) * 1000) / 10),
+      itemStyle: { color: '#f59e0b', borderRadius: [6, 6, 0, 0] },
+      barMaxWidth: 18,
+    },
+    {
+      name: '再插管风险占比',
+      type: 'bar',
+      data: weaningDeptCompare.value.map((row: any) => Math.round(Number(row.reintubation_risk_ratio || 0) * 1000) / 10),
+      itemStyle: { color: '#fb5a7a', borderRadius: [6, 6, 0, 0] },
+      barMaxWidth: 18,
     },
   ],
 }))
@@ -545,6 +910,21 @@ const bedColumns = [
   { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 80 },
   { title: 'High', dataIndex: 'high', key: 'high', width: 70 },
   { title: 'Warn', dataIndex: 'warning', key: 'warning', width: 70 },
+]
+
+const weaningDeptColumns = [
+  { title: '科室', dataIndex: 'dept', key: 'dept' },
+  { title: '脱机评估', dataIndex: 'weaning_assessed_patients', key: 'weaning_assessed_patients', width: 84 },
+  { title: '高风险', dataIndex: 'high_risk_patients', key: 'high_risk_patients', width: 76 },
+  {
+    title: '高风险占比',
+    dataIndex: 'high_risk_ratio',
+    key: 'high_risk_ratio',
+    width: 92,
+    customRender: ({ text }: any) => `${(Number(text || 0) * 100).toFixed(1)}%`,
+  },
+  { title: '拔管患者', dataIndex: 'extubated_patients', key: 'extubated_patients', width: 84 },
+  { title: '再插管风险', dataIndex: 'reintubation_risk_patients', key: 'reintubation_risk_patients', width: 92 },
 ]
 
 async function loadFrequency() {
@@ -577,11 +957,44 @@ async function loadRankings() {
   }))
 }
 
+async function loadSepsisBundleCompliance() {
+  const res = await getSepsisBundleCompliance({
+    month: sepsisBundleMonth.value,
+    ...(deptCode.value ? { dept_code: deptCode.value } : {}),
+    ...(!deptCode.value && deptName.value ? { dept: deptName.value } : {}),
+  })
+  sepsisBundleCompliance.value = res.data.summary || null
+}
+
+async function loadWeaningSummary() {
+  const res = await getWeaningSummary({
+    month: sepsisBundleMonth.value,
+    ...(deptCode.value ? { dept_code: deptCode.value } : {}),
+    ...(!deptCode.value && deptName.value ? { dept: deptName.value } : {}),
+  })
+  weaningSummary.value = res.data.summary || null
+}
+
+async function loadRecentRescueAlerts() {
+  const res = await getRecentAlerts(200, {
+    ...(deptCode.value ? { dept_code: deptCode.value } : {}),
+    ...(!deptCode.value && deptName.value ? { dept: deptName.value } : {}),
+  })
+  recentAlerts.value = res.data.records || []
+}
+
 async function loadAll() {
   if (loading.value) return
   loading.value = true
   try {
-    await Promise.all([loadFrequency(), loadHeatmap(), loadRankings()])
+    await Promise.all([
+      loadFrequency(),
+      loadHeatmap(),
+      loadRankings(),
+      loadSepsisBundleCompliance(),
+      loadWeaningSummary(),
+      loadRecentRescueAlerts(),
+    ])
   } catch (e) {
     console.error('加载Analytics失败', e)
   } finally {
@@ -693,6 +1106,26 @@ onMounted(() => {
   color: #effcff;
   font-weight: 600;
 }
+.rescue-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 113, 133, 0.22);
+  background: linear-gradient(180deg, rgba(51, 15, 27, 0.9) 0%, rgba(27, 11, 18, 0.92) 100%);
+  color: #ffcad5;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.rescue-toggle:hover,
+.rescue-toggle.active {
+  color: #fff1f4;
+  border-color: rgba(251, 113, 133, 0.38);
+  box-shadow: 0 0 18px rgba(251, 113, 133, 0.14);
+}
 
 .analytics-grid {
   display: grid;
@@ -702,7 +1135,7 @@ onMounted(() => {
 
 .kpi-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -729,6 +1162,18 @@ onMounted(() => {
 
 .kpi-tile--risk::after {
   background: linear-gradient(90deg, rgba(251, 90, 122, 0.08), rgba(251, 90, 122, 0.56), rgba(251, 90, 122, 0.08));
+}
+
+.kpi-tile--bundle::after {
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.08), rgba(45, 212, 191, 0.56), rgba(45, 212, 191, 0.08));
+}
+
+.kpi-tile--weaning::after {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.58), rgba(59, 130, 246, 0.08));
+}
+
+.kpi-tile--weaning-high::after {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.58), rgba(245, 158, 11, 0.08));
 }
 
 .kpi-head {

@@ -10,6 +10,10 @@ class EcashBundleMixin:
         cfg = self.config.yaml_cfg.get("alert_engine", {}).get("ecash", {})
         return cfg if isinstance(cfg, dict) else {}
 
+    def _sat_stress_cfg(self) -> dict:
+        cfg = self._ecash_cfg().get("sat_stress", {})
+        return cfg if isinstance(cfg, dict) else {}
+
     def _status_rank(self, status: str | None) -> int:
         return {"green": 1, "yellow": 2, "red": 3}.get(str(status or "").lower(), 0)
 
@@ -21,6 +25,24 @@ class EcashBundleMixin:
         if not isinstance(t, datetime):
             return None
         return round(max(0.0, (now - t).total_seconds() / 3600.0), 2)
+
+    def _coerce_time(self, value: Any) -> datetime | None:
+        if isinstance(value, datetime):
+            return value
+        if value in (None, ""):
+            return None
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+    def _to_float(self, value: Any) -> float | None:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except Exception:
+            return None
 
     def _dedupe_names(self, names: list[str]) -> list[str]:
         seen: set[str] = set()
@@ -131,6 +153,341 @@ class EcashBundleMixin:
             if matched:
                 score += float(weights.get(key, default_weight))
         return round(score, 2)
+
+    def _patient_diag_text(self, patient_doc: dict) -> str:
+        return " ".join(
+            str(patient_doc.get(k) or "")
+            for k in (
+                "clinicalDiagnosis",
+                "admissionDiagnosis",
+                "diagnosis",
+                "history",
+                "diagnosisHistory",
+                "surgeryHistory",
+                "remark",
+            )
+        ).lower()
+
+    def _sat_risk_groups(self, patient_doc: dict) -> list[dict]:
+        cfg = self._sat_stress_cfg()
+        text = self._patient_diag_text(patient_doc)
+        groups: list[dict] = []
+
+        neuro_kw = self._get_cfg_list(
+            ("alert_engine", "ecash", "sat_stress", "neurosurgery_keywords"),
+            ["脑外科", "开颅", "颅脑术后", "神经外科术后"],
+        )
+        aorta_kw = self._get_cfg_list(
+            ("alert_engine", "ecash", "sat_stress", "aortic_keywords"),
+            ["夹层", "主动脉夹层", "动脉瘤", "主动脉瘤", "aortic dissection", "aneurysm"],
+        )
+        cad_hf_kw = self._get_cfg_list(
+            ("alert_engine", "ecash", "sat_stress", "cad_hf_keywords"),
+            ["冠心病", "心肌缺血", "心衰", "心力衰竭", "heart failure", "cad", "chf"],
+        )
+
+        if self._match_name_keywords(text, neuro_kw):
+            groups.append(
+                {
+                    "key": "neurosurgery_postop",
+                    "label": "脑外科术后",
+                    "threshold_type": "map",
+                    "threshold": float(cfg.get("map_threshold_neurosurgery", 120)),
+                }
+            )
+        if self._match_name_keywords(text, aorta_kw):
+            groups.append(
+                {
+                    "key": "aortic_disease",
+                    "label": "主动脉疾病",
+                    "threshold_type": "sbp",
+                    "threshold": float(cfg.get("sbp_threshold_aorta", 140)),
+                }
+            )
+        if self._match_name_keywords(text, cad_hf_kw):
+            groups.append(
+                {
+                    "key": "cad_or_hf",
+                    "label": "冠心病/心衰",
+                    "threshold_type": "hr_or_arrhythmia",
+                    "threshold": float(cfg.get("hr_threshold_cad_hf", 130)),
+                }
+            )
+        return groups
+
+    async def _detect_sat_in_progress(self, patient_doc: dict, now: datetime) -> dict | None:
+        pid = patient_doc.get("_id")
+        if not pid:
+            return None
+
+        cfg = self._ecash_cfg()
+        sat_window_hours = max(1.0, float(cfg.get("sat_detection_window_hours", 2)))
+        recent_sedative_hours = max(sat_window_hours + 1.0, float(cfg.get("sat_recent_sedative_hours", 6)))
+        rass_rise_min = float(cfg.get("sat_rass_rise_min", 2))
+        baseline_rass_max = float(cfg.get("sat_baseline_rass_max", -3))
+
+        sedative_kw = self._get_cfg_list(
+            ("alert_engine", "drug_mapping", "sedatives"),
+            ["咪达唑仑", "丙泊酚", "右美托咪定", "地西泮", "劳拉西泮"],
+        )
+        sat_keywords = self._get_cfg_list(
+            ("alert_engine", "ecash", "sat_keywords"),
+            ["sat", "唤醒试验", "唤醒测试", "停镇静试验", "daily awakening"],
+        )
+
+        sedative_docs = await self._find_recent_drug_docs(pid, sedative_kw, hours=int(recent_sedative_hours + 1), limit=400)
+        if not sedative_docs:
+            return None
+
+        window_start = now - timedelta(hours=sat_window_hours)
+        recent_cutoff = now - timedelta(hours=recent_sedative_hours)
+
+        pre_window_docs = [
+            doc for doc in sedative_docs
+            if (self._coerce_time(doc.get("_event_time")) or now) >= recent_cutoff
+            and (self._coerce_time(doc.get("_event_time")) or now) < window_start
+        ]
+        current_window_docs = [
+            doc for doc in sedative_docs
+            if (self._coerce_time(doc.get("_event_time")) or datetime.min) >= window_start
+        ]
+        sat_events = await self._get_recent_text_events(pid, sat_keywords, hours=max(4, int(sat_window_hours * 3)), limit=200)
+        sat_event = None
+        for event in sat_events:
+            t = self._coerce_time(event.get("time"))
+            if isinstance(t, datetime) and t >= now - timedelta(hours=max(4, sat_window_hours * 2)):
+                sat_event = event
+                break
+
+        rass_series = await self._get_assessment_series(pid, "rass", hours=max(24, int(recent_sedative_hours * 2) + 2))
+        valid_rass = []
+        for row in rass_series:
+            t = self._coerce_time(row.get("time"))
+            v = self._to_float(row.get("value"))
+            if isinstance(t, datetime) and v is not None:
+                valid_rass.append({"time": t, "value": v})
+        if len(valid_rass) < 2:
+            return None
+
+        baseline_candidates = [row for row in valid_rass if recent_cutoff <= row["time"] < window_start]
+        current_candidates = [row for row in valid_rass if row["time"] >= window_start]
+        if not current_candidates:
+            return None
+
+        baseline = baseline_candidates[-1] if baseline_candidates else None
+        if baseline is None:
+            prior_rows = [row for row in valid_rass if row["time"] < current_candidates[-1]["time"]]
+            baseline = prior_rows[-1] if prior_rows else None
+        if baseline is None:
+            return None
+
+        latest = current_candidates[-1]
+        rass_delta = round(float(latest["value"]) - float(baseline["value"]), 2)
+        sedation_paused = bool(pre_window_docs) and not bool(current_window_docs)
+        sat_text_hint = sat_event is not None
+
+        if float(baseline["value"]) > baseline_rass_max:
+            return None
+        if rass_delta < rass_rise_min:
+            return None
+        if not (sedation_paused or sat_text_hint):
+            return None
+
+        started_candidates = [
+            self._coerce_time((sat_event or {}).get("time")) if sat_event else None,
+            self._coerce_time(current_window_docs[-1].get("_event_time")) if current_window_docs else None,
+            window_start,
+        ]
+        started_at = None
+        for candidate in started_candidates:
+            if isinstance(candidate, datetime):
+                started_at = candidate
+                break
+
+        return {
+            "in_progress": True,
+            "started_at": started_at,
+            "baseline_rass": float(baseline["value"]),
+            "baseline_time": baseline["time"],
+            "latest_rass": float(latest["value"]),
+            "latest_time": latest["time"],
+            "rass_delta": rass_delta,
+            "sedatives_recent": self._dedupe_names(
+                [
+                    str(doc.get("drugName") or doc.get("orderName") or "").strip()
+                    for doc in (pre_window_docs or sedative_docs)
+                    if str(doc.get("drugName") or doc.get("orderName") or "").strip()
+                ]
+            ),
+            "sedatives_in_window": self._dedupe_names(
+                [
+                    str(doc.get("drugName") or doc.get("orderName") or "").strip()
+                    for doc in current_window_docs
+                    if str(doc.get("drugName") or doc.get("orderName") or "").strip()
+                ]
+            ),
+            "sedation_paused": sedation_paused,
+            "sat_text_event": {
+                "time": self._coerce_time((sat_event or {}).get("time")),
+                "text": " ".join(str((sat_event or {}).get(k) or "") for k in ("code", "strVal", "value")).strip() if sat_event else "",
+            } if sat_event else None,
+        }
+
+    async def _detect_new_arrhythmia_during_sat(self, pid, now: datetime) -> dict | None:
+        pid_str = str(pid or "")
+        if not pid_str:
+            return None
+
+        stress_cfg = self._sat_stress_cfg()
+        adv_cfg = self.config.yaml_cfg.get("alert_engine", {}).get("vital_signs_advanced", {})
+        arrhythmia_keywords = self._get_cfg_list(
+            ("alert_engine", "ecash", "sat_stress", "arrhythmia_keywords"),
+            ["房颤", "房扑", "arrhythmia", "irregular", "室速", "室早", "心律失常"],
+        )
+        rhythm_codes = adv_cfg.get("rhythm_codes", ["param_xinLvLv", "rhythm_type", "param_rhythm_type", "arrhythmia_flag", "param_arrhythmia_flag"])
+        arrhythmia_flag_codes = {str(x).strip().lower() for x in adv_cfg.get("arrhythmia_flag_codes", ["arrhythmia_flag", "param_arrhythmia_flag"])}
+        lookback_hours = max(6, int(stress_cfg.get("arrhythmia_lookback_hours", 6)))
+        recent_hours = max(2, int(stress_cfg.get("arrhythmia_recent_hours", 2)))
+        prior_quiet_hours = max(2, int(stress_cfg.get("arrhythmia_prior_quiet_hours", 4)))
+        since = now - timedelta(hours=lookback_hours)
+
+        docs: list[dict] = []
+        cursor = self.db.col("bedside").find(
+            {"pid": pid_str, "time": {"$gte": since}, "code": {"$in": rhythm_codes}},
+            {"time": 1, "code": 1, "strVal": 1, "value": 1, "fVal": 1, "intVal": 1},
+        ).sort("time", 1).limit(400)
+        docs = [doc async for doc in cursor]
+        if not docs:
+            device_id = await self._get_device_id(pid, ["monitor"])
+            if device_id:
+                cursor = self.db.col("deviceCap").find(
+                    {"deviceID": device_id, "time": {"$gte": since}, "code": {"$in": rhythm_codes}},
+                    {"time": 1, "code": 1, "strVal": 1, "value": 1, "fVal": 1, "intVal": 1},
+                ).sort("time", 1).limit(400)
+                docs = [doc async for doc in cursor]
+        if not docs:
+            return None
+
+        points: list[dict] = []
+        for doc in docs:
+            t = self._coerce_time(doc.get("time"))
+            if not isinstance(t, datetime):
+                continue
+            code = str(doc.get("code") or "").strip().lower()
+            raw_text = " ".join(str(doc.get(k) or "") for k in ("strVal", "value", "code")).strip()
+            text = raw_text.lower()
+            irregular = self._match_name_keywords(text, arrhythmia_keywords)
+            if (not irregular) and code in arrhythmia_flag_codes:
+                numeric_flag = self._to_float(doc.get("fVal"))
+                if numeric_flag is None:
+                    numeric_flag = self._to_float(doc.get("intVal"))
+                if numeric_flag is None:
+                    numeric_flag = self._to_float(doc.get("value"))
+                irregular = numeric_flag is not None and numeric_flag > 0
+            points.append({"time": t, "text": raw_text, "irregular": irregular})
+
+        recent_cutoff = now - timedelta(hours=recent_hours)
+        recent_irregular = [p for p in points if p.get("irregular") and p["time"] >= recent_cutoff]
+        if not recent_irregular:
+            return None
+
+        first_recent = recent_irregular[0]
+        quiet_since = first_recent["time"] - timedelta(hours=prior_quiet_hours)
+        had_prior_irregular = any(p.get("irregular") and quiet_since <= p["time"] < first_recent["time"] for p in points)
+        if had_prior_irregular:
+            return None
+
+        latest = recent_irregular[-1]
+        return {
+            "time": latest["time"],
+            "text": latest["text"],
+            "first_detected_at": first_recent["time"],
+        }
+
+    async def _detect_sat_stress_reaction(self, patient_doc: dict, now: datetime) -> dict | None:
+        pid = patient_doc.get("_id")
+        if not pid:
+            return None
+
+        sat_state = await self._detect_sat_in_progress(patient_doc, now)
+        if not sat_state:
+            return None
+
+        risk_groups = self._sat_risk_groups(patient_doc)
+        if not risk_groups:
+            return None
+
+        vitals = await self._get_latest_vitals_by_patient(pid)
+        hr = self._to_float(vitals.get("hr"))
+        map_value = self._to_float(vitals.get("map"))
+        sbp = self._to_float(vitals.get("sbp"))
+        arrhythmia = await self._detect_new_arrhythmia_during_sat(pid, now)
+
+        matched_signals: list[str] = []
+        matched_groups: list[str] = []
+        primary_group = None
+
+        for group in risk_groups:
+            key = group.get("key")
+            label = group.get("label") or key
+            threshold = float(group.get("threshold") or 0)
+            if key == "neurosurgery_postop" and map_value is not None and map_value > threshold:
+                matched_groups.append(str(key))
+                matched_signals.append(f"{label}，MAP {round(map_value, 1)} mmHg > {round(threshold, 1)}")
+                primary_group = primary_group or key
+            elif key == "aortic_disease" and sbp is not None and sbp > threshold:
+                matched_groups.append(str(key))
+                matched_signals.append(f"{label}，SBP {round(sbp, 1)} mmHg > {round(threshold, 1)}")
+                primary_group = primary_group or key
+            elif key == "cad_or_hf":
+                if hr is not None and hr > threshold:
+                    matched_groups.append(str(key))
+                    matched_signals.append(f"{label}，HR {round(hr, 1)} 次/分 > {round(threshold, 1)}")
+                    primary_group = primary_group or key
+                elif arrhythmia:
+                    matched_groups.append(str(key))
+                    matched_signals.append(f"{label}，SAT期间新发心律失常：{arrhythmia.get('text') or '监护提示异常'}")
+                    primary_group = primary_group or key
+
+        if not matched_signals:
+            return None
+
+        evidence = [f"SAT中 RASS {sat_state.get('baseline_rass')}→{sat_state.get('latest_rass')}"]
+        evidence.extend(matched_signals[:3])
+        suggestion = "建议暂停SAT、恢复镇静，并立即排查疼痛、躁动、缺氧、尿潴留等诱因。"
+        explanation = await self._polish_structured_alert_explanation(
+            {
+                "summary": "SAT期间出现血流动力学/心律应激反应，存在安全风险。",
+                "evidence": evidence,
+                "suggestion": suggestion,
+                "text": "",
+            }
+        )
+
+        return {
+            "rule_id": "ECASH_SAT_STRESS_REACTION",
+            "name": "SAT期间应激反应过度",
+            "category": "bundle",
+            "alert_type": "ecash_sat_stress_reaction",
+            "severity": "critical",
+            "parameter": "sat_stress",
+            "condition": {"sat_in_progress": True, "matched_groups": matched_groups},
+            "value": len(matched_signals),
+            "source_time": vitals.get("time") or sat_state.get("latest_time") or now,
+            "extra": {
+                "sat_window": sat_state,
+                "risk_group": primary_group,
+                "risk_groups": matched_groups,
+                "matched_signals": matched_signals,
+                "map": map_value,
+                "sbp": sbp,
+                "hr": hr,
+                "rhythm": (arrhythmia or {}).get("text") if arrhythmia else None,
+                "new_arrhythmia": arrhythmia,
+                "suggestion": "建议恢复镇静并排查原因",
+            },
+            "explanation": explanation,
+        }
 
     async def get_ecash_status(self, patient_doc: dict) -> dict:
         pid = patient_doc.get("_id")
@@ -306,7 +663,30 @@ class EcashBundleMixin:
     async def scan_ecash_bundle(self) -> None:
         patient_cursor = self.db.col("patient").find(
             self._active_patient_query(),
-            {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1, "deptCode": 1, "admissionType": 1, "admitType": 1, "inType": 1, "admissionSource": 1, "admissionWay": 1, "source": 1, "age": 1, "hisAge": 1},
+            {
+                "_id": 1,
+                "name": 1,
+                "hisPid": 1,
+                "hisBed": 1,
+                "dept": 1,
+                "hisDept": 1,
+                "deptCode": 1,
+                "admissionType": 1,
+                "admitType": 1,
+                "inType": 1,
+                "admissionSource": 1,
+                "admissionWay": 1,
+                "source": 1,
+                "age": 1,
+                "hisAge": 1,
+                "clinicalDiagnosis": 1,
+                "admissionDiagnosis": 1,
+                "diagnosis": 1,
+                "history": 1,
+                "diagnosisHistory": 1,
+                "surgeryHistory": 1,
+                "remark": 1,
+            },
         )
         patients = [p async for p in patient_cursor]
         if not patients:
@@ -456,6 +836,29 @@ class EcashBundleMixin:
                             "benzo_drugs": benzo_drugs,
                             "suggestion": "指南推荐首选丙泊酚或右美托咪定",
                         },
+                    )
+                    if alert:
+                        triggered += 1
+
+            # 6. SAT窗口期应激反应过度
+            sat_stress = await self._detect_sat_stress_reaction(patient_doc, status.get("updated_at") or datetime.now())
+            if sat_stress:
+                rule_id = str(sat_stress.get("rule_id") or "ECASH_SAT_STRESS_REACTION")
+                if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                    alert = await self._create_alert(
+                        rule_id=rule_id,
+                        name=str(sat_stress.get("name") or "SAT期间应激反应过度"),
+                        category=str(sat_stress.get("category") or "bundle"),
+                        alert_type=str(sat_stress.get("alert_type") or "ecash_sat_stress_reaction"),
+                        severity=str(sat_stress.get("severity") or "critical"),
+                        parameter=str(sat_stress.get("parameter") or "sat_stress"),
+                        condition=sat_stress.get("condition") or {"sat_in_progress": True},
+                        value=sat_stress.get("value"),
+                        patient_id=pid_str,
+                        patient_doc=patient_doc,
+                        source_time=sat_stress.get("source_time") or status.get("updated_at"),
+                        extra=sat_stress.get("extra"),
+                        explanation=sat_stress.get("explanation"),
                     )
                     if alert:
                         triggered += 1

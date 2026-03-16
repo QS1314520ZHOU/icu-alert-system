@@ -182,7 +182,7 @@ alert_engine:
     dic: 900
     tbi: 300
     bleeding: 600
-    ventilator: 3600
+    ventilator: 600
     drug_safety: 1800
     antibiotic_stewardship: 1800
     delirium_risk: 900
@@ -196,6 +196,7 @@ alert_engine:
     pe_detection: 600
     postop_monitor: 1800
     ecash_bundle: 600
+    icu_aw_mobility: 900
     assessments: 600
     trend_analysis: 900
     discharge_readiness: 1800
@@ -208,6 +209,20 @@ alert_engine:
   suppression:
     same_rule_same_patient_seconds: 1800
     max_alerts_per_patient_per_hour: 10
+
+  patient_baseline:
+    enabled: true
+    hours: 12
+    min_points: 3
+    zscore_tolerance: 2.0
+    relative_tolerance: 0.08
+    absolute_floor: 2.0
+
+  data_quality_filter:
+    lead_off_spo2_threshold: 90
+    temp_min_c: 30
+    temp_max_c: 43
+    nibp_delta_threshold: 40
 
   data_mapping:
     urine_output:
@@ -279,6 +294,17 @@ alert_engine:
         parameters: ["gcs", "rass", "icp", "cpp", "pupil", "neuro"]
         keywords: ["神经", "意识", "谵妄", "瞳孔", "颅脑", "neuro", "gcs", "rass"]
 
+  trend_analysis_advanced:
+    acute_window_minutes: 30
+    acute_sd_multiplier: 3.0
+    subacute_window_hours: 6
+    cyclic_window_hours: 2
+
+  alert_grouping:
+    sepsis_group: ["*SEPSIS*", "*qsofa*", "*sofa*", "*septic_shock*", "*lac*", "*map*"]
+    bleeding_group: ["*BLEEDING*", "*gi_bleeding*", "*hb*", "*hr*", "*sbp*"]
+    respiratory_group: ["*ARDS*", "*VENT*", "*spo2*", "*resp*", "*weaning*"]
+
   cardiac_arrest:
     factor_weights:
       brady_tachy_alternating: 3
@@ -292,6 +318,53 @@ alert_engine:
     warning_score: 4
     high_score: 6
     critical_score: 8
+
+
+  sepsis_bundle:
+    deadline_minutes: 60
+    escalation_3h_minutes: 180
+    tracker_reopen_hours: 24
+
+
+  weaning_assistant:
+    warning_score: 4
+    high_score: 7
+    critical_score: 9
+    vent_days_warning: 5
+    vent_days_high: 7
+    pf_warning: 200
+    pf_high: 150
+    rsbi_warning: 80
+    rsbi_high: 105
+    rass_min: -2
+    rass_max: 1
+    gcs_min: 9
+    map_min: 65
+    ready_fio2_max: 0.4
+    ready_peep_max: 8
+    fluid_overload_warning_pct: 5
+    fluid_overload_high_pct: 10
+    bnp_surge_ratio: 1.5
+    extubation_monitor_hours: 48
+    post_extub_rr_threshold: 30
+    post_extub_spo2_threshold: 92
+    factor_weights:
+      vent_days_ge_5: 1
+      vent_days_ge_7: 2
+      pf_lt_200: 2
+      pf_lt_150: 3
+      pf_worsening: 1
+      rsbi_ge_80: 2
+      rsbi_ge_105: 3
+      rass_outside_target: 2
+      deep_sedation: 2
+      fluid_overload_gt_5: 2
+      fluid_overload_gt_10: 3
+      bnp_surge: 2
+      previous_sbt_failure: 3
+      vasopressor_support: 2
+      gcs_low: 1
+      map_low: 1
 
   microbiology:
     mdro_keywords:
@@ -330,10 +403,21 @@ alert_engine:
   fluid_balance:
     windows_hours: [6, 12, 24]
     positive_balance_warning_pct: 5
+    positive_balance_high_pct: 10
     positive_balance_critical_pct: 10
+    percent_fluid_overload_warning_pct: 5
+    percent_fluid_overload_high_pct: 10
     rapid_infusion_ml_per_kg_6h: 30
     urine_response_ml_per_kg_h: 0.5
     linkage_lookback_hours: 24
+    map_min_increase_mmHg: 3
+    lactate_nonresponse_ratio: 0.9
+    deresuscitation_map_stable_hours: 2
+    deresuscitation_map_threshold: 65
+    deresuscitation_vaso_lookback_hours: 12
+    deresuscitation_lactate_down_ratio: 0.9
+    deresuscitation_positive_net_ml: 1000
+    deresuscitation_positive_net_high_ml: 2000
 
   delirium_risk:
     warning_score: 4
@@ -357,8 +441,70 @@ alert_engine:
     pain_assessment_overdue_hours: 8
     sat_interval_hours: 24
     over_sedation_hours: 4
+    sat_detection_window_hours: 2
+    sat_recent_sedative_hours: 6
+    sat_rass_rise_min: 2
+    sat_baseline_rass_max: -3
     analgesic_keywords: ["芬太尼", "瑞芬太尼", "舒芬太尼", "吗啡", "布洛芬", "对乙酰氨基酚", "氟比洛芬", "帕瑞昔布", "曲马多", "氯胺酮"]
     benzo_keywords: ["咪达唑仑", "地西泮", "劳拉西泮", "阿普唑仑", "艾司唑仑", "氯硝西泮"]
+    sat_stress:
+      map_threshold_neurosurgery: 120
+      sbp_threshold_aorta: 140
+      hr_threshold_cad_hf: 130
+      arrhythmia_lookback_hours: 6
+      arrhythmia_recent_hours: 2
+      arrhythmia_prior_quiet_hours: 4
+      neurosurgery_keywords: ["脑外科", "开颅", "颅脑术后", "神经外科术后"]
+      aortic_keywords: ["夹层", "主动脉夹层", "动脉瘤", "主动脉瘤", "aortic dissection", "aneurysm"]
+      cad_hf_keywords: ["冠心病", "心肌缺血", "心衰", "心力衰竭", "heart failure", "cad", "chf"]
+      arrhythmia_keywords: ["房颤", "房扑", "arrhythmia", "irregular", "室速", "室早", "心律失常"]
+
+  icu_aw:
+    warning_score: 4
+    high_score: 7
+    critical_score: 10
+    max_lookback_days: 21
+    ventilation_days_warning: 3
+    ventilation_days_high: 7
+    sedative_days_threshold: 3
+    sofa_threshold: 8
+    immobility_hours_threshold: 72
+    mobility_opportunity_immobility_hours: 72
+    glucose_window_hours: 48
+    glucose_cv_threshold: 36
+    glucose_low_threshold: 3.9
+    glucose_high_threshold: 10
+    factor_weights:
+      age_ge_65: 1
+      mechanical_ventilation_ge_3d: 2
+      mechanical_ventilation_ge_7d: 3
+      sedative_exposure_ge_3d: 2
+      sedative_multiclass: 1
+      sofa_ge_8: 2
+      sepsis_active: 2
+      glucose_instability: 1
+      steroid_exposure: 1
+      immobility_ge_72h: 2
+    sedative_keywords: ["咪达唑仑", "丙泊酚", "右美托咪定", "地西泮", "劳拉西泮", "芬太尼", "瑞芬太尼", "舒芬太尼"]
+    benzodiazepine_keywords: ["咪达唑仑", "地西泮", "劳拉西泮", "阿普唑仑", "艾司唑仑", "氯硝西泮"]
+    propofol_keywords: ["丙泊酚", "propofol"]
+    dexmedetomidine_keywords: ["右美托咪定", "dexmedetomidine"]
+    opioid_sedation_keywords: ["芬太尼", "瑞芬太尼", "舒芬太尼"]
+    steroid_keywords: ["地塞米松", "甲强龙", "甲泼尼龙", "氢化可的松", "泼尼松", "methylprednisolone", "dexamethasone", "hydrocortisone"]
+    active_bleeding_alert_types: ["gi_bleeding", "postop_bleeding"]
+    active_bleeding_keywords: ["活动性出血", "active bleeding"]
+    unstable_fracture_keywords: ["不稳定骨折", "unstable fracture", "骨盆不稳", "脊柱不稳", "骨折未固定"]
+    activity_keywords: ["活动", "下床", "坐起", "坐位", "站立", "行走", "床边活动", "早期活动", "康复训练", "转移到椅", "步行"]
+    norepi_keywords: ["去甲肾上腺素", "norepinephrine", "noradrenaline", "去甲"]
+    mobility:
+      fio2_threshold: 0.6
+      peep_threshold: 10
+      norepi_threshold_ug_kg_min: 0.2
+      norepi_lookback_hours: 12
+      norepi_taper_min_drop_ratio: 0.1
+      rass_min: -2
+      rass_max: 1
+      map_threshold: 60
 
   glycemic_control:
     cv_warning_pct: 36
@@ -441,6 +587,13 @@ alert_engine:
     monitoring_density_window_hours: 6
     monitoring_density_drop_ratio: 0.4
     candidate_keywords: ["转出", "下转", "普通病房", "stepdown", "hdu", "准备转出", "出icu"]
+
+  similar_case_review:
+    max_candidates: 200
+    age_band_years: 10
+    sofa_band: 2
+    diagnosis_keyword_limit: 6
+    min_diagnosis_similarity: 0.15
 
   nutrition_monitor:
     start_delay_hours: 48

@@ -210,6 +210,16 @@ class PeDetectorMixin:
                     device_id,
                     codes=["param_HR", "param_spo2", "param_nibp_s", "param_ibp_s", "param_nibp_m", "param_ibp_m"],
                 )
+            if latest_cap:
+                latest_cap, _ = await self._filter_snapshot_quality(
+                    pid=pid,
+                    pid_str=pid_str,
+                    patient_doc=patient_doc,
+                    cap=latest_cap,
+                    device_id=device_id,
+                    same_rule_sec=same_rule_sec,
+                    max_per_hour=max_per_hour,
+                )
 
             latest_hr = self._get_priority_param(latest_cap or {}, ["param_HR"]) if latest_cap else None
 
@@ -220,6 +230,7 @@ class PeDetectorMixin:
                 prefer_device_types=["monitor"],
                 limit=300,
             )
+            spo2_series = self._filter_series_quality("param_spo2", spo2_series)
             hr_series = await self._get_param_series_by_pid(
                 pid,
                 "param_HR",
@@ -227,6 +238,7 @@ class PeDetectorMixin:
                 prefer_device_types=["monitor"],
                 limit=300,
             )
+            hr_series = self._filter_series_quality("param_HR", hr_series)
 
             labs = await self._get_latest_labs_map(his_pid, lookback_hours=72) if his_pid else {}
             ddimer_info = labs.get("ddimer", {}) if labs else {}

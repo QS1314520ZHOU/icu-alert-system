@@ -7,19 +7,28 @@
           护士站监控大屏
         </div>
         <div class="header-sub">Central Monitoring Command Center</div>
+        <div class="header-filters">
+          <button
+            :class="['header-filter-chip', { active: rescueOnly }]"
+            @click="rescueOnly = !rescueOnly"
+          >
+            🚨 仅看抢救期风险
+            <b>{{ rescuePatientCount }}</b>
+          </button>
+        </div>
       </div>
       <div class="screen-kpis">
         <div class="kpi-chip">
-          <span class="kpi-label">在院床位</span>
-          <strong>{{ patients.length }}</strong>
+          <span class="kpi-label">{{ rescueOnly ? '抢救期床位' : '在院床位' }}</span>
+          <strong>{{ filteredPatients.length }}</strong>
         </div>
         <div class="kpi-chip">
           <span class="kpi-label">危急预警</span>
-          <strong>{{ criticalPatientCount }}</strong>
+          <strong>{{ filteredCriticalPatientCount }}</strong>
         </div>
         <div class="kpi-chip">
-          <span class="kpi-label">实时告警</span>
-          <strong>{{ alerts.length }}</strong>
+          <span class="kpi-label">{{ rescueOnly ? '抢救期告警' : '实时告警' }}</span>
+          <strong>{{ filteredAlerts.length }}</strong>
         </div>
       </div>
       <div class="clock">{{ currentTime }}</div>
@@ -27,13 +36,13 @@
 
     <section class="screen-body">
       <aside class="panel panel-left">
-        <div class="panel-title">实时预警</div>
+        <div class="panel-title">{{ rescueOnly ? '抢救期预警' : '实时预警' }}</div>
         <BigScreenAlertFeed :alerts="showAlerts" />
       </aside>
 
       <main class="panel panel-center">
-        <div class="panel-title">床位监控</div>
-        <BigScreenBedGrid :patients="patients" />
+        <div class="panel-title">{{ rescueOnly ? '抢救期床位监控' : '床位监控' }}</div>
+        <BigScreenBedGrid :patients="filteredPatients" />
       </main>
 
       <BigScreenStatsPanel
@@ -50,7 +59,16 @@
 import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, watch } from 'vue'
 import dayjs from 'dayjs'
 import { useRoute } from 'vue-router'
-import { getBundleOverview, getDepartments, getDeviceRiskHeatmap, getPatients, getPatientVitals, getRecentAlerts, getAlertStats } from '../api'
+import {
+  getAlertStats,
+  getBundleOverview,
+  getDepartments,
+  getDeviceRiskHeatmap,
+  getPatients,
+  getPatientVitals,
+  getPatientWeaningStatus,
+  getRecentAlerts,
+} from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 import {
   icuCategoryAxis,
@@ -73,19 +91,32 @@ const depts = ref<any[]>([])
 const trendSeries = ref<any[]>([])
 const bundleCounts = ref<any>({ green: 0, yellow: 0, red: 0 })
 const deviceHeatRows = ref<any[]>([])
+const rescueOnly = ref(false)
 
 let timer: number
 let refreshTimer: number
 let alertTimer: number
 let offAlert: any = null
 
-const criticalPatientCount = computed(() =>
-  patients.value.filter((p: any) => p.alertLevel === 'critical').length
+const rescuePatientCount = computed(() =>
+  patients.value.filter((p: any) => hasPatientRescueRisk(p)).length
+)
+
+const filteredPatients = computed(() =>
+  rescueOnly.value ? patients.value.filter((p: any) => hasPatientRescueRisk(p)) : patients.value
+)
+
+const filteredAlerts = computed(() =>
+  rescueOnly.value ? alerts.value.filter((a: any) => isRescueRiskAlert(a)) : alerts.value
+)
+
+const filteredCriticalPatientCount = computed(() =>
+  filteredPatients.value.filter((p: any) => p.alertLevel === 'critical').length
 )
 
 const showAlerts = computed(() => {
   const n = 8
-  const list = alerts.value
+  const list = filteredAlerts.value
   if (list.length <= n) return list
   const start = alertIndex.value % list.length
   return [...list.slice(start, start + n), ...list.slice(0, Math.max(0, n - (list.length - start)))]
@@ -215,15 +246,43 @@ function severityPriority(level: string) {
   return p[level] ?? 0
 }
 
+function isRescueRiskAlert(alert: any) {
+  const sev = String(alert?.severity || '').toLowerCase()
+  if (sev !== 'high' && sev !== 'critical') return false
+  const alertType = String(alert?.alert_type || '').toLowerCase()
+  const ruleId = String(alert?.rule_id || '').toLowerCase()
+  const category = String(alert?.category || '').toLowerCase()
+  if (alertType === 'ai_risk' || category === 'ai_analysis') return false
+  const rescueKeywords = [
+    'shock', 'sepsis', 'septic', 'cardiac_arrest', 'cardiac', 'pea',
+    'pe_', 'embol', 'bleed', 'bleeding', 'resp', 'hypoxia', 'hypotension',
+    'deterioration', 'multi_organ', 'post_extubation',
+  ]
+  const haystack = `${alertType} ${ruleId} ${category}`.toLowerCase()
+  const extra = alert?.extra && typeof alert.extra === 'object' ? alert.extra : {}
+  return rescueKeywords.some((key) => haystack.includes(key))
+    || !!extra?.context_snapshot
+    || !!extra?.clinical_chain
+    || (Array.isArray(extra?.aggregated_groups) && extra.aggregated_groups.length > 0)
+}
+
+function hasPatientRescueRisk(patient: any) {
+  if (patient?.postExtubationRisk?.has_alert) return true
+  const level = String(patient?.alertLevel || '').toLowerCase()
+  return (level === 'high' || level === 'critical') && !!patient?.hasRescueRisk
+}
+
 function buildAlertMap() {
-  const map = new Map<string, string>()
+  const map = new Map<string, { severity: string; rescue: boolean }>()
   alerts.value.forEach(a => {
     const pid = String(a.patient_id || '')
     if (!pid) return
     const sev = String(a.severity || 'warning')
-    const cur = map.get(pid) || 'none'
-    if (severityPriority(sev) >= severityPriority(cur)) {
-      map.set(pid, sev)
+    const cur = map.get(pid) || { severity: 'none', rescue: false }
+    if (severityPriority(sev) >= severityPriority(cur.severity)) {
+      map.set(pid, { severity: sev, rescue: cur.rescue || isRescueRiskAlert(a) })
+    } else if (isRescueRiskAlert(a) && !cur.rescue) {
+      map.set(pid, { ...cur, rescue: true })
     }
   })
   return map
@@ -239,6 +298,9 @@ function applyAlert(alert: any) {
     const sev = String(alert.severity || 'warning')
     if (severityPriority(sev) >= severityPriority(target.alertLevel || 'none')) {
       target.alertLevel = sev
+    }
+    if (isRescueRiskAlert(alert)) {
+      target.hasRescueRisk = true
     }
     target.alertHoldUntil = Date.now() + 30 * 60 * 1000
     target.alertFlash = true
@@ -285,11 +347,29 @@ async function loadPatients() {
   const res = await getPatients(buildPatientParams())
   const list = res.data.patients || []
   const head = list.slice(0, 60)
-  const tail = list.slice(60).map((p: any) => ({ ...p, vitals: {}, alertLevel: 'none' }))
+  const tail = list.slice(60).map((p: any) => ({
+    ...p,
+    vitals: {},
+    alertLevel: 'none',
+    postExtubationRisk: null,
+    hasRescueRisk: false,
+  }))
 
   const done = await Promise.all(head.map(async (p: any) => {
     try { p.vitals = (await getPatientVitals(p._id)).data.vitals || {} }
     catch { p.vitals = {} }
+    try {
+      const status = (await getPatientWeaningStatus(p._id)).data?.status || {}
+      p.postExtubationRisk = status?.post_extubation_risk || null
+      const riskSeverity = String(p.postExtubationRisk?.severity || '').toLowerCase()
+      if (p.postExtubationRisk?.has_alert && severityPriority(riskSeverity) > severityPriority(p.alertLevel || 'none')) {
+        p.alertLevel = riskSeverity
+      }
+      p.hasRescueRisk = !!p.postExtubationRisk?.has_alert
+    } catch {
+      p.postExtubationRisk = null
+      p.hasRescueRisk = false
+    }
     p.alertLevel = p.alertLevel || 'none'
     return p
   }))
@@ -297,8 +377,9 @@ async function loadPatients() {
   const map = buildAlertMap()
   patients.value = [...done, ...tail].map(p => {
     const holdUntil = p.alertHoldUntil || 0
-    const sev = map.get(String(p._id))
-    if (sev) p.alertLevel = sev
+    const linked = map.get(String(p._id))
+    if (linked?.severity) p.alertLevel = linked.severity
+    if (linked?.rescue) p.hasRescueRisk = true
     if (holdUntil > Date.now()) return p
     return p
   })
@@ -407,6 +488,34 @@ watch(() => route.query, () => {
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
+.header-filters {
+  margin-top: 8px;
+}
+.header-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 113, 133, .18);
+  background: linear-gradient(180deg, rgba(49, 15, 25, .9) 0%, rgba(24, 10, 16, .92) 100%);
+  color: #ffcad5;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.header-filter-chip b {
+  color: #fff1f4;
+  font-size: 13px;
+}
+.header-filter-chip:hover,
+.header-filter-chip.active {
+  border-color: rgba(251, 113, 133, .38);
+  box-shadow: 0 0 18px rgba(251, 113, 133, .16);
+  color: #fff0f4;
+}
 .screen-kpis { display: flex; gap: 10px; margin-left: auto; }
 .kpi-chip {
   min-width: 104px;
@@ -474,6 +583,9 @@ watch(() => route.query, () => {
   .screen-kpis {
     order: 3;
     width: 100%;
+  }
+  .header-filters {
+    margin-top: 6px;
   }
 }
 </style>

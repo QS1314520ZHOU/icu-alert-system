@@ -169,27 +169,24 @@ def _calculate_age(birthday) -> str:
         return ""
 
 
-def serialize_doc(doc: dict) -> dict:
-    """将 MongoDB 文档转换为 JSON 可序列化的字典（ObjectId→str，datetime→isoformat）"""
+def serialize_doc(doc):
+    """将 MongoDB 文档转换为 JSON 可序列化结构（支持顶层 dict / list / 标量）"""
     if doc is None:
         return {}
+    if isinstance(doc, ObjectId):
+        return str(doc)
+    if isinstance(doc, datetime):
+        return doc.isoformat()
+    if isinstance(doc, list):
+        return [serialize_doc(item) for item in doc]
+    if isinstance(doc, tuple):
+        return [serialize_doc(item) for item in doc]
+    if not isinstance(doc, dict):
+        return doc
+
     result = {}
     for k, v in doc.items():
-        if isinstance(v, ObjectId):
-            result[k] = str(v)
-        elif isinstance(v, datetime):
-            result[k] = v.isoformat()
-        elif isinstance(v, dict):
-            result[k] = serialize_doc(v)
-        elif isinstance(v, list):
-            result[k] = [
-                serialize_doc(item) if isinstance(item, dict) else
-                str(item) if isinstance(item, ObjectId) else
-                item.isoformat() if isinstance(item, datetime) else item
-                for item in v
-            ]
-        else:
-            result[k] = v
+        result[k] = serialize_doc(v)
     return result
 
 
@@ -738,6 +735,187 @@ def _severity_projection() -> dict:
     }
 
 
+def _normalize_month_param(month: str | None) -> str:
+    value = str(month or "").strip()
+    if re.match(r"^\d{4}-\d{2}$", value):
+        return value
+    return datetime.now().strftime("%Y-%m")
+
+
+async def _sepsis_bundle_patient_ids_by_dept_code(dept_code: str | None) -> list[str]:
+    code = str(dept_code or "").strip()
+    if not code:
+        return []
+    patient_ids: list[str] = []
+    cursor = db.col("patient").find({"deptCode": code}, {"_id": 1})
+    async for patient in cursor:
+        pid = patient.get("_id")
+        if pid is not None:
+            patient_ids.append(str(pid))
+    return patient_ids
+
+
+def _derive_sepsis_bundle_status(tracker: dict | None, now: datetime | None = None) -> dict:
+    now_dt = now or datetime.now()
+    if not tracker:
+        return {
+            "active": False,
+            "status": "none",
+            "bundle_started_at": None,
+            "deadline_1h": None,
+            "deadline_3h": None,
+            "first_antibiotic_time": None,
+            "first_antibiotic_name": None,
+            "remaining_seconds_to_1h": None,
+            "remaining_seconds_to_3h": None,
+            "elapsed_minutes": None,
+            "compliant_1h": None,
+            "source_rules": [],
+            "label": "未进入计时",
+            "light": "gray",
+        }
+
+    started = tracker.get("bundle_started_at")
+    deadline_1h = tracker.get("deadline_1h")
+    deadline_3h = tracker.get("deadline_3h")
+    raw_status = str(tracker.get("status") or "").strip().lower() or "pending"
+    effective_status = raw_status
+
+    if raw_status == "pending":
+        if isinstance(deadline_3h, datetime) and now_dt >= deadline_3h:
+            effective_status = "overdue_3h"
+        elif isinstance(deadline_1h, datetime) and now_dt >= deadline_1h:
+            effective_status = "overdue_1h"
+
+    remaining_1h = int((deadline_1h - now_dt).total_seconds()) if isinstance(deadline_1h, datetime) else None
+    remaining_3h = int((deadline_3h - now_dt).total_seconds()) if isinstance(deadline_3h, datetime) else None
+    elapsed_minutes = (
+        round((now_dt - started).total_seconds() / 60.0, 1)
+        if isinstance(started, datetime)
+        else None
+    )
+
+    light = "gray"
+    label = "未进入计时"
+    if effective_status == "met":
+        light, label = "green", "1h已达标"
+    elif effective_status == "met_late":
+        light, label = "orange", "已补执行(超1h)"
+    elif effective_status == "overdue_3h":
+        light, label = "red", "3h仍未执行"
+    elif effective_status == "overdue_1h":
+        light, label = "red", "1h已超时"
+    elif effective_status == "pending":
+        if remaining_1h is not None and remaining_1h <= 30 * 60:
+            light, label = "yellow", "1h窗口临近"
+        else:
+            light, label = "blue", "1h内待完成"
+
+    return {
+        "active": bool(tracker.get("is_active")) and effective_status == "pending",
+        "status": effective_status,
+        "raw_status": raw_status,
+        "bundle_started_at": started,
+        "deadline_1h": deadline_1h,
+        "deadline_3h": deadline_3h,
+        "first_antibiotic_time": tracker.get("first_antibiotic_time"),
+        "first_antibiotic_name": tracker.get("first_antibiotic_name"),
+        "remaining_seconds_to_1h": remaining_1h,
+        "remaining_seconds_to_3h": remaining_3h,
+        "elapsed_minutes": elapsed_minutes,
+        "compliant_1h": tracker.get("compliant_1h"),
+        "source_rules": tracker.get("source_rules") or [],
+        "label": label,
+        "light": light,
+    }
+
+
+def _normalize_weaning_status(doc: dict | None) -> dict:
+    if not doc:
+        return {
+            "has_assessment": False,
+            "risk_score": None,
+            "risk_level": "unknown",
+            "recommendation": "暂无撤机评估",
+            "severity": "warning",
+            "factors": [],
+            "gate_failures": [],
+            "pf_ratio": None,
+            "fio2": None,
+            "peep": None,
+            "rsbi": None,
+            "rr": None,
+            "vte_ml": None,
+            "map": None,
+            "rass": None,
+            "gcs": None,
+            "fluid_overload_pct": None,
+            "ventilation_days": None,
+            "updated_at": None,
+        }
+    return {
+        "has_assessment": True,
+        "risk_score": doc.get("risk_score") if doc.get("risk_score") is not None else doc.get("score"),
+        "risk_level": doc.get("risk_level") or "low",
+        "recommendation": doc.get("recommendation") or "—",
+        "severity": doc.get("severity") or ("high" if str(doc.get("risk_level") or "").lower() in {"high", "critical"} else "warning"),
+        "factors": doc.get("factors") or [],
+        "gate_failures": doc.get("gate_failures") or [],
+        "pf_ratio": doc.get("pf_ratio"),
+        "fio2": doc.get("fio2"),
+        "peep": doc.get("peep"),
+        "rsbi": doc.get("rsbi"),
+        "rr": doc.get("rr"),
+        "vte_ml": doc.get("vte_ml"),
+        "map": doc.get("map"),
+        "rass": doc.get("rass"),
+        "gcs": doc.get("gcs"),
+        "fluid_overload_pct": doc.get("fluid_overload_pct"),
+        "ventilation_days": doc.get("ventilation_days"),
+        "updated_at": doc.get("calc_time") or doc.get("updated_at") or doc.get("created_at"),
+    }
+
+
+def _normalize_sbt_status(doc: dict | None) -> dict:
+    if not doc:
+        return {
+            "has_record": False,
+            "result": "none",
+            "passed": None,
+            "label": "暂无SBT记录",
+            "trial_time": None,
+            "source": None,
+            "duration_minutes": None,
+            "rr": None,
+            "vte_ml": None,
+            "rsbi": None,
+            "fio2": None,
+            "peep": None,
+            "raw_text": None,
+        }
+    result = str(doc.get("result") or "").lower() or "documented"
+    label_map = {
+        "passed": "SBT通过",
+        "failed": "SBT失败",
+        "documented": "已记录SBT",
+    }
+    return {
+        "has_record": True,
+        "result": result,
+        "passed": doc.get("passed"),
+        "label": label_map.get(result, "已记录SBT"),
+        "trial_time": doc.get("trial_time") or doc.get("calc_time"),
+        "source": doc.get("source"),
+        "duration_minutes": doc.get("duration_minutes"),
+        "rr": doc.get("rr"),
+        "vte_ml": doc.get("vte_ml"),
+        "rsbi": doc.get("rsbi"),
+        "fio2": doc.get("fio2"),
+        "peep": doc.get("peep"),
+        "raw_text": doc.get("raw_text"),
+    }
+
+
 def _device_type_match(name: str | None, prefer_type: str | None) -> bool:
     if not prefer_type:
         return True
@@ -1132,6 +1310,138 @@ async def patient_ecash_status(patient_id: str):
     return {"code": 0, "status": serialize_doc(status)}
 
 
+@app.get("/api/patients/{patient_id}/sepsis-bundle-status")
+async def patient_sepsis_bundle_status(patient_id: str):
+    """获取患者当前 Sepsis 1h Bundle 倒计时状态。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await db.col("patient").find_one({"_id": pid}, {"_id": 1, "name": 1})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    pid_str = str(pid)
+    tracker = await db.col("score_records").find_one(
+        {
+            "patient_id": pid_str,
+            "score_type": "sepsis_antibiotic_bundle",
+            "bundle_type": "sepsis_1h_antibiotic",
+            "is_active": True,
+        },
+        sort=[("bundle_started_at", -1)],
+    )
+    if not tracker:
+        tracker = await db.col("score_records").find_one(
+            {
+                "patient_id": pid_str,
+                "score_type": "sepsis_antibiotic_bundle",
+                "bundle_type": "sepsis_1h_antibiotic",
+            },
+            sort=[("bundle_started_at", -1)],
+        )
+
+    status = _derive_sepsis_bundle_status(tracker, now=datetime.now())
+    return {"code": 0, "status": serialize_doc(status)}
+
+
+@app.get("/api/patients/{patient_id}/weaning-status")
+async def patient_weaning_status(patient_id: str):
+    """获取患者最新脱机评估与 SBT 结构化记录。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await db.col("patient").find_one({"_id": pid}, {"_id": 1, "name": 1, "hisBed": 1})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    pid_str = str(pid)
+    weaning_doc = await db.col("score_records").find_one(
+        {"patient_id": pid_str, "score_type": "weaning_assessment"},
+        sort=[("calc_time", -1)],
+    )
+    sbt_doc = await db.col("score_records").find_one(
+        {"patient_id": pid_str, "score_type": "sbt_assessment"},
+        sort=[("trial_time", -1), ("calc_time", -1)],
+    )
+    post_extub_alert = await db.col("alert_records").find_one(
+        {"patient_id": {"$in": [pid_str, pid]}, "alert_type": "post_extubation_failure_risk"},
+        sort=[("created_at", -1)],
+    )
+
+    status = {
+        "weaning": _normalize_weaning_status(weaning_doc),
+        "sbt": _normalize_sbt_status(sbt_doc),
+        "post_extubation_risk": {
+            "has_alert": bool(post_extub_alert),
+            "severity": (post_extub_alert or {}).get("severity"),
+            "created_at": (post_extub_alert or {}).get("created_at"),
+            "rr": ((post_extub_alert or {}).get("extra") or {}).get("rr"),
+            "spo2": ((post_extub_alert or {}).get("extra") or {}).get("spo2"),
+            "hours_since_extubation": ((post_extub_alert or {}).get("extra") or {}).get("hours_since_extubation"),
+        },
+    }
+    return {"code": 0, "status": serialize_doc(status)}
+
+
+@app.get("/api/patients/{patient_id}/sbt-records")
+async def patient_sbt_records(patient_id: str, limit: int = Query(default=20, ge=5, le=100)):
+    """获取患者 SBT 结构化记录时间线。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await db.col("patient").find_one({"_id": pid}, {"_id": 1, "name": 1, "hisBed": 1})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    pid_str = str(pid)
+    cursor = db.col("score_records").find(
+        {"patient_id": pid_str, "score_type": "sbt_assessment"},
+        {
+            "patient_id": 1,
+            "score_type": 1,
+            "result": 1,
+            "passed": 1,
+            "trial_time": 1,
+            "calc_time": 1,
+            "source": 1,
+            "source_code": 1,
+            "duration_minutes": 1,
+            "rr": 1,
+            "vte_ml": 1,
+            "rsbi": 1,
+            "fio2": 1,
+            "peep": 1,
+            "minute_vent": 1,
+            "raw_text": 1,
+            "created_at": 1,
+        },
+    ).sort([("trial_time", -1), ("calc_time", -1)]).limit(limit)
+    docs = [doc async for doc in cursor]
+    records = [_normalize_sbt_status(doc) | {"source_code": doc.get("source_code"), "minute_vent": doc.get("minute_vent")} for doc in docs]
+
+    passed_count = sum(1 for row in records if str(row.get("result") or "") == "passed")
+    failed_count = sum(1 for row in records if str(row.get("result") or "") == "failed")
+    documented_count = sum(1 for row in records if str(row.get("result") or "") == "documented")
+
+    return {
+        "code": 0,
+        "summary": {
+            "total_records": len(records),
+            "passed_count": passed_count,
+            "failed_count": failed_count,
+            "documented_count": documented_count,
+            "last_trial_time": records[0].get("trial_time") if records else None,
+        },
+        "records": serialize_doc(records),
+    }
+
+
 @app.get("/api/bundle/overview")
 async def bundle_overview(
     dept: Optional[str] = Query(None, description="科室名称"),
@@ -1198,6 +1508,23 @@ async def patient_discharge_readiness(patient_id: str):
         return {"code": 404, "message": "患者不存在"}
     result = await alert_engine.evaluate_discharge_readiness(patient)
     return {"code": 0, "assessment": serialize_doc(result)}
+
+
+@app.get("/api/patients/{patient_id}/similar-case-outcomes")
+async def patient_similar_case_outcomes(
+    patient_id: str,
+    limit: int = Query(default=10, ge=3, le=20, description="返回相似病例数量"),
+):
+    """历史相似病例结局回溯。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    patient = await db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+    result = await alert_engine.get_similar_case_outcomes(patient, limit=limit)
+    return {"code": 0, "review": serialize_doc(result)}
 
 
 # =============================================
@@ -1854,6 +2181,7 @@ async def patient_bedcard(patient_id: str):
     # 5. 当日注意事项 (Daily Notes via High/Critical Alerts)
     notes = []
     alert_notes = []
+    alert_summary_card = None
     since_24h = datetime.now() - timedelta(hours=24)
     alert_cursor = db.col("alert_records").find(
         {
@@ -1882,14 +2210,56 @@ async def patient_bedcard(patient_id: str):
         if not explanation_summary:
             explanation_summary = str(a.get("explanation_text") or "").strip()
 
+        if alert_summary_card is None:
+            extra = a.get("extra") if isinstance(a.get("extra"), dict) else {}
+            chain = extra.get("clinical_chain") if isinstance(extra.get("clinical_chain"), dict) else None
+            groups = extra.get("aggregated_groups") if isinstance(extra.get("aggregated_groups"), list) else []
+            context_snapshot = extra.get("context_snapshot") if isinstance(extra.get("context_snapshot"), dict) else None
+            post_extubation_snapshot = None
+            if str(a.get("alert_type") or "") == "post_extubation_failure_risk":
+                post_extubation_snapshot = {
+                    "rr": extra.get("rr"),
+                    "spo2": extra.get("spo2"),
+                    "hours_since_extubation": extra.get("hours_since_extubation"),
+                    "accessory_muscle_use": extra.get("accessory_muscle_use"),
+                }
+            alert_summary_card = {
+                "title": name,
+                "severity": a.get("severity") or "high",
+                "summary": explanation_summary,
+                "suggestion": explanation_suggestion,
+                "evidence": explanation_evidence[:3],
+                "clinical_chain": chain,
+                "aggregated_groups": groups[:3],
+                "context_snapshot": context_snapshot,
+                "alert_type": a.get("alert_type") or "",
+                "category": a.get("category") or "",
+                "rule_id": a.get("rule_id") or "",
+                "created_at": a.get("created_at"),
+                "post_extubation_snapshot": post_extubation_snapshot,
+            }
+
+        note_post_extubation_snapshot = None
+        if str(a.get("alert_type") or "") == "post_extubation_failure_risk":
+            extra = a.get("extra") if isinstance(a.get("extra"), dict) else {}
+            note_post_extubation_snapshot = {
+                "rr": extra.get("rr"),
+                "spo2": extra.get("spo2"),
+                "hours_since_extubation": extra.get("hours_since_extubation"),
+                "accessory_muscle_use": extra.get("accessory_muscle_use"),
+            }
         alert_notes.append({
             "title": name,
             "severity": a.get("severity") or "high",
             "summary": explanation_summary,
             "suggestion": explanation_suggestion,
             "evidence": explanation_evidence[:2],
+            "context_snapshot": (a.get("extra") or {}).get("context_snapshot") if isinstance(a.get("extra"), dict) else None,
+            "alert_type": a.get("alert_type") or "",
+            "category": a.get("category") or "",
             "rule_id": a.get("rule_id") or "",
             "created_at": a.get("created_at"),
+            "post_extubation_snapshot": note_post_extubation_snapshot,
         })
         
     # 去重
@@ -1910,6 +2280,7 @@ async def patient_bedcard(patient_id: str):
         "metrics": metrics,
         "notes": unique_notes,
         "alert_notes": dedup_alert_notes,
+        "alert_summary_card": alert_summary_card,
     }
 
     return {"code": 0, "data": serialize_doc(merged_data)}
@@ -1994,6 +2365,309 @@ async def alert_stats(window: str = Query("24h")):
 # =============================================
 # 预警统计分析（质控 Analytics）
 # =============================================
+@app.get("/api/analytics/sepsis-bundle/compliance")
+async def analytics_sepsis_bundle_compliance(
+    month: Optional[str] = Query(None, description="月份 YYYY-MM"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    """月度 Sepsis 1h Bundle 合规率统计。"""
+    month_norm = _normalize_month_param(month)
+    query: dict = {
+        "score_type": "sepsis_antibiotic_bundle",
+        "bundle_type": "sepsis_1h_antibiotic",
+        "month": month_norm,
+    }
+    if dept:
+        query["dept"] = dept
+    elif dept_code:
+        patient_ids = await _sepsis_bundle_patient_ids_by_dept_code(dept_code)
+        if patient_ids:
+            query["patient_id"] = {"$in": patient_ids}
+        else:
+            return {
+                "code": 0,
+                "summary": {
+                    "month": month_norm,
+                    "total_cases": 0,
+                    "compliant_1h_cases": 0,
+                    "compliance_rate": 0,
+                    "overdue_1h_cases": 0,
+                    "overdue_3h_cases": 0,
+                    "met_late_cases": 0,
+                    "pending_active_cases": 0,
+                },
+            }
+
+    docs = [doc async for doc in db.col("score_records").find(query)]
+    total_cases = len(docs)
+    compliant_1h_cases = sum(1 for doc in docs if doc.get("compliant_1h") is True or str(doc.get("status") or "").lower() == "met")
+    overdue_1h_cases = sum(1 for doc in docs if str(doc.get("status") or "").lower() == "overdue_1h")
+    overdue_3h_cases = sum(1 for doc in docs if str(doc.get("status") or "").lower() == "overdue_3h")
+    met_late_cases = sum(1 for doc in docs if str(doc.get("status") or "").lower() == "met_late")
+    pending_active_cases = sum(
+        1
+        for doc in docs
+        if str(doc.get("status") or "").lower() == "pending" and bool(doc.get("is_active"))
+    )
+
+    return {
+        "code": 0,
+        "summary": {
+            "month": month_norm,
+            "total_cases": total_cases,
+            "compliant_1h_cases": compliant_1h_cases,
+            "compliance_rate": round((compliant_1h_cases / total_cases), 4) if total_cases else 0,
+            "overdue_1h_cases": overdue_1h_cases,
+            "overdue_3h_cases": overdue_3h_cases,
+            "met_late_cases": met_late_cases,
+            "pending_active_cases": pending_active_cases,
+        },
+    }
+
+
+@app.get("/api/analytics/weaning-summary")
+async def analytics_weaning_summary(
+    month: Optional[str] = Query(None, description="月份 YYYY-MM"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    """月度脱机评估 / 再插管风险汇总。"""
+    month_norm = _normalize_month_param(month)
+    patient_filter_ids: list[str] | None = None
+    dept_query: dict = {}
+    if dept:
+        patient_filter_ids = []
+        cursor = db.col("patient").find({"$or": [{"dept": dept}, {"hisDept": dept}]}, {"_id": 1})
+        async for patient in cursor:
+            if patient.get("_id") is not None:
+                patient_filter_ids.append(str(patient["_id"]))
+    elif dept_code:
+        patient_filter_ids = await _sepsis_bundle_patient_ids_by_dept_code(dept_code)
+        if not patient_filter_ids:
+            return {
+                "code": 0,
+                "summary": {
+                    "month": month_norm,
+                    "weaning_assessed_patients": 0,
+                    "high_risk_patients": 0,
+                    "high_risk_ratio": 0,
+                    "extubated_patients": 0,
+                    "reintubation_risk_patients": 0,
+                    "reintubation_risk_ratio": 0,
+                    "critical_post_extubation_patients": 0,
+                    "daily_trend": [],
+                    "dept_compare": [],
+                },
+            }
+
+    weaning_query: dict = {
+        "score_type": "weaning_assessment",
+        "month": month_norm,
+        **dept_query,
+    }
+    if patient_filter_ids is not None:
+        weaning_query["patient_id"] = {"$in": patient_filter_ids}
+    docs = [doc async for doc in db.col("score_records").find(weaning_query).sort("calc_time", -1)]
+    latest_by_patient: dict[str, dict] = {}
+    for doc in docs:
+        pid_str = str(doc.get("patient_id") or "").strip()
+        if pid_str and pid_str not in latest_by_patient:
+            latest_by_patient[pid_str] = doc
+    weaning_assessed_patients = len(latest_by_patient)
+    high_risk_patients = sum(
+        1
+        for doc in latest_by_patient.values()
+        if str(doc.get("risk_level") or "").lower() in {"high", "critical"}
+    )
+
+    month_start = datetime.strptime(f"{month_norm}-01", "%Y-%m-%d")
+    next_month = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    extub_query: dict = {
+        "unBindTime": {"$gte": month_start, "$lt": next_month},
+    }
+    if patient_filter_ids is not None:
+        extub_query["pid"] = {"$in": patient_filter_ids}
+    extub_cursor = db.col("deviceBind").find(extub_query, {"pid": 1, "type": 1, "unBindTime": 1})
+    extubated_patient_ids: set[str] = set()
+    async for doc in extub_cursor:
+        dtype = str(doc.get("type") or "").lower()
+        if any(k in dtype for k in ["vent", "ventilator", "呼吸"]):
+            pid_val = str(doc.get("pid") or "").strip()
+            if pid_val:
+                extubated_patient_ids.add(pid_val)
+    extubated_patients = len(extubated_patient_ids)
+
+    risk_query: dict = {
+        "alert_type": "post_extubation_failure_risk",
+        "created_at": {"$gte": month_start, "$lt": next_month},
+    }
+    if patient_filter_ids is not None:
+        risk_query["patient_id"] = {"$in": patient_filter_ids or []}
+    elif dept:
+        risk_query["dept"] = dept
+    risk_docs = [doc async for doc in db.col("alert_records").find(risk_query).sort("created_at", -1)]
+    latest_risk_by_patient: dict[str, dict] = {}
+    for doc in risk_docs:
+        pid_val = str(doc.get("patient_id") or "").strip()
+        if pid_val and pid_val not in latest_risk_by_patient:
+            latest_risk_by_patient[pid_val] = doc
+    reintubation_risk_patients = len(latest_risk_by_patient)
+    critical_post_extubation_patients = sum(
+        1 for doc in latest_risk_by_patient.values() if str(doc.get("severity") or "").lower() == "critical"
+    )
+
+    all_patient_ids = set(latest_by_patient.keys()) | set(latest_risk_by_patient.keys()) | set(extubated_patient_ids)
+    patient_meta: dict[str, dict] = {}
+    if all_patient_ids:
+        async for patient in db.col("patient").find(
+            {"_id": {"$in": [ObjectId(pid) for pid in all_patient_ids if ObjectId.is_valid(pid)]}},
+            {"_id": 1, "dept": 1, "hisDept": 1, "deptCode": 1},
+        ):
+            pid_key = str(patient.get("_id"))
+            patient_meta[pid_key] = {
+                "dept": patient.get("dept") or patient.get("hisDept") or "未知科室",
+                "dept_code": patient.get("deptCode") or "",
+            }
+
+    daily_assessed: dict[str, set[str]] = {}
+    daily_high_risk: dict[str, set[str]] = {}
+    for doc in docs:
+        calc_time = doc.get("calc_time") if isinstance(doc.get("calc_time"), datetime) else None
+        day_key = calc_time.strftime("%Y-%m-%d") if calc_time else None
+        pid_val = str(doc.get("patient_id") or "").strip()
+        if not day_key or not pid_val:
+            continue
+        daily_assessed.setdefault(day_key, set()).add(pid_val)
+        if str(doc.get("risk_level") or "").lower() in {"high", "critical"}:
+            daily_high_risk.setdefault(day_key, set()).add(pid_val)
+
+    daily_extubated: dict[str, set[str]] = {}
+    extub_cursor = db.col("deviceBind").find(extub_query, {"pid": 1, "type": 1, "unBindTime": 1})
+    async for doc in extub_cursor:
+        dtype = str(doc.get("type") or "").lower()
+        unbind = doc.get("unBindTime") if isinstance(doc.get("unBindTime"), datetime) else None
+        pid_val = str(doc.get("pid") or "").strip()
+        if not unbind or not pid_val or not any(k in dtype for k in ["vent", "ventilator", "呼吸"]):
+            continue
+        daily_extubated.setdefault(unbind.strftime("%Y-%m-%d"), set()).add(pid_val)
+
+    daily_reintub_risk: dict[str, set[str]] = {}
+    for doc in risk_docs:
+        created_at = doc.get("created_at") if isinstance(doc.get("created_at"), datetime) else None
+        pid_val = str(doc.get("patient_id") or "").strip()
+        if not created_at or not pid_val:
+            continue
+        daily_reintub_risk.setdefault(created_at.strftime("%Y-%m-%d"), set()).add(pid_val)
+
+    daily_trend: list[dict] = []
+    cursor_day = month_start
+    while cursor_day < next_month:
+        day_key = cursor_day.strftime("%Y-%m-%d")
+        assessed = len(daily_assessed.get(day_key, set()))
+        high_risk = len(daily_high_risk.get(day_key, set()))
+        extubated = len(daily_extubated.get(day_key, set()))
+        reintub_risk = len(daily_reintub_risk.get(day_key, set()))
+        daily_trend.append(
+            {
+                "date": day_key,
+                "assessed": assessed,
+                "high_risk": high_risk,
+                "extubated": extubated,
+                "reintubation_risk": reintub_risk,
+            }
+        )
+        cursor_day += timedelta(days=1)
+
+    dept_compare_map: dict[str, dict] = {}
+    for pid_key, doc in latest_by_patient.items():
+        dept_name = (patient_meta.get(pid_key) or {}).get("dept") or "未知科室"
+        row = dept_compare_map.setdefault(
+            dept_name,
+            {
+                "dept": dept_name,
+                "weaning_assessed_patients": 0,
+                "high_risk_patients": 0,
+                "extubated_patients": 0,
+                "reintubation_risk_patients": 0,
+                "critical_post_extubation_patients": 0,
+            },
+        )
+        row["weaning_assessed_patients"] += 1
+        if str(doc.get("risk_level") or "").lower() in {"high", "critical"}:
+            row["high_risk_patients"] += 1
+
+    for pid_key in extubated_patient_ids:
+        dept_name = (patient_meta.get(pid_key) or {}).get("dept") or "未知科室"
+        row = dept_compare_map.setdefault(
+            dept_name,
+            {
+                "dept": dept_name,
+                "weaning_assessed_patients": 0,
+                "high_risk_patients": 0,
+                "extubated_patients": 0,
+                "reintubation_risk_patients": 0,
+                "critical_post_extubation_patients": 0,
+            },
+        )
+        row["extubated_patients"] += 1
+
+    for pid_key, doc in latest_risk_by_patient.items():
+        dept_name = (patient_meta.get(pid_key) or {}).get("dept") or "未知科室"
+        row = dept_compare_map.setdefault(
+            dept_name,
+            {
+                "dept": dept_name,
+                "weaning_assessed_patients": 0,
+                "high_risk_patients": 0,
+                "extubated_patients": 0,
+                "reintubation_risk_patients": 0,
+                "critical_post_extubation_patients": 0,
+            },
+        )
+        row["reintubation_risk_patients"] += 1
+        if str(doc.get("severity") or "").lower() == "critical":
+            row["critical_post_extubation_patients"] += 1
+
+    dept_compare = []
+    for row in dept_compare_map.values():
+        assessed = int(row.get("weaning_assessed_patients") or 0)
+        extubated = int(row.get("extubated_patients") or 0)
+        high_risk = int(row.get("high_risk_patients") or 0)
+        reintub_risk = int(row.get("reintubation_risk_patients") or 0)
+        dept_compare.append(
+            {
+                **row,
+                "high_risk_ratio": round(high_risk / assessed, 4) if assessed else 0,
+                "reintubation_risk_ratio": round(reintub_risk / extubated, 4) if extubated else 0,
+            }
+        )
+    dept_compare.sort(
+        key=lambda x: (
+            x.get("reintubation_risk_ratio") or 0,
+            x.get("high_risk_ratio") or 0,
+            x.get("weaning_assessed_patients") or 0,
+        ),
+        reverse=True,
+    )
+
+    return {
+        "code": 0,
+        "summary": {
+            "month": month_norm,
+            "weaning_assessed_patients": weaning_assessed_patients,
+            "high_risk_patients": high_risk_patients,
+            "high_risk_ratio": round((high_risk_patients / weaning_assessed_patients), 4) if weaning_assessed_patients else 0,
+            "extubated_patients": extubated_patients,
+            "reintubation_risk_patients": reintubation_risk_patients,
+            "reintubation_risk_ratio": round((reintubation_risk_patients / extubated_patients), 4) if extubated_patients else 0,
+            "critical_post_extubation_patients": critical_post_extubation_patients,
+            "daily_trend": daily_trend,
+            "dept_compare": dept_compare,
+        },
+    }
+
+
 @app.get("/api/alerts/analytics/frequency")
 async def alerts_analytics_frequency(
     window: str = Query("7d", description="时间窗口: 24h/7d/30d 或 12h/14d"),

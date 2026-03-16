@@ -101,6 +101,16 @@ class CardiacArrestPredictorMixin:
                     device_id,
                     codes=["param_HR", "param_nibp_s", "param_ibp_s", "param_nibp_m", "param_ibp_m"],
                 )
+            if latest_cap:
+                latest_cap, _ = await self._filter_snapshot_quality(
+                    pid=pid,
+                    pid_str=pid_str,
+                    patient_doc=patient_doc,
+                    cap=latest_cap,
+                    device_id=device_id,
+                    same_rule_sec=same_rule_sec,
+                    max_per_hour=max_per_hour,
+                )
 
             hr_latest = self._get_priority_param(latest_cap or {}, ["param_HR"]) if latest_cap else None
             sbp_latest = self._get_sbp(latest_cap) if latest_cap else None
@@ -113,6 +123,7 @@ class CardiacArrestPredictorMixin:
                 prefer_device_types=["monitor"],
                 limit=500,
             )
+            hr_series = self._filter_series_quality("param_HR", hr_series)
             qrs_records = await self._get_qrs_records(pid, hours=48)
             labs = await self._get_latest_labs_map(his_pid, lookback_hours=72) if his_pid else {}
             k_value = labs.get("k", {}).get("value") if labs else None
@@ -192,6 +203,7 @@ class CardiacArrestPredictorMixin:
                 prefer_device_types=["monitor"],
                 limit=120,
             )
+            hr_recent = self._filter_series_quality("param_HR", hr_recent)
             sbp_recent = await self._get_param_series_by_pid(
                 pid,
                 "param_nibp_s",
@@ -199,6 +211,7 @@ class CardiacArrestPredictorMixin:
                 prefer_device_types=["monitor"],
                 limit=120,
             )
+            sbp_recent = self._filter_series_quality("param_nibp_s", sbp_recent)
             if not sbp_recent:
                 sbp_recent = await self._get_param_series_by_pid(
                     pid,
@@ -207,7 +220,9 @@ class CardiacArrestPredictorMixin:
                     prefer_device_types=["monitor"],
                     limit=120,
                 )
-            persistent_low_sbp = len(sbp_recent) >= 2 and all(float(x["value"]) < 60 for x in sbp_recent if x.get("value") is not None)
+                sbp_recent = self._filter_series_quality("param_ibp_s", sbp_recent)
+            sbp_recent_numeric = [float(x["value"]) for x in sbp_recent if x.get("value") is not None]
+            persistent_low_sbp = len(sbp_recent_numeric) >= 2 and all(v < 60 for v in sbp_recent_numeric)
             add_factor(
                 "pea_risk_pattern",
                 bool(hr_recent and persistent_low_sbp),

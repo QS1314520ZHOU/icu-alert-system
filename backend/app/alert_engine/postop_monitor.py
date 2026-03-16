@@ -321,6 +321,16 @@ class PostopMonitorMixin:
                     device_id,
                     codes=["param_HR", "param_T", "param_nibp_m", "param_ibp_m", "param_nibp_s", "param_ibp_s"],
                 )
+            if latest_cap:
+                latest_cap, _ = await self._filter_snapshot_quality(
+                    pid=pid,
+                    pid_str=pid_str,
+                    patient_doc=patient_doc,
+                    cap=latest_cap,
+                    device_id=device_id,
+                    same_rule_sec=same_rule_sec,
+                    max_per_hour=max_per_hour,
+                )
 
             latest_hr = self._get_priority_param(latest_cap or {}, ["param_HR"]) if latest_cap else None
             latest_map = self._get_map(latest_cap or {}) if latest_cap else None
@@ -393,6 +403,7 @@ class PostopMonitorMixin:
             # B. 术后感染二次高峰/吻合口瘘风险
             if hours_since_surgery > 48:
                 temp_series = await self._get_param_series_by_pid(pid, "param_T", surgery_time, prefer_device_types=["monitor"], limit=800)
+                temp_series = self._filter_series_quality("param_T", temp_series)
                 temp_rebound, temp_meta = self._detect_temp_v_rebound(temp_series)
 
                 wbc_series = await self._get_named_lab_series(

@@ -15,6 +15,51 @@
         </div>
         <div class="hero-diagnosis">{{ displayDiagnosis }}</div>
         <div class="hero-meta">入院时间：{{ displayAdmissionTime }}</div>
+        <div class="hero-bundle" :class="`hero-bundle--${sepsisBundleStatusLight}`">
+          <div class="hero-bundle-head">
+            <span class="hero-bundle-title">Sepsis 1h Bundle</span>
+            <span class="hero-bundle-pill">
+              <i class="hero-bundle-dot" />
+              {{ sepsisBundleStatusText }}
+            </span>
+          </div>
+          <div class="hero-bundle-main">{{ sepsisBundleConclusion }}</div>
+          <div class="hero-bundle-meta">
+            <span>{{ sepsisBundleTimelineText }}</span>
+            <span v-if="sepsisBundleExtraText">{{ sepsisBundleExtraText }}</span>
+          </div>
+        </div>
+        <div
+          v-if="postExtubationHeroVisible"
+          :class="['hero-rescue', `hero-rescue--${postExtubationHeroTone}`]"
+        >
+          <div class="hero-rescue-head">
+            <span class="hero-rescue-tag">抢救期风险卡</span>
+            <span :class="['hero-rescue-pill', `hero-rescue-pill--${postExtubationHeroTone}`]">
+              {{ postExtubationHeroSeverityText }}
+            </span>
+          </div>
+          <div class="hero-rescue-title">{{ postExtubationHeroTitle }}</div>
+          <div class="hero-rescue-main">{{ postExtubationHeroSummary }}</div>
+          <div v-if="postExtubationHeroChips.length" class="hero-rescue-chip-row">
+            <span
+              v-for="(chip, idx) in postExtubationHeroChips"
+              :key="`hero-rescue-chip-${idx}`"
+              class="hero-rescue-chip"
+            >
+              <span class="hero-rescue-chip-label">{{ chip.label }}</span>
+              <strong class="hero-rescue-chip-value">{{ chip.value }}</strong>
+            </span>
+          </div>
+          <div v-if="postExtubationHeroSuggestion" class="hero-rescue-suggestion">
+            {{ postExtubationHeroSuggestion }}
+          </div>
+          <div class="hero-rescue-actions">
+            <button class="hero-rescue-action" @click="openRescueAlerts">
+              查看抢救期预警详情
+            </button>
+          </div>
+        </div>
       </div>
       <div class="hero-vitals">
         <div class="hero-vital">
@@ -77,6 +122,57 @@
       </a-card>
     </div>
 
+    <section class="weaning-strip">
+      <div :class="['weaning-card', `weaning-card--${weaningRiskTone}`]">
+        <div class="weaning-card-head">
+          <div>
+            <div class="weaning-card-title">脱机风险评分</div>
+            <div class="weaning-card-sub">{{ fmtTime(weaningAssessment?.updated_at) || '暂无评估时间' }}</div>
+          </div>
+          <div class="weaning-score-box">
+            <span class="weaning-score-label">{{ weaningRiskLabel }}</span>
+            <strong class="weaning-score-value">{{ weaningAssessment?.risk_score ?? '—' }}</strong>
+          </div>
+        </div>
+        <div class="weaning-card-main">{{ weaningRecommendationText }}</div>
+        <div class="weaning-metric-row">
+          <span class="weaning-chip">P/F {{ weaningAssessment?.pf_ratio ?? '—' }}</span>
+          <span class="weaning-chip">RSBI {{ weaningAssessment?.rsbi ?? '—' }}</span>
+          <span class="weaning-chip">FiO₂ {{ weaningAssessment?.fio2 ?? '—' }}</span>
+          <span class="weaning-chip">PEEP {{ weaningAssessment?.peep ?? '—' }}</span>
+          <span class="weaning-chip">%FO {{ weaningAssessment?.fluid_overload_pct ?? '—' }}</span>
+        </div>
+        <div v-if="weaningTopEvidence.length" class="weaning-evidence-row">
+          <span v-for="(ev, idx) in weaningTopEvidence" :key="`wean-ev-${idx}`" class="weaning-evidence-chip">{{ ev }}</span>
+        </div>
+      </div>
+
+      <div class="weaning-card weaning-card--soft">
+        <div class="weaning-card-head">
+          <div>
+            <div class="weaning-card-title">SBT 结构化记录</div>
+            <div class="weaning-card-sub">{{ fmtTime(sbtAssessment?.trial_time) || '暂无SBT记录' }}</div>
+          </div>
+          <span :class="['weaning-sbt-pill', `is-${String(sbtAssessment?.result || 'none').toLowerCase()}`]">
+            {{ sbtAssessment?.label || '暂无SBT记录' }}
+          </span>
+        </div>
+        <div class="weaning-metric-row">
+          <span class="weaning-chip">RSBI {{ sbtAssessment?.rsbi ?? '—' }}</span>
+          <span class="weaning-chip">RR {{ sbtAssessment?.rr ?? '—' }}</span>
+          <span class="weaning-chip">Vte {{ sbtAssessment?.vte_ml ?? '—' }}</span>
+          <span class="weaning-chip">FiO₂ {{ sbtAssessment?.fio2 ?? '—' }}</span>
+          <span class="weaning-chip">PEEP {{ sbtAssessment?.peep ?? '—' }}</span>
+        </div>
+        <div class="weaning-card-foot">
+          <span>来源 {{ sbtAssessment?.source || '—' }}</span>
+          <span v-if="sbtAssessment?.duration_minutes != null">时长 {{ sbtAssessment?.duration_minutes }} min</span>
+          <span v-if="postExtubationRisk?.has_alert">拔管后风险 {{ fmtTime(postExtubationRisk?.created_at) || '—' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <div ref="tabsAnchor">
     <a-card class="tabs-card" :bordered="false">
       <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="trend" tab="生命体征趋势">
@@ -116,6 +212,18 @@
           />
         </a-tab-pane>
 
+        <a-tab-pane key="sbt" tab="SBT记录">
+          <PatientSbtTimelineTab
+            v-if="activeTab === 'sbt'"
+            :summary="sbtTimelineSummary"
+            :records="sbtTimelineRecords"
+            :loading="sbtTimelineLoading"
+            :error="sbtTimelineError"
+            :on-refresh="() => loadSbtTimeline(true)"
+            :fmt-time="fmtTime"
+          />
+        </a-tab-pane>
+
         <a-tab-pane key="alerts" tab="预警历史">
           <PatientAlertsTab
             v-if="activeTab === 'alerts'"
@@ -125,6 +233,9 @@
             :latest-composite-organ-count="latestCompositeOrganCount"
             :latest-composite-involved-text="latestCompositeInvolvedText"
             :composite-radar-option="compositeRadarOption"
+            :latest-weaning-alert="latestWeaningAlert"
+            :latest-weaning-status="weaningStatus"
+            :latest-post-extubation-alert="latestPostExtubationAlert"
             :alerts="alerts"
             :fmt-time="fmtTime"
             :normalize-severity="normalizeSeverity"
@@ -146,6 +257,17 @@
             :open-evidence="openEvidence"
             :ai-risk-explainability-rows="aiRiskExplainabilityRows"
             :format-alert-extra="formatAlertExtra"
+          />
+        </a-tab-pane>
+
+        <a-tab-pane key="similar" tab="相似病例结局">
+          <PatientSimilarCasesTab
+            v-if="activeTab === 'similar'"
+            :review="similarCaseReview"
+            :loading="similarCaseLoading"
+            :error="similarCaseError"
+            :on-refresh="() => loadSimilarCaseReview(true)"
+            :fmt-time="fmtTime"
           />
         </a-tab-pane>
 
@@ -197,6 +319,7 @@
         </a-tab-pane>
       </a-tabs>
     </a-card>
+    </div>
 
     <PatientEvidenceModal
       v-if="evidenceModalOpen"
@@ -208,7 +331,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent, onMounted, watch } from 'vue'
+import { ref, computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import {
@@ -226,6 +349,10 @@ import {
   getPatientDrugs,
   getPatientAssessments,
   getPatientAlerts,
+  getPatientSepsisBundleStatus,
+  getPatientSbtRecords,
+  getPatientSimilarCaseOutcomes,
+  getPatientWeaningStatus,
   getAiLabSummary,
   getAiRuleRecommendations,
   getAiRiskForecast,
@@ -248,7 +375,9 @@ import {
 const PatientTrendTab = defineAsyncComponent(() => import('../components/patient-detail/TrendTab.vue'))
 const PatientLabsTab = defineAsyncComponent(() => import('../components/patient-detail/LabsTab.vue'))
 const PatientDataTableTab = defineAsyncComponent(() => import('../components/patient-detail/DataTableTab.vue'))
+const PatientSbtTimelineTab = defineAsyncComponent(() => import('../components/patient-detail/SbtTimelineTab.vue'))
 const PatientAlertsTab = defineAsyncComponent(() => import('../components/patient-detail/AlertsTab.vue'))
+const PatientSimilarCasesTab = defineAsyncComponent(() => import('../components/patient-detail/SimilarCasesTab.vue'))
 const PatientAiTab = defineAsyncComponent(() => import('../components/patient-detail/AiTab.vue'))
 const PatientEvidenceModal = defineAsyncComponent(() => import('../components/patient-detail/EvidenceModal.vue'))
 
@@ -257,6 +386,7 @@ const router = useRouter()
 const patient = ref<any>(null)
 const vitals = ref<any>(null)
 const activeTab = ref('trend')
+const tabsAnchor = ref<HTMLElement | null>(null)
 
 const trendWindow = ref('24h')
 const trendPoints = ref<any[]>([])
@@ -264,6 +394,19 @@ const labs = ref<any[]>([])
 const drugs = ref<any[]>([])
 const assessments = ref<any[]>([])
 const alerts = ref<any[]>([])
+const sepsisBundleStatus = ref<any>(null)
+const weaningStatus = ref<any>(null)
+const sbtTimelineSummary = ref<any>(null)
+const sbtTimelineRecords = ref<any[]>([])
+const sbtTimelineLoading = ref(false)
+const sbtTimelineError = ref('')
+const sbtTimelineLoaded = ref(false)
+const similarCaseReview = ref<any>(null)
+const similarCaseLoading = ref(false)
+const similarCaseError = ref('')
+const similarCaseLoaded = ref(false)
+const sepsisBundleNow = ref(Date.now())
+let sepsisBundleTimer: ReturnType<typeof setInterval> | null = null
 
 const compositeOrganOrder = ['respiratory', 'circulatory', 'renal', 'coagulation', 'hepatic', 'neurologic']
 const compositeOrganLabelDefault: Record<string, string> = {
@@ -337,6 +480,235 @@ const displayAdmissionTime = computed(() =>
 const displayHisPid = computed(() =>
   patient.value?.hisPid || patient.value?.hisPID || '无'
 )
+
+const sepsisBundleStatusResolved = computed(() => {
+  const status = sepsisBundleStatus.value || {}
+  const now = sepsisBundleNow.value
+  const rawStatus = String(status?.status || 'none').toLowerCase()
+  const deadline1h = status?.deadline_1h ? dayjs(status.deadline_1h).valueOf() : null
+  const deadline3h = status?.deadline_3h ? dayjs(status.deadline_3h).valueOf() : null
+  let effectiveStatus = rawStatus || 'none'
+
+  if (rawStatus === 'pending') {
+    if (typeof deadline3h === 'number' && now >= deadline3h) effectiveStatus = 'overdue_3h'
+    else if (typeof deadline1h === 'number' && now >= deadline1h) effectiveStatus = 'overdue_1h'
+  }
+
+  const remaining1h = typeof deadline1h === 'number' ? Math.floor((deadline1h - now) / 1000) : null
+  const remaining3h = typeof deadline3h === 'number' ? Math.floor((deadline3h - now) / 1000) : null
+  const startedAt = status?.bundle_started_at ? dayjs(status.bundle_started_at).valueOf() : null
+  const elapsedMinutes = typeof startedAt === 'number' ? Math.max(0, (now - startedAt) / 60000) : null
+
+  let light = String(status?.light || 'gray').toLowerCase()
+  let label = String(status?.label || '未进入计时')
+  if (effectiveStatus === 'met') {
+    light = 'green'
+    label = '1h已达标'
+  } else if (effectiveStatus === 'met_late') {
+    light = 'orange'
+    label = '已补执行(超1h)'
+  } else if (effectiveStatus === 'overdue_3h') {
+    light = 'red'
+    label = '3h仍未执行'
+  } else if (effectiveStatus === 'overdue_1h') {
+    light = 'red'
+    label = '1h已超时'
+  } else if (effectiveStatus === 'pending') {
+    if (remaining1h != null && remaining1h <= 30 * 60) {
+      light = 'yellow'
+      label = '1h窗口临近'
+    } else {
+      light = 'blue'
+      label = '1h内待完成'
+    }
+  }
+
+  return {
+    ...status,
+    status: effectiveStatus,
+    light,
+    label,
+    remaining_seconds_to_1h: remaining1h,
+    remaining_seconds_to_3h: remaining3h,
+    elapsed_minutes: elapsedMinutes != null ? Number(elapsedMinutes.toFixed(1)) : null,
+  }
+})
+
+function formatCountdown(seconds?: number | null) {
+  if (seconds == null) return '—'
+  const safe = Math.max(0, Math.floor(seconds))
+  const h = Math.floor(safe / 3600)
+  const m = Math.floor((safe % 3600) / 60)
+  const s = safe % 60
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`
+  return `${m}m ${String(s).padStart(2, '0')}s`
+}
+
+const sepsisBundleStatusLight = computed(() => sepsisBundleStatusResolved.value?.light || 'gray')
+const sepsisBundleStatusText = computed(() => sepsisBundleStatusResolved.value?.label || '未进入计时')
+const sepsisBundleConclusion = computed(() => {
+  const status = sepsisBundleStatusResolved.value
+  const name = status?.first_antibiotic_name ? ` · ${status.first_antibiotic_name}` : ''
+  if (status?.status === 'met') return `首剂抗生素已在 1 小时内执行${name}`
+  if (status?.status === 'met_late') return `首剂抗生素已补执行，但超过 1h 时限${name}`
+  if (status?.status === 'overdue_3h') return '首剂抗生素已超过 3h 仍未执行'
+  if (status?.status === 'overdue_1h') return '首剂抗生素已超过 1h 未执行'
+  if (status?.status === 'pending') return '已进入 Sepsis Bundle 计时，请盯紧首剂抗生素'
+  return '当前未进入 Sepsis 1h Bundle 计时'
+})
+const sepsisBundleTimelineText = computed(() => {
+  const status = sepsisBundleStatusResolved.value
+  const started = status?.bundle_started_at ? fmtTime(status.bundle_started_at) : ''
+  const deadline1h = status?.deadline_1h ? fmtTime(status.deadline_1h) : ''
+  const firstAbx = status?.first_antibiotic_time ? fmtTime(status.first_antibiotic_time) : ''
+  if (status?.status === 'met' || status?.status === 'met_late') {
+    return `起点 ${started || '—'} · 首剂 ${firstAbx || '—'}`
+  }
+  if (status?.status === 'pending' || status?.status === 'overdue_1h' || status?.status === 'overdue_3h') {
+    return `起点 ${started || '—'} · 1h截止 ${deadline1h || '—'}`
+  }
+  return '未见脓毒症 Bundle 计时记录'
+})
+const sepsisBundleExtraText = computed(() => {
+  const status = sepsisBundleStatusResolved.value
+  if (status?.status === 'pending') {
+    return `剩余 ${formatCountdown(status?.remaining_seconds_to_1h)}`
+  }
+  if (status?.status === 'overdue_1h') {
+    return `已超时 ${formatCountdown(Math.abs(status?.remaining_seconds_to_1h || 0))}`
+  }
+  if (status?.status === 'overdue_3h') {
+    return `3h截止已过 ${formatCountdown(Math.abs(status?.remaining_seconds_to_3h || 0))}`
+  }
+  if (status?.status === 'met' || status?.status === 'met_late') {
+    const ruleText = Array.isArray(status?.source_rules) && status.source_rules.length ? status.source_rules.join(' / ') : ''
+    return ruleText || ''
+  }
+  return ''
+})
+
+const weaningAssessment = computed(() => weaningStatus.value?.weaning || {})
+const sbtAssessment = computed(() => weaningStatus.value?.sbt || {})
+const postExtubationRisk = computed(() => weaningStatus.value?.post_extubation_risk || {})
+const weaningRiskTone = computed(() => {
+  const level = String(weaningAssessment.value?.risk_level || '').toLowerCase()
+  if (level === 'critical') return 'critical'
+  if (level === 'high') return 'high'
+  if (level === 'warning') return 'warning'
+  return 'stable'
+})
+const postExtubationHeroVisible = computed(() => !!postExtubationRisk.value?.has_alert)
+const postExtubationHeroTone = computed(() => {
+  const sev = String(postExtubationRisk.value?.severity || latestPostExtubationAlert.value?.severity || '').toLowerCase()
+  if (sev === 'critical') return 'critical'
+  if (sev === 'high') return 'high'
+  return 'warning'
+})
+const postExtubationHeroSeverityText = computed(() => {
+  const tone = postExtubationHeroTone.value
+  if (tone === 'critical') return '危急'
+  if (tone === 'high') return '高危'
+  return '关注'
+})
+const postExtubationHeroTitle = computed(() => '拔管后再插管高风险')
+const postExtubationHeroSummary = computed(() => {
+  const rr = formatHeroMetric(postExtubationRisk.value?.rr ?? latestPostExtubationExtra.value?.rr)
+  const spo2 = formatHeroPercent(postExtubationRisk.value?.spo2 ?? latestPostExtubationExtra.value?.spo2)
+  const hours = formatHeroHours(postExtubationRisk.value?.hours_since_extubation ?? latestPostExtubationExtra.value?.hours_since_extubation)
+  const accessory = latestPostExtubationExtra.value?.accessory_muscle_use
+  if (rr !== '—' || spo2 !== '—') {
+    const accessoryText = accessory ? '，并伴辅助呼吸肌动用' : ''
+    return `拔管后 ${hours} 出现呼吸负荷升高，当前 RR ${rr} / SpO₂ ${spo2}${accessoryText}。`
+  }
+  return '拔管后 48h 内出现呼吸恶化信号，存在 NIV / 再插管风险。'
+})
+const postExtubationHeroSuggestion = computed(() => {
+  if (latestPostExtubationAlert.value?.explanation?.suggestion) {
+    return String(latestPostExtubationAlert.value.explanation.suggestion)
+  }
+  if (postExtubationHeroTone.value === 'critical') {
+    return '建议立即复评血气、气道通畅性与分泌物负荷，尽快准备 HFNC / NIV 或再插管。'
+  }
+  if (postExtubationHeroTone.value === 'high') {
+    return '建议尽快复查血气并加强呼吸支持，床旁连续观察是否需升级气道管理。'
+  }
+  return '建议持续加强氧疗与气道管理，密切复评呼吸功。'
+})
+const postExtubationHeroChips = computed(() => {
+  const rows = [
+    {
+      label: 'RR',
+      value: formatHeroMetric(postExtubationRisk.value?.rr ?? latestPostExtubationExtra.value?.rr),
+    },
+    {
+      label: 'SpO₂',
+      value: formatHeroPercent(postExtubationRisk.value?.spo2 ?? latestPostExtubationExtra.value?.spo2),
+    },
+    {
+      label: '拔管后',
+      value: formatHeroHours(postExtubationRisk.value?.hours_since_extubation ?? latestPostExtubationExtra.value?.hours_since_extubation),
+    },
+    latestPostExtubationExtra.value?.accessory_muscle_use != null
+      ? {
+          label: '呼吸功',
+          value: latestPostExtubationExtra.value?.accessory_muscle_use ? '辅助肌动用' : '未见明显增加',
+        }
+      : null,
+  ]
+  return rows.filter((row): row is { label: string; value: string } => !!row && !!row.value && row.value !== '—')
+})
+const weaningRiskLabel = computed(() => {
+  const level = String(weaningAssessment.value?.risk_level || '').toLowerCase()
+  if (level === 'critical') return '极高风险'
+  if (level === 'high') return '高风险'
+  if (level === 'warning') return '中风险'
+  if (weaningAssessment.value?.has_assessment) return '低风险'
+  return '待评估'
+})
+const weaningRecommendationText = computed(() => {
+  if (weaningAssessment.value?.recommendation) return String(weaningAssessment.value.recommendation)
+  return '暂无脱机评估'
+})
+const weaningTopEvidence = computed(() => {
+  const rows = Array.isArray(weaningAssessment.value?.factors) ? weaningAssessment.value.factors : []
+  return rows
+    .map((row: any) => String(row?.evidence || '').trim())
+    .filter(Boolean)
+    .slice(0, 3)
+})
+const latestWeaningAlert = computed(() =>
+  alerts.value.find((a: any) => String(a?.alert_type || '') === 'weaning')
+)
+const latestPostExtubationAlert = computed(() =>
+  alerts.value.find((a: any) => String(a?.alert_type || '') === 'post_extubation_failure_risk')
+)
+const latestPostExtubationExtra = computed(() => latestPostExtubationAlert.value?.extra || {})
+
+function formatHeroMetric(value: any) {
+  if (value == null || value === '') return '—'
+  const num = Number(value)
+  if (!Number.isFinite(num)) return String(value)
+  return Math.abs(num - Math.round(num)) < 0.05 ? String(Math.round(num)) : num.toFixed(1)
+}
+
+function formatHeroPercent(value: any) {
+  const text = formatHeroMetric(value)
+  return text === '—' ? text : `${text}%`
+}
+
+function formatHeroHours(value: any) {
+  if (value == null || value === '') return '—'
+  const num = Number(value)
+  if (!Number.isFinite(num)) return String(value)
+  if (num < 1) return `${Math.max(1, Math.round(num * 60))}min`
+  return `${num.toFixed(num >= 10 ? 0 : 1)}h`
+}
+
+async function openRescueAlerts() {
+  activeTab.value = 'alerts'
+  await nextTick()
+  tabsAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const vitalsSourceText = computed(() => {
   if (!vitals.value?.source) return ''
@@ -1002,10 +1374,24 @@ function alertDetailFields(item: any) {
 
   if (t === 'weaning') {
     fields.push(
+      { label: '风险评分', value: extra?.risk_score ?? item?.value },
+      { label: '风险分层', value: extra?.risk_level || '—' },
+      { label: '建议', value: extra?.recommendation || '—' },
       { label: 'FiO₂', value: extra?.fio2 },
       { label: 'PEEP', value: extra?.peep },
+      { label: 'RSBI', value: extra?.rsbi },
       { label: 'MAP', value: extra?.map },
       { label: 'GCS', value: extra?.gcs },
+    )
+    return fields
+  }
+
+  if (t === 'post_extubation_failure_risk') {
+    fields.push(
+      { label: 'RR', value: extra?.rr != null ? `${extra.rr} 次/分` : '—' },
+      { label: 'SpO₂', value: extra?.spo2 != null ? `${extra.spo2}%` : '—' },
+      { label: '拔管后时长', value: extra?.hours_since_extubation != null ? `${extra.hours_since_extubation} h` : '—' },
+      { label: '辅助呼吸肌', value: extra?.accessory_muscle_use ? '有' : '无' },
     )
     return fields
   }
@@ -1660,6 +2046,7 @@ function alertTypeText(raw: any) {
     pplat_high: '平台压升高',
     lung_protective_ventilation: '肺保护通气未达标',
     mechanical_power: '机械功率升高',
+    post_extubation_failure_risk: '拔管后呼吸衰竭风险',
     steroid_taper_after_vaso: '激素减停提醒',
     steroid_long_term_taper: '长程激素减停',
     steroid_hyperglycemia: '激素相关高血糖',
@@ -1762,6 +2149,72 @@ async function loadAlerts() {
   }
 }
 
+async function loadSepsisBundleStatus() {
+  const patientId = route.params.id as string
+  if (!patientId) return
+  try {
+    const res = await getPatientSepsisBundleStatus(patientId)
+    sepsisBundleStatus.value = res.data?.status || null
+    sepsisBundleNow.value = Date.now()
+  } catch (e) {
+    console.error('加载Sepsis Bundle状态失败', e)
+    sepsisBundleStatus.value = null
+  }
+}
+
+async function loadWeaningStatus() {
+  const patientId = route.params.id as string
+  if (!patientId) return
+  try {
+    const res = await getPatientWeaningStatus(patientId)
+    weaningStatus.value = res.data?.status || null
+  } catch (e) {
+    console.error('加载脱机评估状态失败', e)
+    weaningStatus.value = null
+  }
+}
+
+async function loadSbtTimeline(force = false) {
+  if (sbtTimelineLoading.value) return
+  if (sbtTimelineLoaded.value && !force) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  sbtTimelineLoading.value = true
+  sbtTimelineError.value = ''
+  try {
+    const res = await getPatientSbtRecords(patientId, 20)
+    sbtTimelineSummary.value = res.data?.summary || null
+    sbtTimelineRecords.value = Array.isArray(res.data?.records) ? res.data.records : []
+  } catch (e: any) {
+    console.error('加载SBT记录失败', e)
+    sbtTimelineError.value = e?.response?.data?.message || 'SBT记录加载失败'
+    sbtTimelineSummary.value = null
+    sbtTimelineRecords.value = []
+  } finally {
+    sbtTimelineLoading.value = false
+    sbtTimelineLoaded.value = true
+  }
+}
+
+async function loadSimilarCaseReview(force = false) {
+  if (similarCaseLoading.value) return
+  if (similarCaseLoaded.value && !force) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  similarCaseLoading.value = true
+  similarCaseError.value = ''
+  try {
+    const res = await getPatientSimilarCaseOutcomes(patientId, 10)
+    similarCaseReview.value = res.data?.review || null
+  } catch (e: any) {
+    console.error('加载相似病例结局失败', e)
+    similarCaseError.value = e?.response?.data?.message || '相似病例结局加载失败'
+  } finally {
+    similarCaseLoading.value = false
+    similarCaseLoaded.value = true
+  }
+}
+
 async function loadAiLab() {
   if (aiLabLoading.value) return
   const patientId = route.params.id as string
@@ -1846,6 +2299,18 @@ function resetDetailState() {
   drugs.value = []
   assessments.value = []
   alerts.value = []
+  sepsisBundleStatus.value = null
+  weaningStatus.value = null
+  sbtTimelineSummary.value = null
+  sbtTimelineRecords.value = []
+  sbtTimelineLoading.value = false
+  sbtTimelineError.value = ''
+  sbtTimelineLoaded.value = false
+  similarCaseReview.value = null
+  similarCaseLoading.value = false
+  similarCaseError.value = ''
+  similarCaseLoaded.value = false
+  sepsisBundleNow.value = Date.now()
   aiLabSummary.value = ''
   aiRuleText.value = ''
   aiRiskText.value = ''
@@ -1860,6 +2325,13 @@ function resetDetailState() {
   aiHandoffError.value = ''
   knowledgeError.value = ''
   aiAutoLoaded.value = false
+}
+
+function startSepsisBundleClock() {
+  if (sepsisBundleTimer) clearInterval(sepsisBundleTimer)
+  sepsisBundleTimer = setInterval(() => {
+    sepsisBundleNow.value = Date.now()
+  }, 1000)
 }
 
 async function loadDetailPage() {
@@ -1887,12 +2359,29 @@ async function loadDetailPage() {
     loadDrugs(),
     loadAssessments(),
     loadAlerts(),
+    loadSepsisBundleStatus(),
+    loadWeaningStatus(),
     loadAiAll(),
   ])
+  if (activeTab.value === 'similar') {
+    await loadSimilarCaseReview()
+  }
+  if (activeTab.value === 'sbt') {
+    await loadSbtTimeline()
+  }
 }
 
 watch(trendWindow, () => {
   if (activeTab.value === 'trend') loadTrend()
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'sbt') {
+    void loadSbtTimeline()
+  }
+  if (tab === 'similar') {
+    void loadSimilarCaseReview()
+  }
 })
 
 watch(
@@ -1906,7 +2395,13 @@ watch(
 )
 
 onMounted(() => {
+  startSepsisBundleClock()
   void loadDetailPage()
+})
+
+onBeforeUnmount(() => {
+  if (sepsisBundleTimer) clearInterval(sepsisBundleTimer)
+  sepsisBundleTimer = null
 })
 </script>
 
@@ -1982,6 +2477,207 @@ onMounted(() => {
   line-height: 1.25;
 }
 .hero-meta { color: #8fb8ca; font-size: 13px; }
+.hero-bundle {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(8, 30, 47, 0.88) 0%, rgba(6, 20, 32, 0.94) 100%);
+  border: 1px solid rgba(80, 199, 255, .16);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.04);
+}
+.hero-bundle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hero-bundle-title {
+  color: #81dff1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.hero-bundle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 232, 249, 0.18);
+  background: rgba(8, 28, 44, 0.72);
+  color: #effcff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.hero-bundle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+.hero-bundle-main {
+  color: #effcff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.hero-bundle-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #8fb8ca;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.hero-bundle--green .hero-bundle-pill,
+.hero-bundle--green .hero-bundle-dot { color: #34d399; }
+.hero-bundle--yellow .hero-bundle-pill,
+.hero-bundle--yellow .hero-bundle-dot { color: #fbbf24; }
+.hero-bundle--red .hero-bundle-pill,
+.hero-bundle--red .hero-bundle-dot { color: #fb7185; }
+.hero-bundle--orange .hero-bundle-pill,
+.hero-bundle--orange .hero-bundle-dot { color: #fb923c; }
+.hero-bundle--blue .hero-bundle-pill,
+.hero-bundle--blue .hero-bundle-dot { color: #38bdf8; }
+.hero-bundle--gray .hero-bundle-pill,
+.hero-bundle--gray .hero-bundle-dot { color: #94a3b8; }
+.hero-rescue {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 113, 133, .26);
+  background:
+    radial-gradient(circle at top right, rgba(251, 113, 133, .16), rgba(251, 113, 133, 0) 34%),
+    linear-gradient(180deg, rgba(61, 16, 30, .96) 0%, rgba(31, 10, 17, .98) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 24px rgba(0, 0, 0, .22);
+}
+.hero-rescue--high {
+  border-color: rgba(249, 115, 22, .26);
+  background:
+    radial-gradient(circle at top right, rgba(249, 115, 22, .14), rgba(249, 115, 22, 0) 34%),
+    linear-gradient(180deg, rgba(70, 28, 13, .96) 0%, rgba(30, 14, 10, .98) 100%);
+}
+.hero-rescue--warning {
+  border-color: rgba(245, 158, 11, .22);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, .12), rgba(245, 158, 11, 0) 34%),
+    linear-gradient(180deg, rgba(61, 37, 10, .94) 0%, rgba(32, 22, 9, .98) 100%);
+}
+.hero-rescue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hero-rescue-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(15, 9, 16, .34);
+  color: #ffe5ec;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.hero-rescue-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 800;
+}
+.hero-rescue-pill--critical {
+  color: #fecdd3;
+  background: rgba(127, 29, 29, .76);
+  border-color: rgba(251, 113, 133, .24);
+}
+.hero-rescue-pill--high {
+  color: #fdba74;
+  background: rgba(124, 45, 18, .72);
+  border-color: rgba(249, 115, 22, .24);
+}
+.hero-rescue-pill--warning {
+  color: #fde68a;
+  background: rgba(120, 53, 15, .7);
+  border-color: rgba(245, 158, 11, .22);
+}
+.hero-rescue-title {
+  color: #ffd5de;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.hero-rescue-main {
+  color: #fff3f5;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.hero-rescue-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hero-rescue-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.hero-rescue-chip-label {
+  color: #ffced9;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.hero-rescue-chip-value {
+  color: #fff8fa;
+  font-size: 13px;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+}
+.hero-rescue-suggestion {
+  color: #ffe7eb;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.hero-rescue-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+.hero-rescue-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: #fff3f6;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.hero-rescue-action:hover {
+  border-color: rgba(255,255,255,.24);
+  background: rgba(255,255,255,.12);
+}
 .hero-vitals {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2004,6 +2700,118 @@ onMounted(() => {
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
   line-height: 1;
 }
+.weaning-strip {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.weaning-card {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(80,199,255,.14);
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.08), rgba(34,211,238,0) 30%),
+    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.18);
+  display: grid;
+  gap: 10px;
+}
+.weaning-card--soft {
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(5,14,24,.98) 100%);
+}
+.weaning-card--critical { border-color: rgba(251, 113, 133, .34); }
+.weaning-card--high { border-color: rgba(251, 146, 60, .3); }
+.weaning-card--warning { border-color: rgba(245, 158, 11, .24); }
+.weaning-card--stable { border-color: rgba(34, 197, 94, .24); }
+.weaning-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.weaning-card-title {
+  color: #7ed6eb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.weaning-card-sub {
+  margin-top: 4px;
+  color: #8fb8ca;
+  font-size: 12px;
+}
+.weaning-score-box {
+  min-width: 90px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: rgba(8,31,49,.86);
+  text-align: right;
+}
+.weaning-score-label {
+  display: block;
+  color: #81dff1;
+  font-size: 11px;
+}
+.weaning-score-value {
+  display: block;
+  color: #effcff;
+  font-size: 24px;
+  line-height: 1;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+}
+.weaning-card-main {
+  color: #effcff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.weaning-metric-row,
+.weaning-evidence-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.weaning-chip,
+.weaning-evidence-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(8,28,44,.82);
+  border: 1px solid rgba(79,182,219,.18);
+  color: #dffbff;
+  font-size: 12px;
+}
+.weaning-evidence-chip {
+  color: #f4fbff;
+  background: rgba(11, 43, 63, .74);
+}
+.weaning-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  color: #8fb8ca;
+  font-size: 12px;
+}
+.weaning-sbt-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(80,199,255,.14);
+  background: rgba(8,28,44,.82);
+  color: #dffbff;
+}
+.weaning-sbt-pill.is-passed { color: #34d399; border-color: rgba(52, 211, 153, .28); }
+.weaning-sbt-pill.is-failed { color: #fb7185; border-color: rgba(251, 113, 133, .28); }
+.weaning-sbt-pill.is-documented { color: #38bdf8; border-color: rgba(56, 189, 248, .24); }
 .detail-content {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(420px, 2fr);
@@ -2719,6 +3527,9 @@ onMounted(() => {
 
 @media (max-width: 1200px) {
   .monitor-hero {
+    grid-template-columns: 1fr;
+  }
+  .weaning-strip {
     grid-template-columns: 1fr;
   }
   .hero-vitals {

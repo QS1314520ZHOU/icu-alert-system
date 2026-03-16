@@ -12,6 +12,7 @@ from .antibiotic_stewardship import AntibioticStewardshipMixin
 from .base import BaseEngine
 from .composite_deterioration import CompositeDeteriorationMixin
 from .crrt_monitor import CrrtMonitorMixin
+from .data_quality_filter import DataQualityFilterMixin
 from .delirium_risk import DeliriumRiskMixin
 from .device_management import DeviceManagementMixin
 from .discharge_readiness import DischargeReadinessMixin
@@ -39,12 +40,15 @@ from .microbiology_monitor import MicrobiologyMonitorMixin
 from .pe_detector import PeDetectorMixin
 from .postop_monitor import PostopMonitorMixin
 from .ecash_bundle import EcashBundleMixin
+from .icu_aw_mobility import IcuAwMobilityMixin
+from .similar_case_review import SimilarCaseReviewMixin
 
 logger = logging.getLogger("icu-alert")
 
 
 class AlertEngine(
     BaseEngine,
+    DataQualityFilterMixin,
     VitalSignsMixin,
     LabScannerMixin,
     SepsisMixin,
@@ -73,6 +77,8 @@ class AlertEngine(
     PeDetectorMixin,
     PostopMonitorMixin,
     EcashBundleMixin,
+    IcuAwMobilityMixin,
+    SimilarCaseReviewMixin,
     TrendMixin,
     AiRiskMixin,
     NurseReminderMixin,
@@ -113,6 +119,7 @@ class AlertEngine(
             asyncio.create_task(self._loop("crrt_monitor", self.scan_crrt_monitor, int(intervals.get("crrt_monitor", 600)))),
             asyncio.create_task(self._loop("liberation_bundle", self.scan_liberation_bundle, int(intervals.get("liberation_bundle", 900)))),
             asyncio.create_task(self._loop("ecash_bundle", self.scan_ecash_bundle, int(intervals.get("ecash_bundle", 600)))),
+            asyncio.create_task(self._loop("icu_aw_mobility", self.scan_icu_aw_mobility, int(intervals.get("icu_aw_mobility", 900)))),
             asyncio.create_task(self._loop("microbiology", self.scan_microbiology, int(intervals.get("microbiology", 1800)))),
             asyncio.create_task(self._loop("hemodynamic_advisor", self.scan_hemodynamic_advisor, int(intervals.get("hemodynamic_advisor", 300)))),
             asyncio.create_task(self._loop("dose_adjustment", self.scan_dose_adjustment, int(intervals.get("dose_adjustment", 1800)))),
@@ -156,6 +163,7 @@ class AlertEngine(
             "crrt_monitor": 51,
             "liberation_bundle": 53,
             "ecash_bundle": 66,
+            "icu_aw_mobility": 68,
             "microbiology": 62,
             "hemodynamic_advisor": 55,
             "dose_adjustment": 57,
