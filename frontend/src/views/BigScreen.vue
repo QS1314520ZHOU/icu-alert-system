@@ -1,9 +1,26 @@
 <template>
   <div class="bigscreen">
     <header class="screen-header">
-      <div class="title">
-        <span class="title-tag">ICU</span>
-        护士站监控大屏
+      <div class="header-main">
+        <div class="title">
+          <span class="title-tag">ICU</span>
+          护士站监控大屏
+        </div>
+        <div class="header-sub">Central Monitoring Command Center</div>
+      </div>
+      <div class="screen-kpis">
+        <div class="kpi-chip">
+          <span class="kpi-label">在院床位</span>
+          <strong>{{ patients.length }}</strong>
+        </div>
+        <div class="kpi-chip">
+          <span class="kpi-label">危急预警</span>
+          <strong>{{ criticalPatientCount }}</strong>
+        </div>
+        <div class="kpi-chip">
+          <span class="kpi-label">实时告警</span>
+          <strong>{{ alerts.length }}</strong>
+        </div>
       </div>
       <div class="clock">{{ currentTime }}</div>
     </header>
@@ -35,6 +52,13 @@ import dayjs from 'dayjs'
 import { useRoute } from 'vue-router'
 import { getBundleOverview, getDepartments, getDeviceRiskHeatmap, getPatients, getPatientVitals, getRecentAlerts, getAlertStats } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
+import {
+  icuCategoryAxis,
+  icuGrid,
+  icuLegend,
+  icuTooltip,
+  icuValueAxis,
+} from '../charts/icuTheme'
 
 const BigScreenAlertFeed = defineAsyncComponent(() => import('../components/bigscreen/BigScreenAlertFeed.vue'))
 const BigScreenBedGrid = defineAsyncComponent(() => import('../components/bigscreen/BigScreenBedGrid.vue'))
@@ -55,6 +79,10 @@ let refreshTimer: number
 let alertTimer: number
 let offAlert: any = null
 
+const criticalPatientCount = computed(() =>
+  patients.value.filter((p: any) => p.alertLevel === 'critical').length
+)
+
 const showAlerts = computed(() => {
   const n = 8
   const list = alerts.value
@@ -67,7 +95,8 @@ const deptOption = computed(() => {
   const data = depts.value.map(d => ({ name: d.dept, value: d.patientCount }))
   const hasData = data.length > 0
   return {
-    tooltip: { trigger: 'item' },
+    backgroundColor: 'transparent',
+    tooltip: icuTooltip({ trigger: 'item' }),
     graphic: hasData ? [] : [
       {
         type: 'text',
@@ -75,8 +104,8 @@ const deptOption = computed(() => {
         top: 'middle',
         style: {
           text: '暂无科室数据',
-          fill: '#6b7280',
-          fontSize: 12,
+          fill: '#7ccfe4',
+          fontSize: 11,
         },
       },
     ],
@@ -86,11 +115,12 @@ const deptOption = computed(() => {
         radius: ['40%', '70%'],
         data,
         label: {
-          color: '#cbd5f5',
+          color: '#dffbff',
           fontSize: 10,
           formatter: '{b} {c}',
         },
-        labelLine: { length: 8, length2: 6 },
+        labelLine: { lineStyle: { color: '#4fb6db' }, length: 8, length2: 6 },
+        itemStyle: { borderColor: '#04111b', borderWidth: 2 },
       }
     ],
   }
@@ -99,21 +129,23 @@ const deptOption = computed(() => {
 const alertTrendOption = computed(() => {
   const xs = trendSeries.value.map(s => s.time)
   return {
-    tooltip: { trigger: 'axis' },
-    legend: { textStyle: { color: '#9aa4b2' } },
-    grid: { left: 30, right: 10, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: xs, axisLabel: { color: '#6b7280', fontSize: 10 } },
-    yAxis: { type: 'value', axisLabel: { color: '#6b7280', fontSize: 10 }, splitLine: { lineStyle: { color: '#132237' } } },
+    backgroundColor: 'transparent',
+    tooltip: icuTooltip({ trigger: 'axis' }),
+    legend: icuLegend(),
+    grid: icuGrid({ left: 36, right: 12, top: 28, bottom: 30 }),
+    xAxis: icuCategoryAxis(xs),
+    yAxis: icuValueAxis(),
     series: [
-      { name: 'Warning', type: 'line', smooth: true, data: trendSeries.value.map(s => s.warning || 0) },
-      { name: 'High', type: 'line', smooth: true, data: trendSeries.value.map(s => s.high || 0) },
-      { name: 'Critical', type: 'line', smooth: true, data: trendSeries.value.map(s => s.critical || 0) },
+      { name: 'Warning', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, itemStyle: { color: '#fbbf24' }, data: trendSeries.value.map(s => s.warning || 0) },
+      { name: 'High', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, itemStyle: { color: '#fb923c' }, data: trendSeries.value.map(s => s.high || 0) },
+      { name: 'Critical', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb5a7a' }, itemStyle: { color: '#fb5a7a' }, data: trendSeries.value.map(s => s.critical || 0) },
     ],
   }
 })
 
 const bundleOption = computed(() => ({
-  tooltip: { trigger: 'item' },
+  backgroundColor: 'transparent',
+  tooltip: icuTooltip({ trigger: 'item' }),
   series: [
     {
       type: 'pie',
@@ -123,7 +155,8 @@ const bundleOption = computed(() => ({
         { name: '黄色', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#f59e0b' } },
         { name: '红色', value: bundleCounts.value.red || 0, itemStyle: { color: '#ef4444' } },
       ],
-      label: { color: '#cbd5f5', fontSize: 10, formatter: '{b} {c}' },
+      label: { color: '#dffbff', fontSize: 10, formatter: '{b} {c}' },
+      itemStyle: { borderColor: '#04111b', borderWidth: 2 },
     },
   ],
 }))
@@ -138,7 +171,7 @@ const deviceHeatmapOption = computed(() => {
   ]).filter((x: any) => x[0] >= 0 && x[1] >= 0)
 
   return {
-    tooltip: {
+    tooltip: icuTooltip({
       position: 'top',
       formatter: (params: any) => {
         const row = deviceHeatRows.value.find((x: any) =>
@@ -148,10 +181,10 @@ const deviceHeatmapOption = computed(() => {
         if (!row) return ''
         return `${row.bed}床 ${row.device_type}<br/>风险 ${row.risk}<br/>在位 ${row.line_days || 0} 天`
       },
-    },
-    grid: { left: 48, right: 10, top: 20, bottom: 34 },
-    xAxis: { type: 'category', data: devices, axisLabel: { color: '#9aa4b2', fontSize: 10 } },
-    yAxis: { type: 'category', data: beds, axisLabel: { color: '#9aa4b2', fontSize: 10 } },
+    }),
+    grid: icuGrid({ left: 54, right: 14, top: 20, bottom: 38 }),
+    xAxis: icuCategoryAxis(devices, { axisLabel: { color: '#8fd4e6', fontSize: 10 } }),
+    yAxis: icuCategoryAxis(beds, { axisLabel: { color: '#8fd4e6', fontSize: 10 } }),
     visualMap: {
       min: 0,
       max: 3,
@@ -159,10 +192,10 @@ const deviceHeatmapOption = computed(() => {
       left: 'center',
       bottom: 0,
       calculable: false,
-      inRange: { color: ['#0f172a', '#22c55e', '#f59e0b', '#ef4444'] },
-      textStyle: { color: '#9aa4b2', fontSize: 10 },
+      inRange: { color: ['#0a2234', '#0e8ca1', '#3ee7c0', '#f59e0b', '#fb5a7a'] },
+      textStyle: { color: '#8fd4e6', fontSize: 10 },
     },
-    series: [{ type: 'heatmap', data }],
+    series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 6, borderColor: 'rgba(88,225,255,.08)', borderWidth: 1 } }],
   }
 })
 
@@ -321,88 +354,102 @@ watch(() => route.query, () => {
 
 .bigscreen {
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
   background: radial-gradient(circle at 20% 0%, #0c1f36 0%, #050b16 45%, #04070d 100%);
   color: #e2e8f0;
   font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+}
+.bigscreen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(73, 196, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73, 196, 255, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.24;
 }
 .screen-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 32px;
-  background: linear-gradient(90deg, rgba(12,35,61,0.9), rgba(10,18,34,0.9));
-  border-bottom: 2px solid #1e3a8a;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(90deg, rgba(8,26,43,0.96), rgba(6,16,29,0.96));
+  border-bottom: 1px solid rgba(80,199,255,.2);
+  box-shadow: 0 10px 28px rgba(0,0,0,.22);
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
+.header-main { display: flex; flex-direction: column; gap: 4px; }
 .title {
-  font-size: 24px;
+  font-size: 22px;
   letter-spacing: 2px;
   font-weight: 700;
+  color: #effcff;
 }
 .title-tag {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
-  background: #1e40af;
+  background: linear-gradient(180deg, #0b6b89 0%, #07465a 100%);
+  border: 1px solid rgba(110, 231, 249, 0.24);
   margin-right: 8px;
   font-size: 12px;
+  color: #ecfeff;
 }
+.header-sub {
+  color: #7ed6e8;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.screen-kpis { display: flex; gap: 10px; margin-left: auto; }
+.kpi-chip {
+  min-width: 104px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(7,29,45,.82);
+  border: 1px solid rgba(80,199,255,.14);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kpi-label { font-size: 11px; color: #7ecce1; letter-spacing: .08em; }
+.kpi-chip strong { font-size: 20px; color: #e8fbff; }
 .clock {
-  font-size: 18px;
-  color: #94a3b8;
+  font-size: 16px;
+  color: #8de3f3;
   font-family: 'JetBrains Mono', monospace;
+  letter-spacing: .08em;
 }
 .screen-body {
   display: grid;
   grid-template-columns: 1.2fr 3fr 1.3fr;
-  gap: 16px;
-  padding: 16px;
+  gap: 14px;
+  padding: 14px;
+  position: relative;
+  z-index: 1;
 }
 .panel {
-  background: rgba(6, 12, 22, 0.85);
-  border: 1px solid #14233b;
-  border-radius: 12px;
-  padding: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-}
-.panel-title {
-  font-size: 14px;
-  color: #93c5fd;
-  margin-bottom: 10px;
-  letter-spacing: 1px;
-}
-
-.bed-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-}
-.bed-card {
-  background: #0a111d;
-  border: 1px solid #14243b;
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+  border: 1px solid rgba(80,199,255,.14);
   border-radius: 12px;
   padding: 10px;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 10px 30px rgba(0,0,0,0.35);
 }
-.bed-card.flash { animation: flash-border 1.2s ease-in-out infinite; }
-.bed-critical { border-color: #ef444433; }
-.bed-warning { border-color: #f59e0b28; }
-.bed-high { border-color: #f9731628; }
-.bed-normal { border-color: #22c55e18; }
-.bed-head { display: flex; justify-content: space-between; align-items: center; }
-.bed-no { font-size: 20px; font-weight: 700; color: #60a5fa; }
-.bed-name { font-size: 14px; margin: 6px 0; }
-.bed-vitals {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  font-size: 11px;
-  color: #94a3b8;
+.panel-title {
+  font-size: 12px;
+  color: #67e8f9;
+  margin-bottom: 8px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(80,199,255,.08);
+  padding-bottom: 8px;
 }
-.bed-vitals b { color: #e2e8f0; }
-.lamp { width: 8px; height: 8px; border-radius: 50%; }
-.lamp-critical { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
-.lamp-warning { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
-.lamp-high { background: #f97316; box-shadow: 0 0 6px #f97316; }
-.lamp-normal { background: #22c55e; }
-.lamp-none { background: #334155; }
 
 .chart-wrap {
   height: 240px;
@@ -420,6 +467,13 @@ watch(() => route.query, () => {
 @media (max-width: 1100px) {
   .screen-body {
     grid-template-columns: 1fr;
+  }
+  .screen-header {
+    flex-wrap: wrap;
+  }
+  .screen-kpis {
+    order: 3;
+    width: 100%;
   }
 }
 </style>

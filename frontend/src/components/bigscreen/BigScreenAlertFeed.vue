@@ -1,16 +1,28 @@
 <template>
   <div class="alert-list">
-    <div v-for="a in alerts" :key="a._id" class="alert-row">
-      <span :class="['sev-dot', `sev-${a.severity || 'warning'}`]"></span>
+    <div v-for="a in alerts" :key="a._id" :class="['alert-row', `alert-row--${a.severity || 'warning'}`]">
+      <div class="alert-rail">
+        <span :class="['sev-dot', `sev-${a.severity || 'warning'}`]"></span>
+        <span class="alert-time">{{ fmtTime(a.created_at) || '--:--' }}</span>
+      </div>
       <div class="alert-main">
-        <div class="alert-name">{{ a.name || a.rule_id || '预警' }}</div>
+        <div class="alert-top">
+          <div class="alert-name">{{ a.name || a.rule_id || '预警' }}</div>
+          <div class="alert-code">{{ formatAlertValue(a) }}</div>
+        </div>
+        <div class="alert-pills">
+          <span class="meta-pill meta-pill--bed">{{ a.bed || '--' }}床</span>
+          <span class="meta-pill">{{ a.patient_name || '未知' }}</span>
+          <span v-if="a.category" class="meta-pill">{{ labelCategory(a.category) }}</span>
+          <span v-if="a.alert_type" class="meta-pill meta-pill--soft">{{ labelType(a.alert_type) }}</span>
+        </div>
         <div class="alert-meta">
-          {{ a.bed || '--' }}床 · {{ a.patient_name || '未知' }} · {{ fmtTime(a.created_at) }}
-          <span v-if="a.category"> · {{ labelCategory(a.category) }}</span>
-          <span v-if="a.alert_type"> · {{ labelType(a.alert_type) }}</span>
+          MONITOR EVENT · {{ a.rule_id || a.alert_type || 'RULE' }}
         </div>
       </div>
-      <div class="alert-val">{{ formatAlertValue(a) }}</div>
+      <div class="alert-side">
+        <div :class="['sev-tag', `sev-tag--${a.severity || 'warning'}`]">{{ severityText(a.severity) }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -254,29 +266,176 @@ function formatAlertValue(a: any) {
   if (p && unitMap[p]) return v != null ? `${v}${unitMap[p]}` : '—'
   return v ?? '—'
 }
+
+function severityText(v: any) {
+  const map: Record<string, string> = {
+    warning: 'WARN',
+    high: 'HIGH',
+    critical: 'CRIT',
+    normal: 'OK',
+  }
+  return map[String(v || 'warning')] || 'WARN'
+}
 </script>
 
 <style scoped>
 .alert-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  max-height: calc(100vh - 210px);
+  overflow: auto;
+  padding-right: 2px;
 }
 .alert-row {
   display: grid;
-  grid-template-columns: 10px 1fr 60px;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-  background: #0b1320;
-  border: 1px solid #14243b;
+  grid-template-columns: 54px 1fr 64px;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 26%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.94) 0%, rgba(4, 12, 22, 0.96) 100%);
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
-.alert-main { min-width: 0; }
-.alert-name { font-size: 13px; color: #e5e7eb; }
-.alert-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
-.alert-val { text-align: right; font-weight: 700; color: #cbd5f5; }
-.sev-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.alert-row--critical {
+  border-color: rgba(251,90,122,.24);
+}
+.alert-row--high {
+  border-color: rgba(249,115,22,.22);
+}
+.alert-row--warning {
+  border-color: rgba(245,158,11,.2);
+}
+.alert-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.alert-time {
+  font-size: 10px;
+  color: #73cde0;
+  letter-spacing: .08em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.alert-main {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.alert-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+.alert-name {
+  font-size: 12px;
+  color: #ecfeff;
+  font-weight: 700;
+  letter-spacing: .04em;
+  line-height: 1.35;
+}
+.alert-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #dffbff;
+  white-space: nowrap;
+}
+.alert-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(8, 30, 46, 0.88);
+  border: 1px solid rgba(80,199,255,.12);
+  color: #8fd4e6;
+  font-size: 10px;
+}
+.meta-pill--bed {
+  color: #dffbff;
+}
+.meta-pill--soft {
+  color: #bfd8f1;
+}
+.alert-meta {
+  font-size: 10px;
+  color: #6ea9bc;
+  line-height: 1.35;
+  letter-spacing: .08em;
+}
+.alert-side {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+.sev-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  border: 1px solid transparent;
+}
+.sev-tag--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
+.sev-tag--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
+.sev-tag--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.sev-tag--normal { color: #6ee7b7; background: #10372b; border-color: #14532d; }
+.sev-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 2px;
+}
 .sev-warning { background: #f59e0b; box-shadow: 0 0 6px #f59e0b88; }
 .sev-high { background: #f97316; box-shadow: 0 0 6px #f9731688; }
-.sev-critical { background: #d946ef; box-shadow: 0 0 6px #d946ef88; }
+.sev-critical { background: #fb5a7a; box-shadow: 0 0 8px rgba(251,90,122,.65); }
+.sev-normal { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.5); }
+
+@media (max-width: 1100px) {
+  .alert-list {
+    max-height: none;
+  }
+  .alert-time {
+    writing-mode: initial;
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .alert-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .alert-rail,
+  .alert-side {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .alert-top {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .alert-code {
+    white-space: normal;
+  }
+}
 </style>

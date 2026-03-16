@@ -2176,7 +2176,11 @@ async def patient_handoff_summary(patient_id: str):
             llm_call=_call_llm,
             model=cfg.llm_model_medical or None,
         )
-        return {"code": 0, **result}
+        return {
+            "code": 0,
+            "summary": serialize_doc(result.get("summary") or {}),
+            "context_snapshot": serialize_doc(result.get("context_snapshot") or {}),
+        }
     except Exception as e:
         logger.error(f"AI handoff summary error: {e}")
         return {"code": 0, "summary": {}, "error": f"AI服务异常: {str(e)[:120]}"}
@@ -2229,7 +2233,12 @@ async def ai_monitor_summary(date: str | None = Query(default=None)):
     """AI调用监控汇总（含日聚合与活跃告警）。"""
     try:
         summary = await ai_monitor.get_daily_summary(date=date)
-        return {"code": 0, **summary}
+        return {
+            "code": 0,
+            "date": summary.get("date") or date or datetime.now().strftime("%Y-%m-%d"),
+            "stats": [serialize_doc(item) for item in summary.get("stats", [])],
+            "active_alerts": [serialize_doc(item) for item in summary.get("active_alerts", [])],
+        }
     except Exception as e:
         logger.error(f"AI monitor summary error: {e}")
         return {"code": 0, "date": date or datetime.now().strftime('%Y-%m-%d'), "stats": [], "active_alerts": [], "error": f"监控汇总异常: {str(e)[:120]}"}
@@ -2395,6 +2404,8 @@ async def ai_risk_forecast(patient_id: str):
 
     # 收集最近生命体征
     codes = ["param_HR", "param_spo2", "param_resp", "param_nibp_s", "param_ibp_s", "param_T"]
+    pid_str = str(pid)
+    vitals = []
     v_pids = [str(pid)]
     hp = _patient_his_pid(patient)
     if hp and hp not in v_pids: v_pids.append(hp)

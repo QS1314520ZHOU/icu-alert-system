@@ -3,16 +3,16 @@
     <div class="root" :class="`theme-${themeMode}`">
       <header class="hdr">
         <div class="hdr-l">
-          <span class="hdr-icon">🏥</span>
+          <span class="hdr-icon">✚</span>
           <div>
             <div class="hdr-title">ICU 智能预警系统</div>
             <div class="hdr-sub">Intelligent Early Warning System</div>
           </div>
         </div>
         <nav class="hdr-menu">
-          <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">📋 患者总览</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">📈 预警分析</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'bigscreen' }]" @click="onNav('bigscreen')">🖥 护士站大屏</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">患者总览</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">预警分析</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'bigscreen' }]" @click="onNav('bigscreen')">护士站大屏</button>
         </nav>
         <div class="hdr-tools">
           <div class="theme-toggle">
@@ -61,10 +61,32 @@ const navKey = computed(() => {
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
   if (!antThemeReady.value || !antTheme.value) return undefined
+  const dark = themeMode.value === 'dark'
   return {
-    algorithm: themeMode.value === 'dark'
+    algorithm: dark
       ? antTheme.value.darkAlgorithm
       : antTheme.value.defaultAlgorithm,
+    token: {
+      colorPrimary: dark ? '#22d3ee' : '#1d4ed8',
+      colorInfo: dark ? '#38bdf8' : '#2563eb',
+      colorSuccess: dark ? '#34d399' : '#059669',
+      colorWarning: dark ? '#f59e0b' : '#d97706',
+      colorError: dark ? '#f87171' : '#dc2626',
+      colorBgBase: dark ? '#07111d' : '#eef4f8',
+      colorBgContainer: dark ? '#0d1a2b' : '#ffffff',
+      colorBgElevated: dark ? '#091827' : '#ffffff',
+      colorText: dark ? '#d9e6f3' : '#223a54',
+      colorTextSecondary: dark ? '#7f93ab' : '#6f8399',
+      colorBorder: dark ? 'rgba(125, 167, 214, 0.14)' : 'rgba(187, 204, 220, 0.72)',
+      borderRadius: 12,
+      borderRadiusLG: 14,
+      fontSize: 12,
+      controlHeight: 32,
+      controlHeightSM: 28,
+      boxShadowSecondary: dark
+        ? '0 18px 36px rgba(0,0,0,.34)'
+        : '0 12px 28px rgba(15,23,42,.08)',
+    },
   }
 })
 const themeWrapperComponent = computed(() =>
@@ -156,41 +178,59 @@ onUnmounted(() => clearInterval(t))
 </script>
 
 <style scoped>
-.root { min-height: 100vh; background: var(--app-bg); }
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+
+.root { min-height: 100vh; background: var(--app-bg); font-family: 'Rajdhani', 'Noto Sans SC', sans-serif; }
 .hdr {
   display: flex; align-items: center; gap: 20px;
-  background: var(--hdr-bg) !important;
-  backdrop-filter: blur(12px); /* Glassmorphism */
-  padding: 8px 24px;
+  background:
+    linear-gradient(90deg, rgba(7, 20, 34, 0.96) 0%, rgba(5, 14, 26, 0.98) 100%) !important;
+  backdrop-filter: blur(14px);
+  padding: 10px 20px;
   min-height: 64px;
   height: auto !important;
   line-height: normal !important;
   overflow: visible;
-  border-bottom: 1px solid var(--hdr-border);
-  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05); /* Subtle lift */
+  border-bottom: 1px solid rgba(80, 199, 255, 0.16);
+  box-shadow: 0 8px 24px rgba(2, 8, 20, 0.22), inset 0 -1px 0 rgba(125, 241, 255, 0.04);
   position: sticky; top: 0; z-index: 100;
 }
-.hdr-l { display: flex; align-items: center; gap: 8px; }
+.hdr-l { display: flex; align-items: center; gap: 12px; }
 .hdr-l > div { display: flex; flex-direction: column; justify-content: center; }
-.hdr-icon { font-size: 20px; }
-.hdr-title { font-size: 15px; font-weight: 700; color: var(--hdr-title); letter-spacing: 0.5px; line-height: 1.25; }
-.hdr-sub { font-size: 10px; color: var(--hdr-sub); letter-spacing: 0.3px; line-height: 1.2; margin-top: 2px; }
+.hdr-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #ecfeff;
+  background: linear-gradient(180deg, #0b4e74 0%, #07273f 100%);
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 16px rgba(34, 211, 238, 0.08);
+}
+.hdr-title { font-size: 15px; font-weight: 700; color: #e8fbff; letter-spacing: 0.08em; line-height: 1.15; }
+.hdr-sub { font-size: 9px; color: #6dcfe4; letter-spacing: 0.16em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
 .hdr-menu { flex: 1; display: flex; align-items: center; gap: 8px; }
 .nav-btn {
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--hdr-sub);
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(7, 29, 45, 0.86);
+  color: #7ecce1;
   border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.nav-btn:hover { color: var(--hdr-title); background: rgba(255,255,255,0.05); }
+.nav-btn:hover { color: #e9fbff; background: rgba(10, 42, 63, 0.94); border-color: rgba(103, 232, 249, 0.22); }
 .nav-btn.active {
-  color: var(--hdr-title);
-  background: var(--tab-active-bg);
-  border-color: var(--tab-active-border);
+  color: #effcff;
+  background: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
+  border-color: rgba(110, 231, 249, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(34, 211, 238, 0.08);
 }
 .hdr-tools {
   display: flex;
@@ -203,8 +243,8 @@ onUnmounted(() => clearInterval(t))
   gap: 6px;
   padding: 4px 8px;
   border-radius: 999px;
-  border: 1px solid var(--hdr-border);
-  background: var(--panel-soft);
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  background: rgba(7, 29, 45, 0.86);
 }
 .theme-lbl {
   font-size: 12px;
@@ -212,8 +252,8 @@ onUnmounted(() => clearInterval(t))
   opacity: 0.8;
 }
 .toggle-text {
-  font-size: 11px;
-  color: var(--hdr-sub);
+  font-size: 10px;
+  color: #7ecce1;
 }
 .switch {
   position: relative;
@@ -230,7 +270,7 @@ onUnmounted(() => clearInterval(t))
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: #334155;
+  background: #183247;
   transition: 0.2s ease;
 }
 .switch-slider::before {
@@ -245,7 +285,7 @@ onUnmounted(() => clearInterval(t))
   transition: 0.2s ease;
 }
 .switch input:checked + .switch-slider {
-  background: #2563eb;
+  background: #0ea5b7;
 }
 .switch input:checked + .switch-slider::before {
   transform: translateX(14px);
@@ -258,7 +298,13 @@ onUnmounted(() => clearInterval(t))
 .switch--compact input:checked + .switch-slider--compact::before {
   transform: translateX(12px);
 }
-.hdr-clock { font-family: 'SF Mono','Consolas',monospace; color: var(--hdr-sub); font-size: 12px; white-space: nowrap; }
+.hdr-clock {
+  font-family: 'SF Mono','Consolas',monospace;
+  color: #8de3f3;
+  font-size: 11px;
+  white-space: nowrap;
+  letter-spacing: 0.08em;
+}
 .body { background: var(--app-bg); min-height: calc(100vh - 60px); }
 
 @media (max-width: 1200px) {

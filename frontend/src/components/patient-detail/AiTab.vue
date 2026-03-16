@@ -42,33 +42,52 @@
       </div>
       <a-spin :spinning="aiRiskLoading">
         <div v-if="latestAiRiskAlert" :class="['ai-risk-card', aiConfidenceClass(aiRiskConfidenceLevel(latestAiRiskAlert))]">
-          <p><strong>主要风险:</strong> {{ latestAiRiskAlert.extra?.primary_risk || latestAiRiskAlert.name || '综合风险' }}</p>
-          <p><strong>风险等级:</strong> {{ aiRiskLevelText(latestAiRiskAlert.extra?.risk_level || latestAiRiskAlert.condition?.risk_level || latestAiRiskAlert.value) }}</p>
-          <p><strong>安全校验:</strong> {{ latestAiRiskAlert.extra?.safety_validation?.status || 'ok' }}</p>
-          <p v-if="aiRiskEvidenceList(latestAiRiskAlert).length">
-            <strong>证据脚注:</strong>
-            <span
-              v-for="(evidence, idx) in aiRiskEvidenceList(latestAiRiskAlert)"
-              :key="evidence.chunk_id || idx"
-              class="ai-evidence-inline"
-            >
-              <a-popover placement="topLeft">
-                <template #content>
-                  <div class="ai-evidence-popover">
-                    <div><strong>{{ evidence.source || '指南证据' }}</strong></div>
-                    <div v-if="evidence.recommendation">{{ evidence.recommendation }}</div>
-                    <div class="ai-evidence-quote">{{ evidence.quote || '暂无原文片段' }}</div>
-                  </div>
-                </template>
-                <a class="ai-evidence-link" @click.prevent="openEvidence(evidence)">
-                  [{{ idx + 1 }}]
-                </a>
-              </a-popover>
-            </span>
-          </p>
-          <p v-if="aiRiskHallucinations(latestAiRiskAlert).length" class="handoff-warning">
-            幻觉检测提示 {{ aiRiskHallucinations(latestAiRiskAlert).length }} 条
-          </p>
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>主要风险</span>
+              <strong>{{ latestAiRiskAlert.extra?.primary_risk || latestAiRiskAlert.name || '综合风险' }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>风险等级</span>
+              <strong>{{ aiRiskLevelText(latestAiRiskAlert.extra?.risk_level || latestAiRiskAlert.condition?.risk_level || latestAiRiskAlert.value) }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>安全校验</span>
+              <strong>{{ latestAiRiskAlert.extra?.safety_validation?.status || 'ok' }}</strong>
+            </div>
+          </div>
+          <div v-if="aiRiskEvidenceList(latestAiRiskAlert).length" class="ai-workbench-section">
+            <div class="ai-workbench-title">证据脚注</div>
+            <div class="ai-footnote-row">
+              <span
+                v-for="(evidence, idx) in aiRiskEvidenceList(latestAiRiskAlert)"
+                :key="evidence.chunk_id || idx"
+                class="ai-evidence-inline"
+              >
+                <a-popover placement="topLeft" overlay-class-name="icu-monitor-popover">
+                  <template #default>
+                    <a
+                      class="ai-evidence-link"
+                      @click.prevent="openEvidence(evidence)"
+                    >
+                      [{{ idx + 1 }}]
+                    </a>
+                  </template>
+                  <template #content>
+                    <div class="ai-evidence-popover">
+                      <div><strong>{{ evidence.source || '指南证据' }}</strong></div>
+                      <div v-if="evidence.recommendation">{{ evidence.recommendation }}</div>
+                      <div class="ai-evidence-quote">{{ evidence.quote || '暂无原文片段' }}</div>
+                    </div>
+                  </template>
+                </a-popover>
+              </span>
+            </div>
+          </div>
+          <div v-if="aiRiskHallucinations(latestAiRiskAlert).length" class="ai-workbench-section">
+            <div class="ai-workbench-title handoff-warning">幻觉检测</div>
+            <div class="workbench-flag">提示 {{ aiRiskHallucinations(latestAiRiskAlert).length }} 条异常声明</div>
+          </div>
         </div>
         <div v-else-if="aiRiskText" class="ai-rich" v-html="renderAiRichText(aiRiskText)"></div>
         <div v-else class="ai-empty">暂无内容</div>
@@ -86,15 +105,40 @@
       </div>
       <a-spin :spinning="aiHandoffLoading">
         <div v-if="aiHandoff" :class="['handoff-wrap', aiConfidenceClass(aiHandoffConfidence)]">
-          <p><strong>Illness severity:</strong> {{ aiHandoff.illness_severity || 'watcher' }}</p>
-          <p><strong>Patient summary:</strong> {{ aiHandoff.patient_summary || '—' }}</p>
-          <p><strong>Action list:</strong> {{ normalizeList(aiHandoff.action_list).join('；') || '—' }}</p>
-          <p><strong>Situation awareness:</strong> {{ normalizeList(aiHandoff.situation_awareness).join('；') || '—' }}</p>
-          <p><strong>Synthesis:</strong> {{ aiHandoff.synthesis_by_receiver || '—' }}</p>
-          <p><strong>Confidence:</strong> {{ aiHandoff.confidence_level || 'low' }}</p>
-          <p v-if="aiHandoff?.validation?.issues?.length" class="handoff-warning">
-            数值校验告警 {{ aiHandoff.validation.issues.length }} 条
-          </p>
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>Illness severity</span>
+              <strong>{{ aiHandoff.illness_severity || 'watcher' }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>Confidence</span>
+              <strong>{{ aiHandoff.confidence_level || 'low' }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>Validation</span>
+              <strong>{{ aiHandoff?.validation?.issues?.length ? `警告 ${aiHandoff.validation.issues.length}` : 'ok' }}</strong>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">Patient summary</div>
+            <div class="workbench-text">{{ aiHandoff.patient_summary || '—' }}</div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">Action list</div>
+            <ul class="workbench-list">
+              <li v-for="(item, idx) in normalizeList(aiHandoff.action_list)" :key="`a-${idx}`">{{ item }}</li>
+            </ul>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">Situation awareness</div>
+            <ul class="workbench-list">
+              <li v-for="(item, idx) in normalizeList(aiHandoff.situation_awareness)" :key="`s-${idx}`">{{ item }}</li>
+            </ul>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">Synthesis by receiver</div>
+            <div class="workbench-text">{{ aiHandoff.synthesis_by_receiver || '—' }}</div>
+          </div>
         </div>
         <div v-else class="ai-empty">暂无内容</div>
       </a-spin>
@@ -120,6 +164,7 @@
           <a-select
             :value="selectedKnowledgeDocId"
             size="small"
+            popup-class-name="icu-monitor-select-dropdown"
             style="width: 100%; margin-bottom: 8px;"
             placeholder="选择离线文档"
             @change="loadKnowledgeDocument"
@@ -210,3 +255,289 @@ defineProps<{
   knowledgeError: string
 }>()
 </script>
+
+<style scoped>
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 12px;
+}
+.ai-card {
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+  border: 1px solid rgba(80,199,255,.14);
+  min-height: 520px;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+  border-radius: 12px;
+}
+.ai-card :deep(.ant-card-head) {
+  border-bottom: 1px solid rgba(80,199,255,.1);
+}
+.ai-card :deep(.ant-card-head-title) {
+  color: #67e8f9;
+  font-size: 13px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.ai-card :deep(.ant-card-body) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ai-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-card-note {
+  font-size: 11px;
+  color: #7f97bd;
+}
+.ai-card :deep(.ant-btn),
+.ai-card :deep(.ant-select-selector),
+.ai-card :deep(.ant-pagination .ant-pagination-item),
+.ai-card :deep(.ant-pagination .ant-pagination-prev),
+.ai-card :deep(.ant-pagination .ant-pagination-next) {
+  background: rgba(8,28,44,.78) !important;
+  border-color: rgba(80,199,255,.14) !important;
+  color: #dffbff !important;
+}
+.ai-card :deep(.ant-pagination .ant-pagination-item-active) {
+  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
+  border-color: rgba(110,231,249,.28) !important;
+}
+.ai-card :deep(.ant-pagination .ant-pagination-item-active a) {
+  color: #effcff !important;
+}
+.ai-empty {
+  color: #8898b5;
+  font-size: 12px;
+  padding: 8px 2px;
+}
+.ai-rich {
+  margin-top: 2px;
+  color: #dffbff;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+.ai-rich :deep(h4) {
+  margin: 12px 0 6px;
+  font-size: 15px;
+  color: #effcff;
+  font-weight: 700;
+}
+.ai-rich :deep(p) { margin: 0; }
+.ai-rich :deep(code) {
+  background: rgba(8,28,44,.78);
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #eaffff;
+}
+.ai-risk-card,
+.handoff-wrap,
+.kb-doc-meta,
+.kb-chunk-item {
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 10px;
+  background: rgba(8,28,44,.72);
+  padding: 10px 12px;
+}
+.handoff-wrap p,
+.ai-risk-card p,
+.kb-doc-meta p {
+  color: #c3d3ec;
+  font-size: 12px;
+  margin: 0 0 6px;
+}
+.workbench-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.wb-kpi {
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 10px;
+  background: rgba(5,16,27,.88);
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+}
+.wb-kpi span {
+  color: #7ecce1;
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.wb-kpi strong {
+  color: #effcff;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.ai-workbench-section {
+  border: 1px solid rgba(80,199,255,.1);
+  border-radius: 10px;
+  background: rgba(6,19,32,.78);
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.ai-workbench-title {
+  color: #67e8f9;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.workbench-text {
+  color: #c3d3ec;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.workbench-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #c3d3ec;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.ai-footnote-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.workbench-flag {
+  color: #fda4af;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.handoff-warning {
+  color: #fda4af !important;
+}
+.kb-browser {
+  display: grid;
+  gap: 8px;
+}
+.kb-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #8fd4e6;
+  font-size: 11px;
+}
+.kb-overridden { color: #fbbf24; }
+.kb-chunk-list {
+  display: grid;
+  gap: 8px;
+  max-height: 52vh;
+  overflow: auto;
+}
+.kb-chunk-title {
+  color: #dce8fb;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.kb-chunk-content {
+  white-space: pre-wrap;
+  color: #b6c8e4;
+  line-height: 1.65;
+  font-size: 12px;
+}
+.ai-rule-wrap {
+  max-height: 62vh;
+  overflow: auto;
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 10px;
+}
+.ai-rule-table {
+  margin-top: 2px;
+  width: 100%;
+}
+.ai-rule-table :deep(.ant-table) {
+  background: #0f1a2b;
+}
+.ai-rule-table :deep(.ant-table-content) {
+  overflow-x: auto !important;
+}
+.ai-rule-table :deep(table) {
+  min-width: 920px;
+}
+.ai-rule-table :deep(.ant-table-thead > tr > th) {
+  background: rgba(8,28,44,.82);
+  color: #7ccfe4;
+  border-bottom-color: rgba(80,199,255,.1);
+  white-space: nowrap;
+}
+.ai-rule-table :deep(.ant-table-tbody > tr > td) {
+  background: rgba(7,20,34,.72);
+  color: #dffbff;
+  border-bottom-color: rgba(80,199,255,.08);
+  white-space: nowrap;
+}
+.ai-rule-table :deep(.ant-table-tbody > tr > td:nth-child(1)),
+.ai-rule-table :deep(.ant-table-tbody > tr > td:nth-child(5)) {
+  white-space: normal;
+  word-break: break-word;
+}
+.ai-evidence-link {
+  color: #93c5fd;
+  cursor: pointer;
+}
+.ai-evidence-link:hover {
+  color: #bfdbfe;
+}
+.ai-evidence-inline {
+  margin-left: 4px;
+}
+.ai-evidence-popover {
+  max-width: 420px;
+  display: grid;
+  gap: 6px;
+  color: #334155;
+}
+.ai-evidence-quote {
+  max-width: 420px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.ai-error {
+  color: #f87171;
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+@media (max-width: 1500px) {
+  .ai-grid {
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .ai-grid {
+    grid-template-columns: 1fr;
+  }
+  .ai-card {
+    min-height: 0;
+  }
+  .ai-rule-wrap,
+  .ai-rich {
+    max-height: 56vh;
+  }
+  .workbench-kpis {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

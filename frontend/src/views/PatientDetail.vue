@@ -7,6 +7,35 @@
       class="detail-page-header"
     />
 
+    <section class="monitor-hero">
+      <div class="hero-main">
+        <div class="hero-tag-row">
+          <span class="hero-tag">ICU PATIENT MONITOR</span>
+          <span class="hero-tag hero-tag--soft">HIS {{ displayHisPid }}</span>
+        </div>
+        <div class="hero-diagnosis">{{ displayDiagnosis }}</div>
+        <div class="hero-meta">入院时间：{{ displayAdmissionTime }}</div>
+      </div>
+      <div class="hero-vitals">
+        <div class="hero-vital">
+          <span>HR</span>
+          <strong>{{ vitals?.hr ?? '—' }}</strong>
+        </div>
+        <div class="hero-vital">
+          <span>BP</span>
+          <strong>{{ fmtBP(vitals || {}) }}</strong>
+        </div>
+        <div class="hero-vital">
+          <span>SpO₂</span>
+          <strong>{{ vitals?.spo2 != null ? vitals.spo2 + '%' : '—' }}</strong>
+        </div>
+        <div class="hero-vital">
+          <span>T</span>
+          <strong>{{ fmtTemp(vitals?.temp) }}</strong>
+        </div>
+      </div>
+    </section>
+
     <div class="detail-content">
       <a-card title="基本信息" :bordered="false" class="info-card">
         <p>诊断: {{ displayDiagnosis }}</p>
@@ -206,6 +235,13 @@ import {
   postAiFeedback,
   reloadKnowledge,
 } from '../api'
+import {
+  icuCategoryAxis,
+  icuGrid,
+  icuLegend,
+  icuTooltip,
+  icuValueAxis,
+} from '../charts/icuTheme'
 
 const PatientTrendTab = defineAsyncComponent(() => import('../components/patient-detail/TrendTab.vue'))
 const PatientLabsTab = defineAsyncComponent(() => import('../components/patient-detail/LabsTab.vue'))
@@ -349,12 +385,12 @@ const compositeRadarOption = computed(() => {
     max: 3,
   }))
   return {
-    tooltip: { trigger: 'item', confine: true },
+    tooltip: icuTooltip({ trigger: 'item', confine: true }),
     radar: {
       indicator,
       radius: '63%',
       splitNumber: 3,
-      axisName: { color: '#7d93b5', fontSize: 12 },
+      axisName: { color: '#7d93b5', fontSize: 11 },
       axisLine: { lineStyle: { color: '#214368' } },
       splitLine: { lineStyle: { color: ['#183357', '#1f3f67', '#26547c'] } },
       splitArea: { areaStyle: { color: ['rgba(15, 33, 56, 0.28)', 'rgba(17, 37, 63, 0.22)', 'rgba(24, 53, 90, 0.16)'] } },
@@ -381,21 +417,18 @@ const trendOption = computed(() => {
   const mapVals = trendPoints.value.map(p => p.ibp_map ?? p.nibp_map ?? null)
   return {
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'axis' },
-    legend: { textStyle: { color: '#9aa4b2' } },
-    grid: { left: 40, right: 20, top: 30, bottom: 30 },
-    xAxis: {
-      type: 'category',
-      data: xs,
+    tooltip: icuTooltip({ trigger: 'axis' }),
+    legend: icuLegend({ textStyle: { color: '#9aa4b2', fontSize: 10 } }),
+    grid: icuGrid({ left: 40, right: 20, top: 30, bottom: 30 }),
+    xAxis: icuCategoryAxis(xs, {
       axisLine: { lineStyle: { color: '#1e2a3a' } },
       axisLabel: { color: '#6b7280', fontSize: 10 },
-    },
-    yAxis: {
-      type: 'value',
-      axisLine: { lineStyle: { color: '#1e2a3a' } },
+    }),
+    yAxis: icuValueAxis({
+      axisLine: { show: true, lineStyle: { color: '#1e2a3a' } },
       axisLabel: { color: '#6b7280', fontSize: 10 },
       splitLine: { lineStyle: { color: '#132237' } },
-    },
+    }),
     series: [
       { name: 'HR', type: 'line', smooth: true, data: trendPoints.value.map(p => p.hr ?? null) },
       { name: 'SpO₂', type: 'line', smooth: true, data: trendPoints.value.map(p => p.spo2 ?? null) },
@@ -1871,17 +1904,98 @@ onMounted(() => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+
 .detail-container {
   max-width: 1680px;
   margin: 0 auto;
   padding: 0 16px 24px;
+  position: relative;
+  isolation: isolate;
+  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+}
+.detail-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(73, 196, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73, 196, 255, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.18;
+  z-index: -1;
 }
 .detail-page-header {
-  background: var(--card-bg);
+  background: linear-gradient(180deg, rgba(9,22,36,.94) 0%, rgba(6,15,27,.92) 100%);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(80,199,255,.16);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.06), 0 12px 28px rgba(0,0,0,.2);
+}
+.detail-page-header :deep(.ant-page-header-heading-title) {
+  color: #ecfeff;
+  letter-spacing: .04em;
+}
+.detail-page-header :deep(.ant-page-header-heading-sub-title),
+.detail-page-header :deep(.ant-page-header-back-button) {
+  color: #7ecce1;
+}
+.monitor-hero {
+  display: grid;
+  grid-template-columns: 1.5fr 2fr;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.08), rgba(34,211,238,0) 28%),
+    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  border: 1px solid rgba(80,199,255,.14);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+}
+.hero-main { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(8,28,44,.82);
+  border: 1px solid rgba(80,199,255,.14);
+  color: #7ecce1;
+  font-size: 11px;
+  letter-spacing: .12em;
+}
+.hero-tag--soft { color: #dffbff; }
+.hero-diagnosis {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ecfeff;
+  line-height: 1.25;
+}
+.hero-meta { color: #8fb8ca; font-size: 13px; }
+.hero-vitals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.hero-vital {
+  min-height: 90px;
+  padding: 12px;
   border-radius: 10px;
-  margin-bottom: 20px;
-  border: 1px solid var(--card-border);
-  box-shadow: var(--card-shadow);
+  background: linear-gradient(180deg, rgba(8,31,49,.98) 0%, rgba(6,21,35,.98) 100%);
+  border: 1px solid rgba(71,196,255,.14);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.hero-vital span { font-size: 11px; color: #7ecce1; letter-spacing: .14em; }
+.hero-vital strong {
+  font-size: 24px;
+  color: #effcff;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  line-height: 1;
 }
 .detail-content {
   display: grid;
@@ -1890,10 +2004,22 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 .info-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  box-shadow: var(--card-shadow);
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+  border: 1px solid rgba(80,199,255,.14);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+}
+.info-card :deep(.ant-card-head) {
+  border-bottom: 1px solid rgba(80,199,255,.1);
+}
+.info-card :deep(.ant-card-head-title) {
+  color: #67e8f9;
+  font-size: 13px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.info-card :deep(.ant-card-body) {
+  color: #dffbff;
 }
 .vitals-grid {
   display: grid;
@@ -1939,39 +2065,81 @@ onMounted(() => {
 .acid-comp { background: rgba(148, 163, 184, 0.14); color: #cbd5f5; }
 .acid-comp.abnormal { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
 .v-item {
-  background: var(--panel-soft);
-  border: 1px solid var(--card-border);
-  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(8,31,49,.98) 0%, rgba(6,21,35,.98) 100%);
+  border: 1px solid rgba(71,196,255,.14);
+  border-radius: 10px;
   padding: 12px;
   transition: all 0.2s;
 }
 .v-label {
   display: block;
   font-size: 11px;
-  color: var(--text-muted);
+  color: #7ecce1;
   margin-bottom: 6px;
   font-weight: 600;
+  letter-spacing: .12em;
 }
 .v-value {
   font-size: 18px;
   font-weight: 800;
-  color: var(--text-main);
-  font-family: 'SF Mono', 'Consolas', monospace;
+  color: #effcff;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
 }
 .vitals-empty {
-  color: #6b7280;
+  color: #7ccfe4;
   font-size: 12px;
   padding: 10px 0;
 }
 .tabs-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+  border: 1px solid rgba(80,199,255,.14);
   border-radius: 12px;
-  box-shadow: var(--card-shadow);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
 }
 .tabs-card :deep(.ant-card-body) {
-  padding: 14px 16px 18px;
+  padding: 12px 14px 16px;
   overflow: visible;
+}
+.tabs-card :deep(.ant-tabs-tab) {
+  background: rgba(8,28,44,.78);
+  border: 1px solid rgba(80,199,255,.1);
+  border-radius: 10px;
+}
+.tabs-card :deep(.ant-tabs-tab-btn) {
+  color: #8bcfe1;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tabs-card :deep(.ant-tabs-tab-active) {
+  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
+  border-color: rgba(110,231,249,.28);
+}
+.tabs-card :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #effcff;
+}
+.tabs-card :deep(.ant-tabs-ink-bar) { display: none; }
+.tabs-card :deep(.ant-table) {
+  background: transparent;
+  color: #dffbff;
+}
+.tabs-card :deep(.ant-table-thead > tr > th) {
+  background: rgba(8,28,44,.82);
+  color: #7ccfe4;
+  border-bottom-color: rgba(80,199,255,.1);
+}
+.tabs-card :deep(.ant-table-tbody > tr > td) {
+  background: transparent;
+  color: #e3fbff;
+  border-bottom-color: rgba(80,199,255,.08);
+}
+.tabs-card :deep(.ant-btn),
+.tabs-card :deep(.ant-segmented),
+.tabs-card :deep(.ant-select-selector),
+.tabs-card :deep(.ant-input),
+.tabs-card :deep(.ant-input-number) {
+  background: rgba(8,28,44,.78) !important;
+  border-color: rgba(80,199,255,.14) !important;
+  color: #e8fbff !important;
 }
 .tabs-card :deep(.ant-tabs-nav) {
   margin-bottom: 14px;
@@ -2542,6 +2710,15 @@ onMounted(() => {
   }
 }
 
+@media (max-width: 1200px) {
+  .monitor-hero {
+    grid-template-columns: 1fr;
+  }
+  .hero-vitals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 980px) {
   .detail-container {
     padding: 0 8px 14px;
@@ -2578,6 +2755,15 @@ onMounted(() => {
 @media (max-width: 640px) {
   .detail-page-header {
     margin-bottom: 10px;
+  }
+  .hero-diagnosis {
+    font-size: 18px;
+  }
+  .hero-vitals {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hero-vital strong {
+    font-size: 22px;
   }
   .tabs-card :deep(.ant-tabs-nav) {
     overflow-x: auto;

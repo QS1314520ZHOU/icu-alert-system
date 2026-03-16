@@ -335,94 +335,174 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ================================================================
-   ICU Overview v3 — 精致医疗级暗色主题
-   ================================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+
 .overview { 
-  background: var(--app-bg); 
-  padding: 16px 24px; 
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.12) 0%, rgba(34, 211, 238, 0) 28%),
+    linear-gradient(180deg, #06111d 0%, #040b14 100%);
+  padding: 22px 24px 28px;
   min-height: 100%; 
-  color: var(--text-main);
+  color: #d8f6ff;
+  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+}
+.overview::before,
+.overview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.overview::before {
+  background:
+    linear-gradient(rgba(73, 196, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73, 196, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.28;
+  z-index: -2;
+}
+.overview::after {
+  background: linear-gradient(180deg, rgba(19, 41, 64, 0.16), rgba(19, 41, 64, 0));
+  z-index: -1;
 }
 
-/* ── 顶部 ── */
 .top-bar {
-  margin-bottom: 14px;
+  margin-bottom: 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(80, 199, 255, 0.18);
+  background: linear-gradient(180deg, rgba(9, 22, 36, 0.92) 0%, rgba(6, 15, 27, 0.9) 100%);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.08), 0 10px 28px rgba(0, 0, 0, 0.22);
+  clip-path: polygon(0 12px, 12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px));
 }
 .summary-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .sum-block {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 10px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  box-shadow: var(--card-shadow);
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(10, 29, 47, 0.94) 0%, rgba(8, 21, 34, 0.94) 100%);
+  border: 1px solid rgba(70, 193, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.06), 0 8px 18px rgba(0, 0, 0, 0.18);
   transition: all 0.2s;
+  clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
 }
 .sum-block.clickable { cursor: pointer; }
-.sum-block.clickable:hover { background: var(--card-hover); transform: translateY(-1px); }
-.sum-block.chosen { background: var(--tab-active-bg); border-color: var(--tab-active-border); }
-.sum-val { font-size: 22px; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; }
-.sum-lbl { font-size: 11px; color: var(--text-muted); font-weight: 600; }
-.sum-dot { width: 8px; height: 8px; border-radius: 50%; }
-.dot-crit { background: #F87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.4); animation: blink 1.4s infinite; }
-.dot-warn { background: #FBBF24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
-.dot-ok { background: #34D399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.4); }
-.sum-divider { width: 1px; height: 24px; background: var(--card-border); margin: 0 6px; }
+.sum-block.clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(72, 225, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.08), 0 0 18px rgba(34, 211, 238, 0.12);
+}
+.sum-block.chosen {
+  background: linear-gradient(180deg, rgba(15, 54, 80, 0.96) 0%, rgba(8, 29, 48, 0.94) 100%);
+  border-color: rgba(86, 229, 255, 0.34);
+}
+.sum-val {
+  font-size: 24px;
+  font-weight: 700;
+  color: #e0fbff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.18);
+}
+.sum-lbl {
+  font-size: 12px;
+  color: #6ee7f9;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sum-dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot-crit { background: #fb5a7a; box-shadow: 0 0 12px rgba(251, 90, 122, 0.52); animation: blink 1.2s infinite; }
+.dot-warn { background: #ffbf3c; box-shadow: 0 0 12px rgba(255, 191, 60, 0.44); }
+.dot-ok { background: #3ee7c0; box-shadow: 0 0 12px rgba(62, 231, 192, 0.44); }
+.sum-divider { width: 1px; height: 28px; background: rgba(72, 193, 255, 0.16); margin: 0 2px; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 
-/* 科室 */
-.dept-nav { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px; }
+.dept-nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .dept-pill {
-  background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px;
-  padding: 4px 14px; color: var(--text-muted); font-size: 13px; cursor: pointer;
+  background: rgba(8, 25, 40, 0.82);
+  border: 1px solid rgba(72, 193, 255, 0.14);
+  border-radius: 999px;
+  padding: 6px 14px;
+  color: #8dd9ee;
+  font-size: 12px;
+  cursor: pointer;
   white-space: nowrap; transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  font-weight: 600;
 }
-.dept-pill i { font-style: normal; font-size: 10px; opacity: 0.7; margin-left: 4px; font-weight: 700; }
-.dept-pill:hover { color: var(--text-main); border-color: var(--tab-active-border); background: var(--card-hover); }
-.dept-pill.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; box-shadow: 0 4px 10px rgba(29, 78, 216, 0.3); }
+.dept-pill i { font-style: normal; font-size: 11px; opacity: 0.8; margin-left: 6px; font-weight: 700; color: #d9fbff; }
+.dept-pill:hover {
+  color: #d9fbff;
+  border-color: rgba(86, 229, 255, 0.28);
+  background: rgba(11, 36, 56, 0.94);
+}
+.dept-pill.active {
+  background: linear-gradient(180deg, rgba(9, 129, 170, 0.94) 0%, rgba(10, 79, 124, 0.98) 100%);
+  border-color: rgba(129, 248, 255, 0.38);
+  color: #ecfeff;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.14);
+}
 .dept-pill.active i { opacity: 0.8; }
 
-/* 标签 chip */
-.tag-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.tag-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip {
-  font-size: 11px; padding: 2px 9px; border-radius: 10px;
-  background: rgba(255,255,255,0.03); color: #888; cursor: pointer;
-  border: 1px solid transparent; transition: all 0.15s; white-space: nowrap;
+  font-size: 12px; padding: 6px 10px; border-radius: 10px;
+  background: rgba(9, 24, 39, 0.82);
+  color: #8dcde0;
+  cursor: pointer;
+  border: 1px solid rgba(72, 193, 255, 0.14);
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-weight: 600;
 }
-.chip:hover { background: rgba(255,255,255,0.06); }
-.chip.chosen { border-color: currentColor; }
+.chip:hover { background: rgba(11, 36, 56, 0.94); border-color: rgba(86, 229, 255, 0.24); }
+.chip.chosen {
+  border-color: currentColor;
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.08) inset;
+}
 .chip b { font-weight: 700; margin-left: 3px; }
 
-/* ── 加载 ── */
-.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh; color: #555; gap: 14px; }
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  color: #7ed6e8;
+  gap: 14px;
+  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+}
 .loader-ring {
-  width: 32px; height: 32px; border: 3px solid #1a1a2e;
-  border-top-color: #3b82f6; border-radius: 50%;
+  width: 36px; height: 36px; border: 3px solid rgba(72, 193, 255, 0.14);
+  border-top-color: #3ee7c0; border-radius: 50%;
   animation: spin .7s linear infinite;
+  box-shadow: 0 0 18px rgba(62, 231, 192, 0.14);
 }
 @keyframes spin { to { transform: rotate(360deg) } }
-@keyframes flash-border {
-  0%, 100% { box-shadow: 0 0 0 rgba(239,68,68,0); }
-  50% { box-shadow: 0 0 18px rgba(239,68,68,0.35); }
-}
 
-/* ── 网格 ── */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
 }
 
-/* Removed redundant Light Theme block - now fully driven by CSS variables */
+@media (max-width: 900px) {
+  .overview {
+    padding: 16px;
+  }
+  .top-bar {
+    padding: 12px;
+  }
+}
 </style>
