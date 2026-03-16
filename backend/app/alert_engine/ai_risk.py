@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 from app.services.ai_monitor import AiMonitor
+from app.services.llm_runtime import call_llm_chat
 from app.services.rag_service import RagService
 
 
@@ -851,40 +852,30 @@ JSON结构:
         llm_cfg = ai_cfg.get("llm", {}) if isinstance(ai_cfg, dict) else {}
         temperature = float(llm_cfg.get("temperature", 0.1) or 0.1)
         max_tokens = int(llm_cfg.get("max_tokens", 1024) or 1024)
-        url = cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"
-        model = cfg.settings.LLM_MODEL_MEDICAL or cfg.settings.LLM_MODEL
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {cfg.settings.LLM_API_KEY}",
-        }
-        payload = {
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": patient_context},
-            ],
-        }
+        model = cfg.llm_model_medical or cfg.settings.LLM_MODEL
 
         monitor = self._get_ai_monitor()
         start_ms = AiMonitor.now_ms() if monitor else 0.0
         raw_text = ""
         usage = None
-
-        async def _do_request(request_client: httpx.AsyncClient) -> tuple[str, dict | None]:
-            resp = await request_client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"], (data.get("usage") if isinstance(data, dict) else None)
+        meta = {}
 
         try:
-            if client is None:
-                timeout_sec = float(llm_cfg.get("timeout", 30) or 30)
-                async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_sec)) as local_client:
-                    raw_text, usage = await _do_request(local_client)
-            else:
-                raw_text, usage = await _do_request(client)
+            timeout_sec = float(llm_cfg.get("timeout", 30) or 30)
+            result = await call_llm_chat(
+                cfg=cfg,
+                system_prompt=system_prompt,
+                user_prompt=patient_context,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout_seconds=timeout_sec,
+                client=client,
+            )
+            raw_text = str(result.get("text") or "")
+            usage = result.get("usage")
+            model = str(result.get("model") or model)
+            meta = result.get("meta") or {}
         except Exception:
             if monitor:
                 await monitor.log_llm_call(
@@ -894,7 +885,7 @@ JSON结构:
                     output=raw_text,
                     latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
                     success=False,
-                    meta={"url": url},
+                    meta=meta or {"url": cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"},
                     usage=usage,
                 )
             raise
@@ -918,7 +909,7 @@ JSON结构:
                     output=text,
                     latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
                     success=True,
-                    meta={"url": url},
+                    meta=meta or {"url": cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"},
                     usage=usage,
                 )
             return parsed
@@ -931,7 +922,7 @@ JSON结构:
                     output=text,
                     latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
                     success=False,
-                    meta={"url": url, "error": "json_decode_error"},
+                    meta={**(meta or {"url": cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"}), "error": "json_decode_error"},
                     usage=usage,
                 )
             return None

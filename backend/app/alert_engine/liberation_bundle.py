@@ -29,6 +29,7 @@ class LiberationBundleMixin:
         if not pid:
             return {"lights": {}}
         now = datetime.now()
+        ecash = await self.get_ecash_status(patient_doc) if hasattr(self, "get_ecash_status") else {}
 
         cpot_hours = await self._latest_event_hours(pid, ["cpot", "bps", "疼痛"], lookback_hours=24)
         cam_hours = await self._latest_event_hours(pid, ["cam-icu", "cam icu", "谵妄"], lookback_hours=24)
@@ -45,10 +46,10 @@ class LiberationBundleMixin:
         sbt_state = "green" if (sbt_alert or (sat_hours is not None and sat_hours <= 24)) else "red"
 
         lights = {
-            "A": self._bundle_state(hours_since=cpot_hours, green_h=4, yellow_h=6),
+            "A": ((ecash.get("analgesia") or {}).get("status")) or self._bundle_state(hours_since=cpot_hours, green_h=4, yellow_h=6),
             "B": sbt_state,
-            "C": sedation_state,
-            "D": self._bundle_state(hours_since=cam_hours, green_h=8, yellow_h=12),
+            "C": ((ecash.get("sedation") or {}).get("status")) or sedation_state,
+            "D": ((ecash.get("delirium") or {}).get("status")) or self._bundle_state(hours_since=cam_hours, green_h=8, yellow_h=12),
             "E": self._bundle_state(hours_since=mobility_hours, green_h=24, yellow_h=36),
             "F": self._bundle_state(hours_since=family_hours, green_h=24, yellow_h=48),
         }
@@ -64,6 +65,7 @@ class LiberationBundleMixin:
                 "sat_hours": sat_hours,
                 "sbt_ready": bool(sbt_alert),
             },
+            "ecash": ecash,
             "updated_at": now,
         }
 
@@ -107,4 +109,3 @@ class LiberationBundleMixin:
 
         if triggered > 0:
             self._log_info("Bundle合规", triggered)
-

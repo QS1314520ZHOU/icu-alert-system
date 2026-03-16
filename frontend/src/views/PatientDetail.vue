@@ -152,6 +152,7 @@
         <a-tab-pane key="ai" tab="AI辅助">
           <PatientAiTab
             v-if="activeTab === 'ai'"
+            :patient="patient"
             :ai-lab-loading="aiLabLoading"
             :ai-lab-summary="aiLabSummary"
             :load-ai-lab="loadAiLab"
@@ -172,6 +173,7 @@
             :ai-risk-evidence-list="aiRiskEvidenceList"
             :open-evidence="openEvidence"
             :ai-risk-hallucinations="aiRiskHallucinations"
+            :ai-risk-forecast="aiRiskForecast"
             :ai-risk-text="aiRiskText"
             :ai-risk-error="aiRiskError"
             :ai-handoff-loading="aiHandoffLoading"
@@ -276,6 +278,7 @@ const compositeOrganLabelDefault: Record<string, string> = {
 const aiLabSummary = ref('')
 const aiRuleText = ref('')
 const aiRiskText = ref('')
+const aiRiskForecast = ref<any>(null)
 const aiHandoff = ref<any>(null)
 const aiLabError = ref('')
 const aiRuleError = ref('')
@@ -631,6 +634,7 @@ function aiRiskLevelText(raw: any) {
   
   if (v === 'critical' || v === '极高') return '极高'
   if (v === 'high' || v === '高') return '高'
+  if (v === 'warning' || v === 'warn') return '中'
   if (v === 'medium' || v === '中') return '中'
   if (v === 'low' || v === '低') return '低'
   return v || '—'
@@ -1800,9 +1804,11 @@ async function loadAiRisk() {
   aiRiskLoading.value = true
   try {
     const res = await getAiRiskForecast(patientId)
+    aiRiskForecast.value = res.data || null
     aiRiskText.value = res.data.risk_summary || ''
     aiRiskError.value = formatAiError(res.data.error || '')
   } catch (e) {
+    aiRiskForecast.value = null
     aiRiskError.value = 'AI服务不可用'
   } finally {
     aiRiskLoading.value = false
@@ -1843,6 +1849,7 @@ function resetDetailState() {
   aiLabSummary.value = ''
   aiRuleText.value = ''
   aiRiskText.value = ''
+  aiRiskForecast.value = null
   aiHandoff.value = null
   knowledgeDocs.value = []
   selectedKnowledgeDocId.value = ''

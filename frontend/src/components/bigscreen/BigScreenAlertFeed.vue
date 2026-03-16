@@ -16,6 +16,27 @@
           <span v-if="a.category" class="meta-pill">{{ labelCategory(a.category) }}</span>
           <span v-if="a.alert_type" class="meta-pill meta-pill--soft">{{ labelType(a.alert_type) }}</span>
         </div>
+        <div v-if="hasExplanation(a)" class="alert-explanation">
+          <div class="alert-explanation-tag">CLINICAL REASONING</div>
+          <div class="alert-explanation-grid">
+            <div v-if="explanationSummary(a)" class="alert-explanation-block">
+              <div class="alert-explanation-label">Summary</div>
+              <div class="alert-explanation-text">{{ explanationSummary(a) }}</div>
+            </div>
+            <div v-if="explanationEvidence(a).length" class="alert-explanation-block">
+              <div class="alert-explanation-label">Evidence</div>
+              <ul class="alert-explanation-list">
+                <li v-for="(ev, idx) in explanationEvidence(a)" :key="`ev-${a._id || idx}-${idx}`">
+                  {{ ev }}
+                </li>
+              </ul>
+            </div>
+            <div v-if="explanationSuggestion(a)" class="alert-explanation-block">
+              <div class="alert-explanation-label">Suggestion</div>
+              <div class="alert-explanation-text">{{ explanationSuggestion(a) }}</div>
+            </div>
+          </div>
+        </div>
         <div class="alert-meta">
           MONITOR EVENT · {{ a.rule_id || a.alert_type || 'RULE' }}
         </div>
@@ -37,6 +58,46 @@ defineProps<{
 function fmtTime(t: any) {
   if (!t) return ''
   try { return dayjs(t).format('HH:mm') } catch { return '' }
+}
+
+function explanationPayload(alert: any) {
+  const exp = alert?.explanation
+  if (typeof exp === 'string') {
+    return {
+      summary: exp,
+      evidence: [] as string[],
+      suggestion: '',
+    }
+  }
+  if (exp && typeof exp === 'object') {
+    return {
+      summary: typeof exp.summary === 'string' ? exp.summary : (typeof exp.text === 'string' ? exp.text : ''),
+      evidence: Array.isArray(exp.evidence) ? exp.evidence.filter((x: any) => String(x || '').trim()) : [],
+      suggestion: typeof exp.suggestion === 'string' ? exp.suggestion : '',
+    }
+  }
+  return {
+    summary: typeof alert?.explanation_text === 'string' ? alert.explanation_text : '',
+    evidence: [] as string[],
+    suggestion: '',
+  }
+}
+
+function hasExplanation(alert: any) {
+  const p = explanationPayload(alert)
+  return !!(p.summary || p.evidence.length || p.suggestion)
+}
+
+function explanationSummary(alert: any) {
+  return explanationPayload(alert).summary || ''
+}
+
+function explanationEvidence(alert: any) {
+  return explanationPayload(alert).evidence || []
+}
+
+function explanationSuggestion(alert: any) {
+  return explanationPayload(alert).suggestion || ''
 }
 
 function labelCategory(v: any) {
@@ -374,6 +435,55 @@ function severityText(v: any) {
   color: #6ea9bc;
   line-height: 1.35;
   letter-spacing: .08em;
+}
+.alert-explanation {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(6, 23, 37, 0.92) 0%, rgba(5, 18, 30, 0.94) 100%);
+}
+.alert-explanation-tag {
+  color: #67dff2;
+  font-size: 9px;
+  letter-spacing: .14em;
+}
+.alert-explanation-grid {
+  display: grid;
+  gap: 6px;
+}
+.alert-explanation-block {
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(80, 199, 255, 0.08);
+  background: rgba(8, 27, 42, 0.62);
+}
+.alert-explanation-label {
+  margin-bottom: 3px;
+  color: #93ebff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.alert-explanation-text {
+  color: #d9ebff;
+  font-size: 10px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.alert-explanation-list {
+  margin: 0;
+  padding-left: 14px;
+  color: #d9ebff;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.alert-explanation-list li + li {
+  margin-top: 2px;
 }
 .alert-side {
   display: flex;

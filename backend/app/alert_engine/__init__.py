@@ -34,6 +34,11 @@ from .trend_analyzer import TrendMixin
 from .vte_prophylaxis import VteProphylaxisMixin
 from .vital_signs import VitalSignsMixin
 from .ventilator import VentilatorMixin
+from .cardiac_arrest_predictor import CardiacArrestPredictorMixin
+from .microbiology_monitor import MicrobiologyMonitorMixin
+from .pe_detector import PeDetectorMixin
+from .postop_monitor import PostopMonitorMixin
+from .ecash_bundle import EcashBundleMixin
 
 logger = logging.getLogger("icu-alert")
 
@@ -63,6 +68,11 @@ class AlertEngine(
     HemodynamicAdvisorMixin,
     DoseAdjustmentMixin,
     DischargeReadinessMixin,
+    CardiacArrestPredictorMixin,
+    MicrobiologyMonitorMixin,
+    PeDetectorMixin,
+    PostopMonitorMixin,
+    EcashBundleMixin,
     TrendMixin,
     AiRiskMixin,
     NurseReminderMixin,
@@ -95,10 +105,15 @@ class AlertEngine(
             asyncio.create_task(self._loop("fluid_balance", self.scan_fluid_balance, int(intervals.get("fluid_balance", 600)))),
             asyncio.create_task(self._loop("glycemic_control", self.scan_glycemic_control, int(intervals.get("glycemic_control", 300)))),
             asyncio.create_task(self._loop("vte_prophylaxis", self.scan_vte_prophylaxis, int(intervals.get("vte_prophylaxis", 900)))),
+            asyncio.create_task(self._loop("pe_detection", self.scan_pe_risk, int(intervals.get("pe_detection", 600)))),
+            asyncio.create_task(self._loop("postop_monitor", self.scan_postop_complications, int(intervals.get("postop_monitor", 1800)))),
             asyncio.create_task(self._loop("nutrition_monitor", self.scan_nutrition_monitor, int(intervals.get("nutrition_monitor", 900)))),
             asyncio.create_task(self._loop("composite_deterioration", self.scan_composite_deterioration, int(intervals.get("composite_deterioration", 300)))),
+            asyncio.create_task(self._loop("cardiac_arrest", self.scan_cardiac_arrest_risk, int(intervals.get("cardiac_arrest", 120)))),
             asyncio.create_task(self._loop("crrt_monitor", self.scan_crrt_monitor, int(intervals.get("crrt_monitor", 600)))),
             asyncio.create_task(self._loop("liberation_bundle", self.scan_liberation_bundle, int(intervals.get("liberation_bundle", 900)))),
+            asyncio.create_task(self._loop("ecash_bundle", self.scan_ecash_bundle, int(intervals.get("ecash_bundle", 600)))),
+            asyncio.create_task(self._loop("microbiology", self.scan_microbiology, int(intervals.get("microbiology", 1800)))),
             asyncio.create_task(self._loop("hemodynamic_advisor", self.scan_hemodynamic_advisor, int(intervals.get("hemodynamic_advisor", 300)))),
             asyncio.create_task(self._loop("dose_adjustment", self.scan_dose_adjustment, int(intervals.get("dose_adjustment", 1800)))),
             asyncio.create_task(self._loop("discharge_readiness", self.scan_discharge_readiness, int(intervals.get("discharge_readiness", 1800)))),
@@ -129,14 +144,19 @@ class AlertEngine(
             "drug_safety": 45,
             "antibiotic_stewardship": 42,
             "delirium_risk": 35,
+            "cardiac_arrest": 32,
             "device_management": 37,
             "fluid_balance": 39,
             "glycemic_control": 41,
             "vte_prophylaxis": 43,
+            "pe_detection": 44,
+            "postop_monitor": 64,
             "nutrition_monitor": 47,
             "composite_deterioration": 49,
             "crrt_monitor": 51,
             "liberation_bundle": 53,
+            "ecash_bundle": 66,
+            "microbiology": 62,
             "hemodynamic_advisor": 55,
             "dose_adjustment": 57,
             "discharge_readiness": 59,

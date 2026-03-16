@@ -1,5 +1,11 @@
 <template>
-  <div class="ai-grid">
+  <div>
+    <div class="ai-service-bar">
+      <span :class="['ai-service-dot', `is-${aiServiceStatus.level}`]"></span>
+      <span class="ai-service-text">{{ aiServiceStatus.text }}</span>
+      <span v-if="aiServiceStatus.detail" class="ai-service-detail">{{ aiServiceStatus.detail }}</span>
+    </div>
+    <div class="ai-grid">
     <a-card title="检验异常摘要" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">进入详情自动生成</span>
@@ -41,22 +47,63 @@
         <a-button size="small" type="link" :loading="aiRiskLoading" @click="loadAiRisk">重新生成</a-button>
       </div>
       <a-spin :spinning="aiRiskLoading">
-        <div v-if="latestAiRiskAlert" :class="['ai-risk-card', aiConfidenceClass(aiRiskConfidenceLevel(latestAiRiskAlert))]">
+        <div v-if="latestAiRiskAlert || hasRiskForecast" :class="['ai-risk-card', aiConfidenceClass(aiRiskConfidenceLevel(latestAiRiskAlert || {}))]">
           <div class="workbench-kpis">
             <div class="wb-kpi">
               <span>主要风险</span>
-              <strong>{{ latestAiRiskAlert.extra?.primary_risk || latestAiRiskAlert.name || '综合风险' }}</strong>
+              <strong>{{ latestAiRiskAlert?.extra?.primary_risk || latestAiRiskAlert?.name || forecastPrimaryRisk }}</strong>
             </div>
             <div class="wb-kpi">
               <span>风险等级</span>
-              <strong>{{ aiRiskLevelText(latestAiRiskAlert.extra?.risk_level || latestAiRiskAlert.condition?.risk_level || latestAiRiskAlert.value) }}</strong>
+              <strong>{{ forecastRiskLabel }}</strong>
             </div>
             <div class="wb-kpi">
-              <span>安全校验</span>
-              <strong>{{ latestAiRiskAlert.extra?.safety_validation?.status || 'ok' }}</strong>
+              <span>当前概率</span>
+              <strong>{{ forecastCurrentProbability }}</strong>
             </div>
           </div>
-          <div v-if="aiRiskEvidenceList(latestAiRiskAlert).length" class="ai-workbench-section">
+          <div v-if="hasRiskForecast" class="ai-workbench-section">
+            <div class="ai-workbench-title">病情风险走势图</div>
+            <div class="risk-curve-head">
+              <span class="curve-meta">{{ forecastModelLabel }}</span>
+              <span class="curve-meta">{{ forecastHorizonText }}</span>
+            </div>
+            <AiRiskChart :option="riskForecastOption" autoresize class="risk-curve-chart" />
+          </div>
+          <div v-if="forecastSummaryBlock.visible" class="ai-workbench-section">
+            <div class="ai-workbench-title">模型摘要</div>
+            <div class="summary-panel">
+              <div :class="['summary-conclusion', `summary-conclusion--${forecastSummaryBlock.level}`]">
+                <div class="summary-conclusion-label">当前判断</div>
+                <div class="summary-conclusion-text">{{ forecastSummaryBlock.summary }}</div>
+              </div>
+              <div v-if="forecastSummaryBlock.evidence.length" class="summary-section">
+                <div class="summary-label">主要依据</div>
+                <div class="summary-chip-group">
+                  <span
+                    v-for="(item, idx) in forecastSummaryBlock.evidence"
+                    :key="`sum-ev-${idx}`"
+                    class="summary-chip"
+                  >
+                    {{ item }}
+                  </span>
+                </div>
+              </div>
+              <div class="summary-section">
+                <div class="summary-label">处置建议</div>
+                <div class="summary-order">{{ forecastSummaryBlock.suggestion }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-if="forecastContributors.length" class="ai-workbench-section">
+            <div class="ai-workbench-title">主要驱动因子</div>
+            <ul class="workbench-list">
+              <li v-for="(item, idx) in forecastContributors" :key="`risk-${idx}`">
+                {{ item.feature || item.organ || '风险因素' }} · {{ item.evidence || '—' }}
+              </li>
+            </ul>
+          </div>
+          <div v-if="latestAiRiskAlert && aiRiskEvidenceList(latestAiRiskAlert).length" class="ai-workbench-section">
             <div class="ai-workbench-title">证据脚注</div>
             <div class="ai-footnote-row">
               <span
@@ -84,7 +131,7 @@
               </span>
             </div>
           </div>
-          <div v-if="aiRiskHallucinations(latestAiRiskAlert).length" class="ai-workbench-section">
+          <div v-if="latestAiRiskAlert && aiRiskHallucinations(latestAiRiskAlert).length" class="ai-workbench-section">
             <div class="ai-workbench-title handoff-warning">幻觉检测</div>
             <div class="workbench-flag">提示 {{ aiRiskHallucinations(latestAiRiskAlert).length }} 条异常声明</div>
           </div>
@@ -95,7 +142,7 @@
       <div v-if="aiRiskError" class="ai-error">{{ aiRiskError }}</div>
     </a-card>
 
-    <a-card title="交班摘要(I-PASS)" :bordered="false" class="ai-card">
+    <a-card title="交班摘要(ISBAR)" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">最近12h自动归纳</span>
         <div>
@@ -107,37 +154,38 @@
         <div v-if="aiHandoff" :class="['handoff-wrap', aiConfidenceClass(aiHandoffConfidence)]">
           <div class="workbench-kpis">
             <div class="wb-kpi">
-              <span>Illness severity</span>
-              <strong>{{ aiHandoff.illness_severity || 'watcher' }}</strong>
+              <span>病情级别</span>
+              <strong>{{ handoffSeverityText(aiHandoff.illness_severity) }}</strong>
             </div>
             <div class="wb-kpi">
-              <span>Confidence</span>
-              <strong>{{ aiHandoff.confidence_level || 'low' }}</strong>
+              <span>摘要可信度</span>
+              <strong>{{ handoffConfidenceText(aiHandoff.confidence_level) }}</strong>
             </div>
             <div class="wb-kpi">
-              <span>Validation</span>
-              <strong>{{ aiHandoff?.validation?.issues?.length ? `警告 ${aiHandoff.validation.issues.length}` : 'ok' }}</strong>
+              <span>一致性校验</span>
+              <strong>{{ handoffValidationText(aiHandoff) }}</strong>
             </div>
           </div>
-          <div class="ai-workbench-section">
-            <div class="ai-workbench-title">Patient summary</div>
-            <div class="workbench-text">{{ aiHandoff.patient_summary || '—' }}</div>
-          </div>
-          <div class="ai-workbench-section">
-            <div class="ai-workbench-title">Action list</div>
-            <ul class="workbench-list">
-              <li v-for="(item, idx) in normalizeList(aiHandoff.action_list)" :key="`a-${idx}`">{{ item }}</li>
-            </ul>
-          </div>
-          <div class="ai-workbench-section">
-            <div class="ai-workbench-title">Situation awareness</div>
-            <ul class="workbench-list">
-              <li v-for="(item, idx) in normalizeList(aiHandoff.situation_awareness)" :key="`s-${idx}`">{{ item }}</li>
-            </ul>
-          </div>
-          <div class="ai-workbench-section">
-            <div class="ai-workbench-title">Synthesis by receiver</div>
-            <div class="workbench-text">{{ aiHandoff.synthesis_by_receiver || '—' }}</div>
+          <div class="isbar-grid">
+            <div
+              v-for="section in handoffIsbarSections"
+              :key="section.key"
+              class="ai-workbench-section isbar-section"
+            >
+              <div class="isbar-head">
+                <span class="isbar-code">{{ section.code }}</span>
+                <div class="ai-workbench-title">{{ section.title }}</div>
+              </div>
+              <div v-if="section.mode === 'text'" class="workbench-text">{{ section.text }}</div>
+              <ul v-else-if="section.mode === 'list'" class="workbench-list">
+                <li v-for="(item, idx) in section.items" :key="`${section.key}-${idx}`">{{ item }}</li>
+              </ul>
+              <div v-else-if="section.mode === 'chips'" class="summary-chip-group">
+                <span v-for="(item, idx) in section.items" :key="`${section.key}-${idx}`" class="summary-chip">
+                  {{ item }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
         <div v-else class="ai-empty">暂无内容</div>
@@ -199,10 +247,12 @@
       </a-spin>
       <div v-if="knowledgeError" class="ai-error">{{ knowledgeError }}</div>
     </a-card>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, defineAsyncComponent } from 'vue'
 import {
   Button as AButton,
   Card as ACard,
@@ -212,8 +262,10 @@ import {
   Spin as ASpin,
   Table as ATable,
 } from 'ant-design-vue'
+import { icuCategoryAxis, icuGrid, icuTooltip, icuValueAxis } from '../../charts/icuTheme'
 
-defineProps<{
+const props = defineProps<{
+  patient?: any
   aiLabLoading: boolean
   aiLabSummary: string
   loadAiLab: () => void
@@ -234,6 +286,7 @@ defineProps<{
   aiRiskEvidenceList: (item: any) => any[]
   openEvidence: (evidence: any) => void
   aiRiskHallucinations: (item: any) => any[]
+  aiRiskForecast: any
   aiRiskText: string
   aiRiskError: string
   aiHandoffLoading: boolean
@@ -254,9 +307,424 @@ defineProps<{
   knowledgeScopeText: (v: any) => string
   knowledgeError: string
 }>()
+
+const AiRiskChart = defineAsyncComponent(async () => {
+  await import('../../charts/patient-detail')
+  const mod = await import('vue-echarts')
+  return mod.default
+})
+
+const organLabelMap: Record<string, string> = {
+  respiratory: '呼吸',
+  circulatory: '循环',
+  renal: '肾脏',
+  neurologic: '神经',
+  coagulation: '凝血',
+  hepatic: '肝脏',
+}
+const organCurvePalette: Record<string, string> = {
+  respiratory: '#38bdf8',
+  circulatory: '#fb7185',
+  renal: '#a78bfa',
+  neurologic: '#f59e0b',
+  coagulation: '#22c55e',
+  hepatic: '#e879f9',
+}
+const hasRiskForecast = computed(() => {
+  const history = Array.isArray(props.aiRiskForecast?.history_risk_curve) ? props.aiRiskForecast.history_risk_curve : []
+  const future = Array.isArray(props.aiRiskForecast?.forecast_risk_curve) ? props.aiRiskForecast.forecast_risk_curve : []
+  const curve = Array.isArray(props.aiRiskForecast?.risk_curve) ? props.aiRiskForecast.risk_curve : []
+  return history.length > 0 || future.length > 0 || curve.length > 0
+})
+const forecastPrimaryRisk = computed(() => {
+  const organs = props.aiRiskForecast?.organ_risk_scores || {}
+  const tops = Object.keys(organs).sort((a, b) => Number(organs[b] || 0) - Number(organs[a] || 0))
+  if (!tops.length) return '多模态时序风险'
+  const topKey = String(tops[0] || '')
+  return `${organLabelMap[topKey] || topKey}恶化`
+})
+const forecastRiskLabel = computed(() => props.aiRiskLevelText(
+  props.latestAiRiskAlert?.extra?.risk_level ||
+  props.latestAiRiskAlert?.condition?.risk_level ||
+  props.aiRiskForecast?.risk_level ||
+  props.latestAiRiskAlert?.value
+))
+const forecastCurrentProbability = computed(() => {
+  const p = Number(props.aiRiskForecast?.current_probability)
+  if (Number.isNaN(p)) return '—'
+  return `${Math.round(p * 100)}%`
+})
+const forecastContributors = computed(() => Array.isArray(props.aiRiskForecast?.top_contributors) ? props.aiRiskForecast.top_contributors.slice(0, 4) : [])
+const forecastModelLabel = computed(() => {
+  const meta = props.aiRiskForecast?.model_meta || {}
+  const runtime = meta.runtime || {}
+  return [meta.mode || 'temporal-model', runtime.backend].filter(Boolean).join(' · ')
+})
+const forecastHorizonText = computed(() => {
+  const items = Array.isArray(props.aiRiskForecast?.horizon_probabilities) ? props.aiRiskForecast.horizon_probabilities : []
+  if (!items.length) return '4-12h'
+  return items.map((item: any) => `+${item.hours}h ${Math.round(Number(item.probability || 0) * 100)}%`).join(' / ')
+})
+
+function cleanSummaryLine(v: any) {
+  return String(v || '')
+    .replace(/[*#>`~_\[\]]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[：:]\s*-/g, '：')
+    .trim()
+}
+
+function suggestionByRisk(level: string) {
+  const map: Record<string, string> = {
+    critical: '建议立即强化监护，优先复核循环/呼吸/意识变化，必要时尽快升级处置并通知上级医师。',
+    high: '建议缩短复评间隔，重点盯防生命体征趋势、乳酸/肾功能等关键指标，并提前准备升级干预。',
+    warning: '建议保持连续监测，结合后续趋势和检验结果再次评估，警惕风险进一步抬升。',
+    low: '当前以持续观察为主，建议按常规频率复评，如出现趋势性恶化及时上调风险等级。',
+  }
+  return map[String(level || 'low')] || map.low
+}
+
+function handoffSeverityText(v: any) {
+  const map: Record<string, string> = {
+    stable: '稳定',
+    watcher: '需重点观察',
+    unstable: '不稳定',
+    critical: '危重',
+  }
+  return map[String(v || '').toLowerCase()] || String(v || '需重点观察')
+}
+
+function handoffConfidenceText(v: any) {
+  const map: Record<string, string> = {
+    low: '低',
+    medium: '中',
+    high: '高',
+  }
+  return map[String(v || '').toLowerCase()] || String(v || '低')
+}
+
+function handoffValidationText(handoff: any) {
+  const count = Number(handoff?.validation?.issues?.length || 0)
+  if (count > 0) return `警告 ${count} 条`
+  return '通过'
+}
+
+function genderText(v: any) {
+  if (v === 'Male') return '男'
+  if (v === 'Female') return '女'
+  return String(v || '')
+}
+
+const handoffIsbarSections = computed(() => {
+  const patient = props.patient || {}
+  const summary = cleanSummaryLine(props.aiHandoff?.patient_summary || '')
+  const actions = props.normalizeList(props.aiHandoff?.action_list).map((item: any) => cleanSummaryLine(item)).filter(Boolean)
+  const awareness = props.normalizeList(props.aiHandoff?.situation_awareness).map((item: any) => cleanSummaryLine(item)).filter(Boolean)
+  const synth = cleanSummaryLine(props.aiHandoff?.synthesis_by_receiver || '')
+  const identityItems = [
+    patient?.hisBed ? `${patient.hisBed}床` : '',
+    patient?.name || '',
+    genderText(patient?.gender),
+    patient?.age ? `${patient.age}岁` : '',
+  ].filter(Boolean)
+  const diagnosis = cleanSummaryLine(patient?.clinicalDiagnosis || patient?.admissionDiagnosis || '')
+  const severity = handoffSeverityText(props.aiHandoff?.illness_severity)
+  const confidence = handoffConfidenceText(props.aiHandoff?.confidence_level)
+  const validation = handoffValidationText(props.aiHandoff)
+
+  return [
+    {
+      key: 'identity',
+      code: 'I',
+      title: '身份',
+      mode: 'text',
+      text: identityItems.join(' · ') || '患者身份信息待补充',
+    },
+    {
+      key: 'situation',
+      code: 'S',
+      title: '现状',
+      mode: 'text',
+      text: summary || '当前现状暂无自动摘要',
+    },
+    {
+      key: 'background',
+      code: 'B',
+      title: '背景',
+      mode: diagnosis ? 'text' : 'chips',
+      text: diagnosis || '',
+      items: diagnosis ? [] : ['基础诊断信息待补充'],
+    },
+    {
+      key: 'assessment',
+      code: 'A',
+      title: '评估',
+      mode: 'chips',
+      items: [
+        `病情级别：${severity}`,
+        `摘要可信度：${confidence}`,
+        `一致性校验：${validation}`,
+        ...awareness.slice(0, 2),
+      ].filter(Boolean).slice(0, 4),
+    },
+    {
+      key: 'recommendation',
+      code: 'R',
+      title: '建议',
+      mode: actions.length ? 'list' : 'text',
+      items: actions.slice(0, 4),
+      text: actions.length ? '' : (synth || '建议接班后复核关键生命体征、实验室结果及当前治疗计划。'),
+    },
+  ]
+})
+
+const forecastSummaryBlock = computed(() => {
+  const level = String(props.aiRiskForecast?.risk_level || 'low')
+  const horizonItems = Array.isArray(props.aiRiskForecast?.horizon_probabilities) ? props.aiRiskForecast.horizon_probabilities : []
+  const maxH = horizonItems.length ? Math.max(...horizonItems.map((item: any) => Number(item?.hours || 0)).filter((n: number) => !Number.isNaN(n))) : 12
+  const currentProb = Number(props.aiRiskForecast?.current_probability)
+  const currentProbText = Number.isNaN(currentProb) ? '—' : `${Math.round(currentProb * 100)}%`
+  const h4 = horizonItems.find((item: any) => Number(item?.hours) === 4)
+  const h12 = horizonItems.find((item: any) => Number(item?.hours) === 12) || horizonItems[horizonItems.length - 1]
+  const evidenceFromContrib = forecastContributors.value
+    .map((item: any) => cleanSummaryLine(item?.evidence || item?.feature || item?.organ || ''))
+    .filter(Boolean)
+    .slice(0, 3)
+  const organScores = props.aiRiskForecast?.organ_risk_scores || {}
+  const topOrgans = Object.keys(organScores)
+    .sort((a, b) => Number(organScores[b] || 0) - Number(organScores[a] || 0))
+    .slice(0, 2)
+    .map((key) => `${organLabelMap[key] || key}风险较高`)
+  const raw = String(props.aiRiskForecast?.risk_summary || props.aiRiskText || '').trim()
+  const rawLines = raw
+    .split(/\r?\n+/)
+    .map(cleanSummaryLine)
+    .filter(Boolean)
+    .filter((line) => !/^(模型摘要|风险等级|判断依据|主要风险因素)$/i.test(line))
+  const rawEvidence = rawLines
+    .filter((line) => /^[-•]/.test(String(line)) || /风险|异常|升高|下降|偏低|偏高|基础病情|住院时间|生命体征/.test(line))
+    .map((line) => cleanSummaryLine(line.replace(/^[-•]\s*/, '')))
+    .filter(Boolean)
+    .slice(0, 3)
+
+  const summary = hasRiskForecast.value
+    ? `模型判断未来${maxH || 12}h恶化风险为${forecastRiskLabel.value}，当前概率 ${currentProbText}${h4 ? `，4h约 ${Math.round(Number(h4?.probability || 0) * 100)}%` : ''}${h12 ? `，${Number(h12?.hours || maxH)}h约 ${Math.round(Number(h12?.probability || 0) * 100)}%` : ''}。`
+    : (rawLines[0] || '')
+
+  const evidence = (evidenceFromContrib.length ? evidenceFromContrib : rawEvidence).concat(
+    evidenceFromContrib.length ? [] : topOrgans
+  ).slice(0, 3)
+
+  return {
+    visible: !!(summary || evidence.length || raw),
+    level,
+    summary: summary || '暂无模型摘要',
+    evidence,
+    suggestion: suggestionByRisk(level),
+  }
+})
+
+const riskForecastOption = computed(() => {
+  const history = Array.isArray(props.aiRiskForecast?.history_risk_curve) ? props.aiRiskForecast.history_risk_curve : []
+  const future = Array.isArray(props.aiRiskForecast?.forecast_risk_curve) ? props.aiRiskForecast.forecast_risk_curve : []
+  const curve = history.length || future.length
+    ? [...history, ...future]
+    : (Array.isArray(props.aiRiskForecast?.risk_curve) ? props.aiRiskForecast.risk_curve : [])
+  const xs = curve.map((item: any) => item?.label || '—')
+  const historyValues = curve.map((item: any) => {
+    if (String(item?.phase || '') === 'forecast') return null
+    const p = Number(item?.probability)
+    return Number.isNaN(p) ? null : Math.round(p * 100)
+  })
+  const futureValues = curve.map((item: any) => {
+    if (String(item?.phase || '') === 'history') return null
+    const p = Number(item?.probability)
+    return Number.isNaN(p) ? null : Math.round(p * 100)
+  })
+  const thresholdBands = Array.isArray(props.aiRiskForecast?.threshold_bands) ? props.aiRiskForecast.threshold_bands : []
+  const highRiskZone = props.aiRiskForecast?.high_risk_zone || {}
+  const organCurves = props.aiRiskForecast?.organ_risk_curves || {}
+  const organSeries = Object.keys(organCurves).slice(0, 4).map((organKey) => {
+    const rows = Array.isArray(organCurves[organKey]) ? organCurves[organKey] : []
+    const data = curve.map((point: any) => {
+      const hit = rows.find((row: any) => Number(row?.offset_hours) === Number(point?.offset_hours) && String(row?.phase || '') === String(point?.phase || ''))
+      const p = Number(hit?.probability)
+      return Number.isNaN(p) ? null : Math.round(p * 100)
+    })
+    return {
+      name: `${organLabelMap[organKey] || organKey}风险`,
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      data,
+      z: 2,
+      lineStyle: { width: 1.2, type: 'dashed', color: organCurvePalette[organKey] || '#94a3b8', opacity: 0.7 },
+    }
+  })
+  return {
+    backgroundColor: 'transparent',
+    tooltip: icuTooltip({
+      trigger: 'axis',
+      formatter: (params: any) => {
+        const rows = Array.isArray(params) ? params.filter(Boolean) : [params]
+        const lines = [`${rows[0]?.axisValue || ''}`]
+        rows.forEach((row: any) => {
+          lines.push(`${row?.seriesName || '风险'} ${row?.data ?? '—'}%`)
+        })
+        return lines.join('<br/>')
+      },
+    }),
+    grid: icuGrid({ left: 34, right: 18, top: 26, bottom: 24 }),
+    xAxis: icuCategoryAxis(xs, {
+      axisLabel: { color: '#7e9fbc', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#1e3d5e' } },
+    }),
+    yAxis: icuValueAxis({
+      min: 0,
+      max: 100,
+      axisLabel: { color: '#7e9fbc', fontSize: 10, formatter: '{value}%' },
+      splitLine: { lineStyle: { color: 'rgba(80,199,255,.10)' } },
+    }),
+    legend: {
+      top: 0,
+      right: 8,
+      itemWidth: 10,
+      itemHeight: 6,
+      textStyle: { color: '#93b7d8', fontSize: 10 },
+    },
+    series: [
+      {
+        name: '历史风险',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        data: historyValues,
+        lineStyle: { width: 2, color: '#38bdf8' },
+        itemStyle: { color: '#67e8f9', borderColor: '#0b2439', borderWidth: 2 },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(56,189,248,.28)' },
+              { offset: 1, color: 'rgba(56,189,248,0)' },
+            ],
+          },
+        },
+        markArea: thresholdBands.length
+          ? {
+              silent: true,
+              data: thresholdBands.map((band: any) => [
+                { xAxis: xs[0] || '—', yAxis: Math.round(Number(band?.min || 0) * 100), itemStyle: { color: band?.color || 'rgba(148,163,184,.05)' } },
+                { xAxis: xs[xs.length - 1] || '—', yAxis: Math.round(Number(band?.max || 0) * 100) },
+              ]),
+            }
+          : undefined,
+        markLine: {
+          symbol: 'none',
+          lineStyle: { type: 'dashed', color: 'rgba(251,191,36,.38)' },
+          data: [{ yAxis: 64, label: { formatter: '高危阈值', color: '#fcd34d' } }],
+        },
+      },
+      {
+        name: '未来预测',
+        type: 'line',
+        smooth: true,
+        symbol: 'diamond',
+        symbolSize: 7,
+        data: futureValues,
+        z: 4,
+        lineStyle: { width: 2.2, type: 'dashed', color: '#fb7185' },
+        itemStyle: { color: '#fda4af', borderColor: '#2a0f16', borderWidth: 2 },
+        markArea: highRiskZone?.max != null
+          ? {
+              silent: true,
+              data: [[
+                { xAxis: xs[0] || '—', yAxis: Math.round(Number(highRiskZone?.min || 0.64) * 100), itemStyle: { color: 'rgba(239,68,68,.08)' } },
+                { xAxis: xs[xs.length - 1] || '—', yAxis: Math.round(Number(highRiskZone?.max || 1) * 100) },
+              ]],
+            }
+          : undefined,
+      },
+      ...organSeries,
+    ],
+  }
+})
+
+const aiServiceStatus = computed(() => {
+  const errors = [props.aiLabError, props.aiRuleError, props.aiRiskError, props.aiHandoffError].filter(Boolean)
+  const runtime = props.aiRiskForecast?.model_meta?.runtime || {}
+  const mode = String(props.aiRiskForecast?.model_meta?.mode || '')
+  const degraded = Boolean(
+    errors.length ||
+    mode.includes('heuristic') ||
+    (runtime && runtime.available === false)
+  )
+  if (errors.length >= 2) {
+    return {
+      level: 'red',
+      text: 'AI服务异常',
+      detail: '部分能力不可用，请检查模型或后端服务',
+    }
+  }
+  if (degraded) {
+    return {
+      level: 'yellow',
+      text: 'AI服务降级中',
+      detail: runtime?.reason ? String(runtime.reason) : '当前已切换到降级/兜底路径',
+    }
+  }
+  return {
+    level: 'green',
+    text: 'AI服务正常',
+    detail: '',
+  }
+})
 </script>
 
 <style scoped>
+.ai-service-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(7,20,34,.88) 0%, rgba(4,12,22,.94) 100%);
+}
+.ai-service-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px currentColor;
+}
+.ai-service-dot.is-green {
+  color: #34d399;
+  background: #34d399;
+}
+.ai-service-dot.is-yellow {
+  color: #fbbf24;
+  background: #fbbf24;
+}
+.ai-service-dot.is-red {
+  color: #fb7185;
+  background: #fb7185;
+}
+.ai-service-text {
+  color: #e6f6ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.ai-service-detail {
+  color: #7f97bd;
+  font-size: 11px;
+}
 .ai-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
@@ -404,6 +872,107 @@ defineProps<{
   line-height: 1.7;
   white-space: pre-wrap;
 }
+.summary-panel {
+  display: grid;
+  gap: 8px;
+}
+.summary-section {
+  border: 1px solid rgba(80,199,255,.08);
+  border-radius: 8px;
+  background: rgba(7,23,38,.62);
+  padding: 8px 10px;
+}
+.summary-label {
+  margin-bottom: 4px;
+  color: #8fe7ff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.summary-conclusion {
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background:
+    linear-gradient(180deg, rgba(8,28,44,.94) 0%, rgba(6,19,32,.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
+}
+.summary-conclusion--low {
+  border-color: rgba(52,211,153,.18);
+  background: linear-gradient(180deg, rgba(8,44,38,.9) 0%, rgba(5,26,22,.96) 100%);
+}
+.summary-conclusion--warning {
+  border-color: rgba(250,204,21,.2);
+  background: linear-gradient(180deg, rgba(52,38,8,.92) 0%, rgba(31,23,5,.98) 100%);
+}
+.summary-conclusion--high,
+.summary-conclusion--critical {
+  border-color: rgba(251,90,122,.22);
+  background: linear-gradient(180deg, rgba(57,17,27,.92) 0%, rgba(34,10,17,.98) 100%);
+}
+.summary-conclusion-label {
+  color: #91ecff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.summary-conclusion-text {
+  margin-top: 6px;
+  color: #effcff;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+.summary-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(9,31,48,.92);
+  border: 1px solid rgba(80,199,255,.14);
+  color: #d8eeff;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.summary-order {
+  color: #d7e6fb;
+  font-size: 12px;
+  line-height: 1.7;
+  padding-left: 12px;
+  position: relative;
+}
+.summary-order::before {
+  content: '医嘱';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  color: #67e8f9;
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+.summary-text {
+  color: #d7e6fb;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.summary-list {
+  margin: 0;
+  padding-left: 16px;
+  color: #d7e6fb;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.summary-list li + li {
+  margin-top: 3px;
+}
 .workbench-list {
   margin: 0;
   padding-left: 18px;
@@ -412,6 +981,34 @@ defineProps<{
   color: #c3d3ec;
   font-size: 12px;
   line-height: 1.65;
+}
+.isbar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.isbar-section {
+  margin-top: 0;
+}
+.isbar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.isbar-code {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9,31,48,.92);
+  border: 1px solid rgba(80,199,255,.14);
+  color: #90ecff;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
 }
 .ai-footnote-row {
   display: flex;
@@ -422,6 +1019,21 @@ defineProps<{
   color: #fda4af;
   font-size: 12px;
   line-height: 1.6;
+}
+.risk-curve-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.curve-meta {
+  color: #86a9c8;
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+.risk-curve-chart {
+  height: 220px;
 }
 .handoff-warning {
   color: #fda4af !important;
@@ -537,6 +1149,9 @@ defineProps<{
     max-height: 56vh;
   }
   .workbench-kpis {
+    grid-template-columns: 1fr;
+  }
+  .isbar-grid {
     grid-template-columns: 1fr;
   }
 }

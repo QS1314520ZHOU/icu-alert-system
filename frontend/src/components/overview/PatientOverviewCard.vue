@@ -21,7 +21,6 @@
           </div>
         </div>
         <div :class="['status-badge', `status-badge--${patient.alertLevel || 'none'}`]">
-          <span class="status-caption">ALERT</span>
           <strong>{{ alertStatus }}</strong>
         </div>
       </header>
@@ -71,7 +70,7 @@
       </div>
     </section>
 
-    <section class="sec-alerts" v-if="bedcard?.notes?.length || bundleProgress">
+    <section class="sec-alerts" v-if="alertNotes.length || bedcard?.notes?.length || bundleProgress">
       <div class="section-head">
         <span class="section-title">护理提醒</span>
       </div>
@@ -79,7 +78,21 @@
         <span class="alert-dot alert-dot--yellow"></span>
         <span class="alert-text">Bundle 完成度 {{ bundleProgress }}</span>
       </div>
-      <div v-for="(note, idx) in bedcard?.notes?.slice(0, 2)" :key="idx" class="alert-line">
+      <div v-for="(note, idx) in alertNotes" :key="`${note.rule_id || note.title || 'note'}-${idx}`" :class="['alert-card', `alert-card--${note.severity || 'high'}`]">
+        <div class="alert-card-top">
+          <div class="alert-card-title-row">
+            <span :class="['alert-dot', `alert-dot--${note.severity || 'red'}`]"></span>
+            <span class="alert-card-title">{{ note.title }}</span>
+          </div>
+          <span class="alert-card-time">{{ noteTimeText(note.created_at) }}</span>
+        </div>
+        <div v-if="note.summary" class="alert-card-summary">{{ note.summary }}</div>
+        <ul v-if="note.evidence?.length" class="alert-card-evidence">
+          <li v-for="(ev, eIdx) in note.evidence" :key="`${idx}-${eIdx}`">{{ ev }}</li>
+        </ul>
+        <div v-if="note.suggestion" class="alert-card-suggestion">建议：{{ note.suggestion }}</div>
+      </div>
+      <div v-if="!alertNotes.length" v-for="(note, idx) in bedcard?.notes?.slice(0, 2)" :key="idx" class="alert-line">
         <span class="alert-dot alert-dot--red"></span>
         <span class="alert-text">{{ note }}</span>
       </div>
@@ -150,6 +163,11 @@ const vitalsData = computed(() => {
 
 const formattedTubesList = computed(() => {
   return bedcard.value?.tubes || []
+})
+
+const alertNotes = computed(() => {
+  const list = Array.isArray(bedcard.value?.alert_notes) ? bedcard.value.alert_notes : []
+  return list.slice(0, 2)
 })
 
 const bundleProgress = computed(() => {
@@ -223,6 +241,17 @@ function shortDiag(s: string) {
 
 function patientDiet(patient: any) {
   return String(patient?.diet || patient?.dietType || patient?.nutritionType || '').trim()
+}
+
+function noteTimeText(v: any) {
+  if (!v) return ''
+  const dt = new Date(v)
+  if (Number.isNaN(dt.getTime())) return ''
+  const mm = String(dt.getMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getDate()).padStart(2, '0')
+  const hh = String(dt.getHours()).padStart(2, '0')
+  const mi = String(dt.getMinutes()).padStart(2, '0')
+  return `${mm}-${dd} ${hh}:${mi}`
 }
 
 
@@ -403,29 +432,24 @@ section { display: flex; flex-direction: column; gap: 7px; }
 }
 .status-badge {
   flex-shrink: 0;
-  min-width: 76px;
-  padding: 6px 8px;
+  min-width: 92px;
+  min-height: 52px;
+  padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid transparent;
   background:
     linear-gradient(180deg, rgba(10, 33, 50, 0.94) 0%, rgba(7, 23, 38, 0.98) 100%);
   color: #cbd5e1;
-  text-transform: uppercase;
-  display: grid;
-  gap: 2px;
-  justify-items: end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   box-shadow: inset 0 0 0 1px rgba(109, 216, 255, 0.05);
 }
-.status-caption {
-  font-size: 9px;
-  line-height: 1;
-  letter-spacing: 0.18em;
-  color: #6abed2;
-}
 .status-badge strong {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.1;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
 }
 .status-badge--critical { background: rgba(71, 16, 28, 0.9); border-color: rgba(248, 113, 113, 0.34); color: #ff98aa; box-shadow: 0 0 16px rgba(251, 90, 122, 0.1); }
 .status-badge--high { background: rgba(71, 36, 10, 0.88); border-color: rgba(251, 146, 60, 0.34); color: #ffb36c; }
@@ -479,42 +503,47 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .vital-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 .vital-item {
-  min-height: 74px;
-  padding: 9px 10px;
+  min-height: 96px;
+  padding: 12px 16px 12px;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(8, 31, 49, 0.98) 0%, rgba(6, 21, 35, 0.98) 100%);
   border: 1px solid rgba(71, 196, 255, 0.14);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 14px;
   box-shadow: inset 0 0 0 1px rgba(11, 71, 95, 0.2);
 }
 .v-label {
-  font-size: 10px;
+  font-size: 12px;
   color: #7ecce1;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
 }
 .v-val {
-  font-size: 24px;
+  display: inline-flex;
+  align-items: flex-end;
+  font-size: 36px;
   font-weight: 800;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
   color: #ecfeff;
-  line-height: 1;
+  line-height: 1.02;
   font-variant-numeric: tabular-nums;
   word-break: break-all;
   text-shadow: 0 0 10px rgba(110, 231, 249, 0.12);
 }
 .vital-item--bp .v-val {
-  font-size: 20px;
+  font-size: 32px;
 }
 .v-val small {
-  font-size: 10px;
+  font-size: 14px;
   opacity: 0.72;
-  margin-left: 4px;
+  margin-left: 6px;
+  margin-bottom: 3px;
   font-weight: 600;
 }
 .vital--orange {
@@ -610,10 +639,66 @@ section { display: flex; flex-direction: column; gap: 7px; }
   gap: 8px;
   color: #d7fbff;
 }
+.alert-card {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(8, 28, 44, 0.9) 0%, rgba(5, 18, 31, 0.94) 100%);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.04);
+}
+.alert-card--high {
+  border-color: rgba(249, 115, 22, 0.24);
+}
+.alert-card--critical {
+  border-color: rgba(251, 90, 122, 0.26);
+}
+.alert-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.alert-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.alert-card-title {
+  color: #ebfbff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.alert-card-time {
+  flex-shrink: 0;
+  color: #78bfd2;
+  font-size: 10px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+.alert-card-summary,
 .alert-text {
   font-size: 11px;
   line-height: 1.4;
   color: #c7e6f5;
+}
+.alert-card-evidence {
+  margin: 0;
+  padding-left: 16px;
+  color: #d3ecfb;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.alert-card-evidence li + li {
+  margin-top: 2px;
+}
+.alert-card-suggestion {
+  color: #90e7ff;
+  font-size: 10px;
+  line-height: 1.45;
 }
 .alert-dot {
   width: 8px;
@@ -624,6 +709,8 @@ section { display: flex; flex-direction: column; gap: 7px; }
 }
 .alert-dot--red { background: #fb7185; }
 .alert-dot--yellow { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.32); }
+.alert-dot--high { background: #fb923c; box-shadow: 0 0 8px rgba(251, 146, 60, 0.3); }
+.alert-dot--critical { background: #fb5a7a; box-shadow: 0 0 8px rgba(251, 90, 122, 0.36); }
 
 .sec-footer {
   margin-top: auto;

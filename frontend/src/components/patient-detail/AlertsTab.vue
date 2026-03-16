@@ -49,6 +49,27 @@
             <span class="terminal-tag">EVENT</span>
             <span class="terminal-id">{{ item.rule_id || item.alert_type || item.category || 'monitor.rule' }}</span>
           </div>
+          <div v-if="hasExplanation(item)" class="alert-explanation">
+            <span class="explanation-tag">CLINICAL REASONING</span>
+            <div class="explanation-grid">
+              <div v-if="explanationSummary(item)" class="explanation-block">
+                <div class="explanation-label">Summary</div>
+                <div class="explanation-text">{{ explanationSummary(item) }}</div>
+              </div>
+              <div v-if="explanationEvidence(item).length" class="explanation-block">
+                <div class="explanation-label">Evidence</div>
+                <ul class="explanation-list">
+                  <li v-for="(ev, evIdx) in explanationEvidence(item)" :key="`ev-${evIdx}`">
+                    {{ ev }}
+                  </li>
+                </ul>
+              </div>
+              <div v-if="explanationSuggestion(item)" class="explanation-block">
+                <div class="explanation-label">Suggestion</div>
+                <div class="explanation-text">{{ explanationSuggestion(item) }}</div>
+              </div>
+            </div>
+          </div>
           <div class="alert-meta">
             <span v-if="item.alert_type">{{ alertTypeText(item.alert_type) }}</span>
             <span v-if="item.category">{{ alertCategoryText(item.category) }}</span>
@@ -185,6 +206,46 @@ defineProps<{
   aiRiskExplainabilityRows: (item: any) => any[]
   formatAlertExtra: (extra: any) => string
 }>()
+
+function explanationPayload(alert: any) {
+  const exp = alert?.explanation
+  if (typeof exp === 'string') {
+    return {
+      summary: exp,
+      evidence: [] as string[],
+      suggestion: '',
+    }
+  }
+  if (exp && typeof exp === 'object') {
+    return {
+      summary: typeof exp.summary === 'string' ? exp.summary : (typeof exp.text === 'string' ? exp.text : ''),
+      evidence: Array.isArray(exp.evidence) ? exp.evidence.filter((x: any) => String(x || '').trim()) : [],
+      suggestion: typeof exp.suggestion === 'string' ? exp.suggestion : '',
+    }
+  }
+  return {
+    summary: typeof alert?.explanation_text === 'string' ? alert.explanation_text : '',
+    evidence: [] as string[],
+    suggestion: '',
+  }
+}
+
+function hasExplanation(alert: any) {
+  const p = explanationPayload(alert)
+  return !!(p.summary || p.evidence.length || p.suggestion)
+}
+
+function explanationSummary(alert: any) {
+  return explanationPayload(alert).summary || ''
+}
+
+function explanationEvidence(alert: any) {
+  return explanationPayload(alert).evidence || []
+}
+
+function explanationSuggestion(alert: any) {
+  return explanationPayload(alert).suggestion || ''
+}
 
 const DetailChart = defineAsyncComponent(async () => {
   await import('../../charts/patient-detail')
@@ -363,6 +424,54 @@ const DetailChart = defineAsyncComponent(async () => {
   font-family: 'JetBrains Mono', 'Consolas', monospace;
   line-height: 1.4;
   word-break: break-all;
+}
+.alert-explanation {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: linear-gradient(180deg, rgba(8,30,46,.84) 0%, rgba(8,23,38,.92) 100%);
+  display: grid;
+  gap: 6px;
+}
+.explanation-grid {
+  display: grid;
+  gap: 8px;
+}
+.explanation-block {
+  padding: 8px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(80,199,255,.08);
+  background: rgba(5, 18, 30, .5);
+}
+.explanation-tag {
+  color: #67dff2;
+  font-size: 10px;
+  letter-spacing: .12em;
+}
+.explanation-label {
+  margin-bottom: 4px;
+  color: #90e7ff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.explanation-text {
+  color: #d9ebff;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.explanation-list {
+  margin: 0;
+  padding-left: 16px;
+  color: #d9ebff;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.explanation-list li + li {
+  margin-top: 2px;
 }
 .alert-meta {
   margin-top: 8px;

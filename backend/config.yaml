@@ -133,6 +133,17 @@ ai_service:
     temperature: 0.1
     max_tokens: 4096
 
+  temporal_model:
+    backend: auto
+    model_path: ""
+    history_offsets_hours: [-8, -6, -4, -2, 0]
+    candidate_names:
+      - temporal_risk.onnx
+      - temporal_risk.pt
+      - temporal_risk.pth
+      - temporal_risk_model.onnx
+      - temporal_risk_model.pt
+
   task_routing:
     lab_item_mapping:
       temperature: 0.0
@@ -180,6 +191,11 @@ alert_engine:
     vte_prophylaxis: 900
     nutrition_monitor: 900
     composite_deterioration: 300
+    cardiac_arrest: 120
+    microbiology: 1800
+    pe_detection: 600
+    postop_monitor: 1800
+    ecash_bundle: 600
     assessments: 600
     trend_analysis: 900
     discharge_readiness: 1800
@@ -263,6 +279,54 @@ alert_engine:
         parameters: ["gcs", "rass", "icp", "cpp", "pupil", "neuro"]
         keywords: ["神经", "意识", "谵妄", "瞳孔", "颅脑", "neuro", "gcs", "rass"]
 
+  cardiac_arrest:
+    factor_weights:
+      brady_tachy_alternating: 3
+      extreme_bradycardia: 3
+      new_wide_qrs: 2
+      hyperkalemia: 4
+      severe_hypokalemia: 3
+      severe_hypocalcemia: 3
+      lactate_surge_with_map_drop: 3
+      pea_risk_pattern: 2
+    warning_score: 4
+    high_score: 6
+    critical_score: 8
+
+  microbiology:
+    mdro_keywords:
+      MRSA: ["mrsa", "耐甲氧西林金黄色葡萄球菌"]
+      CRE: ["cre", "碳青霉烯耐药肠杆菌", "耐碳青霉烯"]
+      VRE: ["vre", "耐万古霉素肠球菌"]
+      CRAB: ["crab", "鲍曼不动杆菌", "耐碳青霉烯鲍曼"]
+      CRPA: ["crpa", "耐碳青霉烯铜绿假单胞菌"]
+    susceptibility_keywords: ["药敏", "susceptibility", "MIC", "敏感", "耐药"]
+    vanco_trough_low: 10
+    vanco_trough_high: 20
+    meropenem_keywords: ["美罗培南", "meropenem"]
+
+  pe_detection:
+    pattern_window_hours: 2
+    spo2_drop_threshold: 5
+    ddimer_threshold_mg_l: 0.5
+    wells_weights:
+      dvt_symptoms: 3.0
+      pe_most_likely: 3.0
+      hr_gt_100: 1.5
+      immobilization_or_surgery: 1.5
+      previous_vte: 1.5
+      hemoptysis: 1.0
+      malignancy: 1.0
+
+  postop_monitor:
+    hb_decline_threshold_g_l: 20
+    drain_6h_threshold_ml: 200
+    drain_hourly_threshold_ml: 100
+    ileus_no_flatus_hours: 72
+    grv_threshold_ml: 500
+    temp_resurgence_low: 37.5
+    temp_resurgence_high: 38.5
+
   fluid_balance:
     windows_hours: [6, 12, 24]
     positive_balance_warning_pct: 5
@@ -287,6 +351,14 @@ alert_engine:
       bun_elevated: 2
       deep_sedation: 1
       gcs_low: 1
+
+  ecash:
+    target_rass_range: [-2, 0]
+    pain_assessment_overdue_hours: 8
+    sat_interval_hours: 24
+    over_sedation_hours: 4
+    analgesic_keywords: ["芬太尼", "瑞芬太尼", "舒芬太尼", "吗啡", "布洛芬", "对乙酰氨基酚", "氟比洛芬", "帕瑞昔布", "曲马多", "氯胺酮"]
+    benzo_keywords: ["咪达唑仑", "地西泮", "劳拉西泮", "阿普唑仑", "艾司唑仑", "氯硝西泮"]
 
   glycemic_control:
     cv_warning_pct: 36

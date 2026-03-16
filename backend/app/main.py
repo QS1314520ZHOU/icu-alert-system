@@ -41,6 +41,7 @@ from app.alert_engine.acid_base_analyzer import (
 )
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
+from app.services.llm_runtime import call_llm_chat
 from app.services.rag_service import RagService
 
 db: DatabaseManager = None        # type: ignore[assignment]
@@ -962,42 +963,35 @@ def infer_clinical_tags(doc: dict) -> list:
 async def _call_llm(system_prompt: str, user_prompt: str, model: str = None) -> str:
     """统一调用 LLM"""
     cfg = get_config()
-    llm_url = cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"
-    llm_model = model or cfg.settings.LLM_MODEL
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {cfg.settings.LLM_API_KEY}",
-    }
-    payload = {
-        "model": llm_model,
-        "temperature": 0.1,
-        "max_tokens": 4096,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
-
     start = time.perf_counter()
     text = ""
     usage = None
+    llm_model = ""
+    meta = {}
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(llm_url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-            usage = data.get("usage") if isinstance(data, dict) else None
-            text = data["choices"][0]["message"]["content"]
+        result = await call_llm_chat(
+            cfg=cfg,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model or cfg.llm_model_medical or cfg.settings.LLM_MODEL,
+            temperature=0.1,
+            max_tokens=4096,
+            timeout_seconds=60,
+        )
+        text = str(result.get("text") or "")
+        usage = result.get("usage")
+        llm_model = str(result.get("model") or "")
+        meta = result.get("meta") or {}
     except Exception:
         if ai_monitor:
             await ai_monitor.log_llm_call(
                 module="api_llm",
-                model=llm_model,
+                model=llm_model or (model or cfg.llm_model_medical or cfg.settings.LLM_MODEL),
                 prompt=(system_prompt or "") + "\n\n" + (user_prompt or ""),
                 output=text,
                 latency_ms=(time.perf_counter() - start) * 1000.0,
                 success=False,
-                meta={"url": llm_url},
+                meta=meta or {"url": cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"},
                 usage=usage,
             )
         raise
@@ -1005,12 +999,12 @@ async def _call_llm(system_prompt: str, user_prompt: str, model: str = None) -> 
     if ai_monitor:
         await ai_monitor.log_llm_call(
             module="api_llm",
-            model=llm_model,
+            model=llm_model or (model or cfg.llm_model_medical or cfg.settings.LLM_MODEL),
             prompt=(system_prompt or "") + "\n\n" + (user_prompt or ""),
             output=text,
             latency_ms=(time.perf_counter() - start) * 1000.0,
             success=True,
-            meta={"url": llm_url},
+            meta=meta or {"url": cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"},
             usage=usage,
         )
     return text
@@ -1120,6 +1114,22 @@ async def patient_bundle_statuses(patient_ids: list[str] = Body(default=[])):
             status = {"lights": {}}
         results[str(patient["_id"])] = serialize_doc(status)
     return {"code": 0, "statuses": results}
+
+
+@app.get("/api/patients/{patient_id}/ecash-status")
+async def patient_ecash_status(patient_id: str):
+    """获取患者 eCASH 实时状态。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    status = await alert_engine.get_ecash_status(patient)
+    return {"code": 0, "status": serialize_doc(status)}
 
 
 @app.get("/api/bundle/overview")
@@ -1843,6 +1853,7 @@ async def patient_bedcard(patient_id: str):
 
     # 5. 当日注意事项 (Daily Notes via High/Critical Alerts)
     notes = []
+    alert_notes = []
     since_24h = datetime.now() - timedelta(hours=24)
     alert_cursor = db.col("alert_records").find(
         {
@@ -1855,16 +1866,50 @@ async def patient_bedcard(patient_id: str):
     async for a in alert_cursor:
         name = a.get("name") or a.get("rule_id", "高危预警")
         notes.append(f"{name}")
+        explanation = a.get("explanation")
+        explanation_summary = ""
+        explanation_suggestion = ""
+        explanation_evidence = []
+        if isinstance(explanation, dict):
+            explanation_summary = str(explanation.get("summary") or explanation.get("text") or "").strip()
+            explanation_suggestion = str(explanation.get("suggestion") or "").strip()
+            raw_evidence = explanation.get("evidence") or []
+            if isinstance(raw_evidence, list):
+                explanation_evidence = [str(item).strip() for item in raw_evidence if str(item).strip()]
+        elif isinstance(explanation, str):
+            explanation_summary = explanation.strip()
+
+        if not explanation_summary:
+            explanation_summary = str(a.get("explanation_text") or "").strip()
+
+        alert_notes.append({
+            "title": name,
+            "severity": a.get("severity") or "high",
+            "summary": explanation_summary,
+            "suggestion": explanation_suggestion,
+            "evidence": explanation_evidence[:2],
+            "rule_id": a.get("rule_id") or "",
+            "created_at": a.get("created_at"),
+        })
         
     # 去重
     unique_notes = list(dict.fromkeys(notes))
+    dedup_alert_notes = []
+    seen_note_keys = set()
+    for item in alert_notes:
+        key = (item.get("title") or "", item.get("summary") or "", item.get("severity") or "")
+        if key in seen_note_keys:
+            continue
+        seen_note_keys.add(key)
+        dedup_alert_notes.append(item)
 
     merged_data = {
         "identity": identity,
         "devices": active_devices,
         "tubes": active_tubes,
         "metrics": metrics,
-        "notes": unique_notes
+        "notes": unique_notes,
+        "alert_notes": dedup_alert_notes,
     }
 
     return {"code": 0, "data": serialize_doc(merged_data)}
@@ -2402,47 +2447,30 @@ async def ai_risk_forecast(patient_id: str):
     if not patient:
         return {"code": 404, "message": "患者不存在"}
 
-    # 收集最近生命体征
-    codes = ["param_HR", "param_spo2", "param_resp", "param_nibp_s", "param_ibp_s", "param_T"]
-    pid_str = str(pid)
-    vitals = []
-    v_pids = [str(pid)]
-    hp = _patient_his_pid(patient)
-    if hp and hp not in v_pids: v_pids.append(hp)
-    
-    snapshot = await _latest_params_by_pid(v_pids, codes)
-    if not snapshot:
-        device_id = await _get_device_id(pid_str, "monitor")
-        snapshot = await _latest_params_by_device(device_id, codes) if device_id else None
-    if snapshot:
-        t = snapshot.get("time")
-        vitals.append({
-            "time": t.isoformat() if isinstance(t, datetime) else str(t),
-            "HR": snapshot.get("params", {}).get("param_HR"),
-            "SpO2": snapshot.get("params", {}).get("param_spo2"),
-            "RR": snapshot.get("params", {}).get("param_resp"),
-            "SBP": snapshot.get("params", {}).get("param_nibp_s") or snapshot.get("params", {}).get("param_ibp_s"),
-            "T": snapshot.get("params", {}).get("param_T"),
-        })
-
-    vitals_text = json.dumps(vitals[:5], ensure_ascii=False, default=str) if vitals else "无监护数据"
-
-    system_prompt = (
-        "你是ICU临床决策支持专家。根据患者的诊断、生命体征趋势、"
-        "ICU住院天数等信息，评估未来24小时内的恶化风险。"
-        "输出风险等级(低/中/高/极高)、主要风险因素、建议监测重点。用中文回答。"
-    )
-    user_prompt = (
-        f"患者: {patient.get('name', '未知')}\n"
-        f"诊断: {patient.get('clinicalDiagnosis', patient.get('admissionDiagnosis', '未知'))}\n"
-        f"ICU入科时间: {patient.get('icuAdmissionTime', '未知')}\n"
-        f"近期生命体征:\n{vitals_text}"
-    )
-
     try:
-        cfg = get_config()
-        text = await _call_llm(system_prompt, user_prompt, cfg.llm_model_medical)
-        return {"code": 0, "risk_summary": text}
+        forecast = await alert_engine._build_temporal_risk_forecast(
+            patient,
+            pid,
+            lookback_hours=12,
+            horizons=(4, 8, 12),
+            include_history=True,
+        )
+        return {
+            "code": 0,
+            "risk_summary": forecast.get("summary") or "",
+            "risk_level": forecast.get("risk_level") or "low",
+            "current_probability": forecast.get("current_probability") or 0,
+            "horizon_probabilities": forecast.get("horizon_probabilities") or [],
+            "risk_curve": forecast.get("risk_curve") or [],
+            "history_risk_curve": forecast.get("history_risk_curve") or [],
+            "forecast_risk_curve": forecast.get("forecast_risk_curve") or [],
+            "threshold_bands": forecast.get("threshold_bands") or [],
+            "high_risk_zone": forecast.get("high_risk_zone") or {},
+            "top_contributors": forecast.get("top_contributors") or [],
+            "organ_risk_scores": forecast.get("organ_risk_scores") or {},
+            "organ_risk_curves": forecast.get("organ_risk_curves") or {},
+            "model_meta": forecast.get("model_meta") or {},
+        }
     except Exception as e:
         logger.error(f"AI risk forecast error: {e}")
         return {"code": 0, "risk_summary": "", "error": f"AI服务异常: {str(e)[:100]}"}

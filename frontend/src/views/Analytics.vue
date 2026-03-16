@@ -26,6 +26,44 @@
       </div>
     </a-card>
 
+    <section class="kpi-strip">
+      <div class="kpi-tile">
+        <div class="kpi-head">
+          <span class="kpi-label">监测窗口</span>
+          <span class="kpi-code">WINDOW</span>
+        </div>
+        <div class="kpi-value">{{ analyticsWindowLabel }}</div>
+        <div class="kpi-sub">粒度 {{ bucket === 'hour' ? '小时' : '天' }} · Top {{ topN }}</div>
+      </div>
+
+      <div class="kpi-tile">
+        <div class="kpi-head">
+          <span class="kpi-label">{{ topRuleHeadline }}</span>
+          <span class="kpi-code">RULE</span>
+        </div>
+        <div class="kpi-value kpi-value--rule">{{ topRuleSummary.name }}</div>
+        <div class="kpi-sub">{{ topRuleSummary.meta }}</div>
+      </div>
+
+      <div class="kpi-tile">
+        <div class="kpi-head">
+          <span class="kpi-label">峰值时段</span>
+          <span class="kpi-code">PEAK SLOT</span>
+        </div>
+        <div class="kpi-value">{{ peakSlotSummary.slot }}</div>
+        <div class="kpi-sub">{{ peakSlotSummary.meta }}</div>
+      </div>
+
+      <div class="kpi-tile kpi-tile--risk">
+        <div class="kpi-head">
+          <span class="kpi-label">高危占比</span>
+          <span class="kpi-code">HIGH+CRIT</span>
+        </div>
+        <div class="kpi-value">{{ highRiskRatio.ratio }}</div>
+        <div class="kpi-sub">{{ highRiskRatio.meta }}</div>
+      </div>
+    </section>
+
     <section class="analytics-grid">
       <a-card title="预警触发频率" :bordered="false" class="panel panel-wide">
         <div v-if="freqSeries.length" class="chart-wrap chart-lg">
@@ -143,6 +181,15 @@ const bedRankings = ref<any[]>([])
 
 const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
+const analyticsWindowLabel = computed(() => {
+  const map: Record<string, string> = {
+    '24h': '近24小时',
+    '7d': '近7天',
+    '14d': '近14天',
+    '30d': '近30天',
+  }
+  return map[windowRange.value] || windowRange.value
+})
 
 function commonParams() {
   const params: Record<string, any> = { window: windowRange.value }
@@ -157,11 +204,51 @@ function toShortTime(v: string) {
   return s.slice(5, 16)
 }
 
+function escapeHtml(v: any) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function tooltipShell(title: string, rows: string[], footer = '') {
+  return `
+    <div class="analytics-tooltip">
+      <div class="analytics-tooltip__title">${escapeHtml(title)}</div>
+      <div class="analytics-tooltip__body">${rows.join('')}</div>
+      ${footer ? `<div class="analytics-tooltip__footer">${escapeHtml(footer)}</div>` : ''}
+    </div>
+  `
+}
+
+function tooltipRow(label: string, value: any, color = '#67e8f9') {
+  return `
+    <div class="analytics-tooltip__row">
+      <span class="analytics-tooltip__label">
+        <i class="analytics-tooltip__dot" style="background:${escapeHtml(color)}"></i>
+        ${escapeHtml(label)}
+      </span>
+      <strong class="analytics-tooltip__value">${escapeHtml(value)}</strong>
+    </div>
+  `
+}
+
 const frequencyOption = computed(() => {
   const xs = freqSeries.value.map((p: any) => toShortTime(p.time || ''))
   return {
     backgroundColor: 'transparent',
-    tooltip: icuTooltip({ trigger: 'axis' }),
+    tooltip: icuTooltip({
+      trigger: 'axis',
+      formatter: (params: any[]) => {
+        const list = Array.isArray(params) ? params : [params]
+        const title = list[0]?.axisValueLabel || list[0]?.name || '时间窗'
+        const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', item.value ?? 0, item.color || '#67e8f9'))
+        const total = list.find((item: any) => item.seriesName === '总量')?.value ?? 0
+        return tooltipShell(title, rows, `总触发 ${total} 次`)
+      },
+    }),
     legend: icuLegend({ textStyle: { fontSize: 10 } }),
     grid: icuGrid({ left: 42, right: 18, top: 34, bottom: 34 }),
     xAxis: icuCategoryAxis(xs, { axisLabel: { fontSize: 10, margin: 10 } }),
@@ -222,7 +309,14 @@ const heatmapOption = computed(() => {
       formatter: (params: any) => {
         const x = heatmapX.value[params.value[0]]
         const y = heatmapY.value[params.value[1]]
-        return `${y}<br/>时段：${x}<br/>触发：${params.value[2]} 次`
+        return tooltipShell(
+          `${y || '规则类型'}`,
+          [
+            tooltipRow('时段', x || '—', '#22d3ee'),
+            tooltipRow('触发', `${params.value[2] || 0} 次`, '#fb5a7a'),
+          ],
+          '规则类型热区'
+        )
       },
     }),
     grid: icuGrid({ left: 128, right: 22, top: 20, bottom: 62 }),
@@ -305,9 +399,67 @@ const heatmapSummary = computed(() => {
   }
 })
 
+const topRuleSummary = computed(() => {
+  const totals = new Map<string, number>()
+  for (const item of heatmapData.value) {
+    const yi = Number(item?.[1])
+    const value = Number(item?.[2] || 0)
+    const name = heatmapY.value[yi] || ''
+    if (!name) continue
+    totals.set(name, (totals.get(name) || 0) + value)
+  }
+  const rows = Array.from(totals.entries()).sort((a, b) => b[1] - a[1])
+  if (!rows.length) {
+    return { name: '暂无数据', meta: '等待规则热力图数据' }
+  }
+  const topRow = rows[0] || ['', 0]
+  const name = topRow[0]
+  const count = topRow[1]
+  const ratio = heatmapData.value.length ? Math.round((count / Math.max(1, rows.reduce((s, [, v]) => s + v, 0))) * 100) : 0
+  return {
+    name,
+    meta: `累计 ${count} 次 · 占规则触发 ${ratio}%`,
+  }
+})
+
+const topRuleHeadline = computed(() => windowRange.value === '24h' ? '今日最高风险规则' : '当前窗口最高风险规则')
+
+const peakSlotSummary = computed(() => {
+  if (!heatmapSummary.value.peakText || heatmapSummary.value.peakText === '暂无峰值') {
+    return { slot: '暂无峰值', meta: '等待热力图数据' }
+  }
+  return {
+    slot: heatmapSummary.value.peakText.split(' · ').slice(1, 2)[0] || heatmapSummary.value.peakText,
+    meta: heatmapSummary.value.peakText,
+  }
+})
+
+const highRiskRatio = computed(() => {
+  const total = freqSeries.value.reduce((sum: number, item: any) => sum + Number(item?.total || 0), 0)
+  const high = freqSeries.value.reduce((sum: number, item: any) => sum + Number(item?.high || 0), 0)
+  const critical = freqSeries.value.reduce((sum: number, item: any) => sum + Number(item?.critical || 0), 0)
+  const severe = high + critical
+  const ratio = total > 0 ? `${Math.round((severe / total) * 100)}%` : '0%'
+  return {
+    ratio,
+    meta: `${severe} / ${total} 次为 High 或 Critical`,
+  }
+})
+
 const deptRankOption = computed(() => ({
   backgroundColor: 'transparent',
-  tooltip: icuTooltip({ trigger: 'axis', axisPointer: { type: 'shadow' } }),
+  tooltip: icuTooltip({
+    trigger: 'axis',
+    axisPointer: { type: 'shadow' },
+    formatter: (params: any[]) => {
+      const item = Array.isArray(params) ? params[0] : params
+      return tooltipShell(
+        item?.name || '科室',
+        [tooltipRow('预警总量', `${item?.value ?? 0} 次`, item?.color || '#16b3c9')],
+        'Department Ranking'
+      )
+    },
+  }),
   grid: icuGrid({ left: 84, right: 18, top: 16, bottom: 24 }),
   xAxis: icuValueAxis({ axisLabel: { fontSize: 10 } }),
   yAxis: icuCategoryAxis(deptRankings.value.map((d: any) => d.dept), {
@@ -338,7 +490,18 @@ const deptRankOption = computed(() => ({
 
 const bedRankOption = computed(() => ({
   backgroundColor: 'transparent',
-  tooltip: icuTooltip({ trigger: 'axis', axisPointer: { type: 'shadow' } }),
+  tooltip: icuTooltip({
+    trigger: 'axis',
+    axisPointer: { type: 'shadow' },
+    formatter: (params: any[]) => {
+      const item = Array.isArray(params) ? params[0] : params
+      return tooltipShell(
+        item?.name || '床位',
+        [tooltipRow('预警总量', `${item?.value ?? 0} 次`, item?.color || '#fb923c')],
+        'Bed Ranking'
+      )
+    },
+  }),
   grid: icuGrid({ left: 102, right: 18, top: 16, bottom: 24 }),
   xAxis: icuValueAxis({ axisLabel: { fontSize: 10 } }),
   yAxis: icuCategoryAxis(bedRankings.value.map((d: any) => `${d.dept}-${d.bed}`), {
@@ -537,6 +700,80 @@ onMounted(() => {
   gap: 16px;
 }
 
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kpi-tile {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 32%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.kpi-tile::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0.5), rgba(34, 211, 238, 0.08));
+}
+
+.kpi-tile--risk::after {
+  background: linear-gradient(90deg, rgba(251, 90, 122, 0.08), rgba(251, 90, 122, 0.56), rgba(251, 90, 122, 0.08));
+}
+
+.kpi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kpi-label {
+  color: #7ed6eb;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.kpi-code {
+  color: #4ec6de;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.kpi-value {
+  color: #effcff;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 700;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  letter-spacing: 0.03em;
+}
+
+.kpi-value--rule {
+  font-size: 20px;
+}
+
+.kpi-sub {
+  margin-top: 6px;
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .panel {
   background:
     radial-gradient(circle at top, rgba(34, 211, 238, 0.07), rgba(34, 211, 238, 0) 30%),
@@ -637,6 +874,61 @@ onMounted(() => {
   padding: 16px 8px;
 }
 
+.analytics-page :deep(.analytics-tooltip) {
+  min-width: 180px;
+  display: grid;
+  gap: 8px;
+}
+
+.analytics-page :deep(.analytics-tooltip__title) {
+  color: #ecfeff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.analytics-page :deep(.analytics-tooltip__body) {
+  display: grid;
+  gap: 6px;
+}
+
+.analytics-page :deep(.analytics-tooltip__row) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.analytics-page :deep(.analytics-tooltip__label) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #9eddef;
+  font-size: 11px;
+}
+
+.analytics-page :deep(.analytics-tooltip__dot) {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.24);
+}
+
+.analytics-page :deep(.analytics-tooltip__value) {
+  color: #effcff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.analytics-page :deep(.analytics-tooltip__footer) {
+  padding-top: 6px;
+  border-top: 1px solid rgba(80, 199, 255, 0.12);
+  color: #6fdcf2;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
 .rank-table :deep(.ant-table) {
   background: transparent;
   color: #dff8ff;
@@ -685,6 +977,10 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .panel,
   .panel-wide {
     grid-column: auto;
@@ -694,6 +990,20 @@ onMounted(() => {
   .chart-lg,
   .chart-md {
     height: 300px;
+  }
+}
+
+@media (max-width: 680px) {
+  .kpi-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-value {
+    font-size: 20px;
+  }
+
+  .kpi-value--rule {
+    font-size: 17px;
   }
 }
 </style>

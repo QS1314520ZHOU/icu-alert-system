@@ -119,8 +119,22 @@ class AppConfig:
 
     @property
     def llm_model_medical(self) -> str:
-        return self.yaml_cfg.get("ai", {}).get(
-            "llm_model_medical", self.settings.LLM_MODEL_MEDICAL
+        ai_service = self.yaml_cfg.get("ai_service", {})
+        llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
+        return (
+            llm_cfg.get("medical_model")
+            or self.yaml_cfg.get("ai", {}).get("llm_model_medical")
+            or self.settings.LLM_MODEL_MEDICAL
+        )
+
+    @property
+    def llm_fallback_model(self) -> str:
+        ai_service = self.yaml_cfg.get("ai_service", {})
+        llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
+        return (
+            llm_cfg.get("fallback_model")
+            or self.yaml_cfg.get("ai", {}).get("llm_fallback_model")
+            or self.settings.LLM_FALLBACK_MODEL
         )
 
     @property

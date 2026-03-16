@@ -152,7 +152,15 @@ class CompositeDeteriorationMixin:
             pid_str = str(pid)
 
             alerts = await self._recent_alerts(pid_str, since, max_records=max_records)
-            if len(alerts) < min_alerts:
+            temporal_forecast = await self._build_temporal_risk_forecast(
+                patient_doc,
+                pid,
+                lookback_hours=max(int(window_hours * 2), 12),
+                horizons=(4, 8, 12),
+                include_history=False,
+            )
+            temporal_signal = temporal_forecast.get("composite_signal") if isinstance(temporal_forecast, dict) else {}
+            if len(alerts) < min_alerts and not temporal_signal.get("enabled"):
                 continue
 
             organ_scores: dict[str, int] = {k: 0 for k in mapping.keys()}
@@ -181,6 +189,31 @@ class CompositeDeteriorationMixin:
                         "organs": organs,
                     }
                 )
+
+            if temporal_signal.get("enabled"):
+                temporal_prob = float(temporal_signal.get("probability_4h") or 0.0)
+                temporal_risk_level = str(temporal_signal.get("risk_level") or "warning").lower()
+                temporal_severity = "critical" if temporal_risk_level == "critical" else "high"
+                temporal_organs = [
+                    organ for organ in (temporal_signal.get("organs") or [])
+                    if organ in organ_scores
+                ]
+                for organ in temporal_organs[:2]:
+                    organ_counts[organ] += 1
+                    organ_scores[organ] = max(organ_scores[organ], _severity_weight(temporal_severity))
+                source_rows.append(
+                    {
+                        "alert_type": "temporal_risk_forecast",
+                        "severity": temporal_severity,
+                        "time": now,
+                        "organs": temporal_organs[:2],
+                        "probability_4h": round(temporal_prob, 4),
+                        "contributors": temporal_signal.get("contributors") or [],
+                    }
+                )
+
+            if len(source_rows) < min_alerts:
+                continue
 
             involved_organs = [k for k, v in organ_scores.items() if v > 0]
             if len(involved_organs) < organ_threshold:
@@ -217,6 +250,7 @@ class CompositeDeteriorationMixin:
                     "organ_alert_counts": organ_counts,
                     "source_alert_count": len(source_rows),
                     "source_alerts": source_rows[:80],
+                    "temporal_risk_signal": temporal_forecast if temporal_signal.get("enabled") else None,
                     "organ_labels_cn": {
                         "respiratory": "呼吸",
                         "circulatory": "循环",
