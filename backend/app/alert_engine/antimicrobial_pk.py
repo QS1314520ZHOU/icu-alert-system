@@ -96,7 +96,25 @@ class AntimicrobialPKMixin:
 
     async def _urine_ml_h(self, pid_str: str, now: datetime, hours: int = 6) -> float | None:
         since = now - timedelta(hours=max(hours, 1))
-        codes = ["param_niaoLiang", "param_niaoLiang_pure", "param_udd_urine_cur", "param_udd_urine_1h", "param_udd_urine_total", "param_udd_urine_24h", "param_out_hour", "param_out_hour_sum", "param_out_day"]
+        configured_codes = self._cfg("alert_engine", "data_mapping", "urine_output", "codes", default=[]) or []
+        codes = []
+        seen: set[str] = set()
+        for code in [
+            *[str(x) for x in configured_codes if str(x).strip()],
+            "param_niaoLiang",
+            "param_niaoLiang_pure",
+            "param_udd_urine_cur",
+            "param_udd_urine_1h",
+            "param_udd_urine_total",
+            "param_udd_urine_24h",
+            "param_out_hour",
+            "param_out_hour_sum",
+            "param_out_day",
+        ]:
+            if not code or code in seen:
+                continue
+            seen.add(code)
+            codes.append(code)
         cursor = self.db.col("bedside").find({"pid": pid_str, "time": {"$gte": since}, "code": {"$in": codes}}, {"time": 1, "code": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1}).sort("time", 1)
         rows = [row async for row in cursor]
         if not rows:
@@ -140,14 +158,18 @@ class AntimicrobialPKMixin:
         his_pid = str(patient_doc.get("hisPid") or "").strip() or None
         age = self._patient_age(patient_doc)
         cr_value, cr_time = await self._latest_lab_value(his_pid, "cr", hours=24)
+        crcl = self._estimate_crcl(patient_doc, cr_value)
         urine_ml_h = await self._urine_ml_h(pid_str, now, hours=6)
         on_crrt = await self._is_on_crrt(pid)
         has_aki = await self._has_active_alert_type(pid_str, ["aki"], hours=48)
         age_cutoff = float(self._arc_cfg().get("age_lt", 50))
         cr_cutoff = float(self._arc_cfg().get("creatinine_lt_umol_l", 60))
+        crcl_cutoff = float(self._arc_cfg().get("crcl_threshold", 130))
         urine_cutoff = float(self._arc_cfg().get("urine_ml_h_gt", 100))
         score = 0
-        features = {"age": age, "age_lt_threshold": bool(age is not None and age < age_cutoff), "trauma_or_neuro": self._is_trauma_or_neuro(patient_doc), "creatinine_umol_l": cr_value, "creatinine_low": bool(cr_value is not None and cr_value < cr_cutoff), "urine_ml_h": urine_ml_h, "urine_high": bool(urine_ml_h is not None and urine_ml_h > urine_cutoff), "on_crrt": on_crrt, "active_aki": has_aki, "creatinine_time": cr_time}
+        features = {"age": age, "age_lt_threshold": bool(age is not None and age < age_cutoff), "trauma_or_neuro": self._is_trauma_or_neuro(patient_doc), "creatinine_umol_l": cr_value, "creatinine_low": bool(cr_value is not None and cr_value < cr_cutoff), "crcl_ml_min": crcl, "crcl_elevated": bool(crcl is not None and crcl > crcl_cutoff), "urine_ml_h": urine_ml_h, "urine_high": bool(urine_ml_h is not None and urine_ml_h > urine_cutoff), "on_crrt": on_crrt, "active_aki": has_aki, "creatinine_time": cr_time}
+        if features["crcl_elevated"]:
+            score += 3
         if features["age_lt_threshold"]:
             score += 2
         if features["trauma_or_neuro"]:
@@ -171,6 +193,8 @@ class AntimicrobialPKMixin:
             evidence.append("年龄偏轻")
         if features["trauma_or_neuro"]:
             evidence.append("外伤/神外背景")
+        if features["crcl_elevated"]:
+            evidence.append(f"CrCl 升高({crcl} mL/min)")
         if features["creatinine_low"]:
             evidence.append(f"肌酐偏低({cr_value})")
         if features["urine_high"]:
@@ -336,6 +360,7 @@ class AntimicrobialPKMixin:
     def _adjusted_cl(self, base_cl: float, *, crcl: float | None, weight: float | None, albumin: float | None, arc_risk: str, on_crrt: bool, drug_key: str) -> float:
         cl = max(base_cl, 0.1)
         if crcl is not None:
+            # 这里是工程化的一室模型近似，不是逐篇文献原始 PopPK 公式。
             ref = float(self._drug_rule_cfg(drug_key).get("crcl_ref", 100.0))
             cl *= max((crcl / max(ref, 1e-6)) ** 0.5, 0.3)
         if weight is not None:
@@ -348,6 +373,7 @@ class AntimicrobialPKMixin:
         elif arc_risk == "moderate":
             cl *= float(self._drug_rule_cfg(drug_key).get("arc_cl_multiplier_moderate", 1.1))
         if on_crrt:
+            # 当前版本未读取 effluent_rate 做定量 CL_crrt 估算，仅作保守简化。
             cl *= float(self._drug_rule_cfg(drug_key).get("crrt_cl_multiplier", 0.8))
         return round(max(cl, 0.1), 3)
 
@@ -497,7 +523,17 @@ class AntimicrobialPKMixin:
         sample_value = _to_float(sample.get("value"))
         predicted_trough = _to_float((pop.get("predicted_exposure") or {}).get("trough"))
         pop_cl = _to_float((pop.get("pk_params") or {}).get("cl")) or 4.0
-        individual_cl = round(max(pop_cl * (predicted_trough / max(sample_value, 1e-6)), 0.1), 3) if sample_value not in (None, 0) and predicted_trough not in (None, 0) else pop_cl
+        omega_sq = float(self._tdm_cfg().get("omega_cl_sq", 0.15))
+        sigma_sq = float(self._tdm_cfg().get("sigma_sq", 0.04))
+        if sample_value not in (None, 0) and predicted_trough not in (None, 0):
+            log_ratio = math.log(max(predicted_trough, 0.01) / max(sample_value, 0.01))
+            weight = omega_sq / max(omega_sq + sigma_sq, 1e-6)
+            delta_cl = weight * log_ratio
+            individual_cl = round(max(pop_cl * math.exp(delta_cl), 0.1), 3)
+        else:
+            log_ratio = None
+            weight = None
+            individual_cl = pop_cl
         vd = _to_float((pop.get("pk_params") or {}).get("vd")) or 40.0
         dose = _to_float((pop.get("regimen") or {}).get("dose"))
         dose_unit = str((pop.get("regimen") or {}).get("dose_unit") or "").lower()
@@ -517,7 +553,7 @@ class AntimicrobialPKMixin:
             recommendation = "万古霉素 AUC/MIC 预计不足，建议增加暴露并复核下一次浓度。"
         elif auc_mic > high:
             recommendation = "万古霉素 AUC/MIC 预计过高，建议降低暴露并警惕毒性。"
-        return {"drug": "vancomycin", "sample_time": sample.get("time"), "sample_value": sample_value, "population_pk": pop.get("pk_params") or {}, "individual_pk": {"cl": individual_cl, "vd": vd}, "auc24": auc24, "predicted_trough_next": adjusted.get("trough"), "target_attainment": attainment, "recommendation": recommendation}
+        return {"drug": "vancomycin", "sample_time": sample.get("time"), "sample_value": sample_value, "population_pk": pop.get("pk_params") or {}, "individual_pk": {"cl": individual_cl, "vd": vd}, "bayes_update": {"omega_cl_sq": omega_sq, "sigma_sq": sigma_sq, "shrinkage_weight": round(weight, 4) if weight is not None else None, "log_ratio": round(log_ratio, 4) if log_ratio is not None else None}, "auc24": auc24, "predicted_trough_next": adjusted.get("trough"), "target_attainment": attainment, "recommendation": recommendation}
 
     async def _persist_vanco_tdm(self, patient_doc: dict, result: dict, now: datetime) -> None:
         pid_str = self._pid_str(patient_doc.get("_id"))
