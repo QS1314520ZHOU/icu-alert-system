@@ -9,6 +9,7 @@ import logging
 
 from .ai_risk import AiRiskMixin
 from .antibiotic_stewardship import AntibioticStewardshipMixin
+from .antimicrobial_pk import AntimicrobialPKMixin
 from .base import BaseEngine
 from .composite_deterioration import CompositeDeteriorationMixin
 from .crrt_monitor import CrrtMonitorMixin
@@ -60,6 +61,7 @@ class AlertEngine(
     VentilatorMixin,
     DrugSafetyMixin,
     AntibioticStewardshipMixin,
+    AntimicrobialPKMixin,
     DeliriumRiskMixin,
     DeviceManagementMixin,
     FluidBalanceMixin,
@@ -106,6 +108,9 @@ class AlertEngine(
             asyncio.create_task(self._loop("ventilator", self.scan_ventilator_weaning, int(intervals.get("ventilator", 3600)))),
             asyncio.create_task(self._loop("drug_safety", self.scan_drug_safety, int(intervals.get("drug_safety", 1800)))),
             asyncio.create_task(self._loop("antibiotic_stewardship", self.scan_antibiotic_stewardship, int(intervals.get("antibiotic_stewardship", 1800)))),
+            asyncio.create_task(self._loop("arc_risk", self.scan_arc_risk, int(intervals.get("arc_risk", 300)))),
+            asyncio.create_task(self._loop("antimicrobial_pk", self.scan_antimicrobial_pk, int(intervals.get("antimicrobial_pk", 600)))),
+            asyncio.create_task(self._loop("vanco_tdm_closed_loop", self.scan_vanco_tdm_closed_loop, int(intervals.get("vanco_tdm_closed_loop", 600)))),
             asyncio.create_task(self._loop("delirium_risk", self.scan_delirium_risk, int(intervals.get("delirium_risk", 900)))),
             asyncio.create_task(self._loop("device_management", self.scan_device_management, int(intervals.get("device_management", 3600)))),
             asyncio.create_task(self._loop("fluid_balance", self.scan_fluid_balance, int(intervals.get("fluid_balance", 600)))),
@@ -150,6 +155,9 @@ class AlertEngine(
             "ventilator": 40,
             "drug_safety": 45,
             "antibiotic_stewardship": 42,
+            "arc_risk": 46,
+            "antimicrobial_pk": 48,
+            "vanco_tdm_closed_loop": 50,
             "delirium_risk": 35,
             "cardiac_arrest": 32,
             "device_management": 37,
