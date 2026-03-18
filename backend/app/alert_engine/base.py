@@ -7,323 +7,19 @@ import asyncio
 import json
 import logging
 import math
-import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import numpy as np
-from bson import ObjectId
+from app.alert_engine.acid_base_analyzer import extract_bga_temp_items
 from app.services.llm_runtime import call_llm_chat
 from app.services.temporal_model_runtime import TemporalRiskModelRuntime
+from app.utils.bed_matching import _bed_match, _normalize_bed
+from app.utils.clinical import _cap_time, _cap_value, _detect_trend, _eval_condition, _extract_param
+from app.utils.labs import _convert_lab_value, _lab_time, _match_lab_test
+from app.utils.parse import API_TZ, _parse_dt, _parse_number, _safe_oid, _to_output_iso
 
 logger = logging.getLogger("icu-alert")
-
-
-# =============================================
-# 基础工具函数
-# =============================================
-def _safe_oid(value: Any) -> ObjectId | None:
-    if isinstance(value, ObjectId):
-        return value
-    if value is None:
-        return None
-    try:
-        return ObjectId(str(value))
-    except Exception:
-        return None
-
-
-def _parse_dt(value: Any) -> datetime | None:
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
-        return None
-
-
-def _extract_param(doc: dict, key: str) -> float | None:
-    """
-    从 deviceCap / bedside 文档中提取参数值。
-    兼容多种数据结构:
-      - doc[key]                    (顶层)
-      - doc["params"][key]          (params 字典)
-      - doc["params"][key]["value"] (嵌套对象)
-    """
-    # 单参数文档（code + 数值）
-    if doc.get("code") == key:
-        for v in (doc.get("fVal"), doc.get("intVal"), doc.get("strVal"), doc.get("value")):
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                continue
-    v = doc.get(key)
-    if v is None:
-        params = doc.get("params", {})
-        if isinstance(params, dict):
-            v = params.get(key)
-    if isinstance(v, dict):
-        v = v.get("value", v.get("v"))
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except (ValueError, TypeError):
-        return None
-
-
-def _eval_condition(value: float | None, condition: dict) -> bool:
-    """评估单条规则条件"""
-    if value is None:
-        return False
-    op = condition.get("operator")
-    thr = condition.get("threshold")
-    lo = condition.get("min")
-    hi = condition.get("max")
-    try:
-        if op == ">":
-            return value > float(thr)
-        if op == ">=":
-            return value >= float(thr)
-        if op == "<":
-            return value < float(thr)
-        if op == "<=":
-            return value <= float(thr)
-        if op in ("==", "="):
-            return value == float(thr)
-        if op == "!=":
-            return value != float(thr)
-        if op == "between":
-            return float(lo) <= value <= float(hi)
-        if op == "outside":
-            return value < float(lo) or value > float(hi)
-    except Exception:
-        return False
-    return False
-
-
-def _detect_trend(values: list[float], window: int = 5) -> dict:
-    """
-    分析最近 N 个采样点的趋势。
-    返回 {"direction": "rising"|"falling"|"stable", "slope": float, "volatility": float}
-    """
-    if len(values) < 2:
-        return {"direction": "stable", "slope": 0.0, "volatility": 0.0}
-
-    recent = values[-window:] if len(values) >= window else values
-    n = len(recent)
-
-    x_mean = (n - 1) / 2
-    y_mean = sum(recent) / n
-    num = sum((i - x_mean) * (recent[i] - y_mean) for i in range(n))
-    den = sum((i - x_mean) ** 2 for i in range(n))
-    slope = num / den if den != 0 else 0.0
-
-    volatility = (sum((v - y_mean) ** 2 for v in recent) / n) ** 0.5
-
-    if slope > 0.5:
-        direction = "rising"
-    elif slope < -0.5:
-        direction = "falling"
-    else:
-        direction = "stable"
-
-    return {"direction": direction, "slope": round(slope, 3), "volatility": round(volatility, 2)}
-
-# =============================================
-# 检验结果解析工具
-# =============================================
-_LAB_TESTS_ORDERED = [
-    ("ph", {"keywords": ["ph", "酸碱度"], "unit": ""}),
-    ("pco2", {"keywords": ["paco2", "pco2", "二氧化碳分压"], "unit": "mmHg"}),
-    ("hco3", {"keywords": ["hco3", "碳酸氢根", "标准碳酸氢根", "实际碳酸氢根"], "unit": "mmol/L"}),
-    ("ica", {"keywords": ["离子钙", "离子鈣", "ionized calcium", "ica", "ica²⁺"], "unit": "mmol/L"}),
-    ("ca", {"keywords": ["总钙", "钙", "calcium", "ca"], "unit": "mmol/L"}),
-    ("k", {"keywords": ["钾", "potassium", "k+"], "unit": "mmol/L"}),
-    ("na", {"keywords": ["钠", "sodium", "na+"], "unit": "mmol/L"}),
-    ("cl", {"keywords": ["氯", "chloride", "cl-"], "unit": "mmol/L"}),
-    ("lac", {"keywords": ["乳酸", "lactate", "lac"], "unit": "mmol/L"}),
-    ("mg", {"keywords": ["镁", "magnesium", "mg"], "unit": "mg/dL"}),
-    ("po4", {"keywords": ["磷", "无机磷", "血磷", "phosphate", "phos", "po4"], "unit": "mg/dL"}),
-    ("albumin", {"keywords": ["白蛋白", "albumin", "alb"], "unit": "g/L"}),
-    ("glu", {"keywords": ["葡萄糖", "血糖", "glucose", "glu"], "unit": "mmol/L"}),
-    ("hb", {"keywords": ["血红蛋白", "血紅蛋白", "hemoglobin", "hb"], "unit": "g/L"}),
-    ("plt", {"keywords": ["血小板", "platelet", "plt"], "unit": "10^9/L"}),
-    ("cr", {"keywords": ["肌酐", "creatinine", "cr"], "unit": "umol/L"}),
-    ("egfr", {"keywords": ["egfr", "估算肾小球滤过率", "肾小球滤过率"], "unit": "mL/min/1.73m2"}),
-    ("pct", {"keywords": ["降钙素原", "pct", "procalcitonin"], "unit": "ng/mL"}),
-    ("inr", {"keywords": ["inr"], "unit": ""}),
-    ("pt", {"keywords": ["凝血酶原时间", "pt"], "unit": "s"}),
-    ("fib", {"keywords": ["纤维蛋白原", "fibrinogen", "fib"], "unit": "g/L"}),
-    ("ddimer", {"keywords": ["d-dimer", "d二聚体", "d-二聚体", "fdp"], "unit": "mg/L"}),
-    ("alt", {"keywords": ["谷丙转氨酶", "丙氨酸氨基转移酶", "alanine aminotransferase", "alt"], "unit": "U/L"}),
-    ("ast", {"keywords": ["谷草转氨酶", "天门冬氨酸氨基转移酶", "aspartate aminotransferase", "ast"], "unit": "U/L"}),
-    ("act", {"keywords": ["act", "活化凝血时间"], "unit": "s"}),
-    ("trop", {"keywords": ["肌钙蛋白", "troponin"], "unit": ""}),
-    ("bnp", {"keywords": ["bnp", "nt-probnp", "ntprobnp"], "unit": "pg/mL"}),
-    ("bil", {"keywords": ["胆红素", "bilirubin", "tbil"], "unit": "umol/L"}),
-    ("pao2", {"keywords": ["pao2", "po2", "氧分压"], "unit": "mmHg"}),
-]
-
-
-def _parse_number(value: Any) -> float | None:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    s = str(value).strip()
-    if not s:
-        return None
-    s = s.replace("≥", "").replace("≤", "").replace(">", "").replace("<", "").strip()
-    if s.lower() in ("neg", "negative", "trace", "无", "阴性", "阳性"):
-        return None
-    m = re.search(r"[-+]?\d+(\.\d+)?", s)
-    if not m:
-        return None
-    try:
-        return float(m.group(0))
-    except Exception:
-        return None
-
-
-def _normalize_bed(value: Any) -> str | None:
-    if value is None:
-        return None
-    s = str(value).strip()
-    if not s:
-        return None
-    s = s.upper().replace("床", "")
-    if s.startswith("BED"):
-        s = s[3:]
-    s = s.strip()
-    m = re.search(r"\d+", s)
-    if m:
-        try:
-            return str(int(m.group(0)))
-        except Exception:
-            return m.group(0)
-    return s
-
-
-def _bed_match(a: Any, b: Any) -> bool:
-    na = _normalize_bed(a)
-    nb = _normalize_bed(b)
-    if not na or not nb:
-        return False
-    return na == nb
-
-
-def _cap_time(doc: dict) -> datetime | None:
-    return _parse_dt(doc.get("time")) or _parse_dt(doc.get("recordTime"))
-
-
-def _cap_value(doc: dict) -> float | None:
-    for key in ("fVal", "intVal", "strVal", "value"):
-        num = _parse_number(doc.get(key))
-        if num is not None:
-            return num
-    return None
-
-
-def _normalize_unit(unit: Any) -> str:
-    if unit is None:
-        return ""
-    return str(unit).strip().lower().replace("μ", "u")
-
-
-def _convert_lab_value(test_key: str, value: float, unit: str) -> float:
-    """必要的单位换算（尽量保守）"""
-    u = _normalize_unit(unit)
-
-    if test_key == "cr":
-        if "mg/dl" in u:
-            return value * 88.4
-        return value
-
-    if test_key == "bil":
-        if "mg/dl" in u:
-            return value * 17.1
-        return value
-
-    if test_key == "pao2":
-        if "kpa" in u:
-            return value * 7.5
-        return value
-
-    if test_key == "pco2":
-        if "kpa" in u:
-            return value * 7.5
-        return value
-
-    if test_key == "albumin":
-        if "g/dl" in u:
-            return value * 10.0
-        return value
-
-    if test_key == "po4":
-        if "mmol/l" in u:
-            return value * 3.1
-        return value
-
-    if test_key == "mg":
-        if "mmol/l" in u:
-            return value * 2.43
-        return value
-
-    if test_key == "ddimer":
-        # 标准化为 mg/L FEU
-        # DDU 单位需 ×2 换算为 FEU（DDU ≈ FEU / 2）
-        is_ddu = "ddu" in u
-        if "g/l" in u:
-            converted = value * 1000.0
-            return converted * 2 if is_ddu else converted
-        if "mg/dl" in u:
-            converted = value * 10.0
-            return converted * 2 if is_ddu else converted
-        if "ug/l" in u or "ng/ml" in u:
-            converted = value / 1000.0
-            return converted * 2 if is_ddu else converted
-        if "ug/ml" in u:
-            return value * 2 if is_ddu else value
-        if "ng/l" in u:
-            converted = value / 1_000_000.0
-            return converted * 2 if is_ddu else converted
-        if "mg/l" in u or not u:
-            # mg/L 直接使用; 无单位时假定 mg/L（最常见 ICU 报告单位）
-            return value * 2 if is_ddu else value
-        logger.warning(f"D-Dimer 单位无法识别: '{unit}'，按 mg/L FEU 处理")
-        return value
-
-    return value
-
-
-def _match_lab_test(name: str) -> str | None:
-    if not name:
-        return None
-    n = str(name).lower()
-    for k, meta in _LAB_TESTS_ORDERED:
-        for kw in meta["keywords"]:
-            kw_l = kw.lower()
-            if kw_l in n:
-                if k == "mg" and not any(x in n for x in ["镁", "magnesium", "血镁"]):
-                    continue
-                if k == "k" and "肌酐" in n:
-                    continue
-                return k
-    return None
-
-
-def _lab_time(doc: dict) -> datetime | None:
-    return (
-        _parse_dt(doc.get("authTime"))
-        or _parse_dt(doc.get("collectTime"))
-        or _parse_dt(doc.get("requestTime"))
-        or _parse_dt(doc.get("reportTime"))
-        or _parse_dt(doc.get("resultTime"))
-        or _parse_dt(doc.get("time"))
-    )
 
 class BaseEngine:
     def __init__(self, db, config, ws_manager=None) -> None:
@@ -1042,8 +738,32 @@ class BaseEngine:
 
     async def _get_latest_labs_map(self, his_pid, lookback_hours: int = 72) -> dict:
         since = datetime.now() - timedelta(hours=lookback_hours)
-        cursor = self.db.dc_col("VI_ICU_EXAM_ITEM").find({"hisPid": his_pid}).sort("authTime", -1).limit(300)
         results: dict = {}
+        bga_items = await self._get_bga_temp_items(his_pid, limit=80)
+        for doc in bga_items:
+            t = _lab_time(doc)
+            if t and t < since:
+                continue
+            name = doc.get("itemCnName") or doc.get("itemName") or doc.get("item") or doc.get("itemCode")
+            test_key = _match_lab_test(name)
+            if not test_key or test_key in results:
+                continue
+            raw_val = doc.get("result") or doc.get("resultValue") or doc.get("value")
+            num = _parse_number(raw_val)
+            if num is None:
+                continue
+            unit = doc.get("unit") or doc.get("resultUnit") or ""
+            value = _convert_lab_value(test_key, num, unit)
+            results[test_key] = {
+                "value": value,
+                "time": t,
+                "unit": unit,
+                "raw_name": name,
+                "raw_value": raw_val,
+                "raw_flag": doc.get("resultFlag") or doc.get("flag") or doc.get("sourceTable") or "bGATemp",
+            }
+
+        cursor = self.db.dc_col("VI_ICU_EXAM_ITEM").find({"hisPid": his_pid}).sort("authTime", -1).limit(300)
         async for doc in cursor:
             t = _lab_time(doc)
             if t and t < since:
@@ -1080,8 +800,26 @@ class BaseEngine:
         end: datetime | None = None,
         limit: int = 200,
     ) -> list[dict]:
-        cursor = self.db.dc_col("VI_ICU_EXAM_ITEM").find({"hisPid": his_pid}).sort("authTime", -1).limit(limit)
         series = []
+        bga_items = await self._get_bga_temp_items(his_pid, limit=limit)
+        for doc in bga_items:
+            t = _lab_time(doc)
+            if not t or t < since:
+                continue
+            if end and t > end:
+                continue
+            name = doc.get("itemCnName") or doc.get("itemName") or doc.get("item") or doc.get("itemCode")
+            if _match_lab_test(name) != test_key:
+                continue
+            raw_val = doc.get("result") or doc.get("resultValue") or doc.get("value")
+            num = _parse_number(raw_val)
+            if num is None:
+                continue
+            unit = doc.get("unit") or doc.get("resultUnit") or ""
+            value = _convert_lab_value(test_key, num, unit)
+            series.append({"time": t, "value": value, "unit": unit})
+
+        cursor = self.db.dc_col("VI_ICU_EXAM_ITEM").find({"hisPid": his_pid}).sort("authTime", -1).limit(limit)
         async for doc in cursor:
             t = _lab_time(doc)
             if not t or t < since:
@@ -1100,6 +838,27 @@ class BaseEngine:
             series.append({"time": t, "value": value, "unit": unit})
         series.sort(key=lambda x: x["time"])
         return series
+
+    async def _get_bga_temp_items(self, his_pid: Any, limit: int = 80) -> list[dict]:
+        pid_text = str(his_pid or "").strip()
+        if not pid_text:
+            return []
+        query_values: list[Any] = [pid_text]
+        maybe_oid = _safe_oid(pid_text)
+        if maybe_oid is not None:
+            query_values.append(maybe_oid)
+        or_list: list[dict[str, Any]] = []
+        for field in ("hisPid", "his_pid", "pid", "patientId", "patient_id"):
+            for value in query_values:
+                or_list.append({field: value})
+        rows = [
+            row async for row in self.db.col("bGATemp").find({"$or": or_list}).sort("inputTime", -1).limit(max(int(limit or 80), 20))
+        ]
+        items: list[dict] = []
+        for row in rows:
+            items.extend(extract_bga_temp_items(row))
+        items.sort(key=lambda x: _lab_time(x) or datetime.min, reverse=True)
+        return items
 
     def _calc_qsofa(self, sbp: float | None, rr: float | None, gcs: float | None) -> int:
         score = 0
@@ -2070,7 +1829,7 @@ class BaseEngine:
                 row = self._series_value_before(dataset, None)
                 if row and isinstance(row.get("time"), datetime):
                     anchor_candidates.append(row.get("time"))
-        anchor_time = max(anchor_candidates) if anchor_candidates else datetime.now()
+        anchor_time = max(anchor_candidates) if anchor_candidates else datetime.now(timezone.utc)
         temporal_cfg = self.config.yaml_cfg.get("ai_service", {}).get("temporal_model", {})
         history_offsets = temporal_cfg.get("history_offsets_hours", [-8, -6, -4, -2, 0]) if isinstance(temporal_cfg, dict) else [-8, -6, -4, -2, 0]
         history_offsets = [int(x) for x in history_offsets if _parse_number(x) is not None]
@@ -2140,7 +1899,7 @@ class BaseEngine:
                         "phase": "history" if offset < 0 else "current",
                         "probability": round(hist_prob, 4),
                         "risk_level": self._risk_level_from_probability(hist_prob),
-                        "time": cutoff.isoformat(),
+                        "time": _to_output_iso(cutoff),
                     }
                 )
                 base_org = self._normalize_organ_risk_scores(hist.get("organ_scores", {}))
@@ -2154,7 +1913,7 @@ class BaseEngine:
                             "offset_hours": offset,
                             "phase": "history" if offset < 0 else "current",
                             "probability": round(organ_prob, 4),
-                            "time": cutoff.isoformat(),
+                            "time": _to_output_iso(cutoff),
                         }
                     )
         else:
@@ -2165,7 +1924,7 @@ class BaseEngine:
                     "phase": "current",
                     "probability": round(current_prob, 4),
                     "risk_level": snapshot.get("risk_level") or "low",
-                    "time": anchor_time.isoformat(),
+                    "time": _to_output_iso(anchor_time),
                 }
             )
 
@@ -2205,7 +1964,7 @@ class BaseEngine:
                     "phase": "forecast",
                     "probability": round(probability, 4),
                     "risk_level": self._risk_level_from_probability(probability),
-                    "time": (anchor_time + timedelta(hours=hours_i)).isoformat(),
+                    "time": _to_output_iso(anchor_time + timedelta(hours=hours_i)),
                 }
             )
             scale = max(0.7, min(1.4, probability / max(current_prob, 0.08)))
@@ -2217,7 +1976,7 @@ class BaseEngine:
                         "offset_hours": hours_i,
                         "phase": "forecast",
                         "probability": round(organ_prob, 4),
-                        "time": (anchor_time + timedelta(hours=hours_i)).isoformat(),
+                        "time": _to_output_iso(anchor_time + timedelta(hours=hours_i)),
                     }
                 )
 
@@ -2250,7 +2009,7 @@ class BaseEngine:
                 "prediction_horizons_hours": list(horizons),
                 "runtime": runtime_meta,
             },
-            "anchor_time": anchor_time.isoformat(),
+            "anchor_time": _to_output_iso(anchor_time),
             "risk_level": snapshot.get("risk_level") or "low",
             "current_probability": round(current_prob, 4),
             "horizon_probabilities": horizon_probs,

@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 import numpy as np
 from app.services.llm_runtime import call_llm_chat
+from .scanner_adaptive_thresholds import AdaptiveThresholdsScanner
 
 logger = logging.getLogger("icu-alert")
 
@@ -643,77 +644,5 @@ class AdaptiveThresholdAdvisorMixin:
         return bool(alert)
 
     async def scan_adaptive_thresholds(self) -> None:
-        cfg = self._threshold_advisor_cfg()
-        if not bool(cfg.get("enabled", True)):
-            return
+        await AdaptiveThresholdsScanner(self).scan()
 
-        base_url = str(self.config.settings.LLM_BASE_URL or "").lower()
-        llm_key = self.config.settings.LLM_API_KEY
-        is_ollama = ("ollama" in base_url) or ("11434" in base_url)
-        if not is_ollama and (not llm_key or llm_key in {"", "your_api_key"}):
-            return
-
-        patient_cursor = self.db.col("patient").find(
-            self._active_patient_query(),
-            {
-                "_id": 1,
-                "name": 1,
-                "hisPid": 1,
-                "hisBed": 1,
-                "dept": 1,
-                "hisDept": 1,
-                "age": 1,
-                "gender": 1,
-                "hisSex": 1,
-                "clinicalDiagnosis": 1,
-                "admissionDiagnosis": 1,
-                "diagnosis": 1,
-                "remark": 1,
-                "icuAdmissionTime": 1,
-                "admissionTime": 1,
-                "admitTime": 1,
-                "inTime": 1,
-                "createTime": 1,
-            },
-        )
-        patients = [row async for row in patient_cursor]
-        if not patients:
-            return
-
-        suppression = self._cfg("alert_engine", "suppression", default={}) or {}
-        same_rule_sec = int(suppression.get("same_rule_same_patient_seconds", 1800))
-        max_per_hour = int(suppression.get("max_alerts_per_patient_per_hour", 10))
-        cache_ttl_sec = int(cfg.get("cache_ttl_seconds", 3600))
-        max_concurrent = max(1, int(cfg.get("max_concurrent", 3)))
-        semaphore = asyncio.Semaphore(max_concurrent)
-        now = datetime.now()
-
-        try:
-            timeout = httpx.Timeout(float(cfg.get("llm_timeout", 45) or 45))
-        except Exception:
-            timeout = httpx.Timeout(45)
-
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            tasks = [
-                asyncio.create_task(
-                    self._scan_single_patient_adaptive_thresholds(
-                        patient_doc=patient_doc,
-                        now=now,
-                        semaphore=semaphore,
-                        cache_ttl_sec=cache_ttl_sec,
-                        same_rule_sec=same_rule_sec,
-                        max_per_hour=max_per_hour,
-                        client=client,
-                    )
-                )
-                for patient_doc in patients
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        triggered = 0
-        for item in results:
-            if item is True:
-                triggered += 1
-        if triggered > 0:
-            self._log_info("个性化阈值建议", triggered)
-        self._gc_threshold_cache(cache_ttl_sec)

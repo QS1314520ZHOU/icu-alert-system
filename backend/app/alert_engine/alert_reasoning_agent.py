@@ -8,85 +8,33 @@ import logging
 import re
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 
 from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
 
+from .scanner_alert_reasoning import AlertReasoningScanner
+
 logger = logging.getLogger("icu-alert")
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class AlertReasoningAgentMixin:
+    def _local_iso(self, value: datetime | None) -> str | None:
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=API_TZ)
+        return value.astimezone(API_TZ).isoformat()
+
     def _alert_reasoning_cfg(self) -> dict[str, Any]:
         cfg = self._cfg("alert_engine", "alert_reasoning_agent", default={}) or {}
         return cfg if isinstance(cfg, dict) else {}
 
     async def scan_alert_reasoning(self) -> None:
-        cfg = self._alert_reasoning_cfg()
-        if not bool(cfg.get("enabled", True)):
-            return
-
-        ai_cfg = self.config.yaml_cfg.get("ai_service", {})
-        if not ai_cfg:
-            return
-
-        llm_cfg = ai_cfg.get("llm", {}) if isinstance(ai_cfg, dict) else {}
-        timeout_sec = float(llm_cfg.get("timeout", 30) or 30)
-        max_concurrency = max(1, int(cfg.get("max_concurrency", llm_cfg.get("max_concurrency", 2) or 2)))
-        max_patients = max(1, int(cfg.get("max_patients", ai_cfg.get("max_patients", 20) or 20)))
-
-        base_url = str(self.config.settings.LLM_BASE_URL or "").lower()
-        llm_key = self.config.settings.LLM_API_KEY
-        is_ollama = ("ollama" in base_url) or ("11434" in base_url)
-        if not is_ollama and (not llm_key or llm_key in ("your_api_key", "")):
-            return
-
-        patient_cursor = self.db.col("patient").find(
-            self._active_patient_query(),
-            {
-                "_id": 1,
-                "name": 1,
-                "hisPid": 1,
-                "hisBed": 1,
-                "dept": 1,
-                "hisDept": 1,
-                "deptCode": 1,
-                "clinicalDiagnosis": 1,
-                "admissionDiagnosis": 1,
-                "nursingLevel": 1,
-                "icuAdmissionTime": 1,
-            },
-        )
-        patients = [p async for p in patient_cursor]
-        if not patients:
-            return
-
-        semaphore = asyncio.Semaphore(max_concurrency)
-        now = datetime.now()
-
-        try:
-            timeout = httpx.Timeout(timeout_sec)
-        except Exception:
-            timeout = httpx.Timeout(30)
-
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            tasks = [
-                asyncio.create_task(
-                    self._scan_single_patient_alert_reasoning(
-                        patient_doc=patient_doc,
-                        now=now,
-                        semaphore=semaphore,
-                        client=client,
-                    )
-                )
-                for patient_doc in patients[:max_patients]
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        updated = sum(1 for item in results if item is True)
-        if updated > 0:
-            self._log_info("AI归因摘要", updated)
+        await AlertReasoningScanner(self).scan()
 
     async def _scan_single_patient_alert_reasoning(
         self,
@@ -286,7 +234,7 @@ class AlertReasoningAgentMixin:
             "task": {
                 "name": "alert_reasoning_agent",
                 "goal": "对同一患者短时聚集报警进行共同根因归因，并给出优先级和合并展示方案",
-                "generated_at": now.isoformat(),
+                "generated_at": self._local_iso(now),
             },
             "patient": {
                 "id": str(patient_doc.get("_id") or ""),
@@ -823,7 +771,7 @@ JSON结构:
             "source_alert_count": len(allowed_ids),
             "cluster_signature": cluster_signature,
             "analysis_source": analysis_source,
-            "generated_at": datetime.now(),
+            "generated_at": datetime.now(API_TZ),
         }
 
     async def _validate_alert_reasoning_output(self, result: dict[str, Any], facts: dict[str, Any]) -> dict[str, Any]:

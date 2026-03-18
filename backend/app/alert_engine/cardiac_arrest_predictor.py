@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from .base import _cap_time, _cap_value
+from app.utils.clinical import _cap_time, _cap_value
 
 
 class CardiacArrestPredictorMixin:

@@ -7,11 +7,13 @@ import math
 import re
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
 
 logger = logging.getLogger("icu-alert")
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class SimilarCaseReviewMixin:
@@ -384,7 +386,7 @@ class SimilarCaseReviewMixin:
                 "summary": str(parsed.get("summary") or "").strip(),
                 "pattern_bullets": [str(x).strip() for x in bullets[:4] if str(x).strip()],
                 "caution": str(parsed.get("caution") or "").strip(),
-                "generated_at": datetime.now(),
+                "generated_at": datetime.now(API_TZ),
             }
         except Exception:
             if monitor:
@@ -424,7 +426,7 @@ class SimilarCaseReviewMixin:
             "summary": summary,
             "pattern_bullets": bullets[:4],
             "caution": "相似病例仅供参考，不替代当前床旁病情判断。",
-            "generated_at": datetime.now(),
+            "generated_at": datetime.now(API_TZ),
         }
 
     def _degraded_similar_case_result(
@@ -475,7 +477,7 @@ class SimilarCaseReviewMixin:
                 "summary": message,
                 "pattern_bullets": ["已切换为非AI降级路径，本次不展示LLM结局解读。"],
                 "caution": "当前页面仍可继续查看基础病历信息，AI能力恢复后可刷新重试。",
-                "generated_at": datetime.now(),
+                "generated_at": datetime.now(API_TZ),
                 "degraded": True,
             },
         }

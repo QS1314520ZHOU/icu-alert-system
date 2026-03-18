@@ -138,6 +138,54 @@ NON_BLOOD_HINT_KEYWORDS = [
 
 SUPPORTIVE_FALLBACK_FIELDS = ("na", "k", "cl", "albumin", "lactate", "mg", "po4", "ica", "ca")
 
+BGA_TEMP_FIELD_ALIASES: dict[str, list[str]] = {
+    "ph": ["param_bg_pH", "param_bg_pH_T", "ph", "bgaph", "abgph", "phvalue"],
+    "paco2": ["param_bg_pco2", "param_bg_pco2_T", "paco2", "pco2", "bgapco2", "abgpco2"],
+    "pao2": ["param_bg_po2", "param_bg_po2_T", "pao2", "po2", "bgapo2", "abgpo2"],
+    "hco3": ["param_bg_HCO3-", "param_bg_HCO3-c", "param_bg_HCO3std", "hco3", "hco3act", "hco3std", "actualhco3", "stdhco3", "abchco3", "sbchco3"],
+    "na": ["param_bg_Na+", "na", "sodium", "na+"],
+    "k": ["param_bg_K+", "k", "potassium", "k+"],
+    "cl": ["param_bg_Cl-", "cl", "chloride", "cl-"],
+    "albumin": ["param_ana_ALB", "albumin", "alb"],
+    "lactate": ["param_bg_Lac", "lactate", "lac"],
+    "mg": ["param_bg_Mg++", "mg", "magnesium"],
+    "po4": ["param_bg_PO4---", "po4", "phosphate", "phos"],
+    "ica": ["param_bg_Ca+", "param_bg_Ca+74", "ica", "ionizedcalcium", "ionizedca", "freeca"],
+    "ca": ["param_bg_Ca+", "param_bg_Ca+74", "ca", "calcium", "totalca", "totalcalcium"],
+}
+
+BGA_TEMP_FIELD_LABELS: dict[str, str] = {
+    "ph": "pH",
+    "paco2": "PaCO2",
+    "pao2": "PaO2",
+    "hco3": "HCO3-",
+    "na": "Na+",
+    "k": "K+",
+    "cl": "Cl-",
+    "albumin": "白蛋白",
+    "lactate": "乳酸",
+    "mg": "镁",
+    "po4": "无机磷",
+    "ica": "离子钙",
+    "ca": "总钙",
+}
+
+BGA_TEMP_DEFAULT_UNITS: dict[str, str] = {
+    "ph": "",
+    "paco2": "mmHg",
+    "pao2": "mmHg",
+    "hco3": "mmol/L",
+    "na": "mmol/L",
+    "k": "mmol/L",
+    "cl": "mmol/L",
+    "albumin": "g/dL",
+    "lactate": "mmol/L",
+    "mg": "mmol/L",
+    "po4": "mmol/L",
+    "ica": "mmol/L",
+    "ca": "mmol/L",
+}
+
 
 def _is_non_blood_context(doc: dict) -> bool:
     text = _doc_text(doc)
@@ -196,6 +244,136 @@ def _match_field(doc: dict) -> str | None:
 
 def _field_row(field: str, value: float | None, unit: str = "", abnormal: bool = False) -> dict[str, Any]:
     return {"field": field, "value": value, "unit": unit, "abnormal": abnormal}
+
+
+def _normalize_bga_temp_key(value: Any) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").strip().lower())
+
+
+def _flatten_bga_temp_doc(doc: dict[str, Any], depth: int = 0, prefix: str = "") -> dict[str, Any]:
+    flat: dict[str, Any] = {}
+    if not isinstance(doc, dict) or depth > 2:
+        return flat
+    for key, value in doc.items():
+        merged_key = f"{prefix}{key}"
+        norm_key = _normalize_bga_temp_key(merged_key)
+        if isinstance(value, dict):
+            flat.update(_flatten_bga_temp_doc(value, depth + 1, f"{merged_key}_"))
+            continue
+        if norm_key and norm_key not in flat:
+            flat[norm_key] = value
+    return flat
+
+
+def bga_temp_time(doc: dict[str, Any]) -> datetime | None:
+    value = (
+        doc.get("sampleTime")
+        or doc.get("sample_time")
+        or doc.get("recordTime")
+        or doc.get("reportTime")
+        or doc.get("authTime")
+        or doc.get("collectTime")
+        or doc.get("createTime")
+        or doc.get("createdTime")
+        or doc.get("updatedTime")
+        or doc.get("updateTime")
+        or doc.get("time")
+    )
+    if isinstance(value, datetime):
+        return value
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def extract_bga_temp_items(doc: dict[str, Any]) -> list[dict[str, Any]]:
+    if not isinstance(doc, dict):
+        return []
+    sample_time = bga_temp_time(doc)
+    exam_name = str(doc.get("examName") or doc.get("panelName") or doc.get("sourceName") or "SmartCare 血气(bGATemp)").strip() or "SmartCare 血气(bGATemp)"
+    items: list[dict[str, Any]] = []
+    bedsides = doc.get("bedsides") if isinstance(doc.get("bedsides"), list) else []
+    if bedsides:
+        latest_by_code: dict[str, dict[str, Any]] = {}
+        for row in bedsides:
+            if not isinstance(row, dict):
+                continue
+            code = str(row.get("code") or "").strip()
+            if not code:
+                continue
+            latest_by_code[code] = row
+        for field, aliases in BGA_TEMP_FIELD_ALIASES.items():
+            matched = None
+            matched_code = ""
+            for alias in aliases:
+                for candidate in latest_by_code.keys():
+                    if _normalize_bga_temp_key(candidate) == _normalize_bga_temp_key(alias):
+                        matched = latest_by_code[candidate]
+                        matched_code = candidate
+                        break
+                if matched is not None:
+                    break
+            raw_value = None if matched is None else matched.get("fVal", matched.get("value", matched.get("strVal")))
+            num = _parse_num(raw_value)
+            if num is None:
+                continue
+            unit = str(matched.get("unit") or matched.get("resultUnit") or BGA_TEMP_DEFAULT_UNITS.get(field, "")) if matched else BGA_TEMP_DEFAULT_UNITS.get(field, "")
+            items.append(
+                {
+                    "itemName": matched.get("name") if matched else BGA_TEMP_FIELD_LABELS.get(field, field),
+                    "itemCnName": matched.get("name") if matched else BGA_TEMP_FIELD_LABELS.get(field, field),
+                    "itemCode": matched_code or field,
+                    "result": raw_value,
+                    "unit": unit,
+                    "resultUnit": unit,
+                    "authTime": matched.get("time") if matched and matched.get("time") else sample_time,
+                    "time": matched.get("time") if matched and matched.get("time") else sample_time,
+                    "examName": exam_name,
+                    "sourceTable": "bGATemp",
+                }
+            )
+        if items:
+            return items
+
+    flat = _flatten_bga_temp_doc(doc)
+    for field, aliases in BGA_TEMP_FIELD_ALIASES.items():
+        raw_value = None
+        alias_key = ""
+        for alias in aliases:
+            lookup = _normalize_bga_temp_key(alias)
+            if lookup in flat:
+                raw_value = flat.get(lookup)
+                alias_key = lookup
+                break
+        num = _parse_num(raw_value)
+        if num is None:
+            continue
+        unit = ""
+        if alias_key:
+            for suffix in ("unit", "resultunit", "valueunit"):
+                maybe_unit = flat.get(f"{alias_key}{suffix}")
+                if maybe_unit:
+                    unit = str(maybe_unit)
+                    break
+        unit = unit or BGA_TEMP_DEFAULT_UNITS.get(field, "")
+        items.append(
+            {
+                "itemName": BGA_TEMP_FIELD_LABELS.get(field, field),
+                "itemCnName": BGA_TEMP_FIELD_LABELS.get(field, field),
+                "itemCode": field,
+                "result": raw_value,
+                "unit": unit,
+                "resultUnit": unit,
+                "authTime": sample_time,
+                "time": sample_time,
+                "examName": exam_name,
+                "sourceTable": "bGATemp",
+            }
+        )
+    return items
 
 
 def extract_acid_base_snapshot(items: list[dict], fallback_latest: dict[str, dict] | None = None) -> dict[str, Any]:

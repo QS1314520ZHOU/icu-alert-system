@@ -5,6 +5,9 @@ import json
 import re
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable
+from zoneinfo import ZoneInfo
+
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class AiHandoffService:
@@ -55,7 +58,7 @@ class AiHandoffService:
         validation = self._validate_numeric_claims(parsed, context)
         parsed = self._apply_structured_hints(parsed, context)
         parsed["validation"] = validation
-        parsed["generated_at"] = datetime.now().isoformat()
+        parsed["generated_at"] = datetime.now(API_TZ).isoformat()
         return {"summary": parsed, "context_snapshot": context}
 
     async def _build_context(

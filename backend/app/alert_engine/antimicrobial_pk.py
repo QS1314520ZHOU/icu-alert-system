@@ -215,34 +215,9 @@ class AntimicrobialPKMixin:
             await self.db.col("score_records").insert_one(payload)
 
     async def scan_arc_risk(self) -> None:
-        now = datetime.now()
-        patient_cursor = self.db.col("patient").find(self._active_patient_query(), {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1, "age": 1, "clinicalDiagnosis": 1, "admissionDiagnosis": 1})
-        patients = [p async for p in patient_cursor]
-        if not patients:
-            return
-        suppression = self._cfg("alert_engine", "suppression", default={}) or {}
-        same_rule_sec = int(suppression.get("same_rule_same_patient_seconds", 1800))
-        max_per_hour = int(suppression.get("max_alerts_per_patient_per_hour", 10))
-        triggered = 0
-        for patient_doc in patients:
-            pid = patient_doc.get("_id")
-            if not pid:
-                continue
-            pid_str = self._pid_str(pid)
-            result = await self.assess_arc_risk(patient_doc, now)
-            await self._persist_arc_risk(patient_doc, result, now)
-            if result.get("arc_risk") != "high":
-                continue
-            rule_id = "ARC_RISK_HIGH"
-            if await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
-                continue
-            explanation = await self._polish_structured_alert_explanation({"summary": "患者存在 ARC 高风险，关键抗菌药物可能清除过快。", "evidence": [result.get("explanation") or "ARC 风险评分高"], "suggestion": result.get("suggested_pk_adjustment") or "建议复核抗菌药物暴露和给药方案。", "text": ""})
-            alert = await self._create_alert(rule_id=rule_id, name="ARC 高风险提示", category="drug_pk", alert_type="arc_risk", severity="warning", parameter="arc_score", condition={"operator": ">=", "threshold": 6}, value=result.get("score"), patient_id=pid_str, patient_doc=patient_doc, device_id=None, source_time=now, explanation=explanation, extra=result)
-            if alert:
-                triggered += 1
-        if triggered > 0:
-            self._log_info("ARC识别", triggered)
+        from .scanner_arc_risk import ArcRiskScanner
 
+        await ArcRiskScanner(self).scan()
     def _drugexe_names(self, doc: dict) -> list[str]:
         names = []
         for item in doc.get("drugList") or []:
@@ -460,37 +435,9 @@ class AntimicrobialPKMixin:
             await self.db.col("score_records").insert_one(payload)
 
     async def scan_antimicrobial_pk(self) -> None:
-        patient_cursor = self.db.col("patient").find(self._active_patient_query(), {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1, "age": 1, "weight": 1, "bodyWeight": 1, "gender": 1, "hisSex": 1, "clinicalDiagnosis": 1, "admissionDiagnosis": 1})
-        patients = [p async for p in patient_cursor]
-        if not patients:
-            return
-        suppression = self._cfg("alert_engine", "suppression", default={}) or {}
-        same_rule_sec = int(suppression.get("same_rule_same_patient_seconds", 1800))
-        max_per_hour = int(suppression.get("max_alerts_per_patient_per_hour", 10))
-        rules = {"vancomycin": "VANCO_PPK_UNDEREXPOSED", "meropenem": "MEM_PPK_UNDEREXPOSED", "piperacillin_tazobactam": "TZP_PPK_UNDEREXPOSED"}
-        now = datetime.now()
-        triggered = 0
-        for patient_doc in patients:
-            pid = patient_doc.get("_id")
-            if not pid:
-                continue
-            pid_str = self._pid_str(pid)
-            for drug_key, rule_id in rules.items():
-                result = await self.evaluate_antimicrobial_pk(patient_doc, drug_key, now)
-                if not result:
-                    continue
-                await self._persist_antimicrobial_pk(patient_doc, result, now)
-                if result.get("target_attainment"):
-                    continue
-                if await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
-                    continue
-                explanation = await self._polish_structured_alert_explanation({"summary": f"{result.get('drug')} 预测暴露不足。", "evidence": [f"ARC 风险: {result.get('arc_risk')}", f"预测暴露: {result.get('predicted_exposure')}"], "suggestion": result.get("recommendation") or "建议复核给药方案。", "text": ""})
-                alert = await self._create_alert(rule_id=rule_id, name=f"{result.get('drug')} 暴露不足风险", category="drug_pk", alert_type="antimicrobial_pk", severity="warning" if result.get("arc_risk") != "high" else "high", parameter=result.get("drug"), condition={"target_attainment": False}, value=(result.get("predicted_exposure") or {}).get("auc24") or (result.get("predicted_exposure") or {}).get("ft_above_mic"), patient_id=pid_str, patient_doc=patient_doc, device_id=None, source_time=now, explanation=explanation, extra=result)
-                if alert:
-                    triggered += 1
-        if triggered > 0:
-            self._log_info("抗菌药物PK", triggered)
+        from .scanner_antimicrobial_pk import AntimicrobialPkScanner
 
+        await AntimicrobialPkScanner(self).scan()
     async def _find_latest_vanco_tdm(self, his_pid: str | None, since: datetime) -> dict | None:
         if not his_pid:
             return None
@@ -566,40 +513,6 @@ class AntimicrobialPKMixin:
             await self.db.col("score_records").insert_one(payload)
 
     async def scan_vanco_tdm_closed_loop(self) -> None:
-        patient_cursor = self.db.col("patient").find(self._active_patient_query(), {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1, "age": 1, "weight": 1, "bodyWeight": 1, "gender": 1, "hisSex": 1})
-        patients = [p async for p in patient_cursor]
-        if not patients:
-            return
-        suppression = self._cfg("alert_engine", "suppression", default={}) or {}
-        same_rule_sec = int(suppression.get("same_rule_same_patient_seconds", 1800))
-        max_per_hour = int(suppression.get("max_alerts_per_patient_per_hour", 10))
-        now = datetime.now()
-        triggered = 0
-        for patient_doc in patients:
-            pid = patient_doc.get("_id")
-            if not pid:
-                continue
-            pid_str = self._pid_str(pid)
-            result = await self.update_vanco_tdm_state(patient_doc, now)
-            if not result:
-                continue
-            await self._persist_vanco_tdm(patient_doc, result, now)
-            if result.get("target_attainment") is True:
-                continue
-            auc24 = _to_float(result.get("auc24"))
-            mic = float(self._tdm_cfg().get("vanco_mic", 1.0))
-            auc_mic = auc24 / max(mic, 1e-6) if auc24 is not None else None
-            if auc_mic is not None and auc_mic < float(self._tdm_cfg().get("auc_mic_target_low", 400.0)):
-                rule_id = "VANCO_TDM_UNDER_TARGET"
-                severity = "warning"
-            else:
-                rule_id = "VANCO_TDM_OVER_TARGET"
-                severity = "high"
-            if await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
-                continue
-            explanation = await self._polish_structured_alert_explanation({"summary": "万古霉素 TDM 闭环提示当前暴露可能未达目标。", "evidence": [f"样本浓度: {result.get('sample_value')}", f"预测 AUC24: {result.get('auc24')}", f"预测下一次 trough: {result.get('predicted_trough_next')}"], "suggestion": result.get("recommendation") or "建议复核万古霉素方案。", "text": ""})
-            alert = await self._create_alert(rule_id=rule_id, name="万古霉素 TDM 闭环建议", category="drug_pk", alert_type="vanco_tdm", severity=severity, parameter="vancomycin_auc_mic", condition={"target_attainment": False}, value=auc_mic, patient_id=pid_str, patient_doc=patient_doc, device_id=None, source_time=result.get("sample_time"), explanation=explanation, extra=result)
-            if alert:
-                triggered += 1
-        if triggered > 0:
-            self._log_info("万古TDM闭环", triggered)
+        from .scanner_vanco_tdm_closed_loop import VancoTdmClosedLoopScanner
+
+        await VancoTdmClosedLoopScanner(self).scan()
