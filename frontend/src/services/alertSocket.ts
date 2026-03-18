@@ -81,7 +81,8 @@ function connect() {
   }
 
   socket.onerror = () => {
-    socket?.close()
+    // Let the browser drive close/reconnect; closing while CONNECTING
+    // produces noisy console warnings in devtools.
   }
 }
 

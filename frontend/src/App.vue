@@ -183,8 +183,7 @@ onUnmounted(() => clearInterval(t))
 .root { min-height: 100vh; background: var(--app-bg); font-family: 'Rajdhani', 'Noto Sans SC', sans-serif; }
 .hdr {
   display: flex; align-items: center; gap: 20px;
-  background:
-    linear-gradient(90deg, rgba(7, 20, 34, 0.96) 0%, rgba(5, 14, 26, 0.98) 100%) !important;
+  background: var(--hdr-bg-strong) !important;
   backdrop-filter: blur(14px);
   padding: 10px 20px;
   min-height: 64px;
@@ -210,13 +209,13 @@ onUnmounted(() => clearInterval(t))
   border: 1px solid rgba(103, 232, 249, 0.22);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 16px rgba(34, 211, 238, 0.08);
 }
-.hdr-title { font-size: 15px; font-weight: 700; color: #e8fbff; letter-spacing: 0.08em; line-height: 1.15; }
-.hdr-sub { font-size: 9px; color: #6dcfe4; letter-spacing: 0.16em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
+.hdr-title { font-size: 15px; font-weight: 700; color: var(--hdr-title); letter-spacing: 0.08em; line-height: 1.15; }
+.hdr-sub { font-size: 9px; color: var(--hdr-sub); letter-spacing: 0.16em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
 .hdr-menu { flex: 1; display: flex; align-items: center; gap: 8px; }
 .nav-btn {
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: rgba(7, 29, 45, 0.86);
-  color: #7ecce1;
+  background: var(--nav-btn-bg);
+  color: var(--nav-btn-text);
   border-radius: 10px;
   padding: 7px 12px;
   font-size: 12px;
@@ -225,10 +224,10 @@ onUnmounted(() => clearInterval(t))
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.nav-btn:hover { color: #e9fbff; background: rgba(10, 42, 63, 0.94); border-color: rgba(103, 232, 249, 0.22); }
+.nav-btn:hover { color: var(--nav-btn-hover-text); background: var(--nav-btn-hover-bg); border-color: rgba(103, 232, 249, 0.22); }
 .nav-btn.active {
-  color: #effcff;
-  background: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
+  color: var(--nav-btn-active-text);
+  background: var(--nav-btn-active-bg);
   border-color: rgba(110, 231, 249, 0.32);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(34, 211, 238, 0.08);
 }
@@ -244,7 +243,7 @@ onUnmounted(() => clearInterval(t))
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: rgba(7, 29, 45, 0.86);
+  background: var(--hdr-tool-bg);
 }
 .theme-lbl {
   font-size: 12px;
@@ -253,7 +252,7 @@ onUnmounted(() => clearInterval(t))
 }
 .toggle-text {
   font-size: 10px;
-  color: #7ecce1;
+  color: var(--hdr-tool-text);
 }
 .switch {
   position: relative;
@@ -270,7 +269,7 @@ onUnmounted(() => clearInterval(t))
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: #183247;
+  background: var(--switch-off-bg);
   transition: 0.2s ease;
 }
 .switch-slider::before {
@@ -285,7 +284,7 @@ onUnmounted(() => clearInterval(t))
   transition: 0.2s ease;
 }
 .switch input:checked + .switch-slider {
-  background: #0ea5b7;
+  background: var(--switch-on-bg);
 }
 .switch input:checked + .switch-slider::before {
   transform: translateX(14px);
@@ -300,7 +299,7 @@ onUnmounted(() => clearInterval(t))
 }
 .hdr-clock {
   font-family: 'SF Mono','Consolas',monospace;
-  color: #8de3f3;
+  color: var(--hdr-clock);
   font-size: 11px;
   white-space: nowrap;
   letter-spacing: 0.08em;

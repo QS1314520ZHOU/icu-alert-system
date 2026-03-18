@@ -250,14 +250,42 @@ class CompositeDeteriorationMixin:
             pid_str = str(pid)
 
             alerts = await self._recent_alerts(pid_str, since, max_records=max_records)
-            temporal_forecast = await self._build_temporal_risk_forecast(
-                patient_doc,
-                pid,
-                lookback_hours=max(int(window_hours * 2), 12),
-                horizons=(4, 8, 12),
-                include_history=False,
-            )
-            temporal_signal = temporal_forecast.get("composite_signal") if isinstance(temporal_forecast, dict) else {}
+            temporal_record = await self._latest_temporal_risk_record(pid_str, hours=max(int(window_hours * 2), 12)) if hasattr(self, "_latest_temporal_risk_record") else None
+            temporal_forecast = None
+            if temporal_record:
+                temporal_org = temporal_record.get("organ_probabilities") if isinstance(temporal_record.get("organ_probabilities"), dict) else {}
+                top_organs = [
+                    str(k) for k, _ in
+                    sorted(((str(k), float(v)) for k, v in temporal_org.items() if v is not None), key=lambda x: x[1], reverse=True)[:3]
+                ]
+                temporal_signal = {
+                    "enabled": float(temporal_record.get("score") or 0.0) >= 0.58,
+                    "probability_4h": float((temporal_record.get("future_probabilities") or {}).get("4") or (temporal_record.get("future_probabilities") or {}).get(4) or temporal_record.get("score") or 0.0),
+                    "risk_level": str(temporal_record.get("risk_level") or "low"),
+                    "organs": top_organs,
+                    "contributors": [],
+                }
+                temporal_forecast = {
+                    "patient_id": pid_str,
+                    "current_probability": temporal_record.get("score"),
+                    "organ_risk_scores": temporal_org,
+                    "horizon_probabilities": temporal_record.get("future_probabilities"),
+                    "composite_signal": temporal_signal,
+                    "model_meta": {
+                        "mode": "temporal_risk_scanner",
+                        "backend": temporal_record.get("model_backend"),
+                        "model_path": temporal_record.get("model_path"),
+                    },
+                }
+            else:
+                temporal_forecast = await self._build_temporal_risk_forecast(
+                    patient_doc,
+                    pid,
+                    lookback_hours=max(int(window_hours * 2), 12),
+                    horizons=(4, 8, 12),
+                    include_history=False,
+                )
+                temporal_signal = temporal_forecast.get("composite_signal") if isinstance(temporal_forecast, dict) else {}
             if len(alerts) < min_alerts and not temporal_signal.get("enabled"):
                 continue
 

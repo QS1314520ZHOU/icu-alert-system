@@ -4,9 +4,21 @@
   /* Dark Mode - Clinical Monitor */
   --app-bg: #07111d;
   --hdr-bg: rgba(9, 20, 34, 0.92);
+  --hdr-bg-strong: linear-gradient(90deg, rgba(7, 20, 34, 0.96) 0%, rgba(5, 14, 26, 0.98) 100%);
   --hdr-border: rgba(125, 167, 214, 0.14);
   --hdr-title: #edf4fb;
   --hdr-sub: #8ba0ba;
+  --hdr-tool-bg: rgba(7, 29, 45, 0.86);
+  --hdr-tool-text: #7ecce1;
+  --hdr-clock: #8de3f3;
+  --nav-btn-bg: rgba(7, 29, 45, 0.86);
+  --nav-btn-text: #7ecce1;
+  --nav-btn-hover-bg: rgba(10, 42, 63, 0.94);
+  --nav-btn-hover-text: #e9fbff;
+  --nav-btn-active-bg: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
+  --nav-btn-active-text: #effcff;
+  --switch-off-bg: #183247;
+  --switch-on-bg: #0ea5b7;
 
   --card-bg: #0d1a2b;
   --card-hover: #122238;
@@ -43,9 +55,21 @@ html[data-theme='light'] {
   /* Light Mode - Hospital HIS */
   --app-bg: #eef4f8;
   --hdr-bg: rgba(255, 255, 255, 0.94);
+  --hdr-bg-strong: linear-gradient(90deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 247, 252, 0.98) 100%);
   --hdr-border: rgba(187, 204, 220, 0.72);
   --hdr-title: #16324f;
   --hdr-sub: #6a8098;
+  --hdr-tool-bg: rgba(241, 246, 251, 0.96);
+  --hdr-tool-text: #47627e;
+  --hdr-clock: #335f8a;
+  --nav-btn-bg: rgba(241, 246, 251, 0.98);
+  --nav-btn-text: #47627e;
+  --nav-btn-hover-bg: rgba(231, 241, 249, 0.98);
+  --nav-btn-hover-text: #16324f;
+  --nav-btn-active-bg: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
+  --nav-btn-active-text: #f8fbff;
+  --switch-off-bg: #c8d7e6;
+  --switch-on-bg: #2563eb;
 
   --card-bg: #ffffff;
   --card-hover: #f7fbff;

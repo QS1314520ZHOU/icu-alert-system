@@ -182,26 +182,35 @@ alert_engine:
     dic: 900
     tbi: 300
     bleeding: 600
+    temporal_risk_scanner: 900
     ventilator: 600
+    diaphragm_protection: 900
     drug_safety: 1800
     antibiotic_stewardship: 1800
     arc_risk: 300
     antimicrobial_pk: 600
     vanco_tdm_closed_loop: 600
+    immunocompromised_monitor: 600
     delirium_risk: 900
+    circadian_protector: 900
     fluid_balance: 600
+    hai_bundle: 1800
     glycemic_control: 300
     vte_prophylaxis: 900
     nutrition_monitor: 900
     composite_deterioration: 300
     cardiac_arrest: 120
     microbiology: 1800
+    right_heart_monitor: 600
     pe_detection: 600
+    palliative_trigger: 1800
     postop_monitor: 1800
     ecash_bundle: 600
     icu_aw_mobility: 900
     assessments: 600
     trend_analysis: 900
+    alert_reasoning: 300
+    adaptive_threshold_advisor: 7200
     discharge_readiness: 1800
 
   severity_levels:
@@ -220,6 +229,14 @@ alert_engine:
     zscore_tolerance: 2.0
     relative_tolerance: 0.08
     absolute_floor: 2.0
+
+  alert_reasoning_agent:
+    enabled: true
+    trigger_window_minutes: 30
+    min_active_alerts: 3
+    recent_context_hours: 24
+    cache_ttl_seconds: 900
+    max_concurrency: 2
 
 
   antimicrobial_pk:
@@ -286,6 +303,131 @@ alert_engine:
       auc_mic_target_high: 600
       omega_cl_sq: 0.15
       sigma_sq: 0.04
+
+  alert_intelligence:
+    enabled: true
+    fusion_window_minutes: 15
+    procedure_suppression_minutes: 10
+    nursing_plan_coverage_enabled: true
+    nursing_plan_lookback_hours: 12
+    nursing_plan_execution_window_minutes: 120
+    suppress_warning_when_plan_active: true
+    post_execution_recurrence_window_minutes: 180
+    post_execution_recurrence_threshold: 2
+    suction_keywords: ["吸痰", "拍背", "翻身拍背", "气道护理", "痰液吸引"]
+
+  adaptive_threshold_advisor:
+    enabled: true
+    scan_interval_seconds: 7200
+    stats_lookback_hours: 48
+    min_data_points: 20
+    llm_temperature: 0.1
+    llm_max_tokens: 2048
+    llm_timeout: 45
+    max_concurrent: 3
+    cache_ttl_seconds: 3600
+    vasopressor_keywords:
+      - "去甲肾上腺素"
+      - "多巴胺"
+      - "多巴酚丁胺"
+      - "肾上腺素"
+      - "血管加压素"
+      - "垂体后叶素"
+      - "米力农"
+      - "norepinephrine"
+      - "dopamine"
+      - "dobutamine"
+      - "epinephrine"
+      - "vasopressin"
+      - "milrinone"
+      - "phenylephrine"
+      - "去氧肾上腺素"
+    sedation_keywords:
+      - "丙泊酚"
+      - "咪达唑仑"
+      - "右美托咪定"
+      - "propofol"
+      - "midazolam"
+      - "dexmedetomidine"
+      - "芬太尼"
+      - "瑞芬太尼"
+      - "舒芬太尼"
+      - "fentanyl"
+      - "remifentanil"
+      - "sufentanil"
+      - "吗啡"
+      - "morphine"
+    bounds:
+      map: { low_min: 40, low_max: 85, high_min: 90, high_max: 150 }
+      hr: { low_min: 30, low_max: 70, high_min: 90, high_max: 180 }
+      spo2: { low_min: 75, low_max: 96 }
+      sbp: { low_min: 50, low_max: 120, high_min: 140, high_max: 230 }
+      rr: { low_min: 4, low_max: 16, high_min: 22, high_max: 50 }
+      temperature: { low_min: 32.0, low_max: 36.5, high_min: 37.5, high_max: 41.0 }
+
+  temporal_risk_scanner:
+    lookback_hours: 12
+    grid_minutes: 5
+    horizons_hours: [4, 12, 24]
+    organ_keys: ["respiratory", "circulatory", "renal", "neurologic"]
+    population_medians:
+      hr: 88
+      map: 75
+      spo2: 97
+      rr: 19
+      temp: 36.8
+      lactate: 1.6
+      sofa: 5
+
+  hai_bundle:
+    cvc_review_days: 7
+    foley_hours_threshold: 48
+    fever_threshold: 38.0
+    cvc_keywords: ["中心静脉", "cvc", "picc", "深静脉"]
+    foley_keywords: ["导尿", "foley", "尿管", "导尿管"]
+    vent_keywords: ["气管插管", "ett", "endotracheal", "机械通气"]
+    blood_culture_keywords: ["血培养", "blood culture"]
+    hob_keywords: ["床头抬高", "抬高床头", "半卧位", "30°", "45°"]
+    oral_care_keywords: ["口腔护理", "口护", "口腔清洁"]
+
+  immunocompromised_monitor:
+    drug_lookback_hours: 336
+    neutropenia_threshold: 0.5
+    fever_threshold_c: 38.0
+    map_threshold: 65
+    sbp_threshold: 90
+    tachy_threshold: 110
+    immunosuppressive_keywords: ["环孢素", "他克莫司", "吗替麦考酚酯", "化疗", "环磷酰胺", "甲氨蝶呤", "移植", "激素", "泼尼松", "地塞米松"]
+    anc_keywords: ["anc", "中性粒细胞绝对值", "中性粒细胞#", "neut#"]
+    lymphocyte_keywords: ["淋巴细胞绝对值", "lymphocyte", "lymph#"]
+
+  circadian_protector:
+    enabled: true
+    night_start_hour: 22
+    night_end_hour: 6
+    night_operation_threshold: 6
+    night_rass_fluctuation_threshold: 2
+    night_warning_summary_threshold: 4
+
+  diaphragm_protection:
+    min_ventilation_days: 0.5
+    edi_low_threshold: 5
+    edi_high_threshold: 15
+    pdi_low_threshold: 3
+    pdi_high_threshold: 12
+    p0_1_high_threshold: 3.5
+    rr_high_threshold: 30
+    deep_sedation_rass_threshold: -3
+    driving_pressure_warning: 15
+    pressure_swing_warning: 15
+
+  palliative_trigger:
+    icu_days_threshold: 14
+    burden_days: 3
+    gcs_threshold: 8
+    age_threshold: 80
+    comorbidity_threshold: 3
+    score_threshold: 5
 
   data_quality_filter:
     lead_off_spo2_threshold: 90
@@ -487,6 +629,17 @@ alert_engine:
     deresuscitation_lactate_down_ratio: 0.9
     deresuscitation_positive_net_ml: 1000
     deresuscitation_positive_net_high_ml: 2000
+    deresuscitation_target_negative_ml_24h: 500
+    deresuscitation_target_negative_high_ml_24h: 1000
+
+  right_heart_monitor:
+    cvp_window_hours: 24
+    bnp_window_hours: 72
+    cvp_rise_threshold: 3
+    bnp_ratio_threshold: 2.0
+    peep_threshold: 10
+    min_factor_count: 2
+    critical_factor_count: 4
 
   delirium_risk:
     warning_score: 4
@@ -663,6 +816,9 @@ alert_engine:
     sofa_band: 2
     diagnosis_keyword_limit: 6
     min_diagnosis_similarity: 0.15
+    embedding_model: "BAAI/bge-small-zh-v1.5"
+    embedding_weight: 0.65
+    token_weight: 0.15
 
   nutrition_monitor:
     start_delay_hours: 48

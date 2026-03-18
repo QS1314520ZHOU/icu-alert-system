@@ -290,6 +290,8 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { getPatientBedcard } from '../../api'
 
+const bedcardCache = new Map<string, any>()
+
 const props = defineProps<{
   patient: any
 }>()
@@ -342,10 +344,16 @@ const bundleProgress = computed(() => {
 
 async function loadBedcard() {
   if (!props.patient?._id) return
+  const cacheKey = String(props.patient._id)
+  if (bedcardCache.has(cacheKey)) {
+    bedcard.value = bedcardCache.get(cacheKey)
+    return
+  }
   try {
     const res = await getPatientBedcard(props.patient._id)
     if (res.data?.code === 0) {
       bedcard.value = res.data.data
+      bedcardCache.set(cacheKey, res.data.data)
     }
   } catch (err) {
     console.error('Failed to load bedcard:', err)
@@ -1571,3 +1579,5 @@ section { display: flex; flex-direction: column; gap: 7px; }
   }
 }
 </style>
+
+

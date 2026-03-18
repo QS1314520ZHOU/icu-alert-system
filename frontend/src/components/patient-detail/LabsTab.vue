@@ -13,24 +13,24 @@
             :class="['lab-item', labFlag(item)]"
           >
             {{ item.itemName || item.itemCnName || '指标' }}:
-            {{ item.result || item.resultValue || item.value }}
+            {{ formatLabValue(item.result ?? item.resultValue ?? item.value) }}
             {{ item.unit || '' }}
           </span>
         </div>
         <div v-if="exam.acidBaseInterpretation" class="acid-base-card">
           <div class="acid-base-head">
             <strong>血气自动解读</strong>
-            <span>{{ exam.acidBaseInterpretation.compensation || '—' }}</span>
+            <span>{{ formatLabValue(exam.acidBaseInterpretation.compensation) || '—' }}</span>
           </div>
           <div class="acid-base-summary">
-            <span class="acid-pill acid-primary">{{ exam.acidBaseInterpretation.primary }}</span>
-            <span v-if="exam.acidBaseInterpretation.secondary" class="acid-pill acid-secondary">{{ exam.acidBaseInterpretation.secondary }}</span>
-            <span v-if="exam.acidBaseInterpretation.tertiary" class="acid-pill acid-tertiary">{{ exam.acidBaseInterpretation.tertiary }}</span>
+            <span class="acid-pill acid-primary">{{ formatLabValue(exam.acidBaseInterpretation.primary) }}</span>
+            <span v-if="exam.acidBaseInterpretation.secondary" class="acid-pill acid-secondary">{{ formatLabValue(exam.acidBaseInterpretation.secondary) }}</span>
+            <span v-if="exam.acidBaseInterpretation.tertiary" class="acid-pill acid-tertiary">{{ formatLabValue(exam.acidBaseInterpretation.tertiary) }}</span>
           </div>
           <div class="acid-base-metrics">
-            <span>AG {{ exam.acidBaseInterpretation.AG ?? '—' }}</span>
-            <span>校正AG {{ exam.acidBaseInterpretation.corrected_AG ?? '—' }}</span>
-            <span>Δ比 {{ exam.acidBaseInterpretation.delta_ratio ?? '—' }}</span>
+            <span>AG {{ formatLabValue(exam.acidBaseInterpretation.AG) || '—' }}</span>
+            <span>校正AG {{ formatLabValue(exam.acidBaseInterpretation.corrected_AG) || '—' }}</span>
+            <span>Δ比 {{ formatLabValue(exam.acidBaseInterpretation.delta_ratio) || '—' }}</span>
           </div>
           <div v-if="exam.acidBaseInterpretation.abnormal_components?.length" class="acid-base-components">
             <span
@@ -38,7 +38,7 @@
               :key="comp.field"
               :class="['acid-comp', { abnormal: comp.abnormal }]"
             >
-              {{ comp.field }} {{ comp.value ?? '—' }}{{ comp.unit || '' }}
+              {{ formatLabValue(comp.field) }} {{ formatLabValue(comp.value) || '—' }}{{ comp.unit || '' }}
             </span>
           </div>
         </div>
@@ -56,6 +56,40 @@ defineProps<{
   fmtTime: (v: any) => string
   labFlag: (item: any) => string
 }>()
+
+function formatLabValue(value: any): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    return value.map((item) => formatLabValue(item)).filter(Boolean).join('；')
+  }
+  if (typeof value === 'object') {
+    const candidates = [
+      value.result,
+      value.resultValue,
+      value.value,
+      value.text,
+      value.summary,
+      value.label,
+      value.name,
+      value.message,
+      value.content,
+    ]
+    for (const candidate of candidates) {
+      const text = formatLabValue(candidate)
+      if (text) return text
+    }
+    return Object.entries(value)
+      .map(([key, item]) => {
+        const text = formatLabValue(item)
+        return text ? `${key}: ${text}` : ''
+      })
+      .filter(Boolean)
+      .join('；')
+  }
+  return String(value).trim()
+}
 </script>
 
 <style scoped>

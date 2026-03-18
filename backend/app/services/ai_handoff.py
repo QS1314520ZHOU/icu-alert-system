@@ -17,10 +17,17 @@ class AiHandoffService:
         *,
         patient_id: str,
         patient_doc: dict,
+        similar_case_review: dict[str, Any] | None = None,
+        nursing_context: dict[str, Any] | None = None,
         llm_call: Callable[[str, str, str | None], Awaitable[str]],
         model: str | None = None,
     ) -> dict[str, Any]:
-        context = await self._build_context(patient_id, patient_doc)
+        context = await self._build_context(
+            patient_id,
+            patient_doc,
+            similar_case_review=similar_case_review,
+            nursing_context=nursing_context,
+        )
         system_prompt = (
             "你是ICU交班助手，按I-PASS结构生成交班摘要。"
             "只能归纳已提供数据，不得编造。必须返回严格JSON。"
@@ -46,11 +53,18 @@ class AiHandoffService:
             }
 
         validation = self._validate_numeric_claims(parsed, context)
+        parsed = self._apply_structured_hints(parsed, context)
         parsed["validation"] = validation
         parsed["generated_at"] = datetime.now().isoformat()
         return {"summary": parsed, "context_snapshot": context}
 
-    async def _build_context(self, patient_id: str, patient_doc: dict) -> dict[str, Any]:
+    async def _build_context(
+        self,
+        patient_id: str,
+        patient_doc: dict,
+        similar_case_review: dict[str, Any] | None = None,
+        nursing_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         now = datetime.now()
         since = now - timedelta(hours=12)
 
@@ -130,6 +144,11 @@ class AiHandoffService:
         ).sort("calc_time", -1).limit(80)
         assessments = [d async for d in cursor_s]
 
+        palliative = await self.db.col("score_records").find_one(
+            {"patient_id": patient_id, "score_type": "palliative_trigger"},
+            sort=[("calc_time", -1)],
+        )
+
         return {
             "patient": {
                 "name": patient_doc.get("name") or "未知",
@@ -148,6 +167,14 @@ class AiHandoffService:
             "labs_12h": labs,
             "drugs_12h": drugs,
             "assessments_12h": assessments,
+            "palliative_trigger": {
+                "score": palliative.get("score"),
+                "recommendation": palliative.get("recommendation"),
+                "flags": palliative.get("flags"),
+                "icu_days": palliative.get("icu_days"),
+            } if palliative else None,
+            "similar_case_review": similar_case_review or None,
+            "nursing_context": nursing_context or None,
         }
 
     def _parse_json(self, text: str) -> dict[str, Any] | None:
@@ -163,6 +190,111 @@ class AiHandoffService:
             return data if isinstance(data, dict) else None
         except Exception:
             return None
+
+    def _ensure_list(self, value: Any) -> list[Any]:
+        if isinstance(value, list):
+            return list(value)
+        if value in (None, ""):
+            return []
+        return [value]
+
+    def _append_unique(self, values: list[Any], item: Any) -> list[Any]:
+        text = str(item or "").strip()
+        if not text:
+            return values
+        existing = {str(x or "").strip() for x in values}
+        if text not in existing:
+            values.append(text)
+        return values
+
+    def _apply_structured_hints(self, summary: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(summary, dict):
+            return summary
+        palliative = context.get("palliative_trigger") if isinstance(context.get("palliative_trigger"), dict) else None
+        similar_case_review = context.get("similar_case_review") if isinstance(context.get("similar_case_review"), dict) else None
+        nursing_context = context.get("nursing_context") if isinstance(context.get("nursing_context"), dict) else None
+        if not palliative:
+            pass
+        else:
+            recommendation = str(palliative.get("recommendation") or "").strip()
+            if recommendation:
+                flags = palliative.get("flags") if isinstance(palliative.get("flags"), dict) else {}
+                icu_days = palliative.get("icu_days")
+                reason_parts: list[str] = []
+                if icu_days is not None:
+                    reason_parts.append(f"ICU住院 {icu_days} 天")
+                if (flags.get("aki_stage") or 0) >= 2:
+                    reason_parts.append("AKI stage >= 2")
+                if flags.get("ards"):
+                    reason_parts.append("ARDS 持续")
+                if flags.get("vasopressor_dependency_7d"):
+                    reason_parts.append("血管活性药依赖 > 7 天")
+                if flags.get("gcs") is not None and float(flags.get("gcs")) <= 8:
+                    reason_parts.append(f"GCS 持续 <= 8（当前 {flags.get('gcs')}）")
+                detailed_hint = recommendation if not reason_parts else f"{recommendation} 依据：{'；'.join(reason_parts)}。"
+                summary["situation_awareness"] = self._append_unique(self._ensure_list(summary.get("situation_awareness")), detailed_hint)
+                summary["action_list"] = self._append_unique(self._ensure_list(summary.get("action_list")), recommendation)
+                summary["structured_hints"] = {
+                    "palliative_care": {
+                        "enabled": True,
+                        "score": palliative.get("score"),
+                        "recommendation": recommendation,
+                        "icu_days": icu_days,
+                        "flags": flags,
+                    }
+                }
+        if similar_case_review:
+            insight = similar_case_review.get("historical_case_insight") if isinstance(similar_case_review.get("historical_case_insight"), dict) else {}
+            insight_summary = str(insight.get("summary") or "").strip()
+            bullets = insight.get("pattern_bullets") if isinstance(insight.get("pattern_bullets"), list) else []
+            if insight_summary:
+                summary["situation_awareness"] = self._append_unique(
+                    self._ensure_list(summary.get("situation_awareness")),
+                    f"历史相似病例启示：{insight_summary}",
+                )
+            for bullet in [str(x).strip() for x in bullets[:3] if str(x).strip()]:
+                summary["action_list"] = self._append_unique(self._ensure_list(summary.get("action_list")), f"参考相似病例：{bullet}")
+            structured = summary.get("structured_hints") if isinstance(summary.get("structured_hints"), dict) else {}
+            structured["similar_cases"] = {
+                "matched_cases": ((similar_case_review.get("summary") or {}) if isinstance(similar_case_review.get("summary"), dict) else {}).get("matched_cases"),
+                "survival_rate": ((similar_case_review.get("summary") or {}) if isinstance(similar_case_review.get("summary"), dict) else {}).get("survival_rate"),
+                "insight_summary": insight_summary,
+                "pattern_bullets": [str(x).strip() for x in bullets[:4] if str(x).strip()],
+                "caution": str(insight.get("caution") or "").strip(),
+            }
+            summary["structured_hints"] = structured
+        if nursing_context:
+            record_rows = nursing_context.get("records") if isinstance(nursing_context.get("records"), list) else []
+            plan_info = nursing_context.get("plans") if isinstance(nursing_context.get("plans"), dict) else {}
+            top_texts = [str(row.get("text") or "").strip() for row in record_rows[:3] if str(row.get("text") or "").strip()]
+            for text in top_texts:
+                summary["situation_awareness"] = self._append_unique(
+                    self._ensure_list(summary.get("situation_awareness")),
+                    f"护理记录提示：{text}",
+                )
+            pending_count = int(plan_info.get("pending_count") or 0)
+            delayed_count = int(plan_info.get("delayed_count") or 0)
+            if pending_count > 0:
+                summary["action_list"] = self._append_unique(
+                    self._ensure_list(summary.get("action_list")),
+                    f"存在 {pending_count} 项近期护理计划待确认是否已执行。",
+                )
+            if delayed_count > 0:
+                summary["action_list"] = self._append_unique(
+                    self._ensure_list(summary.get("action_list")),
+                    f"存在 {delayed_count} 项护理计划已到计划时间但仍未开始执行。",
+                )
+            structured = summary.get("structured_hints") if isinstance(summary.get("structured_hints"), dict) else {}
+            structured["nursing_context"] = {
+                "recent_record_count": len(record_rows),
+                "planned_count": int(plan_info.get("planned_count") or 0),
+                "executed_count": int(plan_info.get("executed_count") or 0),
+                "pending_count": pending_count,
+                "delayed_count": delayed_count,
+                "top_records": top_texts,
+            }
+            summary["structured_hints"] = structured
+        return summary
 
     def _validate_numeric_claims(self, summary: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         text = json.dumps(summary, ensure_ascii=False)

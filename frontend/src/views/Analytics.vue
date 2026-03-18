@@ -170,7 +170,7 @@
           class="rank-table"
           size="small"
           :columns="weaningDeptColumns"
-          :data-source="weaningDeptCompare"
+          :data-source="weaningDeptCompareTable"
           :pagination="false"
           row-key="dept"
         />
@@ -721,6 +721,13 @@ const weaningDeptCompare = computed(() =>
   Array.isArray(weaningSummary.value?.dept_compare) ? weaningSummary.value.dept_compare : []
 )
 
+const weaningDeptCompareTable = computed(() =>
+  weaningDeptCompare.value.map((row: any) => ({
+    ...row,
+    high_risk_ratio_text: `${(Number(row?.high_risk_ratio || 0) * 100).toFixed(1)}%`,
+  }))
+)
+
 const deptRankOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: icuTooltip({
@@ -918,10 +925,9 @@ const weaningDeptColumns = [
   { title: '高风险', dataIndex: 'high_risk_patients', key: 'high_risk_patients', width: 76 },
   {
     title: '高风险占比',
-    dataIndex: 'high_risk_ratio',
+    dataIndex: 'high_risk_ratio_text',
     key: 'high_risk_ratio',
     width: 92,
-    customRender: ({ text }: any) => `${(Number(text || 0) * 100).toFixed(1)}%`,
   },
   { title: '拔管患者', dataIndex: 'extubated_patients', key: 'extubated_patients', width: 84 },
   { title: '再插管风险', dataIndex: 'reintubation_risk_patients', key: 'reintubation_risk_patients', width: 92 },

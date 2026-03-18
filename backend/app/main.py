@@ -322,6 +322,21 @@ def _extract_ws_token(ws: WebSocket) -> str:
     return str(header_token or "").strip()
 
 
+def _extract_ws_roles(ws: WebSocket) -> list[str]:
+    raw = ws.query_params.get("roles") or ws.query_params.get("role") or ""
+    if not raw:
+        return []
+    roles: list[str] = []
+    seen: set[str] = set()
+    for item in str(raw).split(","):
+        role = item.strip().lower()
+        if not role or role in seen:
+            continue
+        seen.add(role)
+        roles.append(role)
+    return roles
+
+
 def _is_ws_authorized(ws: WebSocket) -> bool:
     origin = ws.headers.get("origin") or ws.headers.get("Origin")
     if origin and not _ws_origin_allowed(origin):
@@ -1523,8 +1538,125 @@ async def patient_similar_case_outcomes(
     patient = await db.col("patient").find_one({"_id": pid})
     if not patient:
         return {"code": 404, "message": "患者不存在"}
-    result = await alert_engine.get_similar_case_outcomes(patient, limit=limit)
+    try:
+        result = await alert_engine.get_similar_case_outcomes(patient, limit=limit)
+    except Exception as exc:
+        logger.warning("similar-case-outcomes api fallback patient_id=%s error=%s", patient_id, exc)
+        fallback_builder = getattr(alert_engine, "_degraded_similar_case_result", None)
+        if callable(fallback_builder):
+            result = fallback_builder(patient, error=str(exc), limit=limit)
+        else:
+            result = {
+                "current_profile": {"patient_id": patient_id},
+                "summary": {
+                    "matched_cases": 0,
+                    "displayed_cases": 0,
+                    "degraded": True,
+                    "fallback_message": "AI服务暂时繁忙，已自动降级为基础模式，可稍后刷新重试。",
+                },
+                "cases": [],
+                "historical_case_insight": {
+                    "summary": "AI服务暂时繁忙，已自动降级为基础模式，可稍后刷新重试。",
+                    "pattern_bullets": [],
+                    "caution": "当前页面已切换到降级展示。",
+                    "degraded": True,
+                },
+            }
     return {"code": 0, "review": serialize_doc(result)}
+
+
+@app.get("/api/patients/{patient_id}/personalized-thresholds")
+async def patient_personalized_thresholds(
+    patient_id: str,
+    status: Optional[str] = Query(None, description="状态过滤: pending_review / approved / rejected"),
+):
+    """获取患者最新个性化报警阈值建议。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    patient = await db.col("patient").find_one({"_id": pid}, {"_id": 1})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+    query: dict = {
+        "patient_id": str(pid),
+        "score_type": "personalized_thresholds",
+    }
+    if status:
+        query["status"] = str(status).strip().lower()
+    doc = await db.col("score_records").find_one(query, sort=[("calc_time", -1)])
+    if not doc:
+        return {"code": 0, "record": None}
+    return {"code": 0, "record": serialize_doc(doc)}
+
+
+@app.get("/api/patients/{patient_id}/personalized-thresholds/history")
+async def patient_personalized_threshold_history(
+    patient_id: str,
+    status: Optional[str] = Query(None, description="状态过滤: pending_review / approved / rejected"),
+    limit: int = Query(10, ge=1, le=50, description="返回记录数"),
+):
+    """获取患者个性化报警阈值建议历史。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    patient = await db.col("patient").find_one({"_id": pid}, {"_id": 1})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+    query: dict = {
+        "patient_id": str(pid),
+        "score_type": "personalized_thresholds",
+    }
+    if status:
+        query["status"] = str(status).strip().lower()
+    cursor = db.col("score_records").find(query).sort("calc_time", -1).limit(limit)
+    rows = [serialize_doc(doc) async for doc in cursor]
+    return {"code": 0, "rows": rows}
+
+
+@app.post("/api/patients/{patient_id}/personalized-thresholds/{record_id}/review")
+async def review_patient_personalized_threshold(
+    patient_id: str,
+    record_id: str,
+    payload: dict = Body(default={}),
+):
+    """审核个性化报警阈值建议。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    rid = _safe_oid(record_id)
+    if not rid:
+        return {"code": 400, "message": "无效记录ID"}
+    status = str((payload or {}).get("status") or "").strip().lower()
+    if status not in {"approved", "rejected"}:
+        return {"code": 400, "message": "status 仅支持 approved 或 rejected"}
+
+    patient = await db.col("patient").find_one({"_id": pid}, {"_id": 1})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    record = await db.col("score_records").find_one(
+        {"_id": rid, "patient_id": str(pid), "score_type": "personalized_thresholds"}
+    )
+    if not record:
+        return {"code": 404, "message": "阈值建议记录不存在"}
+
+    now = datetime.now()
+    reviewer = str((payload or {}).get("reviewer") or "").strip()
+    review_comment = str((payload or {}).get("review_comment") or "").strip()
+    update_fields = {
+        "status": status,
+        "updated_at": now,
+        "reviewed_at": now,
+        "reviewer": reviewer,
+        "review_comment": review_comment,
+    }
+    await db.col("score_records").update_one({"_id": rid}, {"$set": update_fields})
+
+    updated = await db.col("score_records").find_one({"_id": rid})
+    return {"code": 0, "record": serialize_doc(updated)}
 
 
 # =============================================
@@ -2293,6 +2425,7 @@ async def recent_alerts(
     limit: int = Query(50, ge=1, le=200),
     dept: Optional[str] = Query(None, description="科室名称"),
     dept_code: Optional[str] = Query(None, description="科室代码"),
+    role: Optional[str] = Query(None, description="角色过滤: nurse/doctor/pharmacist"),
 ):
     """获取全院最近的预警记录"""
     col = db.col("alert_records")
@@ -2315,6 +2448,15 @@ async def recent_alerts(
             }
         else:
             query["deptCode"] = dept_code
+    if role:
+        query.setdefault("$and", []).append(
+            {
+                "$or": [
+                    {"route_targets": str(role).lower()},
+                    {"extra.route_targets": str(role).lower()},
+                ]
+            }
+        )
 
     cursor = col.find(query).sort("created_at", -1).limit(limit)
 
@@ -2889,9 +3031,13 @@ async def patient_handoff_summary(patient_id: str):
 
     try:
         cfg = get_config()
+        similar_case_review = await alert_engine.get_similar_case_outcomes(patient, limit=5)
+        nursing_context = await alert_engine._collect_nursing_context(patient, str(pid), hours=12) if hasattr(alert_engine, "_collect_nursing_context") else None
         result = await ai_handoff_service.generate(
             patient_id=str(pid),
             patient_doc=patient,
+            similar_case_review=similar_case_review,
+            nursing_context=nursing_context,
             llm_call=_call_llm,
             model=cfg.llm_model_medical or None,
         )
@@ -3158,7 +3304,7 @@ async def ws_alerts(ws: WebSocket):
     if not _is_ws_authorized(ws):
         await ws.close(code=4001, reason="Unauthorized")
         return
-    await ws_mgr.connect(ws)
+    await ws_mgr.connect(ws, roles=_extract_ws_roles(ws))
     try:
         while True:
             # 客户端可发心跳 {"type":"ping"}
@@ -3166,6 +3312,9 @@ async def ws_alerts(ws: WebSocket):
             msg = json.loads(data) if data else {}
             if msg.get("type") == "ping":
                 await ws.send_json({"type": "pong"})
+            elif msg.get("type") == "subscribe":
+                await ws_mgr.subscribe_roles(ws, msg.get("roles") or msg.get("role"))
+                await ws.send_json({"type": "subscribed", "roles": msg.get("roles") or msg.get("role") or []})
     except WebSocketDisconnect:
         await ws_mgr.disconnect(ws)
     except Exception:

@@ -1,0 +1,127 @@
+cat > Dockerfile.build << 'DOCKEREOF'
+FROM oraclelinux:8 AS builder
+
+RUN dnf install -y oracle-epel-release-el8 && \
+    dnf module reset nodejs -y 2>/dev/null; \
+    dnf module enable python311 nodejs:18 -y && \
+    dnf install -y \
+        gcc gcc-c++ python3.11 python3.11-devel python3.11-pip \
+        nodejs npm binutils patchelf upx tar gzip curl && \
+    dnf clean all && \
+    ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/pip3.11   /usr/local/bin/pip3 && \
+    echo "node: $(node --version)  npm: $(npm --version)  python: $(python3 --version)"
+
+WORKDIR /src
+
+COPY frontend/package*.json /src/frontend/
+RUN cd /src/frontend && npm install --no-audit
+
+COPY backend/requirements.txt /src/backend/
+RUN pip3 install --no-cache-dir -r /src/backend/requirements.txt pyinstaller
+
+COPY frontend/ /src/frontend/
+COPY backend/  /src/backend/
+
+RUN cd /src/frontend && npm run build
+
+RUN printf '%s\n' \
+  'import os, sys, multiprocessing' \
+  '' \
+  'def main():' \
+  '    base = os.path.dirname(os.path.abspath(sys.argv[0])) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))' \
+  '    env_f = os.path.join(base, ".env")' \
+  '    if os.path.exists(env_f):' \
+  '        try:' \
+  '            from dotenv import load_dotenv; load_dotenv(env_f, override=True)' \
+  '        except Exception:' \
+  '            for l in open(env_f):' \
+  '                l=l.strip()' \
+  '                if l and not l.startswith("#") and "=" in l:' \
+  '                    k,v=l.split("=",1); os.environ.setdefault(k.strip(),v.strip())' \
+  '    cfg = os.path.join(base, "config.yaml")' \
+  '    if os.path.exists(cfg): os.environ["ICU_CONFIG_PATH"] = cfg' \
+  '    os.environ["ICU_FRONTEND_DIR"] = os.path.join(base, "static")' \
+  '    import uvicorn' \
+  '    from app.main import app' \
+  '    fe = os.path.join(base, "static")' \
+  '    if os.path.isdir(fe):' \
+  '        from starlette.staticfiles import StaticFiles' \
+  '        from starlette.responses import FileResponse' \
+  '        assets = os.path.join(fe, "assets")' \
+  '        if os.path.isdir(assets):' \
+  '            app.mount("/assets", StaticFiles(directory=assets), name="assets")' \
+  '        idx = os.path.join(fe, "index.html")' \
+  '        if os.path.exists(idx):' \
+  '            @app.get("/", include_in_schema=False)' \
+  '            async def _(): return FileResponse(idx)' \
+  '    uvicorn.run(app, host=os.environ.get("HOST","0.0.0.0"),' \
+  '                port=int(os.environ.get("PORT","8000")),' \
+  '                workers=1, reload=False, log_level="info")' \
+  '' \
+  'if __name__ == "__main__":' \
+  '    multiprocessing.freeze_support(); main()' \
+  > /src/backend/run_server.py
+
+RUN cd /src/backend && \
+    APP_IMPORTS=$(find app -name '*.py' ! -path '*__pycache__*' | \
+        sed 's|/|.|g;s|\.py$||;s|\.__init__||' | sort -u | \
+        awk '{printf "--hidden-import=%s ",$0}') && \
+    python3 -m PyInstaller \
+        --onefile --clean --noconfirm \
+        --name icu-alert-server \
+        --paths=. \
+        --collect-all app \
+        --collect-submodules uvicorn \
+        --collect-submodules starlette \
+        --collect-submodules fastapi \
+        --collect-submodules pydantic \
+        --collect-submodules pymongo \
+        --hidden-import=uvicorn.logging \
+        --hidden-import=uvicorn.loops.auto \
+        --hidden-import=uvicorn.protocols.http.auto \
+        --hidden-import=uvicorn.protocols.websockets.auto \
+        --hidden-import=uvicorn.lifespan.on \
+        --hidden-import=uvicorn.lifespan.off \
+        --hidden-import=motor.motor_asyncio \
+        --hidden-import=redis.asyncio \
+        --hidden-import=websockets \
+        --hidden-import=yaml \
+        --hidden-import=dotenv \
+        --hidden-import=httpx \
+        --hidden-import=encodings.idna \
+        ${APP_IMPORTS} \
+        run_server.py
+
+RUN mkdir -p /release/icu-alert-system/static /release/icu-alert-system/logs /output
+
+RUN cp /src/backend/dist/icu-alert-server /release/icu-alert-system/ && \
+    chmod +x /release/icu-alert-system/icu-alert-server && \
+    cp -r /src/frontend/dist/* /release/icu-alert-system/static/
+
+RUN cp /src/backend/config.yaml /release/icu-alert-system/ 2>/dev/null; \
+    cp /src/backend/.env.example /release/icu-alert-system/.env 2>/dev/null; \
+    true
+
+RUN printf '%s\n' \
+  '#!/bin/bash' \
+  'set -e' \
+  'DIR="$(cd "$(dirname "$0")" && pwd)"' \
+  'echo "=== ICU Alert System Installer ==="' \
+  'id icualert &>/dev/null || useradd -r -s /sbin/nologin icualert' \
+  'chown -R icualert:icualert "$DIR"' \
+  'chmod +x "$DIR/icu-alert-server"' \
+  'printf "[Unit]\nDescription=ICU Alert System\nAfter=network.target\n\n[Service]\nType=simple\nUser=icualert\nWorkingDirectory=%s\nExecStart=%s/icu-alert-server\nRestart=always\nRestartSec=10\nLimitNOFILE=65536\n\n[Install]\nWantedBy=multi-user.target\n" "$DIR" "$DIR" > /etc/systemd/system/icu-alert.service' \
+  'systemctl daemon-reload && systemctl enable icu-alert' \
+  'echo ""' \
+  'echo "Done! Next:"' \
+  'echo "  1) vi $DIR/.env"' \
+  'echo "  2) systemctl start icu-alert"' \
+  'echo "  3) curl http://localhost:8000/health"' \
+  > /release/icu-alert-system/install.sh && chmod +x /release/icu-alert-system/install.sh
+
+RUN cd /release && tar czf /output/icu-alert-system.tar.gz icu-alert-system/
+
+FROM scratch
+COPY --from=builder /output/ /output/
+DOCKEREOF

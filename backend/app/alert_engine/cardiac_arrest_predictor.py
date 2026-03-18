@@ -91,6 +91,9 @@ class CardiacArrestPredictorMixin:
             pid_str = str(pid)
             his_pid = patient_doc.get("hisPid")
             device_id = await self._get_device_id_for_patient(patient_doc, ["monitor"])
+            temporal = await self._latest_temporal_risk_record(pid_str, hours=6) if hasattr(self, "_latest_temporal_risk_record") else None
+            temporal_org = temporal.get("organ_probabilities") if isinstance(temporal, dict) and isinstance(temporal.get("organ_probabilities"), dict) else {}
+            temporal_future = temporal.get("future_probabilities") if isinstance(temporal, dict) and isinstance(temporal.get("future_probabilities"), dict) else {}
 
             latest_cap = await self._get_latest_param_snapshot_by_pid(
                 pid,
@@ -230,6 +233,15 @@ class CardiacArrestPredictorMixin:
                 2,
             )
 
+            temporal_4h = float(temporal_future.get("4") or temporal_future.get(4) or temporal.get("score") or 0.0) if isinstance(temporal, dict) else 0.0
+            circulatory_prob = float(temporal_org.get("circulatory") or 0.0)
+            add_factor(
+                "temporal_circulatory_risk",
+                temporal_4h >= 0.64 and circulatory_prob >= 0.6,
+                f"时序模型4h恶化概率={round(temporal_4h, 4)}, circulatory={round(circulatory_prob, 4)}",
+                3,
+            )
+
             if score < warning_score:
                 continue
 
@@ -271,6 +283,12 @@ class CardiacArrestPredictorMixin:
                 source_time=source_time,
                 extra={
                     "factors": factors,
+                    "temporal_risk": {
+                        "score": temporal.get("score"),
+                        "risk_level": temporal.get("risk_level"),
+                        "future_probabilities": temporal_future,
+                        "organ_probabilities": temporal_org,
+                    } if temporal else None,
                     "hr": hr_latest,
                     "k": k_value,
                     "ica": ica_value,

@@ -85,6 +85,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getRecentAlerts } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 
+const OVERVIEW_CACHE_TTL_MS = 60 * 1000
+const overviewCache = new Map<string, {
+  ts: number
+  patients: any[]
+  depts: any[]
+  curDept: string
+}>()
+
 const PatientOverviewCard = defineAsyncComponent(() => import('../components/overview/PatientOverviewCard.vue'))
 
 const router = useRouter()
@@ -113,6 +121,10 @@ const routeDeptName = computed(() => {
   return ''
 })
 const showDeptNav = computed(() => !routeDeptCode.value && !routeDeptName.value)
+const overviewCacheKey = computed(() => JSON.stringify({
+  dept_code: routeDeptCode.value || '',
+  dept: routeDeptName.value || '',
+}))
 
 /* ── 科室标签 ── */
 const deptTabs = computed(() => {
@@ -290,7 +302,16 @@ function applyAlert(alert: any) {
 /* ── 数据加载 ── */
 async function load(options?: { silent?: boolean }) {
   const silent = !!options?.silent
-  if (silent) {
+  const cacheKey = overviewCacheKey.value
+  const cached = overviewCache.get(cacheKey)
+  const cacheFresh = !!cached && (Date.now() - cached.ts < OVERVIEW_CACHE_TTL_MS)
+  if (!silent && cacheFresh) {
+    patients.value = cached!.patients.map((p: any) => ({ ...p }))
+    depts.value = cached!.depts.map((d: any) => ({ ...d }))
+    curDept.value = cached!.curDept
+    loading.value = false
+    refreshing.value = true
+  } else if (silent) {
     refreshing.value = true
   } else {
     loading.value = true
@@ -384,10 +405,16 @@ async function load(options?: { silent?: boolean }) {
       return d || String(a.hisBed).localeCompare(String(b.hisBed), undefined, { numeric: true })
     })
     patients.value = all
+    overviewCache.set(cacheKey, {
+      ts: Date.now(),
+      patients: all.map((p: any) => ({ ...p })),
+      depts: depts.value.map((d: any) => ({ ...d })),
+      curDept: curDept.value,
+    })
   } catch (e) { console.error(e) }
   finally {
-    if (silent) refreshing.value = false
-    else loading.value = false
+    refreshing.value = false
+    loading.value = false
   }
 }
 
@@ -621,3 +648,4 @@ onUnmounted(() => {
   }
 }
 </style>
+

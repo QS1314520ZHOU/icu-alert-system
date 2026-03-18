@@ -162,7 +162,7 @@ function explanationPayload(alert: any) {
   if (exp && typeof exp === 'object') {
     return {
       summary: typeof exp.summary === 'string' ? exp.summary : (typeof exp.text === 'string' ? exp.text : ''),
-      evidence: Array.isArray(exp.evidence) ? exp.evidence.filter((x: any) => String(x || '').trim()) : [],
+      evidence: Array.isArray(exp.evidence) ? exp.evidence.map((x: any) => (x != null && typeof x === 'object' ? JSON.stringify(x) : String(x || '')).trim()).filter(Boolean) : [],
       suggestion: typeof exp.suggestion === 'string' ? exp.suggestion : '',
     }
   }
@@ -599,8 +599,14 @@ function formatAlertValue(a: any) {
     icp: ' mmHg',
     cpp: ' mmHg',
   }
-  if (p && unitMap[p]) return v != null ? `${v}${unitMap[p]}` : '—'
-  return v ?? '—'
+  if (p && unitMap[p]) {
+    if (v == null) return '—'
+    const vs = typeof v === 'object' ? JSON.stringify(v) : String(v)
+    return `${vs}${unitMap[p]}`
+  }
+  if (v == null) return '—'
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
 }
 
 function severityText(v: any) {

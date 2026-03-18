@@ -18,10 +18,11 @@
     </div>
 
     <div v-if="loading && !hasReview" class="similar-empty">正在检索相似病例…</div>
-    <div v-else-if="error && !hasReview" class="similar-empty similar-empty--error">{{ error }}</div>
+    <div v-else-if="error && !hasReview" class="similar-empty similar-empty--warn">{{ error }}</div>
     <div v-else-if="!cases.length" class="similar-empty">暂无可展示的相似出院病例</div>
 
     <template v-else>
+      <div v-if="softNotice" class="similar-soft-notice">{{ softNotice }}</div>
       <section class="kpi-strip">
         <article class="kpi-card">
           <span>匹配病例</span>
@@ -120,6 +121,12 @@ const props = defineProps<{
 const summary = computed(() => (props.review?.summary && typeof props.review.summary === 'object' ? props.review.summary : {}))
 const cases = computed(() => (Array.isArray(props.review?.cases) ? props.review.cases : []))
 const hasReview = computed(() => !!props.review)
+const softNotice = computed(() => {
+  const fallbackMessage = String(summary.value?.fallback_message || '').trim()
+  if (fallbackMessage) return fallbackMessage
+  if (summary.value?.degraded && props.error) return props.error
+  return ''
+})
 
 const outcomeItems = computed(() => {
   const outcomes = summary.value?.outcomes && typeof summary.value.outcomes === 'object' ? summary.value.outcomes : {}
@@ -494,6 +501,19 @@ function outcomeTone(raw: any) {
 .similar-empty--error {
   color: #fda4af;
   border-color: rgba(251, 113, 133, 0.18);
+.similar-empty--warn,
+.similar-soft-notice {
+  color: #fcd34d;
+  border: 1px solid rgba(250, 204, 21, 0.2);
+  background: rgba(64, 46, 5, 0.34);
+}
+
+.similar-soft-notice {
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+}
 }
 
 @media (max-width: 1200px) {

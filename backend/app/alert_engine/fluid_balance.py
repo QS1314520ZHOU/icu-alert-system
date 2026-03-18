@@ -344,6 +344,26 @@ class FluidBalanceMixin:
             "nonresponsive": any(k in message for k in ["补液可能无效", "容量反应性低"]),
         }
 
+    async def _get_ppv_svv_snapshot(self, pid, now: datetime, hours: int = 12) -> dict:
+        snapshot = await self._get_latest_param_snapshot_by_pid(pid, codes=["param_ppv", "ppv", "PPV", "param_svv", "svv", "SVV"])
+        params = (snapshot or {}).get("params") or {}
+        ppv = None
+        for key in ("param_ppv", "ppv", "PPV"):
+            if params.get(key) is not None:
+                ppv = float(params.get(key))
+                break
+        svv = None
+        for key in ("param_svv", "svv", "SVV"):
+            if params.get(key) is not None:
+                svv = float(params.get(key))
+                break
+        return {
+            "ppv": ppv,
+            "svv": svv,
+            "poor_tolerance": bool((ppv is not None and ppv < 13) or (svv is not None and svv < 12)),
+            "time": (snapshot or {}).get("time"),
+        }
+
     async def _assess_fluid_responsiveness_lost(
         self,
         *,
@@ -464,6 +484,96 @@ class FluidBalanceMixin:
             "norepi_tapering": norepi_tapering,
             "percent_fluid_overload": percent_fluid_overload,
             "net_24h_ml": net_24h,
+        }
+
+    async def _get_pf_ratio_hint(self, his_pid: str | None, patient_doc: dict, pid, now: datetime) -> dict:
+        if not his_pid:
+            return {"latest": None, "baseline": None, "delta": None, "worsening": False}
+        pao2_series = await self._get_lab_series(his_pid, "pao2", now - timedelta(hours=24), limit=60)
+        fio2_series = await self._get_param_series_by_pid(pid, "param_FiO2", now - timedelta(hours=24), prefer_device_types=["vent", "monitor"], limit=120)
+        if hasattr(self, "_filter_series_quality"):
+            fio2_series = self._filter_series_quality("param_FiO2", fio2_series)
+        pf_pairs: list[tuple[datetime, float]] = []
+        for pao2_row in pao2_series:
+            pt = pao2_row.get("time")
+            pv = pao2_row.get("value")
+            if not isinstance(pt, datetime) or pv is None:
+                continue
+            nearest_fio2 = None
+            nearest_gap = None
+            for fio2_row in fio2_series:
+                ft = fio2_row.get("time")
+                fv = fio2_row.get("value")
+                if not isinstance(ft, datetime) or fv is None:
+                    continue
+                gap = abs((ft - pt).total_seconds())
+                if gap > 4 * 3600:
+                    continue
+                if nearest_gap is None or gap < nearest_gap:
+                    nearest_gap = gap
+                    nearest_fio2 = float(fv)
+            if nearest_fio2 in (None, 0):
+                continue
+            fio2 = nearest_fio2 / 100.0 if nearest_fio2 > 1 else nearest_fio2
+            if fio2 <= 0:
+                continue
+            pf_pairs.append((pt, round(float(pv) / fio2, 1)))
+        baseline = pf_pairs[0][1] if pf_pairs else None
+        pf = pf_pairs[-1][1] if pf_pairs else None
+        delta = round(float(pf) - float(baseline), 1) if pf is not None and baseline is not None else None
+        ards_alert = await self._get_latest_active_alert(str(pid), ["ards"], hours=24)
+        return {
+            "latest": pf,
+            "baseline": baseline,
+            "delta": delta,
+            "worsening": bool(ards_alert and delta is not None and delta < -20),
+        }
+
+    async def _get_bline_hint(self, pid, now: datetime) -> dict:
+        events = await self._get_recent_text_events(pid, ["b线", "b-line", "肺水", "肺超声"], hours=24, limit=200)
+        if not events:
+            return {"present": False, "text": None}
+        text = " ".join(str(events[0].get(k) or "") for k in ("code", "strVal", "value"))
+        return {"present": True, "text": text}
+
+    async def _build_deresuscitation_plan(
+        self,
+        *,
+        pid,
+        pid_str: str,
+        patient_doc: dict,
+        his_pid: str | None,
+        now: datetime,
+        percent_fluid_overload: float,
+        net_24h: float,
+        cfg: dict,
+    ) -> dict:
+        hemo_ctx = await self._get_hemodynamic_responsiveness_context(pid_str, now, hours=12)
+        ppv_svv = await self._get_ppv_svv_snapshot(pid, now, hours=12)
+        pf = await self._get_pf_ratio_hint(his_pid, patient_doc, pid, now)
+        bline = await self._get_bline_hint(pid, now)
+        uf_24h = self._sum_window(await self._collect_output_events(pid_str, now - timedelta(hours=24)), 24, now, category="ultrafiltration")
+        target_negative = float(cfg.get("deresuscitation_target_negative_ml_24h", 500))
+        if (
+            percent_fluid_overload >= float(cfg.get("positive_balance_high_pct", 10))
+            or net_24h >= float(cfg.get("deresuscitation_positive_net_high_ml", 2000))
+            or pf.get("worsening")
+            or ppv_svv.get("poor_tolerance")
+            or bline.get("present")
+        ):
+            target_negative = float(cfg.get("deresuscitation_target_negative_high_ml_24h", 1000))
+        recommendation = {
+            "net_negative_goal_ml_24h": int(target_negative),
+            "diuretic_start": "考虑呋塞米 20-40mg 起始" if uf_24h <= 0 else None,
+            "crrt_uf_rate_ml_h": int(round(target_negative / 24.0)) if uf_24h > 0 else None,
+        }
+        return {
+            "hemodynamic_context": hemo_ctx,
+            "ppv_svv_context": ppv_svv,
+            "pf_ratio": pf,
+            "bline_hint": bline,
+            "current_ultrafiltration_24h_ml": uf_24h,
+            "recommendation": recommendation,
         }
 
     async def _build_fluid_explanation(self, *, summary: str, evidence: list[str], suggestion: str) -> dict:
@@ -673,6 +783,17 @@ class FluidBalanceMixin:
                 cfg=fluid_cfg,
             )
             if deresuscitation:
+                enhanced_plan = await self._build_deresuscitation_plan(
+                    pid=pid,
+                    pid_str=pid_str,
+                    patient_doc=patient_doc,
+                    his_pid=his_pid,
+                    now=now,
+                    percent_fluid_overload=round(max_positive_pct, 2),
+                    net_24h=net_24h,
+                    cfg=fluid_cfg,
+                )
+                deresuscitation.update(enhanced_plan)
                 rule_id = "FLUID_DERESUSCITATION_WINDOW"
                 if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                     explanation = await self._build_fluid_explanation(
@@ -682,8 +803,9 @@ class FluidBalanceMixin:
                             f"乳酸 {deresuscitation.get('lactate', {}).get('baseline')}→{deresuscitation.get('lactate', {}).get('latest')}",
                             f"%FO {deresuscitation.get('percent_fluid_overload')}%",
                             f"24h净平衡 {deresuscitation.get('net_24h_ml')}mL",
+                            f"P/F {((deresuscitation.get('pf_ratio') or {}).get('latest'))}",
                         ],
-                        suggestion="建议评估限制入量、利尿/超滤与每日负平衡目标，避免进入液体迟发伤害阶段。",
+                        suggestion=f"建议评估限制入量、利尿/超滤与每日负平衡目标，当前建议净负平衡 {(deresuscitation.get('recommendation') or {}).get('net_negative_goal_ml_24h')} mL/24h。",
                     )
                     alert = await self._create_alert(
                         rule_id=rule_id,

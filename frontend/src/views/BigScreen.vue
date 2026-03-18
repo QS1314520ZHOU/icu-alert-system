@@ -319,8 +319,12 @@ async function loadTrend() {
 }
 
 async function loadBundle() {
-  const res = await getBundleOverview(buildPatientParams())
-  bundleCounts.value = res.data?.counts || { green: 0, yellow: 0, red: 0 }
+  try {
+    const res = await getBundleOverview(buildPatientParams())
+    bundleCounts.value = res.data?.counts || { green: 0, yellow: 0, red: 0 }
+  } catch {
+    bundleCounts.value = { green: 0, yellow: 0, red: 0 }
+  }
 }
 
 async function loadDeviceHeatmap() {

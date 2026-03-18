@@ -128,9 +128,18 @@ class TemporalRiskModelRuntime:
         session = self._model
         feeds: dict[str, np.ndarray] = {}
         inputs = session.get_inputs() if session is not None else []
-        seq3 = sequence.astype(np.float32)[None, ...]
-        seq2 = sequence.astype(np.float32).reshape(1, -1)
-        meta2 = meta_features.astype(np.float32).reshape(1, -1) if meta_features is not None else None
+        seq = sequence.astype(np.float32)
+        if seq.ndim == 2:
+            seq3 = seq[None, ...]
+        elif seq.ndim == 3:
+            seq3 = seq
+        else:
+            seq3 = seq.reshape(1, -1, 1)
+        seq2 = seq.reshape(1, -1)
+        meta2 = None
+        if meta_features is not None:
+            meta = meta_features.astype(np.float32)
+            meta2 = meta if meta.ndim == 2 else meta.reshape(1, -1)
         for idx, input_meta in enumerate(inputs):
             shape = getattr(input_meta, "shape", None) or []
             rank = len(shape)
@@ -146,8 +155,17 @@ class TemporalRiskModelRuntime:
     def _prepare_torch_inputs(self, sequence: np.ndarray, meta_features: np.ndarray | None):
         import torch  # type: ignore
 
-        seq = torch.tensor(sequence.astype(np.float32)).unsqueeze(0)
-        meta = torch.tensor(meta_features.astype(np.float32)).unsqueeze(0) if meta_features is not None else None
+        seq_arr = sequence.astype(np.float32)
+        if seq_arr.ndim == 2:
+            seq = torch.tensor(seq_arr).unsqueeze(0)
+        elif seq_arr.ndim == 3:
+            seq = torch.tensor(seq_arr)
+        else:
+            seq = torch.tensor(seq_arr.reshape(1, -1, 1))
+        meta = None
+        if meta_features is not None:
+            meta_arr = meta_features.astype(np.float32)
+            meta = torch.tensor(meta_arr if meta_arr.ndim == 2 else meta_arr.reshape(1, -1))
         return seq, meta
 
     def _to_numpy(self, obj: Any) -> Any:

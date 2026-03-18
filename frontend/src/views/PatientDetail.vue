@@ -198,7 +198,7 @@
           <PatientDataTableTab
             v-if="activeTab === 'drugs'"
             :columns="drugColumns"
-            :rows="drugs"
+            :rows="drugTableRows"
             row-key="_id"
           />
         </a-tab-pane>
@@ -207,7 +207,7 @@
           <PatientDataTableTab
             v-if="activeTab === 'assess'"
             :columns="assessmentColumns"
-            :rows="assessments"
+            :rows="assessmentTableRows"
             row-key="time"
           />
         </a-tab-pane>
@@ -236,6 +236,13 @@
             :latest-weaning-alert="latestWeaningAlert"
             :latest-weaning-status="weaningStatus"
             :latest-post-extubation-alert="latestPostExtubationAlert"
+            :personalized-threshold-record="personalizedThresholdRecord"
+            :personalized-threshold-history="personalizedThresholdHistory"
+            :personalized-threshold-approved-record="personalizedThresholdApprovedRecord"
+            :personalized-threshold-loading="personalizedThresholdLoading"
+            :personalized-threshold-error="personalizedThresholdError"
+            :personalized-threshold-reviewing="personalizedThresholdReviewing"
+            :review-personalized-threshold="reviewPersonalizedThreshold"
             :alerts="alerts"
             :fmt-time="fmtTime"
             :normalize-severity="normalizeSeverity"
@@ -327,6 +334,38 @@
       :modal="evidenceModal"
       :open-evidence="openEvidence"
     />
+    <a-modal
+      v-model:open="thresholdReviewDialogOpen"
+      :title="thresholdReviewStatus === 'approved' ? '批准个性化阈值建议' : '拒绝个性化阈值建议'"
+      :confirm-loading="personalizedThresholdReviewing"
+      ok-text="提交审核"
+      cancel-text="取消"
+      @ok="confirmThresholdReview"
+      @cancel="cancelThresholdReview"
+    >
+      <div class="threshold-review-dialog">
+        <div class="threshold-review-row">
+          <label class="threshold-review-label">审核人</label>
+          <input
+            v-model="thresholdReviewReviewer"
+            class="threshold-review-input"
+            type="text"
+            maxlength="32"
+            placeholder="请输入审核人姓名"
+          />
+        </div>
+        <div class="threshold-review-row">
+          <label class="threshold-review-label">审核备注</label>
+          <textarea
+            v-model="thresholdReviewComment"
+            class="threshold-review-textarea"
+            rows="4"
+            maxlength="240"
+            placeholder="请输入审核备注"
+          />
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -336,6 +375,7 @@ import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import {
   Card as ACard,
+  Modal as AModal,
   PageHeader as APageHeader,
   TabPane as ATabPane,
   Tabs as ATabs,
@@ -343,6 +383,8 @@ import {
 } from 'ant-design-vue'
 import {
   getPatientDetail,
+  getPatientPersonalizedThresholdHistory,
+  getPatientPersonalizedThresholds,
   getPatientVitals,
   getPatientLabs,
   getPatientVitalsTrend,
@@ -362,6 +404,7 @@ import {
   getKnowledgeDocuments,
   getKnowledgeStatus,
   postAiFeedback,
+  reviewPatientPersonalizedThreshold,
   reloadKnowledge,
 } from '../api'
 import {
@@ -405,6 +448,17 @@ const similarCaseReview = ref<any>(null)
 const similarCaseLoading = ref(false)
 const similarCaseError = ref('')
 const similarCaseLoaded = ref(false)
+const personalizedThresholdRecord = ref<any>(null)
+const personalizedThresholdHistory = ref<any[]>([])
+const personalizedThresholdApprovedRecord = ref<any>(null)
+const personalizedThresholdLoading = ref(false)
+const personalizedThresholdError = ref('')
+const personalizedThresholdReviewing = ref(false)
+const thresholdReviewDialogOpen = ref(false)
+const thresholdReviewTarget = ref<any>(null)
+const thresholdReviewStatus = ref<'approved' | 'rejected'>('approved')
+const thresholdReviewReviewer = ref('')
+const thresholdReviewComment = ref('')
 const sepsisBundleNow = ref(Date.now())
 let sepsisBundleTimer: ReturnType<typeof setInterval> | null = null
 
@@ -825,21 +879,44 @@ function formatDose(record: any) {
 }
 
 const drugColumns = [
-  { title: '药品', dataIndex: 'drugName', key: 'drugName', customRender: ({ record }: any) => formatDrugName(record) },
-  { title: '剂量', dataIndex: 'dose', key: 'dose', customRender: ({ record }: any) => formatDose(record) },
-  { title: '用法', dataIndex: 'route', key: 'route', customRender: ({ text }: any) => text || '—' },
-  { title: '频次', dataIndex: 'frequency', key: 'frequency', customRender: ({ text }: any) => text || '—' },
-  { title: '执行时间', dataIndex: 'executeTime', key: 'executeTime', customRender: ({ text }: any) => fmtTime(text) || '—' },
+  { title: '药品', dataIndex: 'drugNameText', key: 'drugName' },
+  { title: '剂量', dataIndex: 'doseText', key: 'dose' },
+  { title: '用法', dataIndex: 'routeText', key: 'route' },
+  { title: '频次', dataIndex: 'frequencyText', key: 'frequency' },
+  { title: '执行时间', dataIndex: 'executeTimeText', key: 'executeTime' },
 ]
 
 const assessmentColumns = [
-  { title: '时间', dataIndex: 'time', key: 'time', customRender: ({ text }: any) => fmtTime(text) || '—' },
-  { title: 'GCS', dataIndex: 'gcs', key: 'gcs', customRender: ({ text }: any) => text ?? '—' },
-  { title: 'RASS', dataIndex: 'rass', key: 'rass', customRender: ({ text }: any) => text ?? '—' },
-  { title: '疼痛', dataIndex: 'pain', key: 'pain', customRender: ({ text }: any) => text ?? '—' },
-  { title: '谵妄', dataIndex: 'delirium', key: 'delirium', customRender: ({ text }: any) => text ?? '—' },
-  { title: 'Braden', dataIndex: 'braden', key: 'braden', customRender: ({ text }: any) => text ?? '—' },
+  { title: '时间', dataIndex: 'timeText', key: 'time' },
+  { title: 'GCS', dataIndex: 'gcsText', key: 'gcs' },
+  { title: 'RASS', dataIndex: 'rassText', key: 'rass' },
+  { title: '疼痛', dataIndex: 'painText', key: 'pain' },
+  { title: '谵妄', dataIndex: 'deliriumText', key: 'delirium' },
+  { title: 'Braden', dataIndex: 'bradenText', key: 'braden' },
 ]
+
+const drugTableRows = computed(() =>
+  drugs.value.map((row: any) => ({
+    ...row,
+    drugNameText: formatDrugName(row),
+    doseText: formatDose(row),
+    routeText: row?.route || '—',
+    frequencyText: row?.frequency || '—',
+    executeTimeText: fmtTime(row?.executeTime) || '—',
+  }))
+)
+
+const assessmentTableRows = computed(() =>
+  assessments.value.map((row: any) => ({
+    ...row,
+    timeText: fmtTime(row?.time) || '—',
+    gcsText: row?.gcs ?? '—',
+    rassText: row?.rass ?? '—',
+    painText: row?.pain ?? '—',
+    deliriumText: row?.delirium ?? '—',
+    bradenText: row?.braden ?? '—',
+  }))
+)
 
 type AiRuleRow = {
   key: string
@@ -2206,13 +2283,120 @@ async function loadSimilarCaseReview(force = false) {
   try {
     const res = await getPatientSimilarCaseOutcomes(patientId, 10)
     similarCaseReview.value = res.data?.review || null
+    const fallbackMessage = String(res.data?.review?.summary?.fallback_message || '').trim()
+    similarCaseError.value = fallbackMessage
   } catch (e: any) {
-    console.error('加载相似病例结局失败', e)
-    similarCaseError.value = e?.response?.data?.message || '相似病例结局加载失败'
+    const timeoutLike = String(e?.message || '').toLowerCase().includes('timeout')
+    const fallbackMessage = timeoutLike
+      ? 'AI分析响应较慢，已切换为降级模式，可稍后刷新重试'
+      : 'AI服务暂时不可用，已切换为降级模式，可稍后刷新重试'
+    similarCaseError.value = fallbackMessage
+    similarCaseReview.value = {
+      current_profile: similarCaseReview.value?.current_profile || {},
+      summary: {
+        matched_cases: 0,
+        displayed_cases: 0,
+        degraded: true,
+        fallback_message: fallbackMessage,
+      },
+      cases: [],
+      historical_case_insight: {
+        summary: fallbackMessage,
+        pattern_bullets: ['当前接口未返回可用AI结果，本页已降级为基础展示。'],
+        caution: '不影响其他患者详情模块，可稍后刷新重试。',
+        degraded: true,
+      },
+    }
   } finally {
     similarCaseLoading.value = false
     similarCaseLoaded.value = true
   }
+}
+
+async function loadPersonalizedThresholds(force = false) {
+  if (personalizedThresholdLoading.value) return
+  if (personalizedThresholdRecord.value && !force) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  personalizedThresholdLoading.value = true
+  personalizedThresholdError.value = ''
+  try {
+    const [latestRes, historyRes] = await Promise.all([
+      getPatientPersonalizedThresholds(patientId),
+      getPatientPersonalizedThresholdHistory(patientId, { limit: 6 }),
+    ])
+    personalizedThresholdRecord.value = latestRes.data?.record || null
+    personalizedThresholdHistory.value = Array.isArray(historyRes.data?.rows) ? historyRes.data.rows : []
+    personalizedThresholdApprovedRecord.value =
+      personalizedThresholdHistory.value.find((row: any) => String(row?.status || '').toLowerCase() === 'approved') || null
+  } catch (e: any) {
+    console.error('加载个性化阈值建议失败', e)
+    personalizedThresholdError.value = e?.response?.data?.message || '个性化阈值建议加载失败'
+    personalizedThresholdRecord.value = null
+    personalizedThresholdHistory.value = []
+    personalizedThresholdApprovedRecord.value = null
+  } finally {
+    personalizedThresholdLoading.value = false
+  }
+}
+
+async function reviewPersonalizedThreshold(
+  record: any,
+  status: 'approved' | 'rejected',
+  meta?: { reviewer?: string; review_comment?: string }
+) {
+  if (!meta) {
+    thresholdReviewTarget.value = record || null
+    thresholdReviewStatus.value = status
+    thresholdReviewReviewer.value = ''
+    thresholdReviewComment.value = status === 'approved'
+      ? '同意采用该个性化阈值建议。'
+      : '暂不采用该个性化阈值建议。'
+    thresholdReviewDialogOpen.value = true
+    return
+  }
+  await submitPersonalizedThresholdReview(record, status, meta)
+}
+
+async function submitPersonalizedThresholdReview(
+  record: any,
+  status: 'approved' | 'rejected',
+  meta: { reviewer?: string; review_comment?: string }
+) {
+  if (personalizedThresholdReviewing.value) return
+  const patientId = route.params.id as string
+  const recordId = String(record?._id || '')
+  if (!patientId || !recordId) return
+  personalizedThresholdReviewing.value = true
+  try {
+    await reviewPatientPersonalizedThreshold(patientId, recordId, {
+      status,
+      reviewer: meta?.reviewer || '',
+      review_comment: meta?.review_comment || '',
+    })
+    message.success(status === 'approved' ? '已批准个性化阈值建议' : '已拒绝个性化阈值建议')
+    thresholdReviewDialogOpen.value = false
+    thresholdReviewTarget.value = null
+    await loadPersonalizedThresholds(true)
+  } catch (e: any) {
+    console.error('审核个性化阈值建议失败', e)
+    message.error(e?.response?.data?.message || '审核失败')
+  } finally {
+    personalizedThresholdReviewing.value = false
+  }
+}
+
+async function confirmThresholdReview() {
+  if (!thresholdReviewTarget.value) return
+  await submitPersonalizedThresholdReview(thresholdReviewTarget.value, thresholdReviewStatus.value, {
+    reviewer: thresholdReviewReviewer.value.trim(),
+    review_comment: thresholdReviewComment.value.trim(),
+  })
+}
+
+function cancelThresholdReview() {
+  thresholdReviewDialogOpen.value = false
+  thresholdReviewTarget.value = null
 }
 
 async function loadAiLab() {
@@ -2310,6 +2494,16 @@ function resetDetailState() {
   similarCaseLoading.value = false
   similarCaseError.value = ''
   similarCaseLoaded.value = false
+  personalizedThresholdRecord.value = null
+  personalizedThresholdHistory.value = []
+  personalizedThresholdApprovedRecord.value = null
+  personalizedThresholdLoading.value = false
+  personalizedThresholdError.value = ''
+  personalizedThresholdReviewing.value = false
+  thresholdReviewDialogOpen.value = false
+  thresholdReviewTarget.value = null
+  thresholdReviewReviewer.value = ''
+  thresholdReviewComment.value = ''
   sepsisBundleNow.value = Date.now()
   aiLabSummary.value = ''
   aiRuleText.value = ''
@@ -2359,6 +2553,7 @@ async function loadDetailPage() {
     loadDrugs(),
     loadAssessments(),
     loadAlerts(),
+    loadPersonalizedThresholds(),
     loadSepsisBundleStatus(),
     loadWeaningStatus(),
     loadAiAll(),
@@ -2427,6 +2622,33 @@ onBeforeUnmount(() => {
   background-size: 28px 28px;
   opacity: 0.18;
   z-index: -1;
+}
+.threshold-review-dialog {
+  display: grid;
+  gap: 12px;
+}
+.threshold-review-row {
+  display: grid;
+  gap: 6px;
+}
+.threshold-review-label {
+  color: #7ecce1;
+  font-size: 12px;
+  letter-spacing: .06em;
+}
+.threshold-review-input,
+.threshold-review-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(80,199,255,.16);
+  background: rgba(7,20,34,.86);
+  color: #ecfeff;
+  outline: none;
+}
+.threshold-review-textarea {
+  resize: vertical;
+  min-height: 96px;
 }
 .detail-page-header {
   background: linear-gradient(180deg, rgba(9,22,36,.94) 0%, rgba(6,15,27,.92) 100%);

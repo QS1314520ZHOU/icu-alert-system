@@ -167,7 +167,24 @@ export const getPatientSbtRecords = (patientId: string, limit = 20) =>
 
 // 相似病例结局回溯
 export const getPatientSimilarCaseOutcomes = (patientId: string, limit = 10) =>
-  api.get(`/api/patients/${patientId}/similar-case-outcomes`, { params: { limit } })
+  aiApi.get(`/api/patients/${patientId}/similar-case-outcomes`, { params: { limit } })
+
+// 个性化报警阈值建议
+export const getPatientPersonalizedThresholds = (
+  patientId: string,
+  params?: { status?: 'pending_review' | 'approved' | 'rejected' }
+) => api.get(`/api/patients/${patientId}/personalized-thresholds`, { params })
+
+export const getPatientPersonalizedThresholdHistory = (
+  patientId: string,
+  params?: { status?: 'pending_review' | 'approved' | 'rejected'; limit?: number }
+) => api.get(`/api/patients/${patientId}/personalized-thresholds/history`, { params })
+
+export const reviewPatientPersonalizedThreshold = (
+  patientId: string,
+  recordId: string,
+  payload: { status: 'approved' | 'rejected'; reviewer?: string; review_comment?: string }
+) => api.post(`/api/patients/${patientId}/personalized-thresholds/${recordId}/review`, payload)
 
 // 健康检查
 export const healthCheck = () => api.get('/health')

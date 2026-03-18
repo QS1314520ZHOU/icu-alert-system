@@ -3142,9 +3142,22 @@ class BaseEngine:
             else:
                 alert_doc["explanation"] = explanation
 
+        if hasattr(self, "_alert_intelligence_intercept"):
+            try:
+                alert_doc = await self._alert_intelligence_intercept(alert_doc, patient_doc)
+            except Exception as e:
+                logger.debug(f"报警智能拦截失败: {e}")
+            if not alert_doc:
+                return None
+
         try:
             res = await self.db.col("alert_records").insert_one(alert_doc)
             alert_doc["_id"] = res.inserted_id
+            if hasattr(self, "_after_alert_persisted"):
+                try:
+                    await self._after_alert_persisted(alert_doc, patient_doc)
+                except Exception as e:
+                    logger.debug(f"报警持久化后处理失败: {e}")
             await self._broadcast_alert(alert_doc)
             return alert_doc
         except Exception as e:
@@ -3184,8 +3197,18 @@ class BaseEngine:
     async def _broadcast_alert(self, alert_doc: dict) -> None:
         if not self.ws:
             return
+        if hasattr(self, "_should_broadcast_alert"):
+            try:
+                if not self._should_broadcast_alert(alert_doc):
+                    return
+            except Exception as e:
+                logger.debug(f"报警广播策略判定失败: {e}")
         try:
-            await self.ws.broadcast({"type": "alert", "data": alert_doc})
+            roles = alert_doc.get("route_targets")
+            if not roles:
+                extra = alert_doc.get("extra") if isinstance(alert_doc.get("extra"), dict) else {}
+                roles = extra.get("route_targets")
+            await self.ws.broadcast({"type": "alert", "data": alert_doc}, roles=roles)
         except Exception as e:
             logger.warning(f"WebSocket 广播失败: {e}")
 

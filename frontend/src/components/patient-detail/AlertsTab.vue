@@ -121,6 +121,94 @@
         </span>
       </div>
     </div>
+    <div v-if="alerts[0] && itemReasoning(alerts[0])" class="reasoning-brief">
+      <div class="reasoning-brief-head">
+        <div>
+          <div class="reasoning-brief-title">AI 归因摘要</div>
+          <div class="reasoning-brief-sub">
+            {{ fmtTime(itemReasoning(alerts[0])?.generated_at || alerts[0]?.reasoning_updated_at || alerts[0]?.created_at) || '时间未知' }}
+            · 关联 {{ itemReasoning(alerts[0])?.source_alert_count || 0 }} 条活跃报警
+          </div>
+        </div>
+        <div :class="['reasoning-brief-confidence', `is-${reasoningConfidenceLevel(itemReasoning(alerts[0]))}`]">
+          <span>置信度</span>
+          <strong>{{ reasoningConfidenceText(itemReasoning(alerts[0])) }}</strong>
+        </div>
+      </div>
+      <div class="reasoning-brief-main">{{ itemReasoning(alerts[0])?.root_cause_summary }}</div>
+      <div v-if="itemReasoning(alerts[0])?.most_urgent_action" class="reasoning-brief-urgent">
+        最紧急 action：{{ itemReasoning(alerts[0])?.most_urgent_action }}
+      </div>
+      <div v-if="reasoningGroups(alerts[0]).length" class="reasoning-chip-row">
+        <span
+          v-for="(group, groupIdx) in reasoningGroups(alerts[0])"
+          :key="`reasoning-top-group-${groupIdx}`"
+          class="reasoning-chip"
+        >
+          {{ group.label }}<span v-if="group.alert_ids?.length"> · {{ group.alert_ids.length }} 条</span>
+        </span>
+      </div>
+    </div>
+    <div v-if="personalizedThresholdRecord || personalizedThresholdLoading || personalizedThresholdError" class="threshold-brief">
+      <div class="threshold-brief-head">
+        <div>
+          <div class="threshold-brief-title">个性化报警阈值建议</div>
+          <div class="threshold-brief-sub">
+            {{ fmtTime(personalizedThresholdRecord?.calc_time || personalizedThresholdRecord?.updated_at) || '暂无生成时间' }}
+            <span v-if="personalizedThresholdHistory?.length"> · 历史 {{ personalizedThresholdHistory.length }} 条</span>
+          </div>
+        </div>
+        <div :class="['threshold-status-pill', `is-${thresholdReviewStatus(personalizedThresholdRecord?.status)}`]">
+          {{ thresholdStatusText(personalizedThresholdRecord?.status) }}
+        </div>
+      </div>
+      <div v-if="personalizedThresholdLoading" class="threshold-empty">正在加载个性化阈值建议...</div>
+      <div v-else-if="personalizedThresholdError" class="threshold-empty threshold-empty--error">{{ personalizedThresholdError }}</div>
+      <template v-else-if="personalizedThresholdRecord">
+        <div class="threshold-brief-main">
+          {{ personalizedThresholdRecord?.reasoning?.overall_reasoning || '暂无整体推理摘要' }}
+        </div>
+        <div class="threshold-meta-row">
+          <span class="threshold-meta-chip">置信度 {{ thresholdConfidenceText(personalizedThresholdRecord) }}</span>
+          <span class="threshold-meta-chip">审核优先级 {{ personalizedThresholdRecord?.reasoning?.review_priority || 'medium' }}</span>
+          <span v-if="personalizedThresholdRecord?.reviewer" class="threshold-meta-chip">审核人 {{ personalizedThresholdRecord.reviewer }}</span>
+        </div>
+        <div v-if="personalizedThresholdApprovedRecord" class="threshold-approved-note">
+          <strong>当前生效版本</strong>
+          <span>{{ fmtTime(personalizedThresholdApprovedRecord?.reviewed_at || personalizedThresholdApprovedRecord?.updated_at || personalizedThresholdApprovedRecord?.calc_time) || '时间未知' }}</span>
+          <span v-if="personalizedThresholdApprovedRecord?._id !== personalizedThresholdRecord?._id">· 与当前展示版本不同</span>
+        </div>
+        <div v-if="thresholdRows(personalizedThresholdRecord).length" class="threshold-grid">
+          <article v-for="row in thresholdRows(personalizedThresholdRecord)" :key="row.key" class="threshold-card">
+            <div class="threshold-card-head">
+              <span class="threshold-card-name">{{ row.label }}</span>
+              <span class="threshold-card-band">{{ row.band }}</span>
+            </div>
+            <div class="threshold-card-main">
+              <span>低警 {{ row.lowWarning }}<em v-if="row.lowWarningDelta"> {{ row.lowWarningDelta }}</em></span>
+              <span>低危 {{ row.lowCritical }}<em v-if="row.lowCriticalDelta"> {{ row.lowCriticalDelta }}</em></span>
+              <span>高警 {{ row.highWarning }}<em v-if="row.highWarningDelta"> {{ row.highWarningDelta }}</em></span>
+              <span>高危 {{ row.highCritical }}<em v-if="row.highCriticalDelta"> {{ row.highCriticalDelta }}</em></span>
+            </div>
+            <div v-if="row.reasoning" class="threshold-card-reason">{{ row.reasoning }}</div>
+          </article>
+        </div>
+        <div v-if="personalizedThresholdRecord?.reasoning?.rejected_thresholds && Object.keys(personalizedThresholdRecord.reasoning.rejected_thresholds).length" class="threshold-footnote">
+          存在部分参数因逻辑不一致被系统拒绝写入。
+        </div>
+        <div v-if="personalizedThresholdRecord?.status === 'pending_review'" class="threshold-action-row">
+          <a-button size="small" type="primary" :loading="personalizedThresholdReviewing" @click="reviewPersonalizedThreshold(personalizedThresholdRecord, 'approved')">
+            批准
+          </a-button>
+          <a-button size="small" danger ghost :loading="personalizedThresholdReviewing" @click="reviewPersonalizedThreshold(personalizedThresholdRecord, 'rejected')">
+            拒绝
+          </a-button>
+        </div>
+        <div v-else-if="personalizedThresholdRecord?.review_comment" class="threshold-footnote">
+          审核备注：{{ personalizedThresholdRecord.review_comment }}
+        </div>
+      </template>
+    </div>
     <div v-if="alerts.length" class="alert-feed">
       <article
         v-for="(item, idx) in alerts"
@@ -191,6 +279,59 @@
                 <div class="explanation-label">{{ isRescueRiskAlert(item) ? '处置建议' : '建议' }}</div>
                 <div :class="['explanation-text', { 'explanation-text--suggestion': isRescueRiskAlert(item) }]">{{ explanationSuggestion(item) }}</div>
               </div>
+            </div>
+          </div>
+          <div v-if="itemReasoning(item) && (idx === 0 || itemReasoning(item)?.cluster_signature !== itemReasoning(alerts[idx - 1])?.cluster_signature)" class="reasoning-card">
+            <div class="reasoning-card-head">
+              <div>
+                <span class="reasoning-tag">AI 归因摘要</span>
+                <div class="reasoning-summary">{{ itemReasoning(item)?.root_cause_summary }}</div>
+              </div>
+              <span :class="['reasoning-confidence-pill', `is-${reasoningConfidenceLevel(itemReasoning(item))}`]">
+                {{ reasoningConfidenceText(itemReasoning(item)) }}
+              </span>
+            </div>
+            <div v-if="itemReasoning(item)?.most_urgent_action" class="reasoning-urgent">
+              <strong>最紧急 action</strong> {{ itemReasoning(item)?.most_urgent_action }}
+            </div>
+            <div v-if="reasoningActions(item).length" class="reasoning-section">
+              <div class="reasoning-section-title">优先级排序</div>
+              <div
+                v-for="(action, actionIdx) in reasoningActions(item)"
+                :key="`reasoning-action-${idx}-${actionIdx}`"
+                class="reasoning-action"
+              >
+                <span class="reasoning-rank">#{{ action.rank || actionIdx + 1 }}</span>
+                <div class="reasoning-action-body">
+                  <div class="reasoning-action-main">{{ action.action }}</div>
+                  <div v-if="action.why" class="reasoning-action-why">{{ action.why }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-if="reasoningGroups(item).length" class="reasoning-section">
+              <div class="reasoning-section-title">建议合并展示</div>
+              <div class="reasoning-group-grid">
+                <article
+                  v-for="(group, groupIdx) in reasoningGroups(item)"
+                  :key="`reasoning-group-${idx}-${groupIdx}`"
+                  class="reasoning-group-card"
+                >
+                  <div class="reasoning-group-label">{{ group.label }}</div>
+                  <div v-if="group.reason" class="reasoning-group-reason">{{ group.reason }}</div>
+                  <div class="reasoning-group-meta">{{ group.alert_ids?.length || 0 }} 条关联报警</div>
+                </article>
+              </div>
+            </div>
+            <div v-if="reasoningSafetyIssues(item).length || reasoningHallucinations(item).length" class="reasoning-section">
+              <div class="reasoning-section-title">质量护栏</div>
+              <ul class="reasoning-list">
+                <li v-for="(issue, issueIdx) in reasoningSafetyIssues(item)" :key="`reasoning-safe-${idx}-${issueIdx}`">
+                  {{ issue.message || issue.type || '存在安全校验问题' }}
+                </li>
+                <li v-for="(flag, flagIdx) in reasoningHallucinations(item)" :key="`reasoning-hall-${idx}-${flagIdx}`">
+                  {{ flag.metric || '指标' }}: 输出 {{ flag.claimed }} / 实测 {{ flag.observed }}
+                </li>
+              </ul>
             </div>
           </div>
           <div v-if="hasContextSnapshot(item)" class="context-snapshot">
@@ -409,6 +550,13 @@ defineProps<{
   latestWeaningAlert: any
   latestWeaningStatus: any
   latestPostExtubationAlert: any
+  personalizedThresholdRecord: any
+  personalizedThresholdHistory: any[]
+  personalizedThresholdApprovedRecord: any
+  personalizedThresholdLoading: boolean
+  personalizedThresholdError: string
+  personalizedThresholdReviewing: boolean
+  reviewPersonalizedThreshold: (record: any, status: 'approved' | 'rejected', meta?: { reviewer?: string; review_comment?: string }) => void | Promise<void>
   alerts: any[]
   fmtTime: (v: any) => string
   normalizeSeverity: (v: any) => string
@@ -470,6 +618,104 @@ function explanationEvidence(alert: any) {
 
 function explanationSuggestion(alert: any) {
   return explanationPayload(alert).suggestion || ''
+}
+
+function itemReasoning(alert: any) {
+  const payload = alert?.reasoning
+  return payload && typeof payload === 'object' ? payload : null
+}
+
+function reasoningActions(alert: any) {
+  const rows = itemReasoning(alert)?.priority_actions
+  return Array.isArray(rows) ? rows.filter((x: any) => x && typeof x === 'object') : []
+}
+
+function reasoningGroups(alert: any) {
+  const rows = itemReasoning(alert)?.merge_display_plan?.groups
+  return Array.isArray(rows) ? rows.filter((x: any) => x && typeof x === 'object') : []
+}
+
+function reasoningSafetyIssues(alert: any) {
+  const rows = itemReasoning(alert)?.safety_validation?.issues
+  return Array.isArray(rows) ? rows.filter((x: any) => x && typeof x === 'object') : []
+}
+
+function reasoningHallucinations(alert: any) {
+  const rows = itemReasoning(alert)?.hallucination_flags
+  return Array.isArray(rows) ? rows.filter((x: any) => x && typeof x === 'object') : []
+}
+
+function thresholdReviewStatus(status: any) {
+  const text = String(status || 'pending_review').toLowerCase()
+  if (text === 'approved' || text === 'rejected' || text === 'pending_review') return text
+  return 'pending_review'
+}
+
+function thresholdStatusText(status: any) {
+  return ({ pending_review: '待审核', approved: '已批准', rejected: '已拒绝' } as Record<string, string>)[thresholdReviewStatus(status)] || '待审核'
+}
+
+function thresholdConfidenceText(record: any) {
+  const value = Number(record?.reasoning?.confidence)
+  if (!Number.isFinite(value)) return '—'
+  return `${Math.round(value * 100)}%`
+}
+
+const thresholdDefaults: Record<string, any> = {
+  map: { low_warning: 65, low_critical: 55, high_warning: 110, high_critical: 130 },
+  hr: { low_warning: 50, low_critical: 40, high_warning: 120, high_critical: 150 },
+  spo2: { low_warning: 90, low_critical: 85, high_warning: null, high_critical: null },
+  sbp: { low_warning: 90, low_critical: 70, high_warning: 180, high_critical: 200 },
+  rr: { low_warning: 10, low_critical: 6, high_warning: 30, high_critical: 40 },
+  temperature: { low_warning: 35.5, low_critical: 34.0, high_warning: 38.5, high_critical: 39.5 },
+}
+
+function thresholdDeltaText(paramKey: string, key: string, value: any) {
+  const current = Number(value)
+  const baseline = Number(thresholdDefaults?.[paramKey]?.[key])
+  if (!Number.isFinite(current) || !Number.isFinite(baseline)) return ''
+  const delta = Math.round((current - baseline) * 10) / 10
+  if (!delta) return '与默认一致'
+  return `${delta > 0 ? '+' : ''}${delta}`
+}
+
+function thresholdRows(record: any) {
+  const thresholds = record?.thresholds && typeof record.thresholds === 'object' ? record.thresholds : {}
+  const labels: Record<string, string> = {
+    map: 'MAP',
+    hr: 'HR',
+    spo2: 'SpO₂',
+    sbp: 'SBP',
+    rr: 'RR',
+    temperature: '体温',
+  }
+  return Object.entries(thresholds)
+    .filter(([, value]) => value && typeof value === 'object')
+    .map(([key, value]: [string, any]) => ({
+      key,
+      label: labels[key] || key.toUpperCase(),
+      band: [value.low_warning, value.high_warning].filter((x: any) => x != null).join(' ~ ') || '个体化',
+      lowCritical: value.low_critical ?? '—',
+      lowWarning: value.low_warning ?? '—',
+      highWarning: value.high_warning ?? '—',
+      highCritical: value.high_critical ?? '—',
+      lowCriticalDelta: thresholdDeltaText(key, 'low_critical', value.low_critical),
+      lowWarningDelta: thresholdDeltaText(key, 'low_warning', value.low_warning),
+      highWarningDelta: thresholdDeltaText(key, 'high_warning', value.high_warning),
+      highCriticalDelta: thresholdDeltaText(key, 'high_critical', value.high_critical),
+      reasoning: value.reasoning || '',
+    }))
+}
+
+function reasoningConfidenceLevel(reasoning: any) {
+  return String(reasoning?.confidence?.level || 'medium').toLowerCase()
+}
+
+function reasoningConfidenceText(reasoning: any) {
+  const level = reasoningConfidenceLevel(reasoning)
+  if (level === 'high') return '高'
+  if (level === 'low') return '低'
+  return '中'
 }
 
 function isRescueRiskAlert(alert: any) {
@@ -1417,6 +1663,296 @@ const DetailChart = defineAsyncComponent(async () => {
   font-size: 12px;
   line-height: 1.4;
 }
+.reasoning-brief,
+.reasoning-card {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(94, 234, 212, .16);
+  background: linear-gradient(180deg, rgba(7, 33, 34, .92) 0%, rgba(7, 21, 27, .96) 100%);
+}
+.threshold-brief {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(10, 26, 42, 0.96) 0%, rgba(6, 18, 30, 0.98) 100%);
+  border: 1px solid rgba(96, 214, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(178, 241, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+.threshold-brief-head,
+.threshold-action-row,
+.threshold-meta-row,
+.threshold-card-head,
+.threshold-card-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.threshold-brief-title {
+  color: #f1fdff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.threshold-brief-sub,
+.threshold-card-reason,
+.threshold-footnote,
+.threshold-empty {
+  color: #8eb4c4;
+}
+.threshold-brief-main {
+  margin-top: 12px;
+  color: #dff7ff;
+  line-height: 1.6;
+}
+.threshold-meta-row {
+  margin-top: 10px;
+}
+.threshold-approved-note {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #b8d9e5;
+  font-size: 12px;
+}
+.threshold-approved-note strong {
+  color: #9df7c7;
+}
+.threshold-meta-chip,
+.threshold-card-band,
+.threshold-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgba(96, 214, 255, 0.18);
+  background: rgba(8, 27, 44, 0.9);
+  color: #8de7f7;
+}
+.threshold-status-pill.is-approved {
+  color: #9df7c7;
+  border-color: rgba(102, 214, 151, 0.28);
+}
+.threshold-status-pill.is-rejected {
+  color: #ffb7b7;
+  border-color: rgba(255, 133, 133, 0.24);
+}
+.threshold-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.threshold-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(10, 30, 48, 0.72);
+  border: 1px solid rgba(96, 214, 255, 0.12);
+}
+.threshold-card-name {
+  color: #f1fdff;
+  font-weight: 700;
+}
+.threshold-card-main {
+  margin-top: 10px;
+  color: #c9edf7;
+  font-size: 12px;
+}
+.threshold-card-reason {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.threshold-card-main em {
+  color: #8eb4c4;
+  font-style: normal;
+  margin-left: 4px;
+  font-size: 11px;
+}
+.threshold-action-row {
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+.threshold-empty--error {
+  color: #ffb7b7;
+}
+.reasoning-brief {
+  margin-bottom: 16px;
+}
+.reasoning-brief-head,
+.reasoning-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.reasoning-brief-title {
+  color: #dffcf8;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+.reasoning-brief-sub,
+.reasoning-group-meta {
+  margin-top: 4px;
+  color: #8bbab5;
+  font-size: 12px;
+}
+.reasoning-brief-main,
+.reasoning-summary {
+  margin-top: 10px;
+  color: #effffb;
+  font-size: 13px;
+  line-height: 1.7;
+  font-weight: 700;
+}
+.reasoning-brief-urgent,
+.reasoning-urgent {
+  margin-top: 10px;
+  color: #b9ffd8;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(74, 222, 128, .18);
+  background: rgba(10, 45, 31, .52);
+}
+.reasoning-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(8, 64, 58, .84);
+  border: 1px solid rgba(94, 234, 212, .18);
+  color: #99f6e4;
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+.reasoning-brief-confidence,
+.reasoning-confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+}
+.reasoning-brief-confidence > span {
+  opacity: .78;
+}
+.reasoning-brief-confidence.is-high,
+.reasoning-confidence-pill.is-high {
+  color: #bbf7d0;
+  background: rgba(20, 83, 45, .62);
+  border-color: rgba(74, 222, 128, .24);
+}
+.reasoning-brief-confidence.is-medium,
+.reasoning-confidence-pill.is-medium {
+  color: #fde68a;
+  background: rgba(66, 46, 9, .68);
+  border-color: rgba(251, 191, 36, .22);
+}
+.reasoning-brief-confidence.is-low,
+.reasoning-confidence-pill.is-low {
+  color: #fecaca;
+  background: rgba(69, 10, 10, .62);
+  border-color: rgba(248, 113, 113, .22);
+}
+.reasoning-chip-row {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.reasoning-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(94, 234, 212, .14);
+  background: rgba(7, 48, 48, .64);
+  color: #d7fffb;
+  font-size: 11px;
+}
+.reasoning-section {
+  margin-top: 12px;
+}
+.reasoning-section-title {
+  color: #88e7d8;
+  font-size: 11px;
+  letter-spacing: .08em;
+  margin-bottom: 8px;
+}
+.reasoning-action {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-top: 1px solid rgba(148, 163, 184, .1);
+}
+.reasoning-action:first-of-type {
+  border-top: 0;
+}
+.reasoning-rank {
+  min-width: 30px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(13, 148, 136, .16);
+  border: 1px solid rgba(94, 234, 212, .16);
+  color: #a7f3d0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+.reasoning-action-main {
+  color: #effcf9;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.reasoning-action-why,
+.reasoning-group-reason {
+  margin-top: 4px;
+  color: #a8c9c5;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.reasoning-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.reasoning-group-card {
+  border-radius: 10px;
+  border: 1px solid rgba(94, 234, 212, .12);
+  background: rgba(8, 34, 38, .78);
+  padding: 10px;
+}
+.reasoning-group-label {
+  color: #dffcf8;
+  font-size: 12px;
+  font-weight: 700;
+}
+.reasoning-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #e5f7f3;
+  font-size: 12px;
+  line-height: 1.7;
+}
 .alert-meta {
   margin-top: 8px;
   display: flex;
@@ -1649,3 +2185,20 @@ const DetailChart = defineAsyncComponent(async () => {
   }
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
