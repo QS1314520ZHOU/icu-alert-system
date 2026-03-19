@@ -233,6 +233,65 @@ async def review_patient_personalized_threshold(
     return {"code": 0, "record": serialize_doc(updated)}
 
 
+@router.get("/api/personalized-thresholds/review-center")
+async def personalized_threshold_review_center(
+    status: Optional[str] = Query(None, description="状态过滤: pending_review / approved / rejected"),
+    limit: int = Query(50, ge=1, le=200, description="返回记录数"),
+):
+    """个性化阈值建议全局审核中心。"""
+    normalized_status = str(status or "").strip().lower() or None
+    query: dict = {"score_type": "personalized_thresholds"}
+    if normalized_status:
+        query["status"] = normalized_status
+
+    cursor = runtime.db.col("score_records").find(query).sort("calc_time", -1).limit(min(max(limit * 3, 80), 300))
+    docs = [doc async for doc in cursor]
+
+    status_order = {"pending_review": 0, "approved": 1, "rejected": 2}
+    def sort_key(doc: dict):
+        dt = doc.get("reviewed_at") or doc.get("updated_at") or doc.get("calc_time") or datetime.min
+        if not isinstance(dt, datetime):
+            dt = datetime.min
+        return (status_order.get(str(doc.get("status") or "pending_review").lower(), 9), -dt.timestamp() if dt != datetime.min else 0)
+
+    docs = sorted(docs, key=sort_key)[:limit]
+    patient_ids = []
+    for doc in docs:
+        oid = safe_oid(doc.get("patient_id"))
+        if oid is not None:
+            patient_ids.append(oid)
+
+    patient_map: dict[str, dict] = {}
+    if patient_ids:
+        patient_cursor = runtime.db.col("patient").find(
+            {"_id": {"$in": patient_ids}},
+            {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisDept": 1, "dept": 1},
+        )
+        async for patient_doc in patient_cursor:
+            patient_map[str(patient_doc.get("_id"))] = patient_doc
+
+    rows = []
+    for doc in docs:
+        patient_doc = patient_map.get(str(doc.get("patient_id") or "")) or {}
+        rows.append(
+            serialize_doc(
+                {
+                    **doc,
+                    "patient_name": patient_doc.get("name") or patient_doc.get("hisName") or "未知患者",
+                    "bed": patient_doc.get("hisBed") or patient_doc.get("bed") or "",
+                    "dept": patient_doc.get("hisDept") or patient_doc.get("dept") or "",
+                }
+            )
+        )
+
+    summary = {
+        "pending_review": await runtime.db.col("score_records").count_documents({"score_type": "personalized_thresholds", "status": "pending_review"}),
+        "approved": await runtime.db.col("score_records").count_documents({"score_type": "personalized_thresholds", "status": "approved"}),
+        "rejected": await runtime.db.col("score_records").count_documents({"score_type": "personalized_thresholds", "status": "rejected"}),
+    }
+    return {"code": 0, "summary": summary, "rows": rows}
+
+
 @router.get("/api/patients/{patient_id}/ecash-status")
 async def patient_ecash_status(patient_id: str):
     try:
@@ -369,3 +428,4 @@ async def patient_sbt_records(patient_id: str, limit: int = Query(default=20, ge
         },
         "records": serialize_doc(records),
     }
+

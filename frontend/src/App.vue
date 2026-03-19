@@ -6,13 +6,14 @@
           <span class="hdr-icon">✚</span>
           <div>
             <div class="hdr-title">ICU 智能预警系统</div>
-            <div class="hdr-sub">Intelligent Early Warning System</div>
+            <div class="hdr-sub">重症监护智能预警平台</div>
           </div>
         </div>
         <nav class="hdr-menu">
           <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">患者总览</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">预警分析</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">质控分析</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'bigscreen' }]" @click="onNav('bigscreen')">护士站大屏</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'ai-ops' }]" @click="onNav('ai-ops')">AI运营</button>
         </nav>
         <div class="hdr-tools">
           <div class="theme-toggle">
@@ -56,6 +57,7 @@ let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> |
 const navKey = computed(() => {
   if (route.path.startsWith('/bigscreen')) return 'bigscreen'
   if (route.path.startsWith('/analytics')) return 'analytics'
+  if (route.path.startsWith('/ai-ops')) return 'ai-ops'
   return 'overview'
 })
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
@@ -99,7 +101,7 @@ const themeWrapperProps = computed(() =>
 )
 
 function onNav(key: string) {
-  const path = key === 'overview' ? '/' : key === 'analytics' ? '/analytics' : '/bigscreen'
+  const path = key === 'overview' ? '/' : key === 'analytics' ? '/analytics' : key === 'ai-ops' ? '/ai-ops' : '/bigscreen'
   router.push({ path, query: route.query })
 }
 
@@ -325,3 +327,5 @@ onUnmounted(() => clearInterval(t))
   .theme-toggle { padding: 3px 6px; }
 }
 </style>
+
+

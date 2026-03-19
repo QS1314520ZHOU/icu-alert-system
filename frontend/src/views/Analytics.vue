@@ -4,6 +4,12 @@
       <div class="filter-row">
         <div class="left-tools">
           <a-space wrap>
+            <span class="label">工作区</span>
+            <a-segmented
+              v-model:value="analyticsSection"
+              :options="sectionOptions"
+              size="small"
+            />
             <span class="label">时间窗口</span>
             <a-segmented
               v-model:value="windowRange"
@@ -32,72 +38,68 @@
       </div>
     </a-card>
 
-    <section class="kpi-strip">
-      <div class="kpi-tile">
-        <div class="kpi-head">
-          <span class="kpi-label">监测窗口</span>
-          <span class="kpi-code">WINDOW</span>
-        </div>
-        <div class="kpi-value">{{ analyticsWindowLabel }}</div>
-        <div class="kpi-sub">粒度 {{ bucket === 'hour' ? '小时' : '天' }} · Top {{ topN }}</div>
+    <section class="section-hero">
+      <div class="hero-copy">
+        <div class="hero-kicker">{{ activeSectionMeta.kicker }}</div>
+        <h1 class="hero-title">{{ activeSectionMeta.title }}</h1>
+        <p class="hero-desc">{{ activeSectionMeta.description }}</p>
       </div>
-
-      <div class="kpi-tile">
-        <div class="kpi-head">
-          <span class="kpi-label">{{ topRuleHeadline }}</span>
-          <span class="kpi-code">RULE</span>
+      <div class="hero-meta">
+        <div class="hero-chip">
+          <span class="hero-chip__label">监测范围</span>
+          <strong class="hero-chip__value">{{ analyticsScopeLabel }}</strong>
         </div>
-        <div class="kpi-value kpi-value--rule">{{ topRuleSummary.name }}</div>
-        <div class="kpi-sub">{{ topRuleSummary.meta }}</div>
-      </div>
-
-      <div class="kpi-tile">
-        <div class="kpi-head">
-          <span class="kpi-label">峰值时段</span>
-          <span class="kpi-code">PEAK SLOT</span>
+        <div class="hero-chip">
+          <span class="hero-chip__label">时间窗口</span>
+          <strong class="hero-chip__value">{{ analyticsWindowLabel }}</strong>
         </div>
-        <div class="kpi-value">{{ peakSlotSummary.slot }}</div>
-        <div class="kpi-sub">{{ peakSlotSummary.meta }}</div>
-      </div>
-
-      <div class="kpi-tile kpi-tile--risk">
-        <div class="kpi-head">
-          <span class="kpi-label">{{ rescueOnly ? '抢救期占比' : '高危占比' }}</span>
-          <span class="kpi-code">HIGH+CRIT</span>
+        <div class="hero-chip">
+          <span class="hero-chip__label">分析粒度</span>
+          <strong class="hero-chip__value">{{ bucket === 'hour' ? '小时' : '天' }} · Top {{ topN }}</strong>
         </div>
-        <div class="kpi-value">{{ highRiskRatio.ratio }}</div>
-        <div class="kpi-sub">{{ highRiskRatio.meta }}</div>
-      </div>
-
-      <div class="kpi-tile kpi-tile--bundle">
-        <div class="kpi-head">
-          <span class="kpi-label">Sepsis 1h Bundle</span>
-          <span class="kpi-code">{{ sepsisBundleMonthCode }}</span>
-        </div>
-        <div class="kpi-value">{{ sepsisBundleKpi.rate }}</div>
-        <div class="kpi-sub">{{ sepsisBundleKpi.meta }}</div>
-      </div>
-
-      <div class="kpi-tile kpi-tile--weaning">
-        <div class="kpi-head">
-          <span class="kpi-label">本月再插管风险</span>
-          <span class="kpi-code">{{ analyticsMonthCode }}</span>
-        </div>
-        <div class="kpi-value">{{ reintubationRiskKpi.rate }}</div>
-        <div class="kpi-sub">{{ reintubationRiskKpi.meta }}</div>
-      </div>
-
-      <div class="kpi-tile kpi-tile--weaning-high">
-        <div class="kpi-head">
-          <span class="kpi-label">脱机失败高风险占比</span>
-          <span class="kpi-code">WEAN HIGH</span>
-        </div>
-        <div class="kpi-value">{{ weaningHighRiskKpi.rate }}</div>
-        <div class="kpi-sub">{{ weaningHighRiskKpi.meta }}</div>
       </div>
     </section>
 
-    <section class="analytics-grid">
+    <section class="kpi-strip">
+      <div
+        v-for="item in activeSectionKpis"
+        :key="item.code"
+        :class="['kpi-tile', item.tone ? `kpi-tile--${item.tone}` : '']"
+      >
+        <div class="kpi-head">
+          <span class="kpi-label">{{ item.label }}</span>
+          <span class="kpi-code">{{ item.code }}</span>
+        </div>
+        <div :class="['kpi-value', { 'kpi-value--rule': item.compact }]">{{ item.value }}</div>
+        <div class="kpi-sub">{{ item.meta }}</div>
+      </div>
+    </section>
+
+    <section class="action-strip">
+      <button
+        v-for="item in activeSectionActions"
+        :key="item.label"
+        type="button"
+        class="action-tile"
+        @click="item.action()"
+      >
+        <span class="action-tile__label">{{ item.label }}</span>
+        <strong class="action-tile__value">{{ item.value }}</strong>
+        <span class="action-tile__meta">{{ item.meta }}</span>
+      </button>
+    </section>
+
+    <section v-if="analyticsSection === 'alerts'" class="analytics-grid">
+      <a-card title="运营摘要" :bordered="false" class="panel panel-wide">
+        <div class="insight-grid">
+          <div v-for="item in alertOpsHighlights" :key="item.label" class="insight-tile">
+            <div class="insight-label">{{ item.label }}</div>
+            <div class="insight-value">{{ item.value }}</div>
+            <div class="insight-meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+
       <a-card title="预警触发频率" :bordered="false" class="panel panel-wide">
         <div v-if="displayFreqSeries.length" class="chart-wrap chart-lg">
           <AnalyticsChart :option="frequencyOption" autoresize />
@@ -137,7 +139,13 @@
           :data-source="displayDeptRankings"
           :pagination="false"
           row-key="dept"
-        />
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'dept'">
+              <a class="analytics-link" @click.prevent="openDeptOverview(record.dept)">{{ record.dept || '未知科室' }}</a>
+            </template>
+          </template>
+        </a-table>
       </a-card>
 
       <a-card title="床位预警排名" :bordered="false" class="panel">
@@ -152,7 +160,70 @@
           :pagination="false"
           :scroll="{ x: 560 }"
           row-key="bedKey"
-        />
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'dept'">
+              <a class="analytics-link" @click.prevent="openDeptOverview(record.dept)">{{ record.dept || '未知科室' }}</a>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+    </section>
+
+    <section v-else-if="analyticsSection === 'sepsis'" class="analytics-grid">
+      <a-card title="Sepsis Bundle 执行态" :bordered="false" class="panel panel-wide">
+        <div class="bundle-status-grid">
+          <div
+            v-for="item in sepsisStatusCards"
+            :key="item.label"
+            :class="['status-card', item.tone ? `status-card--${item.tone}` : '']"
+          >
+            <div class="status-card__label">{{ item.label }}</div>
+            <div class="status-card__value">{{ item.value }}</div>
+            <div class="status-card__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-card title="1h Bundle 达标拆解" :bordered="false" class="panel">
+        <div class="progress-list">
+          <div
+            v-for="item in sepsisProgressRows"
+            :key="item.label"
+            class="progress-row"
+          >
+            <div class="progress-row__top">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-bar__fill" :style="{ width: item.width, background: item.color }"></div>
+            </div>
+            <div class="progress-row__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-card title="本月质控提示" :bordered="false" class="panel">
+        <div class="insight-list">
+          <div v-for="item in sepsisNarratives" :key="item.label" class="insight-line">
+            <div class="insight-line__label">{{ item.label }}</div>
+            <div class="insight-line__value">{{ item.value }}</div>
+            <div class="insight-line__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+    </section>
+
+    <section v-else class="analytics-grid">
+      <a-card title="撤机分析摘要" :bordered="false" class="panel panel-wide">
+        <div class="insight-grid">
+          <div v-for="item in weaningHighlights" :key="item.label" class="insight-tile">
+            <div class="insight-label">{{ item.label }}</div>
+            <div class="insight-value">{{ item.value }}</div>
+            <div class="insight-meta">{{ item.meta }}</div>
+          </div>
+        </div>
       </a-card>
 
       <a-card title="月度脱机评估趋势" :bordered="false" class="panel panel-wide">
@@ -162,7 +233,7 @@
         <div v-else class="empty">暂无月度脱机评估趋势数据</div>
       </a-card>
 
-      <a-card title="科室脱机 / 再插管风险对比" :bordered="false" class="panel">
+      <a-card title="科室脱机 / 再插管风险对比" :bordered="false" class="panel panel-wide">
         <div v-if="weaningDeptCompare.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="weaningDeptCompareOption" autoresize />
         </div>
@@ -173,7 +244,27 @@
           :data-source="weaningDeptCompareTable"
           :pagination="false"
           row-key="dept"
-        />
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'dept'">
+              <a class="analytics-link" @click.prevent="openDeptOverview(record.dept)">{{ record.dept || '未知科室' }}</a>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+
+      <a-card title="撤机风险概览" :bordered="false" class="panel">
+        <div class="bundle-status-grid bundle-status-grid--compact">
+          <div
+            v-for="item in weaningStatusCards"
+            :key="item.label"
+            :class="['status-card', item.tone ? `status-card--${item.tone}` : '']"
+          >
+            <div class="status-card__label">{{ item.label }}</div>
+            <div class="status-card__value">{{ item.value }}</div>
+            <div class="status-card__meta">{{ item.meta }}</div>
+          </div>
+        </div>
       </a-card>
     </section>
   </div>
@@ -181,7 +272,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Button as AButton,
   Card as ACard,
@@ -213,12 +304,18 @@ const AnalyticsChart = defineAsyncComponent(async () => {
 })
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const windowRange = ref('7d')
 const bucket = ref<'hour' | 'day'>('hour')
 const topN = ref(10)
 const rescueOnly = ref(false)
 
+const sectionOptions = [
+  { label: '告警运营', value: 'alerts' },
+  { label: 'Sepsis质控', value: 'sepsis' },
+  { label: '撤机分析', value: 'weaning' },
+]
 const windowOptions = [
   { label: '24h', value: '24h' },
   { label: '7d', value: '7d' },
@@ -229,6 +326,14 @@ const bucketOptions = [
   { label: '小时', value: 'hour' },
   { label: '天', value: 'day' },
 ]
+
+function normalizeAnalyticsSection(value: any): 'alerts' | 'sepsis' | 'weaning' {
+  const key = String(value || '').trim().toLowerCase()
+  if (key === 'sepsis' || key === 'weaning') return key
+  return 'alerts'
+}
+
+const analyticsSection = ref<'alerts' | 'sepsis' | 'weaning'>(normalizeAnalyticsSection(route.query.section))
 
 const freqSeries = ref<any[]>([])
 const heatmapX = ref<string[]>([])
@@ -242,6 +347,7 @@ const recentAlerts = ref<any[]>([])
 
 const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
+const analyticsScopeLabel = computed(() => deptName.value || deptCode.value || '全院')
 const analyticsWindowLabel = computed(() => {
   const map: Record<string, string> = {
     '24h': '近24小时',
@@ -427,6 +533,15 @@ function tooltipRow(label: string, value: any, color = '#67e8f9') {
       <strong class="analytics-tooltip__value">${escapeHtml(value)}</strong>
     </div>
   `
+}
+
+function ratioText(numerator: number, denominator: number) {
+  if (!denominator) return '0%'
+  return `${Math.round((numerator / denominator) * 100)}%`
+}
+
+function formatPct(value: number, digits = 1) {
+  return `${(Number(value || 0) * 100).toFixed(digits)}%`
 }
 
 const rescueWindowAlerts = computed(() => {
@@ -645,6 +760,95 @@ const topRuleSummary = computed(() => {
 
 const topRuleHeadline = computed(() => windowRange.value === '24h' ? '今日最高风险规则' : '当前窗口最高风险规则')
 
+const activeSectionMeta = computed(() => {
+  if (analyticsSection.value === 'sepsis') {
+    return {
+      kicker: '脓毒症流程质控',
+      title: 'Sepsis Bundle 质控工作区',
+      description: '聚焦 1h Bundle 达标率、超时病例和在途执行状态，适合科室质控和值班复盘。',
+    }
+  }
+  if (analyticsSection.value === 'weaning') {
+    return {
+      kicker: '撤机流程分析',
+      title: '撤机分析工作区',
+      description: '围绕脱机评估、高风险患者和再插管风险，集中查看趋势、科室差异和月度负担。',
+    }
+  }
+  return {
+    kicker: '告警运营分析',
+    title: '告警运营工作区',
+    description: '查看预警频率、热区、科室和床位分布，快速识别高频规则与抢救期告警压力。',
+  }
+})
+
+const activeSectionActions = computed(() => {
+  if (analyticsSection.value === 'sepsis') {
+    return [
+      {
+        label: '打开 AI运营',
+        value: '阈值审核 / 反馈闭环',
+        meta: '继续查看个性化阈值审核和 AI 反馈准确率。',
+        action: () => router.push('/ai-ops'),
+      },
+      {
+        label: '切回告警运营',
+        value: '查看规则热区',
+        meta: '返回高频规则、峰值时段和床位排名视图。',
+        action: () => setAnalyticsSection('alerts'),
+      },
+      {
+        label: '查看进行中病例',
+        value: '患者总览 / 高危以上',
+        meta: '带着高危筛选返回患者总览，继续看仍需跟踪的人群。',
+        action: () => router.push({ path: '/', query: { ...route.query, alert_level: 'warning' } }),
+      },
+    ]
+  }
+  if (analyticsSection.value === 'weaning') {
+    return [
+      {
+        label: '查看 AI运营',
+        value: '反馈与运行态',
+        meta: '联动查看 AI 监控、反馈闭环和审核中心。',
+        action: () => router.push('/ai-ops'),
+      },
+      {
+        label: '切到 Sepsis质控',
+        value: '查看 Bundle 闭环',
+        meta: '对比流程型质控和撤机风险分析。',
+        action: () => setAnalyticsSection('sepsis'),
+      },
+      {
+        label: '查看高危床位',
+        value: '患者总览 / 危重',
+        meta: '直接回到患者总览并锁定危重/高危床位。',
+        action: () => router.push({ path: '/', query: { ...route.query, alert_level: 'critical' } }),
+      },
+    ]
+  }
+  return [
+    {
+      label: '打开 AI运营',
+      value: '查看运行监控',
+      meta: '直接进入 AI 监控、反馈闭环和阈值审核中心。',
+      action: () => router.push('/ai-ops'),
+    },
+    {
+      label: '切到 Sepsis质控',
+      value: '查看 Bundle 合规',
+      meta: '进入 1h Bundle 达标、超时病例和在途执行分析。',
+      action: () => setAnalyticsSection('sepsis'),
+    },
+    {
+      label: '打开抢救期总览',
+      value: '患者总览 / 抢救期',
+      meta: '带着抢救期风险筛选回到患者工作台。',
+      action: () => router.push({ path: '/', query: { ...route.query, rescue_only: '1' } }),
+    },
+  ]
+})
+
 const peakSlotSummary = computed(() => {
   if (!heatmapSummary.value.peakText || heatmapSummary.value.peakText === '暂无峰值') {
     return { slot: '暂无峰值', meta: '等待热力图数据' }
@@ -670,6 +874,29 @@ const highRiskRatio = computed(() => {
   }
 })
 
+const alertOpsHighlights = computed(() => [
+  {
+    label: '当前窗口',
+    value: analyticsWindowLabel.value,
+    meta: `${rescueOnly.value ? '抢救期快筛' : '全量运营'} · ${bucket.value === 'hour' ? '小时' : '天'} 粒度`,
+  },
+  {
+    label: topRuleHeadline.value,
+    value: topRuleSummary.value.name,
+    meta: topRuleSummary.value.meta,
+  },
+  {
+    label: '峰值时段',
+    value: peakSlotSummary.value.slot,
+    meta: peakSlotSummary.value.meta,
+  },
+  {
+    label: rescueOnly.value ? '抢救期压力' : '高危占比',
+    value: highRiskRatio.value.ratio,
+    meta: highRiskRatio.value.meta,
+  },
+])
+
 const sepsisBundleKpi = computed(() => {
   const summary = sepsisBundleCompliance.value || {}
   const total = Number(summary?.total_cases || 0)
@@ -684,6 +911,105 @@ const sepsisBundleKpi = computed(() => {
       ? `${met} / ${total} 达标 · 超1h ${overdue1h} · 超3h ${overdue3h}${pending ? ` · 进行中 ${pending}` : ''}`
       : '本月暂无脓毒症 Bundle 病例',
   }
+})
+
+const sepsisStatusCards = computed(() => {
+  const summary = sepsisBundleCompliance.value || {}
+  const total = Number(summary?.total_cases || 0)
+  const met = Number(summary?.compliant_1h_cases || 0)
+  const overdue1h = Number(summary?.overdue_1h_cases || 0)
+  const overdue3h = Number(summary?.overdue_3h_cases || 0)
+  const pending = Number(summary?.pending_active_cases || 0)
+  return [
+    {
+      label: '1h 达标率',
+      value: sepsisBundleKpi.value.rate,
+      meta: total ? `${met} / ${total} 例按时完成` : '暂无病例',
+      tone: 'bundle',
+    },
+    {
+      label: '超 1h 病例',
+      value: `${overdue1h}`,
+      meta: total ? `占全部病例 ${ratioText(overdue1h, total)}` : '等待病例数据',
+      tone: 'risk',
+    },
+    {
+      label: '超 3h 病例',
+      value: `${overdue3h}`,
+      meta: total ? `需要重点复盘 ${ratioText(overdue3h, total)}` : '等待病例数据',
+      tone: 'risk',
+    },
+    {
+      label: '进行中',
+      value: `${pending}`,
+      meta: pending ? '仍在 1h / 3h 时窗内跟踪' : '当前无在途病例',
+      tone: 'weaning',
+    },
+  ]
+})
+
+const sepsisProgressRows = computed(() => {
+  const summary = sepsisBundleCompliance.value || {}
+  const total = Math.max(1, Number(summary?.total_cases || 0))
+  const compliant = Number(summary?.compliant_1h_cases || 0)
+  const overdue1h = Number(summary?.overdue_1h_cases || 0)
+  const overdue3h = Number(summary?.overdue_3h_cases || 0)
+  const pending = Number(summary?.pending_active_cases || 0)
+  return [
+    {
+      label: '1h 已达标',
+      value: `${compliant} 例`,
+      width: `${Math.min(100, (compliant / total) * 100)}%`,
+      meta: `占全部病例 ${ratioText(compliant, total)}`,
+      color: 'linear-gradient(90deg, #14b8a6, #2dd4bf)',
+    },
+    {
+      label: '超 1h 未完成',
+      value: `${overdue1h} 例`,
+      width: `${Math.min(100, (overdue1h / total) * 100)}%`,
+      meta: `需要值班与流程复盘 ${ratioText(overdue1h, total)}`,
+      color: 'linear-gradient(90deg, #f59e0b, #fb923c)',
+    },
+    {
+      label: '超 3h 持续滞后',
+      value: `${overdue3h} 例`,
+      width: `${Math.min(100, (overdue3h / total) * 100)}%`,
+      meta: `重点关注迟滞链路 ${ratioText(overdue3h, total)}`,
+      color: 'linear-gradient(90deg, #fb7185, #f43f5e)',
+    },
+    {
+      label: '仍在进行中',
+      value: `${pending} 例`,
+      width: `${Math.min(100, (pending / total) * 100)}%`,
+      meta: pending ? '建议继续跟踪首小时动作闭环' : '当前没有 active case',
+      color: 'linear-gradient(90deg, #38bdf8, #60a5fa)',
+    },
+  ]
+})
+
+const sepsisNarratives = computed(() => {
+  const summary = sepsisBundleCompliance.value || {}
+  const total = Number(summary?.total_cases || 0)
+  const rate = Number(summary?.compliance_rate || 0)
+  const overdue3h = Number(summary?.overdue_3h_cases || 0)
+  const pending = Number(summary?.pending_active_cases || 0)
+  return [
+    {
+      label: '月度结论',
+      value: total ? `${formatPct(rate)} 达标` : '暂无病例',
+      meta: total ? `${analyticsScopeLabel.value} 当前共纳入 ${total} 例 Bundle 病例` : '等待本月数据积累',
+    },
+    {
+      label: '优先复盘',
+      value: overdue3h ? `${overdue3h} 例超 3h` : '暂无超 3h',
+      meta: overdue3h ? '建议排查抗菌药、补液、乳酸复测等延迟链路' : '当前没有长时间未闭环病例',
+    },
+    {
+      label: '在途追踪',
+      value: pending ? `${pending} 例进行中` : '无 active case',
+      meta: pending ? '交接班时建议保留 Bundle 完成节点提醒' : '当前无需额外追踪',
+    },
+  ]
 })
 
 const reintubationRiskKpi = computed(() => {
@@ -712,6 +1038,173 @@ const weaningHighRiskKpi = computed(() => {
       : '本月暂无脱机评估',
   }
 })
+
+const weaningHighlights = computed(() => {
+  const summary = weaningSummary.value || {}
+  const assessed = Number(summary?.weaning_assessed_patients || 0)
+  const extubated = Number(summary?.extubated_patients || 0)
+  return [
+    {
+      label: '脱机评估覆盖',
+      value: `${assessed} 例`,
+      meta: assessed ? `本月已有 ${assessed} 例进入撤机评估` : '本月暂无撤机评估',
+    },
+    {
+      label: '高风险占比',
+      value: weaningHighRiskKpi.value.rate,
+      meta: weaningHighRiskKpi.value.meta,
+    },
+    {
+      label: '再插管风险',
+      value: reintubationRiskKpi.value.rate,
+      meta: reintubationRiskKpi.value.meta,
+    },
+    {
+      label: '拔管患者',
+      value: `${extubated} 例`,
+      meta: extubated ? '建议结合 SBT Timeline 和术后风险复盘' : '暂无拔管患者',
+    },
+  ]
+})
+
+const weaningStatusCards = computed(() => {
+  const summary = weaningSummary.value || {}
+  const assessed = Number(summary?.weaning_assessed_patients || 0)
+  const high = Number(summary?.high_risk_patients || 0)
+  const extubated = Number(summary?.extubated_patients || 0)
+  const risk = Number(summary?.reintubation_risk_patients || 0)
+  const critical = Number(summary?.critical_post_extubation_patients || 0)
+  return [
+    {
+      label: '高风险患者',
+      value: `${high}`,
+      meta: assessed ? `占脱机评估 ${ratioText(high, assessed)}` : '暂无评估基数',
+      tone: 'weaning-high',
+    },
+    {
+      label: '再插管风险患者',
+      value: `${risk}`,
+      meta: extubated ? `占拔管患者 ${ratioText(risk, extubated)}` : '暂无拔管基数',
+      tone: 'risk',
+    },
+    {
+      label: '危急拔管后事件',
+      value: `${critical}`,
+      meta: critical ? '建议回看失败模式与床旁处置链路' : '当前无危急再插管事件',
+      tone: 'bundle',
+    },
+  ]
+})
+
+const activeSectionKpis = computed(() => {
+  if (analyticsSection.value === 'sepsis') {
+    return [
+      {
+        label: '监测范围',
+        code: 'SCOPE',
+        value: analyticsScopeLabel.value,
+        meta: `${analyticsMonthCode.value} 月度质控视角`,
+      },
+      {
+        label: 'Sepsis 1h Bundle',
+        code: sepsisBundleMonthCode.value,
+        value: sepsisBundleKpi.value.rate,
+        meta: sepsisBundleKpi.value.meta,
+        tone: 'bundle',
+      },
+      {
+        label: '超 3h 病例',
+        code: 'OVER 3H',
+        value: `${Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)}`,
+        meta: Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)
+          ? '建议优先抽查延迟原因'
+          : '当前无超 3h 病例',
+        tone: 'risk',
+      },
+      {
+        label: '进行中病例',
+        code: 'ACTIVE',
+        value: `${Number(sepsisBundleCompliance.value?.pending_active_cases || 0)}`,
+        meta: Number(sepsisBundleCompliance.value?.pending_active_cases || 0)
+          ? '交接班需持续追踪'
+          : '当前无在途病例',
+        tone: 'weaning',
+      },
+    ]
+  }
+  if (analyticsSection.value === 'weaning') {
+    return [
+      {
+        label: '监测范围',
+        code: 'SCOPE',
+        value: analyticsScopeLabel.value,
+        meta: `${analyticsMonthCode.value} 月度撤机分析`,
+      },
+      {
+        label: '本月再插管风险',
+        code: analyticsMonthCode.value,
+        value: reintubationRiskKpi.value.rate,
+        meta: reintubationRiskKpi.value.meta,
+        tone: 'weaning',
+      },
+      {
+        label: '脱机失败高风险占比',
+        code: 'WEAN HIGH',
+        value: weaningHighRiskKpi.value.rate,
+        meta: weaningHighRiskKpi.value.meta,
+        tone: 'weaning-high',
+      },
+      {
+        label: '评估患者数',
+        code: 'ASSESSED',
+        value: `${Number(weaningSummary.value?.weaning_assessed_patients || 0)}`,
+        meta: '进入脱机评估的人群基数',
+      },
+    ]
+  }
+  return [
+    {
+      label: '监测窗口',
+      code: 'WINDOW',
+      value: analyticsWindowLabel.value,
+      meta: `粒度 ${bucket.value === 'hour' ? '小时' : '天'} · Top ${topN}`,
+    },
+    {
+      label: topRuleHeadline.value,
+      code: 'RULE',
+      value: topRuleSummary.value.name,
+      meta: topRuleSummary.value.meta,
+      compact: true,
+    },
+    {
+      label: '峰值时段',
+      code: 'PEAK SLOT',
+      value: peakSlotSummary.value.slot,
+      meta: peakSlotSummary.value.meta,
+    },
+    {
+      label: rescueOnly ? '抢救期占比' : '高危占比',
+      code: 'HIGH+CRIT',
+      value: highRiskRatio.value.ratio,
+      meta: highRiskRatio.value.meta,
+      tone: 'risk',
+    },
+  ]
+})
+
+function setAnalyticsSection(section: 'alerts' | 'sepsis' | 'weaning') {
+  analyticsSection.value = section
+}
+
+function openDeptOverview(dept: any) {
+  const value = String(dept || '').trim()
+  if (!value) return
+  const nextQuery: Record<string, any> = { dept: value }
+  if (analyticsSection.value === 'alerts' && rescueOnly.value) nextQuery.rescue_only = '1'
+  if (analyticsSection.value === 'weaning') nextQuery.alert_level = 'critical'
+  if (analyticsSection.value === 'sepsis') nextQuery.alert_level = 'warning'
+  router.push({ path: '/', query: nextQuery })
+}
 
 const weaningTrendRows = computed(() =>
   Array.isArray(weaningSummary.value?.daily_trend) ? weaningSummary.value.daily_trend : []
@@ -1012,6 +1505,21 @@ watch([windowRange, bucket, topN], () => {
   void loadAll()
 })
 
+watch(analyticsSection, (section) => {
+  const nextQuery = { ...route.query, section }
+  router.replace({ query: nextQuery })
+})
+
+watch(
+  () => route.query.section,
+  (section) => {
+    const normalized = normalizeAnalyticsSection(section)
+    if (normalized !== analyticsSection.value) {
+      analyticsSection.value = normalized
+    }
+  }
+)
+
 watch(
   () => route.query,
   () => {
@@ -1139,11 +1647,129 @@ onMounted(() => {
   gap: 16px;
 }
 
+.section-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), rgba(34, 211, 238, 0) 36%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.hero-copy {
+  display: grid;
+  gap: 6px;
+  max-width: 760px;
+}
+
+.hero-kicker {
+  color: #67e8f9;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.hero-title {
+  margin: 0;
+  color: #effcff;
+  font-size: 28px;
+  line-height: 1.05;
+}
+
+.hero-desc {
+  margin: 0;
+  color: #8bbfd0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.hero-chip {
+  min-width: 132px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 182, 219, 0.16);
+  background: rgba(8, 28, 44, 0.76);
+}
+
+.hero-chip__label {
+  display: block;
+  color: #77c9de;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-chip__value {
+  display: block;
+  margin-top: 4px;
+  color: #effcff;
+  font-size: 14px;
+}
+
 .kpi-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.action-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.action-tile {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(79, 182, 219, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 38%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.action-tile:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103, 232, 249, 0.28);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.action-tile__label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.action-tile__value {
+  color: #effcff;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.action-tile__meta {
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .kpi-tile {
@@ -1315,6 +1941,168 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.insight-tile {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 182, 219, 0.12);
+  background: rgba(7, 28, 42, 0.68);
+}
+
+.insight-label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.insight-value {
+  margin-top: 6px;
+  color: #effcff;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.insight-meta {
+  margin-top: 6px;
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.bundle-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.bundle-status-grid--compact {
+  grid-template-columns: 1fr;
+}
+
+.status-card {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 182, 219, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 38%),
+    rgba(7, 28, 42, 0.72);
+}
+
+.status-card--risk {
+  border-color: rgba(251, 113, 133, 0.18);
+}
+
+.status-card--bundle {
+  border-color: rgba(45, 212, 191, 0.18);
+}
+
+.status-card--weaning,
+.status-card--weaning-high {
+  border-color: rgba(96, 165, 250, 0.18);
+}
+
+.status-card__label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.status-card__value {
+  margin-top: 8px;
+  color: #effcff;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.status-card__meta {
+  margin-top: 8px;
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.progress-list {
+  display: grid;
+  gap: 14px;
+}
+
+.progress-row {
+  display: grid;
+  gap: 8px;
+}
+
+.progress-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #dff8ff;
+  font-size: 12px;
+}
+
+.progress-row__top strong {
+  color: #effcff;
+  font-size: 14px;
+}
+
+.progress-row__meta {
+  color: #8bbfd0;
+  font-size: 11px;
+}
+
+.progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(8, 28, 44, 0.82);
+  border: 1px solid rgba(79, 182, 219, 0.14);
+}
+
+.progress-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.18);
+}
+
+.insight-list {
+  display: grid;
+  gap: 12px;
+}
+
+.insight-line {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 182, 219, 0.12);
+  background: rgba(7, 28, 42, 0.68);
+}
+
+.insight-line__label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.insight-line__value {
+  margin-top: 6px;
+  color: #effcff;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.insight-line__meta {
+  margin-top: 6px;
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .rank-table {
   margin-top: 12px;
 }
@@ -1419,9 +2207,27 @@ onMounted(() => {
   color: #7ccfe4;
 }
 
+.analytics-link {
+  color: #7dd3fc;
+  cursor: pointer;
+}
+
+.analytics-link:hover {
+  color: #b5f3ff;
+}
+
 @media (max-width: 980px) {
   .analytics-page {
     padding: 10px;
+  }
+
+  .section-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-meta {
+    justify-content: flex-start;
   }
 
   .analytics-grid {
@@ -1430,6 +2236,10 @@ onMounted(() => {
 
   .kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .action-strip {
+    grid-template-columns: 1fr;
   }
 
   .panel,
@@ -1447,6 +2257,10 @@ onMounted(() => {
 @media (max-width: 680px) {
   .kpi-strip {
     grid-template-columns: 1fr;
+  }
+
+  .hero-title {
+    font-size: 22px;
   }
 
   .kpi-value {

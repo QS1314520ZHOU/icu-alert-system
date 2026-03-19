@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bson import ObjectId
 from fastapi import APIRouter, Body, Query
@@ -96,6 +96,74 @@ async def ai_feedback(payload: dict = Body(...)):
             logger.error("AI feedback alert update error: %s", exc)
 
     return {"code": 0, "prediction_id": prediction_id, "outcome": outcome}
+
+
+@router.get("/api/ai/feedback/summary")
+async def ai_feedback_summary(
+    days: int = Query(default=7, ge=1, le=90),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """AI反馈闭环汇总（含近期反馈记录）。"""
+    since = datetime.now() - timedelta(days=days)
+    cursor = runtime.db.col("ai_prediction_feedback").find({"created_at": {"$gte": since}}).sort("created_at", -1).limit(500)
+    docs = [doc async for doc in cursor]
+
+    by_outcome = {"confirmed": 0, "dismissed": 0, "inaccurate": 0}
+    by_module: dict[str, int] = {}
+    for doc in docs:
+        outcome = str(doc.get("outcome") or "").strip().lower()
+        module = str(doc.get("module") or "unknown").strip() or "unknown"
+        if outcome in by_outcome:
+            by_outcome[outcome] += 1
+        else:
+            by_outcome[outcome] = by_outcome.get(outcome, 0) + 1
+        by_module[module] = int(by_module.get(module, 0) or 0) + 1
+
+    recent_docs = docs[:limit]
+    alert_ids: list[ObjectId] = []
+    alert_map: dict[str, dict] = {}
+    for doc in recent_docs:
+        oid = safe_oid(doc.get("prediction_id"))
+        if oid is not None:
+            alert_ids.append(oid)
+
+    if alert_ids:
+        alert_cursor = runtime.db.col("alert_records").find({"_id": {"$in": alert_ids}})
+        async for alert_doc in alert_cursor:
+            alert_map[str(alert_doc.get("_id"))] = alert_doc
+
+    recent_rows = []
+    for doc in recent_docs:
+        prediction_id = str(doc.get("prediction_id") or "").strip()
+        alert_doc = alert_map.get(prediction_id) or {}
+        recent_rows.append(
+            serialize_doc(
+                {
+                    "prediction_id": prediction_id,
+                    "module": str(doc.get("module") or "ai_risk"),
+                    "outcome": str(doc.get("outcome") or ""),
+                    "detail": doc.get("detail") or {},
+                    "created_at": doc.get("created_at"),
+                    "alert_name": alert_doc.get("name") or alert_doc.get("rule_id") or "",
+                    "patient_id": alert_doc.get("patient_id") or "",
+                    "patient_name": alert_doc.get("patient_name") or alert_doc.get("name") or "",
+                    "bed": alert_doc.get("bed") or alert_doc.get("patient_bed") or alert_doc.get("hisBed") or "",
+                    "severity": alert_doc.get("severity") or "",
+                }
+            )
+        )
+
+    total = len(docs)
+    confirmed = int(by_outcome.get("confirmed") or 0)
+    inaccurate = int(by_outcome.get("inaccurate") or 0)
+    summary = {
+        "total": total,
+        "by_outcome": by_outcome,
+        "by_module": by_module,
+        "confirmed_ratio": round((confirmed / total), 3) if total else 0,
+        "inaccurate_ratio": round((inaccurate / total), 3) if total else 0,
+    }
+    return {"code": 0, "days": days, "summary": summary, "recent": recent_rows}
 
 
 @router.get("/api/ai/monitor/summary")
@@ -231,3 +299,4 @@ async def ai_lab_summary(patient_id: str):
     except Exception as exc:
         logger.error("AI lab summary error: %s", exc)
         return {"code": 0, "summary": "", "error": f"AI服务异常: {str(exc)[:100]}"}
+

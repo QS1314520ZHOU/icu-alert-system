@@ -319,10 +319,19 @@ function hasContextSnapshot(alert: any) {
 }
 
 function snapshotValue(entry: any, digits = 0) {
-  const raw = entry?.value
+  let current = entry
+  let raw = entry?.value
+  let unit = String(entry?.unit || '').trim()
+
+  // Some snapshot payloads may wrap the actual lab payload in an extra { value } layer.
+  while (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    current = raw
+    raw = raw?.value
+    if (!unit) unit = String(current?.unit || '').trim()
+  }
+
   if (raw == null || raw === '') return ''
   const num = Number(raw)
-  const unit = String(entry?.unit || '').trim()
   if (Number.isFinite(num)) {
     const valueText = digits > 0 ? num.toFixed(digits) : (Math.abs(num - Math.round(num)) < 0.05 ? String(Math.round(num)) : num.toFixed(1))
     return unit ? `${valueText}${unit}` : valueText

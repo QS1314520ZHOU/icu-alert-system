@@ -129,6 +129,12 @@ export const postAiFeedback = (payload: {
   detail?: Record<string, any>
 }) => aiApi.post('/api/ai/feedback', payload)
 
+export const getAiFeedbackSummary = (params?: { days?: number; limit?: number }) =>
+  aiApi.get('/api/ai/feedback/summary', { params })
+
+export const getAiMonitorSummary = (params?: { date?: string }) =>
+  aiApi.get('/api/ai/monitor/summary', { params })
+
 // AI/RAG: 离线知识片段详情
 export const getKnowledgeChunk = (chunkId: string) =>
   aiApi.get(`/api/knowledge/chunks/${encodeURIComponent(chunkId)}`)
@@ -186,7 +192,13 @@ export const reviewPatientPersonalizedThreshold = (
   payload: { status: 'approved' | 'rejected'; reviewer?: string; review_comment?: string }
 ) => api.post(`/api/patients/${patientId}/personalized-thresholds/${recordId}/review`, payload)
 
+export const getThresholdReviewCenter = (params?: {
+  status?: 'pending_review' | 'approved' | 'rejected'
+  limit?: number
+}) => api.get('/api/personalized-thresholds/review-center', { params })
+
 // 健康检查
 export const healthCheck = () => api.get('/health')
 
 export default api
+

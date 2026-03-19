@@ -172,9 +172,44 @@
       </div>
     </section>
 
+    <PatientWorkbenchHub
+      :topics="workbenchTopics"
+      :runtime="aiRuntimeSummary"
+      :similar="similarWorkbenchSummary"
+      :threshold="thresholdWorkbenchSummary"
+      :on-open="openTopicTab"
+      class="workbench-shell"
+    />
+
     <div ref="tabsAnchor">
     <a-card class="tabs-card" :bordered="false">
       <a-tabs v-model:activeKey="activeTab">
+        <a-tab-pane key="ecash" tab="eCASH / ABCDEF Bundle">
+          <PatientEcashBundleTab
+            v-if="activeTab === 'ecash'"
+            :alerts="ecashAlerts"
+            :bundle-alert="latestEcashBundleAlert"
+            :fmt-time="fmtTime"
+            :alert-type-text="alertTypeText"
+          />
+        </a-tab-pane>
+
+        <a-tab-pane key="mobility" tab="ICU-AW / 早期活动">
+          <PatientMobilityTab
+            v-if="activeTab === 'mobility'"
+            :alerts="mobilityAlerts"
+            :fmt-time="fmtTime"
+          />
+        </a-tab-pane>
+
+        <a-tab-pane key="pe" tab="PE 检测 / Wells">
+          <PatientPeRiskTab
+            v-if="activeTab === 'pe'"
+            :alerts="peAlerts"
+            :fmt-time="fmtTime"
+          />
+        </a-tab-pane>
+
         <a-tab-pane key="trend" tab="生命体征趋势">
           <PatientTrendTab
             v-if="activeTab === 'trend'"
@@ -224,7 +259,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="alerts" tab="预警历史">
+        <a-tab-pane key="alerts" tab="预警与审核">
           <PatientAlertsTab
             v-if="activeTab === 'alerts'"
             :latest-composite-alert="latestCompositeAlert"
@@ -267,7 +302,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="similar" tab="相似病例结局">
+        <a-tab-pane key="similar" tab="Similar Case Review">
           <PatientSimilarCasesTab
             v-if="activeTab === 'similar'"
             :review="similarCaseReview"
@@ -278,7 +313,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="ai" tab="AI辅助">
+        <a-tab-pane key="ai" tab="AI工作台">
           <PatientAiTab
             v-if="activeTab === 'ai'"
             :patient="patient"
@@ -422,13 +457,22 @@ const PatientSbtTimelineTab = defineAsyncComponent(() => import('../components/p
 const PatientAlertsTab = defineAsyncComponent(() => import('../components/patient-detail/AlertsTab.vue'))
 const PatientSimilarCasesTab = defineAsyncComponent(() => import('../components/patient-detail/SimilarCasesTab.vue'))
 const PatientAiTab = defineAsyncComponent(() => import('../components/patient-detail/AiTab.vue'))
+const PatientWorkbenchHub = defineAsyncComponent(() => import('../components/patient-detail/WorkbenchHub.vue'))
+const PatientEcashBundleTab = defineAsyncComponent(() => import('../components/patient-detail/EcashBundleTab.vue'))
+const PatientMobilityTab = defineAsyncComponent(() => import('../components/patient-detail/MobilityTab.vue'))
+const PatientPeRiskTab = defineAsyncComponent(() => import('../components/patient-detail/PeRiskTab.vue'))
 const PatientEvidenceModal = defineAsyncComponent(() => import('../components/patient-detail/EvidenceModal.vue'))
 
 const route = useRoute()
 const router = useRouter()
+const detailTabKeys = new Set(['ecash', 'mobility', 'pe', 'trend', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'ai'])
+function normalizeDetailTab(raw: any) {
+  const key = String(raw || '').trim()
+  return detailTabKeys.has(key) ? key : 'trend'
+}
 const patient = ref<any>(null)
 const vitals = ref<any>(null)
-const activeTab = ref('trend')
+const activeTab = ref(normalizeDetailTab(route.query.tab))
 const tabsAnchor = ref<HTMLElement | null>(null)
 
 const trendWindow = ref('24h')
@@ -764,6 +808,16 @@ async function openRescueAlerts() {
   tabsAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+async function openTopicTab(tab: string) {
+  activeTab.value = tab
+  await nextTick()
+  tabsAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function sortAlertsDesc(rows: any[]) {
+  return [...rows].sort((a: any, b: any) => dayjs(b?.created_at).valueOf() - dayjs(a?.created_at).valueOf())
+}
+
 const vitalsSourceText = computed(() => {
   if (!vitals.value?.source) return ''
   if (vitals.value.source === 'monitor') return '监护仪'
@@ -798,6 +852,143 @@ const latestCompositeInvolvedText = computed(() => {
     .map((k: any) => labels?.[String(k)] || compositeOrganLabelDefault[String(k)] || String(k))
     .filter(Boolean)
   return names.length ? `涉及系统: ${names.join(' / ')}` : '涉及系统: 暂无'
+})
+
+
+const ecashAlertTypes = new Set(['liberation_bundle', 'ecash_pain_overdue', 'ecash_pain_uncontrolled', 'ecash_rass_off_target', 'ecash_sat_due', 'ecash_benzo_in_use', 'ecash_sat_stress_reaction', 'sedation', 'delirium_risk', 'sedation_delirium_conversion'])
+const mobilityAlertTypes = new Set(['icu_aw_risk', 'early_mobility_recommendation', 'vte_immobility_no_prophylaxis'])
+const peAlertTypes = new Set(['pe_suspected', 'pe_wells_high'])
+
+const ecashAlerts = computed(() => sortAlertsDesc(alerts.value.filter((row: any) => ecashAlertTypes.has(String(row?.alert_type || '')))))
+const mobilityAlerts = computed(() => sortAlertsDesc(alerts.value.filter((row: any) => mobilityAlertTypes.has(String(row?.alert_type || '')))))
+const peAlerts = computed(() => sortAlertsDesc(alerts.value.filter((row: any) => peAlertTypes.has(String(row?.alert_type || '')))))
+const latestEcashBundleAlert = computed(() => ecashAlerts.value.find((row: any) => String(row?.alert_type || '') === 'liberation_bundle') || ecashAlerts.value[0] || null)
+
+function topicToneFromSeverity(severity: any) {
+  const sev = String(severity || '').toLowerCase()
+  if (sev === 'critical' || sev === 'high') return 'rose'
+  if (sev === 'warning') return 'amber'
+  return 'cyan'
+}
+
+const aiRuntimeSummary = computed(() => {
+  const runtime = aiRiskForecast.value?.model_meta?.runtime || {}
+  const mode = String(aiRiskForecast.value?.model_meta?.mode || '')
+  const primaryModel = String(aiRiskForecast.value?.model_meta?.model || aiRiskForecast.value?.model_meta?.model_name || '').trim()
+  const fallbackModel = String(runtime?.fallback_model || aiRiskForecast.value?.model_meta?.fallback_model || '').trim()
+  const hasError = Boolean(aiLabError.value || aiRuleError.value || aiRiskError.value || aiHandoffError.value)
+  const degraded = hasError || mode.includes('heuristic') || Boolean(runtime?.circuit_breaker_open) || Boolean(runtime?.fallback_triggered)
+  const pills = [
+    primaryModel ? `主模型 ${primaryModel}` : '',
+    fallbackModel ? `兜底 ${fallbackModel}` : '',
+    mode ? `模式 ${mode}` : '',
+    runtime?.circuit_breaker_open ? 'Circuit Breaker 打开' : '',
+  ].filter(Boolean)
+  return {
+    level: hasError ? 'red' : (degraded ? 'yellow' : 'cyan'),
+    text: hasError ? 'AI服务异常' : (degraded ? 'AI服务降级中' : 'AI服务正常'),
+    detail: runtime?.reason ? String(runtime.reason) : (hasError ? '部分 AI 能力返回错误，请检查模型与后端运行态。' : (degraded ? '当前已切换到 fallback / heuristic 路径。' : '主模型与知识证据链路可用。')),
+    pills,
+  }
+})
+
+const similarWorkbenchSummary = computed(() => {
+  const summary = similarCaseReview.value?.summary || {}
+  const outcomes = summary?.outcomes || {}
+  const bullets = [
+    summary?.matched_cases != null ? `匹配 ${summary.matched_cases} 例` : '',
+    summary?.survival_rate != null ? `存活率 ${Math.round(Number(summary.survival_rate || 0) * 100)}%` : '',
+    outcomes['死亡'] != null ? `死亡 ${outcomes['死亡']} 例` : '',
+    summary?.degraded ? '当前为降级模式' : '',
+  ].filter(Boolean)
+  return {
+    title: summary?.degraded ? 'Similar Case Review 已降级' : 'Similar Case Review 已接入',
+    detail: similarCaseError.value || summary?.fallback_message || (similarCaseLoaded.value ? '可查看相似病例结局、分布与病例对照。' : '点击进入后加载 embedding + LLM 相似病例分析。'),
+    bullets,
+  }
+})
+
+const thresholdWorkbenchSummary = computed(() => ({
+  title: personalizedThresholdRecord.value ? '个性化阈值审核流程已接入' : '个性化阈值待生成',
+  detail: personalizedThresholdRecord.value?.reasoning?.overall_reasoning || personalizedThresholdError.value || '支持 pending_review → approved / rejected，并记录审核人、审核备注与生效版本。',
+  status: ({ pending_review: '待审核', approved: '已批准', rejected: '已拒绝' } as Record<string, string>)[String(personalizedThresholdRecord.value?.status || 'pending_review').toLowerCase()] || '待审核',
+  reviewer: personalizedThresholdRecord.value?.reviewer || '',
+  comment: personalizedThresholdRecord.value?.review_comment || '',
+}))
+
+const workbenchTopics = computed(() => {
+  const ecashTop = latestEcashBundleAlert.value
+  const mobilityTop = mobilityAlerts.value[0]
+  const peTop = peAlerts.value[0]
+  const similarSummary = similarCaseReview.value?.summary || {}
+  return [
+    {
+      key: 'ecash',
+      title: 'eCASH / ABCDEF Bundle',
+      subtitle: 'Analgesia / Sedation / Delirium + SAT',
+      status: ecashTop?.name || 'Bundle 合规与镇痛镇静谵妄联动已接入',
+      meta: ecashTop ? (fmtTime(ecashTop.created_at) || '最近一条') : '查看 A-F 灯状态、镇痛/镇静/谵妄与 SAT 提醒',
+      countText: ecashAlerts.value.length ? `${ecashAlerts.value.length} 条` : 'Bundle',
+      tabKey: 'ecash',
+      tone: topicToneFromSeverity(ecashTop?.severity),
+      items: Array.isArray(ecashTop?.explanation?.evidence) ? ecashTop.explanation.evidence.slice(0, 3) : [],
+    },
+    {
+      key: 'mobility',
+      title: 'ICU-AW / 早期活动',
+      subtitle: '衰弱风险 + 活动能力评估',
+      status: mobilityTop?.name || '活动机会与制动风险已纳入工作台',
+      meta: mobilityTop ? (mobilityTop?.extra?.recommended_level_label || fmtTime(mobilityTop.created_at) || '最近一条') : '查看 ICU-AW 风险、制动时长与活动建议',
+      countText: mobilityAlerts.value.length ? `${mobilityAlerts.value.length} 条` : 'Mobility',
+      tabKey: 'mobility',
+      tone: topicToneFromSeverity(mobilityTop?.severity),
+      items: Array.isArray(mobilityTop?.extra?.factors) ? mobilityTop.extra.factors.slice(0, 3).map((item: any) => item?.evidence).filter(Boolean) : [],
+    },
+    {
+      key: 'pe',
+      title: 'PE 检测 / Wells',
+      subtitle: '肺栓塞模式识别 + Wells 评分',
+      status: peTop?.name || 'PE 高风险筛查已从预警流中单独显性化',
+      meta: peTop ? (peTop?.extra?.suggestion || fmtTime(peTop.created_at) || '最近一条') : '查看疑似 PE 模式、Wells 条目与建议动作',
+      countText: peAlerts.value.length ? `${peAlerts.value.length} 条` : 'PE',
+      tabKey: 'pe',
+      tone: topicToneFromSeverity(peTop?.severity || 'high'),
+      items: Array.isArray(peTop?.extra?.matched_criteria) ? peTop.extra.matched_criteria.slice(0, 3) : [],
+    },
+    {
+      key: 'sbt',
+      title: 'SBT Timeline',
+      subtitle: '自主呼吸试验时间线',
+      status: sbtAssessment.value?.label || 'SBT 结构化记录与回溯已接入',
+      meta: fmtTime(sbtAssessment.value?.trial_time) || '查看最近一次 SBT 与通过/失败轨迹',
+      countText: sbtTimelineSummary.value?.total_records != null ? `${sbtTimelineSummary.value.total_records} 次` : 'SBT',
+      tabKey: 'sbt',
+      tone: 'cyan',
+      items: [sbtAssessment.value?.result, sbtAssessment.value?.source].filter(Boolean),
+    },
+    {
+      key: 'similar',
+      title: 'Similar Case Review',
+      subtitle: 'embedding + LLM 相似病例分析',
+      status: similarWorkbenchSummary.value.title,
+      meta: similarWorkbenchSummary.value.detail,
+      countText: similarSummary?.matched_cases != null ? `${similarSummary.matched_cases} 例` : 'AI',
+      tabKey: 'similar',
+      tone: similarSummary?.degraded ? 'amber' : 'violet',
+      items: similarWorkbenchSummary.value.bullets.slice(0, 3),
+    },
+    {
+      key: 'ai',
+      title: 'AI 工作台',
+      subtitle: 'Explainability + Fallback + Feedback',
+      status: aiRuntimeSummary.value.text,
+      meta: aiRuntimeSummary.value.detail,
+      countText: latestAiRiskAlert.value?.ai_feedback?.outcome ? '已反馈' : 'AI Ops',
+      tabKey: 'ai',
+      tone: aiRuntimeSummary.value.level === 'red' ? 'rose' : (aiRuntimeSummary.value.level === 'yellow' ? 'amber' : 'cyan'),
+      items: aiRuntimeSummary.value.pills.slice(0, 3),
+    },
+  ]
 })
 
 const compositeRadarOption = computed(() => {
@@ -2112,7 +2303,11 @@ function alertTypeText(raw: any) {
     cvc_review: 'CVC评估',
     foley_review: '导尿管评估',
     ett_extubation_delay: '拔管延迟',
-    liberation_bundle: 'ABCDEF Bundle',
+    liberation_bundle: 'eCASH / ABCDEF Bundle',
+    icu_aw_risk: 'ICU-AW高风险',
+    early_mobility_recommendation: '早期活动推荐',
+    pe_suspected: 'PE检测',
+    pe_wells_high: 'PE Wells评分',
     fluid_responsiveness: '容量反应性',
     crrt_filter_clotting: '滤器凝堵',
     crrt_citrate_ica: '枸橼酸 iCa',
@@ -2558,8 +2753,8 @@ async function loadDetailPage() {
     loadWeaningStatus(),
     loadAiAll(),
   ])
-  if (activeTab.value === 'similar') {
-    await loadSimilarCaseReview()
+  if (activeTab.value === 'similar' || !similarCaseLoaded.value) {
+    void loadSimilarCaseReview()
   }
   if (activeTab.value === 'sbt') {
     await loadSbtTimeline()
@@ -2571,12 +2766,20 @@ watch(trendWindow, () => {
 })
 
 watch(activeTab, (tab) => {
+  if (String(route.query.tab || '') !== tab) {
+    router.replace({ query: { ...route.query, tab } })
+  }
   if (tab === 'sbt') {
     void loadSbtTimeline()
   }
   if (tab === 'similar') {
     void loadSimilarCaseReview()
   }
+})
+
+watch(() => route.query.tab, (next) => {
+  const normalized = normalizeDetailTab(next)
+  if (normalized !== activeTab.value) activeTab.value = normalized
 })
 
 watch(
@@ -3127,6 +3330,8 @@ onBeforeUnmount(() => {
   font-size: 12px;
   padding: 10px 0;
 }
+.workbench-shell { margin: 18px 0; }
+
 .tabs-card {
   background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
   border: 1px solid rgba(80,199,255,.14);
@@ -3843,3 +4048,5 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+

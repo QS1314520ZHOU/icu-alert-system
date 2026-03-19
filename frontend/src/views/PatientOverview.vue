@@ -59,6 +59,16 @@
           <b>{{ ts.count }}</b>
         </span>
       </div>
+
+      <div v-if="activeOverviewFilters.length" class="filter-summary">
+        <span class="filter-summary__label">当前筛选</span>
+        <span v-for="item in activeOverviewFilters" :key="item.key" class="filter-summary__chip">
+          {{ item.label }}
+        </span>
+        <button type="button" class="filter-summary__clear" @click="clearOverviewFilters">
+          清空筛选
+        </button>
+      </div>
     </header>
 
     <!-- ====== 加载态 ====== -->
@@ -120,6 +130,23 @@ const routeDeptName = computed(() => {
   if (typeof raw === 'string') return raw.trim()
   return ''
 })
+const routeAlertLevel = computed(() => {
+  const raw = route.query.alert_level || route.query.alertLevel
+  if (Array.isArray(raw)) return raw[0]?.trim() ?? ''
+  if (typeof raw === 'string') return raw.trim()
+  return ''
+})
+const routeTag = computed(() => {
+  const raw = route.query.tag
+  if (Array.isArray(raw)) return raw[0]?.trim() ?? ''
+  if (typeof raw === 'string') return raw.trim()
+  return ''
+})
+const routeRescueOnly = computed(() => {
+  const raw = route.query.rescue_only || route.query.rescueOnly
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return String(value || '').toLowerCase() === '1' || String(value || '').toLowerCase() === 'true'
+})
 const showDeptNav = computed(() => !routeDeptCode.value && !routeDeptName.value)
 const overviewCacheKey = computed(() => JSON.stringify({
   dept_code: routeDeptCode.value || '',
@@ -162,6 +189,20 @@ const tagStats = computed(() => {
 })
 
 const rescueRiskCount = computed(() => byDept.value.filter(p => p.hasRescueRisk).length)
+const activeOverviewFilters = computed(() => {
+  const items: Array<{ key: string; label: string }> = []
+  if (routeDeptName.value) items.push({ key: 'dept', label: `科室 ${routeDeptName.value}` })
+  if (routeDeptCode.value && !routeDeptName.value) items.push({ key: 'dept_code', label: `科室编码 ${routeDeptCode.value}` })
+  if (alertFilter.value === 'critical') items.push({ key: 'alert', label: '危重患者' })
+  else if (alertFilter.value === 'warning') items.push({ key: 'alert', label: '警告 / 高危患者' })
+  else if (alertFilter.value === 'normal') items.push({ key: 'alert', label: '正常患者' })
+  if (tagFilter.value) {
+    const hit = tagStats.value.find((t: any) => t.tag === tagFilter.value)
+    items.push({ key: 'tag', label: hit?.label ? `标签 ${hit.label}` : `标签 ${tagFilter.value}` })
+  }
+  if (rescueOnly.value) items.push({ key: 'rescue', label: '抢救期风险' })
+  return items
+})
 
 /* ── 最终列表 ── */
 const showList = computed(() => {
@@ -189,6 +230,17 @@ const normalCount = computed(() =>
 /* ── toggle ── */
 function toggleAlert(a: string) { alertFilter.value = alertFilter.value === a ? '' : a }
 
+function syncOverviewQuery() {
+  const nextQuery: Record<string, any> = { ...route.query }
+  if (alertFilter.value) nextQuery.alert_level = alertFilter.value
+  else delete nextQuery.alert_level
+  if (tagFilter.value) nextQuery.tag = tagFilter.value
+  else delete nextQuery.tag
+  if (rescueOnly.value) nextQuery.rescue_only = '1'
+  else delete nextQuery.rescue_only
+  router.replace({ query: nextQuery })
+}
+
 function syncDeptQuery(dept: string) {
   const nextQuery: Record<string, any> = { ...route.query }
   if (!dept || dept === '全部') {
@@ -211,11 +263,24 @@ function selectDept(dept: string) {
   curDept.value = dept
   alertFilter.value = ''
   tagFilter.value = ''
+  rescueOnly.value = false
   if (showDeptNav.value) syncDeptQuery(dept)
 }
 
 function goDetail(id: string) {
   router.push({ path: `/patient/${id}`, query: route.query })
+}
+
+function clearOverviewFilters() {
+  tagFilter.value = ''
+  alertFilter.value = ''
+  rescueOnly.value = false
+  router.replace({
+    query: {
+      ...(routeDeptCode.value ? { dept_code: routeDeptCode.value } : {}),
+      ...(!routeDeptCode.value && routeDeptName.value ? { dept: routeDeptName.value } : {}),
+    },
+  })
 }
 
 /* ── 阈值 ── */
@@ -421,13 +486,17 @@ async function load(options?: { silent?: boolean }) {
 watch(
   () => [routeDeptCode.value, routeDeptName.value],
   () => {
-    tagFilter.value = ''
-    alertFilter.value = ''
-    rescueOnly.value = false
+    tagFilter.value = routeTag.value
+    alertFilter.value = routeAlertLevel.value
+    rescueOnly.value = routeRescueOnly.value
     load()
   },
   { immediate: true }
 )
+
+watch([alertFilter, tagFilter, rescueOnly], () => {
+  syncOverviewQuery()
+})
 
 onMounted(() => { iv = setInterval(() => load({ silent: true }), 60000) })
 onMounted(() => {
@@ -613,6 +682,50 @@ onUnmounted(() => {
   color: #ffe6eb;
   border-color: rgba(251, 113, 133, 0.4);
   box-shadow: inset 0 0 18px rgba(251, 113, 133, 0.16), 0 0 18px rgba(251, 113, 133, 0.08);
+}
+
+.filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-summary__label {
+  color: #7fd7eb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.filter-summary__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(86, 229, 255, 0.18);
+  background: rgba(8, 28, 44, 0.74);
+  color: #dffbff;
+  font-size: 12px;
+}
+
+.filter-summary__clear {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 113, 133, 0.24);
+  background: rgba(45, 14, 24, 0.82);
+  color: #ffc8d4;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.filter-summary__clear:hover {
+  border-color: rgba(251, 113, 133, 0.34);
+  color: #ffe8ee;
 }
 
 .loader {

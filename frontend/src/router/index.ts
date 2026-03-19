@@ -26,6 +26,12 @@ const router = createRouter({
       name: 'analytics',
       component: () => import('../views/Analytics.vue'),
       meta: { title: '历史预警分析', useAntdTheme: true }
+    },
+    {
+      path: '/ai-ops',
+      name: 'ai-ops',
+      component: () => import('../views/AiOps.vue'),
+      meta: { title: 'AI运营中心', useAntdTheme: true }
     }
   ]
 })
