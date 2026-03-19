@@ -109,6 +109,13 @@ export const getWeaningSummary = (params?: {
   dept_code?: string
 }) => api.get('/api/analytics/weaning-summary', { params })
 
+export const getScenarioCoverageAnalytics = (params?: {
+  window?: string
+  top_n?: number
+  dept?: string
+  dept_code?: string
+}) => api.get('/api/analytics/scenario-coverage', { params })
+
 // AI: 检验摘要
 export const getAiLabSummary = (patientId: string) =>
   aiApi.get(`/api/ai/lab-summary/${patientId}`)
@@ -120,6 +127,47 @@ export const getAiRuleRecommendations = (patientId: string) =>
 // AI: 风险预测
 export const getAiRiskForecast = (patientId: string) =>
   aiApi.get(`/api/ai/risk-forecast/${patientId}`)
+
+export const getAiProactiveManagement = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/proactive-management/${patientId}`, { params })
+
+export const postAiProactiveInterventionFeedback = (
+  patientId: string,
+  interventionId: string,
+  payload: { record_id?: string; status?: string; adopted?: boolean; note?: string; actor?: string }
+) => aiApi.post(`/api/ai/proactive-management/${patientId}/interventions/${interventionId}/feedback`, payload)
+
+export const getAiClinicalReasoning = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/clinical-reasoning/${patientId}`, { params })
+
+export const postAiCausalAnalysis = (
+  patientId: string,
+  payload: { abnormal_finding: string }
+) => aiApi.post(`/api/ai/causal-analysis/${patientId}`, payload)
+
+export const getAiMultiAgentAssessment = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/multi-agent/${patientId}`, { params })
+
+export const getAiSystemPanels = (patientId: string, params?: { window?: '24h' | '72h' }) =>
+  aiApi.get(`/api/ai/system-panels/${patientId}`, { params })
+
+export const getAiMdtWorkspace = (patientId: string) =>
+  aiApi.get(`/api/ai/mdt-workspace/${patientId}`)
+
+export const saveAiMdtWorkspace = (
+  patientId: string,
+  payload: {
+    decisions?: Array<{ id?: string; action?: string; owner?: string; deadline?: string; monitoring?: string; review_time?: string; status?: string; note?: string }>
+    consult_record?: string
+    progress_record?: string
+    order_drafts?: Array<{ id?: string; category?: string; order_text?: string; priority?: string; status?: string; source?: string }>
+  }
+) => aiApi.post(`/api/ai/mdt-workspace/${patientId}`, payload)
+
+export const generateAiDocument = (
+  patientId: string,
+  payload: { doc_type: 'mdt_summary' | 'daily_progress' | 'consultation_request'; time_range?: { start?: string; end?: string; hours?: number } }
+) => aiApi.post(`/api/ai/documents/${patientId}`, payload)
 
 // AI: 反馈闭环
 export const postAiFeedback = (payload: {
