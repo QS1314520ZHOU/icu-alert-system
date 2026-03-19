@@ -313,6 +313,14 @@
           />
         </a-tab-pane>
 
+        <a-tab-pane key="twin" tab="数字孪生诊疗推理">
+          <PatientDigitalTwinTab
+            v-if="activeTab === 'twin'"
+            :patient-id="String(route.params.id || '')"
+            :patient="patient"
+          />
+        </a-tab-pane>
+
         <a-tab-pane key="ai" tab="AI工作台">
           <PatientAiTab
             v-if="activeTab === 'ai'"
@@ -456,6 +464,7 @@ const PatientDataTableTab = defineAsyncComponent(() => import('../components/pat
 const PatientSbtTimelineTab = defineAsyncComponent(() => import('../components/patient-detail/SbtTimelineTab.vue'))
 const PatientAlertsTab = defineAsyncComponent(() => import('../components/patient-detail/AlertsTab.vue'))
 const PatientSimilarCasesTab = defineAsyncComponent(() => import('../components/patient-detail/SimilarCasesTab.vue'))
+const PatientDigitalTwinTab = defineAsyncComponent(() => import('../components/patient-detail/DigitalTwinTab.vue'))
 const PatientAiTab = defineAsyncComponent(() => import('../components/patient-detail/AiTab.vue'))
 const PatientWorkbenchHub = defineAsyncComponent(() => import('../components/patient-detail/WorkbenchHub.vue'))
 const PatientEcashBundleTab = defineAsyncComponent(() => import('../components/patient-detail/EcashBundleTab.vue'))
@@ -465,7 +474,7 @@ const PatientEvidenceModal = defineAsyncComponent(() => import('../components/pa
 
 const route = useRoute()
 const router = useRouter()
-const detailTabKeys = new Set(['ecash', 'mobility', 'pe', 'trend', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'ai'])
+const detailTabKeys = new Set(['ecash', 'mobility', 'pe', 'trend', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'twin', 'ai'])
 function normalizeDetailTab(raw: any) {
   const key = String(raw || '').trim()
   return detailTabKeys.has(key) ? key : 'trend'
@@ -921,7 +930,19 @@ const workbenchTopics = computed(() => {
   const mobilityTop = mobilityAlerts.value[0]
   const peTop = peAlerts.value[0]
   const similarSummary = similarCaseReview.value?.summary || {}
+  const twinInterventions = Array.isArray(aiRiskForecast.value?.horizon_probabilities) ? aiRiskForecast.value.horizon_probabilities.length : 0
   return [
+    {
+      key: 'twin',
+      title: '数字孪生诊疗推理',
+      subtitle: '风险预测 -> 建议 -> 追踪 -> 效果评估',
+      status: aiRiskForecast.value?.risk_summary || '数字孪生闭环与 MDT 会诊已接入患者详情页',
+      meta: '把主动管理、因果链解释、多智能体会诊和风险预测收敛到一个标签页。',
+      countText: twinInterventions ? `${twinInterventions} 个时域` : 'Twin',
+      tabKey: 'twin',
+      tone: topicToneFromSeverity(aiRiskForecast.value?.risk_level || latestAiRiskAlert.value?.severity || 'warning'),
+      items: (aiRiskForecast.value?.top_contributors || []).slice(0, 3).map((item: any) => item?.feature || item?.organ || item?.label).filter(Boolean),
+    },
     {
       key: 'ecash',
       title: 'eCASH / ABCDEF Bundle',
@@ -4048,5 +4069,10 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
+
+
+
 
 

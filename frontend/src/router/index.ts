@@ -32,8 +32,15 @@ const router = createRouter({
       name: 'ai-ops',
       component: () => import('../views/AiOps.vue'),
       meta: { title: 'AI运营中心', useAntdTheme: true }
+    },
+    {
+      path: '/mdt',
+      name: 'mdt-board',
+      component: () => import('../views/MdtBoard.vue'),
+      meta: { title: 'MDT多智能体会诊', useAntdTheme: true }
     }
   ]
 })
 
 export default router
+

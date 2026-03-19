@@ -44,6 +44,8 @@ from .scanner_right_heart_monitor import RightHeartMonitorScanner
 from .scanner_dose_adjustment import DoseAdjustmentScanner
 from .scanner_discharge_readiness import DischargeReadinessScanner
 from .scanner_adaptive_thresholds import AdaptiveThresholdsScanner
+from .scanner_proactive_management import ProactiveManagementScanner
+from .scanner_extended_scenarios import ExtendedScenariosScanner
 from .scanner_ai_risk import AiRiskScanner
 from .scanner_alert_reasoning import AlertReasoningScanner
 from .scanner_nurse_reminders import NurseRemindersScanner
@@ -95,6 +97,8 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         DoseAdjustmentScanner(engine),
         DischargeReadinessScanner(engine),
         AdaptiveThresholdsScanner(engine),
+        ProactiveManagementScanner(engine),
+        ExtendedScenariosScanner(engine),
         AiRiskScanner(engine),
         AlertReasoningScanner(engine),
         NurseRemindersScanner(engine),

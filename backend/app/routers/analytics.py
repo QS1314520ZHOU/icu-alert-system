@@ -75,6 +75,141 @@ async def device_risk_heatmap(
     return {"code": 0, "rows": rows}
 
 
+@router.get("/api/analytics/scenario-coverage")
+async def analytics_scenario_coverage(
+    window: Optional[str] = Query("7d", description="时间窗口 24h/7d/14d/30d"),
+    top_n: int = Query(12, ge=5, le=40, description="热力图展示 TopN 场景"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    yaml_cfg = runtime.config.yaml_cfg if getattr(runtime, "config", None) is not None else {}
+    scenario_cfg = yaml_cfg.get("extended_scenarios", {}) if isinstance(yaml_cfg, dict) else {}
+    catalog_rows: list[dict] = []
+    scenario_title = getattr(runtime.alert_engine, "_scenario_title", None)
+    for group, scenarios in (scenario_cfg.items() if isinstance(scenario_cfg, dict) else []):
+        if not isinstance(scenarios, list):
+            continue
+        for scenario in scenarios:
+            name = str(scenario or "").strip()
+            if not name:
+                continue
+            title = scenario_title(name) if callable(scenario_title) else name.replace("_", " ").title()
+            catalog_rows.append({"group": str(group or "other"), "scenario": name, "title": title})
+
+    since = datetime.now() - timedelta(hours=window_to_hours(window))
+    query: dict = {"category": "extended_scenarios", "created_at": {"$gte": since}}
+    if dept:
+        query["dept"] = dept
+    elif dept_code:
+        query["deptCode"] = dept_code
+
+    docs = [doc async for doc in runtime.db.col("alert_records").find(query, {"alert_type": 1, "name": 1, "severity": 1, "patient_id": 1, "dept": 1, "deptCode": 1, "created_at": 1, "extra": 1})]
+    alert_count_by_scenario: dict[str, int] = {}
+    patient_count_by_scenario: dict[str, set[str]] = {}
+    severity_count_by_scenario: dict[str, dict[str, int]] = {}
+    catalog_map = {row["scenario"]: row for row in catalog_rows}
+
+    for doc in docs:
+        scenario = str(doc.get("alert_type") or doc.get("extra", {}).get("scenario") or "").strip()
+        if not scenario:
+            continue
+        alert_count_by_scenario[scenario] = int(alert_count_by_scenario.get(scenario) or 0) + 1
+        patient_id = str(doc.get("patient_id") or "").strip()
+        if patient_id:
+            patient_count_by_scenario.setdefault(scenario, set()).add(patient_id)
+        sev = str(doc.get("severity") or "warning").strip().lower() or "warning"
+        severity_count_by_scenario.setdefault(scenario, {})
+        severity_count_by_scenario[scenario][sev] = int(severity_count_by_scenario[scenario].get(sev) or 0) + 1
+
+    group_summary: dict[str, dict] = {}
+    for row in catalog_rows:
+        group = row["group"]
+        entry = group_summary.setdefault(
+            group,
+            {
+                "group": group,
+                "catalog_count": 0,
+                "triggered_count": 0,
+                "alert_count": 0,
+                "active_titles": [],
+            },
+        )
+        entry["catalog_count"] += 1
+        scenario = row["scenario"]
+        if scenario in alert_count_by_scenario:
+            entry["triggered_count"] += 1
+            entry["alert_count"] += int(alert_count_by_scenario.get(scenario) or 0)
+            entry["active_titles"].append(row["title"])
+
+    group_rows = []
+    for entry in group_summary.values():
+        catalog_count = int(entry.get("catalog_count") or 0)
+        triggered_count = int(entry.get("triggered_count") or 0)
+        group_rows.append(
+            {
+                **entry,
+                "coverage_ratio": round((triggered_count / catalog_count), 4) if catalog_count else 0,
+                "active_titles": entry.get("active_titles", [])[:6],
+            }
+        )
+    group_rows.sort(key=lambda item: (-int(item.get("triggered_count") or 0), item.get("group") or ""))
+
+    top_scenarios = sorted(alert_count_by_scenario.items(), key=lambda item: item[1], reverse=True)[:top_n]
+    x_labels = []
+    scenario_index: dict[str, int] = {}
+    for idx, (scenario, _) in enumerate(top_scenarios):
+        row = catalog_map.get(scenario) or {"title": scenario.replace("_", " ").title(), "group": "other"}
+        x_labels.append(row["title"])
+        scenario_index[scenario] = idx
+
+    y_labels = [row["group"] for row in group_rows]
+    group_index = {label: idx for idx, label in enumerate(y_labels)}
+    heatmap_data: list[list[int]] = []
+    for scenario, count in top_scenarios:
+        row = catalog_map.get(scenario)
+        if not row:
+            continue
+        xi = scenario_index.get(scenario)
+        yi = group_index.get(row["group"])
+        if xi is None or yi is None:
+            continue
+        heatmap_data.append([xi, yi, count])
+
+    scenario_rows = []
+    for scenario, count in top_scenarios:
+        row = catalog_map.get(scenario) or {"group": "other", "title": scenario.replace("_", " ").title()}
+        severity = severity_count_by_scenario.get(scenario) or {}
+        scenario_rows.append(
+            {
+                "scenario": scenario,
+                "title": row["title"],
+                "group": row["group"],
+                "alert_count": count,
+                "patient_count": len(patient_count_by_scenario.get(scenario) or set()),
+                "critical": int(severity.get("critical") or 0),
+                "high": int(severity.get("high") or 0),
+                "warning": int(severity.get("warning") or 0),
+            }
+        )
+
+    total_catalog = len(catalog_rows)
+    triggered_catalog = len([scenario for scenario in catalog_map if scenario in alert_count_by_scenario])
+    return {
+        "code": 0,
+        "summary": {
+            "window": window,
+            "total_catalog_scenarios": total_catalog,
+            "triggered_catalog_scenarios": triggered_catalog,
+            "coverage_ratio": round((triggered_catalog / total_catalog), 4) if total_catalog else 0,
+            "total_alerts": len(docs),
+            "scenario_groups": len(group_rows),
+        },
+        "group_rows": group_rows,
+        "heatmap": {"x_labels": x_labels, "y_labels": y_labels, "data": heatmap_data},
+        "top_scenarios": scenario_rows,
+    }
+
+
 @router.get("/api/analytics/sepsis-bundle/compliance")
 async def analytics_sepsis_bundle_compliance(
     month: Optional[str] = Query(None, description="月份 YYYY-MM"),

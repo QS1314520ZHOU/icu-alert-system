@@ -52,6 +52,8 @@ from .postop_monitor import PostopMonitorMixin
 from .right_heart_monitor import RightHeartMonitorMixin
 from .ecash_bundle import EcashBundleMixin
 from .icu_aw_mobility import IcuAwMobilityMixin
+from .proactive_management_engine import ProactiveManagementEngineMixin
+from .extended_scenario_engine import ExtendedScenarioMixin
 from .similar_case_review import SimilarCaseReviewMixin
 from .scanner_registry import build_scanners
 from .scanners import BaseScanner
@@ -101,6 +103,8 @@ class AlertEngine(
     RightHeartMonitorMixin,
     EcashBundleMixin,
     IcuAwMobilityMixin,
+    ProactiveManagementEngineMixin,
+    ExtendedScenarioMixin,
     SimilarCaseReviewMixin,
     TrendMixin,
     AdaptiveThresholdAdvisorMixin,

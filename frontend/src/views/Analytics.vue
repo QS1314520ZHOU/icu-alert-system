@@ -215,6 +215,44 @@
       </a-card>
     </section>
 
+    <section v-else-if="analyticsSection === 'scenarios'" class="analytics-grid">
+      <a-card title="扩展场景覆盖总览" :bordered="false" class="panel panel-wide">
+        <div class="insight-grid">
+          <div v-for="item in scenarioHighlights" :key="item.label" class="insight-tile">
+            <div class="insight-label">{{ item.label }}</div>
+            <div class="insight-value">{{ item.value }}</div>
+            <div class="insight-meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-card title="场景覆盖热力图" :bordered="false" class="panel panel-wide panel-heatmap">
+        <div v-if="scenarioHeatmapY.length" class="heatmap-summary">
+          <div class="summary-chip"><span class="summary-k">场景组</span><b class="summary-v">{{ scenarioHeatmapY.length }}</b></div>
+          <div class="summary-chip"><span class="summary-k">Top 场景</span><b class="summary-v">{{ scenarioHeatmapX.length }}</b></div>
+          <div class="summary-chip summary-chip--wide"><span class="summary-k">覆盖率</span><b class="summary-v">{{ scenarioCoverageRate }}</b></div>
+        </div>
+        <div v-if="scenarioHeatmapY.length" class="chart-wrap chart-lg chart-heatmap">
+          <AnalyticsChart :option="scenarioHeatmapOption" autoresize />
+        </div>
+        <div v-else class="empty">暂无扩展场景数据</div>
+      </a-card>
+
+      <a-card title="场景组覆盖率" :bordered="false" class="panel">
+        <div class="progress-list">
+          <div v-for="item in scenarioGroupProgressRows" :key="item.label" class="progress-row">
+            <div class="progress-row__top"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
+            <div class="progress-bar"><div class="progress-bar__fill" :style="{ width: item.width, background: item.color }"></div></div>
+            <div class="progress-row__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-card title="高频扩展场景" :bordered="false" class="panel">
+        <a-table class="rank-table" size="small" :columns="scenarioColumns" :data-source="scenarioTopRows" :pagination="false" row-key="scenario" />
+      </a-card>
+    </section>
+
     <section v-else class="analytics-grid">
       <a-card title="撤机分析摘要" :bordered="false" class="panel panel-wide">
         <div class="insight-grid">
@@ -286,6 +324,7 @@ import {
   getAlertAnalyticsHeatmap,
   getAlertAnalyticsRankings,
   getRecentAlerts,
+  getScenarioCoverageAnalytics,
   getSepsisBundleCompliance,
   getWeaningSummary,
 } from '../api'
@@ -315,6 +354,7 @@ const sectionOptions = [
   { label: '告警运营', value: 'alerts' },
   { label: 'Sepsis质控', value: 'sepsis' },
   { label: '撤机分析', value: 'weaning' },
+  { label: '场景覆盖', value: 'scenarios' },
 ]
 const windowOptions = [
   { label: '24h', value: '24h' },
@@ -327,13 +367,13 @@ const bucketOptions = [
   { label: '天', value: 'day' },
 ]
 
-function normalizeAnalyticsSection(value: any): 'alerts' | 'sepsis' | 'weaning' {
+function normalizeAnalyticsSection(value: any): 'alerts' | 'sepsis' | 'weaning' | 'scenarios' {
   const key = String(value || '').trim().toLowerCase()
-  if (key === 'sepsis' || key === 'weaning') return key
+  if (key === 'sepsis' || key === 'weaning' || key === 'scenarios') return key
   return 'alerts'
 }
 
-const analyticsSection = ref<'alerts' | 'sepsis' | 'weaning'>(normalizeAnalyticsSection(route.query.section))
+const analyticsSection = ref<'alerts' | 'sepsis' | 'weaning' | 'scenarios'>(normalizeAnalyticsSection(route.query.section))
 
 const freqSeries = ref<any[]>([])
 const heatmapX = ref<string[]>([])
@@ -344,6 +384,12 @@ const bedRankings = ref<any[]>([])
 const sepsisBundleCompliance = ref<any>(null)
 const weaningSummary = ref<any>(null)
 const recentAlerts = ref<any[]>([])
+const scenarioCoverageSummary = ref<any>(null)
+const scenarioGroupRows = ref<any[]>([])
+const scenarioTopRows = ref<any[]>([])
+const scenarioHeatmapX = ref<string[]>([])
+const scenarioHeatmapY = ref<string[]>([])
+const scenarioHeatmapData = ref<number[][]>([])
 
 const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
@@ -760,12 +806,53 @@ const topRuleSummary = computed(() => {
 
 const topRuleHeadline = computed(() => windowRange.value === '24h' ? '今日最高风险规则' : '当前窗口最高风险规则')
 
+const scenarioCoverageRate = computed(() => formatPct(Number(scenarioCoverageSummary.value?.coverage_ratio || 0)))
+const scenarioHighlights = computed(() => [
+  { label: '场景库', value: `${Number(scenarioCoverageSummary.value?.total_catalog_scenarios || 0)} 个`, meta: '统一扩展场景配置与评估引擎' },
+  { label: '已触发场景', value: `${Number(scenarioCoverageSummary.value?.triggered_catalog_scenarios || 0)} 个`, meta: `${analyticsWindowLabel.value} 内至少命中一次` },
+  { label: '覆盖率', value: scenarioCoverageRate.value, meta: `${Number(scenarioCoverageSummary.value?.scenario_groups || 0)} 个场景组参与统计` },
+  { label: '触发总量', value: `${Number(scenarioCoverageSummary.value?.total_alerts || 0)} 次`, meta: '来自扩展场景扫描器的实际命中' },
+])
+const scenarioGroupProgressRows = computed(() => scenarioGroupRows.value.map((item: any, idx: number) => ({
+  label: item.group,
+  value: `${Math.round(Number(item.coverage_ratio || 0) * 100)}%`,
+  width: `${Math.max(4, Number(item.coverage_ratio || 0) * 100)}%`,
+  meta: `已覆盖 ${item.triggered_count}/${item.catalog_count} 个场景 · 告警 ${item.alert_count} 次`,
+  color: ['linear-gradient(90deg, #22d3ee, #38bdf8)', 'linear-gradient(90deg, #2dd4bf, #34d399)', 'linear-gradient(90deg, #f59e0b, #fb7185)'][idx % 3],
+})))
+const scenarioHeatmapOption = computed(() => ({
+  backgroundColor: 'transparent',
+  tooltip: icuTooltip({
+    formatter: (params: any) => tooltipShell(`${scenarioHeatmapY.value[params.value[1]] || '场景组'}`, [tooltipRow('场景', scenarioHeatmapX.value[params.value[0]] || '—', '#22d3ee'), tooltipRow('命中', `${params.value[2] || 0} 次`, '#fb5a7a')], '扩展场景覆盖热区'),
+  }),
+  grid: icuGrid({ left: 128, right: 22, top: 20, bottom: 62 }),
+  xAxis: icuCategoryAxis(scenarioHeatmapX.value, { axisLabel: { color: '#79d7ea', fontSize: 10, rotate: 18, margin: 12 } }),
+  yAxis: icuCategoryAxis(scenarioHeatmapY.value, { axisLabel: { color: '#b7ddec', fontSize: 10, margin: 14 } }),
+  visualMap: { min: 0, max: Math.max(1, ...scenarioHeatmapData.value.map((item: any) => Number(item?.[2] || 0))), orient: 'horizontal', left: 'center', bottom: 8, text: ['高频', '低频'], textStyle: { color: '#7fc7da', fontSize: 10 }, inRange: { color: ['#0a2234', '#0e4c68', '#16b3c9', '#f59e0b', '#fb5a7a'] } },
+  series: [{ type: 'heatmap', data: scenarioHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: '#effcff', fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: 'rgba(112, 226, 255, 0.1)', borderWidth: 1 } }],
+}))
+const scenarioColumns = [
+  { title: '场景', dataIndex: 'title', key: 'title' },
+  { title: '分组', dataIndex: 'group', key: 'group', width: 110 },
+  { title: '告警', dataIndex: 'alert_count', key: 'alert_count', width: 72 },
+  { title: '患者', dataIndex: 'patient_count', key: 'patient_count', width: 72 },
+  { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 72 },
+  { title: 'High', dataIndex: 'high', key: 'high', width: 72 },
+]
+
 const activeSectionMeta = computed(() => {
   if (analyticsSection.value === 'sepsis') {
     return {
       kicker: '脓毒症流程质控',
       title: 'Sepsis Bundle 质控工作区',
       description: '聚焦 1h Bundle 达标率、超时病例和在途执行状态，适合科室质控和值班复盘。',
+    }
+  }
+  if (analyticsSection.value === 'scenarios') {
+    return {
+      kicker: '扩展场景引擎',
+      title: '场景覆盖工作区',
+      description: '把 100+ 场景扩展的基础设施直接映射成覆盖总览、热力图和高频场景榜，便于持续下钻 ICU 高价值场景。',
     }
   }
   if (analyticsSection.value === 'weaning') {
@@ -803,6 +890,13 @@ const activeSectionActions = computed(() => {
         meta: '带着高危筛选返回患者总览，继续看仍需跟踪的人群。',
         action: () => router.push({ path: '/', query: { ...route.query, alert_level: 'warning' } }),
       },
+    ]
+  }
+  if (analyticsSection.value === 'scenarios') {
+    return [
+      { label: '打开 MDT 会诊', value: '多智能体裁决看板', meta: '继续查看专科意见、冲突焦点和 Meta-Agent 裁决。', action: () => router.push('/mdt') },
+      { label: '切回告警运营', value: '查看实时热区', meta: '从扩展场景覆盖切回全量规则热力图。', action: () => setAnalyticsSection('alerts') },
+      { label: '打开患者总览', value: '继续做高危筛查', meta: '带着当前筛选条件回到患者工作台。', action: () => router.push({ path: '/', query: { ...route.query } }) },
     ]
   }
   if (analyticsSection.value === 'weaning') {
@@ -1097,6 +1191,14 @@ const weaningStatusCards = computed(() => {
 })
 
 const activeSectionKpis = computed(() => {
+  if (analyticsSection.value === 'scenarios') {
+    return [
+      { label: '场景库覆盖率', code: 'SCENARIO', value: scenarioCoverageRate.value, meta: `${Number(scenarioCoverageSummary.value?.triggered_catalog_scenarios || 0)} / ${Number(scenarioCoverageSummary.value?.total_catalog_scenarios || 0)} 场景已在当前窗口命中`, tone: 'bundle' },
+      { label: '场景组', code: 'GROUP', value: `${scenarioGroupRows.value.length}`, meta: '统一引擎下的扩展场景分组' },
+      { label: 'Top 场景', code: 'TOP', value: scenarioTopRows.value[0]?.title || '暂无数据', meta: scenarioTopRows.value[0] ? `${scenarioTopRows.value[0].alert_count} 次命中` : '等待扩展场景数据', compact: true },
+      { label: '告警总量', code: 'HITS', value: `${Number(scenarioCoverageSummary.value?.total_alerts || 0)}`, meta: `${analyticsWindowLabel.value} 内扩展场景累计触发次数`, tone: 'risk' },
+    ]
+  }
   if (analyticsSection.value === 'sepsis') {
     return [
       {
@@ -1192,7 +1294,7 @@ const activeSectionKpis = computed(() => {
   ]
 })
 
-function setAnalyticsSection(section: 'alerts' | 'sepsis' | 'weaning') {
+function setAnalyticsSection(section: 'alerts' | 'sepsis' | 'weaning' | 'scenarios') {
   analyticsSection.value = section
 }
 
@@ -1465,6 +1567,19 @@ async function loadSepsisBundleCompliance() {
   sepsisBundleCompliance.value = res.data.summary || null
 }
 
+async function loadScenarioCoverage() {
+  const res = await getScenarioCoverageAnalytics({
+    ...commonParams(),
+    top_n: topN.value,
+  })
+  scenarioCoverageSummary.value = res.data.summary || null
+  scenarioGroupRows.value = res.data.group_rows || []
+  scenarioTopRows.value = res.data.top_scenarios || []
+  scenarioHeatmapX.value = res.data.heatmap?.x_labels || []
+  scenarioHeatmapY.value = res.data.heatmap?.y_labels || []
+  scenarioHeatmapData.value = res.data.heatmap?.data || []
+}
+
 async function loadWeaningSummary() {
   const res = await getWeaningSummary({
     month: sepsisBundleMonth.value,
@@ -1492,6 +1607,7 @@ async function loadAll() {
       loadRankings(),
       loadSepsisBundleCompliance(),
       loadWeaningSummary(),
+      loadScenarioCoverage(),
       loadRecentRescueAlerts(),
     ])
   } catch (e) {
@@ -2273,3 +2389,4 @@ onMounted(() => {
 }
 </style>
 ```
+

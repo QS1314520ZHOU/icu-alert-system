@@ -5,7 +5,7 @@
       <div class="summary-row">
         <div class="sum-block">
           <span class="sum-val">{{ filteredPatients.length }}</span>
-          <span class="sum-lbl">在院</span>
+          <span class="sum-lbl">在科</span>
         </div>
         <div v-if="refreshing && !loading" class="sum-sync">
           <span class="sum-sync-dot"></span>

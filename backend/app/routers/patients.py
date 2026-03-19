@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body, Query
 
 from app import runtime
 from app.utils.alerting import derive_sepsis_bundle_status, normalize_sbt_status, normalize_weaning_status
-from app.utils.patient_helpers import active_patient_query, calculate_age, infer_clinical_tags
+from app.utils.patient_helpers import admitted_patient_query, calculate_age, infer_clinical_tags
 from app.utils.serialization import safe_oid, serialize_doc
 
 router = APIRouter()
@@ -21,7 +21,7 @@ async def get_departments():
     """获取所有科室及在院患者数量"""
     col = runtime.db.col("patient")
     pipeline = [
-        {"$match": active_patient_query()},
+        {"$match": admitted_patient_query()},
         {"$group": {"_id": {"$ifNull": ["$hisDept", "$dept"]}, "patientCount": {"$sum": 1}}},
         {"$match": {"_id": {"$ne": None}}},
         {"$sort": {"patientCount": -1}},
@@ -39,7 +39,7 @@ async def get_patients(
     dept_code: Optional[str] = Query(None, description="科室代码"),
 ):
     """获取在院患者列表，可按科室筛选"""
-    query: dict = active_patient_query()
+    query: dict = admitted_patient_query()
     if dept:
         query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}]}]}
     elif dept_code:

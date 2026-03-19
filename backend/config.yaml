@@ -163,6 +163,121 @@ ai_service:
     backend: "tfidf"                      # "tfidf" | "embedding"
     embedding_model: "BAAI/bge-small-zh-v1.5"
 
+  clinical_reasoning:
+    enabled: true
+    rag_top_k: 6
+    persist_window_minutes: 60
+    reference_types: ["guideline", "consensus", "meta-analysis"]
+
+  document_generation:
+    enabled: true
+    default_hours: 24
+    rag_top_k: 5
+    persist_window_minutes: 30
+    temperature: 0.1
+    timeout: 60
+    max_tokens: 3200
+
+  knowledge_graph:
+    enabled: true
+    persist_window_minutes: 60
+
+  multi_agent:
+    enabled: true
+    persist_window_minutes: 60
+
+extended_scenarios:
+  post_cardiac_surgery:
+    - tamponade_risk
+    - sternal_wound_infection
+    - post_pump_syndrome
+  post_neurosurgery:
+    - cerebral_vasospasm
+    - hydrocephalus_acute
+    - seizure_prophylaxis
+  post_liver_transplant:
+    - primary_graft_nonfunction
+    - hepatic_artery_thrombosis
+  rare_critical:
+    - malignant_hyperthermia
+    - transfusion_reaction
+    - adrenal_crisis
+    - thyroid_storm
+    - fat_embolism_syndrome
+    - refeeding_syndrome
+    - tumor_lysis_syndrome
+    - heparin_induced_thrombocytopenia
+  drug_interactions:
+    - serotonin_syndrome
+    - neuroleptic_malignant_syndrome
+    - propofol_infusion_syndrome
+    - contrast_nephropathy_risk
+  device_complications:
+    - ventilator_auto_peep
+    - iabp_timing_mismatch
+    - ecmo_circuit_thrombosis
+    - pacemaker_failure_to_capture
+    - crrt_filter_clotting
+    - central_line_dislodgement_risk
+    - arterial_line_failure
+    - tracheostomy_obstruction
+    - urinary_catheter_obstruction
+  hemodynamic_instability:
+    - septic_shock_escalation
+    - septic_shock_refractory
+    - hemorrhagic_shock
+    - cardiogenic_shock
+    - obstructive_shock_pe
+    - vasoplegia_refractory
+    - hypertensive_emergency
+  respiratory_failure:
+    - refractory_hypoxemia
+    - hypercapnic_failure
+    - pneumothorax_risk
+    - aspiration_pneumonia
+    - mucus_plugging
+    - ventilator_asynchrony
+    - extubation_failure_risk
+    - pulmonary_edema
+  renal_metabolic:
+    - aki_progression
+    - hyperkalemia_critical
+    - severe_hyponatremia
+    - severe_hypernatremia
+    - metabolic_acidosis
+    - lactic_acidosis_persistent
+    - uremic_complication
+    - rhabdomyolysis
+  infection_sepsis:
+    - sepsis_escalation
+    - invasive_fungal_risk
+    - catheter_bloodstream_infection
+    - ventilator_associated_pneumonia
+    - c_difficile_risk
+    - neutropenic_sepsis_risk
+  neuro_critical:
+    - delirium_hyperactive
+    - delirium_hypoactive
+    - status_epilepticus_risk
+    - elevated_icp_risk
+    - acute_stroke_evolution
+  hematology_transfusion:
+    - dic_progression
+    - active_bleeding_risk
+    - coagulopathy_severe
+    - thrombocytopenia_severe
+    - anemia_transfusion_trigger
+  nutrition_endocrine:
+    - hypoglycemia_critical
+    - hyperglycemia_crisis
+    - starvation_ketosis_risk
+    - adrenal_insufficiency_risk
+  postoperative_general:
+    - anastomotic_leak_risk
+    - postop_bleeding_recurrence
+    - ileus_risk
+    - abdominal_compartment_risk
+
   monitor:
     enabled: true
     aggregate_interval_seconds: 300
@@ -212,6 +327,8 @@ alert_engine:
     alert_reasoning: 300
     adaptive_threshold_advisor: 7200
     discharge_readiness: 1800
+    proactive_management: 300
+    extended_scenarios: 1800
 
   severity_levels:
     warning:  { color: "#ffab00", priority: 1 }
@@ -504,6 +621,18 @@ alert_engine:
         categories: ["tbi"]
         parameters: ["gcs", "rass", "icp", "cpp", "pupil", "neuro"]
         keywords: ["神经", "意识", "谵妄", "瞳孔", "颅脑", "neuro", "gcs", "rass"]
+
+  proactive_management:
+    enabled: true
+    lookback_hours: 6
+    trajectory_hours: 6
+    lab_window_hours: 24
+    drug_window_hours: 24
+    trigger_probability: 0.3
+    alert_probability: 0.45
+    persist_window_minutes: 20
+    max_patients_per_cycle: 60
+    tracked_labs: ["lac", "cr", "wbc", "plt", "tbil", "inr"]
 
   trend_analysis_advanced:
     acute_window_minutes: 30

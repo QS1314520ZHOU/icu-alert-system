@@ -39,6 +39,10 @@ def active_patient_query() -> dict:
     }
 
 
+def admitted_patient_query() -> dict:
+    return {"status": "admitted"}
+
+
 def patient_his_pid_candidates(patient: dict | None) -> list[str]:
     if not patient:
         return []
