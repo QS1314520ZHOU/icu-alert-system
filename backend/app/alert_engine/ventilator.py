@@ -190,10 +190,16 @@ class VentilatorMixin:
 
     def _predicted_body_weight(self, patient_doc: dict) -> float | None:
         height_cm = self._patient_height_cm(patient_doc)
-        if height_cm is None:
-            return None
         sex_text = str(patient_doc.get("gender") or patient_doc.get("hisSex") or "").lower()
         female = any(k in sex_text for k in ["female", "女", "f"])
+        if height_cm is None:
+            cfg = self._weaning_cfg()
+            fallback_key = "default_female_height_cm" if female else "default_male_height_cm"
+            fallback_height = cfg.get(fallback_key, 160 if female else 170)
+            try:
+                height_cm = float(fallback_height)
+            except Exception:
+                return None
         base = 45.5 if female else 50.0
         return round(base + 0.91 * (height_cm - 152.4), 2)
 
@@ -499,7 +505,17 @@ class VentilatorMixin:
         add_factor("fluid_overload_gt_10", fluid_pct is not None and fluid_pct > float(cfg.get("fluid_overload_high_pct", 10)), f"明显液体过负荷 %FO {fluid_pct}%", 3, "液体负荷偏重，当前不宜脱机")
 
         add_factor("bnp_surge", (bnp.get("ratio") or 0) >= float(cfg.get("bnp_surge_ratio", 1.5)), f"BNP {bnp.get('baseline')}→{bnp.get('latest')} (x{bnp.get('ratio')})", 2, "请先评估心功能/容量状态，必要时先利尿")
-        add_factor("previous_sbt_failure", isinstance(sbt_result, dict) and sbt_result.get("result") == "failed", f"近72h SBT 失败", 3, "请针对上次 SBT 失败原因先处理后再尝试")
+        sbt_objective_failure = isinstance(sbt_result, dict) and (
+            (sbt_result.get("rr") is not None and float(sbt_result.get("rr") or 0) >= 35)
+            or (sbt_result.get("rsbi") is not None and float(sbt_result.get("rsbi") or 0) >= float(cfg.get("rsbi_high", 105)))
+        )
+        add_factor(
+            "previous_sbt_failure",
+            isinstance(sbt_result, dict) and (sbt_result.get("result") == "failed" or sbt_objective_failure),
+            "近72h SBT 失败或客观指标不耐受",
+            3,
+            "请针对上次 SBT 失败原因先处理后再尝试",
+        )
         add_factor("vasopressor_support", bool(on_vaso), "仍需血管活性药支持", 2, "请先稳定循环再考虑脱机")
         add_factor("gcs_low", gcs is not None and gcs < float(cfg.get("gcs_min", 9)), f"GCS {gcs}", 1, "请先确认意识/保护气道能力")
         add_factor("map_low", map_value is not None and map_value < float(cfg.get("map_min", 65)), f"MAP {map_value}", 1, "请先稳定循环后再试 SBT")

@@ -7,12 +7,15 @@
     >
       <div class="bed-head">
         <div class="bed-head-main">
-          <div class="bed-no">{{ patient.hisBed || '--' }}床</div>
-          <div class="bed-tags">
-            <span class="bed-tag">ICU</span>
-            <span :class="['bed-tag', 'bed-tag--soft', `bed-tag--${patient.alertLevel || 'none'}`]">
-              {{ alertText(patient.alertLevel) }}
-            </span>
+          <div class="bed-no">{{ patient.hisBed || '--' }}</div>
+          <div class="bed-head-copy">
+            <div class="bed-zone">监护床位</div>
+            <div class="bed-tags">
+              <span class="bed-tag">重症监护</span>
+              <span :class="['bed-tag', 'bed-tag--soft', `bed-tag--${patient.alertLevel || 'none'}`]">
+                {{ alertText(patient.alertLevel) }}
+              </span>
+            </div>
           </div>
         </div>
         <span :class="['lamp', `lamp-${patient.alertLevel || 'none'}`]"></span>
@@ -21,22 +24,25 @@
         <div class="bed-name">{{ patient.name || '—' }}</div>
         <div class="bed-meta">{{ genderText(patient.gender) }} / {{ patient.age || '—' }}</div>
       </div>
-      <div class="bed-diag">{{ shortDiag(patient.clinicalDiagnosis || patient.admissionDiagnosis) }}</div>
+      <div class="bed-diag-block">
+        <div class="bed-diag-label">当前诊断</div>
+        <div class="bed-diag">{{ shortDiag(patient.clinicalDiagnosis || patient.admissionDiagnosis) }}</div>
+      </div>
       <div class="bed-vitals">
         <div class="vital-cell">
-          <span>HR</span>
+          <span>心率</span>
           <b>{{ patient.vitals?.hr ?? '—' }}</b>
         </div>
         <div class="vital-cell">
-          <span>SpO₂</span>
+          <span>血氧</span>
           <b>{{ patient.vitals?.spo2 ?? '—' }}</b>
         </div>
         <div class="vital-cell">
-          <span>RR</span>
+          <span>呼吸</span>
           <b>{{ patient.vitals?.rr ?? '—' }}</b>
         </div>
         <div class="vital-cell vital-cell--bp">
-          <span>BP</span>
+          <span>血压</span>
           <b>{{ formatBp(patient.vitals) }}</b>
         </div>
       </div>
@@ -53,8 +59,8 @@
         <div class="extub-risk-subtitle">拔管后再插管高风险</div>
         <div class="extub-risk-main">{{ riskSummary(patient.postExtubationRisk) }}</div>
         <div class="extub-risk-metrics">
-          <span class="extub-risk-chip">RR {{ formatMetric(patient.postExtubationRisk?.rr) }}</span>
-          <span class="extub-risk-chip">SpO₂ {{ formatPercent(patient.postExtubationRisk?.spo2) }}</span>
+          <span class="extub-risk-chip">呼吸 {{ formatMetric(patient.postExtubationRisk?.rr) }}</span>
+          <span class="extub-risk-chip">血氧 {{ formatPercent(patient.postExtubationRisk?.spo2) }}</span>
           <span class="extub-risk-chip">拔管后 {{ formatHours(patient.postExtubationRisk?.hours_since_extubation) }}</span>
         </div>
         <div class="extub-risk-brief">
@@ -80,8 +86,8 @@
         <div class="bed-hover-block">
           <div class="bed-hover-label">主要依据</div>
           <div class="bed-hover-chip-row">
-            <span class="bed-hover-chip">RR {{ formatMetric(patient.postExtubationRisk?.rr) }}</span>
-            <span class="bed-hover-chip">SpO₂ {{ formatPercent(patient.postExtubationRisk?.spo2) }}</span>
+            <span class="bed-hover-chip">呼吸 {{ formatMetric(patient.postExtubationRisk?.rr) }}</span>
+            <span class="bed-hover-chip">血氧 {{ formatPercent(patient.postExtubationRisk?.spo2) }}</span>
             <span class="bed-hover-chip">拔管后 {{ formatHours(patient.postExtubationRisk?.hours_since_extubation) }}</span>
           </div>
         </div>
@@ -169,7 +175,7 @@ function riskSummary(risk: any) {
   const rr = formatMetric(risk?.rr)
   const spo2 = formatPercent(risk?.spo2)
   const hours = formatHours(risk?.hours_since_extubation)
-  return `拔管后 ${hours} 呼吸负荷升高 · RR ${rr} / SpO₂ ${spo2}`
+  return `拔管后 ${hours} 呼吸负荷升高 · 呼吸 ${rr} / 血氧 ${spo2}`
 }
 
 function riskDrawerTitle() {
@@ -187,57 +193,91 @@ function riskSuggestion(value: any) {
 <style scoped>
 .bed-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(204px, 1fr));
+  gap: 12px;
 }
 .bed-card {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0) 26%),
-    linear-gradient(180deg, rgba(8, 22, 36, 0.96) 0%, rgba(5, 14, 25, 0.98) 100%);
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14) 0%, rgba(56, 189, 248, 0) 28%),
+    linear-gradient(180deg, rgba(8, 23, 38, 0.96) 0%, rgba(5, 14, 25, 0.99) 100%);
   border: 1px solid rgba(80, 199, 255, 0.14);
-  border-radius: 12px;
-  padding: 10px 10px 11px;
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 8px 20px rgba(0,0,0,.2);
+  border-radius: 16px;
+  padding: 12px 12px 13px;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 24px rgba(0,0,0,.24);
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.bed-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+  background: rgba(80, 199, 255, 0.7);
 }
 .bed-card::after {
   content: '';
   position: absolute;
-  inset: 8px;
+  inset: 9px;
   border: 1px solid rgba(72, 193, 255, 0.05);
-  border-radius: 9px;
+  border-radius: 12px;
   pointer-events: none;
 }
 .bed-card:hover {
   transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 16px 32px rgba(0,0,0,.28);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 18px 34px rgba(0,0,0,.3);
 }
 .bed-card.flash { animation: flash-border 1.2s ease-in-out infinite; }
 .bed-critical { border-color: rgba(251, 90, 122, 0.3); }
 .bed-warning { border-color: rgba(245, 158, 11, 0.28); }
 .bed-high { border-color: rgba(249, 115, 22, 0.28); }
 .bed-normal { border-color: rgba(52, 211, 153, 0.2); }
+.bed-critical::before { background: linear-gradient(180deg, #fb5a7a 0%, #be123c 100%); }
+.bed-high::before { background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%); }
+.bed-warning::before { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); }
+.bed-normal::before { background: linear-gradient(180deg, #34d399 0%, #059669 100%); }
 .bed-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
 }
 .bed-head-main {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .bed-no {
-  font-size: 18px;
-  font-weight: 700;
-  color: #7de8f6;
-  line-height: 1.05;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 52px;
+  padding: 0 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(12, 46, 68, 0.98) 0%, rgba(8, 30, 45, 0.98) 100%);
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  font-size: 19px;
+  font-weight: 800;
+  color: #eafcff;
+  line-height: 1;
+  font-family: 'Rajdhani', 'JetBrains Mono', monospace;
+}
+.bed-head-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.bed-zone {
+  color: #72d9eb;
+  font-size: 10px;
+  letter-spacing: .14em;
 }
 .bed-tags {
   display: flex;
   gap: 6px;
-  margin-top: 6px;
   flex-wrap: wrap;
 }
 .bed-tag {
@@ -264,11 +304,12 @@ function riskSuggestion(value: any) {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  align-items: baseline;
-  margin: 8px 0 4px;
+  align-items: flex-start;
+  min-height: 36px;
+  margin: 10px 0 8px;
 }
 .bed-name {
-  font-size: 14px;
+  font-size: 15px;
   color: #effcff;
   font-weight: 700;
   min-width: 0;
@@ -277,56 +318,69 @@ function riskSuggestion(value: any) {
   text-overflow: ellipsis;
 }
 .bed-meta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(8, 31, 47, 0.72);
+  border: 1px solid rgba(80,199,255,.08);
   color: #7ecce1;
   font-size: 10px;
   white-space: nowrap;
 }
+.bed-diag-block {
+  display: grid;
+  gap: 5px;
+  min-height: 58px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(7, 27, 42, 0.78) 0%, rgba(6, 21, 34, 0.78) 100%);
+  border: 1px solid rgba(80,199,255,.08);
+}
+.bed-diag-label {
+  color: #6fd6ea;
+  font-size: 9px;
+  letter-spacing: .06em;
+}
 .bed-diag {
-  color: #8fb8ca;
+  color: #b8d5e1;
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 1.4;
   min-height: 30px;
 }
 .bed-vitals {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 .vital-cell {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 7px 8px;
-  border-radius: 8px;
-  background: rgba(7, 27, 42, 0.84);
+  display: grid;
+  gap: 5px;
+  align-content: space-between;
+  min-height: 62px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(8, 31, 47, 0.92) 0%, rgba(6, 24, 37, 0.9) 100%);
   border: 1px solid rgba(80,199,255,.1);
   font-size: 10px;
   color: #7ecce1;
 }
 .vital-cell span {
-  letter-spacing: .08em;
+  letter-spacing: .04em;
 }
 .vital-cell b {
   color: #effcff;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1;
   font-family: 'JetBrains Mono', monospace;
 }
 .vital-cell--bp {
   grid-column: 1 / -1;
 }
 .vital-cell--bp b {
-  font-size: 13px;
-}
-.extub-risk-card {
-  margin-top: 8px;
-  padding: 9px 10px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(251, 146, 60, 0.22);
-  background:
-    linear-gradient(180deg, rgba(60, 22, 13, 0.95) 0%, rgba(27, 12, 9, 0.98) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  font-size: 14px;
 }
 .extub-risk-card--critical {
   border-color: rgba(251, 90, 122, 0.32);
@@ -389,7 +443,7 @@ function riskSuggestion(value: any) {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 .extub-risk-chip {
   display: inline-flex;
@@ -403,11 +457,11 @@ function riskSuggestion(value: any) {
   font-size: 10px;
 }
 .extub-risk-brief {
-  margin-top: 8px;
+  margin-top: 10px;
   display: grid;
   gap: 4px;
-  padding: 7px 8px;
-  border-radius: 8px;
+  padding: 8px 9px;
+  border-radius: 10px;
   border: 1px solid rgba(55, 199, 147, 0.14);
   background: linear-gradient(180deg, rgba(8, 38, 30, 0.66) 0%, rgba(6, 27, 22, 0.76) 100%);
 }
@@ -424,7 +478,7 @@ function riskSuggestion(value: any) {
 }
 .bed-hover-drawer {
   position: absolute;
-  inset: 8px;
+  inset: 9px;
   z-index: 3;
   display: grid;
   align-content: start;
@@ -553,10 +607,12 @@ function riskSuggestion(value: any) {
 
 @media (max-width: 1100px) {
   .bed-grid {
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
   }
   .bed-hover-drawer {
     display: none;
   }
 }
 </style>
+
+

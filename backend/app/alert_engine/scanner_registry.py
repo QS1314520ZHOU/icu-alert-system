@@ -49,6 +49,8 @@ from .scanner_extended_scenarios import ExtendedScenariosScanner
 from .scanner_ai_risk import AiRiskScanner
 from .scanner_alert_reasoning import AlertReasoningScanner
 from .scanner_nurse_reminders import NurseRemindersScanner
+from .scanner_nursing_note_analyzer import NursingNoteAnalyzerScanner
+from .scanner_nursing_workload import NursingWorkloadScanner
 
 if TYPE_CHECKING:
     from . import AlertEngine
@@ -102,4 +104,6 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         AiRiskScanner(engine),
         AlertReasoningScanner(engine),
         NurseRemindersScanner(engine),
+        NursingNoteAnalyzerScanner(engine),
+        NursingWorkloadScanner(engine),
     ]

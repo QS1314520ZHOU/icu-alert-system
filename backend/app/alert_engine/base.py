@@ -12,6 +12,7 @@ from typing import Any
 
 import numpy as np
 from app.alert_engine.acid_base_analyzer import extract_bga_temp_items
+from app.alert_engine.task_queue import load_queue_settings, publish_event
 from app.services.llm_runtime import call_llm_chat
 from app.services.temporal_model_runtime import TemporalRiskModelRuntime
 from app.utils.bed_matching import _bed_match, _normalize_bed
@@ -2954,8 +2955,6 @@ class BaseEngine:
             logger.error(f"写入护理提醒失败: {e}")
 
     async def _broadcast_alert(self, alert_doc: dict) -> None:
-        if not self.ws:
-            return
         if hasattr(self, "_should_broadcast_alert"):
             try:
                 if not self._should_broadcast_alert(alert_doc):
@@ -2967,7 +2966,17 @@ class BaseEngine:
             if not roles:
                 extra = alert_doc.get("extra") if isinstance(alert_doc.get("extra"), dict) else {}
                 roles = extra.get("route_targets")
-            await self.ws.broadcast({"type": "alert", "data": alert_doc}, roles=roles)
+            redis_client = getattr(self.db, "redis", None)
+            should_publish = bool(redis_client) and (not self.ws or getattr(self, "runtime_role", "api") == "worker")
+            published = False
+            if should_publish:
+                settings = load_queue_settings(self.config)
+                payload = {"type": "alert", "data": alert_doc, "roles": roles}
+                published = await publish_event(redis_client, settings.redis_pubsub_channel, payload)
+            if self.ws:
+                await self.ws.broadcast({"type": "alert", "data": alert_doc}, roles=roles)
+            elif not published:
+                return
         except Exception as e:
             logger.warning(f"WebSocket 广播失败: {e}")
 

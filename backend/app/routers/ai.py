@@ -14,8 +14,10 @@ from app import runtime
 from app.config import get_config
 from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
+from app.services.counterfactual_model import SemiMechanisticCounterfactualModel
 from app.services.document_generator import ClinicalDocumentGenerator
 from app.services.multi_agent_orchestrator import ICUMultiAgentOrchestrator
+from app.services.subphenotype_clustering import CohortSubphenotypeProfiler
 from app.utils.api_llm import call_api_llm
 from app.utils.patient_data import fetch_dc_exam_items_by_his_pid, get_device_id, latest_params_by_device, param_series_by_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
@@ -61,6 +63,19 @@ def _iso(value: object) -> str | None:
     if value is None:
         return None
     return str(value)
+
+
+def _serialize_nullable(value):
+    """Serialize nested values while preserving None as JSON null instead of {}."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return [_serialize_nullable(item) for item in value]
+    if isinstance(value, tuple):
+        return [_serialize_nullable(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _serialize_nullable(item) for key, item in value.items()}
+    return serialize_doc(value)
 
 
 def _hours_from_window(window: str) -> int:
@@ -193,6 +208,404 @@ def _build_metric_cards(trend_points: list[dict], specs: list[tuple[str, str, st
             }
         )
     return cards
+
+
+def _bounded(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
+
+
+def _safe_ratio(numerator: float | None, denominator: float | None, *, default: float | None = None) -> float | None:
+    if numerator is None or denominator in (None, 0):
+        return default
+    try:
+        return float(numerator) / float(denominator)
+    except Exception:
+        return default
+
+
+def _sigmoid(value: float) -> float:
+    clipped = _bounded(value, -30.0, 30.0)
+    return 1.0 / (1.0 + math.exp(-clipped))
+
+
+def _softmax(scores: dict[str, float]) -> dict[str, float]:
+    if not scores:
+        return {}
+    peak = max(scores.values())
+    weights = {key: math.exp(value - peak) for key, value in scores.items()}
+    total = sum(weights.values()) or 1.0
+    return {key: round(val / total, 4) for key, val in weights.items()}
+
+
+def _feature_distance(feature_values: dict[str, float], centroid: dict[str, Any]) -> float:
+    axes = centroid.get("axes") if isinstance(centroid.get("axes"), dict) else {}
+    if not axes:
+        return 99.0
+    total = 0.0
+    weight_sum = 0.0
+    for axis, spec in axes.items():
+        if axis not in feature_values:
+            continue
+        center = _safe_float((spec or {}).get("center"))
+        spread = max(_safe_float((spec or {}).get("spread")) or 1.0, 1e-6)
+        weight = max(_safe_float((spec or {}).get("weight")) or 1.0, 1e-6)
+        if center is None:
+            continue
+        total += abs(feature_values[axis] - center) / spread * weight
+        weight_sum += weight
+    if weight_sum <= 0:
+        return 99.0
+    return total / weight_sum
+
+
+def _dynamic_curve(current_value: float | None, delta: float, *, tau_minutes: float, horizon_minutes: int = 30, step_minutes: int = 5, digits: int = 1) -> list[dict[str, Any]]:
+    if current_value is None:
+        return []
+    rows: list[dict[str, Any]] = []
+    tau = max(tau_minutes, 1.0)
+    for minute in range(0, horizon_minutes + 1, step_minutes):
+        gain = 1.0 - math.exp(-minute / tau)
+        rows.append({"minute": minute, "value": _round_number(current_value + delta * gain, digits)})
+    return rows
+
+
+def _latest_series_value(rows: list[dict], *, digits: int = 1) -> float | None:
+    if not rows:
+        return None
+    return _round_number(_safe_float(rows[-1].get("value")), digits)
+
+
+def _series_delta(rows: list[dict], *, digits: int = 1) -> float | None:
+    if len(rows) < 2:
+        return None
+    start = _safe_float(rows[0].get("value"))
+    end = _safe_float(rows[-1].get("value"))
+    if start is None or end is None:
+        return None
+    return _round_number(end - start, digits)
+
+
+async def _build_patient_monitor_snapshot(patient_id: str, patient: dict, *, hours: int = 12) -> dict[str, Any]:
+    since = datetime.now() - timedelta(hours=max(2, hours))
+    patient_ids = patient_his_pid_candidates(patient)
+    map_series = await param_series_by_pid(patient_id, "param_nibp_m", since)
+    ibp_map_series = await param_series_by_pid(patient_id, "param_ibp_m", since)
+    hr_series = await param_series_by_pid(patient_id, "param_HR", since)
+    spo2_series = await param_series_by_pid(patient_id, "param_spo2", since)
+    lactate_series = await _lab_series_by_keywords(patient_ids, ["乳酸", "lactate", "lac"], since)
+    merged_map_series = ibp_map_series if ibp_map_series else map_series
+    vent_device_id = await get_device_id(patient_id, "vent", patient_doc=patient)
+    vent_cfg = (get_config().yaml_cfg or {}).get("ventilator", {})
+    fio2_code = ((vent_cfg.get("fio2") or {}).get("code")) or "param_FiO2"
+    peep_code = ((vent_cfg.get("peep_measured") or {}).get("code")) or "param_vent_measure_peep"
+    fio2_series = await _device_cap_series(vent_device_id, fio2_code, since)
+    peep_series = await _device_cap_series(vent_device_id, peep_code, since)
+    urine_rate = None
+    if hasattr(runtime.alert_engine, "_get_urine_rate"):
+        try:
+            urine_rate = await runtime.alert_engine._get_urine_rate(patient_id, patient, hours=6)
+        except Exception:
+            urine_rate = None
+    vasoactive_count = 0
+    current_vaso_dose = None
+    if hasattr(runtime.alert_engine, "_get_recent_drug_docs_window"):
+        try:
+            drug_docs = await runtime.alert_engine._get_recent_drug_docs_window(patient_id, hours=hours, limit=600)
+            weight_kg = runtime.alert_engine._get_patient_weight(patient) if hasattr(runtime.alert_engine, "_get_patient_weight") else None
+            vaso_rows = []
+            for doc in drug_docs:
+                text = " ".join(str(doc.get(k) or "") for k in ("drugName", "orderName", "drugSpec", "route", "routeName")).lower()
+                if not any(token in text for token in ["去甲肾上腺素", "norepinephrine", "noradrenaline", "多巴胺", "dopamine", "肾上腺素", "epinephrine", "血管加压素", "vasopressin"]):
+                    continue
+                dose = runtime.alert_engine._extract_vasopressor_rate_ug_kg_min(doc, weight_kg) if hasattr(runtime.alert_engine, "_extract_vasopressor_rate_ug_kg_min") else None
+                event_time = _parse_when(doc.get("_event_time")) or _parse_when(doc.get("executeTime")) or _parse_when(doc.get("startTime")) or _parse_when(doc.get("orderTime"))
+                if event_time is None or event_time < since:
+                    continue
+                vaso_rows.append({"time": event_time, "dose": dose})
+            vasoactive_count = len(vaso_rows)
+            if vaso_rows:
+                latest_vaso = max(vaso_rows, key=lambda item: item["time"])
+                current_vaso_dose = _round_number(_safe_float(latest_vaso.get("dose")), 3)
+        except Exception:
+            vasoactive_count = 0
+            current_vaso_dose = None
+
+    return {
+        "window_hours": hours,
+        "map": {
+            "current": _latest_series_value(merged_map_series, digits=0),
+            "delta_12h": _series_delta(merged_map_series, digits=0),
+        },
+        "hr": {
+            "current": _latest_series_value(hr_series, digits=0),
+            "delta_12h": _series_delta(hr_series, digits=0),
+        },
+        "spo2": {
+            "current": _latest_series_value(spo2_series, digits=0),
+            "delta_12h": _series_delta(spo2_series, digits=0),
+        },
+        "lactate": {
+            "current": _latest_series_value(lactate_series, digits=1),
+            "delta_12h": _series_delta(lactate_series, digits=1),
+        },
+        "fio2": {
+            "current": _latest_series_value(fio2_series, digits=0),
+        },
+        "peep": {
+            "current": _latest_series_value(peep_series, digits=0),
+        },
+        "urine_ml_kg_h_6h": _round_number(_safe_float(urine_rate), 2),
+        "vasoactive_support": {
+            "active_count": vasoactive_count,
+            "current_dose_ug_kg_min": current_vaso_dose,
+        },
+    }
+
+
+def _build_what_if_curve(current_value: float | None, delta_30m: float, *, horizon_minutes: int = 30, step: int = 10, digits: int = 1) -> list[dict[str, Any]]:
+    if current_value is None:
+        return []
+    rows: list[dict[str, Any]] = []
+    for minute in range(0, horizon_minutes + 1, step):
+        progress = minute / max(horizon_minutes, 1)
+        rows.append(
+            {
+                "minute": minute,
+                "value": _round_number(current_value + delta_30m * progress, digits),
+            }
+        )
+    return rows
+
+
+def _subphenotype_confidence(evidence_count: int, *, strong: bool = False) -> float:
+    base = 0.46 + min(max(evidence_count, 0), 5) * 0.08
+    if strong:
+        base += 0.08
+    return _bounded(round(base, 2), 0.35, 0.92)
+
+
+def _published_subphenotype_prototypes() -> dict[str, list[dict[str, Any]]]:
+    return {
+        "sepsis": [
+            {
+                "code": "shock_hyperinflammatory",
+                "label": "脓毒症高炎症/休克型",
+                "summary": "乳酸、升压药和炎症负荷更突出，接近高炎症循环衰竭表型。",
+                "axes": {
+                    "lactate": {"center": 4.5, "spread": 1.4, "weight": 1.5},
+                    "map_inverse": {"center": 1.0, "spread": 0.5, "weight": 1.2},
+                    "vaso_dose": {"center": 0.22, "spread": 0.12, "weight": 1.5},
+                    "wbc": {"center": 18.0, "spread": 5.0, "weight": 0.8},
+                    "platelet_inverse": {"center": 1.0, "spread": 0.7, "weight": 0.9},
+                    "creatinine": {"center": 160.0, "spread": 60.0, "weight": 0.8},
+                },
+                "care_implications": [
+                    "优先按休克路径管理灌注目标、升压药和乳酸清除",
+                    "把感染源控制与器官灌注复评放在同一节奏里推进",
+                ],
+            },
+            {
+                "code": "organ_dysfunction_dominant",
+                "label": "脓毒症器官功能障碍主导型",
+                "summary": "炎症存在，但肾脏、凝血或胆红素等器官损伤信号更占主导。",
+                "axes": {
+                    "lactate": {"center": 2.4, "spread": 1.0, "weight": 0.8},
+                    "map_inverse": {"center": 0.4, "spread": 0.5, "weight": 0.8},
+                    "creatinine": {"center": 220.0, "spread": 70.0, "weight": 1.4},
+                    "bilirubin": {"center": 60.0, "spread": 26.0, "weight": 1.1},
+                    "platelet_inverse": {"center": 1.2, "spread": 0.8, "weight": 1.0},
+                    "sofa": {"center": 9.0, "spread": 2.5, "weight": 1.0},
+                },
+                "care_implications": [
+                    "更需要器官保护与灌注支持并行，而不是只盯感染与血压",
+                    "日内复盘重点应覆盖肾功能、凝血和胆红素轨迹",
+                ],
+            },
+            {
+                "code": "moderate_inflammatory",
+                "label": "脓毒症中等炎症活动型",
+                "summary": "存在感染炎症证据，但暂未进入明显休克或多器官衰竭高负荷模式。",
+                "axes": {
+                    "lactate": {"center": 2.0, "spread": 0.8, "weight": 1.0},
+                    "map_inverse": {"center": 0.2, "spread": 0.3, "weight": 0.8},
+                    "vaso_dose": {"center": 0.04, "spread": 0.05, "weight": 0.8},
+                    "wbc": {"center": 13.0, "spread": 4.0, "weight": 0.8},
+                    "sofa": {"center": 5.0, "spread": 2.0, "weight": 1.0},
+                },
+                "care_implications": ["更适合强化早期趋势监测与证据闭环，防止后续跨入高危表型"],
+            },
+        ],
+        "ards": [
+            {
+                "code": "diffuse_recruitable",
+                "label": "ARDS 弥漫可复张型",
+                "summary": "FiO2/PEEP 需求较高，接近弥漫受累和较高复张潜力表型。",
+                "axes": {
+                    "sf_inverse": {"center": 1.4, "spread": 0.5, "weight": 1.6},
+                    "fio2_fraction": {"center": 0.7, "spread": 0.15, "weight": 1.2},
+                    "peep": {"center": 12.0, "spread": 3.0, "weight": 1.0},
+                    "vaso_dose": {"center": 0.12, "spread": 0.08, "weight": 0.6},
+                },
+                "care_implications": [
+                    "更适合持续评估俯卧位、PEEP 窗口和肺保护通气",
+                    "需要同步评估复张收益与循环代价",
+                ],
+            },
+            {
+                "code": "focal_less_recruitable",
+                "label": "ARDS 局灶/低复张型",
+                "summary": "氧合受损存在，但呼吸机需求不完全呈现弥漫重度复张模式。",
+                "axes": {
+                    "sf_inverse": {"center": 0.9, "spread": 0.4, "weight": 1.2},
+                    "fio2_fraction": {"center": 0.5, "spread": 0.12, "weight": 1.0},
+                    "peep": {"center": 8.0, "spread": 2.0, "weight": 0.8},
+                },
+                "care_implications": [
+                    "更应结合影像、体位反应和分泌物负荷判断局灶病灶",
+                    "避免机械性上调 PEEP 而忽视循环副作用",
+                ],
+            },
+        ],
+        "aki": [
+            {
+                "code": "hypoperfusion_oliguric",
+                "label": "AKI 低灌注少尿型",
+                "summary": "少尿与低灌注并存，更接近肾前性/灌注不足驱动模式。",
+                "axes": {
+                    "creatinine": {"center": 180.0, "spread": 70.0, "weight": 1.2},
+                    "urine_inverse": {"center": 1.4, "spread": 0.6, "weight": 1.6},
+                    "map_inverse": {"center": 0.8, "spread": 0.5, "weight": 1.0},
+                    "lactate": {"center": 3.0, "spread": 1.3, "weight": 0.8},
+                },
+                "care_implications": ["优先复核灌注压、容量反应性与肾毒性暴露"],
+            },
+            {
+                "code": "nonoliguric_inflammatory",
+                "label": "AKI 非少尿/炎症负荷型",
+                "summary": "肌酐负荷升高，但并不完全由典型低灌注少尿解释。",
+                "axes": {
+                    "creatinine": {"center": 200.0, "spread": 75.0, "weight": 1.4},
+                    "urine_inverse": {"center": 0.4, "spread": 0.4, "weight": 0.8},
+                    "wbc": {"center": 15.0, "spread": 4.0, "weight": 0.8},
+                    "bilirubin": {"center": 30.0, "spread": 18.0, "weight": 0.7},
+                },
+                "care_implications": ["更应同时回顾感染、药物与容量管理对肾功能的共同影响"],
+            },
+        ],
+    }
+
+
+async def _build_subphenotype_inputs(patient_id: str, patient: dict) -> dict[str, Any]:
+    snapshot = await _build_patient_monitor_snapshot(patient_id, patient, hours=24)
+    pid_obj = patient.get("_id")
+    facts = await runtime.alert_engine._collect_patient_facts(patient, pid_obj) if hasattr(runtime.alert_engine, "_collect_patient_facts") else {}
+    labs = facts.get("labs") if isinstance(facts.get("labs"), dict) else {}
+    his_pid = str(patient.get("hisPid") or "").strip() or None
+    device_id = await get_device_id(patient_id, "monitor", patient_doc=patient)
+    sofa = None
+    if hasattr(runtime.alert_engine, "_calc_sofa"):
+        try:
+            sofa = await runtime.alert_engine._calc_sofa(patient, pid_obj, device_id, his_pid)
+        except Exception:
+            sofa = None
+    similar_cases = None
+    if hasattr(runtime.alert_engine, "get_similar_case_outcomes"):
+        try:
+            similar_cases = await runtime.alert_engine.get_similar_case_outcomes(patient, limit=8)
+        except Exception:
+            similar_cases = None
+    return {"snapshot": snapshot, "facts": facts, "labs": labs, "sofa": sofa or {}, "similar_cases": similar_cases or {}}
+
+
+def _derive_subphenotype_feature_vector(patient: dict, payload: dict[str, Any]) -> tuple[dict[str, float], dict[str, Any]]:
+    snapshot = payload.get("snapshot") if isinstance(payload.get("snapshot"), dict) else {}
+    labs = payload.get("labs") if isinstance(payload.get("labs"), dict) else {}
+    sofa = payload.get("sofa") if isinstance(payload.get("sofa"), dict) else {}
+    age = _safe_float(patient.get("age"))
+    lactate = _safe_float(((snapshot.get("lactate") or {}).get("current")))
+    map_value = _safe_float(((snapshot.get("map") or {}).get("current")))
+    spo2 = _safe_float(((snapshot.get("spo2") or {}).get("current")))
+    fio2 = _safe_float(((snapshot.get("fio2") or {}).get("current")))
+    peep = _safe_float(((snapshot.get("peep") or {}).get("current")))
+    urine_rate = _safe_float(snapshot.get("urine_ml_kg_h_6h"))
+    vaso_dose = _safe_float((((snapshot.get("vasoactive_support") or {}).get("current_dose_ug_kg_min"))))
+    wbc = _safe_float(((labs.get("wbc") or {}) if isinstance(labs.get("wbc"), dict) else {}).get("value"))
+    plt = _safe_float(((labs.get("plt") or {}) if isinstance(labs.get("plt"), dict) else {}).get("value"))
+    cr = _safe_float(((labs.get("cr") or {}) if isinstance(labs.get("cr"), dict) else {}).get("value"))
+    bili = _safe_float(((labs.get("bil") or labs.get("bilirubin") or {}) if isinstance(labs.get("bil") or labs.get("bilirubin"), dict) else {}).get("value"))
+    sf_ratio = _safe_ratio(spo2, (fio2 / 100.0) if fio2 else None)
+    sofa_score = _safe_float(sofa.get("score"))
+    features = {
+        "age": age or 60.0,
+        "lactate": lactate or 1.5,
+        "map_inverse": max(0.0, (65.0 - (map_value or 65.0)) / 10.0),
+        "vaso_dose": vaso_dose or 0.0,
+        "wbc": wbc or 10.0,
+        "platelet_inverse": max(0.0, (150.0 - (plt or 150.0)) / 100.0),
+        "creatinine": cr or 90.0,
+        "bilirubin": bili or 18.0,
+        "sofa": sofa_score or 4.0,
+        "fio2_fraction": (fio2 or 21.0) / 100.0,
+        "peep": peep or 5.0,
+        "sf_inverse": max(0.0, (315.0 - ((sf_ratio or 3.15) * 100.0)) / 100.0),
+        "urine_inverse": max(0.0, (0.8 - (urine_rate or 0.8)) / 0.4),
+    }
+    snapshot_payload = {
+        "map": _round_number(map_value, 0),
+        "lactate": _round_number(lactate, 1),
+        "spo2": _round_number(spo2, 0),
+        "fio2": _round_number(fio2, 0),
+        "peep": _round_number(peep, 0),
+        "sf_ratio": _round_number((sf_ratio * 100.0) if sf_ratio is not None else None, 1),
+        "urine_ml_kg_h_6h": _round_number(urine_rate, 2),
+        "vaso_dose_ug_kg_min": _round_number(vaso_dose, 3),
+        "wbc": _round_number(wbc, 1),
+        "plt": _round_number(plt, 0),
+        "creatinine": _round_number(cr, 1),
+        "bilirubin": _round_number(bili, 1),
+        "sofa": _round_number(sofa_score, 0),
+    }
+    return features, snapshot_payload
+
+
+def _similar_case_prior(similar_cases_payload: dict[str, Any], syndrome: str) -> dict[str, float]:
+    cases = similar_cases_payload.get("cases") if isinstance(similar_cases_payload.get("cases"), list) else []
+    if not cases:
+        return {}
+    severe = 0.0
+    mild = 0.0
+    for row in cases[:6]:
+        support = float(bool(row.get("vasopressor_used"))) + float(bool(row.get("crrt_used"))) + float(bool(row.get("vent_used")))
+        if str(row.get("outcome") or "") == "死亡":
+            severe += 1.2 + support * 0.3
+        else:
+            mild += 1.0 + (0.3 if not row.get("crrt_used") else 0.0)
+    if syndrome == "sepsis":
+        return {"shock_hyperinflammatory": severe * 0.18, "organ_dysfunction_dominant": severe * 0.12, "moderate_inflammatory": mild * 0.12}
+    if syndrome == "ards":
+        return {"diffuse_recruitable": severe * 0.16, "focal_less_recruitable": mild * 0.10}
+    if syndrome == "aki":
+        return {"hypoperfusion_oliguric": severe * 0.14, "nonoliguric_inflammatory": mild * 0.10}
+    return {}
+
+
+async def _persist_ai_score_record(patient: dict, payload: dict[str, Any], *, score_type: str) -> dict[str, Any]:
+    now = datetime.now()
+    record = {
+        "patient_id": str(patient.get("_id") or ""),
+        "patient_name": patient.get("name") or patient.get("hisName") or "",
+        "bed": patient.get("hisBed") or patient.get("bed") or "",
+        "dept": patient.get("dept") or patient.get("hisDept") or "",
+        "score_type": score_type,
+        "calc_time": now,
+        "updated_at": now,
+        "month": now.strftime("%Y-%m"),
+        "day": now.strftime("%Y-%m-%d"),
+        **payload,
+    }
+    insert_res = await runtime.db.col("score_records").insert_one(record)
+    record["_id"] = insert_res.inserted_id
+    return record
 
 
 async def _build_hemodynamic_panel(patient_id: str, patient: dict, *, hours: int) -> dict:
@@ -940,6 +1353,81 @@ async def ai_intervention_effects(intervention: str = Query(..., description="�
         return {"code": 0, "prediction": None, "error": f"干预影响预测异常: {str(exc)[:120]}"}
 
 
+@router.get("/api/ai/nursing-note-signals/{patient_id}")
+async def ai_nursing_note_signals(patient_id: str, refresh: bool = Query(default=False)):
+    """护理文本异常信号分析。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        record = None
+        if not refresh and hasattr(runtime.alert_engine, "latest_nursing_note_analysis"):
+            record = await runtime.alert_engine.latest_nursing_note_analysis(str(pid), hours=24)
+        if not record and hasattr(runtime.alert_engine, "analyze_nursing_notes"):
+            record = await runtime.alert_engine.analyze_nursing_notes(patient, str(pid), hours=12, persist=True)
+        return {"code": 0, "analysis": serialize_doc(record) if record else None}
+    except Exception as exc:
+        logger.error("AI nursing note signals error: %s", exc)
+        return {"code": 0, "analysis": None, "error": f"护理文本分析异常: {str(exc)[:120]}"}
+
+
+@router.post("/api/ai/what-if/{patient_id}")
+async def ai_what_if_simulation(patient_id: str, payload: dict = Body(default={})):
+    """患者特异的短时反事实模拟。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        model = SemiMechanisticCounterfactualModel(db=runtime.db, alert_engine=runtime.alert_engine)
+        result = await model.simulate(str(pid), patient, payload or {})
+        record = await _persist_ai_score_record(patient, result, score_type="patient_what_if_simulation")
+        return {"code": 0, "simulation": serialize_doc(record)}
+    except Exception as exc:
+        logger.error("AI what-if simulation error: %s", exc)
+        return {"code": 0, "simulation": None, "error": f"What-if 模拟异常: {str(exc)[:120]}"}
+
+
+@router.get("/api/ai/subphenotype/{patient_id}")
+async def ai_subphenotype_profile(patient_id: str, refresh: bool = Query(default=False)):
+    """综合征亚表型识别。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        if not refresh:
+            cached = await runtime.db.col("score_records").find_one(
+                {"patient_id": str(pid), "score_type": "clinical_subphenotype_profile"},
+                sort=[("calc_time", -1)],
+            )
+            if cached:
+                return {"code": 0, "profile": serialize_doc(cached)}
+        profiler = CohortSubphenotypeProfiler(db=runtime.db, alert_engine=runtime.alert_engine)
+        result = await profiler.profile(patient)
+        record = await _persist_ai_score_record(patient, result, score_type="clinical_subphenotype_profile")
+        return {"code": 0, "profile": serialize_doc(record)}
+    except Exception as exc:
+        logger.error("AI subphenotype error: %s", exc)
+        return {"code": 0, "profile": None, "error": f"亚表型识别异常: {str(exc)[:120]}"}
+
+
 @router.get("/api/ai/multi-agent/{patient_id}")
 async def ai_multi_agent_assessment(patient_id: str, refresh: bool = Query(default=False)):
     """ICU 多智能体协同评估。"""
@@ -997,9 +1485,9 @@ async def ai_system_panels(patient_id: str, window: str = Query(default="24h", p
             "code": 0,
             "window": window,
             "panels": {
-                "hemodynamic": serialize_doc(hemodynamic),
-                "infection": serialize_doc(infection),
-                "respiratory": serialize_doc(respiratory),
+                "hemodynamic": _serialize_nullable(hemodynamic),
+                "infection": _serialize_nullable(infection),
+                "respiratory": _serialize_nullable(respiratory),
             },
         }
     except Exception as exc:

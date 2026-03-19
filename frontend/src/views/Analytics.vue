@@ -253,6 +253,45 @@
       </a-card>
     </section>
 
+    <section v-else-if="analyticsSection === 'nursing'" class="analytics-grid">
+      <a-card title="未来一个班次护理资源热力图" :bordered="false" class="panel panel-wide panel-heatmap">
+        <div v-if="nursingHeatmapX.length" class="heatmap-summary">
+          <div class="summary-chip"><span class="summary-k">热力床位</span><b class="summary-v">{{ nursingHeatmapX.length }}</b></div>
+          <div class="summary-chip"><span class="summary-k">高/极高负荷</span><b class="summary-v">{{ Number(nursingSummary?.high_and_extreme_count || 0) }}</b></div>
+          <div class="summary-chip"><span class="summary-k">有效护士</span><b class="summary-v">{{ Number(nursingSummary?.effective_nurse_count || 0) }}</b></div>
+          <div class="summary-chip summary-chip--wide"><span class="summary-k">建议护士数</span><b class="summary-v">{{ Number(nursingSummary?.recommended_nurse_count || 0).toFixed(1) }} / 向上取整 {{ Number(nursingSummary?.recommended_nurse_ceiling || 0) }}</b></div>
+        </div>
+        <div v-if="nursingHeatmapX.length" class="chart-wrap chart-lg chart-heatmap">
+          <AnalyticsChart :option="nursingHeatmapOption" autoresize />
+        </div>
+        <div v-else class="empty">暂无护理负荷热力图数据</div>
+      </a-card>
+
+      <a-card title="科室排班压力" :bordered="false" class="panel">
+        <div class="progress-list">
+          <div v-for="item in nursingDeptProgressRows" :key="item.label" class="progress-row">
+            <div class="progress-row__top"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
+            <div class="progress-bar"><div class="progress-bar__fill" :style="{ width: item.width, background: item.color }"></div></div>
+            <div class="progress-row__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-card title="科室负荷总览" :bordered="false" class="panel">
+        <a-table class="rank-table" size="small" :columns="nursingDeptColumns" :data-source="nursingDeptRows" :pagination="false" row-key="dept" />
+      </a-card>
+
+      <a-card title="高强度患者队列" :bordered="false" class="panel panel-wide">
+        <a-table class="rank-table" size="small" :columns="nursingPatientColumns" :data-source="nursingPatientRows" :pagination="false" row-key="patient_id">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'intensity_label'">
+              <span :style="{ color: record?.intensity_color || '#e8fbff', fontWeight: 700 }">{{ record?.intensity_label || '中' }}</span>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+    </section>
+
     <section v-else class="analytics-grid">
       <a-card title="撤机分析摘要" :bordered="false" class="panel panel-wide">
         <div class="insight-grid">
@@ -323,6 +362,7 @@ import {
   getAlertAnalyticsFrequency,
   getAlertAnalyticsHeatmap,
   getAlertAnalyticsRankings,
+  getNursingWorkloadAnalytics,
   getRecentAlerts,
   getScenarioCoverageAnalytics,
   getSepsisBundleCompliance,
@@ -354,6 +394,7 @@ const sectionOptions = [
   { label: '告警运营', value: 'alerts' },
   { label: 'Sepsis质控', value: 'sepsis' },
   { label: '撤机分析', value: 'weaning' },
+  { label: '护理资源', value: 'nursing' },
   { label: '场景覆盖', value: 'scenarios' },
 ]
 const windowOptions = [
@@ -367,13 +408,13 @@ const bucketOptions = [
   { label: '天', value: 'day' },
 ]
 
-function normalizeAnalyticsSection(value: any): 'alerts' | 'sepsis' | 'weaning' | 'scenarios' {
+function normalizeAnalyticsSection(value: any): 'alerts' | 'sepsis' | 'weaning' | 'nursing' | 'scenarios' {
   const key = String(value || '').trim().toLowerCase()
-  if (key === 'sepsis' || key === 'weaning' || key === 'scenarios') return key
+  if (key === 'sepsis' || key === 'weaning' || key === 'nursing' || key === 'scenarios') return key
   return 'alerts'
 }
 
-const analyticsSection = ref<'alerts' | 'sepsis' | 'weaning' | 'scenarios'>(normalizeAnalyticsSection(route.query.section))
+const analyticsSection = ref<'alerts' | 'sepsis' | 'weaning' | 'nursing' | 'scenarios'>(normalizeAnalyticsSection(route.query.section))
 
 const freqSeries = ref<any[]>([])
 const heatmapX = ref<string[]>([])
@@ -390,10 +431,11 @@ const scenarioTopRows = ref<any[]>([])
 const scenarioHeatmapX = ref<string[]>([])
 const scenarioHeatmapY = ref<string[]>([])
 const scenarioHeatmapData = ref<number[][]>([])
+const nursingWorkload = ref<any>(null)
 
 const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
-const analyticsScopeLabel = computed(() => deptName.value || deptCode.value || '全院')
+const analyticsScopeLabel = computed(() => deptName.value || deptCode.value || '全科')
 const analyticsWindowLabel = computed(() => {
   const map: Record<string, string> = {
     '24h': '近24小时',
@@ -831,13 +873,48 @@ const scenarioHeatmapOption = computed(() => ({
   visualMap: { min: 0, max: Math.max(1, ...scenarioHeatmapData.value.map((item: any) => Number(item?.[2] || 0))), orient: 'horizontal', left: 'center', bottom: 8, text: ['高频', '低频'], textStyle: { color: '#7fc7da', fontSize: 10 }, inRange: { color: ['#0a2234', '#0e4c68', '#16b3c9', '#f59e0b', '#fb5a7a'] } },
   series: [{ type: 'heatmap', data: scenarioHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: '#effcff', fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: 'rgba(112, 226, 255, 0.1)', borderWidth: 1 } }],
 }))
+const nursingHeatmapOption = computed(() => ({
+  backgroundColor: 'transparent',
+  tooltip: icuTooltip({
+    formatter: (params: any) => tooltipShell(
+      nursingHeatmapX.value[params.value[0]] || '床位',
+      [
+        tooltipRow('护理强度', nursingHeatmapY.value[params.value[1]] || '未来一个班次', '#22d3ee'),
+        tooltipRow('预计 NAS', `${params.value[2] || 0}`, '#fb5a7a'),
+      ],
+      '护理资源热力图',
+    ),
+  }),
+  grid: icuGrid({ left: 88, right: 22, top: 20, bottom: 72 }),
+  xAxis: icuCategoryAxis(nursingHeatmapX.value, { axisLabel: { color: '#79d7ea', fontSize: 10, rotate: 28, margin: 12 } }),
+  yAxis: icuCategoryAxis(nursingHeatmapY.value, { axisLabel: { color: '#b7ddec', fontSize: 10, margin: 14 } }),
+  visualMap: { min: 20, max: 100, orient: 'horizontal', left: 'center', bottom: 8, text: ['高负荷', '低负荷'], textStyle: { color: '#7fc7da', fontSize: 10 }, inRange: { color: ['#0a2234', '#0e4c68', '#16b3c9', '#fb923c', '#f43f5e'] } },
+  series: [{ type: 'heatmap', data: nursingHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: '#effcff', fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: 'rgba(112, 226, 255, 0.1)', borderWidth: 1 } }],
+}))
 const scenarioColumns = [
   { title: '场景', dataIndex: 'title', key: 'title' },
   { title: '分组', dataIndex: 'group', key: 'group', width: 110 },
   { title: '告警', dataIndex: 'alert_count', key: 'alert_count', width: 72 },
   { title: '患者', dataIndex: 'patient_count', key: 'patient_count', width: 72 },
   { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 72 },
-  { title: 'High', dataIndex: 'high', key: 'high', width: 72 },
+  { title: '高危', dataIndex: 'high', key: 'high', width: 72 },
+]
+const nursingPatientColumns = [
+  { title: '科室', dataIndex: 'dept', key: 'dept', width: 120 },
+  { title: '床位', dataIndex: 'bed', key: 'bed', width: 70 },
+  { title: '患者', dataIndex: 'patient_name', key: 'patient_name' },
+  { title: '强度', dataIndex: 'intensity_label', key: 'intensity_label', width: 72 },
+  { title: 'NAS', dataIndex: 'nas_score', key: 'nas_score', width: 76 },
+  { title: '班次工时', dataIndex: 'predicted_next_shift_hours', key: 'predicted_next_shift_hours', width: 90 },
+]
+const nursingDeptColumns = [
+  { title: '科室', dataIndex: 'dept', key: 'dept' },
+  { title: '患者', dataIndex: 'patient_count', key: 'patient_count', width: 72 },
+  { title: '均值NAS', dataIndex: 'avg_nas_score', key: 'avg_nas_score', width: 88 },
+  { title: '有效护士', dataIndex: 'effective_nurse_count', key: 'effective_nurse_count', width: 88 },
+  { title: '班次工时', dataIndex: 'total_predicted_shift_hours', key: 'total_predicted_shift_hours', width: 90 },
+  { title: '建议护士', dataIndex: 'recommended_nurse_count', key: 'recommended_nurse_count', width: 92 },
+  { title: '缺口', dataIndex: 'staffing_gap', key: 'staffing_gap', width: 76 },
 ]
 
 const activeSectionMeta = computed(() => {
@@ -853,6 +930,13 @@ const activeSectionMeta = computed(() => {
       kicker: '扩展场景引擎',
       title: '场景覆盖工作区',
       description: '把 100+ 场景扩展的基础设施直接映射成覆盖总览、热力图和高频场景榜，便于持续下钻 ICU 高价值场景。',
+    }
+  }
+  if (analyticsSection.value === 'nursing') {
+    return {
+      kicker: '护理资源预测',
+      title: '护理资源工作区',
+      description: '把未来一个班次的护理负荷、科室人力压力和高强度床位集中到同一视图，便于护士长排班与交班前预判。',
     }
   }
   if (analyticsSection.value === 'weaning') {
@@ -897,6 +981,28 @@ const activeSectionActions = computed(() => {
       { label: '打开 MDT 会诊', value: '多智能体裁决看板', meta: '继续查看专科意见、冲突焦点和 Meta-Agent 裁决。', action: () => router.push('/mdt') },
       { label: '切回告警运营', value: '查看实时热区', meta: '从扩展场景覆盖切回全量规则热力图。', action: () => setAnalyticsSection('alerts') },
       { label: '打开患者总览', value: '继续做高危筛查', meta: '带着当前筛选条件回到患者工作台。', action: () => router.push({ path: '/', query: { ...route.query } }) },
+    ]
+  }
+  if (analyticsSection.value === 'nursing') {
+    return [
+      {
+        label: '切到告警运营',
+        value: '联动看高峰告警',
+        meta: '把护理高压床位和告警热区放在一起看，适合交班前复核。',
+        action: () => setAnalyticsSection('alerts'),
+      },
+      {
+        label: '打开患者总览',
+        value: '锁定高压床位',
+        meta: '带着当前科室筛选回到患者总览，继续下钻护理最重的人群。',
+        action: () => router.push({ path: '/', query: { ...route.query } }),
+      },
+      {
+        label: '查看 AI运营',
+        value: '反馈与阈值审核',
+        meta: '继续结合 AI 运行态与阈值审核判断是否需要调整策略。',
+        action: () => router.push('/ai-ops'),
+      },
     ]
   }
   if (analyticsSection.value === 'weaning') {
@@ -1193,22 +1299,22 @@ const weaningStatusCards = computed(() => {
 const activeSectionKpis = computed(() => {
   if (analyticsSection.value === 'scenarios') {
     return [
-      { label: '场景库覆盖率', code: 'SCENARIO', value: scenarioCoverageRate.value, meta: `${Number(scenarioCoverageSummary.value?.triggered_catalog_scenarios || 0)} / ${Number(scenarioCoverageSummary.value?.total_catalog_scenarios || 0)} 场景已在当前窗口命中`, tone: 'bundle' },
-      { label: '场景组', code: 'GROUP', value: `${scenarioGroupRows.value.length}`, meta: '统一引擎下的扩展场景分组' },
-      { label: 'Top 场景', code: 'TOP', value: scenarioTopRows.value[0]?.title || '暂无数据', meta: scenarioTopRows.value[0] ? `${scenarioTopRows.value[0].alert_count} 次命中` : '等待扩展场景数据', compact: true },
-      { label: '告警总量', code: 'HITS', value: `${Number(scenarioCoverageSummary.value?.total_alerts || 0)}`, meta: `${analyticsWindowLabel.value} 内扩展场景累计触发次数`, tone: 'risk' },
+      { label: '场景库覆盖率', code: '场景', value: scenarioCoverageRate.value, meta: `${Number(scenarioCoverageSummary.value?.triggered_catalog_scenarios || 0)} / ${Number(scenarioCoverageSummary.value?.total_catalog_scenarios || 0)} 场景已在当前窗口命中`, tone: 'bundle' },
+      { label: '场景组', code: '分组', value: `${scenarioGroupRows.value.length}`, meta: '统一引擎下的扩展场景分组' },
+      { label: '高频场景', code: '首位', value: scenarioTopRows.value[0]?.title || '暂无数据', meta: scenarioTopRows.value[0] ? `${scenarioTopRows.value[0].alert_count} 次命中` : '等待扩展场景数据', compact: true },
+      { label: '告警总量', code: '命中', value: `${Number(scenarioCoverageSummary.value?.total_alerts || 0)}`, meta: `${analyticsWindowLabel.value} 内扩展场景累计触发次数`, tone: 'risk' },
     ]
   }
   if (analyticsSection.value === 'sepsis') {
     return [
       {
         label: '监测范围',
-        code: 'SCOPE',
+        code: '范围',
         value: analyticsScopeLabel.value,
         meta: `${analyticsMonthCode.value} 月度质控视角`,
       },
       {
-        label: 'Sepsis 1h Bundle',
+        label: '脓毒症 1 小时 Bundle',
         code: sepsisBundleMonthCode.value,
         value: sepsisBundleKpi.value.rate,
         meta: sepsisBundleKpi.value.meta,
@@ -1216,7 +1322,7 @@ const activeSectionKpis = computed(() => {
       },
       {
         label: '超 3h 病例',
-        code: 'OVER 3H',
+        code: '超3小时',
         value: `${Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)}`,
         meta: Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)
           ? '建议优先抽查延迟原因'
@@ -1225,7 +1331,7 @@ const activeSectionKpis = computed(() => {
       },
       {
         label: '进行中病例',
-        code: 'ACTIVE',
+        code: '进行中',
         value: `${Number(sepsisBundleCompliance.value?.pending_active_cases || 0)}`,
         meta: Number(sepsisBundleCompliance.value?.pending_active_cases || 0)
           ? '交接班需持续追踪'
@@ -1238,55 +1344,89 @@ const activeSectionKpis = computed(() => {
     return [
       {
         label: '监测范围',
-        code: 'SCOPE',
+        code: '范围',
         value: analyticsScopeLabel.value,
         meta: `${analyticsMonthCode.value} 月度撤机分析`,
       },
       {
         label: '本月再插管风险',
-        code: analyticsMonthCode.value,
+        code: '月度',
         value: reintubationRiskKpi.value.rate,
         meta: reintubationRiskKpi.value.meta,
         tone: 'weaning',
       },
       {
         label: '脱机失败高风险占比',
-        code: 'WEAN HIGH',
+        code: '高风险',
         value: weaningHighRiskKpi.value.rate,
         meta: weaningHighRiskKpi.value.meta,
         tone: 'weaning-high',
       },
       {
         label: '评估患者数',
-        code: 'ASSESSED',
+        code: '评估数',
         value: `${Number(weaningSummary.value?.weaning_assessed_patients || 0)}`,
         meta: '进入脱机评估的人群基数',
+      },
+    ]
+  }
+  if (analyticsSection.value === 'nursing') {
+    return [
+      {
+        label: '未来班次工时',
+        code: '工时',
+        value: `${Number(nursingSummary.value?.total_predicted_shift_hours || 0).toFixed(1)} 小时`,
+        meta: `${Number(nursingSummary.value?.patient_count || 0)} 位患者未来 ${Number(nursingSummary.value?.shift_hours || 8)} 小时预计护理投入`,
+        tone: 'weaning',
+      },
+      {
+        label: '建议护士数',
+        code: '护士',
+        value: `${Number(nursingSummary.value?.recommended_nurse_ceiling || 0)}`,
+        meta: `建议 ${Number(nursingSummary.value?.recommended_nurse_count || 0).toFixed(1)} / 有效 ${Number(nursingSummary.value?.effective_nurse_count || 0)}`,
+        tone: 'bundle',
+      },
+      {
+        label: '护理缺口',
+        code: '缺口',
+        value: `${Number(nursingSummary.value?.staffing_gap_ceiling || 0)}`,
+        meta: `${Number(nursingSummary.value?.staffing_gap || 0).toFixed(1)} 人，${Number(nursingSummary.value?.extreme_count || 0)} 例极高强度`,
+        tone: 'risk',
+      },
+      {
+        label: '峰值科室',
+        code: '峰值科室',
+        value: nursingSummary.value?.peak_dept || '暂无数据',
+        meta: nursingSummary.value?.peak_dept
+          ? `建议护士数 ${Number(nursingSummary.value?.peak_dept_nurse_count || 0).toFixed(1)}`
+          : '等待护理负荷数据',
+        compact: true,
       },
     ]
   }
   return [
     {
       label: '监测窗口',
-      code: 'WINDOW',
+      code: '窗口',
       value: analyticsWindowLabel.value,
       meta: `粒度 ${bucket.value === 'hour' ? '小时' : '天'} · Top ${topN}`,
     },
     {
       label: topRuleHeadline.value,
-      code: 'RULE',
+      code: '规则',
       value: topRuleSummary.value.name,
       meta: topRuleSummary.value.meta,
       compact: true,
     },
     {
       label: '峰值时段',
-      code: 'PEAK SLOT',
+      code: '峰值时段',
       value: peakSlotSummary.value.slot,
       meta: peakSlotSummary.value.meta,
     },
     {
       label: rescueOnly ? '抢救期占比' : '高危占比',
-      code: 'HIGH+CRIT',
+      code: '高危占比',
       value: highRiskRatio.value.ratio,
       meta: highRiskRatio.value.meta,
       tone: 'risk',
@@ -1294,7 +1434,7 @@ const activeSectionKpis = computed(() => {
   ]
 })
 
-function setAnalyticsSection(section: 'alerts' | 'sepsis' | 'weaning' | 'scenarios') {
+function setAnalyticsSection(section: 'alerts' | 'sepsis' | 'weaning' | 'nursing' | 'scenarios') {
   analyticsSection.value = section
 }
 
@@ -1321,6 +1461,38 @@ const weaningDeptCompareTable = computed(() =>
     ...row,
     high_risk_ratio_text: `${(Number(row?.high_risk_ratio || 0) * 100).toFixed(1)}%`,
   }))
+)
+
+const nursingSummary = computed(() => nursingWorkload.value?.summary || {})
+const nursingDeptRows = computed(() =>
+  Array.isArray(nursingWorkload.value?.dept_rows) ? nursingWorkload.value.dept_rows : []
+)
+const nursingPatientRows = computed(() =>
+  Array.isArray(nursingWorkload.value?.patient_rows) ? nursingWorkload.value.patient_rows : []
+)
+const nursingHeatmapX = computed(() =>
+  Array.isArray(nursingWorkload.value?.heatmap?.x_labels) ? nursingWorkload.value.heatmap.x_labels : []
+)
+const nursingHeatmapY = computed(() =>
+  Array.isArray(nursingWorkload.value?.heatmap?.y_labels) ? nursingWorkload.value.heatmap.y_labels : []
+)
+const nursingHeatmapData = computed(() =>
+  Array.isArray(nursingWorkload.value?.heatmap?.data) ? nursingWorkload.value.heatmap.data : []
+)
+const nursingDeptProgressRows = computed(() =>
+  nursingDeptRows.value.slice(0, 8).map((row: any) => {
+    const nurses = Number(row?.recommended_nurse_count || 0)
+    const intensity = Number(row?.avg_nas_score || 0)
+    const width = `${Math.max(8, Math.min(100, intensity))}%`
+    const color = intensity >= 85 ? '#f43f5e' : intensity >= 65 ? '#fb923c' : intensity >= 45 ? '#38bdf8' : '#34d399'
+    return {
+      label: row?.dept || '未知科室',
+      value: `${nurses.toFixed(nurses >= 10 ? 0 : 1)} 护士`,
+      width,
+      color,
+      meta: `${Number(row?.patient_count || 0)} 床 · 在岗 ${Number(row?.effective_nurse_count || 0)} 人 · 缺口 ${Number(row?.staffing_gap || 0).toFixed(1)}`,
+    }
+  })
 )
 
 const deptRankOption = computed(() => ({
@@ -1501,7 +1673,7 @@ const deptColumns = [
   { title: '科室', dataIndex: 'dept', key: 'dept' },
   { title: '总量', dataIndex: 'count', key: 'count', width: 72 },
   { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 80 },
-  { title: 'High', dataIndex: 'high', key: 'high', width: 70 },
+  { title: '高危', dataIndex: 'high', key: 'high', width: 70 },
   { title: 'Warn', dataIndex: 'warning', key: 'warning', width: 70 },
 ]
 
@@ -1510,7 +1682,7 @@ const bedColumns = [
   { title: '床位', dataIndex: 'bed', key: 'bed', width: 90 },
   { title: '总量', dataIndex: 'count', key: 'count', width: 72 },
   { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 80 },
-  { title: 'High', dataIndex: 'high', key: 'high', width: 70 },
+  { title: '高危', dataIndex: 'high', key: 'high', width: 70 },
   { title: 'Warn', dataIndex: 'warning', key: 'warning', width: 70 },
 ]
 
@@ -1580,6 +1752,15 @@ async function loadScenarioCoverage() {
   scenarioHeatmapData.value = res.data.heatmap?.data || []
 }
 
+async function loadNursingWorkload() {
+  const res = await getNursingWorkloadAnalytics({
+    window: windowRange.value,
+    ...(deptCode.value ? { dept_code: deptCode.value } : {}),
+    ...(!deptCode.value && deptName.value ? { dept: deptName.value } : {}),
+  })
+  nursingWorkload.value = res.data || null
+}
+
 async function loadWeaningSummary() {
   const res = await getWeaningSummary({
     month: sepsisBundleMonth.value,
@@ -1597,21 +1778,28 @@ async function loadRecentRescueAlerts() {
   recentAlerts.value = res.data.records || []
 }
 
+async function loadSection(name: string, task: () => Promise<void>) {
+  try {
+    await task()
+  } catch (error) {
+    console.error(`加载 Analytics 分区失败: ${name}`, error)
+  }
+}
+
 async function loadAll() {
   if (loading.value) return
   loading.value = true
   try {
     await Promise.all([
-      loadFrequency(),
-      loadHeatmap(),
-      loadRankings(),
-      loadSepsisBundleCompliance(),
-      loadWeaningSummary(),
-      loadScenarioCoverage(),
-      loadRecentRescueAlerts(),
+      loadSection('frequency', loadFrequency),
+      loadSection('heatmap', loadHeatmap),
+      loadSection('rankings', loadRankings),
+      loadSection('sepsis-bundle', loadSepsisBundleCompliance),
+      loadSection('weaning-summary', loadWeaningSummary),
+      loadSection('nursing-workload', loadNursingWorkload),
+      loadSection('scenario-coverage', loadScenarioCoverage),
+      loadSection('recent-alerts', loadRecentRescueAlerts),
     ])
-  } catch (e) {
-    console.error('加载Analytics失败', e)
   } finally {
     loading.value = false
   }

@@ -3,10 +3,10 @@
     <header class="screen-header">
       <div class="header-main">
         <div class="title">
-          <span class="title-tag">ICU</span>
+          <span class="title-tag">重症监护</span>
           护士站监控大屏
         </div>
-        <div class="header-sub">Central Monitoring Command Center</div>
+        <div class="header-sub">重症监护中央监测指挥台</div>
         <div class="header-filters">
           <button
             :class="['header-filter-chip', { active: rescueOnly }]"
@@ -36,12 +36,18 @@
 
     <section class="screen-body">
       <aside class="panel panel-left">
-        <div class="panel-title">{{ rescueOnly ? '抢救期预警' : '实时预警' }}</div>
+        <div class="panel-head">
+          <div class="panel-title">{{ rescueOnly ? '抢救期预警' : '实时预警' }}</div>
+          <div class="panel-meta">滚动展示 {{ showAlerts.length }} 条重点事件</div>
+        </div>
         <BigScreenAlertFeed :alerts="showAlerts" />
       </aside>
 
       <main class="panel panel-center">
-        <div class="panel-title">{{ rescueOnly ? '抢救期床位监控' : '床位监控' }}</div>
+        <div class="panel-head">
+          <div class="panel-title">{{ rescueOnly ? '抢救期床位监控' : '床位监控' }}</div>
+          <div class="panel-meta">当前纳管 {{ filteredPatients.length }} 床</div>
+        </div>
         <BigScreenBedGrid :patients="filteredPatients" />
       </main>
 
@@ -167,9 +173,9 @@ const alertTrendOption = computed(() => {
     xAxis: icuCategoryAxis(xs),
     yAxis: icuValueAxis(),
     series: [
-      { name: 'Warning', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, itemStyle: { color: '#fbbf24' }, data: trendSeries.value.map(s => s.warning || 0) },
-      { name: 'High', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, itemStyle: { color: '#fb923c' }, data: trendSeries.value.map(s => s.high || 0) },
-      { name: 'Critical', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb5a7a' }, itemStyle: { color: '#fb5a7a' }, data: trendSeries.value.map(s => s.critical || 0) },
+      { name: '预警', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, itemStyle: { color: '#fbbf24' }, data: trendSeries.value.map(s => s.warning || 0) },
+      { name: '高危', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, itemStyle: { color: '#fb923c' }, data: trendSeries.value.map(s => s.high || 0) },
+      { name: '危急', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb5a7a' }, itemStyle: { color: '#fb5a7a' }, data: trendSeries.value.map(s => s.critical || 0) },
     ],
   }
 })
@@ -194,9 +200,14 @@ const bundleOption = computed(() => ({
 
 const deviceHeatmapOption = computed(() => {
   const beds = Array.from(new Set(deviceHeatRows.value.map((x: any) => String(x.bed || '--'))))
-  const devices = ['cvc', 'foley', 'ett']
+  const devices = ['中心静脉导管', '导尿管', '气管导管']
+  const deviceKeyMap: Record<string, string> = {
+    cvc: '中心静脉导管',
+    foley: '导尿管',
+    ett: '气管导管',
+  }
   const data = deviceHeatRows.value.map((row: any) => [
-    devices.indexOf(String(row.device_type || '')),
+    devices.indexOf(deviceKeyMap[String(row.device_type || '')] || ''),
     beds.indexOf(String(row.bed || '--')),
     row.risk_score || 0,
   ]).filter((x: any) => x[0] >= 0 && x[1] >= 0)
@@ -206,11 +217,12 @@ const deviceHeatmapOption = computed(() => {
       position: 'top',
       formatter: (params: any) => {
         const row = deviceHeatRows.value.find((x: any) =>
-          devices.indexOf(String(x.device_type || '')) === params.data?.[0] &&
+          devices.indexOf(deviceKeyMap[String(x.device_type || '')] || '') === params.data?.[0] &&
           beds.indexOf(String(x.bed || '--')) === params.data?.[1]
         )
         if (!row) return ''
-        return `${row.bed}床 ${row.device_type}<br/>风险 ${row.risk}<br/>在位 ${row.line_days || 0} 天`
+        const deviceLabel = deviceKeyMap[String(row.device_type || '')] || String(row.device_type || '装置')
+        return `${row.bed}床 ${deviceLabel}<br/>风险等级 ${row.risk}<br/>在位 ${row.line_days || 0} 天`
       },
     }),
     grid: icuGrid({ left: 54, right: 14, top: 20, bottom: 38 }),
@@ -460,8 +472,8 @@ watch(() => route.query, () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
+  gap: 18px;
+  padding: 18px 22px;
   background: linear-gradient(90deg, rgba(8,26,43,0.96), rgba(6,16,29,0.96));
   border-bottom: 1px solid rgba(80,199,255,.2);
   box-shadow: 0 10px 28px rgba(0,0,0,.22);
@@ -469,50 +481,57 @@ watch(() => route.query, () => {
   top: 0;
   z-index: 5;
 }
-.header-main { display: flex; flex-direction: column; gap: 4px; }
+.header-main { display: flex; flex-direction: column; gap: 6px; }
 .title {
-  font-size: 22px;
-  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  letter-spacing: 0.06em;
   font-weight: 700;
+  line-height: 1;
   color: #effcff;
 }
 .title-tag {
-  display: inline-block;
-  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
   border-radius: 999px;
   background: linear-gradient(180deg, #0b6b89 0%, #07465a 100%);
   border: 1px solid rgba(110, 231, 249, 0.24);
-  margin-right: 8px;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 700;
   color: #ecfeff;
+  box-shadow: inset 0 1px 0 rgba(210, 248, 255, 0.18);
 }
 .header-sub {
-  color: #7ed6e8;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-.header-filters {
-  margin-top: 8px;
-}
-.header-filter-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(251, 113, 133, .18);
-  background: linear-gradient(180deg, rgba(49, 15, 25, .9) 0%, rgba(24, 10, 16, .92) 100%);
-  color: #ffcad5;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all .18s ease;
+  width: fit-content;
+  min-height: 20px;
+  padding-left: 46px;
+  color: #9ae8f7;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.15;
+  text-shadow: 0 0 14px rgba(56, 189, 248, 0.18);
 }
-.header-filter-chip b {
-  color: #fff1f4;
-  font-size: 13px;
+.header-sub::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(154, 232, 247, 0.9), rgba(154, 232, 247, 0.08));
+  transform: translateY(-50%);
+}
+.header-filters {
+  margin-top: 10px;
 }
 .header-filter-chip:hover,
 .header-filter-chip.active {
@@ -520,48 +539,68 @@ watch(() => route.query, () => {
   box-shadow: 0 0 18px rgba(251, 113, 133, .16);
   color: #fff0f4;
 }
-.screen-kpis { display: flex; gap: 10px; margin-left: auto; }
+.screen-kpis { display: flex; gap: 12px; margin-left: auto; }
 .kpi-chip {
-  min-width: 104px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: rgba(7,29,45,.82);
+  min-width: 112px;
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(9,31,48,.88) 0%, rgba(6,21,34,.92) 100%);
   border: 1px solid rgba(80,199,255,.14);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
 .kpi-label { font-size: 11px; color: #7ecce1; letter-spacing: .08em; }
-.kpi-chip strong { font-size: 20px; color: #e8fbff; }
+.kpi-chip strong { font-size: 22px; color: #e8fbff; }
 .clock {
   font-size: 16px;
   color: #8de3f3;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: .08em;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(6, 21, 34, 0.76);
+  border: 1px solid rgba(80, 199, 255, 0.12);
 }
 .screen-body {
   display: grid;
-  grid-template-columns: 1.2fr 3fr 1.3fr;
-  gap: 14px;
-  padding: 14px;
+  grid-template-columns: 1.45fr 2.85fr 1.25fr;
+  gap: 16px;
+  padding: 16px;
   position: relative;
   z-index: 1;
 }
 .panel {
   background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
   border: 1px solid rgba(80,199,255,.14);
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: 16px;
+  padding: 12px;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 10px 30px rgba(0,0,0,0.35);
+}
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(80,199,255,.08);
 }
 .panel-title {
   font-size: 12px;
   color: #67e8f9;
-  margin-bottom: 8px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  border-bottom: 1px solid rgba(80,199,255,.08);
-  padding-bottom: 8px;
+  letter-spacing: .06em;
+  font-weight: 700;
+}
+.panel-meta {
+  color: #6faec1;
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+.panel-left,
+.panel-center {
+  min-width: 0;
 }
 
 .chart-wrap {
@@ -593,3 +632,7 @@ watch(() => route.query, () => {
   }
 }
 </style>
+
+
+
+

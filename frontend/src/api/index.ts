@@ -6,6 +6,12 @@ const api = axios.create({
   timeout: 10000,
 })
 
+// Analytics 页面会并发请求多个聚合接口，给它更宽松的超时窗口。
+const analyticsApi = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
+  timeout: 30000,
+})
+
 // AI 调用可能耗时较长，单独加长超时
 const aiApi = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
@@ -57,11 +63,11 @@ export const getPatientAlerts = (patientId: string) =>
 
 // 获取最近预警
 export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string }) =>
-  api.get('/api/alerts/recent', { params: { limit, ...(params || {}) } })
+  analyticsApi.get('/api/alerts/recent', { params: { limit, ...(params || {}) } })
 
 // 获取预警统计
 export const getAlertStats = (window = '24h') =>
-  api.get('/api/alerts/stats', { params: { window } })
+  analyticsApi.get('/api/alerts/stats', { params: { window } })
 
 // Bundle 合规总览
 export const getBundleOverview = (params?: { dept?: string; dept_code?: string }) =>
@@ -77,7 +83,7 @@ export const getAlertAnalyticsFrequency = (params?: {
   bucket?: 'hour' | 'day'
   dept?: string
   dept_code?: string
-}) => api.get('/api/alerts/analytics/frequency', { params })
+}) => analyticsApi.get('/api/alerts/analytics/frequency', { params })
 
 // Analytics: 规则热力图
 export const getAlertAnalyticsHeatmap = (params?: {
@@ -85,7 +91,7 @@ export const getAlertAnalyticsHeatmap = (params?: {
   top_n?: number
   dept?: string
   dept_code?: string
-}) => api.get('/api/alerts/analytics/heatmap', { params })
+}) => analyticsApi.get('/api/alerts/analytics/heatmap', { params })
 
 // Analytics: 科室/床位排名
 export const getAlertAnalyticsRankings = (params?: {
@@ -93,28 +99,34 @@ export const getAlertAnalyticsRankings = (params?: {
   top_n?: number
   dept?: string
   dept_code?: string
-}) => api.get('/api/alerts/analytics/rankings', { params })
+}) => analyticsApi.get('/api/alerts/analytics/rankings', { params })
 
 // Analytics: Sepsis 1h Bundle 月度合规率
 export const getSepsisBundleCompliance = (params?: {
   month?: string
   dept?: string
   dept_code?: string
-}) => api.get('/api/analytics/sepsis-bundle/compliance', { params })
+}) => analyticsApi.get('/api/analytics/sepsis-bundle/compliance', { params })
 
 // Analytics: 脱机 / 再插管月度统计
 export const getWeaningSummary = (params?: {
   month?: string
   dept?: string
   dept_code?: string
-}) => api.get('/api/analytics/weaning-summary', { params })
+}) => analyticsApi.get('/api/analytics/weaning-summary', { params })
 
 export const getScenarioCoverageAnalytics = (params?: {
   window?: string
   top_n?: number
   dept?: string
   dept_code?: string
-}) => api.get('/api/analytics/scenario-coverage', { params })
+}) => analyticsApi.get('/api/analytics/scenario-coverage', { params })
+
+export const getNursingWorkloadAnalytics = (params?: {
+  window?: string
+  dept?: string
+  dept_code?: string
+}) => analyticsApi.get('/api/analytics/nursing-workload', { params })
 
 // AI: 检验摘要
 export const getAiLabSummary = (patientId: string) =>
@@ -144,6 +156,26 @@ export const postAiCausalAnalysis = (
   patientId: string,
   payload: { abnormal_finding: string }
 ) => aiApi.post(`/api/ai/causal-analysis/${patientId}`, payload)
+
+export const getAiNursingNoteSignals = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/nursing-note-signals/${patientId}`, { params })
+
+export const postAiWhatIfSimulation = (
+  patientId: string,
+  payload: {
+    intervention_type: 'vasopressor_up' | 'fluid_bolus' | 'diuresis' | 'fio2_up' | 'peep_up'
+    intervention_label?: string
+    horizon_minutes?: number
+    dose_delta_pct?: number
+    fluid_bolus_ml?: number
+    fio2_delta?: number
+    peep_delta?: number
+    diuretic_intensity?: number
+  }
+) => aiApi.post(`/api/ai/what-if/${patientId}`, payload)
+
+export const getAiSubphenotype = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/subphenotype/${patientId}`, { params })
 
 export const getAiMultiAgentAssessment = (patientId: string, params?: { refresh?: boolean }) =>
   aiApi.get(`/api/ai/multi-agent/${patientId}`, { params })

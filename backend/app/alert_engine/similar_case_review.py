@@ -382,12 +382,13 @@ class SimilarCaseReviewMixin:
                     usage=usage,
                 )
             bullets = parsed.get("pattern_bullets") if isinstance(parsed.get("pattern_bullets"), list) else []
-            return {
+            normalized = {
                 "summary": str(parsed.get("summary") or "").strip(),
                 "pattern_bullets": [str(x).strip() for x in bullets[:4] if str(x).strip()],
                 "caution": str(parsed.get("caution") or "").strip(),
                 "generated_at": datetime.now(API_TZ),
             }
+            return self._validate_similar_case_interpretation(normalized, cases)
         except Exception:
             if monitor:
                 await monitor.log_llm_call(
@@ -401,6 +402,41 @@ class SimilarCaseReviewMixin:
                     usage=usage,
                 )
             return None
+
+    def _validate_similar_case_interpretation(self, payload: dict[str, Any], cases: list[dict[str, Any]]) -> dict[str, Any] | None:
+        top = cases[:5]
+        if not top:
+            return payload
+        total = len(top)
+        death_count = sum(1 for item in top if str(item.get("outcome") or "") == "死亡")
+        survival_rate_pct = round((total - death_count) / total * 100.0, 1)
+        death_rate_pct = round(death_count / total * 100.0, 1)
+        icu_days = [float(item.get("icu_days")) for item in top if item.get("icu_days") is not None]
+        avg_icu_days = round(sum(icu_days) / len(icu_days), 1) if icu_days else None
+        text = " ".join(
+            [str(payload.get("summary") or ""), str(payload.get("caution") or ""), *[str(x) for x in (payload.get("pattern_bullets") or [])]]
+        )
+        lowered = text.lower()
+        percent_matches = [float(match) for match in re.findall(r"(\d+(?:\.\d+)?)\s*%", text)]
+        for value in percent_matches:
+            if "存活" in lowered and abs(value - survival_rate_pct) > 8:
+                return None
+            if "死亡" in lowered and abs(value - death_rate_pct) > 8:
+                return None
+        case_matches = [int(match) for match in re.findall(r"(\d+)\s*例", text)]
+        if ("死亡" in lowered or "存活" in lowered) and any(value > total for value in case_matches):
+            return None
+        if avg_icu_days is not None and "icu" in lowered and "天" in text:
+            day_matches = [float(match) for match in re.findall(r"(\d+(?:\.\d+)?)\s*天", text)]
+            if day_matches and all(abs(value - avg_icu_days) > max(3.0, avg_icu_days * 0.5) for value in day_matches):
+                return None
+        payload["consistency_checks"] = {
+            "top_cases": total,
+            "death_count": death_count,
+            "survival_rate_pct": survival_rate_pct,
+            "avg_icu_days": avg_icu_days,
+        }
+        return payload
 
     def _heuristic_case_insight(self, current_profile: dict[str, Any], cases: list[dict[str, Any]]) -> dict[str, Any]:
         top = cases[:5]
@@ -495,8 +531,11 @@ class SimilarCaseReviewMixin:
             sofa_band = float(cfg.get("sofa_band", 2) or 2)
             top_keywords = int(cfg.get("diagnosis_keyword_limit", 6) or 6)
             min_diag_similarity = float(cfg.get("min_diagnosis_similarity", 0.15) or 0.15)
-            embedding_weight = float(cfg.get("embedding_weight", 0.65) or 0.65)
-            token_weight = float(cfg.get("token_weight", 0.15) or 0.15)
+            embedding_weight = float(cfg.get("embedding_weight", 0.4) or 0.4)
+            token_weight = float(cfg.get("token_weight", 0.1) or 0.1)
+            age_weight = float(cfg.get("age_weight", 0.15) or 0.15)
+            sofa_weight = float(cfg.get("sofa_weight", 0.25) or 0.25)
+            support_weight = float(cfg.get("support_weight", 0.1) or 0.1)
 
             current_text = self._similar_case_diag_text(patient_doc)
             current_tokens = self._similar_case_diag_tokens(current_text)
@@ -677,9 +716,9 @@ class SimilarCaseReviewMixin:
                 total_score = round(
                     embedding_similarity * embedding_weight +
                     token_similarity * token_weight +
-                    age_score * 0.1 +
-                    sofa_score * 0.1 +
-                    support_score * 0.05,
+                    age_score * age_weight +
+                    sofa_score * sofa_weight +
+                    support_score * support_weight,
                     3,
                 )
 

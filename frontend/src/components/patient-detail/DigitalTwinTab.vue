@@ -2,7 +2,7 @@
   <section class="twin-shell">
     <div class="twin-head">
       <div>
-        <div class="twin-kicker">DIGITAL TWIN CARE LOOP</div>
+        <div class="twin-kicker">数字孪生闭环工作台</div>
         <h3 class="twin-title">数字孪生诊疗推理</h3>
         <p class="twin-sub">把风险预测、建议、追踪、效果评估、因果链和 MDT 会诊收敛到一个 AI 临床工作台。</p>
       </div>
@@ -42,12 +42,31 @@
         <ul class="bullet-list"><li v-for="(item, idx) in recommendationList" :key="`rec-${idx}`">{{ item }}</li></ul>
       </section>
 
+      <section class="twin-card">
+        <div class="card-head"><div><div class="card-title">护理文本智能分析</div><div class="card-sub">近 12h 护理记录与计划执行信号</div></div><span :class="['risk-badge', `is-${nursingRiskLevel}`]">{{ nursingRiskText }}</span></div>
+        <div class="summary-panel">{{ nursingSummary }}</div>
+        <div class="chip-row"><span v-for="item in nursingSignalLabels" :key="item" class="info-chip">{{ item }}</span></div>
+        <ul class="bullet-list"><li v-for="(item, idx) in nursingSuggestions" :key="`nursing-${idx}`">{{ item }}</li></ul>
+      </section>
+
+      <section class="twin-card">
+        <div class="card-head"><div><div class="card-title">综合征亚表型识别</div><div class="card-sub">把患者映射到可执行的差异化工作流</div></div></div>
+        <div class="summary-panel">{{ subphenotypeSummary }}</div>
+        <div v-if="primarySubphenotype" class="causal-item">
+          <div class="causal-top"><strong>{{ primarySubphenotype.subtype_label || '未命名亚型' }}</strong><span>{{ pct(primarySubphenotype.confidence || 0) }}</span></div>
+          <div class="causal-meta">{{ primarySubphenotype.summary || '暂无亚型摘要' }}</div>
+          <div class="chip-row"><span class="info-chip">综合征 {{ primarySubphenotype.syndrome || '通用' }}</span><span class="info-chip">置信 {{ pct(primarySubphenotype.confidence || 0) }}</span></div>
+          <ul v-if="primarySubphenotype.care_implications?.length" class="bullet-list compact"><li v-for="(item, idx) in primarySubphenotype.care_implications" :key="`subtype-${idx}`">{{ item }}</li></ul>
+        </div>
+        <div v-else class="empty-panel">当前暂无高置信度亚表型。</div>
+      </section>
+
       <section class="twin-card twin-card-wide">
         <div class="card-head"><div><div class="card-title">主动管理追踪</div><div class="card-sub">风险闭环从建议直接进入执行与回看</div></div></div>
         <div v-if="interventions.length" class="intervention-list">
           <article v-for="item in interventions" :key="item.intervention_id" class="intervention-item">
             <div class="intervention-top"><div><div class="intervention-title">{{ item.title }}</div><div class="intervention-meta">{{ item.rationale || '待补充依据' }}</div></div><span :class="['status-pill', `is-${String(item.status || 'pending').toLowerCase()}`]">{{ interventionStatusText(item.status) }}</span></div>
-            <div class="chip-row"><span class="info-chip">优先级 {{ item.priority || 'high' }}</span><span class="info-chip">责任 {{ item.owner || 'doctor' }}</span><span class="info-chip">采纳 {{ item.adopted == null ? '未标记' : (item.adopted ? '已采纳' : '未采纳') }}</span></div>
+            <div class="chip-row"><span class="info-chip">优先级 {{ item.priority || '高' }}</span><span class="info-chip">责任 {{ item.owner || '医生' }}</span><span class="info-chip">采纳 {{ item.adopted == null ? '未标记' : (item.adopted ? '已采纳' : '未采纳') }}</span></div>
             <ul class="bullet-list compact"><li v-for="(act, idx) in item.actions || []" :key="`act-${idx}`">{{ act }}</li></ul>
             <div class="action-row"><button class="mini-btn" :disabled="savingMap[item.intervention_id]" @click="submitFeedback(item, { status: 'in_progress', adopted: true })">开始追踪</button><button class="mini-btn mini-btn--soft" :disabled="savingMap[item.intervention_id]" @click="submitFeedback(item, { status: 'completed', adopted: true })">已完成</button><button class="mini-btn mini-btn--ghost" :disabled="savingMap[item.intervention_id]" @click="submitFeedback(item, { status: 'dismissed', adopted: false })">不采纳</button></div>
             <div v-if="item.effectiveness" :class="['effect-box', `is-${item.effectiveness.effect || 'stable'}`]"><strong>{{ effectText(item.effectiveness.effect) }}</strong><span>风险变化 {{ effectDelta(item.effectiveness.delta) }}</span></div>
@@ -69,7 +88,7 @@
             <div class="curve-bar"><div class="curve-fill causal-fill" :style="{ width: pct(row.posterior) }"></div></div>
             <div class="causal-meta">{{ row.mechanism || '暂无病理机制说明' }}</div>
             <div class="chip-row">
-              <span class="info-chip">领域 {{ row.clinical_domain || 'general' }}</span>
+              <span class="info-chip">领域 {{ row.clinical_domain || '通用' }}</span>
               <span class="info-chip">置信 {{ row.confidence_level || 'medium' }}</span>
             </div>
             <div class="causal-meta">命中证据：{{ (row.matched_evidence || []).join(' / ') || '暂无' }}</div>
@@ -98,6 +117,21 @@
         <ul class="bullet-list"><li v-for="(item, idx) in metaActions" :key="`meta-${idx}`">{{ item }}</li></ul>
         <div class="action-row"><button class="mini-btn" @click="openMdtBoard">打开 MDT 多智能体会诊页</button></div>
       </section>
+
+      <section class="twin-card twin-card-wide">
+        <div class="card-head"><div><div class="card-title">干预情景模拟</div><div class="card-sub">基于过去 12h 响应曲线，预估干预后 30 分钟内关键指标变化</div></div></div>
+        <div class="chip-row">
+          <button v-for="item in whatIfPresets" :key="item.type" :class="['cause-chip', { active: whatIfSelected === item.type }]" :disabled="whatIfLoading" @click="runWhatIf(item)">{{ item.label }}</button>
+        </div>
+        <div class="summary-panel">{{ whatIfSummary }}</div>
+        <div v-if="whatIfProjectionRows.length" class="curve-list">
+          <div v-for="item in whatIfProjectionRows" :key="item.label" class="curve-row">
+            <div class="curve-top"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
+            <div class="curve-bar"><div class="curve-fill causal-fill" :style="{ width: item.width }"></div></div>
+          </div>
+        </div>
+        <ul v-if="whatIfCautions.length" class="bullet-list compact"><li v-for="(item, idx) in whatIfCautions" :key="`caution-${idx}`">{{ item }}</li></ul>
+      </section>
     </div>
 
     <div v-if="error" class="error-panel">{{ error }}</div>
@@ -107,7 +141,17 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAiClinicalReasoning, getAiMultiAgentAssessment, getAiProactiveManagement, getAiRiskForecast, postAiCausalAnalysis, postAiProactiveInterventionFeedback } from '../../api'
+import {
+  getAiClinicalReasoning,
+  getAiMultiAgentAssessment,
+  getAiNursingNoteSignals,
+  getAiProactiveManagement,
+  getAiRiskForecast,
+  getAiSubphenotype,
+  postAiCausalAnalysis,
+  postAiProactiveInterventionFeedback,
+  postAiWhatIfSimulation,
+} from '../../api'
 
 const props = defineProps<{ patientId: string; patient?: any }>()
 const router = useRouter()
@@ -119,14 +163,28 @@ const proactivePlan = ref<any>(null)
 const reasoningPlan = ref<any>(null)
 const mdtAssessment = ref<any>(null)
 const causalAnalysis = ref<any>(null)
+const nursingSignals = ref<any>(null)
+const subphenotypeProfile = ref<any>(null)
+const whatIfResult = ref<any>(null)
 const selectedFinding = ref('乳酸升高')
+const whatIfSelected = ref('vasopressor_up')
+const whatIfLoading = ref(false)
 const savingMap = reactive<Record<string, boolean>>({})
 const causalOptions = ['乳酸升高', '肌酐升高', '低氧', '低血压', '血小板下降', '胆红素升高', '凝血异常']
+const whatIfPresets = [
+  { type: 'vasopressor_up', label: '升压药上调', payload: { intervention_type: 'vasopressor_up', intervention_label: '去甲肾上腺素上调', dose_delta_pct: 20, horizon_minutes: 30 } },
+  { type: 'fluid_bolus', label: '补液 250mL', payload: { intervention_type: 'fluid_bolus', intervention_label: '晶体液补液 250mL', fluid_bolus_ml: 250, horizon_minutes: 30 } },
+  { type: 'peep_up', label: 'PEEP +2', payload: { intervention_type: 'peep_up', intervention_label: 'PEEP 上调 2 cmH2O', peep_delta: 2, horizon_minutes: 30 } },
+  { type: 'fio2_up', label: 'FiO2 +10%', payload: { intervention_type: 'fio2_up', intervention_label: 'FiO2 上调 10%', fio2_delta: 10, horizon_minutes: 30 } },
+] as const
 const planRecord = computed(() => proactivePlan.value?.plan || proactivePlan.value || {})
 const reasoningRecord = computed(() => reasoningPlan.value?.plan || reasoningPlan.value || {})
 const mdtRecord = computed(() => mdtAssessment.value?.assessment || mdtAssessment.value || {})
 const mdtResult = computed(() => mdtRecord.value?.result || mdtRecord.value || {})
 const mdtMetaSummary = computed(() => mdtResult.value?.meta_agent || mdtRecord.value?.meta_summary || {})
+const nursingRecord = computed(() => nursingSignals.value?.analysis || nursingSignals.value || {})
+const subphenotypeRecord = computed(() => subphenotypeProfile.value?.profile || subphenotypeProfile.value || {})
+const whatIfRecord = computed(() => whatIfResult.value?.simulation || whatIfResult.value || {})
 const riskLevel = computed(() => String(planRecord.value?.risk_profile?.risk_level || riskForecast.value?.risk_level || 'medium').toLowerCase())
 const riskLevelText = computed(() => ({ low: '低风险', medium: '中风险', high: '高风险', critical: '危急' } as Record<string, string>)[riskLevel.value] || '中风险')
 const deteriorationProbability = computed(() => pct(planRecord.value?.risk_profile?.deterioration_probability ?? riskForecast.value?.current_probability ?? 0))
@@ -160,6 +218,17 @@ const recommendationList = computed(() => {
   const rows = Array.isArray(result?.treatment_recommendations) ? result.treatment_recommendations : []
   return rows.slice(0, 5).map((item: any) => `${item.recommendation}${item.rationale ? ` · ${item.rationale}` : ''}`)
 })
+const nursingRiskLevel = computed(() => String(nursingRecord.value?.risk_level || 'low').toLowerCase())
+const nursingRiskText = computed(() => ({ low: '低风险', medium: '中风险', high: '高风险', critical: '危急' } as Record<string, string>)[nursingRiskLevel.value] || '低风险')
+const nursingSummary = computed(() => String(nursingRecord.value?.summary || '等待护理文本分析结果'))
+const nursingSignalLabels = computed(() => {
+  const rows = Array.isArray(nursingRecord.value?.signal_labels) ? nursingRecord.value.signal_labels : []
+  return rows.slice(0, 6)
+})
+const nursingSuggestions = computed(() => {
+  const rows = Array.isArray(nursingRecord.value?.suggestions) ? nursingRecord.value.suggestions : []
+  return rows.slice(0, 4)
+})
 const monitoringFocus = computed(() => {
   const result = reasoningRecord.value?.result || {}
   const rows = Array.isArray(result?.monitoring_focus) ? result.monitoring_focus : []
@@ -189,23 +258,63 @@ const mdtSummary = computed(() => String(mdtMetaSummary.value?.summary || mdtRec
 const specialistCards = computed(() => Object.values(mdtResult.value?.assessments || mdtRecord.value?.specialist_assessments || {}).slice(0, 6) as any[])
 const conflictRows = computed(() => Array.isArray(mdtResult.value?.conflicts) ? mdtResult.value.conflicts.slice(0, 4) : [])
 const metaActions = computed(() => Array.isArray(mdtMetaSummary.value?.final_actions) ? mdtMetaSummary.value.final_actions.slice(0, 6) : [])
+const primarySubphenotype = computed(() => subphenotypeRecord.value?.primary_profile || null)
+const subphenotypeSummary = computed(() => String(subphenotypeRecord.value?.summary || '等待亚表型识别结果'))
+const whatIfSummary = computed(() => String(whatIfRecord.value?.summary || '选择一个干预，模拟 30 分钟内的关键指标变化。'))
+const whatIfProjectionRows = computed(() => {
+  const projected = whatIfRecord.value?.projected_state || {}
+  const current = whatIfRecord.value?.current_state || {}
+  const rows = [
+    { label: 'MAP 30m', current: Number(current.map), projected: Number(projected.map_30m), scale: 100, unit: 'mmHg' },
+    { label: 'SpO2 30m', current: Number(current.spo2), projected: Number(projected.spo2_30m), scale: 100, unit: '%' },
+    { label: '乳酸 30m', current: Number(current.lactate), projected: Number(projected.lactate_30m), scale: 8, unit: 'mmol/L' },
+  ]
+  return rows.filter((item) => Number.isFinite(item.projected)).map((item) => ({ label: item.label, value: `${Number.isFinite(item.current) ? item.current : '—'} → ${item.projected}${item.unit}`, width: `${Math.max(8, Math.min(100, (item.projected / item.scale) * 100))}%` }))
+})
+const whatIfCautions = computed(() => {
+  const rows = Array.isArray(whatIfRecord.value?.cautions) ? whatIfRecord.value.cautions : []
+  return rows.slice(0, 4)
+})
 function pct(value: any) { const n = Number(value || 0); return `${Math.max(0, Math.min(100, n * 100)).toFixed(n >= 0.1 ? 1 : 0)}%` }
 function effectText(value: any) { const key = String(value || '').toLowerCase(); if (key === 'improving') return '干预后风险下降'; if (key === 'worsening') return '干预后风险上升'; return '干预后风险平稳' }
 function effectDelta(value: any) { const n = Number(value || 0); return `${n > 0 ? '+' : ''}${(n * 100).toFixed(1)}%` }
 function interventionStatusText(status: any) { const key = String(status || 'pending').toLowerCase(); return ({ pending: '待执行', in_progress: '追踪中', completed: '已完成', dismissed: '不采纳' } as Record<string, string>)[key] || '待执行' }
 function openMdtBoard() { router.push({ path: '/mdt', query: { patient_id: props.patientId } }) }
 async function loadCausal(finding: string) { selectedFinding.value = finding; try { const res = await postAiCausalAnalysis(props.patientId, { abnormal_finding: finding }); causalAnalysis.value = res.data || null } catch { error.value = '因果链分析加载失败' } }
+async function runWhatIf(preset: any) {
+  if (!props.patientId || whatIfLoading.value) return
+  whatIfSelected.value = String(preset?.type || '')
+  whatIfLoading.value = true
+  try {
+    const res = await postAiWhatIfSimulation(props.patientId, preset.payload)
+    whatIfResult.value = res.data || null
+  } catch {
+    error.value = '干预情景模拟加载失败'
+  } finally {
+    whatIfLoading.value = false
+  }
+}
 async function loadAll(refresh = false) {
   if (!props.patientId || loading.value) return
   loading.value = true
   error.value = ''
   try {
-    const [riskRes, proactiveRes, reasoningRes, mdtRes] = await Promise.all([getAiRiskForecast(props.patientId), getAiProactiveManagement(props.patientId, { refresh }), getAiClinicalReasoning(props.patientId, { refresh }), getAiMultiAgentAssessment(props.patientId, { refresh })])
+    const [riskRes, proactiveRes, reasoningRes, mdtRes, nursingRes, subtypeRes] = await Promise.all([
+      getAiRiskForecast(props.patientId),
+      getAiProactiveManagement(props.patientId, { refresh }),
+      getAiClinicalReasoning(props.patientId, { refresh }),
+      getAiMultiAgentAssessment(props.patientId, { refresh }),
+      getAiNursingNoteSignals(props.patientId, { refresh }),
+      getAiSubphenotype(props.patientId, { refresh }),
+    ])
     riskForecast.value = riskRes.data || null
     proactivePlan.value = proactiveRes.data || null
     reasoningPlan.value = reasoningRes.data || null
     mdtAssessment.value = mdtRes.data || null
+    nursingSignals.value = nursingRes.data || null
+    subphenotypeProfile.value = subtypeRes.data || null
     await loadCausal(selectedFinding.value)
+    await runWhatIf(whatIfPresets.find((item) => item.type === whatIfSelected.value) || whatIfPresets[0])
   } catch {
     error.value = '数字孪生工作台加载失败，请检查后端 AI 接口。'
   } finally {
@@ -226,7 +335,7 @@ async function submitFeedback(item: any, payload: { status?: string; adopted?: b
     savingMap[interventionId] = false
   }
 }
-watch(() => props.patientId, () => { riskForecast.value = null; proactivePlan.value = null; reasoningPlan.value = null; mdtAssessment.value = null; causalAnalysis.value = null; void loadAll(false) }, { immediate: true })
+watch(() => props.patientId, () => { riskForecast.value = null; proactivePlan.value = null; reasoningPlan.value = null; mdtAssessment.value = null; causalAnalysis.value = null; nursingSignals.value = null; subphenotypeProfile.value = null; whatIfResult.value = null; void loadAll(false) }, { immediate: true })
 onMounted(() => { void loadAll(false) })
 </script>
 
@@ -293,7 +402,5 @@ onMounted(() => { void loadAll(false) })
 @media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
 @media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
 </style>
-
-
 
 

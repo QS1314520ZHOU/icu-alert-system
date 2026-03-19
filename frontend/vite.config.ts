@@ -5,8 +5,20 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const backendTarget = env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000'
+  const createProxyEntry = () => ({
+    target: backendTarget,
+    changeOrigin: true,
+    configure: (proxy: any) => {
+      proxy.on('error', (err: Error, req: any) => {
+        const url = req?.url || '(unknown url)'
+        console.error(`[vite-proxy] ${url} -> ${backendTarget} failed: ${err.message}`)
+      })
+    },
+  })
 
-    return {
+  console.info(`[vite] proxying /api and /health to ${backendTarget}`)
+
+  return {
     build: {
       rollupOptions: {
         output: {
@@ -99,14 +111,8 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/health': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
+        '/api': createProxyEntry(),
+        '/health': createProxyEntry(),
       },
     },
   }

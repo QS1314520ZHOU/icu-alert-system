@@ -27,6 +27,8 @@ POPULATION_DEFAULTS: dict[str, dict[str, float | None]] = {
     "temperature": {"low_critical": 34.0, "low_warning": 35.5, "high_warning": 38.5, "high_critical": 39.5},
 }
 
+THRESHOLD_KEYS = ("low_critical", "low_warning", "high_warning", "high_critical")
+
 
 def _parse_dt(value: Any) -> datetime | None:
     if value is None:
@@ -445,6 +447,32 @@ class AdaptiveThresholdAdvisorMixin:
             return False
         return True
 
+    def _threshold_limit_population_drift(self, param_name: str, key: str, value: float | None) -> tuple[float | None, bool]:
+        if value is None:
+            return None, False
+        cfg = self._threshold_advisor_cfg()
+        default_value = _to_float((POPULATION_DEFAULTS.get(param_name) or {}).get(key))
+        if default_value is None:
+            return value, False
+        max_relative = float(cfg.get("max_population_relative_drift", 0.2) or 0.2)
+        max_absolute_cfg = cfg.get("max_population_absolute_drift", {}) if isinstance(cfg.get("max_population_absolute_drift"), dict) else {}
+        max_absolute = _to_float(max_absolute_cfg.get(param_name))
+        deltas = [abs(default_value) * max_relative]
+        if max_absolute is not None:
+            deltas.append(max_absolute)
+        allowed_delta = max(deltas) if deltas else abs(default_value) * max_relative
+        lower = default_value - allowed_delta
+        upper = default_value + allowed_delta
+        clipped = False
+        result = float(value)
+        if result < lower:
+            result = lower
+            clipped = True
+        if result > upper:
+            result = upper
+            clipped = True
+        return round(result, 2), clipped
+
     def _threshold_sanitize_threshold_response(self, result: dict[str, Any]) -> dict[str, Any]:
         cfg = self._threshold_advisor_cfg()
         bounds_cfg = cfg.get("bounds") if isinstance(cfg.get("bounds"), dict) else {}
@@ -461,8 +489,9 @@ class AdaptiveThresholdAdvisorMixin:
             normalized = {"reasoning": reasoning}
             for key in ("low_critical", "low_warning", "high_warning", "high_critical"):
                 clipped_value, clipped = self._threshold_clip_threshold_value(param_name, key, item.get(key), bounds_cfg)
+                clipped_value, drift_clipped = self._threshold_limit_population_drift(param_name, key, clipped_value)
                 normalized[key] = clipped_value
-                clipped_any = clipped_any or clipped
+                clipped_any = clipped_any or clipped or drift_clipped
             if clipped_any:
                 suffix = "[已被系统约束到安全范围]"
                 normalized["reasoning"] = f"{normalized['reasoning']} {suffix}".strip()
@@ -486,6 +515,62 @@ class AdaptiveThresholdAdvisorMixin:
             "overall_reasoning": str(result.get("overall_reasoning") or "").strip(),
             "review_priority": self._threshold_normalize_priority(result.get("review_priority")),
         }
+
+    def _threshold_distribution_signature(self, context: dict[str, Any]) -> dict[str, dict[str, float | None]]:
+        rows: dict[str, dict[str, float | None]] = {}
+        for param_name, item in ((context or {}).get("vital_distributions") or {}).items():
+            if not isinstance(item, dict):
+                continue
+            stats = item.get("stats") if isinstance(item.get("stats"), dict) else {}
+            rows[param_name] = {
+                "mean": _to_float(stats.get("mean")),
+                "std": _to_float(stats.get("std")),
+                "latest": _to_float(item.get("latest")),
+            }
+        return rows
+
+    def _threshold_support_signature(self, context: dict[str, Any]) -> dict[str, tuple[str, ...]]:
+        vasopressors = tuple(sorted(str(item.get("name") or "").strip() for item in (context.get("current_vasopressors") or []) if str(item.get("name") or "").strip()))
+        sedatives = tuple(sorted(str(item.get("name") or "").strip() for item in (context.get("current_sedation_analgesia") or []) if str(item.get("name") or "").strip()))
+        active_alerts = tuple(sorted(str(item.get("rule_id") or "").strip() for item in (context.get("recent_active_alerts") or []) if str(item.get("rule_id") or "").strip()))
+        return {"vasopressors": vasopressors, "sedatives": sedatives, "active_alerts": active_alerts}
+
+    def _threshold_change_is_significant(self, previous_context: dict[str, Any], context: dict[str, Any]) -> bool:
+        cfg = self._threshold_advisor_cfg()
+        sd_threshold = float(cfg.get("reissue_mean_shift_sd", 1.0) or 1.0)
+        latest_threshold = float(cfg.get("reissue_latest_shift_sd", 0.8) or 0.8)
+        min_abs_cfg = cfg.get("reissue_min_abs_delta", {}) if isinstance(cfg.get("reissue_min_abs_delta"), dict) else {}
+        prev_dist = self._threshold_distribution_signature(previous_context)
+        cur_dist = self._threshold_distribution_signature(context)
+        for param_name, cur_stats in cur_dist.items():
+            prev_stats = prev_dist.get(param_name)
+            if not prev_stats:
+                return True
+            prev_mean = _to_float(prev_stats.get("mean"))
+            cur_mean = _to_float(cur_stats.get("mean"))
+            prev_std = _to_float(prev_stats.get("std")) or 0.0
+            cur_latest = _to_float(cur_stats.get("latest"))
+            prev_latest = _to_float(prev_stats.get("latest"))
+            min_abs = _to_float(min_abs_cfg.get(param_name)) or 0.0
+            mean_delta = abs((cur_mean or 0.0) - (prev_mean or 0.0))
+            latest_delta = abs((cur_latest or 0.0) - (prev_latest or 0.0))
+            if mean_delta >= max(prev_std * sd_threshold, min_abs):
+                return True
+            if latest_delta >= max(prev_std * latest_threshold, min_abs):
+                return True
+        if self._threshold_support_signature(previous_context) != self._threshold_support_signature(context):
+            return True
+        return False
+
+    async def _threshold_latest_context_record(self, pid_str: str) -> dict[str, Any] | None:
+        return await self.db.col("score_records").find_one(
+            {
+                "patient_id": pid_str,
+                "score_type": "personalized_thresholds",
+            },
+            {"patient_context": 1, "context_hash": 1, "calc_time": 1, "status": 1},
+            sort=[("calc_time", -1)],
+        )
 
     async def _threshold_has_existing_record(self, pid_str: str, context_hash: str) -> bool:
         doc = await self.db.col("score_records").find_one(
@@ -574,6 +659,10 @@ class AdaptiveThresholdAdvisorMixin:
         context_summary = json.dumps(context, ensure_ascii=False, sort_keys=True, default=str)
         context_hash = self._threshold_context_hash(context_summary)
         if await self._threshold_has_existing_record(pid_str, context_hash):
+            return False
+        latest_record = await self._threshold_latest_context_record(pid_str)
+        previous_context = latest_record.get("patient_context") if isinstance(latest_record, dict) and isinstance(latest_record.get("patient_context"), dict) else None
+        if previous_context and not self._threshold_change_is_significant(previous_context, context):
             return False
 
         result = self._read_threshold_cache(pid_str, context_hash)

@@ -2,7 +2,7 @@
   <div class="mdt-page">
     <a-card :bordered="false" class="mdt-hero">
       <div class="mdt-hero__copy">
-        <div class="mdt-kicker">MDT CLINICAL WORKSTATION</div>
+        <div class="mdt-kicker">MDT 临床协作工作站</div>
         <h1 class="mdt-title">MDT 多智能体会诊</h1>
         <p class="mdt-desc">以七大生理系统为骨架，以 MDT 讨论流为主线，把患者数字孪生、专科分析、冲突协调与执行决议收敛到一个临床工作站。</p>
         <div class="mdt-hero__badges">
@@ -120,7 +120,7 @@
                   <div class="trend-metrics">
                     <div v-for="item in trendMetricCards.slice(0, 4)" :key="`metric-${item.key}`" class="trend-metrics__item">
                       <span>{{ item.label }}</span>
-                      <strong>{{ item.value != null && item.value !== '' ? `${item.value}${item.unit ? ` ${item.unit}` : ''}` : '—' }}</strong>
+                      <strong>{{ displayMetricValue(item.value) != null ? `${displayMetricValue(item.value)}${item.unit ? ` ${item.unit}` : ''}` : '—' }}</strong>
                     </div>
                   </div>
                   <div class="trend-placeholder__caption">{{ activeSystemPanel?.summary || activeSpecialist?.summary || '等待系统分析结果' }}</div>
@@ -582,6 +582,17 @@ const trendMetricCards = computed(() => {
   if (rows.length) return rows
   return trendBars.value.slice(-4).map((item: any) => ({ key: item.key, label: item.label, value: item.text, unit: '' }))
 })
+
+function displayMetricValue(value: any) {
+  if (value == null || value === '') return null
+  if (typeof value === 'number' || typeof value === 'string') return value
+  if (typeof value === 'object') {
+    const numeric = Number((value as any)?.value)
+    if (Number.isFinite(numeric)) return numeric
+    return null
+  }
+  return String(value)
+}
 const filteredDrugs = computed(() => {
   const keywords = activeSystemConfig.value.drugKeywords.map((item) => item.toLowerCase())
   const rows = drugs.value.filter((item: any) => {

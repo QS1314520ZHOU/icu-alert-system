@@ -15,6 +15,7 @@ from app.utils.alerting import (
     window_to_hours,
 )
 from app.utils.patient_helpers import active_patient_query
+from app.utils.serialization import serialize_doc
 
 router = APIRouter()
 
@@ -73,6 +74,21 @@ async def device_risk_heatmap(
                 }
             )
     return {"code": 0, "rows": rows}
+
+
+@router.get("/api/analytics/nursing-workload")
+async def analytics_nursing_workload(
+    window: Optional[str] = Query("24h", description="时间窗口 24h/7d/14d/30d"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    hours = window_to_hours(window, default=24)
+    analytics = await runtime.alert_engine.get_nursing_workload_analytics(
+        dept=dept,
+        dept_code=dept_code,
+        hours=max(8, min(hours, 24 * 30)),
+    )
+    return {"code": 0, **serialize_doc(analytics)}
 
 
 @router.get("/api/analytics/scenario-coverage")

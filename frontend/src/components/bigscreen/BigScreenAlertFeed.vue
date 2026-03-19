@@ -5,20 +5,38 @@
       :key="a._id"
       :class="['alert-row', `alert-row--${a.severity || 'warning'}`, { 'alert-row--rescue': isRescueRiskAlert(a) }]"
     >
-      <div class="alert-rail">
-        <span :class="['sev-dot', `sev-${a.severity || 'warning'}`]"></span>
-        <span class="alert-time">{{ fmtTime(a.created_at) || '--:--' }}</span>
-      </div>
-      <div class="alert-main">
-        <div class="alert-top">
-          <div class="alert-name">{{ a.name || a.rule_id || '预警' }}</div>
-          <div class="alert-code">{{ formatAlertValue(a) }}</div>
+      <div class="alert-head">
+        <div class="alert-head-main">
+          <div class="alert-identity">
+            <span class="alert-bed">{{ a.bed || '--' }}床</span>
+            <div class="alert-patient-wrap">
+              <div class="alert-patient">{{ a.patient_name || '未知患者' }}</div>
+              <div class="alert-time">
+                <span :class="['sev-dot', `sev-${a.severity || 'warning'}`]"></span>
+                {{ fmtTime(a.created_at) || '--:--' }}
+              </div>
+            </div>
+          </div>
+          <div class="alert-head-copy">
+            <div class="alert-name">{{ a.name || a.rule_id || '预警' }}</div>
+            <div class="alert-code">{{ formatAlertValue(a) }}</div>
+          </div>
         </div>
+        <div class="alert-head-side">
+          <div :class="['sev-tag', `sev-tag--${a.severity || 'warning'}`]">{{ severityText(a.severity) }}</div>
+          <div class="alert-rule">{{ a.rule_id || a.alert_type || '规则' }}</div>
+        </div>
+      </div>
+
+      <div class="alert-main">
         <div class="alert-pills">
-          <span class="meta-pill meta-pill--bed">{{ a.bed || '--' }}床</span>
           <span class="meta-pill">{{ a.patient_name || '未知' }}</span>
           <span v-if="a.category" class="meta-pill">{{ labelCategory(a.category) }}</span>
           <span v-if="a.alert_type" class="meta-pill meta-pill--soft">{{ labelType(a.alert_type) }}</span>
+        </div>
+        <div v-if="explanationSummary(a) && !isPostExtubationAlert(a)" class="alert-summary">
+          <span class="alert-summary-tag">{{ isRescueRiskAlert(a) ? '当前判断' : '核心提示' }}</span>
+          <div class="alert-summary-text">{{ explanationSummary(a) }}</div>
         </div>
         <div v-if="isPostExtubationAlert(a)" class="post-extub-panel">
           <div class="post-extub-head">
@@ -33,70 +51,75 @@
             <span v-if="postExtubationAccessory(a)" class="post-extub-chip post-extub-chip--warn">辅助呼吸肌动用</span>
           </div>
         </div>
-        <div v-if="hasExplanation(a)" :class="['alert-explanation', { 'alert-explanation--rescue': isRescueRiskAlert(a) }]">
-          <div v-if="isRescueRiskAlert(a)" class="alert-rescue-head">
-            <span class="alert-rescue-tag">抢救期风险卡</span>
-            <span class="alert-rescue-main">{{ rescuePanelTitle(a) }}</span>
-          </div>
-          <div class="alert-explanation-tag">{{ isRescueRiskAlert(a) ? '三段式评估' : '临床推理' }}</div>
-          <div :class="['alert-explanation-grid', { 'alert-explanation-grid--rescue': isRescueRiskAlert(a) }]">
-            <div v-if="explanationSummary(a)" :class="['alert-explanation-block', { 'alert-explanation-block--summary': isRescueRiskAlert(a) }]">
-              <div class="alert-explanation-label">{{ isRescueRiskAlert(a) ? '当前判断' : '摘要' }}</div>
-              <div :class="['alert-explanation-text', { 'alert-explanation-text--summary': isRescueRiskAlert(a) }]">{{ explanationSummary(a) }}</div>
+        <div class="alert-body-grid">
+          <div v-if="hasExplanation(a)" :class="['alert-explanation', { 'alert-explanation--rescue': isRescueRiskAlert(a) }]">
+            <div v-if="isRescueRiskAlert(a)" class="alert-rescue-head">
+              <span class="alert-rescue-tag">抢救期风险卡</span>
+              <span class="alert-rescue-main">{{ rescuePanelTitle(a) }}</span>
             </div>
-            <div v-if="explanationEvidence(a).length" :class="['alert-explanation-block', { 'alert-explanation-block--evidence': isRescueRiskAlert(a) }]">
-              <div class="alert-explanation-label">{{ isRescueRiskAlert(a) ? '主要依据' : '证据' }}</div>
-              <div v-if="isRescueRiskAlert(a)" class="alert-rescue-evidence-row">
-                <span
-                  v-for="(ev, idx) in rescueEvidenceChips(a)"
-                  :key="`ev-chip-${a._id || idx}-${idx}`"
-                  class="alert-rescue-evidence-chip"
-                >
-                  {{ ev }}
+            <div class="alert-explanation-tag">{{ isRescueRiskAlert(a) ? '三段式评估' : '临床推理' }}</div>
+            <div :class="['alert-explanation-grid', { 'alert-explanation-grid--rescue': isRescueRiskAlert(a) }]">
+              <div
+                v-if="explanationSummary(a) && isRescueRiskAlert(a)"
+                :class="['alert-explanation-block', 'alert-explanation-block--summary']"
+              >
+                <div class="alert-explanation-label">当前判断</div>
+                <div class="alert-explanation-text alert-explanation-text--summary">{{ explanationSummary(a) }}</div>
+              </div>
+              <div v-if="explanationEvidence(a).length" :class="['alert-explanation-block', { 'alert-explanation-block--evidence': isRescueRiskAlert(a) }]">
+                <div class="alert-explanation-label">{{ isRescueRiskAlert(a) ? '主要依据' : '证据' }}</div>
+                <div v-if="isRescueRiskAlert(a)" class="alert-rescue-evidence-row">
+                  <span
+                    v-for="(ev, idx) in rescueEvidenceChips(a)"
+                    :key="`ev-chip-${a._id || idx}-${idx}`"
+                    class="alert-rescue-evidence-chip"
+                  >
+                    {{ ev }}
+                  </span>
+                </div>
+                <ul v-else class="alert-explanation-list">
+                  <li v-for="(ev, idx) in explanationEvidence(a)" :key="`ev-${a._id || idx}-${idx}`">
+                    {{ ev }}
+                  </li>
+                </ul>
+              </div>
+              <div v-if="explanationSuggestion(a)" :class="['alert-explanation-block', { 'alert-explanation-block--suggestion': isRescueRiskAlert(a) }]">
+                <div class="alert-explanation-label">{{ isRescueRiskAlert(a) ? '处置建议' : '建议' }}</div>
+                <div :class="['alert-explanation-text', { 'alert-explanation-text--suggestion': isRescueRiskAlert(a) }]">{{ explanationSuggestion(a) }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-if="hasContextSnapshot(a)" :class="['alert-snapshot', { 'alert-snapshot--rescue': isRescueRiskAlert(a) }]">
+            <div class="alert-snapshot-head">
+              <span class="alert-snapshot-tag">{{ isRescueRiskAlert(a) ? '风险快照' : '微型快照' }}</span>
+              <span class="alert-snapshot-time">{{ snapshotTime(a) }}</span>
+            </div>
+            <div v-if="snapshotVitals(a).length" class="alert-snapshot-row">
+              <span class="alert-snapshot-label">生命体征</span>
+              <div class="alert-snapshot-chip-row">
+                <span v-for="(chip, idx) in snapshotVitals(a)" :key="`sv-${a._id || idx}-${idx}`" class="alert-snapshot-chip">
+                  <span class="alert-snapshot-chip-label">{{ chip.label }}</span>
+                  <strong class="alert-snapshot-chip-value">{{ chip.value }}</strong>
                 </span>
               </div>
-              <ul v-else class="alert-explanation-list">
-                <li v-for="(ev, idx) in explanationEvidence(a)" :key="`ev-${a._id || idx}-${idx}`">
-                  {{ ev }}
-                </li>
-              </ul>
             </div>
-            <div v-if="explanationSuggestion(a)" :class="['alert-explanation-block', { 'alert-explanation-block--suggestion': isRescueRiskAlert(a) }]">
-              <div class="alert-explanation-label">{{ isRescueRiskAlert(a) ? '处置建议' : '建议' }}</div>
-              <div :class="['alert-explanation-text', { 'alert-explanation-text--suggestion': isRescueRiskAlert(a) }]">{{ explanationSuggestion(a) }}</div>
+            <div v-if="snapshotLabs(a).length" class="alert-snapshot-row">
+              <span class="alert-snapshot-label">关键检验</span>
+              <div class="alert-snapshot-chip-row">
+                <span v-for="(chip, idx) in snapshotLabs(a)" :key="`sl-${a._id || idx}-${idx}`" class="alert-snapshot-chip alert-snapshot-chip--lab">
+                  <span class="alert-snapshot-chip-label">{{ chip.label }}</span>
+                  <strong class="alert-snapshot-chip-value">{{ chip.value }}</strong>
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
-        <div v-if="hasContextSnapshot(a)" :class="['alert-snapshot', { 'alert-snapshot--rescue': isRescueRiskAlert(a) }]">
-          <div class="alert-snapshot-head">
-            <span class="alert-snapshot-tag">{{ isRescueRiskAlert(a) ? '风险快照' : '微型快照' }}</span>
-            <span class="alert-snapshot-time">{{ snapshotTime(a) }}</span>
-          </div>
-          <div v-if="snapshotVitals(a).length" class="alert-snapshot-row">
-            <span class="alert-snapshot-label">生命体征</span>
-            <div class="alert-snapshot-chip-row">
-              <span v-for="(chip, idx) in snapshotVitals(a)" :key="`sv-${a._id || idx}-${idx}`" class="alert-snapshot-chip">
-                <span class="alert-snapshot-chip-label">{{ chip.label }}</span>
-                <strong class="alert-snapshot-chip-value">{{ chip.value }}</strong>
-              </span>
-            </div>
-          </div>
-          <div v-if="snapshotLabs(a).length" class="alert-snapshot-row">
-            <span class="alert-snapshot-label">关键检验</span>
-            <div class="alert-snapshot-chip-row">
-              <span v-for="(chip, idx) in snapshotLabs(a)" :key="`sl-${a._id || idx}-${idx}`" class="alert-snapshot-chip alert-snapshot-chip--lab">
-                <span class="alert-snapshot-chip-label">{{ chip.label }}</span>
-                <strong class="alert-snapshot-chip-value">{{ chip.value }}</strong>
-              </span>
-            </div>
-          </div>
-          <div v-if="snapshotVasopressors(a).length" class="alert-snapshot-row">
-            <span class="alert-snapshot-label">血管活性药</span>
-            <div class="alert-snapshot-badge-row">
-              <span v-for="(badge, idx) in snapshotVasopressors(a)" :key="`sp-${a._id || idx}-${idx}`" class="alert-snapshot-badge">
-                <span class="alert-snapshot-badge-name">{{ badge.drug }}</span>
-                <span class="alert-snapshot-badge-dose">{{ badge.dose }}</span>
-              </span>
+            <div v-if="snapshotVasopressors(a).length" class="alert-snapshot-row">
+              <span class="alert-snapshot-label">血管活性药</span>
+              <div class="alert-snapshot-badge-row">
+                <span v-for="(badge, idx) in snapshotVasopressors(a)" :key="`sp-${a._id || idx}-${idx}`" class="alert-snapshot-badge">
+                  <span class="alert-snapshot-badge-name">{{ badge.drug }}</span>
+                  <span class="alert-snapshot-badge-dose">{{ badge.dose }}</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -127,13 +150,15 @@
             </span>
           </div>
         </div>
-        <div class="alert-meta">
-          监护事件 · {{ a.rule_id || a.alert_type || '规则' }}
+        <div class="alert-meta-bar">
+          <div class="alert-meta">监护事件 · {{ a.rule_id || a.alert_type || '规则' }}</div>
+          <div class="alert-meta alert-meta--dim">{{ a.category ? labelCategory(a.category) : '综合监测' }}</div>
         </div>
       </div>
-      <div class="alert-side">
-        <div :class="['sev-tag', `sev-tag--${a.severity || 'warning'}`]">{{ severityText(a.severity) }}</div>
-      </div>
+    </div>
+    <div v-if="!alerts.length" class="alert-empty">
+      <div class="alert-empty-title">当前无实时预警</div>
+      <div class="alert-empty-copy">预警流为空时，这里会自动展示最新床位风险。</div>
     </div>
   </div>
 </template>
@@ -620,12 +645,12 @@ function formatAlertValue(a: any) {
 
 function severityText(v: any) {
   const map: Record<string, string> = {
-    warning: 'WARN',
-    high: 'HIGH',
-    critical: 'CRIT',
-    normal: 'OK',
+    warning: '关注',
+    high: '高危',
+    critical: '危急',
+    normal: '平稳',
   }
-  return map[String(v || 'warning')] || 'WARN'
+  return map[String(v || 'warning')] || '关注'
 }
 </script>
 
@@ -633,64 +658,131 @@ function severityText(v: any) {
 .alert-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   max-height: calc(100vh - 210px);
   overflow: auto;
-  padding-right: 2px;
+  padding-right: 4px;
 }
 .alert-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 54px 1fr 64px;
   gap: 10px;
-  padding: 9px 10px;
-  border-radius: 12px;
+  padding: 12px;
+  border-radius: 16px;
   background:
-    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 26%),
-    linear-gradient(180deg, rgba(7, 20, 34, 0.94) 0%, rgba(4, 12, 22, 0.96) 100%);
-  border: 1px solid rgba(80, 199, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), rgba(56, 189, 248, 0) 28%),
+    linear-gradient(180deg, rgba(8, 23, 38, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
+  border: 1px solid rgba(94, 234, 212, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(145, 228, 255, 0.05),
+    0 18px 32px rgba(0, 0, 0, 0.22);
+}
+.alert-row::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+  background: rgba(245, 158, 11, 0.7);
 }
 .alert-row--critical {
-  border-color: rgba(251,90,122,.24);
+  border-color: rgba(251, 90, 122, 0.24);
+}
+.alert-row--critical::before {
+  background: linear-gradient(180deg, #fb5a7a 0%, #be123c 100%);
 }
 .alert-row--high {
-  border-color: rgba(249,115,22,.22);
+  border-color: rgba(249, 115, 22, 0.22);
+}
+.alert-row--high::before {
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
 }
 .alert-row--warning {
-  border-color: rgba(245,158,11,.2);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+.alert-row--warning::before {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
 }
 .alert-row--rescue {
   background:
-    radial-gradient(circle at top right, rgba(251, 113, 133, 0.12), rgba(251, 113, 133, 0) 28%),
-    linear-gradient(180deg, rgba(9, 20, 33, 0.96) 0%, rgba(5, 11, 21, 0.98) 100%);
+    radial-gradient(circle at top right, rgba(251, 113, 133, 0.16), rgba(251, 113, 133, 0) 28%),
+    linear-gradient(180deg, rgba(15, 22, 37, 0.98) 0%, rgba(5, 11, 21, 0.99) 100%);
 }
-.alert-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.alert-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+.alert-head-main {
+  display: grid;
   gap: 8px;
-  padding-top: 4px;
+  min-width: 0;
+}
+.alert-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.alert-bed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  height: 54px;
+  padding: 0 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(15, 49, 73, 0.98) 0%, rgba(8, 29, 45, 0.98) 100%);
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  color: #ecfeff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-family: 'Rajdhani', 'JetBrains Mono', monospace;
+}
+.alert-patient-wrap {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.alert-patient {
+  color: #f0fdff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.alert-head-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 .alert-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(8, 31, 46, 0.82);
+  border: 1px solid rgba(80, 199, 255, 0.1);
   font-size: 10px;
   color: #73cde0;
   letter-spacing: .08em;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
 }
 .alert-main {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
-.alert-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: flex-start;
+.alert-head-side {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
 }
 .alert-name {
-  font-size: 12px;
+  font-size: 13px;
   color: #ecfeff;
   font-weight: 700;
   letter-spacing: .04em;
@@ -698,10 +790,18 @@ function severityText(v: any) {
 }
 .alert-code {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: #dffbff;
+  color: #8df5da;
   white-space: nowrap;
+}
+.alert-rule {
+  color: #7ab8ca;
+  font-size: 10px;
+  line-height: 1.2;
+  max-width: 140px;
+  text-align: right;
+  word-break: break-word;
 }
 .alert-pills {
   display: flex;
@@ -715,15 +815,32 @@ function severityText(v: any) {
   padding: 0 7px;
   border-radius: 999px;
   background: rgba(8, 30, 46, 0.88);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid rgba(80, 199, 255, 0.12);
   color: #8fd4e6;
   font-size: 10px;
 }
-.meta-pill--bed {
-  color: #dffbff;
-}
 .meta-pill--soft {
   color: #bfd8f1;
+}
+.alert-summary {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: linear-gradient(180deg, rgba(6, 30, 44, 0.96) 0%, rgba(5, 22, 36, 0.94) 100%);
+}
+.alert-summary-tag {
+  color: #74e5f7;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.alert-summary-text {
+  color: #ecfeff;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 600;
 }
 .alert-meta {
   font-size: 10px;
@@ -731,11 +848,26 @@ function severityText(v: any) {
   line-height: 1.35;
   letter-spacing: .08em;
 }
+.alert-meta--dim {
+  color: #4d8aa0;
+}
+.alert-meta-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+.alert-body-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .95fr);
+  gap: 8px;
+}
 .post-extub-panel {
   display: grid;
   gap: 6px;
-  padding: 8px 9px;
-  border-radius: 10px;
+  padding: 10px 11px;
+  border-radius: 12px;
   border: 1px solid rgba(251, 113, 133, 0.16);
   background: linear-gradient(180deg, rgba(55, 16, 28, 0.54) 0%, rgba(18, 17, 30, 0.78) 100%);
 }
@@ -756,7 +888,7 @@ function severityText(v: any) {
   border: 1px solid rgba(251, 113, 133, 0.18);
   color: #fda4af;
   font-size: 9px;
-  letter-spacing: .12em;
+  letter-spacing: .06em;
 }
 .post-extub-pill {
   display: inline-flex;
@@ -801,17 +933,14 @@ function severityText(v: any) {
 .alert-explanation {
   display: grid;
   gap: 6px;
-  margin-top: 2px;
-  padding: 8px 9px;
-  border-radius: 10px;
+  padding: 10px 11px;
+  border-radius: 12px;
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background:
-    linear-gradient(180deg, rgba(6, 23, 37, 0.92) 0%, rgba(5, 18, 30, 0.94) 100%);
+  background: linear-gradient(180deg, rgba(6, 23, 37, 0.92) 0%, rgba(5, 18, 30, 0.94) 100%);
 }
 .alert-explanation--rescue {
   border-color: rgba(251, 113, 133, 0.16);
-  background:
-    linear-gradient(180deg, rgba(54, 16, 28, 0.26) 0%, rgba(9, 23, 38, 0.94) 24%, rgba(5, 18, 30, 0.96) 100%);
+  background: linear-gradient(180deg, rgba(54, 16, 28, 0.26) 0%, rgba(9, 23, 38, 0.94) 24%, rgba(5, 18, 30, 0.96) 100%);
 }
 .alert-rescue-head {
   display: flex;
@@ -832,7 +961,7 @@ function severityText(v: any) {
   border: 1px solid rgba(251, 113, 133, 0.18);
   color: #fda4af;
   font-size: 9px;
-  letter-spacing: .12em;
+  letter-spacing: .06em;
 }
 .alert-rescue-main {
   color: #ffe4ea;
@@ -842,7 +971,7 @@ function severityText(v: any) {
 .alert-explanation-tag {
   color: #67dff2;
   font-size: 9px;
-  letter-spacing: .14em;
+  letter-spacing: .08em;
 }
 .alert-explanation-grid {
   display: grid;
@@ -870,8 +999,7 @@ function severityText(v: any) {
   color: #93ebff;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
+  letter-spacing: .06em;
 }
 .alert-explanation-text {
   color: #d9ebff;
@@ -918,8 +1046,8 @@ function severityText(v: any) {
 .alert-snapshot {
   display: grid;
   gap: 6px;
-  padding: 8px 9px;
-  border-radius: 10px;
+  padding: 10px 11px;
+  border-radius: 12px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: linear-gradient(180deg, rgba(7, 24, 39, 0.88) 0%, rgba(7, 18, 30, 0.94) 100%);
 }
@@ -936,7 +1064,7 @@ function severityText(v: any) {
 .alert-snapshot-tag {
   color: #72e4f7;
   font-size: 9px;
-  letter-spacing: .12em;
+  letter-spacing: .06em;
 }
 .alert-snapshot-time {
   color: #83abc4;
@@ -944,16 +1072,15 @@ function severityText(v: any) {
 }
 .alert-snapshot-row {
   display: grid;
-  grid-template-columns: 38px 1fr;
+  grid-template-columns: 44px 1fr;
   gap: 8px;
   align-items: flex-start;
 }
 .alert-snapshot-label {
   color: #8ed8ee;
   font-size: 9px;
-  letter-spacing: .1em;
+  letter-spacing: .04em;
   padding-top: 4px;
-  text-transform: uppercase;
 }
 .alert-snapshot-chip-row,
 .alert-snapshot-badge-row {
@@ -968,12 +1095,12 @@ function severityText(v: any) {
   min-height: 20px;
   padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid rgba(80,199,255,.12);
-  background: rgba(11, 35, 54, .84);
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(11, 35, 54, 0.84);
 }
 .alert-snapshot-chip--lab {
-  border-color: rgba(96, 165, 250, .18);
-  background: rgba(12, 31, 50, .9);
+  border-color: rgba(96, 165, 250, 0.18);
+  background: rgba(12, 31, 50, 0.9);
 }
 .alert-snapshot-chip-label {
   color: #84bfd7;
@@ -992,8 +1119,8 @@ function severityText(v: any) {
   min-height: 20px;
   padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid rgba(245, 158, 11, .2);
-  background: rgba(51, 27, 7, .66);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(51, 27, 7, 0.66);
 }
 .alert-snapshot-badge-name {
   color: #fde68a;
@@ -1013,8 +1140,8 @@ function severityText(v: any) {
   gap: 8px;
 }
 .alert-chain {
-  padding: 8px 9px;
-  border-radius: 10px;
+  padding: 10px 11px;
+  border-radius: 12px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: linear-gradient(180deg, rgba(7, 24, 39, 0.86) 0%, rgba(7, 18, 30, 0.92) 100%);
 }
@@ -1032,15 +1159,15 @@ function severityText(v: any) {
 .alert-composite-tag {
   color: #72e4f7;
   font-size: 9px;
-  letter-spacing: .12em;
+  letter-spacing: .06em;
 }
 .alert-composite-code {
   color: #9dd8ff;
   font-size: 9px;
   padding: 2px 7px;
   border-radius: 999px;
-  border: 1px solid rgba(80,199,255,.12);
-  background: rgba(8, 28, 44, .78);
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(8, 28, 44, 0.78);
 }
 .alert-chain-summary {
   color: #e9fbff;
@@ -1066,29 +1193,24 @@ function severityText(v: any) {
   padding: 0 8px;
   border-radius: 999px;
   font-size: 10px;
-  border: 1px solid rgba(80,199,255,.12);
-  background: rgba(11, 35, 54, .84);
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(11, 35, 54, 0.84);
   color: #dffbff;
 }
-.alert-group-chip--warning { color: #fcd34d; border-color: rgba(245,158,11,.2); }
-.alert-group-chip--high { color: #fdba74; border-color: rgba(249,115,22,.24); }
-.alert-group-chip--critical { color: #fda4af; border-color: rgba(244,63,94,.24); }
-.alert-side {
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-}
+.alert-group-chip--warning { color: #fcd34d; border-color: rgba(245, 158, 11, 0.2); }
+.alert-group-chip--high { color: #fdba74; border-color: rgba(249, 115, 22, 0.24); }
+.alert-group-chip--critical { color: #fda4af; border-color: rgba(244, 63, 94, 0.24); }
 .sev-tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 46px;
-  height: 22px;
-  padding: 0 8px;
+  min-width: 58px;
+  height: 28px;
+  padding: 0 10px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: .12em;
+  letter-spacing: .08em;
   border: 1px solid transparent;
 }
 .sev-tag--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
@@ -1099,38 +1221,56 @@ function severityText(v: any) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  margin-top: 2px;
 }
 .sev-warning { background: #f59e0b; box-shadow: 0 0 6px #f59e0b88; }
 .sev-high { background: #f97316; box-shadow: 0 0 6px #f9731688; }
-.sev-critical { background: #fb5a7a; box-shadow: 0 0 8px rgba(251,90,122,.65); }
-.sev-normal { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.5); }
-
+.sev-critical { background: #fb5a7a; box-shadow: 0 0 8px rgba(251, 90, 122, 0.65); }
+.sev-normal { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.5); }
+.alert-empty {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 180px;
+  border-radius: 16px;
+  border: 1px dashed rgba(80, 199, 255, 0.16);
+  background: linear-gradient(180deg, rgba(7, 23, 37, 0.72) 0%, rgba(4, 13, 24, 0.9) 100%);
+  color: #96dcee;
+}
+.alert-empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e8fbff;
+}
+.alert-empty-copy {
+  font-size: 12px;
+  color: #6fbfd6;
+}
 @media (max-width: 1100px) {
   .alert-list {
     max-height: none;
   }
-  .alert-time {
-    writing-mode: initial;
-    transform: none;
+  .alert-body-grid {
+    grid-template-columns: 1fr;
   }
 }
-
 @media (max-width: 640px) {
-  .alert-row {
+  .alert-head {
     grid-template-columns: 1fr;
-    gap: 8px;
   }
-  .alert-rail,
-  .alert-side {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .alert-top {
+  .alert-identity {
     flex-direction: column;
-    gap: 4px;
+    align-items: flex-start;
+  }
+  .alert-bed {
+    min-width: 48px;
+    height: 48px;
+    font-size: 16px;
+  }
+  .alert-patient {
+    font-size: 14px;
+  }
+  .alert-head-side {
+    justify-items: start;
   }
   .alert-code {
     white-space: normal;
@@ -1144,3 +1284,6 @@ function severityText(v: any) {
   }
 }
 </style>
+
+
+

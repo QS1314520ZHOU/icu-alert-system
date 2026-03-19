@@ -71,11 +71,17 @@ JSON结构:
         pid = patient_doc.get("_id")
         facts = await self.alert_engine._collect_patient_facts(patient_doc, pid) if hasattr(self.alert_engine, "_collect_patient_facts") else {}
         nursing_context = None
+        nursing_note_analysis = None
         if hasattr(self.alert_engine, "_collect_nursing_context"):
             try:
                 nursing_context = await self.alert_engine._collect_nursing_context(patient_doc, str(pid), hours=24)
             except Exception:
                 nursing_context = None
+        if hasattr(self.alert_engine, "latest_nursing_note_analysis"):
+            try:
+                nursing_note_analysis = await self.alert_engine.latest_nursing_note_analysis(str(pid), hours=24)
+            except Exception:
+                nursing_note_analysis = None
         similar_case_review = None
         if hasattr(self.alert_engine, "get_similar_case_outcomes"):
             try:
@@ -147,6 +153,7 @@ JSON结构:
             "temporal_forecast": temporal_forecast or {},
             "proactive_management": proactive_plan or {},
             "nursing_context": nursing_context or {},
+            "nursing_note_analysis": nursing_note_analysis or {},
             "similar_case_review": similar_case_review or {},
             "handoff_context": handoff_context or {},
         }

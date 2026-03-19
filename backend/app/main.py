@@ -56,7 +56,11 @@ async def lifespan(application: FastAPI):
     await db.connect()
 
     ws_mgr = WebSocketManager()
-    alert_engine = AlertEngine(db, config, ws_mgr)
+    if db.redis:
+        from app.alert_engine.task_queue import load_queue_settings
+
+        await ws_mgr.start_redis_relay(db.redis, load_queue_settings(config).redis_pubsub_channel)
+    alert_engine = AlertEngine(db, config, ws_mgr, runtime_role="api")
     await alert_engine.start()
     ai_handoff_service = AiHandoffService(db, config)
     ai_monitor = AiMonitor(db, config)
@@ -85,6 +89,7 @@ async def lifespan(application: FastAPI):
 
     logger.info("⏹️ ICU智能预警系统关闭中...")
     await alert_engine.stop()
+    await ws_mgr.stop_redis_relay()
     await db.disconnect()
     logger.info("✅ ICU智能预警系统已关闭")
 

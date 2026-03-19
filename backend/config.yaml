@@ -288,6 +288,15 @@ extended_scenarios:
 # ==================== 预警引擎配置 ====================
 alert_engine:
   max_concurrent_scans: 4
+  execution_mode: inline  # inline | redis_queue
+  task_queue:
+    mode: redis_queue
+    redis_queue_name: icu:alert_engine:scan_queue
+    redis_pubsub_channel: icu:alerts:broadcast
+    dedupe_ttl_seconds: 900
+    worker_concurrency: 4
+    worker_poll_timeout: 5
+    dispatcher_enabled: true
   scan_intervals:
     vital_signs: 60
     lab_results: 300
@@ -325,6 +334,8 @@ alert_engine:
     assessments: 600
     trend_analysis: 900
     alert_reasoning: 300
+    nursing_note_analyzer: 14400
+    nursing_workload: 14400
     adaptive_threshold_advisor: 7200
     discharge_readiness: 1800
     proactive_management: 300
@@ -443,6 +454,23 @@ alert_engine:
     llm_timeout: 45
     max_concurrent: 3
     cache_ttl_seconds: 3600
+    max_population_relative_drift: 0.2
+    max_population_absolute_drift:
+      map: 10
+      hr: 20
+      spo2: 4
+      sbp: 20
+      rr: 8
+      temperature: 1.0
+    reissue_mean_shift_sd: 1.0
+    reissue_latest_shift_sd: 0.8
+    reissue_min_abs_delta:
+      map: 5
+      hr: 8
+      spo2: 2
+      sbp: 8
+      rr: 3
+      temperature: 0.4
     vasopressor_keywords:
       - "去甲肾上腺素"
       - "多巴胺"
@@ -634,6 +662,22 @@ alert_engine:
     max_patients_per_cycle: 60
     tracked_labs: ["lac", "cr", "wbc", "plt", "tbil", "inr"]
 
+  nursing_workload:
+    account_collection: "account"
+    shift_hours: 8
+    recent_alert_window_hours: 6
+    nursing_context_hours: 24
+    base_points: 18
+    ventilation_points: 12
+    crrt_points: 8
+    vasopressor_points: 6
+    vasopressor_points_high: 10
+    nas_offset: 16
+    nas_scale: 1.65
+
+  nursing_note_analyzer:
+    analysis_window_hours: 12
+
   trend_analysis_advanced:
     acute_window_minutes: 30
     acute_sd_multiplier: 3.0
@@ -664,6 +708,10 @@ alert_engine:
     deadline_minutes: 60
     escalation_3h_minutes: 180
     tracker_reopen_hours: 24
+    fluid_target_ml_per_kg: 30
+    culture_lead_hours: 6
+    blood_culture_keywords: ["血培养", "blood culture"]
+    crystalloid_keywords: ["生理盐水", "氯化钠", "平衡液", "乳酸林格", "林格", "normal saline", "sodium chloride", "ringer", "crystalloid"]
 
 
   weaning_assistant:
@@ -685,6 +733,8 @@ alert_engine:
     fluid_overload_warning_pct: 5
     fluid_overload_high_pct: 10
     bnp_surge_ratio: 1.5
+    default_male_height_cm: 170
+    default_female_height_cm: 160
     extubation_monitor_hours: 48
     post_extub_rr_threshold: 30
     post_extub_spo2_threshold: 92
@@ -946,8 +996,11 @@ alert_engine:
     diagnosis_keyword_limit: 6
     min_diagnosis_similarity: 0.15
     embedding_model: "BAAI/bge-small-zh-v1.5"
-    embedding_weight: 0.65
-    token_weight: 0.15
+    embedding_weight: 0.4
+    token_weight: 0.1
+    age_weight: 0.15
+    sofa_weight: 0.25
+    support_weight: 0.1
 
   nutrition_monitor:
     start_delay_hours: 48

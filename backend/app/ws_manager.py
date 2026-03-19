@@ -9,6 +9,7 @@ import logging
 from typing import Any
 
 from fastapi import WebSocket
+from app.alert_engine.task_queue import relay_pubsub_forever
 
 logger = logging.getLogger("icu-alert")
 
@@ -18,6 +19,8 @@ class WebSocketManager:
         self._clients: set[WebSocket] = set()
         self._client_meta: dict[WebSocket, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
+        self._redis_stop = asyncio.Event()
+        self._redis_task: asyncio.Task | None = None
 
     def _normalize_roles(self, roles: Any) -> list[str]:
         if roles is None:
@@ -80,3 +83,34 @@ class WebSocketManager:
                 for ws in dead:
                     self._clients.discard(ws)
                     self._client_meta.pop(ws, None)
+
+    async def start_redis_relay(self, redis_client: Any, channel: str) -> None:
+        if not redis_client or self._redis_task:
+            return
+        self._redis_stop.clear()
+        self._redis_task = asyncio.create_task(
+            relay_pubsub_forever(
+                redis_client=redis_client,
+                channel=channel,
+                stop_event=self._redis_stop,
+                handler=self._handle_pubsub_message,
+            ),
+            name="ws-redis-relay",
+        )
+
+    async def stop_redis_relay(self) -> None:
+        self._redis_stop.set()
+        if self._redis_task:
+            self._redis_task.cancel()
+            await asyncio.gather(self._redis_task, return_exceptions=True)
+            self._redis_task = None
+
+    async def _handle_pubsub_message(self, payload: dict[str, Any]) -> None:
+        message_type = str(payload.get("type") or "").strip()
+        if not message_type:
+            return
+        roles = payload.get("roles")
+        await self.broadcast(
+            {"type": message_type, "data": payload.get("data")},
+            roles=roles,
+        )

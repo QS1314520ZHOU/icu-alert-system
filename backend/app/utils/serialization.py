@@ -11,7 +11,7 @@ API_TZ = ZoneInfo("Asia/Shanghai")
 def serialize_doc(doc):
     """将 MongoDB 文档转换为 JSON 可序列化结构（支持顶层 dict / list / 标量）"""
     if doc is None:
-        return {}
+        return None
     if isinstance(doc, ObjectId):
         return str(doc)
     if isinstance(doc, datetime):

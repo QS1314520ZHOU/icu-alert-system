@@ -141,6 +141,7 @@ class SepsisScanner(BaseScanner):
                 tracker=tracker,
                 patient_doc=patient_doc,
                 pid_str=pid_str,
+                his_pid=his_pid,
                 device_id=device_id,
                 now=now,
                 same_rule_sec=same_rule_sec,
