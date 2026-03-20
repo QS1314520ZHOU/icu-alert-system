@@ -2,7 +2,7 @@
   <section class="mobility-tab">
     <div class="mobility-hero">
       <div>
-        <div class="mobility-title">ICU-AW / 早期活动</div>
+        <div class="mobility-title">ICU 获得性衰弱 / 早期活动</div>
         <div class="mobility-sub">围绕 ICU 获得性衰弱风险、制动时长和早期活动机会做专题展示。</div>
       </div>
       <div class="mobility-pill">{{ headline }}</div>
@@ -10,7 +10,7 @@
 
     <div class="mobility-grid">
       <article class="mobility-card">
-        <div class="mobility-card-title">ICU-AW 风险</div>
+        <div class="mobility-card-title">ICU 获得性衰弱风险</div>
         <div class="mobility-card-main">{{ riskSummary }}</div>
         <div class="mobility-card-meta">{{ riskMeta }}</div>
         <div v-if="riskChips.length" class="mobility-chip-row">
@@ -36,7 +36,7 @@
         <div class="mobility-row-main">{{ item.explanation?.summary || item.extra?.message || item.extra?.recommended_level_label || '暂无说明' }}</div>
       </article>
     </div>
-    <div v-else class="mobility-empty">暂无 ICU-AW / 早期活动相关预警</div>
+    <div v-else class="mobility-empty">暂无 ICU 获得性衰弱 / 早期活动相关预警</div>
   </section>
 </template>
 
@@ -46,7 +46,7 @@ const props = defineProps<{ alerts: Array<any>; fmtTime: (v: any) => string }>()
 const riskAlert = computed(() => props.alerts.find((row) => String(row?.alert_type || '') === 'icu_aw_risk'))
 const oppAlert = computed(() => props.alerts.find((row) => String(row?.alert_type || '') === 'early_mobility_recommendation'))
 const headline = computed(() => oppAlert.value?.extra?.recommended_level_label || (riskAlert.value ? '存在高风险信号' : '等待评估'))
-const riskSummary = computed(() => riskAlert.value?.explanation?.summary || riskAlert.value?.name || '当前未见 ICU-AW 高风险提示')
+const riskSummary = computed(() => riskAlert.value?.explanation?.summary || riskAlert.value?.name || '当前未见 ICU 获得性衰弱高风险提示')
 const riskMeta = computed(() => riskAlert.value ? (props.fmtTime(riskAlert.value.created_at) || '最近更新') : '当前无高风险预警')
 const riskChips = computed(() => { const factors = Array.isArray(riskAlert.value?.extra?.factors) ? riskAlert.value.extra.factors : []; return factors.slice(0, 4).map((item: any) => item?.evidence || item?.factor).filter(Boolean) })
 const opportunitySummary = computed(() => oppAlert.value?.extra?.message || oppAlert.value?.explanation?.summary || '当前未触发活动机会提醒')
@@ -72,3 +72,4 @@ const opportunityChips = computed(() => { const readiness = oppAlert.value?.extr
 .mobility-empty { padding: 24px; text-align: center; color: #8bb2c4; border: 1px dashed rgba(125, 211, 252, 0.2); border-radius: 16px; }
 @media (max-width: 900px) { .mobility-grid,.mobility-row { grid-template-columns: 1fr; } }
 </style>
+

@@ -63,7 +63,7 @@
             </div>
           </div>
           <div v-if="hasRiskForecast" class="ai-workbench-section">
-            <div class="ai-workbench-title">病情风险走势图</div>
+            <div class="ai-workbench-title">病情风险趋势图</div>
             <div class="risk-curve-head">
               <span class="curve-meta">{{ forecastModelLabel }}</span>
               <span class="curve-meta">{{ forecastHorizonText }}</span>
@@ -71,7 +71,7 @@
             <AiRiskChart :option="riskForecastOption" autoresize class="risk-curve-chart" />
           </div>
           <div v-if="forecastSummaryBlock.visible" class="ai-workbench-section">
-            <div class="ai-workbench-title">模型摘要</div>
+            <div class="ai-workbench-title">模型总结</div>
             <div class="summary-panel">
               <div :class="['summary-conclusion', `summary-conclusion--${forecastSummaryBlock.level}`]">
                 <div class="summary-conclusion-label">当前判断</div>
@@ -96,7 +96,7 @@
             </div>
           </div>
           <div v-if="forecastContributors.length" class="ai-workbench-section">
-            <div class="ai-workbench-title">主要驱动因子</div>
+            <div class="ai-workbench-title">主要驱动因素</div>
             <ul class="workbench-list">
               <li v-for="(item, idx) in forecastContributors" :key="`risk-${idx}`">
                 {{ item.feature || item.organ || '风险因素' }} · {{ item.evidence || '—' }}
@@ -104,7 +104,7 @@
             </ul>
           </div>
           <div v-if="latestAiRiskAlert && aiRiskEvidenceList(latestAiRiskAlert).length" class="ai-workbench-section">
-            <div class="ai-workbench-title">证据脚注</div>
+            <div class="ai-workbench-title">证据注释</div>
             <div class="ai-footnote-row">
               <span
                 v-for="(evidence, idx) in aiRiskEvidenceList(latestAiRiskAlert)"
@@ -500,7 +500,7 @@ const forecastSummaryBlock = computed(() => {
     .split(/\r?\n+/)
     .map(cleanSummaryLine)
     .filter(Boolean)
-    .filter((line) => !/^(模型摘要|风险等级|判断依据|主要风险因素)$/i.test(line))
+    .filter((line) => !/^(模型总结|风险等级|判断依据|主要风险因素)$/i.test(line))
   const rawEvidence = rawLines
     .filter((line) => /^[-•]/.test(String(line)) || /风险|异常|升高|下降|偏低|偏高|基础病情|住院时间|生命体征/.test(line))
     .map((line) => cleanSummaryLine(line.replace(/^[-•]\s*/, '')))
@@ -518,7 +518,7 @@ const forecastSummaryBlock = computed(() => {
   return {
     visible: !!(summary || evidence.length || raw),
     level,
-    summary: summary || '暂无模型摘要',
+    summary: summary || '暂无模型总结',
     evidence,
     suggestion: suggestionByRisk(level),
   }
@@ -1156,3 +1156,4 @@ const aiServiceStatus = computed(() => {
   }
 }
 </style>
+

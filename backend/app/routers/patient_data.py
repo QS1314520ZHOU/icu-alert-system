@@ -38,6 +38,82 @@ router = APIRouter()
 logger = logging.getLogger("icu-alert")
 
 
+def _vital_codes() -> dict[str, list[str]]:
+    cfg = (runtime.config.yaml_cfg or {}) if getattr(runtime, "config", None) is not None else {}
+    vital_cfg = cfg.get("vital_signs", {}) if isinstance(cfg, dict) else {}
+
+    def _single(section: str, default: str) -> str:
+        row = vital_cfg.get(section)
+        if isinstance(row, dict):
+            value = str(row.get("code") or "").strip()
+            if value:
+                return value
+        return default
+
+    def _multi(section: str, default: list[str]) -> list[str]:
+        rows = vital_cfg.get(section)
+        if isinstance(rows, list):
+            cleaned = [str(item).strip() for item in rows if str(item).strip()]
+            if cleaned:
+                return cleaned
+        return default
+
+    hr_codes = []
+    for code in [
+        _single("heart_rate", "param_HR"),
+        _single("pulse_rate", "param_PR"),
+    ]:
+        if code not in hr_codes:
+            hr_codes.append(code)
+
+    return {
+        "hr": hr_codes,
+        "spo2": [_single("spo2", "param_spo2")],
+        "rr": [_single("resp_rate", "param_resp")],
+        "temp": [_single("temperature", "param_T")],
+        "sbp": _multi("sbp_priority", ["param_ibp_s", "param_nibp_s"]),
+        "dbp": _multi("dbp_priority", ["param_ibp_d", "param_nibp_d"]),
+        "map": _multi("map_priority", ["param_ibp_m", "param_nibp_m"]),
+    }
+
+
+def _pick_param(params: dict, codes: list[str]) -> float | int | str | None:
+    if not isinstance(params, dict):
+        return None
+    for code in codes:
+        value = params.get(code)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _snapshot_to_vitals(snapshot: dict | None, source: str | None) -> dict:
+    if not isinstance(snapshot, dict):
+        return {}
+    params = snapshot.get("params")
+    if not isinstance(params, dict) or not params:
+        return {}
+
+    codes = _vital_codes()
+    point_time = snapshot.get("time")
+    return {
+        "source": source,
+        "time": serialize_doc(point_time) if isinstance(point_time, datetime) else str(point_time) if point_time else None,
+        "hr": _pick_param(params, codes["hr"]),
+        "spo2": _pick_param(params, codes["spo2"]),
+        "rr": _pick_param(params, codes["rr"]),
+        "temp": _pick_param(params, codes["temp"]),
+        "nibp_sys": _pick_param(params, codes["sbp"]),
+        "nibp_dia": _pick_param(params, codes["dbp"]),
+        "nibp_map": _pick_param(params, codes["map"]),
+        "ibp_sys": params.get("param_ibp_s"),
+        "ibp_dia": params.get("param_ibp_d"),
+        "ibp_map": params.get("param_ibp_m"),
+        "cvp": params.get("param_cvp"),
+        "etco2": params.get("param_ETCO2"),
+    }
+
+
 async def _fallback_vitals_from_alert_snapshot(pid_str: str) -> dict | None:
     if not pid_str:
         return None
@@ -55,27 +131,32 @@ async def _fallback_vitals_from_alert_snapshot(pid_str: str) -> dict | None:
     if not vitals:
         return None
 
-    def _value(key: str) -> float | None:
-        row = vitals.get(key)
-        if not isinstance(row, dict):
-            return None
-        for raw in (row.get("value"), row.get("fVal"), row.get("intVal"), row.get("strVal")):
-            if raw is None or raw == "":
+    def _value(*keys: str) -> float | None:
+        for key in keys:
+            row = vitals.get(key)
+            if isinstance(row, (int, float)):
+                return float(row)
+            if not isinstance(row, dict):
                 continue
-            try:
-                return float(raw)
-            except Exception:
-                continue
+            for raw in (row.get("value"), row.get("fVal"), row.get("intVal"), row.get("strVal")):
+                if raw is None or raw == "":
+                    continue
+                try:
+                    return float(raw)
+                except Exception:
+                    continue
         return None
 
-    hr = _value("hr")
-    spo2 = _value("spo2")
-    rr = _value("rr")
+    hr = _value("hr", "heart_rate", "pulse", "pr")
+    spo2 = _value("spo2", "SpO2")
+    rr = _value("rr", "resp")
+    sbp = _value("sbp", "sys", "systolic")
+    dbp = _value("dbp", "dia", "diastolic")
     map_value = _value("map")
-    temp = _value("temp")
+    temp = _value("temp", "t", "temperature")
     snapshot_time = snapshot.get("snapshot_time")
 
-    if all(value is None for value in [hr, spo2, rr, map_value, temp]):
+    if all(value is None for value in [hr, spo2, rr, sbp, dbp, map_value, temp]):
         return None
     return {
         "source": "alert_snapshot",
@@ -84,11 +165,11 @@ async def _fallback_vitals_from_alert_snapshot(pid_str: str) -> dict | None:
         "spo2": spo2,
         "rr": rr,
         "temp": temp,
-        "nibp_sys": None,
-        "nibp_dia": None,
+        "nibp_sys": sbp,
+        "nibp_dia": dbp,
         "nibp_map": map_value,
-        "ibp_sys": None,
-        "ibp_dia": None,
+        "ibp_sys": sbp,
+        "ibp_dia": dbp,
         "ibp_map": map_value,
         "cvp": None,
         "etco2": None,
@@ -113,17 +194,15 @@ async def patient_vitals(patient_id: str):
     if his_pid:
         query_pids.append(his_pid)
 
+    code_map = _vital_codes()
     codes = [
-        "param_HR",
-        "param_spo2",
-        "param_resp",
-        "param_T",
-        "param_nibp_s",
-        "param_nibp_d",
-        "param_nibp_m",
-        "param_ibp_s",
-        "param_ibp_d",
-        "param_ibp_m",
+        *code_map["hr"],
+        *code_map["spo2"],
+        *code_map["rr"],
+        *code_map["temp"],
+        *code_map["sbp"],
+        *code_map["dbp"],
+        *code_map["map"],
         "param_cvp",
         "param_ETCO2",
     ]
@@ -142,28 +221,15 @@ async def patient_vitals(patient_id: str):
                 source = "device"
 
     if snapshot:
-        params = snapshot.get("params", {})
-        point_time = snapshot.get("time")
-        vitals = {
-            "source": source,
-            "time": serialize_doc(point_time) if isinstance(point_time, datetime) else str(point_time),
-            "hr": params.get("param_HR"),
-            "spo2": params.get("param_spo2"),
-            "rr": params.get("param_resp"),
-            "temp": params.get("param_T"),
-            "nibp_sys": params.get("param_nibp_s") or params.get("param_ibp_s"),
-            "nibp_dia": params.get("param_nibp_d") or params.get("param_ibp_d"),
-            "nibp_map": params.get("param_nibp_m") or params.get("param_ibp_m"),
-            "ibp_sys": params.get("param_ibp_s"),
-            "ibp_dia": params.get("param_ibp_d"),
-            "ibp_map": params.get("param_ibp_m"),
-            "cvp": params.get("param_cvp"),
-            "etco2": params.get("param_ETCO2"),
-        }
-    if not vitals:
-        fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
-        if fallback_vitals:
+        vitals = _snapshot_to_vitals(snapshot, source)
+    fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
+    if fallback_vitals:
+        if not vitals:
             vitals = fallback_vitals
+        else:
+            for key, value in fallback_vitals.items():
+                if vitals.get(key) in (None, "") and value not in (None, ""):
+                    vitals[key] = value
 
     return {"code": 0, "vitals": vitals}
 
@@ -649,11 +715,17 @@ async def patient_bedcard(patient_id: str):
     his_pid = patient_his_pid(patient)
     if his_pid and his_pid not in query_pids:
         query_pids.append(his_pid)
-    cap_res = await latest_params_by_pid(
-        query_pids,
-        ["param_HR", "param_nibp_s", "param_nibp_d", "param_ibp_s", "param_ibp_d", "param_spo2", "param_T", "param_glu_lab", "param_glu_poc"],
-        lookback_minutes=10080,
-    )
+    code_map = _vital_codes()
+    cap_codes = [
+        *code_map["hr"],
+        *code_map["sbp"],
+        *code_map["dbp"],
+        *code_map["spo2"],
+        *code_map["temp"],
+        "param_glu_lab",
+        "param_glu_poc",
+    ]
+    cap_res = await latest_params_by_pid(query_pids, cap_codes, lookback_minutes=10080)
     if not cap_res:
         monitor_device_id = await get_device_id(pid_str, "monitor", patient_doc=patient)
         if not monitor_device_id:
@@ -661,32 +733,37 @@ async def patient_bedcard(patient_id: str):
         if monitor_device_id:
             cap_res = await latest_params_by_device(
                 monitor_device_id,
-                ["param_HR", "param_nibp_s", "param_nibp_d", "param_ibp_s", "param_ibp_d", "param_spo2", "param_T", "param_glu_lab", "param_glu_poc"],
+                cap_codes,
                 lookback_minutes=10080,
             )
     if cap_res and cap_res.get("params"):
         params = cap_res["params"]
         metrics["vitals"] = {
-            "hr": params.get("param_HR"),
-            "sbp": params.get("param_ibp_s") or params.get("param_nibp_s"),
-            "dbp": params.get("param_ibp_d") or params.get("param_nibp_d"),
-            "spo2": params.get("param_spo2"),
-            "t": params.get("param_T"),
+            "hr": _pick_param(params, code_map["hr"]),
+            "sbp": _pick_param(params, code_map["sbp"]),
+            "dbp": _pick_param(params, code_map["dbp"]),
+            "spo2": _pick_param(params, code_map["spo2"]),
+            "t": _pick_param(params, code_map["temp"]),
         }
         metrics["glucose"] = params.get("param_glu_lab") or params.get("param_glu_poc")
-    if not metrics["vitals"]:
-        fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
-        if fallback_vitals:
-            metrics["vitals"] = {
-                "hr": fallback_vitals.get("hr"),
-                "sbp": fallback_vitals.get("ibp_sys") or fallback_vitals.get("nibp_sys"),
-                "dbp": fallback_vitals.get("ibp_dia") or fallback_vitals.get("nibp_dia"),
-                "spo2": fallback_vitals.get("spo2"),
-                "t": fallback_vitals.get("temp"),
-                "map": fallback_vitals.get("ibp_map") or fallback_vitals.get("nibp_map"),
-                "time": fallback_vitals.get("time"),
-                "source": fallback_vitals.get("source"),
-            }
+    fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
+    if fallback_vitals:
+        merged_fallback = {
+            "hr": fallback_vitals.get("hr"),
+            "sbp": fallback_vitals.get("ibp_sys") or fallback_vitals.get("nibp_sys"),
+            "dbp": fallback_vitals.get("ibp_dia") or fallback_vitals.get("nibp_dia"),
+            "spo2": fallback_vitals.get("spo2"),
+            "t": fallback_vitals.get("temp"),
+            "map": fallback_vitals.get("ibp_map") or fallback_vitals.get("nibp_map"),
+            "time": fallback_vitals.get("time"),
+            "source": fallback_vitals.get("source"),
+        }
+        if not metrics["vitals"]:
+            metrics["vitals"] = merged_fallback
+        else:
+            for key, value in merged_fallback.items():
+                if metrics["vitals"].get(key) in (None, "") and value not in (None, ""):
+                    metrics["vitals"][key] = value
 
     fluid_alert = await runtime.db.col("alert_records").find_one({"patient_id": pid_str, "alert_type": "fluid_balance"}, sort=[("created_at", -1)])
     if fluid_alert and fluid_alert.get("extra"):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional
@@ -86,14 +87,25 @@ async def patient_bundle_statuses(patient_ids: list[str] = Body(default=[])):
             continue
     if not ids:
         return {"code": 0, "statuses": results}
-    cursor = runtime.db.col("patient").find({"_id": {"$in": ids}})
-    async for patient in cursor:
+
+    patients = [patient async for patient in runtime.db.col("patient").find({"_id": {"$in": ids}})]
+    if not patients:
+        return {"code": 0, "statuses": results}
+
+    semaphore = asyncio.Semaphore(12)
+
+    async def build_status(patient: dict) -> tuple[str, dict]:
+        patient_id = str(patient["_id"])
         try:
-            status = await runtime.alert_engine.get_liberation_bundle_status(patient)
+            async with semaphore:
+                status = await runtime.alert_engine.get_liberation_bundle_status(patient)
         except Exception as exc:
-            logger.warning("bundle status error: %s", exc)
+            logger.warning("bundle status error patient_id=%s: %s", patient_id, exc)
             status = {"lights": {}}
-        results[str(patient["_id"])] = serialize_doc(status)
+        return patient_id, serialize_doc(status)
+
+    for patient_id, status in await asyncio.gather(*(build_status(patient) for patient in patients)):
+        results[patient_id] = status
     return {"code": 0, "statuses": results}
 
 

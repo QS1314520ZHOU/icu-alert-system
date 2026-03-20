@@ -4,7 +4,7 @@
       <div>
         <div class="workbench-kicker">患者工作台</div>
         <h3 class="workbench-title">专题工作台</h3>
-        <p class="workbench-sub">把 eCASH、ICU-AW、PE、阈值审核、相似病例和 AI 运行状态都放到一个可见入口里。</p>
+        <p class="workbench-sub">把 eCASH、ICU 获得性衰弱、PE、阈值审核、相似病例和 AI 运行状态都放到一个可见入口里。</p>
       </div>
       <div :class="['runtime-pill', `runtime-pill--${runtime.level}`]">
         <span class="runtime-pill-dot"></span>
@@ -39,7 +39,7 @@
       <article class="ops-card ops-card--runtime">
         <div class="ops-title-row">
           <span class="ops-kicker">AI 运行态</span>
-          <strong>LLM 运行态</strong>
+          <strong>大模型运行态</strong>
         </div>
         <div class="ops-main">{{ runtime.detail || '当前 AI 服务运行平稳。' }}</div>
         <div v-if="runtime.pills?.length" class="ops-chip-row">
@@ -56,7 +56,7 @@
         <div v-if="similar.bullets?.length" class="ops-bullet-row">
           <span v-for="(item, idx) in similar.bullets" :key="`similar-${idx}`" class="ops-bullet">{{ item }}</span>
         </div>
-        <button type="button" class="ops-link" @click="onOpen('similar')">打开相似病例复盘</button>
+        <button type="button" class="ops-link" @click="onOpen('similar')">查看相似病例复盘</button>
       </article>
 
       <article class="ops-card ops-card--threshold">
@@ -70,7 +70,7 @@
           <span v-if="threshold.reviewer" class="ops-chip">审核人 {{ threshold.reviewer }}</span>
         </div>
         <div v-if="threshold.comment" class="ops-foot">{{ threshold.comment }}</div>
-        <button type="button" class="ops-link" @click="onOpen('alerts')">打开预警与审核</button>
+        <button type="button" class="ops-link" @click="onOpen('alerts')">查看预警与审核</button>
       </article>
     </div>
   </section>
@@ -121,5 +121,6 @@ defineProps<{
 @media (max-width: 1100px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 720px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr; } .workbench-shell { padding: 14px; } }
 </style>
+
 
 

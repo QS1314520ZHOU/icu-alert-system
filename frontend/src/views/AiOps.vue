@@ -272,7 +272,7 @@ const opsActions = computed(() => [
     action: () => openAnalyticsSection('alerts'),
   },
   {
-    label: '查看 Sepsis质控',
+    label: '查看脓毒症质控',
     value: '质控分析 / 脓毒症质控',
     meta: '进入 Bundle 达标、超时病例和进行中病例拆解。',
     action: () => openAnalyticsSection('sepsis'),
@@ -311,7 +311,7 @@ function moduleLabel(value: any) {
     similar_case_review: '相似病例复盘',
     api_llm: 'AI 接口服务',
     alert_reasoning: '告警归因',
-    sepsis_bundle: '脓毒症 Bundle',
+    sepsis_bundle: '脓毒症解放束',
     weaning_assistant: '撤机助手',
   }
   return map[key] || key.replace(/[_-]+/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase())

@@ -22,7 +22,7 @@
               :options="bucketOptions"
               size="small"
             />
-            <span class="label">TopN</span>
+            <span class="label">前N项</span>
             <a-input-number v-model:value="topN" :min="5" :max="30" size="small" />
             <button
               :class="['rescue-toggle', { active: rescueOnly }]"
@@ -55,7 +55,7 @@
         </div>
         <div class="hero-chip">
           <span class="hero-chip__label">分析粒度</span>
-          <strong class="hero-chip__value">{{ bucket === 'hour' ? '小时' : '天' }} · Top {{ topN }}</strong>
+          <strong class="hero-chip__value">{{ bucket === 'hour' ? '小时' : '天' }} · 前 {{ topN }} 项</strong>
         </div>
       </div>
     </section>
@@ -100,7 +100,7 @@
       <article class="focus-panel">
         <div class="focus-panel__head">
           <div>
-            <div class="focus-panel__kicker">Manager Focus</div>
+            <div class="focus-panel__kicker">管理视角</div>
             <div class="focus-panel__title">{{ activeSectionFocusTitle }}</div>
           </div>
           <span class="focus-panel__badge">{{ activeSectionFocusBadge }}</span>
@@ -197,7 +197,7 @@
     </section>
 
     <section v-else-if="analyticsSection === 'sepsis'" class="analytics-grid">
-      <a-card title="Sepsis Bundle 执行态" :bordered="false" class="panel panel-wide">
+      <a-card title="脓毒症 Bundle 执行态" :bordered="false" class="panel panel-wide">
         <div class="bundle-status-grid">
           <div
             v-for="item in sepsisStatusCards"
@@ -281,7 +281,7 @@
       <a-card title="场景覆盖热力图" :bordered="false" class="panel panel-wide panel-heatmap">
         <div v-if="scenarioHeatmapY.length" class="heatmap-summary">
           <div class="summary-chip"><span class="summary-k">场景组</span><b class="summary-v">{{ scenarioHeatmapY.length }}</b></div>
-          <div class="summary-chip"><span class="summary-k">Top 场景</span><b class="summary-v">{{ scenarioHeatmapX.length }}</b></div>
+          <div class="summary-chip"><span class="summary-k">高频场景</span><b class="summary-v">{{ scenarioHeatmapX.length }}</b></div>
           <div class="summary-chip summary-chip--wide"><span class="summary-k">覆盖率</span><b class="summary-v">{{ scenarioCoverageRate }}</b></div>
         </div>
         <div v-if="scenarioHeatmapY.length" class="chart-wrap chart-lg chart-heatmap">
@@ -427,6 +427,7 @@ import {
   icuTooltip,
   icuValueAxis,
 } from '../charts/icuTheme'
+import { formatScenarioGroupLabel } from '../utils/displayLabels'
 
 const AnalyticsChart = defineAsyncComponent(async () => {
   await import('../charts/analytics')
@@ -748,7 +749,7 @@ const frequencyOption = computed(() => {
         data: source.map((p: any) => p.warning || 0),
       },
       {
-        name: 'High',
+        name: '高危',
         type: 'line',
         smooth: true,
         symbol: 'circle',
@@ -758,7 +759,7 @@ const frequencyOption = computed(() => {
         data: source.map((p: any) => p.high || 0),
       },
       {
-        name: 'Critical',
+        name: '危急',
         type: 'line',
         smooth: true,
         symbol: 'circle',
@@ -909,7 +910,7 @@ const scenarioHighlights = computed(() => [
   { label: '触发总量', value: `${Number(scenarioCoverageSummary.value?.total_alerts || 0)} 次`, meta: '来自扩展场景扫描器的实际命中' },
 ])
 const scenarioGroupProgressRows = computed(() => scenarioGroupRows.value.map((item: any, idx: number) => ({
-  label: item.group,
+  label: formatScenarioGroupLabel(item.group),
   value: `${Math.round(Number(item.coverage_ratio || 0) * 100)}%`,
   width: `${Math.max(4, Number(item.coverage_ratio || 0) * 100)}%`,
   meta: `已覆盖 ${item.triggered_count}/${item.catalog_count} 个场景 · 告警 ${item.alert_count} 次`,
@@ -949,7 +950,7 @@ const scenarioColumns = [
   { title: '分组', dataIndex: 'group', key: 'group', width: 110 },
   { title: '告警', dataIndex: 'alert_count', key: 'alert_count', width: 72 },
   { title: '患者', dataIndex: 'patient_count', key: 'patient_count', width: 72 },
-  { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 72 },
+  { title: '危急', dataIndex: 'critical', key: 'critical', width: 72 },
   { title: '高危', dataIndex: 'high', key: 'high', width: 72 },
 ]
 const nursingPatientColumns = [
@@ -1042,7 +1043,7 @@ const activeSectionBriefs = computed(() => {
   ]
 })
 const activeSectionFocusTitle = computed(() => {
-  if (analyticsSection.value === 'sepsis') return '当班 Sepsis 质控关注'
+  if (analyticsSection.value === 'sepsis') return '当班脓毒症质控关注'
   if (analyticsSection.value === 'weaning') return '当班撤机管理关注'
   if (analyticsSection.value === 'nursing') return '护士长排班关注'
   if (analyticsSection.value === 'scenarios') return '扩展场景推进关注'
@@ -1059,7 +1060,7 @@ const activeSectionFocusRows = computed(() => {
   if (analyticsSection.value === 'sepsis') {
     return [
       { label: '超 3h 个案', value: `${Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0) ? '建议逐例追踪是否卡在首剂抗菌药、血培养或液体复苏。' : '当前没有超 3h 个案。' },
-      { label: '在途病例', value: `${Number(sepsisBundleCompliance.value?.pending_active_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.pending_active_cases || 0) ? '交接班时应保留节点提醒，避免 1h 继续滑向 3h。' : '当前没有 active case。' },
+      { label: '在途病例', value: `${Number(sepsisBundleCompliance.value?.pending_active_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.pending_active_cases || 0) ? '交接班时应保留节点提醒，避免 1h 继续滑向 3h。' : '当前没有在途病例。' },
       { label: '管理建议', value: sepsisAiActionRows.value[0] || '暂无额外建议', meta: 'AI 建议卡可继续查看其余行动项。' },
     ]
   }
@@ -1206,8 +1207,8 @@ const highRiskRatio = computed(() => {
   return {
     ratio,
     meta: rescueOnly.value
-      ? `${severe} / ${total} 次为抢救期 High / Critical`
-      : `${severe} / ${total} 次为 High 或 Critical`,
+      ? `${severe} / ${total} 次为抢救期高危 / 危急`
+      : `${severe} / ${total} 次为高危或危急`,
   }
 })
 
@@ -1318,7 +1319,7 @@ const sepsisProgressRows = computed(() => {
       label: '仍在进行中',
       value: `${pending} 例`,
       width: `${Math.min(100, (pending / total) * 100)}%`,
-      meta: pending ? '建议继续跟踪首小时动作闭环' : '当前没有 active case',
+      meta: pending ? '建议继续跟踪首小时动作闭环' : '当前没有在途病例',
       color: 'linear-gradient(90deg, #38bdf8, #60a5fa)',
     },
   ]
@@ -1357,7 +1358,7 @@ const sepsisNarratives = computed(() => {
     },
     {
       label: '在途追踪',
-      value: pending ? `${pending} 例进行中` : '无 active case',
+      value: pending ? `${pending} 例进行中` : '无在途病例',
       meta: pending ? '交接班时建议保留 Bundle 完成节点提醒' : '当前无需额外追踪',
     },
   ]
@@ -1385,7 +1386,7 @@ const weaningHighRiskKpi = computed(() => {
   return {
     rate: total ? `${(rate * 100).toFixed(1)}%` : '0%',
     meta: total
-      ? `${high} / ${total} 例为 High/Critical`
+      ? `${high} / ${total} 例为高危/危急`
       : '本月暂无脱机评估',
   }
 })
@@ -1560,7 +1561,7 @@ const activeSectionKpis = computed(() => {
       label: '监测窗口',
       code: '窗口',
       value: analyticsWindowLabel.value,
-      meta: `粒度 ${bucket.value === 'hour' ? '小时' : '天'} · Top ${topN}`,
+      meta: `粒度 ${bucket.value === 'hour' ? '小时' : '天'} · 前 ${topN} 项`,
     },
     {
       label: topRuleHeadline.value,
@@ -1740,7 +1741,7 @@ const weaningTrendOption = computed(() => {
         const list = Array.isArray(params) ? params : [params]
         const title = list[0]?.axisValueLabel || list[0]?.name || '日期'
         const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', item.value ?? 0, item.color || '#67e8f9'))
-        return tooltipShell(title, rows, 'Weaning Monthly Trend')
+        return tooltipShell(title, rows, '撤机月度趋势')
       },
     }),
     legend: icuLegend({ textStyle: { fontSize: 10 } }),
@@ -1823,18 +1824,18 @@ const weaningDeptCompareOption = computed(() => ({
 const deptColumns = [
   { title: '科室', dataIndex: 'dept', key: 'dept' },
   { title: '总量', dataIndex: 'count', key: 'count', width: 72 },
-  { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 80 },
+  { title: '危急', dataIndex: 'critical', key: 'critical', width: 80 },
   { title: '高危', dataIndex: 'high', key: 'high', width: 70 },
-  { title: 'Warn', dataIndex: 'warning', key: 'warning', width: 70 },
+  { title: '预警', dataIndex: 'warning', key: 'warning', width: 70 },
 ]
 
 const bedColumns = [
   { title: '科室', dataIndex: 'dept', key: 'dept', width: 120 },
   { title: '床位', dataIndex: 'bed', key: 'bed', width: 90 },
   { title: '总量', dataIndex: 'count', key: 'count', width: 72 },
-  { title: 'Critical', dataIndex: 'critical', key: 'critical', width: 80 },
+  { title: '危急', dataIndex: 'critical', key: 'critical', width: 80 },
   { title: '高危', dataIndex: 'high', key: 'high', width: 70 },
-  { title: 'Warn', dataIndex: 'warning', key: 'warning', width: 70 },
+  { title: '预警', dataIndex: 'warning', key: 'warning', width: 70 },
 ]
 
 const weaningDeptColumns = [
@@ -1898,9 +1899,12 @@ async function loadScenarioCoverage() {
   })
   scenarioCoverageSummary.value = res.data.summary || null
   scenarioGroupRows.value = res.data.group_rows || []
-  scenarioTopRows.value = res.data.top_scenarios || []
+  scenarioTopRows.value = (res.data.top_scenarios || []).map((item: any) => ({
+    ...item,
+    group: formatScenarioGroupLabel(item.group),
+  }))
   scenarioHeatmapX.value = res.data.heatmap?.x_labels || []
-  scenarioHeatmapY.value = res.data.heatmap?.y_labels || []
+  scenarioHeatmapY.value = (res.data.heatmap?.y_labels || []).map((item: any) => formatScenarioGroupLabel(item))
   scenarioHeatmapData.value = res.data.heatmap?.data || []
 }
 

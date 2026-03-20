@@ -2,11 +2,11 @@
   <section class="bundle-tab">
     <div class="bundle-hero">
       <div>
-        <div class="bundle-title">eCASH / ABCDEF Bundle</div>
-        <div class="bundle-sub">围绕 Analgesia、Sedation、Delirium 与 SAT 形成床旁可执行视图。</div>
+        <div class="bundle-title">eCASH / ABCDEF 解放束</div>
+        <div class="bundle-sub">围绕镇痛、镇静、谵妄与 SAT 形成床旁可执行视图。</div>
       </div>
       <div class="bundle-score-box">
-        <span>Bundle 状态</span>
+        <span>解放束状态</span>
         <strong>{{ bundleScore }}</strong>
       </div>
     </div>
@@ -23,7 +23,7 @@
 
     <div class="domain-grid">
       <article class="domain-card">
-        <div class="domain-title">Analgesia</div>
+        <div class="domain-title">镇痛</div>
         <div class="domain-main">{{ analgesiaCard.main }}</div>
         <div class="domain-meta">{{ analgesiaCard.meta }}</div>
         <div v-if="analgesiaCard.chips.length" class="domain-chip-row">
@@ -31,7 +31,7 @@
         </div>
       </article>
       <article class="domain-card">
-        <div class="domain-title">Sedation / SAT</div>
+        <div class="domain-title">镇静 / SAT</div>
         <div class="domain-main">{{ sedationCard.main }}</div>
         <div class="domain-meta">{{ sedationCard.meta }}</div>
         <div v-if="sedationCard.chips.length" class="domain-chip-row">
@@ -39,7 +39,7 @@
         </div>
       </article>
       <article class="domain-card">
-        <div class="domain-title">Delirium</div>
+        <div class="domain-title">谵妄</div>
         <div class="domain-main">{{ deliriumCard.main }}</div>
         <div class="domain-meta">{{ deliriumCard.meta }}</div>
         <div v-if="deliriumCard.chips.length" class="domain-chip-row">
@@ -59,7 +59,7 @@
     <div v-if="alerts.length" class="bundle-alert-list">
       <article v-for="(item, idx) in alerts.slice(0, 8)" :key="item._id || idx" class="bundle-alert-card">
         <div class="bundle-alert-head">
-          <strong>{{ item.name || alertTypeText(item.alert_type) || 'Bundle预警' }}</strong>
+          <strong>{{ item.name || alertTypeText(item.alert_type) || '解放束预警' }}</strong>
           <span>{{ fmtTime(item.created_at) || '时间未知' }}</span>
         </div>
         <div class="bundle-alert-main">{{ item.explanation?.summary || item.explanation?.text || item.extra?.suggestion || '暂无结构化说明' }}</div>
@@ -68,7 +68,7 @@
         </div>
       </article>
     </div>
-    <div v-else class="bundle-empty">暂无 eCASH / ABCDEF Bundle 相关预警</div>
+    <div v-else class="bundle-empty">暂无 eCASH / ABCDEF 解放束 相关预警</div>
   </section>
 </template>
 
@@ -77,7 +77,7 @@ import { computed } from 'vue'
 const props = defineProps<{ alerts: Array<any>; bundleAlert: any; fmtTime: (v: any) => string; alertTypeText: (v: any) => string }>()
 const bundleExtra = computed(() => props.bundleAlert?.extra || {})
 const bundleScore = computed(() => { const compliance = bundleExtra.value?.compliance; return compliance != null ? `${compliance}/6` : '待评估' })
-const bundleLights = computed(() => { const lights = bundleExtra.value?.lights || {}; const map: Record<string, string> = { green: '通过', yellow: '提醒', red: '未完成' }; return ['A', 'B', 'C', 'D', 'E', 'F'].map((key) => ({ key, name: ({ A: 'Analgesia', B: 'Breathing', C: 'Choice', D: 'Delirium', E: 'Early mobility', F: 'Family' } as Record<string, string>)[key], state: lights?.[key] || 'neutral', status: map[lights?.[key]] || '未记录' })) })
+const bundleLights = computed(() => { const lights = bundleExtra.value?.lights || {}; const map: Record<string, string> = { green: '通过', yellow: '提醒', red: '未完成' }; return ['A', 'B', 'C', 'D', 'E', 'F'].map((key) => ({ key, name: ({ A: '镇痛', B: '呼吸', C: '镇静选择', D: '谵妄', E: '早期活动', F: '家属参与' } as Record<string, string>)[key], state: lights?.[key] || 'neutral', status: map[lights?.[key]] || '未记录' })) })
 function pickCard(keywords: string[], fallbackTitle: string) { const match = props.alerts.find((row) => { const text = `${String(row?.alert_type || '')} ${String(row?.name || '')}`.toLowerCase(); return keywords.some((key) => text.includes(key)) }); return { main: match?.name || `${fallbackTitle} 暂无异常提醒`, meta: match ? (props.fmtTime(match.created_at) || '最近一条') : '当前无相关活跃提示', chips: Array.isArray(match?.explanation?.evidence) ? match.explanation.evidence.slice(0, 3) : (match?.extra?.current_sedatives || match?.extra?.current_analgesics || []).slice(0, 3) } }
 const analgesiaCard = computed(() => pickCard(['pain', 'analges', 'opioid'], '镇痛评估'))
 const sedationCard = computed(() => pickCard(['rass', 'sat', 'sedation'], '镇静与 SAT'))
@@ -112,3 +112,4 @@ const deliriumCard = computed(() => pickCard(['delirium'], '谵妄筛查'))
 .bundle-empty { padding: 24px; border-radius: 16px; text-align: center; color: #8bb2c4; border: 1px dashed rgba(125, 211, 252, 0.2); }
 @media (max-width: 960px) { .bundle-light-row,.domain-grid,.bundle-alert-list { grid-template-columns: 1fr; } }
 </style>
+

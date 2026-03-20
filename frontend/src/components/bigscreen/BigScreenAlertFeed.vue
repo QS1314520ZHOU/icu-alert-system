@@ -165,6 +165,7 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs'
+import { formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
 
 defineProps<{
   alerts: any[]
@@ -306,25 +307,11 @@ function compositeGroups(alert: any) {
 }
 
 function compositeGroupLabel(raw: any) {
-  const key = String(raw || '')
-  const map: Record<string, string> = {
-    sepsis_group: '脓毒症主题',
-    bleeding_group: '出血主题',
-    respiratory_group: '呼吸主题',
-  }
-  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+  return formatCompositeGroupLabel(raw)
 }
 
 function compositeChainLabel(raw: any) {
-  const key = String(raw || '')
-  const map: Record<string, string> = {
-    shock_chain: '休克链',
-    respiratory_failure_chain: '呼衰链',
-    sepsis_progression_chain: '脓毒症进展链',
-    bleeding_chain: '失血链',
-    multi_organ_progression: '多器官进展',
-  }
-  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+  return formatCompositeChainLabel(raw)
 }
 
 function severityClass(raw: any) {
@@ -533,7 +520,7 @@ function formatAlertValue(a: any) {
   if (t === 'glucose_variability') return (extra?.cv_percent ?? v) != null ? `CV=${extra?.cv_percent ?? v}%` : '—'
   if (t === 'hypoglycemia') return v != null ? `Glu=${v}` : '—'
   if (t === 'glucose_drop_fast') return (extra?.drop_rate_mmol_per_h ?? v) != null ? `dGlu=${extra?.drop_rate_mmol_per_h ?? v}/h` : '—'
-  if (t === 'glucose_recheck_reminder') return (extra?.hours_since_last_check ?? v) != null ? `Recheck ${extra?.hours_since_last_check ?? v}h` : '—'
+  if (t === 'glucose_recheck_reminder') return (extra?.hours_since_last_check ?? v) != null ? `${extra?.hours_since_last_check ?? v}h后复查` : '—'
 
   if (t === 'hyperglycemia_no_insulin') {
     const c = extra?.consecutive_high_count
@@ -542,21 +529,21 @@ function formatAlertValue(a: any) {
     return lv != null ? `Glu=${lv}` : '—'
   }
 
-  if (t === 'abx_timeout') return (extra?.broad_duration_hours ?? v) != null ? `Broad ${extra?.broad_duration_hours ?? v}h` : '—'
+  if (t === 'abx_timeout') return (extra?.broad_duration_hours ?? v) != null ? `${extra?.broad_duration_hours ?? v}h广谱用药` : '—'
   if (t === 'abx_stop_recommendation') return (extra?.pct_latest ?? v) != null ? `PCT=${extra?.pct_latest ?? v}` : '—'
-  if (t === 'abx_tdm_reminder') return extra?.drug_group || p ? `${extra?.drug_group || p} TDM` : 'TDM'
-  if (t === 'abx_duration_exceeded') return (extra?.course_duration_days ?? v) != null ? `${extra?.course_duration_days ?? v}d no culture` : '—'
-  if (t === 'af_afl_new_onset') return (extra?.hr_peak_in_segment ?? v) != null ? `AF/AFL HR${extra?.hr_peak_in_segment ?? v}` : 'AF/AFL'
+  if (t === 'abx_tdm_reminder') return extra?.drug_group || p ? `${extra?.drug_group || p} 治疗药物监测` : '治疗药物监测'
+  if (t === 'abx_duration_exceeded') return (extra?.course_duration_days ?? v) != null ? `${extra?.course_duration_days ?? v}天未见培养` : '—'
+  if (t === 'af_afl_new_onset') return (extra?.hr_peak_in_segment ?? v) != null ? `房颤/房扑 HR${extra?.hr_peak_in_segment ?? v}` : '房颤/房扑'
 
   if (t === 'brady_hypotension') {
     const hr = extra?.latest_hr ?? v
     const d = extra?.drop_sbp
     if (hr != null && d != null) return `HR${hr},SBP↓${d}`
-    return hr != null ? `HR${hr}` : 'Brady+BP'
+    return hr != null ? `HR${hr}` : '心动过缓+血压异常'
   }
 
-  if (t === 'qtc_prolonged') return (extra?.qtc_ms ?? v) != null ? `QTc${extra?.qtc_ms ?? v}` : 'QTc high'
-  if (t === 'opioid_high_dose_resp_risk') return (extra?.opioid_med_24h_mg ?? v) != null ? `MED=${extra?.opioid_med_24h_mg ?? v}mg` : 'High opioid'
+  if (t === 'qtc_prolonged') return (extra?.qtc_ms ?? v) != null ? `QTc${extra?.qtc_ms ?? v}` : 'QTc偏高'
+  if (t === 'opioid_high_dose_resp_risk') return (extra?.opioid_med_24h_mg ?? v) != null ? `MED=${extra?.opioid_med_24h_mg ?? v}mg` : '阿片剂量偏高'
 
   if (t === 'opioid_respiratory_depression') {
     const rr = extra?.rr
@@ -564,21 +551,21 @@ function formatAlertValue(a: any) {
     if (rr != null && spo2 != null) return `RR${rr}/SpO₂${spo2}`
     if (rr != null) return `RR${rr}`
     if (spo2 != null) return `SpO₂${spo2}`
-    return 'Resp risk'
+    return '呼吸风险'
   }
 
-  if (t === 'opioid_withdrawal_risk') return (extra?.since_last_opioid_hours ?? v) != null ? `Stop ${extra?.since_last_opioid_hours ?? v}h` : 'Withdrawal'
+  if (t === 'opioid_withdrawal_risk') return (extra?.since_last_opioid_hours ?? v) != null ? `停药 ${extra?.since_last_opioid_hours ?? v}h` : '戒断风险'
   if (t === 'vte_prophylaxis_omission') return (extra?.padua_score ?? v) != null ? `Padua=${extra?.padua_score ?? v}` : '—'
-  if (t === 'vte_bleeding_linkage') return (extra?.padua_score ?? v) != null ? `Padua=${extra?.padua_score ?? v}, mech` : 'mech only'
-  if (t === 'vte_immobility_no_prophylaxis') return (extra?.immobility_hours ?? v) != null ? `Bedrest ${extra?.immobility_hours ?? v}h` : '—'
-  if (t === 'nutrition_start_delay') return (extra?.icu_stay_hours ?? v) != null ? `ICU ${extra?.icu_stay_hours ?? v}h no EN/PN` : 'No EN/PN'
-  if (t === 'nutrition_calorie_not_reached') return (extra?.coverage_percent ?? v) != null ? `Calorie ${extra?.coverage_percent ?? v}%` : 'Calorie low'
-  if (t === 'nutrition_feeding_intolerance') return (extra?.latest_grv_ml ?? v) != null ? `GRV=${extra?.latest_grv_ml ?? v}mL` : 'Intolerance'
+  if (t === 'vte_bleeding_linkage') return (extra?.padua_score ?? v) != null ? `Padua=${extra?.padua_score ?? v}, 机械预防` : '仅机械预防'
+  if (t === 'vte_immobility_no_prophylaxis') return (extra?.immobility_hours ?? v) != null ? `卧床 ${extra?.immobility_hours ?? v}h` : '—'
+  if (t === 'nutrition_start_delay') return (extra?.icu_stay_hours ?? v) != null ? `ICU ${extra?.icu_stay_hours ?? v}h 未启EN/PN` : '未启EN/PN'
+  if (t === 'nutrition_calorie_not_reached') return (extra?.coverage_percent ?? v) != null ? `热卡达标 ${extra?.coverage_percent ?? v}%` : '热卡不足'
+  if (t === 'nutrition_feeding_intolerance') return (extra?.latest_grv_ml ?? v) != null ? `GRV=${extra?.latest_grv_ml ?? v}mL` : '喂养不耐受'
 
   if (t === 'nutrition_refeeding_risk') {
     const items = extra?.triggered_electrolytes
     if (Array.isArray(items) && items.length > 0) return `Drop:${items.join('/')}`
-    return v != null ? `Drop=${v}%` : 'Refeeding risk'
+    return v != null ? `下降=${v}%` : '再喂养风险'
   }
 
   if (t === 'multi_organ_deterioration_trend') {
@@ -1284,6 +1271,8 @@ function severityText(v: any) {
   }
 }
 </style>
+
+
 
 
 

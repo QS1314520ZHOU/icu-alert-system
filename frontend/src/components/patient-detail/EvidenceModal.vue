@@ -51,12 +51,12 @@
       </section>
 
       <section class="evidence-panel">
-        <div class="panel-title">证据正文</div>
+        <div class="panel-title">证据内容</div>
         <div class="evidence-modal-content">{{ modal.content || '暂无内容' }}</div>
       </section>
 
       <div v-if="modal.related_chunks?.length" class="evidence-modal-related">
-        <div class="panel-title">同来源离线片段</div>
+        <div class="panel-title">同源离线片段</div>
         <ul class="ai-risk-evidence-list">
           <li v-for="(chunk, idx) in modal.related_chunks" :key="chunk.chunk_id || idx">
             <a class="ai-evidence-link" @click.prevent="openEvidence(chunk)">
@@ -215,3 +215,4 @@ const emit = defineEmits<{
   }
 }
 </style>
+

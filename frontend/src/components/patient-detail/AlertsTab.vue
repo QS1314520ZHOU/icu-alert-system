@@ -539,6 +539,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import { Button as AButton, Popover as APopover } from 'ant-design-vue'
+import { formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
 
 defineProps<{
   latestCompositeAlert: any
@@ -867,25 +868,11 @@ function compositeGroups(alert: any) {
 }
 
 function compositeGroupLabel(raw: any) {
-  const key = String(raw || '')
-  const map: Record<string, string> = {
-    sepsis_group: '脓毒症主题',
-    bleeding_group: '出血主题',
-    respiratory_group: '呼吸主题',
-  }
-  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+  return formatCompositeGroupLabel(raw)
 }
 
 function compositeChainLabel(raw: any) {
-  const key = String(raw || '')
-  const map: Record<string, string> = {
-    shock_chain: '休克链',
-    respiratory_failure_chain: '呼衰链',
-    sepsis_progression_chain: '脓毒症进展链',
-    bleeding_chain: '失血链',
-    multi_organ_progression: '多器官进展',
-  }
-  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+  return formatCompositeChainLabel(raw)
 }
 
 function contextSnapshot(alert: any) {
@@ -2194,6 +2181,7 @@ const DetailChart = defineAsyncComponent(async () => {
   }
 }
 </style>
+
 
 
 

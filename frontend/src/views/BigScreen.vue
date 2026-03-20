@@ -3,13 +3,13 @@
     <header class="screen-header">
       <div class="header-main">
         <div class="title">
-          <span class="title-tag">ICU Command</span>
+          <span class="title-tag">ICU 指挥台</span>
           ICU 主任 / 护士长指挥大屏
         </div>
         <div class="header-sub">抢救、流程、人力与装置风险统一驾驶舱</div>
         <div class="header-context-row">
           <span class="header-context-chip">当前范围 {{ scopeLabel }}</span>
-          <span class="header-context-chip">High / Critical {{ severeAlertCount }}</span>
+          <span class="header-context-chip">高危 / 危急 {{ severeAlertCount }}</span>
           <span class="header-context-chip">抢救期床位 {{ rescuePatientCount }}</span>
         </div>
         <div class="header-filters">

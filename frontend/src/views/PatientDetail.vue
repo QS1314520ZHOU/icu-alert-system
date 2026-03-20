@@ -10,7 +10,7 @@
     <section class="monitor-hero">
       <div class="hero-main">
         <div class="hero-tag-row">
-          <span class="hero-tag">ICU PATIENT MONITOR</span>
+          <span class="hero-tag">重症患者监护</span>
           <span class="hero-tag hero-tag--soft">{{ displayDept }}</span>
           <span class="hero-tag hero-tag--soft">{{ displayBed }}床</span>
           <span class="hero-tag hero-tag--soft">HIS {{ displayHisPid }}</span>
@@ -28,7 +28,7 @@
         </div>
         <div class="hero-bundle" :class="`hero-bundle--${sepsisBundleStatusLight}`">
           <div class="hero-bundle-head">
-            <span class="hero-bundle-title">Sepsis 1h Bundle</span>
+            <span class="hero-bundle-title">脓毒症 1 小时 Bundle</span>
             <span class="hero-bundle-pill">
               <i class="hero-bundle-dot" />
               {{ sepsisBundleStatusText }}
@@ -196,7 +196,7 @@
     <div ref="tabsAnchor">
     <a-card class="tabs-card" :bordered="false">
       <a-tabs v-model:activeKey="activeTab">
-        <a-tab-pane key="ecash" tab="eCASH / ABCDEF Bundle">
+        <a-tab-pane key="ecash" tab="eCASH / ABCDEF 解放束">
           <PatientEcashBundleTab
             v-if="activeTab === 'ecash'"
             :alerts="ecashAlerts"
@@ -206,7 +206,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="mobility" tab="ICU-AW / 早期活动">
+        <a-tab-pane key="mobility" tab="ICU获得性衰弱 / 早期活动">
           <PatientMobilityTab
             v-if="activeTab === 'mobility'"
             :alerts="mobilityAlerts"

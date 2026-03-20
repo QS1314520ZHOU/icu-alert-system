@@ -117,6 +117,7 @@ const alertFilter = ref('')
 const rescueOnly = ref(false)
 let iv: any = null
 let offAlert: any = null
+let bundleRequestToken = 0
 
 const routeDeptCode = computed(() => {
   const raw = route.query.dept_code || route.query.deptCode
@@ -363,6 +364,51 @@ function applyAlert(alert: any) {
   window.setTimeout(() => { target.alertFlash = false }, 15000)
 }
 
+function chunkItems<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
+function syncOverviewCacheSnapshot() {
+  overviewCache.set(overviewCacheKey.value, {
+    ts: Date.now(),
+    patients: patients.value.map((p: any) => ({ ...p })),
+    depts: depts.value.map((d: any) => ({ ...d })),
+    curDept: curDept.value,
+  })
+}
+
+async function hydrateBundleStatuses(items: any[]) {
+  const token = ++bundleRequestToken
+  const targetItems = items
+    .filter((item: any) => item && item._id)
+    .slice(0, 120)
+
+  for (const item of targetItems) {
+    item.bundleStatus = item.bundleStatus || { lights: {} }
+  }
+
+  for (const batch of chunkItems(targetItems, 24)) {
+    if (token !== bundleRequestToken) return
+    try {
+      const statusRes = await getPatientBundleStatuses(batch.map((item: any) => item._id))
+      if (token !== bundleRequestToken) return
+      const statuses = statusRes.data?.statuses || {}
+      for (const item of batch) {
+        item.bundleStatus = statuses[String(item._id)] || item.bundleStatus || { lights: {} }
+      }
+      syncOverviewCacheSnapshot()
+    } catch {
+      for (const item of batch) {
+        item.bundleStatus = item.bundleStatus || { lights: {} }
+      }
+    }
+  }
+}
+
 /* ── fmt ── */
 /* ── 数据加载 ── */
 async function load(options?: { silent?: boolean }) {
@@ -452,30 +498,17 @@ async function load(options?: { silent?: boolean }) {
       return p
     }))
 
-    try {
-      const statusRes = await getPatientBundleStatuses(ls.map((p: any) => p._id))
-      const statuses = statusRes.data?.statuses || {}
-      for (const item of [...done, ...tail]) {
-        item.bundleStatus = statuses[String(item._id)] || { lights: {} }
-      }
-    } catch {
-      for (const item of [...done, ...tail]) {
-        item.bundleStatus = { lights: {} }
-      }
-    }
-
     const ord: Record<string, number> = { critical: 0, warning: 1, none: 2, normal: 3 }
     const all = [...done, ...tail].sort((a, b) => {
       const d = (ord[a.alertLevel] ?? 9) - (ord[b.alertLevel] ?? 9)
       return d || String(a.hisBed).localeCompare(String(b.hisBed), undefined, { numeric: true })
     })
+    for (const item of all) {
+      item.bundleStatus = item.bundleStatus || { lights: {} }
+    }
     patients.value = all
-    overviewCache.set(cacheKey, {
-      ts: Date.now(),
-      patients: all.map((p: any) => ({ ...p })),
-      depts: depts.value.map((d: any) => ({ ...d })),
-      curDept: curDept.value,
-    })
+    syncOverviewCacheSnapshot()
+    void hydrateBundleStatuses(all)
   } catch (e) { console.error(e) }
   finally {
     refreshing.value = false

@@ -2,7 +2,7 @@
   <section class="sbt-wrap">
     <header class="sbt-head">
       <div>
-        <div class="sbt-title">SBT Timeline / Record</div>
+        <div class="sbt-title">SBT 时间线 / 记录</div>
         <div class="sbt-sub">自主呼吸试验结构化时间线，聚焦结果、参数与失败线索</div>
       </div>
       <button type="button" class="sbt-refresh" @click="onRefresh">
@@ -13,7 +13,7 @@
     <section v-if="hasAiDecisionCard" class="sbt-decision-card">
       <div class="sbt-decision-card__head">
         <div>
-          <div class="sbt-decision-card__eyebrow">AI Weaning Decision</div>
+          <div class="sbt-decision-card__eyebrow">AI 撤机决策</div>
           <div class="sbt-decision-card__title">顶部决策卡</div>
         </div>
         <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : 'LLM 结构化决策' }}</div>
@@ -492,5 +492,6 @@ function valueOrDash(value: any) {
   }
 }
 </style>
+
 
 

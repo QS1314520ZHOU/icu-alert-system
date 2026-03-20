@@ -9,9 +9,9 @@
           <span class="bed-no">{{ patient.hisBed }}</span>
           <div class="identity-copy">
             <div class="monitor-line">
-              <span class="monitor-label">ICU MONITOR</span>
+              <span class="monitor-label">重症监护</span>
               <span class="monitor-sep"></span>
-              <span class="monitor-code">CH {{ patient.hisBed || '--' }}</span>
+              <span class="monitor-code">床位 {{ patient.hisBed || '--' }}</span>
             </div>
             <div class="name-row">
               <h2 class="patient-name">{{ patient.name || '—' }}</h2>
@@ -289,6 +289,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { getPatientBedcard } from '../../api'
+import { formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
 
 const bedcardCache = new Map<string, any>()
 
@@ -519,25 +520,11 @@ function summaryRescueTitle(card: any) {
 }
 
 function groupLabel(raw: any) {
-  const key = String(raw || '')
-  const map: Record<string, string> = {
-    sepsis_group: '脓毒症主题',
-    bleeding_group: '出血主题',
-    respiratory_group: '呼吸主题',
-  }
-  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+  return formatCompositeGroupLabel(raw)
 }
 
 function chainLabel(raw: any) {
-  const key = String(raw || '')
-  const map: Record<string, string> = {
-    shock_chain: '休克链',
-    respiratory_failure_chain: '呼衰链',
-    sepsis_progression_chain: '脓毒症进展链',
-    bleeding_chain: '失血链',
-    multi_organ_progression: '多器官进展',
-  }
-  return map[key] || key.replace(/_/g, ' ').toUpperCase()
+  return formatCompositeChainLabel(raw)
 }
 
 function severityTone(raw: any) {
@@ -1588,5 +1575,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   }
 }
 </style>
+
+
 
 
