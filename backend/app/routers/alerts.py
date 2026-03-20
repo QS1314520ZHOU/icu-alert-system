@@ -73,7 +73,7 @@ async def alert_stats(window: str = Query("24h")):
     ]
 
     results = {}
-    cursor = runtime.db.col("alert_records").aggregate(pipeline)
+    cursor = await runtime.db.col("alert_records").aggregate(pipeline)
     async for doc in cursor:
         hour = doc["_id"]["hour"]
         severity = doc["_id"]["severity"]

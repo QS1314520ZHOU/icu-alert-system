@@ -48,7 +48,10 @@ async def patient_vitals(patient_id: str):
     vitals: dict = {}
     pid_str = str(pid)
     query_pids = [pid_str]
-    patient = await runtime.db.col("patient").find_one({"_id": pid}, {"hisPid": 1, "hisPID": 1})
+    patient = await runtime.db.col("patient").find_one(
+        {"_id": pid},
+        {"hisPid": 1, "hisPID": 1, "hisBed": 1, "bed": 1, "deptCode": 1},
+    )
     his_pid = patient_his_pid(patient)
     if his_pid:
         query_pids.append(his_pid)
@@ -74,6 +77,8 @@ async def patient_vitals(patient_id: str):
         source = "monitor"
     else:
         device_id = await get_device_id(pid_str, "monitor", patient_doc=patient)
+        if not device_id:
+            device_id = await get_device_id(pid_str, None, patient_doc=patient)
         if device_id:
             snapshot = await latest_params_by_device(device_id, codes)
             if snapshot:
@@ -588,6 +593,16 @@ async def patient_bedcard(patient_id: str):
         ["param_HR", "param_nibp_s", "param_nibp_d", "param_ibp_s", "param_ibp_d", "param_spo2", "param_T", "param_glu_lab", "param_glu_poc"],
         lookback_minutes=10080,
     )
+    if not cap_res:
+        monitor_device_id = await get_device_id(pid_str, "monitor", patient_doc=patient)
+        if not monitor_device_id:
+            monitor_device_id = await get_device_id(pid_str, None, patient_doc=patient)
+        if monitor_device_id:
+            cap_res = await latest_params_by_device(
+                monitor_device_id,
+                ["param_HR", "param_nibp_s", "param_nibp_d", "param_ibp_s", "param_ibp_d", "param_spo2", "param_T", "param_glu_lab", "param_glu_poc"],
+                lookback_minutes=10080,
+            )
     if cap_res and cap_res.get("params"):
         params = cap_res["params"]
         metrics["vitals"] = {

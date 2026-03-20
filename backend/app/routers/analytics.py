@@ -693,7 +693,7 @@ async def alerts_analytics_frequency(
     ]
 
     timeline: dict[str, dict] = {}
-    cursor = runtime.db.col("alert_records").aggregate(pipeline)
+    cursor = await runtime.db.col("alert_records").aggregate(pipeline)
     async for doc in cursor:
         time_key = str(doc.get("_id", {}).get("time") or "")
         if not time_key:
@@ -733,7 +733,7 @@ async def alerts_analytics_heatmap(
         {"$limit": top_n},
     ]
     top_rules: list[str] = []
-    cursor_top = runtime.db.col("alert_records").aggregate(pipeline_top)
+    cursor_top = await runtime.db.col("alert_records").aggregate(pipeline_top)
     async for doc in cursor_top:
         top_rules.append(str(doc.get("_id") or "unknown"))
 
@@ -749,7 +749,7 @@ async def alerts_analytics_heatmap(
 
     heatmap_data: list[list[int]] = []
     y_index = {rule: idx for idx, rule in enumerate(top_rules)}
-    cursor = runtime.db.col("alert_records").aggregate(pipeline)
+    cursor = await runtime.db.col("alert_records").aggregate(pipeline)
     async for doc in cursor:
         key = doc.get("_id", {})
         rule = str(key.get("rule_type") or "unknown")
@@ -789,7 +789,7 @@ async def alerts_analytics_rankings(
         {"$limit": top_n},
     ]
     dept_rankings: list[dict] = []
-    dept_cursor = runtime.db.col("alert_records").aggregate(dept_pipeline)
+    dept_cursor = await runtime.db.col("alert_records").aggregate(dept_pipeline)
     async for doc in dept_cursor:
         dept_rankings.append(
             {
@@ -809,7 +809,7 @@ async def alerts_analytics_rankings(
         {"$limit": top_n},
     ]
     bed_rankings: list[dict] = []
-    bed_cursor = runtime.db.col("alert_records").aggregate(bed_pipeline)
+    bed_cursor = await runtime.db.col("alert_records").aggregate(bed_pipeline)
     async for doc in bed_cursor:
         key = doc.get("_id", {})
         bed_rankings.append(
