@@ -126,6 +126,49 @@
         </div>
       </a-card>
 
+      <a-card title="告警闭环追踪" :bordered="false" class="panel panel-wide">
+        <div class="insight-grid">
+          <div class="insight-tile">
+            <div class="insight-label">查看率</div>
+            <div class="insight-value">{{ Number(lifecycleSummary?.view_rate || 0) * 100 }}%</div>
+            <div class="insight-meta">中位查看 {{ lifecycleSummary?.median_view_minutes ?? '—' }} 分钟</div>
+          </div>
+          <div class="insight-tile">
+            <div class="insight-label">确认率</div>
+            <div class="insight-value">{{ Number(lifecycleSummary?.ack_rate || 0) * 100 }}%</div>
+            <div class="insight-meta">中位确认 {{ lifecycleSummary?.median_ack_minutes ?? '—' }} 分钟</div>
+          </div>
+          <div class="insight-tile">
+            <div class="insight-label">行动率</div>
+            <div class="insight-value">{{ Number(lifecycleSummary?.action_rate || 0) * 100 }}%</div>
+            <div class="insight-meta">中位行动 {{ lifecycleSummary?.median_action_minutes ?? '—' }} 分钟</div>
+          </div>
+          <div class="insight-tile">
+            <div class="insight-label">闭环样本</div>
+            <div class="insight-value">{{ lifecycleSummary?.total_alerts || 0 }}</div>
+            <div class="insight-meta">当前窗口内已纳入生命周期追踪的告警总数</div>
+          </div>
+        </div>
+        <a-table
+          v-if="lifecycleTypeRows.length"
+          class="rank-table"
+          size="small"
+          :columns="lifecycleColumns"
+          :data-source="lifecycleTypeRows"
+          :pagination="false"
+          row-key="alert_type"
+          :scroll="{ x: 760 }"
+        />
+        <div v-else class="empty">暂无生命周期追踪数据</div>
+      </a-card>
+
+      <a-card title="告警到查看 / 确认 / 行动趋势" :bordered="false" class="panel panel-wide">
+        <div v-if="lifecycleFunnelSeries.length" class="chart-wrap chart-lg">
+          <AnalyticsChart :option="lifecycleTrendOption" autoresize />
+        </div>
+        <div v-else class="empty">暂无闭环趋势数据</div>
+      </a-card>
+
       <a-card title="预警触发频率" :bordered="false" class="panel panel-wide">
         <div v-if="displayFreqSeries.length" class="chart-wrap chart-lg">
           <AnalyticsChart :option="frequencyOption" autoresize />
@@ -414,6 +457,7 @@ import {
   getAlertAnalyticsFrequency,
   getAlertAnalyticsHeatmap,
   getAlertAnalyticsRankings,
+  getAlertLifecycleAnalytics,
   getNursingWorkloadAnalytics,
   getRecentAlerts,
   getScenarioCoverageAnalytics,
@@ -479,6 +523,7 @@ const sepsisBundleCompliance = ref<any>(null)
 const sepsisBundleAiInsight = ref<any>(null)
 const weaningSummary = ref<any>(null)
 const recentAlerts = ref<any[]>([])
+const lifecycleAnalytics = ref<any>(null)
 const scenarioCoverageSummary = ref<any>(null)
 const scenarioGroupRows = ref<any[]>([])
 const scenarioTopRows = ref<any[]>([])
@@ -490,6 +535,10 @@ const nursingWorkload = ref<any>(null)
 const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
 const analyticsScopeLabel = computed(() => deptName.value || deptCode.value || '全科')
+const lifecycleSummary = computed(() => lifecycleAnalytics.value?.summary || {})
+const lifecycleTypeRows = computed(() => lifecycleAnalytics.value?.top_alert_types || [])
+const lifecycleFunnelSeries = computed(() => lifecycleAnalytics.value?.funnel_trend?.series || [])
+
 const analyticsWindowLabel = computed(() => {
   const map: Record<string, string> = {
     '24h': '近24小时',
@@ -771,6 +820,60 @@ const frequencyOption = computed(() => {
     ],
   }
 })
+
+const lifecycleTrendOption = computed(() => ({
+  backgroundColor: 'transparent',
+  tooltip: icuTooltip({
+    formatter: (params: any) => {
+      const idx = Number(params?.dataIndex || 0)
+      const row = lifecycleFunnelSeries.value[idx] || {}
+      return tooltipShell(
+        row?.time || '时间段',
+        [
+          tooltipRow('新增告警', `${row?.created || 0} 条`, '#22d3ee'),
+          tooltipRow('告警→查看', `${formatPct(row?.created_to_view_rate || 0)} (${row?.viewed || 0}/${row?.created || 0})`, '#fbbf24'),
+          tooltipRow('查看→确认', `${formatPct(row?.view_to_ack_rate || 0)} (${row?.acknowledged || 0}/${row?.viewed || 0})`, '#fb923c'),
+          tooltipRow('确认→行动', `${formatPct(row?.ack_to_action_rate || 0)} (${row?.actioned || 0}/${row?.acknowledged || 0})`, '#34d399'),
+        ],
+        '闭环转化趋势'
+      )
+    },
+  }),
+  legend: icuLegend({ bottom: 0, textStyle: { color: '#8bd3e6', fontSize: 11 } }),
+  grid: icuGrid({ left: 40, right: 16, top: 24, bottom: 50 }),
+  xAxis: icuCategoryAxis(lifecycleFunnelSeries.value.map((item: any) => item.time), {
+    axisLabel: { color: '#79d7ea', fontSize: 10, margin: 12 },
+    axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
+  }),
+  yAxis: [
+    icuValueAxis({
+      axisLabel: {
+        color: '#8ecfe0',
+        fontSize: 10,
+        formatter: (value: number) => `${value}%`,
+      },
+      splitLine: { lineStyle: { color: 'rgba(61, 118, 145, 0.15)' } },
+      max: 100,
+    }),
+    icuValueAxis({
+      axisLabel: { color: '#5fb5c8', fontSize: 10 },
+      splitLine: { show: false },
+    }),
+  ],
+  series: [
+    {
+      name: '新增告警',
+      type: 'bar',
+      yAxisIndex: 1,
+      barMaxWidth: 18,
+      itemStyle: { color: 'rgba(34, 211, 238, 0.3)', borderRadius: [6, 6, 0, 0] },
+      data: lifecycleFunnelSeries.value.map((item: any) => item.created || 0),
+    },
+    { name: '告警→查看', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, itemStyle: { color: '#fbbf24' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.created_to_view_rate || 0) * 1000) / 10) },
+    { name: '查看→确认', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, itemStyle: { color: '#fb923c' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.view_to_ack_rate || 0) * 1000) / 10) },
+    { name: '确认→行动', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#34d399' }, itemStyle: { color: '#34d399' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.ack_to_action_rate || 0) * 1000) / 10) },
+  ],
+}))
 
 const heatmapOption = computed(() => {
   const sourceX = displayHeatmapX.value
@@ -1212,6 +1315,21 @@ const highRiskRatio = computed(() => {
   }
 })
 
+const actionabilitySummary = computed(() => {
+  const source = rescueOnly.value ? rescueWindowAlerts.value : recentAlerts.value
+  const scored = source
+    .map((item: any) => Number(item?.actionability_score))
+    .filter((value: number) => Number.isFinite(value))
+  const highScored = scored.filter((value: number) => value >= 75)
+  const average = scored.length ? (scored.reduce((sum: number, value: number) => sum + value, 0) / scored.length).toFixed(1) : '—'
+  const highRatio = scored.length ? `${((highScored.length / scored.length) * 100).toFixed(1)}%` : '0%'
+  return {
+    average,
+    highRatio,
+    meta: scored.length ? `${highScored.length} / ${scored.length} 条达到立即处理阈值` : '当前窗口暂无可行动性评分样本',
+  }
+})
+
 const alertOpsHighlights = computed(() => [
   {
     label: '当前窗口',
@@ -1232,6 +1350,11 @@ const alertOpsHighlights = computed(() => [
     label: rescueOnly.value ? '抢救期压力' : '高危占比',
     value: highRiskRatio.value.ratio,
     meta: highRiskRatio.value.meta,
+  },
+  {
+    label: '平均可行动性',
+    value: actionabilitySummary.value.average,
+    meta: actionabilitySummary.value.meta,
   },
 ])
 
@@ -1449,6 +1572,37 @@ const weaningStatusCards = computed(() => {
 })
 
 const activeSectionKpis = computed(() => {
+  if (analyticsSection.value === 'alerts') {
+    return [
+      {
+        label: '监测范围',
+        code: '范围',
+        value: analyticsScopeLabel.value,
+        meta: `${analyticsWindowLabel.value} · ${rescueOnly.value ? '抢救期快筛' : '全量告警'}`,
+      },
+      {
+        label: '平均可行动性',
+        code: 'AAS',
+        value: `${actionabilitySummary.value.average}`,
+        meta: actionabilitySummary.value.meta,
+        tone: 'bundle',
+      },
+      {
+        label: '高分告警占比',
+        code: '>=75',
+        value: actionabilitySummary.value.highRatio,
+        meta: '可理解为需要优先处理的告警密度',
+        tone: 'risk',
+      },
+      {
+        label: '闭环行动率',
+        code: '闭环',
+        value: `${(Number(lifecycleSummary.value?.action_rate || 0) * 100).toFixed(1)}%`,
+        meta: lifecycleSummary.value?.total_alerts ? `中位 ${lifecycleSummary.value?.median_action_minutes ?? '—'} 分钟完成行动` : '当前窗口暂无闭环追踪样本',
+        tone: 'weaning',
+      },
+    ]
+  }
   if (analyticsSection.value === 'scenarios') {
     return [
       { label: '场景库覆盖率', code: '场景', value: scenarioCoverageRate.value, meta: `${Number(scenarioCoverageSummary.value?.triggered_catalog_scenarios || 0)} / ${Number(scenarioCoverageSummary.value?.total_catalog_scenarios || 0)} 场景已在当前窗口命中`, tone: 'bundle' },
@@ -1821,6 +1975,16 @@ const weaningDeptCompareOption = computed(() => ({
   ],
 }))
 
+const lifecycleColumns = [
+  { title: '告警类型', dataIndex: 'alert_type', key: 'alert_type', width: 180 },
+  { title: '总量', dataIndex: 'count', key: 'count', width: 72 },
+  { title: '查看率', dataIndex: 'view_rate', key: 'view_rate', width: 86 },
+  { title: '确认率', dataIndex: 'ack_rate', key: 'ack_rate', width: 86 },
+  { title: '行动率', dataIndex: 'action_rate', key: 'action_rate', width: 86 },
+  { title: '中位行动(分)', dataIndex: 'median_action_minutes', key: 'median_action_minutes', width: 110 },
+  { title: '平均可行动性', dataIndex: 'avg_actionability_score', key: 'avg_actionability_score', width: 110 },
+]
+
 const deptColumns = [
   { title: '科室', dataIndex: 'dept', key: 'dept' },
   { title: '总量', dataIndex: 'count', key: 'count', width: 72 },
@@ -1926,6 +2090,15 @@ async function loadWeaningSummary() {
   weaningSummary.value = res.data.summary || null
 }
 
+async function loadAlertLifecycle() {
+  const res = await getAlertLifecycleAnalytics({
+    window: windowRange.value,
+    ...(deptCode.value ? { dept_code: deptCode.value } : {}),
+    ...(!deptCode.value && deptName.value ? { dept: deptName.value } : {}),
+  })
+  lifecycleAnalytics.value = res.data || null
+}
+
 async function loadRecentRescueAlerts() {
   const res = await getRecentAlerts(200, {
     ...(deptCode.value ? { dept_code: deptCode.value } : {}),
@@ -1955,6 +2128,7 @@ async function loadAll() {
       loadSection('nursing-workload', loadNursingWorkload),
       loadSection('scenario-coverage', loadScenarioCoverage),
       loadSection('recent-alerts', loadRecentRescueAlerts),
+      loadSection('alert-lifecycle', loadAlertLifecycle),
     ])
   } finally {
     loading.value = false

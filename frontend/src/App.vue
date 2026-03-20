@@ -17,6 +17,17 @@
           <button type="button" :class="['nav-btn', { active: navKey === 'ai-ops' }]" @click="onNav('ai-ops')">AI运营</button>
         </nav>
         <div class="hdr-tools">
+          <label class="operator-pill" title="用于记录告警查看 / 确认操作人">
+            <span class="operator-pill__label">操作人</span>
+            <input
+              v-model.trim="operatorIdentity"
+              class="operator-pill__input"
+              type="text"
+              maxlength="48"
+              placeholder="请输入工号/姓名"
+              @change="onOperatorIdentityChange"
+            />
+          </label>
           <div class="theme-toggle">
             <span class="toggle-text">{{ notifyEnabled ? '通知开' : '通知关' }}</span>
             <label class="switch">
@@ -43,11 +54,13 @@
 <script setup lang="ts">
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getOperatorIdentity, setOperatorIdentity } from './utils/operatorIdentity'
 const route = useRoute()
 const router = useRouter()
 const now = ref('')
 const themeMode = ref<'dark' | 'light'>('dark')
 const notifyEnabled = ref(false)
+const operatorIdentity = ref('')
 const antTheme = ref<any>(null)
 const antThemeReady = ref(false)
 const themeWrapper = shallowRef<any>('div')
@@ -137,6 +150,10 @@ function onThemeToggle(checked: any) {
   themeMode.value = enabled ? 'dark' : 'light'
 }
 
+function onOperatorIdentityChange() {
+  operatorIdentity.value = setOperatorIdentity(operatorIdentity.value)
+}
+
 async function initNotify() {
   const mod = await loadAlertSocketModule()
   notifyEnabled.value = mod.getAlertNotifyEnabled()
@@ -175,6 +192,7 @@ watch(routeNeedsAntdTheme, (needs) => {
 onMounted(() => {
   initTheme()
   void initNotify()
+  operatorIdentity.value = getOperatorIdentity()
   tick()
   t = setInterval(tick, 1000)
 })
@@ -239,6 +257,34 @@ onUnmounted(() => clearInterval(t))
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.operator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  background: var(--hdr-tool-bg);
+}
+.operator-pill__label {
+  color: var(--hdr-tool-text);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.operator-pill__input {
+  width: 118px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--hdr-title);
+  font-size: 11px;
+  font-family: 'SF Mono','Consolas',monospace;
+}
+.operator-pill__input::placeholder {
+  color: var(--hdr-sub);
 }
 .theme-toggle {
   display: inline-flex;
@@ -327,6 +373,13 @@ onUnmounted(() => clearInterval(t))
   .hdr-title { font-size: 13px; }
   .hdr-icon { font-size: 16px; }
   .theme-toggle { padding: 3px 6px; }
+  .operator-pill {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .operator-pill__input {
+    width: 132px;
+  }
 }
 </style>
 

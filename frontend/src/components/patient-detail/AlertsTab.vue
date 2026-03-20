@@ -438,6 +438,23 @@
             <span v-if="item.category">{{ alertCategoryText(item.category) }}</span>
             <span v-if="item.parameter">{{ item.parameter }}</span>
           </div>
+          <div v-if="!isAiRiskAlert(item)" class="alert-action-row">
+            <span v-if="item.actionability_score != null" class="alert-action-chip">
+              可行动性 {{ item.actionability_score }}
+            </span>
+            <span v-if="item.acknowledged_at" class="alert-action-chip alert-action-chip--ok">
+              已确认 {{ fmtTime(item.acknowledged_at) || '刚刚' }}
+            </span>
+            <a-button
+              v-else
+              size="small"
+              type="primary"
+              ghost
+              @click="acknowledgeAlert(item)"
+            >
+              确认告警
+            </a-button>
+          </div>
           <div
             v-if="item.parameter || item.condition?.operator || item.condition?.threshold"
             class="alert-rule"
@@ -579,10 +596,69 @@ defineProps<{
   openEvidence: (evidence: any) => void
   aiRiskExplainabilityRows: (item: any) => any[]
   formatAlertExtra: (extra: any) => string
+  acknowledgeAlert: (item: any) => void | Promise<void>
 }>()
+
+function normalizeExplanationObject(exp: any) {
+  if (!exp || typeof exp !== 'object') {
+    return {
+      summary: '',
+      evidence: [] as string[],
+      suggestion: '',
+    }
+  }
+
+  const evidence = new Set<string>()
+  const checks = exp?.checks && typeof exp.checks === 'object' ? exp.checks : {}
+  const context = exp?.context && typeof exp.context === 'object' ? exp.context : {}
+  const transferSignal = context?.transfer_signal && typeof context.transfer_signal === 'object'
+    ? context.transfer_signal
+    : (exp?.transfer_signal && typeof exp.transfer_signal === 'object' ? exp.transfer_signal : {})
+
+  if (Array.isArray(exp.evidence)) {
+    exp.evidence.forEach((item: any) => {
+      const text = String(item || '').trim()
+      if (text) evidence.add(text)
+    })
+  }
+
+  if (typeof transferSignal?.evidence === 'string' && transferSignal.evidence.trim()) {
+    evidence.add(String(transferSignal.evidence).trim())
+  }
+
+  Object.entries(checks).forEach(([key, value]) => {
+    if (value === true) evidence.add(String(key).replace(/_/g, ' ') + '：是')
+    if (value === false) evidence.add(String(key).replace(/_/g, ' ') + '：否')
+  })
+
+  const summary = [exp?.summary, exp?.text, exp?.label]
+    .find((item: any) => typeof item === 'string' && item.trim()) || ''
+
+  const suggestion = [exp?.suggestion, exp?.action, exp?.recommendation, exp?.advice]
+    .find((item: any) => typeof item === 'string' && item.trim()) || ''
+
+  return {
+    summary: String(summary || ''),
+    evidence: Array.from(evidence).slice(0, 6),
+    suggestion: String(suggestion || ''),
+  }
+}
+
+function parseExplanationPayload(raw: any) {
+  if (raw && typeof raw === 'object') return normalizeExplanationObject(raw)
+  const text = String(raw || '').trim()
+  if (!text) return null
+  try {
+    return normalizeExplanationObject(JSON.parse(text))
+  } catch {
+    return null
+  }
+}
 
 function explanationPayload(alert: any) {
   const exp = alert?.explanation
+  const parsedExp = parseExplanationPayload(exp)
+  if (parsedExp) return parsedExp
   if (typeof exp === 'string') {
     return {
       summary: exp,
@@ -591,12 +667,10 @@ function explanationPayload(alert: any) {
     }
   }
   if (exp && typeof exp === 'object') {
-    return {
-      summary: typeof exp.summary === 'string' ? exp.summary : (typeof exp.text === 'string' ? exp.text : ''),
-      evidence: Array.isArray(exp.evidence) ? exp.evidence.filter((x: any) => String(x || '').trim()) : [],
-      suggestion: typeof exp.suggestion === 'string' ? exp.suggestion : '',
-    }
+    return normalizeExplanationObject(exp)
   }
+  const parsedText = parseExplanationPayload(alert?.explanation_text)
+  if (parsedText) return parsedText
   return {
     summary: typeof alert?.explanation_text === 'string' ? alert.explanation_text : '',
     evidence: [] as string[],
@@ -1963,6 +2037,26 @@ const DetailChart = defineAsyncComponent(async () => {
   font-size: 12px;
   line-height: 1.7;
 }
+.alert-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 10px;
+}
+.alert-action-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(8, 34, 52, 0.72);
+  color: #c8ecff;
+  font-size: 12px;
+}
+.alert-action-chip--ok {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(16, 48, 34, 0.7);
+  color: #c7f9d4;
+}
 .alert-meta {
   margin-top: 8px;
   display: flex;
@@ -2195,6 +2289,10 @@ const DetailChart = defineAsyncComponent(async () => {
   }
 }
 </style>
+
+
+
+
 
 
 

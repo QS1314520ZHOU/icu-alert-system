@@ -2920,6 +2920,12 @@ class BaseEngine:
             if not alert_doc:
                 return None
 
+        if hasattr(self, "_initialize_alert_actionability"):
+            try:
+                alert_doc = await self._initialize_alert_actionability(alert_doc, patient_doc)
+            except Exception as e:
+                logger.debug(f"报警可行动性评分失败: {e}")
+
         try:
             res = await self.db.col("alert_records").insert_one(alert_doc)
             alert_doc["_id"] = res.inserted_id
@@ -2957,6 +2963,11 @@ class BaseEngine:
         }
         if reminder_doc.get("extra") is not None:
             alert_doc["extra"] = reminder_doc.get("extra")
+        if hasattr(self, "_initialize_alert_actionability"):
+            try:
+                alert_doc = await self._initialize_alert_actionability(alert_doc, None)
+            except Exception as e:
+                logger.debug(f"护理提醒可行动性评分失败: {e}")
         try:
             res = await self.db.col("alert_records").insert_one(alert_doc)
             alert_doc["_id"] = res.inserted_id

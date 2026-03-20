@@ -66,6 +66,12 @@ export const getPatientAssessments = (patientId: string) =>
 export const getPatientAlerts = (patientId: string) =>
   api.get(`/api/patients/${patientId}/alerts`)
 
+export const postPatientAlertsViewed = (patientId: string, payload?: { alert_ids?: string[]; actor?: string; source?: string }) =>
+  api.post(`/api/patients/${patientId}/alerts/view`, payload || {})
+
+export const postAlertAcknowledge = (alertId: string, payload?: { actor?: string; note?: string }) =>
+  api.post(`/api/alerts/${alertId}/acknowledge`, payload || {})
+
 // 获取最近预警
 export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string }) =>
   analyticsApi.get('/api/alerts/recent', { params: { limit, ...(params || {}) } })
@@ -73,6 +79,9 @@ export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?
 // 获取预警统计
 export const getAlertStats = (window = '24h') =>
   analyticsApi.get('/api/alerts/stats', { params: { window } })
+
+export const getAlertLifecycleAnalytics = (params?: { window?: string; dept?: string; dept_code?: string }) =>
+  analyticsApi.get('/api/alerts/lifecycle/analytics', { params })
 
 // Bundle 合规总览
 export const getBundleOverview = (params?: { dept?: string; dept_code?: string }) =>
@@ -164,6 +173,9 @@ export const postAiCausalAnalysis = (
 
 export const getAiNursingNoteSignals = (patientId: string, params?: { refresh?: boolean }) =>
   aiApi.get(`/api/ai/nursing-note-signals/${patientId}`, { params })
+
+export const getAiPatientDigitalTwin = (patientId: string, params?: { refresh?: boolean; hours?: number }) =>
+  aiApi.get(`/api/ai/digital-twin/${patientId}`, { params })
 
 export const postAiWhatIfSimulation = (
   patientId: string,

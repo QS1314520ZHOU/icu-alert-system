@@ -135,6 +135,8 @@ class DatabaseManager:
             await alert_col.create_index([("patient_id", 1), ("created_at", -1)])
             await alert_col.create_index([("alert_type", 1), ("severity", 1)])
             await alert_col.create_index([("is_active", 1)])
+            await alert_col.create_index([("viewed_at", 1), ("acknowledged_at", 1)])
+            await alert_col.create_index([("actionability_score", -1), ("created_at", -1)])
 
             # 预警规则索引
             rule_col = self.col("alert_rules")

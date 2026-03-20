@@ -2,15 +2,15 @@
   <section class="pe-tab">
     <div class="pe-hero">
       <div>
-        <div class="pe-title">PE 检测 / Wells 评分</div>
-        <div class="pe-sub">把疑似肺栓塞模式识别与 Wells 中高危评分合并展示，避免埋在普通预警流里。</div>
+        <div class="pe-title">肺栓塞检测 / Wells 评分</div>
+        <div class="pe-sub">把疑似肺栓塞模式识别与 Wells 中高危评分合并展示，避免淹没在普通预警流里。</div>
       </div>
       <div class="pe-pill">{{ headline }}</div>
     </div>
 
     <div class="pe-grid">
       <article class="pe-card">
-        <div class="pe-card-title">疑似 PE 模式</div>
+        <div class="pe-card-title">疑似肺栓塞模式</div>
         <div class="pe-card-main">{{ suspectedMain }}</div>
         <div class="pe-card-meta">{{ suspectedMeta }}</div>
         <div v-if="suspectedChips.length" class="pe-chip-row">
@@ -30,13 +30,13 @@
     <div v-if="alerts.length" class="pe-list">
       <article v-for="(item, idx) in alerts.slice(0, 6)" :key="item._id || idx" class="pe-row">
         <div>
-          <strong>{{ item.name || 'PE 提示' }}</strong>
+          <strong>{{ item.name || '肺栓塞提示' }}</strong>
           <div class="pe-row-time">{{ fmtTime(item.created_at) || '时间未知' }}</div>
         </div>
         <div class="pe-row-main">{{ item.explanation?.summary || item.extra?.suggestion || '暂无结构化摘要' }}</div>
       </article>
     </div>
-    <div v-else class="pe-empty">暂无 PE 检测相关预警</div>
+    <div v-else class="pe-empty">暂无肺栓塞检测相关预警</div>
   </section>
 </template>
 
@@ -45,8 +45,8 @@ import { computed } from 'vue'
 const props = defineProps<{ alerts: Array<any>; fmtTime: (v: any) => string }>()
 const suspectedAlert = computed(() => props.alerts.find((row) => String(row?.alert_type || '') === 'pe_suspected'))
 const wellsAlert = computed(() => props.alerts.find((row) => String(row?.alert_type || '') === 'pe_wells_high'))
-const headline = computed(() => suspectedAlert.value?.name || wellsAlert.value?.name || '等待 PE 风险识别')
-const suspectedMain = computed(() => suspectedAlert.value?.explanation?.summary || suspectedAlert.value?.name || '当前未触发疑似 PE 模式识别')
+const headline = computed(() => suspectedAlert.value?.name || wellsAlert.value?.name || '等待肺栓塞风险识别')
+const suspectedMain = computed(() => suspectedAlert.value?.explanation?.summary || suspectedAlert.value?.name || '当前未触发疑似肺栓塞模式识别')
 const suspectedMeta = computed(() => suspectedAlert.value ? (props.fmtTime(suspectedAlert.value.created_at) || '最近识别') : '当前无模式识别告警')
 const suspectedChips = computed(() => { const extra = suspectedAlert.value?.extra || {}; const rows = [Array.isArray(extra?.matched_criteria) ? `匹配 ${extra.matched_criteria.length} 项` : '', extra?.ddimer != null ? `D-Dimer ${extra.ddimer}` : '', extra?.wells_score != null ? `Wells ${extra.wells_score}` : '', extra?.suggestion || '']; return rows.filter(Boolean) })
 const wellsMain = computed(() => wellsAlert.value?.explanation?.summary || wellsAlert.value?.name || '当前未触发 Wells 中高危提醒')
@@ -72,3 +72,4 @@ const wellsChips = computed(() => { const rows = Array.isArray(wellsAlert.value?
 .pe-empty { padding: 24px; text-align: center; color: #caa3ad; border: 1px dashed rgba(251, 113, 133, 0.18); border-radius: 16px; }
 @media (max-width: 900px) { .pe-grid,.pe-row { grid-template-columns: 1fr; } }
 </style>
+

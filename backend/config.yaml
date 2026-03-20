@@ -451,6 +451,13 @@ alert_engine:
     post_execution_recurrence_threshold: 2
     suction_keywords: ["吸痰", "拍背", "翻身拍背", "气道护理", "痰液吸引"]
 
+  alert_actionability:
+    enabled: true
+    history_lookback_days: 30
+    min_history_samples: 8
+    action_match_hours: 24
+    recent_response_window_minutes: 60
+
   adaptive_threshold_advisor:
     enabled: true
     scan_interval_seconds: 7200

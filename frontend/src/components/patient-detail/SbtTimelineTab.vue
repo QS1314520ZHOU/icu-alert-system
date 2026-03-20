@@ -2,7 +2,7 @@
   <section class="sbt-wrap">
     <header class="sbt-head">
       <div>
-        <div class="sbt-title">自主呼吸试验时间线 / 记录</div>
+        <div class="sbt-title">自主呼吸试验时间线 / 结构化记录</div>
         <div class="sbt-sub">自主呼吸试验结构化时间线，聚焦结果、参数与失败线索</div>
       </div>
       <button type="button" class="sbt-refresh" @click="onRefresh">
@@ -13,10 +13,10 @@
     <section v-if="hasAiDecisionCard" class="sbt-decision-card">
       <div class="sbt-decision-card__head">
         <div>
-          <div class="sbt-decision-card__eyebrow">智能撤机决策</div>
+          <div class="sbt-decision-card__eyebrow">智能撤机建议</div>
           <div class="sbt-decision-card__title">顶部决策卡</div>
         </div>
-        <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : '大模型结构化决策' }}</div>
+        <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : '大模型结构化建议' }}</div>
       </div>
       <div v-if="aiSummaryText" class="sbt-decision-card__main">{{ aiSummaryText }}</div>
       <div v-if="decisionFindingRows.length" class="sbt-decision-card__grid">
@@ -45,7 +45,7 @@
       </article>
     </section>
 
-    <div v-if="loading && !records.length" class="sbt-empty">正在加载自主呼吸试验记录…</div>
+    <div v-if="loading && !records.length" class="sbt-empty">正在加载自主呼吸试验结构化记录…</div>
     <div v-else-if="error && !records.length" class="sbt-empty sbt-empty--error">{{ error }}</div>
     <div v-else-if="!records.length" class="sbt-empty">暂无自主呼吸试验结构化记录</div>
 
@@ -70,7 +70,7 @@
                 </div>
                 <div class="sbt-card-sub">
                   来源 {{ row.source || '—' }}
-                  <span v-if="row.duration_minutes != null"> · 时长 {{ row.duration_minutes }} min</span>
+                  <span v-if="row.duration_minutes != null"> · 时长 {{ row.duration_minutes }} 分钟</span>
                   <span v-if="row.source_code"> · {{ row.source_code }}</span>
                   <span v-if="row.event_type && row.event_type !== 'sbt'"> · {{ row.event_type }}</span>
                 </div>
@@ -83,7 +83,7 @@
 
             <div class="sbt-chip-row">
               <span class="sbt-chip">RR {{ valueOrDash(row.rr ?? row.detail?.rr) }}</span>
-              <span class="sbt-chip">Vte {{ valueOrDash(row.vte_ml ?? row.detail?.vte_ml) }}</span>
+              <span class="sbt-chip">潮气量 {{ valueOrDash(row.vte_ml ?? row.detail?.vte_ml) }}</span>
               <span class="sbt-chip">FiO₂ {{ valueOrDash(row.fio2 ?? row.detail?.fio2) }}</span>
               <span class="sbt-chip">PEEP {{ valueOrDash(row.peep ?? row.detail?.peep) }}</span>
               <span v-if="(row.minute_vent ?? row.detail?.minute_vent) != null" class="sbt-chip">MV {{ valueOrDash(row.minute_vent ?? row.detail?.minute_vent) }}</span>
@@ -581,6 +581,7 @@ function parsedRawContent(row: any) {
   }
 }
 </style>
+
 
 
 

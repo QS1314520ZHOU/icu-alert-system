@@ -9,6 +9,7 @@ import logging
 
 from .ai_risk import AiRiskMixin
 from .adaptive_threshold_advisor import AdaptiveThresholdAdvisorMixin
+from .alert_actionability import AlertActionabilityScorerMixin
 from .alert_reasoning_agent import AlertReasoningAgentMixin
 from .alert_intelligence import AlertIntelligenceMixin
 from .antibiotic_stewardship import AntibioticStewardshipMixin
@@ -74,6 +75,7 @@ logger = logging.getLogger("icu-alert")
 
 class AlertEngine(
     BaseEngine,
+    AlertActionabilityScorerMixin,
     AlertIntelligenceMixin,
     AlertReasoningAgentMixin,
     DataQualityFilterMixin,

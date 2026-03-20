@@ -28,7 +28,7 @@
         </div>
         <div class="hero-bundle" :class="`hero-bundle--${sepsisBundleStatusLight}`">
           <div class="hero-bundle-head">
-            <span class="hero-bundle-title">脓毒症 1 小时 Bundle</span>
+            <span class="hero-bundle-title">脓毒症 1 小时解放束</span>
             <span class="hero-bundle-pill">
               <i class="hero-bundle-dot" />
               {{ sepsisBundleStatusText }}
@@ -162,23 +162,23 @@
       <div class="weaning-card weaning-card--soft">
         <div class="weaning-card-head">
           <div>
-            <div class="weaning-card-title">SBT 结构化记录</div>
-            <div class="weaning-card-sub">{{ fmtTime(sbtAssessment?.trial_time) || '暂无SBT记录' }}</div>
+            <div class="weaning-card-title">自主呼吸试验结构化记录</div>
+            <div class="weaning-card-sub">{{ fmtTime(sbtAssessment?.trial_time) || '暂无自主呼吸试验记录' }}</div>
           </div>
           <span :class="['weaning-sbt-pill', `is-${String(sbtAssessment?.result || 'none').toLowerCase()}`]">
-            {{ sbtAssessment?.label || '暂无SBT记录' }}
+            {{ sbtAssessment?.label || '暂无自主呼吸试验记录' }}
           </span>
         </div>
         <div class="weaning-metric-row">
           <span class="weaning-chip">RSBI {{ sbtAssessment?.rsbi ?? '—' }}</span>
           <span class="weaning-chip">RR {{ sbtAssessment?.rr ?? '—' }}</span>
-          <span class="weaning-chip">Vte {{ sbtAssessment?.vte_ml ?? '—' }}</span>
+          <span class="weaning-chip">潮气量 {{ sbtAssessment?.vte_ml ?? '—' }}</span>
           <span class="weaning-chip">FiO₂ {{ sbtAssessment?.fio2 ?? '—' }}</span>
           <span class="weaning-chip">PEEP {{ sbtAssessment?.peep ?? '—' }}</span>
         </div>
         <div class="weaning-card-foot">
           <span>来源 {{ sbtAssessment?.source || '—' }}</span>
-          <span v-if="sbtAssessment?.duration_minutes != null">时长 {{ sbtAssessment?.duration_minutes }} min</span>
+          <span v-if="sbtAssessment?.duration_minutes != null">时长 {{ sbtAssessment?.duration_minutes }} 分钟</span>
           <span v-if="postExtubationRisk?.has_alert">拔管后风险 {{ fmtTime(postExtubationRisk?.created_at) || '—' }}</span>
         </div>
       </div>
@@ -214,7 +214,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="pe" tab="肺栓塞检测 / Wells">
+        <a-tab-pane key="pe" tab="肺栓塞检测 / Wells 评分">
           <PatientPeRiskTab
             v-if="activeTab === 'pe'"
             :alerts="peAlerts"
@@ -259,7 +259,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="sbt" tab="SBT记录">
+        <a-tab-pane key="sbt" tab="自主呼吸试验记录">
           <PatientSbtTimelineTab
             v-if="activeTab === 'sbt'"
             :summary="sbtTimelineSummary"
@@ -312,6 +312,7 @@
             :open-evidence="openEvidence"
             :ai-risk-explainability-rows="aiRiskExplainabilityRows"
             :format-alert-extra="formatAlertExtra"
+            :acknowledge-alert="acknowledgeAlert"
           />
         </a-tab-pane>
 
@@ -326,7 +327,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="twin" tab="数字孪生诊疗推理">
+        <a-tab-pane key="twin" tab="数字孪生快照 / 时间轴">
           <PatientDigitalTwinTab
             v-if="activeTab === 'twin'"
             :patient-id="String(route.params.id || '')"
@@ -447,6 +448,8 @@ import {
   getPatientDrugs,
   getPatientAssessments,
   getPatientAlerts,
+  postPatientAlertsViewed,
+  postAlertAcknowledge,
   getPatientSepsisBundleStatus,
   getPatientWeaningTimeline,
   getPatientSimilarCaseOutcomes,
@@ -470,6 +473,7 @@ import {
   icuTooltip,
   icuValueAxis,
 } from '../charts/icuTheme'
+import { getOperatorIdentity } from '../utils/operatorIdentity'
 
 const PatientTrendTab = defineAsyncComponent(() => import('../components/patient-detail/TrendTab.vue'))
 const PatientLabsTab = defineAsyncComponent(() => import('../components/patient-detail/LabsTab.vue'))
@@ -979,14 +983,14 @@ const workbenchTopics = computed(() => {
   return [
     {
       key: 'twin',
-      title: '数字孪生诊疗推理',
-      subtitle: '风险预测 -> 建议 -> 追踪 -> 效果评估',
-      status: aiRiskForecast.value?.risk_summary || '数字孪生闭环与 MDT 会诊已接入患者详情页',
-      meta: '把主动管理、因果链解释、多智能体会诊和风险预测收敛到一个标签页。',
+      title: '数字孪生快照 / 时间轴',
+      subtitle: '统一状态总览 + 患者全景时间轴',
+      status: aiRiskForecast.value?.risk_summary || '已接入患者级快照底座，可查看统一状态总览、全景时间轴并支持刷新。',
+      meta: '把患者快照、事件时间轴、主动管理、因果链解释和 MDT 会诊收敛到一个入口。',
       countText: twinInterventions ? `${twinInterventions} 个时域` : '孪生',
       tabKey: 'twin',
       tone: topicToneFromSeverity(aiRiskForecast.value?.risk_level || latestAiRiskAlert.value?.severity || 'warning'),
-      items: (aiRiskForecast.value?.top_contributors || []).slice(0, 3).map((item: any) => item?.feature || item?.organ || item?.label).filter(Boolean),
+      items: ((aiRiskForecast.value?.top_contributors || []).slice(0, 2).map((item: any) => item?.feature || item?.organ || item?.label).filter(Boolean)).concat(['统一状态总览', '患者全景时间轴']).slice(0, 4),
     },
     {
       key: 'ecash',
@@ -1484,6 +1488,27 @@ async function copyHandoffSummary() {
 }
 void copyHandoffSummary
 
+async function acknowledgeAlert(item: any) {
+  const alertId = String(item?._id || '').trim()
+  if (!alertId) {
+    message.error('缺少告警ID，无法确认')
+    return
+  }
+  try {
+    const res = await postAlertAcknowledge(alertId, { actor: getOperatorIdentity() })
+    const record = res.data?.record
+    if (record) {
+      const idx = alerts.value.findIndex((row: any) => String(row?._id || '') === String(record?._id || ''))
+      if (idx >= 0) {
+        alerts.value[idx] = record
+      }
+    }
+    message.success('告警已确认')
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || '告警确认失败')
+  }
+}
+
 async function submitAiFeedback(item: any, outcome: 'confirmed' | 'dismissed' | 'inaccurate') {
   const predictionId = String(item?._id || '').trim()
   if (!predictionId) {
@@ -1578,6 +1603,65 @@ async function handleReloadKnowledge() {
   }
 }
 
+function formatActionabilityText(item: any) {
+  const score = item?.actionability_score ?? item?.extra?.actionability?.score
+  const level = String(item?.actionability_level || item?.extra?.actionability?.level || '').trim()
+  if (score == null && !level) return ''
+  const scoreText = score == null ? '—' : `${score}`
+  const levelMap: Record<string, string> = {
+    immediate: '立即处理',
+    prompt: '尽快处理',
+    routine: '常规跟进',
+  }
+  return `${scoreText}${level ? ` · ${levelMap[level] || level}` : ''}`
+}
+
+function formatActionTaken(item: any) {
+  const action = item?.action_taken
+  if (!action || typeof action !== 'object') return ''
+  if (action.summary) return action.summary
+  if (Array.isArray(action.orders) && action.orders.length) {
+    return action.orders
+      .slice(0, 3)
+      .map((row: any) => row?.drug_name || row?.order_name || '')
+      .filter(Boolean)
+      .join('；')
+  }
+  return ''
+}
+
+function formatOutcomeDelta(item: any) {
+  const windows = item?.outcome_delta?.windows
+  if (!windows || typeof windows !== 'object') return ''
+  const labels: string[] = []
+  for (const [windowKey, metrics] of Object.entries(windows)) {
+    if (!metrics || typeof metrics !== 'object') continue
+    const parts: string[] = []
+    for (const metric of ['map', 'lactate', 'sofa']) {
+      const row: any = (metrics as any)[metric]
+      if (!row || row.delta == null) continue
+      const prettyMetric = metric === 'map' ? 'MAP' : metric.toUpperCase()
+      const sign = Number(row.delta) > 0 ? '+' : ''
+      parts.push(`${prettyMetric} ${sign}${row.delta}`)
+    }
+    if (parts.length) {
+      labels.push(`${windowKey} ${parts.join(' / ')}`)
+    }
+  }
+  return labels.join('；')
+}
+
+function appendAlertLifecycleFields(fields: { label: string, value: any }[], item: any) {
+  const actionability = formatActionabilityText(item)
+  const actionTaken = formatActionTaken(item)
+  const outcomeDelta = formatOutcomeDelta(item)
+  if (actionability) fields.push({ label: '可行动性', value: actionability })
+  if (item?.viewed_at) fields.push({ label: '首次查看', value: fmtTime(item.viewed_at) || item.viewed_at })
+  if (item?.acknowledged_at) fields.push({ label: '医生确认', value: fmtTime(item.acknowledged_at) || item.acknowledged_at })
+  if (actionTaken) fields.push({ label: '已采取行动', value: actionTaken })
+  if (outcomeDelta) fields.push({ label: '行动后变化', value: outcomeDelta })
+}
+
 function alertDetailFields(item: any) {
   const t = String(item?.alert_type || '')
   const extra = item?.extra || {}
@@ -1596,6 +1680,7 @@ function alertDetailFields(item: any) {
       { label: '神经', value: comps?.neuro },
       { label: '肾脏', value: comps?.renal },
     )
+    appendAlertLifecycleFields(fields, item)
     return fields
   }
 
@@ -1606,6 +1691,7 @@ function alertDetailFields(item: any) {
       { label: 'RR', value: extra?.rr },
       { label: 'GCS', value: extra?.gcs },
     )
+    appendAlertLifecycleFields(fields, item)
     return fields
   }
 
@@ -1616,6 +1702,7 @@ function alertDetailFields(item: any) {
       { label: 'FiO₂', value: extra?.fio2 },
       { label: 'PEEP', value: extra?.peep },
     )
+    appendAlertLifecycleFields(fields, item)
     return fields
   }
 
@@ -1630,6 +1717,7 @@ function alertDetailFields(item: any) {
       { label: '尿量(12h)', value: cond?.urine_12h_ml_kg_h },
       { label: '尿量(24h)', value: cond?.urine_24h_ml_kg_h },
     )
+    appendAlertLifecycleFields(fields, item)
     return fields
   }
 
@@ -1642,6 +1730,7 @@ function alertDetailFields(item: any) {
       { label: 'PT/INR', value: detail?.pt },
       { label: 'Fib', value: detail?.fib },
     )
+    appendAlertLifecycleFields(fields, item)
     return fields
   }
 
@@ -1659,6 +1748,7 @@ function alertDetailFields(item: any) {
     if (plan?.aki_note) {
       fields.push({ label: 'AKI提示', value: plan.aki_note })
     }
+    appendAlertLifecycleFields(fields, item)
     return fields
   }
 
@@ -1671,6 +1761,7 @@ function alertDetailFields(item: any) {
       { label: '斜率', value: trend?.slope },
       { label: '近5点', value: recent },
     )
+    appendAlertLifecycleFields(fields, item)
     return fields
   }
 
@@ -2482,6 +2573,17 @@ async function loadAlerts() {
   try {
     const res = await getPatientAlerts(patientId)
     alerts.value = res.data.records || []
+    const alertIds = alerts.value
+      .map((item: any) => String(item?._id || '').trim())
+      .filter((id: string) => !!id)
+      .slice(0, 50)
+    if (alertIds.length) {
+      postPatientAlertsViewed(patientId, {
+        alert_ids: alertIds,
+        actor: getOperatorIdentity(),
+        source: 'patient_detail',
+      }).catch(() => undefined)
+    }
   } catch (e) {
     console.error('加载预警失败', e)
   }
@@ -4197,6 +4299,10 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
+
+
 
 
 

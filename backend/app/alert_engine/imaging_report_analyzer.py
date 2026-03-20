@@ -203,6 +203,11 @@ class ImagingReportAnalyzerMixin:
         issue_terms = ["位置异常", "位置不佳", "位置偏高", "位置偏低", "过深", "过浅", "异位", "误入", "需调整", "建议调整", "退出", "重新定位", "不在位"]
         return any(term in text for term in line_terms) and any(term in text for term in issue_terms)
 
+    def _contains_negative_imaging_context(self, text: str, prefixes: list[str]) -> bool:
+        if not text:
+            return False
+        return any(prefix in text for prefix in prefixes)
+
     def _match_pleural_effusion_present(self, sentence: str) -> bool:
         text = str(sentence or "").lower()
         if not text:
@@ -210,7 +215,7 @@ class ImagingReportAnalyzerMixin:
         direct_terms = ["胸腔积液", "胸水", "液气胸", "胸膜腔积液"]
         if any(term in text for term in direct_terms):
             return True
-        if "心包积液" in text:
+        if any(term in text for term in ["心包积液", "腹腔积液"]):
             return False
         return "积液" in text and any(term in text for term in ["胸腔", "胸膜", "胸部"])
 
@@ -221,6 +226,9 @@ class ImagingReportAnalyzerMixin:
 
     def _match_pulmonary_infiltrate_present(self, sentence: str) -> bool:
         text = str(sentence or "").lower()
+        negative_prefixes = ["未见", "未发现", "排除", "不考虑", "较前吸收", "较前减少", "好转"]
+        if self._contains_negative_imaging_context(text, negative_prefixes):
+            return False
         parenchymal_terms = ["渗出", "浸润", "斑片影", "条絮状", "磨玻璃", "实变", "肺炎", "炎症", "肺水肿", "不张"]
         return any(term in text for term in parenchymal_terms) and any(term in text for term in ["肺", "双肺", "肺部", "肺野", "下叶", "上叶"])
 

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.config import get_config
+from app.services.patient_digital_twin import PatientDigitalTwinService
 from app.utils.patient_data import get_device_id, param_series_by_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
 
@@ -119,6 +120,11 @@ class SemiMechanisticCounterfactualModel:
         return _round(_safe_float(rows[-1].get("value")), digits)
 
     async def build_snapshot(self, patient_id: str, patient: dict, *, hours: int = 12) -> dict[str, Any]:
+        twin_service = PatientDigitalTwinService(db=self.db, alert_engine=self.alert_engine, config=get_config())
+        twin = await twin_service.get_or_build_snapshot(patient_id, patient, hours=max(hours, 12), refresh=False, persist=True)
+        cached_snapshot = twin.get("snapshot")
+        if isinstance(cached_snapshot, dict) and cached_snapshot:
+            return cached_snapshot
         since = datetime.now() - timedelta(hours=max(2, hours))
         patient_ids = patient_his_pid_candidates(patient)
         map_series = await param_series_by_pid(patient_id, "param_nibp_m", since)

@@ -25,6 +25,30 @@
 
     <div class="twin-grid">
       <section class="twin-card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">统一状态总览</div>
+            <div class="card-sub">直接消费数字孪生快照，作为工作台与后续 Scanner 迁移的统一底座</div>
+          </div>
+          <span :class="['risk-badge', hasTwinSnapshot ? 'is-low' : 'is-medium']">{{ hasTwinSnapshot ? '快照已接入' : '等待快照' }}</span>
+        </div>
+        <div class="summary-panel">{{ twinOverviewSummary }}</div>
+        <div class="overview-grid">
+          <article v-for="item in twinOverviewCards" :key="item.label" class="overview-item">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+            <small>{{ item.meta }}</small>
+          </article>
+        </div>
+        <div class="chip-row">
+          <span v-for="item in twinMetricChips" :key="item.label" class="info-chip">{{ item.label }} {{ item.value }}</span>
+        </div>
+        <div v-if="twinTrendChips.length" class="chip-row">
+          <span v-for="item in twinTrendChips" :key="item.label" class="info-chip info-chip--muted">{{ item.label }} {{ item.value }}</span>
+        </div>
+      </section>
+
+      <section class="twin-card">
         <div class="card-head"><div><div class="card-title">风险预测与驱动</div><div class="card-sub">未来 2-12h 恶化概率与主要驱动因子</div></div><span :class="['risk-badge', `is-${riskLevel}`]">{{ riskLevelText }}</span></div>
         <div class="curve-list">
           <div v-for="item in horizonRows" :key="item.label" class="curve-row">
@@ -60,6 +84,36 @@
         </div>
         <div v-else class="empty-panel">当前暂无高置信度亚表型。</div>
       </section>
+      <section class="twin-card twin-card-wide">
+        <div class="card-head">
+          <div>
+            <div class="card-title">患者全景时间轴</div>
+            <div class="card-sub">把生命体征、检验、用药、报警和文本信号收敛到同一条患者级事件轴</div>
+          </div>
+          <span class="status-pill is-pending">{{ timelineRows.length }} 条事件</span>
+        </div>
+        <div v-if="timelineRows.length" class="timeline-list">
+          <article v-for="(item, idx) in timelineRows" :key="`${item.time || item.label || idx}-${idx}`" class="timeline-item">
+            <div class="timeline-rail">
+              <span class="timeline-time">{{ fmtTime(item.time) }}</span>
+              <i :class="['timeline-dot', `timeline-dot--${item.tone}`]" />
+              <span v-if="Number(idx) < timelineRows.length - 1" class="timeline-line" />
+            </div>
+            <div class="timeline-card">
+              <div class="timeline-card-head">
+                <div>
+                  <div class="timeline-card-title">{{ item.label }}</div>
+                  <div class="timeline-card-sub">{{ item.detail }}</div>
+                </div>
+                <span :class="['timeline-source', `is-${item.tone}`]">{{ item.sourceLabel }}</span>
+              </div>
+              <div v-if="item.metaText" class="timeline-card-meta">{{ item.metaText }}</div>
+            </div>
+          </article>
+        </div>
+        <div v-else class="empty-panel">当前快照中暂无可展示的患者时间轴事件。</div>
+      </section>
+
 
       <section class="twin-card twin-card-wide">
         <div class="card-head"><div><div class="card-title">主动管理追踪</div><div class="card-sub">风险闭环从建议直接进入执行与回看</div></div></div>
@@ -139,12 +193,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   getAiClinicalReasoning,
   getAiMultiAgentAssessment,
   getAiNursingNoteSignals,
+  getAiPatientDigitalTwin,
   getAiProactiveManagement,
   getAiRiskForecast,
   getAiSubphenotype,
@@ -158,6 +213,7 @@ const router = useRouter()
 const patient = computed(() => props.patient || null)
 const loading = ref(false)
 const error = ref('')
+const digitalTwin = ref<any>(null)
 const riskForecast = ref<any>(null)
 const proactivePlan = ref<any>(null)
 const reasoningPlan = ref<any>(null)
@@ -177,6 +233,11 @@ const whatIfPresets = [
   { type: 'peep_up', label: 'PEEP +2', payload: { intervention_type: 'peep_up', intervention_label: 'PEEP 上调 2 cmH2O', peep_delta: 2, horizon_minutes: 30 } },
   { type: 'fio2_up', label: 'FiO2 +10%', payload: { intervention_type: 'fio2_up', intervention_label: 'FiO2 上调 10%', fio2_delta: 10, horizon_minutes: 30 } },
 ] as const
+const twinRecord = computed(() => digitalTwin.value?.record || digitalTwin.value || {})
+const twinSnapshot = computed(() => twinRecord.value?.snapshot || {})
+const twinPatient = computed(() => twinRecord.value?.patient || {})
+const twinVitals = computed(() => twinRecord.value?.vitals || {})
+const twinSummary = computed(() => twinRecord.value?.summary || {})
 const planRecord = computed(() => proactivePlan.value?.plan || proactivePlan.value || {})
 const reasoningRecord = computed(() => reasoningPlan.value?.plan || reasoningPlan.value || {})
 const mdtRecord = computed(() => mdtAssessment.value?.assessment || mdtAssessment.value || {})
@@ -189,6 +250,7 @@ const riskLevel = computed(() => String(planRecord.value?.risk_profile?.risk_lev
 const riskLevelText = computed(() => ({ low: '低风险', medium: '中风险', high: '高风险', critical: '危急' } as Record<string, string>)[riskLevel.value] || '中风险')
 const deteriorationProbability = computed(() => pct(planRecord.value?.risk_profile?.deterioration_probability ?? riskForecast.value?.current_probability ?? 0))
 const workbenchState = computed(() => String(planRecord.value?.status || 'active') === 'monitoring' ? '连续监测中' : '闭环运行中')
+const hasTwinSnapshot = computed(() => Object.keys(twinSnapshot.value || {}).length > 0)
 const interventions = computed(() => Array.isArray(planRecord.value?.interventions) ? planRecord.value.interventions : [])
 const trackedInterventions = computed(() => `${interventions.value.filter((item: any) => item?.status && item.status !== 'pending').length}/${interventions.value.length || 0}`)
 const forecastHeadline = computed(() => `${riskLevelText.value} · ${deteriorationProbability.value}`)
@@ -275,10 +337,149 @@ const whatIfCautions = computed(() => {
   const rows = Array.isArray(whatIfRecord.value?.cautions) ? whatIfRecord.value.cautions : []
   return rows.slice(0, 4)
 })
+const twinOverviewSummary = computed(() => {
+  const calcTime = fmtTime(twinRecord.value?.calc_time)
+  const diagnosis = String(twinPatient.value?.diagnosis || '').trim()
+  const alerts = Number(twinSummary.value?.active_alerts_24h || 0)
+  const problems = Number(twinSummary.value?.problem_count || 0)
+  if (!hasTwinSnapshot.value) return '数字孪生快照已预留接入位，当前等待底层状态生成。'
+  return `${calcTime} 更新快照，${diagnosis || '诊断待补充'}；当前识别 ${problems} 个问题，近 24h 报警 ${alerts} 条。`
+})
+const twinOverviewCards = computed(() => [
+  { label: '快照时间', value: fmtTime(twinRecord.value?.calc_time), meta: `窗口 ${twinRecord.value?.snapshot_window_hours || 24}h` },
+  { label: '在床位置', value: `${twinPatient.value?.dept || 'ICU'} / ${twinPatient.value?.bed || '床位待补'}`, meta: twinPatient.value?.nursing_level || '护理级别待补' },
+  { label: '活动报警', value: String(twinSummary.value?.active_alerts_24h ?? 0), meta: '近 24 小时' },
+  { label: '时间轴事件', value: String(twinSummary.value?.timeline_events ?? 0), meta: '统一患者事件流' },
+])
+const twinMetricChips = computed(() => {
+  const defs = [
+    { label: 'MAP', value: twinSnapshot.value?.map?.current, unit: 'mmHg', digits: 0 },
+    { label: 'HR', value: twinSnapshot.value?.hr?.current, unit: 'bpm', digits: 0 },
+    { label: 'SpO2', value: twinSnapshot.value?.spo2?.current, unit: '%', digits: 0 },
+    { label: 'RR', value: twinSnapshot.value?.rr?.current, unit: '/min', digits: 0 },
+    { label: 'Temp', value: twinSnapshot.value?.temp?.current, unit: '℃', digits: 1 },
+    { label: '乳酸', value: twinSnapshot.value?.lactate?.current, unit: 'mmol/L', digits: 1 },
+    { label: '尿量', value: twinSnapshot.value?.urine_ml_kg_h_6h, unit: 'mL/kg/h', digits: 2 },
+    { label: '血管活性药', value: twinSnapshot.value?.vasoactive_support?.current_dose_ug_kg_min, unit: 'ug/kg/min', digits: 3 },
+  ]
+  return defs.map((item) => ({ label: item.label, value: formatMetric(item.value, item.unit, item.digits) })).filter((item) => item.value !== '—')
+})
+const twinTrendChips = computed(() => {
+  const vitalsSnapshot = twinVitals.value?.snapshot || {}
+  const defs = [
+    { key: 'map', label: 'MAP 趋势' },
+    { key: 'hr', label: 'HR 趋势' },
+    { key: 'spo2', label: 'SpO2 趋势' },
+    { key: 'rr', label: 'RR 趋势' },
+    { key: 'temp', label: 'Temp 趋势' },
+  ]
+  return defs.map((item) => {
+    const row = vitalsSnapshot?.[item.key] || {}
+    if (!row.points) return null
+    return { label: item.label, value: `${trendText(row.trend)} · ${formatSigned(row.delta)}` }
+  }).filter(Boolean) as Array<{ label: string; value: string }>
+})
+const timelineRows = computed(() => {
+  const rows = Array.isArray(twinRecord.value?.timeline) ? twinRecord.value.timeline : []
+  return rows.slice(0, 16).map((item: any) => {
+    const source = String(item?.source || 'snapshot').toLowerCase()
+    const meta = item?.meta || {}
+    return {
+      ...item,
+      label: timelineDisplayLabel(item),
+      tone: timelineTone(source, meta),
+      sourceLabel: timelineSourceLabel(source),
+      detail: timelineDetail(item),
+      metaText: timelineMetaText(meta),
+    }
+  })
+})
 function pct(value: any) { const n = Number(value || 0); return `${Math.max(0, Math.min(100, n * 100)).toFixed(n >= 0.1 ? 1 : 0)}%` }
+function fmtTime(value: any) {
+  if (!value) return '时间未知'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+function formatMetric(value: any, unit = '', digits = 0) {
+  if (value == null || value === '') return '—'
+  const num = Number(value)
+  if (Number.isNaN(num)) return `${String(value)}${unit ? ` ${unit}` : ''}`.trim()
+  const rendered = digits > 0 ? num.toFixed(digits) : `${Math.round(num)}`
+  return `${rendered}${unit ? ` ${unit}` : ''}`.trim()
+}
+function trendText(value: any) {
+  const key = String(value || '').toLowerCase()
+  if (key === 'up') return '上升'
+  if (key === 'down') return '下降'
+  if (key === 'stable') return '平稳'
+  return '数据不足'
+}
+function formatSigned(value: any) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 'Δ —'
+  const abs = Math.abs(num)
+  const digits = abs >= 10 ? 0 : abs >= 1 ? 1 : 2
+  return `Δ ${num > 0 ? '+' : ''}${num.toFixed(digits)}`
+}
 function effectText(value: any) { const key = String(value || '').toLowerCase(); if (key === 'improving') return '干预后风险下降'; if (key === 'worsening') return '干预后风险上升'; return '干预后风险平稳' }
 function effectDelta(value: any) { const n = Number(value || 0); return `${n > 0 ? '+' : ''}${(n * 100).toFixed(1)}%` }
 function interventionStatusText(status: any) { const key = String(status || 'pending').toLowerCase(); return ({ pending: '待执行', in_progress: '追踪中', completed: '已完成', dismissed: '不采纳' } as Record<string, string>)[key] || '待执行' }
+function timelineSourceLabel(source: string) { return ({ vitals: '生命体征', labs: '检验', medication: '用药', score_records: '评分', imaging: '影像', nursing: '护理文本', alert: '报警' } as Record<string, string>)[source] || '快照' }
+function timelineTypeLabel(value: any) {
+  const key = String(value || '').toLowerCase()
+  return ({
+    arc_risk: 'ARC 风险',
+    weaning_assessment: '撤机评估',
+    sepsis_bundle_tracker: '脓毒症 1 小时解放束追踪',
+    temporal_risk_scanner: '时序风险扫描',
+    nutrition_start_delay: '营养支持启动延迟',
+    refractory_hypoxemia: '难治性低氧血症风险',
+    hypertensive_emergency: '高血压急症风险',
+    seizure_prophylaxis: '癫痫预防评估提醒',
+    vap_bundle_missing: 'VAP Bundle 缺项提醒',
+    weaning: 'SBT 前建议先处理',
+    liberation_bundle: 'ABCDEF Bundle 合规待补全',
+    drug_order: '用药执行',
+    imaging_report_signal_analysis: '影像信号更新',
+    nursing_note_signal_analysis: '护理文本信号更新',
+    warning: '警示',
+    high: '高危',
+    critical: '危急',
+    medium: '中等',
+    low: '低危',
+    pending: '待处理',
+    stable: '平稳'
+  } as Record<string, string>)[key] || String(value || '').replace(/_/g, ' ').trim() || '事件更新'
+}
+function timelineMetricLabel(value: any) {
+  const key = String(value || '').toLowerCase()
+  return ({ map: 'MAP', hr: 'HR', spo2: 'SpO2', rr: 'RR', temp: '体温', lac: '乳酸', lactate: '乳酸', cr: '肌酐', wbc: '白细胞', plt: '血小板', tbil: '总胆红素', inr: 'INR', ph: 'pH', pao2: 'PaO2' } as Record<string, string>)[key] || String(value || '').toUpperCase()
+}
+function timelineLevelLabel(value: any) {
+  const key = String(value || '').toLowerCase()
+  return ({ warning: '警示', high: '高危', critical: '危急', medium: '中等', low: '低危', pending: '待处理', completed: '已完成', in_progress: '处理中', dismissed: '已忽略' } as Record<string, string>)[key] || String(value || '状态待补')
+}
+function timelineDisplayLabel(item: any) {
+  const source = String(item?.source || '').toLowerCase()
+  const explicit = String(item?.label || '').trim()
+  if (source === 'score_records') return timelineTypeLabel(item?.type)
+  if (source === 'alert') return /[\u4e00-\u9fa5]/.test(explicit) ? explicit : timelineTypeLabel(item?.type)
+  return explicit || timelineTypeLabel(item?.type)
+}
+function timelineTone(source: string, meta: any) { const severity = String(meta?.severity || '').toLowerCase(); if (severity === 'critical' || severity === 'high') return 'danger'; if (source === 'alert') return 'warning'; if (source === 'medication') return 'accent'; if (source === 'imaging' || source === 'nursing') return 'info'; return 'neutral' }
+function timelineDetail(item: any) {
+  const source = String(item?.source || '').toLowerCase()
+  if (source === 'alert') return `类型 ${timelineTypeLabel(item?.type)}`
+  if (source === 'medication') return `来源 ${item?.meta?.route || '给药路径待补'} · 剂量 ${formatMetric(item?.meta?.dose, item?.meta?.dose_unit || '', 0)}`
+  if (source === 'score_records') return `评分 ${timelineTypeLabel(item?.type)} · ${timelineLevelLabel(item?.meta?.risk_level || 'pending')}`
+  if (source === 'labs' || source === 'vitals') return `指标 ${timelineMetricLabel(item?.type)}`
+  return `来源 ${timelineSourceLabel(source)}`
+}
+function timelineMetaText(meta: any) {
+  if (!meta || typeof meta !== 'object') return ''
+  return [meta?.severity ? `严重度 ${timelineLevelLabel(meta.severity)}` : '', meta?.status ? `状态 ${timelineLevelLabel(meta.status)}` : '', meta?.summary ? String(meta.summary) : '', meta?.action_taken ? `处置 ${meta.action_taken}` : ''].filter(Boolean).join(' · ')
+}
 function openMdtBoard() { router.push({ path: '/mdt', query: { patient_id: props.patientId } }) }
 async function loadCausal(finding: string) { selectedFinding.value = finding; try { const res = await postAiCausalAnalysis(props.patientId, { abnormal_finding: finding }); causalAnalysis.value = res.data || null } catch { error.value = '因果链分析加载失败' } }
 async function runWhatIf(preset: any) {
@@ -299,7 +500,8 @@ async function loadAll(refresh = false) {
   loading.value = true
   error.value = ''
   try {
-    const [riskRes, proactiveRes, reasoningRes, mdtRes, nursingRes, subtypeRes] = await Promise.all([
+    const [twinRes, riskRes, proactiveRes, reasoningRes, mdtRes, nursingRes, subtypeRes] = await Promise.all([
+      getAiPatientDigitalTwin(props.patientId, { refresh, hours: 24 }),
       getAiRiskForecast(props.patientId),
       getAiProactiveManagement(props.patientId, { refresh }),
       getAiClinicalReasoning(props.patientId, { refresh }),
@@ -307,6 +509,7 @@ async function loadAll(refresh = false) {
       getAiNursingNoteSignals(props.patientId, { refresh }),
       getAiSubphenotype(props.patientId, { refresh }),
     ])
+    digitalTwin.value = twinRes.data || null
     riskForecast.value = riskRes.data || null
     proactivePlan.value = proactiveRes.data || null
     reasoningPlan.value = reasoningRes.data || null
@@ -335,8 +538,7 @@ async function submitFeedback(item: any, payload: { status?: string; adopted?: b
     savingMap[interventionId] = false
   }
 }
-watch(() => props.patientId, () => { riskForecast.value = null; proactivePlan.value = null; reasoningPlan.value = null; mdtAssessment.value = null; causalAnalysis.value = null; nursingSignals.value = null; subphenotypeProfile.value = null; whatIfResult.value = null; void loadAll(false) }, { immediate: true })
-onMounted(() => { void loadAll(false) })
+watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.value = null; proactivePlan.value = null; reasoningPlan.value = null; mdtAssessment.value = null; causalAnalysis.value = null; nursingSignals.value = null; subphenotypeProfile.value = null; whatIfResult.value = null; void loadAll(false) }, { immediate: true })
 </script>
 
 <style scoped>
@@ -373,6 +575,31 @@ onMounted(() => { void loadAll(false) })
 .curve-bar { height: 8px; border-radius: 999px; background: rgba(43,85,108,.36); overflow: hidden; }
 .curve-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22d3ee, #38bdf8); }
 .causal-fill { background: linear-gradient(90deg, #f59e0b, #fb7185); }
+.overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.overview-item { display: grid; gap: 4px; }
+.overview-item span,.overview-item small { color: #8fb4c8; font-size: 12px; }
+.overview-item strong { color: #f4fbff; font-size: 16px; }
+.timeline-list { display: grid; gap: 12px; }
+.timeline-item { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.timeline-rail { position: relative; display: grid; justify-items: end; gap: 8px; padding-right: 12px; }
+.timeline-time { color: #8fb6c9; font-size: 12px; line-height: 1.5; text-align: right; }
+.timeline-dot { width: 12px; height: 12px; border-radius: 999px; border: 2px solid rgba(198,239,255,.16); background: #64748b; z-index: 1; }
+.timeline-dot--danger { background: #fb7185; }
+.timeline-dot--warning { background: #f59e0b; }
+.timeline-dot--accent { background: #34d399; }
+.timeline-dot--info { background: #22d3ee; }
+.timeline-dot--neutral { background: #64748b; }
+.timeline-line { position: absolute; top: 44px; right: 17px; bottom: -12px; width: 1px; background: linear-gradient(180deg, rgba(110,231,249,.4), rgba(110,231,249,0)); }
+.timeline-card { display: grid; gap: 8px; }
+.timeline-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.timeline-card-title { color: #edf9ff; font-size: 14px; font-weight: 700; line-height: 1.5; }
+.timeline-card-sub,.timeline-card-meta { color: #8fb4c8; font-size: 12px; line-height: 1.6; }
+.timeline-source { border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.timeline-source.is-danger { background: rgba(244,63,94,.14); color: #fecdd3; }
+.timeline-source.is-warning { background: rgba(245,158,11,.14); color: #fde68a; }
+.timeline-source.is-accent { background: rgba(52,211,153,.16); color: #bbf7d0; }
+.timeline-source.is-info { background: rgba(34,211,238,.15); color: #c4fbff; }
+.timeline-source.is-neutral { background: rgba(71,85,105,.3); color: #d7e6ef; }
 .bullet-list { margin: 0; padding-left: 18px; color: #d7edf7; display: grid; gap: 8px; }
 .bullet-list.compact { gap: 6px; }
 .summary-panel,.empty-panel,.error-panel,.effect-box { padding: 12px 14px; border-radius: 14px; line-height: 1.75; }
@@ -399,9 +626,24 @@ onMounted(() => { void loadAll(false) })
 .effect-box.is-stable { background: rgba(56,189,248,.14); }
 .mdt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .error-panel { background: rgba(127,29,29,.22); border: 1px solid rgba(248,113,113,.26); color: #fecaca; }
+@media (max-width: 900px) { .overview-grid,.timeline-item { grid-template-columns: 1fr; } .timeline-rail { justify-items: start; padding-right: 0; padding-bottom: 8px; } .timeline-time { text-align: left; } .timeline-line { left: 5px; right: auto; top: 32px; bottom: -8px; } }
 @media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
 @media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

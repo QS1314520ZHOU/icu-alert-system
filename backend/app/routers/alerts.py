@@ -3,13 +3,31 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
 from app.utils.alerting import window_to_hours
 from app.utils.serialization import serialize_doc
 
 router = APIRouter()
+
+
+def resolve_actor_identity(payload: dict | None, request: Request) -> str:
+    body = payload if isinstance(payload, dict) else {}
+    candidates = [
+        body.get("actor"),
+        request.headers.get("x-user-id"),
+        request.headers.get("x-actor-id"),
+        request.headers.get("x-operator-id"),
+        request.headers.get("x-forwarded-user"),
+        request.headers.get("x-user-name"),
+        request.headers.get("remote-user"),
+    ]
+    for item in candidates:
+        value = runtime.alert_engine._normalize_lifecycle_actor(str(item or "").strip())
+        if value:
+            return value
+    return ""
 
 
 @router.get("/api/alerts/recent")
@@ -48,9 +66,32 @@ async def recent_alerts(
             }
         )
 
-    cursor = col.find(query).sort("created_at", -1).limit(limit)
+    cursor = col.find(query).sort([("actionability_score", -1), ("created_at", -1)]).limit(limit)
     records = [serialize_doc(doc) async for doc in cursor]
     return {"code": 0, "records": records}
+
+
+@router.post("/api/alerts/{alert_id}/acknowledge")
+async def acknowledge_alert(alert_id: str, request: Request, payload: dict = Body(default={})):
+    doc = await runtime.alert_engine.acknowledge_alert(
+        alert_id,
+        actor=resolve_actor_identity(payload, request),
+        note=str((payload or {}).get("note") or "").strip(),
+    )
+    if not doc:
+        return {"code": 404, "message": "告警不存在"}
+    return {"code": 0, "record": serialize_doc(doc)}
+
+
+@router.get("/api/alerts/lifecycle/analytics")
+async def alert_lifecycle_analytics(
+    window: str = Query("24h"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
+    hours = window_to_hours(window, default=24)
+    analytics = await runtime.alert_engine.alert_lifecycle_analytics(hours=hours, dept=dept, dept_code=dept_code)
+    return {"code": 0, **serialize_doc(analytics)}
 
 
 @router.get("/api/alerts/stats")

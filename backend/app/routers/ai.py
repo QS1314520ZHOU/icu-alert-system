@@ -17,6 +17,7 @@ from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
 from app.services.counterfactual_model import SemiMechanisticCounterfactualModel
 from app.services.document_generator import ClinicalDocumentGenerator
 from app.services.multi_agent_orchestrator import ICUMultiAgentOrchestrator
+from app.services.patient_digital_twin import PatientDigitalTwinService
 from app.services.subphenotype_clustering import CohortSubphenotypeProfiler
 from app.utils.api_llm import call_api_llm
 from app.utils.patient_data import fetch_dc_exam_items_by_his_pid, get_device_id, latest_params_by_device, param_series_by_pid
@@ -1375,6 +1376,27 @@ async def ai_nursing_note_signals(patient_id: str, refresh: bool = Query(default
     except Exception as exc:
         logger.error("AI nursing note signals error: %s", exc)
         return {"code": 0, "analysis": None, "error": f"护理文本分析异常: {str(exc)[:120]}"}
+
+
+@router.get("/api/ai/digital-twin/{patient_id}")
+async def ai_patient_digital_twin(patient_id: str, refresh: bool = Query(default=False), hours: int = Query(default=24, ge=6, le=72)):
+    """患者数字孪生快照与全景时间轴。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        service = PatientDigitalTwinService(db=runtime.db, config=get_config(), alert_engine=runtime.alert_engine)
+        record = await service.get_or_build_snapshot(str(pid), patient, hours=hours, refresh=refresh, persist=True)
+        return {"code": 0, "record": serialize_doc(record)}
+    except Exception as exc:
+        logger.error("AI patient digital twin error: %s", exc)
+        return {"code": 0, "record": None, "error": f"数字孪生快照异常: {str(exc)[:120]}"}
 
 
 @router.post("/api/ai/what-if/{patient_id}")

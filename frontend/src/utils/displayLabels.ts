@@ -130,3 +130,38 @@ export function formatCompositeChainLabel(value: any) {
   return COMPOSITE_CHAIN_LABELS[key] || key.replace(/_/g, ' ')
 }
 
+const EXPLANATION_FIELD_LABELS: Record<string, string> = {
+  recent_high_alerts: '近期高危告警已解除',
+  recent_high_alerts_count: '近期高危告警次数',
+  sofa_trend_down: 'SOFA 趋势下降',
+  sofa_trend: 'SOFA 趋势',
+  sofa_delta: 'SOFA 变化值',
+  sofa_lookback_hours: 'SOFA 回看时长',
+  off_vasopressor: '已停用升压药',
+  on_vasopressor: '正在使用升压药',
+  oxygenation_ok: '氧合达标',
+  fio2: 'FiO2',
+  peep: 'PEEP',
+  gcs_ok: 'GCS 达标',
+  gcs: 'GCS',
+  urine_ok: '尿量达标',
+  urine_6h_ml_kg_h: '近 6 小时尿量',
+  transfer_signal: '转运信号',
+  candidate: '可转运',
+  type: '信号类型',
+  time: '时间',
+  evidence: '依据',
+  recent_count: '最近窗口次数',
+  previous_count: '前一窗口次数',
+  route_targets: '路由对象',
+  nurse: '护士',
+  doctor: '医生',
+  hdu: 'HDU',
+}
+
+export function formatExplanationFieldLabel(value: any) {
+  const key = String(value || '').trim()
+  if (!key) return ''
+  return EXPLANATION_FIELD_LABELS[key] || key.replace(/_/g, ' ')
+}
+

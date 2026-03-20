@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta
 
 from bson import ObjectId
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
 from app.alert_engine.acid_base_analyzer import (
@@ -35,6 +35,24 @@ from app.utils.patient_helpers import calculate_age, patient_his_pid, patient_hi
 from app.utils.serialization import safe_oid, serialize_doc
 
 router = APIRouter()
+
+
+def resolve_actor_identity(payload: dict | None, request: Request) -> str:
+    body = payload if isinstance(payload, dict) else {}
+    candidates = [
+        body.get("actor"),
+        request.headers.get("x-user-id"),
+        request.headers.get("x-actor-id"),
+        request.headers.get("x-operator-id"),
+        request.headers.get("x-forwarded-user"),
+        request.headers.get("x-user-name"),
+        request.headers.get("remote-user"),
+    ]
+    for item in candidates:
+        value = runtime.alert_engine._normalize_lifecycle_actor(str(item or "").strip())
+        if value:
+            return value
+    return ""
 logger = logging.getLogger("icu-alert")
 
 
@@ -617,8 +635,36 @@ async def patient_alerts(patient_id: str):
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
-    cursor = runtime.db.col("alert_records").find({"patient_id": {"$in": [patient_id, pid]}}).sort("created_at", -1).limit(100)
-    return {"code": 0, "records": [serialize_doc(doc) async for doc in cursor]}
+    patient = await runtime.db.col("patient").find_one({"_id": pid}, {"_id": 1, "hisPid": 1, "name": 1})
+    cursor = runtime.db.col("alert_records").find({"patient_id": {"$in": [patient_id, str(pid), pid]}}).sort("created_at", -1).limit(100)
+    records = []
+    async for doc in cursor:
+        try:
+            doc = await runtime.alert_engine.refresh_alert_lifecycle(doc, patient_doc=patient, persist=True)
+        except Exception:
+            pass
+        records.append(serialize_doc(doc))
+    return {"code": 0, "records": records}
+
+
+@router.post("/api/patients/{patient_id}/alerts/view")
+async def patient_alerts_viewed(patient_id: str, request: Request, payload: dict = Body(default={})):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    raw_ids = payload.get("alert_ids") if isinstance(payload.get("alert_ids"), list) else []
+    alert_ids = [str(item) for item in raw_ids if str(item or "").strip()]
+    if not alert_ids:
+        cursor = runtime.db.col("alert_records").find({"patient_id": {"$in": [patient_id, str(pid), pid]}}, {"_id": 1}).sort("created_at", -1).limit(50)
+        alert_ids = [str(doc.get("_id")) async for doc in cursor if doc.get("_id") is not None]
+    modified = await runtime.alert_engine.mark_alerts_viewed(
+        alert_ids,
+        actor=resolve_actor_identity(payload, request),
+        source=str((payload or {}).get("source") or "patient_detail").strip() or "patient_detail",
+    )
+    return {"code": 0, "modified": modified}
 
 
 @router.get("/api/patients/{patient_id}/bedcard")

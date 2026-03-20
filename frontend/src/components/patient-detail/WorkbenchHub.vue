@@ -4,7 +4,7 @@
       <div>
         <div class="workbench-kicker">患者工作台</div>
         <h3 class="workbench-title">专题工作台</h3>
-        <p class="workbench-sub">把 eCASH、ICU 获得性衰弱、肺栓塞、阈值审核、相似病例和智能运行状态都放到一个可见入口里。</p>
+        <p class="workbench-sub">把数字孪生快照、eCASH、ICU 获得性衰弱、肺栓塞、阈值审核、相似病例和智能运行状态都放到一个可见入口里。</p>
       </div>
       <div :class="['runtime-pill', `runtime-pill--${runtime.level}`]">
         <span class="runtime-pill-dot"></span>
@@ -121,6 +121,7 @@ defineProps<{
 @media (max-width: 1100px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 720px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr; } .workbench-shell { padding: 14px; } }
 </style>
+
 
 
 

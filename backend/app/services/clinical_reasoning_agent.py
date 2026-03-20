@@ -11,6 +11,7 @@ from bson import ObjectId
 
 from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
+from app.services.patient_digital_twin import PatientDigitalTwinService
 
 logger = logging.getLogger("icu-alert")
 
@@ -68,8 +69,10 @@ JSON结构:
         return cfg if isinstance(cfg, dict) else {}
 
     async def build_digital_twin(self, patient_id: str, patient_doc: dict) -> dict[str, Any]:
+        twin_service = PatientDigitalTwinService(db=self.db, config=self.config, alert_engine=self.alert_engine)
+        base_twin = await twin_service.get_or_build_snapshot(patient_id, patient_doc, hours=24, refresh=False, persist=True)
         pid = patient_doc.get("_id")
-        facts = await self.alert_engine._collect_patient_facts(patient_doc, pid) if hasattr(self.alert_engine, "_collect_patient_facts") else {}
+        facts = base_twin.get("facts") if isinstance(base_twin.get("facts"), dict) else {}
         nursing_context = None
         nursing_note_analysis = None
         if hasattr(self.alert_engine, "_collect_nursing_context"):
@@ -121,22 +124,13 @@ JSON结构:
             except Exception:
                 proactive_plan = None
 
-        recent_alerts = [
-            doc async for doc in self.db.col("alert_records").find(
-                {"patient_id": {"$in": [str(pid), pid]}, "created_at": {"$gte": datetime.now() - timedelta(hours=24)}},
-                {"name": 1, "alert_type": 1, "severity": 1, "created_at": 1, "explanation": 1, "extra": 1},
-            ).sort("created_at", -1).limit(50)
-        ]
-        recent_scores = [
-            doc async for doc in self.db.col("score_records").find(
-                {"patient_id": {"$in": [str(pid), pid]}, "calc_time": {"$gte": datetime.now() - timedelta(hours=24)}},
-                {"score_type": 1, "score": 1, "risk_level": 1, "summary": 1, "calc_time": 1, "interventions": 1},
-            ).sort("calc_time", -1).limit(40)
-        ]
+        recent_alerts = ((base_twin.get("alerts") or {}).get("recent") if isinstance(base_twin.get("alerts"), dict) else None) or []
+        recent_scores = ((base_twin.get("scores") or {}).get("recent") if isinstance(base_twin.get("scores"), dict) else None) or []
 
         problem_list = self._problem_list(patient_doc=patient_doc, facts=facts, recent_alerts=recent_alerts, temporal_forecast=temporal_forecast)
         return {
             "generated_at": datetime.now(),
+            "digital_twin_snapshot": base_twin,
             "patient": {
                 "id": patient_id,
                 "name": patient_doc.get("name") or "未知",
