@@ -28,6 +28,7 @@ from .fluid_balance import FluidBalanceMixin
 from .glycemic_control import GlycemicControlMixin
 from .hai_bundle_monitor import HaiBundleMonitorMixin
 from .hemodynamic_advisor import HemodynamicAdvisorMixin
+from .imaging_report_analyzer import ImagingReportAnalyzerMixin
 from .immunocompromised_monitor import ImmunocompromisedMonitorMixin
 from .lab_scanner import LabScannerMixin
 from .liberation_bundle import LiberationBundleMixin
@@ -79,6 +80,7 @@ class AlertEngine(
     DiaphragmProtectionMixin,
     VitalSignsMixin,
     LabScannerMixin,
+    ImagingReportAnalyzerMixin,
     SepsisMixin,
     ImmunocompromisedMonitorMixin,
     ArdsMixin,

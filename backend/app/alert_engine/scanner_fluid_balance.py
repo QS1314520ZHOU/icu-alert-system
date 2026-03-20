@@ -83,6 +83,15 @@ class FluidBalanceScanner(BaseScanner):
                 continue
             pid_str = str(pid)
             his_pid = str(patient_doc.get("hisPid") or "").strip() or None
+            imaging = await self.engine.get_imaging_report_analysis(
+                patient_doc,
+                pid_str,
+                hours=96,
+                max_age_hours=8,
+                persist_if_refresh=False,
+            )
+            fluid_imaging = self.engine._select_imaging_signals(imaging, module_tags={"fluid"}, max_items=3)
+            fluid_imaging_lines = self.engine._format_imaging_evidence_lines(fluid_imaging, max_items=2)
             weight_kg = self.engine._get_weight_kg(patient_doc)
             if not weight_kg:
                 continue
@@ -129,6 +138,7 @@ class FluidBalanceScanner(BaseScanner):
                         reasons.append(f"6h大量补液 {intake_6h:.0f}mL 后尿量仅 {urine_6h:.0f}mL")
                     if linked:
                         reasons.append("近24h伴 AKI/ARDS 风险")
+                    reasons.extend(fluid_imaging_lines)
                     explanation = await self.engine._build_fluid_explanation(
                         summary=f"患者已出现液体过负荷征象（%FO {max_positive_pct:.2f}%）。",
                         evidence=reasons,
@@ -177,6 +187,10 @@ class FluidBalanceScanner(BaseScanner):
                                 "triggered": rapid_intake and no_urine_response,
                             },
                             "reasons": reasons,
+                            "imaging_findings": {
+                                "summary": self.engine._build_imaging_summary(fluid_imaging),
+                                "matched_signals": fluid_imaging,
+                            } if fluid_imaging else None,
                         },
                     )
                     if alert:
@@ -203,9 +217,14 @@ class FluidBalanceScanner(BaseScanner):
                             f"MAP变化 {responsiveness_lost.get('map', {}).get('change')} mmHg",
                             f"乳酸比值 {responsiveness_lost.get('lactate', {}).get('ratio')}",
                             f"尿量 {responsiveness_lost.get('urine_6h_ml')}mL",
+                            *fluid_imaging_lines,
                         ],
                         suggestion="建议停止经验性继续扩容，优先复核容量反应性并评估升压药/器官灌注策略。",
                     )
+                    responsiveness_lost["imaging_findings"] = {
+                        "summary": self.engine._build_imaging_summary(fluid_imaging),
+                        "matched_signals": fluid_imaging,
+                    } if fluid_imaging else None
                     alert = await self.engine._create_alert(
                         rule_id=rule_id,
                         name="液体反应性可能丧失",
@@ -262,9 +281,14 @@ class FluidBalanceScanner(BaseScanner):
                             f"%FO {deresuscitation.get('percent_fluid_overload')}%",
                             f"24h净平衡 {deresuscitation.get('net_24h_ml')}mL",
                             f"P/F {((deresuscitation.get('pf_ratio') or {}).get('latest'))}",
+                            *fluid_imaging_lines,
                         ],
                         suggestion=f"建议评估限制入量、利尿/超滤与每日负平衡目标，当前建议净负平衡 {(deresuscitation.get('recommendation') or {}).get('net_negative_goal_ml_24h')} mL/24h。",
                     )
+                    deresuscitation["imaging_findings"] = {
+                        "summary": self.engine._build_imaging_summary(fluid_imaging),
+                        "matched_signals": fluid_imaging,
+                    } if fluid_imaging else None
                     alert = await self.engine._create_alert(
                         rule_id=rule_id,
                         name="可考虑进入去复苏阶段",

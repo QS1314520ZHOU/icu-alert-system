@@ -35,6 +35,51 @@ class DeviceManagementScanner(BaseScanner):
         for patient_doc in patients:
             summary = await self.engine._device_management_summary(patient_doc)
             pid_str = str(patient_doc.get("_id"))
+            imaging = await self.engine.get_imaging_report_analysis(
+                patient_doc,
+                pid_str,
+                hours=96,
+                max_age_hours=8,
+                persist_if_refresh=False,
+            )
+            device_imaging = self.engine._select_imaging_signals(imaging, module_tags={"device"}, max_items=3)
+            device_imaging_lines = self.engine._format_imaging_evidence_lines(device_imaging, max_items=2)
+
+            line_malposition = next((item for item in device_imaging if str(item.get("code") or "") == "line_position_abnormal"), None)
+            if line_malposition:
+                rule_id = "DEVICE_POSITION_ABNORMAL"
+                if not await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                    explanation = await self.engine._polish_structured_alert_explanation(
+                        {
+                            "summary": "最新影像提示导管位置异常，存在装置相关风险。",
+                            "evidence": device_imaging_lines or [str(line_malposition.get("sentence") or "影像提示导管位置异常")],
+                            "suggestion": "建议尽快复核导管尖端/管端位置，必要时立即调整并复查影像。",
+                            "text": "",
+                        }
+                    )
+                    alert = await self.engine._create_alert(
+                        rule_id=rule_id,
+                        name="影像提示导管位置异常",
+                        category="device_management",
+                        alert_type="device_position_abnormal",
+                        severity="high",
+                        parameter="imaging_report",
+                        condition={"report_signal": "line_position_abnormal"},
+                        value=1,
+                        patient_id=pid_str,
+                        patient_doc=patient_doc,
+                        source_time=line_malposition.get("report_time"),
+                        explanation=explanation,
+                        extra={
+                            "imaging_findings": {
+                                "summary": self.engine._build_imaging_summary(device_imaging),
+                                "matched_signals": device_imaging,
+                            },
+                        },
+                    )
+                    if alert:
+                        triggered += 1
+
             for device in summary.get("devices", []):
                 if device["type"] == "cvc" and device.get("can_remove"):
                     rule_id = "DEVICE_CVC_REVIEW"
@@ -52,7 +97,12 @@ class DeviceManagementScanner(BaseScanner):
                         patient_id=pid_str,
                         patient_doc=patient_doc,
                         source_time=device.get("inserted_at"),
-                        extra=device,
+                        extra=device | ({
+                            "imaging_findings": {
+                                "summary": self.engine._build_imaging_summary(device_imaging),
+                                "matched_signals": device_imaging,
+                            }
+                        } if device_imaging else {}),
                     )
                     if alert:
                         triggered += 1
@@ -73,7 +123,12 @@ class DeviceManagementScanner(BaseScanner):
                         patient_id=pid_str,
                         patient_doc=patient_doc,
                         source_time=device.get("inserted_at"),
-                        extra=device,
+                        extra=device | ({
+                            "imaging_findings": {
+                                "summary": self.engine._build_imaging_summary(device_imaging),
+                                "matched_signals": device_imaging,
+                            }
+                        } if device_imaging else {}),
                     )
                     if alert:
                         triggered += 1
@@ -94,7 +149,12 @@ class DeviceManagementScanner(BaseScanner):
                         patient_id=pid_str,
                         patient_doc=patient_doc,
                         source_time=device.get("inserted_at"),
-                        extra=device,
+                        extra=device | ({
+                            "imaging_findings": {
+                                "summary": self.engine._build_imaging_summary(device_imaging),
+                                "matched_signals": device_imaging,
+                            }
+                        } if device_imaging else {}),
                     )
                     if alert:
                         triggered += 1

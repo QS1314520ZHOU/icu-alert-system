@@ -40,6 +40,7 @@ from .scanner_ecash_bundle import EcashBundleScanner
 from .scanner_icu_aw_mobility import IcuAwMobilityScanner
 from .scanner_microbiology import MicrobiologyScanner
 from .scanner_hemodynamic_advisor import HemodynamicAdvisorScanner
+from .scanner_imaging_report_analyzer import ImagingReportAnalyzerScanner
 from .scanner_right_heart_monitor import RightHeartMonitorScanner
 from .scanner_dose_adjustment import DoseAdjustmentScanner
 from .scanner_discharge_readiness import DischargeReadinessScanner
@@ -94,6 +95,7 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         EcashBundleScanner(engine),
         IcuAwMobilityScanner(engine),
         MicrobiologyScanner(engine),
+        ImagingReportAnalyzerScanner(engine),
         HemodynamicAdvisorScanner(engine),
         RightHeartMonitorScanner(engine),
         DoseAdjustmentScanner(engine),

@@ -36,6 +36,14 @@ class ArdsScanner(BaseScanner):
             if not pid:
                 continue
             pid_str = str(pid)
+            imaging = await self.engine.get_imaging_report_analysis(
+                patient_doc,
+                pid_str,
+                hours=96,
+                max_age_hours=8,
+                persist_if_refresh=False,
+            )
+            imaging_signals = self.engine._select_imaging_signals(imaging, module_tags={"ards"}, max_items=3)
             device_id = await self.engine._get_device_id_for_patient(patient_doc, ["vent"])
             if not device_id:
                 continue
@@ -93,14 +101,17 @@ class ArdsScanner(BaseScanner):
 
             bnp_trend = await self.engine._get_bnp_trend(his_pid, datetime.now(), hours=72) if hasattr(self.engine, "_get_bnp_trend") else {}
             cardiogenic_flag = (bnp_trend.get("ratio") or 0) >= 1.5 or (bnp_trend.get("latest") or 0) >= 1000
+            imaging_lines = self.engine._format_imaging_evidence_lines(imaging_signals, max_items=2)
+            summary_suffix = f"；{self.engine._build_imaging_summary(imaging_signals)}" if imaging_signals else ""
             explanation = await self.engine._polish_structured_alert_explanation(
                 {
-                    "summary": f"{name} 风险，当前依据为 {ratio_type.upper()} {round(ratio_value, 1)}、PEEP {peep} cmH2O。",
+                    "summary": f"{name} 风险，当前依据为 {ratio_type.upper()} {round(ratio_value, 1)}、PEEP {peep} cmH2O{summary_suffix}。",
                     "evidence": [
                         f"FiO2 {fio2}",
                         f"PEEP {peep}",
                         f"PaO2 {pao2}" if pao2 is not None else f"SpO2 {spo2}",
                         "BNP/容量状态提示需排除心源性肺水肿" if cardiogenic_flag else "请临床结合影像和容量状态排除心源性肺水肿",
+                        *imaging_lines,
                     ],
                     "suggestion": "若无动脉血气，可结合 SF ratio 连续复评；若 BNP 升高或容量负荷偏高，请谨慎解释 ARDS 结论。",
                     "text": "",
@@ -139,6 +150,10 @@ class ArdsScanner(BaseScanner):
                     "ratio_type": ratio_type,
                     "cardiogenic_overlap_risk": cardiogenic_flag,
                     "bnp_trend": bnp_trend,
+                    "imaging_findings": {
+                        "summary": self.engine._build_imaging_summary(imaging_signals),
+                        "matched_signals": imaging_signals,
+                    } if imaging_signals else None,
                 },
             )
             if alert:

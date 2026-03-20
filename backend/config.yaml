@@ -337,6 +337,7 @@ alert_engine:
     assessments: 600
     trend_analysis: 900
     alert_reasoning: 300
+    imaging_report_analyzer: 7200
     nursing_note_analyzer: 14400
     nursing_workload: 14400
     adaptive_threshold_advisor: 7200
@@ -368,6 +369,9 @@ alert_engine:
     recent_context_hours: 24
     cache_ttl_seconds: 900
     max_concurrency: 2
+
+  imaging_report_analyzer:
+    analysis_window_hours: 96
 
 
   antimicrobial_pk:

@@ -2691,6 +2691,16 @@ class BaseEngine:
                 if snapshots.get(key) is not None:
                     evidence.append(f"{key}={snapshots.get(key)}")
 
+        imaging_findings = extra.get("imaging_findings") if isinstance(extra.get("imaging_findings"), dict) else {}
+        imaging_rows = imaging_findings.get("matched_signals") if isinstance(imaging_findings.get("matched_signals"), list) else []
+        for row in imaging_rows[:2]:
+            if not isinstance(row, dict):
+                continue
+            sentence = str(row.get("sentence") or row.get("label") or "").strip()
+            exam_name = str(row.get("exam_name") or "影像").strip()
+            if sentence:
+                evidence.append(f"{exam_name}：{sentence}")
+
         # 去重与截断
         deduped: list[str] = []
         seen: set[str] = set()
