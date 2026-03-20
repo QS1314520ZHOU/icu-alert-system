@@ -4,7 +4,7 @@
       <div>
         <div class="twin-kicker">数字孪生闭环工作台</div>
         <h3 class="twin-title">数字孪生诊疗推理</h3>
-        <p class="twin-sub">把风险预测、建议、追踪、效果评估、因果链和 MDT 会诊收敛到一个 AI 临床工作台。</p>
+        <p class="twin-sub">把风险预测、建议、追踪、效果评估、因果链和 MDT 会诊收敛到一个智能临床工作台。</p>
       </div>
       <button class="twin-refresh" :disabled="loading" @click="loadAll(true)">{{ loading ? '刷新中…' : '刷新工作台' }}</button>
     </div>
@@ -89,7 +89,7 @@
             <div class="causal-meta">{{ row.mechanism || '暂无病理机制说明' }}</div>
             <div class="chip-row">
               <span class="info-chip">领域 {{ row.clinical_domain || '通用' }}</span>
-              <span class="info-chip">置信 {{ row.confidence_level || 'medium' }}</span>
+              <span class="info-chip">置信 {{ ({ low: '低', medium: '中', high: '高', critical: '危急' } as Record<string, string>)[String(row.confidence_level || 'medium').toLowerCase()] || '中' }}</span>
             </div>
             <div class="causal-meta">命中证据：{{ (row.matched_evidence || []).join(' / ') || '暂无' }}</div>
             <div v-if="row.missing_evidence?.length" class="causal-meta">待补证据：{{ row.missing_evidence.join(' / ') }}</div>
@@ -108,7 +108,7 @@
       </section>
 
       <section class="twin-card">
-        <div class="card-head"><div><div class="card-title">MDT 多智能体会诊</div><div class="card-sub">专科 Agent 观点、冲突与 Meta-Agent 裁决</div></div></div>
+        <div class="card-head"><div><div class="card-title">MDT 多智能体会诊</div><div class="card-sub">专科智能体观点、冲突与总控智能体裁决</div></div></div>
         <div class="summary-panel">{{ mdtSummary }}</div>
         <div v-if="conflictRows.length" class="conflict-list">
           <article v-for="(item, idx) in conflictRows" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-item"><div class="conflict-title">{{ item.summary || '存在跨专科冲突待裁决' }}</div><div class="conflict-meta">{{ item.resolution_focus || '需结合床旁动态数据与治疗目标综合判断。' }}</div></article>
@@ -316,7 +316,7 @@ async function loadAll(refresh = false) {
     await loadCausal(selectedFinding.value)
     await runWhatIf(whatIfPresets.find((item) => item.type === whatIfSelected.value) || whatIfPresets[0])
   } catch {
-    error.value = '数字孪生工作台加载失败，请检查后端 AI 接口。'
+    error.value = '数字孪生工作台加载失败，请检查后端智能接口。'
   } finally {
     loading.value = false
   }
@@ -375,8 +375,8 @@ onMounted(() => { void loadAll(false) })
 .causal-fill { background: linear-gradient(90deg, #f59e0b, #fb7185); }
 .bullet-list { margin: 0; padding-left: 18px; color: #d7edf7; display: grid; gap: 8px; }
 .bullet-list.compact { gap: 6px; }
-.summary-panel,.empty-panel,.error-panel,.effect-box { padding: 12px 14px; border-radius: 14px; line-height: 1.6; }
-.summary-panel,.empty-panel { background: rgba(7,20,34,.78); color: #d5edf8; border: 1px solid rgba(79,153,191,.12); }
+.summary-panel,.empty-panel,.error-panel,.effect-box { padding: 12px 14px; border-radius: 14px; line-height: 1.75; }
+.summary-panel,.empty-panel { background: rgba(7,20,34,.78); color: #d5edf8; border: 1px solid rgba(79,153,191,.12); box-shadow: inset 0 1px 0 rgba(145,228,255,.04); }
 .conflict-title { color: #fef3c7; font-size: 13px; font-weight: 700; }
 .conflict-meta { margin-top: 6px; color: #d9edf8; font-size: 12px; line-height: 1.6; }
 .conflict-title { color: #fef3c7; font-size: 13px; font-weight: 700; }
@@ -386,11 +386,11 @@ onMounted(() => { void loadAll(false) })
 .conflict-title { color: #fef3c7; font-size: 13px; font-weight: 700; }
 .conflict-meta { margin-top: 6px; color: #d9edf8; font-size: 12px; line-height: 1.6; }
 .chip-row,.action-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.info-chip,.cause-chip,.mini-btn { border-radius: 999px; padding: 7px 12px; font-size: 12px; }
-.info-chip { background: rgba(16,52,71,.7); color: #bfefff; border: 1px solid rgba(74,175,208,.12); }
+.info-chip,.cause-chip,.mini-btn { border-radius: 999px; min-height: 30px; padding: 0 12px; font-size: 12px; line-height: 1.4; display: inline-flex; align-items: center; }
+.info-chip { background: rgba(13,35,54,.92); color: #d8f5ff; border: 1px solid rgba(125,211,252,.14); }
 .info-chip--muted { opacity: .72; background: rgba(15,37,51,.55); color: #8bb5c7; }
 .cause-chip,.mini-btn { cursor: pointer; border: 1px solid rgba(81,163,201,.16); background: rgba(6,21,34,.86); color: #dff8ff; }
-.cause-chip.active { background: rgba(34,211,238,.16); border-color: rgba(110,231,249,.3); }
+.cause-chip.active { background: rgba(34,211,238,.16); border-color: rgba(110,231,249,.3); box-shadow: inset 0 1px 0 rgba(186,230,253,.08); }
 .mini-btn--soft { background: rgba(20,184,166,.14); }
 .mini-btn--ghost { background: rgba(244,63,94,.12); }
 .effect-box { display: flex; justify-content: space-between; gap: 12px; color: #f4fbff; }
@@ -402,5 +402,8 @@ onMounted(() => { void loadAll(false) })
 @media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
 @media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
 </style>
+
+
+
 
 

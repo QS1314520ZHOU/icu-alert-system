@@ -283,14 +283,16 @@ function riskSuggestion(value: any) {
 .bed-tag {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
-  padding: 0 7px;
+  min-height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
   background: rgba(9, 35, 52, 0.9);
   border: 1px solid rgba(80, 199, 255, 0.12);
   color: #73d9ee;
   font-size: 10px;
-  letter-spacing: .08em;
+  line-height: 1.4;
+  letter-spacing: .12em;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
 .bed-tag--soft {
   color: #dffbff;
@@ -320,8 +322,8 @@ function riskSuggestion(value: any) {
 .bed-meta {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   background: rgba(8, 31, 47, 0.72);
   border: 1px solid rgba(80,199,255,.08);
@@ -341,7 +343,7 @@ function riskSuggestion(value: any) {
 .bed-diag-label {
   color: #6fd6ea;
   font-size: 9px;
-  letter-spacing: .06em;
+  letter-spacing: .12em;
 }
 .bed-diag {
   color: #b8d5e1;
@@ -368,7 +370,7 @@ function riskSuggestion(value: any) {
   color: #7ecce1;
 }
 .vital-cell span {
-  letter-spacing: .04em;
+  letter-spacing: .12em;
 }
 .vital-cell b {
   color: #effcff;
@@ -381,6 +383,16 @@ function riskSuggestion(value: any) {
 }
 .vital-cell--bp b {
   font-size: 14px;
+}
+.extub-risk-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 113, 133, 0.18);
+  background: linear-gradient(180deg, rgba(55, 16, 28, 0.54) 0%, rgba(18, 17, 30, 0.78) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 .extub-risk-card--critical {
   border-color: rgba(251, 90, 122, 0.32);
@@ -396,13 +408,19 @@ function riskSuggestion(value: any) {
   gap: 8px;
 }
 .extub-risk-title {
-  color: #fef3c7;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: #ffe2e8;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: .12em;
 }
 .extub-risk-subtitle {
-  margin-top: 6px;
   color: #ffd5de;
   font-size: 11px;
   font-weight: 700;
@@ -415,6 +433,7 @@ function riskSuggestion(value: any) {
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
+  line-height: 1.4;
   border: 1px solid transparent;
 }
 .extub-risk-pill--warning {
@@ -433,10 +452,9 @@ function riskSuggestion(value: any) {
   border-color: rgba(251, 113, 133, 0.24);
 }
 .extub-risk-main {
-  margin-top: 6px;
   color: #fff7ed;
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.55;
   font-weight: 600;
 }
 .extub-risk-metrics {
@@ -448,8 +466,8 @@ function riskSuggestion(value: any) {
 .extub-risk-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.08);
@@ -457,7 +475,6 @@ function riskSuggestion(value: any) {
   font-size: 10px;
 }
 .extub-risk-brief {
-  margin-top: 10px;
   display: grid;
   gap: 4px;
   padding: 8px 9px;
@@ -482,13 +499,13 @@ function riskSuggestion(value: any) {
   z-index: 3;
   display: grid;
   align-content: start;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
   border: 1px solid rgba(251, 113, 133, .18);
   background:
     linear-gradient(180deg, rgba(46, 12, 22, .97) 0%, rgba(20, 8, 14, .98) 100%);
-  box-shadow: 0 16px 28px rgba(0,0,0,.28);
+  box-shadow: 0 18px 32px rgba(0,0,0,.3);
   backdrop-filter: blur(8px);
   opacity: 0;
   transform: translateY(10px);
@@ -522,6 +539,7 @@ function riskSuggestion(value: any) {
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
+  line-height: 1.4;
 }
 .bed-hover-tag {
   color: #ffe2e8;
@@ -556,11 +574,15 @@ function riskSuggestion(value: any) {
 .bed-hover-block {
   display: grid;
   gap: 6px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04);
 }
 .bed-hover-label {
   color: #ffced9;
   font-size: 10px;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
 }
 .bed-hover-main {
   color: #fff8fa;
@@ -576,8 +598,8 @@ function riskSuggestion(value: any) {
 .bed-hover-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.08);
@@ -586,11 +608,13 @@ function riskSuggestion(value: any) {
 }
 .bed-hover-block--suggestion {
   margin-top: auto;
+  border-color: rgba(55, 199, 147, 0.16);
+  background: linear-gradient(180deg, rgba(8, 38, 30, 0.66) 0%, rgba(6, 27, 22, 0.76) 100%);
 }
 .bed-hover-suggestion {
   color: #ffe5ec;
   font-size: 11px;
-  line-height: 1.45;
+  line-height: 1.6;
   font-weight: 600;
 }
 .lamp { width: 8px; height: 8px; border-radius: 50%; }
@@ -614,5 +638,6 @@ function riskSuggestion(value: any) {
   }
 }
 </style>
+
 
 

@@ -953,10 +953,10 @@ const aiServiceStatus = computed(() => {
   content: '医嘱';
   position: absolute;
   left: 0;
-  top: 1px;
+  top: 0;
   color: #67e8f9;
   font-size: 10px;
-  letter-spacing: .08em;
+  letter-spacing: .12em;
 }
 .summary-text {
   color: #d7e6fb;
@@ -1030,7 +1030,7 @@ const aiServiceStatus = computed(() => {
 .curve-meta {
   color: #86a9c8;
   font-size: 10px;
-  letter-spacing: .08em;
+  letter-spacing: .12em;
 }
 .risk-curve-chart {
   height: 220px;
@@ -1156,4 +1156,7 @@ const aiServiceStatus = computed(() => {
   }
 }
 </style>
+
+
+
 

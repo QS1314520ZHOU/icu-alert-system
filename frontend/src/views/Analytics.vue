@@ -197,7 +197,7 @@
     </section>
 
     <section v-else-if="analyticsSection === 'sepsis'" class="analytics-grid">
-      <a-card title="脓毒症 Bundle 执行态" :bordered="false" class="panel panel-wide">
+      <a-card title="脓毒症解放束执行态" :bordered="false" class="panel panel-wide">
         <div class="bundle-status-grid">
           <div
             v-for="item in sepsisStatusCards"
@@ -211,7 +211,7 @@
         </div>
       </a-card>
 
-      <a-card title="1h Bundle 达标拆解" :bordered="false" class="panel">
+      <a-card title="1 小时解放束达标拆解" :bordered="false" class="panel">
         <div class="progress-list">
           <div
             v-for="item in sepsisProgressRows"
@@ -240,12 +240,12 @@
         </div>
       </a-card>
 
-      <a-card title="AI 管理摘要卡" :bordered="false" class="panel">
+      <a-card title="智能管理摘要卡" :bordered="false" class="panel">
         <div class="insight-list">
           <div class="summary-card summary-card--hero">
             <div class="summary-card__label">管理结论</div>
-            <div class="summary-card__value">{{ sepsisAiInsight.summary || '暂无 AI 摘要' }}</div>
-            <div class="summary-card__meta">{{ sepsisAiInsight.degraded_mode ? '规则降级模式' : 'LLM 结构化输出' }}</div>
+            <div class="summary-card__value">{{ sepsisAiInsight.summary || '暂无智能摘要' }}</div>
+            <div class="summary-card__meta">{{ sepsisAiInsight.degraded_mode ? '规则降级模式' : '大模型结构化输出' }}</div>
           </div>
           <div v-for="(item, idx) in sepsisAiManagementRows" :key="`sepsis-ai-finding-${idx}`" class="summary-card">
             <div class="summary-card__label">管理关注 {{ Number(idx) + 1 }}</div>
@@ -254,7 +254,7 @@
         </div>
       </a-card>
 
-      <a-card title="AI 行动建议卡" :bordered="false" class="panel">
+      <a-card title="智能行动建议卡" :bordered="false" class="panel">
         <div class="advice-list">
           <div v-for="(item, idx) in sepsisAiActionRows" :key="`sepsis-ai-action-${idx}`" class="advice-card">
             <div class="advice-card__index">0{{ Number(idx) + 1 }}</div>
@@ -427,7 +427,7 @@ import {
   icuTooltip,
   icuValueAxis,
 } from '../charts/icuTheme'
-import { formatScenarioGroupLabel } from '../utils/displayLabels'
+import { formatAlertTypeLabel, formatScenarioGroupLabel } from '../utils/displayLabels'
 
 const AnalyticsChart = defineAsyncComponent(async () => {
   await import('../charts/analytics')
@@ -445,7 +445,7 @@ const rescueOnly = ref(false)
 
 const sectionOptions = [
   { label: '告警运营', value: 'alerts' },
-  { label: 'Sepsis质控', value: 'sepsis' },
+  { label: '脓毒症质控', value: 'sepsis' },
   { label: '撤机分析', value: 'weaning' },
   { label: '护理资源', value: 'nursing' },
   { label: '场景覆盖', value: 'scenarios' },
@@ -583,7 +583,7 @@ function aggregateRescueHeatmap(alertsInput: any[]) {
   const matrix = new Map<string, number>()
   alertsInput.forEach((alert) => {
     const bucketLabel = bucketLabelByTime(alertTimeValue(alert))
-    const ruleLabel = String(alert?.name || alert?.rule_id || alert?.alert_type || '抢救期预警')
+    const ruleLabel = formatAlertTypeLabel(alert?.alert_type || alert?.rule_id || alert?.name || '抢救期预警')
     bucketSet.add(bucketLabel)
     ruleCounter.set(ruleLabel, (ruleCounter.get(ruleLabel) || 0) + 1)
     const key = `${bucketLabel}__${ruleLabel}`
@@ -739,7 +739,7 @@ const frequencyOption = computed(() => {
         barMaxWidth: 16,
       },
       {
-        name: 'Warning',
+        name: '预警',
         type: 'line',
         smooth: true,
         symbol: 'circle',
@@ -975,8 +975,8 @@ const activeSectionMeta = computed(() => {
   if (analyticsSection.value === 'sepsis') {
     return {
       kicker: '脓毒症流程质控',
-      title: 'Sepsis Bundle 质控工作区',
-      description: '聚焦 1h Bundle 达标率、超时病例和在途执行状态，适合科室质控和值班复盘。',
+      title: '脓毒症解放束质控工作区',
+      description: '聚焦 1 小时解放束达标率、超时病例和在途执行状态，适合科室质控和值班复盘。',
     }
   }
   if (analyticsSection.value === 'scenarios') {
@@ -1012,14 +1012,14 @@ const activeSectionBriefs = computed(() => {
     return [
       { label: '月度总评', value: sepsisBundleKpi.value.rate, meta: sepsisBundleKpi.value.meta },
       { label: '执行断点', value: `${Number(sepsisBundleCompliance.value?.overdue_1h_cases || 0)} 例超1h`, meta: '建议优先抽查抗菌药、补液、乳酸复测延迟链路。' },
-      { label: 'AI 管理结论', value: sepsisAiInsight.value?.summary || '暂无 AI 摘要', meta: sepsisAiInsight.value?.degraded_mode ? '当前为规则降级模式' : '当前为 LLM 结构化输出' },
+      { label: '智能管理结论', value: sepsisAiInsight.value?.summary || '暂无智能摘要', meta: sepsisAiInsight.value?.degraded_mode ? '当前为规则降级模式' : '当前为大模型结构化输出' },
     ]
   }
   if (analyticsSection.value === 'weaning') {
     return [
       { label: '高风险占比', value: weaningHighRiskKpi.value.rate, meta: weaningHighRiskKpi.value.meta },
       { label: '再插管风险', value: reintubationRiskKpi.value.rate, meta: reintubationRiskKpi.value.meta },
-      { label: '当前重点', value: `${Number(weaningSummary.value?.critical_post_extubation_patients || 0)} 例危急事件`, meta: '建议将危急拔管后事件与 SBT 失败模式联动复盘。' },
+      { label: '当前重点', value: `${Number(weaningSummary.value?.critical_post_extubation_patients || 0)} 例危急事件`, meta: '建议将危急拔管后事件与自主呼吸试验失败模式联动复盘。' },
     ]
   }
   if (analyticsSection.value === 'nursing') {
@@ -1061,7 +1061,7 @@ const activeSectionFocusRows = computed(() => {
     return [
       { label: '超 3h 个案', value: `${Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0) ? '建议逐例追踪是否卡在首剂抗菌药、血培养或液体复苏。' : '当前没有超 3h 个案。' },
       { label: '在途病例', value: `${Number(sepsisBundleCompliance.value?.pending_active_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.pending_active_cases || 0) ? '交接班时应保留节点提醒，避免 1h 继续滑向 3h。' : '当前没有在途病例。' },
-      { label: '管理建议', value: sepsisAiActionRows.value[0] || '暂无额外建议', meta: 'AI 建议卡可继续查看其余行动项。' },
+      { label: '管理建议', value: sepsisAiActionRows.value[0] || '暂无额外建议', meta: '智能建议卡可继续查看其余行动项。' },
     ]
   }
   if (analyticsSection.value === 'weaning') {
@@ -1095,9 +1095,9 @@ const activeSectionActions = computed(() => {
   if (analyticsSection.value === 'sepsis') {
     return [
       {
-        label: '打开 AI运营',
+        label: '打开智能运营',
         value: '阈值审核 / 反馈闭环',
-        meta: '继续查看个性化阈值审核和 AI 反馈准确率。',
+        meta: '继续查看个性化阈值审核和智能反馈准确率。',
         action: () => router.push('/ai-ops'),
       },
       {
@@ -1116,7 +1116,7 @@ const activeSectionActions = computed(() => {
   }
   if (analyticsSection.value === 'scenarios') {
     return [
-      { label: '打开 MDT 会诊', value: '多智能体裁决看板', meta: '继续查看专科意见、冲突焦点和 Meta-Agent 裁决。', action: () => router.push('/mdt') },
+      { label: '打开 MDT 会诊', value: '多智能体裁决看板', meta: '继续查看专科意见、冲突焦点和总控智能体裁决。', action: () => router.push('/mdt') },
       { label: '切回告警运营', value: '查看实时热区', meta: '从扩展场景覆盖切回全量规则热力图。', action: () => setAnalyticsSection('alerts') },
       { label: '打开患者总览', value: '继续做高危筛查', meta: '带着当前筛选条件回到患者工作台。', action: () => router.push({ path: '/', query: { ...route.query } }) },
     ]
@@ -1136,9 +1136,9 @@ const activeSectionActions = computed(() => {
         action: () => router.push({ path: '/', query: { ...route.query } }),
       },
       {
-        label: '查看 AI运营',
+        label: '查看智能运营',
         value: '反馈与阈值审核',
-        meta: '继续结合 AI 运行态与阈值审核判断是否需要调整策略。',
+        meta: '继续结合智能运行态与阈值审核判断是否需要调整策略。',
         action: () => router.push('/ai-ops'),
       },
     ]
@@ -1146,14 +1146,14 @@ const activeSectionActions = computed(() => {
   if (analyticsSection.value === 'weaning') {
     return [
       {
-        label: '查看 AI运营',
+        label: '查看智能运营',
         value: '反馈与运行态',
-        meta: '联动查看 AI 监控、反馈闭环和审核中心。',
+        meta: '联动查看智能监控、反馈闭环和审核中心。',
         action: () => router.push('/ai-ops'),
       },
       {
-        label: '切到 Sepsis质控',
-        value: '查看 Bundle 闭环',
+        label: '切到脓毒症质控',
+        value: '查看解放束闭环',
         meta: '对比流程型质控和撤机风险分析。',
         action: () => setAnalyticsSection('sepsis'),
       },
@@ -1167,15 +1167,15 @@ const activeSectionActions = computed(() => {
   }
   return [
     {
-      label: '打开 AI运营',
+      label: '打开智能运营',
       value: '查看运行监控',
-      meta: '直接进入 AI 监控、反馈闭环和阈值审核中心。',
+      meta: '直接进入智能监控、反馈闭环和阈值审核中心。',
       action: () => router.push('/ai-ops'),
     },
     {
-      label: '切到 Sepsis质控',
-      value: '查看 Bundle 合规',
-      meta: '进入 1h Bundle 达标、超时病例和在途执行分析。',
+      label: '切到脓毒症质控',
+      value: '查看解放束合规',
+      meta: '进入 1 小时解放束达标、超时病例和在途执行分析。',
       action: () => setAnalyticsSection('sepsis'),
     },
     {
@@ -1247,7 +1247,7 @@ const sepsisBundleKpi = computed(() => {
     rate: total ? `${(rateValue * 100).toFixed(1)}%` : '0%',
     meta: total
       ? `${met} / ${total} 达标 · 超1h ${overdue1h} · 超3h ${overdue3h}${pending ? ` · 进行中 ${pending}` : ''}`
-      : '本月暂无脓毒症 Bundle 病例',
+      : '本月暂无脓毒症解放束病例',
   }
 })
 
@@ -1336,7 +1336,7 @@ const sepsisAiManagementRows = computed(() => (
 const sepsisAiActionRows = computed(() => (
   sepsisAiActions.value.length
     ? sepsisAiActions.value
-    : ['当前没有 AI 行动建议，可先从超 1h / 超 3h 个案逐例追踪。']
+    : ['当前没有智能行动建议，可先从超 1 小时 / 超 3 小时个案逐例追踪。']
 ))
 
 const sepsisNarratives = computed(() => {
@@ -1349,7 +1349,7 @@ const sepsisNarratives = computed(() => {
     {
       label: '月度结论',
       value: total ? `${formatPct(rate)} 达标` : '暂无病例',
-      meta: total ? `${analyticsScopeLabel.value} 当前共纳入 ${total} 例 Bundle 病例` : '等待本月数据积累',
+      meta: total ? `${analyticsScopeLabel.value} 当前共纳入 ${total} 例解放束病例` : '等待本月数据积累',
     },
     {
       label: '优先复盘',
@@ -1359,7 +1359,7 @@ const sepsisNarratives = computed(() => {
     {
       label: '在途追踪',
       value: pending ? `${pending} 例进行中` : '无在途病例',
-      meta: pending ? '交接班时建议保留 Bundle 完成节点提醒' : '当前无需额外追踪',
+      meta: pending ? '交接班时建议保留解放束完成节点提醒' : '当前无需额外追踪',
     },
   ]
 })
@@ -1414,7 +1414,7 @@ const weaningHighlights = computed(() => {
     {
       label: '拔管患者',
       value: `${extubated} 例`,
-      meta: extubated ? '建议结合 SBT Timeline 和术后风险复盘' : '暂无拔管患者',
+      meta: extubated ? '建议结合自主呼吸试验时间线与术后风险复盘' : '暂无拔管患者',
     },
   ]
 })
@@ -1466,7 +1466,7 @@ const activeSectionKpis = computed(() => {
         meta: `${analyticsMonthCode.value} 月度质控视角`,
       },
       {
-        label: '脓毒症 1 小时 Bundle',
+        label: '脓毒症 1 小时解放束',
         code: sepsisBundleMonthCode.value,
         value: sepsisBundleKpi.value.rate,
         meta: sepsisBundleKpi.value.meta,
@@ -1866,7 +1866,7 @@ async function loadHeatmap() {
     top_n: topN.value,
   })
   heatmapX.value = res.data.x_labels || []
-  heatmapY.value = res.data.y_labels || []
+  heatmapY.value = (res.data.y_labels || []).map((item: any) => formatAlertTypeLabel(item))
   heatmapData.value = res.data.data || []
 }
 
@@ -2952,6 +2952,10 @@ onMounted(() => {
 }
 </style>
 ```
+
+
+
+
 
 
 

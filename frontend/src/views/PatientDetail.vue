@@ -75,7 +75,7 @@
       <div class="hero-side">
         <div class="hero-vitals-head">
           <div>
-            <div class="hero-vitals-kicker">Bedside Snapshot</div>
+            <div class="hero-vitals-kicker">床旁快照</div>
             <div class="hero-vitals-title">生命体征快照</div>
           </div>
           <div class="hero-vitals-badge">{{ vitalsSourceText || '未知来源' }}</div>
@@ -214,7 +214,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="pe" tab="PE 检测 / Wells">
+        <a-tab-pane key="pe" tab="肺栓塞检测 / Wells">
           <PatientPeRiskTab
             v-if="activeTab === 'pe'"
             :alerts="peAlerts"
@@ -315,7 +315,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="similar" tab="Similar Case Review">
+        <a-tab-pane key="similar" tab="相似病例回顾">
           <PatientSimilarCasesTab
             v-if="activeTab === 'similar'"
             :review="similarCaseReview"
@@ -956,15 +956,15 @@ const similarWorkbenchSummary = computed(() => {
     summary?.degraded ? '当前为降级模式' : '',
   ].filter(Boolean)
   return {
-    title: summary?.degraded ? 'Similar Case Review 已降级' : 'Similar Case Review 已接入',
-    detail: similarCaseError.value || summary?.fallback_message || (similarCaseLoaded.value ? '可查看相似病例结局、分布与病例对照。' : '点击进入后加载 embedding + LLM 相似病例分析。'),
+    title: summary?.degraded ? '相似病例回顾已降级' : '相似病例回顾已接入',
+    detail: similarCaseError.value || summary?.fallback_message || (similarCaseLoaded.value ? '可查看相似病例结局、分布与病例对照。' : '点击进入后加载向量检索 + 大模型相似病例分析。'),
     bullets,
   }
 })
 
 const thresholdWorkbenchSummary = computed(() => ({
   title: personalizedThresholdRecord.value ? '个性化阈值审核流程已接入' : '个性化阈值待生成',
-  detail: personalizedThresholdRecord.value?.reasoning?.overall_reasoning || personalizedThresholdError.value || '支持 pending_review → approved / rejected，并记录审核人、审核备注与生效版本。',
+  detail: personalizedThresholdRecord.value?.reasoning?.overall_reasoning || personalizedThresholdError.value || '支持待审核、已批准、已拒绝闭环，并记录审核人、审核备注与生效版本。',
   status: ({ pending_review: '待审核', approved: '已批准', rejected: '已拒绝' } as Record<string, string>)[String(personalizedThresholdRecord.value?.status || 'pending_review').toLowerCase()] || '待审核',
   reviewer: personalizedThresholdRecord.value?.reviewer || '',
   comment: personalizedThresholdRecord.value?.review_comment || '',
@@ -983,59 +983,59 @@ const workbenchTopics = computed(() => {
       subtitle: '风险预测 -> 建议 -> 追踪 -> 效果评估',
       status: aiRiskForecast.value?.risk_summary || '数字孪生闭环与 MDT 会诊已接入患者详情页',
       meta: '把主动管理、因果链解释、多智能体会诊和风险预测收敛到一个标签页。',
-      countText: twinInterventions ? `${twinInterventions} 个时域` : 'Twin',
+      countText: twinInterventions ? `${twinInterventions} 个时域` : '孪生',
       tabKey: 'twin',
       tone: topicToneFromSeverity(aiRiskForecast.value?.risk_level || latestAiRiskAlert.value?.severity || 'warning'),
       items: (aiRiskForecast.value?.top_contributors || []).slice(0, 3).map((item: any) => item?.feature || item?.organ || item?.label).filter(Boolean),
     },
     {
       key: 'ecash',
-      title: 'eCASH / ABCDEF Bundle',
-      subtitle: 'Analgesia / Sedation / Delirium + SAT',
-      status: ecashTop?.name || 'Bundle 合规与镇痛镇静谵妄联动已接入',
-      meta: ecashTop ? (fmtTime(ecashTop.created_at) || '最近一条') : '查看 A-F 灯状态、镇痛/镇静/谵妄与 SAT 提醒',
-      countText: ecashAlerts.value.length ? `${ecashAlerts.value.length} 条` : 'Bundle',
+      title: 'eCASH / ABCDEF 解放束',
+      subtitle: '镇痛 / 镇静 / 谵妄 + 自主唤醒试验',
+      status: ecashTop?.name || '解放束合规与镇痛镇静谵妄联动已接入',
+      meta: ecashTop ? (fmtTime(ecashTop.created_at) || '最近一条') : '查看 A-F 灯状态、镇痛/镇静/谵妄与自主唤醒试验提醒',
+      countText: ecashAlerts.value.length ? `${ecashAlerts.value.length} 条` : '解放束',
       tabKey: 'ecash',
       tone: topicToneFromSeverity(ecashTop?.severity),
       items: Array.isArray(ecashTop?.explanation?.evidence) ? ecashTop.explanation.evidence.slice(0, 3) : [],
     },
     {
       key: 'mobility',
-      title: 'ICU-AW / 早期活动',
+      title: 'ICU 获得性衰弱 / 早期活动',
       subtitle: '衰弱风险 + 活动能力评估',
       status: mobilityTop?.name || '活动机会与制动风险已纳入工作台',
-      meta: mobilityTop ? (mobilityTop?.extra?.recommended_level_label || fmtTime(mobilityTop.created_at) || '最近一条') : '查看 ICU-AW 风险、制动时长与活动建议',
-      countText: mobilityAlerts.value.length ? `${mobilityAlerts.value.length} 条` : 'Mobility',
+      meta: mobilityTop ? (mobilityTop?.extra?.recommended_level_label || fmtTime(mobilityTop.created_at) || '最近一条') : '查看 ICU 获得性衰弱风险、制动时长与活动建议',
+      countText: mobilityAlerts.value.length ? `${mobilityAlerts.value.length} 条` : '活动',
       tabKey: 'mobility',
       tone: topicToneFromSeverity(mobilityTop?.severity),
       items: Array.isArray(mobilityTop?.extra?.factors) ? mobilityTop.extra.factors.slice(0, 3).map((item: any) => item?.evidence).filter(Boolean) : [],
     },
     {
       key: 'pe',
-      title: 'PE 检测 / Wells',
+      title: '肺栓塞检测 / Wells',
       subtitle: '肺栓塞模式识别 + Wells 评分',
-      status: peTop?.name || 'PE 高风险筛查已从预警流中单独显性化',
-      meta: peTop ? (peTop?.extra?.suggestion || fmtTime(peTop.created_at) || '最近一条') : '查看疑似 PE 模式、Wells 条目与建议动作',
-      countText: peAlerts.value.length ? `${peAlerts.value.length} 条` : 'PE',
+      status: peTop?.name || '肺栓塞高风险筛查已从预警流中单独显性化',
+      meta: peTop ? (peTop?.extra?.suggestion || fmtTime(peTop.created_at) || '最近一条') : '查看疑似肺栓塞模式、Wells 条目与建议动作',
+      countText: peAlerts.value.length ? `${peAlerts.value.length} 条` : '肺栓塞',
       tabKey: 'pe',
       tone: topicToneFromSeverity(peTop?.severity || 'high'),
       items: Array.isArray(peTop?.extra?.matched_criteria) ? peTop.extra.matched_criteria.slice(0, 3) : [],
     },
     {
       key: 'sbt',
-      title: 'SBT Timeline',
+      title: '自主呼吸试验时间线',
       subtitle: '自主呼吸试验时间线',
-      status: sbtAssessment.value?.label || 'SBT 结构化记录与回溯已接入',
-      meta: fmtTime(sbtAssessment.value?.trial_time) || '查看最近一次 SBT 与通过/失败轨迹',
-      countText: sbtTimelineSummary.value?.total_records != null ? `${sbtTimelineSummary.value.total_records} 次` : 'SBT',
+      status: sbtAssessment.value?.label || '自主呼吸试验结构化记录与回溯已接入',
+      meta: fmtTime(sbtAssessment.value?.trial_time) || '查看最近一次自主呼吸试验与通过/失败轨迹',
+      countText: sbtTimelineSummary.value?.total_records != null ? `${sbtTimelineSummary.value.total_records} 次` : '自主呼吸',
       tabKey: 'sbt',
       tone: 'cyan',
       items: [sbtAssessment.value?.result, sbtAssessment.value?.source].filter(Boolean),
     },
     {
       key: 'similar',
-      title: 'Similar Case Review',
-      subtitle: 'embedding + LLM 相似病例分析',
+      title: '相似病例回顾',
+      subtitle: '向量检索 + 大模型相似病例分析',
       status: similarWorkbenchSummary.value.title,
       meta: similarWorkbenchSummary.value.detail,
       countText: similarSummary?.matched_cases != null ? `${similarSummary.matched_cases} 例` : 'AI',
@@ -1045,11 +1045,11 @@ const workbenchTopics = computed(() => {
     },
     {
       key: 'ai',
-      title: 'AI 工作台',
-      subtitle: 'Explainability + Fallback + Feedback',
+      title: '智能工作台',
+      subtitle: '可解释性 + 降级策略 + 反馈闭环',
       status: aiRuntimeSummary.value.text,
       meta: aiRuntimeSummary.value.detail,
-      countText: latestAiRiskAlert.value?.ai_feedback?.outcome ? '已反馈' : 'AI Ops',
+      countText: latestAiRiskAlert.value?.ai_feedback?.outcome ? '已反馈' : '智能运营',
       tabKey: 'ai',
       tone: aiRuntimeSummary.value.level === 'red' ? 'rose' : (aiRuntimeSummary.value.level === 'yellow' ? 'amber' : 'cyan'),
       items: aiRuntimeSummary.value.pills.slice(0, 3),
@@ -2297,7 +2297,7 @@ function formatAiError(raw: any) {
     return 'AI服务暂不可用(503)，请稍后重试或检查API Key/额度'
   }
   if (s.toLowerCase().includes('401') || s.toLowerCase().includes('unauthorized')) {
-    return 'AI鉴权失败(401)，请检查 LLM_API_KEY'
+    return '智能鉴权失败(401)，请检查 LLM_API_KEY'
   }
   if (s.toLowerCase().includes('403')) {
     return 'AI权限不足(403)，请检查账号权限或额度'
@@ -2369,11 +2369,11 @@ function alertTypeText(raw: any) {
     cvc_review: 'CVC评估',
     foley_review: '导尿管评估',
     ett_extubation_delay: '拔管延迟',
-    liberation_bundle: 'eCASH / ABCDEF Bundle',
-    icu_aw_risk: 'ICU-AW高风险',
+    liberation_bundle: 'eCASH / ABCDEF 解放束',
+    icu_aw_risk: 'ICU 获得性衰弱高风险',
     early_mobility_recommendation: '早期活动推荐',
-    pe_suspected: 'PE检测',
-    pe_wells_high: 'PE Wells评分',
+    pe_suspected: '肺栓塞检测',
+    pe_wells_high: '肺栓塞 Wells 评分',
     fluid_responsiveness: '容量反应性',
     crrt_filter_clotting: '滤器凝堵',
     crrt_citrate_ica: '枸橼酸 iCa',
@@ -2411,7 +2411,7 @@ function alertCategoryText(raw: any) {
     nutrition_monitor: '营养监测',
     composite_deterioration: '复合恶化',
     device_management: '装置管理',
-    bundle: 'Bundle',
+    bundle: '解放束',
     hemodynamic: '血流动力学',
     crrt: 'CRRT',
     dose_adjustment: '剂量调整',
@@ -2526,7 +2526,7 @@ async function loadSbtTimeline(force = false) {
     sbtTimelineRecords.value = Array.isArray(res.data?.timeline) ? res.data.timeline : []
   } catch (e: any) {
     console.error('加载SBT记录失败', e)
-    sbtTimelineError.value = e?.response?.data?.message || 'SBT记录加载失败'
+    sbtTimelineError.value = e?.response?.data?.message || '自主呼吸试验记录加载失败'
     sbtTimelineSummary.value = null
     sbtTimelineAiSummary.value = null
     sbtTimelineRecords.value = []
@@ -2673,7 +2673,7 @@ async function loadAiLab() {
     aiLabSummary.value = res.data.summary || ''
     aiLabError.value = formatAiError(res.data.error || '')
   } catch (e) {
-    aiLabError.value = 'AI服务不可用'
+    aiLabError.value = '智能服务不可用'
   } finally {
     aiLabLoading.value = false
   }
@@ -2690,7 +2690,7 @@ async function loadAiRules() {
     aiRuleText.value = res.data.recommendations || ''
     aiRuleError.value = formatAiError(res.data.error || '')
   } catch (e) {
-    aiRuleError.value = 'AI服务不可用'
+    aiRuleError.value = '智能服务不可用'
   } finally {
     aiRuleLoading.value = false
   }
@@ -2709,7 +2709,7 @@ async function loadAiRisk() {
     aiRiskError.value = formatAiError(res.data.error || '')
   } catch (e) {
     aiRiskForecast.value = null
-    aiRiskError.value = 'AI服务不可用'
+    aiRiskError.value = '智能服务不可用'
   } finally {
     aiRiskLoading.value = false
   }
@@ -2726,7 +2726,7 @@ async function loadAiHandoff() {
     aiHandoff.value = res.data.summary || null
     aiHandoffError.value = formatAiError(res.data.error || '')
   } catch (e) {
-    aiHandoffError.value = 'AI服务不可用'
+    aiHandoffError.value = '智能服务不可用'
   } finally {
     aiHandoffLoading.value = false
   }
@@ -2956,7 +2956,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   justify-content: center;
 }
-.hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2px; }
 .hero-tag {
   display: inline-flex;
   align-items: center;
@@ -3478,8 +3478,8 @@ onBeforeUnmount(() => {
 .tabs-card {
   background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
   border: 1px solid rgba(80,199,255,.14);
-  border-radius: 12px;
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 14px 32px rgba(0,0,0,.22);
 }
 .tabs-card :deep(.ant-card-body) {
   padding: 12px 14px 16px;
@@ -3488,12 +3488,14 @@ onBeforeUnmount(() => {
 .tabs-card :deep(.ant-tabs-tab) {
   background: rgba(8,28,44,.78);
   border: 1px solid rgba(80,199,255,.1);
-  border-radius: 10px;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.03);
 }
 .tabs-card :deep(.ant-tabs-tab-btn) {
   color: #8bcfe1;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: .04em;
 }
 .tabs-card :deep(.ant-tabs-tab-active) {
   background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
@@ -4195,6 +4197,8 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
 
 
 

@@ -1208,12 +1208,13 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .summary-chain-tag {
   color: #72e4f7;
   font-size: 9px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 .summary-chain-code {
   color: #9dd8ff;
   font-size: 9px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(8, 28, 44, 0.78);
@@ -1243,10 +1244,11 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .summary-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   font-size: 10px;
+  line-height: 1.4;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(11, 35, 54, 0.84);
   color: #dffbff;
@@ -1261,13 +1263,13 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .summary-chip--high { color: #fdba74; border-color: rgba(249, 115, 22, 0.24); }
 .summary-chip--critical { color: #fda4af; border-color: rgba(244, 63, 94, 0.24); }
 .summary-suggestion {
-  padding: 7px 9px;
-  border-radius: 9px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: rgba(8, 38, 56, 0.82);
   border: 1px solid rgba(62, 215, 255, 0.12);
   color: #96efff;
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1.65;
 }
 .summary-suggestion--rescue {
   background: linear-gradient(180deg, rgba(8, 38, 30, 0.72) 0%, rgba(6, 27, 22, 0.82) 100%);
@@ -1313,8 +1315,8 @@ section { display: flex; flex-direction: column; gap: 7px; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(11, 35, 54, 0.84);
@@ -1575,6 +1577,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   }
 }
 </style>
+
 
 
 

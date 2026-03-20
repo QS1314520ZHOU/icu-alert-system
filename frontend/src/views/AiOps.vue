@@ -18,7 +18,7 @@
 
     <section class="ops-kpi-strip">
       <div class="ops-kpi">
-        <span class="ops-kpi-label">AI模块</span>
+        <span class="ops-kpi-label">智能模块</span>
         <strong class="ops-kpi-value">{{ monitorStats.length }}</strong>
         <small>{{ activeMonitorAlerts.length }} 条活跃监控告警</small>
       </div>
@@ -54,7 +54,7 @@
     </section>
 
     <section class="ops-grid">
-      <a-card title="AI运行监控" :bordered="false" class="ops-panel">
+      <a-card title="智能运行监控" :bordered="false" class="ops-panel">
         <div v-if="monitorStats.length" class="ops-table-wrap">
           <a-table
             size="small"
@@ -70,7 +70,7 @@
             </template>
           </a-table>
         </div>
-        <div v-else class="ops-empty">暂无 AI 运行监控统计</div>
+        <div v-else class="ops-empty">暂无智能运行监控统计</div>
         <div v-if="activeMonitorAlerts.length" class="ops-alert-row">
           <button
             v-for="(item, idx) in activeMonitorAlerts.slice(0, 6)"
@@ -84,7 +84,7 @@
         </div>
       </a-card>
 
-      <a-card title="AI反馈闭环" :bordered="false" class="ops-panel">
+      <a-card title="智能反馈闭环" :bordered="false" class="ops-panel">
         <div class="ops-chip-row">
           <span class="ops-chip">已确认 {{ feedbackSummary.by_outcome?.confirmed || 0 }}</span>
           <span class="ops-chip">已忽略 {{ feedbackSummary.by_outcome?.dismissed || 0 }}</span>
@@ -274,7 +274,7 @@ const opsActions = computed(() => [
   {
     label: '查看脓毒症质控',
     value: '质控分析 / 脓毒症质控',
-    meta: '进入 Bundle 达标、超时病例和进行中病例拆解。',
+    meta: '进入解放束达标、超时病例和进行中病例拆解。',
     action: () => openAnalyticsSection('sepsis'),
   },
   {
@@ -307,9 +307,9 @@ function moduleLabel(value: any) {
   const key = String(value || '').trim().toLowerCase()
   if (!key) return '未知模块'
   const map: Record<string, string> = {
-    ai_risk: 'AI 风险预测',
+    ai_risk: '智能风险预测',
     similar_case_review: '相似病例复盘',
-    api_llm: 'AI 接口服务',
+    api_llm: '大模型接口服务',
     alert_reasoning: '告警归因',
     sepsis_bundle: '脓毒症解放束',
     weaning_assistant: '撤机助手',
@@ -468,3 +468,5 @@ onMounted(() => { void loadAll() })
 @media (max-width: 1080px) { .ops-kpi-strip,.ops-action-strip,.ops-grid { grid-template-columns: 1fr 1fr; } .ops-panel--wide { grid-column: auto; } }
 @media (max-width: 760px) { .ops-kpi-strip,.ops-action-strip,.ops-grid { grid-template-columns: 1fr; } }
 </style>
+
+

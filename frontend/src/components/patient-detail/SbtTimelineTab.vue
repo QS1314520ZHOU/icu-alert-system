@@ -2,7 +2,7 @@
   <section class="sbt-wrap">
     <header class="sbt-head">
       <div>
-        <div class="sbt-title">SBT 时间线 / 记录</div>
+        <div class="sbt-title">自主呼吸试验时间线 / 记录</div>
         <div class="sbt-sub">自主呼吸试验结构化时间线，聚焦结果、参数与失败线索</div>
       </div>
       <button type="button" class="sbt-refresh" @click="onRefresh">
@@ -13,10 +13,10 @@
     <section v-if="hasAiDecisionCard" class="sbt-decision-card">
       <div class="sbt-decision-card__head">
         <div>
-          <div class="sbt-decision-card__eyebrow">AI 撤机决策</div>
+          <div class="sbt-decision-card__eyebrow">智能撤机决策</div>
           <div class="sbt-decision-card__title">顶部决策卡</div>
         </div>
-        <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : 'LLM 结构化决策' }}</div>
+        <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : '大模型结构化决策' }}</div>
       </div>
       <div v-if="aiSummaryText" class="sbt-decision-card__main">{{ aiSummaryText }}</div>
       <div v-if="decisionFindingRows.length" class="sbt-decision-card__grid">
@@ -45,9 +45,9 @@
       </article>
     </section>
 
-    <div v-if="loading && !records.length" class="sbt-empty">正在加载 SBT 记录…</div>
+    <div v-if="loading && !records.length" class="sbt-empty">正在加载自主呼吸试验记录…</div>
     <div v-else-if="error && !records.length" class="sbt-empty sbt-empty--error">{{ error }}</div>
-    <div v-else-if="!records.length" class="sbt-empty">暂无 SBT 结构化记录</div>
+    <div v-else-if="!records.length" class="sbt-empty">暂无自主呼吸试验结构化记录</div>
 
     <div v-else class="sbt-content">
       <section class="sbt-timeline">
@@ -65,8 +65,8 @@
             <div class="sbt-card-head">
               <div>
                 <div class="sbt-card-title-row">
-                  <strong class="sbt-card-title">{{ row.label || row.title || 'SBT记录' }}</strong>
-                  <span :class="['sbt-result-pill', `sbt-result-pill--${resultTone(row.result || row.status)}`]">{{ row.label || row.title || '已记录SBT' }}</span>
+                  <strong class="sbt-card-title">{{ row.label || row.title || '自主呼吸试验记录' }}</strong>
+                  <span :class="['sbt-result-pill', `sbt-result-pill--${resultTone(row.result || row.status)}`]">{{ row.label || row.title || '已记录自主呼吸试验' }}</span>
                 </div>
                 <div class="sbt-card-sub">
                   来源 {{ row.source || '—' }}
@@ -102,9 +102,28 @@
                 <span class="sbt-record-label">试验时间</span>
                 <span class="sbt-record-value">{{ fmtTime(row.time || row.trial_time || row.created_at) || '—' }}</span>
               </div>
-              <div class="sbt-record-item">
+              <div class="sbt-record-item sbt-record-item--wide">
                 <span class="sbt-record-label">原始文本</span>
-                <span class="sbt-record-value">{{ row.raw_text || row.detail?.raw_text || row.detail?.text || row.detail?.explanation || '—' }}</span>
+                <div v-if="parsedRawContent(row).sections.length" class="sbt-raw-card">
+                  <div
+                    v-for="section in parsedRawContent(row).sections"
+                    :key="section.label"
+                    class="sbt-raw-section"
+                  >
+                    <div class="sbt-raw-label">{{ section.label }}</div>
+                    <div v-if="section.items?.length" class="sbt-raw-chip-row">
+                      <span
+                        v-for="(item, itemIdx) in section.items"
+                        :key="`${section.label}-${itemIdx}`"
+                        class="sbt-raw-chip"
+                      >
+                        {{ item }}
+                      </span>
+                    </div>
+                    <div v-else class="sbt-record-value sbt-record-value--multiline">{{ section.text }}</div>
+                  </div>
+                </div>
+                <div v-else class="sbt-record-value sbt-record-value--multiline">{{ parsedRawContent(row).fallback }}</div>
               </div>
             </div>
           </div>
@@ -130,10 +149,10 @@ const props = defineProps<{
 const summaryCards = computed(() => {
   const summary = props.summary && typeof props.summary === 'object' ? props.summary : {}
   return [
-    { label: '记录总数', value: summary.total_records ?? summary.sbt_total ?? 0, meta: 'SBT records' },
-    { label: '通过', value: summary.passed_count ?? summary.sbt_passed_count ?? 0, meta: 'passed' },
-    { label: '失败', value: summary.failed_count ?? summary.sbt_failed_count ?? 0, meta: 'failed' },
-    { label: '最近一次', value: props.fmtTime(summary.last_trial_time || summary.latest_sbt?.trial_time) || '—', meta: 'last trial' },
+    { label: '记录总数', value: summary.total_records ?? summary.sbt_total ?? 0, meta: '自主呼吸试验记录' },
+    { label: '通过', value: summary.passed_count ?? summary.sbt_passed_count ?? 0, meta: '试验通过' },
+    { label: '失败', value: summary.failed_count ?? summary.sbt_failed_count ?? 0, meta: '试验失败' },
+    { label: '最近一次', value: props.fmtTime(summary.last_trial_time || summary.latest_sbt?.trial_time) || '—', meta: '最近试验时间' },
   ]
 })
 
@@ -157,6 +176,31 @@ function valueOrDash(value: any) {
   const num = Number(value)
   if (Number.isNaN(num)) return String(value)
   return Number.isInteger(num) ? String(num) : num.toFixed(1)
+}
+
+function rawContent(row: any) {
+  return String(row?.raw_text || row?.detail?.raw_text || row?.detail?.text || row?.detail?.explanation || '').trim()
+}
+
+function parsedRawContent(row: any) {
+  const fallback = rawContent(row) || '—'
+  try {
+    const payload = JSON.parse(fallback)
+    const sections: Array<{ label: string; text?: string; items?: string[] }> = []
+    const summary = String(payload?.summary || payload?.text || '').trim()
+    const suggestion = String(payload?.suggestion || '').trim()
+    const evidence = Array.isArray(payload?.evidence)
+      ? payload.evidence.map((item: any) => String(item || '').trim()).filter(Boolean)
+      : []
+
+    if (summary) sections.push({ label: '总结', text: summary })
+    if (evidence.length) sections.push({ label: '依据', items: evidence })
+    if (suggestion) sections.push({ label: '建议', text: suggestion })
+
+    return { sections, fallback }
+  } catch {
+    return { sections: [], fallback }
+  }
 }
 </script>
 
@@ -459,6 +503,11 @@ function valueOrDash(value: any) {
   border-radius: 8px;
   padding: 6px 8px;
 }
+.sbt-record-item--wide {
+  grid-column: 1 / -1;
+  display: grid;
+  align-items: start;
+}
 .sbt-record-label { color: #7aa2d6; }
 .sbt-record-value {
   color: #e5e7eb;
@@ -466,6 +515,46 @@ function valueOrDash(value: any) {
   text-align: right;
   max-width: 68%;
   word-break: break-word;
+}
+.sbt-record-value--multiline {
+  max-width: none;
+  text-align: left;
+  white-space: pre-wrap;
+  line-height: 1.75;
+}
+.sbt-raw-card {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: rgba(7, 22, 38, 0.9);
+}
+.sbt-raw-section {
+  display: grid;
+  gap: 6px;
+}
+.sbt-raw-label {
+  color: #74dff3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.sbt-raw-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sbt-raw-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: rgba(11, 40, 63, 0.92);
+  color: #dffbff;
+  font-size: 12px;
+  line-height: 1.4;
 }
 @media (max-width: 980px) {
   .sbt-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -492,6 +581,9 @@ function valueOrDash(value: any) {
   }
 }
 </style>
+
+
+
 
 
 

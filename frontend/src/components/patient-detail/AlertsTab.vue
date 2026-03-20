@@ -256,7 +256,7 @@
             <div :class="['explanation-grid', { 'explanation-grid--rescue': isRescueRiskAlert(item) }]">
               <div v-if="explanationSummary(item)" :class="['explanation-block', { 'explanation-block--summary': isRescueRiskAlert(item) }]">
                 <div class="explanation-label">{{ isRescueRiskAlert(item) ? '当前判断' : '摘要' }}</div>
-                <div :class="['explanation-text', { 'explanation-text--summary': isRescueRiskAlert(item) }]">{{ explanationSummary(item) }}</div>
+                <div :class="['explanation-text', { 'explanation-text--summary': isRescueRiskAlert(item) }]">{{ prettyClinicalText(explanationSummary(item)) }}</div>
               </div>
               <div v-if="explanationEvidence(item).length" :class="['explanation-block', { 'explanation-block--evidence': isRescueRiskAlert(item) }]">
                 <div class="explanation-label">{{ isRescueRiskAlert(item) ? '主要依据' : '证据' }}</div>
@@ -277,7 +277,7 @@
               </div>
               <div v-if="explanationSuggestion(item)" :class="['explanation-block', { 'explanation-block--suggestion': isRescueRiskAlert(item) }]">
                 <div class="explanation-label">{{ isRescueRiskAlert(item) ? '处置建议' : '建议' }}</div>
-                <div :class="['explanation-text', { 'explanation-text--suggestion': isRescueRiskAlert(item) }]">{{ explanationSuggestion(item) }}</div>
+                <div :class="['explanation-text', { 'explanation-text--suggestion': isRescueRiskAlert(item) }]">{{ prettyClinicalText(explanationSuggestion(item)) }}</div>
               </div>
             </div>
           </div>
@@ -619,6 +619,18 @@ function explanationEvidence(alert: any) {
 
 function explanationSuggestion(alert: any) {
   return explanationPayload(alert).suggestion || ''
+}
+
+
+function prettyClinicalText(raw: any) {
+  const text = String(raw || '').trim()
+  if (!text) return ''
+  return text
+    .replace(/\\s+/g, ' ')
+    .replace(/([；;。])(?=\\S)/g, ' ')
+    .replace(/，(?=\\S{12,})/g, '， ')
+    .replace(/\\s+([，。；：])/g, '')
+    .trim()
 }
 
 function itemReasoning(alert: any) {
@@ -1587,10 +1599,13 @@ const DetailChart = defineAsyncComponent(async () => {
   gap: 10px;
 }
 .explanation-block {
-  padding: 8px 9px;
-  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
   border: 1px solid rgba(80,199,255,.08);
   background: rgba(5, 18, 30, .5);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, .03);
 }
 .explanation-block--summary {
   background: linear-gradient(180deg, rgba(57, 15, 28, .72) 0%, rgba(22, 19, 33, .78) 100%);
@@ -1606,26 +1621,26 @@ const DetailChart = defineAsyncComponent(async () => {
 .explanation-tag {
   color: #67dff2;
   font-size: 10px;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
+  text-transform: uppercase;
 }
 .explanation-label {
-  margin-bottom: 4px;
   color: #90e7ff;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: .1em;
+  letter-spacing: .14em;
   text-transform: uppercase;
 }
 .explanation-text {
   color: #d9ebff;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.8;
   white-space: pre-wrap;
 }
 .explanation-text--summary {
   color: #fff1f3;
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.65;
   font-weight: 700;
 }
 .explanation-text--suggestion {
@@ -1634,13 +1649,12 @@ const DetailChart = defineAsyncComponent(async () => {
 }
 .explanation-list {
   margin: 0;
-  padding-left: 16px;
+  padding-left: 18px;
   color: #d9ebff;
   font-size: 12px;
-  line-height: 1.6;
-}
-.explanation-list li + li {
-  margin-top: 2px;
+  line-height: 1.75;
+  display: grid;
+  gap: 6px;
 }
 .rescue-evidence-row {
   display: flex;
@@ -2181,6 +2195,9 @@ const DetailChart = defineAsyncComponent(async () => {
   }
 }
 </style>
+
+
+
 
 
 

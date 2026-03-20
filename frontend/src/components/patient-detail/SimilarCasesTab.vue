@@ -37,19 +37,19 @@
         <article class="kpi-card">
           <span>平均 ICU 天数</span>
           <strong>{{ valueOrDash(summary.avg_icu_days) }}</strong>
-          <small>days</small>
+          <small>天</small>
         </article>
         <article class="kpi-card">
           <span>平均机械通气天数</span>
           <strong>{{ valueOrDash(summary.avg_vent_days) }}</strong>
-          <small>days</small>
+          <small>天</small>
         </article>
       </section>
 
       <section class="outcome-board">
         <div class="section-head">
           <span class="section-title">结局统计条</span>
-          <span class="section-desc">Similar Outcome Distribution</span>
+          <span class="section-desc">相似病例结局分布</span>
         </div>
         <div class="outcome-strip">
           <div
@@ -68,7 +68,7 @@
         <article v-for="(row, idx) in cases" :key="row.patient_id || idx" class="case-card">
           <div class="case-card-head">
             <div class="case-card-title-group">
-              <div class="case-rank">CASE {{ String(Number(idx) + 1).padStart(2, '0') }}</div>
+              <div class="case-rank">病例 {{ String(Number(idx) + 1).padStart(2, '0') }}</div>
               <div class="case-title-row">
                 <strong class="case-name">{{ row.patient_name || '历史病例' }}</strong>
                 <span :class="['case-outcome-pill', `tone-${outcomeTone(row.outcome)}`]">{{ row.outcome || '已出院' }}</span>
@@ -77,19 +77,19 @@
                 <span class="case-meta-pill" v-if="row.bed">床位 {{ row.bed }}</span>
                 <span class="case-meta-pill">年龄 {{ valueOrDash(row.age_years) }}</span>
                 <span class="case-meta-pill">入科 SOFA {{ valueOrDash(row.initial_sofa) }}</span>
-                <span class="case-meta-pill">ICU {{ valueOrDash(row.icu_days) }} d</span>
-                <span class="case-meta-pill">MV {{ valueOrDash(row.vent_days) }} d</span>
+                <span class="case-meta-pill">ICU {{ valueOrDash(row.icu_days) }} 天</span>
+                <span class="case-meta-pill">机械通气 {{ valueOrDash(row.vent_days) }} 天</span>
                 <span v-if="row.crrt_used" class="case-meta-pill">CRRT</span>
               </div>
             </div>
             <div class="score-box">
-              <span class="score-label">SIMILARITY</span>
+              <span class="score-label">相似度</span>
               <strong class="score-value">{{ scorePercent(row.similarity_score) }}</strong>
               <small class="score-sub">诊断 {{ scorePercent(row.diag_similarity) }}</small>
             </div>
           </div>
 
-          <div v-if="row.diagnosis_excerpt" class="case-diagnosis">{{ row.diagnosis_excerpt }}</div>
+          <div v-if="row.diagnosis_excerpt" class="case-diagnosis"><span class="case-diagnosis-label">诊断摘要</span><div class="case-diagnosis-text">{{ prettyDiagnosis(row.diagnosis_excerpt) }}</div></div>
 
           <div v-if="Array.isArray(row.matched_dimensions) && row.matched_dimensions.length" class="match-chip-row">
             <span v-for="(item, itemIdx) in row.matched_dimensions" :key="`${row.patient_id || idx}-${itemIdx}`" class="match-chip">
@@ -172,6 +172,18 @@ function valueOrDash(value: any) {
   const num = Number(value)
   if (Number.isNaN(num)) return String(value)
   return Number.isInteger(num) ? String(num) : num.toFixed(1)
+}
+
+
+function prettyDiagnosis(raw: any) {
+  const text = String(raw || '').trim()
+  if (!text) return ''
+  return text
+    .replace(/\\s+/g, ' ')
+    .replace(/[;；]+/g, '；')
+    .replace(/；(?=\\S)/g, '； ')
+    .replace(/，(?=\\S{8,})/g, '， ')
+    .trim()
 }
 
 function outcomeTone(raw: any) {
@@ -541,3 +553,6 @@ function outcomeTone(raw: any) {
   }
 }
 </style>
+
+
+

@@ -798,13 +798,14 @@ function severityText(v: any) {
 .meta-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
-  padding: 0 7px;
+  min-height: 20px;
+  padding: 0 8px;
   border-radius: 999px;
   background: rgba(8, 30, 46, 0.88);
   border: 1px solid rgba(80, 199, 255, 0.12);
   color: #8fd4e6;
   font-size: 10px;
+  line-height: 1.4;
 }
 .meta-pill--soft {
   color: #bfd8f1;
@@ -821,12 +822,13 @@ function severityText(v: any) {
   color: #74e5f7;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: .08em;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .alert-summary-text {
   color: #ecfeff;
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 1.7;
   font-weight: 600;
 }
 .alert-meta {
@@ -875,7 +877,7 @@ function severityText(v: any) {
   border: 1px solid rgba(251, 113, 133, 0.18);
   color: #fda4af;
   font-size: 9px;
-  letter-spacing: .06em;
+  letter-spacing: .1em;
 }
 .post-extub-pill {
   display: inline-flex;
@@ -904,8 +906,8 @@ function severityText(v: any) {
 .post-extub-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid rgba(96, 165, 250, 0.18);
   background: rgba(12, 31, 50, 0.9);
@@ -948,7 +950,7 @@ function severityText(v: any) {
   border: 1px solid rgba(251, 113, 133, 0.18);
   color: #fda4af;
   font-size: 9px;
-  letter-spacing: .06em;
+  letter-spacing: .1em;
 }
 .alert-rescue-main {
   color: #ffe4ea;
@@ -958,7 +960,8 @@ function severityText(v: any) {
 .alert-explanation-tag {
   color: #67dff2;
   font-size: 9px;
-  letter-spacing: .08em;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .alert-explanation-grid {
   display: grid;
@@ -968,10 +971,13 @@ function severityText(v: any) {
   gap: 8px;
 }
 .alert-explanation-block {
-  padding: 7px 8px;
-  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  padding: 8px 9px;
+  border-radius: 10px;
   border: 1px solid rgba(80, 199, 255, 0.08);
   background: rgba(8, 27, 42, 0.62);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
 .alert-explanation-block--summary {
   background: linear-gradient(180deg, rgba(59, 17, 30, 0.72) 0%, rgba(24, 20, 34, 0.78) 100%);
@@ -982,23 +988,23 @@ function severityText(v: any) {
   border-color: rgba(55, 199, 147, 0.16);
 }
 .alert-explanation-label {
-  margin-bottom: 3px;
   color: #93ebff;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .alert-explanation-text {
   color: #d9ebff;
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1.7;
   word-break: break-word;
 }
 .alert-explanation-text--summary {
   color: #fff1f3;
   font-size: 12px;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 1.65;
 }
 .alert-explanation-text--suggestion {
   color: #baf2cb;
@@ -1009,7 +1015,9 @@ function severityText(v: any) {
   padding-left: 14px;
   color: #d9ebff;
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1.65;
+  display: grid;
+  gap: 4px;
 }
 .alert-explanation-list li + li {
   margin-top: 2px;
@@ -1022,8 +1030,8 @@ function severityText(v: any) {
 .alert-rescue-evidence-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid rgba(96, 165, 250, 0.18);
   background: rgba(12, 31, 50, 0.9);
@@ -1051,7 +1059,8 @@ function severityText(v: any) {
 .alert-snapshot-tag {
   color: #72e4f7;
   font-size: 9px;
-  letter-spacing: .06em;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .alert-snapshot-time {
   color: #83abc4;
@@ -1079,8 +1088,8 @@ function severityText(v: any) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(11, 35, 54, 0.84);
@@ -1103,8 +1112,8 @@ function severityText(v: any) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid rgba(245, 158, 11, 0.2);
   background: rgba(51, 27, 7, 0.66);
@@ -1146,12 +1155,13 @@ function severityText(v: any) {
 .alert-composite-tag {
   color: #72e4f7;
   font-size: 9px;
-  letter-spacing: .06em;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 .alert-composite-code {
   color: #9dd8ff;
   font-size: 9px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(8, 28, 44, 0.78);
@@ -1159,7 +1169,7 @@ function severityText(v: any) {
 .alert-chain-summary {
   color: #e9fbff;
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1.65;
   font-weight: 600;
 }
 .alert-chain-chips,
@@ -1176,10 +1186,11 @@ function severityText(v: any) {
 .alert-group-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 0 8px;
+  min-height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
   font-size: 10px;
+  line-height: 1.4;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(11, 35, 54, 0.84);
   color: #dffbff;
@@ -1271,6 +1282,7 @@ function severityText(v: any) {
   }
 }
 </style>
+
 
 
 

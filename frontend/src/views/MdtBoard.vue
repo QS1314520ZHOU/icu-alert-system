@@ -101,7 +101,7 @@
       <main class="mdt-content">
         <a-card :bordered="false" class="mdt-panel mdt-panel--hero" :title="`${activeSystemLabel} 详细分析`">
           <div class="section-kicker">专科深度面板</div>
-          <div class="summary-box summary-box--hero">{{ isGeneratingAssessment ? 'Meta-Agent 正在汇总专科意见、冲突焦点与优先级动作。' : metaSummary }}</div>
+          <div class="summary-box summary-box--hero">{{ isGeneratingAssessment ? '总控智能体正在汇总专科意见、冲突焦点与优先级动作。' : metaSummary }}</div>
           <div class="deep-panel-grid">
             <section class="deep-panel">
               <div class="deep-panel__title">{{ activeSystemLabel }}趋势与证据</div>
@@ -189,7 +189,7 @@
                   </div>
                   <div v-if="activeSystemPanel.ventilator_timeline?.length" class="detail-timeline">
                     <article v-for="(item, idx) in activeSystemPanel.ventilator_timeline.slice().reverse().slice(0, 6)" :key="`vent-${idx}`" class="timeline-item">
-                      <strong>{{ item.mode || activeSystemPanel.latest?.mode || 'Vent' }}</strong>
+                      <strong>{{ item.mode || activeSystemPanel.latest?.mode || '通气支持' }}</strong>
                       <span>FiO2 {{ item.fio2 ?? '—' }} / PEEP {{ item.peep ?? '—' }} / RR {{ item.rr ?? '—' }} / Vte {{ item.vte ?? '—' }}</span>
                       <small>{{ item.time ? String(item.time).slice(0, 16).replace('T', ' ') : '时间未记载' }}</small>
                     </article>
@@ -201,11 +201,11 @@
                     <div class="assistant-note__text">{{ activeSpecialist?.summary || '暂无系统级判断' }}</div>
                   </div>
                   <div class="assistant-note">
-                    <div class="assistant-note__label">Evidence</div>
+                    <div class="assistant-note__label">证据</div>
                     <div class="assistant-note__text">{{ activeSpecialistEvidence }}</div>
                   </div>
                   <div class="assistant-note">
-                    <div class="assistant-note__label">Suggestion</div>
+                    <div class="assistant-note__label">建议</div>
                     <div class="assistant-note__text">{{ activeSpecialistSuggestion }}</div>
                   </div>
                 </template>
@@ -242,7 +242,7 @@
             </div>
             <div v-else-if="activeSystemDomain === 'respiratory' && activeSystemPanel?.ventilator_timeline?.length" class="impact-list">
               <article v-for="(item, idx) in activeSystemPanel.ventilator_timeline.slice().reverse().slice(0, 8)" :key="`resp-impact-${idx}`" class="impact-card">
-                <div class="impact-card__title">{{ item.mode || activeSystemPanel.latest?.mode || 'Vent' }}</div>
+                <div class="impact-card__title">{{ item.mode || activeSystemPanel.latest?.mode || '通气支持' }}</div>
                 <div class="impact-card__text">FiO2 {{ item.fio2 ?? '—' }} / PEEP {{ item.peep ?? '—' }} / RR {{ item.rr ?? '—' }} / PIP {{ item.pip ?? '—' }}</div>
                 <div class="impact-card__sub">{{ item.time ? String(item.time).slice(0, 16).replace('T', ' ') : '时间未记载' }}</div>
               </article>
@@ -269,11 +269,11 @@
                 <div class="conflict-card__meta">{{ item.resolution_focus || '需结合动态病情进一步裁决。' }}</div>
               </article>
             </div>
-            <div v-else-if="isGeneratingAssessment" class="empty-box">会诊生成中，正在汇总冲突焦点与 Meta-Agent 裁决。</div>
-            <div v-else class="empty-box">当前未识别到明显跨专科冲突，可继续按 Meta-Agent 裁决跟踪执行。</div>
+            <div v-else-if="isGeneratingAssessment" class="empty-box">会诊生成中，正在汇总冲突焦点与总控智能体裁决。</div>
+            <div v-else class="empty-box">当前未识别到明显跨专科冲突，可继续按总控智能体裁决跟踪执行。</div>
           </a-card>
 
-          <a-card :bordered="false" class="mdt-panel" title="专科意见与 AI 预填充">
+          <a-card :bordered="false" class="mdt-panel" title="专科意见与智能预填充">
             <div v-if="activeSpecialist" class="detail-stack">
               <div class="summary-box">{{ activeSpecialist.summary || '暂无摘要' }}</div>
               <div class="detail-block">
@@ -283,7 +283,7 @@
                 </ul>
               </div>
               <div class="detail-block">
-                <div class="detail-label">AI 预填充建议</div>
+                <div class="detail-label">智能预填充建议</div>
                 <ul class="action-list">
                   <li v-for="(item, idx) in activeSpecialist.recommendations || []" :key="`rec-${idx}`">{{ item }}</li>
                 </ul>
@@ -295,13 +295,13 @@
                 </div>
               </div>
             </div>
-            <div v-else-if="isGeneratingAssessment" class="empty-box">专科 Agent 正在生成细化意见与建议动作。</div>
+            <div v-else-if="isGeneratingAssessment" class="empty-box">专科智能体正在生成细化意见与建议动作。</div>
             <div v-else class="empty-box">点击左侧专科卡片后查看详细意见。</div>
           </a-card>
         </div>
 
         <div class="mdt-content-grid">
-          <a-card :bordered="false" class="mdt-panel" title="Meta-Agent 全局优先级">
+          <a-card :bordered="false" class="mdt-panel" title="总控智能体全局优先级">
             <div v-if="priorityRows.length" class="priority-row">
               <article v-for="item in priorityRows" :key="`${item.agent}-${item.domain}`" :class="['priority-card', `is-${item.priority || 'medium'}`]">
                 <div class="priority-card__head">
@@ -311,7 +311,7 @@
                 <div class="priority-card__main">{{ item.summary || '待补充摘要' }}</div>
               </article>
             </div>
-            <div v-else class="empty-box">等待 Meta-Agent 汇总全局优先级。</div>
+            <div v-else class="empty-box">等待总控智能体汇总全局优先级。</div>
           </a-card>
 
           <a-card :bordered="false" class="mdt-panel" title="决议记录与执行追踪">
@@ -332,7 +332,7 @@
                   <textarea v-model="item.note" class="field-textarea" rows="2" placeholder="补充说明 / 平衡方案"></textarea>
                 </div>
                 <div class="decision-item__meta">
-                  <span>状态：{{ item.status || 'pending' }}</span>
+                  <span>状态：{{ ({ pending: '待执行', in_progress: '进行中', completed: '已完成', dismissed: '已取消', draft: '草稿' } as Record<string, string>)[String(item.status || 'pending').toLowerCase()] || '待执行' }}</span>
                   <button type="button" class="mini-link" @click="removeDecision(item.id)">删除</button>
                 </div>
               </article>
@@ -349,17 +349,17 @@
             <div class="doc-stack">
               <div class="doc-block">
                 <div class="detail-label">MDT 会诊记录</div>
-                <textarea v-model="consultRecord" class="field-textarea field-textarea--lg" rows="8" placeholder="可先编辑，再一键保存或用 AI 生成。"></textarea>
+                <textarea v-model="consultRecord" class="field-textarea field-textarea--lg" rows="8" placeholder="可先编辑，再一键保存或用智能生成。"></textarea>
                 <div class="workspace-actions">
-                  <a-button size="small" :loading="generatingDocType === 'mdt_summary'" @click="generateDocument('mdt_summary')">AI生成讨论材料</a-button>
-                  <a-button size="small" :loading="generatingDocType === 'consultation_request'" @click="generateDocument('consultation_request')">AI生成会诊记录</a-button>
+                  <a-button size="small" :loading="generatingDocType === 'mdt_summary'" @click="generateDocument('mdt_summary')">智能生成讨论材料</a-button>
+                  <a-button size="small" :loading="generatingDocType === 'consultation_request'" @click="generateDocument('consultation_request')">智能生成会诊记录</a-button>
                 </div>
               </div>
               <div class="doc-block">
                 <div class="detail-label">病程记录</div>
                 <textarea v-model="progressRecord" class="field-textarea field-textarea--lg" rows="8" placeholder="将 MDT 讨论要点整合进当日病程记录。"></textarea>
                 <div class="workspace-actions">
-                  <a-button size="small" :loading="generatingDocType === 'daily_progress'" @click="generateDocument('daily_progress')">AI生成病程记录</a-button>
+                  <a-button size="small" :loading="generatingDocType === 'daily_progress'" @click="generateDocument('daily_progress')">智能生成病程记录</a-button>
                   <a-button size="small" type="primary" :loading="savingWorkspace" @click="saveWorkspace">保存文书</a-button>
                 </div>
               </div>
@@ -381,12 +381,12 @@
               <article v-for="item in generatedOrderDrafts" :key="item.id" class="decision-item">
                 <div class="decision-item__head">
                   <strong>{{ item.category || '医嘱建议' }}</strong>
-                  <span>{{ item.priority || 'medium' }}</span>
+                  <span>{{ priorityLabel(item.priority) }}</span>
                 </div>
                 <textarea v-model="item.order_text" class="field-textarea" rows="3"></textarea>
                 <div class="decision-item__meta">
-                  <span>状态：{{ item.status || 'draft' }}</span>
-                  <span>来源：{{ item.source || 'mdt_workspace' }}</span>
+                  <span>状态：{{ ({ pending: '待执行', in_progress: '进行中', completed: '已完成', dismissed: '已取消', draft: '草稿' } as Record<string, string>)[String(item.status || 'draft').toLowerCase()] || '草稿' }}</span>
+                  <span>来源：{{ item.source === 'mdt_workspace' ? 'MDT 工作台' : (item.source || 'MDT 工作台') }}</span>
                 </div>
               </article>
             </div>
@@ -451,7 +451,7 @@ const assessmentResult = computed(() => assessmentRecord.value?.result || assess
 const specialistRows = computed(() => Object.values(assessmentResult.value?.assessments || {}) as any[])
 const conflictRows = computed(() => Array.isArray(assessmentResult.value?.conflicts) ? assessmentResult.value.conflicts : [])
 const metaSummaryRecord = computed(() => assessmentResult.value?.meta_agent || {})
-const metaSummary = computed(() => String(metaSummaryRecord.value?.summary || assessmentRecord.value?.summary || '暂无 Meta-Agent 裁决摘要'))
+const metaSummary = computed(() => String(metaSummaryRecord.value?.summary || assessmentRecord.value?.summary || '暂无总控智能体裁决摘要'))
 const metaActions = computed(() => Array.isArray(metaSummaryRecord.value?.final_actions) ? metaSummaryRecord.value.final_actions : [])
 const metaActionCount = computed(() => metaActions.value.length)
 const priorityRows = computed(() => Array.isArray(metaSummaryRecord.value?.top_priorities) ? metaSummaryRecord.value.top_priorities : [])
@@ -620,7 +620,7 @@ const detailPanelTitle = computed(() => {
   if (activeSystemDomain.value === 'hemodynamic') return '血管活性药物时间轴与液体平衡'
   if (activeSystemDomain.value === 'infection') return '培养 / 抗菌药降阶梯判断'
   if (activeSystemDomain.value === 'respiratory') return '呼吸机参数趋势'
-  return `AI ${activeSystemLabel.value}顾问`
+  return `智能${activeSystemLabel.value}顾问`
 })
 const impactPanelTitle = computed(() => {
   if (activeSystemDomain.value === 'hemodynamic') return '循环系统关键事件'
@@ -1455,4 +1455,7 @@ onMounted(async () => {
   .mdt-hero__side { padding: 14px; }
 }
 </style>
+
+
+
 

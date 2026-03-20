@@ -55,7 +55,7 @@
       <article class="ops-lane">
         <div class="ops-lane__head">
           <div>
-            <div class="ops-lane__kicker">Director Focus</div>
+            <div class="ops-lane__kicker">主任关注</div>
             <div class="ops-lane__title">ICU 主任关注</div>
           </div>
           <span class="ops-lane__badge">流程 / 风险 / 负荷</span>
@@ -72,7 +72,7 @@
       <article class="ops-lane ops-lane--nurse">
         <div class="ops-lane__head">
           <div>
-            <div class="ops-lane__kicker">Head Nurse Focus</div>
+            <div class="ops-lane__kicker">护士长关注</div>
             <div class="ops-lane__title">护士长关注</div>
           </div>
           <span class="ops-lane__badge">交班 / 装置 / 床旁执行</span>
@@ -129,6 +129,7 @@ import {
   getRecentAlerts,
 } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
+import { formatAlertTypeLabel } from '../utils/displayLabels'
 import {
   icuCategoryAxis,
   icuGrid,
@@ -191,7 +192,7 @@ const bundleWatchCount = computed(() => Number(bundleCounts.value?.yellow || 0) 
 const topAlertLabel = computed(() => {
   const map = new Map<string, number>()
   filteredAlerts.value.forEach((row: any) => {
-    const key = String(row?.name || row?.alert_type || row?.rule_id || '未知事件').trim()
+    const key = formatAlertTypeLabel(row?.alert_type || row?.rule_id || row?.name || '未知事件').trim()
     if (!key) return
     map.set(key, (map.get(key) || 0) + 1)
   })
@@ -215,7 +216,7 @@ const commandKpis = computed(() => [
     tone: 'risk',
   },
   {
-    label: 'Bundle 待跟进',
+    label: '解放束待跟进',
     value: `${bundleWatchCount.value}`,
     meta: `${Number(bundleCounts.value?.red || 0)} 床高风险，${Number(bundleCounts.value?.yellow || 0)} 床待闭环`,
     tone: 'bundle',
@@ -690,7 +691,7 @@ watch(() => route.query, () => {
   font-size: 24px;
   letter-spacing: 0.06em;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   color: #effcff;
 }
 .title-tag {
@@ -743,8 +744,8 @@ watch(() => route.query, () => {
 .screen-kpis { display: flex; gap: 12px; margin-left: auto; }
 .kpi-chip {
   min-width: 112px;
-  padding: 10px 13px;
-  border-radius: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(9,31,48,.88) 0%, rgba(6,21,34,.92) 100%);
   border: 1px solid rgba(80,199,255,.14);
   display: flex;
@@ -752,7 +753,7 @@ watch(() => route.query, () => {
   gap: 4px;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
-.kpi-label { font-size: 11px; color: #7ecce1; letter-spacing: .08em; }
+.kpi-label { font-size: 11px; color: #7ecce1; letter-spacing: .12em; text-transform: uppercase; }
 .kpi-chip strong { font-size: 22px; color: #e8fbff; }
 .clock {
   font-size: 16px;
@@ -1106,6 +1107,9 @@ watch(() => route.query, () => {
   }
 }
 </style>
+
+
+
 
 
 
