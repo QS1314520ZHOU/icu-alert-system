@@ -8,6 +8,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, Query
 
 from app import runtime
+from app.utils.analytics_ai import summarize_weaning_timeline
 from app.utils.alerting import derive_sepsis_bundle_status, normalize_sbt_status, normalize_weaning_status
 from app.utils.patient_helpers import admitted_patient_query, calculate_age, infer_clinical_tags
 from app.utils.serialization import safe_oid, serialize_doc
@@ -427,5 +428,233 @@ async def patient_sbt_records(patient_id: str, limit: int = Query(default=20, ge
             "last_trial_time": records[0].get("trial_time") if records else None,
         },
         "records": serialize_doc(records),
+    }
+
+
+@router.get("/api/patients/{patient_id}/weaning-timeline")
+async def patient_weaning_timeline(patient_id: str, limit: int = Query(default=40, ge=10, le=120)):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid}, {"_id": 1, "name": 1, "hisBed": 1, "dept": 1, "hisDept": 1})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    pid_str = str(pid)
+    timeline: list[dict] = []
+
+    sbt_cursor = runtime.db.col("score_records").find(
+        {"patient_id": pid_str, "score_type": "sbt_assessment"},
+        {
+            "result": 1,
+            "passed": 1,
+            "trial_time": 1,
+            "calc_time": 1,
+            "source": 1,
+            "source_code": 1,
+            "duration_minutes": 1,
+            "rr": 1,
+            "vte_ml": 1,
+            "rsbi": 1,
+            "fio2": 1,
+            "peep": 1,
+            "minute_vent": 1,
+            "raw_text": 1,
+        },
+    ).sort([("trial_time", -1), ("calc_time", -1)]).limit(limit)
+    sbt_docs = [doc async for doc in sbt_cursor]
+    sbt_records = [normalize_sbt_status(doc) | {"source_code": doc.get("source_code"), "minute_vent": doc.get("minute_vent")} for doc in sbt_docs]
+    for row in sbt_records:
+        timeline.append(
+            {
+                "time": row.get("trial_time"),
+                "event_type": "sbt",
+                "title": row.get("label"),
+                "status": row.get("result"),
+                "severity": "warning" if row.get("result") == "passed" else "high" if row.get("result") == "failed" else "info",
+                "source": row.get("source"),
+                "detail": {
+                    "duration_minutes": row.get("duration_minutes"),
+                    "rr": row.get("rr"),
+                    "vte_ml": row.get("vte_ml"),
+                    "rsbi": row.get("rsbi"),
+                    "fio2": row.get("fio2"),
+                    "peep": row.get("peep"),
+                    "minute_vent": row.get("minute_vent"),
+                    "raw_text": row.get("raw_text"),
+                },
+            }
+        )
+
+    weaning_cursor = runtime.db.col("score_records").find(
+        {"patient_id": pid_str, "score_type": "weaning_assessment"},
+        {
+            "risk_score": 1,
+            "score": 1,
+            "risk_level": 1,
+            "severity": 1,
+            "recommendation": 1,
+            "factors": 1,
+            "gate_failures": 1,
+            "pf_ratio": 1,
+            "fio2": 1,
+            "peep": 1,
+            "rsbi": 1,
+            "rr": 1,
+            "vte_ml": 1,
+            "map": 1,
+            "rass": 1,
+            "gcs": 1,
+            "fluid_overload_pct": 1,
+            "ventilation_days": 1,
+            "calc_time": 1,
+        },
+    ).sort("calc_time", -1).limit(limit)
+    async for doc in weaning_cursor:
+        row = normalize_weaning_status(doc)
+        timeline.append(
+            {
+                "time": row.get("updated_at"),
+                "event_type": "weaning_assessment",
+                "title": row.get("recommendation") or "撤机评估",
+                "status": row.get("risk_level"),
+                "severity": row.get("severity"),
+                "source": "score_records",
+                "detail": {
+                    "risk_score": row.get("risk_score"),
+                    "factors": row.get("factors"),
+                    "gate_failures": row.get("gate_failures"),
+                    "pf_ratio": row.get("pf_ratio"),
+                    "fio2": row.get("fio2"),
+                    "peep": row.get("peep"),
+                    "rsbi": row.get("rsbi"),
+                    "rr": row.get("rr"),
+                    "vte_ml": row.get("vte_ml"),
+                    "map": row.get("map"),
+                    "rass": row.get("rass"),
+                    "gcs": row.get("gcs"),
+                    "fluid_overload_pct": row.get("fluid_overload_pct"),
+                    "ventilation_days": row.get("ventilation_days"),
+                },
+            }
+        )
+
+    alert_cursor = runtime.db.col("alert_records").find(
+        {
+            "patient_id": {"$in": [pid_str, pid]},
+            "alert_type": {"$in": ["weaning", "post_extubation_failure_risk", "liberation_bundle"]},
+        },
+        {"alert_type": 1, "name": 1, "severity": 1, "created_at": 1, "extra": 1, "explanation": 1},
+    ).sort("created_at", -1).limit(limit)
+    async for doc in alert_cursor:
+        extra = doc.get("extra") if isinstance(doc.get("extra"), dict) else {}
+        timeline.append(
+            {
+                "time": doc.get("created_at"),
+                "event_type": str(doc.get("alert_type") or "alert"),
+                "title": doc.get("name") or "脱机相关预警",
+                "status": extra.get("bundle_status") or extra.get("risk_level") or doc.get("severity"),
+                "severity": doc.get("severity") or "warning",
+                "source": "alert_records",
+                "detail": {
+                    "explanation": doc.get("explanation"),
+                    "hours_since_extubation": extra.get("hours_since_extubation"),
+                    "rr": extra.get("rr"),
+                    "spo2": extra.get("spo2"),
+                    "bundle_lights": extra.get("lights"),
+                    "compliance": extra.get("compliance"),
+                },
+            }
+        )
+
+    bind_cursor = runtime.db.col("deviceBind").find(
+        {"pid": pid_str},
+        {"type": 1, "bindTime": 1, "unBindTime": 1, "deviceName": 1, "name": 1},
+    ).sort("bindTime", -1).limit(limit)
+    async for doc in bind_cursor:
+        dtype = str(doc.get("type") or "").lower()
+        device_name = str(doc.get("deviceName") or doc.get("name") or "")
+        if not any(key in dtype for key in ["vent", "ett"]) and not any(key in device_name.lower() for key in ["vent", "呼吸", "气管插管"]):
+            continue
+        if isinstance(doc.get("bindTime"), datetime):
+            timeline.append(
+                {
+                    "time": doc.get("bindTime"),
+                    "event_type": "vent_bind",
+                    "title": f"建立气道/机械通气: {device_name or dtype or '呼吸支持'}",
+                    "status": "started",
+                    "severity": "info",
+                    "source": "deviceBind",
+                    "detail": {"device_type": dtype, "device_name": device_name},
+                }
+            )
+        if isinstance(doc.get("unBindTime"), datetime):
+            timeline.append(
+                {
+                    "time": doc.get("unBindTime"),
+                    "event_type": "extubation",
+                    "title": f"停止气道/机械通气: {device_name or dtype or '呼吸支持'}",
+                    "status": "stopped",
+                    "severity": "info",
+                    "source": "deviceBind",
+                    "detail": {"device_type": dtype, "device_name": device_name},
+                }
+            )
+
+    sat_events = await runtime.alert_engine._get_recent_text_events(pid, ["sat", "唤醒试验", "停镇静"], hours=168, limit=20)
+    for event in sat_events:
+        timeline.append(
+            {
+                "time": event.get("time"),
+                "event_type": "sat",
+                "title": "SAT/停镇静记录",
+                "status": "documented",
+                "severity": "info",
+                "source": "bedside_text",
+                "detail": {
+                    "code": event.get("code"),
+                    "text": " ".join(str(event.get(k) or "") for k in ("code", "strVal", "value")).strip(),
+                },
+            }
+        )
+
+    liberation_bundle = await runtime.alert_engine.get_liberation_bundle_status(patient)
+    latest_weaning_doc = await runtime.db.col("score_records").find_one(
+        {"patient_id": pid_str, "score_type": "weaning_assessment"},
+        sort=[("calc_time", -1)],
+    )
+    latest_sbt_doc = await runtime.db.col("score_records").find_one(
+        {"patient_id": pid_str, "score_type": "sbt_assessment"},
+        sort=[("trial_time", -1), ("calc_time", -1)],
+    )
+
+    timeline.sort(key=lambda item: item.get("time") or datetime.min, reverse=True)
+    timeline = timeline[:limit]
+
+    summary_payload = {
+        "timeline_count": len(timeline),
+        "sbt_total": len(sbt_records),
+        "sbt_passed_count": sum(1 for row in sbt_records if str(row.get("result") or "") == "passed"),
+        "sbt_failed_count": sum(1 for row in sbt_records if str(row.get("result") or "") == "failed"),
+        "latest_sbt": serialize_doc(normalize_sbt_status(latest_sbt_doc)),
+        "latest_weaning": serialize_doc(normalize_weaning_status(latest_weaning_doc)),
+        "liberation_bundle": serialize_doc(liberation_bundle),
+    }
+    ai_summary = await summarize_weaning_timeline(
+        {
+            "patient": serialize_doc(patient),
+            "summary": summary_payload,
+            "timeline": serialize_doc(timeline[:20]),
+        }
+    )
+
+    return {
+        "code": 0,
+        "patient": serialize_doc(patient),
+        "summary": summary_payload,
+        "ai_summary": ai_summary,
+        "timeline": serialize_doc(timeline),
     }
 

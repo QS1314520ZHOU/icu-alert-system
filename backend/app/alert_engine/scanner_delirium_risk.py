@@ -172,6 +172,7 @@ class DeliriumRiskScanner(BaseScanner):
                 severity = "warning"
 
             if severity:
+                severity = "critical"
                 rule_id = f"DELIRIUM_RISK_{severity.upper()}"
                 if not await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                     alert = await self.engine._create_alert(
@@ -209,11 +210,7 @@ class DeliriumRiskScanner(BaseScanner):
 
             # 第三层：镇静药 + RASS<-3 持续>24h，触发转化预警
             if has_sedatives and deep_sed_over_24h:
-                conversion_sev = "high"
-                if latest_gcs is not None and latest_gcs <= 8:
-                    conversion_sev = "critical"
-                if _severity_rank(severity or "") >= _severity_rank("high"):
-                    conversion_sev = "critical"
+                conversion_sev = "critical"
                 rule_id = f"DELIRIUM_CONVERSION_{conversion_sev.upper()}"
                 if not await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                     alert = await self.engine._create_alert(

@@ -1,430 +1,778 @@
-# ICU智能预警系统（ICU Alert System）
+# ICU 智能预警系统（ICU Alert System）
 
-面向重症监护病房（ICU）的全栈智能预警平台，整合 **监护设备、检验、药物执行、护理评分、AI 分析**，用于实现实时预警、临床联动与病区可视化。
+面向重症监护病区的全栈智能预警与临床决策支持平台。系统将床旁监护、检验、药物执行、护理评估、设备管理、AI 推理和病区可视化统一到一套后端规则引擎与前端工作台中。
 
-## 项目亮点
-
-- **多源数据接入**
-  - SmartCare：`patient` / `bedside` / `deviceCap` / `drugExe`
-  - DataCenter：`VI_ICU_EXAM_ITEM`
-- **面向 ICU 抢救场景的综合预警**
-  - 不只报“单个阈值超限”，而是输出 **综合预警卡 / 病理生理链 / 微型上下文快照**
-  - 支持在预警卡上直接看到 **HR / RR / MAP / SpO₂ / T、关键检验、血管活性药**
-- **规则引擎 + 临床综合征识别**
-  - 脓毒症、ARDS、AKI、DIC、出血、撤机、VTE、CRRT、谵妄、PE、术后并发症、心脏骤停前风险等
-- **床旁与病区双视角**
-  - 患者详情页、检验时间线、大屏态势、Analytics、Bundle 合规看板、床位 hover 摘要
-- **AI 辅助**
-  - 风险预测、AI 交班摘要（I-PASS / ISBAR）、Explainability 三段式解释、离线知识检索（RAG）、调用质量监控
-- **可落地安全与工程能力**
-  - WebSocket 鉴权、CORS 白名单、扫描错峰、全局并发控制、单元测试
-
-### 为什么这套系统更适合 ICU 一线使用
-
-- **更少误报**：开始引入个体基线、数据质量过滤、多参数联合确认，降低“电极脱落 / 探头偏移 / 单点噪声”带来的伪报警
-- **更接近临床决策**：从“规则命中列表”升级为 **结论 + 证据 chips + 处置建议**
-- **更适合值班视角**：大屏、总览、详情页全部统一成 **ICU 中控 / 监护大屏皮肤**
-- **更利于质控闭环**：支持 Sepsis 1h Bundle、SBT 结构化记录、再插管风险、相似病例结局统计
-- **更容易扩展到院内落地**：规则阈值、关键词、扫描周期、药物识别均可通过 `config.yaml` 调整
+本文档按当前代码实现整理，目标是把“系统功能、计算口径、页面入口、接口能力、运行方式”写清楚，便于交付、联调和二次开发。
 
 ---
 
-## 系统架构
+## 1. 项目定位
 
-```mermaid
-flowchart LR
-  A[监护/床旁<br/>deviceCap bedside] --> E[AlertEngine]
-  B[检验/LIS<br/>VI_ICU_EXAM_ITEM] --> E
-  C[药物执行<br/>drugExe] --> E
-  D[评分/护理记录<br/>score score_records] --> E
-  E --> F[alert_records]
-  E --> G[WebSocket /ws/alerts]
-  E --> H[AI Monitor / RAG / Handoff]
-  F --> I[前端 PatientOverview / BigScreen]
+系统解决的是 ICU 场景下三类核心问题：
+
+1. 实时风险识别
+   从“单参数越界报警”升级为“结论 + 证据 + 建议 + 上下文快照”。
+2. 治疗过程监测
+   把撤机、CRRT、抗菌药、镇静镇痛、Bundle 合规、装置管理等流程性问题做成连续监测。
+3. 病区级运营与 AI 辅助
+   提供患者总览、大屏、Analytics、MDT、多智能体、相似病例回顾、What-if 干预模拟等能力。
+
+---
+
+## 2. 总体架构
+
+```text
+监护/床旁数据(deviceCap, bedside)
+检验数据(VI_ICU_EXAM_ITEM)
+药物执行(drugExe)
+护理评分/护理记录(score, score_records, nursing notes)
+                │
+                ▼
+         AlertEngine / Scanners
+                │
+        alert_records / cache / analytics
+                │
+   REST API + WebSocket + AI services + Frontend
 ```
 
+### 2.1 主要目录
+
+- `backend/app/main.py`
+  FastAPI 主应用，统一注册路由与运行时依赖。
+- `backend/app/alert_engine/`
+  规则引擎、扫描器、综合征识别、护理分析、个性化阈值、相似病例分析等核心逻辑。
+- `backend/app/routers/`
+  对外 API 路由，包括患者、告警、Analytics、AI、知识库、系统健康检查。
+- `backend/app/services/`
+  LLM、RAG、多智能体、反事实模型、亚表型分析、文书生成等服务层。
+- `backend/app/utils/`
+  序列化、患者数据查询、临床辅助函数、WebSocket 鉴权等通用工具。
+- `frontend/src/views/`
+  前端页面：患者总览、患者详情、大屏、Analytics、MDT、AI Ops。
+- `frontend/src/components/`
+  业务组件，含大屏卡片、患者详情页子标签、图表模块。
+
 ---
 
-## 当前核心能力
+## 3. 前端页面与入口
 
-### 1）生命体征与趋势
-- HR / RR / SpO₂ / 血压 / 体温阈值预警
-- 趋势恶化识别（急性/亚急性趋势增强）
-- 数据质量过滤（设备信号异常 / 生理不合理值过滤）
-- 个体基线偏离识别（absolute threshold + baseline deviation）
-- 心律/QTc/容量反应性/呼吸机参数联动
+### 3.1 页面路由
 
-### 2）检验与酸碱分析
-- 电解质、乳酸、Hb、PLT、Cr、PCT、INR、BNP、肌钙蛋白等扫描
-- 血气自动解读：
-  - 主紊乱判断
-  - Winter 代偿判断
-  - 校正 AG
-  - Delta-Delta
-  - 乳酸校正 AG
-  - **呼吸性酸碱中毒急慢性区分**
-  - **Stewart SID 分析**
+- `/`
+  患者总览工作台（Patient Overview）
+- `/patient/:id`
+  单患者详情页（趋势、检验、告警、相似病例、数字孪生、AI、eCASH、活动等级等）
+- `/bigscreen`
+  护士站监控大屏
+- `/analytics`
+  运营分析页，当前支持 `alerts / sepsis / weaning / nursing / scenarios`
+- `/mdt`
+  MDT 临床协作工作站
+- `/ai-ops`
+  AI 运行态与质量运营页
 
-### 3）综合征识别
-- **Sepsis-3**：qSOFA / SOFA Δ / 脓毒性休克
-- **ARDS**：P/F + PEEP
-- **AKI**：KDIGO（Cr + 尿量）
-- **DIC**：ISTH
-- **出血风险**
-- **谵妄风险 / CAM-ICU 阳性**
-- **急性肺栓塞（PE）模式识别 + Wells 评分**
-- **术后出血 / 感染二次高峰 / 肠麻痹**
-- **心脏骤停前高风险识别**
-- **休克链 / 呼衰链 / 脓毒症进展链等临床推理链**
+### 3.2 当前主要 UI 能力
 
-### 4）治疗过程监测
-- 呼吸机撤机与呼吸力学监测
-- **SBT 结构化记录时间线**
-- **拔管后再插管高风险识别**
-- **液体过负荷与去复苏时机提示**
-- CRRT：
-  - TMP 趋势
-  - ACT / 枸橼酸抗凝监测
-  - 剂量不足
-  - **滤器时长**
-  - **Ca_total / iCa 比值**
-  - **电解质复查提醒**
-- 药物安全：
-  - HIT
-  - QT 风险
-  - 镇静/阿片相关风险
-  - 激素撤离/减停/血糖联动
-- 剂量调整：
-  - 肾功能不全高危药
-  - **肝功能不全高危药**
-- **抗生素药敏覆盖不足 / MDRO / TDM 强化提醒**
+- 患者总览：风险卡、床位总览、实时预警、Bundle 状态、hover 摘要
+- 患者详情：Vitals、Labs、Drugs、Assessments、Alerts、SBT 时间线、相似病例、数字孪生、AI、eCASH、Mobility、PE 风险
+- 大屏：左侧实时预警流、中间床位监控、右侧统计图卡
+- Analytics：预警频率、规则热力图、科室/床位排名、Sepsis 1h Bundle、脱机/再插管、扩展场景覆盖、护理工作量预测与排班热力图
+- MDT：多智能体工作台、协作会诊视图
+- AI Ops：AI 调用质量、模块映射、运营跳转
 
-### 5）护理与流程合规
-- GCS / RASS / 疼痛 / CAM-ICU / Braden 超时提醒
-- **eCASH 闭环**：
-  - Analgesia / Sedation / Delirium 三维实时灯态
-  - SAT 提醒
-  - 苯二氮卓使用警示
-- Device management：
-  - CVC / Foley / ETT 在位日和必要性评估
-- Liberation bundle：
-  - A-F Bundle 合规检查
-- **ICU-AW 风险与早期活动等级推荐**
-- 转出准备评估：
-  - **API 查询 + 主动推送**
+---
 
-### 6）AI 能力
-- AI 检验摘要
+## 4. 后端能力总表
+
+### 4.1 已注册扫描器
+
+当前扫描器注册表位于 `backend/app/alert_engine/scanner_registry.py`，按代码实际注册顺序包含：
+
+- VitalSignsScanner
+- LabResultsScanner
+- SepsisScanner
+- AkiScanner
+- TrendScanner
+- CrrtScanner
+- ArdsScanner
+- DicScanner
+- TbiScanner
+- BleedingScanner
+- TemporalRiskScanner
+- VentilatorWeaningScanner
+- DiaphragmProtectionScanner
+- DrugSafetyScanner
+- AntibioticStewardshipScanner
+- ArcRiskScanner
+- AntimicrobialPkScanner
+- VancoTdmClosedLoopScanner
+- ImmunocompromisedMonitorScanner
+- DeliriumRiskScanner
+- CircadianProtectorScanner
+- DeviceManagementScanner
+- HaiBundleScanner
+- FluidBalanceScanner
+- GlycemicControlScanner
+- VteProphylaxisScanner
+- PeRiskScanner
+- PalliativeTriggerScanner
+- PostopComplicationsScanner
+- NutritionMonitorScanner
+- CompositeDeteriorationScanner
+- CardiacArrestRiskScanner
+- LiberationBundleScanner
+- EcashBundleScanner
+- IcuAwMobilityScanner
+- MicrobiologyScanner
+- HemodynamicAdvisorScanner
+- RightHeartMonitorScanner
+- DoseAdjustmentScanner
+- DischargeReadinessScanner
+- AdaptiveThresholdsScanner
+- ProactiveManagementScanner
+- ExtendedScenariosScanner
+- AiRiskScanner
+- AlertReasoningScanner
+- NurseRemindersScanner
+- NursingNoteAnalyzerScanner
+- NursingWorkloadScanner
+
+### 4.2 能力分组
+
+#### A. 生命体征与时间序列
+
+- HR / RR / SpO2 / 血压 / 体温阈值预警
+- 趋势恶化识别
+- 时序风险扫描
+- 个体基线偏离提醒
+- 数据质量过滤
+- 呼吸机参数、撤机、膈肌保护、右心监测、血流动力学建议
+
+#### B. 检验与综合征识别
+
+- 血气/酸碱解读
+- 脓毒症、ARDS、AKI、DIC、出血、TBI
+- Composite deterioration 多器官恶化趋势
+- PE 风险识别
+- 术后并发症、营养不足、免疫抑制患者风险
+
+#### C. 治疗与流程监测
+
+- CRRT 运行监测
+- 抗菌药与药代动力学（含 ARC / TDM / 万古霉素闭环）
+- 镇静、阿片、QT、激素、肾肝功能相关用药风险
+- VTE 预防、装置管理、HAI Bundle
+- eCASH、A-F Liberation Bundle、ICU-AW 早期活动
+- 转出准备评估
+
+#### D. 护理与病区运营
+
+- 护理评估超时提醒
+- 护理文本风险信号提取
+- 护理工作量预测与排班热力图
+- 扩展场景覆盖率分析
+
+#### E. AI 与高级辅助
+
+- AI 风险预测
 - AI 规则推荐
-- AI 恶化风险预测（历史风险 + 未来预测）
-- AI 交班摘要（I-PASS / ISBAR）
-- **AI 归因摘要**
-  - 当患者 30 分钟内累计多条活跃报警时，自动汇总近期报警、生命体征、检验、护理上下文
-  - 输出共同根因、最紧急 action、优先级排序、建议合并展示方案
-- **个性化报警阈值建议**
-  - 基于 24-72h 生命体征分布、诊断背景、血管活性药/镇静药状态生成医生审核版阈值建议
-  - `pending_review -> approved / rejected` 审核闭环，默认不自动生效
-- **增强 Similar Case Review**
-  - 诊断 embedding + 余弦相似度匹配
-  - Top-5 相似病例结局 / ICU 天数 / 干预方案的结构化 LLM 解读
-- AI 预警 Explainability：
-  - `summary / evidence / suggestion`
-  - 轻量 LLM 二次润色
-- 离线知识库检索（RAG）
-- **AI 调用监控**
-  - hash / latency / success
-  - token usage
-  - 日聚合统计
-  - 成功率/P95 告警
-- **降级与韧性**
-  - LLM fallback model
-  - circuit breaker
-  - 前端 “AI服务降级中” 状态灯
-  - Similar Case Review / PatientDetail / BigScreen 的 timeout 与接口失败降级展示
-
-### 7）前端临床可视化
-- **综合预警卡**
-  - 三段式展示：Summary / Evidence / Suggestion
-  - 聚合主题（aggregated_groups）
-  - 临床链（clinical_chain）
-- **抢救期风险卡**
-  - PatientOverview 主卡 / hover drawer
-  - BigScreen 告警流 / 床位卡 / hover 展开态
-  - PatientDetail hero 红色结论条
-- **Analytics 中控视图**
-  - 顶部 KPI strip
-  - Sepsis 1h Bundle 合规率
-  - 脱机失败高风险占比 / 再插管风险
-- **相似病例结局回溯**
-  - ICU 天数、呼吸机天数、存活率、转归统计
-- **AI 归因与阈值审核卡片**
-  - 预警历史页展示 “AI 归因摘要”
-  - 个性化报警阈值建议支持默认阈值偏移对比、审核弹窗、当前生效版本提示
+- AI 检验摘要 / 交班摘要
+- AI 临床推理 / 因果分析
+- What-if 干预模拟
+- 亚表型分群（Subphenotype）
+- 多智能体工作台
+- 文书生成
+- 相似病例复盘
+- 个性化报警阈值建议
+- AI Monitor / 调用质量统计
+- RAG / 知识库检索
 
 ---
 
-## 预警引擎模块
+## 5. 核心计算规则与口径
 
-当前后端已包含以下主要模块：
+本节只写“代码中当前已经体现的主要计算口径”，不写空泛医学介绍。
 
-| 模块 | 作用 |
-|---|---|
-| `vital_signs.py` | 生命体征阈值预警 |
-| `lab_scanner.py` | 检验扫描与纠正建议 |
-| `trend_analyzer.py` | 生命体征趋势恶化 |
-| `data_quality_filter.py` | 数据可信度过滤 / 设备异常识别 |
-| `syndrome_sepsis.py` | Sepsis-3 / 脓毒性休克 |
-| `syndrome_ards.py` | ARDS 识别 |
-| `syndrome_aki.py` | AKI 分期 |
-| `syndrome_dic.py` | DIC 评分 |
-| `syndrome_tbi.py` | ICP / CPP / GCS / 瞳孔 |
-| `syndrome_bleeding.py` | 出血识别 |
-| `ventilator.py` | 撤机与呼吸机力学监测 |
-| `cardiac_arrest_predictor.py` | 心脏骤停前高风险识别 |
-| `pe_detector.py` | 急性肺栓塞模式识别 |
-| `postop_monitor.py` | 术后并发症监测 |
-| `drug_safety.py` | 药物不良反应与联动规则 |
-| `antibiotic_stewardship.py` | 抗菌药优化与 PCT 停药评估 |
-| `microbiology_monitor.py` | 药敏覆盖 / MDRO / TDM 监测 |
-| `delirium_risk.py` | 谵妄风险 / CAM-ICU |
-| `device_management.py` | CVC/Foley/ETT 管路管理 |
-| `fluid_balance.py` | 入量/出量/净平衡 |
-| `glycemic_control.py` | 血糖波动/低血糖/复查提醒 |
-| `vte_prophylaxis.py` | VTE 风险与预防遗漏 |
-| `nutrition_monitor.py` | 营养不足/再喂养风险 |
-| `composite_deterioration.py` | 多器官恶化趋势 |
-| `alert_reasoning_agent.py` | 多报警因果归因与合并展示建议 |
-| `crrt_monitor.py` | CRRT 运行监测 |
-| `liberation_bundle.py` | A-F Bundle 合规 |
-| `ecash_bundle.py` | eCASH 闭环状态与提醒 |
-| `hemodynamic_advisor.py` | PPV/SVV 容量反应性 |
-| `dose_adjustment.py` | 肾/肝功能剂量调整 |
-| `discharge_readiness.py` | 转出风险评估 |
-| `icu_aw_mobility.py` | ICU-AW 风险与活动等级建议 |
-| `similar_case_review.py` | 相似病例结局回溯 |
-| `adaptive_threshold_advisor.py` | 个性化报警阈值推荐与审核前缓存 |
-| `ai_risk.py` | LLM 结构化风险分析 |
-| `nurse_reminder.py` | 护理评估到期提醒 |
+### 5.1 通用告警处理规则
+
+#### 5.1.1 数据入口
+
+系统主要使用以下数据源：
+
+- `patient`
+  患者主档、床位、科室、诊断等
+- `deviceCap`
+  床旁监护时间序列
+- `drugExe`
+  药物执行记录
+- `VI_ICU_EXAM_ITEM`
+  检验结果
+- `score / score_records`
+  量表与护理评估
+- `alert_records`
+  扫描器产出的预警记录
+
+#### 5.1.2 有效患者范围
+
+Analytics 与患者总览默认围绕“active patient”查询，依赖 `active_patient_query()` 生成筛选条件。
+
+#### 5.1.3 序列化规则
+
+- 统一通过 `serialize_doc()` 输出 Mongo 文档
+- 对 `None` 的处理已修正为保留 `null`，不再错误转成 `{}`
+- 路由返回涉及嵌套对象时使用 `_serialize_nullable()` 或 `serialize_doc()` 处理
+
+#### 5.1.4 严重度口径
+
+系统内部常见严重度顺序：
+
+- `none = 0`
+- `normal = 1`
+- `warning = 2`
+- `high = 3`
+- `critical = 4`
+
+该顺序用于：
+
+- 床位总览最高严重度覆盖
+- 实时预警流排序
+- 抢救期过滤
+- 患者卡 alert level 叠加
+
+### 5.2 生命体征规则
+
+#### 5.2.1 规则结构
+
+生命体征不是单纯“固定阈值超限”，而是多层判断：
+
+- 绝对阈值
+- 趋势变化
+- 个体基线偏离
+- 数据质量过滤
+- 多参数联合确认
+
+#### 5.2.2 个体基线建议
+
+个体化阈值推荐由 `adaptive_threshold_advisor.py` 负责，核心思路是：
+
+- 读取患者近 `24h~72h` 生命体征分布
+- 结合诊断背景、血管活性药/镇静药状态
+- 生成“医生审核版”阈值建议
+- 状态流转为 `pending_review -> approved / rejected`
+- 默认不自动生效，必须审核后才作为个体阈值参考
+
+### 5.3 血气与酸碱分析规则
+
+当前 README 要求写明的血气规则包括：
+
+- 主酸碱紊乱识别
+- Winter 代偿判断
+- 校正阴离子间隙（corrected AG）
+- Delta-Delta
+- 乳酸校正 AG
+- 呼吸性酸碱失衡急慢性区分
+- Stewart SID 分析
+
+换句话说，系统不只是看 `pH / PaCO2 / HCO3-` 是否超界，而是做成套酸碱解释。
+
+### 5.4 综合征识别规则
+
+#### 5.4.1 Sepsis-3
+
+脓毒症相关模块包含：
+
+- qSOFA
+- SOFA 变化量（`SOFA Δ`）
+- 脓毒性休克识别
+
+前端和 Analytics 里还提供：
+
+- Sepsis 1h Bundle 合规率
+- Sepsis 相关患者筛查
+- 抢救期高风险联动
+
+#### 5.4.2 ARDS
+
+ARDS 识别口径为：
+
+- `P/F` 比值
+- `PEEP` 联动
+
+#### 5.4.3 AKI
+
+AKI 识别口径为：
+
+- KDIGO
+- 同时参考 `Cr` 与 `尿量`
+
+#### 5.4.4 DIC
+
+DIC 使用：
+
+- ISTH 评分体系
+
+#### 5.4.5 PE 与 VTE
+
+- PE：模式识别 + Wells 评分
+- VTE：预防是否落实、机械预防兜底检测、床旁/医嘱/文本联合判断
+
+### 5.5 呼吸与撤机规则
+
+系统已覆盖以下呼吸支持流程：
+
+- 呼吸机撤机评估
+- SBT 结构化记录时间线
+- 拔管后再插管高风险识别
+- 膈肌保护与呼吸力学监测
+
+#### 5.5.1 再插管风险卡
+
+前端常见字段包括：
+
+- `rr`
+- `spo2`
+- `hours_since_extubation`
+- `severity`
+- `has_alert`
+
+大屏和患者卡显示为：
+
+- 当前判断
+- 主要依据
+- 处置建议
+
+### 5.6 CRRT 规则
+
+CRRT 相关监测口径包括：
+
+- TMP 趋势
+- ACT / 枸橼酸抗凝监测
+- 剂量不足提醒
+- 滤器时长
+- `Ca_total / iCa` 比值
+- 电解质复查提醒
+
+### 5.7 抗菌药与药代规则
+
+相关模块包括：
+
+- 抗菌药优化（Antibiotic stewardship）
+- 药敏覆盖不足
+- MDRO 监测
+- ARC 风险
+- PK / TDM
+- 万古霉素 TDM 闭环
+
+当前文档中已明确的口径：
+
+- PCT 停药评估以“抗生素疗程起始后的峰值”作为基线，而不是任意单点比较
+
+### 5.8 护理与流程规则
+
+#### 5.8.1 护理评估超时提醒
+
+至少覆盖：
+
+- GCS
+- RASS
+- 疼痛评估
+- CAM-ICU
+- Braden
+
+#### 5.8.2 eCASH 闭环
+
+实时灯态包含：
+
+- Analgesia
+- Sedation
+- Delirium
+
+并衍生：
+
+- SAT 提醒
+- 苯二氮卓用药警示
+
+#### 5.8.3 Device management
+
+主要跟踪：
+
+- CVC
+- Foley
+- ETT
+
+统计维度：
+
+- 在位日
+- 必要性评估
+- 风险等级
+
+### 5.9 护理工作量预测与排班热力图规则
+
+后端接口：`GET /api/analytics/nursing-workload`
+
+#### 5.9.1 时间窗口
+
+当前支持：
+
+- `24h`
+- `7d`
+- `14d`
+- `30d`
+
+并且在路由层使用：
+
+- `window_to_hours(window, default=24)`
+- 小时数被限制在 `8 <= hours <= 24 * 30`
+
+也就是：
+
+- 最短不会低于 8 小时
+- 最长不会超过 30 天
+
+#### 5.9.2 返回内容
+
+该接口当前返回：
+
+- `summary`
+- `dept_rows`
+- `patient_rows`
+- `heatmap`
+- `timeline`
+
+因此前端“护理资源”视图可以同时展示：
+
+- 总体摘要
+- 科室维度工作量
+- 患者维度工作量
+- 排班热力图
+- 时间轴趋势
+
+### 5.10 装置热力图计算口径
+
+后端接口：`GET /api/device-risk/heatmap`
+
+#### 5.10.1 数据来源
+
+每个患者通过 `runtime.alert_engine._device_management_summary(patient)` 获取装置摘要。
+
+#### 5.10.2 风险分值映射
+
+代码中当前写死映射为：
+
+- `low -> 1`
+- `medium -> 2`
+- `high -> 3`
+
+最终形成字段：
+
+- `patient_id`
+- `bed`
+- `patient_name`
+- `device_type`
+- `line_days`
+- `risk`
+- `risk_score`
+
+### 5.11 Bundle 概览统计口径
+
+后端接口：`GET /api/bundle/overview`
+
+对每个 active patient 调用：
+
+- `runtime.alert_engine.get_liberation_bundle_status(patient)`
+
+然后把 `status.lights` 中每个灯态累加到：
+
+- `green`
+- `yellow`
+- `red`
+
+返回结构为：
+
+- `patient_count`
+- `counts.green`
+- `counts.yellow`
+- `counts.red`
+
+### 5.12 扩展场景覆盖率统计口径
+
+后端接口：`GET /api/analytics/scenario-coverage`
+
+#### 5.12.1 场景目录来源
+
+- 从 `config.yaml -> extended_scenarios` 读取场景目录
+- 用 `group / scenario / title` 组织 catalog
+
+#### 5.12.2 触发统计来源
+
+- 读取 `alert_records`
+- 过滤 `category = extended_scenarios`
+- 按 `window` 统计命中情况
+
+#### 5.12.3 输出口径
+
+- `summary.coverage_ratio = triggered_catalog_scenarios / total_catalog_scenarios`
+- `group_rows`
+  按场景组统计 catalog 数、触发数、覆盖率
+- `heatmap`
+  取 TopN 高频场景，做 group × scenario 热力矩阵
+- `top_scenarios`
+  返回场景级 `alert_count / patient_count / critical / high / warning`
+
+### 5.13 亚表型（Subphenotype）规则
+
+后端接口：`GET /api/ai/subphenotype/{patient_id}`
+
+当前实现已经从“实时历史队列聚类”优化为“原型中心快速软聚类”，核心特点：
+
+- 使用特征到原型中心的距离
+- 用 softmax 形成软分群概率
+- 当前实测从约 `125s` 降到约 `1.4s`
+
+这意味着它更适合作为临床页面实时接口，不再是离线分析专用。
+
+### 5.14 What-if / 反事实模拟规则
+
+后端接口：`POST /api/ai/what-if/{patient_id}`
+
+当前依赖：
+
+- `SemiMechanisticCounterfactualModel`
+
+定位是：
+
+- 输入干预假设
+- 输出干预后的趋势/结局方向变化
+- 给数字孪生页和 MDT 提供可视化模拟能力
+
+### 5.15 相似病例规则
+
+后端接口：`GET /api/patients/{patient_id}/similar-case-outcomes`
+
+增强版 Similar Case Review 目前是：
+
+- 诊断 embedding
+- 余弦相似度匹配
+- Top-K 相似病例结局统计
+- ICU 天数 / 呼吸机天数 / 转归信息
+- 可叠加 LLM 做结构化总结
 
 ---
 
-## 最近一轮重点更新
+## 6. AI 能力说明
 
-### 抢救期决策支持升级
-- 新增 **综合预警卡 / 抢救期风险卡**，支持在同一张卡片上展示：
-  - 当前判断
-  - 2~3 条关键证据 chips
-  - 医嘱式建议
-  - 微型上下文快照
-- 新增 **clinical_chain / aggregated_groups**，把“多个离散预警”聚合成更接近临床思维的一件事
-- BigScreen、PatientOverview、PatientDetail 全部统一成 ICU 中控皮肤
+### 6.1 直接可见的 AI 功能
 
-### 临床准确性
-- 血气解读新增：
-  - 呼吸性酸碱失衡急/慢性区分
-  - Stewart SID 分析
-- 血糖 CV 改为 **样本标准差（N-1）**
-- PCT 停药评估改为以 **抗生素疗程起始后峰值** 为基线
-- CAM-ICU 阳性可直接触发 **critical**
-- 开始支持 **个体基线**、**数据质量过滤**、**多参数联合确认**
+- 交班摘要（handoff summary）
+- 规则推荐（rule recommendations）
+- 风险预测（risk forecast）
+- 主动管理建议（proactive management）
+- 临床推理（clinical reasoning）
+- 因果分析（causal analysis）
+- 护理文本信号（nursing note signals）
+- What-if 干预模拟
+- 亚表型分析
+- 多智能体协作
+- 系统面板 / 文书生成 / MDT 工作区
+- 检验摘要
 
-### 监测增强
-- CRRT 新增滤器时长、枸橼酸蓄积风险、电解质复查提醒
-- VTE 机械预防检测扩大到床旁、医嘱、文本兜底
-- 转出评估支持主动扫描推送
-- 尿量/出量查询增加 **code 不匹配时的 fallback**
-- 新增：
-  - 心脏骤停前高风险
-  - PE 检测
-  - 术后并发症监测
-  - eCASH 闭环
-  - ICU-AW 风险与早期活动建议
-  - SBT 结构化记录与再插管风险
+### 6.2 AI 运行韧性
 
-### AI / 检索 / 监控
-- RAG 新增医学同义词扩展
-- AI Monitor 支持 token usage、聚合统计、阈值告警
-- 新增接口：`GET /api/ai/monitor/summary`
-- AI 解释升级为 `summary / evidence / suggestion`
-- 支持 fallback model / circuit breaker / 降级状态灯
-- 风险曲线升级为 **历史风险 + 未来预测 + 阈值带 / 高危阴影区 / 器官分层风险**
-- 新增 **AI 归因摘要**：结合近期报警、vitals、labs、护理记录/计划做共同根因归纳
-- 新增 **个性化报警阈值建议**：医生审核后可供生命体征模块读取
-- Similar Case Review 升级为 **embedding 匹配 + LLM 结局解读**，并增加接口失败时的前后端降级
+代码和现有文档里已体现：
 
-### 安全与工程
-- CORS 从 `*` 改为白名单
-- WebSocket 新增鉴权
-- 扫描任务错峰启动
-- 新增全局并发控制
-- 补充单元测试
-- 前端自动刷新改为 **静默刷新**，降低整页闪屏
-
-### 前端
-- 持续进行首屏与大包体积优化
-- PatientOverview / BigScreen / App 壳层 / router 首屏 chunk 已继续拆分与懒加载
-- 新增：
-  - Similar Cases tab
-  - SBT Timeline tab
-  - BigScreen 抢救期筛选
-  - Analytics 抢救期快筛
-  - PatientDetail hero 红色风险结论条
-  - AI 归因摘要卡片
-  - 个性化阈值审核卡片、审核弹窗、默认阈值偏移对比、当前生效版本提示
-  - AI timeout / 429 / circuit breaker 的软降级提示，避免整页报错
+- fallback model
+- circuit breaker
+- 调用 hash / latency / success 监控
+- token usage 统计
+- 前端降级提示
+- Similar Case / PatientDetail / BigScreen 超时降级
 
 ---
 
-## 快速开始
+## 7. 对外 API 清单
 
-## 1. 环境准备
+以下为当前主要接口路径。
 
-- Python 3.11+
-- Node.js 18+
-- MongoDB 4.4+
-- Redis（可选）
+### 7.1 系统与基础
 
-## 2. 后端启动
-
-```bash
-cd backend
-copy .env.example .env
-pip install -r requirements.txt
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-## 3. 前端启动
-
-```bash
-cd frontend
-npm install
-npm run dev -- --host 0.0.0.0 --port 5173
-```
-
-## 4. Windows 一键脚本
-
-- `run-dev.bat`：前后端 + 自动安装依赖
-- `run-dev-fast.bat`：快速启动
-- `run-dev-open.bat`：快速启动并自动打开浏览器
-
----
-
-## 配置说明
-
-### 环境变量
-
-见 `backend/.env.example`，核心包括：
-
-- 数据库：`SMARTCARE_DB_*`、`DATACENTER_DB_*`
-- Redis：`REDIS_HOST` / `REDIS_PORT`
-- LLM：`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`
-- 安全：`SECRET_KEY`
-- 可选：
-  - `CORS_ALLOWED_ORIGINS`
-  - `WEBSOCKET_TOKENS`
-  - `WEBSOCKET_REQUIRE_TOKEN`
-
-### YAML 业务配置
-
-主配置文件：`backend/config.yaml`
-
-可配置内容包括：
-- 监护参数编码映射
-- 检验项识别
-- 药物关键词
-- 扫描周期
-- Bundle/VTE/CRRT/营养/转出评估阈值
-- RAG 同义词映射
-- AI monitor 阈值
-
----
-
-## 主要接口
-
-### 基础接口
 - `GET /health`
 - `GET /api/departments`
 - `GET /api/patients`
-- `GET /api/patients/{id}`
-- `GET /api/patients/{id}/alerts`
+- `GET /api/patients/{patient_id}`
+
+### 7.2 患者数据
+
+- `GET /api/patients/{patient_id}/vitals`
+- `GET /api/patients/{patient_id}/labs`
+- `GET /api/patients/{patient_id}/vitals/trend`
+- `GET /api/patients/{patient_id}/drugs`
+- `GET /api/patients/{patient_id}/assessments`
+- `GET /api/patients/{patient_id}/alerts`
+- `GET /api/patients/{patient_id}/bedcard`
+
+### 7.3 患者流程与阈值
+
+- `POST /api/patients/bundle-status`
+- `GET /api/patients/{patient_id}/discharge-readiness`
+- `GET /api/patients/{patient_id}/similar-case-outcomes`
+- `GET /api/patients/{patient_id}/personalized-thresholds`
+- `GET /api/patients/{patient_id}/personalized-thresholds/history`
+- `POST /api/patients/{patient_id}/personalized-thresholds/{record_id}/review`
+- `GET /api/personalized-thresholds/review-center`
+- `GET /api/patients/{patient_id}/ecash-status`
+- `GET /api/patients/{patient_id}/sepsis-bundle-status`
+- `GET /api/patients/{patient_id}/weaning-status`
+- `GET /api/patients/{patient_id}/sbt-records`
+
+### 7.4 告警与 Analytics
+
 - `GET /api/alerts/recent`
 - `GET /api/alerts/stats`
+- `GET /api/bundle/overview`
+- `GET /api/device-risk/heatmap`
+- `GET /api/analytics/nursing-workload`
+- `GET /api/analytics/scenario-coverage`
+- `GET /api/analytics/sepsis-bundle/compliance`
+- `GET /api/analytics/weaning-summary`
+- `GET /api/alerts/analytics/frequency`
+- `GET /api/alerts/analytics/heatmap`
+- `GET /api/alerts/analytics/rankings`
 
-### 患者详情
-- `GET /api/patients/{id}/vitals`
-- `GET /api/patients/{id}/vitals/trend`
-- `GET /api/patients/{id}/labs`
-- `GET /api/patients/{id}/drugs`
-- `GET /api/patients/{id}/assessments`
-- `GET /api/patients/{id}/weaning-status`
-- `GET /api/patients/{id}/sbt-records`
-- `GET /api/patients/{id}/similar-case-outcomes`
-- `GET /api/patients/{id}/ecash-status`
-- `GET /api/patients/{id}/personalized-thresholds`
-- `GET /api/patients/{id}/personalized-thresholds/history`
-- `POST /api/patients/{id}/personalized-thresholds/{record_id}/review`
-- `GET /api/patients/{id}/discharge-readiness`
+### 7.5 AI 接口
 
-### AI / 知识库
-- `GET /api/patients/{id}/handoff-summary`
-- `GET /api/ai/lab-summary/{id}`
-- `GET /api/ai/rule-recommendations/{id}`
-- `GET /api/ai/risk-forecast/{id}`
+- `GET /api/patients/{patient_id}/handoff-summary`
 - `POST /api/ai/feedback`
+- `GET /api/ai/feedback/summary`
 - `GET /api/ai/monitor/summary`
-- `GET /api/knowledge/status`
-- `GET /api/knowledge/documents`
-- `GET /api/knowledge/documents/{doc_id}`
+- `GET /api/ai/rule-recommendations/{patient_id}`
+- `GET /api/ai/risk-forecast/{patient_id}`
+- `GET /api/ai/proactive-management/{patient_id}`
+- `POST /api/ai/proactive-management/{patient_id}/interventions/{intervention_id}/feedback`
+- `GET /api/ai/clinical-reasoning/{patient_id}`
+- `POST /api/ai/causal-analysis/{patient_id}`
+- `GET /api/ai/intervention-effects`
+- `GET /api/ai/nursing-note-signals/{patient_id}`
+- `POST /api/ai/what-if/{patient_id}`
+- `GET /api/ai/subphenotype/{patient_id}`
+- `GET /api/ai/multi-agent/{patient_id}`
+- `GET /api/ai/system-panels/{patient_id}`
+- `POST /api/ai/documents/{patient_id}`
+- `GET /api/ai/mdt-workspace/{patient_id}`
+- `POST /api/ai/mdt-workspace/{patient_id}`
+- `GET /api/ai/lab-summary/{patient_id}`
+
+### 7.6 知识库接口
+
 - `GET /api/knowledge/chunks/{chunk_id}`
+- `GET /api/knowledge/documents`
+- `GET /api/knowledge/status`
+- `GET /api/knowledge/documents/{doc_id}`
 - `POST /api/knowledge/reload`
 
-### WebSocket
-- `WS /ws/alerts`
-
-> 若启用 WebSocket token 鉴权，请通过 `Authorization: Bearer <token>`、`x-ws-token` 或 query 参数传入。
-
 ---
 
-## 测试
+## 8. 运行与开发
 
-后端测试：
+### 8.1 后端启动
 
-```bash
+```powershell
 cd backend
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-语法检查：
+### 8.2 扫描 Worker 启动
 
-```bash
+```powershell
 cd backend
-.\.venv\Scripts\python.exe -m compileall app
+python run_scan_worker.py
+```
+
+或：
+
+```powershell
+cd backend
+python -m app.scan_worker
+```
+
+### 8.3 前端启动
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+### 8.4 前端构建
+
+```powershell
+cd frontend
+npm run build
 ```
 
 ---
 
-## 部署建议
+## 9. 推荐验收路径
 
-- 生产环境务必修改 `SECRET_KEY`
-- 建议配置 `CORS_ALLOWED_ORIGINS`
-- 若前端通过 WebSocket 接入，建议配置 `WEBSOCKET_TOKENS`
-- 建议为 MongoDB 中 `alert_records`、`score_records`、`ai_monitor_logs` 等集合建立索引（系统已自动创建部分）
-- 医院落地前建议先校准：
-  - bedside / deviceCap 参数编码
-  - 药品命名习惯
-  - 检验项目命名与单位
+### 9.1 页面验收
+
+1. 打开 `/`
+   检查患者总览、告警卡、床位筛选、风险层级。
+2. 打开 `/patient/:id`
+   检查趋势、检验、相似病例、数字孪生、AI 标签页。
+3. 打开 `/bigscreen`
+   检查实时预警、床位卡、统计图、图表 tooltip 与 legend。
+4. 打开 `/analytics?section=nursing`
+   检查护理工作量预测与排班热力图。
+5. 打开 `/mdt`
+   检查 MDT 协作页、数字孪生联动。
+
+### 9.2 接口验收
+
+至少建议抽查：
+
+- `/health`
+- `/api/alerts/recent`
+- `/api/device-risk/heatmap`
+- `/api/analytics/nursing-workload?window=24h`
+- `/api/ai/nursing-note-signals/{patient_id}`
+- `/api/ai/what-if/{patient_id}`
+- `/api/ai/subphenotype/{patient_id}`
 
 ---
 
-## 仓库说明
+## 10. 最近已落地的重要实现
 
-- 后端：`backend/`
-- 前端：`frontend/`
-- 启动脚本：根目录 `run-dev*.bat`
+### 10.1 护理与病区运营
 
-如需继续扩展本地院内版本，可优先从以下入口调整：
+- 新增护理文本分析能力
+- 新增护理工作量预测与排班热力图
+- Analytics 已支持 `24h / 7d / 14d / 30d` 窗口
 
-- 规则与阈值：`backend/config.yaml`
-- 规则实现：`backend/app/alert_engine/`
-- API：`backend/app/main.py`
-- 前端页面：`frontend/src/`
+### 10.2 运行时修复
+
+- `/api/analytics/nursing-workload` 返回序列化问题已修复
+- `serialize_doc(None)` 不再错误返回 `{}`
+- 亚表型接口已从重计算优化为原型中心快速软聚类
+
+### 10.3 大屏与前端
+
+- 护士站大屏已完成中文化与重排
+- 右侧统计卡、左侧实时预警、中间床位卡的视觉语言已统一
+- 大屏图表 tooltip / legend / 语义色已统一到整页风格
+
+---
+
+## 11. 维护建议
+
+如果后续继续扩展，建议同步维护以下文档项：
+
+- 新增 scanner 时，把它补到“已注册扫描器”列表
+- 新增 Analytics 指标时，把“计算口径”补到第 5 节
+- 新增 AI 接口时，把路由补到第 7 节
+- 若某项规则存在“审核后生效”或“前端降级”逻辑，必须在 README 明写
+
+---
+
+## 12. 一句话总结
+
+这不是一个单纯的“ICU 看板”，而是一套围绕 ICU 抢救、治疗过程、护理闭环、AI 辅助和病区运营搭建的综合智能预警系统；当前代码已经同时覆盖了床旁、病区、Analytics、MDT、数字孪生和 AI 工作流。

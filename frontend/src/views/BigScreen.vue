@@ -3,16 +3,21 @@
     <header class="screen-header">
       <div class="header-main">
         <div class="title">
-          <span class="title-tag">重症监护</span>
-          护士站监控大屏
+          <span class="title-tag">ICU Command</span>
+          ICU 主任 / 护士长指挥大屏
         </div>
-        <div class="header-sub">重症监护中央监测指挥台</div>
+        <div class="header-sub">抢救、流程、人力与装置风险统一驾驶舱</div>
+        <div class="header-context-row">
+          <span class="header-context-chip">当前范围 {{ scopeLabel }}</span>
+          <span class="header-context-chip">High / Critical {{ severeAlertCount }}</span>
+          <span class="header-context-chip">抢救期床位 {{ rescuePatientCount }}</span>
+        </div>
         <div class="header-filters">
           <button
             :class="['header-filter-chip', { active: rescueOnly }]"
             @click="rescueOnly = !rescueOnly"
           >
-            🚨 仅看抢救期风险
+            抢救期快筛
             <b>{{ rescuePatientCount }}</b>
           </button>
         </div>
@@ -23,8 +28,12 @@
           <strong>{{ filteredPatients.length }}</strong>
         </div>
         <div class="kpi-chip">
-          <span class="kpi-label">危急预警</span>
+          <span class="kpi-label">危急床位</span>
           <strong>{{ filteredCriticalPatientCount }}</strong>
+        </div>
+        <div class="kpi-chip">
+          <span class="kpi-label">导管高风险</span>
+          <strong>{{ highDeviceRiskCount }}</strong>
         </div>
         <div class="kpi-chip">
           <span class="kpi-label">{{ rescueOnly ? '抢救期告警' : '实时告警' }}</span>
@@ -33,6 +42,50 @@
       </div>
       <div class="clock">{{ currentTime }}</div>
     </header>
+
+    <section class="command-strip">
+      <article v-for="item in commandKpis" :key="item.label" :class="['command-card', item.tone ? `command-card--${item.tone}` : '']">
+        <span class="command-card__label">{{ item.label }}</span>
+        <strong class="command-card__value">{{ item.value }}</strong>
+        <span class="command-card__meta">{{ item.meta }}</span>
+      </article>
+    </section>
+
+    <section class="ops-board">
+      <article class="ops-lane">
+        <div class="ops-lane__head">
+          <div>
+            <div class="ops-lane__kicker">Director Focus</div>
+            <div class="ops-lane__title">ICU 主任关注</div>
+          </div>
+          <span class="ops-lane__badge">流程 / 风险 / 负荷</span>
+        </div>
+        <div class="ops-lane__list">
+          <div v-for="item in directorFocusRows" :key="item.label" class="ops-item">
+            <div class="ops-item__label">{{ item.label }}</div>
+            <div class="ops-item__value">{{ item.value }}</div>
+            <div class="ops-item__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="ops-lane ops-lane--nurse">
+        <div class="ops-lane__head">
+          <div>
+            <div class="ops-lane__kicker">Head Nurse Focus</div>
+            <div class="ops-lane__title">护士长关注</div>
+          </div>
+          <span class="ops-lane__badge">交班 / 装置 / 床旁执行</span>
+        </div>
+        <div class="ops-lane__list">
+          <div v-for="item in nurseFocusRows" :key="item.label" class="ops-item">
+            <div class="ops-item__label">{{ item.label }}</div>
+            <div class="ops-item__value">{{ item.value }}</div>
+            <div class="ops-item__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </article>
+    </section>
 
     <section class="screen-body">
       <aside class="panel panel-left">
@@ -120,6 +173,101 @@ const filteredCriticalPatientCount = computed(() =>
   filteredPatients.value.filter((p: any) => p.alertLevel === 'critical').length
 )
 
+const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全院 ICU')
+const severeAlertCount = computed(() =>
+  filteredAlerts.value.filter((a: any) => ['high', 'critical'].includes(String(a?.severity || '').toLowerCase())).length
+)
+const highDeviceRiskCount = computed(() =>
+  deviceHeatRows.value.filter((row: any) => {
+    const risk = String(row?.risk || '').toLowerCase()
+    const score = Number(row?.risk_score || 0)
+    return risk === 'high' || risk === 'critical' || score >= 2
+  }).length
+)
+const postExtubationRiskCount = computed(() =>
+  filteredPatients.value.filter((p: any) => p?.postExtubationRisk?.has_alert).length
+)
+const bundleWatchCount = computed(() => Number(bundleCounts.value?.yellow || 0) + Number(bundleCounts.value?.red || 0))
+const topAlertLabel = computed(() => {
+  const map = new Map<string, number>()
+  filteredAlerts.value.forEach((row: any) => {
+    const key = String(row?.name || row?.alert_type || row?.rule_id || '未知事件').trim()
+    if (!key) return
+    map.set(key, (map.get(key) || 0) + 1)
+  })
+  const top = [...map.entries()].sort((a, b) => b[1] - a[1])[0]
+  return top ? `${top[0]} · ${top[1]} 次` : '暂无高频事件'
+})
+const deptPressureLabel = computed(() => {
+  const map = new Map<string, number>()
+  filteredPatients.value.forEach((row: any) => {
+    const key = String(row?.hisDept || row?.dept || '未知科室').trim()
+    map.set(key, (map.get(key) || 0) + 1)
+  })
+  const top = [...map.entries()].sort((a, b) => b[1] - a[1])[0]
+  return top ? `${top[0]} · ${top[1]} 床` : '暂无科室压力数据'
+})
+const commandKpis = computed(() => [
+  {
+    label: '危急床位',
+    value: `${filteredCriticalPatientCount.value}`,
+    meta: rescueOnly.value ? '当前抢救期视图内的危急床位' : '全视图内 alertLevel = critical 的床位',
+    tone: 'risk',
+  },
+  {
+    label: 'Bundle 待跟进',
+    value: `${bundleWatchCount.value}`,
+    meta: `${Number(bundleCounts.value?.red || 0)} 床高风险，${Number(bundleCounts.value?.yellow || 0)} 床待闭环`,
+    tone: 'bundle',
+  },
+  {
+    label: '装置高风险',
+    value: `${highDeviceRiskCount.value}`,
+    meta: '导管风险热力图中高风险床位数',
+    tone: 'amber',
+  },
+  {
+    label: '拔管后高风险',
+    value: `${postExtubationRiskCount.value}`,
+    meta: '需要护士长交班重点盯防的床位',
+    tone: 'cyan',
+  },
+])
+const directorFocusRows = computed(() => [
+  {
+    label: '流程压点',
+    value: topAlertLabel.value,
+    meta: '先看最近高频规则，决定今日质控与值班抽查重点。',
+  },
+  {
+    label: '科室压力',
+    value: deptPressureLabel.value,
+    meta: '当前床位最密集的科室，可联动护理和装置风险下钻。',
+  },
+  {
+    label: '抢救负荷',
+    value: `${rescuePatientCount.value} 床 / ${severeAlertCount.value} 条高危告警`,
+    meta: rescueOnly.value ? '已锁定抢救期视图，可直接做床位调度。' : '建议结合抢救期快筛判断是否需要切换到高风险模式。',
+  },
+])
+const nurseFocusRows = computed(() => [
+  {
+    label: '交班盯防',
+    value: `${postExtubationRiskCount.value} 床拔管后高风险`,
+    meta: '优先安排连续观察、氧疗升级与呼吸功复评。',
+  },
+  {
+    label: '装置巡视',
+    value: `${highDeviceRiskCount.value} 处导管高风险`,
+    meta: '建议优先查在位天数长、风险评分高的床位。',
+  },
+  {
+    label: '实时队列',
+    value: `${showAlerts.value.length} 条滚动事件`,
+    meta: '左侧事件流可直接配合床位网格进行处置追踪。',
+  },
+])
+
 const showAlerts = computed(() => {
   const n = 8
   const list = filteredAlerts.value
@@ -129,12 +277,53 @@ const showAlerts = computed(() => {
 })
 
 const deptOption = computed(() => {
-  const data = depts.value.map(d => ({ name: d.dept, value: d.patientCount }))
+  const data = depts.value.map((d, idx) => ({
+    name: d.dept,
+    value: d.patientCount,
+    itemStyle: {
+      color: ['#3dd9f5', '#34d399', '#fbbf24', '#fb923c', '#fb7185', '#818cf8'][idx % 6],
+    },
+  }))
+  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
   const hasData = data.length > 0
   return {
     backgroundColor: 'transparent',
-    tooltip: icuTooltip({ trigger: 'item' }),
-    graphic: hasData ? [] : [
+    tooltip: icuTooltip({
+      trigger: 'item',
+      formatter: (params: any) => `${params.name}<br/>当前床位 <b>${params.value || 0}</b> 床`,
+    }),
+    graphic: hasData ? [
+      {
+        type: 'group',
+        left: 'center',
+        top: '40%',
+        children: [
+          {
+            type: 'text',
+            left: 'center',
+            top: 0,
+            style: {
+              text: String(total),
+              fill: '#effcff',
+              fontSize: 22,
+              fontWeight: 700,
+              textAlign: 'center',
+            },
+          },
+          {
+            type: 'text',
+            left: 'center',
+            top: 26,
+            style: {
+              text: '在院床位',
+              fill: '#7ccfe4',
+              fontSize: 10,
+              textAlign: 'center',
+            },
+          },
+        ],
+      },
+    ] : [
       {
         type: 'text',
         left: 'center',
@@ -149,51 +338,62 @@ const deptOption = computed(() => {
     series: [
       {
         type: 'pie',
-        radius: ['40%', '70%'],
+        radius: ['48%', '72%'],
+        center: ['50%', '46%'],
         data,
         label: {
           color: '#dffbff',
           fontSize: 10,
-          formatter: '{b} {c}',
+          formatter: '{b}\n{c}床',
         },
-        labelLine: { lineStyle: { color: '#4fb6db' }, length: 8, length2: 6 },
-        itemStyle: { borderColor: '#04111b', borderWidth: 2 },
+        labelLine: { lineStyle: { color: 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
+        itemStyle: { borderColor: '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
       }
     ],
   }
 })
-
 const alertTrendOption = computed(() => {
   const xs = trendSeries.value.map(s => s.time)
   return {
     backgroundColor: 'transparent',
-    tooltip: icuTooltip({ trigger: 'axis' }),
-    legend: icuLegend(),
-    grid: icuGrid({ left: 36, right: 12, top: 28, bottom: 30 }),
+    tooltip: icuTooltip({
+      trigger: 'axis',
+      formatter: (params: any[]) => {
+        const lines = (params || []).map((item) => `${item.marker}${item.seriesName} <b>${item.value || 0}</b> 次`)
+        return [`<div style="margin-bottom:4px;color:#9edff0;">${params?.[0]?.axisValue || '--'}</div>`, ...lines].join('<br/>')
+      },
+    }),
+    legend: icuLegend({ top: 2 }),
+    grid: icuGrid({ left: 36, right: 12, top: 36, bottom: 30 }),
     xAxis: icuCategoryAxis(xs),
     yAxis: icuValueAxis(),
     series: [
-      { name: '预警', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, itemStyle: { color: '#fbbf24' }, data: trendSeries.value.map(s => s.warning || 0) },
-      { name: '高危', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, itemStyle: { color: '#fb923c' }, data: trendSeries.value.map(s => s.high || 0) },
-      { name: '危急', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb5a7a' }, itemStyle: { color: '#fb5a7a' }, data: trendSeries.value.map(s => s.critical || 0) },
+      { name: '预警', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, areaStyle: { color: 'rgba(251,191,36,.12)' }, itemStyle: { color: '#fbbf24' }, data: trendSeries.value.map(s => s.warning || 0) },
+      { name: '高危', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, areaStyle: { color: 'rgba(251,146,60,.1)' }, itemStyle: { color: '#fb923c' }, data: trendSeries.value.map(s => s.high || 0) },
+      { name: '危急', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb5a7a' }, areaStyle: { color: 'rgba(251,90,122,.1)' }, itemStyle: { color: '#fb5a7a' }, data: trendSeries.value.map(s => s.critical || 0) },
     ],
   }
 })
 
 const bundleOption = computed(() => ({
   backgroundColor: 'transparent',
-  tooltip: icuTooltip({ trigger: 'item' }),
+  tooltip: icuTooltip({
+    trigger: 'item',
+    formatter: (params: any) => `${params.name}状态<br/>当前占比 <b>${params.value || 0}</b>`,
+  }),
   series: [
     {
       type: 'pie',
-      radius: ['40%', '68%'],
+      radius: ['46%', '70%'],
+      center: ['50%', '46%'],
       data: [
-        { name: '绿色', value: bundleCounts.value.green || 0, itemStyle: { color: '#22c55e' } },
-        { name: '黄色', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#f59e0b' } },
-        { name: '红色', value: bundleCounts.value.red || 0, itemStyle: { color: '#ef4444' } },
+        { name: '达标', value: bundleCounts.value.green || 0, itemStyle: { color: '#22c55e' } },
+        { name: '待跟进', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#f59e0b' } },
+        { name: '高风险', value: bundleCounts.value.red || 0, itemStyle: { color: '#ef4444' } },
       ],
-      label: { color: '#dffbff', fontSize: 10, formatter: '{b} {c}' },
-      itemStyle: { borderColor: '#04111b', borderWidth: 2 },
+      label: { color: '#dffbff', fontSize: 10, formatter: '{b}\n{c}' },
+      labelLine: { lineStyle: { color: 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
+      itemStyle: { borderColor: '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
     },
   ],
 }))
@@ -222,10 +422,10 @@ const deviceHeatmapOption = computed(() => {
         )
         if (!row) return ''
         const deviceLabel = deviceKeyMap[String(row.device_type || '')] || String(row.device_type || '装置')
-        return `${row.bed}床 ${deviceLabel}<br/>风险等级 ${row.risk}<br/>在位 ${row.line_days || 0} 天`
+        return `<div style="margin-bottom:4px;color:#9edff0;">${row.bed}床 · ${deviceLabel}</div>风险等级 <b>${row.risk}</b><br/>在位天数 <b>${row.line_days || 0}</b> 天`
       },
     }),
-    grid: icuGrid({ left: 54, right: 14, top: 20, bottom: 38 }),
+    grid: icuGrid({ left: 54, right: 14, top: 20, bottom: 42 }),
     xAxis: icuCategoryAxis(devices, { axisLabel: { color: '#8fd4e6', fontSize: 10 } }),
     yAxis: icuCategoryAxis(beds, { axisLabel: { color: '#8fd4e6', fontSize: 10 } }),
     visualMap: {
@@ -235,10 +435,11 @@ const deviceHeatmapOption = computed(() => {
       left: 'center',
       bottom: 0,
       calculable: false,
-      inRange: { color: ['#0a2234', '#0e8ca1', '#3ee7c0', '#f59e0b', '#fb5a7a'] },
+      text: ['高风险', '低风险'],
+      inRange: { color: ['#0b2538', '#0e7490', '#34d399', '#f59e0b', '#fb5a7a'] },
       textStyle: { color: '#8fd4e6', fontSize: 10 },
     },
-    series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 6, borderColor: 'rgba(88,225,255,.08)', borderWidth: 1 } }],
+    series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 8, borderColor: 'rgba(88,225,255,.08)', borderWidth: 1 } }],
   }
 })
 
@@ -563,6 +764,141 @@ watch(() => route.query, () => {
   background: rgba(6, 21, 34, 0.76);
   border: 1px solid rgba(80, 199, 255, 0.12);
 }
+.header-context-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+.header-context-chip,
+.header-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: rgba(8, 28, 44, 0.78);
+  color: #dffbff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.header-filter-chip {
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.command-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+.command-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(80,199,255,.14);
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.08), rgba(34,211,238,0) 34%),
+    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.05), 0 12px 28px rgba(0,0,0,.2);
+}
+.command-card--risk { border-color: rgba(251,113,133,.18); }
+.command-card--bundle { border-color: rgba(74,222,128,.18); }
+.command-card--amber { border-color: rgba(251,191,36,.18); }
+.command-card--cyan { border-color: rgba(56,189,248,.18); }
+.command-card__label {
+  color: #7ecce1;
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.command-card__value {
+  color: #effcff;
+  font-size: 28px;
+  line-height: 1;
+}
+.command-card__meta {
+  color: #8fb8ca;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ops-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 16px 0;
+}
+.ops-lane {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.18);
+}
+.ops-lane--nurse { border-color: rgba(74,222,128,.16); }
+.ops-lane__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ops-lane__kicker {
+  color: #6ea9bc;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.ops-lane__title {
+  color: #effcff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.ops-lane__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: rgba(8,28,44,.8);
+  color: #9ae8f7;
+  font-size: 10px;
+}
+.ops-lane__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.ops-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(8, 28, 44, 0.78);
+  border: 1px solid rgba(80,199,255,.12);
+}
+.ops-item__label {
+  color: #7ecce1;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.ops-item__value {
+  color: #effcff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.ops-item__meta {
+  color: #8fb8ca;
+  font-size: 11px;
+  line-height: 1.5;
+}
 .screen-body {
   display: grid;
   grid-template-columns: 1.45fr 2.85fr 1.25fr;
@@ -617,7 +953,142 @@ watch(() => route.query, () => {
 }
 
 @media (max-width: 1100px) {
-  .screen-body {
+  .header-context-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+.header-context-chip,
+.header-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: rgba(8, 28, 44, 0.78);
+  color: #dffbff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.header-filter-chip {
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.command-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+.command-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(80,199,255,.14);
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.08), rgba(34,211,238,0) 34%),
+    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.05), 0 12px 28px rgba(0,0,0,.2);
+}
+.command-card--risk { border-color: rgba(251,113,133,.18); }
+.command-card--bundle { border-color: rgba(74,222,128,.18); }
+.command-card--amber { border-color: rgba(251,191,36,.18); }
+.command-card--cyan { border-color: rgba(56,189,248,.18); }
+.command-card__label {
+  color: #7ecce1;
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.command-card__value {
+  color: #effcff;
+  font-size: 28px;
+  line-height: 1;
+}
+.command-card__meta {
+  color: #8fb8ca;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ops-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 16px 0;
+}
+.ops-lane {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.18);
+}
+.ops-lane--nurse { border-color: rgba(74,222,128,.16); }
+.ops-lane__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ops-lane__kicker {
+  color: #6ea9bc;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.ops-lane__title {
+  color: #effcff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.ops-lane__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: rgba(8,28,44,.8);
+  color: #9ae8f7;
+  font-size: 10px;
+}
+.ops-lane__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.ops-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(8, 28, 44, 0.78);
+  border: 1px solid rgba(80,199,255,.12);
+}
+.ops-item__label {
+  color: #7ecce1;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.ops-item__value {
+  color: #effcff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.ops-item__meta {
+  color: #8fb8ca;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.screen-body {
     grid-template-columns: 1fr;
   }
   .screen-header {
@@ -627,11 +1098,16 @@ watch(() => route.query, () => {
     order: 3;
     width: 100%;
   }
+  .command-strip {
+    padding-top: 10px;
+  }
   .header-filters {
     margin-top: 6px;
   }
 }
 </style>
+
+
 
 
 

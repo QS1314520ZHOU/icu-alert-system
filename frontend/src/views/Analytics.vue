@@ -89,6 +89,32 @@
       </button>
     </section>
 
+    <section class="brief-board">
+      <div class="brief-grid">
+        <article v-for="item in activeSectionBriefs" :key="item.label" class="brief-card">
+          <div class="brief-card__label">{{ item.label }}</div>
+          <div class="brief-card__value">{{ item.value }}</div>
+          <div class="brief-card__meta">{{ item.meta }}</div>
+        </article>
+      </div>
+      <article class="focus-panel">
+        <div class="focus-panel__head">
+          <div>
+            <div class="focus-panel__kicker">Manager Focus</div>
+            <div class="focus-panel__title">{{ activeSectionFocusTitle }}</div>
+          </div>
+          <span class="focus-panel__badge">{{ activeSectionFocusBadge }}</span>
+        </div>
+        <div class="focus-list">
+          <div v-for="item in activeSectionFocusRows" :key="item.label" class="focus-item">
+            <div class="focus-item__label">{{ item.label }}</div>
+            <div class="focus-item__value">{{ item.value }}</div>
+            <div class="focus-item__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <section v-if="analyticsSection === 'alerts'" class="analytics-grid">
       <a-card title="运营摘要" :bordered="false" class="panel panel-wide">
         <div class="insight-grid">
@@ -210,6 +236,32 @@
             <div class="insight-line__label">{{ item.label }}</div>
             <div class="insight-line__value">{{ item.value }}</div>
             <div class="insight-line__meta">{{ item.meta }}</div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-card title="AI 管理摘要卡" :bordered="false" class="panel">
+        <div class="insight-list">
+          <div class="summary-card summary-card--hero">
+            <div class="summary-card__label">管理结论</div>
+            <div class="summary-card__value">{{ sepsisAiInsight.summary || '暂无 AI 摘要' }}</div>
+            <div class="summary-card__meta">{{ sepsisAiInsight.degraded_mode ? '规则降级模式' : 'LLM 结构化输出' }}</div>
+          </div>
+          <div v-for="(item, idx) in sepsisAiManagementRows" :key="`sepsis-ai-finding-${idx}`" class="summary-card">
+            <div class="summary-card__label">管理关注 {{ Number(idx) + 1 }}</div>
+            <div class="summary-card__value summary-card__value--sm">{{ item }}</div>
+          </div>
+        </div>
+      </a-card>
+
+      <a-card title="AI 行动建议卡" :bordered="false" class="panel">
+        <div class="advice-list">
+          <div v-for="(item, idx) in sepsisAiActionRows" :key="`sepsis-ai-action-${idx}`" class="advice-card">
+            <div class="advice-card__index">0{{ Number(idx) + 1 }}</div>
+            <div class="advice-card__body">
+              <div class="advice-card__label">行动建议 {{ Number(idx) + 1 }}</div>
+              <div class="advice-card__text">{{ item }}</div>
+            </div>
           </div>
         </div>
       </a-card>
@@ -423,6 +475,7 @@ const heatmapData = ref<number[][]>([])
 const deptRankings = ref<any[]>([])
 const bedRankings = ref<any[]>([])
 const sepsisBundleCompliance = ref<any>(null)
+const sepsisBundleAiInsight = ref<any>(null)
 const weaningSummary = ref<any>(null)
 const recentAlerts = ref<any[]>([])
 const scenarioCoverageSummary = ref<any>(null)
@@ -953,6 +1006,90 @@ const activeSectionMeta = computed(() => {
   }
 })
 
+const activeSectionBriefs = computed(() => {
+  if (analyticsSection.value === 'sepsis') {
+    return [
+      { label: '月度总评', value: sepsisBundleKpi.value.rate, meta: sepsisBundleKpi.value.meta },
+      { label: '执行断点', value: `${Number(sepsisBundleCompliance.value?.overdue_1h_cases || 0)} 例超1h`, meta: '建议优先抽查抗菌药、补液、乳酸复测延迟链路。' },
+      { label: 'AI 管理结论', value: sepsisAiInsight.value?.summary || '暂无 AI 摘要', meta: sepsisAiInsight.value?.degraded_mode ? '当前为规则降级模式' : '当前为 LLM 结构化输出' },
+    ]
+  }
+  if (analyticsSection.value === 'weaning') {
+    return [
+      { label: '高风险占比', value: weaningHighRiskKpi.value.rate, meta: weaningHighRiskKpi.value.meta },
+      { label: '再插管风险', value: reintubationRiskKpi.value.rate, meta: reintubationRiskKpi.value.meta },
+      { label: '当前重点', value: `${Number(weaningSummary.value?.critical_post_extubation_patients || 0)} 例危急事件`, meta: '建议将危急拔管后事件与 SBT 失败模式联动复盘。' },
+    ]
+  }
+  if (analyticsSection.value === 'nursing') {
+    return [
+      { label: '建议护士数', value: `${Number(nursingSummary.value?.recommended_nurse_count || 0).toFixed(1)}`, meta: `向上取整 ${Number(nursingSummary.value?.recommended_nurse_ceiling || 0)} 人` },
+      { label: '护理缺口', value: `${Number(nursingSummary.value?.staffing_gap || 0).toFixed(1)} 人`, meta: `${Number(nursingSummary.value?.extreme_count || 0)} 例极高强度患者待覆盖` },
+      { label: '峰值科室', value: nursingSummary.value?.peak_dept || '暂无数据', meta: nursingSummary.value?.peak_dept ? `建议护士数 ${Number(nursingSummary.value?.peak_dept_nurse_count || 0).toFixed(1)}` : '等待护理负荷数据' },
+    ]
+  }
+  if (analyticsSection.value === 'scenarios') {
+    return [
+      { label: '场景覆盖率', value: scenarioCoverageRate.value, meta: `${Number(scenarioCoverageSummary.value?.triggered_catalog_scenarios || 0)} / ${Number(scenarioCoverageSummary.value?.total_catalog_scenarios || 0)} 场景命中` },
+      { label: '高频场景', value: scenarioTopRows.value[0]?.title || '暂无数据', meta: scenarioTopRows.value[0] ? `${scenarioTopRows.value[0].alert_count} 次命中` : '等待场景数据' },
+      { label: '场景组数', value: `${scenarioGroupRows.value.length}`, meta: '统一引擎下的扩展场景分组' },
+    ]
+  }
+  return [
+    { label: '高危占比', value: highRiskRatio.value.ratio, meta: highRiskRatio.value.meta },
+    { label: '峰值时段', value: peakSlotSummary.value.slot, meta: peakSlotSummary.value.meta },
+    { label: '高频规则', value: topRuleSummary.value.name, meta: topRuleSummary.value.meta },
+  ]
+})
+const activeSectionFocusTitle = computed(() => {
+  if (analyticsSection.value === 'sepsis') return '当班 Sepsis 质控关注'
+  if (analyticsSection.value === 'weaning') return '当班撤机管理关注'
+  if (analyticsSection.value === 'nursing') return '护士长排班关注'
+  if (analyticsSection.value === 'scenarios') return '扩展场景推进关注'
+  return '告警运营关注'
+})
+const activeSectionFocusBadge = computed(() => {
+  if (analyticsSection.value === 'sepsis') return '流程闭环'
+  if (analyticsSection.value === 'weaning') return '失败预防'
+  if (analyticsSection.value === 'nursing') return '班次负荷'
+  if (analyticsSection.value === 'scenarios') return '覆盖推进'
+  return '热区治理'
+})
+const activeSectionFocusRows = computed(() => {
+  if (analyticsSection.value === 'sepsis') {
+    return [
+      { label: '超 3h 个案', value: `${Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0) ? '建议逐例追踪是否卡在首剂抗菌药、血培养或液体复苏。' : '当前没有超 3h 个案。' },
+      { label: '在途病例', value: `${Number(sepsisBundleCompliance.value?.pending_active_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.pending_active_cases || 0) ? '交接班时应保留节点提醒，避免 1h 继续滑向 3h。' : '当前没有 active case。' },
+      { label: '管理建议', value: sepsisAiActionRows.value[0] || '暂无额外建议', meta: 'AI 建议卡可继续查看其余行动项。' },
+    ]
+  }
+  if (analyticsSection.value === 'weaning') {
+    return [
+      { label: '高风险患者', value: `${Number(weaningSummary.value?.high_risk_patients || 0)} 例`, meta: '优先回看氧合、液体负荷和血流动力学可逆因素。'},
+      { label: '拔管后风险', value: `${Number(weaningSummary.value?.reintubation_risk_patients || 0)} 例`, meta: '建议把拔管后高风险患者纳入床旁连续复评队列。'},
+      { label: '危急事件', value: `${Number(weaningSummary.value?.critical_post_extubation_patients || 0)} 例`, meta: '适合和值班、呼吸治疗、护理一起做失败模式复盘。'},
+    ]
+  }
+  if (analyticsSection.value === 'nursing') {
+    return [
+      { label: '峰值科室', value: nursingSummary.value?.peak_dept || '暂无数据', meta: nursingSummary.value?.peak_dept ? `建议护士数 ${Number(nursingSummary.value?.peak_dept_nurse_count || 0).toFixed(1)}` : '等待护理负荷汇总。' },
+      { label: '极高强度患者', value: `${Number(nursingSummary.value?.extreme_count || 0)} 例`, meta: '建议交班前先锁定极高强度患者与高压床位。' },
+      { label: '资源动作', value: `${Number(nursingSummary.value?.staffing_gap_ceiling || 0)} 人缺口`, meta: '可结合科室热力图和高强度队列调整当班排班。' },
+    ]
+  }
+  if (analyticsSection.value === 'scenarios') {
+    return [
+      { label: '推进重点', value: scenarioTopRows.value[0]?.title || '暂无数据', meta: scenarioTopRows.value[0] ? '建议先复盘命中最多、业务价值最高的场景。' : '等待场景统计。' },
+      { label: '覆盖缺口', value: `${Math.max(0, Number(scenarioCoverageSummary.value?.total_catalog_scenarios || 0) - Number(scenarioCoverageSummary.value?.triggered_catalog_scenarios || 0))} 个未命中`, meta: '适合继续补数据链路、规则映射或场景触发条件。' },
+      { label: '运营联动', value: `${Number(scenarioCoverageSummary.value?.total_alerts || 0)} 次命中`, meta: '可回到告警运营区查看这些场景在全天的热区分布。' },
+    ]
+  }
+  return [
+    { label: '热区治理', value: topRuleSummary.value.name, meta: topRuleSummary.value.meta },
+    { label: '峰值时段', value: peakSlotSummary.value.slot, meta: '建议把人力与规则治理资源投向峰值时段。' },
+    { label: rescueOnly.value ? '抢救期压力' : '高危压力', value: highRiskRatio.value.ratio, meta: highRiskRatio.value.meta },
+  ]
+})
 const activeSectionActions = computed(() => {
   if (analyticsSection.value === 'sepsis') {
     return [
@@ -1186,6 +1323,20 @@ const sepsisProgressRows = computed(() => {
     },
   ]
 })
+
+const sepsisAiInsight = computed(() => sepsisBundleAiInsight.value || {})
+const sepsisAiFindings = computed(() => Array.isArray(sepsisAiInsight.value?.key_findings) ? sepsisAiInsight.value.key_findings : [])
+const sepsisAiActions = computed(() => Array.isArray(sepsisAiInsight.value?.recommended_actions) ? sepsisAiInsight.value.recommended_actions : [])
+const sepsisAiManagementRows = computed(() => (
+  sepsisAiFindings.value.length
+    ? sepsisAiFindings.value
+    : ['当前没有结构化关键发现，建议结合月度统计继续复盘。']
+))
+const sepsisAiActionRows = computed(() => (
+  sepsisAiActions.value.length
+    ? sepsisAiActions.value
+    : ['当前没有 AI 行动建议，可先从超 1h / 超 3h 个案逐例追踪。']
+))
 
 const sepsisNarratives = computed(() => {
   const summary = sepsisBundleCompliance.value || {}
@@ -1737,6 +1888,7 @@ async function loadSepsisBundleCompliance() {
     ...(!deptCode.value && deptName.value ? { dept: deptName.value } : {}),
   })
   sepsisBundleCompliance.value = res.data.summary || null
+  sepsisBundleAiInsight.value = res.data.ai_insight || null
 }
 
 async function loadScenarioCoverage() {
@@ -2245,6 +2397,127 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.brief-board {
+  display: grid;
+  grid-template-columns: 1.8fr 1.2fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.brief-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.brief-card,
+.focus-panel {
+  border-radius: 14px;
+  border: 1px solid rgba(79, 182, 219, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 38%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.brief-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.brief-card__label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.brief-card__value {
+  color: #effcff;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.brief-card__meta {
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.focus-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.focus-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.focus-panel__kicker {
+  color: #77c9de;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.focus-panel__title {
+  color: #effcff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.focus-panel__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 232, 249, 0.14);
+  background: rgba(8, 28, 44, 0.82);
+  color: #bdf7ff;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.focus-list {
+  display: grid;
+  gap: 10px;
+}
+
+.focus-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 182, 219, 0.12);
+  background: rgba(7, 28, 42, 0.68);
+}
+
+.focus-item__label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.focus-item__value {
+  color: #effcff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.focus-item__meta {
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.55;
+}
 .insight-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -2400,11 +2673,104 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.insight-line__value--sm {
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 600;
+}
+
 .insight-line__meta {
   margin-top: 6px;
   color: #8bbfd0;
   font-size: 11px;
   line-height: 1.5;
+}
+
+.summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 182, 219, 0.12);
+  background: rgba(7, 28, 42, 0.68);
+}
+
+.summary-card--hero {
+  border-color: rgba(103, 232, 249, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.1), rgba(34, 211, 238, 0) 36%),
+    rgba(7, 28, 42, 0.8);
+}
+
+.summary-card__label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.summary-card__value {
+  color: #effcff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.summary-card__value--sm {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.summary-card__meta {
+  color: #8bbfd0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.advice-list {
+  display: grid;
+  gap: 12px;
+}
+
+.advice-card {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 182, 219, 0.12);
+  background: rgba(7, 28, 42, 0.68);
+}
+
+.advice-card__index {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  border-radius: 10px;
+  background: rgba(8, 28, 44, 0.82);
+  border: 1px solid rgba(103, 232, 249, 0.14);
+  color: #67e8f9;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+}
+
+.advice-card__body {
+  display: grid;
+  gap: 6px;
+}
+
+.advice-card__label {
+  color: #77c9de;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.advice-card__text {
+  color: #effcff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.65;
 }
 
 .rank-table {
@@ -2534,7 +2900,12 @@ onMounted(() => {
     justify-content: flex-start;
   }
 
+  .brief-board,
   .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .brief-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2577,4 +2948,6 @@ onMounted(() => {
 }
 </style>
 ```
+
+
 

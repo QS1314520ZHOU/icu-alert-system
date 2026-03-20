@@ -132,6 +132,9 @@ ai_service:
     cache_ttl_seconds: 1800
     temperature: 0.1
     max_tokens: 4096
+    circuit_breaker:
+      failure_threshold: 3
+      cooldown_seconds: 180
 
   temporal_model:
     backend: auto
@@ -1101,9 +1104,9 @@ nurse_reminders:
     assessment_after_hours: 1
     dose_change_ratio_threshold: 0.25
     adjustment_name: "BPS评估(镇痛药调整前后)"
-  delirium:  { code: "param_delirium_score",   interval_hours: 12 }
+  delirium:  { code: "param_delirium_score",   interval_hours: 12, severity: "critical", name: "谵妄评估超时" }
   braden:    { code: "param_score_braden",     interval_hours: 24, name: "BRADEN压疮风险评估超时" }
-  cam_icu:   { code: "param_delirium_score", rass_gte: -3, interval_hours: 8 }
+  cam_icu:   { code: "param_delirium_score", rass_gte: -3, interval_hours: 8, severity: "critical", name: "CAM-ICU评估超时" }
   turning:
     code: "nurse_turning"
     interval_hours: 2

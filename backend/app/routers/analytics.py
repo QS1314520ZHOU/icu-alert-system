@@ -9,15 +9,39 @@ from fastapi import APIRouter, Query
 from app import runtime
 from app.utils.alerting import (
     bucket_dt_format,
+    derive_sepsis_bundle_status,
     normalize_month_param,
     sepsis_bundle_patient_ids_by_dept_code,
     severity_projection,
     window_to_hours,
 )
+from app.utils.analytics_ai import summarize_sepsis_bundle_analytics
 from app.utils.patient_helpers import active_patient_query
 from app.utils.serialization import serialize_doc
 
 router = APIRouter()
+
+
+def _month_bounds(month_norm: str) -> tuple[datetime, datetime]:
+    month_start = datetime.strptime(f"{month_norm}-01", "%Y-%m-%d")
+    next_month = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return month_start, next_month
+
+
+def _bundle_tracker_sort_time(doc: dict) -> datetime:
+    for key in ("updated_at", "calc_time", "resolved_at", "created_at", "bundle_started_at"):
+        value = doc.get(key)
+        if isinstance(value, datetime):
+            return value
+    return datetime.min
+
+
+def _bundle_episode_key(doc: dict) -> str:
+    patient_id = str(doc.get("patient_id") or "").strip()
+    started = doc.get("bundle_started_at")
+    if isinstance(started, datetime):
+        return f"{patient_id}|{started.isoformat()}"
+    return str(doc.get("_id") or f"{patient_id}|unknown")
 
 
 @router.get("/api/bundle/overview")
@@ -233,10 +257,11 @@ async def analytics_sepsis_bundle_compliance(
     dept_code: Optional[str] = Query(None, description="科室代码"),
 ):
     month_norm = normalize_month_param(month)
+    month_start, next_month = _month_bounds(month_norm)
     query: dict = {
-        "score_type": "sepsis_antibiotic_bundle",
-        "bundle_type": "sepsis_1h_antibiotic",
-        "month": month_norm,
+        "score_type": {"$in": ["sepsis_bundle_tracker", "sepsis_antibiotic_bundle"]},
+        "bundle_type": {"$in": ["sepsis_hour1_bundle", "sepsis_1h_antibiotic"]},
+        "bundle_started_at": {"$gte": month_start, "$lt": next_month},
     }
     if dept:
         query["dept"] = dept
@@ -259,26 +284,159 @@ async def analytics_sepsis_bundle_compliance(
                 },
             }
 
-    docs = [doc async for doc in runtime.db.col("score_records").find(query)]
-    total_cases = len(docs)
-    compliant_1h_cases = sum(1 for doc in docs if doc.get("compliant_1h") is True or str(doc.get("status") or "").lower() == "met")
-    overdue_1h_cases = sum(1 for doc in docs if str(doc.get("status") or "").lower() == "overdue_1h")
-    overdue_3h_cases = sum(1 for doc in docs if str(doc.get("status") or "").lower() == "overdue_3h")
-    met_late_cases = sum(1 for doc in docs if str(doc.get("status") or "").lower() == "met_late")
-    pending_active_cases = sum(1 for doc in docs if str(doc.get("status") or "").lower() == "pending" and bool(doc.get("is_active")))
+    raw_docs = [doc async for doc in runtime.db.col("score_records").find(query)]
+    latest_by_episode: dict[str, dict] = {}
+    for doc in raw_docs:
+        key = _bundle_episode_key(doc)
+        current = latest_by_episode.get(key)
+        if current is None or _bundle_tracker_sort_time(doc) >= _bundle_tracker_sort_time(current):
+            latest_by_episode[key] = doc
+    docs = list(latest_by_episode.values())
+
+    statuses = [derive_sepsis_bundle_status(doc, now=datetime.now()) for doc in docs]
+    status_pairs = list(zip(docs, statuses))
+
+    total_cases = len(status_pairs)
+    compliant_1h_cases = sum(1 for _doc, status in status_pairs if str(status.get("status") or "") == "met")
+    overdue_1h_cases = sum(1 for _doc, status in status_pairs if str(status.get("status") or "") == "overdue_1h")
+    overdue_3h_cases = sum(1 for _doc, status in status_pairs if str(status.get("status") or "") == "overdue_3h")
+    met_late_cases = sum(1 for _doc, status in status_pairs if str(status.get("status") or "") == "met_late")
+    pending_active_cases = sum(1 for _doc, status in status_pairs if str(status.get("status") or "") == "pending")
+
+    daily_map: dict[str, dict[str, int]] = {}
+    dept_compare_map: dict[str, dict] = {}
+    element_summary: dict[str, dict[str, int]] = {}
+    recent_cases: list[dict] = []
+
+    for doc, status in status_pairs:
+        started = doc.get("bundle_started_at") if isinstance(doc.get("bundle_started_at"), datetime) else None
+        day_key = started.strftime("%Y-%m-%d") if started else month_start.strftime("%Y-%m-%d")
+        daily_row = daily_map.setdefault(
+            day_key,
+            {"date": day_key, "total_cases": 0, "compliant_1h_cases": 0, "overdue_1h_cases": 0, "overdue_3h_cases": 0, "met_late_cases": 0, "pending_cases": 0},
+        )
+        daily_row["total_cases"] += 1
+        normalized_status = str(status.get("status") or "")
+        if normalized_status == "met":
+            daily_row["compliant_1h_cases"] += 1
+        elif normalized_status == "overdue_1h":
+            daily_row["overdue_1h_cases"] += 1
+        elif normalized_status == "overdue_3h":
+            daily_row["overdue_3h_cases"] += 1
+        elif normalized_status == "met_late":
+            daily_row["met_late_cases"] += 1
+        elif normalized_status == "pending":
+            daily_row["pending_cases"] += 1
+
+        dept_name = str(doc.get("dept") or "未知科室")
+        dept_row = dept_compare_map.setdefault(
+            dept_name,
+            {
+                "dept": dept_name,
+                "total_cases": 0,
+                "compliant_1h_cases": 0,
+                "overdue_1h_cases": 0,
+                "overdue_3h_cases": 0,
+                "met_late_cases": 0,
+                "pending_cases": 0,
+            },
+        )
+        dept_row["total_cases"] += 1
+        if normalized_status == "met":
+            dept_row["compliant_1h_cases"] += 1
+        elif normalized_status == "overdue_1h":
+            dept_row["overdue_1h_cases"] += 1
+        elif normalized_status == "overdue_3h":
+            dept_row["overdue_3h_cases"] += 1
+        elif normalized_status == "met_late":
+            dept_row["met_late_cases"] += 1
+        elif normalized_status == "pending":
+            dept_row["pending_cases"] += 1
+
+        bundle_elements = doc.get("bundle_elements") if isinstance(doc.get("bundle_elements"), dict) else {}
+        for name, item in bundle_elements.items():
+            row = element_summary.setdefault(
+                str(name),
+                {"element": str(name), "required_cases": 0, "completed_cases": 0},
+            )
+            if item is None:
+                continue
+            if isinstance(item, dict) and item.get("required") is False:
+                continue
+            row["required_cases"] += 1
+            if isinstance(item, dict) and bool(item.get("completed")):
+                row["completed_cases"] += 1
+
+        recent_cases.append(
+            {
+                "patient_id": str(doc.get("patient_id") or ""),
+                "patient_name": doc.get("patient_name") or "",
+                "bed": doc.get("bed") or "",
+                "dept": doc.get("dept") or "",
+                "bundle_started_at": started,
+                "status": normalized_status,
+                "label": status.get("label"),
+                "light": status.get("light"),
+                "elapsed_minutes": status.get("elapsed_minutes"),
+                "completion_ratio": ((doc.get("bundle_summary") or {}) if isinstance(doc.get("bundle_summary"), dict) else {}).get("completion_ratio"),
+                "pending_items": ((doc.get("bundle_summary") or {}) if isinstance(doc.get("bundle_summary"), dict) else {}).get("pending_items") or [],
+                "source_rules": status.get("source_rules") or [],
+            }
+        )
+
+    daily_trend: list[dict] = []
+    cursor_day = month_start
+    while cursor_day < next_month:
+        day_key = cursor_day.strftime("%Y-%m-%d")
+        daily_trend.append(daily_map.get(day_key) or {"date": day_key, "total_cases": 0, "compliant_1h_cases": 0, "overdue_1h_cases": 0, "overdue_3h_cases": 0, "met_late_cases": 0, "pending_cases": 0})
+        cursor_day += timedelta(days=1)
+
+    dept_compare = []
+    for row in dept_compare_map.values():
+        total = int(row.get("total_cases") or 0)
+        compliant = int(row.get("compliant_1h_cases") or 0)
+        dept_compare.append(
+            {
+                **row,
+                "compliance_rate": round((compliant / total), 4) if total else 0,
+            }
+        )
+    dept_compare.sort(key=lambda item: (item.get("compliance_rate") or 0, -(item.get("overdue_3h_cases") or 0), -(item.get("total_cases") or 0)), reverse=True)
+
+    element_rows = []
+    for row in element_summary.values():
+        required_cases = int(row.get("required_cases") or 0)
+        completed_cases = int(row.get("completed_cases") or 0)
+        element_rows.append(
+            {
+                **row,
+                "completion_rate": round((completed_cases / required_cases), 4) if required_cases else 0,
+            }
+        )
+    element_rows.sort(key=lambda item: (item.get("completion_rate") or 0, item.get("required_cases") or 0))
+
+    recent_cases.sort(key=lambda item: item.get("bundle_started_at") or datetime.min, reverse=True)
+
+    analytics_payload = {
+        "month": month_norm,
+        "total_cases": total_cases,
+        "compliant_1h_cases": compliant_1h_cases,
+        "compliance_rate": round((compliant_1h_cases / total_cases), 4) if total_cases else 0,
+        "overdue_1h_cases": overdue_1h_cases,
+        "overdue_3h_cases": overdue_3h_cases,
+        "met_late_cases": met_late_cases,
+        "pending_active_cases": pending_active_cases,
+        "daily_trend": daily_trend,
+        "dept_compare": dept_compare,
+        "element_compliance": element_rows,
+        "recent_cases": recent_cases[:20],
+    }
+    ai_insight = await summarize_sepsis_bundle_analytics({"summary": analytics_payload})
 
     return {
         "code": 0,
-        "summary": {
-            "month": month_norm,
-            "total_cases": total_cases,
-            "compliant_1h_cases": compliant_1h_cases,
-            "compliance_rate": round((compliant_1h_cases / total_cases), 4) if total_cases else 0,
-            "overdue_1h_cases": overdue_1h_cases,
-            "overdue_3h_cases": overdue_3h_cases,
-            "met_late_cases": met_late_cases,
-            "pending_active_cases": pending_active_cases,
-        },
+        "summary": analytics_payload,
+        "ai_insight": ai_insight,
     }
 
 

@@ -124,9 +124,11 @@ class AiRiskMixin:
                 async with semaphore:
                     result = await self._call_ai_analysis(prompt_context, client=client)
             except Exception:
-                return False
+                result = self._build_fallback_ai_output(facts)
+                source = "heuristic_fallback"
             if not result:
-                return False
+                result = self._build_fallback_ai_output(facts)
+                source = "heuristic_fallback"
             self._write_ai_cache(pid_str, context_hash, result, cache_ttl_sec)
 
         result = self._normalize_ai_output(result, rag_hits)
@@ -184,6 +186,7 @@ class AiRiskMixin:
                 "safety_validation": validation,
                 "hallucination_flags": hallucination_flags,
                 "explainability": explainability,
+                "degraded_mode": source == "heuristic_fallback",
             },
         )
         return bool(alert)
@@ -696,6 +699,122 @@ class AiRiskMixin:
             "confidence_level": "medium",
             "top_factors": factors[:6],
             "notes": "基于LLM输出字段进行结构化提取，非模型内部注意力权重。",
+        }
+
+    def _build_fallback_ai_output(self, facts: dict[str, Any]) -> dict[str, Any]:
+        vitals = facts.get("vitals") if isinstance(facts.get("vitals"), dict) else {}
+        labs = facts.get("labs") if isinstance(facts.get("labs"), dict) else {}
+        alerts = facts.get("active_alerts") if isinstance(facts.get("active_alerts"), list) else []
+        diagnosis = str(facts.get("diagnosis") or "").strip()
+
+        def _lab_value(key: str) -> float | None:
+            row = labs.get(key)
+            return self._to_float(row.get("value")) if isinstance(row, dict) else None
+
+        hr = self._to_float(vitals.get("hr"))
+        spo2 = self._to_float(vitals.get("spo2"))
+        rr = self._to_float(vitals.get("rr"))
+        sbp = self._to_float(vitals.get("sbp"))
+        lactate = _lab_value("lactate")
+        creatinine = _lab_value("cr")
+        platelet = _lab_value("plt")
+        aki_stage = facts.get("aki_stage") if isinstance(facts.get("aki_stage"), int) else None
+
+        deterioration_signals: list[str] = []
+        recommendations: list[str] = []
+        syndromes: list[dict[str, Any]] = []
+        organ: dict[str, dict[str, Any]] = {
+            key: {"status": "normal", "evidence": "未见明确异常证据", "confidence": 0.55, "confidence_level": "medium"}
+            for key in ["respiratory", "cardiovascular", "renal", "hepatic", "coagulation", "neurological"]
+        }
+
+        risk_level = "low"
+        primary_risk = "综合风险"
+
+        if spo2 is not None and spo2 < 90:
+            organ["respiratory"] = {"status": "failure", "evidence": f"SpO2={spo2}", "confidence": 0.88, "confidence_level": "high"}
+            deterioration_signals.append(f"低氧血症: SpO2 {spo2}")
+            recommendations.append("立即复核氧合、气道与呼吸支持参数")
+            risk_level = "critical"
+            primary_risk = "呼吸衰竭"
+        elif rr is not None and rr >= 30:
+            organ["respiratory"] = {"status": "impaired", "evidence": f"RR={rr}", "confidence": 0.74, "confidence_level": "medium"}
+            deterioration_signals.append(f"呼吸频率升高: RR {rr}")
+            risk_level = "high"
+            primary_risk = "呼吸负荷"
+
+        if (sbp is not None and sbp < 90) or (lactate is not None and lactate >= 4):
+            organ["cardiovascular"] = {
+                "status": "failure" if lactate is not None and lactate >= 4 else "impaired",
+                "evidence": f"SBP={sbp}, Lactate={lactate}",
+                "confidence": 0.85,
+                "confidence_level": "high",
+            }
+            deterioration_signals.append(f"循环灌注异常: SBP={sbp}, Lactate={lactate}")
+            recommendations.append("尽快评估休克/低灌注并复核液体与血管活性药策略")
+            if risk_level != "critical":
+                risk_level = "high"
+                primary_risk = "循环不稳"
+
+        if isinstance(aki_stage, int) and aki_stage >= 2:
+            organ["renal"] = {
+                "status": "failure" if aki_stage >= 3 else "impaired",
+                "evidence": f"KDIGO AKI stage {aki_stage}",
+                "confidence": 0.84,
+                "confidence_level": "high",
+            }
+            deterioration_signals.append(f"AKI进展: stage {aki_stage}")
+            recommendations.append("复核尿量、肌酐趋势及肾毒性暴露")
+            if risk_level not in {"critical", "high"}:
+                risk_level = "high"
+                primary_risk = "肾功能恶化"
+
+        if platelet is not None and platelet < 50:
+            organ["coagulation"] = {"status": "failure", "evidence": f"PLT={platelet}", "confidence": 0.82, "confidence_level": "high"}
+            deterioration_signals.append(f"重度血小板减少: PLT {platelet}")
+            if risk_level != "critical":
+                risk_level = "high"
+                primary_risk = "凝血风险"
+
+        if any(str(a.get("alert_type") or "") == "septic_shock" for a in alerts):
+            syndromes.append(
+                {
+                    "name": "脓毒性休克风险",
+                    "confidence": 0.84,
+                    "confidence_level": "high",
+                    "criteria_met": ["近24h存在脓毒性休克相关预警"],
+                }
+            )
+            if risk_level != "critical":
+                risk_level = "high"
+                primary_risk = "感染性恶化"
+
+        if not deterioration_signals and diagnosis:
+            deterioration_signals.append(f"当前主要诊断: {diagnosis[:48]}")
+            recommendations.append("结合实时生命体征、实验室与既有预警持续动态复核")
+
+        if not recommendations:
+            recommendations.append("LLM 不可用，已降级为规则模式，请结合床旁信息复核")
+
+        explainability = {
+            "method": "heuristic_circuit_breaker_fallback",
+            "confidence": 0.58 if risk_level in {"low", "medium"} else 0.72,
+            "confidence_level": "medium",
+            "top_factors": [
+                {"factor": signal[:40], "direction": "up", "weight": 0.72, "evidence": signal}
+                for signal in deterioration_signals[:4]
+            ],
+            "notes": "LLM 服务不可用，已自动切换为规则降级模式。",
+        }
+        return {
+            "organ_assessment": organ,
+            "syndromes_detected": syndromes,
+            "deterioration_signals": deterioration_signals[:8],
+            "risk_level": risk_level,
+            "primary_risk": primary_risk,
+            "recommendations": recommendations[:8],
+            "evidence_sources": [],
+            "explainability": explainability,
         }
 
     async def _build_patient_context(self, patient: dict, pid, facts: dict[str, Any] | None = None) -> str:

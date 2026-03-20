@@ -388,6 +388,10 @@ class NurseReminderMixin:
             due_at = adjustment_due_at or due_at
             overdue = True
 
+        severity = cfg.get("severity", "warning")
+        if score_type in {"delirium", "cam_icu"}:
+            severity = "critical"
+
         if overdue and not active:
             reminder_doc = {
                 "patient_id": pid_str,
@@ -403,7 +407,7 @@ class NurseReminderMixin:
                 "due_at": due_at,
                 "created_at": now,
                 "is_active": True,
-                "severity": cfg.get("severity", "warning"),
+                "severity": severity,
             }
             if adjustment_due and score_type in ("cpot", "bps"):
                 reminder_doc["name"] = cfg.get("adjustment_name") or f"{score_type.upper()}评估(镇痛药调整前后)"

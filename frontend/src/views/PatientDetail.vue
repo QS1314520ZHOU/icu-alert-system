@@ -11,10 +11,21 @@
       <div class="hero-main">
         <div class="hero-tag-row">
           <span class="hero-tag">ICU PATIENT MONITOR</span>
+          <span class="hero-tag hero-tag--soft">{{ displayDept }}</span>
+          <span class="hero-tag hero-tag--soft">{{ displayBed }}床</span>
           <span class="hero-tag hero-tag--soft">HIS {{ displayHisPid }}</span>
         </div>
         <div class="hero-diagnosis">{{ displayDiagnosis }}</div>
-        <div class="hero-meta">入院时间：{{ displayAdmissionTime }}</div>
+        <div class="hero-meta-row">
+          <div class="hero-meta">入院时间：{{ displayAdmissionTime }}</div>
+          <div class="hero-meta">监护更新：{{ heroMonitorUpdatedAt }}</div>
+        </div>
+        <div class="hero-fact-grid">
+          <div v-for="item in heroFactRows" :key="item.label" class="hero-fact">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </div>
+        </div>
         <div class="hero-bundle" :class="`hero-bundle--${sepsisBundleStatusLight}`">
           <div class="hero-bundle-head">
             <span class="hero-bundle-title">Sepsis 1h Bundle</span>
@@ -61,22 +72,23 @@
           </div>
         </div>
       </div>
-      <div class="hero-vitals">
-        <div class="hero-vital">
-          <span>HR</span>
-          <strong>{{ vitals?.hr ?? '—' }}</strong>
+      <div class="hero-side">
+        <div class="hero-vitals-head">
+          <div>
+            <div class="hero-vitals-kicker">Bedside Snapshot</div>
+            <div class="hero-vitals-title">生命体征快照</div>
+          </div>
+          <div class="hero-vitals-badge">{{ vitalsSourceText || '未知来源' }}</div>
         </div>
-        <div class="hero-vital">
-          <span>BP</span>
-          <strong>{{ fmtBP(vitals || {}) }}</strong>
+        <div class="hero-vitals">
+          <div v-for="item in heroVitalsRows" :key="item.label" class="hero-vital">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </div>
         </div>
-        <div class="hero-vital">
-          <span>SpO₂</span>
-          <strong>{{ vitals?.spo2 != null ? vitals.spo2 + '%' : '—' }}</strong>
-        </div>
-        <div class="hero-vital">
-          <span>T</span>
-          <strong>{{ fmtTemp(vitals?.temp) }}</strong>
+        <div class="hero-vitals-foot">
+          <span>来源 {{ vitalsSourceText || '—' }}</span>
+          <span>时间 {{ heroMonitorUpdatedAt }}</span>
         </div>
       </div>
     </section>
@@ -252,6 +264,7 @@
             v-if="activeTab === 'sbt'"
             :summary="sbtTimelineSummary"
             :records="sbtTimelineRecords"
+            :ai-summary="sbtTimelineAiSummary"
             :loading="sbtTimelineLoading"
             :error="sbtTimelineError"
             :on-refresh="() => loadSbtTimeline(true)"
@@ -435,7 +448,7 @@ import {
   getPatientAssessments,
   getPatientAlerts,
   getPatientSepsisBundleStatus,
-  getPatientSbtRecords,
+  getPatientWeaningTimeline,
   getPatientSimilarCaseOutcomes,
   getPatientWeaningStatus,
   getAiLabSummary,
@@ -494,6 +507,7 @@ const sepsisBundleStatus = ref<any>(null)
 const weaningStatus = ref<any>(null)
 const sbtTimelineSummary = ref<any>(null)
 const sbtTimelineRecords = ref<any[]>([])
+const sbtTimelineAiSummary = ref<any>(null)
 const sbtTimelineLoading = ref(false)
 const sbtTimelineError = ref('')
 const sbtTimelineLoaded = ref(false)
@@ -587,6 +601,37 @@ const displayAdmissionTime = computed(() =>
 const displayHisPid = computed(() =>
   patient.value?.hisPid || patient.value?.hisPID || '无'
 )
+
+const displayDept = computed(() =>
+  patient.value?.hisDept || patient.value?.dept || '未知科室'
+)
+const displayBed = computed(() =>
+  patient.value?.hisBed || patient.value?.bed || '—'
+)
+const displayGenderAge = computed(() =>
+  [patient.value?.genderText || patient.value?.hisSex || '', patient.value?.age || patient.value?.hisAge || '']
+    .filter(Boolean)
+    .join(' ')
+)
+const heroMonitorUpdatedAt = computed(() => fmtTime(vitals.value?.time) || '—')
+const heroFactRows = computed(() => [
+  { label: '患者', value: displayName.value },
+  { label: '性别 / 年龄', value: displayGenderAge.value || '—' },
+  { label: '科室', value: displayDept.value },
+  { label: '床位', value: `${displayBed.value}床` },
+])
+const heroVitalsRows = computed(() => {
+  const currentVitals = vitals.value || {}
+  const mapText = formatHeroMetric(currentVitals?.ibp_map ?? currentVitals?.nibp_map)
+  return [
+    { label: 'HR', value: currentVitals?.hr != null ? formatHeroMetric(currentVitals.hr) : '—' },
+    { label: 'BP', value: fmtBP(currentVitals) },
+    { label: 'MAP', value: mapText },
+    { label: 'RR', value: currentVitals?.rr != null ? formatHeroMetric(currentVitals.rr) : '—' },
+    { label: 'SpO₂', value: currentVitals?.spo2 != null ? `${formatHeroMetric(currentVitals.spo2)}%` : '—' },
+    { label: 'T', value: fmtTemp(currentVitals?.temp) },
+  ]
+})
 
 const sepsisBundleStatusResolved = computed(() => {
   const status = sepsisBundleStatus.value || {}
@@ -2475,13 +2520,15 @@ async function loadSbtTimeline(force = false) {
   sbtTimelineLoading.value = true
   sbtTimelineError.value = ''
   try {
-    const res = await getPatientSbtRecords(patientId, 20)
+    const res = await getPatientWeaningTimeline(patientId, 40)
     sbtTimelineSummary.value = res.data?.summary || null
-    sbtTimelineRecords.value = Array.isArray(res.data?.records) ? res.data.records : []
+    sbtTimelineAiSummary.value = res.data?.ai_summary || null
+    sbtTimelineRecords.value = Array.isArray(res.data?.timeline) ? res.data.timeline : []
   } catch (e: any) {
     console.error('加载SBT记录失败', e)
     sbtTimelineError.value = e?.response?.data?.message || 'SBT记录加载失败'
     sbtTimelineSummary.value = null
+    sbtTimelineAiSummary.value = null
     sbtTimelineRecords.value = []
   } finally {
     sbtTimelineLoading.value = false
@@ -2703,6 +2750,7 @@ function resetDetailState() {
   weaningStatus.value = null
   sbtTimelineSummary.value = null
   sbtTimelineRecords.value = []
+  sbtTimelineAiSummary.value = null
   sbtTimelineLoading.value = false
   sbtTimelineError.value = ''
   sbtTimelineLoaded.value = false
@@ -2891,18 +2939,23 @@ onBeforeUnmount(() => {
 }
 .monitor-hero {
   display: grid;
-  grid-template-columns: 1.5fr 2fr;
-  gap: 12px;
+  grid-template-columns: 1.7fr 1.15fr;
+  gap: 14px;
   margin-bottom: 16px;
-  padding: 14px;
-  border-radius: 12px;
+  padding: 16px;
+  border-radius: 14px;
   background:
     radial-gradient(circle at top right, rgba(34,211,238,.08), rgba(34,211,238,0) 28%),
     linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
   border: 1px solid rgba(80,199,255,.14);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
 }
-.hero-main { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+}
 .hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .hero-tag {
   display: inline-flex;
@@ -2922,7 +2975,35 @@ onBeforeUnmount(() => {
   color: #ecfeff;
   line-height: 1.25;
 }
+.hero-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
 .hero-meta { color: #8fb8ca; font-size: 13px; }
+.hero-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.hero-fact {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(8, 28, 44, 0.76);
+  border: 1px solid rgba(80, 199, 255, 0.12);
+}
+.hero-fact span {
+  color: #7ecce1;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.hero-fact strong {
+  color: #effcff;
+  font-size: 14px;
+  line-height: 1.4;
+}
 .hero-bundle {
   display: grid;
   gap: 6px;
@@ -3124,13 +3205,48 @@ onBeforeUnmount(() => {
   border-color: rgba(255,255,255,.24);
   background: rgba(255,255,255,.12);
 }
+.hero-side {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.hero-vitals-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.hero-vitals-kicker {
+  color: #7ecce1;
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.hero-vitals-title {
+  color: #effcff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.hero-vitals-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: rgba(8,28,44,.82);
+  color: #dffbff;
+  font-size: 11px;
+  font-weight: 700;
+}
 .hero-vitals {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 .hero-vital {
-  min-height: 90px;
+  min-height: 88px;
   padding: 12px;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(8,31,49,.98) 0%, rgba(6,21,35,.98) 100%);
@@ -3146,7 +3262,13 @@ onBeforeUnmount(() => {
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
   line-height: 1;
 }
-.weaning-strip {
+.hero-vitals-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #8fb8ca;
+  font-size: 12px;
+}.weaning-strip {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
   gap: 12px;
@@ -3980,8 +4102,11 @@ onBeforeUnmount(() => {
   .weaning-strip {
     grid-template-columns: 1fr;
   }
-  .hero-vitals {
+  .hero-fact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hero-vitals {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -4025,8 +4150,9 @@ onBeforeUnmount(() => {
   .hero-diagnosis {
     font-size: 18px;
   }
+  .hero-fact-grid,
   .hero-vitals {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .hero-vital strong {
     font-size: 22px;
@@ -4069,6 +4195,8 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
 
 
 

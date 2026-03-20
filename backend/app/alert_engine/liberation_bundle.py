@@ -45,6 +45,7 @@ class LiberationBundleMixin:
 
         sbt_alert = await self._get_latest_active_alert(str(pid), ["weaning"], hours=36)
         sat_hours = await self._latest_event_hours(pid, ["sat", "唤醒试验", "停镇静"], lookback_hours=36)
+        recent_sbt = await self._get_recent_sbt_result(pid, now, hours=168) if hasattr(self, "_get_recent_sbt_result") else None
         sbt_state = "green" if (sbt_alert or (sat_hours is not None and sat_hours <= 24)) else "red"
 
         lights = {
@@ -66,6 +67,7 @@ class LiberationBundleMixin:
                 "family_hours": family_hours,
                 "sat_hours": sat_hours,
                 "sbt_ready": bool(sbt_alert),
+                "recent_sbt": recent_sbt,
             },
             "ecash": ecash,
             "updated_at": now,

@@ -251,6 +251,10 @@ export const getPatientWeaningStatus = (patientId: string) =>
 export const getPatientSbtRecords = (patientId: string, limit = 20) =>
   api.get(`/api/patients/${patientId}/sbt-records`, { params: { limit } })
 
+// 脱机全时间线（SBT / SAT / Bundle / 拔管风险）
+export const getPatientWeaningTimeline = (patientId: string, limit = 40) =>
+  api.get(`/api/patients/${patientId}/weaning-timeline`, { params: { limit } })
+
 // 相似病例结局回溯
 export const getPatientSimilarCaseOutcomes = (patientId: string, limit = 10) =>
   aiApi.get(`/api/patients/${patientId}/similar-case-outcomes`, { params: { limit } })

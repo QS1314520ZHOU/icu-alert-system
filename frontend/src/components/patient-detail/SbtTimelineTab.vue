@@ -10,6 +10,33 @@
       </button>
     </header>
 
+    <section v-if="hasAiDecisionCard" class="sbt-decision-card">
+      <div class="sbt-decision-card__head">
+        <div>
+          <div class="sbt-decision-card__eyebrow">AI Weaning Decision</div>
+          <div class="sbt-decision-card__title">顶部决策卡</div>
+        </div>
+        <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : 'LLM 结构化决策' }}</div>
+      </div>
+      <div v-if="aiSummaryText" class="sbt-decision-card__main">{{ aiSummaryText }}</div>
+      <div v-if="decisionFindingRows.length" class="sbt-decision-card__grid">
+        <article
+          v-for="(item, idx) in decisionFindingRows"
+          :key="`decision-finding-${idx}`"
+          class="sbt-decision-card__item"
+        >
+          <span class="sbt-decision-card__label">关键判断 {{ Number(idx) + 1 }}</span>
+          <strong>{{ item }}</strong>
+        </article>
+      </div>
+      <div v-if="decisionActionRows.length" class="sbt-decision-card__actions">
+        <div class="sbt-decision-card__actions-title">建议动作</div>
+        <ul class="sbt-decision-card__list">
+          <li v-for="(item, idx) in decisionActionRows" :key="`decision-action-${idx}`">{{ item }}</li>
+        </ul>
+      </div>
+    </section>
+
     <section v-if="summaryCards.length" class="sbt-kpi-strip">
       <article v-for="card in summaryCards" :key="card.label" class="sbt-kpi-card">
         <span>{{ card.label }}</span>
@@ -26,45 +53,46 @@
       <section class="sbt-timeline">
         <article
           v-for="(row, idx) in records"
-          :key="`${row.trial_time || row.created_at || idx}`"
-          :class="['sbt-timeline-item', `sbt-${resultTone(row.result)}`]"
+          :key="`${row.time || row.trial_time || row.created_at || idx}`"
+          :class="['sbt-timeline-item', `sbt-${resultTone(row.result || row.status)}`]"
         >
           <div class="sbt-time-rail">
-            <span class="sbt-time">{{ fmtTime(row.trial_time || row.created_at) || '时间未知' }}</span>
-            <i :class="['sbt-dot', `sbt-dot--${resultTone(row.result)}`]" />
+            <span class="sbt-time">{{ fmtTime(row.time || row.trial_time || row.created_at) || '时间未知' }}</span>
+            <i :class="['sbt-dot', `sbt-dot--${resultTone(row.result || row.status)}`]" />
             <span v-if="idx < records.length - 1" class="sbt-line" />
           </div>
           <div class="sbt-card">
             <div class="sbt-card-head">
               <div>
                 <div class="sbt-card-title-row">
-                  <strong class="sbt-card-title">{{ row.label || 'SBT记录' }}</strong>
-                  <span :class="['sbt-result-pill', `sbt-result-pill--${resultTone(row.result)}`]">{{ row.label || '已记录SBT' }}</span>
+                  <strong class="sbt-card-title">{{ row.label || row.title || 'SBT记录' }}</strong>
+                  <span :class="['sbt-result-pill', `sbt-result-pill--${resultTone(row.result || row.status)}`]">{{ row.label || row.title || '已记录SBT' }}</span>
                 </div>
                 <div class="sbt-card-sub">
                   来源 {{ row.source || '—' }}
                   <span v-if="row.duration_minutes != null"> · 时长 {{ row.duration_minutes }} min</span>
                   <span v-if="row.source_code"> · {{ row.source_code }}</span>
+                  <span v-if="row.event_type && row.event_type !== 'sbt'"> · {{ row.event_type }}</span>
                 </div>
               </div>
               <div class="sbt-score-box">
                 <span>RSBI</span>
-                <strong>{{ valueOrDash(row.rsbi) }}</strong>
+                <strong>{{ valueOrDash(row.rsbi ?? row.detail?.rsbi) }}</strong>
               </div>
             </div>
 
             <div class="sbt-chip-row">
-              <span class="sbt-chip">RR {{ valueOrDash(row.rr) }}</span>
-              <span class="sbt-chip">Vte {{ valueOrDash(row.vte_ml) }}</span>
-              <span class="sbt-chip">FiO₂ {{ valueOrDash(row.fio2) }}</span>
-              <span class="sbt-chip">PEEP {{ valueOrDash(row.peep) }}</span>
-              <span v-if="row.minute_vent != null" class="sbt-chip">MV {{ valueOrDash(row.minute_vent) }}</span>
+              <span class="sbt-chip">RR {{ valueOrDash(row.rr ?? row.detail?.rr) }}</span>
+              <span class="sbt-chip">Vte {{ valueOrDash(row.vte_ml ?? row.detail?.vte_ml) }}</span>
+              <span class="sbt-chip">FiO₂ {{ valueOrDash(row.fio2 ?? row.detail?.fio2) }}</span>
+              <span class="sbt-chip">PEEP {{ valueOrDash(row.peep ?? row.detail?.peep) }}</span>
+              <span v-if="(row.minute_vent ?? row.detail?.minute_vent) != null" class="sbt-chip">MV {{ valueOrDash(row.minute_vent ?? row.detail?.minute_vent) }}</span>
             </div>
 
             <div class="sbt-record-grid">
               <div class="sbt-record-item">
                 <span class="sbt-record-label">结果</span>
-                <span class="sbt-record-value">{{ row.label || '—' }}</span>
+                <span class="sbt-record-value">{{ row.label || row.title || '—' }}</span>
               </div>
               <div class="sbt-record-item">
                 <span class="sbt-record-label">是否通过</span>
@@ -72,11 +100,11 @@
               </div>
               <div class="sbt-record-item">
                 <span class="sbt-record-label">试验时间</span>
-                <span class="sbt-record-value">{{ fmtTime(row.trial_time || row.created_at) || '—' }}</span>
+                <span class="sbt-record-value">{{ fmtTime(row.time || row.trial_time || row.created_at) || '—' }}</span>
               </div>
               <div class="sbt-record-item">
                 <span class="sbt-record-label">原始文本</span>
-                <span class="sbt-record-value">{{ row.raw_text || '—' }}</span>
+                <span class="sbt-record-value">{{ row.raw_text || row.detail?.raw_text || row.detail?.text || row.detail?.explanation || '—' }}</span>
               </div>
             </div>
           </div>
@@ -92,6 +120,7 @@ import { computed } from 'vue'
 const props = defineProps<{
   summary: any
   records: any[]
+  aiSummary?: any
   loading: boolean
   error: string
   onRefresh: () => void
@@ -101,12 +130,20 @@ const props = defineProps<{
 const summaryCards = computed(() => {
   const summary = props.summary && typeof props.summary === 'object' ? props.summary : {}
   return [
-    { label: '记录总数', value: summary.total_records ?? 0, meta: 'SBT records' },
-    { label: '通过', value: summary.passed_count ?? 0, meta: 'passed' },
-    { label: '失败', value: summary.failed_count ?? 0, meta: 'failed' },
-    { label: '最近一次', value: props.fmtTime(summary.last_trial_time) || '—', meta: 'last trial' },
+    { label: '记录总数', value: summary.total_records ?? summary.sbt_total ?? 0, meta: 'SBT records' },
+    { label: '通过', value: summary.passed_count ?? summary.sbt_passed_count ?? 0, meta: 'passed' },
+    { label: '失败', value: summary.failed_count ?? summary.sbt_failed_count ?? 0, meta: 'failed' },
+    { label: '最近一次', value: props.fmtTime(summary.last_trial_time || summary.latest_sbt?.trial_time) || '—', meta: 'last trial' },
   ]
 })
+
+const aiSummaryText = computed(() => String(props.aiSummary?.summary || '').trim())
+const aiSummaryFindings = computed(() => Array.isArray(props.aiSummary?.key_findings) ? props.aiSummary.key_findings : [])
+const aiSummaryActions = computed(() => Array.isArray(props.aiSummary?.recommended_actions) ? props.aiSummary.recommended_actions : [])
+const aiSummaryDegraded = computed(() => Boolean(props.aiSummary?.degraded_mode))
+const hasAiDecisionCard = computed(() => Boolean(aiSummaryText.value || aiSummaryFindings.value.length || aiSummaryActions.value.length))
+const decisionFindingRows = computed(() => aiSummaryFindings.value.slice(0, 3))
+const decisionActionRows = computed(() => aiSummaryActions.value.slice(0, 4))
 
 function resultTone(raw: any) {
   const value = String(raw || '').toLowerCase()
@@ -205,6 +242,101 @@ function valueOrDash(value: any) {
 }
 .sbt-content { display: grid; gap: 12px; }
 .sbt-timeline { display: grid; gap: 12px; }
+.sbt-decision-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(103,232,249,.2);
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.12), rgba(34,211,238,0) 34%),
+    radial-gradient(circle at left center, rgba(59,130,246,.12), rgba(59,130,246,0) 42%),
+    linear-gradient(180deg, rgba(6,26,38,.98) 0%, rgba(4,15,24,.99) 100%);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.05), 0 16px 30px rgba(0,0,0,.22);
+}
+.sbt-decision-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.sbt-decision-card__eyebrow {
+  color: #74dff3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.sbt-decision-card__title {
+  color: #ecfeff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.sbt-decision-card__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(103,232,249,.2);
+  background: rgba(8,31,49,.8);
+  color: #d8fbff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.sbt-decision-card__main {
+  color: #effcff;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.sbt-decision-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.sbt-decision-card__item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: rgba(8,28,44,.74);
+}
+.sbt-decision-card__label {
+  color: #74dff3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.sbt-decision-card__item strong {
+  color: #effcff;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.sbt-decision-card__actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+.sbt-decision-card__actions-title {
+  color: #74dff3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.sbt-decision-card__list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #dffbff;
+  font-size: 13px;
+  line-height: 1.7;
+}
 .sbt-timeline-item {
   display: grid;
   grid-template-columns: 100px 1fr;
@@ -351,6 +483,7 @@ function valueOrDash(value: any) {
 }
 @media (max-width: 640px) {
   .sbt-kpi-strip,
+  .sbt-decision-card__grid { grid-template-columns: 1fr; }
   .sbt-record-grid { grid-template-columns: 1fr; }
   .sbt-card-head { flex-direction: column; }
   .sbt-score-box {
@@ -359,3 +492,5 @@ function valueOrDash(value: any) {
   }
 }
 </style>
+
+

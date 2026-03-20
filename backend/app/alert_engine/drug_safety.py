@@ -1,9 +1,12 @@
 """药物不良反应/相互作用"""
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timedelta
 from typing import Any
+
+logger = logging.getLogger("icu-alert")
 
 
 def _parse_dt(value: Any) -> datetime | None:
@@ -35,6 +38,26 @@ def _to_float(value: Any) -> float | None:
 
 
 class DrugSafetyMixin:
+    async def _drug_safety_safe_call(
+        self,
+        operation: str,
+        func,
+        *args,
+        default=None,
+        patient_id: str | None = None,
+        **kwargs,
+    ):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as exc:
+            logger.warning(
+                "drug_safety fallback op=%s patient_id=%s error=%s",
+                operation,
+                patient_id or "-",
+                exc,
+            )
+            return default
+
     def _text_has_any(self, text: str, keywords: list[str]) -> bool:
         t = str(text or "").lower()
         return any(str(k).strip().lower() in t for k in keywords if str(k).strip())
