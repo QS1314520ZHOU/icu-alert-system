@@ -80,6 +80,17 @@
 - MDT：多智能体工作台、协作会诊视图
 - AI Ops：AI 调用质量、模块映射、运营跳转
 
+### 3.3 当前代码已落地的重点页面能力
+
+- `PatientDetail`
+  除基础详情外，已把 `weaning-status / sbt-records / weaning-timeline / similar-case-outcomes / ecash-status / sepsis-bundle-status` 串到同一患者工作台。
+- `Analytics`
+  已支持 `alerts / sepsis / weaning / nursing / scenarios` 五类分区，并给 `sepsis` 与 `weaning` 增加 AI 结构化总结卡。
+- `BigScreen`
+  已整合实时告警流、床位风险分层、Bundle/撤机/护理等病区级指标，图表主题已统一到 `icuTheme.ts`。
+- `README`
+  现在按“功能 + 计算口径 + API + 降级策略”来写，避免只列模块名不解释规则。
+
 ---
 
 ## 4. 后端能力总表
@@ -171,6 +182,8 @@
 - 护理文本风险信号提取
 - 护理工作量预测与排班热力图
 - 扩展场景覆盖率分析
+- 护理待执行/延期计划汇总
+- 患者级护理上下文回顾
 
 #### E. AI 与高级辅助
 
@@ -186,6 +199,9 @@
 - 个性化报警阈值建议
 - AI Monitor / 调用质量统计
 - RAG / 知识库检索
+- Analytics AI 总结
+- 患者交班摘要
+- AI 反馈闭环与模块质量统计
 
 ---
 
@@ -341,6 +357,72 @@ DIC 使用：
 - 主要依据
 - 处置建议
 
+#### 5.5.2 SBT 结果解析
+
+`ventilator.py` 中当前对 SBT 记录的解析规则为：
+
+- 文本含 `通过 / 成功 / 耐受 / passed / success` 归为 `passed`
+- 文本含 `失败 / 不通过 / 终止 / failed / abort / intolerant` 归为 `failed`
+- 文本值为 `1 / true` 也视为通过，`0 / false` 视为失败
+- 时长支持从文本中抽取 `分钟 / 小时`
+- 若能拿到 `RR / VTe / minute ventilation`，则额外计算并持久化 `RSBI`
+
+#### 5.5.3 脱机风险评分
+
+当前 `weaning_assessment` 采用“加权累积分 + 闸门条件”模式：
+
+- 基础风险因子
+  `P/F < 200` 加 `2` 分
+- 基础风险因子
+  `RSBI >= 80` 加 `2` 分
+- 基础风险因子
+  `24h 液体超负荷 > 5%` 加 `2` 分
+- 基础风险因子
+  近 `72h` SBT 失败或客观不耐受加 `2` 分
+- 基础风险因子
+  `MAP < 65` 加 `1` 分
+
+严重度阈值默认来自 `config.yaml -> alert_engine -> weaning_assistant`：
+
+- `warning_score = 4`
+- `high_score = 7`
+- `critical_score = 9`
+
+SBT 就绪闸门当前包括：
+
+- `FiO2 > 0.4`
+- `PEEP > 8`
+- 仍需血管活性药
+- `MAP < 65`
+- `RASS` 未达目标
+
+最终建议分三档：
+
+- `可以尝试 SBT`
+- `SBT 前建议先处理`
+- `当前脱机失败风险高`
+
+#### 5.5.4 撤机 Analytics 统计口径
+
+后端接口：`GET /api/analytics/weaning-summary`
+
+当前统计规则是：
+
+- 以 `score_records.score_type = weaning_assessment` 的“患者最近一次月内记录”计算 `weaning_assessed_patients`
+- `risk_level in {high, critical}` 计入 `high_risk_patients`
+- 当月 `deviceBind.unBindTime` 中属于呼吸机解绑的患者计入 `extubated_patients`
+- `alert_type = post_extubation_failure_risk` 的最近告警患者计入 `reintubation_risk_patients`
+- `severity = critical` 的再插管风险告警计入 `critical_post_extubation_patients`
+- 结果同时输出 `daily_trend / dept_compare / patient_rows`
+
+该接口还会调用 AI 总结器生成：
+
+- `summary`
+- `key_findings`
+- `recommended_actions`
+
+如果 LLM 不可用，则回退到基于 `latest_sbt / latest_weaning / Liberation Bundle lights / gate_failures` 的规则化总结。
+
 ### 5.6 CRRT 规则
 
 CRRT 相关监测口径包括：
@@ -405,6 +487,15 @@ CRRT 相关监测口径包括：
 - 在位日
 - 必要性评估
 - 风险等级
+
+#### 5.8.4 护理文本与任务信号
+
+当前相似病例与 AI 护理分析都会读取护理上下文，重点汇总：
+
+- 近 `72h` 护理文本风险信号
+- 护理计划 `pending_count`
+- 护理计划 `delayed_count`
+- 可作为相似病例展示和患者页面的护理提示补充
 
 ### 5.9 护理工作量预测与排班热力图规则
 
@@ -494,22 +585,63 @@ CRRT 相关监测口径包括：
 - `counts.yellow`
 - `counts.red`
 
-### 5.12 扩展场景覆盖率统计口径
+### 5.12 脓毒症 1h Bundle 统计口径
+
+后端接口：`GET /api/analytics/sepsis-bundle/compliance`
+
+当前按 `score_records` 中以下记录统计：
+
+- `score_type in {sepsis_bundle_tracker, sepsis_antibiotic_bundle}`
+- `bundle_type in {sepsis_hour1_bundle, sepsis_1h_antibiotic}`
+- `bundle_started_at` 落在指定月份
+
+状态口径由 `derive_sepsis_bundle_status()` 统一派生，主要分为：
+
+- `met`
+- `met_late`
+- `pending`
+- `overdue_1h`
+- `overdue_3h`
+
+月度摘要至少包含：
+
+- `total_cases`
+- `compliant_1h_cases`
+- `compliance_rate`
+- `overdue_1h_cases`
+- `overdue_3h_cases`
+- `met_late_cases`
+- `pending_active_cases`
+
+并同时返回：
+
+- `daily_trend`
+- `dept_compare`
+- `element_compliance`
+- `recent_cases`
+
+该接口同样带 AI 总结；当模型不可用时，回退逻辑会优先指出：
+
+- 完成率最低的要素
+- 达标率最低的科室
+- 最近仍处于 `pending / overdue` 的个案数量
+
+### 5.13 扩展场景覆盖率统计口径
 
 后端接口：`GET /api/analytics/scenario-coverage`
 
-#### 5.12.1 场景目录来源
+#### 5.13.1 场景目录来源
 
 - 从 `config.yaml -> extended_scenarios` 读取场景目录
 - 用 `group / scenario / title` 组织 catalog
 
-#### 5.12.2 触发统计来源
+#### 5.13.2 触发统计来源
 
 - 读取 `alert_records`
 - 过滤 `category = extended_scenarios`
 - 按 `window` 统计命中情况
 
-#### 5.12.3 输出口径
+#### 5.13.3 输出口径
 
 - `summary.coverage_ratio = triggered_catalog_scenarios / total_catalog_scenarios`
 - `group_rows`
@@ -519,7 +651,7 @@ CRRT 相关监测口径包括：
 - `top_scenarios`
   返回场景级 `alert_count / patient_count / critical / high / warning`
 
-### 5.13 亚表型（Subphenotype）规则
+### 5.14 亚表型（Subphenotype）规则
 
 后端接口：`GET /api/ai/subphenotype/{patient_id}`
 
@@ -531,7 +663,7 @@ CRRT 相关监测口径包括：
 
 这意味着它更适合作为临床页面实时接口，不再是离线分析专用。
 
-### 5.14 What-if / 反事实模拟规则
+### 5.15 What-if / 反事实模拟规则
 
 后端接口：`POST /api/ai/what-if/{patient_id}`
 
@@ -545,7 +677,7 @@ CRRT 相关监测口径包括：
 - 输出干预后的趋势/结局方向变化
 - 给数字孪生页和 MDT 提供可视化模拟能力
 
-### 5.15 相似病例规则
+### 5.16 相似病例规则
 
 后端接口：`GET /api/patients/{patient_id}/similar-case-outcomes`
 
@@ -556,6 +688,77 @@ CRRT 相关监测口径包括：
 - Top-K 相似病例结局统计
 - ICU 天数 / 呼吸机天数 / 转归信息
 - 可叠加 LLM 做结构化总结
+
+#### 5.16.1 候选病例筛选
+
+当前候选池规则来自 `config.yaml -> alert_engine -> similar_case_review`：
+
+- `max_candidates = 200`
+- `age_band_years = 10`
+- `sofa_band = 2`
+- `diagnosis_keyword_limit = 6`
+- `min_diagnosis_similarity = 0.15`
+
+筛选逻辑为：
+
+- 只取已出院/死亡/离科患者
+- 当前患者自身排除
+- 若当前患者有年龄，则优先限制在 `年龄 ±10 岁`
+- 若当前患者使用呼吸机，则候选也必须有机械通气支持
+- 若当前患者使用 CRRT，则候选也必须有 CRRT 支持
+- 若双方都能提取入科 `SOFA`，则要求 `SOFA ±2`
+
+#### 5.16.2 相似度评分公式
+
+当前综合分是以下加权和：
+
+- `embedding_similarity * 0.4`
+- `token_similarity * 0.1`
+- `age_score * 0.15`
+- `sofa_score * 0.25`
+- `support_score * 0.1`
+
+其中：
+
+- `embedding_similarity` 为诊断 embedding 余弦相似度
+- `token_similarity` 为诊断关键词 Jaccard 相似度
+- `age_score = 1 - 年龄差 / age_band`
+- `sofa_score = 1 - SOFA差 / sofa_band`
+- `support_score` 在血管活性药支持一致时取 `1.0`，否则取 `0.75`
+
+#### 5.16.3 结果输出与降级
+
+返回值包含：
+
+- `current_profile`
+- `summary`
+- `cases`
+- `historical_case_insight`
+
+`summary` 中当前会聚合：
+
+- `matched_cases`
+- `displayed_cases`
+- `candidate_pool`
+- `embedding_enabled`
+- `avg_icu_days`
+- `avg_vent_days`
+- `survival_rate`
+- `outcomes`
+
+如果 LLM 解释失败，则按启发式规则给出：
+
+- Top-5 死亡数
+- CRRT 使用与结局关系
+- 平均 ICU 天数
+- “仅供参考，不替代床旁判断”的 caution
+
+如果检索或 AI 全链路失败，则回退为：
+
+- `degraded = true`
+- `fallback_message`
+- 空 `cases`
+- 基础患者画像
 
 ---
 
@@ -575,6 +778,9 @@ CRRT 相关监测口径包括：
 - 多智能体协作
 - 系统面板 / 文书生成 / MDT 工作区
 - 检验摘要
+- Sepsis Analytics 总结
+- Weaning Analytics 总结
+- 相似病例历史启示解读
 
 ### 6.2 AI 运行韧性
 
@@ -586,6 +792,9 @@ CRRT 相关监测口径包括：
 - token usage 统计
 - 前端降级提示
 - Similar Case / PatientDetail / BigScreen 超时降级
+- 相似病例解释结果会做一致性校验
+- Sepsis/Weaning Analytics 支持纯规则 fallback
+- AI monitor 按模块记录 `success / latency / usage / meta`
 
 ---
 
@@ -623,6 +832,7 @@ CRRT 相关监测口径包括：
 - `GET /api/patients/{patient_id}/sepsis-bundle-status`
 - `GET /api/patients/{patient_id}/weaning-status`
 - `GET /api/patients/{patient_id}/sbt-records`
+- `GET /api/patients/{patient_id}/weaning-timeline`
 
 ### 7.4 告警与 Analytics
 
@@ -747,18 +957,21 @@ npm run build
 - 新增护理文本分析能力
 - 新增护理工作量预测与排班热力图
 - Analytics 已支持 `24h / 7d / 14d / 30d` 窗口
+- 相似病例结果已接入护理上下文信号
 
 ### 10.2 运行时修复
 
 - `/api/analytics/nursing-workload` 返回序列化问题已修复
 - `serialize_doc(None)` 不再错误返回 `{}`
 - 亚表型接口已从重计算优化为原型中心快速软聚类
+- Similar Case / Analytics AI 摘要均已具备降级路径
 
 ### 10.3 大屏与前端
 
 - 护士站大屏已完成中文化与重排
 - 右侧统计卡、左侧实时预警、中间床位卡的视觉语言已统一
 - 大屏图表 tooltip / legend / 语义色已统一到整页风格
+- Analytics 已增加 Sepsis / Weaning 的 AI 摘要表达层
 
 ---
 

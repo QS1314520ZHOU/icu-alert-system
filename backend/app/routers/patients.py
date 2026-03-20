@@ -28,7 +28,7 @@ async def get_departments():
         {"$sort": {"patientCount": -1}},
     ]
     departments = []
-    cursor = await col.aggregate(pipeline)
+    cursor = col.aggregate(pipeline)
     async for doc in cursor:
         departments.append({"dept": doc["_id"], "patientCount": doc["patientCount"]})
     return {"code": 0, "departments": departments}
