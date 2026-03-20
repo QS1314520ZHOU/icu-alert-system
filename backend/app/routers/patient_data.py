@@ -38,6 +38,63 @@ router = APIRouter()
 logger = logging.getLogger("icu-alert")
 
 
+async def _fallback_vitals_from_alert_snapshot(pid_str: str) -> dict | None:
+    if not pid_str:
+        return None
+    alert = await runtime.db.col("alert_records").find_one(
+        {
+            "patient_id": pid_str,
+            "extra.context_snapshot.vitals": {"$exists": True},
+        },
+        sort=[("created_at", -1)],
+    )
+    if not alert:
+        return None
+    snapshot = ((alert.get("extra") or {}).get("context_snapshot") or {}) if isinstance(alert.get("extra"), dict) else {}
+    vitals = snapshot.get("vitals") if isinstance(snapshot.get("vitals"), dict) else {}
+    if not vitals:
+        return None
+
+    def _value(key: str) -> float | None:
+        row = vitals.get(key)
+        if not isinstance(row, dict):
+            return None
+        for raw in (row.get("value"), row.get("fVal"), row.get("intVal"), row.get("strVal")):
+            if raw is None or raw == "":
+                continue
+            try:
+                return float(raw)
+            except Exception:
+                continue
+        return None
+
+    hr = _value("hr")
+    spo2 = _value("spo2")
+    rr = _value("rr")
+    map_value = _value("map")
+    temp = _value("temp")
+    snapshot_time = snapshot.get("snapshot_time")
+
+    if all(value is None for value in [hr, spo2, rr, map_value, temp]):
+        return None
+    return {
+        "source": "alert_snapshot",
+        "time": serialize_doc(snapshot_time) if isinstance(snapshot_time, datetime) else str(snapshot_time) if snapshot_time else None,
+        "hr": hr,
+        "spo2": spo2,
+        "rr": rr,
+        "temp": temp,
+        "nibp_sys": None,
+        "nibp_dia": None,
+        "nibp_map": map_value,
+        "ibp_sys": None,
+        "ibp_dia": None,
+        "ibp_map": map_value,
+        "cvp": None,
+        "etco2": None,
+    }
+
+
 @router.get("/api/patients/{patient_id}/vitals")
 async def patient_vitals(patient_id: str):
     try:
@@ -103,6 +160,10 @@ async def patient_vitals(patient_id: str):
             "cvp": params.get("param_cvp"),
             "etco2": params.get("param_ETCO2"),
         }
+    if not vitals:
+        fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
+        if fallback_vitals:
+            vitals = fallback_vitals
 
     return {"code": 0, "vitals": vitals}
 
@@ -613,6 +674,19 @@ async def patient_bedcard(patient_id: str):
             "t": params.get("param_T"),
         }
         metrics["glucose"] = params.get("param_glu_lab") or params.get("param_glu_poc")
+    if not metrics["vitals"]:
+        fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
+        if fallback_vitals:
+            metrics["vitals"] = {
+                "hr": fallback_vitals.get("hr"),
+                "sbp": fallback_vitals.get("ibp_sys") or fallback_vitals.get("nibp_sys"),
+                "dbp": fallback_vitals.get("ibp_dia") or fallback_vitals.get("nibp_dia"),
+                "spo2": fallback_vitals.get("spo2"),
+                "t": fallback_vitals.get("temp"),
+                "map": fallback_vitals.get("ibp_map") or fallback_vitals.get("nibp_map"),
+                "time": fallback_vitals.get("time"),
+                "source": fallback_vitals.get("source"),
+            }
 
     fluid_alert = await runtime.db.col("alert_records").find_one({"patient_id": pid_str, "alert_type": "fluid_balance"}, sort=[("created_at", -1)])
     if fluid_alert and fluid_alert.get("extra"):
