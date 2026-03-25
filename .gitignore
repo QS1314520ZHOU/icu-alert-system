@@ -16,6 +16,11 @@ backend/.venv/
 # Node
 node_modules/
 dist/
+frontend/dist/
+
+# Backend Build
+backend/static/
+backend/dist/
 
 # IDE
 .idea/

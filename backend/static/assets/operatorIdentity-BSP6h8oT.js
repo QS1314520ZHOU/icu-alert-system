@@ -1,1 +1,0 @@
-const e="icu_operator_identity";function r(){return typeof window>"u"?"":String(window.localStorage.getItem(e)||"").trim()}function i(n){if(typeof window>"u")return"";const t=String(n||"").trim();return window.localStorage.setItem(e,t),t}export{r as g,i as s};
