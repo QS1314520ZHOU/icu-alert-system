@@ -126,7 +126,7 @@
         </div>
       </a-card>
 
-      <a-card title="告警闭环追踪" :bordered="false" class="panel panel-wide">
+      <a-card title="Top 告警类型闭环表" :bordered="false" class="panel panel-wide">
         <div class="insight-grid">
           <div class="insight-tile">
             <div class="insight-label">查看率</div>
@@ -154,7 +154,7 @@
           class="rank-table"
           size="small"
           :columns="lifecycleColumns"
-          :data-source="lifecycleTypeRows"
+          :data-source="lifecycleTopTypeRows"
           :pagination="false"
           row-key="alert_type"
           :scroll="{ x: 760 }"
@@ -162,9 +162,16 @@
         <div v-else class="empty">暂无生命周期追踪数据</div>
       </a-card>
 
-      <a-card title="告警到查看 / 确认 / 行动趋势" :bordered="false" class="panel panel-wide">
-        <div v-if="lifecycleFunnelSeries.length" class="chart-wrap chart-lg">
-          <AnalyticsChart :option="lifecycleTrendOption" autoresize />
+      <a-card title="告警生命周期漏斗" :bordered="false" class="panel">
+        <div v-if="lifecycleFunnelStages.length" class="chart-wrap chart-md">
+          <AnalyticsChart :option="lifecycleFunnelOption" autoresize />
+        </div>
+        <div v-else class="empty">暂无闭环漏斗数据</div>
+      </a-card>
+
+      <a-card title="转化率折线图" :bordered="false" class="panel">
+        <div v-if="lifecycleFunnelSeries.length" class="chart-wrap chart-md">
+          <AnalyticsChart :option="lifecycleConversionOption" autoresize />
         </div>
         <div v-else class="empty">暂无闭环趋势数据</div>
       </a-card>
@@ -538,6 +545,28 @@ const analyticsScopeLabel = computed(() => deptName.value || deptCode.value || '
 const lifecycleSummary = computed(() => lifecycleAnalytics.value?.summary || {})
 const lifecycleTypeRows = computed(() => lifecycleAnalytics.value?.top_alert_types || [])
 const lifecycleFunnelSeries = computed(() => lifecycleAnalytics.value?.funnel_trend?.series || [])
+const lifecycleTopTypeRows = computed(() =>
+  lifecycleTypeRows.value.map((item: any) => ({
+    ...item,
+    view_rate_text: formatPct(item?.view_rate || 0),
+    ack_rate_text: formatPct(item?.ack_rate || 0),
+    action_rate_text: formatPct(item?.action_rate || 0),
+    avg_actionability_score_text: item?.avg_actionability_score ?? '—',
+    median_action_minutes_text: item?.median_action_minutes ?? '—',
+  }))
+)
+const lifecycleFunnelStages = computed(() => {
+  const total = Number(lifecycleSummary.value?.total_alerts || 0)
+  const viewed = Number(lifecycleSummary.value?.viewed_alerts || 0)
+  const acked = Number(lifecycleSummary.value?.acknowledged_alerts || 0)
+  const actioned = Number(lifecycleSummary.value?.actioned_alerts || 0)
+  return [
+    { key: 'created', label: '已触发', value: total, rate: total ? 1 : 0, color: '#22d3ee' },
+    { key: 'viewed', label: '已查看', value: viewed, rate: total ? viewed / total : 0, color: '#fbbf24' },
+    { key: 'acknowledged', label: '已确认', value: acked, rate: viewed ? acked / viewed : 0, color: '#fb923c' },
+    { key: 'actioned', label: '已行动', value: actioned, rate: acked ? actioned / acked : 0, color: '#34d399' },
+  ].filter((item) => item.value > 0)
+})
 
 const analyticsWindowLabel = computed(() => {
   const map: Record<string, string> = {
@@ -821,21 +850,68 @@ const frequencyOption = computed(() => {
   }
 })
 
-const lifecycleTrendOption = computed(() => ({
+const lifecycleFunnelOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: icuTooltip({
     formatter: (params: any) => {
-      const idx = Number(params?.dataIndex || 0)
+      const row: any = lifecycleFunnelStages.value[Number(params?.dataIndex || 0)] || {}
+      return tooltipShell(
+        row?.label || '生命周期',
+        [
+          tooltipRow('告警数', `${row?.value || 0} 条`, row?.color || '#22d3ee'),
+          tooltipRow('阶段转化', formatPct(row?.rate || 0), row?.color || '#22d3ee'),
+        ],
+        '生命周期漏斗'
+      )
+    },
+  }),
+  grid: icuGrid({ left: 56, right: 24, top: 24, bottom: 24 }),
+  xAxis: icuValueAxis({
+    axisLabel: { color: '#8ecfe0', fontSize: 10 },
+    splitLine: { lineStyle: { color: 'rgba(61, 118, 145, 0.15)' } },
+  }),
+  yAxis: icuCategoryAxis(lifecycleFunnelStages.value.map((item: any) => item.label), {
+    axisLabel: { color: '#79d7ea', fontSize: 11, margin: 14 },
+    axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
+  }),
+  series: [
+    {
+      type: 'bar',
+      barWidth: 26,
+      itemStyle: {
+        borderRadius: [0, 8, 8, 0],
+        color: (params: any) => lifecycleFunnelStages.value[params.dataIndex]?.color || '#22d3ee',
+      },
+      label: {
+        show: true,
+        position: 'right',
+        color: '#dffafc',
+        formatter: (params: any) => {
+          const row: any = lifecycleFunnelStages.value[params.dataIndex]
+          return row ? `${row.value} · ${formatPct(row.rate || 0)}` : ''
+        },
+      },
+      data: lifecycleFunnelStages.value.map((item: any) => item.value || 0),
+    },
+  ],
+}))
+
+const lifecycleConversionOption = computed(() => ({
+  backgroundColor: 'transparent',
+  tooltip: icuTooltip({
+    formatter: (params: any) => {
+      const idx = Number((Array.isArray(params) ? params[0] : params)?.dataIndex || 0)
       const row = lifecycleFunnelSeries.value[idx] || {}
       return tooltipShell(
         row?.time || '时间段',
         [
           tooltipRow('新增告警', `${row?.created || 0} 条`, '#22d3ee'),
-          tooltipRow('告警→查看', `${formatPct(row?.created_to_view_rate || 0)} (${row?.viewed || 0}/${row?.created || 0})`, '#fbbf24'),
-          tooltipRow('查看→确认', `${formatPct(row?.view_to_ack_rate || 0)} (${row?.acknowledged || 0}/${row?.viewed || 0})`, '#fb923c'),
-          tooltipRow('确认→行动', `${formatPct(row?.ack_to_action_rate || 0)} (${row?.actioned || 0}/${row?.acknowledged || 0})`, '#34d399'),
+          tooltipRow('告警→查看', formatPct(row?.created_to_view_rate || 0), '#fbbf24'),
+          tooltipRow('查看→确认', formatPct(row?.view_to_ack_rate || 0), '#fb923c'),
+          tooltipRow('确认→行动', formatPct(row?.ack_to_action_rate || 0), '#34d399'),
+          tooltipRow('告警→行动', formatPct(row?.created_to_action_rate || 0), '#38bdf8'),
         ],
-        '闭环转化趋势'
+        '阶段转化率'
       )
     },
   }),
@@ -845,33 +921,16 @@ const lifecycleTrendOption = computed(() => ({
     axisLabel: { color: '#79d7ea', fontSize: 10, margin: 12 },
     axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
   }),
-  yAxis: [
-    icuValueAxis({
-      axisLabel: {
-        color: '#8ecfe0',
-        fontSize: 10,
-        formatter: (value: number) => `${value}%`,
-      },
-      splitLine: { lineStyle: { color: 'rgba(61, 118, 145, 0.15)' } },
-      max: 100,
-    }),
-    icuValueAxis({
-      axisLabel: { color: '#5fb5c8', fontSize: 10 },
-      splitLine: { show: false },
-    }),
-  ],
+  yAxis: icuValueAxis({
+    axisLabel: { color: '#8ecfe0', fontSize: 10, formatter: (value: number) => `${value}%` },
+    splitLine: { lineStyle: { color: 'rgba(61, 118, 145, 0.15)' } },
+    max: 100,
+  }),
   series: [
-    {
-      name: '新增告警',
-      type: 'bar',
-      yAxisIndex: 1,
-      barMaxWidth: 18,
-      itemStyle: { color: 'rgba(34, 211, 238, 0.3)', borderRadius: [6, 6, 0, 0] },
-      data: lifecycleFunnelSeries.value.map((item: any) => item.created || 0),
-    },
     { name: '告警→查看', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, itemStyle: { color: '#fbbf24' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.created_to_view_rate || 0) * 1000) / 10) },
     { name: '查看→确认', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, itemStyle: { color: '#fb923c' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.view_to_ack_rate || 0) * 1000) / 10) },
     { name: '确认→行动', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#34d399' }, itemStyle: { color: '#34d399' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.ack_to_action_rate || 0) * 1000) / 10) },
+    { name: '告警→行动', type: 'line', smooth: true, symbol: 'circle', symbolSize: 5, lineStyle: { width: 2, type: 'dashed', color: '#38bdf8' }, itemStyle: { color: '#38bdf8' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.created_to_action_rate || 0) * 1000) / 10) },
   ],
 }))
 
@@ -1978,11 +2037,11 @@ const weaningDeptCompareOption = computed(() => ({
 const lifecycleColumns = [
   { title: '告警类型', dataIndex: 'alert_type', key: 'alert_type', width: 180 },
   { title: '总量', dataIndex: 'count', key: 'count', width: 72 },
-  { title: '查看率', dataIndex: 'view_rate', key: 'view_rate', width: 86 },
-  { title: '确认率', dataIndex: 'ack_rate', key: 'ack_rate', width: 86 },
-  { title: '行动率', dataIndex: 'action_rate', key: 'action_rate', width: 86 },
-  { title: '中位行动(分)', dataIndex: 'median_action_minutes', key: 'median_action_minutes', width: 110 },
-  { title: '平均可行动性', dataIndex: 'avg_actionability_score', key: 'avg_actionability_score', width: 110 },
+  { title: '查看率', dataIndex: 'view_rate_text', key: 'view_rate', width: 86 },
+  { title: '确认率', dataIndex: 'ack_rate_text', key: 'ack_rate', width: 86 },
+  { title: '行动率', dataIndex: 'action_rate_text', key: 'action_rate', width: 86 },
+  { title: '中位行动(分)', dataIndex: 'median_action_minutes_text', key: 'median_action_minutes', width: 110 },
+  { title: '平均可行动性', dataIndex: 'avg_actionability_score_text', key: 'avg_actionability_score', width: 110 },
 ]
 
 const deptColumns = [
@@ -2168,7 +2227,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+@import url('../assets/fonts/rajdhani/rajdhani.css');
 
 .analytics-page {
   position: relative;

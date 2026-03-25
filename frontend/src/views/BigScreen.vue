@@ -649,7 +649,7 @@ watch(() => route.query, () => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap');
+@import url('../assets/fonts/rajdhani/rajdhani.css');
 
 .bigscreen {
   min-height: 100vh;

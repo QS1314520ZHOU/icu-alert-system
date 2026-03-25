@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+from app.utils.clinical import _detect_trend
+from app.utils.parse import _parse_dt
+
 
 def _safe_float(value: Any) -> float | None:
     if value is None or value == "":
@@ -20,6 +23,43 @@ def _round_number(value: Any, digits: int = 2) -> float | None:
     if number is None:
         return None
     return round(number, digits)
+
+
+def _event_time(value: dict[str, Any]) -> datetime | None:
+    if not isinstance(value, dict):
+        return None
+    for key in ("time", "recordTime", "calc_time", "created_at", "executeTime", "startTime", "orderTime", "bindTime", "unBindTime", "stopTime"):
+        parsed = _parse_dt(value.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _trim_event_meta(meta: dict[str, Any], *, limit: int = 8) -> dict[str, Any]:
+    trimmed: dict[str, Any] = {}
+    for key in list(meta.keys())[:limit]:
+        value = meta.get(key)
+        if isinstance(value, (str, int, float, bool)) or value is None or isinstance(value, datetime):
+            trimmed[key] = value
+    return trimmed
+
+
+def _diff_threshold(path: str, current: float | str | None) -> float | None:
+    numeric_thresholds = {
+        "snapshot.map.current": 5.0,
+        "snapshot.hr.current": 10.0,
+        "snapshot.spo2.current": 3.0,
+        "snapshot.rr.current": 4.0,
+        "snapshot.temp.current": 0.5,
+        "snapshot.lactate.current": 0.5,
+        "snapshot.fio2.current": 5.0,
+        "snapshot.peep.current": 2.0,
+        "snapshot.vasoactive_support.current_dose_ug_kg_min": 0.03,
+        "snapshot.urine_ml_kg_h_6h": 0.2,
+    }
+    if path == "snapshot.vent_mode.current":
+        return 0.0 if current else None
+    return numeric_thresholds.get(path)
 
 
 class PatientDigitalTwinService:
@@ -43,17 +83,36 @@ class PatientDigitalTwinService:
         latest = values[-1]
         first = values[0]
         delta = round(latest - first, 3)
-        trend = "stable" if abs(delta) < 1e-6 else ("up" if delta > 0 else "down")
+        trend_info = _detect_trend(values, window=len(values))
+        recent_window = max(2, len(values) // 3)
+        recent_values = values[-recent_window:]
+        overall_mean = sum(values) / len(values)
+        recent_mean = sum(recent_values) / len(recent_values)
+        mean_shift = recent_mean - overall_mean
+        volatility = max(abs(trend_info.get("volatility", 0.0)), 0.0)
+        mean_threshold = max(abs(overall_mean) * 0.05, volatility * 0.35, 0.2)
+        direction = str(trend_info.get("direction") or "stable").lower()
+        if direction == "rising":
+            trend = "up"
+        elif direction == "falling":
+            trend = "down"
+        elif abs(mean_shift) >= mean_threshold:
+            trend = "up" if mean_shift > 0 else "down"
+        else:
+            trend = "stable"
         return {
             "points": len(values),
             "latest": round(latest, 3),
             "delta": delta,
             "trend": trend,
+            "mean_shift": round(mean_shift, 3),
+            "slope": trend_info.get("slope"),
+            "volatility": trend_info.get("volatility"),
             "start_time": series[0].get("time"),
             "end_time": series[-1].get("time"),
         }
 
-    async def _build_vitals_block(self, patient_id: str, hours: int) -> dict[str, Any]:
+    async def _build_vitals_block(self, patient_id: str, patient_doc: dict[str, Any], hours: int) -> dict[str, Any]:
         now = datetime.now()
         since = now - timedelta(hours=max(int(hours or 24), 1))
         latest = await self.alert_engine._get_latest_vitals_by_patient(patient_id) if hasattr(self.alert_engine, "_get_latest_vitals_by_patient") else {}
@@ -79,10 +138,33 @@ class PatientDigitalTwinService:
                     if rows:
                         break
             series_map[key] = rows or []
+        vent_latest: dict[str, Any] = {}
+        if hasattr(self.alert_engine, "_get_device_id_for_patient") and hasattr(self.alert_engine, "_get_latest_device_cap"):
+            vent_device_id = await self.alert_engine._get_device_id_for_patient(patient_doc, ["vent"])
+            vent_cap = await self.alert_engine._get_latest_device_cap(vent_device_id) if vent_device_id else None
+            if vent_cap:
+                params = vent_cap.get("params") if isinstance(vent_cap.get("params"), dict) else {}
+                fio2 = self.alert_engine._vent_param(vent_cap, "fio2", "param_FiO2") if hasattr(self.alert_engine, "_vent_param") else None
+                peep = self.alert_engine._vent_param_priority(vent_cap, ["peep_measured", "peep_set"], ["param_vent_measure_peep", "param_vent_peep"]) if hasattr(self.alert_engine, "_vent_param_priority") else None
+                vent_mode = (
+                    vent_cap.get("param_HuXiMoShi")
+                    or vent_cap.get("param_vent_mode")
+                    or vent_cap.get("vent_mode")
+                    or params.get("param_HuXiMoShi")
+                    or params.get("param_vent_mode")
+                    or params.get("vent_mode")
+                )
+                vent_time = _event_time(vent_cap)
+                vent_latest = {
+                    "fio2": {"current": _round_number(fio2, 2), "time": vent_time},
+                    "peep": {"current": _round_number(peep, 2), "time": vent_time},
+                    "vent_mode": {"current": str(vent_mode).strip() if vent_mode not in (None, "") else None, "time": vent_time},
+                }
         return {
             "latest": latest or {},
             "snapshot": {key: self._series_snapshot(rows) for key, rows in series_map.items()},
             "series": {key: rows[-24:] for key, rows in series_map.items()},
+            "ventilator": vent_latest,
             "generated_at": now,
         }
 
@@ -125,9 +207,10 @@ class PatientDigitalTwinService:
                 }
             )
         if hasattr(self.alert_engine, "_extract_vasopressor_rate_ug_kg_min"):
+            keywords = ["去甲肾上腺素", "norepinephrine", "noradrenaline", "多巴胺", "dopamine", "肾上腺素", "epinephrine", "血管加压素", "vasopressin", "多巴酚丁胺", "dobutamine"]
             for doc in reversed(docs):
                 text = " ".join(str(doc.get(key) or "") for key in ("drugName", "orderName", "drugSpec", "route", "routeName")).lower()
-                if not any(token in text for token in ["去甲肾上腺素", "norepinephrine", "noradrenaline", "多巴胺", "dopamine", "肾上腺素", "epinephrine", "血管加压素", "vasopressin"]):
+                if not any(token in text for token in keywords):
                     continue
                 dose = self.alert_engine._extract_vasopressor_rate_ug_kg_min(doc, weight_kg)
                 if dose is not None:
@@ -201,12 +284,79 @@ class PatientDigitalTwinService:
             },
         }
 
-    def _build_event_timeline(self, *, vitals: dict[str, Any], labs: dict[str, Any], medications: dict[str, Any], scores: dict[str, Any], text_signals: dict[str, Any], alerts: dict[str, Any]) -> list[dict[str, Any]]:
+    async def _build_device_timeline_events(self, patient_id: str, hours: int) -> list[dict[str, Any]]:
+        since = datetime.now() - timedelta(hours=max(int(hours or 24), 1))
+        timeline: list[dict[str, Any]] = []
+        bind_rows = [
+            row async for row in self.db.col("deviceBind").find(
+                {
+                    "pid": patient_id,
+                    "$or": [
+                        {"bindTime": {"$gte": since}},
+                        {"unBindTime": {"$gte": since}},
+                    ],
+                },
+                {"type": 1, "bindTime": 1, "unBindTime": 1, "deviceName": 1, "name": 1, "deviceID": 1},
+            ).sort("bindTime", -1).limit(80)
+        ]
+        for row in bind_rows:
+            device_name = str(row.get("deviceName") or row.get("name") or row.get("type") or "设备").strip()
+            device_type = str(row.get("type") or "").strip().lower()
+            bind_time = _parse_dt(row.get("bindTime"))
+            unbind_time = _parse_dt(row.get("unBindTime"))
+            meta = _trim_event_meta(row)
+            if bind_time and bind_time >= since:
+                timeline.append({"time": bind_time, "source": "deviceBind", "type": "device_bind", "label": f"设备绑定: {device_name}", "meta": {"device_type": device_type, **meta}})
+            if unbind_time and unbind_time >= since:
+                timeline.append({"time": unbind_time, "source": "deviceBind", "type": "device_unbind", "label": f"设备解绑: {device_name}", "meta": {"device_type": device_type, **meta}})
+
+        tube_rows = [
+            row async for row in self.db.col("tubeExe").find(
+                {
+                    "pid": patient_id,
+                    "$or": [
+                        {"startTime": {"$gte": since}},
+                        {"stopTime": {"$gte": since}},
+                    ],
+                },
+                {"name": 1, "type": 1, "body": 1, "startTime": 1, "stopTime": 1},
+            ).sort("startTime", -1).limit(80)
+        ]
+        for row in tube_rows:
+            tube_name = str(row.get("name") or row.get("type") or "管路").strip()
+            site = str(row.get("body") or "").strip()
+            start_time = _parse_dt(row.get("startTime"))
+            stop_time = _parse_dt(row.get("stopTime"))
+            label_suffix = f" ({site})" if site else ""
+            meta = _trim_event_meta(row)
+            if start_time and start_time >= since:
+                timeline.append({"time": start_time, "source": "tubeExe", "type": "tube_insert", "label": f"置管: {tube_name}{label_suffix}", "meta": meta})
+            if stop_time and stop_time >= since:
+                timeline.append({"time": stop_time, "source": "tubeExe", "type": "tube_remove", "label": f"拔管: {tube_name}{label_suffix}", "meta": meta})
+        return timeline
+
+    def _build_event_timeline(
+        self,
+        *,
+        vitals: dict[str, Any],
+        labs: dict[str, Any],
+        medications: dict[str, Any],
+        scores: dict[str, Any],
+        text_signals: dict[str, Any],
+        alerts: dict[str, Any],
+        device_events: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         timeline: list[dict[str, Any]] = []
         for metric, rows in (vitals.get("series") or {}).items():
             if rows:
                 latest = rows[-1]
                 timeline.append({"time": latest.get("time"), "source": "vitals", "type": metric, "label": f"{metric.upper()} {latest.get('value')}"})
+        vent_latest = vitals.get("ventilator") if isinstance(vitals.get("ventilator"), dict) else {}
+        for metric in ("fio2", "peep", "vent_mode"):
+            entry = vent_latest.get(metric) if isinstance(vent_latest.get(metric), dict) else {}
+            if entry.get("time") and entry.get("current") not in (None, ""):
+                label = f"{metric.upper()} {entry.get('current')}" if metric != "vent_mode" else f"通气模式 {entry.get('current')}"
+                timeline.append({"time": entry.get("time"), "source": "ventilator", "type": metric, "label": label})
         for lab_key, rows in (labs.get("series") or {}).items():
             if rows:
                 latest = rows[-1]
@@ -223,18 +373,87 @@ class PatientDigitalTwinService:
             timeline.append({"time": nursing.get("calc_time"), "source": "nursing", "type": "nursing_note_signal_analysis", "label": nursing.get("summary") or "护理文本信号更新"})
         for row in (alerts.get("recent") or [])[:20]:
             timeline.append({"time": row.get("created_at"), "source": "alert", "type": row.get("alert_type"), "label": row.get("name") or row.get("alert_type"), "meta": row})
+        timeline.extend(device_events or [])
         timeline = [item for item in timeline if item.get("time")]
         timeline.sort(key=lambda item: item.get("time") or datetime.min, reverse=True)
         return timeline[:60]
 
+    def _iter_diff_candidates(self, payload: Any, prefix: str = "") -> list[tuple[str, float | str | None]]:
+        rows: list[tuple[str, float | str | None]] = []
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                path = f"{prefix}.{key}" if prefix else str(key)
+                if isinstance(value, dict):
+                    rows.extend(self._iter_diff_candidates(value, path))
+                elif isinstance(value, (int, float, str)) or value is None:
+                    rows.append((path, value))
+        return rows
+
+    def _diff_from_previous(self, previous: dict[str, Any] | None, current: dict[str, Any]) -> dict[str, Any]:
+        if not previous:
+            return {"available": False, "fields": [], "previous_calc_time": None}
+        previous_snapshot = previous.get("snapshot") if isinstance(previous.get("snapshot"), dict) else {}
+        current_snapshot = current.get("snapshot") if isinstance(current.get("snapshot"), dict) else {}
+        previous_values = dict(self._iter_diff_candidates(previous_snapshot, "snapshot"))
+        fields: list[dict[str, Any]] = []
+        for path, current_value in self._iter_diff_candidates(current_snapshot, "snapshot"):
+            previous_value = previous_values.get(path)
+            if current_value in (None, "") and previous_value in (None, ""):
+                continue
+            threshold = _diff_threshold(path, current_value)
+            if isinstance(current_value, (int, float)) and isinstance(previous_value, (int, float)):
+                delta = round(float(current_value) - float(previous_value), 3)
+                if threshold is None or abs(delta) < threshold:
+                    continue
+                fields.append({"path": path, "previous": previous_value, "current": current_value, "delta": delta, "threshold": threshold})
+            elif current_value != previous_value and threshold == 0.0:
+                fields.append({"path": path, "previous": previous_value, "current": current_value, "delta": None, "threshold": threshold})
+        fields.sort(key=lambda item: abs(item.get("delta") or 0.0), reverse=True)
+        return {"available": True, "previous_calc_time": previous.get("calc_time"), "fields": fields}
+
+    def _apply_diff_markers(self, snapshot: dict[str, Any], diff_payload: dict[str, Any]) -> None:
+        fields = diff_payload.get("fields") if isinstance(diff_payload.get("fields"), list) else []
+        field_map = {str(item.get("path") or ""): item for item in fields if isinstance(item, dict)}
+        for path, row in field_map.items():
+            parts = path.split(".")
+            if len(parts) < 2 or parts[0] != "snapshot":
+                continue
+            target: Any = snapshot.get("snapshot")
+            for key in parts[1:-1]:
+                if not isinstance(target, dict):
+                    target = None
+                    break
+                target = target.get(key)
+            if isinstance(target, dict):
+                target["_diff_from_previous"] = {
+                    "previous": row.get("previous"),
+                    "current": row.get("current"),
+                    "delta": row.get("delta"),
+                    "threshold": row.get("threshold"),
+                    "previous_calc_time": diff_payload.get("previous_calc_time"),
+                }
+
+    def _storage_view(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        data = dict(snapshot)
+        vitals = dict(data.get("vitals") or {})
+        labs = dict(data.get("labs") or {})
+        if "series" in vitals:
+            vitals["series"] = {}
+        if "series" in labs:
+            labs["series"] = {}
+        data["vitals"] = vitals
+        data["labs"] = labs
+        return data
+
     async def build_snapshot(self, patient_id: str, patient_doc: dict[str, Any], *, hours: int = 24) -> dict[str, Any]:
         facts = await self.alert_engine._collect_patient_facts(patient_doc, patient_doc.get("_id")) if hasattr(self.alert_engine, "_collect_patient_facts") else {}
-        vitals = await self._build_vitals_block(patient_id, hours)
+        vitals = await self._build_vitals_block(patient_id, patient_doc, hours)
         labs = await self._build_labs_block(patient_doc, hours)
         medications = await self._build_medication_block(patient_id, patient_doc, hours)
         scores = await self._build_scores_block(patient_id, patient_doc, hours)
         text_signals = await self._build_text_signal_block(patient_doc, patient_id, hours)
         alerts = await self._build_alert_block(patient_id, patient_doc, hours)
+        device_events = await self._build_device_timeline_events(patient_id, min(max(int(hours or 24), 1), 24))
         timeline = self._build_event_timeline(
             vitals=vitals,
             labs=labs,
@@ -242,6 +461,7 @@ class PatientDigitalTwinService:
             scores=scores,
             text_signals=text_signals,
             alerts=alerts,
+            device_events=device_events,
         )
         now = datetime.now()
         snapshot = {
@@ -250,6 +470,9 @@ class PatientDigitalTwinService:
             "spo2": {"current": _safe_float(((vitals.get("snapshot") or {}).get("spo2") or {}).get("latest"))},
             "rr": {"current": _safe_float(((vitals.get("snapshot") or {}).get("rr") or {}).get("latest"))},
             "temp": {"current": _safe_float(((vitals.get("snapshot") or {}).get("temp") or {}).get("latest"))},
+            "fio2": {"current": _safe_float(((vitals.get("ventilator") or {}).get("fio2") or {}).get("current"))},
+            "peep": {"current": _safe_float(((vitals.get("ventilator") or {}).get("peep") or {}).get("current"))},
+            "vent_mode": {"current": ((vitals.get("ventilator") or {}).get("vent_mode") or {}).get("current")},
             "lactate": {
                 "current": _safe_float(
                     (
@@ -308,6 +531,7 @@ class PatientDigitalTwinService:
     async def persist_snapshot(self, snapshot: dict[str, Any], *, upsert_window_minutes: int = 30) -> dict[str, Any]:
         now = snapshot.get("calc_time") if isinstance(snapshot.get("calc_time"), datetime) else datetime.now()
         patient_id = str(snapshot.get("patient_id") or "").strip()
+        stored_snapshot = self._storage_view(snapshot)
         latest = await self.db.col("score_records").find_one(
             {
                 "patient_id": patient_id,
@@ -317,10 +541,10 @@ class PatientDigitalTwinService:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": snapshot})
+            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": stored_snapshot})
             snapshot["_id"] = latest["_id"]
             return snapshot
-        result = await self.db.col("score_records").insert_one(snapshot)
+        result = await self.db.col("score_records").insert_one(stored_snapshot)
         snapshot["_id"] = result.inserted_id
         return snapshot
 
@@ -333,11 +557,17 @@ class PatientDigitalTwinService:
         refresh: bool = False,
         persist: bool = True,
     ) -> dict[str, Any]:
+        previous = None
         if not refresh:
             cached = await self.latest_snapshot(patient_id, max_age_hours=min(max(int(hours or 24), 1), 12))
             if cached:
                 return cached
+        previous = await self.latest_snapshot(patient_id, max_age_hours=72)
         snapshot = await self.build_snapshot(patient_id, patient_doc, hours=hours)
+        diff_payload = self._diff_from_previous(previous, snapshot)
+        snapshot["_diff_from_previous"] = diff_payload
+        snapshot["diff"] = diff_payload
+        self._apply_diff_markers(snapshot, diff_payload)
         if persist:
             return await self.persist_snapshot(snapshot)
         return snapshot

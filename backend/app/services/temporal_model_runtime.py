@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from app.utils.ai_acceleration import onnx_providers, torch_device_name
+from app.utils.runtime_paths import model_search_roots
 
 logger = logging.getLogger("icu-alert")
 
@@ -20,6 +22,7 @@ class TemporalRiskModelRuntime:
         self._reason = "uninitialized"
         self._input_names: list[str] = []
         self._output_names: list[str] = []
+        self._device = "cpu"
 
     def _cfg(self) -> dict[str, Any]:
         cfg = self.config.yaml_cfg.get("ai_service", {}).get("temporal_model", {})
@@ -27,19 +30,15 @@ class TemporalRiskModelRuntime:
 
     def _discover_candidates(self) -> list[Path]:
         cfg = self._cfg()
-        backend_root = Path(__file__).resolve().parents[2]
+        root = model_search_roots()[0].parent
         configured = str(cfg.get("model_path") or "").strip()
         candidates: list[Path] = []
         if configured:
             p = Path(configured)
             if not p.is_absolute():
-                p = backend_root / configured
+                p = root / configured
             candidates.append(p)
-        search_dirs = [
-            backend_root / "models",
-            backend_root / "weights",
-            backend_root / "artifacts",
-        ]
+        search_dirs = model_search_roots()
         search_names = cfg.get(
             "candidate_names",
             [
@@ -71,6 +70,7 @@ class TemporalRiskModelRuntime:
             self._backend = "heuristic"
             self._model = None
             self._model_path = ""
+            self._device = "cpu"
             self._reason = "no_local_weight_found"
             return
 
@@ -89,29 +89,37 @@ class TemporalRiskModelRuntime:
             if suffix == ".onnx":
                 import onnxruntime as ort  # type: ignore
 
-                session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+                providers = onnx_providers()
+                session = ort.InferenceSession(str(model_path), providers=providers)
                 self._model = session
                 self._backend = "onnx"
                 self._input_names = [x.name for x in session.get_inputs()]
                 self._output_names = [x.name for x in session.get_outputs()]
-                self._reason = "loaded"
+                self._device = "cuda" if providers and providers[0] == "CUDAExecutionProvider" else "cpu"
+                self._reason = f"loaded:{','.join(providers)}"
             elif suffix in {".pt", ".pth", ".ckpt"}:
                 import torch  # type: ignore
 
+                device_name = torch_device_name()
+                map_location = torch.device(device_name)
                 loaded = None
                 try:
-                    loaded = torch.jit.load(str(model_path), map_location="cpu")
+                    loaded = torch.jit.load(str(model_path), map_location=map_location)
                 except Exception:
-                    loaded = torch.load(str(model_path), map_location="cpu")
+                    loaded = torch.load(str(model_path), map_location=map_location)
+                if hasattr(loaded, "to"):
+                    loaded = loaded.to(map_location)
                 if hasattr(loaded, "eval"):
                     loaded.eval()
                 self._model = loaded
                 self._backend = "pytorch"
-                self._reason = "loaded"
+                self._device = device_name
+                self._reason = f"loaded:{device_name}"
             else:
                 self._backend = "heuristic"
                 self._reason = f"unsupported_weight_format:{suffix or 'unknown'}"
                 self._model = None
+                self._device = "cpu"
             self._model_path = str(model_path)
             self._mtime = mtime
             self._loaded = True
@@ -121,6 +129,7 @@ class TemporalRiskModelRuntime:
             self._model_path = str(model_path)
             self._mtime = mtime
             self._loaded = True
+            self._device = "cpu"
             self._reason = f"load_failed:{type(e).__name__}:{str(e)[:120]}"
             logger.warning("时序模型加载失败: %s", self._reason)
 
@@ -155,17 +164,18 @@ class TemporalRiskModelRuntime:
     def _prepare_torch_inputs(self, sequence: np.ndarray, meta_features: np.ndarray | None):
         import torch  # type: ignore
 
+        device = torch.device(self._device if self._device == "cuda" and torch.cuda.is_available() else "cpu")
         seq_arr = sequence.astype(np.float32)
         if seq_arr.ndim == 2:
-            seq = torch.tensor(seq_arr).unsqueeze(0)
+            seq = torch.tensor(seq_arr, device=device).unsqueeze(0)
         elif seq_arr.ndim == 3:
-            seq = torch.tensor(seq_arr)
+            seq = torch.tensor(seq_arr, device=device)
         else:
-            seq = torch.tensor(seq_arr.reshape(1, -1, 1))
+            seq = torch.tensor(seq_arr.reshape(1, -1, 1), device=device)
         meta = None
         if meta_features is not None:
             meta_arr = meta_features.astype(np.float32)
-            meta = torch.tensor(meta_arr if meta_arr.ndim == 2 else meta_arr.reshape(1, -1))
+            meta = torch.tensor(meta_arr if meta_arr.ndim == 2 else meta_arr.reshape(1, -1), device=device)
         return seq, meta
 
     def _to_numpy(self, obj: Any) -> Any:
@@ -243,6 +253,7 @@ class TemporalRiskModelRuntime:
             return {
                 "available": False,
                 "backend": self._backend,
+                "device": self._device,
                 "model_path": self._model_path,
                 "reason": self._reason,
             }
@@ -253,17 +264,21 @@ class TemporalRiskModelRuntime:
                 raw_outputs = self._model.run(self._output_names or None, feeds)
                 parsed = self._parse_probability_output(raw_outputs[0] if len(raw_outputs) == 1 else raw_outputs, organ_keys=organ_keys, horizons=horizons)
             else:
+                import torch  # type: ignore
+
                 seq, meta = self._prepare_torch_inputs(sequence, meta_features)
                 model = self._model
-                try:
-                    raw = model(seq, meta) if meta is not None else model(seq)
-                except TypeError:
-                    raw = model(seq)
+                with torch.inference_mode():
+                    try:
+                        raw = model(seq, meta) if meta is not None else model(seq)
+                    except TypeError:
+                        raw = model(seq)
                 parsed = self._parse_probability_output(raw, organ_keys=organ_keys, horizons=horizons)
             if not parsed:
                 return {
                     "available": False,
                     "backend": self._backend,
+                    "device": self._device,
                     "model_path": self._model_path,
                     "reason": "invalid_model_output",
                 }
@@ -271,6 +286,7 @@ class TemporalRiskModelRuntime:
                 {
                     "available": True,
                     "backend": self._backend,
+                    "device": self._device,
                     "model_path": self._model_path,
                     "reason": self._reason,
                 }
@@ -281,6 +297,7 @@ class TemporalRiskModelRuntime:
             return {
                 "available": False,
                 "backend": self._backend,
+                "device": self._device,
                 "model_path": self._model_path,
                 "reason": f"inference_failed:{type(e).__name__}:{str(e)[:120]}",
             }
@@ -289,6 +306,7 @@ class TemporalRiskModelRuntime:
         self._ensure_loaded()
         return {
             "backend": self._backend,
+            "device": self._device,
             "model_path": self._model_path,
             "available": bool(self._backend != "heuristic" and self._model is not None),
             "reason": self._reason,

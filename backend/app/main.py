@@ -27,6 +27,7 @@ from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
 from app.services.rag_service import RagService
+from app.utils.runtime_paths import static_dir
 from app.ws_manager import WebSocketManager
 
 logging.basicConfig(
@@ -113,10 +114,12 @@ app.include_router(ai_router)
 app.include_router(knowledge_router)
 app.include_router(ws_router)
 
-STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+STATIC_DIR = str(static_dir())
 
 if os.path.exists(STATIC_DIR):
-    app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
+    assets_dir = os.path.join(STATIC_DIR, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):

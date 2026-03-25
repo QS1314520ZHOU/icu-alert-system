@@ -9,6 +9,7 @@ from bson import ObjectId
 
 from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
+from app.services.patient_digital_twin import PatientDigitalTwinService
 
 
 @dataclass(frozen=True)
@@ -268,18 +269,53 @@ class ICUMultiAgentOrchestrator:
         patient_doc = await self._load_patient(patient_id)
         if not patient_doc:
             return None
-        cached_plan = await self.db.col("score_records").find_one(
-            {
-                "patient_id": patient_id,
-                "score_type": "clinical_reasoning_plan",
-                "calc_time": {"$gte": datetime.now() - timedelta(minutes=self._digital_twin_cache_minutes())},
-                "digital_twin": {"$type": "object"},
-            },
-            sort=[("calc_time", -1)],
+        twin_service = PatientDigitalTwinService(db=self.db, config=self.config, alert_engine=self.alert_engine)
+        base_twin = await twin_service.get_or_build_snapshot(
+            patient_id,
+            patient_doc,
+            hours=24,
+            refresh=False,
+            persist=True,
         )
-        if isinstance(cached_plan, dict) and isinstance(cached_plan.get("digital_twin"), dict):
-            return cached_plan["digital_twin"]
-        return await self.reasoning_agent.build_digital_twin(patient_id, patient_doc)
+        facts = base_twin.get("facts") if isinstance(base_twin.get("facts"), dict) else {}
+        recent_alerts = ((base_twin.get("alerts") or {}).get("recent") if isinstance(base_twin.get("alerts"), dict) else None) or []
+        recent_scores = ((base_twin.get("scores") or {}).get("recent") if isinstance(base_twin.get("scores"), dict) else None) or []
+        medications = (base_twin.get("medications") or {}) if isinstance(base_twin.get("medications"), dict) else {}
+        handoff_context = {
+            "drugs_12h": (medications.get("recent_orders") or [])[:12],
+            "snapshot_window_hours": base_twin.get("snapshot_window_hours"),
+            "_source": "digital_twin_snapshot",
+        }
+        problem_list = self.reasoning_agent._problem_list(
+            patient_doc=patient_doc,
+            facts=facts,
+            recent_alerts=recent_alerts,
+            temporal_forecast={},
+        )
+        return {
+            "generated_at": datetime.now(),
+            "digital_twin_snapshot": base_twin,
+            "patient": {
+                "id": patient_id,
+                "name": patient_doc.get("name") or "未知",
+                "bed": patient_doc.get("hisBed") or patient_doc.get("bed"),
+                "dept": patient_doc.get("dept") or patient_doc.get("hisDept"),
+                "diagnosis": patient_doc.get("clinicalDiagnosis") or patient_doc.get("admissionDiagnosis") or "",
+                "nursing_level": patient_doc.get("nursingLevel") or "",
+                "icu_admission_time": patient_doc.get("icuAdmissionTime"),
+            },
+            "problem_list": problem_list,
+            "facts": facts,
+            "recent_alerts_24h": recent_alerts,
+            "recent_scores_24h": recent_scores,
+            "temporal_forecast": {},
+            "proactive_management": {},
+            "nursing_context": {},
+            "nursing_note_analysis": (base_twin.get("text_signals") or {}).get("nursing") if isinstance(base_twin.get("text_signals"), dict) else {},
+            "similar_case_review": {},
+            "handoff_context": handoff_context,
+            "_context_source": "digital_twin_snapshot",
+        }
 
     async def orchestrated_assessment(self, patient_id: str) -> dict[str, Any] | None:
         twin = await self.get_full_context(patient_id)

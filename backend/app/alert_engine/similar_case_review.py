@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
+from app.utils.ai_acceleration import sentence_transformer_kwargs
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -208,7 +209,10 @@ class SimilarCaseReviewMixin:
         model_name = str(self._similar_case_cfg().get("embedding_model") or "BAAI/bge-small-zh-v1.5").strip()
         try:
             from sentence_transformers import SentenceTransformer
-            self._similar_case_embed_model = SentenceTransformer(model_name)
+            self._similar_case_embed_model = SentenceTransformer(
+                model_name,
+                **sentence_transformer_kwargs(),
+            )
         except Exception:
             self._similar_case_embed_model = None
         return self._similar_case_embed_model

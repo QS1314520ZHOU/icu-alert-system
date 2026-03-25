@@ -111,6 +111,8 @@ class AlertActionabilityScorerMixin:
             query["$or"].append({"alert_type": alert_type})
         if parameter:
             query["$or"].append({"parameter": parameter})
+        # Only query sibling alerts when we have at least one stable identity key;
+        # otherwise an empty $or would either fail or broaden the match unexpectedly.
         if not query["$or"]:
             return []
         cursor = self.db.col("alert_records").find(
@@ -235,8 +237,12 @@ class AlertActionabilityScorerMixin:
         if not patient_id:
             return None
         created_at = alert_doc.get("created_at") if isinstance(alert_doc.get("created_at"), datetime) else datetime.now() - timedelta(hours=1)
+        lookback_minutes = max(int(self._actionability_cfg().get("action_match_lookback_minutes", 30) or 30), 0)
+        start_time = created_at - timedelta(minutes=lookback_minutes)
         end_time = created_at + timedelta(hours=max(int(hours or 24), 1))
         keywords = self._actionability_signal_keywords(alert_doc)
+        # Keyword count is intentionally capped at 12 above, so scanning the latest 300 orders
+        # remains acceptable without an additional per-patient medication-name cache for now.
         cursor = self.db.col("drugExe").find(
             {"pid": patient_id},
             {"drugName": 1, "orderName": 1, "dose": 1, "doseUnit": 1, "route": 1, "frequency": 1, "status": 1, "executeTime": 1, "startTime": 1, "orderTime": 1},
@@ -244,7 +250,7 @@ class AlertActionabilityScorerMixin:
         matches: list[dict[str, Any]] = []
         async for doc in cursor:
             event_time = self._alert_drug_time(doc)
-            if not event_time or event_time < created_at or event_time > end_time:
+            if not event_time or event_time < start_time or event_time > end_time:
                 continue
             haystack = " ".join([str(doc.get("drugName") or ""), str(doc.get("orderName") or "")]).lower()
             if keywords and not any(str(keyword).lower() in haystack for keyword in keywords):
@@ -268,6 +274,7 @@ class AlertActionabilityScorerMixin:
             "matched": True,
             "matched_keywords": keywords[:8],
             "action_time": first.get("time"),
+            "match_window": {"start": start_time, "anchor": created_at, "end": end_time},
             "action_count": len(matches),
             "orders": matches[:5],
             "summary": "；".join(item.get("drug_name") or item.get("order_name") or "" for item in matches[:3] if (item.get("drug_name") or item.get("order_name"))),
@@ -315,6 +322,62 @@ class AlertActionabilityScorerMixin:
                     continue
         return None
 
+    async def _metric_window_summary(self, patient_id: str, patient_doc: dict[str, Any] | None, metric: str, start: datetime, end: datetime) -> dict[str, Any] | None:
+        if end <= start:
+            return None
+        values: list[float] = []
+        if metric == "map":
+            codes = list(self._cfg("vital_signs", "map_priority", default=["param_ibp_m", "param_nibp_m"]) or ["param_ibp_m", "param_nibp_m"])
+            for code in codes:
+                series = await self._get_param_series_by_pid(patient_id, str(code), start, prefer_device_types=["monitor"], limit=240)
+                points = [row for row in series if start <= row.get("time", start) <= end]
+                if not points:
+                    continue
+                for row in points:
+                    try:
+                        values.append(float(row.get("value")))
+                    except Exception:
+                        continue
+                if values:
+                    break
+        elif metric == "lactate":
+            his_pid = str((patient_doc or {}).get("hisPid") or (patient_doc or {}).get("hisPID") or "").strip()
+            if not his_pid:
+                return None
+            rows = await self._get_lab_series(his_pid, "lactate", start, end, limit=30)
+            for row in rows or []:
+                try:
+                    values.append(float(row.get("value")))
+                except Exception:
+                    continue
+        elif metric == "sofa":
+            rows = [
+                row async for row in self.db.col("score_records").find(
+                    {"patient_id": patient_id, "score_type": {"$in": ["sofa", "sepsis_sofa", "sofa_score"]}, "calc_time": {"$gte": start, "$lte": end}},
+                    {"score": 1, "sofa_score": 1, "value": 1, "score_value": 1},
+                ).sort("calc_time", 1).limit(40)
+            ]
+            for row in rows:
+                for key in ("score", "sofa_score", "value", "score_value"):
+                    raw = row.get(key)
+                    if raw is None:
+                        continue
+                    try:
+                        values.append(float(raw))
+                        break
+                    except Exception:
+                        continue
+        if not values:
+            return None
+        mean_value = round(sum(values) / len(values), 2)
+        median_value = round(statistics.median(values), 2)
+        return {
+            "count": len(values),
+            "mean": mean_value,
+            "median": median_value,
+            "representative": median_value,
+        }
+
     async def _build_outcome_delta(self, alert_doc: dict[str, Any], patient_doc: dict[str, Any] | None, action_taken: dict[str, Any]) -> dict[str, Any] | None:
         action_time = action_taken.get("action_time") if isinstance(action_taken.get("action_time"), datetime) else None
         patient_id = str(alert_doc.get("patient_id") or "")
@@ -329,14 +392,15 @@ class AlertActionabilityScorerMixin:
             "30m": timedelta(minutes=30),
             "2h": timedelta(hours=2),
         }
-        baseline_start = action_time - timedelta(hours=6)
+        baseline_start = action_time - timedelta(hours=1)
         baseline_end = action_time
-        result: dict[str, Any] = {"action_time": action_time, "windows": {}}
+        result: dict[str, Any] = {"action_time": action_time, "baseline_window": {"start": baseline_start, "end": baseline_end, "method": "median_last_1h"}, "windows": {}}
         improved_any = False
         for label, delta in windows.items():
             metric_rows: dict[str, Any] = {}
             for metric, direction in metrics.items():
-                baseline = await self._metric_near_time(patient_id, patient_doc, metric, baseline_start, baseline_end)
+                baseline_meta = await self._metric_window_summary(patient_id, patient_doc, metric, baseline_start, baseline_end)
+                baseline = (baseline_meta or {}).get("representative")
                 followup = await self._metric_near_time(patient_id, patient_doc, metric, action_time, action_time + delta)
                 if baseline is None or followup is None:
                     continue
@@ -345,6 +409,7 @@ class AlertActionabilityScorerMixin:
                 improved_any = improved_any or improved
                 metric_rows[metric] = {
                     "baseline": baseline,
+                    "baseline_meta": baseline_meta,
                     "followup": followup,
                     "delta": diff,
                     "direction": direction,
@@ -363,6 +428,7 @@ class AlertActionabilityScorerMixin:
         severity = str(alert_doc.get("severity") or "warning").lower()
         severity_factor = {
             "info": 0.2,
+            "normal": 0.3,
             "warning": 0.45,
             "high": 0.75,
             "critical": 1.0,
@@ -554,6 +620,13 @@ class AlertActionabilityScorerMixin:
         top_types.sort(key=lambda item: (-float(item.get("action_rate") or 0), -int(item.get("count") or 0), item.get("alert_type") or ""))
         bucket_mode = "hour" if window_hours <= 72 else "day"
         bucket_map: dict[str, dict[str, Any]] = {}
+        bucket_step = timedelta(hours=1) if bucket_mode == "hour" else timedelta(days=1)
+        bucket_cursor = since.replace(minute=0, second=0, microsecond=0) if bucket_mode == "hour" else since.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_bucket = datetime.now().replace(minute=0, second=0, microsecond=0) if bucket_mode == "hour" else datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        while bucket_cursor <= end_bucket:
+            bucket_key = bucket_cursor.strftime("%m-%d %H:00") if bucket_mode == "hour" else bucket_cursor.strftime("%m-%d")
+            bucket_map[bucket_key] = {"time": bucket_key, "created": 0, "viewed": 0, "acknowledged": 0, "actioned": 0}
+            bucket_cursor += bucket_step
         for doc in docs:
             created_at = doc.get("created_at") if isinstance(doc.get("created_at"), datetime) else None
             if not created_at:

@@ -3,16 +3,46 @@ ICU智能预警系统 - 配置加载
 从 .env 读取敏感信息，从 config.yaml 读取业务配置
 """
 import os
+import sys
 import yaml
 from urllib.parse import quote_plus
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
-load_dotenv()
+from app.utils.runtime_paths import config_path, package_root
+
+
+def _load_env_files() -> None:
+    candidates: list[str] = [
+        str(package_root() / ".env"),
+        os.path.join(os.getcwd(), ".env"),
+        os.path.join(os.getcwd(), "backend", ".env"),
+    ]
+
+    if getattr(sys, "frozen", False):
+        candidates.append(os.path.join(os.path.dirname(sys.executable), ".env"))
+
+    explicit_path = os.environ.get("DOTENV_PATH", "").strip()
+    if explicit_path:
+        candidates.append(explicit_path)
+
+    seen: set[str] = set()
+    for path in candidates:
+        normalized = os.path.abspath(path)
+        if normalized in seen or not os.path.exists(normalized):
+            continue
+        load_dotenv(normalized, override=True)
+        seen.add(normalized)
+
+
+_load_env_files()
 
 
 class Settings(BaseSettings):
     """环境变量配置（敏感信息）"""
+
+    APP_HOST: str = "0.0.0.0"
+    APP_PORT: int = 8000
 
     # SmartCare
     SMARTCARE_DB_HOST: str = "127.0.0.1"
@@ -62,17 +92,12 @@ class AppConfig:
 
     def _load_yaml(self) -> dict:
         """加载 config.yaml"""
-        # __file__ = backend/app/config.py
-        # 往上两级 = backend/
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "config.yaml"
-        )
-        print(f"[CONFIG] 查找配置文件: {config_path}")
-        print(f"[CONFIG] 文件存在: {os.path.exists(config_path)}")
+        resolved_path = config_path()
+        print(f"[CONFIG] 查找配置文件: {resolved_path}")
+        print(f"[CONFIG] 文件存在: {resolved_path.exists()}")
 
-        if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
+        if resolved_path.exists():
+            with open(resolved_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
                 if cfg:
                     print(f"[CONFIG] YAML顶层keys: {list(cfg.keys())}")

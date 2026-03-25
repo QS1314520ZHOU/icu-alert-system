@@ -14,6 +14,7 @@ datas = [
     ('static', 'static'),
     ('config.yaml', '.'),
     ('.env', '.'),
+    ('knowledge_base', 'knowledge_base'),
 ]
 datas += collect_data_files('sentence_transformers')
 datas += collect_data_files('transformers')
@@ -86,7 +87,6 @@ excludes = [
     'tkinter',
     'unittest',
     'test',
-    'setuptools',
     'pip',
 ]
 

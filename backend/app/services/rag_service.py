@@ -11,6 +11,9 @@ from typing import Any
 
 import numpy as np
 
+from app.utils.ai_acceleration import sentence_transformer_kwargs
+from app.utils.runtime_paths import knowledge_base_dir
+
 logger = logging.getLogger("icu-alert")
 
 
@@ -45,10 +48,9 @@ class RagService:
         rag_cfg = (config.yaml_cfg or {}).get("ai_service", {}).get("rag", {})
         engine_rag_cfg = (config.yaml_cfg or {}).get("alert_engine", {}).get("rag", {})
         configured_dir = rag_cfg.get("knowledge_dir") if isinstance(rag_cfg, dict) else None
-        base = Path(__file__).resolve().parents[2]
-        self.knowledge_dir = Path(knowledge_dir or configured_dir or (base / "knowledge_base"))
+        self.knowledge_dir = Path(knowledge_dir or configured_dir or knowledge_base_dir())
         if not self.knowledge_dir.is_absolute():
-            self.knowledge_dir = base / self.knowledge_dir
+            self.knowledge_dir = knowledge_base_dir().parent / self.knowledge_dir
 
         # backend selection: "embedding" or "tfidf" (default)
         self._backend = str(rag_cfg.get("backend", "tfidf")).strip().lower() if isinstance(rag_cfg, dict) else "tfidf"
@@ -742,7 +744,10 @@ class RagService:
         try:
             from sentence_transformers import SentenceTransformer
             logger.info(f"Loading embedding model: {self._embedding_model_name}")
-            self._embed_model = SentenceTransformer(self._embedding_model_name)
+            self._embed_model = SentenceTransformer(
+                self._embedding_model_name,
+                **sentence_transformer_kwargs(),
+            )
             logger.info("Embedding model loaded successfully")
         except ImportError:
             logger.warning(

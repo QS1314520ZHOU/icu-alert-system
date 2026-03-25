@@ -2975,7 +2975,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+@import url('../assets/fonts/rajdhani/rajdhani.css');
 
 .detail-container {
   max-width: 1680px;

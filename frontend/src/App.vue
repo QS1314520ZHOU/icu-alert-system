@@ -200,7 +200,7 @@ onUnmounted(() => clearInterval(t))
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+@import url('./assets/fonts/rajdhani/rajdhani.css');
 
 .root { min-height: 100vh; background: var(--app-bg); font-family: 'Rajdhani', 'Noto Sans SC', sans-serif; }
 .hdr {
