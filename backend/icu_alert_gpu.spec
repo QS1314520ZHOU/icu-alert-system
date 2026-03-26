@@ -9,6 +9,7 @@ torch_imports = collect_submodules('torch')
 transformer_imports = collect_submodules('transformers')
 sentence_transformer_imports = collect_submodules('sentence_transformers')
 tokenizer_imports = collect_submodules('tokenizers')
+numpy_imports = collect_submodules('numpy')
 
 datas = [
     ('static', 'static'),
@@ -21,9 +22,11 @@ datas += collect_data_files('transformers')
 datas += collect_data_files('tokenizers')
 datas += collect_data_files('torch')
 datas += collect_data_files('tzdata')
+datas += collect_data_files('numpy')
 
 binaries = []
 binaries += collect_dynamic_libs('torch')
+binaries += collect_dynamic_libs('numpy')
 
 hidden_imports = (
     app_imports
@@ -32,6 +35,7 @@ hidden_imports = (
     + transformer_imports
     + sentence_transformer_imports
     + tokenizer_imports
+    + numpy_imports
     + [
         'uvicorn.logging',
         'uvicorn.loops',
@@ -59,6 +63,12 @@ hidden_imports = (
         'transformers',
         'tokenizers',
         'numpy',
+        'numpy._core',
+        'numpy._core._exceptions',
+        'numpy._core._multiarray_tests',
+        'numpy._core._multiarray_umath',
+        'numpy.linalg',
+        'numpy.linalg.lapack_lite',
         'httpx',
         'jose',
         'passlib',

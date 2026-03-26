@@ -53,6 +53,7 @@ RUN cd /src/backend && \
         --collect-all transformers \
         --collect-all tokenizers \
         --collect-all onnxruntime \
+        --collect-all numpy \
         --collect-submodules uvicorn \
         --collect-submodules starlette \
         --collect-submodules fastapi \
@@ -75,6 +76,12 @@ RUN cd /src/backend && \
         --hidden-import=dotenv \
         --hidden-import=httpx \
         --hidden-import=encodings.idna \
+        --hidden-import=numpy._core \
+        --hidden-import=numpy._core._exceptions \
+        --hidden-import=numpy._core._multiarray_tests \
+        --hidden-import=numpy._core._multiarray_umath \
+        --hidden-import=numpy.linalg \
+        --hidden-import=numpy.linalg.lapack_lite \
         --exclude-module=nvidia \
         --exclude-module=triton \
         --exclude-module=torch.cuda \

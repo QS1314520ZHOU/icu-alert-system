@@ -176,6 +176,7 @@ transformer_imports  = collect_submodules('transformers')
 st_imports           = collect_submodules('sentence_transformers')
 tokenizer_imports    = collect_submodules('tokenizers')
 ort_imports          = collect_submodules('onnxruntime')
+numpy_imports        = collect_submodules('numpy')
 
 # ---------- 数据文件 ----------
 datas = [
@@ -196,11 +197,13 @@ datas += collect_data_files('tokenizers')
 datas += collect_data_files('torch')
 datas += collect_data_files('tzdata')
 datas += collect_data_files('onnxruntime')
+datas += collect_data_files('numpy')
 
 # ---------- 二进制: torch 动态库 ----------
 binaries = []
 binaries += collect_dynamic_libs('torch')
 binaries += collect_dynamic_libs('onnxruntime')
+binaries += collect_dynamic_libs('numpy')
 
 # ---------- CUDA .so 从 nvidia.* pip 包收集 ----------
 cuda_bins = []
@@ -252,6 +255,7 @@ hidden_imports = (
     + st_imports
     + tokenizer_imports
     + ort_imports
+    + numpy_imports
     + [
         # --- uvicorn ---
         'uvicorn.logging',
@@ -270,6 +274,9 @@ hidden_imports = (
         'torch', 'torch.cuda', 'torch.backends', 'torch.backends.cudnn',
         'torchvision', 'torchaudio',
         'transformers', 'tokenizers', 'numpy',
+        'numpy._core', 'numpy._core._exceptions',
+        'numpy._core._multiarray_tests', 'numpy._core._multiarray_umath',
+        'numpy.linalg', 'numpy.linalg.lapack_lite',
         'onnxruntime',
         # --- nvidia CUDA 子包 ---
         'nvidia', 'nvidia.cublas', 'nvidia.cuda_runtime', 'nvidia.cudnn',

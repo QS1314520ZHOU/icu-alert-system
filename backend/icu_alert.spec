@@ -1,13 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import sys
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_submodules
 
 block_cipher = None
 
 # ============ 自动收集所有 app 子模块 ============
 app_imports = collect_submodules('app')
 tzdata_imports = collect_submodules('tzdata')
+numpy_imports = collect_submodules('numpy')
 
 # ============ 数据文件 ============
 datas = [
@@ -19,9 +20,14 @@ datas = [
 datas += collect_data_files('sentence_transformers')
 datas += collect_data_files('transformers')
 datas += collect_data_files('tzdata')
+datas += collect_data_files('numpy')
+
+# numpy 在 Linux/Windows 的 PyInstaller 打包中经常会遗漏内部扩展模块；
+# 显式收集动态库可以降低 numpy._core.* 缺失风险。
+binaries = collect_dynamic_libs('numpy')
 
 # ============ 隐式导入 ============
-hidden_imports = app_imports + tzdata_imports + [
+hidden_imports = app_imports + tzdata_imports + numpy_imports + [
     # uvicorn
     'uvicorn.logging',
     'uvicorn.loops',
@@ -49,6 +55,12 @@ hidden_imports = app_imports + tzdata_imports + [
     'transformers',
     'tokenizers',
     'numpy',
+    'numpy._core',
+    'numpy._core._exceptions',
+    'numpy._core._multiarray_tests',
+    'numpy._core._multiarray_umath',
+    'numpy.linalg',
+    'numpy.linalg.lapack_lite',
     'httpx',
     # 加密
     'jose',
@@ -93,7 +105,7 @@ excludes = [
 a = Analysis(
     ['run_server.py'],
     pathex=['.'],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hidden_imports,
     hookspath=[],
