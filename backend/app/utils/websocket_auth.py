@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from urllib.parse import urlparse
 
 from fastapi import WebSocket
 from jose import JWTError, jwt
@@ -24,10 +25,23 @@ def ws_token_required() -> bool:
     return _config().websocket_require_token
 
 
-def ws_origin_allowed(origin: str | None) -> bool:
+def ws_origin_allowed(origin: str | None, request_host: str | None = None) -> bool:
     if not origin:
         return False
-    return origin in set(_config().cors_allowed_origins)
+    allowed = set(_config().cors_allowed_origins)
+    if origin in allowed:
+        return True
+
+    try:
+        parsed = urlparse(origin)
+        origin_host = str(parsed.netloc or "").strip().lower()
+    except Exception:
+        origin_host = ""
+
+    normalized_request_host = str(request_host or "").strip().lower()
+    if origin_host and normalized_request_host and origin_host == normalized_request_host:
+        return True
+    return False
 
 
 def extract_ws_token(ws: WebSocket) -> str:
@@ -59,10 +73,11 @@ def extract_ws_roles(ws: WebSocket) -> list[str]:
 
 def is_ws_authorized(ws: WebSocket) -> bool:
     origin = ws.headers.get("origin") or ws.headers.get("Origin")
-    if origin and not ws_origin_allowed(origin):
+    request_host = ws.headers.get("host") or ws.headers.get("Host")
+    if origin and not ws_origin_allowed(origin, request_host=request_host):
         return False
     if not ws_token_required():
-        return ws_origin_allowed(origin)
+        return ws_origin_allowed(origin, request_host=request_host)
 
     token = extract_ws_token(ws)
     if not token:
