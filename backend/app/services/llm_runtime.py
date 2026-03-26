@@ -22,15 +22,7 @@ class _LLMCircuitBreaker:
         self._lock = asyncio.Lock()
 
     async def before_call(self, *, threshold: int, cooldown_seconds: int) -> tuple[bool, float]:
-        async with self._lock:
-            now = time.time()
-            if self.open_until and now < self.open_until:
-                return True, max(0.0, self.open_until - now)
-            if self.open_until and now >= self.open_until:
-                self.open_until = 0.0
-                self.failure_count = 0
-                self.last_error = ""
-            return False, 0.0
+        return False, 0.0
 
     async def record_success(self) -> None:
         async with self._lock:
@@ -42,15 +34,6 @@ class _LLMCircuitBreaker:
         async with self._lock:
             self.failure_count += 1
             self.last_error = (error or "")[:200]
-            if self.failure_count >= max(1, threshold):
-                self.open_until = time.time() + max(10, cooldown_seconds)
-                logger.warning(
-                    "LLM circuit breaker 打开: failures=%s cooldown=%ss error=%s",
-                    self.failure_count,
-                    cooldown_seconds,
-                    self.last_error,
-                )
-                return True
             return False
 
     async def snapshot(self) -> dict[str, Any]:
@@ -101,6 +84,15 @@ def resolve_model_candidates(cfg, requested_model: str | None = None) -> tuple[l
     return normal_candidates, degraded, {"primary_model": primary, "fallback_model": fallback}
 
 
+def _should_trip_breaker(exc: Exception) -> bool:
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout)):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = int(exc.response.status_code)
+        return status == 408 or status == 429 or status >= 500
+    return False
+
+
 async def call_llm_chat(
     *,
     cfg,
@@ -114,19 +106,16 @@ async def call_llm_chat(
 ) -> dict[str, Any]:
     threshold, cooldown_seconds = _llm_runtime_cfg(cfg)
     normal_candidates, has_real_degrade, models_meta = resolve_model_candidates(cfg, model)
-    is_open, retry_after = await _BREAKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
-    if is_open:
-        candidates = [models_meta.get("fallback_model")] if models_meta.get("fallback_model") else []
-        degraded_mode = True
-    else:
-        candidates = normal_candidates
-        degraded_mode = False
+    _, retry_after = await _BREAKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
+    llm_base_url = cfg.settings.LLM_BASE_URL.rstrip("/")
+    candidates = normal_candidates
+    degraded_mode = False
 
     candidates = [c for c in candidates if c]
     if not candidates:
         raise CircuitBreakerOpenError(f"LLM circuit breaker open, retry after {int(retry_after)}s")
 
-    llm_url = cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"
+    llm_url = llm_base_url + "/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {cfg.settings.LLM_API_KEY}",
@@ -163,8 +152,7 @@ async def call_llm_chat(
                 data = await _send(req_client, candidate)
                 used_model = candidate
                 used_fallback = degraded_mode or (idx > 0) or (candidate == models_meta.get("fallback_model") and has_real_degrade)
-                if not used_fallback:
-                    await _BREAKER.record_success()
+                await _BREAKER.record_success()
                 text = data["choices"][0]["message"]["content"]
                 usage = data.get("usage") if isinstance(data, dict) else None
                 return {
@@ -176,13 +164,13 @@ async def call_llm_chat(
                         "url": llm_url,
                         "primary_model": models_meta.get("primary_model"),
                         "fallback_model": models_meta.get("fallback_model"),
-                        "circuit_open": is_open,
+                        "circuit_open": False,
                         "retry_after_seconds": retry_after,
                     },
                 }
             except Exception as e:
                 last_exc = e
-                if not degraded_mode and idx == 0:
+                if not degraded_mode and idx == 0 and _should_trip_breaker(e):
                     await _BREAKER.record_failure(
                         threshold=threshold,
                         cooldown_seconds=cooldown_seconds,

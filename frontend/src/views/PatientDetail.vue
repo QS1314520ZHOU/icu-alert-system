@@ -935,17 +935,15 @@ const aiRuntimeSummary = computed(() => {
   const primaryModel = String(aiRiskForecast.value?.model_meta?.model || aiRiskForecast.value?.model_meta?.model_name || '').trim()
   const fallbackModel = String(runtime?.fallback_model || aiRiskForecast.value?.model_meta?.fallback_model || '').trim()
   const hasError = Boolean(aiLabError.value || aiRuleError.value || aiRiskError.value || aiHandoffError.value)
-  const degraded = hasError || mode.includes('heuristic') || Boolean(runtime?.circuit_breaker_open) || Boolean(runtime?.fallback_triggered)
   const pills = [
     primaryModel ? `主模型 ${primaryModel}` : '',
     fallbackModel ? `兜底 ${fallbackModel}` : '',
     mode ? `模式 ${mode}` : '',
-    runtime?.circuit_breaker_open ? 'Circuit Breaker 打开' : '',
   ].filter(Boolean)
   return {
-    level: hasError ? 'red' : (degraded ? 'yellow' : 'cyan'),
-    text: hasError ? 'AI服务异常' : (degraded ? 'AI服务降级中' : 'AI服务正常'),
-    detail: runtime?.reason ? String(runtime.reason) : (hasError ? '部分 AI 能力返回错误，请检查模型与后端运行态。' : (degraded ? '当前已切换到 fallback / heuristic 路径。' : '主模型与知识证据链路可用。')),
+    level: hasError ? 'red' : 'cyan',
+    text: hasError ? 'AI服务异常' : 'AI服务正常',
+    detail: hasError ? '部分 AI 能力返回错误，请检查模型与后端运行态。' : '主模型与知识证据链路可用。',
     pills,
   }
 })

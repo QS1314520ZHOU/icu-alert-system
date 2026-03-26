@@ -191,7 +191,12 @@ async def ai_rule_recommendations(patient_id: str):
     )
 
     try:
-        text = await call_api_llm(system_prompt, user_prompt)
+        text = await call_api_llm(
+            system_prompt,
+            user_prompt,
+            max_tokens=1200,
+            timeout_seconds=120,
+        )
         return {"code": 0, "recommendations": text}
     except Exception as exc:
         logger.error("AI rule recommendations error: %s", exc)
@@ -226,11 +231,17 @@ async def ai_lab_summary(patient_id: str):
     user_prompt = (
         f"患者: {patient.get('name', '未知')}，"
         f"诊断: {patient.get('clinicalDiagnosis', patient.get('admissionDiagnosis', '未知'))}\n"
-        f"近期检验数据:\n{json.dumps(exams[:30], ensure_ascii=False, default=str)}"
+        f"近期检验数据:\n{json.dumps(exams[:15], ensure_ascii=False, default=str)}"
     )
     try:
         cfg = get_config()
-        summary = await call_api_llm(system_prompt, user_prompt, cfg.llm_model_medical)
+        summary = await call_api_llm(
+            system_prompt,
+            user_prompt,
+            cfg.llm_model_medical,
+            max_tokens=1400,
+            timeout_seconds=180,
+        )
         return {"code": 0, "summary": summary}
     except Exception as exc:
         logger.error("AI lab summary error: %s", exc)

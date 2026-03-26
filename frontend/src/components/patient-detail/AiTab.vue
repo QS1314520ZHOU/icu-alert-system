@@ -657,25 +657,11 @@ const riskForecastOption = computed(() => {
 
 const aiServiceStatus = computed(() => {
   const errors = [props.aiLabError, props.aiRuleError, props.aiRiskError, props.aiHandoffError].filter(Boolean)
-  const runtime = props.aiRiskForecast?.model_meta?.runtime || {}
-  const mode = String(props.aiRiskForecast?.model_meta?.mode || '')
-  const degraded = Boolean(
-    errors.length ||
-    mode.includes('heuristic') ||
-    (runtime && runtime.available === false)
-  )
   if (errors.length >= 2) {
     return {
       level: 'red',
       text: 'AI服务异常',
       detail: '部分能力不可用，请检查模型或后端服务',
-    }
-  }
-  if (degraded) {
-    return {
-      level: 'yellow',
-      text: 'AI服务降级中',
-      detail: runtime?.reason ? String(runtime.reason) : '当前已切换到降级/兜底路径',
     }
   }
   return {

@@ -7,7 +7,15 @@ from app.config import get_config
 from app.services.llm_runtime import call_llm_chat
 
 
-async def call_api_llm(system_prompt: str, user_prompt: str, model: str | None = None) -> str:
+async def call_api_llm(
+    system_prompt: str,
+    user_prompt: str,
+    model: str | None = None,
+    *,
+    temperature: float = 0.1,
+    max_tokens: int = 4096,
+    timeout_seconds: float = 60,
+) -> str:
     """统一调用 API 侧 LLM，并写入监控。"""
     cfg = get_config()
     start = time.perf_counter()
@@ -21,9 +29,9 @@ async def call_api_llm(system_prompt: str, user_prompt: str, model: str | None =
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             model=model or cfg.llm_model_medical or cfg.settings.LLM_MODEL,
-            temperature=0.1,
-            max_tokens=4096,
-            timeout_seconds=60,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
         )
         text = str(result.get("text") or "")
         usage = result.get("usage")
