@@ -17,6 +17,20 @@ def get_base_path():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+def resolve_runtime_path(*relative_parts):
+    """优先使用 PyInstaller _MEIPASS 内资源，其次回退到程序目录。"""
+    candidates = []
+    base = get_base_path()
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        candidates.append(os.path.join(sys._MEIPASS, *relative_parts))
+    candidates.append(os.path.join(base, *relative_parts))
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
+
+
 def load_dotenv_file():
     """加载 .env 文件"""
     base = get_base_path()
@@ -117,8 +131,8 @@ if __name__ == '__main__':
     # PyInstaller 打包后的路径修正
     BASE_DIR = get_base_path()
     os.environ.setdefault('ICU_APP_ROOT', BASE_DIR)
-    os.environ.setdefault('ICU_CONFIG_PATH', os.path.join(BASE_DIR, 'config.yaml'))
-    os.environ.setdefault('ICU_FRONTEND_DIR', os.path.join(BASE_DIR, 'static'))
+    os.environ.setdefault('ICU_CONFIG_PATH', resolve_runtime_path('config.yaml'))
+    os.environ.setdefault('ICU_FRONTEND_DIR', resolve_runtime_path('static'))
     os.environ.setdefault('DOTENV_PATH', os.path.join(BASE_DIR, '.env'))
     if getattr(sys, 'frozen', False):
         os.chdir(BASE_DIR)
@@ -189,7 +203,8 @@ if __name__ == '__main__':
                         response = await call_next(request)
                         path = request.url.path
                         if (response.status_code == 404
-                                and not path.startswith(('/api/', '/ws', '/health', '/docs', '/openapi', '/static/'))):
+                                and not path.startswith(('/api/', '/ws', '/health', '/docs', '/openapi', '/static/', '/assets/'))
+                                and path not in ('/manifest.webmanifest', '/sw.js', '/registerSW.js')):
                             return FileResponse(index_html)
                         return response
 

@@ -9,6 +9,18 @@ import sys
 from dotenv import load_dotenv
 
 
+def _resolve_runtime_path(base_dir: str, *relative_parts: str) -> str:
+    candidates = []
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        candidates.append(os.path.join(sys._MEIPASS, *relative_parts))
+    candidates.append(os.path.join(base_dir, *relative_parts))
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
+
+
 def _load_runtime_env(base_dir: str) -> None:
     candidates = []
     internal_env = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -85,8 +97,8 @@ if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)
     os.chdir(BASE_DIR)
     os.environ.setdefault('ICU_APP_ROOT', BASE_DIR)
-    os.environ.setdefault('ICU_CONFIG_PATH', os.path.join(BASE_DIR, 'config.yaml'))
-    os.environ.setdefault('ICU_FRONTEND_DIR', os.path.join(BASE_DIR, 'static'))
+    os.environ.setdefault('ICU_CONFIG_PATH', _resolve_runtime_path(BASE_DIR, 'config.yaml'))
+    os.environ.setdefault('ICU_FRONTEND_DIR', _resolve_runtime_path(BASE_DIR, 'static'))
     os.environ.setdefault('DOTENV_PATH', os.path.join(BASE_DIR, '.env'))
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
