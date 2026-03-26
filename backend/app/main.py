@@ -6,8 +6,9 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -128,4 +129,9 @@ if os.path.exists(STATIC_DIR):
         file_path = os.path.join(STATIC_DIR, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
+        # 只有前端路由才应该回退到 index.html；静态资源丢失时返回 404，
+        # 避免把 JS/CSS/manifest 请求错误地回成 HTML，触发 MIME 报错。
+        suffix = Path(full_path).suffix.lower()
+        if suffix:
+            raise HTTPException(status_code=404, detail=f"Static asset not found: {full_path}")
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
