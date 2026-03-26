@@ -377,7 +377,10 @@ EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
 
 # ---- 系统 ----
 SECRET_KEY=change-me-in-production
+# 局域网部署可直接填逗号分隔列表，例如:
+# CORS_ALLOWED_ORIGINS=http://192.168.31.190:8000,http://localhost:8000
 CORS_ALLOWED_ORIGINS=*
+WEBSOCKET_REQUIRE_TOKEN=false
 LOG_LEVEL=info
 ENVEOF
 
@@ -392,6 +395,7 @@ BINARY="${SCRIPT_DIR}/${APP_NAME}"
 PID_FILE="${SCRIPT_DIR}/${APP_NAME}.pid"
 LOG_FILE="${SCRIPT_DIR}/${APP_NAME}.log"
 ENV_FILE="${SCRIPT_DIR}/.env"
+APP_PORT_DEFAULT="8000"
 
 load_env() {
     if [ -f "${ENV_FILE}" ]; then
@@ -423,6 +427,24 @@ check_gpu() {
     else
         echo "[${APP_NAME}] 未检测到 nvidia-smi"
     fi
+}
+
+resolve_port() {
+    local port="${ICU_PORT:-${APP_PORT:-${PORT:-${APP_PORT_DEFAULT}}}}"
+    printf '%s\n' "${port}"
+}
+
+find_listener_pid() {
+    local port="$1"
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnp "( sport = :${port} )" 2>/dev/null | awk 'NR>1 { if (match($0, /pid=([0-9]+)/, m)) { print m[1]; exit } }'
+        return 0
+    fi
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null | head -n 1
+        return 0
+    fi
+    return 0
 }
 
 do_start() {
@@ -472,6 +494,8 @@ do_stop() {
 }
 
 do_status() {
+    local port
+    port="$(resolve_port)"
     if [ -f "${PID_FILE}" ]; then
         PID=$(cat "${PID_FILE}")
         if kill -0 "${PID}" 2>/dev/null; then
@@ -479,6 +503,14 @@ do_status() {
             ps -p "${PID}" -o pid,vsz,rss,pcpu,pmem,etime --no-headers 2>/dev/null || true
             check_gpu; return 0
         fi
+    fi
+    PID="$(find_listener_pid "${port}")"
+    if [ -n "${PID:-}" ] && kill -0 "${PID}" 2>/dev/null; then
+        echo "[${APP_NAME}] 运行中 (监听端口 ${port}, PID: ${PID})"
+        echo "${PID}" > "${PID_FILE}" 2>/dev/null || true
+        ps -p "${PID}" -o pid,vsz,rss,pcpu,pmem,etime --no-headers 2>/dev/null || true
+        curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && echo "[${APP_NAME}] health 检查: OK" || true
+        check_gpu; return 0
     fi
     echo "[${APP_NAME}] 未运行"; return 1
 }

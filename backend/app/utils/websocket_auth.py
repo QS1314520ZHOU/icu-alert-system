@@ -29,6 +29,8 @@ def ws_origin_allowed(origin: str | None, request_host: str | None = None) -> bo
     if not origin:
         return False
     allowed = set(_config().cors_allowed_origins)
+    if "*" in allowed:
+        return True
     if origin in allowed:
         return True
 
