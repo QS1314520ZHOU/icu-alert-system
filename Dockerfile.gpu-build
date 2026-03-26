@@ -157,6 +157,17 @@ from PyInstaller.utils.hooks import (
 
 block_cipher = None
 
+project_root = os.path.abspath('.')
+backend_root = os.path.join(project_root, 'backend')
+if backend_root not in sys.path:
+    sys.path.insert(0, backend_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+print(f"[SPEC] project_root={project_root}")
+print(f"[SPEC] backend_root={backend_root}")
+print(f"[SPEC] app import path check={backend_root in sys.path}")
+
 # ---------- 自动收集所有子模块 ----------
 app_imports          = collect_submodules('app')
 tzdata_imports       = collect_submodules('tzdata')
@@ -230,6 +241,7 @@ for d in search_dirs:
 
 binaries += cuda_bins
 print(f"[SPEC] {len(cuda_bins)} CUDA libs from: {search_dirs}")
+print(f"[SPEC] app submodules: {len(app_imports)}")
 
 # ---------- hidden imports ----------
 hidden_imports = (
@@ -300,6 +312,7 @@ SPECEOF
 
 # ---- 2.10 执行 PyInstaller ----
 RUN cd /build && \
+    python3 -c "import os, sys; sys.path.insert(0, '/build/backend'); import app.main; print('>>> app import precheck OK:', app.main.__file__)" && \
     python3 -m PyInstaller \
         --clean --noconfirm --log-level=INFO \
         icu-alert-system.spec \
