@@ -635,14 +635,39 @@ async def patient_alerts(patient_id: str):
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
-    patient = await runtime.db.col("patient").find_one({"_id": pid}, {"_id": 1, "hisPid": 1, "name": 1})
-    cursor = runtime.db.col("alert_records").find({"patient_id": {"$in": [patient_id, str(pid), pid]}}).sort("created_at", -1).limit(100)
+    cursor = runtime.db.col("alert_records").find(
+        {"patient_id": {"$in": [patient_id, str(pid), pid]}},
+        {
+            "_id": 1,
+            "patient_id": 1,
+            "rule_id": 1,
+            "name": 1,
+            "category": 1,
+            "alert_type": 1,
+            "severity": 1,
+            "parameter": 1,
+            "condition": 1,
+            "value": 1,
+            "extra": 1,
+            "created_at": 1,
+            "viewed_at": 1,
+            "view_source": 1,
+            "view_actor": 1,
+            "acknowledged_at": 1,
+            "ack_actor": 1,
+            "ack_note": 1,
+            "actionability_score": 1,
+            "actionability_level": 1,
+            "actionability_factors": 1,
+            "action_taken": 1,
+            "outcome_delta": 1,
+            "lifecycle_updated_at": 1,
+            "ai_feedback": 1,
+            "is_active": 1,
+        },
+    ).sort("created_at", -1).limit(100)
     records = []
     async for doc in cursor:
-        try:
-            doc = await runtime.alert_engine.refresh_alert_lifecycle(doc, patient_doc=patient, persist=True)
-        except Exception:
-            pass
         records.append(serialize_doc(doc))
     return {"code": 0, "records": records}
 

@@ -17,6 +17,11 @@ const bundleApi = axios.create({
   timeout: 30000,
 })
 
+const alertsApi = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
+  timeout: 30000,
+})
+
 // AI 调用可能耗时较长，单独加长超时
 const aiApi = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
@@ -64,7 +69,7 @@ export const getPatientAssessments = (patientId: string) =>
 
 // 获取预警历史
 export const getPatientAlerts = (patientId: string) =>
-  api.get(`/api/patients/${patientId}/alerts`)
+  alertsApi.get(`/api/patients/${patientId}/alerts`)
 
 export const postPatientAlertsViewed = (patientId: string, payload?: { alert_ids?: string[]; actor?: string; source?: string }) =>
   api.post(`/api/patients/${patientId}/alerts/view`, payload || {})
