@@ -405,7 +405,7 @@ JSON结构:
         rag_hits = self._search_guidelines(query, patient_doc=patient_doc, facts=twin.get("facts") or {})
         prompt = self._compose_prompt(twin, rag_hits)
 
-        model = self.config.llm_model_medical or self.config.settings.LLM_MODEL
+        model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
         llm_cfg = (self.config.yaml_cfg or {}).get("ai_service", {}).get("llm", {})
         start_ms = AiMonitor.now_ms() if self.ai_monitor else 0.0
         raw_text = ""

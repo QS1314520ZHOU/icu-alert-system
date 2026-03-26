@@ -1242,6 +1242,39 @@ function stripMarkdownFence(raw: string) {
     .trim()
 }
 
+function sanitizeAiNarrative(raw: any) {
+  const text = stripMarkdownFence(String(raw || ''))
+  if (!text) return ''
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\u00a0/g, ' ').trimEnd())
+
+  const skipPatterns = [
+    /^请分析患者.*(?:数据|结果|情况)/,
+    /^要求[：:]/,
+    /^好的[，,].*/,
+    /^我已(?:收到|了解).*/,
+    /^以下是我(?:的)?(?:专业)?分析.*$/,
+    /^下面(?:是|给出).*/,
+  ]
+
+  let start = 0
+  while (start < lines.length) {
+    const line = (lines[start] || '').trim()
+    if (!line) {
+      start += 1
+      continue
+    }
+    if (skipPatterns.some((pattern) => pattern.test(line))) {
+      start += 1
+      continue
+    }
+    break
+  }
+
+  return lines.slice(start).join('\n').trim()
+}
+
 function inlineMarkdownToHtml(raw: string) {
   let out = escapeHtml(raw)
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -1250,7 +1283,7 @@ function inlineMarkdownToHtml(raw: string) {
 }
 
 function renderAiRichText(raw: any) {
-  const text = stripMarkdownFence(String(raw || ''))
+  const text = sanitizeAiNarrative(raw)
   if (!text) return ''
   return text
     .split(/\r?\n/)
@@ -1266,33 +1299,114 @@ function renderAiRichText(raw: any) {
     .join('')
 }
 
-function parseAiRuleRows(raw: any): AiRuleRow[] {
-  const text = stripMarkdownFence(String(raw || ''))
-  if (!text) return []
+function parseRuleJsonArray(text: string): any[] {
   const candidates = [text]
+  const codeBlocks = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/gi) || []
+  codeBlocks.forEach((block) => {
+    const inner = stripMarkdownFence(block)
+    if (inner) candidates.unshift(inner)
+  })
   const arrBlock = text.match(/\[[\s\S]*\]/)
   if (arrBlock?.[0] && arrBlock[0] !== text) {
     candidates.unshift(arrBlock[0])
   }
-  let arr: any[] | null = null
-  for (const c of candidates) {
+
+  for (const candidate of candidates) {
     try {
-      const parsed = JSON.parse(c)
-      if (Array.isArray(parsed)) {
-        arr = parsed
-        break
-      }
+      const parsed = JSON.parse(candidate)
+      if (Array.isArray(parsed)) return parsed
     } catch {
       // ignore
     }
   }
-  if (!arr?.length) return []
+  return []
+}
+
+function parseRuleMarkdownTable(text: string): any[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.includes('|'))
+  if (lines.length < 3) return []
+
+  const tableLines = lines.filter((line) => /^\|?.+\|.+\|?$/.test(line))
+  if (tableLines.length < 3) return []
+  const header = (tableLines[0] || '')
+    .replace(/^\||\|$/g, '')
+    .split('|')
+    .map((cell) => cell.trim().toLowerCase())
+  const divider = tableLines[1] || ''
+  if (!header.length || !/^[|\s:\-]+$/.test(divider)) return []
+
+  const indexOf = (names: string[]) => header.findIndex((cell) => names.some((name) => cell.includes(name)))
+  const parameterIdx = indexOf(['parameter', '参数', '指标', '监测'])
+  const operatorIdx = indexOf(['operator', '方向', '条件', '符号'])
+  const thresholdIdx = indexOf(['threshold', '阈值'])
+  const severityIdx = indexOf(['severity', '级别', '风险'])
+  const reasonIdx = indexOf(['reason', '依据', '理由', '说明'])
+  if (parameterIdx < 0) return []
+
+  return tableLines.slice(2).map((line) => {
+    const cells = line.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
+    return {
+      parameter: cells[parameterIdx] || '',
+      operator: operatorIdx >= 0 ? (cells[operatorIdx] || '') : '',
+      threshold: thresholdIdx >= 0 ? (cells[thresholdIdx] || '') : '',
+      severity: severityIdx >= 0 ? (cells[severityIdx] || '') : '',
+      reason: reasonIdx >= 0 ? (cells[reasonIdx] || '') : '',
+    }
+  }).filter((row) => row.parameter)
+}
+
+function parseRuleNarrativeLines(text: string): any[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const rows: any[] = []
+  const severityTokens = ['critical', 'high', 'warning', '危急', '高风险', '高危', '提醒', '警告']
+
+  for (const line of lines) {
+    const clean = line.replace(/^[\d\-*•、.\s]+/, '').trim()
+    if (!clean || clean.length < 4) continue
+    const operatorMatch = clean.match(/(>=|<=|>|<|≥|≤)/)
+    if (!operatorMatch) continue
+
+    const severity = severityTokens.find((token) => clean.toLowerCase().includes(String(token).toLowerCase())) || ''
+    const operator = operatorMatch[0] || ''
+    const [leftPart = '', rightPartRaw = ''] = clean.split(operator, 2)
+    const rightPart = rightPartRaw || ''
+    const thresholdMatch = rightPart.match(/^([^\s，。,；;]+)/)
+    rows.push({
+      parameter: leftPart.replace(/[：:]+$/, '').trim(),
+      operator,
+      threshold: thresholdMatch?.[1] || '',
+      severity,
+      reason: clean,
+    })
+  }
+
+  return rows.filter((row) => row.parameter && row.threshold)
+}
+
+function parseAiRuleRows(raw: any): AiRuleRow[] {
+  const text = stripMarkdownFence(String(raw || ''))
+  if (!text) return []
+  const arr = parseRuleJsonArray(text)
+  const normalized = arr.length ? arr : (parseRuleMarkdownTable(text).length ? parseRuleMarkdownTable(text) : parseRuleNarrativeLines(text))
+  if (!normalized.length) return []
   const sevMap: Record<string, string> = {
     warning: '提醒',
     high: '高风险',
     critical: '危急',
+    warn: '提醒',
+    高危: '高风险',
+    高风险: '高风险',
+    危急: '危急',
+    提醒: '提醒',
+    警告: '提醒',
   }
-  return arr.map((it: any, idx: number) => {
+  return normalized.map((it: any, idx: number) => {
     const severityRaw = String(it?.severity || '').toLowerCase()
     return {
       key: String(idx + 1),
@@ -2835,7 +2949,7 @@ async function loadAiHandoff() {
 async function loadAiAll() {
   if (aiAutoLoaded.value) return
   aiAutoLoaded.value = true
-  await Promise.allSettled([loadAiLab(), loadAiRules(), loadAiRisk(), loadAiHandoff(), loadKnowledgeDocs()])
+  await Promise.allSettled([loadAiLab(), loadAiRules(), loadAiRisk(), loadKnowledgeDocs()])
 }
 
 function resetDetailState() {
@@ -2920,13 +3034,16 @@ async function loadDetailPage() {
     loadPersonalizedThresholds(),
     loadSepsisBundleStatus(),
     loadWeaningStatus(),
-    loadAiAll(),
   ])
   if (activeTab.value === 'similar' || !similarCaseLoaded.value) {
     void loadSimilarCaseReview()
   }
   if (activeTab.value === 'sbt') {
     await loadSbtTimeline()
+  }
+  if (activeTab.value === 'ai') {
+    void loadAiAll()
+    void loadAiHandoff()
   }
 }
 
@@ -2943,6 +3060,12 @@ watch(activeTab, (tab) => {
   }
   if (tab === 'similar') {
     void loadSimilarCaseReview()
+  }
+  if (tab === 'ai') {
+    void loadAiAll()
+    if (!aiHandoff.value && !aiHandoffLoading.value) {
+      void loadAiHandoff()
+    }
   }
 })
 
@@ -4297,9 +4420,6 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-
-
-
 
 
 

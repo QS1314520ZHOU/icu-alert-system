@@ -28,7 +28,7 @@ async def call_api_llm(
             cfg=cfg,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            model=model or cfg.llm_model_medical or cfg.settings.LLM_MODEL,
+            model=model or cfg.llm_fast_model,
             temperature=temperature,
             max_tokens=max_tokens,
             timeout_seconds=timeout_seconds,
@@ -41,7 +41,7 @@ async def call_api_llm(
         if runtime.ai_monitor:
             await runtime.ai_monitor.log_llm_call(
                 module="api_llm",
-                model=llm_model or (model or cfg.llm_model_medical or cfg.settings.LLM_MODEL),
+                model=llm_model or (model or cfg.llm_fast_model),
                 prompt=(system_prompt or "") + "\n\n" + (user_prompt or ""),
                 output=text,
                 latency_ms=(time.perf_counter() - start) * 1000.0,
@@ -54,7 +54,7 @@ async def call_api_llm(
     if runtime.ai_monitor:
         await runtime.ai_monitor.log_llm_call(
             module="api_llm",
-            model=llm_model or (model or cfg.llm_model_medical or cfg.settings.LLM_MODEL),
+            model=llm_model or (model or cfg.llm_fast_model),
             prompt=(system_prompt or "") + "\n\n" + (user_prompt or ""),
             output=text,
             latency_ms=(time.perf_counter() - start) * 1000.0,

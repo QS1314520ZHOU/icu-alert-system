@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "qwen2.5:32b"
     LLM_MODEL_MEDICAL: str = ""
     LLM_FALLBACK_MODEL: str = ""
+    LLM_REASONING_MODEL: str = ""
 
     # Security
     SECRET_KEY: str = "change-me-in-production"
@@ -143,6 +144,28 @@ class AppConfig:
         )
 
     @property
+    def llm_fast_model(self) -> str:
+        ai_service = self.yaml_cfg.get("ai_service", {})
+        llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
+        return (
+            llm_cfg.get("fast_model")
+            or self.yaml_cfg.get("ai", {}).get("llm_fast_model")
+            or self.llm_model_medical
+            or self.settings.LLM_MODEL
+        )
+
+    @property
+    def llm_fast_model(self) -> str:
+        ai_service = self.yaml_cfg.get("ai_service", {})
+        llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
+        return (
+            llm_cfg.get("fast_model")
+            or self.yaml_cfg.get("ai", {}).get("llm_fast_model")
+            or self.llm_model_medical
+            or self.settings.LLM_MODEL
+        )
+
+    @property
     def llm_model_medical(self) -> str:
         ai_service = self.yaml_cfg.get("ai_service", {})
         llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
@@ -160,6 +183,16 @@ class AppConfig:
             llm_cfg.get("fallback_model")
             or self.yaml_cfg.get("ai", {}).get("llm_fallback_model")
             or self.settings.LLM_FALLBACK_MODEL
+        )
+
+    @property
+    def llm_reasoning_model(self) -> str:
+        ai_service = self.yaml_cfg.get("ai_service", {})
+        llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
+        return (
+            llm_cfg.get("reasoning_model")
+            or self.yaml_cfg.get("ai", {}).get("llm_reasoning_model")
+            or self.settings.LLM_REASONING_MODEL
         )
 
     @property

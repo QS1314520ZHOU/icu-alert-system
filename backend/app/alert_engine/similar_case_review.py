@@ -314,7 +314,7 @@ class SimilarCaseReviewMixin:
         if not cases:
             return None
         cfg = self.config
-        model = cfg.llm_model_medical or cfg.settings.LLM_MODEL
+        model = cfg.llm_fast_model
         if not model:
             return None
 

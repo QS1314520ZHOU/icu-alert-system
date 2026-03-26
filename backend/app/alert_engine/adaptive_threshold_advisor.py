@@ -372,7 +372,7 @@ class AdaptiveThresholdAdvisorMixin:
                 cfg=self.config,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                model=self.config.llm_model_medical or self.config.settings.LLM_MODEL,
+                model=self.config.llm_fast_model,
                 temperature=float(cfg.get("llm_temperature", cfg.get("temperature", 0.1))),
                 max_tokens=int(cfg.get("llm_max_tokens", cfg.get("max_tokens", 2048))),
                 timeout_seconds=float(cfg.get("llm_timeout", cfg.get("timeout", 45))),

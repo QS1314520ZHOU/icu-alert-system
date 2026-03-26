@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timedelta
@@ -18,6 +19,14 @@ router = APIRouter()
 logger = logging.getLogger("icu-alert")
 
 
+async def _safe_ai_handoff_dependency(coro, *, timeout_seconds: float, fallback):
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout_seconds)
+    except Exception as exc:
+        logger.warning("AI handoff dependency degraded: %s", exc)
+        return fallback
+
+
 @router.get("/api/patients/{patient_id}/handoff-summary")
 async def patient_handoff_summary(patient_id: str):
     try:
@@ -31,19 +40,29 @@ async def patient_handoff_summary(patient_id: str):
 
     try:
         cfg = get_config()
-        similar_case_review = await runtime.alert_engine.get_similar_case_outcomes(patient, limit=5)
-        nursing_context = (
-            await runtime.alert_engine._collect_nursing_context(patient, str(pid), hours=12)
-            if hasattr(runtime.alert_engine, "_collect_nursing_context")
-            else None
-        )
+        similar_case_review = await _safe_ai_handoff_dependency(
+            runtime.alert_engine.get_similar_case_outcomes(patient, limit=5),
+            timeout_seconds=8.0,
+            fallback=None,
+        ) if hasattr(runtime.alert_engine, "get_similar_case_outcomes") else None
+        nursing_context = await _safe_ai_handoff_dependency(
+            runtime.alert_engine._collect_nursing_context(patient, str(pid), hours=12),
+            timeout_seconds=5.0,
+            fallback=None,
+        ) if hasattr(runtime.alert_engine, "_collect_nursing_context") else None
         result = await runtime.ai_handoff_service.generate(
             patient_id=str(pid),
             patient_doc=patient,
             similar_case_review=similar_case_review,
             nursing_context=nursing_context,
-            llm_call=call_api_llm,
-            model=cfg.llm_model_medical or None,
+            llm_call=lambda system_prompt, user_prompt, model=None: call_api_llm(
+                system_prompt,
+                user_prompt,
+                model,
+                max_tokens=1200,
+                timeout_seconds=35,
+            ),
+            model=cfg.llm_fast_model or None,
         )
         return {
             "code": 0,
@@ -178,10 +197,12 @@ async def ai_rule_recommendations(patient_id: str):
         return {"code": 404, "message": "患者不存在"}
 
     system_prompt = (
-        "你是ICU预警规则专家。根据患者诊断和当前状态，"
-        "推荐个性化的监测指标和预警阈值。输出JSON数组格式，"
-        "每条规则包含: parameter(参数名), operator(>/<), threshold(阈值), "
-        "severity(warning/high/critical), reason(理由)。用中文回答。"
+        "你是ICU预警规则专家。根据患者诊断和当前状态，推荐个性化监测指标和预警阈值。"
+        "必须返回严格 JSON 数组，不要输出 markdown，不要输出解释，不要输出开场白。"
+        "每个元素必须包含字段: "
+        "parameter(中文参数名), operator(仅允许 >,<,>=,<=), threshold(阈值，字符串或数字), "
+        "severity(仅允许 warning/high/critical), reason(中文理由)。"
+        "最多返回 6 条，内容务必简洁、可执行。"
     )
     user_prompt = (
         f"患者: {patient.get('name', '未知')}\n"
@@ -197,7 +218,27 @@ async def ai_rule_recommendations(patient_id: str):
             max_tokens=1200,
             timeout_seconds=120,
         )
-        return {"code": 0, "recommendations": text}
+        normalized_text = text
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                normalized_rows = []
+                for item in parsed[:6]:
+                    if not isinstance(item, dict):
+                        continue
+                    normalized_rows.append(
+                        {
+                            "parameter": item.get("parameter") or item.get("name") or "",
+                            "operator": item.get("operator") or "",
+                            "threshold": item.get("threshold"),
+                            "severity": item.get("severity") or "warning",
+                            "reason": item.get("reason") or item.get("description") or "",
+                        }
+                    )
+                normalized_text = json.dumps(normalized_rows, ensure_ascii=False)
+        except Exception:
+            pass
+        return {"code": 0, "recommendations": normalized_text}
     except Exception as exc:
         logger.error("AI rule recommendations error: %s", exc)
         return {"code": 0, "recommendations": "", "error": f"AI服务异常: {str(exc)[:100]}"}
@@ -227,7 +268,11 @@ async def ai_lab_summary(patient_id: str):
     if not exams:
         return {"code": 0, "summary": "暂无检验数据，无法生成摘要。"}
 
-    system_prompt = "你是ICU临床检验分析专家。请分析以下患者近期检验结果，重点关注异常指标，给出临床解读和建议。用中文回答，简洁专业。"
+    system_prompt = (
+        "你是ICU临床检验分析专家。请直接输出中文分析正文，重点关注异常指标、可能的临床意义和后续建议。"
+        "不要复述用户要求，不要以“好的”“已收到”“以下是分析”之类的对话式开场。"
+        "优先按检验类别分段，内容简洁、专业、可执行。"
+    )
     user_prompt = (
         f"患者: {patient.get('name', '未知')}，"
         f"诊断: {patient.get('clinicalDiagnosis', patient.get('admissionDiagnosis', '未知'))}\n"
@@ -238,7 +283,7 @@ async def ai_lab_summary(patient_id: str):
         summary = await call_api_llm(
             system_prompt,
             user_prompt,
-            cfg.llm_model_medical,
+            cfg.llm_fast_model,
             max_tokens=1400,
             timeout_seconds=180,
         )

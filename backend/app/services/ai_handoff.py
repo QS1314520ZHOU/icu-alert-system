@@ -25,12 +25,19 @@ class AiHandoffService:
         llm_call: Callable[[str, str, str | None], Awaitable[str]],
         model: str | None = None,
     ) -> dict[str, Any]:
-        context = await self._build_context(
-            patient_id,
-            patient_doc,
-            similar_case_review=similar_case_review,
-            nursing_context=nursing_context,
-        )
+        try:
+            context = await self._build_context(
+                patient_id,
+                patient_doc,
+                similar_case_review=similar_case_review,
+                nursing_context=nursing_context,
+            )
+        except Exception:
+            context = self._build_minimal_context(
+                patient_doc,
+                similar_case_review=similar_case_review,
+                nursing_context=nursing_context,
+            )
         fallback_reason = ""
         try:
             system_prompt = (
@@ -62,6 +69,30 @@ class AiHandoffService:
         parsed["validation"] = validation
         parsed["generated_at"] = datetime.now(API_TZ).isoformat()
         return {"summary": parsed, "context_snapshot": context}
+
+    def _build_minimal_context(
+        self,
+        patient_doc: dict,
+        *,
+        similar_case_review: dict[str, Any] | None = None,
+        nursing_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "patient": {
+                "name": patient_doc.get("name") or "未知",
+                "diag": patient_doc.get("clinicalDiagnosis") or patient_doc.get("admissionDiagnosis") or "未知",
+                "nursing_level": patient_doc.get("nursingLevel") or "未知",
+                "icu_admission_time": patient_doc.get("icuAdmissionTime"),
+            },
+            "latest_vitals": {"hr": None, "spo2": None, "rr": None, "sbp": None, "temp": None},
+            "alerts_12h": [],
+            "labs_12h": [],
+            "drugs_12h": [],
+            "assessments_12h": [],
+            "palliative_trigger": None,
+            "similar_case_review": similar_case_review or None,
+            "nursing_context": nursing_context or None,
+        }
 
     async def _build_context(
         self,

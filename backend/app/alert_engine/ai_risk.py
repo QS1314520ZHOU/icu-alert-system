@@ -912,7 +912,7 @@ JSON结构:
         llm_cfg = ai_cfg.get("llm", {}) if isinstance(ai_cfg, dict) else {}
         temperature = float(llm_cfg.get("temperature", 0.1) or 0.1)
         max_tokens = int(llm_cfg.get("max_tokens", 1024) or 1024)
-        model = cfg.llm_model_medical or cfg.settings.LLM_MODEL
+        model = cfg.llm_fast_model
 
         monitor = self._get_ai_monitor()
         start_ms = AiMonitor.now_ms() if monitor else 0.0

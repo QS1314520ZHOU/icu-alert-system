@@ -412,7 +412,7 @@ class ClinicalDocumentGenerator:
         )
 
         llm_cfg = (self.config.yaml_cfg or {}).get("ai_service", {}).get("llm", {})
-        model = self.config.llm_model_medical or self.config.settings.LLM_MODEL
+        model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
         start_ms = AiMonitor.now_ms() if self.ai_monitor else 0.0
         raw_text = ""
         usage = None

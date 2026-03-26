@@ -61,7 +61,7 @@ def _llm_runtime_cfg(cfg) -> tuple[int, int]:
 
 
 def resolve_model_candidates(cfg, requested_model: str | None = None) -> tuple[list[str], bool, dict[str, Any]]:
-    primary = str(requested_model or cfg.llm_model_medical or cfg.settings.LLM_MODEL or "").strip()
+    primary = str(requested_model or cfg.llm_fast_model or cfg.settings.LLM_MODEL or "").strip()
     explicit_fallback = str(cfg.llm_fallback_model or "").strip()
     if explicit_fallback:
         fallback = explicit_fallback

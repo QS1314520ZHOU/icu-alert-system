@@ -8,7 +8,7 @@
     <div class="ai-grid">
     <a-card title="检验异常摘要" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入详情自动生成</span>
+        <span class="ai-card-note">进入AI工作台后自动生成</span>
         <a-button size="small" type="link" :loading="aiLabLoading" @click="loadAiLab">重新生成</a-button>
       </div>
       <a-spin :spinning="aiLabLoading">
@@ -20,7 +20,7 @@
 
     <a-card title="规则推荐" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入详情自动生成</span>
+        <span class="ai-card-note">进入AI工作台后自动生成</span>
         <a-button size="small" type="link" :loading="aiRuleLoading" @click="loadAiRules">重新生成</a-button>
       </div>
       <a-spin :spinning="aiRuleLoading">
@@ -43,7 +43,7 @@
 
     <a-card title="恶化风险预测" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入详情自动生成</span>
+        <span class="ai-card-note">进入AI工作台后自动生成</span>
         <a-button size="small" type="link" :loading="aiRiskLoading" @click="loadAiRisk">重新生成</a-button>
       </div>
       <a-spin :spinning="aiRiskLoading">
@@ -144,7 +144,7 @@
 
     <a-card title="交班摘要(ISBAR)" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">最近12h自动归纳</span>
+        <span class="ai-card-note">进入AI工作台后自动生成最近12h交班摘要</span>
         <div>
           <a-button size="small" type="link" :loading="aiHandoffLoading" @click="loadAiHandoff">重新生成</a-button>
           <a-button size="small" type="link" :disabled="!aiHandoff" @click="copyHandoffSummary">复制</a-button>
@@ -1142,6 +1142,7 @@ const aiServiceStatus = computed(() => {
   }
 }
 </style>
+
 
 
 

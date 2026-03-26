@@ -219,6 +219,38 @@ npm run build
 职责：
 
 - 读取 `.env` 中的敏感配置。
+- 读取 `config.yaml` 中的业务配置。
+- 合并 LLM 模型选择，支持“默认快模型 + 深度推理模型”双路由。
+
+推荐的 LLM 配置方式：
+
+```env
+LLM_MODEL=qwen2.5:14b
+LLM_MODEL_MEDICAL=qwen2.5:14b
+LLM_FALLBACK_MODEL=qwen2.5:7b
+LLM_REASONING_MODEL=qwen2.5:32b
+LLM_FAST_MODEL=qwen2.5:14b
+```
+
+建议分工：
+
+- `LLM_FAST_MODEL`
+  页面型 AI 的显式快模型入口。若未配置，则回退到 `LLM_MODEL_MEDICAL -> LLM_MODEL`。
+- `LLM_MODEL` / `LLM_MODEL_MEDICAL`
+  默认通用模型来源，通常仍建议与快模型保持一致。
+- `LLM_REASONING_MODEL`
+  临床推理、复杂告警归因、文书生成等深度分析任务。
+- `LLM_FALLBACK_MODEL`
+  主模型不可用时的兜底模型，不承担日常任务分流。
+
+当前代码中的模型分流：
+
+- 快模型
+  `api_llm`、检验摘要、规则推荐、ISBAR、AI 风险预测、相似病例解读、个体阈值建议
+- 推理模型
+  临床推理、告警归因推理、AI 文书生成
+
+- 读取 `.env` 中的敏感配置。
 - 读取 `backend/config.yaml` 中的业务配置。
 - 统一暴露 Mongo URI、Redis URL、CORS、WebSocket Token、LLM 模型选择等。
 
