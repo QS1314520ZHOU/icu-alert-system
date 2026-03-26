@@ -31,32 +31,34 @@ class AiHandoffService:
             similar_case_review=similar_case_review,
             nursing_context=nursing_context,
         )
-        system_prompt = (
-            "你是ICU交班助手，按I-PASS结构生成交班摘要。"
-            "只能归纳已提供数据，不得编造。必须返回严格JSON。"
-        )
-        user_prompt = (
-            "请基于以下数据生成交班摘要，字段包括: "
-            "illness_severity, patient_summary, action_list, situation_awareness, "
-            "synthesis_by_receiver, confidence_level。\n"
-            "其中 confidence_level 仅可取 high/medium/low。\n"
-            "数据: " + json.dumps(context, ensure_ascii=False, default=str)
-        )
-
-        raw = await llm_call(system_prompt, user_prompt, model)
-        parsed = self._parse_json(raw)
-        if not parsed:
-            parsed = {
-                "illness_severity": "watcher",
-                "patient_summary": "AI解析失败，请查看原始数据。",
-                "action_list": [],
-                "situation_awareness": [],
-                "synthesis_by_receiver": "请交班医生复核关键生命体征与实验室变化。",
-                "confidence_level": "low",
-            }
+        fallback_reason = ""
+        try:
+            system_prompt = (
+                "你是ICU交班助手，按I-PASS结构生成交班摘要。"
+                "只能归纳已提供数据，不得编造。必须返回严格JSON。"
+            )
+            user_prompt = (
+                "请基于以下数据生成交班摘要，字段包括: "
+                "illness_severity, patient_summary, action_list, situation_awareness, "
+                "synthesis_by_receiver, confidence_level。\n"
+                "其中 confidence_level 仅可取 high/medium/low。\n"
+                "数据: " + json.dumps(context, ensure_ascii=False, default=str)
+            )
+            raw = await llm_call(system_prompt, user_prompt, model)
+            parsed = self._parse_json(raw)
+            if not parsed:
+                fallback_reason = "llm_parse_failed"
+                parsed = self._build_fallback_summary(context)
+            else:
+                parsed = self._normalize_summary(parsed, context)
+        except Exception as exc:
+            fallback_reason = f"llm_unavailable:{type(exc).__name__}"
+            parsed = self._build_fallback_summary(context)
 
         validation = self._validate_numeric_claims(parsed, context)
         parsed = self._apply_structured_hints(parsed, context)
+        if fallback_reason:
+            parsed["fallback_reason"] = fallback_reason
         parsed["validation"] = validation
         parsed["generated_at"] = datetime.now(API_TZ).isoformat()
         return {"summary": parsed, "context_snapshot": context}
@@ -298,6 +300,198 @@ class AiHandoffService:
             }
             summary["structured_hints"] = structured
         return summary
+
+    def _normalize_summary(self, summary: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(summary or {})
+        fallback = self._build_fallback_summary(context)
+
+        severity = str(normalized.get("illness_severity") or fallback.get("illness_severity") or "watcher").strip().lower()
+        if severity not in {"stable", "watcher", "unstable", "critical"}:
+            severity = str(fallback.get("illness_severity") or "watcher")
+        normalized["illness_severity"] = severity
+
+        for key in ["patient_summary", "synthesis_by_receiver"]:
+            text = str(normalized.get(key) or "").strip()
+            normalized[key] = text or str(fallback.get(key) or "")
+
+        normalized["action_list"] = self._clean_list(normalized.get("action_list")) or self._clean_list(fallback.get("action_list"))
+        normalized["situation_awareness"] = self._clean_list(normalized.get("situation_awareness")) or self._clean_list(fallback.get("situation_awareness"))
+
+        confidence = str(normalized.get("confidence_level") or fallback.get("confidence_level") or "low").strip().lower()
+        if confidence not in {"low", "medium", "high"}:
+            confidence = str(fallback.get("confidence_level") or "low")
+        normalized["confidence_level"] = confidence
+        return normalized
+
+    def _clean_list(self, value: Any) -> list[str]:
+        if isinstance(value, list):
+            items = value
+        elif value in (None, ""):
+            items = []
+        else:
+            items = [value]
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            text = str(item or "").strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            cleaned.append(text)
+        return cleaned
+
+    def _build_fallback_summary(self, context: dict[str, Any]) -> dict[str, Any]:
+        patient = context.get("patient") if isinstance(context.get("patient"), dict) else {}
+        vitals = context.get("latest_vitals") if isinstance(context.get("latest_vitals"), dict) else {}
+        alerts = context.get("alerts_12h") if isinstance(context.get("alerts_12h"), list) else []
+        labs = context.get("labs_12h") if isinstance(context.get("labs_12h"), list) else []
+        drugs = context.get("drugs_12h") if isinstance(context.get("drugs_12h"), list) else []
+        assessments = context.get("assessments_12h") if isinstance(context.get("assessments_12h"), list) else []
+
+        severity = self._estimate_severity(vitals, alerts)
+        confidence = "medium" if any(v is not None for v in vitals.values()) or alerts or labs else "low"
+        summary_parts = [
+            str(patient.get("name") or "该患者"),
+            str(patient.get("diag") or "诊断待补充"),
+            f"当前病情评估为{self._severity_text(severity)}",
+        ]
+        vital_text = self._format_vitals(vitals)
+        if vital_text:
+            summary_parts.append(vital_text)
+        if alerts:
+            summary_parts.append(f"近12小时告警 {len(alerts)} 条")
+
+        awareness: list[str] = []
+        alert_line = self._summarize_alerts(alerts)
+        if alert_line:
+            awareness.append(alert_line)
+        lab_line = self._summarize_labs(labs)
+        if lab_line:
+            awareness.append(lab_line)
+        drug_line = self._summarize_drugs(drugs)
+        if drug_line:
+            awareness.append(drug_line)
+        if assessments:
+            awareness.append(f"近12小时护理/评分记录 {len(assessments)} 条，建议接班后结合趋势复核。")
+
+        actions: list[str] = []
+        if alerts:
+            actions.append("优先复核最近12小时高等级告警及其处理闭环。")
+        if labs:
+            actions.append("复核异常检验结果与当前治疗方案是否一致。")
+        if vital_text:
+            actions.append("接班后再次确认当前生命体征和监护趋势。")
+        if not actions:
+            actions.append("当前结构化数据有限，建议接班后先核对生命体征、检验和治疗计划。")
+
+        synthesis = "请接班医生先复核生命体征、关键检验异常和当前治疗执行情况。"
+        if alerts:
+            synthesis = "请接班医生重点核对最近告警、关键生命体征趋势及已下达处置是否落实。"
+
+        return {
+            "illness_severity": severity,
+            "patient_summary": "；".join(part for part in summary_parts if part),
+            "action_list": actions,
+            "situation_awareness": awareness,
+            "synthesis_by_receiver": synthesis,
+            "confidence_level": confidence,
+        }
+
+    def _estimate_severity(self, vitals: dict[str, Any], alerts: list[dict[str, Any]]) -> str:
+        severities = {str((a or {}).get("severity") or "").strip().lower() for a in alerts if isinstance(a, dict)}
+        if "critical" in severities:
+            return "critical"
+        hr = self._num(vitals.get("hr"))
+        spo2 = self._num(vitals.get("spo2"))
+        rr = self._num(vitals.get("rr"))
+        sbp = self._num(vitals.get("sbp"))
+        temp = self._num(vitals.get("temp"))
+        if spo2 is not None and spo2 < 88:
+            return "critical"
+        if sbp is not None and sbp < 90:
+            return "unstable"
+        if hr is not None and (hr >= 130 or hr <= 40):
+            return "unstable"
+        if rr is not None and (rr >= 30 or rr <= 8):
+            return "unstable"
+        if temp is not None and temp >= 39.0:
+            return "watcher"
+        if "high" in severities or "warning" in severities:
+            return "watcher"
+        return "stable"
+
+    def _severity_text(self, severity: str) -> str:
+        return {
+            "stable": "稳定",
+            "watcher": "需重点观察",
+            "unstable": "不稳定",
+            "critical": "危重",
+        }.get(str(severity or "").lower(), "需重点观察")
+
+    def _format_vitals(self, vitals: dict[str, Any]) -> str:
+        parts: list[str] = []
+        if self._num(vitals.get("hr")) is not None:
+            parts.append(f"HR {self._num(vitals.get('hr')):.0f}")
+        if self._num(vitals.get("spo2")) is not None:
+            parts.append(f"SpO2 {self._num(vitals.get('spo2')):.0f}%")
+        if self._num(vitals.get("rr")) is not None:
+            parts.append(f"RR {self._num(vitals.get('rr')):.0f}")
+        if self._num(vitals.get("sbp")) is not None:
+            parts.append(f"SBP {self._num(vitals.get('sbp')):.0f}")
+        if self._num(vitals.get("temp")) is not None:
+            parts.append(f"T {self._num(vitals.get('temp')):.1f}C")
+        return "，".join(parts)
+
+    def _summarize_alerts(self, alerts: list[dict[str, Any]]) -> str:
+        if not alerts:
+            return ""
+        level_count: dict[str, int] = {}
+        names: list[str] = []
+        for alert in alerts[:5]:
+            if not isinstance(alert, dict):
+                continue
+            sev = str(alert.get("severity") or "unknown").strip().lower() or "unknown"
+            level_count[sev] = int(level_count.get(sev) or 0) + 1
+            name = str(alert.get("name") or alert.get("alert_type") or "").strip()
+            if name:
+                names.append(name)
+        severity_text = " / ".join(f"{k}:{v}" for k, v in sorted(level_count.items()))
+        top_names = "；".join(names[:3])
+        return f"近12小时告警共 {len(alerts)} 条（{severity_text}），重点包括：{top_names}。"
+
+    def _summarize_labs(self, labs: list[dict[str, Any]]) -> str:
+        if not labs:
+            return ""
+        abnormal = []
+        for lab in labs:
+            if not isinstance(lab, dict):
+                continue
+            flag = str(lab.get("flag") or "").strip()
+            if not flag:
+                continue
+            name = str(lab.get("name") or "检验").strip()
+            result = str(lab.get("result") or "").strip()
+            unit = str(lab.get("unit") or "").strip()
+            abnormal.append(f"{name} {result}{unit}({flag})")
+            if len(abnormal) >= 3:
+                break
+        if abnormal:
+            return "检验异常提示：" + "；".join(abnormal) + "。"
+        return f"近12小时检验结果 {len(labs)} 条，建议结合原始报告复核异常项。"
+
+    def _summarize_drugs(self, drugs: list[dict[str, Any]]) -> str:
+        if not drugs:
+            return ""
+        names: list[str] = []
+        for drug in drugs[:5]:
+            if not isinstance(drug, dict):
+                continue
+            name = str(drug.get("drugName") or "").strip()
+            if name:
+                names.append(name)
+        if names:
+            return "近12小时主要用药：" + "；".join(names[:4]) + "。"
+        return ""
 
     def _validate_numeric_claims(self, summary: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         text = json.dumps(summary, ensure_ascii=False)

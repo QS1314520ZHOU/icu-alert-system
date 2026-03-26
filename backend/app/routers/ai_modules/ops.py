@@ -51,7 +51,7 @@ async def patient_handoff_summary(patient_id: str):
             "context_snapshot": serialize_doc(result.get("context_snapshot") or {}),
         }
     except Exception as exc:
-        logger.error("AI handoff summary error: %s", exc)
+        logger.exception("AI handoff summary error")
         return {"code": 0, "summary": {}, "error": f"AI服务异常: {str(exc)[:120]}"}
 
 
