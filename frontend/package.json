@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "postbuild": "node ./scripts/sync-to-backend-static.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
