@@ -18,4 +18,14 @@ async function bootstrap() {
 
 bootstrap()
 
-registerSW({ immediate: true })
+registerSW({
+  immediate: true,
+  onRegisteredSW(swUrl, registration) {
+    if (!registration) return
+    window.setInterval(() => {
+      registration.update().catch((error) => {
+        console.warn(`[pwa] failed to update service worker from ${swUrl}`, error)
+      })
+    }, 60 * 1000)
+  },
+})

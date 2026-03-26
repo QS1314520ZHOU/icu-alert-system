@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       VitePWA({
         registerType: 'autoUpdate',
+        injectRegister: 'auto',
         includeAssets: ['vite.svg'],
         manifest: {
           name: 'ICU智能预警系统',
@@ -67,6 +68,9 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
+          clientsClaim: true,
+          skipWaiting: true,
+          cleanupOutdatedCaches: true,
           globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           runtimeCaching: [
@@ -90,17 +94,6 @@ export default defineConfig(({ mode }) => {
                 expiration: {
                   maxEntries: 60,
                   maxAgeSeconds: 30 * 60,
-                },
-              },
-            },
-            {
-              urlPattern: ({ request }) => ['style', 'script', 'worker'].includes(request.destination),
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'asset-cache',
-                expiration: {
-                  maxEntries: 80,
-                  maxAgeSeconds: 30 * 24 * 60 * 60,
                 },
               },
             },
