@@ -10,11 +10,11 @@ import httpx
 logger = logging.getLogger("icu-alert")
 
 
-class CircuitBreakerOpenError(RuntimeError):
+class LLMRuntimeUnavailableError(RuntimeError):
     pass
 
 
-class _LLMCircuitBreaker:
+class _LLMFailureTracker:
     def __init__(self) -> None:
         self.failure_count = 0
         self.open_until = 0.0
@@ -48,7 +48,7 @@ class _LLMCircuitBreaker:
             }
 
 
-_BREAKER = _LLMCircuitBreaker()
+_FAILURE_TRACKER = _LLMFailureTracker()
 
 
 def _llm_runtime_cfg(cfg) -> tuple[int, int]:
@@ -106,14 +106,14 @@ async def call_llm_chat(
 ) -> dict[str, Any]:
     threshold, cooldown_seconds = _llm_runtime_cfg(cfg)
     normal_candidates, has_real_degrade, models_meta = resolve_model_candidates(cfg, model)
-    _, retry_after = await _BREAKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
+    _, retry_after_seconds = await _FAILURE_TRACKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
     llm_base_url = cfg.settings.LLM_BASE_URL.rstrip("/")
     candidates = normal_candidates
     degraded_mode = False
 
     candidates = [c for c in candidates if c]
     if not candidates:
-        raise CircuitBreakerOpenError(f"LLM circuit breaker open, retry after {int(retry_after)}s")
+        raise LLMRuntimeUnavailableError("LLM runtime has no available model candidates")
 
     llm_url = llm_base_url + "/chat/completions"
     headers = {
@@ -152,7 +152,7 @@ async def call_llm_chat(
                 data = await _send(req_client, candidate)
                 used_model = candidate
                 used_fallback = degraded_mode or (idx > 0) or (candidate == models_meta.get("fallback_model") and has_real_degrade)
-                await _BREAKER.record_success()
+                await _FAILURE_TRACKER.record_success()
                 text = data["choices"][0]["message"]["content"]
                 usage = data.get("usage") if isinstance(data, dict) else None
                 return {
@@ -165,13 +165,13 @@ async def call_llm_chat(
                         "primary_model": models_meta.get("primary_model"),
                         "fallback_model": models_meta.get("fallback_model"),
                         "circuit_open": False,
-                        "retry_after_seconds": retry_after,
+                        "retry_after_seconds": retry_after_seconds,
                     },
                 }
             except Exception as e:
                 last_exc = e
                 if not degraded_mode and idx == 0 and _should_trip_breaker(e):
-                    await _BREAKER.record_failure(
+                    await _FAILURE_TRACKER.record_failure(
                         threshold=threshold,
                         cooldown_seconds=cooldown_seconds,
                         error=str(e),
@@ -186,5 +186,5 @@ async def call_llm_chat(
     raise RuntimeError("LLM 调用失败")
 
 
-async def breaker_snapshot() -> dict[str, Any]:
-    return await _BREAKER.snapshot()
+async def llm_runtime_snapshot() -> dict[str, Any]:
+    return await _FAILURE_TRACKER.snapshot()

@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any
 
-from app.services.llm_runtime import breaker_snapshot
+from app.services.llm_runtime import llm_runtime_snapshot
 from app.utils.api_llm import call_api_llm
 
 
@@ -164,7 +164,7 @@ async def summarize_weaning_timeline(payload: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         pass
     fallback = _weaning_fallback(payload)
-    fallback["breaker"] = await breaker_snapshot()
+    fallback["runtime"] = await llm_runtime_snapshot()
     return fallback
 
 
@@ -189,5 +189,5 @@ async def summarize_sepsis_bundle_analytics(payload: dict[str, Any]) -> dict[str
     except Exception:
         pass
     fallback = _sepsis_fallback(payload)
-    fallback["breaker"] = await breaker_snapshot()
+    fallback["runtime"] = await llm_runtime_snapshot()
     return fallback
