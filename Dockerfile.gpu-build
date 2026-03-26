@@ -1,0 +1,491 @@
+# ============================================================
+#  Dockerfile.gpu-build  —  ICU Alert System (GPU 终极修复版)
+#
+#  基础镜像: ubuntu:20.04
+#  Python:   源码编译 3.11
+#  CUDA:     PyTorch pip wheel 自带 (不需要 NVIDIA apt repo)
+#  GPU推理:  torch 2.3.1+cu121 + onnxruntime-gpu 1.20.1
+#
+#  零第三方 apt 源 = 零 GPG key 问题
+#
+#  构建: docker build --network=host -t icu-builder -f Dockerfile.gpu-build .
+# ============================================================
+
+# ==================== Stage 1: 前端编译 ====================
+FROM node:22-bullseye AS frontend-builder
+
+WORKDIR /src/frontend
+RUN npm config set registry https://registry.npmmirror.com
+
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --prefer-offline || npm install
+
+COPY frontend/ ./
+RUN npm run build && \
+    if [ ! -d dist ] && [ -d build ]; then mv build dist; fi && \
+    if [ ! -d dist ]; then echo "ERROR: frontend build failed"; exit 1; fi && \
+    echo ">>> Frontend OK" && ls -la dist/
+
+
+# ==================== Stage 2: 后端打包 ====================
+FROM ubuntu:20.04 AS backend-builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+
+# ---- 2.1 系统依赖 (只用 Ubuntu 官方源) ----
+RUN sed -i 's|http://archive.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/sources.list && \
+    sed -i 's|http://security.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        gcc \
+        g++ \
+        make \
+        libssl-dev \
+        libffi-dev \
+        zlib1g-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        liblzma-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        libgdbm-dev \
+        libdb-dev \
+        uuid-dev \
+        tk-dev \
+        binutils \
+        patchelf \
+        git \
+        curl \
+        wget \
+        xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---- 2.2 源码编译 Python 3.11.9 (约3-5分钟) ----
+ENV PYTHON_VERSION=3.11.9
+
+RUN cd /tmp && \
+    wget -q https://mirrors.huaweicloud.com/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz && \
+    tar xf Python-${PYTHON_VERSION}.tar.xz && \
+    cd Python-${PYTHON_VERSION} && \
+    ./configure \
+        --prefix=/usr/local \
+        --enable-optimizations \
+        --with-lto \
+        --enable-shared \
+        --with-system-ffi \
+        LDFLAGS="-Wl,-rpath=/usr/local/lib" && \
+    make -j"$(nproc)" && \
+    make altinstall && \
+    cd / && rm -rf /tmp/Python-* && \
+    ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/local/bin/python3.11 /usr/local/bin/python && \
+    ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip3 && \
+    ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip && \
+    python3 --version && pip3 --version
+
+# ---- 2.3 pip 配置阿里源 ----
+RUN mkdir -p /root/.pip && \
+    printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\ntrusted-host = mirrors.aliyun.com\n' > /root/.pip/pip.conf && \
+    pip3 install --no-cache-dir --upgrade pip setuptools wheel
+
+WORKDIR /build
+
+# ---- 2.4 安装 PyTorch GPU (自带 CUDA 12.1 运行库) ----
+RUN pip3 install --no-cache-dir \
+    torch==2.3.1+cu121 \
+    torchvision==0.18.1+cu121 \
+    torchaudio==2.3.1+cu121 \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# ===========================================================
+#  2.5 安装项目依赖
+#
+#  关键: requirements.txt 是嵌套引用:
+#    -r requirements.common.txt
+#    -r requirements.cpu.txt          ← 含 torch==2.5.1 (CPU版)
+#
+#  GPU 构建必须:
+#    ① 只装 requirements.common.txt (不装 cpu.txt 避免覆盖 GPU torch)
+#    ② 单独装 onnxruntime-gpu (替代 cpu.txt 里的 onnxruntime)
+# ===========================================================
+COPY backend/requirements*.txt ./
+RUN pip3 install --no-cache-dir -r requirements.common.txt && \
+    pip3 install --no-cache-dir onnxruntime-gpu==1.20.1
+
+# ---- 2.6 安装打包工具 ----
+RUN pip3 install --no-cache-dir pyinstaller python-dotenv
+
+# ---- 2.7 复制源码 ----
+COPY backend/ ./backend/
+COPY --from=frontend-builder /src/frontend/dist ./backend/static/
+COPY entry.py ./entry.py
+
+# ---- 2.8 验证环境 ----
+RUN python3 -c "\
+import sys; print(f'Python: {sys.version}'); \
+import torch; print(f'PyTorch: {torch.__version__}'); \
+print(f'CUDA compiled: {torch.version.cuda}'); \
+print(f'cuDNN: {torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else \"N/A\"}'); \
+print(f'GPU in build: {torch.cuda.is_available()} (False is normal in Docker build)'); \
+import onnxruntime; print(f'ONNXRuntime: {onnxruntime.__version__}'); \
+providers = onnxruntime.get_available_providers(); print(f'ORT providers: {providers}'); \
+import fastapi; print(f'FastAPI: {fastapi.__version__}'); \
+import uvicorn; print(f'Uvicorn: {uvicorn.__version__}'); \
+import motor; print(f'Motor: {motor.version}'); \
+print('>>> All OK'); \
+"
+
+# ---- 2.9 生成 PyInstaller spec ----
+#
+#  修复要点 vs 原版:
+#    ① collect_submodules('app') 需要 pathex 含 ./backend
+#    ② hidden_imports 补 motor / motor.motor_asyncio / onnxruntime
+#    ③ CUDA .so 从 nvidia.* + torch.lib 两处收集
+#    ④ datas 含 onnxruntime 数据文件
+#    ⑤ 参考仓库自带 icu_alert_gpu.spec 的 collect 策略
+# ===========================================================
+RUN cat > /build/icu-alert-system.spec << 'SPECEOF'
+# -*- mode: python ; coding: utf-8 -*-
+import os, sys, glob
+from PyInstaller.utils.hooks import (
+    collect_data_files,
+    collect_dynamic_libs,
+    collect_submodules,
+)
+
+block_cipher = None
+
+# ---------- 自动收集所有子模块 ----------
+app_imports          = collect_submodules('app')
+tzdata_imports       = collect_submodules('tzdata')
+torch_imports        = collect_submodules('torch')
+transformer_imports  = collect_submodules('transformers')
+st_imports           = collect_submodules('sentence_transformers')
+tokenizer_imports    = collect_submodules('tokenizers')
+ort_imports          = collect_submodules('onnxruntime')
+
+# ---------- 数据文件 ----------
+datas = [
+    ('backend/static',         'static'),
+    ('backend/config.yaml',    '.'),
+]
+# .env 可选
+if os.path.isfile('backend/.env') or os.path.isfile('backend/.env.example'):
+    env_file = 'backend/.env' if os.path.isfile('backend/.env') else 'backend/.env.example'
+    datas.append((env_file, '.'))
+# knowledge_base 可选
+if os.path.isdir('backend/knowledge_base'):
+    datas.append(('backend/knowledge_base', 'knowledge_base'))
+
+datas += collect_data_files('sentence_transformers')
+datas += collect_data_files('transformers')
+datas += collect_data_files('tokenizers')
+datas += collect_data_files('torch')
+datas += collect_data_files('tzdata')
+datas += collect_data_files('onnxruntime')
+
+# ---------- 二进制: torch 动态库 ----------
+binaries = []
+binaries += collect_dynamic_libs('torch')
+binaries += collect_dynamic_libs('onnxruntime')
+
+# ---------- CUDA .so 从 nvidia.* pip 包收集 ----------
+cuda_bins = []
+search_dirs = []
+
+try:
+    import nvidia
+    nvidia_base = os.path.dirname(nvidia.__file__)
+    for sub in os.listdir(nvidia_base):
+        lib_dir = os.path.join(nvidia_base, sub, 'lib')
+        if os.path.isdir(lib_dir):
+            search_dirs.append(lib_dir)
+except ImportError:
+    pass
+
+try:
+    import torch
+    torch_lib = os.path.join(os.path.dirname(torch.__file__), 'lib')
+    if os.path.isdir(torch_lib):
+        search_dirs.append(torch_lib)
+except ImportError:
+    pass
+
+cuda_patterns = [
+    'libcudart.so*', 'libcublas.so*', 'libcublasLt.so*',
+    'libcufft.so*', 'libcurand.so*', 'libcusolver.so*',
+    'libcusparse.so*', 'libcudnn*.so*', 'libnccl.so*',
+    'libnvrtc*.so*', 'libnvToolsExt.so*', 'libnvJitLink.so*',
+]
+seen = set()
+for d in search_dirs:
+    for pat in cuda_patterns:
+        for f in glob.glob(os.path.join(d, pat)):
+            real = os.path.realpath(f)
+            if os.path.isfile(real) and real not in seen:
+                seen.add(real)
+                cuda_bins.append((real, '.'))
+
+binaries += cuda_bins
+print(f"[SPEC] {len(cuda_bins)} CUDA libs from: {search_dirs}")
+
+# ---------- hidden imports ----------
+hidden_imports = (
+    app_imports
+    + tzdata_imports
+    + torch_imports
+    + transformer_imports
+    + st_imports
+    + tokenizer_imports
+    + ort_imports
+    + [
+        # --- uvicorn ---
+        'uvicorn.logging',
+        'uvicorn.loops', 'uvicorn.loops.auto',
+        'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
+        'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto',
+        'uvicorn.lifespan', 'uvicorn.lifespan.on', 'uvicorn.lifespan.off',
+        # --- web 框架 ---
+        'fastapi', 'starlette.routing', 'starlette.middleware', 'starlette.middleware.cors',
+        'anyio._backends._asyncio',
+        # --- 数据库 ---
+        'pymongo', 'motor', 'motor.motor_asyncio',
+        'redis', 'redis.asyncio',
+        # --- AI / ML ---
+        'sentence_transformers',
+        'torch', 'torch.cuda', 'torch.backends', 'torch.backends.cudnn',
+        'torchvision', 'torchaudio',
+        'transformers', 'tokenizers', 'numpy',
+        'onnxruntime',
+        # --- nvidia CUDA 子包 ---
+        'nvidia', 'nvidia.cublas', 'nvidia.cuda_runtime', 'nvidia.cudnn',
+        'nvidia.cufft', 'nvidia.curand', 'nvidia.cusolver', 'nvidia.cusparse',
+        'nvidia.nccl', 'nvidia.nvjitlink', 'nvidia.nvtx',
+        # --- 其他 ---
+        'httpx', 'jose', 'passlib', 'bcrypt',
+        'pydantic', 'pydantic_settings', 'pydantic.deprecated.decorator',
+        'yaml', 'dotenv', 'websockets', 'zoneinfo',
+        'encodings.idna',
+    ]
+)
+
+excludes = [
+    'matplotlib', 'PIL', 'scipy', 'pandas',
+    'tkinter', 'unittest', 'test', 'setuptools', 'pip',
+]
+
+a = Analysis(
+    ['entry.py'],
+    pathex=['.', './backend'],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hidden_imports,
+    hookspath=[], hooksconfig={}, runtime_hooks=[],
+    excludes=excludes,
+    win_no_prefer_redirects=False, win_private_assemblies=False,
+    cipher=block_cipher, noarchive=False,
+)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+exe = EXE(pyz, a.scripts, [],
+    exclude_binaries=True, name='icu-alert-system',
+    debug=False, bootloader_ignore_signals=False,
+    strip=False, upx=False, console=True,
+)
+coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas,
+    strip=False, upx=False, upx_exclude=[], name='icu-alert-system',
+)
+SPECEOF
+
+# ---- 2.10 执行 PyInstaller ----
+RUN cd /build && \
+    python3 -m PyInstaller \
+        --clean --noconfirm --log-level=INFO \
+        icu-alert-system.spec \
+        2>&1 | tee /build/pyinstaller.log && \
+    if [ ! -f /build/dist/icu-alert-system/icu-alert-system ]; then \
+        echo "====== BUILD FAILED ======"; \
+        tail -100 /build/pyinstaller.log; \
+        exit 1; \
+    fi && \
+    echo ">>> Binary OK:" && \
+    ls -lh /build/dist/icu-alert-system/icu-alert-system
+
+# ---- 2.11 生成 .env.template ----
+RUN cat > /build/dist/icu-alert-system/.env.template << 'ENVEOF'
+# ==================== ICU 智能预警系统配置 ====================
+
+# ---- 服务 ----
+ICU_HOST=0.0.0.0
+ICU_PORT=8000
+ICU_WORKERS=2
+
+# ---- SmartCare 数据库 ----
+SMARTCARE_DB_HOST=127.0.0.1
+SMARTCARE_DB_PORT=27017
+SMARTCARE_DB_USER=your_user
+SMARTCARE_DB_PASSWORD=your_password
+SMARTCARE_DB_AUTH=SmartCare
+
+# ---- DataCenter 数据库 ----
+DATACENTER_DB_HOST=127.0.0.1
+DATACENTER_DB_PORT=27017
+DATACENTER_DB_USER=your_user
+DATACENTER_DB_PASSWORD=your_password
+DATACENTER_DB_AUTH=DataCenter
+
+# ---- Redis ----
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# ---- GPU ----
+# CUDA_VISIBLE_DEVICES=0
+# FORCE_CPU=true
+
+# ---- AI/LLM (Ollama) ----
+LLM_BASE_URL=http://127.0.0.1:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=baichuan-m2-32b
+LLM_MODEL_MEDICAL=
+LLM_FALLBACK_MODEL=
+
+# ---- Embedding ----
+EMBEDDING_MODE=local
+EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5
+
+# ---- 系统 ----
+SECRET_KEY=change-me-in-production
+CORS_ALLOWED_ORIGINS=*
+LOG_LEVEL=info
+ENVEOF
+
+# ---- 2.12 生成 run.sh ----
+RUN cat > /build/dist/icu-alert-system/run.sh << 'RUNEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME="icu-alert-system"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BINARY="${SCRIPT_DIR}/${APP_NAME}"
+PID_FILE="${SCRIPT_DIR}/${APP_NAME}.pid"
+LOG_FILE="${SCRIPT_DIR}/${APP_NAME}.log"
+ENV_FILE="${SCRIPT_DIR}/.env"
+
+load_env() {
+    if [ -f "${ENV_FILE}" ]; then
+        echo "[${APP_NAME}] 加载: ${ENV_FILE}"
+        set -a
+        while IFS='=' read -r key value; do
+            [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | sed "s/^['\"]//;s/['\"]$//")
+            export "$key=$value" 2>/dev/null || true
+        done < "${ENV_FILE}"
+        set +a
+    else
+        echo "[${APP_NAME}] 警告: ${ENV_FILE} 不存在"
+        echo "  提示: cp .env.template .env && vim .env"
+    fi
+}
+
+setup_libs() {
+    if [ -d "${SCRIPT_DIR}/_internal" ]; then
+        export LD_LIBRARY_PATH="${SCRIPT_DIR}/_internal:${LD_LIBRARY_PATH:-}"
+    fi
+}
+
+check_gpu() {
+    if command -v nvidia-smi &>/dev/null; then
+        echo "[${APP_NAME}] GPU:"
+        nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>/dev/null || true
+    else
+        echo "[${APP_NAME}] 未检测到 nvidia-smi"
+    fi
+}
+
+do_start() {
+    load_env; setup_libs; check_gpu
+    echo "[${APP_NAME}] 前台启动..."
+    exec "${BINARY}"
+}
+
+do_start_bg() {
+    if [ -f "${PID_FILE}" ]; then
+        OLD_PID=$(cat "${PID_FILE}")
+        if kill -0 "${OLD_PID}" 2>/dev/null; then
+            echo "[${APP_NAME}] 已运行 (PID: ${OLD_PID})"; return 0
+        fi
+        rm -f "${PID_FILE}"
+    fi
+    load_env; setup_libs; check_gpu
+    echo "[${APP_NAME}] 后台启动..."
+    nohup "${BINARY}" >> "${LOG_FILE}" 2>&1 &
+    echo $! > "${PID_FILE}"
+    sleep 2
+    if kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+        echo "[${APP_NAME}] OK (PID: $(cat "${PID_FILE}"))"
+        echo "  日志: tail -f ${LOG_FILE}"
+        echo "  访问: http://$(hostname -I 2>/dev/null | awk '{print $1}'):${ICU_PORT:-8000}"
+    else
+        echo "[${APP_NAME}] 启动失败! 查看: tail -50 ${LOG_FILE}"
+        rm -f "${PID_FILE}"; exit 1
+    fi
+}
+
+do_stop() {
+    if [ -f "${PID_FILE}" ]; then
+        PID=$(cat "${PID_FILE}")
+        if kill -0 "${PID}" 2>/dev/null; then
+            echo "[${APP_NAME}] 停止 (PID: ${PID})..."
+            kill "${PID}"; sleep 3
+            kill -0 "${PID}" 2>/dev/null && kill -9 "${PID}" 2>/dev/null || true
+            echo "[${APP_NAME}] 已停止"
+        else
+            echo "[${APP_NAME}] 进程不存在"
+        fi
+        rm -f "${PID_FILE}"
+    else
+        echo "[${APP_NAME}] 未运行"
+    fi
+}
+
+do_status() {
+    if [ -f "${PID_FILE}" ]; then
+        PID=$(cat "${PID_FILE}")
+        if kill -0 "${PID}" 2>/dev/null; then
+            echo "[${APP_NAME}] 运行中 (PID: ${PID})"
+            ps -p "${PID}" -o pid,vsz,rss,pcpu,pmem,etime --no-headers 2>/dev/null || true
+            check_gpu; return 0
+        fi
+    fi
+    echo "[${APP_NAME}] 未运行"; return 1
+}
+
+case "${1:-help}" in
+    start)      do_start ;;
+    start-bg)   do_start_bg ;;
+    stop)       do_stop ;;
+    restart)    do_stop; sleep 1; do_start_bg ;;
+    status)     do_status ;;
+    logs)       tail -f "${LOG_FILE}" ;;
+    *)          echo "用法: $0 {start|start-bg|stop|restart|status|logs}" ;;
+esac
+RUNEOF
+RUN chmod +x /build/dist/icu-alert-system/run.sh
+
+# ---- 2.13 整理输出 ----
+RUN mkdir -p /build/output && \
+    cp -r /build/dist/icu-alert-system/* /build/output/ && \
+    cp /build/backend/config.yaml /build/output/ 2>/dev/null || true && \
+    if [ -d /build/backend/knowledge_base ]; then \
+        cp -r /build/backend/knowledge_base /build/output/; \
+    fi && \
+    echo "==========================================" && \
+    echo "  构建完成! 总大小:" && \
+    du -sh /build/output/ && \
+    echo "==========================================" && \
+    ls -la /build/output/
+
+CMD ["echo", "Build complete. Extract /build/output/"]
