@@ -94,6 +94,41 @@ function scheduleReconnect() {
   }, 3000)
 }
 
+// ── 全局语音播报（护士站大屏 / 广播） ─────────────────────────
+const SPEECH_ENABLED_KEY = 'icu_alert_speech_enabled'
+
+export function getAlertSpeechEnabled() {
+  return localStorage.getItem(SPEECH_ENABLED_KEY) !== '0'
+}
+
+export function setAlertSpeechEnabled(enabled: boolean) {
+  localStorage.setItem(SPEECH_ENABLED_KEY, enabled ? '1' : '0')
+}
+
+/**
+ * 对 critical 级别预警执行语音播报。
+ * 供护士站大屏等全局视图注册，内网音箱/广播通过浏览器 Web Speech API 输出。
+ */
+export function speakCriticalAlert(msg: AlertMessage) {
+  if (msg?.type !== 'alert') return
+  const alert = msg?.data || {}
+  if (String(alert.severity || '').toLowerCase() !== 'critical') return
+  if (!getAlertSpeechEnabled()) return
+  if (!('speechSynthesis' in window)) return
+
+  const bed = alert.bed || '--'
+  const name = alert.patient_name || '患者'
+  const ruleName = alert.name || '危急预警'
+  const text = `危急预警：${bed}床，${name}，${ruleName}，请立即处置`
+
+  const utter = new SpeechSynthesisUtterance(text)
+  utter.lang = 'zh-CN'
+  utter.rate = 0.92
+  utter.volume = 1
+  // 不中断：排队播报，避免多条同时触发时互相打断
+  window.speechSynthesis.speak(utter)
+}
+
 export function onAlertMessage(listener: Listener) {
   listeners.add(listener)
   connect()

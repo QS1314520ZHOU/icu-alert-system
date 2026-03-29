@@ -8,6 +8,9 @@ import re
 import time
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
+
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 import httpx
 from app.services.ai_monitor import AiMonitor
@@ -250,7 +253,7 @@ class AiRiskMixin:
         alert_cursor = self.db.col("alert_records").find(
             {
                 "patient_id": {"$in": [str(pid), pid]},
-                "created_at": {"$gte": datetime.now() - timedelta(hours=24)},
+                "created_at": {"$gte": datetime.now(API_TZ) - timedelta(hours=24)},
             },
             {"alert_type": 1, "rule_id": 1, "severity": 1, "created_at": 1},
         ).sort("created_at", -1).limit(80)

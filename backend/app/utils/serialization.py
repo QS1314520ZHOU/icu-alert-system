@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 from zoneinfo import ZoneInfo
 
 from bson import ObjectId
@@ -23,6 +24,13 @@ def serialize_doc(doc):
     if isinstance(doc, tuple):
         return [serialize_doc(item) for item in doc]
     if not isinstance(doc, dict):
+        if isinstance(doc, float):
+            return doc if math.isfinite(doc) else None
+        if hasattr(doc, "item") and callable(getattr(doc, "item")):
+            try:
+                return serialize_doc(doc.item())
+            except Exception:
+                return str(doc)
         return doc
 
     return {key: serialize_doc(value) for key, value in doc.items()}

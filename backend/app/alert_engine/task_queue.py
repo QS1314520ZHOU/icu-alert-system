@@ -181,32 +181,123 @@ class ScanTaskWorker:
                 logger.exception("[scan-worker:%s] task failed: %s", idx, exc)
 
 
+def _load_schedule_config(config: Any | None) -> dict[str, dict] | None:
+    """从 config.yaml 读取 scanner_schedule 节，失败返回 None（回退到旧行为）"""
+    if config is None:
+        return None
+    try:
+        yaml_cfg = getattr(config, "yaml_cfg", None) or {}
+        schedule = yaml_cfg.get("scanner_schedule")
+        if not isinstance(schedule, dict) or not schedule:
+            return None
+        return schedule
+    except Exception:
+        return None
+
+
 async def run_inline_loops(
     *,
     scanners: list[BaseScanner],
     stop_event: asyncio.Event,
     semaphore: asyncio.Semaphore,
+    config: Any | None = None,
 ) -> list[asyncio.Task]:
-    async def _sleep(seconds: int) -> None:
+    async def _sleep(seconds: float) -> None:
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=max(seconds, 1))
         except asyncio.TimeoutError:
             return
 
-    async def _loop(scanner: BaseScanner) -> None:
-        await _sleep(scanner.initial_delay)
-        while not stop_event.is_set():
-            try:
-                async with semaphore:
-                    await scanner.scan()
-            except Exception as exc:
-                logger.exception("[%s] 扫描失败: %s", scanner.name, exc)
-            await _sleep(scanner.interval_seconds())
+    schedule_cfg = _load_schedule_config(config)
 
-    return [
-        asyncio.create_task(_loop(scanner), name=f"inline:{scanner.name}")
-        for scanner in scanners
-    ]
+    # ---- 旧行为：无 scanner_schedule 配置时回退 ----
+    if not schedule_cfg:
+        async def _loop(scanner: BaseScanner) -> None:
+            await _sleep(scanner.initial_delay)
+            while not stop_event.is_set():
+                try:
+                    async with semaphore:
+                        await scanner.scan()
+                except Exception as exc:
+                    logger.exception("[%s] 扫描失败: %s", scanner.name, exc)
+                await _sleep(scanner.interval_seconds())
+
+        return [
+            asyncio.create_task(_loop(scanner), name=f"inline:{scanner.name}")
+            for scanner in scanners
+        ]
+
+    # ---- 新行为：分级调度 ----
+    scanner_map = {s.name: s for s in scanners}
+
+    # 构建分组：{group_name: {interval, [scanner, ...]}}
+    groups: list[dict] = []
+    assigned: set[str] = set()
+    for group_name, group_cfg in schedule_cfg.items():
+        interval = int(group_cfg.get("interval_seconds", 60))
+        names = group_cfg.get("scanners") or []
+        group_scanners = [scanner_map[n] for n in names if n in scanner_map]
+        if group_scanners:
+            groups.append({"name": group_name, "interval": interval, "scanners": group_scanners})
+            assigned.update(n for n in names if n in scanner_map)
+
+    # 未被分组的 scanner 统一归入默认组（兼容旧 scanner）
+    unassigned = [s for s in scanners if s.name not in assigned]
+    if unassigned:
+        default_interval = min(s.interval_seconds() for s in unassigned)
+        groups.append({"name": "_default", "interval": default_interval, "scanners": unassigned})
+        logger.info(
+            "[scheduler] %d scanners not in schedule config, using default interval %ds",
+            len(unassigned),
+            default_interval,
+        )
+
+    if not groups:
+        return []
+
+    min_interval = min(g["interval"] for g in groups)
+    poll_interval = max(min_interval / 2, 5)  # 主循环 tick，最少 5 秒
+    pending: set[asyncio.Task] = set()
+
+    async def _run_scanner(scanner: BaseScanner) -> None:
+        try:
+            async with semaphore:
+                await scanner.scan()
+        except Exception as exc:
+            logger.exception("[%s] 扫描失败: %s", scanner.name, exc)
+
+    def _schedule(scanner: BaseScanner) -> None:
+        if stop_event.is_set():
+            return
+        task = asyncio.create_task(_run_scanner(scanner), name=f"inline:{scanner.name}")
+        pending.add(task)
+
+        def _cleanup(t: asyncio.Task) -> None:
+            pending.discard(t)
+
+        task.add_done_callback(_cleanup)
+
+    async def _tiered_master_loop() -> None:
+        import time
+
+        last_run: dict[str, float] = {g["name"]: 0.0 for g in groups}
+        # 错开各组初始延迟，避免启动时全部同时触发
+        for idx, g in enumerate(groups):
+            last_run[g["name"]] = time.monotonic() + idx * 2.0
+
+        while not stop_event.is_set():
+            now = time.monotonic()
+            for g in groups:
+                if now - last_run[g["name"]] >= g["interval"]:
+                    last_run[g["name"]] = now
+                    for scanner in g["scanners"]:
+                        _schedule(scanner)
+            await _sleep(poll_interval)
+
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
+    return [asyncio.create_task(_tiered_master_loop(), name="inline:tiered-scheduler")]
 
 
 async def run_scanners_once(scanners: list[BaseScanner], semaphore: asyncio.Semaphore) -> None:

@@ -77,6 +77,7 @@ async def acknowledge_alert(alert_id: str, request: Request, payload: dict = Bod
         alert_id,
         actor=resolve_actor_identity(payload, request),
         note=str((payload or {}).get("note") or "").strip(),
+        disposition=str((payload or {}).get("disposition") or "").strip(),
     )
     if not doc:
         return {"code": 404, "message": "告警不存在"}

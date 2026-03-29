@@ -245,7 +245,7 @@ class SimilarCaseReviewMixin:
         except Exception:
             return None
 
-        now = datetime.now()
+        now = datetime.now(API_TZ)
         payload = {
             "patient_id": pid_str,
             "patient_name": patient_doc.get("name"),

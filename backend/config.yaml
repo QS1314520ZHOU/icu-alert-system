@@ -189,6 +189,13 @@ ai_service:
     enabled: true
     persist_window_minutes: 60
 
+research:
+  figure_dpi: 300
+  figure_font_family: "Times New Roman"
+  figure_font_family_cjk: "SimHei"
+  default_significance_level: 0.05
+  max_export_patients: 10000
+
 extended_scenarios:
   post_cardiac_surgery:
     - tamponade_risk
@@ -1159,3 +1166,67 @@ notification:
 ui:
   theme: "dark"
   refresh_interval_seconds: 10
+
+scanner_schedule:
+  realtime:
+    interval_seconds: 30
+    scanners:
+      - VitalSignsScanner
+      - TrendScanner
+      - CardiacArrestRiskScanner
+      - HemodynamicAdvisorScanner
+
+  frequent:
+    interval_seconds: 300
+    scanners:
+      - SepsisScanner
+      - AkiScanner
+      - ArdsScanner
+      - DicScanner
+      - BleedingScanner
+      - CrrtScanner
+      - DrugSafetyScanner
+      - GlycemicControlScanner
+      - FluidBalanceScanner
+      - VentilatorWeaningScanner
+      - DiaphragmProtectionScanner
+      - RightHeartMonitorScanner
+      - LabResultsScanner
+
+  periodic:
+    interval_seconds: 1800
+    scanners:
+      - AntibioticStewardshipScanner
+      - AntimicrobialPkScanner
+      - VancoTdmClosedLoopScanner
+      - DoseAdjustmentScanner
+      - DeviceManagementScanner
+      - HaiBundleScanner
+      - VteProphylaxisScanner
+      - LiberationBundleScanner
+      - EcashBundleScanner
+      - NurseRemindersScanner
+      - DeliriumRiskScanner
+
+  slow:
+    interval_seconds: 3600
+    scanners:
+      - NutritionMonitorScanner
+      - DischargeReadinessScanner
+      - IcuAwMobilityScanner
+      - PalliativeTriggerScanner
+      - CircadianProtectorScanner
+      - NursingWorkloadScanner
+      - NursingNoteAnalyzerScanner
+
+  ai:
+    interval_seconds: 900
+    scanners:
+      - AiRiskScanner
+      - AdaptiveThresholdsScanner
+      - AlertReasoningScanner
+      - TemporalRiskScanner
+      - ProactiveManagementScanner
+      - SimilarCaseReviewScanner
+      - ExtendedScenariosScanner
+      - CompositeDeteriorationScanner

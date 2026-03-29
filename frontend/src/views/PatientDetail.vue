@@ -545,6 +545,7 @@ const compositeOrganLabelDefault: Record<string, string> = {
 
 const aiLabSummary = ref('')
 const aiRuleText = ref('')
+const aiRulePayload = ref<any[] | null>(null)
 const aiRiskText = ref('')
 const aiRiskForecast = ref<any>(null)
 const aiHandoff = ref<any>(null)
@@ -1389,12 +1390,7 @@ function parseRuleNarrativeLines(text: string): any[] {
   return rows.filter((row) => row.parameter && row.threshold)
 }
 
-function parseAiRuleRows(raw: any): AiRuleRow[] {
-  const text = stripMarkdownFence(String(raw || ''))
-  if (!text) return []
-  const arr = parseRuleJsonArray(text)
-  const normalized = arr.length ? arr : (parseRuleMarkdownTable(text).length ? parseRuleMarkdownTable(text) : parseRuleNarrativeLines(text))
-  if (!normalized.length) return []
+function normalizeAiRuleItems(items: any[]): AiRuleRow[] {
   const sevMap: Record<string, string> = {
     warning: '提醒',
     high: '高风险',
@@ -1406,7 +1402,7 @@ function parseAiRuleRows(raw: any): AiRuleRow[] {
     提醒: '提醒',
     警告: '提醒',
   }
-  return normalized.map((it: any, idx: number) => {
+  return items.map((it: any, idx: number) => {
     const severityRaw = String(it?.severity || '').toLowerCase()
     return {
       key: String(idx + 1),
@@ -1419,7 +1415,23 @@ function parseAiRuleRows(raw: any): AiRuleRow[] {
   })
 }
 
-const aiRuleRows = computed(() => parseAiRuleRows(aiRuleText.value))
+function parseAiRuleRows(raw: any): AiRuleRow[] {
+  const text = stripMarkdownFence(String(raw || ''))
+  if (!text) return []
+  const arr = parseRuleJsonArray(text)
+  const normalized = arr.length
+    ? arr
+    : (parseRuleMarkdownTable(text).length ? parseRuleMarkdownTable(text) : parseRuleNarrativeLines(text))
+  if (!normalized.length) return []
+  return normalizeAiRuleItems(normalized)
+}
+
+const aiRuleRows = computed(() => {
+  if (Array.isArray(aiRulePayload.value) && aiRulePayload.value.length) {
+    return normalizeAiRuleItems(aiRulePayload.value)
+  }
+  return parseAiRuleRows(aiRuleText.value)
+})
 const aiHandoffConfidence = computed(() => String(aiHandoff.value?.confidence_level || '').toLowerCase())
 void aiHandoffConfidence
 
@@ -1600,14 +1612,17 @@ async function copyHandoffSummary() {
 }
 void copyHandoffSummary
 
-async function acknowledgeAlert(item: any) {
+async function acknowledgeAlert(item: any, disposition = '') {
   const alertId = String(item?._id || '').trim()
   if (!alertId) {
     message.error('缺少告警ID，无法确认')
     return
   }
   try {
-    const res = await postAlertAcknowledge(alertId, { actor: getOperatorIdentity() })
+    const res = await postAlertAcknowledge(alertId, {
+      actor: getOperatorIdentity(),
+      ...(disposition ? { disposition } : {}),
+    })
     const record = res.data?.record
     if (record) {
       const idx = alerts.value.findIndex((row: any) => String(row?._id || '') === String(record?._id || ''))
@@ -1615,7 +1630,13 @@ async function acknowledgeAlert(item: any) {
         alerts.value[idx] = record
       }
     }
-    message.success('告警已确认')
+    const dispositionLabels: Record<string, string> = {
+      resolved: '✅ 已处理',
+      watching: '👁 观察中',
+      false_positive: '❌ 误报',
+      escalate: '📞 已通知医生',
+    }
+    message.success(disposition ? `告警已确认：${dispositionLabels[disposition] ?? disposition}` : '告警已确认')
   } catch (e: any) {
     message.error(e?.response?.data?.message || '告警确认失败')
   }
@@ -2577,6 +2598,8 @@ function alertTypeText(raw: any) {
     early_mobility_recommendation: '早期活动推荐',
     pe_suspected: '肺栓塞检测',
     pe_wells_high: '肺栓塞 Wells 评分',
+    hypertensive_emergency: '高血压急症',
+    seizure_prophylaxis: '癫痫预防评估',
     fluid_responsiveness: '容量反应性',
     crrt_filter_clotting: '滤器凝堵',
     crrt_citrate_ica: '枸橼酸 iCa',
@@ -2618,6 +2641,7 @@ function alertCategoryText(raw: any) {
     hemodynamic: '血流动力学',
     crrt: 'CRRT',
     dose_adjustment: '剂量调整',
+    extended_scenarios: '扩展场景',
   }
   return map[t] || t.split('_').join(' ')
 }
@@ -2901,7 +2925,18 @@ async function loadAiRules() {
   aiRuleLoading.value = true
   try {
     const res = await getAiRuleRecommendations(patientId)
-    aiRuleText.value = res.data.recommendations || ''
+    const recommendations = res.data.recommendations
+    aiRulePayload.value = Array.isArray(recommendations) ? recommendations : null
+    const rawText = res.data.raw_text
+    if (typeof rawText === 'string' && rawText.trim()) {
+      aiRuleText.value = rawText
+    } else if (typeof recommendations === 'string') {
+      aiRuleText.value = recommendations
+    } else if (Array.isArray(recommendations)) {
+      aiRuleText.value = JSON.stringify(recommendations, null, 2)
+    } else {
+      aiRuleText.value = ''
+    }
     aiRuleError.value = formatAiError(res.data.error || '')
   } catch (e) {
     aiRuleError.value = '智能服务不可用'
@@ -2985,6 +3020,7 @@ function resetDetailState() {
   sepsisBundleNow.value = Date.now()
   aiLabSummary.value = ''
   aiRuleText.value = ''
+  aiRulePayload.value = null
   aiRiskText.value = ''
   aiRiskForecast.value = null
   aiHandoff.value = null
@@ -4420,12 +4456,6 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-
-
-
-
-
-
 
 
 

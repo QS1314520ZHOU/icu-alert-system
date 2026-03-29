@@ -19,6 +19,11 @@ export default defineConfig(({ mode }) => {
   console.info(`[vite] proxying /api and /health to ${backendTarget}`)
 
   return {
+    resolve: {
+      // In restricted Windows environments, Vite's safe realpath optimization may attempt
+      // to spawn `net use` and fail with EPERM. Preserving symlinks avoids that path.
+      preserveSymlinks: true,
+    },
     build: {
       rollupOptions: {
         output: {

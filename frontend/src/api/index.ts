@@ -74,7 +74,7 @@ export const getPatientAlerts = (patientId: string) =>
 export const postPatientAlertsViewed = (patientId: string, payload?: { alert_ids?: string[]; actor?: string; source?: string }) =>
   api.post(`/api/patients/${patientId}/alerts/view`, payload || {})
 
-export const postAlertAcknowledge = (alertId: string, payload?: { actor?: string; note?: string }) =>
+export const postAlertAcknowledge = (alertId: string, payload?: { actor?: string; note?: string; disposition?: string }) =>
   api.post(`/api/alerts/${alertId}/acknowledge`, payload || {})
 
 // 获取最近预警
@@ -302,6 +302,78 @@ export const getThresholdReviewCenter = (params?: {
   status?: 'pending_review' | 'approved' | 'rejected'
   limit?: number
 }) => api.get('/api/personalized-thresholds/review-center', { params })
+
+// 科研分析工作台
+export const postResearchTable1 = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/table1', payload)
+
+export const postResearchSurvival = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/survival', payload)
+
+export const postResearchRegression = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/regression', payload)
+
+export const postResearchRoc = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/roc', payload)
+
+export const postResearchSubgroup = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/subgroup', payload)
+
+export const postResearchTrend = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/trend', payload)
+
+export const postResearchCorrelation = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/correlation', payload)
+
+export const postResearchDescriptive = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/descriptive', payload)
+
+export const postResearchCohortBuild = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/cohort/build', payload)
+
+export const postResearchCohortPreview = postResearchCohortBuild
+
+export const postResearchCohortSave = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/cohort/save', payload)
+
+export const listResearchCohorts = (params?: { limit?: number }) =>
+  analyticsApi.get('/api/research/cohort/list', { params })
+
+export const deleteResearchCohort = (cohortId: string) =>
+  analyticsApi.delete(`/api/research/cohort/${encodeURIComponent(cohortId)}`)
+
+export const getResearchAnalyticsTaskStatus = (taskId: string) =>
+  analyticsApi.get(`/api/research/analytics/tasks/${encodeURIComponent(taskId)}/status`)
+
+export const postResearchExportFigure = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/export-figure', payload)
+
+export const postResearchExportTable = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/export-table', payload)
+
+export const postResearchExportBundle = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/export-bundle', payload)
+
+export const saveResearchSession = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/analytics/session/save', payload)
+
+export const listResearchSessions = (params?: { limit?: number }) =>
+  analyticsApi.get('/api/research/analytics/session/list', { params })
+
+export const getResearchSession = (sessionId: string) =>
+  analyticsApi.get(`/api/research/analytics/session/${encodeURIComponent(sessionId)}`)
+
+export const postResearchAiInterpret = (payload: Record<string, any>) =>
+  aiApi.post('/api/research/ai/interpret', payload)
+
+export const postResearchAiPlan = (payload: Record<string, any>) =>
+  aiApi.post('/api/research/ai/plan', payload)
+
+export const postResearchVariableSummary = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/research/variables/batch-summary', payload)
+
+export const getResearchIcdSearch = (params: { q?: string; limit?: number }) =>
+  analyticsApi.get('/api/research/icd/search', { params })
 
 // 健康检查
 export const healthCheck = () => api.get('/health')

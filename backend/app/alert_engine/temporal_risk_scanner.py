@@ -6,12 +6,21 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import numpy as np
+from app.utils.parse import API_TZ
 
 
 class TemporalRiskScannerMixin:
     def _temporal_scanner_cfg(self) -> dict:
         cfg = self._cfg("alert_engine", "temporal_risk_scanner", default={}) or {}
         return cfg if isinstance(cfg, dict) else {}
+
+    @staticmethod
+    def _normalize_api_time(value: datetime | None) -> datetime | None:
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(API_TZ).replace(tzinfo=None)
 
     def _temporal_population_medians(self) -> dict[str, float]:
         cfg = self._temporal_scanner_cfg()
@@ -37,12 +46,22 @@ class TemporalRiskScannerMixin:
         series: list[dict],
         median: float,
     ) -> list[float]:
-        sorted_series = [row for row in series if isinstance(row.get("time"), datetime) and row.get("value") is not None]
+        normalized_grid = []
+        for t in grid_times:
+            normalized_grid.append(self._normalize_api_time(t) or t)
+        normalized_series = []
+        for row in series:
+            time_value = row.get("time")
+            if not isinstance(time_value, datetime) or row.get("value") is None:
+                continue
+            normalized_time = self._normalize_api_time(time_value) or time_value
+            normalized_series.append({"time": normalized_time, "value": row["value"]})
+        sorted_series = normalized_series
         sorted_series.sort(key=lambda x: x["time"])
         aligned: list[float | None] = []
         cursor = 0
         last_value: float | None = None
-        for point_time in grid_times:
+        for point_time in normalized_grid:
             while cursor < len(sorted_series) and sorted_series[cursor]["time"] <= point_time:
                 last_value = float(sorted_series[cursor]["value"])
                 cursor += 1
@@ -67,10 +86,13 @@ class TemporalRiskScannerMixin:
         lookback_hours: int,
         grid_minutes: int,
     ) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
-        now = datetime.now().replace(second=0, microsecond=0)
+        now = (self._normalize_api_time(datetime.now()) or datetime.now()).replace(second=0, microsecond=0)
         total_steps = max(2, int((lookback_hours * 60) / max(grid_minutes, 1)) + 1)
         start = now - timedelta(minutes=(total_steps - 1) * grid_minutes)
-        grid_times = [start + timedelta(minutes=grid_minutes * idx) for idx in range(total_steps)]
+        grid_times = [
+            (self._normalize_api_time(start + timedelta(minutes=grid_minutes * idx)) or (start + timedelta(minutes=grid_minutes * idx)))
+            for idx in range(total_steps)
+        ]
         medians = self._temporal_population_medians()
 
         code_map = {
@@ -113,12 +135,15 @@ class TemporalRiskScannerMixin:
         gender_text = str((patient_doc or {}).get("gender") or "").lower()
         female = 1.0 if any(x in gender_text for x in ["女", "female", "f"]) else 0.0
         icu_start = self._patient_icu_start_time(patient_doc)
+        if isinstance(icu_start, datetime):
+            icu_start = self._normalize_api_time(icu_start) or icu_start
         icu_days = ((datetime.now() - icu_start).total_seconds() / 86400.0) if isinstance(icu_start, datetime) else 0.0
         vent_device = await self._get_device_id_for_patient(patient_doc, ["vent"])
         on_vent = 1.0 if vent_device else 0.0
         sofa = await self._calc_sofa(patient_doc, pid, vent_device, his_pid) if his_pid else None
         sofa_score = float((sofa or {}).get("score")) if isinstance(sofa, dict) and (sofa or {}).get("score") is not None else medians["sofa"]
-        lac_series = await self._get_lab_series(his_pid, "lac", datetime.now() - timedelta(hours=max(lookback_hours, 24)), limit=80) if his_pid else []
+        lac_since = (self._normalize_api_time(datetime.now()) or datetime.now()) - timedelta(hours=max(lookback_hours, 24))
+        lac_series = await self._get_lab_series(his_pid, "lac", lac_since, limit=80) if his_pid else []
         lactate = float(lac_series[-1]["value"]) if lac_series and lac_series[-1].get("value") is not None else medians["lactate"]
 
         meta_features = np.asarray(

@@ -122,6 +122,15 @@ SmartCare / DataCenter / Redis
 
 ## 4. 启动方式与运行模式
 
+### 4.0 先安装依赖
+
+```powershell
+cd backend
+python -m pip install -r requirements.txt
+```
+
+科研分析相关依赖（含 `pandas / scipy / lifelines / scikit-learn / matplotlib / seaborn / python-docx / statsmodels`）已统一放在 `backend/requirements.txt`。
+
 ### 4.1 后端 API
 
 ```powershell

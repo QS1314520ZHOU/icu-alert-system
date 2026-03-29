@@ -687,7 +687,8 @@ function priorityLabel(priority: any) {
 }
 
 async function loadPatientOptions() {
-  const res = await getPatients()
+  const deptCode = String(route.query.deptCode || route.query.dept_code || '')
+  const res = await getPatients(deptCode ? { dept_code: deptCode } : undefined)
   patients.value = Array.isArray(res.data?.patients) ? res.data.patients : []
 }
 

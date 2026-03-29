@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 from fastapi import APIRouter, Body, Query
@@ -17,6 +18,7 @@ from app.utils.serialization import safe_oid, serialize_doc
 
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 async def _safe_ai_handoff_dependency(coro, *, timeout_seconds: float, fallback):
@@ -71,7 +73,7 @@ async def patient_handoff_summary(patient_id: str):
         }
     except Exception as exc:
         logger.exception("AI handoff summary error")
-        return {"code": 0, "summary": {}, "error": f"AI服务异常: {str(exc)[:120]}"}
+        return {"code": 500, "summary": {}, "error": f"AI服务异常: {str(exc)[:120]}"}
 
 
 @router.post("/api/ai/feedback")
@@ -101,7 +103,7 @@ async def ai_feedback(payload: dict = Body(...)):
         try:
             await runtime.db.col("alert_records").update_one(
                 {"_id": oid},
-                {"$set": {"ai_feedback.outcome": outcome, "ai_feedback.detail": detail, "ai_feedback.updated_at": datetime.now()}},
+                {"$set": {"ai_feedback.outcome": outcome, "ai_feedback.detail": detail, "ai_feedback.updated_at": datetime.now(API_TZ)}},
             )
         except Exception as exc:
             logger.error("AI feedback alert update error: %s", exc)
@@ -111,7 +113,7 @@ async def ai_feedback(payload: dict = Body(...)):
 
 @router.get("/api/ai/feedback/summary")
 async def ai_feedback_summary(days: int = Query(default=7, ge=1, le=90), limit: int = Query(default=50, ge=1, le=200)):
-    since = datetime.now() - timedelta(days=days)
+    since = datetime.now(API_TZ) - timedelta(days=days)
     cursor = runtime.db.col("ai_prediction_feedback").find({"created_at": {"$gte": since}}).sort("created_at", -1).limit(500)
     docs = [doc async for doc in cursor]
 
@@ -176,13 +178,13 @@ async def ai_monitor_summary(date: str | None = Query(default=None)):
         summary = await runtime.ai_monitor.get_daily_summary(date=date)
         return {
             "code": 0,
-            "date": summary.get("date") or date or datetime.now().strftime("%Y-%m-%d"),
+            "date": summary.get("date") or date or datetime.now(API_TZ).strftime("%Y-%m-%d"),
             "stats": [serialize_doc(item) for item in summary.get("stats", [])],
             "active_alerts": [serialize_doc(item) for item in summary.get("active_alerts", [])],
         }
     except Exception as exc:
         logger.error("AI monitor summary error: %s", exc)
-        return {"code": 0, "date": date or datetime.now().strftime("%Y-%m-%d"), "stats": [], "active_alerts": [], "error": f"监控汇总异常: {str(exc)[:120]}"}
+        return {"code": 0, "date": date or datetime.now(API_TZ).strftime("%Y-%m-%d"), "stats": [], "active_alerts": [], "error": f"监控汇总异常: {str(exc)[:120]}"}
 
 
 @router.get("/api/ai/rule-recommendations/{patient_id}")
@@ -211,6 +213,9 @@ async def ai_rule_recommendations(patient_id: str):
         f"请推荐针对性预警规则。"
     )
 
+    normalized_rows: list[dict[str, Any]] = []
+    normalized_text = ""
+
     try:
         text = await call_api_llm(
             system_prompt,
@@ -218,11 +223,10 @@ async def ai_rule_recommendations(patient_id: str):
             max_tokens=1200,
             timeout_seconds=120,
         )
-        normalized_text = text
+        normalized_text = text or ""
         try:
             parsed = json.loads(text)
             if isinstance(parsed, list):
-                normalized_rows = []
                 for item in parsed[:6]:
                     if not isinstance(item, dict):
                         continue
@@ -235,13 +239,17 @@ async def ai_rule_recommendations(patient_id: str):
                             "reason": item.get("reason") or item.get("description") or "",
                         }
                     )
-                normalized_text = json.dumps(normalized_rows, ensure_ascii=False)
         except Exception:
-            pass
-        return {"code": 0, "recommendations": normalized_text}
+            logger.debug("AI rule recommendations JSON parse fallback", exc_info=True)
+        return {"code": 0, "recommendations": normalized_rows, "raw_text": normalized_text}
     except Exception as exc:
         logger.error("AI rule recommendations error: %s", exc)
-        return {"code": 0, "recommendations": "", "error": f"AI服务异常: {str(exc)[:100]}"}
+        return {
+            "code": 500,
+            "recommendations": normalized_rows,
+            "raw_text": normalized_text,
+            "error": f"AI服务异常: {str(exc)[:100]}",
+        }
 
 
 @router.get("/api/ai/lab-summary/{patient_id}")
@@ -283,7 +291,7 @@ async def ai_lab_summary(patient_id: str):
         summary = await call_api_llm(
             system_prompt,
             user_prompt,
-            cfg.llm_fast_model,
+            cfg.llm_fast_model or None,
             max_tokens=1400,
             timeout_seconds=180,
         )

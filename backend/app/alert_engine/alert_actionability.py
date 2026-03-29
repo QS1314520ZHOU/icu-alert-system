@@ -551,16 +551,43 @@ class AlertActionabilityScorerMixin:
         )
         return int(result.modified_count or 0)
 
-    async def acknowledge_alert(self, alert_id: str, *, actor: str = "", note: str = "") -> dict[str, Any] | None:
+    async def acknowledge_alert(
+        self,
+        alert_id: str,
+        *,
+        actor: str = "",
+        note: str = "",
+        disposition: str = "",
+    ) -> dict[str, Any] | None:
+        """
+        确认预警。
+        disposition 取值：
+          resolved       — 已处理
+          watching       — 已知/观察中
+          false_positive — 误报/不相关
+          escalate       — 需通知医生
+        """
+        VALID_DISPOSITIONS = {"resolved", "watching", "false_positive", "escalate", ""}
+        disposition = str(disposition or "").strip().lower()
+        if disposition not in VALID_DISPOSITIONS:
+            disposition = ""
         try:
             oid = ObjectId(str(alert_id))
         except Exception:
             return None
         now = datetime.now()
         actor = self._normalize_lifecycle_actor(actor)
+        update_fields: dict[str, Any] = {
+            "acknowledged_at": now,
+            "ack_actor": actor,
+            "ack_note": note,
+            "lifecycle_updated_at": now,
+        }
+        if disposition:
+            update_fields["ack_disposition"] = disposition
         await self.db.col("alert_records").update_one(
             {"_id": oid},
-            {"$set": {"acknowledged_at": now, "ack_actor": actor, "ack_note": note, "lifecycle_updated_at": now}},
+            {"$set": update_fields},
         )
         doc = await self.db.col("alert_records").find_one({"_id": oid})
         if not doc:

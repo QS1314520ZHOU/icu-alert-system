@@ -17,12 +17,16 @@ from app import runtime
 from app.alert_engine import AlertEngine
 from app.config import AppConfig, get_config
 from app.database import DatabaseManager
+from app.routers.admin import router as admin_router
 from app.routers.ai import router as ai_router
 from app.routers.alerts import router as alerts_router
 from app.routers.analytics import router as analytics_router
 from app.routers.knowledge import router as knowledge_router
 from app.routers.patient_data import router as patient_data_router
 from app.routers.patients import router as patients_router
+from app.routers.research_analytics import router as research_analytics_router
+from app.routers.research_export import router as research_export_router
+from app.research_cohort_router import router as research_cohort_router
 from app.routers.system import router as system_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
@@ -106,6 +110,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin_router)
+app.include_router(research_export_router)
+app.include_router(research_analytics_router)
+app.include_router(research_cohort_router)
 app.include_router(system_router)
 app.include_router(patients_router)
 app.include_router(patient_data_router)

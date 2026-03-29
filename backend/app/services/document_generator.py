@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 
@@ -14,6 +15,7 @@ from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
 
 logger = logging.getLogger("icu-alert")
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 @dataclass(frozen=True)
@@ -83,7 +85,7 @@ class ClinicalDocumentGenerator:
         return cfg if isinstance(cfg, dict) else {}
 
     def _time_range(self, time_range: dict[str, Any] | None) -> tuple[datetime, datetime]:
-        now = datetime.now()
+        now = datetime.now(API_TZ)
         if not isinstance(time_range, dict):
             hours = int(self._cfg().get("default_hours", 24) or 24)
             return now - timedelta(hours=max(hours, 1)), now
@@ -438,7 +440,7 @@ class ClinicalDocumentGenerator:
             meta = {"error": str(exc)[:200]}
 
         normalized = self._normalize_document(parsed, template, structured_data, rag_hits) if isinstance(parsed, dict) else self._normalize_document(self._fallback_document(template, structured_data), template, structured_data, rag_hits)
-        generated_at = datetime.now()
+        generated_at = datetime.now(API_TZ)
         record = await self._persist(patient_doc=patient_doc, doc_type=doc_type, structured_data=structured_data, document=normalized, generated_at=generated_at)
 
         if self.ai_monitor:

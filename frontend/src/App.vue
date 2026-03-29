@@ -12,6 +12,8 @@
         <nav class="hdr-menu">
           <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">患者总览</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">质控分析</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'research-export' }]" @click="onNav('research-export')">科研导出</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'research-workbench' }]" @click="onNav('research-workbench')">科研分析</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'mdt' }]" @click="onNav('mdt')">MDT会诊</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'bigscreen' }]" @click="onNav('bigscreen')">护士站大屏</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'ai-ops' }]" @click="onNav('ai-ops')">AI运营</button>
@@ -71,6 +73,8 @@ let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> |
 const navKey = computed(() => {
   if (route.path.startsWith('/bigscreen')) return 'bigscreen'
   if (route.path.startsWith('/analytics')) return 'analytics'
+  if (route.path.startsWith('/research-export')) return 'research-export'
+  if (route.path.startsWith('/research-workbench')) return 'research-workbench'
   if (route.path.startsWith('/mdt')) return 'mdt'
   if (route.path.startsWith('/ai-ops')) return 'ai-ops'
   return 'overview'
@@ -116,7 +120,16 @@ const themeWrapperProps = computed(() =>
 )
 
 function onNav(key: string) {
-  const path = key === 'overview' ? '/' : key === 'analytics' ? '/analytics' : key === 'mdt' ? '/mdt' : key === 'ai-ops' ? '/ai-ops' : '/bigscreen'
+  const pathMap: Record<string, string> = {
+    overview: '/',
+    analytics: '/analytics',
+    'research-export': '/research-export',
+    'research-workbench': '/research-workbench',
+    mdt: '/mdt',
+    'ai-ops': '/ai-ops',
+    bigscreen: '/bigscreen',
+  }
+  const path = pathMap[key] || '/'
   router.push({ path, query: route.query })
 }
 

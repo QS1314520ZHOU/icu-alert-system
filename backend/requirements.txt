@@ -1,2 +1,12 @@
 -r requirements.common.txt
 -r requirements.cpu.txt
+
+pandas
+pyarrow
+scipy
+lifelines
+scikit-learn
+matplotlib
+seaborn
+python-docx
+statsmodels

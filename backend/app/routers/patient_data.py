@@ -569,7 +569,8 @@ async def patient_assessments(patient_id: str):
             "delirium": doc.get("delirium") or doc.get("deliriumScore"),
             "braden": doc.get("braden") or doc.get("bradenScore"),
         }
-        if any(value is not None for value in item.values()):
+        metrics = (item.get("gcs"), item.get("rass"), item.get("pain"), item.get("delirium"), item.get("braden"))
+        if any(value is not None for value in metrics):
             records.append(serialize_doc(item))
 
     score_types = {

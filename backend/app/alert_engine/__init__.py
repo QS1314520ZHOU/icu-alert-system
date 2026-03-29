@@ -184,6 +184,7 @@ class AlertEngine(
             scanners=active_scanners,
             stop_event=self._stop_event,
             semaphore=self._scan_semaphore,
+            config=self.config,
         )
         logger.info(f"✅ 预警引擎启动完成 ({len(self._tasks)} 个扫描任务)")
 

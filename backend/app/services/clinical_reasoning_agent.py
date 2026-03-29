@@ -6,6 +6,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 
@@ -14,6 +15,7 @@ from app.services.llm_runtime import call_llm_chat
 from app.services.patient_digital_twin import PatientDigitalTwinService
 
 logger = logging.getLogger("icu-alert")
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class ClinicalReasoningAgent:
@@ -129,7 +131,7 @@ JSON结构:
 
         problem_list = self._problem_list(patient_doc=patient_doc, facts=facts, recent_alerts=recent_alerts, temporal_forecast=temporal_forecast)
         return {
-            "generated_at": datetime.now(),
+            "generated_at": datetime.now(API_TZ),
             "digital_twin_snapshot": base_twin,
             "patient": {
                 "id": patient_id,
@@ -433,7 +435,7 @@ JSON结构:
             meta = {"error": str(exc)[:200]}
 
         plan = self._normalize_plan(parsed, rag_hits) if isinstance(parsed, dict) else self._fallback_plan(twin, rag_hits)
-        generated_at = datetime.now()
+        generated_at = datetime.now(API_TZ)
         record = await self._persist_plan(
             patient_doc=patient_doc,
             twin=twin,

@@ -22,12 +22,19 @@ API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class AlertReasoningAgentMixin:
-    def _local_iso(self, value: datetime | None) -> str | None:
+    def _api_now(self) -> datetime:
+        return datetime.now(API_TZ)
+
+    def _ensure_api_datetime(self, value: datetime | None) -> datetime | None:
         if not isinstance(value, datetime):
             return None
         if value.tzinfo is None:
-            value = value.replace(tzinfo=API_TZ)
-        return value.astimezone(API_TZ).isoformat()
+            return value.replace(tzinfo=API_TZ)
+        return value.astimezone(API_TZ)
+
+    def _local_iso(self, value: datetime | None) -> str | None:
+        dt = self._ensure_api_datetime(value)
+        return dt.isoformat() if dt else None
 
     def _alert_reasoning_cfg(self) -> dict[str, Any]:
         cfg = self._cfg("alert_engine", "alert_reasoning_agent", default={}) or {}
@@ -141,7 +148,7 @@ class AlertReasoningAgentMixin:
         return True
 
     async def _reasoning_active_alerts(self, patient_id: str, window_minutes: int) -> list[dict[str, Any]]:
-        since = datetime.now() - timedelta(minutes=max(window_minutes, 1))
+        since = self._api_now() - timedelta(minutes=max(window_minutes, 1))
         cursor = self.db.col("alert_records").find(
             {
                 "patient_id": patient_id,
@@ -169,7 +176,7 @@ class AlertReasoningAgentMixin:
         return [doc async for doc in cursor]
 
     async def _reasoning_recent_alerts(self, patient_id: str, hours: int) -> list[dict[str, Any]]:
-        since = datetime.now() - timedelta(hours=max(hours, 1))
+        since = self._api_now() - timedelta(hours=max(hours, 1))
         cursor = self.db.col("alert_records").find(
             {
                 "patient_id": patient_id,
@@ -304,10 +311,11 @@ class AlertReasoningAgentMixin:
         for key in ("time", "recordTime", "created_at", "createTime", "updateTime", "exeTime", "planTime", "startTime", "endTime"):
             value = doc.get(key)
             if isinstance(value, datetime):
-                return value
+                return self._ensure_api_datetime(value)
             if isinstance(value, str):
                 try:
-                    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+                    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                    return self._ensure_api_datetime(parsed)
                 except Exception:
                     pass
         return None
@@ -332,7 +340,7 @@ class AlertReasoningAgentMixin:
         return "；".join(parts)[:240]
 
     async def _collect_nursing_context(self, patient_doc: dict[str, Any], patient_id: str, hours: int = 12) -> dict[str, Any]:
-        since = datetime.now() - timedelta(hours=max(hours, 1))
+        since = self._api_now() - timedelta(hours=max(hours, 1))
         pid_filters = self._nurse_pid_filters(patient_doc, patient_id)
         if not pid_filters:
             return {"records": [], "plans": {}}
@@ -427,7 +435,7 @@ class AlertReasoningAgentMixin:
             item for item in executions
             if str(item.get("status") or "").lower() == "ready"
             and isinstance(item.get("plan_start_time"), datetime)
-            and item["plan_start_time"] <= datetime.now()
+            and item["plan_start_time"] <= self._api_now()
             and not item.get("start_time")
         ]
         pending_plans = [
@@ -771,7 +779,7 @@ JSON结构:
             "source_alert_count": len(allowed_ids),
             "cluster_signature": cluster_signature,
             "analysis_source": analysis_source,
-            "generated_at": datetime.now(API_TZ),
+            "generated_at": self._api_now(),
         }
 
     async def _validate_alert_reasoning_output(self, result: dict[str, Any], facts: dict[str, Any]) -> dict[str, Any]:

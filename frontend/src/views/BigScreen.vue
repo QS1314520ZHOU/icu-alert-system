@@ -128,7 +128,8 @@ import {
   getPatientWeaningStatus,
   getRecentAlerts,
 } from '../api'
-import { onAlertMessage } from '../services/alertSocket'
+import { onAlertMessage, speakCriticalAlert } from '../services/alertSocket'
+import { groupAlerts } from '../utils/groupAlerts'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 import {
   icuCategoryAxis,
@@ -269,9 +270,21 @@ const nurseFocusRows = computed(() => [
   },
 ])
 
+// 先将 filteredAlerts 按生理系统+时间窗聚合，减少重复同患者预警
+const groupedAlerts = computed(() => {
+  const groups = groupAlerts(filteredAlerts.value, 5 * 60 * 1000)
+  // 将每个 group 映射为代表 alert（组内最高级别的第一条），附加聚合元信息
+  return groups.map((g) => ({
+    ...g.alerts[0],
+    _groupCount: g.alerts.length,
+    _groupSystem: g.systemLabel,
+    _isGroup: g.isGroup,
+  }))
+})
+
 const showAlerts = computed(() => {
   const n = 8
-  const list = filteredAlerts.value
+  const list = groupedAlerts.value
   if (list.length <= n) return list
   const start = alertIndex.value % list.length
   return [...list.slice(start, start + n), ...list.slice(0, Math.max(0, n - (list.length - start)))]
@@ -627,7 +640,10 @@ onMounted(() => {
   loadDeviceHeatmap()
 
   offAlert = onAlertMessage(msg => {
-    if (msg?.type === 'alert') applyAlert(msg.data)
+    if (msg?.type === 'alert') {
+      applyAlert(msg.data)
+      speakCriticalAlert(msg) // critical 级别自动语音播报
+    }
   })
 })
 

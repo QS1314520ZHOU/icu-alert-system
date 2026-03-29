@@ -101,7 +101,7 @@ class AiHandoffService:
         similar_case_review: dict[str, Any] | None = None,
         nursing_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        now = datetime.now()
+        now = datetime.now(API_TZ)
         since = now - timedelta(hours=12)
 
         pid_list = [patient_id]

@@ -190,7 +190,7 @@
               <span>高警 {{ row.highWarning }}<em v-if="row.highWarningDelta"> {{ row.highWarningDelta }}</em></span>
               <span>高危 {{ row.highCritical }}<em v-if="row.highCriticalDelta"> {{ row.highCriticalDelta }}</em></span>
             </div>
-            <div v-if="row.reasoning" class="threshold-card-reason">{{ row.reasoning }}</div>
+            <div v-if="row.reasoning" class="threshold-card-reason">{{ thresholdReasoningText(row.reasoning) }}</div>
           </article>
         </div>
         <div v-if="personalizedThresholdRecord?.reasoning?.rejected_thresholds && Object.keys(personalizedThresholdRecord.reasoning.rejected_thresholds).length" class="threshold-footnote">
@@ -231,8 +231,8 @@
             <div class="alert-value">{{ formatAlertValue(item) }}</div>
           </div>
           <div class="alert-terminal-line">
-            <span class="terminal-tag">EVENT</span>
-            <span class="terminal-id">{{ item.rule_id || item.alert_type || item.category || 'monitor.rule' }}</span>
+            <span class="terminal-tag">事件</span>
+            <span class="terminal-id">{{ eventCodeText(item) }}</span>
           </div>
           <div v-if="isPostExtubationAlert(item)" class="post-extub-panel">
             <div class="post-extub-head">
@@ -436,7 +436,7 @@
           <div class="alert-meta">
             <span v-if="item.alert_type">{{ alertTypeText(item.alert_type) }}</span>
             <span v-if="item.category">{{ alertCategoryText(item.category) }}</span>
-            <span v-if="item.parameter">{{ item.parameter }}</span>
+            <span v-if="item.parameter">{{ parameterText(item.parameter) }}</span>
           </div>
           <div v-if="!isAiRiskAlert(item)" class="alert-action-row">
             <span v-if="item.actionability_score != null" class="alert-action-chip">
@@ -444,22 +444,22 @@
             </span>
             <span v-if="item.acknowledged_at" class="alert-action-chip alert-action-chip--ok">
               已确认 {{ fmtTime(item.acknowledged_at) || '刚刚' }}
+              <span v-if="item.ack_disposition" class="ack-disposition-badge">
+                {{ ackDispositionText(item.ack_disposition) }}
+              </span>
             </span>
-            <a-button
-              v-else
-              size="small"
-              type="primary"
-              ghost
-              @click="acknowledgeAlert(item)"
-            >
-              确认告警
-            </a-button>
+            <div v-else class="ack-disposition-bar">
+              <a-button size="small" type="primary" ghost @click="acknowledgeAlert(item, 'resolved')">✅ 已处理</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlert(item, 'watching')">👁 观察中</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlert(item, 'false_positive')">❌ 误报</a-button>
+              <a-button size="small" danger ghost @click="acknowledgeAlert(item, 'escalate')">📞 通知医生</a-button>
+            </div>
           </div>
           <div
             v-if="item.parameter || item.condition?.operator || item.condition?.threshold"
             class="alert-rule"
           >
-            {{ item.parameter || '参数' }}
+            {{ parameterText(item.parameter || '参数') }}
             {{ item.condition?.operator || '' }}
             {{ item.condition?.threshold || '' }}
           </div>
@@ -545,7 +545,15 @@
               </ul>
             </div>
           </div>
-          <pre v-else-if="item.extra && !alertDetailFields(item).length" class="alert-extra">{{ formatAlertExtra(item.extra) }}</pre>
+          <div v-else-if="item.extra && !alertDetailFields(item).length && fallbackExtraRows(item).length" class="alert-detail-grid">
+            <div v-for="(f, fIdx) in fallbackExtraRows(item)" :key="`${f.label}-${fIdx}`" class="alert-detail-item">
+              <span class="detail-label">{{ f.label }}</span>
+              <span class="detail-value">{{ f.value ?? '—' }}</span>
+            </div>
+          </div>
+          <div v-else-if="item.extra && !alertDetailFields(item).length" class="alert-extra alert-extra--muted">
+            附加信息已结构化存储，当前类型暂无专用展示模板。
+          </div>
         </div>
       </article>
     </div>
@@ -556,7 +564,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import { Button as AButton, Popover as APopover } from 'ant-design-vue'
-import { formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel } from '../../utils/displayLabels'
 
 defineProps<{
   latestCompositeAlert: any
@@ -596,8 +604,65 @@ defineProps<{
   openEvidence: (evidence: any) => void
   aiRiskExplainabilityRows: (item: any) => any[]
   formatAlertExtra: (extra: any) => string
-  acknowledgeAlert: (item: any) => void | Promise<void>
+  acknowledgeAlert: (item: any, disposition?: string) => void | Promise<void>
 }>()
+
+const CODE_LABELS: Record<string, string> = {
+  extended_scenarios: '扩展场景',
+  hypertensive_emergency: '高血压急症',
+  seizure_prophylaxis: '癫痫预防评估',
+  hemodynamic_instability: '血流动力学不稳定',
+  post_neurosurgery: '神经外科术后',
+  actionability: '可行动性',
+  route_targets: '路由对象',
+  antiepileptic_detected: '抗癫痫药已覆盖',
+  nurse: '护士',
+  doctor: '医生',
+  yes: '是',
+  no: '否',
+  true: '是',
+  false: '否',
+}
+
+const EXTRA_FIELD_LABELS: Record<string, string> = {
+  scenario_group: '场景组',
+  scenario: '场景',
+  route_targets: '路由对象',
+  actionability: '可行动性',
+  antiepileptic_detected: '抗癫痫药已覆盖',
+}
+
+function codeText(raw: any): string {
+  const text = String(raw || '').trim()
+  if (!text) return ''
+  const key = text.toLowerCase()
+  if (key.startsWith('ext_')) {
+    const inner = codeText(key.slice(4))
+    return inner ? `扩展场景 · ${inner}` : '扩展场景'
+  }
+  if (CODE_LABELS[key]) return CODE_LABELS[key]
+
+  const alertLabel = formatAlertTypeLabel(key)
+  if (alertLabel && alertLabel !== key.replace(/_/g, ' ')) return alertLabel
+  const scenarioGroupLabel = formatScenarioGroupLabel(key)
+  if (scenarioGroupLabel && scenarioGroupLabel !== key.replace(/_/g, ' ')) return scenarioGroupLabel
+
+  return text.replace(/_/g, ' ')
+}
+
+function extraFieldLabel(raw: any) {
+  const key = String(raw || '').trim().toLowerCase()
+  if (!key) return ''
+  return EXTRA_FIELD_LABELS[key] || codeText(key)
+}
+
+function eventCodeText(item: any) {
+  return codeText(item?.rule_id || item?.alert_type || item?.category || 'monitor.rule')
+}
+
+function parameterText(raw: any) {
+  return codeText(raw)
+}
 
 function normalizeExplanationObject(exp: any) {
   if (!exp || typeof exp !== 'object') {
@@ -627,8 +692,8 @@ function normalizeExplanationObject(exp: any) {
   }
 
   Object.entries(checks).forEach(([key, value]) => {
-    if (value === true) evidence.add(String(key).replace(/_/g, ' ') + '：是')
-    if (value === false) evidence.add(String(key).replace(/_/g, ' ') + '：否')
+    if (value === true) evidence.add(`${extraFieldLabel(key)}：是`)
+    if (value === false) evidence.add(`${extraFieldLabel(key)}：否`)
   })
 
   const summary = [exp?.summary, exp?.text, exp?.label]
@@ -792,6 +857,137 @@ function thresholdRows(record: any) {
       highCriticalDelta: thresholdDeltaText(key, 'high_critical', value.high_critical),
       reasoning: value.reasoning || '',
     }))
+}
+
+function thresholdReasoningText(value: any) {
+  if (value == null) return ''
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (!text) return ''
+    try {
+      const parsed = JSON.parse(text)
+      return thresholdReasoningText(parsed)
+    } catch {
+      return text
+    }
+  }
+  if (typeof value !== 'object') return String(value)
+  const summary = [
+    value?.summary,
+    value?.reason,
+    value?.reasoning,
+    value?.explanation,
+    value?.suggestion,
+  ].find((x: any) => typeof x === 'string' && x.trim())
+  if (summary) return String(summary).trim()
+  const chunks: string[] = []
+  Object.entries(value).forEach(([k, v]) => {
+    const text = extraValueText(v)
+    if (text) chunks.push(`${extraFieldLabel(k)}: ${text}`)
+  })
+  return chunks.slice(0, 3).join('；')
+}
+
+function extraValueText(value: any): string {
+  if (value == null) return ''
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return ''
+    return Math.abs(value - Math.round(value)) < 0.01 ? String(Math.round(value)) : String(Math.round(value * 100) / 100)
+  }
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (!text) return ''
+    if (/^[A-Za-z0-9_]+$/.test(text)) return codeText(text)
+    return text
+  }
+  if (Array.isArray(value)) {
+    if (!value.length) return ''
+    const primitive = value.filter((x) => x == null || ['string', 'number', 'boolean'].includes(typeof x))
+    if (primitive.length === value.length && value.length <= 4) {
+      return primitive.map((x) => extraValueText(x)).filter(Boolean).join(' / ')
+    }
+    return `${value.length}项`
+  }
+  if (typeof value === 'object') {
+    if (value.value != null) {
+      const raw = extraValueText(value.value)
+      const unit = typeof value.unit === 'string' && value.unit.trim() ? ` ${value.unit.trim()}` : ''
+      return `${raw}${unit}`.trim()
+    }
+    const keys = Object.keys(value)
+    if (!keys.length) return ''
+    return `${keys.length}项`
+  }
+  return String(value)
+}
+
+function snapshotMetric(snapshot: any, key: string): any {
+  const row = snapshot?.[key]
+  if (row && typeof row === 'object' && row.value != null) return row.value
+  return row
+}
+
+function fallbackExtraRows(item: any) {
+  const extra = item?.extra && typeof item.extra === 'object' ? item.extra : null
+  if (!extra) return []
+
+  const rows: Array<{ label: string; value: string }> = []
+  const push = (label: string, value: any) => {
+    const text = extraValueText(value)
+    if (!text) return
+    rows.push({ label, value: text })
+  }
+
+  const snapshot = extra?.context_snapshot && typeof extra.context_snapshot === 'object' ? extra.context_snapshot : null
+  if (snapshot) {
+    const vitals = snapshot?.vitals && typeof snapshot.vitals === 'object' ? snapshot.vitals : {}
+    const labs = snapshot?.labs && typeof snapshot.labs === 'object' ? snapshot.labs : {}
+    push('快照时间', snapshot?.snapshot_time || snapshot?.time)
+    push('HR', snapshotMetric(vitals, 'hr'))
+    push('RR', snapshotMetric(vitals, 'rr'))
+    push('MAP', snapshotMetric(vitals, 'map'))
+    push('SpO2', snapshotMetric(vitals, 'spo2'))
+    push('体温', snapshotMetric(vitals, 'temp'))
+    push('乳酸', snapshotMetric(labs, 'lac'))
+    push('肌酐', snapshotMetric(labs, 'cr'))
+    push('PCT', snapshotMetric(labs, 'pct'))
+    push('血管活性药', Array.isArray(snapshot?.vasopressors) ? snapshot.vasopressors.length : null)
+  }
+
+  const hiddenKeys = new Set([
+    'context_snapshot',
+    'clinical_chain',
+    'aggregated_groups',
+    'evidence_sources',
+    'organ_assessment',
+    'deterioration_signals',
+    'syndromes_detected',
+    'recommendations',
+    'explainability',
+    'safety_validation',
+    'hallucination_flags',
+  ])
+
+  Object.entries(extra).forEach(([key, value]) => {
+    if (hiddenKeys.has(key)) return
+    if (rows.length >= 12) return
+    const label = extraFieldLabel(key)
+    push(label, value)
+  })
+
+  return rows.slice(0, 12)
+}
+
+function ackDispositionText(value: any) {
+  const map: Record<string, string> = {
+    resolved: '✅ 已处理',
+    watching: '👁 观察中',
+    false_positive: '❌ 误报',
+    escalate: '📞 通知医生',
+  }
+  const key = String(value || '').toLowerCase()
+  return map[key] || String(value || '')
 }
 
 function reasoningConfidenceLevel(reasoning: any) {
@@ -2056,6 +2252,26 @@ const DetailChart = defineAsyncComponent(async () => {
   border-color: rgba(34, 197, 94, 0.28);
   background: rgba(16, 48, 34, 0.7);
   color: #c7f9d4;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ack-disposition-badge {
+  font-size: 11px;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+.ack-disposition-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.ack-disposition-bar .ant-btn {
+  font-size: 11px !important;
+  height: 22px !important;
+  padding: 0 8px !important;
+  border-radius: 999px !important;
 }
 .alert-meta {
   margin-top: 8px;
@@ -2107,6 +2323,12 @@ const DetailChart = defineAsyncComponent(async () => {
   border: 1px solid #19304d;
   border-radius: 8px;
   padding: 8px;
+}
+.alert-extra--muted {
+  white-space: normal;
+  font-size: 12px;
+  color: #9eb2cc;
+  background: #0d1c2f;
 }
 .ai-risk-panel {
   margin-top: 12px;

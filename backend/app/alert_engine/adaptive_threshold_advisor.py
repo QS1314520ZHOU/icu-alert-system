@@ -9,6 +9,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 import numpy as np
@@ -16,6 +17,7 @@ from app.services.llm_runtime import call_llm_chat
 from .scanner_adaptive_thresholds import AdaptiveThresholdsScanner
 
 logger = logging.getLogger("icu-alert")
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 POPULATION_DEFAULTS: dict[str, dict[str, float | None]] = {
@@ -180,7 +182,7 @@ class AdaptiveThresholdAdvisorMixin:
         }
 
     async def _threshold_recent_active_alerts(self, pid_str: str, hours: int = 24) -> list[dict[str, Any]]:
-        since = datetime.now() - timedelta(hours=max(hours, 1))
+        since = datetime.now(API_TZ) - timedelta(hours=max(hours, 1))
         cursor = self.db.col("alert_records").find(
             {"patient_id": pid_str, "created_at": {"$gte": since}, "is_active": True},
             {"rule_id": 1, "name": 1, "alert_type": 1, "severity": 1, "parameter": 1, "created_at": 1},
