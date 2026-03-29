@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.pyc
+*.pyc.*
 *.pyo
 *.egg-info/
 dist/
@@ -35,6 +36,13 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Local tooling / temp artifacts
+.claude/
+tmp_test_write.txt
+backend/app/**/*.bak_test
+backend/app/**/tmp.txt
+backend/backend/
 
 # Root package files (if not monorepo)
 /package.json
