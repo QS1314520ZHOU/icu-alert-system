@@ -108,6 +108,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -591,4 +593,62 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 .icu-evidence-modal-wrap .ant-modal-body {
   padding: 18px 22px 22px !important;
+}
+
+@media (max-width: 1920px) {
+  html {
+    font-size: 15px;
+  }
+
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  .ant-card .ant-card-head-title {
+    font-size: 14px !important;
+    letter-spacing: 0.04em;
+  }
+
+  .ant-btn,
+  .ant-segmented-item,
+  .ant-radio-button-wrapper,
+  .ant-form-item-label > label,
+  .ant-empty-normal .ant-empty-description,
+  .ant-select-item,
+  .ant-dropdown-menu-item,
+  .ant-dropdown-menu-submenu-title,
+  .ant-message .ant-message-custom-content,
+  .ant-notification .ant-notification-notice-message,
+  .ant-notification .ant-notification-notice-description,
+  .icu-monitor-select-dropdown .ant-select-item,
+  .icu-monitor-popover .ant-popover-inner-content {
+    font-size: 13px !important;
+  }
+
+  .ant-input,
+  .ant-input-number,
+  .ant-input-affix-wrapper,
+  .ant-select-selector,
+  .ant-picker,
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder,
+  .ant-picker input,
+  .ant-input-number input,
+  .ant-input-affix-wrapper input {
+    font-size: 14px !important;
+  }
+
+  .ant-table-wrapper .ant-table-thead > tr > th,
+  .ant-table-wrapper .ant-table-tbody > tr > td,
+  .ant-tag {
+    font-size: 13px !important;
+  }
+
+  .ant-modal .ant-modal-title,
+  .ant-drawer .ant-drawer-title,
+  .icu-evidence-modal-wrap .ant-modal-title {
+    font-size: 16px !important;
+    letter-spacing: 0.04em !important;
+  }
 }

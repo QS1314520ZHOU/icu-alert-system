@@ -43,6 +43,15 @@ def admitted_patient_query() -> dict:
     return {"status": "admitted"}
 
 
+def research_patient_scope_query(scope: str | None) -> dict:
+    token = str(scope or "").strip().lower()
+    if token in {"in_dept", "active", "admitted"}:
+        return {"status": "admitted"}
+    if token in {"out_dept", "discharged"}:
+        return {"status": "discharged"}
+    return {"status": {"$in": ["admitted", "discharged"]}}
+
+
 def patient_his_pid_candidates(patient: dict | None) -> list[str]:
     if not patient:
         return []

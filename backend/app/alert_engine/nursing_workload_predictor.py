@@ -444,7 +444,7 @@ class NursingWorkloadPredictorMixin:
             "month": now.strftime("%Y-%m"),
             "day": now.strftime("%Y-%m-%d"),
         }
-        latest = await self.db.col("score_records").find_one(
+        latest = await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "nursing_workload_prediction",
@@ -453,10 +453,10 @@ class NursingWorkloadPredictorMixin:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
             payload["_id"] = latest["_id"]
         else:
-            res = await self.db.col("score_records").insert_one(payload)
+            res = await self.db.col("score").insert_one(payload)
             payload["_id"] = res.inserted_id
         return payload
 
@@ -528,7 +528,7 @@ class NursingWorkloadPredictorMixin:
 
     async def _persist_department_workload_summary(self, summary: dict[str, Any], *, now: datetime) -> None:
         dept = str(summary.get("dept") or "")
-        latest = await self.db.col("score_records").find_one(
+        latest = await self.db.col("score").find_one(
             {
                 "score_type": "nursing_workload_department_summary",
                 "dept": dept,
@@ -537,9 +537,9 @@ class NursingWorkloadPredictorMixin:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": summary})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": summary})
         else:
-            await self.db.col("score_records").insert_one(summary)
+            await self.db.col("score").insert_one(summary)
 
     async def scan_nursing_workload(self) -> list[dict[str, Any]]:
         now = datetime.now()
@@ -616,7 +616,7 @@ class NursingWorkloadPredictorMixin:
             query["dept"] = dept
         if dept_code:
             query["deptCode"] = dept_code
-        cursor = self.db.col("score_records").find(query).sort("calc_time", -1)
+        cursor = self.db.col("score").find(query).sort("calc_time", -1)
         latest: dict[str, dict[str, Any]] = {}
         async for row in cursor:
             pid = str(row.get("patient_id") or "").strip()
@@ -638,7 +638,7 @@ class NursingWorkloadPredictorMixin:
             query["dept"] = dept
         if dept_code:
             query["deptCode"] = dept_code
-        cursor = self.db.col("score_records").find(query).sort("calc_time", -1)
+        cursor = self.db.col("score").find(query).sort("calc_time", -1)
         latest: dict[str, dict[str, Any]] = {}
         async for row in cursor:
             key = f"{row.get('dept') or ''}|{row.get('deptCode') or ''}"
@@ -722,7 +722,7 @@ class NursingWorkloadPredictorMixin:
         high_and_extreme = sum(
             1 for row in patient_rows if str(row.get("intensity_level") or "") in {"high", "extreme"}
         )
-        timeline_cursor = self.db.col("score_records").find(
+        timeline_cursor = self.db.col("score").find(
             {
                 "score_type": "nursing_workload_department_summary",
                 "calc_time": {"$gte": datetime.now() - timedelta(hours=max(hours, 1))},

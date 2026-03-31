@@ -33,7 +33,7 @@ from app.services.research_analytics import (
     survival_analysis,
     trend_analysis,
 )
-from app.utils.patient_helpers import admitted_patient_query
+from app.utils.patient_helpers import research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
 
 logger = logging.getLogger("icu-alert")
@@ -62,6 +62,7 @@ class ScopeRequest(BaseModel):
     cohort_id: str | None = None
     department: str | None = None
     dept_code: str | None = None
+    patient_scope: str = 'all'
     async_task: bool = False
 
 
@@ -189,9 +190,9 @@ def _research_max_patients() -> int:
 
 
 def _cohort_query_from_filters(req: CohortPreviewRequest) -> dict[str, Any]:
-    query: dict[str, Any] = admitted_patient_query()
+    query: dict[str, Any] = research_patient_scope_query(req.patient_scope)
     filters = req.filters if isinstance(req.filters, dict) else {}
-    and_terms: list[dict[str, Any]] = [query]
+    and_terms: list[dict[str, Any]] = [query] if query else []
 
     department = str(req.department or "").strip()
     if department:
@@ -256,6 +257,8 @@ def _cohort_query_from_filters(req: CohortPreviewRequest) -> dict[str, Any]:
             }
         )
 
+    if not and_terms:
+        return {}
     if len(and_terms) == 1:
         return and_terms[0]
     return {"$and": and_terms}
@@ -266,16 +269,38 @@ async def _resolve_scope_patient_ids(req: ScopeRequest) -> list[str]:
     if ids:
         return ids
     if req.cohort_id:
+        token = str(req.cohort_id).strip()
+        query: dict[str, Any] = {"cohort_id": token}
+        oid = safe_oid(token)
+        if oid is not None:
+            query = {"$or": [{"_id": oid}, {"cohort_id": token}]}
+        doc = await runtime.db.col("research_cohorts").find_one(query)
+        if doc:
+            values: list[str] = []
+            for key in ("patient_ids", "patients", "members"):
+                items = doc.get(key)
+                if isinstance(items, list):
+                    for item in items:
+                        if str(item or "").strip():
+                            values.append(str(item).strip())
+            return _dedupe_patient_ids(values)
         return []
     department = str(req.department or "").strip()
     dept_code = str(req.dept_code or "").strip()
+    if department and not dept_code and department.isdigit():
+        dept_code = department
+        department = ""
+    if department and dept_code and (department == dept_code or department.isdigit()):
+        department = ""
     if not department and not dept_code:
         return []
-    query: dict[str, Any] = admitted_patient_query()
+    query = research_patient_scope_query(req.patient_scope)
+    clauses: list[dict[str, Any]] = [query] if query else []
     if department:
-        query = {"$and": [query, {"$or": [{"hisDept": department}, {"dept": department}]}]}
-    elif dept_code:
-        query = {"$and": [query, {"deptCode": dept_code}]}
+        clauses.append({"$or": [{"hisDept": department}, {"dept": department}]})
+    if dept_code:
+        clauses.append({"deptCode": dept_code})
+    query = {} if not clauses else clauses[0] if len(clauses) == 1 else {"$and": clauses}
     max_patients = _research_max_patients()
     cursor = runtime.db.col("patient").find(query, {"_id": 1}).limit(max_patients)
     output: list[str] = []
@@ -308,6 +333,11 @@ async def _run_background_task(
     task_id: str,
     handler: Callable[[], Awaitable[dict[str, Any]]],
 ) -> None:
+    # Essential yield: Give Uvicorn enough event loop ticks to send the HTTP response 
+    # { "task_id": ... "async": True } back to the client over TCP before plunging into
+    # synchronous data loading (like pandas dataframe creation and db scanning).
+    await asyncio.sleep(0.1)
+
     col = runtime.db.col("research_analytics_tasks")
     try:
         await col.update_one({"task_id": task_id}, {"$set": {"status": "processing", "progress": 10, "updated_at": datetime.now(timezone.utc)}})
@@ -341,7 +371,21 @@ async def _run_background_task(
 def _should_async(payload: ScopeRequest) -> bool:
     if payload.async_task:
         return True
-    return len(payload.patient_ids or []) > 1200
+    
+    count = len(payload.patient_ids or [])
+    # Lowered threshold to 50 because data aggregation (labs, scores) across
+    # patients is completely synchronous-bound and fetches millions of documents.
+    # >50 easily exceeds 30 seconds HTTP timeout.
+    if count > 50:
+        return True
+        
+    # An empty patient_ids scope unconditionally means an unbounded global query. 
+    # In _load_patient_dataframe, this translates to query="{}" which loads up to 
+    # 10000 patients and takes > 30s. We must ALWAYS route this to the async queue.
+    if count == 0:
+        return True
+        
+    return False
 
 
 async def _submit_or_run(
@@ -577,6 +621,7 @@ async def api_cohort_save(req: CohortSaveRequest, request: Request):
         "filters": req.filters if isinstance(req.filters, dict) else {},
         "department": req.department,
         "dept_code": req.dept_code,
+        "patient_scope": req.patient_scope,
         "created_by": _actor(request),
         "created_at": now,
         "updated_at": now,
@@ -722,6 +767,28 @@ _SUPPORTED_VARIABLES = {
     "los_icu_days",
     "primary_diagnosis",
     "icu_mortality",
+    # 评分类
+    "gcs_admission",
+    "rass_admission",
+    "sofa_max",
+    "apache2_max",
+    # 检验类
+    "lactate_admission",
+    "creatinine_admission",
+    "albumin_admission",
+    "pct_admission",
+    "wbc_admission",
+    "hemoglobin_admission",
+    "platelet_admission",
+    "pf_ratio_admission",
+    "bnp_admission",
+    # 治疗类
+    "vasopressor_days",
+    "mv_days",
+    # 结局类
+    "hospital_mortality",
+    "mortality_28d",
+    "icu_readmission",
 }
 
 
@@ -762,6 +829,7 @@ def _normalize_ai_plan(raw: dict[str, Any]) -> dict[str, Any]:
         "cohort": {
             "use_current_dept": bool(cohort.get("use_current_dept")),
             "cohort_id": str(cohort.get("cohort_id") or "").strip() or None,
+            "patient_scope": str(cohort.get("patient_scope") or 'all').strip() or 'all',
             "filters": filters,
         },
         "group_by": group_by_raw if group_by_raw in allowed_group_by else "outcome",
@@ -783,11 +851,11 @@ def _fallback_ai_plan(query: str) -> dict[str, Any]:
         analyses.append({"type": "trend", "params": {}})
     return {
         "prep_mode": "dept",
-        "cohort": {"use_current_dept": True, "cohort_id": None, "filters": []},
+        "cohort": {"use_current_dept": True, "cohort_id": None, "patient_scope": 'all', "filters": []},
         "group_by": "outcome",
         "selected_variables": ["age", "sex", "sofa_admission", "apache2", "los_icu_days", "icu_mortality"],
         "analyses": analyses,
-        "explanation": "已按默认科研流程配置：当前科室在院患者 + 结局分组 + 常用变量 + 目标分析。",
+        "explanation": "已按默认科研流程配置：当前科室全部患者 + 结局分组 + 常用变量 + 目标分析。",
     }
 
 
@@ -805,6 +873,7 @@ JSON 结构：
     "cohort": {
       "use_current_dept": true,
       "cohort_id": null,
+      "patient_scope": "all",
       "filters": [{"field": "age", "operator": "range", "value": [18, 80]}]
     },
     "group_by": "outcome|icu_mortality|hospital_mortality|mortality_28d|discharge_dest|los_icu_group|sex",

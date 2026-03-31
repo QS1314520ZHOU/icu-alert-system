@@ -226,7 +226,7 @@ class SimilarCaseReviewMixin:
         if not text:
             return None
 
-        latest = await self.db.col("score_records").find_one(
+        latest = await self.db.col("score").find_one(
             {"patient_id": pid_str, "score_type": "diagnosis_embedding"},
             sort=[("calc_time", -1)],
         )
@@ -262,10 +262,10 @@ class SimilarCaseReviewMixin:
             "day": now.strftime("%Y-%m-%d"),
         }
         if latest and latest.get("_id") is not None:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
             payload["_id"] = latest["_id"]
             return payload
-        res = await self.db.col("score_records").insert_one(payload)
+        res = await self.db.col("score").insert_one(payload)
         payload["_id"] = res.inserted_id
         return payload
 
@@ -564,7 +564,7 @@ class SimilarCaseReviewMixin:
             current_vaso_used = bool(current_vaso_map.get(str(pid)))
 
             current_score_rows = [
-                row async for row in self.db.col("score_records").find(
+                row async for row in self.db.col("score").find(
                     {
                         "patient_id": str(pid),
                         "score_type": {"$in": ["sepsis_antibiotic_bundle", "sofa", "sepsis_sofa", "sofa_score"]},
@@ -652,7 +652,7 @@ class SimilarCaseReviewMixin:
                 bind_map.setdefault(str(row.get("pid") or ""), []).append(row)
 
             score_map: dict[str, list[dict]] = {}
-            async for row in self.db.col("score_records").find(
+            async for row in self.db.col("score").find(
                 {
                     "patient_id": {"$in": candidate_ids},
                     "score_type": {"$in": ["sepsis_antibiotic_bundle", "sofa", "sepsis_sofa", "sofa_score"]},
@@ -672,7 +672,7 @@ class SimilarCaseReviewMixin:
                 alert_map.setdefault(str(row.get("patient_id") or ""), []).append(row)
 
             embedding_rows = [
-                row async for row in self.db.col("score_records").find(
+                row async for row in self.db.col("score").find(
                     {"patient_id": {"$in": candidate_ids}, "score_type": "diagnosis_embedding"},
                     {"patient_id": 1, "diagnosis_embedding": 1},
                 )

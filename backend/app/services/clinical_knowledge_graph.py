@@ -456,7 +456,7 @@ class ClinicalKnowledgeGraph:
     async def _load_recent_cached_result(self, patient_id: str, finding_key: str) -> dict[str, Any] | None:
         window_minutes = max(5, int(self._cfg().get("persist_window_minutes", 60) or 60))
         since = datetime.now() - timedelta(minutes=window_minutes)
-        doc = await self.db.col("score_records").find_one(
+        doc = await self.db.col("score").find_one(
             {
                 "patient_id": patient_id,
                 "score_type": "knowledge_graph_causal_analysis",
@@ -472,7 +472,7 @@ class ClinicalKnowledgeGraph:
 
     async def _persist_result(self, patient_id: str, finding_key: str, abnormal_finding: str, result: dict[str, Any]) -> None:
         now = datetime.now()
-        await self.db.col("score_records").insert_one(
+        await self.db.col("score").insert_one(
             {
                 "patient_id": patient_id,
                 "score_type": "knowledge_graph_causal_analysis",

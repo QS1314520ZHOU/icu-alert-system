@@ -128,7 +128,7 @@ async def ai_clinical_reasoning(patient_id: str, refresh: bool = Query(default=F
     try:
         record = None
         if not refresh:
-            record = await runtime.db.col("score_records").find_one(
+            record = await runtime.db.col("score").find_one(
                 {"patient_id": str(pid), "score_type": "clinical_reasoning_plan"},
                 sort=[("calc_time", -1)],
             )

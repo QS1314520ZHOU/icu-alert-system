@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import math
@@ -14,6 +15,11 @@ import pandas as pd
 from bson import ObjectId
 from scipy import stats
 from sklearn import metrics
+try:
+    from sklearn.linear_model import LinearRegression, LogisticRegression
+except Exception:  # pragma: no cover
+    LinearRegression = None  # type: ignore
+    LogisticRegression = None  # type: ignore
 
 try:
     import numpy as np
@@ -58,7 +64,7 @@ except Exception:  # pragma: no cover
     multivariate_logrank_test = None  # type: ignore
 
 from app.utils.serialization import safe_oid, serialize_doc
-from app.utils.patient_helpers import admitted_patient_query
+from app.utils.patient_helpers import research_patient_scope_query
 
 logger = logging.getLogger("icu-alert")
 
@@ -77,10 +83,15 @@ VITAL_CODE_MAP: dict[str, list[str]] = {
 }
 
 LAB_NAME_MAP: dict[str, list[str]] = {
-    "lactate": ["lactate", "lac", "乳酸"],
-    "creatinine": ["creatinine", "cr", "肌酐"],
-    "wbc": ["wbc", "白细胞"],
-    "pct": ["pct", "降钙素原"],
+    "lactate": ["lactate", "lac", "乳酸", "blood lactate", "动脉血乳酸"],
+    "creatinine": ["creatinine", "cr", "肌酐", "scr"],
+    "wbc": ["wbc", "白细胞", "white blood cell", "leukocyte", "白细胞计数"],
+    "pct": ["pct", "降钙素原", "procalcitonin"],
+    "albumin": ["albumin", "alb", "白蛋白"],
+    "hemoglobin": ["hemoglobin", "hb", "hgb", "血红蛋白"],
+    "platelet": ["platelet", "plt", "血小板", "血小板计数", "血小板总数"],
+    "pf_ratio": ["pf ratio", "p/f", "氧合指数", "pao2/fio2", "P/F Ratio"],
+    "bnp": ["bnp", "brain natriuretic peptide", "脑钠肽", "nt-probnp", "proBNP", "B型钠尿肽前体"],
 }
 
 
@@ -173,12 +184,23 @@ def _ensure_patient_id_set(patient_ids: list[str] | None) -> list[str]:
 
 
 def _infer_outcome(doc: dict[str, Any]) -> str:
-    for raw in (doc.get("outcome"), doc.get("status"), doc.get("dischargeOutcome")):
+    for raw in (
+        doc.get("outcome"),
+        doc.get("status"),
+        doc.get("dischargeOutcome"),
+        doc.get("leaveType"),
+        doc.get("dischargeType"),
+        doc.get("dischargeDisposition"),
+        doc.get("remark"),
+        doc.get("deathReason"),
+    ):
         text = str(raw or "").strip().lower()
-        if text in {"dead", "death", "deceased", "死亡", "死亡出院"}:
+        if any(token in text for token in ["dead", "death", "deceased", "死亡", "抢救无效", "expired"]):
             return "dead"
-        if text in {"alive", "survive", "存活", "转出", "discharged"}:
+        if any(token in text for token in ["alive", "survive", "存活", "转出", "discharged", "出院", "好转"]):
             return "alive"
+    if any(doc.get(key) for key in ("deathTime", "deceasedAt", "死亡时间")):
+        return "dead"
     for key in ("icu_mortality", "hospital_mortality", "mortality", "isDeath", "death"):
         result = _coerce_binary(doc.get(key))
         if result is not None:
@@ -343,19 +365,24 @@ async def _load_patient_dataframe(
 ) -> pd.DataFrame:
     pid_values = _ensure_patient_id_set(patient_ids)
     oid_values: list[ObjectId] = []
+    string_id_values: list[str] = []
     his_pid_values: list[str] = []
     for token in pid_values:
         oid = safe_oid(token)
         if oid is not None:
             oid_values.append(oid)
         else:
+            string_id_values.append(token)
             his_pid_values.append(token)
 
     query: dict[str, Any]
-    if oid_values or his_pid_values:
+    if oid_values or string_id_values or his_pid_values:
         or_terms: list[dict[str, Any]] = []
         if oid_values:
             or_terms.append({"_id": {"$in": oid_values}})
+        if string_id_values:
+            # 某些环境 patient._id 为字符串（非 ObjectId）；同时尝试按字符串 _id 命中。
+            or_terms.append({"_id": {"$in": string_id_values}})
         if his_pid_values:
             or_terms.append({"$or": [{"hisPid": {"$in": his_pid_values}}, {"hisPID": {"$in": his_pid_values}}]})
         query = {"$or": or_terms}
@@ -417,6 +444,9 @@ async def _load_patient_dataframe(
             if birthday:
                 # birthday 已统一成带时区时间，当前时间也用 UTC，避免 naive/aware 相减报错。
                 age = (datetime.now(timezone.utc) - birthday).days / 365.25
+        
+        if age is not None:
+            age = int(math.floor(age))
 
         los_days = _infer_los_days(doc)
         icu_mortality = 1 if _infer_outcome(doc) == "dead" else 0
@@ -455,15 +485,25 @@ async def _load_patient_dataframe(
     # 统一补齐 SOFA/APACHE II，避免 patient 表缺失时分析模块大面积为空。
     try:
         await _attach_score_extrema(df, db, "sofa", "sofa_max")
-        await _attach_score_extrema(df, db, "apache2", "apache2_max")
+        await _attach_score_extrema(df, db, "apacheII", "apache2_max")
         sofa_series = pd.to_numeric(df.get("sofa_admission"), errors="coerce")
         sofa_max_series = pd.to_numeric(df.get("sofa_max"), errors="coerce")
         apache_series = pd.to_numeric(df.get("apache2"), errors="coerce")
         apache_max_series = pd.to_numeric(df.get("apache2_max"), errors="coerce")
         df["sofa_admission"] = sofa_series.combine_first(sofa_max_series)
         df["apache2"] = apache_series.combine_first(apache_max_series)
+        await _attach_score_extrema(df, db, ["gcs", "gcsScore"], "gcs_admission")
+        await _attach_score_extrema(df, db, ["rass", "rassScore"], "rass_admission")
     except Exception as exc:
         logger.warning("attach score extrema failed: %s", exc)
+    try:
+        await _attach_lab_admission_values(df, db, LAB_NAME_MAP)
+    except Exception as exc:
+        logger.warning("attach lab admission values failed: %s", exc)
+    try:
+        await _attach_treatment_days(df, db)
+    except Exception as exc:
+        logger.warning("attach treatment days failed: %s", exc)
     return df
 
 
@@ -813,6 +853,88 @@ def _coerce_series_numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce").dropna().astype(float)
 
 
+def _km_curve_fallback(part: pd.DataFrame) -> tuple[dict[str, Any], float | None]:
+    if part.empty:
+        return (
+            {
+                "timeline": [],
+                "survival": [],
+                "ci_lower": [],
+                "ci_upper": [],
+                "at_risk": [],
+                "n": 0,
+                "events": 0,
+            },
+            None,
+        )
+    work = part[["_time", "_event"]].copy()
+    work["_time"] = pd.to_numeric(work["_time"], errors="coerce")
+    work["_event"] = work["_event"].apply(_coerce_binary)
+    work = work.dropna(subset=["_time", "_event"]).sort_values("_time")
+    if work.empty:
+        return (
+            {
+                "timeline": [],
+                "survival": [],
+                "ci_lower": [],
+                "ci_upper": [],
+                "at_risk": [],
+                "n": 0,
+                "events": 0,
+            },
+            None,
+        )
+    event_table = (
+        work.groupby("_time")
+        .agg(events=("_event", "sum"), total=("_event", "count"))
+        .reset_index()
+        .sort_values("_time")
+    )
+    event_table["censored"] = event_table["total"] - event_table["events"]
+    n_at_risk = int(len(work))
+    surv = 1.0
+    greenwood = 0.0
+    timeline = [0.0]
+    survival_values = [1.0]
+    ci_lower = [1.0]
+    ci_upper = [1.0]
+    at_risk = [n_at_risk]
+    median_survival: float | None = None
+    for _, row in event_table.iterrows():
+        t = float(row["_time"])
+        d = float(row["events"])
+        c = float(row["censored"])
+        if n_at_risk <= 0:
+            break
+        if d > 0:
+            surv *= max(0.0, 1.0 - (d / n_at_risk))
+            if n_at_risk - d > 0:
+                greenwood += d / (n_at_risk * (n_at_risk - d))
+            se = math.sqrt(max(0.0, (surv ** 2) * greenwood))
+            lo = max(0.0, surv - 1.96 * se)
+            hi = min(1.0, surv + 1.96 * se)
+            timeline.append(t)
+            survival_values.append(float(surv))
+            ci_lower.append(float(lo))
+            ci_upper.append(float(hi))
+            at_risk.append(int(n_at_risk))
+            if median_survival is None and surv <= 0.5:
+                median_survival = t
+        n_at_risk -= int(d + c)
+    return (
+        {
+            "timeline": timeline,
+            "survival": survival_values,
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+            "at_risk": at_risk,
+            "n": int(len(work)),
+            "events": int(work["_event"].sum()),
+        },
+        median_survival,
+    )
+
+
 async def survival_analysis(
     patient_ids: list[str],
     time_field: str,
@@ -824,8 +946,6 @@ async def survival_analysis(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
-    if KaplanMeierFitter is None:
-        raise RuntimeError("缺少 lifelines 依赖，无法执行生存分析")
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -844,7 +964,13 @@ async def survival_analysis(
     df = df.dropna(subset=["_time", "_event"])
     df = df[(df["_time"] >= 0) & (df["_time"] <= float(max_time))]
     if df.empty:
-        return {"kaplan_meier": {"curves": {}, "log_rank_p": None, "median_survival": {}}, "cox_regression": None}
+        return {
+            "kaplan_meier": {"curves": {}, "log_rank_p": None, "median_survival": {}},
+            "cox_regression": None,
+            "n_total": 0,
+            "n_events": 0,
+            "reason": "no_valid_time_event_data",
+        }
 
     if group_by and group_by in df.columns:
         group_values = sorted([str(v) for v in df[group_by].dropna().unique().tolist()])
@@ -859,30 +985,35 @@ async def survival_analysis(
         part = df[df[group_by].astype(str) == str(group)]
         if part.empty:
             continue
-        kmf = KaplanMeierFitter()
-        kmf.fit(part["_time"], event_observed=part["_event"], label=group)
-        sf = kmf.survival_function_
-        ci = kmf.confidence_interval_
-        timeline = [float(x) for x in sf.index.tolist()]
-        survival_values = [float(v) for v in sf.iloc[:, 0].tolist()]
-        ci_lower = [float(v) for v in ci.iloc[:, 0].tolist()]
-        ci_upper = [float(v) for v in ci.iloc[:, 1].tolist()]
-        risk = kmf.event_table.get("at_risk")
-        at_risk = [int(v) for v in risk.tolist()] if risk is not None else [0 for _ in timeline]
-        median = kmf.median_survival_time_
-        median_survival[group] = None if median is None or not math.isfinite(float(median)) else float(median)
-        curves[group] = {
-            "timeline": timeline,
-            "survival": survival_values,
-            "ci_lower": ci_lower,
-            "ci_upper": ci_upper,
-            "at_risk": at_risk,
-            "n": int(len(part)),
-            "events": int(part["_event"].sum()),
-        }
+        if KaplanMeierFitter is not None:
+            kmf = KaplanMeierFitter()
+            kmf.fit(part["_time"], event_observed=part["_event"], label=group)
+            sf = kmf.survival_function_
+            ci = kmf.confidence_interval_
+            timeline = [float(x) for x in sf.index.tolist()]
+            survival_values = [float(v) for v in sf.iloc[:, 0].tolist()]
+            ci_lower = [float(v) for v in ci.iloc[:, 0].tolist()]
+            ci_upper = [float(v) for v in ci.iloc[:, 1].tolist()]
+            risk = kmf.event_table.get("at_risk")
+            at_risk = [int(v) for v in risk.tolist()] if risk is not None else [0 for _ in timeline]
+            median = kmf.median_survival_time_
+            median_survival[group] = None if median is None or not math.isfinite(float(median)) else float(median)
+            curves[group] = {
+                "timeline": timeline,
+                "survival": survival_values,
+                "ci_lower": ci_lower,
+                "ci_upper": ci_upper,
+                "at_risk": at_risk,
+                "n": int(len(part)),
+                "events": int(part["_event"].sum()),
+            }
+        else:
+            curve, median = _km_curve_fallback(part)
+            curves[group] = curve
+            median_survival[group] = median
 
     log_rank_p = None
-    if len(group_values) >= 2 and logrank_test is not None:
+    if KaplanMeierFitter is not None and len(group_values) >= 2 and logrank_test is not None:
         try:
             if len(group_values) == 2:
                 g1 = df[df[group_by].astype(str) == group_values[0]]
@@ -896,7 +1027,7 @@ async def survival_analysis(
             log_rank_p = None
 
     cox_result: dict[str, Any] | None = None
-    if len(group_values) >= 2 and CoxPHFitter is not None:
+    if KaplanMeierFitter is not None and len(group_values) >= 2 and CoxPHFitter is not None:
         try:
             cox_df = df[["_time", "_event", group_by]].copy()
             dummies = pd.get_dummies(cox_df[group_by].astype(str), prefix="group", drop_first=True)
@@ -931,6 +1062,8 @@ async def survival_analysis(
         },
         "cox_regression": cox_result,
         "n_total": int(len(df)),
+        "n_events": int(df["_event"].sum()),
+        "dependency_mode": "lifelines" if KaplanMeierFitter is not None else "fallback",
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -966,7 +1099,35 @@ def _logistic_hosmer_lemeshow(y_true: pd.Series, y_prob: pd.Series, g: int = 10)
 
 def _fit_binary_logistic(df: pd.DataFrame, outcome_col: str, predictors: list[str]) -> tuple[list[dict[str, Any]], Any]:
     if sm is None:
-        raise RuntimeError("缺少 statsmodels 依赖，无法执行 Logistic 回归")
+        if LogisticRegression is None:
+            raise RuntimeError("缺少 statsmodels/sklearn 依赖，无法执行 Logistic 回归")
+        work = df[[outcome_col, *predictors]].copy()
+        work[outcome_col] = work[outcome_col].apply(_coerce_binary)
+        for col in predictors:
+            work[col] = _encode_numeric_predictor(work[col])
+        work = work.dropna()
+        if work.empty or work[outcome_col].nunique() < 2:
+            return [], None
+        y = work[outcome_col].astype(int)
+        x = work[predictors].astype(float)
+        model = LogisticRegression(max_iter=1000)
+        model.fit(x, y)
+        probs = model.predict_proba(x)[:, 1]
+        rows: list[dict[str, Any]] = []
+        for idx, col in enumerate(predictors):
+            beta = float(model.coef_[0][idx])
+            rows.append(
+                {
+                    "variable": col,
+                    "estimate": float(math.exp(beta)),
+                    "ci_lower": None,
+                    "ci_upper": None,
+                    "p": None,
+                    "p_display": "—",
+                    "label": "OR",
+                }
+            )
+        return rows, {"engine": "sklearn_logistic", "metrics": {"auc": float(metrics.roc_auc_score(y, probs)) if len(set(y.tolist())) >= 2 else None}}
     work = df[[outcome_col, *predictors]].copy()
     work[outcome_col] = work[outcome_col].apply(_coerce_binary)
     for col in predictors:
@@ -998,7 +1159,37 @@ def _fit_binary_logistic(df: pd.DataFrame, outcome_col: str, predictors: list[st
 
 def _fit_linear(df: pd.DataFrame, outcome_col: str, predictors: list[str]) -> tuple[list[dict[str, Any]], Any]:
     if sm is None:
-        raise RuntimeError("缺少 statsmodels 依赖，无法执行线性回归")
+        if LinearRegression is None:
+            raise RuntimeError("缺少 statsmodels/sklearn 依赖，无法执行线性回归")
+        work = df[[outcome_col, *predictors]].copy()
+        work[outcome_col] = pd.to_numeric(work[outcome_col], errors="coerce")
+        for col in predictors:
+            work[col] = _encode_numeric_predictor(work[col])
+        work = work.dropna()
+        if work.empty:
+            return [], None
+        y = work[outcome_col].astype(float)
+        x = work[predictors].astype(float)
+        model = LinearRegression()
+        model.fit(x, y)
+        pred = model.predict(x)
+        ss_res = float(((y - pred) ** 2).sum())
+        ss_tot = float(((y - float(y.mean())) ** 2).sum())
+        r2 = None if ss_tot <= 0 else float(1 - ss_res / ss_tot)
+        rows: list[dict[str, Any]] = []
+        for idx, col in enumerate(predictors):
+            rows.append(
+                {
+                    "variable": col,
+                    "estimate": float(model.coef_[idx]),
+                    "ci_lower": None,
+                    "ci_upper": None,
+                    "p": None,
+                    "p_display": "—",
+                    "label": "β",
+                }
+            )
+        return rows, {"engine": "sklearn_linear", "metrics": {"r2": r2}}
     work = df[[outcome_col, *predictors]].copy()
     work[outcome_col] = pd.to_numeric(work[outcome_col], errors="coerce")
     for col in predictors:
@@ -1093,13 +1284,43 @@ async def regression_analysis(
 
     clean_predictors = [str(x).strip() for x in predictors or [] if str(x).strip() and str(x).strip() in df.columns]
     if not clean_predictors:
-        return {"model_type": outcome_type, "univariate": [], "multivariate": [], "model_metrics": {}}
+        return {"model_type": outcome_type, "univariate": [], "multivariate": [], "model_metrics": {}, "reason": "no_valid_predictors", "n_total": int(len(df))}
 
     model_type = str(outcome_type or "binary").lower()
+    outcome_binary = df[outcome_key].apply(_coerce_binary) if outcome_key in df.columns else pd.Series([], dtype=float)
+    outcome_non_null = int(outcome_binary.dropna().shape[0]) if model_type == "binary" else int(pd.to_numeric(df[outcome_key], errors="coerce").dropna().shape[0])
+    outcome_unique = int(outcome_binary.dropna().nunique()) if model_type == "binary" else None
+    if model_type == "binary" and (outcome_unique or 0) < 2:
+        return {
+            "model_type": "logistic",
+            "univariate": [],
+            "multivariate": [],
+            "model_metrics": {},
+            "n_total": int(len(df)),
+            "reason": "outcome_single_class",
+            "outcome_non_null": outcome_non_null,
+            "outcome_positive": int((outcome_binary == 1).sum()),
+        }
     univariate_rows: list[dict[str, Any]] = []
     selected_for_multi: list[str] = []
+    univariate_counts: list[dict[str, Any]] = []
 
     for pred in clean_predictors:
+        if model_type == "binary":
+            count_df = pd.DataFrame({
+                "_outcome": df[outcome_key].apply(_coerce_binary),
+                "_predictor": _encode_numeric_predictor(df[pred]),
+            }).dropna()
+        else:
+            count_df = pd.DataFrame({
+                "_outcome": pd.to_numeric(df[outcome_key], errors="coerce"),
+                "_predictor": _encode_numeric_predictor(df[pred]),
+            }).dropna()
+        univariate_counts.append({
+            "variable": pred,
+            "n_model": int(len(count_df)),
+            "n_excluded": int(len(df) - len(count_df)),
+        })
         try:
             if model_type == "binary":
                 rows, _ = _fit_binary_logistic(df, outcome_key, [pred])
@@ -1125,31 +1346,50 @@ async def regression_analysis(
     final_predictors = [x for x in final_predictors if x in df.columns]
     multivariate_rows: list[dict[str, Any]] = []
     model_metrics: dict[str, Any] = {}
+    multivariate_count: dict[str, Any] = {"n_model": 0, "n_excluded": int(len(df)), "variables": final_predictors}
 
     if final_predictors:
+        if model_type == "binary":
+            count_df = pd.DataFrame({"_outcome": df[outcome_key].apply(_coerce_binary)})
+        else:
+            count_df = pd.DataFrame({"_outcome": pd.to_numeric(df[outcome_key], errors="coerce")})
+        for pred in final_predictors:
+            count_df[pred] = _encode_numeric_predictor(df[pred])
+        count_df = count_df.dropna()
+        multivariate_count = {
+            "n_model": int(len(count_df)),
+            "n_excluded": int(len(df) - len(count_df)),
+            "variables": final_predictors,
+        }
         try:
             if model_type == "binary":
                 multivariate_rows, model = _fit_binary_logistic(df, outcome_key, final_predictors)
                 if model is not None:
-                    pred = model.predict()
-                    hl_p = _logistic_hosmer_lemeshow(model.model.endog, pred)
-                    model_metrics = {
-                        "aic": float(model.aic),
-                        "bic": float(model.bic),
-                        "pseudo_r2": float(getattr(model, "prsquared", math.nan)),
-                        "hosmer_lemeshow_p": hl_p,
-                    }
+                    if isinstance(model, dict):
+                        model_metrics = model.get("metrics", {}) if isinstance(model.get("metrics"), dict) else {}
+                    else:
+                        pred = model.predict()
+                        hl_p = _logistic_hosmer_lemeshow(model.model.endog, pred)
+                        model_metrics = {
+                            "aic": float(model.aic),
+                            "bic": float(model.bic),
+                            "pseudo_r2": float(getattr(model, "prsquared", math.nan)),
+                            "hosmer_lemeshow_p": hl_p,
+                        }
                     for row in multivariate_rows:
                         row["label"] = "aOR"
             elif model_type == "continuous":
                 multivariate_rows, model = _fit_linear(df, outcome_key, final_predictors)
                 if model is not None:
-                    model_metrics = {
-                        "aic": float(model.aic),
-                        "bic": float(model.bic),
-                        "r2": float(model.rsquared),
-                        "adj_r2": float(model.rsquared_adj),
-                    }
+                    if isinstance(model, dict):
+                        model_metrics = model.get("metrics", {}) if isinstance(model.get("metrics"), dict) else {}
+                    else:
+                        model_metrics = {
+                            "aic": float(model.aic),
+                            "bic": float(model.bic),
+                            "r2": float(model.rsquared),
+                            "adj_r2": float(model.rsquared_adj),
+                        }
             else:
                 if not time_field:
                     raise RuntimeError("survival 回归缺少 time_field")
@@ -1176,6 +1416,11 @@ async def regression_analysis(
         "multivariate": multivariate_rows,
         "model_metrics": model_metrics,
         "n_total": int(len(df)),
+        "outcome_non_null": outcome_non_null,
+        "univariate_counts": univariate_counts,
+        "multivariate_count": multivariate_count,
+        "reason": "ok" if (univariate_rows or multivariate_rows) else "no_model_fit",
+        "outcome_positive": int((outcome_binary == 1).sum()) if model_type == "binary" else None,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -1245,14 +1490,20 @@ async def roc_analysis(
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
     df = await _load_patient_dataframe(resolved_ids, db, max_patients=max_patients)
     if df.empty:
-        return {"curves": {}, "delong_test": {}}
+        return {"curves": {}, "delong_test": {}, "n_total": 0, "reason": "empty_cohort"}
 
     outcome_key = str(outcome or "").strip()
     if outcome_key not in df.columns:
         df[outcome_key] = df.get("icu_mortality", 0)
     y_series = df[outcome_key].apply(_coerce_binary).dropna().astype(int)
     if y_series.empty or y_series.nunique() < 2:
-        return {"curves": {}, "delong_test": {}}
+        return {
+            "curves": {},
+            "delong_test": {},
+            "n_total": int(len(df)),
+            "outcome_positive": int((y_series == 1).sum()) if not y_series.empty else 0,
+            "reason": "outcome_single_class",
+        }
 
     curves: dict[str, Any] = {}
     usable_scores: dict[str, Any] = {}
@@ -1307,6 +1558,9 @@ async def roc_analysis(
     return {
         "curves": curves,
         "delong_test": delong_test,
+        "n_total": int(len(df)),
+        "outcome_positive": int((y_series == 1).sum()),
+        "reason": "ok" if curves else "no_valid_predictor_pairs",
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -1414,6 +1668,7 @@ async def subgroup_analysis(
 
     return {
         "results": results,
+        "subgroups": results,
         "interaction_p": interaction_p,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1433,11 +1688,46 @@ async def correlation_analysis(
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
     df = await _load_patient_dataframe(resolved_ids, db, max_patients=max_patients)
     if df.empty:
-        return {"method": method, "matrix": {"labels": [], "correlations": [], "p_values": [], "n_pairs": []}}
+        return {
+            "method": method,
+            "matrix": {"labels": [], "correlations": [], "p_values": [], "n_pairs": []},
+            "variable_coverage": [],
+            "excluded_variables": [],
+        }
 
-    labels = [str(v).strip() for v in variables or [] if str(v).strip() and str(v).strip() in df.columns]
+    requested = [str(v).strip() for v in variables or [] if str(v).strip()]
+    labels = [field for field in requested if field in df.columns]
+    coverage_rows: list[dict[str, Any]] = []
+    excluded_variables: list[dict[str, Any]] = []
+    total_count = int(len(df))
+    for field in labels:
+        series = pd.to_numeric(df[field], errors="coerce")
+        non_null_count = int(series.notna().sum())
+        coverage_rows.append(
+            {
+                "field": field,
+                "non_null_count": non_null_count,
+                "total_count": total_count,
+                "non_null_rate": (non_null_count / total_count) if total_count else None,
+            }
+        )
+        if non_null_count < 3:
+            excluded_variables.append(
+                {
+                    "field": field,
+                    "reason": "insufficient_non_null",
+                    "non_null_count": non_null_count,
+                    "total_count": total_count,
+                }
+            )
+    labels = [field for field in labels if field not in {item["field"] for item in excluded_variables}]
     if len(labels) < 2:
-        return {"method": method, "matrix": {"labels": labels, "correlations": [], "p_values": [], "n_pairs": []}}
+        return {
+            "method": method,
+            "matrix": {"labels": labels, "correlations": [], "p_values": [], "n_pairs": []},
+            "variable_coverage": coverage_rows,
+            "excluded_variables": excluded_variables,
+        }
 
     numeric_df = pd.DataFrame({label: pd.to_numeric(df[label], errors="coerce") for label in labels})
     chosen = method.lower()
@@ -1449,38 +1739,42 @@ async def correlation_analysis(
                 chosen = "spearman"
                 break
 
-    corr_matrix: list[list[float]] = []
-    p_matrix: list[list[float | None]] = []
-    n_matrix: list[list[int]] = []
-    for i, label_i in enumerate(labels):
-        corr_row: list[float] = []
-        p_row: list[float | None] = []
-        n_row: list[int] = []
-        for j, label_j in enumerate(labels):
-            if i == j:
-                corr_row.append(1.0)
-                p_row.append(None)
-                n_row.append(int(numeric_df[label_i].dropna().shape[0]))
-                continue
-            pair = numeric_df[[label_i, label_j]].dropna()
-            n_row.append(int(len(pair)))
-            if len(pair) < 3:
-                corr_row.append(0.0)
-                p_row.append(None)
-                continue
-            try:
-                if chosen == "pearson":
-                    corr, p_val = stats.pearsonr(pair[label_i], pair[label_j])
-                else:
-                    corr, p_val = stats.spearmanr(pair[label_i], pair[label_j])
-                corr_row.append(float(corr))
-                p_row.append(float(p_val))
-            except Exception:
-                corr_row.append(0.0)
-                p_row.append(None)
-        corr_matrix.append(corr_row)
-        p_matrix.append(p_row)
-        n_matrix.append(n_row)
+    def _compute_sync() -> tuple[list[list[float]], list[list[float | None]], list[list[int]]]:
+        corr_matrix: list[list[float]] = []
+        p_matrix: list[list[float | None]] = []
+        n_matrix: list[list[int]] = []
+        for i, label_i in enumerate(labels):
+            corr_row: list[float] = []
+            p_row: list[float | None] = []
+            n_row: list[int] = []
+            for j, label_j in enumerate(labels):
+                if i == j:
+                    corr_row.append(1.0)
+                    p_row.append(None)
+                    n_row.append(int(numeric_df[label_i].dropna().shape[0]))
+                    continue
+                pair = numeric_df[[label_i, label_j]].dropna()
+                n_row.append(int(len(pair)))
+                if len(pair) < 3:
+                    corr_row.append(0.0)
+                    p_row.append(None)
+                    continue
+                try:
+                    if chosen == "pearson":
+                        corr, p_val = stats.pearsonr(pair[label_i], pair[label_j])
+                    else:
+                        corr, p_val = stats.spearmanr(pair[label_i], pair[label_j])
+                    corr_row.append(float(corr))
+                    p_row.append(float(p_val))
+                except Exception:
+                    corr_row.append(0.0)
+                    p_row.append(None)
+            corr_matrix.append(corr_row)
+            p_matrix.append(p_row)
+            n_matrix.append(n_row)
+        return corr_matrix, p_matrix, n_matrix
+
+    corr_matrix, p_matrix, n_matrix = await asyncio.to_thread(_compute_sync)
 
     return {
         "method": chosen,
@@ -1490,6 +1784,8 @@ async def correlation_analysis(
             "p_values": p_matrix,
             "n_pairs": n_matrix,
         },
+        "variable_coverage": coverage_rows,
+        "excluded_variables": excluded_variables,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -1991,7 +2287,7 @@ def _score_value_from_doc(doc: dict[str, Any]) -> float | None:
     return None
 
 
-async def _attach_score_extrema(df: pd.DataFrame, db, score_type: str, column_name: str) -> None:
+async def _attach_score_extrema(df: pd.DataFrame, db, score_type: str | list[str], column_name: str) -> None:
     if df.empty:
         df[column_name] = None
         return
@@ -1999,13 +2295,15 @@ async def _attach_score_extrema(df: pd.DataFrame, db, score_type: str, column_na
     if not ids:
         df[column_name] = None
         return
-    cursor = db.col("score_records").find(
-        {"patient_id": {"$in": ids}, "score_type": score_type},
-        {"patient_id": 1, "score": 1, "value": 1, "score_value": 1, "result": 1, "summary": 1},
+    score_types = [str(item).strip() for item in (score_type if isinstance(score_type, list) else [score_type]) if str(item or '').strip()]
+    query = {"pid": {"$in": ids}, "scoreType": {"$in": score_types}}
+    cursor = db.col("score").find(
+        query,
+        {"pid": 1, "patient_id": 1, "score": 1, "scoreType": 1, "total": 1, "value": 1, "score_value": 1, "result": 1, "summary": 1},
     )
     values: dict[str, float] = {}
     async for doc in cursor:
-        pid = str(doc.get("patient_id") or "").strip()
+        pid = str(doc.get("pid") or doc.get("patient_id") or "").strip()
         if not pid:
             continue
         score = _score_value_from_doc(doc)
@@ -2015,6 +2313,164 @@ async def _attach_score_extrema(df: pd.DataFrame, db, score_type: str, column_na
         if prev is None or score > prev:
             values[pid] = score
     df[column_name] = df.get("patient_id", pd.Series([], dtype=str)).map(lambda pid: values.get(str(pid).strip()))
+
+
+async def _attach_lab_admission_values(
+    df: pd.DataFrame,
+    db,
+    lab_map: dict[str, list[str]],
+) -> None:
+    """Attach first-within-24h lab values after ICU admission for each patient."""
+    if df.empty:
+        for col in [f"{k}_admission" for k in lab_map]:
+            df[col] = None
+        return
+    ids = [str(pid).strip() for pid in df.get("hisPid", pd.Series([], dtype=str)).dropna().tolist() if str(pid).strip()]
+    if not ids:
+        for col in [f"{k}_admission" for k in lab_map]:
+            df[col] = None
+        return
+
+    # Build flat alias -> canonical key lookup
+    import re
+    alias_to_key: dict[str, str] = {}
+    valid_name_regexes = []
+    
+    for key, aliases in lab_map.items():
+        for alias in aliases:
+            a = alias.lower()
+            if a not in alias_to_key:
+                alias_to_key[a] = key
+                valid_name_regexes.append(re.compile(f"^{re.escape(alias)}$", re.IGNORECASE))
+
+    # Build admission_time lookup per patient (keyed by hisPid)
+    admission_map: dict[str, datetime | None] = {}
+    for _, row in df.iterrows():
+        pid = str(row.get("hisPid") or "").strip()
+        if not pid: continue
+        admission_map[pid] = row.get("admission_time")
+
+    results: dict[str, dict[str, float]] = {pid: {} for pid in ids}
+    cursor = db.dc_col("VI_ICU_EXAM_ITEM").find(
+        {
+            "hisPid": {"$in": ids},
+            "itemName": {"$in": valid_name_regexes}
+        },
+        {"hisPid": 1, "itemName": 1, "result": 1, "itemValue": 1, "authTime": 1, "testTime": 1, "reportTime": 1},
+    )
+    async for doc in cursor:
+        pid = str(doc.get("hisPid") or "").strip()
+        if pid not in results:
+            continue
+        item_name = str(doc.get("itemName") or "").strip().lower()
+        key = alias_to_key.get(item_name)
+        if key is None:
+            continue
+        if key in results[pid]:  # already got first value
+            continue
+        admission_time = admission_map.get(pid)
+        if admission_time is not None:
+            record_time = _parse_dt(doc.get("authTime") or doc.get("testTime") or doc.get("reportTime"))
+            if record_time is None:
+                continue
+            delta_hours = (record_time - admission_time).total_seconds() / 3600
+            if not (0 <= delta_hours <= 24):
+                continue
+        value = _as_number(doc.get("result") or doc.get("itemValue"))
+        if value is not None:
+            results[pid][key] = value
+
+    pid_series = df.get("patient_id", pd.Series([], dtype=str))
+    for key in lab_map:
+        col = f"{key}_admission"
+        df[col] = df.get("hisPid", pd.Series([], dtype=str)).astype(str).map(lambda hpid, k=key: results.get(str(hpid).strip(), {}).get(k))
+
+
+async def _attach_treatment_days(df: pd.DataFrame, db) -> None:
+    """Attach vasopressor_days, mv_days, and icu_readmission per patient."""
+    if df.empty:
+        df["vasopressor_days"] = None
+        df["mv_days"] = None
+        df["icu_readmission"] = None
+        return
+    ids = [str(pid).strip() for pid in df.get("patient_id", pd.Series([], dtype=str)).dropna().tolist() if str(pid).strip()]
+    if not ids:
+        df["vasopressor_days"] = None
+        df["mv_days"] = None
+        df["icu_readmission"] = None
+        return
+
+    vaso_days: dict[str, float] = {}
+    mv_days: dict[str, float] = {}
+    
+    # 1. Primary source: score collection (already calculated summaries)
+    cursor = db.col("score").find(
+        {"pid": {"$in": ids}, "scoreType": {"$in": ["vasopressor_days", "mv_days", "vasopressor_day", "mv_day"]}},
+        {"pid": 1, "scoreType": 1, "score": 1, "value": 1, "score_value": 1, "total": 1},
+    )
+    async for doc in cursor:
+        pid = str(doc.get("pid") or doc.get("patient_id") or "").strip()
+        stype = str(doc.get("scoreType") or doc.get("score_type") or "")
+        val = _score_value_from_doc(doc)
+        if val is None:
+            continue
+        if "vasopressor" in stype:
+            vaso_days[pid] = max(vaso_days.get(pid, 0), val)
+        elif "mv" in stype:
+            mv_days[pid] = max(mv_days.get(pid, 0), val)
+
+    # 2. Fallback: calculate from deviceBind and drugExe for missing values
+    missing_mv_ids = [pid for pid in ids if pid not in mv_days]
+    if missing_mv_ids:
+        # deviceBind for ventilators
+        device_cursor = db.col("deviceBind").find(
+            {"pid": {"$in": missing_mv_ids}},
+            {"pid": 1, "bindTime": 1, "unBindTime": 1, "type": 1, "deviceName": 1}
+        )
+        now = datetime.now(timezone.utc)
+        async for doc in device_cursor:
+            pid = str(doc.get("pid") or "").strip()
+            d_type = str(doc.get("type") or "").lower()
+            d_name = str(doc.get("deviceName") or "").lower()
+            if not any(k in d_type or k in d_name for k in ["vent", "呼吸机", "创呼吸", "无创"]):
+                continue
+            start = _parse_dt(doc.get("bindTime"))
+            if not start: continue
+            end = _parse_dt(doc.get("unBindTime")) or now
+            duration_days = max(0, (end - start).total_seconds() / 86400.0)
+            mv_days[pid] = mv_days.get(pid, 0) + duration_days
+
+    missing_vaso_ids = [pid for pid in ids if pid not in vaso_days]
+    if missing_vaso_ids:
+        # drug records from DataCenter orders
+        hpid_to_pid = {str(row.get("hisPid")).strip(): str(row.get("patient_id")).strip() for _, row in df.iterrows() if row.get("hisPid")}
+        hpids = list(hpid_to_pid.keys())
+        if hpids:
+            vaso_keywords = ["去甲", "多巴", "肾上腺", "加压素", "norepinephrine", "epinephrine", "vasopressin", "dopamine"]
+            pattern = "|".join(vaso_keywords)
+            order_cursor = db.dc_col("VI_ICU_ZYYZ").find(
+                {"pid": {"$in": hpids}, "orderName": {"$regex": pattern, "$options": "i"}},
+                {"pid": 1, "startTime": 1, "endTime": 1, "stopTime": 1, "orderTime": 1}
+            )
+            async for doc in order_cursor:
+                hpid = str(doc.get("pid") or "").strip()
+                pid = hpid_to_pid.get(hpid)
+                if not pid: continue
+                # Calculate duration from order span
+                start = _parse_dt(doc.get("startTime") or doc.get("orderTime"))
+                if not start: continue
+                end = _parse_dt(doc.get("stopTime") or doc.get("endTime")) or datetime.now(timezone.utc)
+                duration_days = max(0.1, (end - start).total_seconds() / 86400.0)
+                vaso_days[pid] = vaso_days.get(pid, 0) + duration_days
+
+    pid_series = df.get("patient_id", pd.Series([], dtype=str))
+    df["vasopressor_days"] = pid_series.map(lambda pid: vaso_days.get(str(pid).strip()))
+    df["mv_days"] = pid_series.map(lambda pid: mv_days.get(str(pid).strip()))
+
+    # icu_readmission: infer from multiple patient records with same hisPid
+    his_pid_series = df.get("hisPid", pd.Series([], dtype=str)).astype(str)
+    his_pid_counts = his_pid_series.value_counts()
+    df["icu_readmission"] = his_pid_series.map(lambda hpid: 1 if his_pid_counts.get(str(hpid).strip(), 0) > 1 else 0)
 
 
 async def _attach_alert_tags(df: pd.DataFrame, db) -> None:
@@ -2274,6 +2730,7 @@ async def build_custom_cohort(
     patient_ids: list[str] | None = None,
     department: str | None = None,
     dept_code: str | None = None,
+    patient_scope: str = 'all',
     config=None,
 ) -> dict[str, Any]:
     cfg = _get_research_cfg(config)
@@ -2288,13 +2745,13 @@ async def build_custom_cohort(
             dept_name = ""
         if dept_name and dept_code_text and (dept_name == dept_code_text or dept_name.isdigit()):
             dept_name = ""
-        base_query = admitted_patient_query()
-        clauses = [base_query]
+        base_query = research_patient_scope_query(patient_scope)
+        clauses = [base_query] if base_query else []
         if dept_name:
             clauses.append({"$or": [{"hisDept": dept_name}, {"dept": dept_name}]})
         if dept_code_text:
             clauses.append({"deptCode": dept_code_text})
-        query = clauses[0] if len(clauses) == 1 else {"$and": clauses}
+        query = {} if not clauses else clauses[0] if len(clauses) == 1 else {"$and": clauses}
         cursor = db.col("patient").find(query, {"_id": 1}).limit(max_patients)
         scoped = []
         async for doc in cursor:
@@ -2303,10 +2760,10 @@ async def build_custom_cohort(
                 scoped.append(pid)
     scoped = _ensure_patient_id_set(scoped)
     if not scoped:
-        return {"patient_ids": [], "patient_count": 0, "demographics": {}, "preview_patients": []}
+        return {"patient_ids": [], "patient_count": 0, "patient_scope": patient_scope, "demographics": {}, "preview_patients": []}
     df = await _load_patient_dataframe(scoped, db, max_patients=max_patients)
     if df.empty:
-        return {"patient_ids": [], "patient_count": 0, "demographics": {}, "preview_patients": []}
+        return {"patient_ids": [], "patient_count": 0, "patient_scope": patient_scope, "demographics": {}, "preview_patients": []}
     primary_category = None
     for col in ("primaryDiagnosisCategory", "mainDiagnosisCategory", "diagnosisCategory", "diagnosis_category", "primary_category"):
         if col in df.columns:
@@ -2316,7 +2773,7 @@ async def build_custom_cohort(
         primary_category = pd.Series(["" for _ in range(len(df))], index=df.index)
     df["primary_category"] = primary_category
     await _attach_score_extrema(df, db, "sofa", "sofa_max")
-    await _attach_score_extrema(df, db, "apache2", "apache2_max")
+    await _attach_score_extrema(df, db, ["apache2", "apacheII"], "apache2_max")
     await _attach_alert_tags(df, db)
     filtered = _apply_builder_filters(df, filters or [])
     patient_ids_out = filtered.get("patient_id", pd.Series([], dtype=str)).dropna().astype(str).tolist()[:max_patients]
@@ -2336,6 +2793,7 @@ async def build_custom_cohort(
     return {
         "patient_ids": patient_ids_out,
         "patient_count": len(patient_ids_out),
+        "patient_scope": patient_scope,
         "demographics": demographics,
         "preview_patients": preview_rows,
     }

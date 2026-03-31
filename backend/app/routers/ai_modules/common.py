@@ -194,7 +194,7 @@ async def _persist_ai_score_record(patient: dict, payload: dict[str, Any], *, sc
         "day": now.strftime("%Y-%m-%d"),
         **payload,
     }
-    insert_res = await runtime.db.col("score_records").insert_one(record)
+    insert_res = await runtime.db.col("score").insert_one(record)
     record["_id"] = insert_res.inserted_id
     return record
 

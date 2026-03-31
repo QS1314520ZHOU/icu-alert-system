@@ -105,7 +105,7 @@ class VentilatorMixin:
             "month": trial_time.strftime("%Y-%m"),
             "day": trial_time.strftime("%Y-%m-%d"),
         }
-        existing = await self.db.col("score_records").find_one(
+        existing = await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "sbt_assessment",
@@ -113,12 +113,12 @@ class VentilatorMixin:
             }
         )
         if existing:
-            await self.db.col("score_records").update_one(
+            await self.db.col("score").update_one(
                 {"_id": existing["_id"]},
                 {"$set": {k: v for k, v in payload.items() if k not in {"created_at"}}},
             )
         else:
-            await self.db.col("score_records").insert_one(payload)
+            await self.db.col("score").insert_one(payload)
 
     async def _persist_weaning_assessment(
         self,
@@ -161,7 +161,7 @@ class VentilatorMixin:
             "month": now.strftime("%Y-%m"),
             "day": now.strftime("%Y-%m-%d"),
         }
-        latest = await self.db.col("score_records").find_one(
+        latest = await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "weaning_assessment",
@@ -170,12 +170,12 @@ class VentilatorMixin:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score_records").update_one(
+            await self.db.col("score").update_one(
                 {"_id": latest["_id"]},
                 {"$set": {k: v for k, v in payload.items() if k not in {"created_at"}}},
             )
         else:
-            await self.db.col("score_records").insert_one(payload)
+            await self.db.col("score").insert_one(payload)
 
     def _patient_height_cm(self, patient_doc: dict) -> float | None:
         for key in ("height", "heightCm", "height_cm", "bodyHeight"):
@@ -325,7 +325,7 @@ class VentilatorMixin:
         pid_str = str(pid)
         since = now - timedelta(hours=max(24, hours))
 
-        recorded = await self.db.col("score_records").find_one(
+        recorded = await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "sbt_assessment",
@@ -339,7 +339,7 @@ class VentilatorMixin:
                 "passed": recorded.get("passed"),
                 "time": recorded.get("trial_time") or recorded.get("calc_time"),
                 "text": recorded.get("raw_text"),
-                "source": recorded.get("source") or "score_records",
+                "source": recorded.get("source") or "score",
                 "code": recorded.get("source_code"),
                 "duration_minutes": recorded.get("duration_minutes"),
                 "rr": recorded.get("rr"),

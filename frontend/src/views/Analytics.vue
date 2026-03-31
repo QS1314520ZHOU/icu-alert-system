@@ -164,21 +164,21 @@
 
       <a-card title="告警生命周期漏斗" :bordered="false" class="panel">
         <div v-if="lifecycleFunnelStages.length" class="chart-wrap chart-md">
-          <AnalyticsChart :option="lifecycleFunnelOption" autoresize />
+          <AnalyticsChart :option="lifecycleFunnelOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无闭环漏斗数据</div>
       </a-card>
 
       <a-card title="转化率折线图" :bordered="false" class="panel">
         <div v-if="lifecycleFunnelSeries.length" class="chart-wrap chart-md">
-          <AnalyticsChart :option="lifecycleConversionOption" autoresize />
+          <AnalyticsChart :option="lifecycleConversionOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无闭环趋势数据</div>
       </a-card>
 
       <a-card title="预警触发频率" :bordered="false" class="panel panel-wide">
         <div v-if="displayFreqSeries.length" class="chart-wrap chart-lg">
-          <AnalyticsChart :option="frequencyOption" autoresize />
+          <AnalyticsChart :option="frequencyOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无频率数据</div>
       </a-card>
@@ -199,14 +199,14 @@
           </div>
         </div>
         <div v-if="displayHeatmapY.length" class="chart-wrap chart-lg chart-heatmap">
-          <AnalyticsChart :option="heatmapOption" autoresize />
+          <AnalyticsChart :option="heatmapOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无规则热力图数据</div>
       </a-card>
 
       <a-card title="科室预警排名" :bordered="false" class="panel">
         <div v-if="displayDeptRankings.length" class="chart-wrap chart-md">
-          <AnalyticsChart :option="deptRankOption" autoresize />
+          <AnalyticsChart :option="deptRankOption" :init-options="chartInitOptions" autoresize />
         </div>
         <a-table
           class="rank-table"
@@ -226,7 +226,7 @@
 
       <a-card title="床位预警排名" :bordered="false" class="panel">
         <div v-if="displayBedRankings.length" class="chart-wrap chart-md">
-          <AnalyticsChart :option="bedRankOption" autoresize />
+          <AnalyticsChart :option="bedRankOption" :init-options="chartInitOptions" autoresize />
         </div>
         <a-table
           class="rank-table"
@@ -335,7 +335,7 @@
           <div class="summary-chip summary-chip--wide"><span class="summary-k">覆盖率</span><b class="summary-v">{{ scenarioCoverageRate }}</b></div>
         </div>
         <div v-if="scenarioHeatmapY.length" class="chart-wrap chart-lg chart-heatmap">
-          <AnalyticsChart :option="scenarioHeatmapOption" autoresize />
+          <AnalyticsChart :option="scenarioHeatmapOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无扩展场景数据</div>
       </a-card>
@@ -364,7 +364,7 @@
           <div class="summary-chip summary-chip--wide"><span class="summary-k">建议护士数</span><b class="summary-v">{{ Number(nursingSummary?.recommended_nurse_count || 0).toFixed(1) }} / 向上取整 {{ Number(nursingSummary?.recommended_nurse_ceiling || 0) }}</b></div>
         </div>
         <div v-if="nursingHeatmapX.length" class="chart-wrap chart-lg chart-heatmap">
-          <AnalyticsChart :option="nursingHeatmapOption" autoresize />
+          <AnalyticsChart :option="nursingHeatmapOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无护理负荷热力图数据</div>
       </a-card>
@@ -407,14 +407,14 @@
 
       <a-card title="月度脱机评估趋势" :bordered="false" class="panel panel-wide">
         <div v-if="weaningTrendRows.length" class="chart-wrap chart-lg">
-          <AnalyticsChart :option="weaningTrendOption" autoresize />
+          <AnalyticsChart :option="weaningTrendOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无月度脱机评估趋势数据</div>
       </a-card>
 
       <a-card title="科室脱机 / 再插管风险对比" :bordered="false" class="panel panel-wide">
         <div v-if="weaningDeptCompare.length" class="chart-wrap chart-md">
-          <AnalyticsChart :option="weaningDeptCompareOption" autoresize />
+          <AnalyticsChart :option="weaningDeptCompareOption" :init-options="chartInitOptions" autoresize />
         </div>
         <a-table
           class="rank-table"
@@ -485,6 +485,12 @@ const AnalyticsChart = defineAsyncComponent(async () => {
   const mod = await import('vue-echarts')
   return mod.default
 })
+
+const chartInitOptions = {
+  devicePixelRatio: typeof window !== 'undefined'
+    ? Math.max(window.devicePixelRatio || 1, window.innerWidth <= 1920 ? 1.5 : 1)
+    : 1,
+}
 
 const route = useRoute()
 const router = useRouter()

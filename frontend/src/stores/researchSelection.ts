@@ -7,6 +7,7 @@ export type CohortSnapshot = {
   patientCount: number
   department?: string | null
   deptCode?: string | null
+  patientScope?: 'in_dept' | 'out_dept' | 'all' | null
 }
 
 export const useResearchSelectionStore = defineStore('researchSelection', {

@@ -565,7 +565,7 @@ class AdaptiveThresholdAdvisorMixin:
         return False
 
     async def _threshold_latest_context_record(self, pid_str: str) -> dict[str, Any] | None:
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "personalized_thresholds",
@@ -575,7 +575,7 @@ class AdaptiveThresholdAdvisorMixin:
         )
 
     async def _threshold_has_existing_record(self, pid_str: str, context_hash: str) -> bool:
-        doc = await self.db.col("score_records").find_one(
+        doc = await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "personalized_thresholds",
@@ -595,7 +595,7 @@ class AdaptiveThresholdAdvisorMixin:
         now: datetime,
     ) -> None:
         pid_str = self._pid_str(patient_doc.get("_id"))
-        await self.db.col("score_records").insert_one(
+        await self.db.col("score").insert_one(
             {
                 "patient_id": pid_str,
                 "patient_name": patient_doc.get("name"),
@@ -621,7 +621,7 @@ class AdaptiveThresholdAdvisorMixin:
         )
 
     async def get_approved_thresholds(self, pid_str: str) -> dict | None:
-        doc = await self.db.col("score_records").find_one(
+        doc = await self.db.col("score").find_one(
             {"patient_id": pid_str, "score_type": "personalized_thresholds", "status": "approved"},
             sort=[("calc_time", -1)],
         )

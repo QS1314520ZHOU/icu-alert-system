@@ -113,13 +113,13 @@ class ClinicalDocumentGenerator:
             return None
 
     async def _latest_clinical_reasoning(self, patient_id: str) -> dict[str, Any] | None:
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {"patient_id": patient_id, "score_type": "clinical_reasoning_plan"},
             sort=[("calc_time", -1)],
         )
 
     async def _latest_proactive_plan(self, patient_id: str) -> dict[str, Any] | None:
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {"patient_id": patient_id, "score_type": "proactive_management"},
             sort=[("calc_time", -1)],
         )
@@ -166,7 +166,7 @@ class ClinicalDocumentGenerator:
             ).sort("created_at", -1).limit(80)
         ]
         scores = [
-            doc async for doc in self.db.col("score_records").find(
+            doc async for doc in self.db.col("score").find(
                 {"patient_id": {"$in": [patient_id, patient_doc.get("_id")]}, "calc_time": {"$gte": start, "$lte": end}},
                 {"score_type": 1, "score": 1, "risk_level": 1, "summary": 1, "calc_time": 1, "interventions": 1, "plan": 1},
             ).sort("calc_time", -1).limit(80)
@@ -377,7 +377,7 @@ class ClinicalDocumentGenerator:
             "month": generated_at.strftime("%Y-%m"),
             "day": generated_at.strftime("%Y-%m-%d"),
         }
-        latest = await self.db.col("score_records").find_one(
+        latest = await self.db.col("score").find_one(
             {
                 "patient_id": str(patient_doc.get("_id")),
                 "score_type": "clinical_document",
@@ -387,10 +387,10 @@ class ClinicalDocumentGenerator:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
             payload["_id"] = latest["_id"]
         else:
-            res = await self.db.col("score_records").insert_one(payload)
+            res = await self.db.col("score").insert_one(payload)
             payload["_id"] = res.inserted_id
         return payload
 

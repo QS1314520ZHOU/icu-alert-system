@@ -315,13 +315,28 @@ const alertStatus = computed(() => {
   return map[props.patient?.alertLevel || 'none'] || '待评估'
 })
 
+const mergedVitals = computed(() => {
+  const cardVitals = bedcard.value?.metrics?.vitals && typeof bedcard.value.metrics.vitals === 'object'
+    ? bedcard.value.metrics.vitals
+    : {}
+  const patientVitals = props.patient?.vitals && typeof props.patient.vitals === 'object'
+    ? props.patient.vitals
+    : {}
+  return {
+    ...patientVitals,
+    ...Object.fromEntries(Object.entries(cardVitals).filter(([, value]) => value != null && value !== '')),
+  }
+})
+
 const vitalsData = computed(() => {
-  const v = bedcard.value?.metrics?.vitals || props.patient?.vitals || {}
+  const v = mergedVitals.value || {}
+  const sbp = v.sbp ?? v.nibp_sys ?? v.ibp_sys
+  const dbp = v.dbp ?? v.nibp_dia ?? v.ibp_dia
   return [
     { key: 'hr', label: 'HR', value: v.hr ?? '--', colorClass: vitalClass('hr', v.hr) },
-    { key: 'bp', label: 'BP', value: v.sbp ? `${v.sbp}/${v.dbp || '--'}` : '--', colorClass: vitalClass('bp', v.sbp) },
+    { key: 'bp', label: 'BP', value: sbp != null ? `${sbp}/${dbp ?? '--'}` : '--', colorClass: vitalClass('bp', sbp) },
     { key: 'spo2', label: 'SpO₂', value: v.spo2 ?? '--', unit: '%', colorClass: vitalClass('spo2', v.spo2) },
-    { key: 'temp', label: 'T', value: temp(v.t || v.temp), unit: '℃', colorClass: vitalClass('t', v.t || v.temp) }
+    { key: 'temp', label: 'T', value: temp(v.t ?? v.temp), unit: '℃', colorClass: vitalClass('t', v.t ?? v.temp) }
   ]
 })
 

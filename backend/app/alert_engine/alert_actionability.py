@@ -160,7 +160,7 @@ class AlertActionabilityScorerMixin:
         his_pid = str((patient_doc or {}).get("hisPid") or (patient_doc or {}).get("hisPID") or "").strip()
         labs = await self._get_latest_labs_map(his_pid, lookback_hours=48) if his_pid else {}
         lactate = ((labs.get("lactate") or {}).get("value") if isinstance(labs, dict) else None)
-        sofa_doc = await self.db.col("score_records").find_one(
+        sofa_doc = await self.db.col("score").find_one(
             {"patient_id": patient_id, "score_type": {"$in": ["sofa", "sepsis_sofa", "sofa_score"]}},
             sort=[("calc_time", -1)],
         )
@@ -306,7 +306,7 @@ class AlertActionabilityScorerMixin:
             except Exception:
                 return None
         if metric == "sofa":
-            doc = await self.db.col("score_records").find_one(
+            doc = await self.db.col("score").find_one(
                 {"patient_id": patient_id, "score_type": {"$in": ["sofa", "sepsis_sofa", "sofa_score"]}, "calc_time": {"$gte": start, "$lte": end}},
                 sort=[("calc_time", -1)],
             )
@@ -352,7 +352,7 @@ class AlertActionabilityScorerMixin:
                     continue
         elif metric == "sofa":
             rows = [
-                row async for row in self.db.col("score_records").find(
+                row async for row in self.db.col("score").find(
                     {"patient_id": patient_id, "score_type": {"$in": ["sofa", "sepsis_sofa", "sofa_score"]}, "calc_time": {"$gte": start, "$lte": end}},
                     {"score": 1, "sofa_score": 1, "value": 1, "score_value": 1},
                 ).sort("calc_time", 1).limit(40)

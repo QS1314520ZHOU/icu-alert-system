@@ -183,6 +183,7 @@ const props = defineProps<{
   open: boolean
   department?: string | null
   deptCode?: string | null
+  patientScope?: 'in_dept' | 'out_dept' | 'all' | null
   initialFilters?: Array<{ field: string; operator: string; value: any }>
 }>()
 
@@ -261,10 +262,21 @@ const boolOptions = [
 
 const previewColumns = [
   { title: '患者编号', dataIndex: 'id' },
-  { title: '年龄', dataIndex: 'age' },
+  {
+    title: '年龄',
+    dataIndex: 'age',
+    customRender: ({ text }: any) => (text != null ? Math.floor(Number(text)) : '--'),
+  },
   { title: '性别', dataIndex: 'sex' },
   { title: '诊断', dataIndex: 'diagnosis' },
-  { title: '重症监护天数', dataIndex: 'los_days' },
+  {
+    title: '重症监护天数',
+    dataIndex: 'los_days',
+    customRender: ({ text }: any) => {
+      const num = Number(text)
+      return Number.isFinite(num) ? num.toFixed(1) : '--'
+    },
+  },
   { title: '结局', dataIndex: 'outcome' },
 ]
 
@@ -383,6 +395,7 @@ async function runBuild() {
     const res = await postResearchCohortBuild({
       department: props.department,
       dept_code: props.deptCode,
+      patient_scope: props.patientScope || 'all',
       filters: buildFilters(),
     })
     const data = res.data || {}
@@ -409,6 +422,7 @@ async function saveCohort() {
       name: cohortName.value || '自定义队列',
       department: props.department,
       dept_code: props.deptCode,
+      patient_scope: props.patientScope || 'all',
       filters: buildFilters(),
     })
     emit('saved', { cohort: res.data, filters: buildFilters() })
@@ -447,9 +461,11 @@ function formatPercent(value?: number) {
 
 function formatLos(demo: Record<string, any> | undefined) {
   if (!demo) return '--'
-  const q1 = demo.los_q1 ?? '--'
-  const q3 = demo.los_q3 ?? '--'
-  return `${demo.los_median ?? '--'}（四分位距 ${q1}-${q3}）`
+  const fmt = (value: any) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num.toFixed(1) : '--'
+  }
+  return `${fmt(demo.los_median)}（四分位距 ${fmt(demo.los_q1)}-${fmt(demo.los_q3)}）`
 }
 
 function applyPreset(preset: { key: string; filter: FilterCondition }) {

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import runtime
-from app.services.research_export_service import run_export_task
+from app.services.research_export_service import preview_export, run_export_task
 
 router = APIRouter(prefix="/api/research", tags=["research-export"])
 
@@ -19,13 +20,25 @@ class TimeRange(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    data_types: list[str]
+    data_types: list[str] = Field(default_factory=list)
     patient_ids: list[str] | None = None
+    cohort_id: str | None = None
     department: str | None = None
+    dept_code: str | None = None
+    patient_scope: str = "all"
     time_range: TimeRange
     format: str = "csv"
+    export_mode: str = "dataset"
     desensitize: bool = True
     include_data_dict: bool = True
+
+
+@router.post("/export/preview")
+async def preview_export_task(req: ExportRequest):
+    try:
+        return await preview_export(req.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"preview export failed: {exc.__class__.__name__}: {exc}") from exc
 
 
 @router.post("/export")
@@ -46,9 +59,7 @@ async def create_export_task(req: ExportRequest, request: Request):
         "created_by": created_by,
     })
 
-    import asyncio
     asyncio.create_task(run_export_task(task_id, params, created_by))
-
     return {"task_id": task_id, "status": "pending"}
 
 
@@ -68,18 +79,28 @@ async def download_export(task_id: str):
     doc = await col.find_one({"task_id": task_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
-    if doc["status"] != "completed":
-        raise HTTPException(status_code=400, detail=f"Task is not completed yet (status: {doc['status']})")
+    if doc.get("status") != "completed":
+        raise HTTPException(status_code=400, detail=f"Task is not completed yet (status: {doc.get('status')})")
     file_path = doc.get("file_path")
-    if not file_path or not __import__('pathlib').Path(file_path).exists():
+    target = Path(str(file_path or "")).resolve() if file_path else None
+    if not target or not target.exists():
         raise HTTPException(status_code=404, detail="Export file not found")
-    return FileResponse(path=file_path, filename=__import__('pathlib').Path(file_path).name, media_type="application/zip")
+    return FileResponse(path=target, filename=target.name, media_type="application/zip")
 
 
 @router.get("/export/history")
-async def export_history(request: Request):
+async def export_history(
+    request: Request,
+    status: str | None = Query(None),
+    export_mode: str | None = Query(None),
+):
     created_by = request.headers.get("X-User-Id", "anonymous")
     col = runtime.db.col("research_export_tasks")
-    cursor = col.find({"created_by": created_by}, {"_id": 0, "file_path": 0}).sort("created_at", -1).limit(50)
+    query: dict[str, object] = {"created_by": created_by}
+    if str(status or "").strip():
+        query["status"] = str(status).strip()
+    if str(export_mode or "").strip():
+        query["scope_summary.export_mode"] = str(export_mode).strip()
+    cursor = col.find(query, {"_id": 0, "file_path": 0}).sort("created_at", -1).limit(100)
     docs = [doc async for doc in cursor]
     return {"history": docs}

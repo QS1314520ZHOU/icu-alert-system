@@ -402,7 +402,7 @@ class ImagingReportAnalyzerMixin:
         }
 
         if persist:
-            latest = await self.db.col("score_records").find_one(
+            latest = await self.db.col("score").find_one(
                 {
                     "patient_id": patient_id,
                     "score_type": "imaging_report_signal_analysis",
@@ -411,10 +411,10 @@ class ImagingReportAnalyzerMixin:
                 sort=[("calc_time", -1)],
             )
             if latest:
-                await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": result})
+                await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": result})
                 result["_id"] = latest["_id"]
             else:
-                insert = await self.db.col("score_records").insert_one(result)
+                insert = await self.db.col("score").insert_one(result)
                 result["_id"] = insert.inserted_id
         return result
 
@@ -425,7 +425,7 @@ class ImagingReportAnalyzerMixin:
         hours: int = 96,
     ) -> dict[str, Any] | None:
         since = datetime.now() - timedelta(hours=max(1, hours))
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {
                 "patient_id": patient_id,
                 "score_type": "imaging_report_signal_analysis",

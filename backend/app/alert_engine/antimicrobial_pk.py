@@ -207,12 +207,12 @@ class AntimicrobialPKMixin:
     async def _persist_arc_risk(self, patient_doc: dict, result: dict, now: datetime) -> None:
         pid_str = self._pid_str(patient_doc.get("_id"))
         payload = {"patient_id": pid_str, "patient_name": patient_doc.get("name"), "bed": patient_doc.get("hisBed"), "dept": patient_doc.get("dept") or patient_doc.get("hisDept"), "score_type": "arc_risk", "score": result.get("score"), "arc_risk": result.get("arc_risk"), "features": result.get("features") or {}, "explanation": result.get("explanation"), "suggested_pk_adjustment": result.get("suggested_pk_adjustment"), "calc_time": now, "updated_at": now, "month": now.strftime("%Y-%m"), "day": now.strftime("%Y-%m-%d")}
-        latest = await self.db.col("score_records").find_one({"patient_id": pid_str, "score_type": "arc_risk", "calc_time": {"$gte": now - timedelta(minutes=30)}}, sort=[("calc_time", -1)])
+        latest = await self.db.col("score").find_one({"patient_id": pid_str, "score_type": "arc_risk", "calc_time": {"$gte": now - timedelta(minutes=30)}}, sort=[("calc_time", -1)])
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
         else:
             payload["created_at"] = now
-            await self.db.col("score_records").insert_one(payload)
+            await self.db.col("score").insert_one(payload)
 
     async def scan_arc_risk(self) -> None:
         from .scanner_arc_risk import ArcRiskScanner
@@ -427,12 +427,12 @@ class AntimicrobialPKMixin:
     async def _persist_antimicrobial_pk(self, patient_doc: dict, result: dict, now: datetime) -> None:
         pid_str = self._pid_str(patient_doc.get("_id"))
         payload = {"patient_id": pid_str, "patient_name": patient_doc.get("name"), "bed": patient_doc.get("hisBed"), "dept": patient_doc.get("dept") or patient_doc.get("hisDept"), "score_type": "antimicrobial_pk", "drug": result.get("drug"), "regimen": result.get("regimen") or {}, "pk_params": result.get("pk_params") or {}, "predicted_exposure": result.get("predicted_exposure") or {}, "target_attainment": result.get("target_attainment"), "recommendation": result.get("recommendation"), "confidence": result.get("confidence"), "calc_time": now, "updated_at": now, "month": now.strftime("%Y-%m"), "day": now.strftime("%Y-%m-%d")}
-        latest = await self.db.col("score_records").find_one({"patient_id": pid_str, "score_type": "antimicrobial_pk", "drug": result.get("drug"), "calc_time": {"$gte": now - timedelta(minutes=30)}}, sort=[("calc_time", -1)])
+        latest = await self.db.col("score").find_one({"patient_id": pid_str, "score_type": "antimicrobial_pk", "drug": result.get("drug"), "calc_time": {"$gte": now - timedelta(minutes=30)}}, sort=[("calc_time", -1)])
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
         else:
             payload["created_at"] = now
-            await self.db.col("score_records").insert_one(payload)
+            await self.db.col("score").insert_one(payload)
 
     async def scan_antimicrobial_pk(self) -> None:
         from .scanner_antimicrobial_pk import AntimicrobialPkScanner
@@ -505,12 +505,12 @@ class AntimicrobialPKMixin:
     async def _persist_vanco_tdm(self, patient_doc: dict, result: dict, now: datetime) -> None:
         pid_str = self._pid_str(patient_doc.get("_id"))
         payload = {"patient_id": pid_str, "patient_name": patient_doc.get("name"), "bed": patient_doc.get("hisBed"), "dept": patient_doc.get("dept") or patient_doc.get("hisDept"), "score_type": "tdm_pk_state", "drug": "vancomycin", "sample_time": result.get("sample_time"), "sample_value": result.get("sample_value"), "population_pk": result.get("population_pk") or {}, "individual_pk": result.get("individual_pk") or {}, "auc24": result.get("auc24"), "predicted_trough_next": result.get("predicted_trough_next"), "target_attainment": result.get("target_attainment"), "recommendation": result.get("recommendation"), "calc_time": now, "updated_at": now, "month": now.strftime("%Y-%m"), "day": now.strftime("%Y-%m-%d")}
-        latest = await self.db.col("score_records").find_one({"patient_id": pid_str, "score_type": "tdm_pk_state", "drug": "vancomycin", "calc_time": {"$gte": now - timedelta(hours=12)}}, sort=[("calc_time", -1)])
+        latest = await self.db.col("score").find_one({"patient_id": pid_str, "score_type": "tdm_pk_state", "drug": "vancomycin", "calc_time": {"$gte": now - timedelta(hours=12)}}, sort=[("calc_time", -1)])
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
         else:
             payload["created_at"] = now
-            await self.db.col("score_records").insert_one(payload)
+            await self.db.col("score").insert_one(payload)
 
     async def scan_vanco_tdm_closed_loop(self) -> None:
         from .scanner_vanco_tdm_closed_loop import VancoTdmClosedLoopScanner

@@ -378,7 +378,7 @@ JSON结构:
             "month": generated_at.strftime("%Y-%m"),
             "day": generated_at.strftime("%Y-%m-%d"),
         }
-        latest = await self.db.col("score_records").find_one(
+        latest = await self.db.col("score").find_one(
             {
                 "patient_id": str(patient_doc.get("_id")),
                 "score_type": "clinical_reasoning_plan",
@@ -387,10 +387,10 @@ JSON结构:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
             payload["_id"] = latest["_id"]
         else:
-            res = await self.db.col("score_records").insert_one(payload)
+            res = await self.db.col("score").insert_one(payload)
             payload["_id"] = res.inserted_id
         return payload
 

@@ -58,7 +58,7 @@ class SepsisMixin:
         return rows
 
     async def _get_active_sepsis_bundle_tracker(self, pid_str: str) -> dict | None:
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": {"$in": self._sepsis_bundle_score_types()},
@@ -70,7 +70,7 @@ class SepsisMixin:
 
     async def _get_recent_sepsis_bundle_tracker(self, pid_str: str, now: datetime, hours: int) -> dict | None:
         since = now - timedelta(hours=max(1, hours))
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": {"$in": self._sepsis_bundle_score_types()},
@@ -129,7 +129,7 @@ class SepsisMixin:
         }
 
         if recent:
-            await self.db.col("score_records").update_one({"_id": recent["_id"]}, {"$set": tracker_patch})
+            await self.db.col("score").update_one({"_id": recent["_id"]}, {"$set": tracker_patch})
             if active:
                 recent.update(tracker_patch)
                 return recent
@@ -165,7 +165,7 @@ class SepsisMixin:
             "month": now.strftime("%Y-%m"),
             "day": now.strftime("%Y-%m-%d"),
         }
-        res = await self.db.col("score_records").insert_one(tracker)
+        res = await self.db.col("score").insert_one(tracker)
         tracker["_id"] = res.inserted_id
         return tracker
 
@@ -452,7 +452,7 @@ class SepsisMixin:
             ]
             completed_at = max(completion_times) if completion_times else now
             within_1h = isinstance(completed_at, datetime) and completed_at <= deadline_1h
-            await self.db.col("score_records").update_one(
+            await self.db.col("score").update_one(
                 {"_id": tracker["_id"]},
                 {
                     "$set": {
@@ -506,7 +506,7 @@ class SepsisMixin:
                 )
                 if alert:
                     fired += 1
-            await self.db.col("score_records").update_one(
+            await self.db.col("score").update_one(
                 {"_id": tracker["_id"]},
                 {
                     "$set": {
@@ -556,7 +556,7 @@ class SepsisMixin:
                 )
                 if alert:
                     fired += 1
-            await self.db.col("score_records").update_one(
+            await self.db.col("score").update_one(
                 {"_id": tracker["_id"]},
                 {
                     "$set": {
@@ -572,7 +572,7 @@ class SepsisMixin:
             )
             return fired
 
-        await self.db.col("score_records").update_one(
+        await self.db.col("score").update_one(
             {"_id": tracker["_id"]},
             {
                 "$set": {

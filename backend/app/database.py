@@ -151,9 +151,12 @@ class DatabaseManager:
             await mapping_col.create_index([("standard_concept", 1)])
 
             # 评分记录索引
-            score_col = self.col("score_records")
+            score_col = self.col("score")
             await score_col.create_index(
                 [("patient_id", 1), ("score_type", 1), ("calc_time", -1)]
+            )
+            await score_col.create_index(
+                [("pid", 1), ("scoreType", 1), ("time", -1)]
             )
 
             # 护理提醒索引

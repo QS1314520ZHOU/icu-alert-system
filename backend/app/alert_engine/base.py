@@ -500,7 +500,7 @@ class BaseEngine:
         if not code:
             return None
 
-        doc = await self.db.col("score_records").find_one(
+        doc = await self.db.col("score").find_one(
             {"patient_id": pid, "score_type": kind},
             sort=[("calc_time", -1)]
         )
@@ -569,7 +569,7 @@ class BaseEngine:
         if not code:
             return None
 
-        doc = await self.db.col("score_records").find_one(
+        doc = await self.db.col("score").find_one(
             {"patient_id": pid, "score_type": kind, "calc_time": {"$gte": start, "$lte": end}},
             sort=[("calc_time", -1)]
         )
@@ -629,7 +629,7 @@ class BaseEngine:
         code = self._cfg("assessments", "cam_icu", "code", default="param_delirium_score")
 
         # 1) score_records
-        doc = await self.db.col("score_records").find_one(
+        doc = await self.db.col("score").find_one(
             {
                 "patient_id": {"$in": [pid, pid_str]},
                 "score_type": {"$in": ["cam_icu", "cam-icu", "delirium", "camicu"]},
@@ -641,7 +641,7 @@ class BaseEngine:
             raw = doc.get("score") or doc.get("value") or doc.get("score_value") or doc.get("result")
             positive = self._is_positive_text_result(raw)
             if positive is not None:
-                return {"positive": positive, "time": _parse_dt(doc.get("calc_time")), "source": "score_records", "raw": raw}
+                return {"positive": positive, "time": _parse_dt(doc.get("calc_time")), "source": "score", "raw": raw}
 
         # 2) score
         doc = await self.db.col("score").find_one(
@@ -3048,7 +3048,7 @@ class BaseEngine:
         kind, score_types = code_map.get(code, (None, []))
 
         if kind:
-            doc = await self.db.col("score_records").find_one(
+            doc = await self.db.col("score").find_one(
                 {"patient_id": {"$in": pid_candidates}, "score_type": kind},
                 sort=[("calc_time", -1)],
             )

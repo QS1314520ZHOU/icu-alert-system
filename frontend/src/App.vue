@@ -215,7 +215,7 @@ onUnmounted(() => clearInterval(t))
 <style scoped>
 @import url('./assets/fonts/rajdhani/rajdhani.css');
 
-.root { min-height: 100vh; background: var(--app-bg); font-family: 'Rajdhani', 'Noto Sans SC', sans-serif; }
+.root { min-height: 100vh; background: var(--app-bg); font-family: var(--app-display-font, 'Rajdhani', 'Noto Sans SC', sans-serif); }
 .hdr {
   display: flex; align-items: center; gap: 20px;
   background: var(--hdr-bg-strong) !important;
@@ -392,6 +392,36 @@ onUnmounted(() => clearInterval(t))
   }
   .operator-pill__input {
     width: 132px;
+  }
+}
+
+@media (max-width: 1920px) {
+  .root {
+    --app-display-font: 'Noto Sans SC', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  }
+  .hdr {
+    padding: 12px 20px;
+  }
+  .hdr-title {
+    font-size: 16px;
+    letter-spacing: 0.06em;
+  }
+  .hdr-sub {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+  .nav-btn {
+    font-size: 13px;
+    padding: 8px 13px;
+    letter-spacing: 0.05em;
+  }
+  .operator-pill__label,
+  .toggle-text,
+  .hdr-clock {
+    font-size: 11px;
+  }
+  .operator-pill__input {
+    font-size: 12px;
   }
 }
 </style>

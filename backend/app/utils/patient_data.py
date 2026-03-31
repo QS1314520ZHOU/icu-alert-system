@@ -388,26 +388,32 @@ async def latest_params_by_pid(pid_input: str | list[str], codes: list[str], loo
             if his_pid and str(his_pid) not in pids:
                 pids.append(str(his_pid))
 
+    async def _scan(query: dict) -> tuple[dict, datetime | None]:
+        cursor = runtime.db.col("bedside").find(
+            query,
+            {"code": 1, "time": 1, "recordTime": 1, "strVal": 1, "intVal": 1, "fVal": 1},
+        ).sort("time", -1).limit(2000)
+        params = {}
+        latest_time = None
+        async for doc in cursor:
+            code = doc.get("code")
+            if not code or code in params:
+                continue
+            value = cap_value(doc)
+            if value is None:
+                continue
+            params[code] = value
+            point_time = cap_time(doc)
+            if point_time and (latest_time is None or point_time > latest_time):
+                latest_time = point_time
+            if len(params) >= len(codes):
+                break
+        return params, latest_time
+
     since = datetime.now() - timedelta(minutes=lookback_minutes)
-    cursor = runtime.db.col("bedside").find(
-        {"pid": {"$in": pids}, "code": {"$in": codes}, "time": {"$gte": since}},
-        {"code": 1, "time": 1, "strVal": 1, "intVal": 1, "fVal": 1},
-    ).sort("time", -1).limit(2000)
-    params = {}
-    latest_time = None
-    async for doc in cursor:
-        code = doc.get("code")
-        if not code or code in params:
-            continue
-        value = cap_value(doc)
-        if value is None:
-            continue
-        params[code] = value
-        point_time = cap_time(doc)
-        if point_time and (latest_time is None or point_time > latest_time):
-            latest_time = point_time
-        if len(params) >= len(codes):
-            break
+    params, latest_time = await _scan({"pid": {"$in": pids}, "code": {"$in": codes}, "time": {"$gte": since}})
+    if not params:
+        params, latest_time = await _scan({"pid": {"$in": pids}, "code": {"$in": codes}})
     if not params:
         return None
     return {"params": params, "time": latest_time}
@@ -416,26 +422,33 @@ async def latest_params_by_pid(pid_input: str | list[str], codes: list[str], loo
 async def latest_params_by_device(device_id: str, codes: list[str], lookback_minutes: int = 60) -> dict | None:
     if not device_id or not codes:
         return None
+
+    async def _scan(query: dict) -> tuple[dict, datetime | None]:
+        cursor = runtime.db.col("deviceCap").find(
+            query,
+            {"code": 1, "time": 1, "recordTime": 1, "strVal": 1, "intVal": 1, "fVal": 1},
+        ).sort("time", -1).limit(2000)
+        params = {}
+        latest_time = None
+        async for doc in cursor:
+            code = doc.get("code")
+            if not code or code in params:
+                continue
+            value = cap_value(doc)
+            if value is None:
+                continue
+            params[code] = value
+            point_time = cap_time(doc)
+            if point_time and (latest_time is None or point_time > latest_time):
+                latest_time = point_time
+            if len(params) >= len(codes):
+                break
+        return params, latest_time
+
     since = datetime.now() - timedelta(minutes=lookback_minutes)
-    cursor = runtime.db.col("deviceCap").find(
-        {"deviceID": device_id, "code": {"$in": codes}, "time": {"$gte": since}},
-        {"code": 1, "time": 1, "strVal": 1, "intVal": 1, "fVal": 1},
-    ).sort("time", -1).limit(2000)
-    params = {}
-    latest_time = None
-    async for doc in cursor:
-        code = doc.get("code")
-        if not code or code in params:
-            continue
-        value = cap_value(doc)
-        if value is None:
-            continue
-        params[code] = value
-        point_time = cap_time(doc)
-        if point_time and (latest_time is None or point_time > latest_time):
-            latest_time = point_time
-        if len(params) >= len(codes):
-            break
+    params, latest_time = await _scan({"deviceID": device_id, "code": {"$in": codes}, "time": {"$gte": since}})
+    if not params:
+        params, latest_time = await _scan({"deviceID": device_id, "code": {"$in": codes}})
     if not params:
         return None
     return {"params": params, "time": latest_time}

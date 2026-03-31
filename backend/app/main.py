@@ -5,13 +5,15 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+import traceback
 
 from app import runtime
 from app.alert_engine import AlertEngine
@@ -109,6 +111,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {exc}")
+    logger.error(traceback.format_exc())
+    # 同时也写到一个特定文件，方便我们读取
+    with open("d:\\icu-alert-system\\backend\\error.log", "a", encoding="utf-8") as f:
+        f.write(f"\n--- {datetime.now()} ---\n")
+        f.write(f"URL: {request.url}\n")
+        f.write(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"code": 500, "message": "Internal Server Error", "detail": str(exc)},
+    )
+
 
 app.include_router(admin_router)
 app.include_router(research_export_router)

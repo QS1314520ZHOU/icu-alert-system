@@ -75,12 +75,12 @@ class PalliativeTriggerScanner(BaseScanner):
                 "month": now.strftime("%Y-%m"),
                 "day": now.strftime("%Y-%m-%d"),
             }
-            latest = await self.engine.db.col("score_records").find_one(
+            latest = await self.engine.db.col("score").find_one(
                 {"patient_id": pid_str, "score_type": "palliative_trigger"},
                 sort=[("calc_time", -1)],
             )
             if latest:
-                await self.engine.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+                await self.engine.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
             else:
                 payload["created_at"] = now
-                await self.engine.db.col("score_records").insert_one(payload)
+                await self.engine.db.col("score").insert_one(payload)

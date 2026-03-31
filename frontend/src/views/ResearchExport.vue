@@ -1,18 +1,73 @@
 <template>
   <div class="research-export">
-    <h1 class="research-title">科研数据导出</h1>
+    <section class="hero">
+      <div>
+        <h1 class="research-title">科研数据导出</h1>
+        <p class="research-sub">从研究队列直接导出原始明细或研究数据集，并在提交前预览样本范围与命中量。</p>
+      </div>
+      <a-space>
+        <a-button size="small" :loading="historyLoading" @click="loadHistory">刷新历史</a-button>
+        <a-button size="small" :loading="previewLoading" @click="runPreview">更新预览</a-button>
+      </a-space>
+    </section>
 
-    <a-card class="research-card" title="新建导出任务">
+    <section class="history-kpis">
+      <div class="kpi-card">
+        <span>历史任务</span>
+        <strong>{{ history.length }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span>已完成</span>
+        <strong>{{ completedCount }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span>处理中</span>
+        <strong>{{ processingCount }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span>失败</span>
+        <strong>{{ failedCount }}</strong>
+      </div>
+    </section>
+
+    <a-card class="research-card" title="导出配置">
       <div class="form-grid">
         <div class="form-row">
-          <div class="form-label">数据类型</div>
-          <ACheckboxGroup v-model:value="form.data_types">
-            <a-checkbox value="vitals">生命体征</a-checkbox>
-            <a-checkbox value="labs">检验结果</a-checkbox>
-            <a-checkbox value="alerts">预警记录</a-checkbox>
-            <a-checkbox value="scores">评分数据</a-checkbox>
-            <a-checkbox value="ai_logs">人工智能分析日志</a-checkbox>
-          </ACheckboxGroup>
+          <div class="form-label">已保存队列</div>
+          <a-select
+            v-model:value="form.cohort_id"
+            class="w-420"
+            :options="cohortOptions"
+            :loading="cohortLoading"
+            allow-clear
+            show-search
+            option-filter-prop="label"
+            placeholder="可选：直接复用科研队列"
+            @change="onCohortChange"
+          />
+        </div>
+
+        <div class="form-row">
+          <div class="form-label">患者范围</div>
+          <ARadioGroup v-model:value="form.patient_scope">
+            <a-radio value="all">全部</a-radio>
+            <a-radio value="in_dept">在科</a-radio>
+            <a-radio value="out_dept">出科</a-radio>
+          </ARadioGroup>
+        </div>
+
+        <div class="form-row">
+          <div class="form-label">科室筛选</div>
+          <a-select
+            v-model:value="form.department"
+            class="w-420"
+            :options="departmentOptions"
+            :loading="departmentLoading"
+            allow-clear
+            show-search
+            option-filter-prop="label"
+            placeholder="可选：限定科室"
+          />
         </div>
 
         <div class="form-row">
@@ -27,148 +82,334 @@
         </div>
 
         <div class="form-row">
-          <div class="form-label">科室筛选</div>
-          <a-select
-            v-model:value="form.department"
-            class="w-420"
-            :options="departmentOptions"
-            :loading="departmentLoading"
-            :show-search="true"
-            option-filter-prop="label"
-            allow-clear
-            placeholder="全部科室"
-          />
+          <div class="form-label">导出模式</div>
+          <ARadioGroup v-model:value="form.export_mode">
+            <a-radio value="dataset">研究数据集</a-radio>
+            <a-radio value="raw">原始明细</a-radio>
+          </ARadioGroup>
         </div>
 
         <div class="form-row">
-          <div class="form-label">导出格式</div>
+          <div class="form-label">数据类型</div>
+          <ACheckboxGroup v-model:value="form.data_types">
+            <a-checkbox value="patients">患者主表</a-checkbox>
+            <a-checkbox value="outcomes">结局表</a-checkbox>
+            <a-checkbox value="vitals">生命体征</a-checkbox>
+            <a-checkbox value="labs">检验结果</a-checkbox>
+            <a-checkbox value="alerts">预警记录</a-checkbox>
+            <a-checkbox value="scores">评分数据</a-checkbox>
+            <a-checkbox value="ai_logs">人工智能日志</a-checkbox>
+          </ACheckboxGroup>
+        </div>
+
+        <div class="form-row">
+          <div class="form-label">文件格式</div>
           <ARadioGroup v-model:value="form.format">
-            <a-radio value="csv">逗号分隔文本（兼容表格软件）</a-radio>
-            <a-radio value="parquet">列式二进制文件（适合编程分析）</a-radio>
+            <a-radio value="csv">CSV</a-radio>
+            <a-radio value="parquet">Parquet</a-radio>
           </ARadioGroup>
         </div>
 
         <div class="form-row">
           <div class="form-label">导出选项</div>
           <div class="form-options">
-            <a-checkbox v-model:checked="form.desensitize">自动脱敏（隐藏姓名/身份证/手机号）</a-checkbox>
-            <a-checkbox v-model:checked="form.include_data_dict">附带数据字典（会额外生成字段说明文件）</a-checkbox>
+            <a-checkbox v-model:checked="form.desensitize">自动脱敏</a-checkbox>
+            <a-checkbox v-model:checked="form.include_data_dict">附带数据字典</a-checkbox>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-label"></div>
-          <a-button type="primary" :loading="submitting" @click="submitExport">提交导出任务</a-button>
+          <a-space>
+            <a-button :loading="previewLoading" @click="runPreview">预览导出范围</a-button>
+            <a-button type="primary" :loading="submitting" @click="submitExport">提交导出任务</a-button>
+          </a-space>
         </div>
       </div>
     </a-card>
 
-    <a-card v-if="activeTask" class="research-card" title="当前任务进度">
-      <p class="task-meta">任务编号：{{ activeTask.task_id }}</p>
+    <a-card class="research-card" title="导出预览">
+      <template v-if="preview">
+        <div class="preview-grid">
+          <div class="preview-kpi">
+            <span>患者数</span>
+            <strong>{{ Number(preview.scope_summary?.patient_count || 0) }}</strong>
+          </div>
+          <div class="preview-kpi">
+            <span>范围</span>
+            <strong>{{ patientScopeLabel(preview.scope_summary?.patient_scope) }}</strong>
+          </div>
+          <div class="preview-kpi">
+            <span>队列</span>
+            <strong>{{ preview.scope_summary?.cohort_name || '未指定' }}</strong>
+          </div>
+          <div class="preview-kpi">
+            <span>科室</span>
+            <strong>{{ preview.scope_summary?.department || '全部科室' }}</strong>
+          </div>
+        </div>
+        <div class="preview-highlights">
+          <span class="highlight-chip">
+            命中数据类型
+            <b>{{ previewNonEmptyCount }}/{{ previewRows.length }}</b>
+          </span>
+          <span class="highlight-chip">
+            预计总行数
+            <b>{{ previewTotalRows }}</b>
+          </span>
+          <span class="highlight-chip" v-if="previewEmptyLabels.length">
+            空类型
+            <b>{{ previewEmptyLabels.join('、') }}</b>
+          </span>
+        </div>
+        <div v-if="previewWarnings.length" class="warning-list">
+          <div v-for="item in previewWarnings" :key="item" class="warning-item">{{ item }}</div>
+        </div>
+        <a-table
+          :data-source="previewRows"
+          :columns="previewColumns"
+          :pagination="false"
+          row-key="data_type"
+          size="small"
+        />
+        <div v-if="previewPatients.length" class="preview-patient-block">
+          <div class="section-title">队列样本预览</div>
+          <a-table
+            :data-source="previewPatients"
+            :columns="previewPatientColumns"
+            :pagination="false"
+            row-key="patient_id"
+            size="small"
+          />
+        </div>
+      </template>
+      <div v-else class="empty-block">先选择导出条件并点击“预览导出范围”</div>
+    </a-card>
+
+    <a-card v-if="activeTask" class="research-card" title="当前任务">
+      <div class="task-head">
+        <span>任务编号：{{ activeTask.task_id }}</span>
+        <span>{{ statusLabel(activeTask.status) }}</span>
+      </div>
       <a-progress :percent="Number(activeTask.progress || 0)" :status="progressStatus" />
-      <p class="task-meta">状态：{{ statusLabel(activeTask.status) }}</p>
-      <a-button
-        v-if="activeTask.status === 'completed'"
-        type="primary"
-        class="download-btn"
-        @click="downloadTask(activeTask.task_id)"
-      >
-        下载文件
-      </a-button>
+      <div v-if="activeTask.scope_summary" class="task-summary">
+        <span>患者数 {{ Number(activeTask.scope_summary.patient_count || 0) }}</span>
+        <span>范围 {{ patientScopeLabel(activeTask.scope_summary.patient_scope) }}</span>
+        <span>模式 {{ exportModeLabel(activeTask.scope_summary.export_mode) }}</span>
+      </div>
+      <div v-if="Array.isArray(activeTask.warnings) && activeTask.warnings.length" class="warning-list task-warnings">
+        <div v-for="item in activeTask.warnings" :key="item" class="warning-item">{{ item }}</div>
+      </div>
+      <div v-if="activeTask.status === 'failed' && activeTask.error" class="error-panel">
+        <div class="section-title">失败原因</div>
+        <div class="error-text">{{ activeTask.error }}</div>
+      </div>
+      <div v-if="activeTask.status === 'completed'" class="download-row">
+        <a-button type="primary" @click="downloadTask(activeTask.task_id)">下载文件</a-button>
+      </div>
     </a-card>
 
     <a-card class="research-card">
       <template #title>导出历史</template>
       <template #extra>
-        <a-button size="small" @click="loadHistory">刷新</a-button>
+        <a-space>
+          <a-select v-model:value="historyFilters.status" style="width: 120px" :options="historyStatusOptions" allow-clear placeholder="任务状态" />
+          <a-select v-model:value="historyFilters.export_mode" style="width: 140px" :options="historyModeOptions" allow-clear placeholder="导出模式" />
+          <a-button size="small" :loading="historyLoading" @click="loadHistory">刷新</a-button>
+        </a-space>
       </template>
       <a-table
         :data-source="history"
         :columns="historyColumns"
         :pagination="{ pageSize: 8, hideOnSinglePage: true }"
         row-key="task_id"
+        size="small"
+        :custom-row="historyRowProps"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="statusTagColor(record.status)">{{ statusLabel(record.status) }}</a-tag>
           </template>
-          <template v-else-if="column.key === 'progress'">
-            {{ Number(record.progress || 0) }}%
-          </template>
-          <template v-else-if="column.key === 'row_count'">
-            <div v-if="taskSummaryItems(record).length" class="row-count-cell">
-              <span class="row-count-total">{{ taskTotalRowCount(record) }} 行</span>
-              <span class="row-count-meta">空文件 {{ taskEmptyFileCount(record) }}</span>
-              <span class="row-count-detail">{{ taskSummaryText(record) }}</span>
+          <template v-else-if="column.key === 'scope'">
+            <div class="history-scope">
+              <div>{{ record.scope_summary?.cohort_name || '未指定队列' }}</div>
+              <div class="muted">{{ patientScopeLabel(record.scope_summary?.patient_scope) }} / {{ Number(record.scope_summary?.patient_count || 0) }}例</div>
             </div>
-            <span v-else class="muted">—</span>
+          </template>
+          <template v-else-if="column.key === 'summary'">
+            <div class="history-summary">
+              <div>{{ taskSummaryText(record) || '—' }}</div>
+              <div class="muted">{{ exportModeLabel(record.scope_summary?.export_mode) }}</div>
+              <div v-if="Array.isArray(record.warnings) && record.warnings.length" class="muted">风险 {{ record.warnings.length }} 条</div>
+            </div>
           </template>
           <template v-else-if="column.key === 'created_at'">
             {{ formatTime(record.created_at) }}
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button
-              v-if="record.status === 'completed'"
-              size="small"
-              type="primary"
-              @click="downloadTask(record.task_id)"
-            >
-              下载
-            </a-button>
-            <span v-else class="muted">—</span>
+            <a-space>
+              <a-button size="small" @click="openDetail(record)">详情</a-button>
+              <a-button v-if="record.status === 'completed'" size="small" type="primary" @click="downloadTask(record.task_id)">下载</a-button>
+              <a-tag v-else-if="record.status === 'failed'" color="red">失败</a-tag>
+            </a-space>
           </template>
         </template>
       </a-table>
     </a-card>
+
+    <a-drawer v-model:open="detailOpen" title="导出任务详情" width="540">
+      <template v-if="detailTask">
+        <div class="detail-grid">
+          <div class="detail-item"><span>任务编号</span><strong>{{ detailTask.task_id }}</strong></div>
+          <div class="detail-item"><span>状态</span><strong>{{ statusLabel(detailTask.status) }}</strong></div>
+          <div class="detail-item"><span>患者范围</span><strong>{{ patientScopeLabel(detailTask.scope_summary?.patient_scope) }}</strong></div>
+          <div class="detail-item"><span>导出模式</span><strong>{{ exportModeLabel(detailTask.scope_summary?.export_mode) }}</strong></div>
+          <div class="detail-item"><span>患者数</span><strong>{{ Number(detailTask.scope_summary?.patient_count || 0) }}</strong></div>
+          <div class="detail-item"><span>科室</span><strong>{{ detailTask.scope_summary?.department || '全部科室' }}</strong></div>
+          <div class="detail-item full"><span>队列</span><strong>{{ detailTask.scope_summary?.cohort_name || '未指定队列' }}</strong></div>
+          <div class="detail-item full"><span>时间范围</span><strong>{{ detailTask.scope_summary?.time_range?.start || '—' }} ~ {{ detailTask.scope_summary?.time_range?.end || '—' }}</strong></div>
+        </div>
+        <div v-if="Array.isArray(detailTask.warnings) && detailTask.warnings.length" class="warning-list task-warnings">
+          <div v-for="item in detailTask.warnings" :key="item" class="warning-item">{{ item }}</div>
+        </div>
+        <div v-if="Array.isArray(detailTask.preview_patients) && detailTask.preview_patients.length" class="preview-patient-block">
+          <div class="section-title">样本预览</div>
+          <a-table
+            :data-source="detailTask.preview_patients"
+            :columns="previewPatientColumns"
+            :pagination="false"
+            row-key="patient_id"
+            size="small"
+          />
+        </div>
+        <div v-if="detailTask.error" class="error-panel">
+          <div class="section-title">失败原因</div>
+          <div class="error-text">{{ detailTask.error }}</div>
+        </div>
+        <div class="preview-patient-block">
+          <div class="section-title">导出文件摘要</div>
+          <a-table
+            :data-source="Array.isArray(detailTask.result_stats) ? detailTask.result_stats : []"
+            :columns="detailResultColumns"
+            :pagination="false"
+            row-key="file_name"
+            size="small"
+          />
+        </div>
+      </template>
+    </a-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import axios from 'axios'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import {
   Button as AButton,
   Card as ACard,
   Checkbox as ACheckbox,
   DatePicker,
+  Drawer as ADrawer,
   Progress as AProgress,
   Radio as ARadio,
   Select as ASelect,
+  Space as ASpace,
   Table as ATable,
   Tag as ATag,
   message,
 } from 'ant-design-vue'
-import { getDepartments } from '../api'
+import {
+  createResearchExportTask,
+  getDepartments,
+  getResearchExportTaskStatus,
+  listResearchCohorts,
+  listResearchExportHistory,
+  previewResearchExport,
+} from '../api'
 
 const ARangePicker = DatePicker.RangePicker
 const ACheckboxGroup = ACheckbox.Group
 const ARadioGroup = ARadio.Group
 
-const historyColumns = [
-  { title: '任务编号', dataIndex: 'task_id', key: 'task_id', width: 320 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
-  { title: '进度', dataIndex: 'progress', key: 'progress', width: 100 },
-  { title: '数据量', key: 'row_count', width: 260 },
-  { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 220 },
-  { title: '操作', key: 'action', width: 100 },
-]
+type AnyRecord = Record<string, any>
 
 const form = ref({
-  data_types: ['vitals'],
+  cohort_id: '',
   department: '',
-  time_range: undefined as [any, any] | undefined,
+  patient_scope: 'all',
+  time_range: [dayjs().subtract(30, 'day'), dayjs()] as [any, any],
+  export_mode: 'dataset',
+  data_types: ['patients', 'outcomes', 'labs'],
   format: 'csv',
   desensitize: true,
   include_data_dict: true,
 })
 
+const preview = ref<AnyRecord | null>(null)
+const previewLoading = ref(false)
 const submitting = ref(false)
-const activeTask = ref<any>(null)
-const history = ref<any[]>([])
+const historyLoading = ref(false)
+const activeTask = ref<AnyRecord | null>(null)
+const history = ref<AnyRecord[]>([])
+const departments = ref<AnyRecord[]>([])
+const cohorts = ref<AnyRecord[]>([])
 const departmentLoading = ref(false)
-const departments = ref<Array<{ dept: string; patientCount?: number }>>([])
+const cohortLoading = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
+const detailOpen = ref(false)
+const detailTask = ref<AnyRecord | null>(null)
+const historyFilters = ref({ status: undefined as string | undefined, export_mode: undefined as string | undefined })
+
+const previewColumns = [
+  { title: '数据类型', dataIndex: 'label', key: 'label' },
+  { title: '预估行数', dataIndex: 'row_count', key: 'row_count' },
+  { title: '状态', dataIndex: 'status_text', key: 'status_text' },
+]
+const previewPatientColumns = [
+  { title: '患者ID', dataIndex: 'patient_id', key: 'patient_id', width: 220 },
+  { title: '住院号', dataIndex: 'hisPid', key: 'hisPid', width: 160 },
+  { title: '科室', dataIndex: 'department', key: 'department', width: 140 },
+  { title: '科室编码', dataIndex: 'dept_code', key: 'dept_code', width: 120 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
+]
+
+const historyColumns = [
+  { title: '任务编号', dataIndex: 'task_id', key: 'task_id', width: 280 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
+  { title: '范围', key: 'scope', width: 220 },
+  { title: '导出摘要', key: 'summary', width: 320 },
+  { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
+  { title: '操作', key: 'action', width: 100 },
+]
+const historyStatusOptions = [
+  { label: '待处理', value: 'pending' },
+  { label: '处理中', value: 'processing' },
+  { label: '已完成', value: 'completed' },
+  { label: '失败', value: 'failed' },
+]
+const historyModeOptions = [
+  { label: '研究数据集', value: 'dataset' },
+  { label: '原始明细', value: 'raw' },
+]
+const detailResultColumns = [
+  { title: '数据类型', dataIndex: 'label', key: 'label' },
+  { title: '文件名', dataIndex: 'file_name', key: 'file_name' },
+  { title: '行数', dataIndex: 'row_count', key: 'row_count' },
+  { title: '是否为空', dataIndex: 'is_empty', key: 'is_empty' },
+]
+
+const departmentOptions = computed(() => departments.value
+  .filter((item) => String(item?.dept || '').trim())
+  .map((item) => ({
+    value: item.dept,
+    label: Number(item.patientCount || 0) > 0 ? `${item.dept} (${Number(item.patientCount || 0)})` : item.dept,
+  })))
+
+const cohortOptions = computed(() => cohorts.value.map((item) => {
+  const count = Number(item.n_patients || item.patient_count || item.patient_ids?.length || 0)
+  const name = item.name || item.cohort_id || '未命名队列'
+  return { value: item.cohort_id, label: `${name} (${count})` }
+}))
 
 const progressStatus = computed(() => {
   if (!activeTask.value) return 'active'
@@ -177,13 +418,27 @@ const progressStatus = computed(() => {
   return 'active'
 })
 
-function statusTagColor(status: string) {
-  return {
-    pending: 'blue',
-    processing: 'gold',
-    completed: 'green',
-    failed: 'red',
-  }[String(status || '').toLowerCase()] || 'default'
+const previewRows = computed(() => (preview.value?.data_type_estimates || []).map((item: AnyRecord) => ({
+  ...item,
+  status_text: Number(item.row_count || 0) > 0 ? '已命中' : '空',
+})))
+
+const previewWarnings = computed(() => Array.isArray(preview.value?.warnings) ? preview.value.warnings : [])
+const previewPatients = computed(() => Array.isArray(preview.value?.preview_patients) ? preview.value.preview_patients : [])
+const previewTotalRows = computed(() => previewRows.value.reduce((sum: number, item: AnyRecord) => sum + Number(item.row_count || 0), 0))
+const previewNonEmptyCount = computed(() => previewRows.value.filter((item: AnyRecord) => Number(item.row_count || 0) > 0).length)
+const previewEmptyLabels = computed(() => previewRows.value.filter((item: AnyRecord) => Number(item.row_count || 0) === 0).map((item: AnyRecord) => String(item.label || item.data_type || '')))
+const completedCount = computed(() => history.value.filter((item) => String(item.status) === 'completed').length)
+const processingCount = computed(() => history.value.filter((item) => ['pending', 'processing'].includes(String(item.status))).length)
+const failedCount = computed(() => history.value.filter((item) => String(item.status) === 'failed').length)
+
+function patientScopeLabel(value: any): string {
+  const map: Record<string, string> = { all: '全部', in_dept: '在科', out_dept: '出科' }
+  return map[String(value || 'all')] || '全部'
+}
+
+function exportModeLabel(value: any): string {
+  return String(value || '') === 'raw' ? '原始明细' : '研究数据集'
 }
 
 function statusLabel(status: string) {
@@ -195,55 +450,14 @@ function statusLabel(status: string) {
   }[String(status || '').toLowerCase()] || String(status || '未知')
 }
 
-function taskSummaryItems(record: any) {
-  return Array.isArray(record?.result_stats)
-    ? record.result_stats.filter((item: any) => item && typeof item === 'object')
-    : []
+function statusTagColor(status: string) {
+  return {
+    pending: 'blue',
+    processing: 'gold',
+    completed: 'green',
+    failed: 'red',
+  }[String(status || '').toLowerCase()] || 'default'
 }
-
-function taskTotalRowCount(record: any) {
-  return taskSummaryItems(record).reduce((sum: number, item: any) => {
-    const rows = Number(item?.row_count)
-    return Number.isFinite(rows) ? sum + rows : sum
-  }, 0)
-}
-
-function taskEmptyFileCount(record: any) {
-  return taskSummaryItems(record).reduce((sum: number, item: any) => {
-    const empty = item?.is_empty === true || Number(item?.row_count || 0) === 0
-    return sum + (empty ? 1 : 0)
-  }, 0)
-}
-
-function taskSummaryText(record: any) {
-  const labels: Record<string, string> = {
-    vitals: '生命体征',
-    labs: '检验',
-    alerts: '预警',
-    scores: '评分',
-    ai_logs: '人工智能日志',
-  }
-  return taskSummaryItems(record)
-    .map((item: any) => {
-      const key = String(item?.data_type || '')
-      const text = labels[key] || key || '数据'
-      const rows = Number(item?.row_count || 0)
-      return `${text}:${rows}`
-    })
-    .join(' / ')
-}
-
-const departmentOptions = computed(() =>
-  departments.value
-    .filter((item) => String(item?.dept || '').trim())
-    .map((item) => {
-      const count = Number(item?.patientCount || 0)
-      return {
-        value: item.dept,
-        label: count > 0 ? `${item.dept} (${count})` : item.dept,
-      }
-    })
-)
 
 function formatTime(value: any) {
   if (!value) return '—'
@@ -251,13 +465,53 @@ function formatTime(value: any) {
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : String(value)
 }
 
-function serializeRange(range: [any, any] | undefined) {
-  if (!Array.isArray(range) || range.length < 2) return null
-  const [start, end] = range
-  if (!start || !end || typeof start.format !== 'function' || typeof end.format !== 'function') return null
+function taskSummaryText(record: AnyRecord) {
+  const rows = Array.isArray(record?.result_stats) ? record.result_stats : []
+  return rows.map((item: AnyRecord) => `${item.label || item.data_type}:${Number(item.row_count || 0)}`).join(' / ')
+}
+
+function serializeRange() {
+  const range = form.value.time_range
+  if (!Array.isArray(range) || range.length < 2 || !range[0] || !range[1]) return null
   return {
-    start: start.format('YYYY-MM-DDTHH:mm:ss'),
-    end: end.format('YYYY-MM-DDTHH:mm:ss'),
+    start: range[0].format('YYYY-MM-DDTHH:mm:ss'),
+    end: range[1].format('YYYY-MM-DDTHH:mm:ss'),
+  }
+}
+
+function buildPayload() {
+  const timeRange = serializeRange()
+  return {
+    cohort_id: form.value.cohort_id || null,
+    department: form.value.department || null,
+    patient_scope: form.value.patient_scope,
+    time_range: timeRange,
+    export_mode: form.value.export_mode,
+    data_types: form.value.data_types,
+    format: form.value.format,
+    desensitize: form.value.desensitize,
+    include_data_dict: form.value.include_data_dict,
+  }
+}
+
+async function runPreview() {
+  if (!form.value.data_types.length) {
+    message.warning('请至少选择一种数据类型')
+    return
+  }
+  const payload = buildPayload()
+  if (!payload.time_range) {
+    message.warning('请选择时间范围')
+    return
+  }
+  previewLoading.value = true
+  try {
+    const res = await previewResearchExport(payload)
+    preview.value = res.data || {}
+  } catch (error: any) {
+    message.error(error?.response?.data?.detail || error?.message || '预览失败')
+  } finally {
+    previewLoading.value = false
   }
 }
 
@@ -266,28 +520,19 @@ async function submitExport() {
     message.warning('请至少选择一种数据类型')
     return
   }
-  const timeRange = serializeRange(form.value.time_range)
-  if (!timeRange) {
+  const payload = buildPayload()
+  if (!payload.time_range) {
     message.warning('请选择时间范围')
     return
   }
-
   submitting.value = true
   try {
-    const payload = {
-      data_types: form.value.data_types,
-      department: form.value.department || null,
-      time_range: timeRange,
-      format: form.value.format,
-      desensitize: form.value.desensitize,
-      include_data_dict: form.value.include_data_dict,
-    }
-    const res = await axios.post('/api/research/export', payload)
-    activeTask.value = { task_id: res.data.task_id, status: 'pending', progress: 0 }
+    const res = await createResearchExportTask(payload)
+    activeTask.value = { task_id: res.data.task_id, status: 'pending', progress: 0, scope_summary: preview.value?.scope_summary || null }
     message.success('导出任务已提交')
-    startPolling(res.data.task_id)
+    startPolling(String(res.data.task_id))
   } catch (error: any) {
-    message.error(`提交失败：${error?.response?.data?.detail || error?.message || '未知错误'}`)
+    message.error(error?.response?.data?.detail || error?.message || '提交失败')
   } finally {
     submitting.value = false
   }
@@ -297,14 +542,14 @@ function startPolling(taskId: string) {
   stopPolling()
   pollTimer = setInterval(async () => {
     try {
-      const res = await axios.get(`/api/research/export/${taskId}/status`)
-      activeTask.value = res.data
-      if (['completed', 'failed'].includes(String(res.data?.status || ''))) {
+      const res = await getResearchExportTaskStatus(taskId)
+      activeTask.value = res.data || {}
+      if (['completed', 'failed'].includes(String(activeTask.value?.status || ''))) {
         stopPolling()
-        loadHistory()
+        void loadHistory()
       }
     } catch {
-      // Keep polling for transient network errors.
+      // ignore transient errors
     }
   }, 2000)
 }
@@ -320,12 +565,30 @@ function downloadTask(taskId: string) {
   window.open(`/api/research/export/${taskId}/download`, '_blank')
 }
 
+function openDetail(record: AnyRecord) {
+  detailTask.value = record
+  detailOpen.value = true
+}
+
+function historyRowProps(record: AnyRecord) {
+  return {
+    style: { cursor: 'pointer' },
+    onClick: () => openDetail(record),
+  }
+}
+
 async function loadHistory() {
+  historyLoading.value = true
   try {
-    const res = await axios.get('/api/research/export/history')
+    const res = await listResearchExportHistory({
+      status: historyFilters.value.status,
+      export_mode: historyFilters.value.export_mode,
+    })
     history.value = Array.isArray(res.data?.history) ? res.data.history : []
   } catch {
     history.value = []
+  } finally {
+    historyLoading.value = false
   }
 }
 
@@ -333,8 +596,7 @@ async function loadDepartments() {
   departmentLoading.value = true
   try {
     const res = await getDepartments()
-    const rows = Array.isArray(res?.data?.departments) ? res.data.departments : []
-    departments.value = rows
+    departments.value = Array.isArray(res.data?.departments) ? res.data.departments : []
   } catch {
     departments.value = []
   } finally {
@@ -342,10 +604,45 @@ async function loadDepartments() {
   }
 }
 
-onMounted(() => {
-  loadHistory()
-  loadDepartments()
+async function loadCohorts() {
+  cohortLoading.value = true
+  try {
+    const res = await listResearchCohorts({ limit: 200 })
+    cohorts.value = Array.isArray(res.data?.cohorts) ? res.data.cohorts : []
+  } catch {
+    cohorts.value = []
+  } finally {
+    cohortLoading.value = false
+  }
+}
+
+function onCohortChange(cohortId: any) {
+  const matched = cohorts.value.find((item) => String(item.cohort_id) === String(cohortId))
+  if (!matched) return
+  form.value.department = matched.department || ''
+  form.value.patient_scope = matched.patient_scope || 'all'
+}
+
+watch(() => [form.value.cohort_id, form.value.department, form.value.patient_scope, form.value.export_mode, form.value.format, form.value.desensitize, form.value.include_data_dict, form.value.data_types.join('|'), String(form.value.time_range?.[0] || ''), String(form.value.time_range?.[1] || '')], () => {
+  preview.value = null
 })
+watch(() => [historyFilters.value.status, historyFilters.value.export_mode], () => {
+  void loadHistory()
+})
+
+watch(() => form.value.export_mode, (mode) => {
+  if (mode === 'dataset') {
+    const required = ['patients', 'outcomes']
+    form.value.data_types = Array.from(new Set([...required, ...form.value.data_types]))
+    return
+  }
+  form.value.data_types = form.value.data_types.filter((item) => !['patients', 'outcomes'].includes(String(item)))
+})
+
+onMounted(() => {
+  void Promise.all([loadHistory(), loadDepartments(), loadCohorts()])
+})
+
 onUnmounted(stopPolling)
 </script>
 
@@ -355,45 +652,63 @@ onUnmounted(stopPolling)
   display: grid;
   gap: 16px;
 }
+.hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
 .research-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 24px;
   color: #e8f7ff;
-  letter-spacing: 0.04em;
+}
+.research-sub {
+  margin: 6px 0 0;
+  color: #95b7d1;
 }
 .research-card {
   background: rgba(10, 26, 44, 0.86);
   border: 1px solid rgba(125, 211, 252, 0.18);
 }
+.history-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.kpi-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(8, 30, 48, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+}
+.kpi-card span {
+  display: block;
+  color: #8bb8d6;
+  font-size: 12px;
+}
+.kpi-card strong {
+  display: block;
+  margin-top: 6px;
+  color: #f4fbff;
+  font-size: 22px;
+}
 .research-card :deep(.ant-card-head-title),
 .research-card :deep(.ant-card-extra),
 .research-card :deep(.ant-checkbox-wrapper),
 .research-card :deep(.ant-radio-wrapper),
-.research-card :deep(.ant-form-item-label > label),
 .research-card :deep(.ant-select-selection-item),
 .research-card :deep(.ant-select-selection-placeholder),
 .research-card :deep(.ant-picker-input > input),
-.research-card :deep(.ant-picker-separator),
-.research-card :deep(.ant-picker-suffix),
 .research-card :deep(.ant-table),
 .research-card :deep(.ant-table-thead > tr > th),
 .research-card :deep(.ant-table-tbody > tr > td) {
   color: rgba(232, 247, 255, 0.92) !important;
 }
-.research-card :deep(.ant-input),
 .research-card :deep(.ant-select-selector),
 .research-card :deep(.ant-picker) {
   background: rgba(5, 20, 35, 0.72) !important;
   border-color: rgba(125, 211, 252, 0.28) !important;
-}
-.research-card :deep(.ant-picker-input > input::placeholder) {
-  color: rgba(180, 210, 230, 0.65) !important;
-}
-.research-card :deep(.ant-table-thead > tr > th) {
-  background: rgba(8, 30, 48, 0.88) !important;
-}
-.research-card :deep(.ant-table-tbody > tr > td) {
-  background: rgba(7, 24, 40, 0.7) !important;
 }
 .form-grid {
   display: grid;
@@ -418,30 +733,147 @@ onUnmounted(stopPolling)
   max-width: 420px;
   width: 100%;
 }
-.task-meta {
-  margin: 8px 0;
-  color: #9ab8cf;
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
 }
-.download-btn {
+.preview-kpi {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(8, 30, 48, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+}
+.preview-kpi span {
+  display: block;
+  color: #8bb8d6;
+  font-size: 12px;
+}
+.preview-kpi strong {
+  display: block;
+  margin-top: 6px;
+  color: #f4fbff;
+  font-size: 18px;
+}
+.warning-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.preview-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.highlight-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(11, 36, 56, 0.9);
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  color: #d8f5ff;
+  font-size: 12px;
+}
+.highlight-chip b {
+  color: #8ff3ff;
+  font-weight: 700;
+}
+.task-warnings {
   margin-top: 12px;
+  margin-bottom: 0;
+}
+.error-panel {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.28);
+  border: 1px solid rgba(248, 113, 113, 0.34);
+}
+.error-text {
+  color: #fecaca;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+.warning-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 196, 61, 0.12);
+  border: 1px solid rgba(255, 196, 61, 0.24);
+  color: #ffe29a;
+}
+.preview-patient-block {
+  margin-top: 14px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.detail-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(8, 30, 48, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+}
+.detail-item span {
+  display: block;
+  color: #8bb8d6;
+  font-size: 12px;
+}
+.detail-item strong {
+  display: block;
+  margin-top: 6px;
+  color: #f4fbff;
+  line-height: 1.5;
+}
+.detail-item.full {
+  grid-column: 1 / -1;
+}
+.section-title {
+  margin-bottom: 8px;
+  color: #d8f5ff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.task-head,
+.task-summary,
+.download-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.history-scope,
+.history-summary {
+  display: grid;
+  gap: 2px;
+}
+.research-card :deep(.ant-table-tbody > tr) {
+  transition: background-color 0.18s ease;
+}
+.research-card :deep(.ant-table-tbody > tr:hover > td) {
+  background: rgba(18, 45, 68, 0.88) !important;
 }
 .muted {
   color: #8da4bb;
 }
-.row-count-cell {
-  display: grid;
-  gap: 2px;
+.empty-block {
+  padding: 28px 0;
+  text-align: center;
+  color: #8da4bb;
 }
-.row-count-total {
-  color: #d8f5ff;
-  font-weight: 600;
-}
-.row-count-meta {
-  color: #8bb8d6;
-  font-size: 12px;
-}
-.row-count-detail {
-  color: #9ab8cf;
-  font-size: 12px;
+@media (max-width: 1200px) {
+  .preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .history-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

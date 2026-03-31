@@ -284,7 +284,7 @@ async def analytics_sepsis_bundle_compliance(
                 },
             }
 
-    raw_docs = [doc async for doc in runtime.db.col("score_records").find(query)]
+    raw_docs = [doc async for doc in runtime.db.col("score").find(query)]
     latest_by_episode: dict[str, dict] = {}
     for doc in raw_docs:
         key = _bundle_episode_key(doc)
@@ -476,7 +476,7 @@ async def analytics_weaning_summary(
     weaning_query: dict = {"score_type": "weaning_assessment", "month": month_norm}
     if patient_filter_ids is not None:
         weaning_query["patient_id"] = {"$in": patient_filter_ids}
-    docs = [doc async for doc in runtime.db.col("score_records").find(weaning_query).sort("calc_time", -1)]
+    docs = [doc async for doc in runtime.db.col("score").find(weaning_query).sort("calc_time", -1)]
     latest_by_patient: dict[str, dict] = {}
     for doc in docs:
         patient_id = str(doc.get("patient_id") or "").strip()

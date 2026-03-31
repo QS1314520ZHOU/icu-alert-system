@@ -27,6 +27,7 @@ class CohortBuildRequest(BaseModel):
     patient_ids: list[str] | None = None
     department: str | None = None
     dept_code: str | None = None
+    patient_scope: str = 'all'
 
 
 class CohortPersistRequest(CohortBuildRequest):
@@ -71,6 +72,7 @@ async def api_research_cohort_build(req: CohortBuildRequest):
             patient_ids=req.patient_ids,
             department=req.department,
             dept_code=req.dept_code,
+            patient_scope=req.patient_scope,
             config=runtime.config,
         )
     except Exception as exc:
@@ -88,6 +90,7 @@ async def api_research_cohort_save(req: CohortPersistRequest, request: Request):
             patient_ids=req.patient_ids,
             department=req.department,
             dept_code=req.dept_code,
+            patient_scope=req.patient_scope,
             config=runtime.config,
         )
     except Exception as exc:
@@ -105,6 +108,7 @@ async def api_research_cohort_save(req: CohortPersistRequest, request: Request):
         "filters": filters,
         "department": req.department,
         "dept_code": req.dept_code,
+        "patient_scope": req.patient_scope,
         "demographics": cohort.get("demographics"),
         "preview_patients": cohort.get("preview_patients"),
         "created_by": _actor(request),

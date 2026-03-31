@@ -12,6 +12,12 @@ const analyticsApi = axios.create({
   timeout: 30000,
 })
 
+// 科研分析任务可能需要较长排队/计算时间，单独提供更长超时窗口。
+const researchApi = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
+  timeout: 180000,
+})
+
 const bundleApi = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   timeout: 30000,
@@ -31,8 +37,8 @@ const aiApi = axios.create({
 // 获取科室列表
 export const getDepartments = () => api.get('/api/departments')
 
-// 获取在院患者列表（支持按科室筛选）
-export const getPatients = (params?: { dept?: string; dept_code?: string }) =>
+// 获取患者列表（支持按科室与科研范围筛选）
+export const getPatients = (params?: { dept?: string; dept_code?: string; patient_scope?: 'in_dept' | 'out_dept' | 'all' }) =>
   api.get('/api/patients', { params })
 
 // 获取患者生命体征
@@ -208,12 +214,25 @@ export const getAiSystemPanels = (patientId: string, params?: { window?: '24h' |
 export const getAiMdtWorkspace = (patientId: string) =>
   aiApi.get(`/api/ai/mdt-workspace/${patientId}`)
 
+export const getAiMdtWorkspaceSession = (patientId: string, sessionId: string) =>
+  aiApi.get(`/api/ai/mdt-workspace/${patientId}`, { params: { session_id: sessionId } })
+
+export const listAiMdtWorkspaceSessions = (patientId: string) =>
+  aiApi.get(`/api/ai/mdt-workspace/${patientId}/sessions`)
+
 export const saveAiMdtWorkspace = (
   patientId: string,
   payload: {
+    session_id?: string
+    phase?: string
     decisions?: Array<{ id?: string; action?: string; owner?: string; deadline?: string; monitoring?: string; review_time?: string; status?: string; note?: string }>
     consult_record?: string
     progress_record?: string
+    final_summary?: string
+    participants?: string[]
+    tags?: string[]
+    template_name?: string
+    activity_log?: Array<{ title?: string; detail?: string; created_at?: string }>
     order_drafts?: Array<{ id?: string; category?: string; order_text?: string; priority?: string; status?: string; source?: string }>
   }
 ) => aiApi.post(`/api/ai/mdt-workspace/${patientId}`, payload)
@@ -305,63 +324,75 @@ export const getThresholdReviewCenter = (params?: {
 
 // 科研分析工作台
 export const postResearchTable1 = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/table1', payload)
+  researchApi.post('/api/research/analytics/table1', payload)
 
 export const postResearchSurvival = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/survival', payload)
+  researchApi.post('/api/research/analytics/survival', payload)
 
 export const postResearchRegression = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/regression', payload)
+  researchApi.post('/api/research/analytics/regression', payload)
 
 export const postResearchRoc = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/roc', payload)
+  researchApi.post('/api/research/analytics/roc', payload)
 
 export const postResearchSubgroup = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/subgroup', payload)
+  researchApi.post('/api/research/analytics/subgroup', payload)
 
 export const postResearchTrend = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/trend', payload)
+  researchApi.post('/api/research/analytics/trend', payload)
 
 export const postResearchCorrelation = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/correlation', payload)
+  researchApi.post('/api/research/analytics/correlation', payload)
 
 export const postResearchDescriptive = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/descriptive', payload)
+  researchApi.post('/api/research/analytics/descriptive', payload)
 
 export const postResearchCohortBuild = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/cohort/build', payload)
+  researchApi.post('/api/research/cohort/build', payload)
 
 export const postResearchCohortPreview = postResearchCohortBuild
 
 export const postResearchCohortSave = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/cohort/save', payload)
+  researchApi.post('/api/research/cohort/save', payload)
 
 export const listResearchCohorts = (params?: { limit?: number }) =>
-  analyticsApi.get('/api/research/cohort/list', { params })
+  researchApi.get('/api/research/cohort/list', { params })
 
 export const deleteResearchCohort = (cohortId: string) =>
-  analyticsApi.delete(`/api/research/cohort/${encodeURIComponent(cohortId)}`)
+  researchApi.delete(`/api/research/cohort/${encodeURIComponent(cohortId)}`)
 
 export const getResearchAnalyticsTaskStatus = (taskId: string) =>
-  analyticsApi.get(`/api/research/analytics/tasks/${encodeURIComponent(taskId)}/status`)
+  researchApi.get(`/api/research/analytics/tasks/${encodeURIComponent(taskId)}/status`)
 
 export const postResearchExportFigure = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/export-figure', payload)
+  researchApi.post('/api/research/analytics/export-figure', payload)
 
 export const postResearchExportTable = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/export-table', payload)
+  researchApi.post('/api/research/analytics/export-table', payload)
 
 export const postResearchExportBundle = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/export-bundle', payload)
+  researchApi.post('/api/research/analytics/export-bundle', payload)
+
+export const previewResearchExport = (payload: Record<string, any>) =>
+  researchApi.post('/api/research/export/preview', payload)
+
+export const createResearchExportTask = (payload: Record<string, any>) =>
+  researchApi.post('/api/research/export', payload)
+
+export const getResearchExportTaskStatus = (taskId: string) =>
+  researchApi.get(`/api/research/export/${encodeURIComponent(taskId)}/status`)
+
+export const listResearchExportHistory = (params?: { status?: string; export_mode?: string }) =>
+  researchApi.get('/api/research/export/history', { params })
 
 export const saveResearchSession = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/analytics/session/save', payload)
+  researchApi.post('/api/research/analytics/session/save', payload)
 
 export const listResearchSessions = (params?: { limit?: number }) =>
-  analyticsApi.get('/api/research/analytics/session/list', { params })
+  researchApi.get('/api/research/analytics/session/list', { params })
 
 export const getResearchSession = (sessionId: string) =>
-  analyticsApi.get(`/api/research/analytics/session/${encodeURIComponent(sessionId)}`)
+  researchApi.get(`/api/research/analytics/session/${encodeURIComponent(sessionId)}`)
 
 export const postResearchAiInterpret = (payload: Record<string, any>) =>
   aiApi.post('/api/research/ai/interpret', payload)
@@ -370,10 +401,10 @@ export const postResearchAiPlan = (payload: Record<string, any>) =>
   aiApi.post('/api/research/ai/plan', payload)
 
 export const postResearchVariableSummary = (payload: Record<string, any>) =>
-  analyticsApi.post('/api/research/variables/batch-summary', payload)
+  researchApi.post('/api/research/variables/batch-summary', payload)
 
 export const getResearchIcdSearch = (params: { q?: string; limit?: number }) =>
-  analyticsApi.get('/api/research/icd/search', { params })
+  researchApi.get('/api/research/icd/search', { params })
 
 // 健康检查
 export const healthCheck = () => api.get('/health')

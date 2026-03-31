@@ -271,7 +271,7 @@ async def ai_subphenotype_profile(patient_id: str, refresh: bool = Query(default
         return {"code": 404, "message": "患者不存在"}
     try:
         if not refresh:
-            cached = await runtime.db.col("score_records").find_one({"patient_id": str(pid), "score_type": "clinical_subphenotype_profile"}, sort=[("calc_time", -1)])
+            cached = await runtime.db.col("score").find_one({"patient_id": str(pid), "score_type": "clinical_subphenotype_profile"}, sort=[("calc_time", -1)])
             if cached:
                 return {"code": 0, "profile": serialize_doc(cached)}
         profiler = CohortSubphenotypeProfiler(db=runtime.db, alert_engine=runtime.alert_engine)
@@ -295,7 +295,7 @@ async def ai_multi_agent_assessment(patient_id: str, refresh: bool = Query(defau
     try:
         record = None
         if not refresh:
-            record = await runtime.db.col("score_records").find_one({"patient_id": str(pid), "score_type": "multi_agent_mdt_assessment"}, sort=[("calc_time", -1)])
+            record = await runtime.db.col("score").find_one({"patient_id": str(pid), "score_type": "multi_agent_mdt_assessment"}, sort=[("calc_time", -1)])
         if not record:
             orchestrator = ICUMultiAgentOrchestrator(db=runtime.db, config=get_config(), alert_engine=runtime.alert_engine, rag_service=runtime.ai_rag_service, ai_monitor=runtime.ai_monitor, ai_handoff_service=runtime.ai_handoff_service)
             record = await orchestrator.orchestrated_assessment(str(pid))

@@ -345,7 +345,7 @@ class ICUMultiAgentOrchestrator:
             "conflicts": conflicts,
             "meta_agent": meta_plan,
         }
-        await self.db.col("score_records").insert_one(
+        await self.db.col("score").insert_one(
             {
                 "patient_id": patient_id,
                 "score_type": "multi_agent_mdt_assessment",

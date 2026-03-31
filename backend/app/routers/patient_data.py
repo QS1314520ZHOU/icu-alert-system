@@ -559,7 +559,7 @@ async def patient_assessments(patient_id: str):
     pid_str = str(pid)
     records: list[dict] = []
 
-    cursor = runtime.db.col("score_records").find({"patient_id": {"$in": [pid, pid_str]}}).sort("calc_time", -1).limit(50)
+    cursor = runtime.db.col("score").find({"patient_id": {"$in": [pid, pid_str]}}).sort("calc_time", -1).limit(50)
     async for doc in cursor:
         item = {
             "time": doc.get("calc_time") or doc.get("time") or doc.get("recordTime") or doc.get("created_at"),
@@ -779,7 +779,7 @@ async def patient_bedcard(patient_id: str):
         )
 
     metrics = {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": {}}
-    sofa_doc = await runtime.db.col("score_records").find_one({"patient_id": pid_str, "score_type": "sofa"}, sort=[("calc_time", -1)])
+    sofa_doc = await runtime.db.col("score").find_one({"patient_id": pid_str, "score_type": "sofa"}, sort=[("calc_time", -1)])
     if sofa_doc:
         metrics["sofa"] = sofa_doc.get("score")
 

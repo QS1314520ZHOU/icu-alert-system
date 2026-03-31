@@ -222,7 +222,7 @@ class PatientDigitalTwinService:
         now = datetime.now()
         since = now - timedelta(hours=max(int(hours or 24), 1))
         rows = [
-            doc async for doc in self.db.col("score_records").find(
+            doc async for doc in self.db.col("score").find(
                 {"patient_id": {"$in": [patient_id, patient_doc.get("_id")]}, "calc_time": {"$gte": since}},
                 {"score_type": 1, "score": 1, "risk_level": 1, "summary": 1, "calc_time": 1, "value": 1, "sofa_score": 1},
             ).sort("calc_time", -1).limit(60)
@@ -364,7 +364,7 @@ class PatientDigitalTwinService:
         for item in (medications.get("recent_orders") or [])[-12:]:
             timeline.append({"time": item.get("time"), "source": "medication", "type": "drug_order", "label": item.get("name") or "用药执行", "meta": item})
         for score_type, row in (scores.get("latest_by_type") or {}).items():
-            timeline.append({"time": row.get("calc_time"), "source": "score_records", "type": score_type, "label": row.get("summary") or score_type, "meta": row})
+            timeline.append({"time": row.get("calc_time"), "source": "score", "type": score_type, "label": row.get("summary") or score_type, "meta": row})
         imaging = text_signals.get("imaging") if isinstance(text_signals.get("imaging"), dict) else {}
         if imaging:
             timeline.append({"time": imaging.get("latest_report_time") or imaging.get("calc_time"), "source": "imaging", "type": "imaging_report_signal_analysis", "label": imaging.get("summary") or "影像信号更新"})
@@ -523,7 +523,7 @@ class PatientDigitalTwinService:
 
     async def latest_snapshot(self, patient_id: str, *, max_age_hours: int = 8) -> dict[str, Any] | None:
         since = datetime.now() - timedelta(hours=max(int(max_age_hours or 8), 1))
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {"patient_id": patient_id, "score_type": "digital_twin_snapshot", "calc_time": {"$gte": since}},
             sort=[("calc_time", -1)],
         )
@@ -532,7 +532,7 @@ class PatientDigitalTwinService:
         now = snapshot.get("calc_time") if isinstance(snapshot.get("calc_time"), datetime) else datetime.now()
         patient_id = str(snapshot.get("patient_id") or "").strip()
         stored_snapshot = self._storage_view(snapshot)
-        latest = await self.db.col("score_records").find_one(
+        latest = await self.db.col("score").find_one(
             {
                 "patient_id": patient_id,
                 "score_type": "digital_twin_snapshot",
@@ -541,10 +541,10 @@ class PatientDigitalTwinService:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": stored_snapshot})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": stored_snapshot})
             snapshot["_id"] = latest["_id"]
             return snapshot
-        result = await self.db.col("score_records").insert_one(stored_snapshot)
+        result = await self.db.col("score").insert_one(stored_snapshot)
         snapshot["_id"] = result.inserted_id
         return snapshot
 

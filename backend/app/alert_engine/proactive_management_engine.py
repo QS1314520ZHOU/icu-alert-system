@@ -321,18 +321,18 @@ class ProactiveManagementEngineMixin:
             "month": now.strftime("%Y-%m"),
             "day": now.strftime("%Y-%m-%d"),
         }
-        latest = await self.db.col("score_records").find_one({"patient_id": pid_str, "score_type": "proactive_management", "calc_time": {"$gte": now - timedelta(minutes=max(persist_window_minutes, 1))}}, sort=[("calc_time", -1)])
+        latest = await self.db.col("score").find_one({"patient_id": pid_str, "score_type": "proactive_management", "calc_time": {"$gte": now - timedelta(minutes=max(persist_window_minutes, 1))}}, sort=[("calc_time", -1)])
         if latest:
-            await self.db.col("score_records").update_one({"_id": latest["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": payload})
             payload["_id"] = latest["_id"]
         else:
-            res = await self.db.col("score_records").insert_one(payload)
+            res = await self.db.col("score").insert_one(payload)
             payload["_id"] = res.inserted_id
         return payload
 
     async def _latest_proactive_management_record(self, patient_id: str, hours: int = 24) -> dict | None:
         since = datetime.now() - timedelta(hours=max(hours, 1))
-        return await self.db.col("score_records").find_one({"patient_id": str(patient_id), "score_type": "proactive_management", "calc_time": {"$gte": since}}, sort=[("calc_time", -1)])
+        return await self.db.col("score").find_one({"patient_id": str(patient_id), "score_type": "proactive_management", "calc_time": {"$gte": since}}, sort=[("calc_time", -1)])
 
     async def continuous_risk_assessment(self, patient_id) -> dict[str, Any] | None:
         patient_doc, pid_str = await self._load_patient(patient_id)
@@ -374,7 +374,7 @@ class ProactiveManagementEngineMixin:
         patient_doc, pid_str = await self._load_patient(patient_id)
         if not patient_doc:
             return None
-        record = await self.db.col("score_records").find_one({"_id": record_id, "patient_id": pid_str, "score_type": "proactive_management"}) if record_id is not None else None
+        record = await self.db.col("score").find_one({"_id": record_id, "patient_id": pid_str, "score_type": "proactive_management"}) if record_id is not None else None
         if not record:
             record = await self._latest_proactive_management_record(pid_str, hours=72)
         if not record:
@@ -409,8 +409,8 @@ class ProactiveManagementEngineMixin:
             "effect": effect,
         }
 
-        await self.db.col("score_records").update_one({"_id": record["_id"]}, {"$set": {"interventions": interventions, "updated_at": now, "last_intervention_feedback_at": now}})
-        return await self.db.col("score_records").find_one({"_id": record["_id"]})
+        await self.db.col("score").update_one({"_id": record["_id"]}, {"$set": {"interventions": interventions, "updated_at": now, "last_intervention_feedback_at": now}})
+        return await self.db.col("score").find_one({"_id": record["_id"]})
 
     async def scan_proactive_management(self) -> None:
         from .scanner_proactive_management import ProactiveManagementScanner

@@ -40,6 +40,10 @@ logs/
 # Local tooling / temp artifacts
 .claude/
 tmp_test_write.txt
+tmp/
+tmp_investigation_step*.py
+diff_output.txt
+investigation_step*.log
 backend/app/**/*.bak_test
 backend/app/**/tmp.txt
 backend/backend/

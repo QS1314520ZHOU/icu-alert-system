@@ -11,7 +11,7 @@ from fastapi import APIRouter, Body, Query
 from app import runtime
 from app.utils.analytics_ai import summarize_weaning_timeline
 from app.utils.alerting import derive_sepsis_bundle_status, normalize_sbt_status, normalize_weaning_status
-from app.utils.patient_helpers import admitted_patient_query, calculate_age, infer_clinical_tags
+from app.utils.patient_helpers import admitted_patient_query, calculate_age, infer_clinical_tags, research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
 
 router = APIRouter()
@@ -39,9 +39,10 @@ async def get_departments():
 async def get_patients(
     dept: Optional[str] = Query(None, description="科室名称"),
     dept_code: Optional[str] = Query(None, description="科室代码"),
+    patient_scope: Optional[str] = Query('all', description="患者范围: in_dept / out_dept / all"),
 ):
-    """获取在院患者列表，可按科室筛选"""
-    query: dict = admitted_patient_query()
+    """获取患者列表，可按科室与科研范围筛选"""
+    query: dict = research_patient_scope_query(patient_scope)
     if dept:
         query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}]}]}
     elif dept_code:
@@ -179,7 +180,7 @@ async def patient_personalized_thresholds(
     query: dict = {"patient_id": str(pid), "score_type": "personalized_thresholds"}
     if status:
         query["status"] = str(status).strip().lower()
-    doc = await runtime.db.col("score_records").find_one(query, sort=[("calc_time", -1)])
+    doc = await runtime.db.col("score").find_one(query, sort=[("calc_time", -1)])
     return {"code": 0, "record": serialize_doc(doc) if doc else None}
 
 
@@ -200,7 +201,7 @@ async def patient_personalized_threshold_history(
     query: dict = {"patient_id": str(pid), "score_type": "personalized_thresholds"}
     if status:
         query["status"] = str(status).strip().lower()
-    cursor = runtime.db.col("score_records").find(query).sort("calc_time", -1).limit(limit)
+    cursor = runtime.db.col("score").find(query).sort("calc_time", -1).limit(limit)
     rows = [serialize_doc(doc) async for doc in cursor]
     return {"code": 0, "rows": rows}
 
@@ -227,7 +228,7 @@ async def review_patient_personalized_threshold(
     if not patient:
         return {"code": 404, "message": "患者不存在"}
 
-    record = await runtime.db.col("score_records").find_one(
+    record = await runtime.db.col("score").find_one(
         {"_id": rid, "patient_id": str(pid), "score_type": "personalized_thresholds"}
     )
     if not record:
@@ -241,8 +242,8 @@ async def review_patient_personalized_threshold(
         "reviewer": str((payload or {}).get("reviewer") or "").strip(),
         "review_comment": str((payload or {}).get("review_comment") or "").strip(),
     }
-    await runtime.db.col("score_records").update_one({"_id": rid}, {"$set": update_fields})
-    updated = await runtime.db.col("score_records").find_one({"_id": rid})
+    await runtime.db.col("score").update_one({"_id": rid}, {"$set": update_fields})
+    updated = await runtime.db.col("score").find_one({"_id": rid})
     return {"code": 0, "record": serialize_doc(updated)}
 
 
@@ -257,7 +258,7 @@ async def personalized_threshold_review_center(
     if normalized_status:
         query["status"] = normalized_status
 
-    cursor = runtime.db.col("score_records").find(query).sort("calc_time", -1).limit(min(max(limit * 3, 80), 300))
+    cursor = runtime.db.col("score").find(query).sort("calc_time", -1).limit(min(max(limit * 3, 80), 300))
     docs = [doc async for doc in cursor]
 
     status_order = {"pending_review": 0, "approved": 1, "rejected": 2}
@@ -298,9 +299,9 @@ async def personalized_threshold_review_center(
         )
 
     summary = {
-        "pending_review": await runtime.db.col("score_records").count_documents({"score_type": "personalized_thresholds", "status": "pending_review"}),
-        "approved": await runtime.db.col("score_records").count_documents({"score_type": "personalized_thresholds", "status": "approved"}),
-        "rejected": await runtime.db.col("score_records").count_documents({"score_type": "personalized_thresholds", "status": "rejected"}),
+        "pending_review": await runtime.db.col("score").count_documents({"score_type": "personalized_thresholds", "status": "pending_review"}),
+        "approved": await runtime.db.col("score").count_documents({"score_type": "personalized_thresholds", "status": "approved"}),
+        "rejected": await runtime.db.col("score").count_documents({"score_type": "personalized_thresholds", "status": "rejected"}),
     }
     return {"code": 0, "summary": summary, "rows": rows}
 
@@ -332,7 +333,7 @@ async def patient_sepsis_bundle_status(patient_id: str):
         return {"code": 404, "message": "患者不存在"}
 
     pid_str = str(pid)
-    tracker = await runtime.db.col("score_records").find_one(
+    tracker = await runtime.db.col("score").find_one(
         {
             "patient_id": pid_str,
             "score_type": "sepsis_antibiotic_bundle",
@@ -342,7 +343,7 @@ async def patient_sepsis_bundle_status(patient_id: str):
         sort=[("bundle_started_at", -1)],
     )
     if not tracker:
-        tracker = await runtime.db.col("score_records").find_one(
+        tracker = await runtime.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "sepsis_antibiotic_bundle",
@@ -366,11 +367,11 @@ async def patient_weaning_status(patient_id: str):
         return {"code": 404, "message": "患者不存在"}
 
     pid_str = str(pid)
-    weaning_doc = await runtime.db.col("score_records").find_one(
+    weaning_doc = await runtime.db.col("score").find_one(
         {"patient_id": pid_str, "score_type": "weaning_assessment"},
         sort=[("calc_time", -1)],
     )
-    sbt_doc = await runtime.db.col("score_records").find_one(
+    sbt_doc = await runtime.db.col("score").find_one(
         {"patient_id": pid_str, "score_type": "sbt_assessment"},
         sort=[("trial_time", -1), ("calc_time", -1)],
     )
@@ -405,7 +406,7 @@ async def patient_sbt_records(patient_id: str, limit: int = Query(default=20, ge
     if not patient:
         return {"code": 404, "message": "患者不存在"}
 
-    cursor = runtime.db.col("score_records").find(
+    cursor = runtime.db.col("score").find(
         {"patient_id": str(pid), "score_type": "sbt_assessment"},
         {
             "patient_id": 1,
@@ -457,7 +458,7 @@ async def patient_weaning_timeline(patient_id: str, limit: int = Query(default=4
     pid_str = str(pid)
     timeline: list[dict] = []
 
-    sbt_cursor = runtime.db.col("score_records").find(
+    sbt_cursor = runtime.db.col("score").find(
         {"patient_id": pid_str, "score_type": "sbt_assessment"},
         {
             "result": 1,
@@ -500,7 +501,7 @@ async def patient_weaning_timeline(patient_id: str, limit: int = Query(default=4
             }
         )
 
-    weaning_cursor = runtime.db.col("score_records").find(
+    weaning_cursor = runtime.db.col("score").find(
         {"patient_id": pid_str, "score_type": "weaning_assessment"},
         {
             "risk_score": 1,
@@ -533,7 +534,7 @@ async def patient_weaning_timeline(patient_id: str, limit: int = Query(default=4
                 "title": row.get("recommendation") or "撤机评估",
                 "status": row.get("risk_level"),
                 "severity": row.get("severity"),
-                "source": "score_records",
+                "source": "score",
                 "detail": {
                     "risk_score": row.get("risk_score"),
                     "factors": row.get("factors"),
@@ -633,11 +634,11 @@ async def patient_weaning_timeline(patient_id: str, limit: int = Query(default=4
         )
 
     liberation_bundle = await runtime.alert_engine.get_liberation_bundle_status(patient)
-    latest_weaning_doc = await runtime.db.col("score_records").find_one(
+    latest_weaning_doc = await runtime.db.col("score").find_one(
         {"patient_id": pid_str, "score_type": "weaning_assessment"},
         sort=[("calc_time", -1)],
     )
-    latest_sbt_doc = await runtime.db.col("score_records").find_one(
+    latest_sbt_doc = await runtime.db.col("score").find_one(
         {"patient_id": pid_str, "score_type": "sbt_assessment"},
         sort=[("trial_time", -1), ("calc_time", -1)],
     )

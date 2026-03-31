@@ -178,7 +178,7 @@ class TemporalRiskScannerMixin:
 
     async def _latest_temporal_risk_record(self, pid_str: str, hours: int = 6) -> dict | None:
         since = datetime.now() - timedelta(hours=max(hours, 1))
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "temporal_risk_scanner",

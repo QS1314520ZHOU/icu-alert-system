@@ -174,13 +174,13 @@ class AiHandoffService:
         drugs = [d async for d in cursor_d]
 
         # 12h assessments
-        cursor_s = self.db.col("score_records").find(
+        cursor_s = self.db.col("score").find(
             {"patient_id": {"$in": [patient_doc.get("_id"), patient_id]}, "calc_time": {"$gte": since}},
             {"score_type": 1, "score": 1, "calc_time": 1, "detail": 1},
         ).sort("calc_time", -1).limit(80)
         assessments = [d async for d in cursor_s]
 
-        palliative = await self.db.col("score_records").find_one(
+        palliative = await self.db.col("score").find_one(
             {"patient_id": patient_id, "score_type": "palliative_trigger"},
             sort=[("calc_time", -1)],
         )

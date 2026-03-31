@@ -59,7 +59,7 @@ class ImmunocompromisedMonitorMixin:
         return None
 
     async def _get_active_neutropenic_bundle_tracker(self, pid_str: str) -> dict | None:
-        return await self.db.col("score_records").find_one(
+        return await self.db.col("score").find_one(
             {
                 "patient_id": pid_str,
                 "score_type": "sepsis_antibiotic_bundle",
@@ -111,11 +111,11 @@ class ImmunocompromisedMonitorMixin:
         }
         active = await self._get_active_neutropenic_bundle_tracker(pid_str)
         if active:
-            await self.db.col("score_records").update_one({"_id": active["_id"]}, {"$set": payload})
+            await self.db.col("score").update_one({"_id": active["_id"]}, {"$set": payload})
             active.update(payload)
             return active
         payload["created_at"] = now
-        res = await self.db.col("score_records").insert_one(payload)
+        res = await self.db.col("score").insert_one(payload)
         payload["_id"] = res.inserted_id
         return payload
 
@@ -139,7 +139,7 @@ class ImmunocompromisedMonitorMixin:
         if first_broad and isinstance(first_broad.get("time"), datetime):
             elapsed_seconds = (first_broad["time"] - started).total_seconds()
             compliant = elapsed_seconds <= 3600
-            await self.db.col("score_records").update_one(
+            await self.db.col("score").update_one(
                 {"_id": tracker["_id"]},
                 {
                     "$set": {
@@ -184,7 +184,7 @@ class ImmunocompromisedMonitorMixin:
             )
             if alert:
                 fired += 1
-        await self.db.col("score_records").update_one(
+        await self.db.col("score").update_one(
             {"_id": tracker["_id"]},
             {
                 "$set": {
