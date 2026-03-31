@@ -1,0 +1,44 @@
+[Unit]
+Description=ICU智能预警系统 FastAPI 主服务
+After=network.target mongod.service
+Wants=mongod.service
+
+[Service]
+Type=simple
+User=icu
+Group=icu
+WorkingDirectory=/opt/icu-alert-system/backend
+
+# ── 环境 ──────────────────────────────────────────
+EnvironmentFile=-/opt/icu-alert-system/backend/.env
+Environment=PYTHONUNBUFFERED=1
+
+# ── 启动 ──────────────────────────────────────────
+ExecStart=/opt/icu-alert-system/.venv/bin/uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 2 \
+    --loop uvloop \
+    --access-log \
+    --log-level info
+
+# ── 重启策略 ──────────────────────────────────────
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# ── 健康检查（systemd 240+）──────────────────────
+# 也可使用外部 monit/supervisor 调用 GET /api/health
+
+# ── 资源限制 ──────────────────────────────────────
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# ── 日志 ──────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=icu-alert-api
+
+[Install]
+WantedBy=multi-user.target
