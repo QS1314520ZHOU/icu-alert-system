@@ -126,10 +126,16 @@ SmartCare / DataCenter / Redis
 
 ```powershell
 cd backend
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.cpu.txt
 ```
 
-科研分析相关依赖（含 `pandas / scipy / lifelines / scikit-learn / matplotlib / seaborn / python-docx / statsmodels`）已统一放在 `backend/requirements.txt`。
+可选安装入口如下：
+
+- CPU 版：`backend/requirements.cpu.txt`
+- GPU 版：`backend/requirements.gpu.txt`
+- 默认兼容入口：`backend/requirements.txt`，当前等同于 CPU 版
+
+科研分析相关依赖（含 `pandas / scipy / lifelines / scikit-learn / matplotlib / seaborn / python-docx / statsmodels`）已统一放在共享文件 `backend/requirements.analytics.txt`。
 
 ### 4.1 后端 API
 

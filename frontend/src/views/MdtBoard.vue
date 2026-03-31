@@ -9,6 +9,7 @@
           <span class="hero-badge">{{ loading ? '会诊处理中' : '会诊就绪' }}</span>
           <span v-if="workspaceDirty" class="hero-badge hero-badge--warning">有未保存变更</span>
           <span class="hero-badge hero-badge--soft">{{ selectedPatientLabel }}</span>
+          <span class="hero-badge hero-badge--focus">聚焦 {{ activeSystemLabel }}</span>
           <span v-if="currentSessionId" class="hero-badge hero-badge--soft">会话 {{ currentSessionLabel }}</span>
           <span class="hero-badge hero-badge--soft">阶段 {{ currentPhaseLabel }}</span>
           <span :class="['hero-badge', `hero-badge--${mdtSeverityTone}`]">风险 {{ mdtSeverityLabel }}</span>
@@ -109,6 +110,9 @@
                 {{ item.label }}
               </option>
             </select>
+            <div v-if="selectedPatientOutOfDeptHint" class="toolbar-hint">
+              {{ selectedPatientOutOfDeptHint }}
+            </div>
           </div>
         <div class="mdt-toolbar__actions">
           <a-button size="small" type="primary" :loading="loading" @click="loadAssessment(true)">刷新会诊</a-button>
@@ -165,7 +169,7 @@
 
         <a-card :bordered="false" class="mdt-panel" title="七大生理系统">
           <div class="system-grid">
-            <article v-for="item in systemCards" :key="item.agent" :class="['system-card', `is-${item.priority || 'medium'}`, { 'is-active': activeSpecialist?.agent === item.agent }]" @click="activeAgent = item.agent">
+            <article v-for="item in systemCards" :key="item.agent" :class="['system-card', `is-${item.priority || 'medium'}`, { 'is-active': activeSpecialist?.agent === item.agent }]" @click="selectSpecialist(item.agent)">
               <div class="system-card__head">
                 <div>
                   <div class="system-card__domain">{{ item.label }}</div>
@@ -180,13 +184,28 @@
 
         <a-card :bordered="false" class="mdt-panel" title="专科意见板">
           <div v-if="specialistRows.length" class="specialist-list">
-            <article v-for="item in specialistRows" :key="item.agent" :class="['specialist-row', `is-${item.priority || 'medium'}`, { 'is-active': activeSpecialist?.agent === item.agent }]" @click="activeAgent = item.agent">
+            <article v-for="item in specialistRows" :key="item.agent" :class="['specialist-row', `is-${item.priority || 'medium'}`, { 'is-active': activeSpecialist?.agent === item.agent }]" @click="selectSpecialist(item.agent)">
               <div class="specialist-row__main">
                 <div class="specialist-row__domain">{{ domainLabel(item.domain) }}</div>
                 <div class="specialist-row__summary">{{ item.summary || '暂无摘要' }}</div>
               </div>
-              <div class="specialist-row__meta">{{ priorityLabel(item.priority) }}</div>
+              <div class="specialist-row__meta">
+                <span>{{ priorityLabel(item.priority) }}</span>
+                <span v-if="activeSpecialist?.agent === item.agent" class="row-active-chip">当前聚焦</span>
+              </div>
             </article>
+          </div>
+          <div v-if="activeSpecialist" class="focus-specialist-card">
+            <div class="focus-specialist-card__head">
+              <strong>当前聚焦：{{ activeSystemLabel }}</strong>
+              <span>{{ priorityLabel(activeSpecialist.priority) }}</span>
+            </div>
+            <div class="focus-specialist-card__summary">{{ activeSpecialist.summary || '暂无该专科摘要' }}</div>
+            <div class="session-chip-row">
+              <span class="session-chip">{{ (activeSpecialist.concerns || []).length }} 条关注点</span>
+              <span class="session-chip">{{ (activeSpecialist.recommendations || []).length }} 条建议</span>
+              <span class="session-chip">{{ (activeSpecialist.evidence || []).length }} 条证据</span>
+            </div>
           </div>
           <div v-else-if="isGeneratingAssessment" class="empty-box">已选中患者，正在生成 MDT 会诊结果，请稍候。</div>
           <div v-else class="empty-box">选择患者后加载会诊结果。</div>
@@ -423,7 +442,7 @@
           </a-card>
         </div>
 
-        <div class="mdt-content-grid">
+        <div :class="['mdt-content-grid', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
           <a-card :bordered="false" class="mdt-panel" title="MDT 冲突高亮">
             <div v-if="conflictRows.length" class="conflict-list">
               <article v-for="(item, idx) in conflictRows" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-card">
@@ -447,7 +466,7 @@
             <div v-else class="empty-box">当前没有需要额外解释的跨专科冲突。</div>
           </a-card>
 
-          <a-card :bordered="false" class="mdt-panel" title="专科意见与智能预填充">
+          <a-card :bordered="false" class="mdt-panel" :title="`专科意见与智能预填充 · ${activeSystemLabel}`">
             <div v-if="activeSpecialist" class="detail-stack">
               <div class="summary-box">{{ activeSpecialist.summary || '暂无摘要' }}</div>
               <div class="detail-block">
@@ -474,7 +493,7 @@
           </a-card>
         </div>
 
-        <div class="mdt-content-grid">
+        <div :class="['mdt-content-grid', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
           <a-card :bordered="false" class="mdt-panel" title="会诊活动时间线">
             <div v-if="activityTimelineRows.length" class="detail-timeline">
               <article v-for="item in activityTimelineRows" :key="item.id" class="timeline-item">
@@ -615,7 +634,7 @@
           </a-card>
         </div>
 
-        <div class="mdt-content-grid">
+        <div :class="['mdt-content-grid', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
           <a-card :bordered="false" class="mdt-panel" title="会诊记录 / 病程记录">
             <div v-if="viewMode === 'moderator'" class="doc-stack doc-stack--compact">
               <div class="doc-block">
@@ -783,7 +802,7 @@ const sessionTemplates = [
 const patientOptions = computed(() =>
   patients.value.map((item: any) => ({
     value: String(item?._id || ''),
-    label: `${item?.hisBed || '--'}床 · ${item?.name || item?.hisName || '未知患者'} · ${item?.clinicalDiagnosis || item?.admissionDiagnosis || '暂无诊断'}`,
+    label: `${item?.hisBed || '--'}床 · ${item?.name || item?.hisName || '未知患者'} · ${item?.clinicalDiagnosis || item?.admissionDiagnosis || '暂无诊断'}${item?.__mdtFallbackCurrent ? ' · 当前已选（非当前科室在线）' : ''}`,
   }))
 )
 const assessmentRecord = computed(() => assessment.value?.assessment || assessment.value || null)
@@ -1010,6 +1029,11 @@ const selectedPatientLabel = computed(() => {
   }
   return selectedPatientId.value ? '患者已选择' : '未选择患者'
 })
+const selectedPatientOutOfDeptHint = computed(() => {
+  const selected = patients.value.find((item: any) => String(item?._id || '') === String(selectedPatientId.value || ''))
+  if (!selected?.__mdtFallbackCurrent) return ''
+  return '当前患者为已带入会诊对象，不在当前科室在线患者列表中。'
+})
 const currentSessionLabel = computed(() => {
   const hit = workspaceSessions.value.find((item: any) => String(item.session_id || '') === String(currentSessionId.value || ''))
   return hit?.title || '当前会话'
@@ -1226,10 +1250,27 @@ function buildTemplateDecisions(template: typeof sessionTemplates[number]) {
   }))
 }
 
+function selectSpecialist(agent: string) {
+  activeAgent.value = agent
+}
+
 async function loadPatientOptions() {
   const deptCode = String(route.query.deptCode || route.query.dept_code || '')
-  const res = await getPatients(deptCode ? { dept_code: deptCode } : undefined)
-  patients.value = Array.isArray(res.data?.patients) ? res.data.patients : []
+  const res = await getPatients(deptCode ? { dept_code: deptCode, patient_scope: 'in_dept' } : { patient_scope: 'in_dept' })
+  const list = Array.isArray(res.data?.patients) ? res.data.patients : []
+  const currentId = String(selectedPatientId.value || route.query.patient_id || route.query.patientId || '').trim()
+  if (currentId && !list.some((item: any) => String(item?._id || '') === currentId)) {
+    try {
+      const detailRes = await getPatientDetail(currentId)
+      const currentPatient = detailRes.data?.patient
+      if (currentPatient?._id) {
+        list.unshift({ ...currentPatient, __mdtFallbackCurrent: true })
+      }
+    } catch {
+      // Ignore fallback failures so the in-dept list can still render normally.
+    }
+  }
+  patients.value = list
 }
 
 async function loadWorkspaceExtras(patientId: string) {
@@ -1693,6 +1734,11 @@ onMounted(async () => {
   background: rgba(10, 21, 34, 0.72);
   color: #b4ccda;
 }
+.hero-badge--focus {
+  background: rgba(12, 45, 68, 0.92);
+  border-color: rgba(34, 211, 238, 0.28);
+  color: #d4fbff;
+}
 .hero-badge--critical {
   background: rgba(78, 18, 30, 0.86);
   border-color: rgba(251, 113, 133, 0.28);
@@ -1804,6 +1850,15 @@ onMounted(async () => {
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+.toolbar-hint {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(71, 43, 8, 0.3);
+  color: #f7d08a;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .mdt-toolbar__row,
 .mdt-toolbar__actions,
@@ -2036,12 +2091,57 @@ onMounted(async () => {
   color: #9eb8c7;
 }
 .specialist-row__meta {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
   color: #9eb8c7;
   font-size: 11px;
   white-space: nowrap;
 }
+.row-active-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(12, 45, 68, 0.92);
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  color: #d4fbff;
+  font-size: 10px;
+}
+.focus-specialist-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  background: linear-gradient(180deg, rgba(14, 27, 41, 0.96), rgba(9, 19, 30, 0.94));
+}
+.focus-specialist-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.focus-specialist-card__head strong {
+  color: #f3f8fb;
+  font-size: 13px;
+}
+.focus-specialist-card__head span {
+  color: #9eb8c7;
+  font-size: 11px;
+}
+.focus-specialist-card__summary {
+  color: #d7e7f0;
+  font-size: 12px;
+  line-height: 1.7;
+}
 .mdt-content-grid {
   grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+}
+.mdt-content-grid--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 .section-kicker {
   color: #8ea8b8;
