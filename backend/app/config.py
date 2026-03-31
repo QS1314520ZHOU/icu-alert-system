@@ -155,17 +155,6 @@ class AppConfig:
         )
 
     @property
-    def llm_fast_model(self) -> str:
-        ai_service = self.yaml_cfg.get("ai_service", {})
-        llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
-        return (
-            llm_cfg.get("fast_model")
-            or self.yaml_cfg.get("ai", {}).get("llm_fast_model")
-            or self.llm_model_medical
-            or self.settings.LLM_MODEL
-        )
-
-    @property
     def llm_model_medical(self) -> str:
         ai_service = self.yaml_cfg.get("ai_service", {})
         llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}

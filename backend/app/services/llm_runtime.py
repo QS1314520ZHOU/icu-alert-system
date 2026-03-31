@@ -19,32 +19,68 @@ class _LLMFailureTracker:
         self.failure_count = 0
         self.open_until = 0.0
         self.last_error = ""
+        self.half_open_probe_active = False
         self._lock = asyncio.Lock()
 
     async def before_call(self, *, threshold: int, cooldown_seconds: int) -> tuple[bool, float]:
-        return False, 0.0
+        async with self._lock:
+            now = time.time()
+            if self.open_until and now < self.open_until:
+                return True, max(0.0, self.open_until - now)
+            if self.open_until and now >= self.open_until:
+                if self.half_open_probe_active:
+                    return True, 0.0
+                self.open_until = 0.0
+                self.half_open_probe_active = True
+                logger.warning("LLM circuit breaker entering half-open probe state")
+            return False, 0.0
 
     async def record_success(self) -> None:
         async with self._lock:
+            previous_state = self._state_locked()
             self.failure_count = 0
             self.open_until = 0.0
             self.last_error = ""
+            self.half_open_probe_active = False
+            if previous_state != "closed":
+                logger.info("LLM circuit breaker closed after successful probe/recovery")
 
     async def record_failure(self, *, threshold: int, cooldown_seconds: int, error: str = "") -> bool:
         async with self._lock:
             self.failure_count += 1
             self.last_error = (error or "")[:200]
+            if self.failure_count >= max(1, threshold):
+                self.open_until = time.time() + max(10, cooldown_seconds)
+                self.half_open_probe_active = False
+                logger.warning(
+                    "LLM circuit breaker opened after %s consecutive failures, cooldown=%ss, error=%s",
+                    self.failure_count,
+                    cooldown_seconds,
+                    self.last_error,
+                )
+                return True
             return False
+
+    def _state_locked(self) -> str:
+        now = time.time()
+        if self.open_until and now < self.open_until:
+            return "open"
+        if self.half_open_probe_active:
+            return "half_open"
+        return "closed"
 
     async def snapshot(self) -> dict[str, Any]:
         async with self._lock:
             now = time.time()
+            state = self._state_locked()
             return {
                 "failure_count": self.failure_count,
-                "open": bool(self.open_until and now < self.open_until),
+                "open": state == "open",
+                "state": state,
                 "open_until": self.open_until,
                 "retry_after_seconds": max(0.0, self.open_until - now) if self.open_until else 0.0,
                 "last_error": self.last_error,
+                "half_open_probe_active": self.half_open_probe_active,
             }
 
 
@@ -106,7 +142,11 @@ async def call_llm_chat(
 ) -> dict[str, Any]:
     threshold, cooldown_seconds = _llm_runtime_cfg(cfg)
     normal_candidates, has_real_degrade, models_meta = resolve_model_candidates(cfg, model)
-    _, retry_after_seconds = await _FAILURE_TRACKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
+    circuit_open, retry_after_seconds = await _FAILURE_TRACKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
+    if circuit_open:
+        raise LLMRuntimeUnavailableError(
+            f"LLM runtime circuit breaker open, retry after {retry_after_seconds:.1f}s"
+        )
     llm_base_url = cfg.settings.LLM_BASE_URL.rstrip("/")
     candidates = normal_candidates
     degraded_mode = False
@@ -165,6 +205,7 @@ async def call_llm_chat(
                         "primary_model": models_meta.get("primary_model"),
                         "fallback_model": models_meta.get("fallback_model"),
                         "circuit_open": False,
+                        "circuit_state": "half_open" if _FAILURE_TRACKER.half_open_probe_active else "closed",
                         "retry_after_seconds": retry_after_seconds,
                     },
                 }

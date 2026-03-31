@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from collections import OrderedDict
 import re
 import time
 from datetime import datetime, timedelta
@@ -23,7 +24,7 @@ from .scanner_ai_risk import AiRiskScanner
 class AiRiskMixin:
     def _ensure_ai_runtime_state(self) -> None:
         if not hasattr(self, "_ai_result_cache"):
-            self._ai_result_cache: dict[str, dict[str, Any]] = {}
+            self._ai_result_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         if not hasattr(self, "_ai_cache_gc_at"):
             self._ai_cache_gc_at = 0.0
         if not hasattr(self, "_rag_service"):
@@ -64,6 +65,8 @@ class AiRiskMixin:
         if cached.get("expire_at", 0) < time.time():
             self._ai_result_cache.pop(cache_key, None)
             return None
+        cached["last_access_at"] = time.time()
+        self._ai_result_cache.move_to_end(cache_key)
         result = cached.get("result")
         return result if isinstance(result, dict) else None
 
@@ -73,7 +76,9 @@ class AiRiskMixin:
         self._ai_result_cache[cache_key] = {
             "result": result,
             "expire_at": time.time() + cache_ttl_sec,
+            "last_access_at": time.time(),
         }
+        self._ai_result_cache.move_to_end(cache_key)
 
     def _gc_ai_result_cache(self, cache_ttl_sec: int) -> None:
         self._ensure_ai_runtime_state()
@@ -85,7 +90,11 @@ class AiRiskMixin:
         for k in expired:
             self._ai_result_cache.pop(k, None)
         if len(self._ai_result_cache) > 5000:
-            for k in list(self._ai_result_cache.keys())[: len(self._ai_result_cache) - 5000]:
+            victims = sorted(
+                self._ai_result_cache.items(),
+                key=lambda item: float((item[1] or {}).get("last_access_at", 0.0)),
+            )[: len(self._ai_result_cache) - 5000]
+            for k, _ in victims:
                 self._ai_result_cache.pop(k, None)
 
     def _context_hash(self, patient_summary: str) -> str:
@@ -522,10 +531,10 @@ class AiRiskMixin:
 
         allergies = facts.get("allergies") if isinstance(facts.get("allergies"), list) else []
         recs = result.get("recommendations") if isinstance(result.get("recommendations"), list) else []
+        allergy_aliases = self._expand_allergy_aliases(allergies)
         for rec in recs:
-            text = str(rec)
-            for al in allergies:
-                al_text = str(al).strip()
+            text = str(rec).lower()
+            for al_text in allergy_aliases:
                 if al_text and al_text in text:
                     blocked_recommendations.append(text)
                     issues.append(
@@ -582,7 +591,86 @@ class AiRiskMixin:
                 continue
             seen.add(key)
             uniq.append(f)
+        uniq.extend(self._detect_qualitative_hallucinations(text, facts))
         return uniq[:10]
+
+    def _expand_allergy_aliases(self, allergies: list[str]) -> list[str]:
+        alias_map = {
+            "青霉素": ["青霉素", "阿莫西林", "氨苄西林", "哌拉西林", "阿莫西林克拉维酸"],
+            "头孢": ["头孢", "头孢曲松", "头孢他啶", "头孢哌酮", "头孢吡肟", "cef"],
+            "磺胺": ["磺胺", "复方新诺明", "smz", "tmp-smx"],
+            "万古霉素": ["万古霉素", "vancomycin"],
+            "碘": ["碘", "造影剂", "contrast"],
+        }
+        expanded: list[str] = []
+        for raw in allergies:
+            text = str(raw or "").strip().lower()
+            if not text:
+                continue
+            expanded.append(text)
+            for key, aliases in alias_map.items():
+                if key.lower() in text or any(alias.lower() in text for alias in aliases):
+                    expanded.extend(alias.lower() for alias in aliases)
+        deduped: list[str] = []
+        for item in expanded:
+            if item and item not in deduped:
+                deduped.append(item)
+        return deduped[:40]
+
+    def _detect_qualitative_hallucinations(self, text: str, facts: dict[str, Any]) -> list[dict[str, Any]]:
+        lower_text = str(text or "").lower()
+        flags: list[dict[str, Any]] = []
+        vitals = facts.get("vitals") if isinstance(facts.get("vitals"), dict) else {}
+        labs = facts.get("labs") if isinstance(facts.get("labs"), dict) else {}
+        alerts = facts.get("active_alerts") if isinstance(facts.get("active_alerts"), list) else []
+        diagnosis = str(facts.get("diagnosis") or "").lower()
+
+        def _lab_value(key: str) -> float | None:
+            row = labs.get(key)
+            return self._to_float(row.get("value")) if isinstance(row, dict) else None
+
+        checks = [
+            {
+                "keywords": ["高乳酸", "乳酸升高", "lactate elevated"],
+                "ok": lambda: (_lab_value("lactate") or 0) >= 2.0,
+                "message": "文本声称存在乳酸升高，但当前事实未见对应乳酸异常。",
+            },
+            {
+                "keywords": ["低氧", "氧合差", "hypox", "spo2下降"],
+                "ok": lambda: (self._to_float(vitals.get("spo2")) or 100) < 93,
+                "message": "文本声称存在低氧/氧合恶化，但当前 SpO2 事实不支持。",
+            },
+            {
+                "keywords": ["血小板减少", "plt下降", "thrombocytopenia"],
+                "ok": lambda: (_lab_value("plt") or 999) < 150,
+                "message": "文本声称存在血小板减少，但当前血小板事实不支持。",
+            },
+            {
+                "keywords": ["aki 2期", "aki 3期", "急性肾损伤2期", "急性肾损伤3期"],
+                "ok": lambda: isinstance(facts.get("aki_stage"), int) and int(facts.get("aki_stage")) >= 2,
+                "message": "文本声称存在中重度 AKI，但当前 AKI 分期事实不支持。",
+            },
+            {
+                "keywords": ["休克", "shock", "septic shock", "脓毒性休克"],
+                "ok": lambda: any(str(a.get("alert_type") or "") == "septic_shock" for a in alerts) or ((_lab_value("lactate") or 0) >= 4) or ((self._to_float(vitals.get("sbp")) or 999) < 90),
+                "message": "文本声称存在休克/脓毒性休克，但当前告警与灌注事实不支持。",
+            },
+            {
+                "keywords": ["感染恶化", "严重感染", "sepsis", "感染性恶化"],
+                "ok": lambda: any(keyword in diagnosis for keyword in ["感染", "脓毒", "sepsis"]) or any(str(a.get("alert_type") or "") in {"septic_shock", "qsofa", "sofa"} for a in alerts) or ((_lab_value("lactate") or 0) >= 2),
+                "message": "文本声称存在感染性恶化，但当前诊断/告警/乳酸事实支撑不足。",
+            },
+        ]
+        for item in checks:
+            if any(keyword in lower_text for keyword in item["keywords"]) and not item["ok"]():
+                flags.append(
+                    {
+                        "metric": "qualitative_claim",
+                        "level": "high",
+                        "message": item["message"],
+                    }
+                )
+        return flags
 
     def _build_metric_catalog(self, facts: dict[str, Any]) -> list[dict[str, Any]]:
         vitals = facts.get("vitals") if isinstance(facts.get("vitals"), dict) else {}

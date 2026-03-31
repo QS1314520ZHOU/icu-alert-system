@@ -3,15 +3,19 @@ from __future__ import annotations
 import asyncio
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app import runtime
+from app.database import DatabaseManager
 from app.services.research_export_service import preview_export, run_export_task
 
 router = APIRouter(prefix="/api/research", tags=["research-export"])
+API_TZ = ZoneInfo("Asia/Shanghai")
 
 
 class TimeRange(BaseModel):
@@ -33,6 +37,24 @@ class ExportRequest(BaseModel):
     include_data_dict: bool = True
 
 
+def _localize_time(value):
+    if not isinstance(value, datetime):
+        return value
+    dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return dt.astimezone(API_TZ).isoformat(timespec="seconds")
+
+
+def _serialize_export_doc(doc: dict | None) -> dict | None:
+    if not isinstance(doc, dict):
+        return doc
+    data = dict(doc)
+    data.pop("_id", None)
+    for key in ("created_at", "completed_at", "updated_at"):
+        if key in data:
+            data[key] = _localize_time(data.get(key))
+    return data
+
+
 @router.post("/export/preview")
 async def preview_export_task(req: ExportRequest):
     try:
@@ -42,12 +64,12 @@ async def preview_export_task(req: ExportRequest):
 
 
 @router.post("/export")
-async def create_export_task(req: ExportRequest, request: Request):
+async def create_export_task(req: ExportRequest, request: Request, db: DatabaseManager = Depends(runtime.get_db)):
     task_id = str(uuid.uuid4())
     params = req.model_dump()
     created_by = request.headers.get("X-User-Id", "anonymous")
 
-    col = runtime.db.col("research_export_tasks")
+    col = db.col("research_export_tasks")
     await col.insert_one({
         "task_id": task_id,
         "status": "pending",
@@ -65,12 +87,12 @@ async def create_export_task(req: ExportRequest, request: Request):
 
 @router.get("/export/{task_id}/status")
 async def get_export_status(task_id: str):
-    col = runtime.db.col("research_export_tasks")
+    col = db.col("research_export_tasks")
     doc = await col.find_one({"task_id": task_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
     doc.pop("file_path", None)
-    return doc
+    return _serialize_export_doc(doc)
 
 
 @router.get("/export/{task_id}/download")
@@ -91,6 +113,7 @@ async def download_export(task_id: str):
 @router.get("/export/history")
 async def export_history(
     request: Request,
+    db: DatabaseManager = Depends(runtime.get_db),
     status: str | None = Query(None),
     export_mode: str | None = Query(None),
 ):
@@ -102,5 +125,5 @@ async def export_history(
     if str(export_mode or "").strip():
         query["scope_summary.export_mode"] = str(export_mode).strip()
     cursor = col.find(query, {"_id": 0, "file_path": 0}).sort("created_at", -1).limit(100)
-    docs = [doc async for doc in cursor]
+    docs = [_serialize_export_doc(doc) async for doc in cursor]
     return {"history": docs}

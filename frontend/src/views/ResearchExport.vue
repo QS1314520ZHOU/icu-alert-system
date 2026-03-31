@@ -58,7 +58,12 @@
 
         <div class="form-row">
           <div class="form-label">科室筛选</div>
+          <div v-if="departmentLocked" class="locked-department">
+            <strong>{{ lockedDepartmentLabel }}</strong>
+            <span>已根据当前页面科室自动锁定</span>
+          </div>
           <a-select
+            v-else
             v-model:value="form.department"
             class="w-420"
             :options="departmentOptions"
@@ -303,6 +308,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import {
   Button as AButton,
@@ -330,12 +336,14 @@ import {
 const ARangePicker = DatePicker.RangePicker
 const ACheckboxGroup = ACheckbox.Group
 const ARadioGroup = ARadio.Group
+const route = useRoute()
 
 type AnyRecord = Record<string, any>
 
 const form = ref({
   cohort_id: '',
   department: '',
+  dept_code: '',
   patient_scope: 'all',
   time_range: [dayjs().subtract(30, 'day'), dayjs()] as [any, any],
   export_mode: 'dataset',
@@ -405,6 +413,22 @@ const departmentOptions = computed(() => departments.value
     label: Number(item.patientCount || 0) > 0 ? `${item.dept} (${Number(item.patientCount || 0)})` : item.dept,
   })))
 
+const routeDeptCode = computed(() => String(route.query.deptCode || route.query.dept_code || '').trim())
+const routeDepartment = computed(() => String(route.query.dept || route.query.department || '').trim())
+const departmentLocked = computed(() => Boolean(routeDeptCode.value || routeDepartment.value))
+const matchedLockedDepartment = computed(() =>
+  departments.value.find((item) =>
+    (routeDeptCode.value && String(item?.deptCode || item?.code || '').trim() === routeDeptCode.value) ||
+    (routeDepartment.value && String(item?.dept || '').trim() === routeDepartment.value)
+  ) || null
+)
+const lockedDepartmentLabel = computed(() => {
+  if (matchedLockedDepartment.value?.dept) return String(matchedLockedDepartment.value.dept)
+  if (routeDepartment.value) return routeDepartment.value
+  if (routeDeptCode.value) return `当前科室 (${routeDeptCode.value})`
+  return '当前科室'
+})
+
 const cohortOptions = computed(() => cohorts.value.map((item) => {
   const count = Number(item.n_patients || item.patient_count || item.patient_ids?.length || 0)
   const name = item.name || item.cohort_id || '未命名队列'
@@ -461,7 +485,7 @@ function statusTagColor(status: string) {
 
 function formatTime(value: any) {
   if (!value) return '—'
-  const parsed = dayjs(value)
+  const parsed = dayjs(typeof value === 'string' ? value.replace('Z', '+00:00') : value)
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : String(value)
 }
 
@@ -484,6 +508,7 @@ function buildPayload() {
   return {
     cohort_id: form.value.cohort_id || null,
     department: form.value.department || null,
+    dept_code: form.value.dept_code || null,
     patient_scope: form.value.patient_scope,
     time_range: timeRange,
     export_mode: form.value.export_mode,
@@ -604,6 +629,12 @@ async function loadDepartments() {
   }
 }
 
+function applyRouteDepartmentLock() {
+  if (!departmentLocked.value) return
+  form.value.dept_code = routeDeptCode.value
+  form.value.department = matchedLockedDepartment.value?.dept || routeDepartment.value || form.value.department
+}
+
 async function loadCohorts() {
   cohortLoading.value = true
   try {
@@ -619,15 +650,21 @@ async function loadCohorts() {
 function onCohortChange(cohortId: any) {
   const matched = cohorts.value.find((item) => String(item.cohort_id) === String(cohortId))
   if (!matched) return
-  form.value.department = matched.department || ''
+  if (!departmentLocked.value) {
+    form.value.department = matched.department || ''
+    form.value.dept_code = matched.dept_code || ''
+  }
   form.value.patient_scope = matched.patient_scope || 'all'
 }
 
-watch(() => [form.value.cohort_id, form.value.department, form.value.patient_scope, form.value.export_mode, form.value.format, form.value.desensitize, form.value.include_data_dict, form.value.data_types.join('|'), String(form.value.time_range?.[0] || ''), String(form.value.time_range?.[1] || '')], () => {
+watch(() => [form.value.cohort_id, form.value.department, form.value.dept_code, form.value.patient_scope, form.value.export_mode, form.value.format, form.value.desensitize, form.value.include_data_dict, form.value.data_types.join('|'), String(form.value.time_range?.[0] || ''), String(form.value.time_range?.[1] || '')], () => {
   preview.value = null
 })
 watch(() => [historyFilters.value.status, historyFilters.value.export_mode], () => {
   void loadHistory()
+})
+watch([routeDeptCode, routeDepartment, matchedLockedDepartment], () => {
+  applyRouteDepartmentLock()
 })
 
 watch(() => form.value.export_mode, (mode) => {
@@ -640,7 +677,10 @@ watch(() => form.value.export_mode, (mode) => {
 })
 
 onMounted(() => {
-  void Promise.all([loadHistory(), loadDepartments(), loadCohorts()])
+  applyRouteDepartmentLock()
+  void Promise.all([loadHistory(), loadDepartments(), loadCohorts()]).then(() => {
+    applyRouteDepartmentLock()
+  })
 })
 
 onUnmounted(stopPolling)
@@ -732,6 +772,24 @@ onUnmounted(stopPolling)
 .w-420 {
   max-width: 420px;
   width: 100%;
+}
+.locked-department {
+  max-width: 420px;
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(8, 30, 48, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+}
+.locked-department strong {
+  color: #f4fbff;
+  font-size: 14px;
+}
+.locked-department span {
+  color: #8bb8d6;
+  font-size: 12px;
 }
 .preview-grid {
   display: grid;

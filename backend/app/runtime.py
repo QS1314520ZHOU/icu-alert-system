@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Request
+
 from app.alert_engine import AlertEngine
 from app.config import AppConfig
 from app.database import DatabaseManager
@@ -36,3 +40,69 @@ def set_runtime(
     ai_handoff_service = ai_handoff_service_value
     ai_monitor = ai_monitor_value
     ai_rag_service = ai_rag_service_value
+
+
+def _resolve_state_attr(request: Request | None, name: str):
+    if request is not None:
+        value = getattr(request.app.state, name, None)
+        if value is not None:
+            return value
+    return globals().get(name)
+
+
+def get_db(request: Request) -> DatabaseManager:
+    value = _resolve_state_attr(request, "db")
+    if value is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    return value
+
+
+def get_config_dep(request: Request) -> AppConfig:
+    value = _resolve_state_attr(request, "config")
+    if value is None:
+        raise HTTPException(status_code=503, detail="Config runtime not ready")
+    return value
+
+
+def get_ws_mgr_dep(request: Request) -> WebSocketManager:
+    value = _resolve_state_attr(request, "ws_mgr")
+    if value is None:
+        raise HTTPException(status_code=503, detail="WebSocket runtime not ready")
+    return value
+
+
+def get_alert_engine_dep(request: Request) -> AlertEngine:
+    value = _resolve_state_attr(request, "alert_engine")
+    if value is None:
+        raise HTTPException(status_code=503, detail="Alert engine runtime not ready")
+    return value
+
+
+def get_ai_handoff_service_dep(request: Request) -> AiHandoffService:
+    value = _resolve_state_attr(request, "ai_handoff_service")
+    if value is None:
+        raise HTTPException(status_code=503, detail="AI handoff service not ready")
+    return value
+
+
+def get_ai_monitor_dep(request: Request) -> AiMonitor:
+    value = _resolve_state_attr(request, "ai_monitor")
+    if value is None:
+        raise HTTPException(status_code=503, detail="AI monitor not ready")
+    return value
+
+
+def get_ai_rag_service_dep(request: Request) -> RagService:
+    value = _resolve_state_attr(request, "ai_rag_service")
+    if value is None:
+        raise HTTPException(status_code=503, detail="RAG service not ready")
+    return value
+
+
+DbDep = Annotated[DatabaseManager, Depends(get_db)]
+ConfigDep = Annotated[AppConfig, Depends(get_config_dep)]
+WsMgrDep = Annotated[WebSocketManager, Depends(get_ws_mgr_dep)]
+AlertEngineDep = Annotated[AlertEngine, Depends(get_alert_engine_dep)]
+AiHandoffDep = Annotated[AiHandoffService, Depends(get_ai_handoff_service_dep)]
+AiMonitorDep = Annotated[AiMonitor, Depends(get_ai_monitor_dep)]
+AiRagDep = Annotated[RagService, Depends(get_ai_rag_service_dep)]

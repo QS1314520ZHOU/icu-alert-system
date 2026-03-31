@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from app.utils.serialization import safe_oid
 from app.utils.clinical import _eval_condition, _extract_param
 from app.utils.parse import _parse_dt
 
@@ -21,6 +22,48 @@ class VitalSignsScanner(BaseScanner):
             ),
         )
 
+    async def _preload_patients(self, pids: list[object]) -> tuple[dict[str, dict], dict[str, str]]:
+        raw_ids = [str(pid).strip() for pid in pids if str(pid or "").strip()]
+        oid_values = [oid for oid in (safe_oid(pid) for pid in raw_ids) if oid is not None]
+        query = {"$or": [{"_id": {"$in": oid_values}}, {"_id": {"$in": raw_ids}}]} if oid_values else {"_id": {"$in": raw_ids}}
+        rows = [row async for row in self.engine.db.col("patient").find(query)]
+        patient_map: dict[str, dict] = {}
+        pid_map: dict[str, str] = {}
+        for row in rows:
+            key = str(row.get("_id") or "").strip()
+            if key:
+                patient_map[key] = row
+                pid_map[key] = key
+        return patient_map, pid_map
+
+    async def _preload_latest_caps(self, device_ids: list[str]) -> dict[str, dict]:
+        ids = [str(item).strip() for item in device_ids if str(item or "").strip()]
+        if not ids:
+            return {}
+        cursor = self.engine.db.col("deviceCap").find(
+            {"deviceID": {"$in": ids}, "time": {"$gte": datetime.now() - timedelta(minutes=10)}}
+        ).sort([("deviceID", 1), ("time", -1)])
+        snapshots: dict[str, dict] = {}
+        async for doc in cursor:
+            device_id = str(doc.get("deviceID") or "").strip()
+            code = str(doc.get("code") or "").strip()
+            if not device_id or not code:
+                continue
+            bucket = snapshots.setdefault(device_id, {"params": {}, "time": None})
+            if code in bucket["params"]:
+                continue
+            value = doc.get("fVal")
+            if value is None:
+                value = doc.get("intVal")
+            if value is None:
+                value = doc.get("strVal")
+            if value is None:
+                continue
+            bucket["params"][code] = value
+            if bucket["time"] is None:
+                bucket["time"] = doc.get("time")
+        return {key: value for key, value in snapshots.items() if value.get("params")}
+
     async def scan(self) -> None:
         rules = [r async for r in self.engine.db.col("alert_rules").find({"enabled": True, "category": "vital_signs"})]
 
@@ -33,6 +76,9 @@ class VitalSignsScanner(BaseScanner):
             )]
         if not binds:
             return
+
+        patient_map, pid_map = await self._preload_patients([bind.get("pid") for bind in binds])
+        cap_map = await self._preload_latest_caps([str(bind.get("deviceID") or "") for bind in binds])
 
         now = datetime.now()
         suppression = self.engine.config.yaml_cfg.get("alert_engine", {}).get("suppression", {})
@@ -81,7 +127,9 @@ class VitalSignsScanner(BaseScanner):
             if not device_id or not pid:
                 continue
 
-            cap = await self.engine._get_latest_device_cap(device_id)
+            cap = cap_map.get(str(device_id))
+            if not cap:
+                cap = await self.engine._get_latest_device_cap(device_id)
             if not cap:
                 continue
 
@@ -89,7 +137,10 @@ class VitalSignsScanner(BaseScanner):
             if cap_time and (now - cap_time).total_seconds() > 600:
                 continue
 
-            patient_doc, pid_str = await self.engine._load_patient(pid)
+            patient_doc = patient_map.get(str(pid))
+            pid_str = pid_map.get(str(pid)) or str(pid)
+            if not patient_doc:
+                patient_doc, pid_str = await self.engine._load_patient(pid)
             if not pid_str:
                 continue
             cap, quality_issues = await self.engine._filter_snapshot_quality(

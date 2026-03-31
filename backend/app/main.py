@@ -53,6 +53,16 @@ ai_rag_service: RagService = None  # type: ignore[assignment]
 bootstrap_config = get_config()
 
 
+def _error_log_path() -> Path:
+    system_cfg = bootstrap_config.yaml_cfg.get("system", {}) if isinstance(bootstrap_config.yaml_cfg, dict) else {}
+    raw_dir = str(system_cfg.get("log_dir") or "./logs").strip() or "./logs"
+    log_dir = Path(raw_dir)
+    if not log_dir.is_absolute():
+        log_dir = Path.cwd() / log_dir
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir / "error.log"
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service
@@ -116,11 +126,14 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global exception: {exc}")
     logger.error(traceback.format_exc())
-    # 同时也写到一个特定文件，方便我们读取
-    with open("d:\\icu-alert-system\\backend\\error.log", "a", encoding="utf-8") as f:
-        f.write(f"\n--- {datetime.now()} ---\n")
-        f.write(f"URL: {request.url}\n")
-        f.write(traceback.format_exc())
+    try:
+        error_log = _error_log_path()
+        with error_log.open("a", encoding="utf-8") as f:
+            f.write(f"\n--- {datetime.now()} ---\n")
+            f.write(f"URL: {request.url}\n")
+            f.write(traceback.format_exc())
+    except Exception as log_exc:
+        logger.error("Failed to persist error log: %s", log_exc)
     return JSONResponse(
         status_code=500,
         content={"code": 500, "message": "Internal Server Error", "detail": str(exc)},
