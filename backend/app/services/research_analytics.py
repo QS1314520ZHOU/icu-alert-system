@@ -77,9 +77,12 @@ FIGURE_WIDTH_CM_DOUBLE = 17.5
 VITAL_CODE_MAP: dict[str, list[str]] = {
     "hr": ["param_HR", "param_PR"],
     "map": ["param_ibp_m", "param_nibp_m"],
+    "sbp": ["param_ibp_s", "param_nibp_s", "param_abp_s"],
+    "dbp": ["param_ibp_d", "param_nibp_d", "param_abp_d"],
     "spo2": ["param_spo2"],
     "rr": ["param_resp"],
-    "temp": ["param_T"],
+    "temp": ["param_T", "param_temp"],
+    "temperature": ["param_T", "param_temp"],
 }
 
 LAB_NAME_MAP: dict[str, list[str]] = {
@@ -92,6 +95,27 @@ LAB_NAME_MAP: dict[str, list[str]] = {
     "platelet": ["platelet", "plt", "血小板", "血小板计数", "血小板总数"],
     "pf_ratio": ["pf ratio", "p/f", "氧合指数", "pao2/fio2", "P/F Ratio"],
     "bnp": ["bnp", "brain natriuretic peptide", "脑钠肽", "nt-probnp", "proBNP", "B型钠尿肽前体"],
+}
+
+TREND_LAB_FIELD_MAP: dict[str, str] = {
+    "lactate": "lactate",
+    "lactate_admission": "lactate",
+    "creatinine": "creatinine",
+    "creatinine_admission": "creatinine",
+    "albumin": "albumin",
+    "albumin_admission": "albumin",
+    "pct": "pct",
+    "pct_admission": "pct",
+    "wbc": "wbc",
+    "wbc_admission": "wbc",
+    "hemoglobin": "hemoglobin",
+    "hemoglobin_admission": "hemoglobin",
+    "platelet": "platelet",
+    "platelet_admission": "platelet",
+    "pf_ratio": "pf_ratio",
+    "pf_ratio_admission": "pf_ratio",
+    "bnp": "bnp",
+    "bnp_admission": "bnp",
 }
 
 
@@ -184,6 +208,12 @@ def _ensure_patient_id_set(patient_ids: list[str] | None) -> list[str]:
 
 
 def _infer_outcome(doc: dict[str, Any]) -> str:
+    if any(doc.get(key) for key in ("deathTime", "deceasedAt", "死亡时间")):
+        return "dead"
+    for key in ("icu_mortality", "hospital_mortality", "mortality", "isDeath", "death"):
+        result = _coerce_binary(doc.get(key))
+        if result is not None:
+            return "dead" if result else "alive"
     for raw in (
         doc.get("outcome"),
         doc.get("status"),
@@ -199,12 +229,6 @@ def _infer_outcome(doc: dict[str, Any]) -> str:
             return "dead"
         if any(token in text for token in ["alive", "survive", "存活", "转出", "discharged", "出院", "好转"]):
             return "alive"
-    if any(doc.get(key) for key in ("deathTime", "deceasedAt", "死亡时间")):
-        return "dead"
-    for key in ("icu_mortality", "hospital_mortality", "mortality", "isDeath", "death"):
-        result = _coerce_binary(doc.get(key))
-        if result is not None:
-            return "dead" if result else "alive"
     return "alive"
 
 
@@ -393,6 +417,12 @@ async def _load_patient_dataframe(
         "_id": 1,
         "hisPid": 1,
         "hisPID": 1,
+        "hisPatientId": 1,
+        "patientId": 1,
+        "patientID": 1,
+        "pid": 1,
+        "mrn": 1,
+        "hisMrn": 1,
         "name": 1,
         "sex": 1,
         "gender": 1,
@@ -403,6 +433,9 @@ async def _load_patient_dataframe(
         "deptCode": 1,
         "status": 1,
         "outcome": 1,
+        "deathTime": 1,
+        "deceasedAt": 1,
+        "死亡时间": 1,
         "admissionTime": 1,
         "icuAdmissionTime": 1,
         "dischargeTime": 1,
@@ -1072,7 +1105,9 @@ def _encode_numeric_predictor(series: pd.Series) -> pd.Series:
     numeric = pd.to_numeric(series, errors="coerce")
     if numeric.notna().sum() >= max(3, int(0.3 * len(series))):
         return numeric
-    cat = series.astype(str).replace("nan", pd.NA)
+    cat = series.where(series.notna(), pd.NA)
+    cat = cat.astype(str).str.strip().str.lower()
+    cat = cat.replace({"": pd.NA, "nan": pd.NA, "none": pd.NA, "null": pd.NA, "nat": pd.NA, "<na>": pd.NA})
     codes, _ = pd.factorize(cat)
     out = pd.Series(codes, index=series.index, dtype=float)
     out[out < 0] = math.nan
@@ -1097,64 +1132,68 @@ def _logistic_hosmer_lemeshow(y_true: pd.Series, y_prob: pd.Series, g: int = 10)
         return None
 
 
+def _fit_binary_logistic_sklearn(work: pd.DataFrame, predictors: list[str]) -> tuple[list[dict[str, Any]], Any]:
+    if LogisticRegression is None:
+        raise RuntimeError("缺少 sklearn 依赖，无法回退执行 Logistic 回归")
+    if work.empty or work.iloc[:, 0].nunique() < 2:
+        return [], None
+    y = work.iloc[:, 0].astype(int)
+    x = work[predictors].astype(float)
+    model = LogisticRegression(max_iter=1000)
+    model.fit(x, y)
+    probs = model.predict_proba(x)[:, 1]
+    rows: list[dict[str, Any]] = []
+    for idx, col in enumerate(predictors):
+        beta = float(model.coef_[0][idx])
+        rows.append(
+            {
+                "variable": col,
+                "estimate": float(math.exp(beta)),
+                "ci_lower": None,
+                "ci_upper": None,
+                "p": None,
+                "p_display": "—",
+                "label": "OR",
+            }
+        )
+    return rows, {"engine": "sklearn_logistic", "metrics": {"auc": float(metrics.roc_auc_score(y, probs)) if len(set(y.tolist())) >= 2 else None}}
+
+
 def _fit_binary_logistic(df: pd.DataFrame, outcome_col: str, predictors: list[str]) -> tuple[list[dict[str, Any]], Any]:
-    if sm is None:
-        if LogisticRegression is None:
-            raise RuntimeError("缺少 statsmodels/sklearn 依赖，无法执行 Logistic 回归")
-        work = df[[outcome_col, *predictors]].copy()
-        work[outcome_col] = work[outcome_col].apply(_coerce_binary)
-        for col in predictors:
-            work[col] = _encode_numeric_predictor(work[col])
-        work = work.dropna()
-        if work.empty or work[outcome_col].nunique() < 2:
-            return [], None
-        y = work[outcome_col].astype(int)
-        x = work[predictors].astype(float)
-        model = LogisticRegression(max_iter=1000)
-        model.fit(x, y)
-        probs = model.predict_proba(x)[:, 1]
-        rows: list[dict[str, Any]] = []
-        for idx, col in enumerate(predictors):
-            beta = float(model.coef_[0][idx])
-            rows.append(
-                {
-                    "variable": col,
-                    "estimate": float(math.exp(beta)),
-                    "ci_lower": None,
-                    "ci_upper": None,
-                    "p": None,
-                    "p_display": "—",
-                    "label": "OR",
-                }
-            )
-        return rows, {"engine": "sklearn_logistic", "metrics": {"auc": float(metrics.roc_auc_score(y, probs)) if len(set(y.tolist())) >= 2 else None}}
     work = df[[outcome_col, *predictors]].copy()
     work[outcome_col] = work[outcome_col].apply(_coerce_binary)
     for col in predictors:
         work[col] = _encode_numeric_predictor(work[col])
     work = work.dropna()
-    if work.empty:
+    if work.empty or work[outcome_col].nunique() < 2:
         return [], None
+    if sm is None:
+        if LogisticRegression is None:
+            raise RuntimeError("缺少 statsmodels/sklearn 依赖，无法执行 Logistic 回归")
+        return _fit_binary_logistic_sklearn(work, predictors)
     y = work[outcome_col].astype(int)
     x = sm.add_constant(work[predictors], has_constant="add")
-    model = sm.Logit(y, x).fit(disp=False, maxiter=200)
-    conf = model.conf_int()
-    rows: list[dict[str, Any]] = []
-    for col in predictors:
-        beta = float(model.params[col])
-        p = float(model.pvalues[col])
-        rows.append(
-            {
-                "variable": col,
-                "estimate": float(math.exp(beta)),
-                "ci_lower": float(math.exp(conf.loc[col, 0])),
-                "ci_upper": float(math.exp(conf.loc[col, 1])),
-                "p": p,
-                "p_display": _p_display(p),
-                "label": "OR",
-            }
-        )
-    return rows, model
+    try:
+        model = sm.Logit(y, x).fit(disp=False, maxiter=200)
+        conf = model.conf_int()
+        rows: list[dict[str, Any]] = []
+        for col in predictors:
+            beta = float(model.params[col])
+            p = float(model.pvalues[col])
+            rows.append(
+                {
+                    "variable": col,
+                    "estimate": float(math.exp(beta)),
+                    "ci_lower": float(math.exp(conf.loc[col, 0])),
+                    "ci_upper": float(math.exp(conf.loc[col, 1])),
+                    "p": p,
+                    "p_display": _p_display(p),
+                    "label": "OR",
+                }
+            )
+        return rows, model
+    except Exception:
+        return _fit_binary_logistic_sklearn(work, predictors)
 
 
 def _fit_linear(df: pd.DataFrame, outcome_col: str, predictors: list[str]) -> tuple[list[dict[str, Any]], Any]:
@@ -1803,6 +1842,23 @@ def _extract_bedside_value(doc: dict[str, Any]) -> float | None:
     return None
 
 
+def _extract_lab_value(doc: dict[str, Any]) -> float | None:
+    for key in ("result", "itemValue", "value"):
+        value = _as_number(doc.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+def _extract_lab_time(doc: dict[str, Any]) -> datetime | None:
+    return _parse_dt(doc.get("authTime") or doc.get("collectTime") or doc.get("testTime") or doc.get("reportTime") or doc.get("time"))
+
+
+def _trend_indicator_lab_key(indicator: str) -> str | None:
+    key = str(indicator or "").strip().lower()
+    return TREND_LAB_FIELD_MAP.get(key)
+
+
 async def trend_analysis(
     patient_ids: list[str],
     indicators: list[str],
@@ -1836,52 +1892,71 @@ async def trend_analysis(
 
     token_map: dict[str, dict[str, Any]] = {}
     for _, row in df.iterrows():
-        pid = str(row.get("patient_id") or "").strip()
-        his_pid = str(row.get("hisPid") or "").strip()
         admission_time = row.get("admission_time")
         if not isinstance(admission_time, datetime):
             admission_time = _parse_dt(admission_time)
         if not admission_time:
             continue
         payload = {"group": str(row.get(group_col) or "未分组"), "admission_time": _normalize_dt(admission_time)}
-        if pid:
-            token_map[pid] = payload
-        if his_pid:
-            token_map[his_pid] = payload
+        for key in ("patient_id", "hisPid", "hisPID", "hisPatientId", "patientId", "patientID", "pid", "mrn", "hisMrn"):
+            token = str(row.get(key) or "").strip()
+            if token:
+                token_map[token] = payload
 
     if not token_map:
         return {"indicators": {}}
 
     all_tokens = list(token_map.keys())
-    start_min = min(item["admission_time"] for item in token_map.values())
-    end_max = start_min + timedelta(hours=max_hours + interval)
+    admission_times = [item["admission_time"] for item in token_map.values()]
+    start_min = min(admission_times)
+    end_max = max(admission_times) + timedelta(hours=max_hours + interval)
 
     results: dict[str, Any] = {}
     for indicator in indicators or []:
-        codes = _indicator_codes(indicator)
         docs: list[dict[str, Any]] = []
-        query = {
-            "pid": {"$in": all_tokens},
-            "code": {"$in": codes},
-            "time": {"$gte": start_min, "$lte": end_max},
-        }
-        async for doc in db.col("bedside").find(query, {"pid": 1, "code": 1, "time": 1, "recordTime": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1}):
-            docs.append(doc)
+        indicator_key = str(indicator or "").strip()
+        lab_key = _trend_indicator_lab_key(indicator_key)
+        source = "lab" if lab_key else "bedside"
+        if source == "lab":
+            aliases = LAB_NAME_MAP.get(lab_key or "", [indicator_key])
+            patterns = [re.compile(f"^{re.escape(alias)}$", re.IGNORECASE) for alias in aliases]
+            async for doc in db.dc_col("VI_ICU_EXAM_ITEM").find(
+                {
+                    "hisPid": {"$in": all_tokens},
+                    "itemName": {"$in": patterns},
+                },
+                {"hisPid": 1, "itemName": 1, "result": 1, "itemValue": 1, "value": 1, "authTime": 1, "collectTime": 1, "testTime": 1, "reportTime": 1},
+            ):
+                docs.append(doc)
+        else:
+            codes = _indicator_codes(indicator_key)
+            query = {
+                "pid": {"$in": all_tokens},
+                "code": {"$in": codes},
+                "$or": [
+                    {"time": {"$gte": start_min, "$lte": end_max}},
+                    {"recordTime": {"$gte": start_min, "$lte": end_max}},
+                ],
+            }
+            async for doc in db.col("bedside").find(query, {"pid": 1, "code": 1, "time": 1, "recordTime": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1}):
+                docs.append(doc)
 
         grouped_bins: dict[str, dict[float, list[float]]] = {
             group: {hour: [] for hour in timeline} for group in groups
         }
         stat_rows: list[dict[str, Any]] = []
         for doc in docs:
-            pid = str(doc.get("pid") or "").strip()
-            mapped = token_map.get(pid)
+            token = str(doc.get("hisPid") if source == "lab" else doc.get("pid") or "").strip()
+            mapped = token_map.get(token)
             if not mapped:
                 continue
             group = str(mapped["group"])
-            obs_time = _parse_dt(doc.get("time") or doc.get("recordTime"))
+            obs_time = _extract_lab_time(doc) if source == "lab" else _parse_dt(doc.get("time") or doc.get("recordTime"))
             if not obs_time:
                 continue
-            value = _extract_bedside_value(doc)
+            if source == "lab" and (obs_time < start_min or obs_time > end_max):
+                continue
+            value = _extract_lab_value(doc) if source == "lab" else _extract_bedside_value(doc)
             if value is None:
                 continue
             hour = (obs_time - mapped["admission_time"]).total_seconds() / 3600.0
@@ -1956,6 +2031,7 @@ async def trend_analysis(
 
         results[indicator] = {
             "timeline_hours": timeline,
+            "source": source,
             "groups": group_payload,
             "repeated_measures_p": repeated_measures_p,
             "repeated_measures_p_display": _p_display(repeated_measures_p),

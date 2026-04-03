@@ -512,6 +512,7 @@
                     <a-select v-model:value="regressionForm.confounders" mode="multiple" :options="variableOptions" placeholder="选择校正变量" @change="disableAutoSync('regression')" />
                   </div>
                 </div>
+                <div v-if="regressionCoverageText" class="prep-hint">{{ regressionCoverageText }}</div>
               </ACollapsePanel>
             </a-collapse>
           </div>
@@ -571,6 +572,7 @@
                     <a-select v-model:value="rocForm.predictors" mode="multiple" :options="continuousVariableOptions" placeholder="选择连续变量" @change="disableAutoSync('roc')" />
                   </div>
                 </div>
+                <div v-if="rocCoverageText" class="prep-hint">{{ rocCoverageText }}</div>
               </ACollapsePanel>
             </a-collapse>
           </div>
@@ -765,6 +767,7 @@
                     <a-select v-model:value="subgroupForm.outcome_type" :options="[{ value: 'binary', label: '二分类 (binary)' }, { value: 'continuous', label: '连续型 (continuous)' }]" />
                   </div>
                 </div>
+                <div v-if="subgroupCoverageText" class="prep-hint">{{ subgroupCoverageText }}</div>
                 <div class="label" style="margin-top: 12px">亚组定义</div>
                 <div class="form-grid three">
                   <label v-for="sg in subgroupForm.subgroups" :key="sg.key" class="radio-option">
@@ -779,6 +782,9 @@
           </div>
           <div class="result-card">
             <template v-if="subgroupResult">
+              <div v-if="subgroupQualityTips.length" class="quality-strip">
+                <span v-for="tip in subgroupQualityTips" :key="tip" class="quality-pill">{{ tip }}</span>
+              </div>
               <div class="chart-card white">
                 <div class="card-head between">森林图（Forest Plot）</div>
                 <ResearchChart :option="subgroupForestOption" :init-options="chartInitOptions" style="height: 480px" />
@@ -1062,7 +1068,7 @@ const trendIndicatorOptions = computed(() => {
   })
   return Array.from(map.values())
 })
-const timeFieldOptions = [{ label: 'ICU住院天数', value: 'los_icu_days' }, { label: '总住院天数', value: 'los_days' }, { label: '随访天数', value: 'follow_up_days' }]
+const timeFieldOptions = [{ label: 'ICU住院天数', value: 'los_icu_days' }]
 const eventFieldOptions = [{ label: 'ICU死亡', value: 'icu_mortality' }, { label: '院内死亡', value: 'hospital_mortality' }, { label: '28天死亡', value: 'mortality_28d' }]
 const cohortOptions = computed(() => cohorts.value.map((c) => {
   const count = c.n_patients ?? c.patient_count ?? c.patient_ids?.length ?? 0
@@ -1070,8 +1076,10 @@ const cohortOptions = computed(() => cohorts.value.map((c) => {
   const created = c.created_at ? formatCohortTime(c.created_at) : ''
   return { label: created ? `${name} (${count}) · ${created}` : `${name} (${count})`, value: c.cohort_id }
 }))
-const currentDeptCode = computed(() => String(route.query.deptCode || route.query.dept || ''))
-const currentDeptName = computed(() => deptNameByCode.value[currentDeptCode.value] || '')
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
+const currentDeptCode = computed(() => routeDeptCode.value)
+const currentDeptName = computed(() => deptNameByCode.value[currentDeptCode.value] || routeDeptName.value || '')
 const currentDeptDisplay = computed(() => currentDeptName.value || currentDeptCode.value || '未知')
 function patientScopeLabel(scopeValue?: string | null): string {
   const map: Record<string, string> = {
@@ -1149,9 +1157,53 @@ const groupSummaryCards = computed(() => {
     { name: '组A', countText: '--', percentText: '--', type: 'survive' },
     { name: '组B', countText: '--', percentText: '--', type: 'death' },
   ]
+
+  const total = Number(cohortPreviewCount.value || selectedPatientIds.value.length || 0)
+  const field = String(scope.group_by || '').trim()
+  const summary = getVarSummary(field)
+  const dist = (summary.distribution || {}) as Record<string, AnyRecord>
+  const norm = (value: string) => String(value || '').trim().toLowerCase()
+  const findCount = (keys: string[]) => {
+    for (const [rawKey, info] of Object.entries(dist)) {
+      if (keys.includes(norm(rawKey))) return Number(info?.count || 0)
+    }
+    return 0
+  }
+
+  const configMap: Record<string, Array<{ name: string; keys: string[]; type: string }>> = {
+    outcome: [
+      { name: '存活组', keys: ['alive', '存活', 'survive'], type: 'survive' },
+      { name: '死亡组', keys: ['dead', 'death', '死亡', 'deceased'], type: 'death' },
+    ],
+    icu_mortality: [
+      { name: '存活组', keys: ['0', 'false', 'no', 'alive', '存活'], type: 'survive' },
+      { name: '死亡组', keys: ['1', 'true', 'yes', 'dead', '死亡'], type: 'death' },
+    ],
+    hospital_mortality: [
+      { name: '存活组', keys: ['0', 'false', 'no', 'alive', '存活'], type: 'survive' },
+      { name: '死亡组', keys: ['1', 'true', 'yes', 'dead', '死亡'], type: 'death' },
+    ],
+    mortality_28d: [
+      { name: '28天存活组', keys: ['0', 'false', 'no', 'alive', '存活'], type: 'survive' },
+      { name: '28天死亡组', keys: ['1', 'true', 'yes', 'dead', '死亡'], type: 'death' },
+    ],
+  }
+
+  const configured = configMap[field]
+  if (configured && Object.keys(dist).length) {
+    return configured.map((item) => {
+      const count = findCount(item.keys)
+      return {
+        name: item.name,
+        countText: `${count} 例`,
+        percentText: total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '--',
+        type: item.type,
+      }
+    })
+  }
+
   const groups = table1Result.value?.groups
   if (!groups || !groups.length) return defaults
-  const total = cohortPreviewCount.value || 0
   const parsed = groups.slice(0, 2).map((text: string, idx: number) => {
     const match = /(.+?)\s*\(n\s*=\s*(\d+)/i.exec(String(text))
     const name = match ? match[1] : `组${idx + 1}`
@@ -1824,18 +1876,22 @@ function applicableLabel(list?: string[]): string {
 }
 
 async function loadPatientsByDepartment() {
-  const dept = String(currentDeptCode.value || '').trim()
-  if (!dept) {
+  const deptCode = String(currentDeptCode.value || '').trim()
+  const deptName = String(currentDeptName.value || routeDeptName.value || '').trim()
+  if (!deptCode && !deptName) {
     message.warning('未检测到科室信息')
     return
   }
   patientLoadLoading.value = true
   try {
-    const res = await getPatients({ dept_code: dept, patient_scope: scope.patient_scope })
+    const params: AnyRecord = { patient_scope: scope.patient_scope }
+    if (deptCode) params.dept_code = deptCode
+    else params.dept = deptName
+    const res = await getPatients(params)
     const list: AnyRecord[] = Array.isArray(res.data?.patients) ? res.data.patients : []
-    if (list.length && !deptNameByCode.value[dept]) {
+    if (list.length && deptCode && !deptNameByCode.value[deptCode]) {
       const deptName = String(list[0]?.hisDept || list[0]?.dept || '').trim()
-      if (deptName) deptNameByCode.value[dept] = deptName
+      if (deptName) deptNameByCode.value[deptCode] = deptName
     }
     const ids = list
       .map((row) => row?._id || row?.patient_id || row?.patientId || row?.hisPid || row?.pid)
@@ -1847,7 +1903,7 @@ async function loadPatientsByDepartment() {
     clearAllVariableFilters(true)
     scope.patient_text = ids.join('\n')
     cohortPreviewCount.value = ids.length
-    researchSelectionStore.setCohort({ id: null, name: `${currentDeptDisplay.value || dept || '当前科室'} ${patientScopeLabel(scope.patient_scope)}患者`, type: 'dept', patientCount: ids.length, department: currentDeptName.value || null, deptCode: currentDeptCode.value || null, patientScope: scope.patient_scope })
+    researchSelectionStore.setCohort({ id: null, name: `${currentDeptDisplay.value || deptName || deptCode || '当前科室'} ${patientScopeLabel(scope.patient_scope)}患者`, type: 'dept', patientCount: ids.length, department: currentDeptName.value || deptName || null, deptCode: currentDeptCode.value || null, patientScope: scope.patient_scope })
     await fetchVariableSummary()
     if (ids.length) {
       message.success(`已载入 ${ids.length} 名${patientScopeLabel(scope.patient_scope)}患者`)
@@ -1993,10 +2049,16 @@ async function loadDeptNameMap(): Promise<void> {
       const code = String(row?.deptCode || row?.code || row?.dept_code || '').trim()
       const name = String(row?.dept || row?.name || '').trim()
       if (code && name) next[code] = name
+      if (name && !next[name]) next[name] = name
     })
+    if (routeDeptCode.value && routeDeptName.value && !next[routeDeptCode.value]) {
+      next[routeDeptCode.value] = routeDeptName.value
+    }
     deptNameByCode.value = next
   } catch {
-    // ignore
+    if (routeDeptCode.value && routeDeptName.value) {
+      deptNameByCode.value = { ...deptNameByCode.value, [routeDeptCode.value]: routeDeptName.value }
+    }
   }
 }
 
@@ -2020,6 +2082,10 @@ function analysisTitle(key: string): string {
     correlation: '相关性分析',
   }
   return map[key] || key
+}
+
+function analysisLabel(field: string): string {
+  return variableCatalog.find((item) => item.field === field)?.label || field
 }
 
 function groupDefinitionsByField(field: string): Record<string, AnyRecord> {
@@ -2079,7 +2145,12 @@ async function runSurvival() {
     if (!curveCount) {
       const n = Number(survivalResult.value?.n_total || 0)
       const evt = Number(survivalResult.value?.n_events || 0)
-      message.warning(`生存分析暂无可展示曲线（样本 ${n}，事件 ${evt}）`)
+      const reason = String(survivalResult.value?.reason || '')
+      if (reason === 'no_valid_time_event_data' && scope.patient_scope === 'in_dept') {
+        message.warning('当前在科患者通常尚未形成可用于生存分析的结局时间，建议切换为“全部”或“出科”队列后再试')
+      } else {
+        message.warning(`生存分析暂无可展示曲线（样本 ${n}，事件 ${evt}）`)
+      }
       return
     }
     message.success('生存分析完成')
@@ -2097,6 +2168,11 @@ async function runRegression() {
       message.warning('请先选择至少1个预测变量')
       return
     }
+    const usablePredictors = predictors.filter((field) => Number(getVarSummary(field).non_null_count || 0) >= 3)
+    if (!usablePredictors.length) {
+      message.warning('当前所选预测变量可用样本不足，无法进行回归分析')
+      return
+    }
     regressionResult.value = await resolveResult(postResearchRegression({
       ...scopePayload(),
       outcome: regressionForm.outcome,
@@ -2111,7 +2187,7 @@ async function runRegression() {
       const pos = regressionResult.value?.outcome_positive
       const reason = String(regressionResult.value?.reason || '')
       if (reason === 'outcome_single_class') {
-        message.warning(`回归分析无法建模：结局变量只有单一类别（样本 ${n}，阳性 ${pos ?? 0}）`)
+        message.warning(scope.patient_scope === 'in_dept' ? '当前在科患者通常尚未形成死亡/出院结局，回归分析难以建模；建议切换为“全部”或“出科”队列' : `回归分析无法建模：结局变量只有单一类别（样本 ${n}，阳性 ${pos ?? 0}）`)
       } else {
         message.warning(`回归分析暂无可用结果（样本 ${n}）`)
       }
@@ -2132,6 +2208,11 @@ async function runRoc() {
       message.warning('请先选择至少1个预测指标')
       return
     }
+    const usablePredictors = predictors.filter((field) => Number(getVarSummary(field).non_null_count || 0) >= 10)
+    if (!usablePredictors.length) {
+      message.warning('当前所选 ROC 指标可用样本不足，无法形成稳定曲线')
+      return
+    }
     rocResult.value = await resolveResult(postResearchRoc({
       ...scopePayload(),
       outcome: rocForm.outcome,
@@ -2143,7 +2224,7 @@ async function runRoc() {
       const pos = rocResult.value?.outcome_positive
       const reason = String(rocResult.value?.reason || '')
       if (reason === 'outcome_single_class') {
-        message.warning(`ROC 暂无法计算：结局变量只有单一类别（样本 ${n}，阳性 ${pos ?? 0}）`)
+        message.warning(scope.patient_scope === 'in_dept' ? '当前在科患者通常尚未形成死亡/出院结局，ROC 难以计算；建议切换为“全部”或“出科”队列' : `ROC 暂无法计算：结局变量只有单一类别（样本 ${n}，阳性 ${pos ?? 0}）`)
       } else {
         message.warning(`ROC 暂无可用结果（样本 ${n}）`)
       }
@@ -2183,6 +2264,11 @@ async function runSubgroup() {
   const enabledSubgroups = subgroupForm.subgroups.filter((s) => s.enabled)
   if (!enabledSubgroups.length) {
     message.warning('请至少开启一个亚组')
+    return
+  }
+  const exposureNonNull = Number(getVarSummary(subgroupForm.exposure).non_null_count || 0)
+  if (exposureNonNull < 3) {
+    message.warning(`亚组分析当前无法建模：暴露因素 ${analysisLabel(subgroupForm.exposure)} 可用样本不足（${exposureNonNull}）`)
     return
   }
   loading.subgroup = true
@@ -2667,6 +2753,49 @@ const regressionQualityTips = computed(() => {
   }
   return tips
 })
+const regressionCoverageText = computed(() => {
+  const rows = Array.from(new Set([...(regressionForm.predictors || []), ...(regressionForm.confounders || [])]))
+    .map((field) => {
+      const summary = getVarSummary(field)
+      return {
+        field,
+        label: analysisLabel(field),
+        count: Number(summary.non_null_count || 0),
+        total: Number(summary.total_count || selectedPatientIds.value.length || 0),
+      }
+    })
+    .filter((item) => item.count < 3)
+  if (!rows.length) return ''
+  return `以下回归变量当前可用样本不足，运行时会被自动排除：${rows.map((item) => `${item.label}(${item.count}/${item.total})`).join('、')}`
+})
+
+const rocCoverageText = computed(() => {
+  const rows = Array.from(new Set(rocForm.predictors || []))
+    .map((field) => {
+      const summary = getVarSummary(field)
+      return {
+        field,
+        label: analysisLabel(field),
+        count: Number(summary.non_null_count || 0),
+        total: Number(summary.total_count || selectedPatientIds.value.length || 0),
+      }
+    })
+    .filter((item) => item.count < 10)
+  if (!rows.length) return ''
+  return `以下 ROC 指标可用样本偏少，可能无法形成稳定曲线：${rows.map((item) => `${item.label}(${item.count}/${item.total})`).join('、')}`
+})
+
+const subgroupCoverageText = computed(() => {
+  const exposureSummary = getVarSummary(subgroupForm.exposure)
+  const outcomeSummary = getVarSummary(subgroupForm.outcome)
+  const exposureCount = Number(exposureSummary.non_null_count || 0)
+  const outcomeCount = Number(outcomeSummary.non_null_count || 0)
+  const total = Number(exposureSummary.total_count || outcomeSummary.total_count || selectedPatientIds.value.length || 0)
+  const msgs: string[] = []
+  if (exposureCount < 3) msgs.push(`暴露因素 ${analysisLabel(subgroupForm.exposure)} 几乎无可用样本（${exposureCount}/${total}）`)
+  if (outcomeCount < 3) msgs.push(`结局变量 ${analysisLabel(subgroupForm.outcome)} 可用样本不足（${outcomeCount}/${total}）`)
+  return msgs.join('；')
+})
 const regressionColumns = computed(() => ([
   { title: '变量', dataIndex: 'variable', key: 'variable' },
   { title: '估计值', dataIndex: 'estimate_display', key: 'estimate_display' },
@@ -2859,6 +2988,10 @@ const survivalQualityTips = computed(() => {
   const tips: string[] = []
   const total = Number(survivalResult.value?.n_total || 0)
   const events = Number(survivalResult.value?.n_events || 0)
+  const reason = String(survivalResult.value?.reason || '')
+  if (reason === 'no_valid_time_event_data' && scope.patient_scope === 'in_dept') {
+    tips.push('当前在科患者通常缺少可用于生存分析的结局时间，更适合做趋势或相关性分析')
+  }
   if (total > 0 && total < 30) tips.push(`生存分析总样本偏少（n=${total}）`)
   if (events > 0 && events < 10) tips.push(`事件数偏少（events=${events}），曲线稳定性有限`)
   const smallGroups = survivalSummaryRows.value.filter((row) => Number(row.n || 0) < 10)
@@ -2968,6 +3101,15 @@ const subgroupRows = computed(() => {
     ci_display: item.ci_lower != null ? `${Number(item.ci_lower).toFixed(2)} - ${Number(item.ci_upper).toFixed(2)}` : '--',
     p_interaction_display: item.p_interaction != null ? (item.p_interaction < 0.001 ? '<0.001' : Number(item.p_interaction).toFixed(3)) : '--',
   }))
+})
+const subgroupQualityTips = computed(() => {
+  const tips: string[] = []
+  const rows = subgroupRows.value
+  const emptyEstimate = rows.filter((row: AnyRecord) => row.estimate_display === '--')
+  if (emptyEstimate.length) tips.push(`部分亚组无法估计效应值：${emptyEstimate.map((row: AnyRecord) => row.subgroup).join('、')}`)
+  const lowEvent = rows.filter((row: AnyRecord) => Number(row.n_event || 0) < 5)
+  if (lowEvent.length) tips.push(`部分亚组事件数偏少：${lowEvent.map((row: AnyRecord) => row.subgroup).join('、')}`)
+  return tips
 })
 
 const subgroupForestOption = computed(() => {

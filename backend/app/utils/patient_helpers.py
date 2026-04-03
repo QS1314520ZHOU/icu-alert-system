@@ -45,11 +45,19 @@ def admitted_patient_query() -> dict:
 
 def research_patient_scope_query(scope: str | None) -> dict:
     token = str(scope or "").strip().lower()
+    in_dept_statuses = ["admitted", "在科", "住院", "icu", "icu在科"]
+    out_dept_statuses = ["discharged", "出科", "出院", "离科", "转出", "dead", "death", "deceased", "死亡"]
     if token in {"in_dept", "active", "admitted"}:
-        return {"status": "admitted"}
+        return {"status": {"$in": in_dept_statuses}}
     if token in {"out_dept", "discharged"}:
-        return {"status": "discharged"}
-    return {"status": {"$in": ["admitted", "discharged"]}}
+        return {"status": {"$in": out_dept_statuses}}
+    return {
+        "$or": [
+            {"status": {"$in": [*in_dept_statuses, *out_dept_statuses]}},
+            {"status": {"$exists": False}},
+            {"status": None},
+        ]
+    }
 
 
 def patient_his_pid_candidates(patient: dict | None) -> list[str]:
