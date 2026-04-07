@@ -96,10 +96,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
-import { getPatients, getPatientVitals, getRecentAlerts } from '../api'
+import { getPatientDetail, getPatientVitals, getRecentAlerts } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 
 const route = useRoute()
@@ -191,22 +191,17 @@ function speakAlert(msg: { type: string; data: any }) {
 // ── 加载数据 ──────────────────────────────────────────────────
 async function loadPatient() {
   try {
-    // 复用 getPatients 过滤，或直接按 id 取详情
-    const res = await getPatients()
-    const list: any[] = res?.data?.patients || res?.data || []
-    const found = list.find(
-      (p: any) => String(p._id) === patientId.value
-    )
-    if (found) patient.value = found
+    const res = await getPatientDetail(patientId.value)
+    patient.value = res?.data?.patient || null
   } catch {
-    // ignore
+    patient.value = null
   }
 }
 
 async function loadVitals() {
   try {
     const res = await getPatientVitals(patientId.value)
-    vitals.value = res?.data || {}
+    vitals.value = res?.data?.vitals || {}
   } catch {
     vitals.value = {}
   }
@@ -215,7 +210,7 @@ async function loadVitals() {
 async function loadAlerts() {
   try {
     const res = await getRecentAlerts(30)
-    allAlerts.value = res?.data?.alerts || res?.data || []
+    allAlerts.value = res?.data?.records || []
   } catch {
     allAlerts.value = []
   }
@@ -257,6 +252,11 @@ onUnmounted(() => {
   clearInterval(refreshTimer)
   offAlert?.()
   window.speechSynthesis?.cancel()
+})
+
+watch(patientId, async (nextId, prevId) => {
+  if (!nextId || nextId === prevId) return
+  await Promise.all([loadPatient(), loadVitals(), loadAlerts()])
 })
 </script>
 

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
 from app.utils.alerting import window_to_hours
+from app.utils.patient_helpers import admitted_patient_query
 from app.utils.serialization import serialize_doc
 
 router = APIRouter()
@@ -43,19 +44,29 @@ async def recent_alerts(
         query["dept"] = dept
     elif dept_code:
         patient_ids = []
-        cursor_p = runtime.db.col("patient").find({"deptCode": dept_code}, {"_id": 1})
+        patient_query = {"$and": [admitted_patient_query(), {"deptCode": dept_code}]}
+        cursor_p = runtime.db.col("patient").find(patient_query, {"_id": 1})
         async for patient in cursor_p:
             patient_ids.append(str(patient.get("_id")))
         if patient_ids:
             query = {
                 "is_active": True,
                 "$or": [
-                    {"deptCode": dept_code},
                     {"patient_id": {"$in": patient_ids}},
+                    {
+                        "$and": [
+                            {"deptCode": dept_code},
+                            {"$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}]},
+                        ]
+                    },
                 ],
             }
         else:
-            query["deptCode"] = dept_code
+            query = {
+                "is_active": True,
+                "deptCode": dept_code,
+                "$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}],
+            }
     if role:
         query.setdefault("$and", []).append(
             {

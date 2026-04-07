@@ -463,9 +463,9 @@ const routeDeptName = computed(() => String(route.query.dept || ''))
 function buildPatientParams() {
   const deptCode = routeDeptCode.value
   const deptName = routeDeptName.value
-  if (deptCode) return { dept_code: deptCode }
-  if (deptName) return { dept: deptName }
-  return undefined
+  if (deptCode) return { dept_code: deptCode, patient_scope: 'in_dept' as const }
+  if (deptName) return { dept: deptName, patient_scope: 'in_dept' as const }
+  return { patient_scope: 'in_dept' as const }
 }
 
 function severityPriority(level: string) {
@@ -1123,7 +1123,6 @@ watch(() => route.query, () => {
   }
 }
 </style>
-
 
 
 

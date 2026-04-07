@@ -24,14 +24,29 @@ async def get_departments():
     col = runtime.db.col("patient")
     pipeline = [
         {"$match": admitted_patient_query()},
-        {"$group": {"_id": {"$ifNull": ["$hisDept", "$dept"]}, "patientCount": {"$sum": 1}}},
-        {"$match": {"_id": {"$ne": None}}},
+        {
+            "$group": {
+                "_id": {
+                    "dept": {"$ifNull": ["$hisDept", "$dept"]},
+                    "deptCode": {"$ifNull": ["$deptCode", ""]},
+                },
+                "patientCount": {"$sum": 1},
+            }
+        },
+        {"$match": {"_id.dept": {"$ne": None}}},
         {"$sort": {"patientCount": -1}},
     ]
     departments = []
     cursor = await col.aggregate(pipeline)
     async for doc in cursor:
-        departments.append({"dept": doc["_id"], "patientCount": doc["patientCount"]})
+        group = doc.get("_id") or {}
+        departments.append(
+            {
+                "dept": group.get("dept"),
+                "deptCode": group.get("deptCode") or "",
+                "patientCount": doc["patientCount"],
+            }
+        )
     return {"code": 0, "departments": departments}
 
 

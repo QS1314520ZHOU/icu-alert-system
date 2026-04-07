@@ -431,10 +431,10 @@ async function load(options?: { silent?: boolean }) {
     const deptCode = routeDeptCode.value
     const deptName = routeDeptName.value
     const params = deptCode
-      ? { dept_code: deptCode }
+      ? { dept_code: deptCode, patient_scope: 'in_dept' as const }
       : deptName
-        ? { dept: deptName }
-        : undefined
+        ? { dept: deptName, patient_scope: 'in_dept' as const }
+        : { patient_scope: 'in_dept' as const }
 
     const [dr, pr, recentAlertRes] = await Promise.all([
       getDepartments(),

@@ -52,6 +52,7 @@ from .scanner_alert_reasoning import AlertReasoningScanner
 from .scanner_nurse_reminders import NurseRemindersScanner
 from .scanner_nursing_note_analyzer import NursingNoteAnalyzerScanner
 from .scanner_nursing_workload import NursingWorkloadScanner
+from .scanner_patient_scope_cleanup import PatientScopeCleanupScanner
 
 if TYPE_CHECKING:
     from . import AlertEngine
@@ -105,6 +106,7 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         ExtendedScenariosScanner(engine),
         AiRiskScanner(engine),
         AlertReasoningScanner(engine),
+        PatientScopeCleanupScanner(engine),
         NurseRemindersScanner(engine),
         NursingNoteAnalyzerScanner(engine),
         NursingWorkloadScanner(engine),
