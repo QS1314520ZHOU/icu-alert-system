@@ -34,11 +34,19 @@ fi
 # 构建 Docker 镜像
 echo ""
 echo ">>> 开始 Docker 构建 (首次约 15-30 分钟)..."
-docker build \
+if ! docker build \
     --network=host \
     -t "${IMAGE_NAME}" \
     -f Dockerfile.gpu-build \
-    .
+    .; then
+    echo ""
+    echo ">>> BuildKit 构建失败，尝试回退到经典构建模式..."
+    DOCKER_BUILDKIT=0 docker build \
+        --network=host \
+        -t "${IMAGE_NAME}" \
+        -f Dockerfile.gpu-build \
+        .
+fi
 
 # 提取产物
 echo ""
