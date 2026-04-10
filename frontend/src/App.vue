@@ -215,7 +215,7 @@ onUnmounted(() => clearInterval(t))
 <style scoped>
 @import url('./assets/fonts/rajdhani/rajdhani.css');
 
-.root { min-height: 100vh; background: var(--app-bg); font-family: var(--app-display-font, 'Rajdhani', 'Noto Sans SC', sans-serif); }
+.root { min-height: 100vh; background: var(--app-bg); font-family: var(--app-display-font, 'Noto Sans SC', 'Segoe UI', sans-serif); }
 .hdr {
   display: flex; align-items: center; gap: 20px;
   background: var(--hdr-bg-strong) !important;
@@ -225,8 +225,8 @@ onUnmounted(() => clearInterval(t))
   height: auto !important;
   line-height: normal !important;
   overflow: visible;
-  border-bottom: 1px solid rgba(80, 199, 255, 0.16);
-  box-shadow: 0 8px 24px rgba(2, 8, 20, 0.22), inset 0 -1px 0 rgba(125, 241, 255, 0.04);
+  border-bottom: 1px solid var(--hdr-border);
+  box-shadow: var(--hdr-shadow);
   position: sticky; top: 0; z-index: 100;
 }
 .hdr-l { display: flex; align-items: center; gap: 12px; }
@@ -239,16 +239,16 @@ onUnmounted(() => clearInterval(t))
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  color: #ecfeff;
-  background: linear-gradient(180deg, #0b4e74 0%, #07273f 100%);
-  border: 1px solid rgba(103, 232, 249, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 16px rgba(34, 211, 238, 0.08);
+  color: var(--hdr-icon-text);
+  background: var(--hdr-icon-bg);
+  border: 1px solid var(--hdr-icon-border);
+  box-shadow: var(--hdr-icon-shadow);
 }
 .hdr-title { font-size: 15px; font-weight: 700; color: var(--hdr-title); letter-spacing: 0.08em; line-height: 1.15; }
 .hdr-sub { font-size: 9px; color: var(--hdr-sub); letter-spacing: 0.16em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
 .hdr-menu { flex: 1; display: flex; align-items: center; gap: 8px; }
 .nav-btn {
-  border: 1px solid rgba(80, 199, 255, 0.12);
+  border: 1px solid var(--nav-btn-border);
   background: var(--nav-btn-bg);
   color: var(--nav-btn-text);
   border-radius: 10px;
@@ -259,12 +259,12 @@ onUnmounted(() => clearInterval(t))
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.nav-btn:hover { color: var(--nav-btn-hover-text); background: var(--nav-btn-hover-bg); border-color: rgba(103, 232, 249, 0.22); }
+.nav-btn:hover { color: var(--nav-btn-hover-text); background: var(--nav-btn-hover-bg); border-color: var(--nav-btn-hover-border); }
 .nav-btn.active {
   color: var(--nav-btn-active-text);
   background: var(--nav-btn-active-bg);
-  border-color: rgba(110, 231, 249, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(34, 211, 238, 0.08);
+  border-color: var(--nav-btn-active-border);
+  box-shadow: var(--nav-btn-active-shadow);
 }
 .hdr-tools {
   display: flex;
@@ -278,7 +278,7 @@ onUnmounted(() => clearInterval(t))
   min-height: 32px;
   padding: 4px 8px 4px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(80, 199, 255, 0.14);
+  border: 1px solid var(--hdr-tool-border);
   background: var(--hdr-tool-bg);
 }
 .operator-pill__label {
@@ -305,7 +305,7 @@ onUnmounted(() => clearInterval(t))
   gap: 6px;
   padding: 4px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(80, 199, 255, 0.14);
+  border: 1px solid var(--hdr-tool-border);
   background: var(--hdr-tool-bg);
 }
 .theme-lbl {
@@ -396,9 +396,6 @@ onUnmounted(() => clearInterval(t))
 }
 
 @media (max-width: 1920px) {
-  .root {
-    --app-display-font: 'Noto Sans SC', 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  }
   .hdr {
     padding: 12px 20px;
   }

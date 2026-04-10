@@ -1,0 +1,42 @@
+[
+  {
+    "id": "vanco_auc_mic_target",
+    "title": "万古霉素TDM与剂量优化指南",
+    "source": "ASHP/IDSA/PIDS 2020 Consensus",
+    "recommendation": "AUC/MIC替代谷浓度",
+    "tags": ["vancomycin", "tdm", "auc", "mrsa"],
+    "text": "ASHP/IDSA/PIDS 2020核心变更：不再推荐谷浓度15-20mg/L作为MRSA疗效目标。改为AUC/MIC 400-600 mg·h/L(假定MIC=1mg/L)。谷浓度15-20mg/L对应AUC经常>600，增加肾毒性30-40%而不改善疗效。推荐AUC计算方法：首选Bayesian软件(DoseMe/InsightRx/PrecisePK)仅需1-2个浓度点，备选一阶药动学两点法(需稳态谷和峰浓度)。"
+  },
+  {
+    "id": "vanco_loading_maintenance",
+    "title": "万古霉素TDM与剂量优化指南",
+    "source": "ASHP/IDSA/PIDS 2020",
+    "recommendation": "负荷与维持剂量",
+    "tags": ["vancomycin", "dosing", "crrt", "arc"],
+    "text": "负荷剂量：严重感染推荐20-25mg/kg(实际体重)，最大单次3g，输注速度<=10-15mg/min或每500mg>=1h。维持剂量：CrCl>80为15-20mg/kg q8-12h；CrCl 40-80为15mg/kg q12h；CrCl 20-40为15mg/kg q24h；CRRT为7.5-10mg/kg q12h目标AUC 400-600；ARC(CrCl>130)需增至25-30mg/kg/day甚至更高。IHD透析后补充500-1000mg。"
+  },
+  {
+    "id": "vanco_tdm_timing",
+    "title": "万古霉素TDM与剂量优化指南",
+    "source": "ASHP/IDSA/PIDS 2020",
+    "recommendation": "TDM监测时机与频率",
+    "tags": ["vancomycin", "tdm", "monitoring", "bayesian"],
+    "text": "首次TDM在第4-5剂前(稳态)采集谷浓度(给药前30min内)，或Bayesian方法可第2-3剂后任意时间点采集。ICU患者48-72h后首次TDM。肾功能稳定者q3-5天复查，不稳定(肌酐日变化>0.3mg/dL)者q24-48h。联合肾毒性药物(氨基糖苷/两性霉素B/哌拉西林他唑巴坦/碘造影剂)更频繁监测。Bayesian仅需1个谷浓度即可估算AUC，精度r²>0.9。"
+  },
+  {
+    "id": "vanco_nephrotoxicity",
+    "title": "万古霉素TDM与剂量优化指南",
+    "source": "ASHP/IDSA/PIDS 2020",
+    "recommendation": "万古霉素相关急性肾损伤(VA-AKI)",
+    "tags": ["vancomycin", "nephrotoxicity", "aki", "risk"],
+    "text": "VA-AKI定义：治疗期间肌酐升高>=0.3mg/dL(48h内)或>=50%基线(7d内)。AUC>600时AKI风险约33%，AUC 400-600时约5-10%。风险因素：AUC>600、疗程>7天、联合哌拉西林/他唑巴坦(AKI风险增2-3倍)、联合氨基糖苷、低血容量、高龄、基础肾功能不全。预防：严格AUC<600、避免不必要联合肾毒性药、维持充分容量、密切监测肾功能q24-48h。VA-AKI通常可逆，停药后7-14天肌酐多恢复。"
+  },
+  {
+    "id": "vanco_special_populations",
+    "title": "万古霉素TDM与剂量优化指南",
+    "source": "ASHP/IDSA/PIDS 2020",
+    "recommendation": "特殊场景用药",
+    "tags": ["vancomycin", "obesity", "arc", "continuous_infusion"],
+    "text": "肥胖(BMI>30)：使用实际体重计算，清除率增加可能需更高日总剂量。ARC(CrCl>130)：常见于年轻创伤/脓毒症，常规剂量AUC常<400，需增加频率q6-8h或持续输注。持续输注(目标稳态20-25mg/L)可减少AUC波动，部分欧洲中心使用但2020共识未正式推荐。MIC=2mg/L的MRSA：需总AUC>800,肾毒性极高，应考虑替代药物(利奈唑胺/达托霉素)。"
+  }
+]

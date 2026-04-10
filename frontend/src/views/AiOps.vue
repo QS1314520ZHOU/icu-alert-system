@@ -426,7 +426,7 @@ onMounted(() => { void loadAll() })
 </script>
 
 <style scoped>
-.ops-page { display: grid; gap: 16px; }
+.ops-page { display: grid; gap: 16px; font-family: var(--app-display-font); }
 .ops-filter-card,.ops-panel { border: 1px solid rgba(80,199,255,.12); background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.97) 100%); }
 .ops-filter-row,.ops-kpi-strip,.ops-chip-row,.ops-alert-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .ops-filter-row { justify-content: space-between; align-items: center; }
@@ -465,6 +465,134 @@ onMounted(() => { void loadAll() })
 .ops-outcome.is-dismissed { color: #fbbf24; border-color: rgba(251,191,36,.22); }
 .ops-outcome.is-inaccurate,.ops-outcome.is-rejected { color: #fb7185; border-color: rgba(251,113,133,.24); }
 .ops-outcome.is-pending_review { color: #7dd3fc; border-color: rgba(125,211,252,.22); }
+html[data-theme='light'] .ops-page {
+  --ops-text-main: #153554;
+  --ops-text-sub: #5f7690;
+  --ops-line: rgba(145, 176, 199, 0.36);
+  --ops-card-bg: linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 247, 253, 0.94) 100%);
+  --ops-card-shadow: 0 14px 34px rgba(21, 53, 84, 0.1), 0 2px 0 rgba(255, 255, 255, 0.7) inset;
+  color: var(--ops-text-main);
+  position: relative;
+  padding: 4px;
+}
+html[data-theme='light'] .ops-page::before {
+  content: '';
+  position: absolute;
+  inset: -8px -6px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 20px;
+  background:
+    radial-gradient(1200px 360px at 12% -6%, rgba(66, 153, 225, 0.16), transparent 70%),
+    radial-gradient(900px 260px at 92% -2%, rgba(16, 185, 129, 0.14), transparent 72%),
+    linear-gradient(180deg, #f8fbff 0%, #eef5fb 100%);
+}
+html[data-theme='light'] .ops-filter-card,
+html[data-theme='light'] .ops-panel,
+html[data-theme='light'] .ops-kpi,
+html[data-theme='light'] .ops-action-tile,
+html[data-theme='light'] .ops-chip,
+html[data-theme='light'] .ops-alert-pill,
+html[data-theme='light'] .ops-module-row,
+html[data-theme='light'] .ops-review-input,
+html[data-theme='light'] .ops-review-textarea,
+html[data-theme='light'] .ops-outcome {
+  border-color: var(--ops-line);
+  background: var(--ops-card-bg);
+  box-shadow: var(--ops-card-shadow);
+}
+html[data-theme='light'] .ops-filter-card,
+html[data-theme='light'] .ops-panel {
+  backdrop-filter: blur(8px);
+}
+html[data-theme='light'] .ops-kpi {
+  position: relative;
+  overflow: hidden;
+}
+html[data-theme='light'] .ops-kpi::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(100deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0) 45%);
+}
+html[data-theme='light'] .ops-label,
+html[data-theme='light'] .ops-kpi-label,
+html[data-theme='light'] .ops-action-label,
+html[data-theme='light'] .ops-action-meta,
+html[data-theme='light'] .ops-threshold-note,
+html[data-theme='light'] .ops-review-label,
+html[data-theme='light'] .ops-empty {
+  color: var(--ops-text-sub);
+}
+html[data-theme='light'] .ops-kpi-value,
+html[data-theme='light'] .ops-action-value {
+  color: var(--ops-text-main);
+}
+html[data-theme='light'] .ops-link { color: #165ec9; }
+html[data-theme='light'] .ops-module-row { color: var(--ops-text-main); }
+html[data-theme='light'] .ops-chip,
+html[data-theme='light'] .ops-alert-pill {
+  color: #355a7c;
+}
+html[data-theme='light'] .ops-module-row:hover {
+  border-color: rgba(34, 119, 214, 0.42);
+  box-shadow: 0 14px 24px rgba(19, 78, 143, 0.14);
+  transform: translateY(-2px);
+}
+html[data-theme='light'] .ops-action-tile:hover {
+  border-color: rgba(34, 119, 214, 0.4);
+  box-shadow: 0 16px 28px rgba(19, 78, 143, 0.18);
+}
+html[data-theme='light'] .ops-alert-pill:hover,
+html[data-theme='light'] .ops-chip:hover {
+  border-color: rgba(34, 119, 214, 0.4);
+  transform: translateY(-1px);
+}
+html[data-theme='light'] .ops-action-tile,
+html[data-theme='light'] .ops-alert-pill,
+html[data-theme='light'] .ops-chip,
+html[data-theme='light'] .ops-module-row {
+  transition: transform .18s ease, box-shadow .2s ease, border-color .2s ease;
+}
+html[data-theme='light'] .ops-kpi--warn {
+  border-color: rgba(245, 158, 11, 0.34);
+}
+html[data-theme='light'] .ops-kpi--review {
+  border-color: rgba(16, 185, 129, 0.34);
+}
+html[data-theme='light'] .ops-kpi--warn::after {
+  background: linear-gradient(100deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0) 48%);
+}
+html[data-theme='light'] .ops-kpi--review::after {
+  background: linear-gradient(100deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 48%);
+}
+html[data-theme='light'] :deep(.ant-card-head-title) {
+  color: #1d4f7a;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-thead > tr > th) {
+  color: #215580;
+  background: linear-gradient(180deg, rgba(229, 241, 251, 0.95) 0%, rgba(220, 236, 249, 0.86) 100%);
+  border-bottom: 1px solid rgba(145, 176, 199, 0.44);
+}
+html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-tbody > tr > td) {
+  border-bottom: 1px solid rgba(167, 194, 214, 0.34);
+}
+html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-tbody > tr:hover > td) {
+  background: rgba(208, 232, 250, 0.46);
+}
+html[data-theme='light'] :deep(.ant-empty-description) {
+  color: #7991aa;
+}
+html[data-theme='light'] .ops-outcome.is-confirmed,
+html[data-theme='light'] .ops-outcome.is-approved { color: #047857; border-color: rgba(16,185,129,.28); background: rgba(220,252,231,.98); }
+html[data-theme='light'] .ops-outcome.is-dismissed { color: #b45309; border-color: rgba(245,158,11,.28); background: rgba(254,243,199,.98); }
+html[data-theme='light'] .ops-outcome.is-inaccurate,
+html[data-theme='light'] .ops-outcome.is-rejected { color: #be123c; border-color: rgba(251,113,133,.3); background: rgba(255,241,242,.98); }
+html[data-theme='light'] .ops-outcome.is-pending_review { color: #1d4ed8; border-color: rgba(59,130,246,.28); background: rgba(219,234,254,.98); }
 @media (max-width: 1080px) { .ops-kpi-strip,.ops-action-strip,.ops-grid { grid-template-columns: 1fr 1fr; } .ops-panel--wide { grid-column: auto; } }
 @media (max-width: 760px) { .ops-kpi-strip,.ops-action-strip,.ops-grid { grid-template-columns: 1fr; } }
 </style>

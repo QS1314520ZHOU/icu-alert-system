@@ -358,31 +358,66 @@ function riskSuggestion(value: any) {
   margin-top: 10px;
 }
 .vital-cell {
+  position: relative;
+  overflow: hidden;
   display: grid;
-  gap: 5px;
+  gap: 6px;
   align-content: space-between;
-  min-height: 62px;
-  padding: 9px 10px;
+  min-height: 70px;
+  padding: 10px 12px;
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(8, 31, 47, 0.92) 0%, rgba(6, 24, 37, 0.9) 100%);
-  border: 1px solid rgba(80,199,255,.1);
+  background:
+    radial-gradient(circle at 88% -10%, rgba(56, 189, 248, 0.14), rgba(56, 189, 248, 0) 44%),
+    linear-gradient(180deg, rgba(8, 31, 47, 0.94) 0%, rgba(6, 24, 37, 0.92) 100%);
+  border: 1px solid rgba(80,199,255,.14);
   font-size: 10px;
   color: #7ecce1;
 }
+.vital-cell::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.8), rgba(56, 189, 248, 0.12));
+}
+.vital-cell:nth-child(2)::before {
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.86), rgba(96, 165, 250, 0.12));
+}
+.vital-cell:nth-child(3)::before {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.82), rgba(52, 211, 153, 0.12));
+}
 .vital-cell span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  width: fit-content;
+  padding: 0 7px;
+  border-radius: 999px;
   letter-spacing: .12em;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(8, 32, 49, 0.58);
 }
 .vital-cell b {
   color: #effcff;
-  font-size: 16px;
+  font-size: 18px;
+  letter-spacing: 0.01em;
   line-height: 1;
   font-family: 'JetBrains Mono', monospace;
 }
 .vital-cell--bp {
   grid-column: 1 / -1;
+  background:
+    radial-gradient(circle at 88% -10%, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0) 46%),
+    linear-gradient(180deg, rgba(11, 32, 48, 0.95) 0%, rgba(8, 25, 38, 0.93) 100%);
 }
 .vital-cell--bp b {
-  font-size: 14px;
+  font-size: 16px;
+}
+.vital-cell--bp::before {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.86), rgba(251, 191, 36, 0.14));
 }
 .extub-risk-card {
   display: grid;
@@ -623,6 +658,154 @@ function riskSuggestion(value: any) {
 .lamp-high { background: #f97316; box-shadow: 0 0 6px #f97316; }
 .lamp-normal { background: #22c55e; }
 .lamp-none { background: #334155; }
+html[data-theme='light'] .bed-card,
+html[data-theme='light'] .sec-vitals,
+html[data-theme='light'] .sec-logistics,
+html[data-theme='light'] .sec-alerts,
+html[data-theme='light'] .sec-summary,
+html[data-theme='light'] .sec-footer,
+html[data-theme='light'] .bundle-panel,
+html[data-theme='light'] .vital-item,
+html[data-theme='light'] .status-badge,
+html[data-theme='light'] .summary-chip,
+html[data-theme='light'] .summary-mini-chip,
+html[data-theme='light'] .device-tag,
+html[data-theme='light'] .tube-item,
+html[data-theme='light'] .pill,
+html[data-theme='light'] .alert-card,
+html[data-theme='light'] .bed-hover-block,
+html[data-theme='light'] .bed-hover-chip {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.98);
+  box-shadow: none;
+}
+html[data-theme='light'] .patient-name,
+html[data-theme='light'] .v-val,
+html[data-theme='light'] .summary-title,
+html[data-theme='light'] .summary-main,
+html[data-theme='light'] .alert-card-title,
+html[data-theme='light'] .bed-hover-title,
+html[data-theme='light'] .bed-hover-main {
+  color: #16324f;
+}
+html[data-theme='light'] .monitor-label,
+html[data-theme='light'] .section-title,
+html[data-theme='light'] .footer-title,
+html[data-theme='light'] .patient-meta,
+html[data-theme='light'] .diag-text,
+html[data-theme='light'] .section-desc,
+html[data-theme='light'] .v-label,
+html[data-theme='light'] .alert-card-time,
+html[data-theme='light'] .alert-card-summary,
+html[data-theme='light'] .summary-block-label,
+html[data-theme='light'] .summary-mini-chip-label,
+html[data-theme='light'] .bed-hover-label {
+  color: #6f8399;
+}
+html[data-theme='light'] .bed-hover-drawer {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+html[data-theme='light'] .bed-hover-drawer--high {
+  border-color: rgba(249, 115, 22, 0.28);
+  background: rgba(255, 247, 237, 0.98);
+}
+html[data-theme='light'] .bed-hover-drawer--warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(254, 243, 199, 0.98);
+}
+html[data-theme='light'] .bed-hover-block--suggestion {
+  border-color: rgba(16, 185, 129, 0.24);
+  background: rgba(220, 252, 231, 0.98);
+}
+html[data-theme='light'] .bed-hover-suggestion,
+html[data-theme='light'] .extub-risk-brief-text { color: #047857; }
+html[data-theme='light'] .extub-risk-card {
+  border-color: rgba(251, 113, 133, 0.28);
+  background: rgba(255, 241, 244, 0.98);
+}
+html[data-theme='light'] .extub-risk-main { color: #be123c; }
+html[data-theme='light'] .bed-card {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0) 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 248, 253, 0.98) 100%);
+  border-color: rgba(153, 183, 206, 0.5);
+  box-shadow: 0 14px 24px rgba(17, 54, 84, 0.1);
+}
+html[data-theme='light'] .bed-no {
+  background: linear-gradient(180deg, rgba(44, 110, 179, 0.96) 0%, rgba(23, 83, 151, 0.98) 100%);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #f8fbff;
+}
+html[data-theme='light'] .bed-zone,
+html[data-theme='light'] .bed-diag-label {
+  color: #6285a5;
+}
+html[data-theme='light'] .bed-name,
+html[data-theme='light'] .bed-diag,
+html[data-theme='light'] .vital-cell b,
+html[data-theme='light'] .extub-risk-main,
+html[data-theme='light'] .bed-hover-title,
+html[data-theme='light'] .bed-hover-main {
+  color: #173a59;
+}
+html[data-theme='light'] .bed-meta,
+html[data-theme='light'] .vital-cell,
+html[data-theme='light'] .extub-risk-chip,
+html[data-theme='light'] .bed-hover-chip {
+  color: #4b6b88;
+}
+html[data-theme='light'] .bed-tag {
+  color: #4d6f8f;
+  background: rgba(232, 241, 250, 0.98);
+  border-color: rgba(153, 183, 206, 0.44);
+}
+html[data-theme='light'] .bed-tag--soft {
+  color: #244c76;
+}
+html[data-theme='light'] .bed-meta {
+  background: rgba(235, 243, 251, 0.98);
+  border-color: rgba(153, 183, 206, 0.4);
+}
+html[data-theme='light'] .bed-diag-block,
+html[data-theme='light'] .vital-cell {
+  background: rgba(238, 245, 252, 0.98);
+  border-color: rgba(153, 183, 206, 0.44);
+}
+html[data-theme='light'] .vital-cell {
+  background:
+    radial-gradient(circle at 88% -10%, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0) 44%),
+    linear-gradient(180deg, rgba(249, 252, 255, 0.98) 0%, rgba(236, 245, 252, 0.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+html[data-theme='light'] .vital-cell--bp {
+  background:
+    radial-gradient(circle at 88% -10%, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0) 45%),
+    linear-gradient(180deg, rgba(255, 252, 245, 0.98) 0%, rgba(250, 242, 228, 0.98) 100%);
+}
+html[data-theme='light'] .vital-cell span {
+  color: #6484a3;
+  border-color: rgba(153, 183, 206, 0.4);
+  background: rgba(234, 242, 250, 0.9);
+}
+html[data-theme='light'] .vital-cell b {
+  color: #1b4468;
+}
+html[data-theme='light'] .extub-risk-title,
+html[data-theme='light'] .bed-hover-tag {
+  color: #7a2d3d;
+  background: rgba(255, 234, 239, 0.86);
+  border-color: rgba(251, 113, 133, 0.28);
+}
+html[data-theme='light'] .extub-risk-subtitle,
+html[data-theme='light'] .bed-hover-label {
+  color: #8a5261;
+}
+html[data-theme='light'] .extub-risk-brief {
+  border-color: rgba(16, 185, 129, 0.24);
+  background: rgba(220, 252, 231, 0.9);
+}
 
 @keyframes flash-border {
   0%, 100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }

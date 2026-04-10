@@ -163,6 +163,24 @@ const BigScreenChart = defineAsyncComponent(async () => {
 .chart-wrap :deep(canvas) {
   border-radius: 10px;
 }
+html[data-theme='light'] .stat-block {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 36%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .stat-head { border-bottom-color: rgba(187, 204, 220, 0.56); }
+html[data-theme='light'] .panel-kicker,
+html[data-theme='light'] .panel-scale { color: #6f8399; }
+html[data-theme='light'] .panel-title { color: #16324f; }
+html[data-theme='light'] .panel-scale {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.98);
+}
+html[data-theme='light'] .chart-wrap {
+  background: linear-gradient(180deg, rgba(241,246,251,.9) 0%, rgba(241,246,251,.45) 100%);
+}
 
 @media (max-width: 1100px) {
   .chart-wrap {

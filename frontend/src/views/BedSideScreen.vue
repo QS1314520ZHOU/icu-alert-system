@@ -266,7 +266,7 @@ watch(patientId, async (nextId, prevId) => {
   min-height: 100vh;
   background: #0a0e1a;
   color: #e8eaf0;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--app-display-font);
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -442,4 +442,59 @@ watch(patientId, async (nextId, prevId) => {
   box-shadow: 0 0 12px rgba(0,200,255,0.3);
 }
 .speech-badge__icon { font-size: 1rem; }
+html[data-theme='light'] .bedside-screen {
+  background: #f3f8fd;
+  color: #1f3852;
+}
+html[data-theme='light'] .bedside-screen.level-critical { background: #fff5f5; }
+html[data-theme='light'] .bedside-screen.level-warning { background: #fffbeb; }
+html[data-theme='light'] .bedside-header {
+  background: rgba(255,255,255,.92);
+  border-bottom-color: rgba(187,204,220,.72);
+}
+html[data-theme='light'] .bed-no { color: #1d4ed8; }
+html[data-theme='light'] .bed-label,
+html[data-theme='light'] .patient-meta,
+html[data-theme='light'] .bedside-clock,
+html[data-theme='light'] .bedside-section-label,
+html[data-theme='light'] .vital-card__label,
+html[data-theme='light'] .vital-card__unit,
+html[data-theme='light'] .todo-item__time,
+html[data-theme='light'] .bedside-todos__empty,
+html[data-theme='light'] .bedside-alerts__empty {
+  color: #6f8399;
+}
+html[data-theme='light'] .patient-name,
+html[data-theme='light'] .vital-card__value,
+html[data-theme='light'] .alert-row__name { color: #16324f; }
+html[data-theme='light'] .bedside-diag,
+html[data-theme='light'] .bedside-vitals,
+html[data-theme='light'] .bedside-todos {
+  border-bottom-color: rgba(187,204,220,.56);
+}
+html[data-theme='light'] .bedside-diag__text { color: #47627e; }
+html[data-theme='light'] .vital-card,
+html[data-theme='light'] .alert-row {
+  background: rgba(241,246,251,.96);
+  border-color: rgba(187,204,220,.72);
+}
+html[data-theme='light'] .vital-card--warn {
+  border-color: rgba(245,158,11,.3);
+  background: rgba(254,243,199,.96);
+}
+html[data-theme='light'] .alert-row--critical { background: rgba(255,241,242,.98); }
+html[data-theme='light'] .alert-row--warning { background: rgba(254,243,199,.98); }
+html[data-theme='light'] .alert-row__severity { color: #6f8399; }
+html[data-theme='light'] .alert-row--critical .alert-row__severity { color: #be123c; }
+html[data-theme='light'] .alert-row--warning .alert-row__severity { color: #b45309; }
+html[data-theme='light'] .speech-badge {
+  background: rgba(255,255,255,.95);
+  border-color: rgba(187,204,220,.72);
+  color: #6f8399;
+}
+html[data-theme='light'] .speech-badge.active {
+  border-color: rgba(59,130,246,.34);
+  color: #1d4ed8;
+  box-shadow: 0 0 12px rgba(37,99,235,.18);
+}
 </style>

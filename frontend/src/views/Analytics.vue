@@ -2243,7 +2243,7 @@ onMounted(() => {
     radial-gradient(circle at top, rgba(34, 211, 238, 0.1), rgba(34, 211, 238, 0) 28%),
     linear-gradient(180deg, #06111d 0%, #040b14 100%);
   min-height: 100%;
-  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+  font-family: var(--app-display-font);
 }
 
 .analytics-page::before {
@@ -2535,7 +2535,7 @@ onMounted(() => {
   font-size: 24px;
   line-height: 1.1;
   font-weight: 700;
-  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
   letter-spacing: 0.03em;
 }
 
@@ -2995,7 +2995,7 @@ onMounted(() => {
   color: #67e8f9;
   font-size: 16px;
   font-weight: 700;
-  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
 }
 
 .advice-card__body {
@@ -3127,6 +3127,103 @@ onMounted(() => {
 
 .analytics-link:hover {
   color: #b5f3ff;
+}
+html[data-theme='light'] .analytics-page {
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.14), rgba(59, 130, 246, 0) 34%),
+    linear-gradient(180deg, #f4f8fc 0%, #edf3f9 100%);
+}
+html[data-theme='light'] .analytics-page::before {
+  background:
+    linear-gradient(rgba(148, 180, 206, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 180, 206, 0.2) 1px, transparent 1px);
+  opacity: 0.42;
+}
+html[data-theme='light'] .filter-card,
+html[data-theme='light'] .section-hero,
+html[data-theme='light'] .action-tile,
+html[data-theme='light'] .kpi-tile,
+html[data-theme='light'] .panel,
+html[data-theme='light'] .brief-card,
+html[data-theme='light'] .focus-panel {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 249, 253, 0.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .panel :deep(.ant-card-head) {
+  border-bottom-color: rgba(187, 204, 220, 0.72);
+  background: linear-gradient(90deg, rgba(231, 241, 249, 0.98), rgba(231, 241, 249, 0));
+}
+html[data-theme='light'] .left-tools .label,
+html[data-theme='light'] .hero-kicker,
+html[data-theme='light'] .kpi-label,
+html[data-theme='light'] .action-tile__label,
+html[data-theme='light'] .brief-card__label,
+html[data-theme='light'] .focus-panel__kicker,
+html[data-theme='light'] .summary-k,
+html[data-theme='light'] .insight-label,
+html[data-theme='light'] .status-card__label,
+html[data-theme='light'] .insight-line__label,
+html[data-theme='light'] .summary-card__label,
+html[data-theme='light'] .advice-card__label {
+  color: #47627e;
+}
+html[data-theme='light'] .hero-title,
+html[data-theme='light'] .kpi-value,
+html[data-theme='light'] .action-tile__value,
+html[data-theme='light'] .brief-card__value,
+html[data-theme='light'] .focus-panel__title,
+html[data-theme='light'] .summary-v,
+html[data-theme='light'] .insight-value,
+html[data-theme='light'] .status-card__value,
+html[data-theme='light'] .summary-card__value,
+html[data-theme='light'] .advice-card__text {
+  color: #16324f;
+}
+html[data-theme='light'] .hero-desc,
+html[data-theme='light'] .action-tile__meta,
+html[data-theme='light'] .kpi-sub,
+html[data-theme='light'] .brief-card__meta,
+html[data-theme='light'] .focus-item__meta,
+html[data-theme='light'] .insight-meta,
+html[data-theme='light'] .status-card__meta,
+html[data-theme='light'] .progress-row__meta,
+html[data-theme='light'] .insight-line__meta,
+html[data-theme='light'] .summary-card__meta,
+html[data-theme='light'] .empty {
+  color: #6f8399;
+}
+html[data-theme='light'] .hero-chip,
+html[data-theme='light'] .summary-chip,
+html[data-theme='light'] .focus-item,
+html[data-theme='light'] .insight-tile,
+html[data-theme='light'] .summary-card,
+html[data-theme='light'] .advice-card,
+html[data-theme='light'] .progress-bar,
+html[data-theme='light'] .summary-chip,
+html[data-theme='light'] .advice-card__index {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+}
+html[data-theme='light'] .panel :deep(.ant-card-head-title) { color: #1d4ed8; }
+html[data-theme='light'] .rank-table :deep(.ant-table-container) { border-color: rgba(187, 204, 220, 0.72); }
+html[data-theme='light'] .rank-table :deep(.ant-table-thead > tr > th) {
+  background: rgba(241, 246, 251, 0.98);
+  color: #47627e;
+  border-bottom-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .rank-table :deep(.ant-table-tbody > tr > td) {
+  color: #1f3852;
+  border-bottom-color: rgba(187, 204, 220, 0.56);
+}
+html[data-theme='light'] .rank-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: rgba(231, 241, 249, 0.98) !important;
+}
+html[data-theme='light'] .analytics-link,
+html[data-theme='light'] .analytics-link:hover {
+  color: #1d4ed8;
 }
 
 @media (max-width: 980px) {

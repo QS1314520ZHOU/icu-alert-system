@@ -1,0 +1,42 @@
+[
+  {
+    "id": "vent_daily_screening",
+    "title": "机械通气撤离与SBT指南",
+    "source": "AARC CPG 2024 + ATS/CHEST 2017",
+    "recommendation": "每日撤机筛查标准",
+    "tags": ["ventilator", "weaning", "screening", "sbt"],
+    "text": "所有机械通气患者每日进行撤机筛查。通过标准：基础病因改善或稳定、FiO2<=0.40且PEEP<=8cmH2O、SpO2>=90%或P/F>=200、血流动力学稳定(NE<=0.1ug/kg/min)、无持续镇静或可中断(RASS -1至+1)、有自主吸气努力、无计划的有创操作、颅内压稳定。AARC 2024建议筛查和SBT安排在每日中午之前完成(条件性推荐，极低确定性)。"
+  },
+  {
+    "id": "vent_sbt_method",
+    "title": "机械通气撤离与SBT指南",
+    "source": "AARC CPG 2024",
+    "recommendation": "SBT方法与设置",
+    "tags": ["sbt", "pressure_support", "t_piece"],
+    "text": "AARC 2024推荐SBT可使用T管或低水平PSV(<=8cmH2O)进行(条件性推荐，中等确定性)。持续30-120分钟，短期通气(<7天)30分钟即可，长期通气可延长至120分钟。RSBI(浅快呼吸指数)不是启动SBT的必要前提(条件性推荐，中等确定性)，简单临床筛查即可。SBT期间不应增加FiO2(条件性推荐)，避免掩盖缺氧导致假阳性结果。"
+  },
+  {
+    "id": "vent_sbt_failure_criteria",
+    "title": "机械通气撤离与SBT指南",
+    "source": "AARC CPG 2024 + EMCrit",
+    "recommendation": "SBT失败标准",
+    "tags": ["sbt", "failure", "reintubation"],
+    "text": "SBT期间出现以下任一情况应终止并恢复机械通气：RR>35次/min或较基线增加>50%、SpO2<90%持续>2分钟、HR>140或较基线增加>20%、SBP<90或>180mmHg、新发心律失常、大量出汗烦躁意识恶化、潮气量<5mL/kg、辅助呼吸肌明显活动或胸腹矛盾运动。SBT失败后应分析原因(心功能不全、分泌物过多、神经肌肉病、营养不良等)，针对性处理后24h内重新评估。"
+  },
+  {
+    "id": "vent_extubation_assessment",
+    "title": "机械通气撤离与SBT指南",
+    "source": "ATS/CHEST 2017",
+    "recommendation": "拔管评估与拔管后管理",
+    "tags": ["extubation", "niv", "hfnc", "cuff_leak"],
+    "text": "SBT通过仅是拔管决策的一部分。还需评估：气道保护能力(有效咳嗽、分泌物量<=q2h吸痰1次)、意识状态(GCS>=8T或能遵从简单指令)、气囊漏气试验(漏气量>110mL或>预测潮气量15-24%为低风险)。高风险拔管失败患者(年龄>65、心衰、COPD、通气>7天、BMI>30、先前SBT失败)应在拔管后立即使用预防性NIV或HFNC。拔管后48h再插管率正常应<15%。ATS/CHEST 2017推荐高风险患者拔管后预防性NIV(条件性推荐)。"
+  },
+  {
+    "id": "vent_sat_sbt_coordination",
+    "title": "机械通气撤离与SBT指南",
+    "source": "AHRQ MVP Protocol + Awakening and Breathing Controlled Trial",
+    "recommendation": "SAT-SBT协同方案",
+    "tags": ["sat", "sbt", "awakening", "sedation_interruption"],
+    "text": "协同SAT(自主觉醒试验)和SBT方案可显著减少机械通气天数和ICU住院时间。步骤：1)每日评估SAT安全筛查(无癫痫持续、无酒精戒断、无肌松持续、颅内压正常)；2)通过后暂停镇静(SAT)观察觉醒；3)SAT通过(睁眼或遵从指令)后进行SBT安全筛查；4)通过后执行SBT。关键在于护理、呼吸治疗师和医生多学科协作。PADIS 2018支持轻度镇静和每日镇静中断促进早期撤机。"
+  }
+]

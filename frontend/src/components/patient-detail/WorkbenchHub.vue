@@ -118,6 +118,44 @@ defineProps<{
 .ops-card { padding: 16px; border-radius: 18px; border: 1px solid rgba(93, 226, 231, 0.12); background: linear-gradient(180deg, rgba(8, 28, 43, 0.94), rgba(5, 19, 32, 0.98)); }
 .ops-card strong { color: #effcff; font-size: 15px; }
 .ops-link { margin-top: 14px; border: none; background: transparent; color: #7dd3fc; cursor: pointer; padding: 0; font-size: 13px; letter-spacing: .04em; }
+html[data-theme='light'] .workbench-shell {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 38%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 249, 253, 0.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .workbench-kicker,
+html[data-theme='light'] .ops-kicker,
+html[data-theme='light'] .topic-card-sub,
+html[data-theme='light'] .topic-card-meta,
+html[data-theme='light'] .ops-foot {
+  color: #6f8399;
+}
+html[data-theme='light'] .workbench-title,
+html[data-theme='light'] .topic-card-title,
+html[data-theme='light'] .topic-card-main,
+html[data-theme='light'] .ops-main,
+html[data-theme='light'] .ops-card strong {
+  color: #16324f;
+}
+html[data-theme='light'] .workbench-sub { color: #47627e; }
+html[data-theme='light'] .runtime-pill,
+html[data-theme='light'] .topic-card,
+html[data-theme='light'] .topic-chip,
+html[data-theme='light'] .ops-chip,
+html[data-theme='light'] .ops-bullet,
+html[data-theme='light'] .ops-card,
+html[data-theme='light'] .topic-card-count {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+  color: #1f3852;
+}
+html[data-theme='light'] .topic-card:hover {
+  border-color: rgba(59, 130, 246, 0.34);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
+}
+html[data-theme='light'] .ops-link { color: #1d4ed8; }
 @media (max-width: 1100px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 720px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr; } .workbench-shell { padding: 14px; } }
 </style>

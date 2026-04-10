@@ -2443,6 +2443,174 @@ onMounted(async () => {
 .action-list { margin: 10px 0 0; padding-left: 18px; color: #dbf0fa; display: grid; gap: 8px; }
 .conflict-card__agents { margin-top: 6px; }
 .error-box { background: rgba(127, 29, 29, 0.22); border-color: rgba(248, 113, 113, 0.24); color: #fecaca; }
+html[data-theme='light'] .mdt-page::before {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 18%),
+    linear-gradient(90deg, rgba(187, 204, 220, 0.22) 1px, transparent 1px),
+    linear-gradient(rgba(187, 204, 220, 0.18) 1px, transparent 1px);
+}
+html[data-theme='light'] .mdt-hero,
+html[data-theme='light'] .mdt-panel {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .hero-badge,
+html[data-theme='light'] .hero-conclusion-card,
+html[data-theme='light'] .todo-row,
+html[data-theme='light'] .mdt-toolbar,
+html[data-theme='light'] .mini-card,
+html[data-theme='light'] .sheet-item,
+html[data-theme='light'] .system-card,
+html[data-theme='light'] .specialist-row,
+html[data-theme='light'] .focus-specialist-card,
+html[data-theme='light'] .session-chip,
+html[data-theme='light'] .deep-panel,
+html[data-theme='light'] .trend-metrics__item,
+html[data-theme='light'] .assistant-note,
+html[data-theme='light'] .timeline-item,
+html[data-theme='light'] .alert-chain__item,
+html[data-theme='light'] .impact-card,
+html[data-theme='light'] .decision-item,
+html[data-theme='light'] .inline-toggle,
+html[data-theme='light'] .summary-box,
+html[data-theme='light'] .empty-box,
+html[data-theme='light'] .priority-card,
+html[data-theme='light'] .conflict-card,
+html[data-theme='light'] .detail-block,
+html[data-theme='light'] .chip,
+html[data-theme='light'] .panel-select,
+html[data-theme='light'] .field-input,
+html[data-theme='light'] .field-textarea,
+html[data-theme='light'] .mdt-select {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+  color: #1f3852;
+  box-shadow: none;
+}
+html[data-theme='light'] .mdt-title,
+html[data-theme='light'] .hero-conclusion-card strong,
+html[data-theme='light'] .mini-card strong,
+html[data-theme='light'] .patient-sheet__name,
+html[data-theme='light'] .sheet-item strong,
+html[data-theme='light'] .system-card__domain,
+html[data-theme='light'] .specialist-row__domain,
+html[data-theme='light'] .focus-specialist-card__head strong,
+html[data-theme='light'] .deep-panel__title,
+html[data-theme='light'] .decision-item__head strong,
+html[data-theme='light'] .priority-card__head strong,
+html[data-theme='light'] .conflict-card__title {
+  color: #16324f;
+}
+html[data-theme='light'] .mdt-kicker,
+html[data-theme='light'] .mdt-desc,
+html[data-theme='light'] .hero-conclusion-card span,
+html[data-theme='light'] .todo-row small,
+html[data-theme='light'] .toolbar-label,
+html[data-theme='light'] .mini-card span,
+html[data-theme='light'] .mini-card small,
+html[data-theme='light'] .detail-label,
+html[data-theme='light'] .conflict-card__agents,
+html[data-theme='light'] .patient-sheet__sub,
+html[data-theme='light'] .sheet-item span,
+html[data-theme='light'] .system-card__priority,
+html[data-theme='light'] .system-card__status,
+html[data-theme='light'] .system-card__summary,
+html[data-theme='light'] .specialist-row__summary,
+html[data-theme='light'] .muted-line,
+html[data-theme='light'] .specialist-row__meta,
+html[data-theme='light'] .focus-specialist-card__head span,
+html[data-theme='light'] .focus-specialist-card__summary,
+html[data-theme='light'] .section-kicker,
+html[data-theme='light'] .trend-placeholder__header,
+html[data-theme='light'] .trend-placeholder__caption,
+html[data-theme='light'] .trend-metrics__item span,
+html[data-theme='light'] .trend-metrics__item strong,
+html[data-theme='light'] .assistant-note__label,
+html[data-theme='light'] .assistant-note__text,
+html[data-theme='light'] .timeline-item span,
+html[data-theme='light'] .timeline-item small,
+html[data-theme='light'] .decision-bucket__head,
+html[data-theme='light'] .alert-chain__time,
+html[data-theme='light'] .impact-card__title,
+html[data-theme='light'] .alert-chain__text,
+html[data-theme='light'] .impact-card__text,
+html[data-theme='light'] .decision-item__text,
+html[data-theme='light'] .alert-chain__sub,
+html[data-theme='light'] .impact-card__sub,
+html[data-theme='light'] .decision-item__head span,
+html[data-theme='light'] .decision-item__meta span,
+html[data-theme='light'] .mini-link,
+html[data-theme='light'] .action-list,
+html[data-theme='light'] .summary-box,
+html[data-theme='light'] .empty-box {
+  color: #6f8399;
+}
+html[data-theme='light'] .hero-badge--focus,
+html[data-theme='light'] .row-active-chip {
+  background: rgba(219, 234, 254, 0.98);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .hero-badge--critical {
+  background: rgba(255, 241, 244, 0.98);
+  border-color: rgba(251, 113, 133, 0.3);
+  color: #be123c;
+}
+html[data-theme='light'] .hero-badge--warning {
+  background: rgba(254, 243, 199, 0.98);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #b45309;
+}
+html[data-theme='light'] .hero-badge--closed,
+html[data-theme='light'] .session-chip--closed {
+  background: rgba(255, 241, 242, 0.98);
+  border-color: rgba(251, 113, 133, 0.28);
+  color: #be123c;
+}
+html[data-theme='light'] .session-chip--tag {
+  background: rgba(219, 234, 254, 0.98);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .session-chip--done {
+  background: rgba(220, 252, 231, 0.98);
+  border-color: rgba(16, 185, 129, 0.28);
+  color: #047857;
+}
+html[data-theme='light'] .session-chip--running {
+  background: rgba(254, 243, 199, 0.98);
+  border-color: rgba(245, 158, 11, 0.28);
+  color: #b45309;
+}
+html[data-theme='light'] .system-card.is-active,
+html[data-theme='light'] .specialist-row.is-active {
+  border-color: rgba(59, 130, 246, 0.34);
+  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.92);
+  background: rgba(231, 241, 249, 0.98);
+}
+html[data-theme='light'] .system-card:hover,
+html[data-theme='light'] .specialist-row:hover {
+  border-color: rgba(59, 130, 246, 0.28);
+}
+html[data-theme='light'] .summary-box--hero {
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
+}
+html[data-theme='light'] .trend-placeholder__chart span {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.78), rgba(59, 130, 246, 0.2));
+}
+html[data-theme='light'] .toolbar-hint {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(254, 243, 199, 0.98);
+  color: #b45309;
+}
+html[data-theme='light'] .error-box {
+  border-color: rgba(251, 113, 133, 0.28);
+  background: rgba(255, 241, 242, 0.98);
+  color: #be123c;
+}
 @media (max-width: 1280px) {
   .mdt-hero,
   .mdt-workspace,

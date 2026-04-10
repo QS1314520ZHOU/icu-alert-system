@@ -556,6 +556,50 @@ function parsedRawContent(row: any) {
   font-size: 12px;
   line-height: 1.4;
 }
+html[data-theme='light'] .sbt-wrap {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  color: #1f3852;
+}
+html[data-theme='light'] .sbt-head,
+html[data-theme='light'] .sbt-decision-card,
+html[data-theme='light'] .sbt-kpi-card,
+html[data-theme='light'] .sbt-card,
+html[data-theme='light'] .sbt-score-box,
+html[data-theme='light'] .sbt-chip,
+html[data-theme='light'] .sbt-record-item,
+html[data-theme='light'] .sbt-raw-card,
+html[data-theme='light'] .sbt-raw-chip,
+html[data-theme='light'] .sbt-empty {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+  box-shadow: none;
+}
+html[data-theme='light'] .sbt-title,
+html[data-theme='light'] .sbt-decision-card__title,
+html[data-theme='light'] .sbt-card-title,
+html[data-theme='light'] .sbt-score-box strong,
+html[data-theme='light'] .sbt-record-value {
+  color: #16324f;
+}
+html[data-theme='light'] .sbt-sub,
+html[data-theme='light'] .sbt-card-sub,
+html[data-theme='light'] .sbt-time,
+html[data-theme='light'] .sbt-record-label,
+html[data-theme='light'] .sbt-raw-label,
+html[data-theme='light'] .sbt-decision-card__label {
+  color: #6f8399;
+}
+html[data-theme='light'] .sbt-refresh {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.98);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .sbt-result-pill--passed { color: #047857; background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.28); }
+html[data-theme='light'] .sbt-result-pill--failed { color: #be123c; background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.28); }
+html[data-theme='light'] .sbt-result-pill--documented { color: #1d4ed8; background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
+html[data-theme='light'] .sbt-line { background: linear-gradient(180deg, #93aac4 0%, #6f8399 100%); }
 @media (max-width: 980px) {
   .sbt-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sbt-timeline-item { grid-template-columns: 1fr; }

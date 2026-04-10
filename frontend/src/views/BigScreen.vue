@@ -673,7 +673,7 @@ watch(() => route.query, () => {
   isolation: isolate;
   background: radial-gradient(circle at 20% 0%, #0c1f36 0%, #050b16 45%, #04070d 100%);
   color: #e2e8f0;
-  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+  font-family: var(--app-display-font);
 }
 .bigscreen::before {
   content: '';
@@ -967,6 +967,75 @@ watch(() => route.query, () => {
 @keyframes flash-border {
   0%, 100% { box-shadow: 0 0 0 rgba(239,68,68,0); }
   50% { box-shadow: 0 0 18px rgba(239,68,68,0.35); }
+}
+html[data-theme='light'] .bigscreen {
+  background:
+    radial-gradient(circle at 20% 0%, #f3f8fd 0%, #edf3f9 45%, #e8eff6 100%);
+  color: #1f3852;
+}
+html[data-theme='light'] .bigscreen::before {
+  background:
+    linear-gradient(rgba(148, 180, 206, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 180, 206, 0.18) 1px, transparent 1px);
+  opacity: 0.42;
+}
+html[data-theme='light'] .screen-header,
+html[data-theme='light'] .panel,
+html[data-theme='light'] .command-card,
+html[data-theme='light'] .ops-lane,
+html[data-theme='light'] .ops-item,
+html[data-theme='light'] .header-context-chip,
+html[data-theme='light'] .header-filter-chip,
+html[data-theme='light'] .ops-lane__badge,
+html[data-theme='light'] .kpi-chip {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.98);
+  box-shadow: none;
+}
+html[data-theme='light'] .title,
+html[data-theme='light'] .command-card__value,
+html[data-theme='light'] .ops-lane__title,
+html[data-theme='light'] .ops-item__value,
+html[data-theme='light'] .kpi-chip strong {
+  color: #16324f;
+}
+html[data-theme='light'] .title-tag {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #f8fbff;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+}
+html[data-theme='light'] .header-sub,
+html[data-theme='light'] .kpi-label,
+html[data-theme='light'] .command-card__label,
+html[data-theme='light'] .command-card__meta,
+html[data-theme='light'] .ops-lane__kicker,
+html[data-theme='light'] .ops-item__label,
+html[data-theme='light'] .ops-item__meta,
+html[data-theme='light'] .panel-meta {
+  color: #6f8399;
+}
+html[data-theme='light'] .panel-title { color: #1d4ed8; }
+html[data-theme='light'] .clock {
+  color: #335f8a;
+  background: rgba(226, 238, 249, 0.96);
+  border-color: rgba(130, 168, 196, 0.48);
+}
+html[data-theme='light'] .header-context-chip,
+html[data-theme='light'] .header-filter-chip,
+html[data-theme='light'] .ops-lane__badge {
+  color: #3d5f7f;
+}
+html[data-theme='light'] .header-filter-chip b {
+  color: #1f4f7e;
+}
+html[data-theme='light'] .header-filter-chip.active {
+  background: rgba(219, 234, 254, 0.98);
+  border-color: rgba(59, 130, 246, 0.34);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .header-filter-chip.active b {
+  color: #1d4ed8;
 }
 
 @media (max-width: 1100px) {

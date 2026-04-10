@@ -3140,7 +3140,7 @@ onBeforeUnmount(() => {
   padding: 0 16px 24px;
   position: relative;
   isolation: isolate;
-  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+  font-family: var(--app-display-font);
 }
 .detail-container::before {
   content: '';
@@ -3435,7 +3435,7 @@ onBeforeUnmount(() => {
 .hero-rescue-chip-value {
   color: #fff8fa;
   font-size: 13px;
-  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
 }
 .hero-rescue-suggestion {
   color: #ffe7eb;
@@ -3518,7 +3518,7 @@ onBeforeUnmount(() => {
 .hero-vital strong {
   font-size: 24px;
   color: #effcff;
-  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
   line-height: 1;
 }
 .hero-vitals-foot {
@@ -3587,7 +3587,7 @@ onBeforeUnmount(() => {
   color: #effcff;
   font-size: 24px;
   line-height: 1;
-  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
 }
 .weaning-card-main {
   color: #effcff;
@@ -3725,7 +3725,7 @@ onBeforeUnmount(() => {
   font-size: 18px;
   font-weight: 800;
   color: #effcff;
-  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
 }
 .vitals-empty {
   color: #7ccfe4;
@@ -4348,7 +4348,136 @@ onBeforeUnmount(() => {
   margin-top: 6px;
 }
 
-/* Removed redundant Light Theme block - now fully driven by CSS variables */
+html[data-theme='light'] .detail-container {
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0) 32%),
+    linear-gradient(180deg, #f4f8fc 0%, #edf3f9 100%);
+  color: #1f3852;
+}
+html[data-theme='light'] .monitor-hero,
+html[data-theme='light'] .weaning-card,
+html[data-theme='light'] .info-card,
+html[data-theme='light'] .tabs-card {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .hero-tag,
+html[data-theme='light'] .hero-tag--soft,
+html[data-theme='light'] .hero-fact,
+html[data-theme='light'] .hero-vital,
+html[data-theme='light'] .weaning-score-box,
+html[data-theme='light'] .weaning-chip,
+html[data-theme='light'] .weaning-evidence-chip,
+html[data-theme='light'] .weaning-sbt-pill,
+html[data-theme='light'] .v-item,
+html[data-theme='light'] .modi-kpi,
+html[data-theme='light'] .alert-meta > span,
+html[data-theme='light'] .alert-detail-item,
+html[data-theme='light'] .ai-risk-summary,
+html[data-theme='light'] .ai-risk-card,
+html[data-theme='light'] .ai-risk-organ,
+html[data-theme='light'] .ai-risk-section,
+html[data-theme='light'] .kb-doc-meta,
+html[data-theme='light'] .kb-chunk-item {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+}
+html[data-theme='light'] .hero-diagnosis,
+html[data-theme='light'] .hero-fact strong,
+html[data-theme='light'] .hero-vital strong,
+html[data-theme='light'] .weaning-score-value,
+html[data-theme='light'] .weaning-card-main,
+html[data-theme='light'] .v-value,
+html[data-theme='light'] .modi-title,
+html[data-theme='light'] .alert-title,
+html[data-theme='light'] .alert-value,
+html[data-theme='light'] .ai-risk-summary strong,
+html[data-theme='light'] .ai-risk-card strong,
+html[data-theme='light'] .ai-risk-organ-name,
+html[data-theme='light'] .ai-risk-section-title,
+html[data-theme='light'] .kb-chunk-title {
+  color: #16324f;
+}
+html[data-theme='light'] .hero-meta,
+html[data-theme='light'] .hero-fact span,
+html[data-theme='light'] .hero-vitals-foot,
+html[data-theme='light'] .weaning-card-sub,
+html[data-theme='light'] .weaning-card-foot,
+html[data-theme='light'] .v-label,
+html[data-theme='light'] .vitals-empty,
+html[data-theme='light'] .modi-sub,
+html[data-theme='light'] .alert-rule,
+html[data-theme='light'] .detail-label,
+html[data-theme='light'] .ai-risk-summary span,
+html[data-theme='light'] .ai-risk-card p,
+html[data-theme='light'] .ai-risk-organ-evidence,
+html[data-theme='light'] .ai-risk-organ-conf,
+html[data-theme='light'] .ai-risk-list,
+html[data-theme='light'] .kb-doc-meta p,
+html[data-theme='light'] .kb-chunk-content,
+html[data-theme='light'] .ai-card-note,
+html[data-theme='light'] .ai-empty {
+  color: #6f8399;
+}
+html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab) {
+  background: rgba(241, 246, 251, 0.98);
+  border-color: rgba(187, 204, 220, 0.72);
+  box-shadow: none;
+}
+html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-btn) { color: #47627e; }
+html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active) {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
+  border-color: rgba(59, 130, 246, 0.32);
+}
+html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) { color: #f8fbff; }
+html[data-theme='light'] .tabs-card :deep(.ant-table-thead > tr > th) {
+  background: rgba(241, 246, 251, 0.98);
+  color: #47627e;
+  border-bottom-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .tabs-card :deep(.ant-table-tbody > tr > td) {
+  color: #1f3852;
+  border-bottom-color: rgba(187, 204, 220, 0.56);
+}
+html[data-theme='light'] .tabs-card :deep(.ant-btn),
+html[data-theme='light'] .tabs-card :deep(.ant-segmented),
+html[data-theme='light'] .tabs-card :deep(.ant-select-selector),
+html[data-theme='light'] .tabs-card :deep(.ant-input),
+html[data-theme='light'] .tabs-card :deep(.ant-input-number) {
+  background: rgba(241, 246, 251, 0.98) !important;
+  border-color: rgba(187, 204, 220, 0.72) !important;
+  color: #1f3852 !important;
+}
+html[data-theme='light'] .ai-rule-wrap { border-color: rgba(187, 204, 220, 0.72); }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: #f7fbff; }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) {
+  background: rgba(241, 246, 251, 0.98);
+  color: #47627e;
+  border-bottom-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) {
+  background: #ffffff;
+  color: #1f3852;
+  border-bottom-color: rgba(187, 204, 220, 0.56);
+}
+html[data-theme='light'] .alert-body {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: #ffffff;
+}
+html[data-theme='light'] .alert-line {
+  background: linear-gradient(180deg, #93aac4 0%, #6f8399 100%);
+}
+html[data-theme='light'] .alert-extra {
+  color: #6f8399;
+  background: rgba(241, 246, 251, 0.96);
+  border-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .ai-evidence-link,
+html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
+html[data-theme='light'] .ai-error { color: #dc2626; }
 
 @media (max-width: 1500px) {
   .ai-grid {
@@ -4456,8 +4585,6 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-
-
 
 
 

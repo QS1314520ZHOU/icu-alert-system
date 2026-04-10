@@ -92,4 +92,29 @@ const DetailChart = defineAsyncComponent(async () => {
   border-color: rgba(80,199,255,.14);
   color: #dffbff;
 }
+html[data-theme='light'] .trend-tab .chart-panel {
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,248,253,.98) 100%);
+  border-color: rgba(187,204,220,.72);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .trend-tab .tab-empty {
+  color: #5f7690;
+  background: rgba(238,245,252,.92);
+  border-color: rgba(153,183,206,.5);
+}
+html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper) {
+  border-color: rgba(187,204,220,.72) !important;
+  background: rgba(241,246,251,.98) !important;
+  color: #56718d !important;
+}
+html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper-checked) {
+  background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%) !important;
+  color: #f8fbff !important;
+  border-color: rgba(59,130,246,.34) !important;
+}
+html[data-theme='light'] .trend-tab :deep(.ant-btn) {
+  background: rgba(241,246,251,.98);
+  border-color: rgba(187,204,220,.72);
+  color: #355a7c;
+}
 </style>

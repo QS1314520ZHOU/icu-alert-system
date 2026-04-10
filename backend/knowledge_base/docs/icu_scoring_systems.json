@@ -1,0 +1,42 @@
+[
+  {
+    "id": "score_sofa",
+    "title": "ICU常用评分系统参考手册",
+    "source": "Vincent 1996 / Sepsis-3 2016",
+    "recommendation": "SOFA评分",
+    "tags": ["sofa", "organ_failure", "sepsis", "scoring"],
+    "text": "SOFA评估6个器官系统，每项0-4分，总分0-24。呼吸：P/F>=400=0,<400=1,<300=2,<200(机械通气)=3,<100(机械通气)=4。凝血：PLT>=150=0,<150=1,<100=2,<50=3,<20=4(×10^9/L)。肝脏：胆红素<20=0,20-32=1,33-101=2,102-204=3,>204=4(umol/L)。循环：MAP>=70=0,MAP<70=1,DA<=5或多巴酚丁胺=2,DA>5或NE<=0.1=3,DA>15或NE>0.1=4(ug/kg/min)。神经：GCS 15=0,13-14=1,10-12=2,6-9=3,<6=4。肾脏：Cr<110=0,110-170=1,171-299=2,300-440或UO<500mL/d=3,>440或UO<200mL/d=4(umol/L)。Sepsis-3定义脓毒症为SOFA较基线升高>=2分，入ICU SOFA>=11死亡率>80%。"
+  },
+  {
+    "id": "score_apache2",
+    "title": "ICU常用评分系统参考手册",
+    "source": "Knaus 1985",
+    "recommendation": "APACHE II评分",
+    "tags": ["apache", "mortality", "prognosis", "scoring"],
+    "text": "APACHE II评估入ICU 24h内最差参数，总分0-71。三部分：急性生理学评分APS(12参数0-60分)包括体温/MAP/HR/RR/氧合(A-aDO2或PaO2)/pH/Na/K/Cr(ARF×2)/Hct/WBC/GCS；年龄评分(0-6分)：<44=0,45-54=2,55-64=3,65-74=5,>=75=6；慢性健康评分(0-5分)：择期手术2分、急诊手术或非手术5分(需严重器官功能不全或免疫抑制)。死亡率：0-4约4%,5-9约8%,10-14约15%,15-19约25%,20-24约40%,25-29约55%,30-34约75%,>=35约85%。主要用于入院预后和科研分层。"
+  },
+  {
+    "id": "score_gcs",
+    "title": "ICU常用评分系统参考手册",
+    "source": "Teasdale & Jennett 1974",
+    "recommendation": "GCS格拉斯哥昏迷评分",
+    "tags": ["gcs", "consciousness", "neurological", "scoring"],
+    "text": "GCS总分3-15。睁眼E：自发=4,呼唤=3,疼痛=2,无=1。语言V：定向=5,混乱=4,不当用词=3,不可理解声音=2,无=1。运动M：遵嘱=6,定位=5,屈曲退避=4,异常屈曲(去皮层)=3,伸展(去脑)=2,无=1。记录E_V_M_如E3V4M5=12。气管插管V记1T如E3V1TM5=9T。分级：轻13-15,中9-12,重3-8(通常需插管)。GCS<=8T是插管适应证之一。"
+  },
+  {
+    "id": "score_cam_icu",
+    "title": "ICU常用评分系统参考手册",
+    "source": "Ely 2001 / PADIS 2018",
+    "recommendation": "CAM-ICU谵妄评估",
+    "tags": ["cam_icu", "delirium", "rass", "screening"],
+    "text": "CAM-ICU四项特征筛查谵妄：特征1-急性起病或意识波动(过去24h精神状态或RASS有波动=阳性)。特征2-注意力缺失(字母测试SAVEAHAART听到A时握手,错误>2=阳性)。特征3-思维紊乱(简单问题如石头能浮水上吗+指令测试伸出手指再多一根,错误>1=阳性)。特征4-意识水平改变(RASS≠0=阳性)。诊断：特征1+2阳性且3或4阳性=谵妄。频率：每班>=1次(q8-12h)，镇静调整后复查。RASS -4至-5无法评估记为不可评估。"
+  },
+  {
+    "id": "score_qsofa_mews_news2",
+    "title": "ICU常用评分系统参考手册",
+    "source": "Sepsis-3 2016 / NHS NEWS2",
+    "recommendation": "qSOFA及其他快速评估工具",
+    "tags": ["qsofa", "mews", "news2", "screening", "early_warning"],
+    "text": "qSOFA(非ICU筛查脓毒症)三项各1分：SBP<=100mmHg、RR>=22、精神状态改变(GCS<15)。>=2分需进一步评估。敏感性约70%特异性约70%，定位为筛查非诊断。MEWS(改良早期预警)：SBP/HR/RR/T/意识，每项0-3分，>=5需紧急响应。NEWS2(英国NHS)：较MEWS增SpO2和吸氧评估，>=7或单项3分触发紧急响应。NUTRIC(营养风险)：评估年龄/APACHE II/SOFA/合并症/入ICU前住院天数/IL-6，>=5为高营养风险应积极营养支持。"
+  }
+]

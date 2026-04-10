@@ -1,0 +1,42 @@
+[
+  {
+    "id": "ams_empiric_therapy",
+    "title": "ICU抗菌药物管理与降阶梯策略",
+    "source": "SSC 2021",
+    "recommendation": "经验性抗菌治疗原则",
+    "tags": ["antibiotic", "empiric", "sepsis", "broad_spectrum"],
+    "text": "SSC 2021强推荐：脓毒症/脓毒性休克1小时内启动经验性广谱抗菌治疗，每延迟1小时死亡率增加约4-8%。选择应覆盖最可能病原体，考虑感染灶、社区vs医院获得、当地耐药谱、患者风险因素(近期抗生素暴露/MRSA定植/ESBL-CRE风险/免疫抑制)。常见方案：社区CAP——头孢曲松+甲硝唑或哌拉西林/他唑巴坦；医院/VAP——美罗培南或头孢他啶/阿维巴坦±万古霉素/利奈唑胺。"
+  },
+  {
+    "id": "ams_de_escalation",
+    "title": "ICU抗菌药物管理与降阶梯策略",
+    "source": "ESCMID/ESICM 2019",
+    "recommendation": "降阶梯策略",
+    "tags": ["de-escalation", "culture", "narrow_spectrum"],
+    "text": "ESCMID/ESICM 2019推荐获得培养结果后48-72h内降阶梯评估。定义：根据病原学缩窄抗菌谱(如碳青霉烯降为头孢曲松)或减少联合方案。降阶梯不增加死亡率或复发率，可减少耐药菌和不良反应。前提：临床稳定(体温趋于正常、血流动力学改善、升压药减量)、培养明确病原体和药敏。不适合：严重免疫低下(中性粒<500)、感染灶未控制、混合感染。"
+  },
+  {
+    "id": "ams_pct_guided_duration",
+    "title": "ICU抗菌药物管理与降阶梯策略",
+    "source": "SSC 2021 + PRORATA/SAPS/PROGRESS Trials",
+    "recommendation": "PCT指导抗生素疗程",
+    "tags": ["pct", "procalcitonin", "duration", "discontinuation"],
+    "text": "SSC 2021弱推荐使用PCT趋势辅助停用抗生素。停药规则：PCT较峰值下降>=80%或降至<0.5ng/mL可考虑停药。多项RCT显示PCT指导方案缩短疗程2-3天不增加死亡率。监测频率：基线(入ICU)→每48-72h复查。局限性：术后/烧伤/创伤/胰腺炎/心脏骤停后非感染性PCT升高，真菌和非典型病原体PCT可能不升高，肾功能不全致PCT清除延迟。不应单独依赖PCT，需结合临床综合判断。"
+  },
+  {
+    "id": "ams_recommended_durations",
+    "title": "ICU抗菌药物管理与降阶梯策略",
+    "source": "IDSA/ATS 2016 + STOP-IT Trial",
+    "recommendation": "常见ICU感染推荐疗程",
+    "tags": ["antibiotic", "duration", "vap", "bloodstream"],
+    "text": "CAP 5-7天(临床稳定后)。VAP/HAP 7天(IDSA/ATS 2016，除非MDR或反应不佳)。血流感染：金葡菌14天(从首次阴性血培养计算)、大肠埃希菌等7-14天。腹腔内感染(感染源控制充分)4天(STOP-IT研究)。导管相关泌尿感染7天。皮肤软组织(非坏死性)7-14天。脓毒症(灶不明)7-10天结合PCT指导。过长疗程增加耐药、C.difficile和不良反应风险。"
+  },
+  {
+    "id": "ams_pk_pd_optimization",
+    "title": "ICU抗菌药物管理与降阶梯策略",
+    "source": "Clinical Pharmacology Consensus",
+    "recommendation": "PK/PD优化给药",
+    "tags": ["pk_pd", "extended_infusion", "beta_lactam", "aminoglycoside"],
+    "text": "β-内酰胺(时间依赖性)推荐延长输注：美罗培南3h延长输注增加fT>MIC改善治愈率，哌拉西林/他唑巴坦3-4h，头孢吡肟2h。氨基糖苷(浓度依赖性+长PAE)推荐每日1次(ODD)，目标Cmax/MIC>=8-10。万古霉素目标AUC/MIC 400-600。多黏菌素负荷剂量至关重要(9MIU colistin loading)分布容积大达稳态慢。危重症患者分布容积增大，标准剂量可能亚治疗，应结合TDM个体化。"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "device_cvc_management",
+    "title": "ICU侵入性装置管理指南",
+    "source": "SHEA/IDSA 2022 + CDC BSI Guidelines",
+    "recommendation": "中心静脉导管(CVC)管理",
+    "tags": ["cvc", "central_line", "device", "dwell_time", "infection"],
+    "text": "CVC管理要点：每日评估导管必要性(首要原则,不需要时尽早拔除)。穿刺点检查：每班次触诊/视诊(透明膜可目视)，红肿/压痛/渗液提示感染。敷料更换：透明膜q7d、纱布q2d、潮湿松脱立即更换，使用氯己定贴片(CLABSI高发单位)。接头消毒：含酒精消毒帽或酒精棉片擦拭>=15s待干后连接。不推荐常规定期更换CVC(非计划拔管的唯一指征是感染或功能障碍)。导丝换管仅用于机械功能障碍且无感染证据时。怀疑CRBSI：拔管并送导管尖端培养+外周血培养(差异报阳时间DTP>=2h支持CRBSI)。CVC留置预期时间记录：入ICU时评估并标注，每日查房更新。"
+  },
+  {
+    "id": "device_ett_airway",
+    "title": "ICU侵入性装置管理指南",
+    "source": "AARC Guidelines + VAP Bundle",
+    "recommendation": "气管插管(ETT)与气道管理",
+    "tags": ["ett", "endotracheal", "cuff", "airway", "subglottic"],
+    "text": "ETT管理要点：气囊压力维持25-30cmH2O(q4-6h监测，自动气囊压力控制器更优)。<20cmH2O误吸风险增加,>30cmH2O气管黏膜缺血风险。ETT固定：使用商用固定器或胶带，每班检查位置(门齿处标记，成年男性21-23cm/女性19-21cm)。口腔护理：q4-6h(氯己定或碳酸氢钠)。声门下分泌物吸引(SSD)：使用带SSD的ETT可减少VAP发生率40-50%。吸痰：按需而非定时(出现分泌物声/SpO2下降/气道压力升高时)，密闭式吸痰系统优于开放式(减少肺容积丢失和交叉感染)。计划外拔管预防：每班评估约束必要性和ETT固定牢固度。每日评估拔管可能性(参考撤机筛查标准)。"
+  },
+  {
+    "id": "device_foley_management",
+    "title": "ICU侵入性装置管理指南",
+    "source": "CDC CAUTI Guidelines 2024 + AUA QIIB",
+    "recommendation": "导尿管(Foley)管理",
+    "tags": ["foley", "urinary_catheter", "cauti", "device", "removal"],
+    "text": "导尿管管理：ICU留置导尿仅限于以下适应证：急性尿潴留/梗阻、围术期(复杂手术/预期长时间/泌尿手术,术后24-48h内拔除)、需要精确每小时尿量监测的血流动力学不稳定/容量复苏中患者、骶骨/会阴开放伤、姑息舒适护理。每日评估拔管：护士驱动的拔除方案(不满足以上适应证→提醒医生→拔管)。维护：保持密闭系统、集尿袋低于膀胱、不常规冲洗、不常规更换(除非堵塞/感染)。留置>2天后每天CAUTI风险增加3-7%。替代策略：间歇导尿(首选,残余尿>300mL时使用)、外部集尿装置(男性condom catheter)、超声膀胱扫描监测残余尿量。"
+  },
+  {
+    "id": "device_arterial_drain",
+    "title": "ICU侵入性装置管理指南",
+    "source": "ICU Standard Practice",
+    "recommendation": "动脉导管与引流管管理",
+    "tags": ["arterial_line", "drain", "chest_tube", "device"],
+    "text": "动脉导管：首选桡动脉(Allen试验评估侧支循环)，备选股动脉。每班评估波形质量和远端灌注(指端颜色/脉搏/SpO2)。使用持续冲洗系统(加压肝素盐水袋或普通盐水)。穿刺点敷料同CVC标准。拔除指征：不再需要连续血压监测和频繁ABG采血。胸腔引流管：每班评估引流量/性状/气泡、水封/负压状态。引流量>200mL/h连续2-3h或总量>1500mL提示需手术探查。拔管标准：引流量<200mL/24h且无气泡。腹腔引流管：每班评估量/颜色/性状,淀粉酶/胆红素检测(怀疑胰漏/胆漏时)。所有引流管每日评估必要性并记录留置天数。"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "vitals_hr_bp_thresholds",
+    "title": "ICU生命体征预警阈值参考",
+    "source": "NEWS2 + ICU Standard Practice + VitalSignsScanner Config",
+    "recommendation": "心率与血压预警阈值",
+    "tags": ["heart_rate", "blood_pressure", "map", "vital_signs", "threshold"],
+    "text": "心率HR：正常60-100bpm。窦性心动过缓warning <50,critical <40(需评估是否需要阿托品/临时起搏)。窦性心动过速warning >120(>6h持续),critical >140。新发快速房颤/房扑warning HR>100持续30min,critical HR>150。动脉血压：MAP目标65-90mmHg(多数ICU患者)。低血压warning MAP<65或SBP<90,critical MAP<55或SBP<80(器官低灌注高风险)。高血压warning SBP>180或MAP>110,critical SBP>200或MAP>120(高血压急症/颅内出血风险)。脓毒性休克MAP目标>=65mmHg(SSC 2021)。TBI患者SBP目标>=100-110mmHg。体位性低血压：坐起后SBP下降>20mmHg或MAP下降>10mmHg持续3min提示容量不足或自主神经功能障碍。"
+  },
+  {
+    "id": "vitals_respiratory_spo2",
+    "title": "ICU生命体征预警阈值参考",
+    "source": "NEWS2 + BTS Oxygen Guidelines + ICU Practice",
+    "recommendation": "呼吸与氧合预警阈值",
+    "tags": ["respiratory_rate", "spo2", "oxygen", "vital_signs"],
+    "text": "呼吸频率RR：正常12-20次/min。warning >25或<10。critical >35(呼吸衰竭/呼吸肌疲劳)或<8(呼吸抑制,需评估气道保护)。RR是临床恶化最敏感的早期指标之一。脉搏血氧SpO2：一般目标94-98%(BTS推荐)。COPD/II型呼衰目标88-92%(避免氧诱导的高碳酸血症)。warning <94%(非COPD)或<88%(COPD)。critical <90%持续>2min(需紧急干预)或<85%(严重低氧)。SpO2>94%时不再增加吸氧(除CO中毒)。呼气末CO2(EtCO2)：正常35-45mmHg。插管患者EtCO2突然下降→怀疑管路脱开/心脏骤停/PE。EtCO2>50提示通气不足。CPR期间EtCO2>20mmHg提示有效胸外按压,<10mmHg持续20min预后极差。"
+  },
+  {
+    "id": "vitals_temperature_qtc",
+    "title": "ICU生命体征预警阈值参考",
+    "source": "SSC 2021 + ICU Standard Practice + AHA QTc Guidelines",
+    "recommendation": "体温与QTc预警阈值",
+    "tags": ["temperature", "fever", "hypothermia", "qtc", "arrhythmia"],
+    "text": "体温：正常36.0-37.5°C(核心体温)。发热>=38.3°C(SCCM定义ICU发热),需启动感染筛查(血培养+尿培养+影像+PCT/CRP)。warning >38.3°C持续或<36°C(低体温,脓毒症低温型死亡率更高)。critical >39.5°C(高热,需积极物理降温+评估原因)或<35°C(严重低体温/凝血障碍风险)。非感染性发热原因：药物热/中枢性发热(TBI/卒中)/DVT-PE/手术后吸收热/输血反应/恶性高热/甲状腺危象。QTc间期：正常<440ms(男)/<460ms(女)。warning >460ms(药物QT延长风险,审查药物)。critical >500ms(Torsades de Pointes高风险,停用所有QT延长药物+补镁+心电监护)或>550ms(极高风险)。常见QT延长药物：氟哌啶醇/胺碘酮/氟康唑/氟喹诺酮/昂丹司琼/甲氧氯普胺。"
+  },
+  {
+    "id": "vitals_cardiac_arrest_signs",
+    "title": "ICU生命体征预警阈值参考",
+    "source": "AHA ACLS 2020 + ICU Practice",
+    "recommendation": "心脏骤停风险征象与心律失常识别",
+    "tags": ["cardiac_arrest", "arrhythmia", "vt", "vf", "pea", "asystole"],
+    "text": "心脏骤停前预警征象(通常骤停前6-8h可识别)：进行性心动过缓(<40bpm不对治疗反应)、新发宽QRS心动过速(VT先兆)、反复长R-R停顿(>3s)、MAP持续<55mmHg对液体和升压药无反应、突发严重低氧(SpO2<80%)伴呼吸频率改变。可电击心律：VF(室颤)-不规则基线波动无可辨认QRS→除颤200J双相波。无脉性VT(室速)-宽QRS规则快节律无脉搏→除颤。非可电击心律：PEA(无脉电活动)-有ECG节律但无脉搏→找可逆原因(4H4T)。心脏停搏(Asystole)-平直线(确认2个导联)→CPR+肾上腺素。4H：低血容量/低氧/酸中毒/低体温-高低钾。4T：张力性气胸/心包填塞/肺栓塞(血栓)/中毒(药物)。ICU内心脏骤停存活率较院内一般病区高(约30-40%出院存活)因监测及时。"
+  }
+]

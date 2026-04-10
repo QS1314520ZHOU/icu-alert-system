@@ -1445,19 +1445,27 @@ class BaseEngine:
             return "warning"
         return "low"
 
+    def _to_utc_datetime(self, value: Any) -> datetime | None:
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
     def _series_value_before(self, series: list[dict] | None, cutoff: datetime | None) -> dict | None:
         if not isinstance(series, list) or not series:
             return None
+        cutoff_utc = self._to_utc_datetime(cutoff)
         if cutoff is None:
             for item in reversed(series):
                 if item.get("value") is not None:
                     return item
             return None
         for item in reversed(series):
-            t = item.get("time")
-            if not isinstance(t, datetime):
+            t_utc = self._to_utc_datetime(item.get("time"))
+            if t_utc is None or cutoff_utc is None:
                 continue
-            if t <= cutoff and item.get("value") is not None:
+            if t_utc <= cutoff_utc and item.get("value") is not None:
                 return item
         return None
 
@@ -1465,14 +1473,14 @@ class BaseEngine:
         current = self._series_value_before(series, cutoff)
         if not current:
             return None
-        current_time = current.get("time")
-        if not isinstance(current_time, datetime):
+        current_time_utc = self._to_utc_datetime(current.get("time"))
+        if current_time_utc is None:
             return None
         for item in reversed(series or []):
-            t = item.get("time")
-            if not isinstance(t, datetime):
+            t_utc = self._to_utc_datetime(item.get("time"))
+            if t_utc is None:
                 continue
-            if t < current_time and item.get("value") is not None:
+            if t_utc < current_time_utc and item.get("value") is not None:
                 return item
         return None
 
@@ -1481,9 +1489,9 @@ class BaseEngine:
         prev = self._series_prev_before(series, cutoff)
         if not current or not prev:
             return 0.0
-        t1 = current.get("time")
-        t0 = prev.get("time")
-        if not isinstance(t1, datetime) or not isinstance(t0, datetime):
+        t1 = self._to_utc_datetime(current.get("time"))
+        t0 = self._to_utc_datetime(prev.get("time"))
+        if t1 is None or t0 is None:
             return 0.0
         hours = max((t1 - t0).total_seconds() / 3600.0, 0.25)
         try:
@@ -1525,6 +1533,7 @@ class BaseEngine:
     ) -> dict[str, Any]:
         contributors: list[dict[str, Any]] = []
         organ_scores: dict[str, float] = {}
+        cutoff_utc = self._to_utc_datetime(cutoff)
 
         def latest(metric: str):
             row = self._series_value_before(series_map.get(metric), cutoff)
@@ -1621,8 +1630,8 @@ class BaseEngine:
         recent_high = 0
         recent_critical = 0
         for row in alert_rows:
-            ts = row.get("created_at")
-            if cutoff is not None and isinstance(ts, datetime) and ts > cutoff:
+            ts_utc = self._to_utc_datetime(row.get("created_at"))
+            if cutoff_utc is not None and ts_utc is not None and ts_utc > cutoff_utc:
                 continue
             sev = str(row.get("severity") or "").lower()
             if sev == "critical":
@@ -1828,8 +1837,9 @@ class BaseEngine:
         for dataset in list(series_map.values()) + list(lab_series_map.values()):
             if isinstance(dataset, list) and dataset:
                 row = self._series_value_before(dataset, None)
-                if row and isinstance(row.get("time"), datetime):
-                    anchor_candidates.append(row.get("time"))
+                t_utc = self._to_utc_datetime(row.get("time") if row else None)
+                if t_utc is not None:
+                    anchor_candidates.append(t_utc)
         anchor_time = max(anchor_candidates) if anchor_candidates else datetime.now(timezone.utc)
         temporal_cfg = self.config.yaml_cfg.get("ai_service", {}).get("temporal_model", {})
         history_offsets = temporal_cfg.get("history_offsets_hours", [-8, -6, -4, -2, 0]) if isinstance(temporal_cfg, dict) else [-8, -6, -4, -2, 0]

@@ -527,6 +527,53 @@ function outcomeTone(raw: any) {
   line-height: 1.6;
 }
 }
+html[data-theme='light'] .similar-wrap {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  color: #1f3852;
+}
+html[data-theme='light'] .similar-head,
+html[data-theme='light'] .profile-chip,
+html[data-theme='light'] .kpi-card,
+html[data-theme='light'] .outcome-board,
+html[data-theme='light'] .case-card,
+html[data-theme='light'] .score-box,
+html[data-theme='light'] .case-diagnosis,
+html[data-theme='light'] .match-chip,
+html[data-theme='light'] .similar-empty,
+html[data-theme='light'] .similar-soft-notice {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+  box-shadow: none;
+}
+html[data-theme='light'] .similar-title,
+html[data-theme='light'] .outcome-seg-value,
+html[data-theme='light'] .case-name,
+html[data-theme='light'] .score-value {
+  color: #16324f;
+}
+html[data-theme='light'] .similar-sub,
+html[data-theme='light'] .outcome-seg-label,
+html[data-theme='light'] .case-rank,
+html[data-theme='light'] .score-label,
+html[data-theme='light'] .score-sub,
+html[data-theme='light'] .case-foot {
+  color: #6f8399;
+}
+html[data-theme='light'] .similar-refresh {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .outcome-seg--green { background: rgba(220, 252, 231, 0.98); color: #047857; }
+html[data-theme='light'] .outcome-seg--yellow { background: rgba(254, 243, 199, 0.98); color: #b45309; }
+html[data-theme='light'] .outcome-seg--red { background: rgba(255, 241, 242, 0.98); color: #be123c; }
+html[data-theme='light'] .outcome-seg--blue { background: rgba(219, 234, 254, 0.98); color: #1d4ed8; }
+html[data-theme='light'] .case-outcome-pill.tone-green { color: #047857; background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.28); }
+html[data-theme='light'] .case-outcome-pill.tone-yellow { color: #b45309; background: rgba(254, 243, 199, 0.98); border-color: rgba(245, 158, 11, 0.28); }
+html[data-theme='light'] .case-outcome-pill.tone-red { color: #be123c; background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.28); }
+html[data-theme='light'] .case-outcome-pill.tone-blue { color: #1d4ed8; background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
 
 @media (max-width: 1200px) {
   .kpi-strip {

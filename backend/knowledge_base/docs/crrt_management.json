@@ -1,0 +1,50 @@
+[
+  {
+    "id": "crrt_initiation_indications",
+    "title": "CRRT连续性肾脏替代治疗管理指南",
+    "source": "KDIGO 2012 AKI Guideline",
+    "recommendation": "CRRT启动指征",
+    "tags": ["crrt", "aki", "rrt", "initiation"],
+    "text": "CRRT适用于血流动力学不稳定的AKI患者。紧急启动RRT指征：严重高钾血症K+>6.5mmol/L伴ECG改变、严重代谢性酸中毒pH<7.1对碳酸氢钠无反应、容量过负荷对利尿剂无反应且影响氧合、尿毒症并发症如脑病或心包炎。STARRT-AKI 2020和AKIKI-2 2021等大型RCT显示早期策略与延迟策略在60-90天死亡率无显著差异，不推荐对所有AKI患者常规早期启动CRRT。"
+  },
+  {
+    "id": "crrt_dose_prescription",
+    "title": "CRRT连续性肾脏替代治疗管理指南",
+    "source": "KDIGO 2012 (1A)",
+    "recommendation": "CRRT剂量处方",
+    "tags": ["crrt", "dose", "effluent"],
+    "text": "KDIGO推荐CRRT处方废液流量20-25 mL/kg/hr(1A级推荐)。ATN试验(2008,N=1124)比较20 vs 35 mL/kg/hr、RENAL试验(2009,N=1508)比较25 vs 40 mL/kg/hr，均未显示更高剂量生存获益。过高剂量导致低磷血症、氨基酸丢失加倍、抗菌药清除增加。实际交付剂量通常低于处方15-20%，建议处方25-30 mL/kg/hr以交付20-25 mL/kg/hr，每日监测实际交付剂量。"
+  },
+  {
+    "id": "crrt_modality_selection",
+    "title": "CRRT连续性肾脏替代治疗管理指南",
+    "source": "KDIGO 2012 (2B)",
+    "recommendation": "CRRT模式选择",
+    "tags": ["crrt", "cvvh", "cvvhd", "cvvhdf"],
+    "text": "CVVH(对流为主)、CVVHD(弥散为主)、CVVHDF(对流+弥散)三种模式小分子清除疗效相当，KDIGO未推荐特定模式(2B)。CVVH为全球最常用模式。前稀释CVVH延长滤器寿命但需将处方流量增加15-20%补偿稀释效应。后稀释清除效率更高但滤器凝血风险更大。"
+  },
+  {
+    "id": "crrt_anticoagulation",
+    "title": "CRRT连续性肾脏替代治疗管理指南",
+    "source": "KDIGO 2012 (2B)",
+    "recommendation": "CRRT抗凝策略",
+    "tags": ["crrt", "anticoagulation", "citrate", "heparin"],
+    "text": "KDIGO推荐无出血禁忌患者使用局部枸橼酸抗凝(RCA)优于全身肝素(2B)。RCA优势：滤器寿命40-60h vs 肝素20-30h，出血率约3% vs 肝素10-15%。RCA禁忌证：严重肝衰(无法代谢枸橼酸)、严重休克(乳酸>8mmol/L、总钙/离子钙比值>2.5提示枸橼酸蓄积)。肝素抗凝目标aPTT 35-45s。监测：RCA每6h查iCa，目标系统iCa 1.0-1.2mmol/L，滤器后iCa 0.25-0.35mmol/L，总钙/离子钙比值<2.5。"
+  },
+  {
+    "id": "crrt_drug_dosing",
+    "title": "CRRT连续性肾脏替代治疗管理指南",
+    "source": "KDIGO Drug Dosing + ASHP/IDSA 2020",
+    "recommendation": "CRRT药物剂量调整",
+    "tags": ["crrt", "drug", "vancomycin", "meropenem", "dosing"],
+    "text": "万古霉素CRRT：负荷剂量20-25mg/kg，维持7.5-10mg/kg q12h，目标AUC/MIC 400-600。美罗培南CRRT：1g q8h或2g q12h。哌拉西林/他唑巴坦CRRT：4.5g q6-8h。氟康唑CRRT清除率高需补充剂量。伏立康唑IV需注意SBECD载体蓄积。药物清除取决于蛋白结合率、分子量和分布容积，需根据实际CRRT剂量个体化调整。"
+  },
+  {
+    "id": "crrt_monitoring_management",
+    "title": "CRRT连续性肾脏替代治疗管理指南",
+    "source": "KDIGO 2012 + ESPEN 2019",
+    "recommendation": "CRRT监测与停机评估",
+    "tags": ["crrt", "monitoring", "nutrition", "discontinuation"],
+    "text": "每日监测：电解质q4-6h(K+、Ca2+、Mg2+、PO4)、血气q6-8h、实际交付剂量q24h、滤器TMP(>300mmHg提示凝血)。营养补充：CRRT丢失氨基酸10-15g/d，蛋白需求增至1.5-2.5g/kg/d(ESPEN)。补充水溶性维生素和微量元素(锌、硒)。停CRRT标准：自主尿量>0.5mL/kg/h持续6-12h(无利尿剂)、肌酐稳定下降、电解质酸碱平衡稳定、容量管理可控。"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "palliative_trigger_criteria",
+    "title": "ICU姑息会诊触发标准",
+    "source": "SCCM 2025 EOL Guidelines + ESICM 2024 EOL Guidelines",
+    "recommendation": "姑息会诊触发标准",
+    "tags": ["palliative", "trigger", "end_of_life", "goals_of_care"],
+    "text": "以下任一情况应触发姑息医学会诊或目标照护对话：ICU住院>14天且无明确改善趋势。多器官衰竭>=3个器官系统持续>72h。年龄>80且SOFA>10。GCS<=8持续72h无改善(非镇静药物影响)。反复心脏骤停(>=2次或ICU内心脏骤停)。终末期疾病合并ICU入院(转移性恶性肿瘤/终末期心肺肝肾疾病/晚期神经退行性疾病)。家属主动要求讨论治疗目标或生活质量。多次再入ICU(3个月内>=2次)。预后评估工具提示不良预后(如APACHE II>25或院内预测死亡率>50%)。触发不等于停止治疗,而是启动结构化的目标照护对话。"
+  },
+  {
+    "id": "palliative_goals_of_care_conversation",
+    "title": "ICU姑息会诊触发标准",
+    "source": "SCCM 2025 + Vital Talk Framework",
+    "recommendation": "目标照护对话框架",
+    "tags": ["goals_of_care", "communication", "family", "decision"],
+    "text": "目标照护对话结构化框架：1)准备-召集MDT讨论,统一医疗团队对预后的认知,选择安静的私密空间。2)评估-了解家属对病情的理解('能告诉我您对XX目前情况的理解吗？')。3)告知-诚实但有同理心地传达预后信息,使用通俗语言,避免医学术语。4)探索-了解患者的价值观和偏好('如果XX能告诉我们,他/她会怎么选择？')。5)推荐-基于医学判断给出建议而非让家属独自承担决策('根据XX的情况和他/她的价值观,我们建议...')。6)记录-将讨论内容和决策记录在病历中。频率：入ICU 72h内首次家属会议,之后每周或病情显著变化时再次沟通。SCCM 2025建议所有ICU团队成员接受姑息医学基本培训。"
+  },
+  {
+    "id": "palliative_comfort_care",
+    "title": "ICU姑息会诊触发标准",
+    "source": "SCCM 2025 + ESICM 2024 EOL",
+    "recommendation": "舒适导向护理与撤除生命支持",
+    "tags": ["comfort_care", "withdrawal", "symptom_management", "dying"],
+    "text": "当决定转为舒适导向护理时：症状管理-充分镇痛(吗啡/芬太尼持续输注,按需追加,无上限,目标舒适而非加速死亡)、呼吸困难管理(阿片类+苯二氮卓)、分泌物管理(格隆溴铵/东莨菪碱)、谵妄/躁动(氟哌啶醇/右美托咪定)。撤除机械通气流程：充分镇痛镇静→将FiO2降至0.21并关闭PEEP→拔除ETT(若可能)或改为T管→观察。撤除血管活性药物：逐步减量至停。环境：允许家属陪伴/音乐/个人物品/减少监护报警。停止不必要的检查和治疗(血糖监测/翻身/抽血等)。护理记录：详细记录症状评估和用药调整。团队支持：认识到EOL决策对医护人员的心理影响,提供debriefing会议。"
+  }
+]

@@ -620,7 +620,7 @@ function bundleLights(patient: any) {
   border: 1px solid rgba(77, 196, 255, 0.16);
   box-shadow: 0 14px 32px rgba(2, 6, 23, 0.38);
   position: relative;
-  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+  font-family: var(--app-display-font);
 }
 .card::-webkit-scrollbar { display: none; }
 .card:hover {
@@ -930,7 +930,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   align-items: flex-end;
   font-size: 36px;
   font-weight: 800;
-  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
   color: #ecfeff;
   line-height: 1.02;
   font-variant-numeric: tabular-nums;
@@ -1347,7 +1347,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .summary-mini-chip-value {
   color: #effbff;
   font-size: 10px;
-  font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'JetBrains Mono', 'Consolas', monospace;
   font-weight: 700;
 }
 .summary-vaso-badge {
@@ -1368,7 +1368,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .summary-vaso-dose {
   color: #ffe9b2;
   font-size: 10px;
-  font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
+  font-family: 'Segoe UI', 'Noto Sans SC', 'JetBrains Mono', 'Consolas', monospace;
 }
 .hover-drawer {
   position: absolute;
@@ -1527,7 +1527,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   justify-content: center;
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Segoe UI', 'Noto Sans SC', sans-serif;
 }
 .mini--green { background: linear-gradient(180deg, #34d399 0%, #10b981 100%); box-shadow: 0 0 12px rgba(52, 211, 153, 0.16); }
 .mini--yellow { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); box-shadow: 0 0 12px rgba(251, 191, 36, 0.16); }
@@ -1555,6 +1555,120 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .pill--severity-normal { background: rgba(7, 63, 55, 0.92); color: #5eead4; border-color: rgba(45, 212, 191, 0.24); }
 .pill--iso { background: rgba(42, 22, 81, 0.9); border-color: rgba(167, 139, 250, 0.24); color: #d0b8ff; }
 .pill--diet { background: rgba(8, 56, 42, 0.92); border-color: rgba(74, 222, 128, 0.24); color: #86efac; }
+html[data-theme='light'] .card {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 36%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .monitor-label,
+html[data-theme='light'] .section-title,
+html[data-theme='light'] .footer-title {
+  color: #47627e;
+}
+html[data-theme='light'] .patient-name,
+html[data-theme='light'] .v-val,
+html[data-theme='light'] .summary-title,
+html[data-theme='light'] .summary-main,
+html[data-theme='light'] .summary-chain-text,
+html[data-theme='light'] .summary-mini-chip-value,
+html[data-theme='light'] .alert-card-title,
+html[data-theme='light'] .pill--severity {
+  color: #16324f;
+}
+html[data-theme='light'] .patient-meta,
+html[data-theme='light'] .diag-text,
+html[data-theme='light'] .section-desc,
+html[data-theme='light'] .v-label,
+html[data-theme='light'] .info-label,
+html[data-theme='light'] .alert-card-time,
+html[data-theme='light'] .alert-card-summary,
+html[data-theme='light'] .alert-text,
+html[data-theme='light'] .summary-block-label,
+html[data-theme='light'] .summary-mini-chip-label,
+html[data-theme='light'] .summary-snapshot-label {
+  color: #6f8399;
+}
+html[data-theme='light'] .sec-vitals,
+html[data-theme='light'] .sec-logistics,
+html[data-theme='light'] .sec-alerts,
+html[data-theme='light'] .sec-summary,
+html[data-theme='light'] .sec-footer,
+html[data-theme='light'] .bundle-panel,
+html[data-theme='light'] .alert-card,
+html[data-theme='light'] .summary-main,
+html[data-theme='light'] .summary-chain,
+html[data-theme='light'] .summary-chip,
+html[data-theme='light'] .summary-mini-chip,
+html[data-theme='light'] .device-tag,
+html[data-theme='light'] .tube-item,
+html[data-theme='light'] .pill,
+html[data-theme='light'] .vital-item {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+  box-shadow: none;
+}
+html[data-theme='light'] .sec-rescue-spotlight,
+html[data-theme='light'] .summary-top--rescue,
+html[data-theme='light'] .rescue-spotlight-main,
+html[data-theme='light'] .summary-main--rescue {
+  border-color: rgba(251, 113, 133, 0.28);
+  background: linear-gradient(180deg, rgba(255, 241, 244, 0.98) 0%, rgba(255, 232, 238, 0.98) 100%);
+}
+html[data-theme='light'] .rescue-spotlight-title,
+html[data-theme='light'] .rescue-spotlight-main,
+html[data-theme='light'] .alert-card-summary--rescue,
+html[data-theme='light'] .summary-main--rescue,
+html[data-theme='light'] .hover-drawer-title,
+html[data-theme='light'] .hover-drawer-main {
+  color: #be123c;
+}
+html[data-theme='light'] .rescue-spotlight-suggestion,
+html[data-theme='light'] .summary-suggestion,
+html[data-theme='light'] .summary-suggestion--rescue,
+html[data-theme='light'] .hover-drawer-suggestion {
+  border-color: rgba(16, 185, 129, 0.22);
+  background: linear-gradient(180deg, rgba(236, 253, 245, 0.98) 0%, rgba(220, 252, 231, 0.98) 100%);
+  color: #047857;
+}
+html[data-theme='light'] .hover-drawer,
+html[data-theme='light'] .hover-drawer-block,
+html[data-theme='light'] .hover-drawer-block--snapshot,
+html[data-theme='light'] .hover-drawer-block--chain {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+}
+html[data-theme='light'] .hover-drawer-tag,
+html[data-theme='light'] .summary-rescue-tag,
+html[data-theme='light'] .rescue-spotlight-tag {
+  color: #be123c;
+  background: rgba(255, 241, 244, 0.98);
+  border-color: rgba(251, 113, 133, 0.32);
+}
+html[data-theme='light'] .summary-chain-code,
+html[data-theme='light'] .bundle-score {
+  color: #335f8a;
+  background: rgba(231, 241, 249, 0.98);
+  border-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .status-badge {
+  background: rgba(241, 246, 251, 0.98);
+  border-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .status-badge--critical { background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.32); color: #be123c; box-shadow: none; }
+html[data-theme='light'] .status-badge--high { background: rgba(255, 247, 237, 0.98); border-color: rgba(251, 146, 60, 0.32); color: #c2410c; }
+html[data-theme='light'] .status-badge--warning { background: rgba(254, 243, 199, 0.98); border-color: rgba(245, 158, 11, 0.3); color: #b45309; }
+html[data-theme='light'] .status-badge--normal { background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.3); color: #047857; }
+html[data-theme='light'] .status-badge--none { background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); color: #1d4ed8; }
+html[data-theme='light'] .bed-no {
+  background: linear-gradient(180deg, rgba(30, 64, 175, 0.96) 0%, rgba(29, 78, 216, 0.96) 100%);
+  border-color: rgba(59, 130, 246, 0.34);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+}
+html[data-theme='light'] .monitor-sep { background: rgba(187, 204, 220, 0.82); }
+html[data-theme='light'] .mini--unknown { background: rgba(231, 241, 249, 0.98); color: #47627e; }
 
 @media (max-width: 640px) {
   .card {
