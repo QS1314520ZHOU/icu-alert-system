@@ -2,6 +2,7 @@
 
 :root {
   /* Dark Mode - Clinical Monitor */
+  --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --app-bg: #07111d;
   --hdr-bg: rgba(9, 20, 34, 0.92);
   --hdr-bg-strong: linear-gradient(90deg, rgba(7, 20, 34, 0.96) 0%, rgba(5, 14, 26, 0.98) 100%);
@@ -10,13 +11,23 @@
   --hdr-sub: #8ba0ba;
   --hdr-tool-bg: rgba(7, 29, 45, 0.86);
   --hdr-tool-text: #7ecce1;
+  --hdr-tool-border: rgba(80, 199, 255, 0.14);
   --hdr-clock: #8de3f3;
+  --hdr-shadow: 0 8px 24px rgba(2, 8, 20, 0.22), inset 0 -1px 0 rgba(125, 241, 255, 0.04);
+  --hdr-icon-bg: linear-gradient(180deg, #0b4e74 0%, #07273f 100%);
+  --hdr-icon-text: #ecfeff;
+  --hdr-icon-border: rgba(103, 232, 249, 0.22);
+  --hdr-icon-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 16px rgba(34, 211, 238, 0.08);
   --nav-btn-bg: rgba(7, 29, 45, 0.86);
+  --nav-btn-border: rgba(80, 199, 255, 0.12);
   --nav-btn-text: #7ecce1;
   --nav-btn-hover-bg: rgba(10, 42, 63, 0.94);
   --nav-btn-hover-text: #e9fbff;
+  --nav-btn-hover-border: rgba(103, 232, 249, 0.22);
   --nav-btn-active-bg: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
   --nav-btn-active-text: #effcff;
+  --nav-btn-active-border: rgba(110, 231, 249, 0.32);
+  --nav-btn-active-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(34, 211, 238, 0.08);
   --switch-off-bg: #183247;
   --switch-on-bg: #0ea5b7;
 
@@ -44,6 +55,10 @@
   --icu-border-strong: rgba(110, 231, 249, 0.28);
   --icu-shadow-lg: 0 18px 36px rgba(0, 0, 0, 0.34);
   --icu-shadow-panel: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+  --icu-brand-gradient: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
+  --icu-brand-text: #effcff;
+  --icu-overlay-mask: rgba(2, 8, 20, 0.56);
+  --icu-modal-shadow: 0 24px 48px rgba(0,0,0,.4), inset 0 1px 0 rgba(145,228,255,.05);
   --icu-danger: #fda4af;
   --icu-warning: #fcd34d;
   --icu-success: #6ee7b7;
@@ -53,6 +68,7 @@
 
 html[data-theme='light'] {
   /* Light Mode - Hospital HIS */
+  --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --app-bg: #eef4f8;
   --hdr-bg: rgba(255, 255, 255, 0.94);
   --hdr-bg-strong: linear-gradient(90deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 247, 252, 0.98) 100%);
@@ -61,13 +77,23 @@ html[data-theme='light'] {
   --hdr-sub: #6a8098;
   --hdr-tool-bg: rgba(241, 246, 251, 0.96);
   --hdr-tool-text: #47627e;
+  --hdr-tool-border: rgba(187, 204, 220, 0.78);
   --hdr-clock: #335f8a;
+  --hdr-shadow: 0 6px 20px rgba(15, 23, 42, 0.08), inset 0 -1px 0 rgba(255,255,255,0.72);
+  --hdr-icon-bg: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
+  --hdr-icon-text: #f8fbff;
+  --hdr-icon-border: rgba(59, 130, 246, 0.24);
+  --hdr-icon-shadow: inset 0 1px 0 rgba(255,255,255,0.42), 0 6px 14px rgba(37, 99, 235, 0.16);
   --nav-btn-bg: rgba(241, 246, 251, 0.98);
+  --nav-btn-border: rgba(187, 204, 220, 0.72);
   --nav-btn-text: #47627e;
   --nav-btn-hover-bg: rgba(231, 241, 249, 0.98);
   --nav-btn-hover-text: #16324f;
+  --nav-btn-hover-border: rgba(148, 180, 206, 0.78);
   --nav-btn-active-bg: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
   --nav-btn-active-text: #f8fbff;
+  --nav-btn-active-border: rgba(59, 130, 246, 0.28);
+  --nav-btn-active-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 8px 18px rgba(37, 99, 235, 0.18);
   --switch-off-bg: #c8d7e6;
   --switch-on-bg: #2563eb;
 
@@ -95,6 +121,10 @@ html[data-theme='light'] {
   --icu-border-strong: rgba(59, 130, 246, 0.2);
   --icu-shadow-lg: 0 14px 30px rgba(15, 23, 42, 0.08);
   --icu-shadow-panel: 0 10px 24px rgba(15, 23, 42, 0.06);
+  --icu-brand-gradient: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
+  --icu-brand-text: #f8fbff;
+  --icu-overlay-mask: rgba(15, 23, 42, 0.28);
+  --icu-modal-shadow: 0 18px 40px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255,255,255,.72);
   --icu-danger: #dc2626;
   --icu-warning: #d97706;
   --icu-success: #059669;
@@ -105,8 +135,7 @@ html[data-theme='light'] {
 body {
   background: var(--app-bg);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-family: var(--app-display-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -173,9 +202,9 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   color: var(--text-main) !important;
 }
 .ant-btn-primary {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
+  background: var(--icu-brand-gradient) !important;
   border-color: var(--icu-border-strong) !important;
-  color: #effcff !important;
+  color: var(--icu-brand-text) !important;
 }
 .ant-btn-primary:hover {
   filter: brightness(1.06);
@@ -256,7 +285,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   color: var(--text-main) !important;
 }
 .ant-segmented-thumb {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
+  background: var(--icu-brand-gradient) !important;
   box-shadow: none !important;
   border-radius: 8px !important;
 }
@@ -275,16 +304,16 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   display: none !important;
 }
 .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
+  background: var(--icu-brand-gradient) !important;
   border-color: var(--icu-border-strong) !important;
-  color: #effcff !important;
+  color: var(--icu-brand-text) !important;
 }
 
 .ant-switch {
-  background: #183247 !important;
+  background: var(--switch-off-bg) !important;
 }
 .ant-switch.ant-switch-checked {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
+  background: var(--icu-brand-gradient) !important;
 }
 
 .ant-tabs .ant-tabs-nav::before {
@@ -303,11 +332,11 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   font-weight: 600;
 }
 .ant-tabs .ant-tabs-tab.ant-tabs-tab-active {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
+  background: var(--icu-brand-gradient);
   border-color: var(--icu-border-strong);
 }
 .ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: #effcff !important;
+  color: var(--icu-brand-text) !important;
 }
 .ant-tabs .ant-tabs-ink-bar {
   background: var(--icu-accent-strong) !important;
@@ -369,11 +398,11 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   color: var(--text-main) !important;
 }
 .ant-pagination .ant-pagination-item-active {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
+  background: var(--icu-brand-gradient) !important;
   border-color: var(--icu-border-strong) !important;
 }
 .ant-pagination .ant-pagination-item-active a {
-  color: #effcff !important;
+  color: var(--icu-brand-text) !important;
 }
 
 .ant-empty-normal .ant-empty-description,
@@ -430,8 +459,8 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 .ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled),
 .icu-monitor-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
-  color: #effcff !important;
+  background: var(--icu-brand-gradient) !important;
+  color: var(--icu-brand-text) !important;
   font-weight: 600 !important;
 }
 
@@ -450,7 +479,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
 .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
 .ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
+  background: var(--icu-brand-gradient) !important;
 }
 
 .ant-popover .ant-popover-inner,
@@ -484,7 +513,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
     var(--icu-panel-gradient) !important;
   border: 1px solid color-mix(in srgb, var(--icu-border) 96%, transparent) !important;
   border-radius: 16px !important;
-  box-shadow: 0 24px 48px rgba(0,0,0,.4), inset 0 1px 0 rgba(145,228,255,.05) !important;
+  box-shadow: var(--icu-modal-shadow) !important;
 }
 .ant-modal .ant-modal-header,
 .ant-drawer .ant-drawer-header,
@@ -513,7 +542,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 .ant-modal-root .ant-modal-mask,
 .ant-drawer-mask {
   backdrop-filter: blur(6px);
-  background: rgba(2, 8, 20, 0.56) !important;
+  background: var(--icu-overlay-mask) !important;
 }
 
 .ant-message .ant-message-notice-content,
@@ -550,8 +579,8 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   background: var(--icu-surface-2) !important;
 }
 .icu-monitor-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
-  color: #effcff !important;
+  background: var(--icu-brand-gradient) !important;
+  color: var(--icu-brand-text) !important;
   font-weight: 600 !important;
 }
 
@@ -575,7 +604,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
     var(--icu-panel-gradient) !important;
   border: 1px solid color-mix(in srgb, var(--icu-border) 96%, transparent) !important;
   border-radius: 16px !important;
-  box-shadow: 0 24px 48px rgba(0,0,0,.4), inset 0 1px 0 rgba(145,228,255,.05) !important;
+  box-shadow: var(--icu-modal-shadow) !important;
 }
 .icu-evidence-modal-wrap .ant-modal-header {
   background: transparent !important;
@@ -593,6 +622,78 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 .icu-evidence-modal-wrap .ant-modal-body {
   padding: 18px 22px 22px !important;
+}
+
+/* Light mode safety net for patient detail tabs:
+   prevents residual dark blocks when individual scoped styles miss overrides. */
+html[data-theme='light'] .detail-container .chart-panel,
+html[data-theme='light'] .detail-container .ai-risk-summary,
+html[data-theme='light'] .detail-container .ai-risk-card,
+html[data-theme='light'] .detail-container .ai-risk-organ,
+html[data-theme='light'] .detail-container .ai-risk-section,
+html[data-theme='light'] .detail-container .alert-detail-item,
+html[data-theme='light'] .detail-container .alert-extra,
+html[data-theme='light'] .detail-container .kb-doc-meta,
+html[data-theme='light'] .detail-container .kb-chunk-item {
+  background: var(--icu-panel-gradient-soft) !important;
+  border-color: var(--icu-border) !important;
+  box-shadow: var(--icu-shadow-panel) !important;
+}
+html[data-theme='light'] .detail-container .tab-empty,
+html[data-theme='light'] .detail-container .ai-empty {
+  background: var(--icu-surface) !important;
+  border: 1px dashed color-mix(in srgb, var(--icu-border) 94%, transparent) !important;
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .alert-title,
+html[data-theme='light'] .detail-container .detail-value,
+html[data-theme='light'] .detail-container .ai-risk-summary strong,
+html[data-theme='light'] .detail-container .ai-risk-card strong,
+html[data-theme='light'] .detail-container .ai-risk-organ-name,
+html[data-theme='light'] .detail-container .ai-risk-section-title,
+html[data-theme='light'] .detail-container .kb-chunk-title {
+  color: var(--text-main) !important;
+}
+html[data-theme='light'] .detail-container .detail-label,
+html[data-theme='light'] .detail-container .ai-risk-summary span,
+html[data-theme='light'] .detail-container .ai-risk-card p,
+html[data-theme='light'] .detail-container .ai-risk-organ-status,
+html[data-theme='light'] .detail-container .ai-risk-organ-evidence,
+html[data-theme='light'] .detail-container .ai-risk-organ-conf,
+html[data-theme='light'] .detail-container .ai-risk-list,
+html[data-theme='light'] .detail-container .kb-doc-meta p,
+html[data-theme='light'] .detail-container .kb-chunk-content {
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .alert-meta > span {
+  background: var(--icu-surface) !important;
+  border-color: var(--icu-border) !important;
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .alert-pill.sev-warning {
+  color: #b45309 !important;
+  background: rgba(254, 243, 199, 0.96) !important;
+  border-color: rgba(245, 158, 11, 0.28) !important;
+}
+html[data-theme='light'] .detail-container .alert-pill.sev-high {
+  color: #c2410c !important;
+  background: rgba(255, 237, 213, 0.96) !important;
+  border-color: rgba(249, 115, 22, 0.28) !important;
+}
+html[data-theme='light'] .detail-container .alert-pill.sev-critical {
+  color: #be123c !important;
+  background: rgba(255, 241, 242, 0.98) !important;
+  border-color: rgba(251, 113, 133, 0.3) !important;
+}
+html[data-theme='light'] .detail-container .hallucination-warning {
+  color: #92400e !important;
+  background: rgba(254, 243, 199, 0.98) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+html[data-theme='light'] .detail-container .hallucination-high {
+  color: #be123c !important;
+  background: rgba(255, 241, 242, 0.98) !important;
+  border-color: rgba(251, 113, 133, 0.3) !important;
 }
 
 @media (max-width: 1920px) {

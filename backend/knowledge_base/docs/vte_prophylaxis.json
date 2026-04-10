@@ -1,0 +1,34 @@
+[
+  {
+    "id": "vte_risk_assessment",
+    "title": "ICU静脉血栓栓塞症预防指南",
+    "source": "ASH 2018 + European Guidelines 2018",
+    "recommendation": "VTE风险评估",
+    "tags": ["vte", "risk", "assessment", "bleeding"],
+    "text": "所有ICU患者均为VTE高风险(DVT 10-30%，无预防可达40%)，应入ICU 24h内启动评估。高危因素：长时间制动、机械通气、CVC、脓毒症、术后、创伤、恶性肿瘤、BMI>30、VTE史、家族史。同步评估出血风险：活动性出血、PLT<50000、INR>1.5(无抗凝)、近期24-48h大手术或有创操作、颅内出血、严重肝衰。根据出血风险选择药物或机械预防。"
+  },
+  {
+    "id": "vte_pharmacological",
+    "title": "ICU静脉血栓栓塞症预防指南",
+    "source": "ASH 2018 + PROTECT Trial (NEJM 2011)",
+    "recommendation": "药物预防方案",
+    "tags": ["lmwh", "ufh", "enoxaparin", "dalteparin"],
+    "text": "LMWH优于UFH(1B推荐)。PROTECT试验(N=3764)：达肝素5000IU qd vs UFH 5000IU q12h，达肝素PE发生率显著更低(1.3% vs 2.3%,HR 0.51)出血无差异。标准方案：依诺肝素40mg SC qd或达肝素5000IU SC qd。肾功能不全(CrCl<30)：UFH 5000IU SC q8-12h或达肝素5000IU qd(肾清除少)或依诺肝素30mg qd+抗Xa监测。HIT时禁用所有肝素，改用磺达肝素钠2.5mg SC qd或阿加曲班IV。"
+  },
+  {
+    "id": "vte_mechanical",
+    "title": "ICU静脉血栓栓塞症预防指南",
+    "source": "European Guidelines 2018 + PREVENT Trial (NEJM 2019)",
+    "recommendation": "机械预防",
+    "tags": ["ipc", "compression", "stockings", "mechanical"],
+    "text": "机械预防适用于药物抗凝禁忌患者(1B)。IPC(间歇气压压迫)优于GCS弹力袜(2B)。PREVENT试验(N=2003)：已接受药物预防的ICU患者加用IPC未进一步降低DVT。欧洲指南仅在极高VTE风险患者联合药物+机械预防(2B)。ASH 2018不支持联合优于单独药物或机械。弹力袜需正确测量尺寸、每日检查皮肤、避免下肢动脉病变患者使用。"
+  },
+  {
+    "id": "vte_special_populations",
+    "title": "ICU静脉血栓栓塞症预防指南",
+    "source": "ASH 2018 + ISTH 2022 COVID-19 + NEJM 1996",
+    "recommendation": "特殊人群VTE预防",
+    "tags": ["trauma", "neurosurgery", "covid", "spinal_cord"],
+    "text": "创伤：DVT 40-80%无预防时，LMWH优于UFH(NEJM 1996)，出血风险可接受后尽早24-48h启动。脊髓损伤：LMWH预防至少3个月。神经外科/颅脑损伤：影像确认出血稳定后24-72h启动药物预防，启动前用IPC。CRRT患者：体外回路促凝但全身可能出血，标准LMWH+抗Xa监测。COVID-19 ICU：ISTH 2022推荐标准预防剂量(优于治疗或中间剂量)，INSPIRATION/REMAP-CAP等RCT证实治疗剂量未降死亡率且增出血。"
+  }
+]
