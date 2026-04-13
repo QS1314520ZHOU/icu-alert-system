@@ -6,6 +6,142 @@
       <span v-if="aiServiceStatus.detail" class="ai-service-detail">{{ aiServiceStatus.detail }}</span>
     </div>
     <div class="ai-grid">
+    <a-card title="综合风险态势" :bordered="false" class="ai-card">
+      <div class="ai-card-head">
+        <span class="ai-card-note">多告警聚合 + RAG + LLM 推理</span>
+        <a-button size="small" type="link" :loading="integratedRiskLoading" @click="loadIntegratedRisk">重新生成</a-button>
+      </div>
+      <a-spin :spinning="integratedRiskLoading">
+        <div v-if="integratedRiskReport" class="ai-risk-card">
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>综合等级</span>
+              <strong>{{ aiRiskLevelText(integratedRiskReport?.risk_level) }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>活跃告警</span>
+              <strong>{{ integratedRiskReport?.density?.total_alerts ?? '—' }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>最高级别</span>
+              <strong>{{ aiRiskLevelText(integratedRiskReport?.density?.highest_severity) }}</strong>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">总体摘要</div>
+            <div class="summary-panel">
+              <div class="summary-conclusion" :class="`summary-conclusion--${String(integratedRiskReport?.risk_level || 'warning')}`">
+                <div class="summary-conclusion-label">当前判断</div>
+                <div class="summary-conclusion-text">{{ integratedRiskReport?.summary || '暂无综合总结' }}</div>
+              </div>
+              <div v-if="integratedRiskReport?.causal_chain" class="summary-section">
+                <div class="summary-label">因果推理</div>
+                <div class="summary-text">{{ integratedRiskReport?.causal_chain }}</div>
+              </div>
+              <div v-if="integratedRiskReport?.deterioration_forecast" class="summary-section">
+                <div class="summary-label">恶化预判</div>
+                <div class="summary-text">{{ integratedRiskReport?.deterioration_forecast }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-if="integratedRiskActions.length" class="ai-workbench-section">
+            <div class="ai-workbench-title">Top 3 行动</div>
+            <ul class="workbench-list">
+              <li v-for="(item, idx) in integratedRiskActions" :key="`ir-action-${idx}`">
+                #{{ integratedRiskPriority(item, idx) }} · {{ item.action }} · {{ item.rationale || '—' }} · {{ item.urgency }} min
+              </li>
+            </ul>
+          </div>
+          <div v-if="integratedRiskDiffs.length" class="ai-workbench-section">
+            <div class="ai-workbench-title">鉴别诊断</div>
+            <div class="summary-chip-group">
+              <span v-for="(item, idx) in integratedRiskDiffs" :key="`ir-ddx-${idx}`" class="summary-chip">{{ item }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-else class="ai-empty">暂无内容</div>
+      </a-spin>
+      <div v-if="integratedRiskError" class="ai-error">{{ integratedRiskError }}</div>
+    </a-card>
+
+    <a-card title="代谢阶段 / 营养时机" :bordered="false" class="ai-card">
+      <div class="ai-card-head">
+        <span class="ai-card-note">代谢阶段评分 + 当前热卡/蛋白匹配</span>
+        <a-button size="small" type="link" :loading="metabolicPhaseLoading" @click="loadMetabolicPhase">重新生成</a-button>
+      </div>
+      <a-spin :spinning="metabolicPhaseLoading">
+        <div v-if="metabolicPhaseRecord" class="ai-risk-card">
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>当前阶段</span>
+              <strong>{{ metabolicPhaseRecord?.phase_label || metabolicPhaseRecord?.phase || '—' }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>热卡目标</span>
+              <strong>{{ metabolicCalorieTarget }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>蛋白目标</span>
+              <strong>{{ metabolicProteinTarget }}</strong>
+            </div>
+          </div>
+          <div v-if="metabolicPhaseScoreChips.length" class="ai-workbench-section">
+            <div class="ai-workbench-title">阶段评分</div>
+            <div class="summary-chip-group">
+              <span v-for="chip in metabolicPhaseScoreChips" :key="chip.label" class="summary-chip">{{ chip.label }} {{ chip.value }}</span>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">营养匹配</div>
+            <div class="summary-text">{{ metabolicMismatchSummary }}</div>
+          </div>
+        </div>
+        <div v-else class="ai-empty">暂无内容</div>
+      </a-spin>
+      <div v-if="metabolicPhaseError" class="ai-error">{{ metabolicPhaseError }}</div>
+    </a-card>
+
+    <a-card title="β受体阻滞剂辅助决策" :bordered="false" class="ai-card">
+      <div class="ai-card-head">
+        <span class="ai-card-note">脓毒症心肌损伤 + 持续心动过速筛查</span>
+        <a-button size="small" type="link" :loading="betaBlockerLoading" @click="loadBetaBlockerAdvisor">重新生成</a-button>
+      </div>
+      <a-spin :spinning="betaBlockerLoading">
+        <div v-if="betaBlockerAssessment" class="ai-risk-card">
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>建议级别</span>
+              <strong>{{ aiRiskLevelText(betaBlockerAssessment?.severity || 'low') }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>HR</span>
+              <strong>{{ betaBlockerAssessment?.hr_latest ?? '—' }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>MAP / NE</span>
+              <strong>{{ betaHemodynamicText }}</strong>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">评估摘要</div>
+            <div class="summary-text">{{ betaBlockerAssessment?.summary || '暂无建议' }}</div>
+          </div>
+          <div v-if="betaBlockerAssessment?.contraindications?.length" class="ai-workbench-section">
+            <div class="ai-workbench-title handoff-warning">禁忌证</div>
+            <div class="summary-chip-group">
+              <span v-for="(item, idx) in betaBlockerAssessment?.contraindications || []" :key="`beta-contra-${idx}`" class="summary-chip">{{ item }}</span>
+            </div>
+          </div>
+          <div v-else-if="betaBlockerAssessment?.suggestion" class="ai-workbench-section">
+            <div class="ai-workbench-title">用药建议</div>
+            <div class="summary-order">{{ betaBlockerAssessment?.suggestion }}</div>
+          </div>
+        </div>
+        <div v-else class="ai-empty">暂无内容</div>
+      </a-spin>
+      <div v-if="betaBlockerAdvisorError" class="ai-error">{{ betaBlockerAdvisorError }}</div>
+    </a-card>
+
     <a-card title="检验异常摘要" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">进入AI工作台后自动生成</span>
@@ -289,6 +425,18 @@ const props = defineProps<{
   aiRiskForecast: any
   aiRiskText: string
   aiRiskError: string
+  integratedRiskLoading: boolean
+  loadIntegratedRisk: () => void
+  integratedRiskReport: any
+  integratedRiskError: string
+  metabolicPhaseLoading: boolean
+  loadMetabolicPhase: () => void
+  metabolicPhaseRecord: any
+  metabolicPhaseError: string
+  betaBlockerLoading: boolean
+  loadBetaBlockerAdvisor: () => void
+  betaBlockerAdvisorRecord: any
+  betaBlockerAdvisorError: string
   aiHandoffLoading: boolean
   loadAiHandoff: () => void
   copyHandoffSummary: () => void
@@ -656,7 +804,15 @@ const riskForecastOption = computed(() => {
 })
 
 const aiServiceStatus = computed(() => {
-  const errors = [props.aiLabError, props.aiRuleError, props.aiRiskError, props.aiHandoffError].filter(Boolean)
+  const errors = [
+    props.aiLabError,
+    props.aiRuleError,
+    props.aiRiskError,
+    props.integratedRiskError,
+    props.metabolicPhaseError,
+    props.betaBlockerAdvisorError,
+    props.aiHandoffError,
+  ].filter(Boolean)
   if (errors.length >= 2) {
     return {
       level: 'red',
@@ -669,6 +825,47 @@ const aiServiceStatus = computed(() => {
     text: 'AI服务正常',
     detail: '',
   }
+})
+
+const integratedRiskActions = computed(() =>
+  Array.isArray(props.integratedRiskReport?.top3_actions) ? props.integratedRiskReport.top3_actions.slice(0, 3) : []
+)
+const integratedRiskDiffs = computed(() =>
+  Array.isArray(props.integratedRiskReport?.differential_diagnosis) ? props.integratedRiskReport.differential_diagnosis.slice(0, 6) : []
+)
+
+function integratedRiskPriority(item: any, idx: any) {
+  return Number(item?.priority ?? (Number(idx) + 1))
+}
+
+const metabolicPhaseScoreChips = computed(() => {
+  const scores = props.metabolicPhaseRecord?.phase_scores || {}
+  const labels: Record<string, string> = { ebb: '分解期', transition: '过渡期', anabolic: '合成期' }
+  return Object.keys(scores).map((key) => ({ label: labels[key] || key, value: `${Math.round(Number(scores[key] || 0))}分` }))
+})
+const metabolicCalorieTarget = computed(() => {
+  const kcal = props.metabolicPhaseRecord?.nutrition_target?.kcal
+  return Array.isArray(kcal) && kcal.length >= 2 ? `${kcal[0]}-${kcal[1]} kcal/kg/d` : '—'
+})
+const metabolicProteinTarget = computed(() => {
+  const protein = props.metabolicPhaseRecord?.nutrition_target?.protein
+  return Array.isArray(protein) && protein.length >= 2 ? `${protein[0]}-${protein[1]} g/kg/d` : '—'
+})
+const metabolicMismatchSummary = computed(() => {
+  const mismatch = props.metabolicPhaseRecord?.nutrition_mismatch || {}
+  if (mismatch?.trigger) {
+    const evidence = Array.isArray(mismatch?.evidence) ? mismatch.evidence.join('；') : ''
+    return `${evidence || '当前营养供给与代谢阶段不匹配'}。${mismatch?.recommendation || ''}`.trim()
+  }
+  return mismatch?.recommendation || '当前热卡/蛋白供给基本与阶段目标匹配。'
+})
+
+const betaBlockerAssessment = computed(() => props.betaBlockerAdvisorRecord?.assessment || null)
+const betaHemodynamicText = computed(() => {
+  const row = betaBlockerAssessment.value || {}
+  const map = row?.map_latest != null ? `MAP ${Math.round(Number(row.map_latest || 0))}` : 'MAP —'
+  const ne = row?.norepi_latest_ug_kg_min != null ? `NE ${Number(row.norepi_latest_ug_kg_min).toFixed(3)}` : 'NE —'
+  return `${map} / ${ne}`
 })
 </script>
 
@@ -1141,6 +1338,57 @@ const aiServiceStatus = computed(() => {
     grid-template-columns: 1fr;
   }
 }
+
+html[data-theme='light'] .ai-service-bar { background: linear-gradient(180deg, rgba(241,246,251,0.96) 0%, rgba(231,241,249,0.98) 100%); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-service-text { color: #16324f; }
+html[data-theme='light'] .ai-service-detail { color: #6a8098; }
+html[data-theme='light'] .ai-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
+html[data-theme='light'] .ai-card :deep(.ant-card-head) { border-bottom-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-card :deep(.ant-card-head-title) { color: #1d4ed8; }
+html[data-theme='light'] .ai-card-note, html[data-theme='light'] .ai-empty { color: #6a8098; }
+html[data-theme='light'] .ai-card :deep(.ant-btn),
+html[data-theme='light'] .ai-card :deep(.ant-select-selector),
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item),
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-prev),
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-next) { background: rgba(243, 248, 252, 0.96) !important; border-color: rgba(187, 204, 220, 0.72) !important; color: #223a54 !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active) { background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%) !important; border-color: rgba(59,130,246,.28) !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active a) { color: #f8fbff !important; }
+html[data-theme='light'] .ai-rich { color: #223a54; }
+html[data-theme='light'] .ai-rich :deep(h4) { color: #16324f; }
+html[data-theme='light'] .ai-rich :deep(code) { background: rgba(243,248,252,.96); border-color: rgba(187,204,220,.72); color: #223a54; }
+html[data-theme='light'] .ai-risk-card, html[data-theme='light'] .handoff-wrap, html[data-theme='light'] .kb-doc-meta, html[data-theme='light'] .kb-chunk-item { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
+html[data-theme='light'] .handoff-wrap p, html[data-theme='light'] .ai-risk-card p, html[data-theme='light'] .kb-doc-meta p { color: #6f8399; }
+html[data-theme='light'] .wb-kpi { border-color: rgba(187,204,220,.72); background: #ffffff; }
+html[data-theme='light'] .wb-kpi span { color: #47627e; }
+html[data-theme='light'] .wb-kpi strong { color: #16324f; }
+html[data-theme='light'] .ai-workbench-section { border-color: rgba(187,204,220,.72); background: #ffffff; }
+html[data-theme='light'] .ai-workbench-title { color: #1d4ed8; }
+html[data-theme='light'] .workbench-text { color: #47627e; }
+html[data-theme='light'] .summary-section { border-color: rgba(187,204,220,.72); background: rgba(243,248,252,0.96); }
+html[data-theme='light'] .summary-label { color: #47627e; }
+html[data-theme='light'] .summary-conclusion { border-color: rgba(187,204,220,.72); background: #ffffff; box-shadow: 0 4px 12px rgba(15,23,42,0.03); }
+html[data-theme='light'] .summary-conclusion--low { border-color: rgba(5,150,105,.28); background: rgba(209,250,229,.6); }
+html[data-theme='light'] .summary-conclusion--warning { border-color: rgba(217,119,6,.28); background: rgba(254,243,199,.6); }
+html[data-theme='light'] .summary-conclusion--high, html[data-theme='light'] .summary-conclusion--critical { border-color: rgba(220,38,38,.28); background: rgba(254,226,226,.6); }
+html[data-theme='light'] .summary-conclusion-label { color: #16324f; }
+html[data-theme='light'] .summary-conclusion-text { color: #1d4ed8; }
+html[data-theme='light'] .summary-chip { background: #ffffff; border-color: rgba(187,204,220,.72); color: #223a54; }
+html[data-theme='light'] .summary-order { color: #47627e; }
+html[data-theme='light'] .summary-order::before { color: #1d4ed8; }
+html[data-theme='light'] .summary-text, html[data-theme='light'] .summary-list, html[data-theme='light'] .workbench-list { color: #47627e; }
+html[data-theme='light'] .isbar-code { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #1d4ed8; }
+html[data-theme='light'] .workbench-flag { color: #dc2626; }
+html[data-theme='light'] .curve-meta { color: #6f8399; }
+html[data-theme='light'] .kb-status { color: #47627e; }
+html[data-theme='light'] .kb-overridden { color: #d97706; }
+html[data-theme='light'] .kb-chunk-title { color: #16324f; }
+html[data-theme='light'] .kb-chunk-content { color: #47627e; }
+html[data-theme='light'] .ai-rule-wrap { border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: #ffffff; }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) { background: #f3f8fc; color: #47627e; border-bottom-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) { background: #ffffff; color: #223a54; border-bottom-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .ai-evidence-link { color: #2563eb; }
+html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
 </style>
 
 

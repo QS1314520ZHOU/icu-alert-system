@@ -20,8 +20,10 @@
 | `TrendScanner` | 生命体征趋势恶化 | 固定监测 HR、SpO2、RR、MAP、体温。对每个参数做三层识别：急性位移、亚急性斜率、周期性波动。急性窗口默认 `30min`，亚急性窗口 `6h`，周期窗口 `2h`。示例：SpO2 急降 `>=4` 可直接给到 critical；MAP 下降、HR/RR 上升按 high 处理；体温亚急性升高通常为 warning。 |
 | `TemporalRiskScanner` | 时序风险预测 | 根据近 `12h` 时间网格序列、人口中位数补齐和多个 horizon（`4/12/24h`）预测器官风险，输出未来恶化概率，更多用于趋势提前量和 AI 风险层。 |
 | `VentilatorWeaningScanner` | 撤机与 SBT 评估 | 以“闸门条件 + 加权风险分”判断。闸门含 `FiO2 > 0.4`、`PEEP > 8`、仍需升压药、`MAP < 65`、`RASS` 不在目标范围。风险因子按 `config.yaml -> weaning_assistant.factor_weights` 累加，例如 `P/F < 200`、`RSBI >= 80`、液体超负荷、既往 SBT 失败、血流动力学不稳。总分默认 `4/7/9` 对应 `warning/high/critical`。 |
+| `VentilatorAsynchronyScanner` | 呼吸机不同步识别 | 每 `30min` 读取呼吸机模式、设定/实测参数、`RASS`、`P0.1/Edi` 与可选波形衍生信号，识别 `无效触发 / 双触发 / 反向触发 / 流量饥饿 / 提前终止 / 延迟终止`。按不同步事件数估算 `AI (Asynchrony Index)`，默认 `AI >= 10%` 至少 high，`AI >= 30%` 直接 critical；双触发同时结合 `VTe / PBW > 8 mL/kg`、ARDS 与撤机评估结果强化肺保护建议。 |
 | `DiaphragmProtectionScanner` | 膈肌保护 | 关注呼吸机支持天数、Edi、Pdi、P0.1、RR、镇静深度、驱动压、压力摆动。目的是避免过度辅助和过度自主用力两端风险。 |
 | `HemodynamicAdvisorScanner` | 血流动力学建议 | 结合 MAP、乳酸、液体反应性、升压药暴露、灌注指标给出建议型结论，属于决策支持类扫描。 |
+| `BetaBlockerAdvisorScanner` | β受体阻滞剂辅助决策 | 面向“脓毒症 + 持续心动过速 + 心肌损伤 + 相对稳定血流动力学”场景。结合 `HR>95` 持续 `>=2h`、肌钙蛋白/BNP、MAP 与去甲肾上腺素趋势识别候选患者，并主动筛查支气管痉挛、房室传导阻滞、近期 HR<60、钙拮抗剂等禁忌证。满足全部条件时输出短效 β 阻滞剂建议与起始剂量提示。 |
 | `RightHeartMonitorScanner` | 右心负荷/衰竭趋势 | 以 `24h` CVP 变化、`72h` BNP 变化、PEEP 水平等组合计数；CVP 上升阈值默认 `3`，BNP 比值阈值 `2.0`，达到最少因子数后给出右心负荷风险。 |
 | `CardiacArrestRiskScanner` | 心脏骤停前风险 | 按因子权重累计分数：交替性心动过缓/过速、极度缓慢心率、新发宽 QRS、高钾、低钾、低钙、乳酸升高伴 MAP 下降、PEA 模式等。默认 `4/6/8` 分对应 `warning/high/critical`。 |
 | `AdaptiveThresholdsScanner` | 个体化阈值建议 | 不是直接出床旁告警，而是根据近 `48h` 数据分布生成个体化阈值建议。要求最少数据点、受总体漂移上限约束，并识别升压药/镇静药背景。输出 `pending_review -> approved/rejected` 的审核流。 |
@@ -60,6 +62,7 @@
 | `FluidBalanceScanner` | 液体平衡 | 计算 `6/12/24h` 净出入量与液体超负荷比例。默认 `%FO > 5%` warning，`>10%` high；同时看快速输液后 MAP/乳酸是否改善，以及是否进入 deresuscitation 阶段。 |
 | `GlycemicControlScanner` | 血糖控制 | 低血糖阈值 `3.9`，危急低血糖 `2.2`；高血糖阈值 `10`；连续高值次数、单位时间下降速度、胰岛素后复测间隔、血糖变异系数 `CV > 36%` 都会参与判断。 |
 | `NutritionMonitorScanner` | 营养支持 | ICU `48h` 后仍未起始营养、热量覆盖率低于目标、持续喂养不足、喂养不耐受、再喂养综合征风险、电解质下降、低 BMI、低白蛋白都可能触发。 |
+| `MetabolicPhaseDetectorScanner` | 代谢阶段检测 | 依据乳酸、血糖变异、CRP、SOFA、血管活性药、前白蛋白、活动情况和营养供给，将患者划分为 `急性分解期 / 稳定过渡期 / 合成代谢期`。同时把实际热卡/蛋白与阶段目标比对：`Ebb` 期过喂、`Anabolic` 期低喂都会触发高优先级营养时机提醒。 |
 | `DischargeReadinessScanner` | ICU 转出准备 | 依据近 `12h` 高等级告警、近 `24h` SOFA、近 `6h` 尿量、监测密度是否下降、文本里是否已有转出候选等综合判断适不适合离开 ICU。 |
 | `ProactiveManagementScanner` | 主动管理建议 | 从近 `6h` 轨迹、近 `24h` 检验与药物、重点实验室项目构造管理建议，如果触发概率高于配置阈值，就把“下一步可能要做什么”持久化出来。 |
 
@@ -80,6 +83,7 @@
 | `NursingNoteAnalyzerScanner` | 护理文本分析 | 读取近 `12h` 护理记录，抽取风险信号、执行障碍、护理任务延迟、特殊事件，并给相似病例和 AI 页签提供文本证据。 |
 | `NursingWorkloadScanner` | 护理工作量预测 | 以基础分、机械通气、CRRT、升压药、近期告警、护理上下文计算护理负荷，再映射到 NAS 风格指数，用于 `summary / dept_rows / patient_rows / heatmap / timeline`。 |
 | `AlertReasoningScanner` | 告警解释增强 | 不是新病种扫描器，而是把近 `30min` 活跃告警组合交给规则/AI 解释器，补充“为什么发生、最可能关联什么、建议先做什么”。 |
+| `IntegratedRiskReasoningScanner` | 综合风险推理报告 | 聚合患者近 `2h` 活跃告警，按循环、呼吸、肾脏、凝血、神经、感染、代谢/营养等系统重新组织，再调用 `RAG + LLM` 输出结构化综合推理报告：`summary / causal_chain / deterioration_forecast / top3_actions / differential_diagnosis`。报告写入 `integrated_risk_reports`，并同步推送 Dashboard 综合态势卡片。 |
 
 ---
 
@@ -177,3 +181,16 @@ SBT 记录解析规则：
 - 使用原型中心 (Prototype Centroids)
 - 计算欧式距离/余弦距离
 - softmax 得到软分群概率 (Soft Assignment)
+
+## 4. 呼吸机不同步识别
+
+- `VentilatorAsynchronyScanner` 采用“可选波形标志优先、结构化参数回退”的双通路策略：若系统能直接提供不同步计数/标志位，优先使用；若缺失，则退化为 `RR 失配 + VT 叠加 + RASS/P0.1/Edi` 的启发式近似识别。
+- 扫描结果会持久化为 `score_type = ventilator_asynchrony_assessment`，供撤机、膈肌保护与 ARDS 模块主动读取，而不仅是独立出一条告警。
+- 告警统一使用 `alert_type = ventilator_asynchrony`，但 `detail.asynchrony_type` 区分具体类型；这样前端和 `AlertReasoningScanner` 可以按一个主类型聚合，同时保留子类型细节。
+- 与现有模块联动包括：`VentilatorWeaningScanner` 将近期不同步直接纳入撤机风险评分与闸门；`DiaphragmProtectionScanner` 将不同步作为 VIDD/驱动异常联合证据；`ARDS` 背景双触发叠加高 VT 时会主动升级肺保护提示。
+
+## 5. 综合风险与代谢阶段
+
+- `IntegratedRiskReasoningScanner` 不是简单把多条告警拼起来，而是先做告警系统分组、密度趋势判断和冷却去重，再把结构化上下文送入 `LLM + RAG`。同患者 `2h` 内默认不重复生成，除非出现新 `critical` 或新增 `>=2` 条高等级告警。
+- `MetabolicPhaseDetectorScanner` 会把阶段判定结果持久化到 `score_type = metabolic_phase_detector`，同时同步到 `patient.current_profile.metabolic_phase`，这样 `AlertReasoningScanner` 与其他 AI 模块可以直接引用当前代谢阶段和推荐热卡/蛋白窗口。
+- `BetaBlockerAdvisorScanner` 走的是“先筛适应证、再排禁忌证、再给剂量建议”的临床路径，避免把持续心动过速机械等同于 β 阻滞剂适应证。只有在脓毒症、心肌损伤、相对稳定血流动力学且无明显禁忌证时，才会上升到高等级建议。

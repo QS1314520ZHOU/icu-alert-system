@@ -177,6 +177,15 @@ export const postAiProactiveInterventionFeedback = (
 export const getAiClinicalReasoning = (patientId: string, params?: { refresh?: boolean }) =>
   aiApi.get(`/api/ai/clinical-reasoning/${patientId}`, { params })
 
+export const getAiIntegratedRiskReport = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/integrated-risk/${patientId}`, { params })
+
+export const getAiMetabolicPhase = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/metabolic-phase/${patientId}`, { params })
+
+export const getAiBetaBlockerAdvisor = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/beta-blocker-advisor/${patientId}`, { params })
+
 export const postAiCausalAnalysis = (
   patientId: string,
   payload: { abnormal_finding: string }

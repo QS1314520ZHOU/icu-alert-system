@@ -58,6 +58,10 @@ class DiaphragmProtectionScanner(BaseScanner):
             latest_rass = await self.engine._get_latest_assessment(pid, "rass")
             accessory = await self.engine._get_accessory_muscle_sign(pid, now, hours=12) if hasattr(self, "_get_accessory_muscle_sign") else None
             drive = await self.engine._latest_diaphragm_drive(pid, device_id)
+            recent_asynchrony = await self.engine._latest_ventilator_asynchrony_assessment(pid_str, hours=4) if hasattr(self.engine, "_latest_ventilator_asynchrony_assessment") else None
+            asynchrony_ai = float((recent_asynchrony or {}).get("ai_index") or 0.0)
+            asynchrony_type = str((recent_asynchrony or {}).get("dominant_type") or "")
+            asynchrony_label = str((recent_asynchrony or {}).get("dominant_label") or asynchrony_type or "").strip()
 
             underassist = False
             overassist = False
@@ -108,6 +112,19 @@ class DiaphragmProtectionScanner(BaseScanner):
                 if vt_ml_kg is not None:
                     evidence.append(f"VT {vt_ml_kg} mL/kg")
                 suggestion = "提示膈肌负荷过低，建议评估是否过度辅助，结合镇静深度、支持水平与SAT/SBT计划下调辅助。"
+
+            if recent_asynchrony and asynchrony_ai >= 10.0:
+                evidence.append(f"近4h人机不同步 {asynchrony_label or '未分类'} (AI {asynchrony_ai}%)")
+                if asynchrony_type in {"double_triggering", "ineffective_triggering", "flow_starvation"}:
+                    underassist = True
+                    severity = "high"
+                    if not suggestion:
+                        suggestion = "近期不同步提示高驱动/支持不足，建议结合膈肌保护策略同步优化触发、吸气流速和支持水平。"
+                elif asynchrony_type in {"reverse_triggering", "delayed_cycling"} and latest_rass is not None and float(latest_rass) <= -3:
+                    overassist = True
+                    severity = "high"
+                    if not suggestion:
+                        suggestion = "近期不同步提示深镇静相关过度辅助，建议复核镇静深度和通气切换策略。"
 
             if not (underassist or overassist):
                 continue
@@ -169,6 +186,7 @@ class DiaphragmProtectionScanner(BaseScanner):
                     "latest_rass": latest_rass,
                     "accessory_muscle_use": bool(accessory),
                     "mode": "underassist" if underassist else "overassist",
+                    "recent_asynchrony": recent_asynchrony,
                 },
                 explanation=explanation,
             )

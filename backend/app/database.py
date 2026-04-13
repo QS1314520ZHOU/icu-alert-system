@@ -177,6 +177,10 @@ class DatabaseManager:
             await ai_alert_col.create_index([("date", 1), ("module", 1), ("alert_code", 1)], unique=True)
             await ai_alert_col.create_index([("is_active", 1), ("updated_at", -1)])
 
+            integrated_report_col = self.col("integrated_risk_reports")
+            await integrated_report_col.create_index([("patient_id", 1), ("created_at", -1)])
+            await integrated_report_col.create_index([("risk_level", 1), ("created_at", -1)])
+
             logger.info("✅ 预警系统索引创建完成")
             await self._seed_default_rules()
         except Exception as e:

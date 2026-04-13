@@ -124,6 +124,24 @@ class ArdsScanner(BaseScanner):
             elif cardiogenic_flag and severity == "high":
                 effective_severity = "warning"
 
+            recent_asynchrony = await self.engine._latest_ventilator_asynchrony_assessment(pid_str, hours=4) if hasattr(self.engine, "_latest_ventilator_asynchrony_assessment") else None
+            asynchrony_type = str((recent_asynchrony or {}).get("dominant_type") or "")
+            asynchrony_ai = float((recent_asynchrony or {}).get("ai_index") or 0.0)
+            pbw = self.engine._predicted_body_weight(patient_doc) if hasattr(self.engine, "_predicted_body_weight") else None
+            vt_ml_kg = (float(self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"])) / float(pbw)) if pbw and self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"]) is not None else None
+            if asynchrony_type == "double_triggering" and vt_ml_kg is not None and vt_ml_kg > 8:
+                explanation["evidence"].append(f"近期双触发 AI {asynchrony_ai}%")
+                explanation["evidence"].append(f"VTe/PBW {round(vt_ml_kg, 2)} mL/kg")
+                explanation["suggestion"] = (
+                    str(explanation.get("suggestion") or "").rstrip("。")
+                    + "；同时存在双触发叠加高 VT，建议强化肺保护通气并优先控制人机不同步。"
+                ).strip("；")
+                explanation["text"] = ""
+                if effective_severity == "warning":
+                    effective_severity = "high"
+                elif effective_severity == "high":
+                    effective_severity = "critical"
+
             rule_id = "ARDS_" + effective_severity.upper()
             if await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                 continue
@@ -150,6 +168,8 @@ class ArdsScanner(BaseScanner):
                     "ratio_type": ratio_type,
                     "cardiogenic_overlap_risk": cardiogenic_flag,
                     "bnp_trend": bnp_trend,
+                    "recent_asynchrony": recent_asynchrony,
+                    "vt_ml_kg_pbw": round(vt_ml_kg, 2) if vt_ml_kg is not None else None,
                     "imaging_findings": {
                         "summary": self.engine._build_imaging_summary(imaging_signals),
                         "matched_signals": imaging_signals,

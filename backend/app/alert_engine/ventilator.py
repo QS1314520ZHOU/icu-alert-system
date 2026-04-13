@@ -177,6 +177,65 @@ class VentilatorMixin:
         else:
             await self.db.col("score").insert_one(payload)
 
+    async def _persist_ventilator_asynchrony_assessment(
+        self,
+        *,
+        pid_str: str,
+        patient_doc: dict,
+        now: datetime,
+        assessment: dict[str, Any],
+    ) -> dict[str, Any]:
+        payload = {
+            "patient_id": pid_str,
+            "patient_name": patient_doc.get("name"),
+            "bed": patient_doc.get("hisBed"),
+            "dept": patient_doc.get("dept") or patient_doc.get("hisDept"),
+            "score_type": "ventilator_asynchrony_assessment",
+            "ai_index": assessment.get("ai_index"),
+            "severity": assessment.get("severity"),
+            "dominant_type": assessment.get("dominant_type"),
+            "dominant_label": assessment.get("dominant_label"),
+            "detected_types": assessment.get("detected_types") or [],
+            "recommendation": assessment.get("recommendation"),
+            "module_links": assessment.get("module_links") or {},
+            "llm_analysis": assessment.get("llm_analysis"),
+            "ventilator_state": assessment.get("ventilator_state") or {},
+            "calc_time": now,
+            "updated_at": now,
+            "month": now.strftime("%Y-%m"),
+            "day": now.strftime("%Y-%m-%d"),
+        }
+        latest = await self.db.col("score").find_one(
+            {
+                "patient_id": pid_str,
+                "score_type": "ventilator_asynchrony_assessment",
+                "calc_time": {"$gte": now - timedelta(minutes=20)},
+            },
+            sort=[("calc_time", -1)],
+        )
+        if latest:
+            await self.db.col("score").update_one(
+                {"_id": latest["_id"]},
+                {"$set": {k: v for k, v in payload.items() if k != "created_at"}},
+            )
+            latest.update(payload)
+            return latest
+        payload["created_at"] = now
+        result = await self.db.col("score").insert_one(payload)
+        payload["_id"] = result.inserted_id
+        return payload
+
+    async def _latest_ventilator_asynchrony_assessment(self, patient_id: str, hours: int = 4) -> dict | None:
+        since = datetime.now() - timedelta(hours=max(hours, 1))
+        return await self.db.col("score").find_one(
+            {
+                "patient_id": str(patient_id),
+                "score_type": "ventilator_asynchrony_assessment",
+                "calc_time": {"$gte": since},
+            },
+            sort=[("calc_time", -1)],
+        )
+
     def _patient_height_cm(self, patient_doc: dict) -> float | None:
         for key in ("height", "heightCm", "height_cm", "bodyHeight"):
             value = patient_doc.get(key)
@@ -462,6 +521,10 @@ class VentilatorMixin:
         pf = await self._get_pf_snapshot(his_pid, cap, now)
         fluid_pct = await self._get_recent_fluid_overload_pct(pid_str, patient_doc, now, hours=24)
         bnp = await self._get_bnp_trend(his_pid, now, hours=72)
+        recent_asynchrony = await self._latest_ventilator_asynchrony_assessment(pid_str, hours=4)
+        asynchrony_ai = _to_float((recent_asynchrony or {}).get("ai_index"))
+        asynchrony_severity = str((recent_asynchrony or {}).get("severity") or "").lower()
+        asynchrony_label = str((recent_asynchrony or {}).get("dominant_label") or (recent_asynchrony or {}).get("dominant_type") or "").strip()
         sbt_result = await self._get_recent_sbt_result(pid, now, hours=72)
         if isinstance(sbt_result, dict):
             sbt_result = {
@@ -519,6 +582,26 @@ class VentilatorMixin:
         add_factor("vasopressor_support", bool(on_vaso), "仍需血管活性药支持", 2, "请先稳定循环再考虑脱机")
         add_factor("gcs_low", gcs is not None and gcs < float(cfg.get("gcs_min", 9)), f"GCS {gcs}", 1, "请先确认意识/保护气道能力")
         add_factor("map_low", map_value is not None and map_value < float(cfg.get("map_min", 65)), f"MAP {map_value}", 1, "请先稳定循环后再试 SBT")
+        add_factor(
+            "ventilator_asynchrony",
+            recent_asynchrony is not None and (
+                (asynchrony_ai is not None and asynchrony_ai >= float(cfg.get("asynchrony_warning_ai_percent", 10) or 10))
+                or asynchrony_severity in {"high", "critical"}
+            ),
+            f"近4h存在呼吸机不同步 {asynchrony_label or '未分类'} (AI {asynchrony_ai}%)",
+            2,
+            "建议先控制人机不同步，再决定是否推进 SBT。",
+        )
+        add_factor(
+            "ventilator_asynchrony_high",
+            recent_asynchrony is not None and (
+                (asynchrony_ai is not None and asynchrony_ai >= float(cfg.get("asynchrony_high_ai_percent", 20) or 20))
+                or asynchrony_severity == "critical"
+            ),
+            f"近期中重度人机不同步未纠正 (AI {asynchrony_ai}%)",
+            3,
+            "当前不同步负荷较高，建议延迟 SBT 并优先优化通气同步。",
+        )
 
         severity = self._risk_level(score, warning_score, high_score, critical_score)
         fio2_frac = fio2 / 100.0 if fio2 is not None and fio2 > 1 else fio2
@@ -533,6 +616,11 @@ class VentilatorMixin:
             gate_failures.append("MAP 未达标")
         if latest_rass is not None and not (float(cfg.get("rass_min", -2)) <= float(latest_rass) <= float(cfg.get("rass_max", 1))):
             gate_failures.append("RASS 未达标")
+        if recent_asynchrony is not None and (
+            (asynchrony_ai is not None and asynchrony_ai >= float(cfg.get("asynchrony_gate_ai_percent", 10) or 10))
+            or asynchrony_severity in {"high", "critical"}
+        ):
+            gate_failures.append("人机不同步未控制")
 
         recommendation = "可以尝试 SBT"
         rule_id = "VENT_WEAN_READY"
@@ -593,6 +681,7 @@ class VentilatorMixin:
                 "on_vasopressor": on_vaso,
                 "fluid_overload_pct": fluid_pct,
                 "bnp_trend": bnp,
+                "recent_asynchrony": recent_asynchrony,
                 "previous_sbt": sbt_result,
                 "gate_failures": gate_failures,
                 "factors": factors,

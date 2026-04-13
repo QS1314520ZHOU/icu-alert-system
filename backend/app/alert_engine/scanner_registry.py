@@ -49,10 +49,14 @@ from .scanner_proactive_management import ProactiveManagementScanner
 from .scanner_extended_scenarios import ExtendedScenariosScanner
 from .scanner_ai_risk import AiRiskScanner
 from .scanner_alert_reasoning import AlertReasoningScanner
+from .scanner_beta_blocker_advisor import BetaBlockerAdvisorScanner
+from .scanner_integrated_risk_reasoning import IntegratedRiskReasoningScanner
+from .scanner_metabolic_phase_detector import MetabolicPhaseDetectorScanner
 from .scanner_nurse_reminders import NurseRemindersScanner
 from .scanner_nursing_note_analyzer import NursingNoteAnalyzerScanner
 from .scanner_nursing_workload import NursingWorkloadScanner
 from .scanner_patient_scope_cleanup import PatientScopeCleanupScanner
+from .scanner_ventilator_asynchrony import VentilatorAsynchronyScanner
 
 if TYPE_CHECKING:
     from . import AlertEngine
@@ -72,6 +76,7 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         BleedingScanner(engine),
         TemporalRiskScanner(engine),
         VentilatorWeaningScanner(engine),
+        VentilatorAsynchronyScanner(engine),
         DiaphragmProtectionScanner(engine),
         DrugSafetyScanner(engine),
         AntibioticStewardshipScanner(engine),
@@ -104,6 +109,9 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         AdaptiveThresholdsScanner(engine),
         ProactiveManagementScanner(engine),
         ExtendedScenariosScanner(engine),
+        MetabolicPhaseDetectorScanner(engine),
+        BetaBlockerAdvisorScanner(engine),
+        IntegratedRiskReasoningScanner(engine),
         AiRiskScanner(engine),
         AlertReasoningScanner(engine),
         PatientScopeCleanupScanner(engine),

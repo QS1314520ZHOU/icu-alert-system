@@ -72,6 +72,7 @@ class AlertReasoningAgentMixin:
         try:
             facts = await self._collect_patient_facts(patient_doc, pid)
             facts["nursing_context"] = await self._collect_nursing_context(patient_doc, pid_str, hours=12)
+            facts["clinical_profiles"] = await self._reasoning_latest_profiles(pid_str, patient_doc)
         except Exception:
             return False
 
@@ -260,12 +261,60 @@ class AlertReasoningAgentMixin:
             },
             "latest_vitals": facts.get("vitals") or {},
             "latest_labs": self._reasoning_pick_labs(facts.get("labs") or {}),
+            "clinical_profiles": facts.get("clinical_profiles") or {},
             "nursing_observations": nursing_context.get("records") or [],
             "nursing_plan_execution": nursing_context.get("plans") or {},
             "context_snapshot": context_snapshot or {},
             "active_alerts": [self._serialize_reasoning_alert(row) for row in active_alerts],
             "recent_alert_timeline": [self._serialize_reasoning_alert(row) for row in recent_alerts[:20]],
         }
+
+    async def _reasoning_latest_profiles(self, patient_id: str, patient_doc: dict[str, Any]) -> dict[str, Any]:
+        profiles: dict[str, Any] = {}
+        current_profile = patient_doc.get("current_profile") if isinstance(patient_doc.get("current_profile"), dict) else {}
+        if isinstance(current_profile.get("metabolic_phase"), dict):
+            profiles["metabolic_phase"] = current_profile.get("metabolic_phase")
+        else:
+            latest_metabolic = await self.db.col("score").find_one(
+                {"patient_id": patient_id, "score_type": "metabolic_phase_detector"},
+                sort=[("calc_time", -1)],
+            )
+            if latest_metabolic:
+                profiles["metabolic_phase"] = {
+                    "phase": latest_metabolic.get("phase"),
+                    "phase_label": latest_metabolic.get("phase_label"),
+                    "phase_scores": latest_metabolic.get("phase_scores") or {},
+                    "nutrition_mismatch": latest_metabolic.get("nutrition_mismatch") or {},
+                }
+
+        if isinstance(current_profile.get("sepsis_subphenotype"), dict):
+            profiles["sepsis_subphenotype"] = current_profile.get("sepsis_subphenotype")
+        else:
+            latest_subphenotype = await self.db.col("score").find_one(
+                {"patient_id": patient_id, "score_type": {"$in": ["sepsis_subphenotype_profile", "clinical_subphenotype_profile"]}},
+                sort=[("calc_time", -1)],
+            )
+            if latest_subphenotype:
+                profiles["sepsis_subphenotype"] = {
+                    "phenotype": latest_subphenotype.get("phenotype") or latest_subphenotype.get("leading_label"),
+                    "phenotype_display": latest_subphenotype.get("phenotype_display") or latest_subphenotype.get("leading_display"),
+                    "confidence": latest_subphenotype.get("confidence"),
+                }
+
+        if isinstance(current_profile.get("integrated_risk"), dict):
+            profiles["integrated_risk"] = current_profile.get("integrated_risk")
+        else:
+            latest_report = await self.db.col("integrated_risk_reports").find_one(
+                {"patient_id": patient_id},
+                sort=[("created_at", -1)],
+            )
+            if latest_report:
+                profiles["integrated_risk"] = {
+                    "risk_level": latest_report.get("risk_level"),
+                    "summary": latest_report.get("summary"),
+                    "top3_actions": latest_report.get("top3_actions") or [],
+                }
+        return profiles
 
     def _reasoning_pick_labs(self, labs: dict[str, Any]) -> list[dict[str, Any]]:
         preferred_keys = ["lac", "pct", "cr", "wbc", "plt", "glu", "hb", "bil", "ddimer", "inr"]

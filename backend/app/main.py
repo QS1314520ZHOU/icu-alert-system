@@ -26,9 +26,6 @@ from app.routers.analytics import router as analytics_router
 from app.routers.knowledge import router as knowledge_router
 from app.routers.patient_data import router as patient_data_router
 from app.routers.patients import router as patients_router
-from app.routers.research_analytics import router as research_analytics_router
-from app.routers.research_export import router as research_export_router
-from app.research_cohort_router import router as research_cohort_router
 from app.routers.system import router as system_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
@@ -36,6 +33,24 @@ from app.services.ai_monitor import AiMonitor
 from app.services.rag_service import RagService
 from app.utils.runtime_paths import static_dir
 from app.ws_manager import WebSocketManager
+
+try:
+    from app.routers.research_analytics import router as research_analytics_router
+except ModuleNotFoundError as exc:
+    research_analytics_router = None
+    logging.getLogger("icu-alert").warning("研究分析路由未加载，缺少依赖: %s", exc)
+
+try:
+    from app.routers.research_export import router as research_export_router
+except ModuleNotFoundError as exc:
+    research_export_router = None
+    logging.getLogger("icu-alert").warning("科研导出路由未加载，缺少依赖: %s", exc)
+
+try:
+    from app.research_cohort_router import router as research_cohort_router
+except ModuleNotFoundError as exc:
+    research_cohort_router = None
+    logging.getLogger("icu-alert").warning("科研队列路由未加载，缺少依赖: %s", exc)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -141,9 +156,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(admin_router)
-app.include_router(research_export_router)
-app.include_router(research_analytics_router)
-app.include_router(research_cohort_router)
+if research_export_router is not None:
+    app.include_router(research_export_router)
+if research_analytics_router is not None:
+    app.include_router(research_analytics_router)
+if research_cohort_router is not None:
+    app.include_router(research_cohort_router)
 app.include_router(system_router)
 app.include_router(patients_router)
 app.include_router(patient_data_router)

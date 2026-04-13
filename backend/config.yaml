@@ -318,6 +318,7 @@ alert_engine:
     bleeding: 600
     temporal_risk_scanner: 900
     ventilator: 600
+    ventilator_asynchrony: 1800
     diaphragm_protection: 900
     drug_safety: 1800
     antibiotic_stewardship: 1800
@@ -344,6 +345,9 @@ alert_engine:
     assessments: 600
     trend_analysis: 900
     alert_reasoning: 300
+    integrated_risk_reasoning: 3600
+    metabolic_phase_detector: 3600
+    beta_blocker_advisor: 3600
     imaging_report_analyzer: 7200
     nursing_note_analyzer: 14400
     nursing_workload: 14400
@@ -376,6 +380,94 @@ alert_engine:
     recent_context_hours: 24
     cache_ttl_seconds: 900
     max_concurrency: 2
+
+  integrated_risk_reasoning:
+    enabled: true
+    scan_interval: 3600
+    force_trigger_on_new_critical: true
+    lookback_window: 7200
+    llm_model: "qwen2.5:32b"
+    max_tokens: 2000
+    rag_top_k: 5
+    cooldown: 7200
+
+  metabolic_phase_detector:
+    enabled: true
+    scan_interval: 3600
+    vasopressor_lookback_hours: 12
+    activity_lookback_hours: 48
+    activity_keywords: ["活动", "下床", "坐起", "床边活动", "康复", "步行", "早期活动"]
+    lab_keywords:
+      crp: ["crp", "c反应蛋白", "超敏c反应蛋白"]
+      prealbumin: ["前白蛋白", "prealbumin", "pab"]
+      bun: ["尿素氮", "bun", "urea nitrogen"]
+    thresholds:
+      lactate_elevated: 2.0
+      glucose_cv_high: 36
+      glucose_stabilizing_cv: 30
+      crp_rising_delta: 5
+      crp_falling_delta: 5
+      crp_normal_threshold: 10
+      bun_high_threshold: 12
+      bun_daily_rise_threshold: 2
+      sofa_unstable_delta: 1
+      sofa_low: 3
+      prealbumin_rise_delta: 2
+      vasopressor_taper_ratio: 0.1
+      positive_nitrogen_protein_floor: 1.2
+    phase_weights:
+      ebb:
+        lactate_elevated: 0.20
+        glucose_cv_high: 0.15
+        crp_rising: 0.15
+        sofa_unstable: 0.20
+        bun_generation_high: 0.15
+        vasopressor_use: 0.15
+      transition:
+        lactate_normalizing: 0.20
+        glucose_stabilizing: 0.20
+        crp_falling: 0.20
+        sofa_stable_or_falling: 0.20
+        vasopressor_weaning: 0.20
+      anabolic:
+        crp_normal: 0.15
+        prealbumin_rising: 0.20
+        sofa_low: 0.20
+        no_vasopressor: 0.15
+        spontaneous_activity: 0.15
+        positive_nitrogen: 0.15
+    calorie_targets:
+      ebb: [10, 15]
+      transition: [20, 25]
+      anabolic: [25, 30]
+    protein_targets:
+      ebb: [0.5, 0.8]
+      transition: [1.0, 1.3]
+      anabolic: [1.3, 1.5]
+
+  beta_blocker_advisor:
+    enabled: true
+    scan_interval: 3600
+    hr_threshold: 95
+    tachy_ratio: 0.8
+    map_threshold: 65
+    troponin_upper_limit: 0.04
+    bnp_threshold: 300
+    norepi_threshold: 0.2
+    norepi_taper_ratio: 0.1
+    fever_threshold: 38.3
+    cpot_threshold: 3
+    bps_threshold: 5
+    brady_history_threshold: 60
+    cardiac_index_code: "param_ci"
+    cardiac_index_threshold: 2.0
+    esmolol_start_ug_kg_min: 25
+    esmolol_start_high_ug_kg_min: 50
+    target_hr_low: 80
+    target_hr_high: 94
+    bronchospasm_keywords: ["哮喘", "支气管痉挛", "bronchospasm", "asthma"]
+    av_block_keywords: ["二度房室传导阻滞", "三度房室传导阻滞", "av block", "房室阻滞"]
+    ccb_keywords: ["地尔硫卓", "维拉帕米", "diltiazem", "verapamil"]
 
   imaging_report_analyzer:
     analysis_window_hours: 96
@@ -751,6 +843,9 @@ alert_engine:
     map_min: 65
     ready_fio2_max: 0.4
     ready_peep_max: 8
+    asynchrony_warning_ai_percent: 10
+    asynchrony_high_ai_percent: 20
+    asynchrony_gate_ai_percent: 10
     fluid_overload_warning_pct: 5
     fluid_overload_high_pct: 10
     bnp_surge_ratio: 1.5
@@ -776,6 +871,76 @@ alert_engine:
       vasopressor_support: 2
       gcs_low: 1
       map_low: 1
+      ventilator_asynchrony: 2
+      ventilator_asynchrony_high: 3
+
+  ventilator_asynchrony:
+    enabled: true
+    scan_interval: 1800
+    analysis_window_minutes: 30
+    ai_threshold_warning: 0.10
+    ai_threshold_high: 0.10
+    ai_threshold_critical: 0.30
+    double_trigger_vt_ratio: 1.5
+    stacked_vt_ml_kg_threshold: 8.0
+    double_trigger_interval_ratio_threshold: 0.5
+    ineffective_rr_gap_tolerance: 1
+    ineffective_spontaneous_rr_max: 2
+    drive_p0_1_threshold: 3.5
+    drive_edi_threshold: 15
+    reverse_rass_threshold: -3
+    flow_starvation_rr_excess: 3
+    premature_ti_threshold: 0.5
+    delayed_ti_threshold: 1.5
+    cycling_flow_ratio_threshold: 0.25
+    double_trigger_rr_excess: 5
+    use_llm_analysis: true
+    llm_timeout: 20
+    llm_temperature: 0.1
+    llm_max_tokens: 600
+    evidence_source: "SYNAPsE Delphi Consensus 2026, Intensive Care Medicine"
+    type_severity:
+      ineffective_triggering: warning
+      double_triggering: high
+      reverse_triggering: high
+      flow_starvation: warning
+      premature_cycling: warning
+      delayed_cycling: warning
+    heuristic_event_fraction:
+      ineffective_triggering: 0.08
+      double_triggering: 0.12
+      reverse_triggering: 0.10
+      flow_starvation: 0.08
+      premature_cycling: 0.06
+      delayed_cycling: 0.06
+    muscle_relaxant_keywords: ["罗库溴铵", "维库溴铵", "顺式阿曲库铵", "阿曲库铵", "rocuronium", "vecuronium", "cisatracurium"]
+    signal_codes:
+      mode: ["param_HuXiMoShi", "param_vent_mode"]
+      vt_set: ["param_vent_set_vt"]
+      rr_set: ["param_HuXiPinLv", "param_vent_rr_set"]
+      peep: ["param_vent_measure_peep", "param_vent_peep"]
+      ps: ["param_vent_ps"]
+      ti_set: ["param_vent_ti", "param_vent_insp_time"]
+      trigger_sensitivity: ["param_vent_trigger", "param_trigger_sensitivity"]
+      vt_actual: ["param_vent_vt"]
+      rr_total: ["param_vent_resp", "param_vent_rr_total"]
+      rr_spontaneous: ["param_vent_rr_spont", "param_vent_rr_spontaneous"]
+      pip: ["param_vent_pip"]
+      pplat: ["param_vent_plat_pressure"]
+      minute_vent: ["param_vent_VE"]
+      double_trigger_count: ["param_vent_async_double_count"]
+      ineffective_trigger_count: ["param_vent_async_ineffective_count"]
+      reverse_trigger_count: ["param_vent_async_reverse_count"]
+      flow_starvation_count: ["param_vent_async_flow_starvation_count"]
+      premature_cycling_count: ["param_vent_async_premature_count"]
+      delayed_cycling_count: ["param_vent_async_delayed_count"]
+      double_trigger_interval_ratio: ["param_vent_double_trigger_interval_ratio"]
+      pressure_scooping_flag: ["param_vent_pressure_scooping_flag"]
+      reverse_trigger_flag: ["param_vent_reverse_trigger_flag"]
+      premature_cycling_flag: ["param_vent_premature_cycling_flag"]
+      delayed_cycling_flag: ["param_vent_delayed_cycling_flag"]
+      expiratory_muscle_flag: ["param_vent_expiratory_muscle_flag"]
+      cycling_flow_ratio: ["param_vent_cycling_flow_ratio"]
 
   microbiology:
     mdro_keywords:

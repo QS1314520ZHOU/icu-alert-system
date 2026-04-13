@@ -362,6 +362,18 @@
             :ai-risk-forecast="aiRiskForecast"
             :ai-risk-text="aiRiskText"
             :ai-risk-error="aiRiskError"
+            :integrated-risk-loading="integratedRiskLoading"
+            :load-integrated-risk="loadIntegratedRisk"
+            :integrated-risk-report="integratedRiskReport"
+            :integrated-risk-error="integratedRiskError"
+            :metabolic-phase-loading="metabolicPhaseLoading"
+            :load-metabolic-phase="loadMetabolicPhase"
+            :metabolic-phase-record="metabolicPhaseRecord"
+            :metabolic-phase-error="metabolicPhaseError"
+            :beta-blocker-loading="betaBlockerAdvisorLoading"
+            :load-beta-blocker-advisor="loadBetaBlockerAdvisor"
+            :beta-blocker-advisor-record="betaBlockerAdvisorRecord"
+            :beta-blocker-advisor-error="betaBlockerAdvisorError"
             :ai-handoff-loading="aiHandoffLoading"
             :load-ai-handoff="loadAiHandoff"
             :copy-handoff-summary="copyHandoffSummary"
@@ -457,6 +469,9 @@ import {
   getAiLabSummary,
   getAiRuleRecommendations,
   getAiRiskForecast,
+  getAiIntegratedRiskReport,
+  getAiMetabolicPhase,
+  getAiBetaBlockerAdvisor,
   getPatientHandoffSummary,
   getKnowledgeChunk,
   getKnowledgeDocument,
@@ -474,6 +489,7 @@ import {
   icuValueAxis,
 } from '../charts/icuTheme'
 import { getOperatorIdentity } from '../utils/operatorIdentity'
+import { onAlertMessage } from '../services/alertSocket'
 
 const PatientTrendTab = defineAsyncComponent(() => import('../components/patient-detail/TrendTab.vue'))
 const PatientLabsTab = defineAsyncComponent(() => import('../components/patient-detail/LabsTab.vue'))
@@ -532,6 +548,7 @@ const thresholdReviewReviewer = ref('')
 const thresholdReviewComment = ref('')
 const sepsisBundleNow = ref(Date.now())
 let sepsisBundleTimer: ReturnType<typeof setInterval> | null = null
+let offIntegratedRiskWs: (() => void) | null = null
 
 const compositeOrganOrder = ['respiratory', 'circulatory', 'renal', 'coagulation', 'hepatic', 'neurologic']
 const compositeOrganLabelDefault: Record<string, string> = {
@@ -548,14 +565,23 @@ const aiRuleText = ref('')
 const aiRulePayload = ref<any[] | null>(null)
 const aiRiskText = ref('')
 const aiRiskForecast = ref<any>(null)
+const integratedRiskReport = ref<any>(null)
+const metabolicPhaseRecord = ref<any>(null)
+const betaBlockerAdvisorRecord = ref<any>(null)
 const aiHandoff = ref<any>(null)
 const aiLabError = ref('')
 const aiRuleError = ref('')
 const aiRiskError = ref('')
+const integratedRiskError = ref('')
+const metabolicPhaseError = ref('')
+const betaBlockerAdvisorError = ref('')
 const aiHandoffError = ref('')
 const aiLabLoading = ref(false)
 const aiRuleLoading = ref(false)
 const aiRiskLoading = ref(false)
+const integratedRiskLoading = ref(false)
+const metabolicPhaseLoading = ref(false)
+const betaBlockerAdvisorLoading = ref(false)
 const aiHandoffLoading = ref(false)
 const aiAutoLoaded = ref(false)
 const knowledgeDocs = ref<any[]>([])
@@ -2964,6 +2990,57 @@ async function loadAiRisk() {
   }
 }
 
+async function loadIntegratedRisk(refresh = false) {
+  if (integratedRiskLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  integratedRiskError.value = ''
+  integratedRiskLoading.value = true
+  try {
+    const res = await getAiIntegratedRiskReport(patientId, { refresh })
+    integratedRiskReport.value = res.data.report || null
+    integratedRiskError.value = formatAiError(res.data.error || '')
+  } catch (e) {
+    integratedRiskError.value = '综合风险服务不可用'
+  } finally {
+    integratedRiskLoading.value = false
+  }
+}
+
+async function loadMetabolicPhase(refresh = false) {
+  if (metabolicPhaseLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  metabolicPhaseError.value = ''
+  metabolicPhaseLoading.value = true
+  try {
+    const res = await getAiMetabolicPhase(patientId, { refresh })
+    metabolicPhaseRecord.value = res.data.record || null
+    metabolicPhaseError.value = formatAiError(res.data.error || '')
+  } catch (e) {
+    metabolicPhaseError.value = '代谢阶段服务不可用'
+  } finally {
+    metabolicPhaseLoading.value = false
+  }
+}
+
+async function loadBetaBlockerAdvisor(refresh = false) {
+  if (betaBlockerAdvisorLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  betaBlockerAdvisorError.value = ''
+  betaBlockerAdvisorLoading.value = true
+  try {
+    const res = await getAiBetaBlockerAdvisor(patientId, { refresh })
+    betaBlockerAdvisorRecord.value = res.data.record || null
+    betaBlockerAdvisorError.value = formatAiError(res.data.error || '')
+  } catch (e) {
+    betaBlockerAdvisorError.value = 'β阻滞剂辅助决策服务不可用'
+  } finally {
+    betaBlockerAdvisorLoading.value = false
+  }
+}
+
 async function loadAiHandoff() {
   if (aiHandoffLoading.value) return
   const patientId = route.params.id as string
@@ -2984,7 +3061,15 @@ async function loadAiHandoff() {
 async function loadAiAll() {
   if (aiAutoLoaded.value) return
   aiAutoLoaded.value = true
-  await Promise.allSettled([loadAiLab(), loadAiRules(), loadAiRisk(), loadKnowledgeDocs()])
+  await Promise.allSettled([
+    loadAiLab(),
+    loadAiRules(),
+    loadAiRisk(),
+    loadIntegratedRisk(),
+    loadMetabolicPhase(),
+    loadBetaBlockerAdvisor(),
+    loadKnowledgeDocs(),
+  ])
 }
 
 function resetDetailState() {
@@ -3018,11 +3103,22 @@ function resetDetailState() {
   thresholdReviewReviewer.value = ''
   thresholdReviewComment.value = ''
   sepsisBundleNow.value = Date.now()
+  aiLabLoading.value = false
+  aiRuleLoading.value = false
+  aiRiskLoading.value = false
+  integratedRiskLoading.value = false
+  metabolicPhaseLoading.value = false
+  betaBlockerAdvisorLoading.value = false
+  aiHandoffLoading.value = false
+  knowledgeLoading.value = false
   aiLabSummary.value = ''
   aiRuleText.value = ''
   aiRulePayload.value = null
   aiRiskText.value = ''
   aiRiskForecast.value = null
+  integratedRiskReport.value = null
+  metabolicPhaseRecord.value = null
+  betaBlockerAdvisorRecord.value = null
   aiHandoff.value = null
   knowledgeDocs.value = []
   selectedKnowledgeDocId.value = ''
@@ -3030,6 +3126,9 @@ function resetDetailState() {
   aiLabError.value = ''
   aiRuleError.value = ''
   aiRiskError.value = ''
+  integratedRiskError.value = ''
+  metabolicPhaseError.value = ''
+  betaBlockerAdvisorError.value = ''
   aiHandoffError.value = ''
   knowledgeError.value = ''
   aiAutoLoaded.value = false
@@ -3040,6 +3139,18 @@ function startSepsisBundleClock() {
   sepsisBundleTimer = setInterval(() => {
     sepsisBundleNow.value = Date.now()
   }, 1000)
+}
+
+function bindIntegratedRiskSocket() {
+  if (offIntegratedRiskWs) offIntegratedRiskWs()
+  offIntegratedRiskWs = onAlertMessage((msg: any) => {
+    if (String(msg?.type || '') !== 'integrated_risk_report') return
+    const payload = msg?.data || {}
+    const patientId = String(route.params.id || '')
+    if (!patientId || String(payload?.patient_id || '') !== patientId) return
+    integratedRiskReport.value = payload
+    integratedRiskError.value = ''
+  })
 }
 
 async function loadDetailPage() {
@@ -3122,12 +3233,15 @@ watch(
 
 onMounted(() => {
   startSepsisBundleClock()
+  bindIntegratedRiskSocket()
   void loadDetailPage()
 })
 
 onBeforeUnmount(() => {
   if (sepsisBundleTimer) clearInterval(sepsisBundleTimer)
   sepsisBundleTimer = null
+  if (offIntegratedRiskWs) offIntegratedRiskWs()
+  offIntegratedRiskWs = null
 })
 </script>
 
@@ -4585,7 +4699,3 @@ html[data-theme='light'] .ai-error { color: #dc2626; }
   }
 }
 </style>
-
-
-
-
