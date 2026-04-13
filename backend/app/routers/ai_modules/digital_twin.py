@@ -27,6 +27,7 @@ from app.services.counterfactual_model import SemiMechanisticCounterfactualModel
 from app.services.multi_agent_orchestrator import ICUMultiAgentOrchestrator
 from app.services.patient_digital_twin import PatientDigitalTwinService
 from app.services.subphenotype_clustering import CohortSubphenotypeProfiler
+from app.alert_engine.scanner_sepsis_subphenotype import SepsisSubphenotypeScanner
 from app.utils.patient_data import get_device_id, latest_params_by_device, param_series_by_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
 from app.utils.serialization import serialize_doc
@@ -271,12 +272,16 @@ async def ai_subphenotype_profile(patient_id: str, refresh: bool = Query(default
         return {"code": 404, "message": "患者不存在"}
     try:
         if not refresh:
-            cached = await runtime.db.col("score").find_one({"patient_id": str(pid), "score_type": "clinical_subphenotype_profile"}, sort=[("calc_time", -1)])
+            cached = await runtime.db.col("score").find_one({"patient_id": str(pid), "score_type": {"$in": ["sepsis_subphenotype_profile", "clinical_subphenotype_profile"]}}, sort=[("calc_time", -1)])
             if cached:
                 return {"code": 0, "profile": serialize_doc(cached)}
-        profiler = CohortSubphenotypeProfiler(db=runtime.db, alert_engine=runtime.alert_engine)
-        result = await profiler.profile(patient)
-        record = await _persist_ai_score_record(patient, result, score_type="clinical_subphenotype_profile")
+        scanner = SepsisSubphenotypeScanner(runtime.alert_engine)
+        await scanner.scan(str(pid))
+        record = await runtime.db.col("score").find_one({"patient_id": str(pid), "score_type": "sepsis_subphenotype_profile"}, sort=[("calc_time", -1)])
+        if not record:
+            profiler = CohortSubphenotypeProfiler(db=runtime.db, alert_engine=runtime.alert_engine)
+            result = await profiler.profile(patient)
+            record = await _persist_ai_score_record(patient, result, score_type="clinical_subphenotype_profile")
         return {"code": 0, "profile": serialize_doc(record)}
     except Exception as exc:
         logger.error("AI subphenotype error: %s", exc)

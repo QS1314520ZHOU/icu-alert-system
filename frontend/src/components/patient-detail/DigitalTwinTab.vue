@@ -629,6 +629,43 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 @media (max-width: 900px) { .overview-grid,.timeline-item { grid-template-columns: 1fr; } .timeline-rail { justify-items: start; padding-right: 0; padding-bottom: 8px; } .timeline-time { text-align: left; } .timeline-line { left: 5px; right: auto; top: 32px; bottom: -8px; } }
 @media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
 @media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
+
+/* Light mode overrides */
+html[data-theme='light'] .twin-sub { color: #6a8098; }
+html[data-theme='light'] .twin-refresh { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); color: #16324f; }
+html[data-theme='light'] .twin-kpi, html[data-theme='light'] .loop-card, html[data-theme='light'] .twin-card { background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
+html[data-theme='light'] .twin-kpi span, html[data-theme='light'] .loop-label, html[data-theme='light'] .card-sub, html[data-theme='light'] .intervention-meta, html[data-theme='light'] .causal-meta, html[data-theme='light'] .mdt-meta { color: #6f8399; }
+html[data-theme='light'] .twin-kpi strong, html[data-theme='light'] .loop-value, html[data-theme='light'] .card-title, html[data-theme='light'] .intervention-title, html[data-theme='light'] .mdt-title { color: #16324f; }
+html[data-theme='light'] .loop-step { background: rgba(59,130,246,0.1); color: #2563eb; }
+html[data-theme='light'] .loop-meta { color: #47627e; }
+html[data-theme='light'] .risk-badge.is-medium, html[data-theme='light'] .status-pill.is-pending { background: rgba(59,130,246,.16); color: #1d4ed8; }
+html[data-theme='light'] .risk-badge.is-low, html[data-theme='light'] .status-pill.is-dismissed { background: rgba(16,185,129,.16); color: #059669; }
+html[data-theme='light'] .risk-badge.is-high, html[data-theme='light'] .status-pill.is-in_progress { background: rgba(245,158,11,.16); color: #b45309; }
+html[data-theme='light'] .risk-badge.is-critical, html[data-theme='light'] .status-pill.is-completed { background: rgba(239,68,68,.16); color: #b91c1c; }
+html[data-theme='light'] .curve-row, html[data-theme='light'] .causal-item, html[data-theme='light'] .mdt-item, html[data-theme='light'] .intervention-item, html[data-theme='light'] .conflict-item { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .curve-top { color: #223a54; }
+html[data-theme='light'] .curve-bar { background: rgba(187,204,220,0.4); }
+html[data-theme='light'] .overview-item span, html[data-theme='light'] .overview-item small { color: #6f8399; }
+html[data-theme='light'] .overview-item strong { color: #223a54; }
+html[data-theme='light'] .timeline-time { color: #6a8098; }
+html[data-theme='light'] .timeline-dot { border-color: rgba(255,255,255,0.8); }
+html[data-theme='light'] .timeline-line { background: linear-gradient(180deg, rgba(59,130,246,0.4), rgba(59,130,246,0)); }
+html[data-theme='light'] .timeline-card-title { color: #16324f; }
+html[data-theme='light'] .timeline-card-sub, html[data-theme='light'] .timeline-card-meta { color: #47627e; }
+html[data-theme='light'] .timeline-source.is-neutral { background: rgba(187,204,220,0.3); color: #47627e; }
+html[data-theme='light'] .timeline-source.is-info { background: rgba(59,130,246,.15); color: #1d4ed8; }
+html[data-theme='light'] .bullet-list { color: #47627e; }
+html[data-theme='light'] .summary-panel, html[data-theme='light'] .empty-panel { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); color: #223a54; }
+html[data-theme='light'] .conflict-title { color: #d97706; }
+html[data-theme='light'] .conflict-meta { color: #6a8098; }
+html[data-theme='light'] .info-chip { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #223a54; }
+html[data-theme='light'] .info-chip--muted { background: rgba(243,248,252,0.96); color: #6f8399; }
+html[data-theme='light'] .cause-chip, html[data-theme='light'] .mini-btn { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #16324f; }
+html[data-theme='light'] .cause-chip.active { background: rgba(239,246,255,0.96); border-color: rgba(59,130,246,0.3); }
+html[data-theme='light'] .mini-btn--soft { background: rgba(16,185,129,.14); }
+html[data-theme='light'] .mini-btn--ghost { background: rgba(239,68,68,.12); }
+html[data-theme='light'] .effect-box { color: #223a54; }
+html[data-theme='light'] .error-panel { background: rgba(254,226,226,0.8); border-color: rgba(239,68,68,.3); color: #991b1b; }
 </style>
 
 

@@ -111,6 +111,20 @@ const deliriumCard = computed(() => pickCard(['delirium'], '谵妄筛查'))
 .bundle-alert-foot { margin-top: 10px; color: #7dd3fc; font-size: 12px; }
 .bundle-empty { padding: 24px; border-radius: 16px; text-align: center; color: #8bb2c4; border: 1px dashed rgba(125, 211, 252, 0.2); }
 @media (max-width: 960px) { .bundle-light-row,.domain-grid,.bundle-alert-list { grid-template-columns: 1fr; } }
+
+/* Light mode overrides */
+html[data-theme='light'] .bundle-title { color: #16324f; }
+html[data-theme='light'] .bundle-sub, html[data-theme='light'] .bundle-list-sub, html[data-theme='light'] .domain-meta, html[data-theme='light'] .bundle-alert-head span { color: #6f8399; }
+html[data-theme='light'] .bundle-score-box { background: rgba(16,185,129,.14); border-color: rgba(16,185,129,.3); color: #059669; }
+html[data-theme='light'] .bundle-light, html[data-theme='light'] .domain-card, html[data-theme='light'] .bundle-alert-card { background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: 0 4px 10px rgba(15,23,42,0.04); }
+html[data-theme='light'] .bundle-light-key { background: rgba(243,248,252,0.96); color: #47627e; border: 1px solid rgba(187,204,220,0.72); }
+html[data-theme='light'] .bundle-light--green { border-color: rgba(16,185,129,.3); }
+html[data-theme='light'] .bundle-light--yellow { border-color: rgba(245,158,11,.3); }
+html[data-theme='light'] .bundle-light--red { border-color: rgba(239,68,68,.3); }
+html[data-theme='light'] .domain-title, html[data-theme='light'] .bundle-list-title { color: #1d4ed8; }
+html[data-theme='light'] .domain-main, html[data-theme='light'] .bundle-alert-main { color: #223a54; }
+html[data-theme='light'] .domain-chip, html[data-theme='light'] .bundle-list-count { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #47627e; }
+html[data-theme='light'] .bundle-alert-head strong { color: #16324f; }
+html[data-theme='light'] .bundle-alert-foot { color: #6a8098; }
+html[data-theme='light'] .bundle-empty { color: #6a8098; border-color: rgba(187,204,220,0.72); }
 </style>
-
-

@@ -70,6 +70,44 @@ const wellsChips = computed(() => { const rows = Array.isArray(wellsAlert.value?
 .pe-row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; }
 .pe-row strong { color: #fff1f2; }
 .pe-empty { padding: 24px; text-align: center; color: #caa3ad; border: 1px dashed rgba(251, 113, 133, 0.18); border-radius: 16px; }
+html[data-theme='light'] .pe-title {
+  color: #16324f;
+}
+html[data-theme='light'] .pe-sub,
+html[data-theme='light'] .pe-card-meta,
+html[data-theme='light'] .pe-row-time {
+  color: #6f8399;
+}
+html[data-theme='light'] .pe-pill {
+  color: #be123c;
+  background: linear-gradient(180deg, rgba(255, 241, 244, 0.98) 0%, rgba(255, 233, 239, 0.98) 100%);
+  border-color: rgba(251, 113, 133, 0.28);
+  box-shadow: 0 8px 18px rgba(244, 63, 94, 0.08);
+}
+html[data-theme='light'] .pe-card,
+html[data-theme='light'] .pe-row {
+  border-color: rgba(198, 212, 226, 0.92);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(245, 249, 253, 0.99) 100%);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+html[data-theme='light'] .pe-card-title,
+html[data-theme='light'] .pe-card-main,
+html[data-theme='light'] .pe-row strong,
+html[data-theme='light'] .pe-row-main {
+  color: #16324f;
+}
+html[data-theme='light'] .pe-chip {
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.98);
+  border-color: rgba(59, 130, 246, 0.18);
+}
+html[data-theme='light'] .pe-empty {
+  color: #6f8399;
+  background: rgba(248, 251, 255, 0.98);
+  border-color: rgba(198, 212, 226, 0.92);
+}
 @media (max-width: 900px) { .pe-grid,.pe-row { grid-template-columns: 1fr; } }
 </style>
 

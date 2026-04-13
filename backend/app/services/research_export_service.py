@@ -14,6 +14,7 @@ import pandas as pd
 from bson import ObjectId
 
 from app import runtime
+from app.services.research_platform_service import register_research_artifact
 from app.utils.patient_helpers import research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
 
@@ -788,6 +789,18 @@ async def run_export_task(task_id: str, params: dict[str, Any], created_by: str)
                     "patient_id_count": len(scope.get("patient_ids", [])),
                 },
             }},
+        )
+        await register_research_artifact(
+            db=runtime.db,
+            created_by=created_by,
+            artifact_type="export_bundle",
+            title=zip_path.name,
+            file_path=str(zip_path),
+            file_name=zip_path.name,
+            download_url=f"/api/research/export/{task_id}/download",
+            source="research_export_tasks",
+            meta={"scope_summary": summary, "result_stats": export_summary_rows, "warnings": warnings},
+            source_task_id=task_id,
         )
     except Exception as exc:
         logger.exception("Export task %s failed: %s", task_id, exc)

@@ -608,11 +608,11 @@ function bundleLights(patient: any) {
   background:
     radial-gradient(circle at top right, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 28%),
     linear-gradient(180deg, rgba(7, 20, 34, 0.98) 0%, rgba(4, 12, 22, 0.99) 100%);
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 12px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   cursor: pointer;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   overflow-y: auto;
@@ -922,19 +922,20 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .v-label {
   font-size: 12px;
   color: #7ecce1;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 .v-val {
   display: inline-flex;
   align-items: flex-end;
-  font-size: 36px;
-  font-weight: 800;
-  font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
+  font-size: 32px;
+  font-weight: 500;
+  font-family: "DIN Alternate", "Roboto Mono", "SF Mono", "Consolas", monospace;
   color: #ecfeff;
   line-height: 1.02;
   font-variant-numeric: tabular-nums;
   word-break: break-all;
+  letter-spacing: -0.5px;
   text-shadow: 0 0 10px rgba(110, 231, 249, 0.12);
 }
 .vital-item--bp .v-val {
@@ -1556,16 +1557,34 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .pill--iso { background: rgba(42, 22, 81, 0.9); border-color: rgba(167, 139, 250, 0.24); color: #d0b8ff; }
 .pill--diet { background: rgba(8, 56, 42, 0.92); border-color: rgba(74, 222, 128, 0.24); color: #86efac; }
 html[data-theme='light'] .card {
-  border-color: rgba(187, 204, 220, 0.72);
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 36%),
-    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+}
+html[data-theme='light'] .card::after {
+  display: none;
+}
+html[data-theme='light'] .card::before {
+  width: 4px;
+}
+html[data-theme='light'] .card--critical::before { background: #EF4444; }
+html[data-theme='light'] .card--high::before { background: #F97316; }
+html[data-theme='light'] .card--warning::before { background: #EAB308; }
+html[data-theme='light'] .card--normal::before { background: #22C55E; }
+html[data-theme='light'] .card--none::before { background: #94A3B8; }
+html[data-theme='light'] .bed-no {
+  background: #F1F5F9;
+  border: 1px solid rgba(0,0,0,0.06);
+  color: #334155;
+  box-shadow: none;
 }
 html[data-theme='light'] .monitor-label,
-html[data-theme='light'] .section-title,
-html[data-theme='light'] .footer-title {
-  color: #47627e;
+html[data-theme='light'] .monitor-code {
+  color: #64748B;
+}
+html[data-theme='light'] .monitor-sep {
+  background: rgba(0,0,0,0.06);
 }
 html[data-theme='light'] .patient-name,
 html[data-theme='light'] .v-val,
@@ -1575,7 +1594,7 @@ html[data-theme='light'] .summary-chain-text,
 html[data-theme='light'] .summary-mini-chip-value,
 html[data-theme='light'] .alert-card-title,
 html[data-theme='light'] .pill--severity {
-  color: #16324f;
+  color: #0F172A;
 }
 html[data-theme='light'] .patient-meta,
 html[data-theme='light'] .diag-text,
@@ -1588,7 +1607,24 @@ html[data-theme='light'] .alert-text,
 html[data-theme='light'] .summary-block-label,
 html[data-theme='light'] .summary-mini-chip-label,
 html[data-theme='light'] .summary-snapshot-label {
-  color: #6f8399;
+  color: #64748B;
+}
+html[data-theme='light'] .diag-text {
+  color: #64748B;
+}
+html[data-theme='light'] .section-title,
+html[data-theme='light'] .footer-title,
+html[data-theme='light'] .summary-block-label,
+html[data-theme='light'] .summary-chain-tag,
+html[data-theme='light'] .hover-drawer-label {
+  color: #64748B;
+  letter-spacing: 0;
+  text-transform: none;
+}
+html[data-theme='light'] .sec-vitals {
+  background: #F8FAFC;
+  border: 1px solid rgba(0,0,0,0.04);
+  border-radius: 10px;
 }
 html[data-theme='light'] .sec-vitals,
 html[data-theme='light'] .sec-logistics,
@@ -1605,16 +1641,25 @@ html[data-theme='light'] .device-tag,
 html[data-theme='light'] .tube-item,
 html[data-theme='light'] .pill,
 html[data-theme='light'] .vital-item {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.96);
+  border-color: rgba(0,0,0,0.06);
+  background: #FFFFFF;
   box-shadow: none;
+}
+html[data-theme='light'] .sec-vitals {
+  background: #F8FAFC;
+  border: 1px solid rgba(0,0,0,0.04);
+  border-radius: 10px;
+}
+html[data-theme='light'] .card:hover {
+  border-color: rgba(0,0,0,0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
 }
 html[data-theme='light'] .sec-rescue-spotlight,
 html[data-theme='light'] .summary-top--rescue,
 html[data-theme='light'] .rescue-spotlight-main,
 html[data-theme='light'] .summary-main--rescue {
-  border-color: rgba(251, 113, 133, 0.28);
-  background: linear-gradient(180deg, rgba(255, 241, 244, 0.98) 0%, rgba(255, 232, 238, 0.98) 100%);
+  border-color: #F5CFCF;
+  background: #FDEAEA;
 }
 html[data-theme='light'] .rescue-spotlight-title,
 html[data-theme='light'] .rescue-spotlight-main,
@@ -1622,53 +1667,124 @@ html[data-theme='light'] .alert-card-summary--rescue,
 html[data-theme='light'] .summary-main--rescue,
 html[data-theme='light'] .hover-drawer-title,
 html[data-theme='light'] .hover-drawer-main {
-  color: #be123c;
+  color: #D63031;
 }
 html[data-theme='light'] .rescue-spotlight-suggestion,
 html[data-theme='light'] .summary-suggestion,
 html[data-theme='light'] .summary-suggestion--rescue,
 html[data-theme='light'] .hover-drawer-suggestion {
-  border-color: rgba(16, 185, 129, 0.22);
-  background: linear-gradient(180deg, rgba(236, 253, 245, 0.98) 0%, rgba(220, 252, 231, 0.98) 100%);
-  color: #047857;
+  border-color: #CFE9D8;
+  background: #E9F7EF;
+  color: #27AE60;
 }
 html[data-theme='light'] .hover-drawer,
 html[data-theme='light'] .hover-drawer-block,
 html[data-theme='light'] .hover-drawer-block--snapshot,
 html[data-theme='light'] .hover-drawer-block--chain {
-  border-color: rgba(187, 204, 220, 0.72);
+  border: 1px solid rgba(0,0,0,0.08);
   background: #ffffff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 html[data-theme='light'] .hover-drawer-tag,
 html[data-theme='light'] .summary-rescue-tag,
 html[data-theme='light'] .rescue-spotlight-tag {
-  color: #be123c;
-  background: rgba(255, 241, 244, 0.98);
-  border-color: rgba(251, 113, 133, 0.32);
+  color: #D63031;
+  background: #FDEAEA;
+  border-color: #F5CFCF;
 }
 html[data-theme='light'] .summary-chain-code,
 html[data-theme='light'] .bundle-score {
-  color: #335f8a;
-  background: rgba(231, 241, 249, 0.98);
-  border-color: rgba(187, 204, 220, 0.72);
+  color: #4A7AFF;
+  background: #F0F4FF;
+  border-color: #D6E0FF;
 }
 html[data-theme='light'] .status-badge {
-  background: rgba(241, 246, 251, 0.98);
-  border-color: rgba(187, 204, 220, 0.72);
+  min-height: 34px;
+  min-width: auto;
+  padding: 6px 12px;
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: none;
 }
-html[data-theme='light'] .status-badge--critical { background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.32); color: #be123c; box-shadow: none; }
-html[data-theme='light'] .status-badge--high { background: rgba(255, 247, 237, 0.98); border-color: rgba(251, 146, 60, 0.32); color: #c2410c; }
-html[data-theme='light'] .status-badge--warning { background: rgba(254, 243, 199, 0.98); border-color: rgba(245, 158, 11, 0.3); color: #b45309; }
-html[data-theme='light'] .status-badge--normal { background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.3); color: #047857; }
-html[data-theme='light'] .status-badge--none { background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); color: #1d4ed8; }
-html[data-theme='light'] .bed-no {
-  background: linear-gradient(180deg, rgba(30, 64, 175, 0.96) 0%, rgba(29, 78, 216, 0.96) 100%);
-  border-color: rgba(59, 130, 246, 0.34);
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+html[data-theme='light'] .status-badge--critical { background: #FEF2F2; border-color: #FECACA; color: #DC2626; box-shadow: none; }
+html[data-theme='light'] .status-badge--high { background: #FFF7ED; border-color: #FED7AA; color: #EA580C; }
+html[data-theme='light'] .status-badge--warning { background: #FFFBEB; border-color: #FDE68A; color: #CA8A04; }
+html[data-theme='light'] .status-badge--normal { background: #F0FDF4; border-color: #BBF7D0; color: #16A34A; }
+html[data-theme='light'] .status-badge--none { background: #F8FAFC; border-color: #E2E8F0; color: #64748B; }
+html[data-theme='light'] .allergy-tag {
+  background: #FEF2F2;
+  border-color: #FECACA;
+  color: #DC2626;
 }
-html[data-theme='light'] .monitor-sep { background: rgba(187, 204, 220, 0.82); }
-html[data-theme='light'] .mini--unknown { background: rgba(231, 241, 249, 0.98); color: #47627e; }
+html[data-theme='light'] .vital-item {
+  min-height: 88px;
+  padding: 12px 14px;
+  background: #F8FAFC;
+  border-color: rgba(0,0,0,0.04);
+}
+html[data-theme='light'] .v-val {
+  color: #0F172A;
+  font-family: 'Rajdhani', 'SF Mono', monospace;
+  font-weight: 700;
+  text-shadow: none;
+}
+html[data-theme='light'] .vital-item.vital--orange {
+  border-color: rgba(0,0,0,0.04);
+  background: #F8FAFC;
+}
+html[data-theme='light'] .vital-item.vital--orange .v-label,
+html[data-theme='light'] .vital-item.vital--red .v-label {
+  color: #64748B;
+}
+html[data-theme='light'] .vital-item.vital--orange .v-val {
+  color: #D97706;
+  font-weight: 700;
+  background: #FFFBEB;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+html[data-theme='light'] .vital-item.vital--red {
+  border-color: rgba(0,0,0,0.04);
+  background: #F8FAFC;
+}
+html[data-theme='light'] .vital-item.vital--red .v-val {
+  color: #DC2626;
+  font-weight: 700;
+  background: #FEF2F2;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+html[data-theme='light'] .summary-chip {
+  background: #EBF0FF;
+  border-color: #D6E0FF;
+  color: #2E5BFF;
+}
+html[data-theme='light'] .summary-chip--warning,
+html[data-theme='light'] .tube--orange {
+  background: #FFF5E6;
+  border-color: #F4D8B8;
+  color: #E67E22;
+}
+html[data-theme='light'] .summary-chip--critical,
+html[data-theme='light'] .tube--red {
+  background: #FDEAEA;
+  border-color: #F5CFCF;
+  color: #D63031;
+}
+html[data-theme='light'] .summary-mini-chip,
+html[data-theme='light'] .bundle-panel,
+html[data-theme='light'] .alert-card,
+html[data-theme='light'] .summary-chain,
+html[data-theme='light'] .summary-snapshot {
+  background: #F7F8FC;
+}
+html[data-theme='light'] .mini--green { background: #22C55E; box-shadow: none; }
+html[data-theme='light'] .mini--yellow { background: #EAB308; box-shadow: none; }
+html[data-theme='light'] .mini--red { background: #EF4444; box-shadow: none; }
+html[data-theme='light'] .mini--unknown { background: #CBD5E1; color: #475569; box-shadow: none; }
+html[data-theme='light'] .tube-toggle {
+  color: #2563EB;
+}
 
 @media (max-width: 640px) {
   .card {

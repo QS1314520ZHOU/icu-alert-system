@@ -181,6 +181,30 @@ class DatabaseManager:
             await integrated_report_col.create_index([("patient_id", 1), ("created_at", -1)])
             await integrated_report_col.create_index([("risk_level", 1), ("created_at", -1)])
 
+            research_runtime_col = self.col("research_runtime_checks")
+            await research_runtime_col.create_index([("date", 1)], unique=True)
+            await research_runtime_col.create_index([("checked_at", -1)])
+
+            research_artifact_col = self.col("research_artifacts")
+            await research_artifact_col.create_index([("created_by", 1), ("created_at", -1)])
+            await research_artifact_col.create_index([("artifact_type", 1), ("created_at", -1)])
+            await research_artifact_col.create_index([("source_task_id", 1), ("created_at", -1)])
+
+            followup_case_col = self.col("followup_cases")
+            await followup_case_col.create_index([("case_id", 1)], unique=True)
+            await followup_case_col.create_index([("patient_id", 1), ("source_module", 1)], unique=True)
+            await followup_case_col.create_index([("status", 1), ("priority", 1), ("updated_at", -1)])
+
+            followup_task_col = self.col("followup_tasks")
+            await followup_task_col.create_index([("task_id", 1)], unique=True)
+            await followup_task_col.create_index([("patient_id", 1), ("status", 1), ("created_at", -1)])
+            await followup_task_col.create_index([("case_id", 1), ("created_at", -1)])
+
+            rehab_referral_col = self.col("rehab_referrals")
+            await rehab_referral_col.create_index([("referral_id", 1)], unique=True)
+            await rehab_referral_col.create_index([("patient_id", 1), ("status", 1), ("created_at", -1)])
+            await rehab_referral_col.create_index([("case_id", 1), ("created_at", -1)])
+
             logger.info("✅ 预警系统索引创建完成")
             await self._seed_default_rules()
         except Exception as e:

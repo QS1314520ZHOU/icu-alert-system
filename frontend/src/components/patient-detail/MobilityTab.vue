@@ -71,5 +71,15 @@ const opportunityChips = computed(() => { const readiness = oppAlert.value?.extr
 .mobility-row strong { color: #effcff; }
 .mobility-empty { padding: 24px; text-align: center; color: #8bb2c4; border: 1px dashed rgba(125, 211, 252, 0.2); border-radius: 16px; }
 @media (max-width: 900px) { .mobility-grid,.mobility-row { grid-template-columns: 1fr; } }
-</style>
 
+/* Light mode overrides */
+html[data-theme='light'] .mobility-title { color: #16324f; }
+html[data-theme='light'] .mobility-sub, html[data-theme='light'] .mobility-card-meta, html[data-theme='light'] .mobility-row-time { color: #6a8098; }
+html[data-theme='light'] .mobility-pill { background: rgba(59,130,246,0.1); color: #1d4ed8; border-color: rgba(59,130,246,0.28); }
+html[data-theme='light'] .mobility-card, html[data-theme='light'] .mobility-row { background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: 0 4px 10px rgba(15,23,42,0.04); }
+html[data-theme='light'] .mobility-card-title { color: #1d4ed8; }
+html[data-theme='light'] .mobility-card-main, html[data-theme='light'] .mobility-row-main { color: #223a54; }
+html[data-theme='light'] .mobility-chip { background: #ffffff; color: #47627e; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .mobility-row strong { color: #16324f; }
+html[data-theme='light'] .mobility-empty { color: #6f8399; border-color: rgba(187,204,220,0.72); }
+</style>

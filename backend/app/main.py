@@ -23,10 +23,13 @@ from app.routers.admin import router as admin_router
 from app.routers.ai import router as ai_router
 from app.routers.alerts import router as alerts_router
 from app.routers.analytics import router as analytics_router
+from app.routers.followup import router as followup_router
 from app.routers.knowledge import router as knowledge_router
 from app.routers.patient_data import router as patient_data_router
 from app.routers.patients import router as patients_router
+from app.routers.research_platform import router as research_platform_router
 from app.routers.system import router as system_router
+from app.routers.waveforms import router as waveforms_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
@@ -156,6 +159,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(admin_router)
+app.include_router(research_platform_router)
 if research_export_router is not None:
     app.include_router(research_export_router)
 if research_analytics_router is not None:
@@ -167,8 +171,10 @@ app.include_router(patients_router)
 app.include_router(patient_data_router)
 app.include_router(alerts_router)
 app.include_router(analytics_router)
+app.include_router(followup_router)
 app.include_router(ai_router)
 app.include_router(knowledge_router)
+app.include_router(waveforms_router)
 app.include_router(ws_router)
 
 STATIC_DIR = str(static_dir())

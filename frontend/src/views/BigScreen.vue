@@ -133,15 +133,21 @@ import { groupAlerts } from '../utils/groupAlerts'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 import {
   icuCategoryAxis,
+  icuChartTokens,
   icuGrid,
   icuLegend,
   icuTooltip,
   icuValueAxis,
 } from '../charts/icuTheme'
+import { useThemeMode } from '../composables/themeMode'
 
 const BigScreenAlertFeed = defineAsyncComponent(() => import('../components/bigscreen/BigScreenAlertFeed.vue'))
 const BigScreenBedGrid = defineAsyncComponent(() => import('../components/bigscreen/BigScreenBedGrid.vue'))
 const BigScreenStatsPanel = defineAsyncComponent(() => import('../components/bigscreen/BigScreenStatsPanel.vue'))
+const chartColors = ['#2E5BFF', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280']
+const themeMode = useThemeMode()
+const isLightTheme = computed(() => themeMode.value === 'light')
+const chartTokens = computed(() => icuChartTokens())
 
 const route = useRoute()
 const currentTime = ref(dayjs().format('YYYY-MM-DD HH:mm:ss'))
@@ -291,11 +297,13 @@ const showAlerts = computed(() => {
 })
 
 const deptOption = computed(() => {
+  const tokens = chartTokens.value
+  const light = isLightTheme.value
   const data = depts.value.map((d, idx) => ({
     name: d.dept,
     value: d.patientCount,
     itemStyle: {
-      color: ['#3dd9f5', '#34d399', '#fbbf24', '#fb923c', '#fb7185', '#818cf8'][idx % 6],
+      color: chartColors[idx % chartColors.length],
     },
   }))
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
@@ -318,7 +326,7 @@ const deptOption = computed(() => {
             top: 0,
             style: {
               text: String(total),
-              fill: '#effcff',
+              fill: tokens.labelStrong,
               fontSize: 22,
               fontWeight: 700,
               textAlign: 'center',
@@ -330,7 +338,7 @@ const deptOption = computed(() => {
             top: 26,
             style: {
               text: '在院床位',
-              fill: '#7ccfe4',
+              fill: tokens.axisLabelStrong,
               fontSize: 10,
               textAlign: 'center',
             },
@@ -344,7 +352,7 @@ const deptOption = computed(() => {
         top: 'middle',
         style: {
           text: '暂无科室数据',
-          fill: '#7ccfe4',
+          fill: tokens.axisLabelStrong,
           fontSize: 11,
         },
       },
@@ -356,17 +364,18 @@ const deptOption = computed(() => {
         center: ['50%', '46%'],
         data,
         label: {
-          color: '#dffbff',
+          color: tokens.labelStrong,
           fontSize: 10,
           formatter: '{b}\n{c}床',
         },
-        labelLine: { lineStyle: { color: 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
-        itemStyle: { borderColor: '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
+        labelLine: { lineStyle: { color: light ? 'rgba(148, 163, 184, 0.9)' : 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
+        itemStyle: { borderColor: light ? '#FFFFFF' : '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
       }
     ],
   }
 })
 const alertTrendOption = computed(() => {
+  const tokens = chartTokens.value
   const xs = trendSeries.value.map(s => s.time)
   return {
     backgroundColor: 'transparent',
@@ -374,7 +383,7 @@ const alertTrendOption = computed(() => {
       trigger: 'axis',
       formatter: (params: any[]) => {
         const lines = (params || []).map((item) => `${item.marker}${item.seriesName} <b>${item.value || 0}</b> 次`)
-        return [`<div style="margin-bottom:4px;color:#9edff0;">${params?.[0]?.axisValue || '--'}</div>`, ...lines].join('<br/>')
+        return [`<div style="margin-bottom:4px;color:${tokens.legendText};">${params?.[0]?.axisValue || '--'}</div>`, ...lines].join('<br/>')
       },
     }),
     legend: icuLegend({ top: 2 }),
@@ -389,30 +398,35 @@ const alertTrendOption = computed(() => {
   }
 })
 
-const bundleOption = computed(() => ({
-  backgroundColor: 'transparent',
-  tooltip: icuTooltip({
-    trigger: 'item',
-    formatter: (params: any) => `${params.name}状态<br/>当前占比 <b>${params.value || 0}</b>`,
-  }),
-  series: [
-    {
-      type: 'pie',
-      radius: ['46%', '70%'],
-      center: ['50%', '46%'],
-      data: [
-        { name: '达标', value: bundleCounts.value.green || 0, itemStyle: { color: '#22c55e' } },
-        { name: '待跟进', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#f59e0b' } },
-        { name: '高风险', value: bundleCounts.value.red || 0, itemStyle: { color: '#ef4444' } },
-      ],
-      label: { color: '#dffbff', fontSize: 10, formatter: '{b}\n{c}' },
-      labelLine: { lineStyle: { color: 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
-      itemStyle: { borderColor: '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
-    },
-  ],
-}))
+const bundleOption = computed(() => {
+  const tokens = chartTokens.value
+  const light = isLightTheme.value
+  return {
+    backgroundColor: 'transparent',
+    tooltip: icuTooltip({
+      trigger: 'item',
+      formatter: (params: any) => `${params.name}状态<br/>当前占比 <b>${params.value || 0}</b>`,
+    }),
+    series: [
+      {
+        type: 'pie',
+        radius: ['46%', '70%'],
+        center: ['50%', '46%'],
+        data: [
+          { name: '达标', value: bundleCounts.value.green || 0, itemStyle: { color: '#22c55e' } },
+          { name: '待跟进', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#f59e0b' } },
+          { name: '高风险', value: bundleCounts.value.red || 0, itemStyle: { color: '#ef4444' } },
+        ],
+        label: { color: tokens.labelStrong, fontSize: 10, formatter: '{b}\n{c}' },
+        labelLine: { lineStyle: { color: light ? 'rgba(148, 163, 184, 0.9)' : 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
+        itemStyle: { borderColor: light ? '#FFFFFF' : '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
+      },
+    ],
+  }
+})
 
 const deviceHeatmapOption = computed(() => {
+  const tokens = chartTokens.value
   const beds = Array.from(new Set(deviceHeatRows.value.map((x: any) => String(x.bed || '--'))))
   const devices = ['中心静脉导管', '导尿管', '气管导管']
   const deviceKeyMap: Record<string, string> = {
@@ -436,12 +450,12 @@ const deviceHeatmapOption = computed(() => {
         )
         if (!row) return ''
         const deviceLabel = deviceKeyMap[String(row.device_type || '')] || String(row.device_type || '装置')
-        return `<div style="margin-bottom:4px;color:#9edff0;">${row.bed}床 · ${deviceLabel}</div>风险等级 <b>${row.risk}</b><br/>在位天数 <b>${row.line_days || 0}</b> 天`
+        return `<div style="margin-bottom:4px;color:${tokens.legendText};">${row.bed}床 · ${deviceLabel}</div>风险等级 <b>${row.risk}</b><br/>在位天数 <b>${row.line_days || 0}</b> 天`
       },
     }),
     grid: icuGrid({ left: 54, right: 14, top: 20, bottom: 42 }),
-    xAxis: icuCategoryAxis(devices, { axisLabel: { color: '#8fd4e6', fontSize: 10 } }),
-    yAxis: icuCategoryAxis(beds, { axisLabel: { color: '#8fd4e6', fontSize: 10 } }),
+    xAxis: icuCategoryAxis(devices, { axisLabel: { color: tokens.axisLabelStrong, fontSize: 10 } }),
+    yAxis: icuCategoryAxis(beds, { axisLabel: { color: tokens.axisLabelStrong, fontSize: 10 } }),
     visualMap: {
       min: 0,
       max: 3,
@@ -450,10 +464,10 @@ const deviceHeatmapOption = computed(() => {
       bottom: 0,
       calculable: false,
       text: ['高风险', '低风险'],
-      inRange: { color: ['#0b2538', '#0e7490', '#34d399', '#f59e0b', '#fb5a7a'] },
-      textStyle: { color: '#8fd4e6', fontSize: 10 },
+      inRange: { color: isLightTheme.value ? ['#eff6ff', '#bfdbfe', '#34d399', '#f59e0b', '#ef4444'] : ['#0b2538', '#0e7490', '#34d399', '#f59e0b', '#fb5a7a'] },
+      textStyle: { color: tokens.heatmapText, fontSize: 10 },
     },
-    series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 8, borderColor: 'rgba(88,225,255,.08)', borderWidth: 1 } }],
+    series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 8, borderColor: tokens.axisLine, borderWidth: 1 } }],
   }
 })
 
@@ -969,41 +983,38 @@ watch(() => route.query, () => {
   50% { box-shadow: 0 0 18px rgba(239,68,68,0.35); }
 }
 html[data-theme='light'] .bigscreen {
-  background:
-    radial-gradient(circle at 20% 0%, #f3f8fd 0%, #edf3f9 45%, #e8eff6 100%);
-  color: #1f3852;
+  background: #F5F7FA;
+  color: #0F172A;
 }
 html[data-theme='light'] .bigscreen::before {
-  background:
-    linear-gradient(rgba(148, 180, 206, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 180, 206, 0.18) 1px, transparent 1px);
-  opacity: 0.42;
+  display: none;
 }
 html[data-theme='light'] .screen-header,
 html[data-theme='light'] .panel,
 html[data-theme='light'] .command-card,
 html[data-theme='light'] .ops-lane,
-html[data-theme='light'] .ops-item,
-html[data-theme='light'] .header-context-chip,
-html[data-theme='light'] .header-filter-chip,
-html[data-theme='light'] .ops-lane__badge,
 html[data-theme='light'] .kpi-chip {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.98);
-  box-shadow: none;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
 }
 html[data-theme='light'] .title,
 html[data-theme='light'] .command-card__value,
 html[data-theme='light'] .ops-lane__title,
 html[data-theme='light'] .ops-item__value,
 html[data-theme='light'] .kpi-chip strong {
-  color: #16324f;
+  color: #0F172A;
+}
+html[data-theme='light'] .screen-header {
+  background: #FFFFFF;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 html[data-theme='light'] .title-tag {
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #f8fbff;
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+  background: #EFF6FF;
+  border-color: rgba(37, 99, 235, 0.16);
+  color: #2563EB;
+  box-shadow: none;
 }
 html[data-theme='light'] .header-sub,
 html[data-theme='light'] .kpi-label,
@@ -1013,170 +1024,81 @@ html[data-theme='light'] .ops-lane__kicker,
 html[data-theme='light'] .ops-item__label,
 html[data-theme='light'] .ops-item__meta,
 html[data-theme='light'] .panel-meta {
-  color: #6f8399;
+  color: #64748B;
 }
-html[data-theme='light'] .panel-title { color: #1d4ed8; }
+html[data-theme='light'] .header-sub {
+  text-shadow: none;
+}
+html[data-theme='light'] .header-sub::before {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.9), rgba(148, 163, 184, 0));
+}
+html[data-theme='light'] .panel-title { color: #2563EB; }
 html[data-theme='light'] .clock {
-  color: #335f8a;
-  background: rgba(226, 238, 249, 0.96);
-  border-color: rgba(130, 168, 196, 0.48);
+  color: #334155;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 html[data-theme='light'] .header-context-chip,
 html[data-theme='light'] .header-filter-chip,
 html[data-theme='light'] .ops-lane__badge {
-  color: #3d5f7f;
+  color: #64748B;
+  background: #F8FAFC;
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 html[data-theme='light'] .header-filter-chip b {
-  color: #1f4f7e;
+  color: #2563EB;
+}
+html[data-theme='light'] .header-filter-chip:hover {
+  background: #F1F5F9;
+  color: #0F172A;
 }
 html[data-theme='light'] .header-filter-chip.active {
-  background: rgba(219, 234, 254, 0.98);
-  border-color: rgba(59, 130, 246, 0.34);
-  color: #1d4ed8;
+  background: #EFF6FF;
+  border-color: rgba(37, 99, 235, 0.2);
+  color: #2563EB;
+  box-shadow: none;
 }
 html[data-theme='light'] .header-filter-chip.active b {
-  color: #1d4ed8;
+  color: #2563EB;
+}
+html[data-theme='light'] .command-card {
+  position: relative;
+  overflow: hidden;
+}
+html[data-theme='light'] .command-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+  background: #CBD5E1;
+}
+html[data-theme='light'] .command-card--risk::before { background: #EF4444; }
+html[data-theme='light'] .command-card--bundle::before { background: #22C55E; }
+html[data-theme='light'] .command-card--amber::before { background: #F59E0B; }
+html[data-theme='light'] .command-card--cyan::before { background: #06B6D4; }
+html[data-theme='light'] .command-card--risk { border-color: rgba(239, 68, 68, 0.18); }
+html[data-theme='light'] .command-card--bundle { border-color: rgba(34, 197, 94, 0.16); }
+html[data-theme='light'] .command-card--amber { border-color: rgba(245, 158, 11, 0.18); }
+html[data-theme='light'] .command-card--cyan { border-color: rgba(6, 182, 212, 0.18); }
+html[data-theme='light'] .ops-lane__badge,
+html[data-theme='light'] .kpi-chip,
+html[data-theme='light'] .ops-item {
+  background: #FFFFFF;
+}
+html[data-theme='light'] .ops-item {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+html[data-theme='light'] .ops-item:hover {
+  background: #FAFBFD;
+}
+html[data-theme='light'] .panel-head {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
 @media (max-width: 1100px) {
-  .header-context-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 2px;
-}
-.header-context-chip,
-.header-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(80,199,255,.14);
-  background: rgba(8, 28, 44, 0.78);
-  color: #dffbff;
-  font-size: 11px;
-  font-weight: 700;
-}
-.header-filter-chip {
-  cursor: pointer;
-  transition: all .18s ease;
-}
-.command-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  padding: 14px 16px 0;
-}
-.command-card {
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(80,199,255,.14);
-  background:
-    radial-gradient(circle at top right, rgba(34,211,238,.08), rgba(34,211,238,0) 34%),
-    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.05), 0 12px 28px rgba(0,0,0,.2);
-}
-.command-card--risk { border-color: rgba(251,113,133,.18); }
-.command-card--bundle { border-color: rgba(74,222,128,.18); }
-.command-card--amber { border-color: rgba(251,191,36,.18); }
-.command-card--cyan { border-color: rgba(56,189,248,.18); }
-.command-card__label {
-  color: #7ecce1;
-  font-size: 11px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.command-card__value {
-  color: #effcff;
-  font-size: 28px;
-  line-height: 1;
-}
-.command-card__meta {
-  color: #8fb8ca;
-  font-size: 11px;
-  line-height: 1.5;
-}
-.ops-board {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 12px 16px 0;
-}
-.ops-lane {
-  display: grid;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(80,199,255,.14);
-  background: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.18);
-}
-.ops-lane--nurse { border-color: rgba(74,222,128,.16); }
-.ops-lane__head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.ops-lane__kicker {
-  color: #6ea9bc;
-  font-size: 10px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.ops-lane__title {
-  color: #effcff;
-  font-size: 18px;
-  font-weight: 700;
-}
-.ops-lane__badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(80,199,255,.12);
-  background: rgba(8,28,44,.8);
-  color: #9ae8f7;
-  font-size: 10px;
-}
-.ops-lane__list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.ops-item {
-  display: grid;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(8, 28, 44, 0.78);
-  border: 1px solid rgba(80,199,255,.12);
-}
-.ops-item__label {
-  color: #7ecce1;
-  font-size: 11px;
-  letter-spacing: .08em;
-}
-.ops-item__value {
-  color: #effcff;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-.ops-item__meta {
-  color: #8fb8ca;
-  font-size: 11px;
-  line-height: 1.5;
-}
-.screen-body {
-    grid-template-columns: 1fr;
-  }
   .screen-header {
     flex-wrap: wrap;
   }
@@ -1185,10 +1107,33 @@ html[data-theme='light'] .header-filter-chip.active b {
     width: 100%;
   }
   .command-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding-top: 10px;
+  }
+  .ops-board {
+    grid-template-columns: 1fr;
+  }
+  .ops-lane__list {
+    grid-template-columns: 1fr;
+  }
+  .screen-body {
+    grid-template-columns: 1fr;
   }
   .header-filters {
     margin-top: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .command-strip {
+    grid-template-columns: 1fr;
+  }
+  .screen-kpis {
+    flex-wrap: wrap;
+  }
+  .title {
+    flex-wrap: wrap;
+    font-size: 20px;
   }
 }
 </style>

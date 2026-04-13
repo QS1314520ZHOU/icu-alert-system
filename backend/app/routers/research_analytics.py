@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from app import runtime
 from app.config import get_config
 from app.services.llm_runtime import call_llm_chat
+from app.services.research_platform_service import register_research_artifact
 from app.services.research_analytics import (
     correlation_analysis,
     create_materials_bundle,
@@ -658,6 +659,17 @@ async def api_export_figure(req: ExportFigureRequest):
         filename=req.filename,
         config=runtime.config,
     )
+    await register_research_artifact(
+        db=runtime.db,
+        created_by="anonymous",
+        artifact_type="figure",
+        title=str(req.filename or req.chart_type or "research_figure"),
+        file_path=str(result["file_path"]),
+        file_name=str(result["file_name"]),
+        download_url=f"/api/research/analytics/files/{result['file_name']}",
+        source="research_analytics_export",
+        meta={"chart_type": req.chart_type, "format": req.format, "width_mode": req.width_mode},
+    )
     return {
         **result,
         "download_url": f"/api/research/analytics/files/{result['file_name']}",
@@ -673,6 +685,17 @@ async def api_export_table(req: ExportTableRequest):
         filename=req.filename,
         config=runtime.config,
     )
+    await register_research_artifact(
+        db=runtime.db,
+        created_by="anonymous",
+        artifact_type="table",
+        title=str(req.title or req.filename or "research_table"),
+        file_path=str(result["file_path"]),
+        file_name=str(result["file_name"]),
+        download_url=f"/api/research/analytics/files/{result['file_name']}",
+        source="research_analytics_export",
+        meta={"format": req.format},
+    )
     return {
         **result,
         "download_url": f"/api/research/analytics/files/{result['file_name']}",
@@ -682,6 +705,17 @@ async def api_export_table(req: ExportTableRequest):
 @router.post("/analytics/export-bundle")
 async def api_export_bundle(req: BundleExportRequest):
     result = await create_materials_bundle(bundle_name=req.bundle_name, files=req.files)
+    await register_research_artifact(
+        db=runtime.db,
+        created_by="anonymous",
+        artifact_type="bundle",
+        title=str(req.bundle_name or result.get("file_name") or "research_bundle"),
+        file_path=str(result["file_path"]),
+        file_name=str(result["file_name"]),
+        download_url=f"/api/research/analytics/files/{result['file_name']}",
+        source="research_analytics_export",
+        meta={"file_count": len(req.files or [])},
+    )
     return {
         **result,
         "download_url": f"/api/research/analytics/files/{result['file_name']}",

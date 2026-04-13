@@ -9,8 +9,11 @@ from fastapi import APIRouter, Body, Query
 from app import runtime
 from app.config import get_config
 from app.alert_engine.scanner_beta_blocker_advisor import BetaBlockerAdvisorScanner
+from app.alert_engine.scanner_fibrinolysis_monitor import FibrinolysisMonitorScanner
 from app.alert_engine.scanner_integrated_risk_reasoning import IntegratedRiskReasoningScanner
 from app.alert_engine.scanner_metabolic_phase_detector import MetabolicPhaseDetectorScanner
+from app.alert_engine.scanner_pics_risk import PicsRiskScanner
+from app.alert_engine.scanner_prone_position_monitor import PronePositionMonitorScanner
 from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
 from app.utils.serialization import safe_oid, serialize_doc
@@ -242,6 +245,99 @@ async def ai_beta_blocker_advisor(patient_id: str, refresh: bool = Query(default
     except Exception as exc:
         logger.error("AI beta blocker advisor error: %s", exc)
         return {"code": 0, "record": None, "error": f"β受体阻滞剂辅助决策异常: {str(exc)[:120]}"}
+
+
+@router.get("/api/ai/fibrinolysis-monitor/{patient_id}")
+async def ai_fibrinolysis_monitor(patient_id: str, refresh: bool = Query(default=False)):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        record = None
+        if not refresh:
+            record = await runtime.db.col("score").find_one(
+                {"patient_id": str(pid), "score_type": "fibrinolysis_monitor"},
+                sort=[("calc_time", -1)],
+            )
+        if not record:
+            scanner = FibrinolysisMonitorScanner(runtime.alert_engine)
+            await scanner.scan(str(pid))
+            record = await runtime.db.col("score").find_one(
+                {"patient_id": str(pid), "score_type": "fibrinolysis_monitor"},
+                sort=[("calc_time", -1)],
+            )
+        return {"code": 0, "record": serialize_doc(record) if record else None}
+    except Exception as exc:
+        logger.error("AI fibrinolysis monitor error: %s", exc)
+        return {"code": 0, "record": None, "error": f"纤溶功能监测异常: {str(exc)[:120]}"}
+
+
+@router.get("/api/ai/prone-position/{patient_id}")
+async def ai_prone_position_monitor(patient_id: str, refresh: bool = Query(default=False)):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        record = None
+        if not refresh:
+            record = await runtime.db.col("score").find_one(
+                {"patient_id": str(pid), "score_type": "prone_position_monitor"},
+                sort=[("calc_time", -1)],
+            )
+        if not record:
+            scanner = PronePositionMonitorScanner(runtime.alert_engine)
+            await scanner.scan(str(pid))
+            record = await runtime.db.col("score").find_one(
+                {"patient_id": str(pid), "score_type": "prone_position_monitor"},
+                sort=[("calc_time", -1)],
+            )
+        return {"code": 0, "record": serialize_doc(record) if record else None}
+    except Exception as exc:
+        logger.error("AI prone position monitor error: %s", exc)
+        return {"code": 0, "record": None, "error": f"俯卧位治疗监测异常: {str(exc)[:120]}"}
+
+
+@router.get("/api/ai/pics-risk/{patient_id}")
+async def ai_pics_risk(patient_id: str, refresh: bool = Query(default=False)):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+
+    try:
+        record = None
+        if not refresh:
+            record = await runtime.db.col("score").find_one(
+                {"patient_id": str(pid), "score_type": "pics_risk_assessment"},
+                sort=[("calc_time", -1)],
+            )
+        if not record:
+            scanner = PicsRiskScanner(runtime.alert_engine)
+            await scanner.scan(str(pid))
+            record = await runtime.db.col("score").find_one(
+                {"patient_id": str(pid), "score_type": "pics_risk_assessment"},
+                sort=[("calc_time", -1)],
+            )
+        return {"code": 0, "record": serialize_doc(record) if record else None}
+    except Exception as exc:
+        logger.error("AI pics risk error: %s", exc)
+        return {"code": 0, "record": None, "error": f"PICS 风险预警异常: {str(exc)[:120]}"}
 
 
 @router.post("/api/ai/causal-analysis/{patient_id}")

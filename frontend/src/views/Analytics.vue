@@ -473,6 +473,7 @@ import {
 } from '../api'
 import {
   icuCategoryAxis,
+  icuChartTokens,
   icuGrid,
   icuLegend,
   icuTooltip,
@@ -749,7 +750,7 @@ function tooltipShell(title: string, rows: string[], footer = '') {
   `
 }
 
-function tooltipRow(label: string, value: any, color = '#67e8f9') {
+function tooltipRow(label: string, value: any, color = icuChartTokens().axisLabel) {
   return `
     <div class="analytics-tooltip__row">
       <span class="analytics-tooltip__label">
@@ -873,12 +874,12 @@ const lifecycleFunnelOption = computed(() => ({
   }),
   grid: icuGrid({ left: 56, right: 24, top: 24, bottom: 24 }),
   xAxis: icuValueAxis({
-    axisLabel: { color: '#8ecfe0', fontSize: 10 },
-    splitLine: { lineStyle: { color: 'rgba(61, 118, 145, 0.15)' } },
+    axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10 },
+    splitLine: { lineStyle: { color: icuChartTokens().splitLine } },
   }),
   yAxis: icuCategoryAxis(lifecycleFunnelStages.value.map((item: any) => item.label), {
-    axisLabel: { color: '#79d7ea', fontSize: 11, margin: 14 },
-    axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
+    axisLabel: { color: icuChartTokens().axisLabel, fontSize: 11, margin: 14 },
+    axisLine: { lineStyle: { color: icuChartTokens().axisLine } },
   }),
   series: [
     {
@@ -891,7 +892,7 @@ const lifecycleFunnelOption = computed(() => ({
       label: {
         show: true,
         position: 'right',
-        color: '#dffafc',
+        color: icuChartTokens().labelStrong,
         formatter: (params: any) => {
           const row: any = lifecycleFunnelStages.value[params.dataIndex]
           return row ? `${row.value} · ${formatPct(row.rate || 0)}` : ''
@@ -921,15 +922,15 @@ const lifecycleConversionOption = computed(() => ({
       )
     },
   }),
-  legend: icuLegend({ bottom: 0, textStyle: { color: '#8bd3e6', fontSize: 11 } }),
+  legend: icuLegend({ bottom: 0, textStyle: { color: icuChartTokens().legendText, fontSize: 11 } }),
   grid: icuGrid({ left: 40, right: 16, top: 24, bottom: 50 }),
   xAxis: icuCategoryAxis(lifecycleFunnelSeries.value.map((item: any) => item.time), {
-    axisLabel: { color: '#79d7ea', fontSize: 10, margin: 12 },
-    axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
+    axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, margin: 12 },
+    axisLine: { lineStyle: { color: icuChartTokens().axisLine } },
   }),
   yAxis: icuValueAxis({
-    axisLabel: { color: '#8ecfe0', fontSize: 10, formatter: (value: number) => `${value}%` },
-    splitLine: { lineStyle: { color: 'rgba(61, 118, 145, 0.15)' } },
+    axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, formatter: (value: number) => `${value}%` },
+    splitLine: { lineStyle: { color: icuChartTokens().splitLine } },
     max: 100,
   }),
   series: [
@@ -964,16 +965,16 @@ const heatmapOption = computed(() => {
     }),
     grid: icuGrid({ left: 128, right: 22, top: 20, bottom: 62 }),
     xAxis: icuCategoryAxis(sourceX, {
-      axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
-      axisLabel: { color: '#79d7ea', fontSize: 10, margin: 12 },
+      axisLine: { lineStyle: { color: icuChartTokens().axisLine } },
+      axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, margin: 12 },
       splitArea: { show: false },
-      splitLine: { show: true, lineStyle: { color: 'rgba(61, 118, 145, 0.12)' } },
+      splitLine: { show: true, lineStyle: { color: icuChartTokens().splitLine } },
     }),
     yAxis: icuCategoryAxis(sourceY, {
-      axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.24)' } },
-      axisLabel: { color: '#b7ddec', fontSize: 10, margin: 14 },
+      axisLine: { lineStyle: { color: icuChartTokens().axisLine } },
+      axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10, margin: 14 },
       splitArea: { show: false },
-      splitLine: { show: true, lineStyle: { color: 'rgba(61, 118, 145, 0.12)' } },
+      splitLine: { show: true, lineStyle: { color: icuChartTokens().splitLine } },
     }),
     visualMap: {
       min: 0,
@@ -986,9 +987,9 @@ const heatmapOption = computed(() => {
       itemHeight: 10,
       text: ['高频', '低频'],
       textGap: 10,
-      textStyle: { color: '#7fc7da', fontSize: 10 },
+      textStyle: { color: icuChartTokens().heatmapText, fontSize: 10 },
       inRange: {
-        color: ['#0a2234', '#0e4c68', '#16b3c9', '#f59e0b', '#fb5a7a'],
+        color: icuChartTokens().heatmapRange,
       },
     },
     series: [
@@ -999,13 +1000,13 @@ const heatmapOption = computed(() => {
         label: {
           show: true,
           formatter: ({ value }: any) => (value?.[2] ? value[2] : ''),
-          color: '#effcff',
+          color: icuChartTokens().labelStrong,
           fontSize: 10,
           fontWeight: 700,
         },
         itemStyle: {
           borderRadius: 8,
-          borderColor: 'rgba(112, 226, 255, 0.1)',
+          borderColor: icuChartTokens().axisLine,
           borderWidth: 1,
         },
         emphasis: {
@@ -1090,10 +1091,10 @@ const scenarioHeatmapOption = computed(() => ({
     formatter: (params: any) => tooltipShell(`${scenarioHeatmapY.value[params.value[1]] || '场景组'}`, [tooltipRow('场景', scenarioHeatmapX.value[params.value[0]] || '—', '#22d3ee'), tooltipRow('命中', `${params.value[2] || 0} 次`, '#fb5a7a')], '扩展场景覆盖热区'),
   }),
   grid: icuGrid({ left: 128, right: 22, top: 20, bottom: 62 }),
-  xAxis: icuCategoryAxis(scenarioHeatmapX.value, { axisLabel: { color: '#79d7ea', fontSize: 10, rotate: 18, margin: 12 } }),
-  yAxis: icuCategoryAxis(scenarioHeatmapY.value, { axisLabel: { color: '#b7ddec', fontSize: 10, margin: 14 } }),
-  visualMap: { min: 0, max: Math.max(1, ...scenarioHeatmapData.value.map((item: any) => Number(item?.[2] || 0))), orient: 'horizontal', left: 'center', bottom: 8, text: ['高频', '低频'], textStyle: { color: '#7fc7da', fontSize: 10 }, inRange: { color: ['#0a2234', '#0e4c68', '#16b3c9', '#f59e0b', '#fb5a7a'] } },
-  series: [{ type: 'heatmap', data: scenarioHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: '#effcff', fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: 'rgba(112, 226, 255, 0.1)', borderWidth: 1 } }],
+  xAxis: icuCategoryAxis(scenarioHeatmapX.value, { axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, rotate: 18, margin: 12 } }),
+  yAxis: icuCategoryAxis(scenarioHeatmapY.value, { axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10, margin: 14 } }),
+  visualMap: { min: 0, max: Math.max(1, ...scenarioHeatmapData.value.map((item: any) => Number(item?.[2] || 0))), orient: 'horizontal', left: 'center', bottom: 8, text: ['高频', '低频'], textStyle: { color: icuChartTokens().heatmapText, fontSize: 10 }, inRange: { color: icuChartTokens().heatmapRange } },
+  series: [{ type: 'heatmap', data: scenarioHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: icuChartTokens().labelStrong, fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: icuChartTokens().axisLine, borderWidth: 1 } }],
 }))
 const nursingHeatmapOption = computed(() => ({
   backgroundColor: 'transparent',
@@ -1108,10 +1109,10 @@ const nursingHeatmapOption = computed(() => ({
     ),
   }),
   grid: icuGrid({ left: 88, right: 22, top: 20, bottom: 72 }),
-  xAxis: icuCategoryAxis(nursingHeatmapX.value, { axisLabel: { color: '#79d7ea', fontSize: 10, rotate: 28, margin: 12 } }),
-  yAxis: icuCategoryAxis(nursingHeatmapY.value, { axisLabel: { color: '#b7ddec', fontSize: 10, margin: 14 } }),
-  visualMap: { min: 20, max: 100, orient: 'horizontal', left: 'center', bottom: 8, text: ['高负荷', '低负荷'], textStyle: { color: '#7fc7da', fontSize: 10 }, inRange: { color: ['#0a2234', '#0e4c68', '#16b3c9', '#fb923c', '#f43f5e'] } },
-  series: [{ type: 'heatmap', data: nursingHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: '#effcff', fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: 'rgba(112, 226, 255, 0.1)', borderWidth: 1 } }],
+  xAxis: icuCategoryAxis(nursingHeatmapX.value, { axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, rotate: 28, margin: 12 } }),
+  yAxis: icuCategoryAxis(nursingHeatmapY.value, { axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10, margin: 14 } }),
+  visualMap: { min: 20, max: 100, orient: 'horizontal', left: 'center', bottom: 8, text: ['高负荷', '低负荷'], textStyle: { color: icuChartTokens().heatmapText, fontSize: 10 }, inRange: { color: ['#eff6ff', '#bfdbfe', '#60a5fa', '#fb923c', '#f43f5e'] } },
+  series: [{ type: 'heatmap', data: nursingHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: icuChartTokens().labelStrong, fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: icuChartTokens().axisLine, borderWidth: 1 } }],
 }))
 const scenarioColumns = [
   { title: '场景', dataIndex: 'title', key: 'title' },
@@ -1883,8 +1884,8 @@ const deptRankOption = computed(() => ({
   grid: icuGrid({ left: 84, right: 18, top: 16, bottom: 24 }),
   xAxis: icuValueAxis({ axisLabel: { fontSize: 10 } }),
   yAxis: icuCategoryAxis(displayDeptRankings.value.map((d: any) => d.dept), {
-    axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.18)' } },
-    axisLabel: { color: '#b7ddec', fontSize: 10 },
+    axisLine: { lineStyle: { color: icuChartTokens().axisLine } },
+    axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10 },
   }),
   series: [
     {
@@ -1901,7 +1902,7 @@ const deptRankOption = computed(() => ({
       label: {
         show: true,
         position: 'right',
-        color: '#dffbff',
+        color: icuChartTokens().labelStrong,
         fontSize: 10,
       },
     },
@@ -1925,8 +1926,8 @@ const bedRankOption = computed(() => ({
   grid: icuGrid({ left: 102, right: 18, top: 16, bottom: 24 }),
   xAxis: icuValueAxis({ axisLabel: { fontSize: 10 } }),
   yAxis: icuCategoryAxis(displayBedRankings.value.map((d: any) => `${d.dept}-${d.bed}`), {
-    axisLine: { lineStyle: { color: 'rgba(79, 182, 219, 0.18)' } },
-    axisLabel: { color: '#b7ddec', fontSize: 10 },
+    axisLine: { lineStyle: { color: icuChartTokens().axisLine } },
+    axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10 },
   }),
   series: [
     {
@@ -1943,7 +1944,7 @@ const bedRankOption = computed(() => ({
       label: {
         show: true,
         position: 'right',
-        color: '#dffbff',
+        color: icuChartTokens().labelStrong,
         fontSize: 10,
       },
     },
@@ -2014,7 +2015,7 @@ const weaningDeptCompareOption = computed(() => ({
   legend: icuLegend({ textStyle: { fontSize: 10 } }),
   grid: icuGrid({ left: 52, right: 18, top: 28, bottom: 34 }),
   xAxis: icuCategoryAxis(weaningDeptCompare.value.map((row: any) => row.dept || '未知科室'), {
-    axisLabel: { color: '#b7ddec', fontSize: 10, interval: 0, rotate: 18 },
+    axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10, interval: 0, rotate: 18 },
   }),
   yAxis: icuValueAxis({
     axisLabel: {
@@ -3129,32 +3130,63 @@ onMounted(() => {
   color: #b5f3ff;
 }
 html[data-theme='light'] .analytics-page {
-  background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.14), rgba(59, 130, 246, 0) 34%),
-    linear-gradient(180deg, #f4f8fc 0%, #edf3f9 100%);
+  background: #F5F7FA;
 }
 html[data-theme='light'] .analytics-page::before {
-  background:
-    linear-gradient(rgba(148, 180, 206, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 180, 206, 0.2) 1px, transparent 1px);
-  opacity: 0.42;
+  display: none;
 }
 html[data-theme='light'] .filter-card,
 html[data-theme='light'] .section-hero,
-html[data-theme='light'] .action-tile,
 html[data-theme='light'] .kpi-tile,
 html[data-theme='light'] .panel,
 html[data-theme='light'] .brief-card,
 html[data-theme='light'] .focus-panel {
-  border-color: rgba(187, 204, 220, 0.72);
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 40%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 249, 253, 0.98) 100%);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  border-color: rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
 }
 html[data-theme='light'] .panel :deep(.ant-card-head) {
-  border-bottom-color: rgba(187, 204, 220, 0.72);
-  background: linear-gradient(90deg, rgba(231, 241, 249, 0.98), rgba(231, 241, 249, 0));
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+  background: #FFFFFF;
+}
+html[data-theme='light'] .filter-card :deep(.ant-card-body) {
+  padding: 14px 16px;
+}
+html[data-theme='light'] .filter-card :deep(.ant-segmented),
+html[data-theme='light'] .filter-card :deep(.ant-input-number) {
+  background: #F8FAFC;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+html[data-theme='light'] .filter-card :deep(.ant-segmented-item) {
+  color: #64748B;
+}
+html[data-theme='light'] .filter-card :deep(.ant-segmented-item-selected) {
+  background: #EFF6FF;
+  color: #2563EB;
+  box-shadow: none;
+}
+html[data-theme='light'] .filter-card :deep(.ant-input-number input) {
+  color: #0F172A;
+}
+html[data-theme='light'] .filter-card :deep(.ant-btn) {
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  border-color: rgba(37, 99, 235, 0.16);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+html[data-theme='light'] .rescue-toggle {
+  border-color: rgba(220, 38, 38, 0.14);
+  background: #FEF2F2;
+  color: #DC2626;
+  box-shadow: none;
+}
+html[data-theme='light'] .rescue-toggle:hover,
+html[data-theme='light'] .rescue-toggle.active {
+  background: #FEE2E2;
+  border-color: #FECACA;
+  color: #B91C1C;
+  box-shadow: none;
 }
 html[data-theme='light'] .left-tools .label,
 html[data-theme='light'] .hero-kicker,
@@ -3168,7 +3200,7 @@ html[data-theme='light'] .status-card__label,
 html[data-theme='light'] .insight-line__label,
 html[data-theme='light'] .summary-card__label,
 html[data-theme='light'] .advice-card__label {
-  color: #47627e;
+  color: #64748B;
 }
 html[data-theme='light'] .hero-title,
 html[data-theme='light'] .kpi-value,
@@ -3180,7 +3212,7 @@ html[data-theme='light'] .insight-value,
 html[data-theme='light'] .status-card__value,
 html[data-theme='light'] .summary-card__value,
 html[data-theme='light'] .advice-card__text {
-  color: #16324f;
+  color: #0F172A;
 }
 html[data-theme='light'] .hero-desc,
 html[data-theme='light'] .action-tile__meta,
@@ -3193,7 +3225,7 @@ html[data-theme='light'] .progress-row__meta,
 html[data-theme='light'] .insight-line__meta,
 html[data-theme='light'] .summary-card__meta,
 html[data-theme='light'] .empty {
-  color: #6f8399;
+  color: #64748B;
 }
 html[data-theme='light'] .hero-chip,
 html[data-theme='light'] .summary-chip,
@@ -3204,26 +3236,58 @@ html[data-theme='light'] .advice-card,
 html[data-theme='light'] .progress-bar,
 html[data-theme='light'] .summary-chip,
 html[data-theme='light'] .advice-card__index {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.96);
+  border-color: rgba(0, 0, 0, 0.06);
+  background: #F8FAFC;
 }
-html[data-theme='light'] .panel :deep(.ant-card-head-title) { color: #1d4ed8; }
-html[data-theme='light'] .rank-table :deep(.ant-table-container) { border-color: rgba(187, 204, 220, 0.72); }
+html[data-theme='light'] .action-tile {
+  background: #F0F4FF;
+  border-color: rgba(37, 99, 235, 0.12);
+  box-shadow: none;
+}
+html[data-theme='light'] .action-tile:hover {
+  background: #E0E7FF;
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+}
+html[data-theme='light'] .action-tile__label,
+html[data-theme='light'] .action-tile__value,
+html[data-theme='light'] .action-tile__meta {
+  color: #2563EB;
+}
+html[data-theme='light'] .kpi-tile::after {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.04), rgba(37, 99, 235, 0.28), rgba(37, 99, 235, 0.04));
+}
+html[data-theme='light'] .focus-panel__badge,
+html[data-theme='light'] .hero-chip,
+html[data-theme='light'] .summary-chip {
+  border-color: rgba(37, 99, 235, 0.12);
+  background: #F8FAFC;
+}
+html[data-theme='light'] .focus-panel__badge,
+html[data-theme='light'] .hero-chip__value,
+html[data-theme='light'] .summary-v,
+html[data-theme='light'] .analytics-link,
+html[data-theme='light'] .analytics-link:hover,
+html[data-theme='light'] .panel :deep(.ant-card-head-title) {
+  color: #2563EB;
+}
+html[data-theme='light'] .progress-row__top,
+html[data-theme='light'] .progress-row__top strong,
+html[data-theme='light'] .focus-item__value {
+  color: #0F172A;
+}
+html[data-theme='light'] .rank-table :deep(.ant-table-container) { border-color: rgba(0, 0, 0, 0.06); }
 html[data-theme='light'] .rank-table :deep(.ant-table-thead > tr > th) {
-  background: rgba(241, 246, 251, 0.98);
-  color: #47627e;
-  border-bottom-color: rgba(187, 204, 220, 0.72);
+  background: #F8FAFC;
+  color: #475569;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 html[data-theme='light'] .rank-table :deep(.ant-table-tbody > tr > td) {
-  color: #1f3852;
-  border-bottom-color: rgba(187, 204, 220, 0.56);
+  color: #0F172A;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 html[data-theme='light'] .rank-table :deep(.ant-table-tbody > tr:hover > td) {
-  background: rgba(231, 241, 249, 0.98) !important;
-}
-html[data-theme='light'] .analytics-link,
-html[data-theme='light'] .analytics-link:hover {
-  color: #1d4ed8;
+  background: #FAFBFD !important;
 }
 
 @media (max-width: 980px) {

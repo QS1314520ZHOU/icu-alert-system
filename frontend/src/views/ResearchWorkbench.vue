@@ -16,6 +16,81 @@
       </div>
     </section>
 
+    <section class="platform-strip">
+      <article :class="['platform-card', `platform-card--${platformStatusLevel}`]">
+        <div class="platform-card__head">
+          <div>
+            <div class="platform-card__title">平台状态</div>
+            <div class="platform-card__sub">{{ platformStatus?.summary || '等待平台状态' }}</div>
+          </div>
+          <a-space>
+            <a-button size="small" :loading="platformStatusLoading" @click="loadPlatformStatus">刷新</a-button>
+            <a-button size="small" type="primary" ghost :loading="platformStatusLoading" @click="runPlatformCheck">自检</a-button>
+          </a-space>
+        </div>
+        <div class="platform-kpi-row">
+          <div v-for="item in platformKpis" :key="item.label" class="platform-kpi">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </div>
+        </div>
+        <div v-if="platformMissingRows.length" class="platform-chip-row">
+          <span v-for="item in platformMissingRows" :key="item.module" class="platform-chip platform-chip--warn">
+            缺 {{ item.module }}
+          </span>
+        </div>
+        <div v-if="platformStatusError" class="platform-error">{{ platformStatusError }}</div>
+      </article>
+
+      <article class="platform-card">
+        <div class="platform-card__head">
+          <div>
+            <div class="platform-card__title">任务中心</div>
+            <div class="platform-card__sub">统一查看分析与导出任务</div>
+          </div>
+          <a-button size="small" :loading="researchJobsLoading" @click="loadPlatformJobs">刷新</a-button>
+        </div>
+        <div class="platform-summary-row">
+          <span>待执行 {{ researchJobsSummary?.pending || 0 }}</span>
+          <span>执行中 {{ researchJobsSummary?.processing || 0 }}</span>
+          <span>已完成 {{ researchJobsSummary?.completed || 0 }}</span>
+          <span>失败 {{ researchJobsSummary?.failed || 0 }}</span>
+        </div>
+        <div v-if="recentPlatformJobs.length" class="platform-list">
+          <div v-for="item in recentPlatformJobs" :key="item.job_id" class="platform-list__item">
+            <div>
+              <strong>{{ item.title || item.kind || '任务' }}</strong>
+              <div class="platform-list__meta">{{ item.kind }} · {{ item.status }} · {{ item.progress }}%</div>
+            </div>
+            <span class="platform-list__time">{{ item.created_at ? String(item.created_at).slice(5, 16).replace('T', ' ') : '—' }}</span>
+          </div>
+        </div>
+        <div v-else class="platform-empty">暂无科研任务</div>
+        <div v-if="researchJobsError" class="platform-error">{{ researchJobsError }}</div>
+      </article>
+
+      <article class="platform-card">
+        <div class="platform-card__head">
+          <div>
+            <div class="platform-card__title">产物中心</div>
+            <div class="platform-card__sub">导出包、图表、表格统一归档</div>
+          </div>
+          <a-button size="small" :loading="researchArtifactsLoading" @click="loadPlatformArtifacts">刷新</a-button>
+        </div>
+        <div v-if="recentPlatformArtifacts.length" class="platform-list">
+          <div v-for="item in recentPlatformArtifacts" :key="item.artifact_id" class="platform-list__item">
+            <div>
+              <strong>{{ item.title || item.file_name || '产物' }}</strong>
+              <div class="platform-list__meta">{{ item.artifact_type || 'file' }} · {{ item.source || 'research' }}</div>
+            </div>
+            <a :href="item.download_url || '#'" class="artifact-link" target="_blank" rel="noopener noreferrer">下载</a>
+          </div>
+        </div>
+        <div v-else class="platform-empty">暂无科研产物</div>
+        <div v-if="researchArtifactsError" class="platform-error">{{ researchArtifactsError }}</div>
+      </article>
+    </section>
+
     <section v-if="!cohortReady && tab !== 'prep'" class="warn-banner" @click="jumpToTab('prep')">
       ⚠ 请先在「数据准备」中选择研究队列
     </section>
@@ -858,7 +933,11 @@ import {
   getDepartments, getPatients, getResearchAnalyticsTaskStatus, getResearchSession, listResearchCohorts, listResearchSessions, postResearchAiInterpret,
   postResearchAiPlan,
   getResearchIcdSearch,
+  getResearchPlatformArtifacts,
+  getResearchPlatformJobs,
+  getResearchPlatformStatus,
   deleteResearchCohort, postResearchExportFigure, postResearchExportTable,
+  postResearchPlatformCheck,
   postResearchCohortBuild, postResearchCorrelation, postResearchRegression, postResearchRoc, postResearchSubgroup, postResearchSurvival,
   postResearchTable1, postResearchTrend, postResearchVariableSummary, saveResearchSession,
 } from '../api'
@@ -1007,6 +1086,16 @@ const sessionLoading = ref(false)
 const sessionListLoading = ref(false)
 const sessionListError = ref('')
 const sessions = ref<Array<AnyRecord>>([])
+const platformStatus = ref<AnyRecord | null>(null)
+const platformStatusLoading = ref(false)
+const platformStatusError = ref('')
+const researchJobs = ref<Array<AnyRecord>>([])
+const researchJobsSummary = ref<AnyRecord>({})
+const researchJobsLoading = ref(false)
+const researchJobsError = ref('')
+const researchArtifacts = ref<Array<AnyRecord>>([])
+const researchArtifactsLoading = ref(false)
+const researchArtifactsError = ref('')
 const leftNav = [
   { key: 'prep', label: '数据准备' },
   { type: 'divider', key: 'divider-1' },
@@ -1020,6 +1109,21 @@ const leftNav = [
   { type: 'divider', key: 'divider-2' },
   { key: 'export', label: '导出中心' },
 ]
+
+const platformStatusLevel = computed(() => String(platformStatus.value?.level || 'yellow').toLowerCase())
+const platformDependencyRows = computed(() => Array.isArray(platformStatus.value?.dependencies) ? platformStatus.value.dependencies : [])
+const platformMissingRows = computed(() => platformDependencyRows.value.filter((item: any) => !item?.available))
+const platformKpis = computed(() => {
+  const counts = platformStatus.value?.counts || {}
+  return [
+    { label: '依赖就绪', value: `${platformDependencyRows.value.length - platformMissingRows.value.length}/${platformDependencyRows.value.length || 0}` },
+    { label: '分析任务', value: Number(researchJobsSummary.value?.pending || 0) + Number(researchJobsSummary.value?.processing || 0) },
+    { label: '导出产物', value: counts?.artifacts ?? researchArtifacts.value.length ?? 0 },
+    { label: '研究队列', value: counts?.cohorts ?? cohorts.value.length ?? 0 },
+  ]
+})
+const recentPlatformJobs = computed(() => researchJobs.value.slice(0, 5))
+const recentPlatformArtifacts = computed(() => researchArtifacts.value.slice(0, 5))
 
 const groupByOptions = [
   { label: '结局（存活/死亡）', value: 'outcome' },
@@ -2664,6 +2768,66 @@ function onAiPart(payload: { analysisType: string; part: PartKey }) { const key 
 function onAiText(payload: { analysisType: string; part: PartKey; lang: LangKey; value: string }) { const key = normalizeAnalysisKey(payload.analysisType); if (!key) return; const state = ai[key]; if (!state) return; state.content[payload.lang][payload.part] = payload.value }
 
 async function saveSession() { sessionLoading.value = true; try { await saveResearchSession({ name: `科研分析_${new Date().toLocaleString('zh-CN')}`, payload: { tab: tab.value, scope: { ...scope }, forms: { survivalForm: { ...survivalForm }, regressionForm: { ...regressionForm }, rocForm: { ...rocForm }, subgroupForm: { ...subgroupForm }, trendForm: { ...trendForm }, correlationForm: { ...correlationForm } }, results: { table1: table1Result.value, survival: survivalResult.value, regression: regressionResult.value, roc: rocResult.value, subgroup: subgroupResult.value, trend: trendResult.value, correlation: correlationResult.value }, exports: exports.value } }); message.success('会话已保存'); await loadSessions() } catch (e: any) { message.error(apiErrorMessage(e, '会话保存失败')) } finally { sessionLoading.value = false } }
+async function loadPlatformStatus() {
+  platformStatusLoading.value = true
+  platformStatusError.value = ''
+  try {
+    const res = await getResearchPlatformStatus()
+    platformStatus.value = res.data?.status || null
+  } catch (e: any) {
+    platformStatus.value = null
+    platformStatusError.value = apiErrorMessage(e, '平台状态加载失败')
+  } finally {
+    platformStatusLoading.value = false
+  }
+}
+
+async function runPlatformCheck() {
+  platformStatusLoading.value = true
+  platformStatusError.value = ''
+  try {
+    const res = await postResearchPlatformCheck()
+    platformStatus.value = res.data?.status || null
+    message.success('科研平台自检完成')
+    await Promise.allSettled([loadPlatformJobs(), loadPlatformArtifacts()])
+  } catch (e: any) {
+    platformStatusError.value = apiErrorMessage(e, '平台自检失败')
+    message.error(platformStatusError.value)
+  } finally {
+    platformStatusLoading.value = false
+  }
+}
+
+async function loadPlatformJobs() {
+  researchJobsLoading.value = true
+  researchJobsError.value = ''
+  try {
+    const res = await getResearchPlatformJobs({ limit: 50 })
+    researchJobs.value = Array.isArray(res.data?.rows) ? res.data.rows : []
+    researchJobsSummary.value = res.data?.summary || {}
+  } catch (e: any) {
+    researchJobs.value = []
+    researchJobsSummary.value = {}
+    researchJobsError.value = apiErrorMessage(e, '任务中心加载失败')
+  } finally {
+    researchJobsLoading.value = false
+  }
+}
+
+async function loadPlatformArtifacts() {
+  researchArtifactsLoading.value = true
+  researchArtifactsError.value = ''
+  try {
+    const res = await getResearchPlatformArtifacts({ limit: 50 })
+    researchArtifacts.value = Array.isArray(res.data?.rows) ? res.data.rows : []
+  } catch (e: any) {
+    researchArtifacts.value = []
+    researchArtifactsError.value = apiErrorMessage(e, '产物中心加载失败')
+  } finally {
+    researchArtifactsLoading.value = false
+  }
+}
+
 async function loadSessions() {
   sessionListLoading.value = true
   sessionListError.value = ''
@@ -2679,7 +2843,13 @@ async function loadSessions() {
   }
 }
 async function restoreSession(sessionId: string) { if (!sessionId) return; try { const res = await getResearchSession(sessionId); const p = (res.data?.payload || {}) as AnyRecord; if (p.tab) tab.value = String(p.tab); if (p.scope) Object.assign(scope, p.scope); if (p.forms?.survivalForm) Object.assign(survivalForm, p.forms.survivalForm); if (p.forms?.regressionForm) Object.assign(regressionForm, p.forms.regressionForm); if (p.forms?.rocForm) Object.assign(rocForm, p.forms.rocForm); if (p.forms?.subgroupForm) Object.assign(subgroupForm, p.forms.subgroupForm); if (p.forms?.trendForm) Object.assign(trendForm, p.forms.trendForm); if (p.forms?.correlationForm) Object.assign(correlationForm, p.forms.correlationForm); if (p.results) { table1Result.value = p.results.table1 || null; survivalResult.value = p.results.survival || null; regressionResult.value = p.results.regression || null; rocResult.value = p.results.roc || null; subgroupResult.value = p.results.subgroup || null; trendResult.value = p.results.trend || null; correlationResult.value = p.results.correlation || null } exports.value = Array.isArray(p.exports) ? p.exports : []; message.success('会话已恢复') } catch (e: any) { message.error(apiErrorMessage(e, '会话恢复失败')) } }
-onMounted(async () => { await loadDeptNameMap(); await loadCohorts(); await loadSessions(); useDefaultSubgroups() })
+onMounted(async () => {
+  await loadDeptNameMap()
+  await loadCohorts()
+  await loadSessions()
+  await Promise.allSettled([loadPlatformStatus(), loadPlatformJobs(), loadPlatformArtifacts()])
+  useDefaultSubgroups()
+})
 
 const sessionEmptyText = computed(() => {
   if (sessionListLoading.value) return '正在加载会话...'
@@ -3412,6 +3582,30 @@ onUnmounted(() => {
 .three-line-table :deep(.ant-table-tbody > tr > td) { border: none; }
 .table-footnote { margin-top: 8px; font-size: 11px; color: #8a8a8a; font-style: italic; }
 .card-grid .card.collapsible { max-height: 220px; overflow-y: auto; }
+.platform-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.platform-card { border: 1px solid rgba(0,210,210,0.15); border-radius: 14px; background: rgba(7, 15, 26, 0.78); padding: 14px; display: grid; gap: 10px; }
+.platform-card--green { border-color: rgba(16,185,129,.28); }
+.platform-card--yellow { border-color: rgba(245,158,11,.28); }
+.platform-card--red { border-color: rgba(239,68,68,.28); }
+.platform-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.platform-card__title { color: #e9fcff; font-size: 15px; font-weight: 700; }
+.platform-card__sub { color: #8eb3bc; font-size: 12px; line-height: 1.5; }
+.platform-kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.platform-kpi { border: 1px solid rgba(0,210,210,0.12); border-radius: 10px; padding: 10px; background: rgba(3,10,18,0.48); display: grid; gap: 4px; }
+.platform-kpi span { color: #7da8b2; font-size: 11px; }
+.platform-kpi strong { color: #f3feff; font-size: 16px; }
+.platform-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.platform-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(0,210,210,0.15); color: #d8f7fb; font-size: 11px; }
+.platform-chip--warn { border-color: rgba(245,158,11,.28); color: #facc15; }
+.platform-summary-row { display: flex; flex-wrap: wrap; gap: 10px; color: #8eb3bc; font-size: 12px; }
+.platform-list { display: grid; gap: 8px; }
+.platform-list__item { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(3,10,18,0.42); border: 1px solid rgba(0,210,210,0.1); }
+.platform-list__item strong { color: #eefcff; font-size: 13px; }
+.platform-list__meta { color: #7da8b2; font-size: 11px; margin-top: 2px; }
+.platform-list__time { color: #7da8b2; font-size: 11px; white-space: nowrap; }
+.platform-empty, .platform-error { font-size: 12px; color: #8eb3bc; }
+.platform-error { color: #f87171; }
+.artifact-link { color: #67e8f9; font-size: 12px; align-self: center; }
 .tab-content :deep(.ant-collapse) { background: transparent; border: none; }
 .tab-content :deep(.ant-collapse-item) { border: none; }
 .tab-content :deep(.ant-collapse-content) { background: transparent !important; }
@@ -3419,6 +3613,8 @@ onUnmounted(() => {
 .session-row { display: flex; justify-content: space-between; align-items: center; }
 @media (max-width: 1400px) {
   .form-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .platform-strip { grid-template-columns: 1fr; }
+  .platform-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 html[data-theme='light'] .workbench {
   background:
@@ -3427,6 +3623,7 @@ html[data-theme='light'] .workbench {
   color: #1f3852;
 }
 html[data-theme='light'] .hero-card,
+html[data-theme='light'] .platform-card,
 html[data-theme='light'] .nav-panel,
 html[data-theme='light'] .content-panel,
 html[data-theme='light'] .card,
@@ -3442,6 +3639,7 @@ html[data-theme='light'] .sub-card {
   background: rgba(241, 246, 251, 0.98);
 }
 html[data-theme='light'] .hero-card h2,
+html[data-theme='light'] .platform-card__title,
 html[data-theme='light'] .card-head,
 html[data-theme='light'] .sub-title,
 html[data-theme='light'] .card-head.between,
@@ -3449,6 +3647,11 @@ html[data-theme='light'] .group-card strong {
   color: #16324f;
 }
 html[data-theme='light'] .hero-card p,
+html[data-theme='light'] .platform-card__sub,
+html[data-theme='light'] .platform-summary-row,
+html[data-theme='light'] .platform-list__meta,
+html[data-theme='light'] .platform-list__time,
+html[data-theme='light'] .platform-empty,
 html[data-theme='light'] .cohort-pill.empty,
 html[data-theme='light'] .nav-item,
 html[data-theme='light'] .var-category,
@@ -3470,6 +3673,15 @@ html[data-theme='light'] .cohort-pill {
   background: rgba(219, 234, 254, 0.98);
   color: #1d4ed8;
 }
+html[data-theme='light'] .platform-kpi {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: #ffffff;
+}
+html[data-theme='light'] .platform-kpi span { color: #6f8399; }
+html[data-theme='light'] .platform-kpi strong { color: #16324f; }
+html[data-theme='light'] .platform-chip { border-color: rgba(187, 204, 220, 0.72); color: #47627e; background: #ffffff; }
+html[data-theme='light'] .platform-list__item { border-color: rgba(187, 204, 220, 0.72); background: #ffffff; }
+html[data-theme='light'] .artifact-link { color: #1d4ed8; }
 html[data-theme='light'] .cohort-pill.link:hover { background: rgba(191, 219, 254, 0.98); }
 html[data-theme='light'] .warn-banner {
   background: rgba(254, 243, 199, 0.98);

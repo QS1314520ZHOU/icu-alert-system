@@ -78,6 +78,9 @@ def main() -> int:
                 "integrated_risk": (f"/api/ai/integrated-risk/{alert_patient_id}", alert_patient_id),
                 "metabolic_phase": (f"/api/ai/metabolic-phase/{default_patient_id}", default_patient_id),
                 "beta_blocker_advisor": (f"/api/ai/beta-blocker-advisor/{default_patient_id}", default_patient_id),
+                "fibrinolysis_monitor": (f"/api/ai/fibrinolysis-monitor/{alert_patient_id}", alert_patient_id),
+                "prone_position_monitor": (f"/api/ai/prone-position/{alert_patient_id}", alert_patient_id),
+                "pics_risk": (f"/api/ai/pics-risk/{default_patient_id}", default_patient_id),
             }
 
             failures: list[str] = []

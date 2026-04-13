@@ -314,6 +314,16 @@ class AlertReasoningAgentMixin:
                     "summary": latest_report.get("summary"),
                     "top3_actions": latest_report.get("top3_actions") or [],
                 }
+
+        if isinstance(current_profile.get("pics_risk"), dict):
+            profiles["pics_risk"] = current_profile.get("pics_risk")
+        else:
+            latest_pics = await self.db.col("score").find_one(
+                {"patient_id": patient_id, "score_type": "pics_risk_assessment"},
+                sort=[("calc_time", -1)],
+            )
+            if latest_pics:
+                profiles["pics_risk"] = latest_pics.get("assessment") or {}
         return profiles
 
     def _reasoning_pick_labs(self, labs: dict[str, Any]) -> list[dict[str, Any]]:

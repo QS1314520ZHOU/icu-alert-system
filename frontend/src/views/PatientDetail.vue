@@ -232,6 +232,20 @@
           />
         </a-tab-pane>
 
+        <a-tab-pane key="waveform" tab="波形工作台">
+          <PatientWaveformTab
+            v-if="activeTab === 'waveform'"
+            v-model:selected-channel="waveformSelectedChannel"
+            v-model:hours="waveformHours"
+            :loading="waveformLoading"
+            :channel-options="waveformChannelOptions"
+            :points="waveformPoints"
+            :qc="waveformQc"
+            :events="waveformEvents"
+            :on-refresh="loadWaveform"
+          />
+        </a-tab-pane>
+
         <a-tab-pane key="labs" tab="检验结果时间线">
           <PatientLabsTab
             v-if="activeTab === 'labs'"
@@ -327,6 +341,16 @@
           />
         </a-tab-pane>
 
+        <a-tab-pane key="followup" tab="长期随访">
+          <PatientLongTermFollowupTab
+            v-if="activeTab === 'followup'"
+            :patient-id="String(route.params.id || '')"
+            :patient="patient"
+            :pics-risk-record="picsRiskRecord"
+            :open-ai-tab="() => openTopicTab('ai')"
+          />
+        </a-tab-pane>
+
         <a-tab-pane key="twin" tab="数字孪生快照 / 时间轴">
           <PatientDigitalTwinTab
             v-if="activeTab === 'twin'"
@@ -374,6 +398,19 @@
             :load-beta-blocker-advisor="loadBetaBlockerAdvisor"
             :beta-blocker-advisor-record="betaBlockerAdvisorRecord"
             :beta-blocker-advisor-error="betaBlockerAdvisorError"
+            :fibrinolysis-loading="fibrinolysisLoading"
+            :load-fibrinolysis="loadFibrinolysis"
+            :fibrinolysis-record="fibrinolysisRecord"
+            :fibrinolysis-error="fibrinolysisError"
+            :prone-position-loading="pronePositionLoading"
+            :load-prone-position="loadPronePosition"
+            :prone-position-record="pronePositionRecord"
+            :prone-position-error="pronePositionError"
+            :pics-risk-loading="picsRiskLoading"
+            :load-pics-risk="loadPicsRisk"
+            :pics-risk-record="picsRiskRecord"
+            :pics-risk-error="picsRiskError"
+            :open-followup-tab="() => openTopicTab('followup')"
             :ai-handoff-loading="aiHandoffLoading"
             :load-ai-handoff="loadAiHandoff"
             :copy-handoff-summary="copyHandoffSummary"
@@ -472,6 +509,13 @@ import {
   getAiIntegratedRiskReport,
   getAiMetabolicPhase,
   getAiBetaBlockerAdvisor,
+  getAiFibrinolysisMonitor,
+  getAiPronePositionMonitor,
+  getAiPicsRisk,
+  getWaveformChannels,
+  getWaveformEvents,
+  getWaveformQuality,
+  getWaveformSegments,
   getPatientHandoffSummary,
   getKnowledgeChunk,
   getKnowledgeDocument,
@@ -492,11 +536,13 @@ import { getOperatorIdentity } from '../utils/operatorIdentity'
 import { onAlertMessage } from '../services/alertSocket'
 
 const PatientTrendTab = defineAsyncComponent(() => import('../components/patient-detail/TrendTab.vue'))
+const PatientWaveformTab = defineAsyncComponent(() => import('../components/patient-detail/WaveformTab.vue'))
 const PatientLabsTab = defineAsyncComponent(() => import('../components/patient-detail/LabsTab.vue'))
 const PatientDataTableTab = defineAsyncComponent(() => import('../components/patient-detail/DataTableTab.vue'))
 const PatientSbtTimelineTab = defineAsyncComponent(() => import('../components/patient-detail/SbtTimelineTab.vue'))
 const PatientAlertsTab = defineAsyncComponent(() => import('../components/patient-detail/AlertsTab.vue'))
 const PatientSimilarCasesTab = defineAsyncComponent(() => import('../components/patient-detail/SimilarCasesTab.vue'))
+const PatientLongTermFollowupTab = defineAsyncComponent(() => import('../components/patient-detail/LongTermFollowupTab.vue'))
 const PatientDigitalTwinTab = defineAsyncComponent(() => import('../components/patient-detail/DigitalTwinTab.vue'))
 const PatientAiTab = defineAsyncComponent(() => import('../components/patient-detail/AiTab.vue'))
 const PatientWorkbenchHub = defineAsyncComponent(() => import('../components/patient-detail/WorkbenchHub.vue'))
@@ -507,7 +553,7 @@ const PatientEvidenceModal = defineAsyncComponent(() => import('../components/pa
 
 const route = useRoute()
 const router = useRouter()
-const detailTabKeys = new Set(['ecash', 'mobility', 'pe', 'trend', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'twin', 'ai'])
+const detailTabKeys = new Set(['ecash', 'mobility', 'pe', 'trend', 'waveform', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'followup', 'twin', 'ai'])
 function normalizeDetailTab(raw: any) {
   const key = String(raw || '').trim()
   return detailTabKeys.has(key) ? key : 'trend'
@@ -519,6 +565,13 @@ const tabsAnchor = ref<HTMLElement | null>(null)
 
 const trendWindow = ref('24h')
 const trendPoints = ref<any[]>([])
+const waveformHours = ref(6)
+const waveformSelectedChannel = ref('')
+const waveformChannels = ref<any[]>([])
+const waveformPoints = ref<any[]>([])
+const waveformQc = ref<any>(null)
+const waveformEvents = ref<any[]>([])
+const waveformLoading = ref(false)
 const labs = ref<any[]>([])
 const drugs = ref<any[]>([])
 const assessments = ref<any[]>([])
@@ -568,6 +621,9 @@ const aiRiskForecast = ref<any>(null)
 const integratedRiskReport = ref<any>(null)
 const metabolicPhaseRecord = ref<any>(null)
 const betaBlockerAdvisorRecord = ref<any>(null)
+const fibrinolysisRecord = ref<any>(null)
+const pronePositionRecord = ref<any>(null)
+const picsRiskRecord = ref<any>(null)
 const aiHandoff = ref<any>(null)
 const aiLabError = ref('')
 const aiRuleError = ref('')
@@ -575,6 +631,9 @@ const aiRiskError = ref('')
 const integratedRiskError = ref('')
 const metabolicPhaseError = ref('')
 const betaBlockerAdvisorError = ref('')
+const fibrinolysisError = ref('')
+const pronePositionError = ref('')
+const picsRiskError = ref('')
 const aiHandoffError = ref('')
 const aiLabLoading = ref(false)
 const aiRuleLoading = ref(false)
@@ -582,6 +641,9 @@ const aiRiskLoading = ref(false)
 const integratedRiskLoading = ref(false)
 const metabolicPhaseLoading = ref(false)
 const betaBlockerAdvisorLoading = ref(false)
+const fibrinolysisLoading = ref(false)
+const pronePositionLoading = ref(false)
+const picsRiskLoading = ref(false)
 const aiHandoffLoading = ref(false)
 const aiAutoLoaded = ref(false)
 const knowledgeDocs = ref<any[]>([])
@@ -999,12 +1061,22 @@ const thresholdWorkbenchSummary = computed(() => ({
   comment: personalizedThresholdRecord.value?.review_comment || '',
 }))
 
+const followupWorkbenchSnapshot = computed(() => patient.value?.current_profile?.followup_case || {})
+
 const workbenchTopics = computed(() => {
   const ecashTop = latestEcashBundleAlert.value
   const mobilityTop = mobilityAlerts.value[0]
   const peTop = peAlerts.value[0]
   const similarSummary = similarCaseReview.value?.summary || {}
   const twinInterventions = Array.isArray(aiRiskForecast.value?.horizon_probabilities) ? aiRiskForecast.value.horizon_probabilities.length : 0
+  const followupStage = String(followupWorkbenchSnapshot.value?.stage || '').toLowerCase()
+  const followupStatus = String(followupWorkbenchSnapshot.value?.status || '').toLowerCase()
+  const followupStageText = ({
+    task_ready: '待建任务',
+    task_in_progress: '任务进行中',
+    rehab_referred: '已发起转介',
+    pool_enrolled: '已入对象池',
+  } as Record<string, string>)[followupStage] || followupStage
   return [
     {
       key: 'twin',
@@ -1071,6 +1143,27 @@ const workbenchTopics = computed(() => {
       tabKey: 'similar',
       tone: similarSummary?.degraded ? 'amber' : 'violet',
       items: similarWorkbenchSummary.value.bullets.slice(0, 3),
+    },
+    {
+      key: 'followup',
+      title: '长期随访',
+      subtitle: '对象池 + 任务 + 康复转介',
+      status: followupWorkbenchSnapshot.value?.case_id
+        ? '住院期风险已接入长期随访池，可继续生成任务和转介。'
+        : (picsRiskRecord.value?.assessment?.summary || '把 PICS 风险从住院期预警接到出院后长期随访闭环。'),
+      meta: followupWorkbenchSnapshot.value?.updated_at
+        ? `最近更新 ${fmtTime(followupWorkbenchSnapshot.value.updated_at) || '—'}`
+        : '支持 PICS 风险对象自动入池，并一键生成随访任务 / 康复转介。',
+      countText: followupWorkbenchSnapshot.value?.case_id ? '已入池' : '待接入',
+      tabKey: 'followup',
+      tone: followupStatus === 'active'
+        ? 'rose'
+        : (followupStatus === 'candidate' ? 'amber' : 'cyan'),
+      items: [
+        followupWorkbenchSnapshot.value?.priority ? `优先级 ${followupWorkbenchSnapshot.value.priority}` : '',
+        followupStageText ? `阶段 ${followupStageText}` : '',
+        picsRiskRecord.value?.assessment?.severity ? `PICS ${picsRiskRecord.value.assessment.severity}` : '',
+      ].filter(Boolean),
     },
     {
       key: 'ai',
@@ -1153,6 +1246,48 @@ const trendOption = computed(() => {
     ],
   }
 })
+
+const waveformChannelOptions = computed(() =>
+  waveformChannels.value.map((row: any) => ({
+    label: `${row.channel} (${row.sample_points || 0})`,
+    value: row.channel,
+  }))
+)
+
+async function loadWaveform() {
+  if (waveformLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  waveformLoading.value = true
+  try {
+    const channelsRes = await getWaveformChannels(patientId, { hours: 24 })
+    waveformChannels.value = Array.isArray(channelsRes.data?.rows) ? channelsRes.data.rows : []
+    if (!waveformSelectedChannel.value && waveformChannels.value.length) {
+      waveformSelectedChannel.value = String(waveformChannels.value[0]?.channel || '')
+    }
+    if (!waveformSelectedChannel.value) {
+      waveformPoints.value = []
+      waveformQc.value = null
+      waveformEvents.value = []
+      return
+    }
+    const [segmentsRes, qcRes, eventsRes] = await Promise.all([
+      getWaveformSegments(patientId, { channel: waveformSelectedChannel.value, hours: waveformHours.value, limit: 2000 }),
+      getWaveformQuality(patientId, { channel: waveformSelectedChannel.value, hours: waveformHours.value }),
+      getWaveformEvents(patientId, { channel: waveformSelectedChannel.value, hours: waveformHours.value }),
+    ])
+    waveformPoints.value = Array.isArray(segmentsRes.data?.rows) ? segmentsRes.data.rows : []
+    waveformQc.value = qcRes.data?.qc || null
+    waveformEvents.value = Array.isArray(eventsRes.data?.events) ? eventsRes.data.events : []
+  } catch (e) {
+    console.error('加载波形工作台失败', e)
+    waveformPoints.value = []
+    waveformQc.value = null
+    waveformEvents.value = []
+  } finally {
+    waveformLoading.value = false
+  }
+}
 
 function formatDrugName(record: any) {
   return record?.drugName || record?.orderName || record?.drugSpec || '—'
@@ -3041,6 +3176,57 @@ async function loadBetaBlockerAdvisor(refresh = false) {
   }
 }
 
+async function loadFibrinolysis(refresh = false) {
+  if (fibrinolysisLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  fibrinolysisError.value = ''
+  fibrinolysisLoading.value = true
+  try {
+    const res = await getAiFibrinolysisMonitor(patientId, { refresh })
+    fibrinolysisRecord.value = res.data.record || null
+    fibrinolysisError.value = formatAiError(res.data.error || '')
+  } catch (e) {
+    fibrinolysisError.value = '纤溶监测服务不可用'
+  } finally {
+    fibrinolysisLoading.value = false
+  }
+}
+
+async function loadPronePosition(refresh = false) {
+  if (pronePositionLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  pronePositionError.value = ''
+  pronePositionLoading.value = true
+  try {
+    const res = await getAiPronePositionMonitor(patientId, { refresh })
+    pronePositionRecord.value = res.data.record || null
+    pronePositionError.value = formatAiError(res.data.error || '')
+  } catch (e) {
+    pronePositionError.value = '俯卧位监测服务不可用'
+  } finally {
+    pronePositionLoading.value = false
+  }
+}
+
+async function loadPicsRisk(refresh = false) {
+  if (picsRiskLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  picsRiskError.value = ''
+  picsRiskLoading.value = true
+  try {
+    const res = await getAiPicsRisk(patientId, { refresh })
+    picsRiskRecord.value = res.data.record || null
+    picsRiskError.value = formatAiError(res.data.error || '')
+  } catch (e) {
+    picsRiskError.value = 'PICS 风险服务不可用'
+  } finally {
+    picsRiskLoading.value = false
+  }
+}
+
 async function loadAiHandoff() {
   if (aiHandoffLoading.value) return
   const patientId = route.params.id as string
@@ -3068,6 +3254,9 @@ async function loadAiAll() {
     loadIntegratedRisk(),
     loadMetabolicPhase(),
     loadBetaBlockerAdvisor(),
+    loadFibrinolysis(),
+    loadPronePosition(),
+    loadPicsRisk(),
     loadKnowledgeDocs(),
   ])
 }
@@ -3076,6 +3265,12 @@ function resetDetailState() {
   patient.value = null
   vitals.value = null
   trendPoints.value = []
+  waveformSelectedChannel.value = ''
+  waveformChannels.value = []
+  waveformPoints.value = []
+  waveformQc.value = null
+  waveformEvents.value = []
+  waveformLoading.value = false
   labs.value = []
   drugs.value = []
   assessments.value = []
@@ -3109,6 +3304,9 @@ function resetDetailState() {
   integratedRiskLoading.value = false
   metabolicPhaseLoading.value = false
   betaBlockerAdvisorLoading.value = false
+  fibrinolysisLoading.value = false
+  pronePositionLoading.value = false
+  picsRiskLoading.value = false
   aiHandoffLoading.value = false
   knowledgeLoading.value = false
   aiLabSummary.value = ''
@@ -3119,6 +3317,9 @@ function resetDetailState() {
   integratedRiskReport.value = null
   metabolicPhaseRecord.value = null
   betaBlockerAdvisorRecord.value = null
+  fibrinolysisRecord.value = null
+  pronePositionRecord.value = null
+  picsRiskRecord.value = null
   aiHandoff.value = null
   knowledgeDocs.value = []
   selectedKnowledgeDocId.value = ''
@@ -3129,6 +3330,9 @@ function resetDetailState() {
   integratedRiskError.value = ''
   metabolicPhaseError.value = ''
   betaBlockerAdvisorError.value = ''
+  fibrinolysisError.value = ''
+  pronePositionError.value = ''
+  picsRiskError.value = ''
   aiHandoffError.value = ''
   knowledgeError.value = ''
   aiAutoLoaded.value = false
@@ -3198,12 +3402,23 @@ watch(trendWindow, () => {
   if (activeTab.value === 'trend') loadTrend()
 })
 
+watch(waveformHours, () => {
+  if (activeTab.value === 'waveform') void loadWaveform()
+})
+
+watch(waveformSelectedChannel, () => {
+  if (activeTab.value === 'waveform') void loadWaveform()
+})
+
 watch(activeTab, (tab) => {
   if (String(route.query.tab || '') !== tab) {
     router.replace({ query: { ...route.query, tab } })
   }
   if (tab === 'sbt') {
     void loadSbtTimeline()
+  }
+  if (tab === 'waveform') {
+    void loadWaveform()
   }
   if (tab === 'similar') {
     void loadSimilarCaseReview()

@@ -214,5 +214,20 @@ const emit = defineEmits<{
     grid-template-columns: 1fr;
   }
 }
-</style>
 
+/* Light mode overrides */
+html[data-theme='light'] .evidence-panel { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); box-shadow: 0 4px 10px rgba(15,23,42,0.04); }
+html[data-theme='light'] .evidence-panel--overview { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); }
+html[data-theme='light'] .panel-title { color: #1d4ed8; }
+html[data-theme='light'] .evidence-chip { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #47627e; }
+html[data-theme='light'] .evidence-chip--soft { color: #6f8399; }
+html[data-theme='light'] .evidence-chip--accent { background: rgba(59,130,246,0.1); color: #2563eb; }
+html[data-theme='light'] .evidence-chip--warn { background: rgba(254,243,199,0.96); border-color: rgba(245,158,11,0.28); color: #b45309; }
+html[data-theme='light'] .meta-label { color: #1d4ed8; }
+html[data-theme='light'] .meta-value { color: #223a54; }
+html[data-theme='light'] .meta-code { background: rgba(231,241,249,0.96); border-color: rgba(187,204,220,0.72); color: #47627e; }
+html[data-theme='light'] .evidence-modal-content { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); color: #223a54; }
+html[data-theme='light'] .evidence-modal-related { background: #ffffff; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-evidence-link { color: #2563eb; }
+html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
+</style>

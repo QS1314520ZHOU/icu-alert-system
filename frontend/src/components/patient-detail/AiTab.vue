@@ -142,6 +142,123 @@
       <div v-if="betaBlockerAdvisorError" class="ai-error">{{ betaBlockerAdvisorError }}</div>
     </a-card>
 
+    <a-card title="纤溶功能监测" :bordered="false" class="ai-card">
+      <div class="ai-card-head">
+        <span class="ai-card-note">高纤溶 / 纤溶关闭识别</span>
+        <a-button size="small" type="link" :loading="fibrinolysisLoading" @click="loadFibrinolysis">重新生成</a-button>
+      </div>
+      <a-spin :spinning="fibrinolysisLoading">
+        <div v-if="fibrinolysisAssessment" class="ai-risk-card">
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>表型</span>
+              <strong>{{ fibrinolysisLabel }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>风险级别</span>
+              <strong>{{ aiRiskLevelText(fibrinolysisAssessment?.severity || 'low') }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>评分</span>
+              <strong>{{ fibrinolysisAssessment?.score ?? '—' }}</strong>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">关键依据</div>
+            <div class="summary-chip-group">
+              <span v-for="(item, idx) in fibrinolysisEvidence" :key="`fib-ev-${idx}`" class="summary-chip">{{ item }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-else class="ai-empty">暂无内容</div>
+      </a-spin>
+      <div v-if="fibrinolysisError" class="ai-error">{{ fibrinolysisError }}</div>
+    </a-card>
+
+    <a-card title="俯卧位治疗监测" :bordered="false" class="ai-card">
+      <div class="ai-card-head">
+        <span class="ai-card-note">ARDS 俯卧位适应证 / 时长 / 并发症</span>
+        <a-button size="small" type="link" :loading="pronePositionLoading" @click="loadPronePosition">重新生成</a-button>
+      </div>
+      <a-spin :spinning="pronePositionLoading">
+        <div v-if="pronePositionAssessment" class="ai-risk-card">
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>候选状态</span>
+              <strong>{{ proneCandidateText }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>24h 时长</span>
+              <strong>{{ proneDurationText }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>当前状态</span>
+              <strong>{{ proneCurrentText }}</strong>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">关键参数</div>
+            <div class="summary-chip-group">
+              <span class="summary-chip">P/F {{ pronePositionAssessment?.pf_ratio ?? '—' }}</span>
+              <span class="summary-chip">FiO₂ {{ pronePositionAssessment?.fio2 ?? '—' }}</span>
+              <span class="summary-chip">PEEP {{ pronePositionAssessment?.peep ?? '—' }}</span>
+            </div>
+          </div>
+          <div v-if="proneComplications.length" class="ai-workbench-section">
+            <div class="ai-workbench-title handoff-warning">并发症线索</div>
+            <ul class="workbench-list">
+              <li v-for="(item, idx) in proneComplications" :key="`prone-comp-${idx}`">{{ item }}</li>
+            </ul>
+          </div>
+        </div>
+        <div v-else class="ai-empty">暂无内容</div>
+      </a-spin>
+      <div v-if="pronePositionError" class="ai-error">{{ pronePositionError }}</div>
+    </a-card>
+
+    <a-card title="PICS 风险预警" :bordered="false" class="ai-card">
+      <div class="ai-card-head">
+        <span class="ai-card-note">身体 / 认知 / 心理三维度整合</span>
+        <div class="ai-card-head-actions">
+          <a-button v-if="openFollowupTab" size="small" type="link" @click="openFollowupTab">转长期随访</a-button>
+          <a-button size="small" type="link" :loading="picsRiskLoading" @click="loadPicsRisk">重新生成</a-button>
+        </div>
+      </div>
+      <a-spin :spinning="picsRiskLoading">
+        <div v-if="picsAssessment" class="ai-risk-card">
+          <div class="workbench-kpis">
+            <div class="wb-kpi">
+              <span>综合评分</span>
+              <strong>{{ picsAssessment?.overall_score ?? '—' }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>风险级别</span>
+              <strong>{{ aiRiskLevelText(picsAssessment?.severity || 'low') }}</strong>
+            </div>
+            <div class="wb-kpi">
+              <span>转出候选</span>
+              <strong>{{ picsAssessment?.transfer_candidate ? '是' : '否' }}</strong>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">三维度评分</div>
+            <div class="summary-chip-group">
+              <span class="summary-chip">身体 {{ picsPhysicalScore }}</span>
+              <span class="summary-chip">认知 {{ picsCognitiveScore }}</span>
+              <span class="summary-chip">心理 {{ picsPsychologicalScore }}</span>
+            </div>
+          </div>
+          <div class="ai-workbench-section">
+            <div class="ai-workbench-title">综合判断</div>
+            <div class="summary-text">{{ picsAssessment?.summary || '暂无总结' }}</div>
+            <div class="summary-order">{{ picsAssessment?.suggestion || '建议在 ICU 转出前完成 PICS 风险交班。' }}</div>
+          </div>
+        </div>
+        <div v-else class="ai-empty">暂无内容</div>
+      </a-spin>
+      <div v-if="picsRiskError" class="ai-error">{{ picsRiskError }}</div>
+    </a-card>
+
     <a-card title="检验异常摘要" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">进入AI工作台后自动生成</span>
@@ -437,6 +554,19 @@ const props = defineProps<{
   loadBetaBlockerAdvisor: () => void
   betaBlockerAdvisorRecord: any
   betaBlockerAdvisorError: string
+  fibrinolysisLoading: boolean
+  loadFibrinolysis: () => void
+  fibrinolysisRecord: any
+  fibrinolysisError: string
+  pronePositionLoading: boolean
+  loadPronePosition: () => void
+  pronePositionRecord: any
+  pronePositionError: string
+  picsRiskLoading: boolean
+  loadPicsRisk: () => void
+  picsRiskRecord: any
+  picsRiskError: string
+  openFollowupTab?: () => void
   aiHandoffLoading: boolean
   loadAiHandoff: () => void
   copyHandoffSummary: () => void
@@ -811,6 +941,9 @@ const aiServiceStatus = computed(() => {
     props.integratedRiskError,
     props.metabolicPhaseError,
     props.betaBlockerAdvisorError,
+    props.fibrinolysisError,
+    props.pronePositionError,
+    props.picsRiskError,
     props.aiHandoffError,
   ].filter(Boolean)
   if (errors.length >= 2) {
@@ -867,6 +1000,29 @@ const betaHemodynamicText = computed(() => {
   const ne = row?.norepi_latest_ug_kg_min != null ? `NE ${Number(row.norepi_latest_ug_kg_min).toFixed(3)}` : 'NE —'
   return `${map} / ${ne}`
 })
+
+const fibrinolysisAssessment = computed(() => props.fibrinolysisRecord?.assessment || null)
+const fibrinolysisLabel = computed(() => {
+  const value = String(fibrinolysisAssessment.value?.phenotype || '')
+  if (value === 'hyperfibrinolysis') return '高纤溶'
+  if (value === 'fibrinolysis_shutdown') return '纤溶关闭'
+  return value || '—'
+})
+const fibrinolysisEvidence = computed(() => Array.isArray(fibrinolysisAssessment.value?.evidence) ? fibrinolysisAssessment.value.evidence.slice(0, 5) : [])
+
+const pronePositionAssessment = computed(() => props.pronePositionRecord?.assessment || null)
+const proneCandidateText = computed(() => pronePositionAssessment.value?.candidate ? '符合指征' : '暂不符合')
+const proneDurationText = computed(() => {
+  const value = Number(pronePositionAssessment.value?.prone_hours_24h)
+  return Number.isFinite(value) ? `${value.toFixed(value >= 10 ? 0 : 1)}h` : '—'
+})
+const proneCurrentText = computed(() => pronePositionAssessment.value?.currently_proned ? '进行中' : '未俯卧')
+const proneComplications = computed(() => Array.isArray(pronePositionAssessment.value?.complications) ? pronePositionAssessment.value.complications.slice(0, 5) : [])
+
+const picsAssessment = computed(() => props.picsRiskRecord?.assessment || null)
+const picsPhysicalScore = computed(() => picsAssessment.value?.dimensions?.physical?.score ?? '—')
+const picsCognitiveScore = computed(() => picsAssessment.value?.dimensions?.cognitive?.score ?? '—')
+const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.psychological?.score ?? '—')
 </script>
 
 <style scoped>
@@ -940,6 +1096,12 @@ const betaHemodynamicText = computed(() => {
   justify-content: space-between;
   margin-bottom: 8px;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-card-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .ai-card-note {

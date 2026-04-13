@@ -1,24 +1,78 @@
+import { getThemeMode, useThemeMode } from '../composables/themeMode'
+
 type AnyObj = Record<string, any>
 
 function merge(base: AnyObj, extra: AnyObj = {}) {
   return { ...base, ...extra }
 }
 
+function currentThemeMode() {
+  const themeMode = useThemeMode()
+  return themeMode.value || getThemeMode()
+}
+
+function themeTokens() {
+  const light = currentThemeMode() === 'light'
+  if (light) {
+    return {
+      tooltipBg: 'rgba(255,255,255,.98)',
+      tooltipBorder: '#E8E8EF',
+      tooltipText: '#1A1A2E',
+      tooltipShadow: 'box-shadow: 0 10px 24px rgba(15,23,42,.08); border-radius: 12px; backdrop-filter: blur(10px);',
+      tooltipAxisLabelBg: '#F7F8FC',
+      tooltipAxisLabelText: '#1A1A2E',
+      axisLine: 'rgba(232, 232, 239, 0.92)',
+      axisLabel: '#8E8EA9',
+      axisLabelStrong: '#4A4A68',
+      splitLine: 'rgba(232, 232, 239, 0.92)',
+      shadowArea: 'rgba(46, 91, 255, 0.06)',
+      crossLine: 'rgba(46, 91, 255, 0.18)',
+      legendText: '#4A4A68',
+      heatmapText: '#4A4A68',
+      heatmapRange: ['#F0F4FF', '#D6E0FF', '#8FB0FF', '#F59E0B', '#EF4444'],
+      labelStrong: '#1A1A2E',
+    }
+  }
+  return {
+    tooltipBg: 'rgba(4,14,24,.97)',
+    tooltipBorder: 'rgba(88,225,255,.2)',
+    tooltipText: '#e8fbff',
+    tooltipShadow: 'box-shadow: 0 14px 30px rgba(0,0,0,.34); border-radius: 12px; backdrop-filter: blur(10px);',
+    tooltipAxisLabelBg: 'rgba(8, 31, 47, 0.96)',
+    tooltipAxisLabelText: '#dffbff',
+    axisLine: 'rgba(79,182,219,.18)',
+    axisLabel: '#86d3e8',
+    axisLabelStrong: '#b7ddec',
+    splitLine: 'rgba(61,118,145,.14)',
+    shadowArea: 'rgba(56, 189, 248, 0.08)',
+    crossLine: 'rgba(110, 231, 249, 0.22)',
+    legendText: '#9edff0',
+    heatmapText: '#7fc7da',
+    heatmapRange: ['#0a2234', '#0e4c68', '#16b3c9', '#f59e0b', '#fb5a7a'],
+    labelStrong: '#dffafc',
+  }
+}
+
+export function icuChartTokens() {
+  return themeTokens()
+}
+
 export function icuTooltip(extra: AnyObj = {}) {
+  const tokens = themeTokens()
   const base = {
-    backgroundColor: 'rgba(4,14,24,.97)',
-    borderColor: 'rgba(88,225,255,.2)',
+    backgroundColor: tokens.tooltipBg,
+    borderColor: tokens.tooltipBorder,
     borderWidth: 1,
     padding: [10, 12],
-    textStyle: { color: '#e8fbff', fontSize: 11, lineHeight: 18 },
-    extraCssText: 'box-shadow: 0 14px 30px rgba(0,0,0,.34); border-radius: 12px; backdrop-filter: blur(10px);',
+    textStyle: { color: tokens.tooltipText, fontSize: 11, lineHeight: 18 },
+    extraCssText: tokens.tooltipShadow,
     axisPointer: {
-      lineStyle: { color: 'rgba(110, 231, 249, 0.22)' },
-      crossStyle: { color: 'rgba(110, 231, 249, 0.22)' },
-      shadowStyle: { color: 'rgba(56, 189, 248, 0.08)' },
+      lineStyle: { color: tokens.crossLine },
+      crossStyle: { color: tokens.crossLine },
+      shadowStyle: { color: tokens.shadowArea },
       label: {
-        backgroundColor: 'rgba(8, 31, 47, 0.96)',
-        color: '#dffbff',
+        backgroundColor: tokens.tooltipAxisLabelBg,
+        color: tokens.tooltipAxisLabelText,
       },
     },
   }
@@ -31,13 +85,14 @@ export function icuTooltip(extra: AnyObj = {}) {
 }
 
 export function icuLegend(extra: AnyObj = {}) {
+  const tokens = themeTokens()
   const base = {
     top: 0,
     icon: 'roundRect',
     itemWidth: 10,
     itemHeight: 10,
     itemGap: 14,
-    textStyle: { color: '#9edff0', fontSize: 10, padding: [0, 0, 0, 4] },
+    textStyle: { color: tokens.legendText, fontSize: 10, padding: [0, 0, 0, 4] },
   }
   return {
     ...base,
@@ -54,12 +109,13 @@ export function icuGrid(extra: AnyObj = {}) {
 }
 
 export function icuCategoryAxis(data: any[], extra: AnyObj = {}) {
+  const tokens = themeTokens()
   const base = {
     type: 'category',
     data,
     axisTick: { show: false },
-    axisLine: { lineStyle: { color: 'rgba(79,182,219,.18)' } },
-    axisLabel: { color: '#86d3e8', fontSize: 10, margin: 10 },
+    axisLine: { lineStyle: { color: tokens.axisLine } },
+    axisLabel: { color: tokens.axisLabel, fontSize: 10, margin: 10 },
   }
   return {
     ...base,
@@ -71,11 +127,12 @@ export function icuCategoryAxis(data: any[], extra: AnyObj = {}) {
 }
 
 export function icuValueAxis(extra: AnyObj = {}) {
+  const tokens = themeTokens()
   const base = {
     type: 'value',
-    axisLine: { show: false, lineStyle: { color: 'rgba(79,182,219,.18)' } },
-    axisLabel: { color: '#86d3e8', fontSize: 10 },
-    splitLine: { lineStyle: { color: 'rgba(61,118,145,.14)', type: 'dashed' } },
+    axisLine: { show: false, lineStyle: { color: tokens.axisLine } },
+    axisLabel: { color: tokens.axisLabel, fontSize: 10 },
+    splitLine: { lineStyle: { color: tokens.splitLine, type: 'dashed' } },
   }
   return {
     ...base,

@@ -21,6 +21,7 @@
 | `TemporalRiskScanner` | 时序风险预测 | 根据近 `12h` 时间网格序列、人口中位数补齐和多个 horizon（`4/12/24h`）预测器官风险，输出未来恶化概率，更多用于趋势提前量和 AI 风险层。 |
 | `VentilatorWeaningScanner` | 撤机与 SBT 评估 | 以“闸门条件 + 加权风险分”判断。闸门含 `FiO2 > 0.4`、`PEEP > 8`、仍需升压药、`MAP < 65`、`RASS` 不在目标范围。风险因子按 `config.yaml -> weaning_assistant.factor_weights` 累加，例如 `P/F < 200`、`RSBI >= 80`、液体超负荷、既往 SBT 失败、血流动力学不稳。总分默认 `4/7/9` 对应 `warning/high/critical`。 |
 | `VentilatorAsynchronyScanner` | 呼吸机不同步识别 | 每 `30min` 读取呼吸机模式、设定/实测参数、`RASS`、`P0.1/Edi` 与可选波形衍生信号，识别 `无效触发 / 双触发 / 反向触发 / 流量饥饿 / 提前终止 / 延迟终止`。按不同步事件数估算 `AI (Asynchrony Index)`，默认 `AI >= 10%` 至少 high，`AI >= 30%` 直接 critical；双触发同时结合 `VTe / PBW > 8 mL/kg`、ARDS 与撤机评估结果强化肺保护建议。 |
+| `PronePositionMonitorScanner` | 俯卧位治疗监测 | 基于 `P/F < 150 + FiO₂ >= 0.6 + PEEP >= 5` 或近期 ARDS 告警筛出俯卧位候选者，并追踪最近 `24h` 俯卧位累计时长、当前是否处于俯卧位以及并发症线索（压疮、面部水肿、管路脱出等）。 |
 | `DiaphragmProtectionScanner` | 膈肌保护 | 关注呼吸机支持天数、Edi、Pdi、P0.1、RR、镇静深度、驱动压、压力摆动。目的是避免过度辅助和过度自主用力两端风险。 |
 | `HemodynamicAdvisorScanner` | 血流动力学建议 | 结合 MAP、乳酸、液体反应性、升压药暴露、灌注指标给出建议型结论，属于决策支持类扫描。 |
 | `BetaBlockerAdvisorScanner` | β受体阻滞剂辅助决策 | 面向“脓毒症 + 持续心动过速 + 心肌损伤 + 相对稳定血流动力学”场景。结合 `HR>95` 持续 `>=2h`、肌钙蛋白/BNP、MAP 与去甲肾上腺素趋势识别候选患者，并主动筛查支气管痉挛、房室传导阻滞、近期 HR<60、钙拮抗剂等禁忌证。满足全部条件时输出短效 β 阻滞剂建议与起始剂量提示。 |
@@ -35,9 +36,11 @@
 | --- | --- | --- |
 | `LabResultsScanner` | 固定检验阈值扫描 | 内置硬编码阈值：高钾 `>5.5 / >6.5`、低钾 `<3.5 / <2.5`、高钠 `>160`、低钠 `<120`、iCa `<0.8`、PO4 `<1.0`、Mg `<1.0`、乳酸 `>2 / >4`、血糖 `<3 / >20`、Hb `<70 / <60`、PLT `<50 / <20`、PCT `>2 / >10`、INR `>3`、肌钙蛋白、BNP 等。每个组只触发优先级最高的一条；同时会结合 `AKI`、`地高辛`、电解质纠正方案调整严重度。 |
 | `SepsisScanner` | 脓毒症与 1h Bundle 跟踪 | 先算 qSOFA，`qSOFA >= 2` 触发 warning；再算 SOFA，如果 `SOFA Δ >= 2` 且存在基线或 qSOFA 已提示，则触发 high；若使用升压药且乳酸 `>=2` 且 MAP 缺失或 `<65`，触发脓毒性休克 critical。与此同时会启动或刷新脓毒症 1h Bundle tracker。 |
+| `SepsisSubphenotypeScanner` | 脓毒症亚表型分型 | 面向已识别脓毒症患者，提取炎症、免疫抑制、凝血、器官功能、血流动力学与体温模式 6 个复合轴，使用 `Prototype Centroids + softmax` 输出 `α高炎症 / β免疫抑制 / γ高凝 / δ混合` 亚型及归属概率。结果持久化为 `sepsis_subphenotype_profile` 并同步到 `patient.current_profile.sepsis_subphenotype`。 |
 | `AkiScanner` | AKI 分期 | 调用 KDIGO 计算，综合肌酐和尿量，按分期 `1/2/3` 映射到 `warning/high/critical`。 |
 | `ArdsScanner` | ARDS 风险识别 | 主要基于 `P/F` 比值、PEEP、氧合恶化和呼吸机背景识别，符合 Berlin 思路。 |
 | `DicScanner` | DIC 风险识别 | 以 ISTH 评分体系为核心，综合血小板、凝血、D-dimer、纤维蛋白原等。 |
+| `FibrinolysisMonitorScanner` | 纤溶功能监测 | 在 DIC / 出血背景上继续区分 `高纤溶 / 纤溶关闭` 两类状态。优先读取 TEG/ROTEM 风格 `LY30 / Maximum Lysis` 指标；缺失时退化为 `D-dimer + Fib + PLT + INR/PT + 出血/DIC` 的纤溶表型近似识别。 |
 | `BleedingScanner` | 出血风险 | 关注 Hb 快速下降、凝血恶化、出血文本提示、术后引流、消化道线索等，输出 GI/活动性出血风险。 |
 | `TbiScanner` | 神经重症/TBI | 结合 GCS、瞳孔、ICP、CPP、神经恶化文本、镇静背景判断颅脑风险。 |
 | `CompositeDeteriorationScanner` | 多器官恶化聚合 | 在 `4h` 窗口内把已有告警映射到呼吸、循环、肾脏、凝血、肝脏、神经等器官域。默认至少 `3` 个器官域活跃且源告警达到要求时，触发多器官恶化趋势预警。 |
@@ -79,6 +82,7 @@
 | `LiberationBundleScanner` | A-F Liberation Bundle | 计算 A-F 各灯态，形成 `green/yellow/red` 状态，用于患者总览、大屏和 Bundle 总览。 |
 | `EcashBundleScanner` | eCASH 闭环 | 围绕 Analgesia、Sedation、Delirium 三个灯态，识别过镇静、SAT 提醒、苯二氮卓暴露、疼痛评估超时、谵妄风险等。 |
 | `IcuAwMobilityScanner` | ICU-AW 与早期活动 | 使用因子加权法：机械通气天数、镇静暴露、多类镇静药、SOFA、活动缺失、败血症、糖代谢波动、激素等。默认 `4/7/10` 分对应 `warning/high/critical`，并附带活动机会窗判断。 |
+| `PicsRiskScanner` | PICS 风险预警 | 综合 `身体功能障碍 / 认知障碍 / 心理障碍` 三个维度，整合 ICU-AW、谵妄、深镇静、长期机械通气、焦虑/睡眠障碍护理文本和转出候选信号，输出 ICU 转出前的康复与随访风险提醒。 |
 | `NurseRemindersScanner` | 护理超时提醒 | 不是疾病风险，而是流程提醒。检查 GCS、RASS、疼痛、CPOT、BPS、谵妄、Braden、CAM-ICU、翻身、早期活动是否超过规定间隔。 |
 | `NursingNoteAnalyzerScanner` | 护理文本分析 | 读取近 `12h` 护理记录，抽取风险信号、执行障碍、护理任务延迟、特殊事件，并给相似病例和 AI 页签提供文本证据。 |
 | `NursingWorkloadScanner` | 护理工作量预测 | 以基础分、机械通气、CRRT、升压药、近期告警、护理上下文计算护理负荷，再映射到 NAS 风格指数，用于 `summary / dept_rows / patient_rows / heatmap / timeline`。 |

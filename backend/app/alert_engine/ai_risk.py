@@ -941,6 +941,12 @@ class AiRiskMixin:
 
         alerts = facts.get("active_alerts") if isinstance(facts.get("active_alerts"), list) else []
         alert_summary = [str(a.get("alert_type") or a.get("rule_id") or "") for a in alerts[:8]]
+        current_profile = patient.get("current_profile") if isinstance(patient.get("current_profile"), dict) else {}
+        profile_snapshot = {}
+        for key in ("sepsis_subphenotype", "metabolic_phase", "pics_risk", "integrated_risk", "beta_blocker_advisor"):
+            value = current_profile.get(key)
+            if isinstance(value, dict):
+                profile_snapshot[key] = value
 
         vitals_text = json.dumps(vitals, ensure_ascii=False)
         return (
@@ -949,6 +955,7 @@ class AiRiskMixin:
             f"护理级别: {nursing}\n"
             f"ICU入科: {icu_time}\n"
             f"近期活跃预警: {', '.join(alert_summary) if alert_summary else '无'}\n"
+            f"当前结构化画像: {json.dumps(profile_snapshot, ensure_ascii=False)}\n"
             f"最近生命体征(从新到旧): {vitals_text}"
             f"{labs_text}"
         )

@@ -57,6 +57,7 @@
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOperatorIdentity, setOperatorIdentity } from './utils/operatorIdentity'
+import { setThemeMode } from './composables/themeMode'
 const route = useRoute()
 const router = useRouter()
 const now = ref('')
@@ -88,25 +89,25 @@ const themeConfig = computed(() => {
       ? antTheme.value.darkAlgorithm
       : antTheme.value.defaultAlgorithm,
     token: {
-      colorPrimary: dark ? '#22d3ee' : '#1d4ed8',
-      colorInfo: dark ? '#38bdf8' : '#2563eb',
-      colorSuccess: dark ? '#34d399' : '#059669',
-      colorWarning: dark ? '#f59e0b' : '#d97706',
-      colorError: dark ? '#f87171' : '#dc2626',
-      colorBgBase: dark ? '#07111d' : '#eef4f8',
+      colorPrimary: dark ? '#22d3ee' : '#2563EB',
+      colorInfo: dark ? '#38bdf8' : '#3B82F6',
+      colorSuccess: dark ? '#34d399' : '#16A34A',
+      colorWarning: dark ? '#f59e0b' : '#D97706',
+      colorError: dark ? '#f87171' : '#DC2626',
+      colorBgBase: dark ? '#07111d' : '#F5F7FA',
       colorBgContainer: dark ? '#0d1a2b' : '#ffffff',
       colorBgElevated: dark ? '#091827' : '#ffffff',
-      colorText: dark ? '#d9e6f3' : '#223a54',
-      colorTextSecondary: dark ? '#7f93ab' : '#6f8399',
-      colorBorder: dark ? 'rgba(125, 167, 214, 0.14)' : 'rgba(187, 204, 220, 0.72)',
+      colorText: dark ? '#d9e6f3' : '#0F172A',
+      colorTextSecondary: dark ? '#7f93ab' : '#64748B',
+      colorBorder: dark ? 'rgba(125, 167, 214, 0.14)' : 'rgba(0, 0, 0, 0.06)',
       borderRadius: 12,
       borderRadiusLG: 14,
-      fontSize: 12,
+      fontSize: 13,
       controlHeight: 32,
       controlHeightSM: 28,
       boxShadowSecondary: dark
         ? '0 18px 36px rgba(0,0,0,.34)'
-        : '0 12px 28px rgba(15,23,42,.08)',
+        : '0 1px 4px rgba(0,0,0,.08)',
     },
   }
 })
@@ -150,6 +151,7 @@ function loadAlertSocketModule() {
 
 function applyTheme(mode: 'dark' | 'light') {
   document.documentElement.setAttribute('data-theme', mode)
+  setThemeMode(mode)
 }
 
 function initTheme() {
@@ -220,7 +222,7 @@ onUnmounted(() => clearInterval(t))
   display: flex; align-items: center; gap: 20px;
   background: var(--hdr-bg-strong) !important;
   backdrop-filter: blur(14px);
-  padding: 10px 20px;
+  padding: 0 24px;
   min-height: 64px;
   height: auto !important;
   line-height: normal !important;
@@ -244,18 +246,21 @@ onUnmounted(() => clearInterval(t))
   border: 1px solid var(--hdr-icon-border);
   box-shadow: var(--hdr-icon-shadow);
 }
-.hdr-title { font-size: 15px; font-weight: 700; color: var(--hdr-title); letter-spacing: 0.08em; line-height: 1.15; }
-.hdr-sub { font-size: 9px; color: var(--hdr-sub); letter-spacing: 0.16em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
-.hdr-menu { flex: 1; display: flex; align-items: center; gap: 8px; }
+.hdr-title { font-size: 18px; font-weight: 700; color: var(--hdr-title); letter-spacing: 0; line-height: 1.15; }
+.hdr-sub { font-size: 11px; color: var(--hdr-sub); letter-spacing: 0.06em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
+.hdr-menu { flex: 1; display: flex; align-items: stretch; gap: 18px; min-height: 64px; }
 .nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--nav-btn-border);
   background: var(--nav-btn-bg);
   color: var(--nav-btn-text);
   border-radius: 10px;
   padding: 7px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -293,7 +298,7 @@ onUnmounted(() => clearInterval(t))
   outline: 0;
   background: transparent;
   color: var(--hdr-title);
-  font-size: 11px;
+  font-size: 12px;
   font-family: 'SF Mono','Consolas',monospace;
 }
 .operator-pill__input::placeholder {
@@ -363,16 +368,51 @@ onUnmounted(() => clearInterval(t))
 .hdr-clock {
   font-family: 'SF Mono','Consolas',monospace;
   color: var(--hdr-clock);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
 }
 .body { background: var(--app-bg); min-height: calc(100vh - 60px); }
 
+.theme-light .hdr {
+  backdrop-filter: none;
+}
+
+.theme-light .hdr-l {
+  padding-right: 8px;
+}
+
+.theme-light .nav-btn {
+  font-weight: 500;
+}
+
+.theme-light .nav-btn.active {
+  color: var(--nav-btn-active-text);
+  background: var(--nav-btn-active-bg);
+  border-color: var(--nav-btn-active-border);
+}
+
+.theme-light .operator-pill,
+.theme-light .theme-toggle {
+  box-shadow: none;
+}
+
+.theme-light .operator-pill__input {
+  font-weight: 600;
+}
+
+.theme-light .switch-slider::before {
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.theme-light .body {
+  background: #F5F7FA;
+}
+
 @media (max-width: 1200px) {
-  .hdr { gap: 12px; padding: 8px 12px; }
+  .hdr { gap: 12px; padding: 0 12px; }
   .hdr-sub { display: none; }
-  .nav-btn { padding: 7px 10px; font-size: 12px; }
+  .nav-btn { font-size: 13px; padding: 7px 10px; }
 }
 
 @media (max-width: 920px) {
@@ -397,20 +437,20 @@ onUnmounted(() => clearInterval(t))
 
 @media (max-width: 1920px) {
   .hdr {
-    padding: 12px 20px;
+    padding: 0 20px;
   }
   .hdr-title {
-    font-size: 16px;
-    letter-spacing: 0.06em;
+    font-size: 18px;
+    letter-spacing: 0;
   }
   .hdr-sub {
-    font-size: 10px;
-    letter-spacing: 0.12em;
+    font-size: 11px;
+    letter-spacing: 0.06em;
   }
   .nav-btn {
-    font-size: 13px;
-    padding: 8px 13px;
-    letter-spacing: 0.05em;
+    font-size: 14px;
+    padding: 7px 12px;
+    letter-spacing: 0;
   }
   .operator-pill__label,
   .toggle-text,

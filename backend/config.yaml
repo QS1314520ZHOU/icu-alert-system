@@ -311,9 +311,12 @@ alert_engine:
     vital_signs: 60
     lab_results: 300
     sepsis: 300
+    sepsis_subphenotype: 3600
     ards: 300
+    prone_position_monitor: 3600
     aki: 600
     dic: 900
+    fibrinolysis_monitor: 3600
     tbi: 300
     bleeding: 600
     temporal_risk_scanner: 900
@@ -353,6 +356,7 @@ alert_engine:
     nursing_workload: 14400
     adaptive_threshold_advisor: 7200
     discharge_readiness: 1800
+    pics_risk: 7200
     proactive_management: 300
     extended_scenarios: 1800
 
@@ -687,6 +691,18 @@ alert_engine:
     comorbidity_threshold: 3
     score_threshold: 5
 
+  pics_risk:
+    enabled: true
+    scan_interval: 7200
+    icu_days_threshold: 5
+    early_warning_threshold: 55
+    warning_threshold: 45
+    high_threshold: 70
+    gcs_low_threshold: 13
+    deep_sedation_threshold: -3
+    high_alert_threshold: 5
+    psychological_keywords: ["焦虑", "恐惧", "失眠", "噩梦", "创伤", "panic", "ptsd", "睡眠差", "家属焦虑"]
+
   data_quality_filter:
     lead_off_spo2_threshold: 90
     temp_min_c: 30
@@ -826,6 +842,54 @@ alert_engine:
     blood_culture_keywords: ["血培养", "blood culture"]
     crystalloid_keywords: ["生理盐水", "氯化钠", "平衡液", "乳酸林格", "林格", "normal saline", "sodium chloride", "ringer", "crystalloid"]
 
+  sepsis_subphenotype:
+    enabled: true
+    scan_interval: 3600
+    min_sofa: 2
+    confidence_threshold: 0.6
+    transition_detection_hours: 12
+    diagnosis_keywords: ["脓毒", "感染", "sepsis", "菌血症", "肺炎"]
+    hyperthermia_threshold: 38.3
+    hypothermia_threshold: 36.0
+    labels:
+      alpha_hyperinflammatory: "α-高炎症型"
+      beta_immunosuppressed: "β-免疫抑制型"
+      gamma_hypercoagulable: "γ-高凝型"
+      delta_mixed: "δ-混合型"
+      mixed_uncertain: "混合/不确定"
+    care_implications:
+      alpha_hyperinflammatory:
+        summary: "炎症负荷和循环失稳更突出。"
+        care_implications: ["优先复核炎症风暴、休克与糖皮质激素适应证"]
+      beta_immunosuppressed:
+        summary: "免疫抑制和淋巴细胞低下更突出。"
+        care_implications: ["建议评估免疫增强治疗与继发感染风险"]
+      gamma_hypercoagulable:
+        summary: "凝血激活/微血栓风险更突出。"
+        care_implications: ["建议强化凝血-纤溶复核与器官灌注评估"]
+      delta_mixed:
+        summary: "炎症、凝血和器官功能损伤混合并存。"
+        care_implications: ["建议多系统并行复评，避免单一器官导向处理"]
+    feature_order: ["inflammation", "immunosuppression", "coagulopathy", "organ_dysfunction", "hemodynamic_instability", "temperature_pattern"]
+    feature_reference:
+      inflammation: { mean: 1.0, std: 0.6 }
+      immunosuppression: { mean: 1.0, std: 0.6 }
+      coagulopathy: { mean: 1.0, std: 0.6 }
+      organ_dysfunction: { mean: 1.0, std: 0.6 }
+      hemodynamic_instability: { mean: 1.0, std: 0.6 }
+      temperature_pattern: { mean: 0.0, std: 1.0 }
+    centroids:
+      alpha_hyperinflammatory: [1.8, 0.6, 0.0, 0.6, 0.2, 1.0]
+      beta_immunosuppressed: [0.3, 2.0, 0.2, 0.5, 0.0, -0.8]
+      gamma_hypercoagulable: [0.7, 0.7, 1.8, 0.9, 0.2, 0.0]
+      delta_mixed: [1.0, 1.0, 1.0, 1.0, 0.8, 0.2]
+    crp_keywords: ["crp", "c反应蛋白", "超敏c反应蛋白"]
+    il6_keywords: ["il-6", "il6", "白介素6"]
+    ferritin_keywords: ["铁蛋白", "ferritin"]
+    wbc_keywords: ["wbc", "白细胞"]
+    neutrophil_keywords: ["中性粒细胞绝对值", "neut", "anc", "中性粒细胞#"]
+    lymphocyte_keywords: ["淋巴细胞绝对值", "lymph", "alc", "淋巴细胞#"]
+
 
   weaning_assistant:
     warning_score: 4
@@ -873,6 +937,39 @@ alert_engine:
       map_low: 1
       ventilator_asynchrony: 2
       ventilator_asynchrony_high: 3
+
+  prone_position_monitor:
+    enabled: true
+    scan_interval: 3600
+    position_code: "param_TiWei"
+    pf_threshold: 150
+    fio2_threshold: 0.6
+    peep_threshold: 5
+    target_hours_per_day: 16
+    prone_values: ["俯卧位", "俯卧", "prone", "pronation", "proning"]
+    supine_values: ["仰卧位", "仰卧", "平卧", "平", "左", "右", "自主", "高侧卧位", "supine", "return supine", "恢复仰卧"]
+    start_keywords: ["俯卧位", "prone", "proning"]
+    end_keywords: ["恢复仰卧", "结束俯卧位", "supine", "return supine", "停止俯卧位"]
+    complication_keywords: ["面部水肿", "压疮", "皮肤破损", "管路脱出", "tube dislodgement", "导管位置异常"]
+
+  fibrinolysis_monitor:
+    enabled: true
+    scan_interval: 3600
+    ddimer_hyper_threshold: 5.0
+    ddimer_shutdown_threshold: 1.0
+    fibrinogen_low_threshold: 1.5
+    fibrinogen_high_threshold: 4.0
+    platelet_low_threshold: 80
+    inr_high_threshold: 1.5
+    pt_high_threshold: 16
+    ly30_hyper_threshold: 7.5
+    ly30_shutdown_threshold: 0.8
+    hyper_score_threshold: 5
+    hyper_critical_threshold: 7
+    shutdown_score_threshold: 5
+    shutdown_high_threshold: 6
+    ly30_keywords: ["ly30", "lysis30", "li30", "30min纤溶"]
+    max_lysis_keywords: ["ml", "maximum lysis", "max lysis", "最大纤溶"]
 
   ventilator_asynchrony:
     enabled: true

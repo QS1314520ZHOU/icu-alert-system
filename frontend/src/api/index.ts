@@ -186,6 +186,15 @@ export const getAiMetabolicPhase = (patientId: string, params?: { refresh?: bool
 export const getAiBetaBlockerAdvisor = (patientId: string, params?: { refresh?: boolean }) =>
   aiApi.get(`/api/ai/beta-blocker-advisor/${patientId}`, { params })
 
+export const getAiFibrinolysisMonitor = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/fibrinolysis-monitor/${patientId}`, { params })
+
+export const getAiPronePositionMonitor = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/prone-position/${patientId}`, { params })
+
+export const getAiPicsRisk = (patientId: string, params?: { refresh?: boolean }) =>
+  aiApi.get(`/api/ai/pics-risk/${patientId}`, { params })
+
 export const postAiCausalAnalysis = (
   patientId: string,
   payload: { abnormal_finding: string }
@@ -331,6 +340,82 @@ export const getThresholdReviewCenter = (params?: {
   limit?: number
 }) => api.get('/api/personalized-thresholds/review-center', { params })
 
+export const getPatientFollowupCase = (
+  patientId: string,
+  params?: { ensure_from_pics?: boolean; refresh_pics?: boolean }
+) => api.get(`/api/followup_cases/patients/${patientId}`, { params })
+
+export const getPatientFollowupOverview = (
+  patientId: string,
+  params?: { ensure_from_pics?: boolean; refresh_pics?: boolean }
+) => api.get(`/api/followup_cases/patients/${patientId}/overview`, { params })
+
+export const upsertPatientFollowupCase = (
+  patientId: string,
+  payload?: { source_module?: string; refresh_pics?: boolean; note?: string; actor?: string }
+) => api.post(`/api/followup_cases/patients/${patientId}`, payload || {})
+
+export const updateFollowupCaseStatus = (
+  caseId: string,
+  payload: { status: 'candidate' | 'active' | 'paused' | 'closed'; note?: string; actor?: string }
+) => api.post(`/api/followup_cases/${caseId}/status`, payload)
+
+export const getPatientFollowupTasks = (
+  patientId: string,
+  params?: { status?: string; limit?: number }
+) => api.get(`/api/followup_tasks/patients/${patientId}`, { params })
+
+export const createPatientFollowupTask = (
+  patientId: string,
+  payload: {
+    template_key?: string
+    title?: string
+    description?: string
+    category?: string
+    due_at?: string
+    priority?: string
+    owner?: string
+    note?: string
+    actor?: string
+  }
+) => api.post(`/api/followup_tasks/patients/${patientId}`, payload)
+
+export const updateFollowupTaskStatus = (
+  taskId: string,
+  payload: { status: 'open' | 'in_progress' | 'completed' | 'cancelled'; note?: string; actor?: string }
+) => api.post(`/api/followup_tasks/${taskId}/status`, payload)
+
+export const getPatientRehabReferrals = (
+  patientId: string,
+  params?: { status?: string; limit?: number }
+) => api.get(`/api/rehab_referrals/patients/${patientId}`, { params })
+
+export const createPatientRehabReferral = (
+  patientId: string,
+  payload: {
+    template_key?: string
+    referral_type?: string
+    target_service?: string
+    reason?: string
+    recommendation?: string
+    status?: string
+    owner?: string
+    scheduled_at?: string
+    note?: string
+    actor?: string
+  }
+) => api.post(`/api/rehab_referrals/patients/${patientId}`, payload)
+
+export const updateRehabReferralStatus = (
+  referralId: string,
+  payload: {
+    status: 'pending' | 'accepted' | 'scheduled' | 'completed' | 'rejected' | 'cancelled'
+    note?: string
+    scheduled_at?: string
+    actor?: string
+  }
+) => api.post(`/api/rehab_referrals/${referralId}/status`, payload)
+
 // 科研分析工作台
 export const postResearchTable1 = (payload: Record<string, any>) =>
   researchApi.post('/api/research/analytics/table1', payload)
@@ -414,6 +499,30 @@ export const postResearchVariableSummary = (payload: Record<string, any>) =>
 
 export const getResearchIcdSearch = (params: { q?: string; limit?: number }) =>
   researchApi.get('/api/research/icd/search', { params })
+
+export const getResearchPlatformStatus = () =>
+  researchApi.get('/api/research/platform/status')
+
+export const postResearchPlatformCheck = () =>
+  researchApi.post('/api/research/platform/check')
+
+export const getResearchPlatformJobs = (params?: { limit?: number }) =>
+  researchApi.get('/api/research/platform/jobs', { params })
+
+export const getResearchPlatformArtifacts = (params?: { limit?: number }) =>
+  researchApi.get('/api/research/platform/artifacts', { params })
+
+export const getWaveformChannels = (patientId: string, params?: { hours?: number }) =>
+  api.get(`/api/waveforms/patients/${patientId}/channels`, { params })
+
+export const getWaveformSegments = (patientId: string, params: { channel: string; hours?: number; limit?: number }) =>
+  api.get(`/api/waveforms/patients/${patientId}/segments`, { params })
+
+export const getWaveformQuality = (patientId: string, params: { channel: string; hours?: number }) =>
+  api.get(`/api/waveforms/patients/${patientId}/qc`, { params })
+
+export const getWaveformEvents = (patientId: string, params: { channel: string; hours?: number }) =>
+  api.get(`/api/waveforms/patients/${patientId}/events`, { params })
 
 // 健康检查
 export const healthCheck = () => api.get('/health')

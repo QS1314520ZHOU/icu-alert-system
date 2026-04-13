@@ -65,4 +65,18 @@ withDefaults(defineProps<{
 .data-table-tab :deep(.ant-pagination .ant-pagination-item-active a) {
   color: #effcff;
 }
+
+/* Light mode overrides */
+html[data-theme='light'] .data-table-tab :deep(.ant-table) { color: #223a54; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .data-table-tab :deep(.ant-table-thead > tr > th) { background: #f3f8fc; color: #47627e; border-bottom-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .data-table-tab :deep(.ant-table-tbody > tr > td) { background: #ffffff; color: #223a54; border-bottom-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .data-table-tab :deep(.ant-table-tbody > tr:hover > td) { background: rgba(231,241,249,0.96) !important; }
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-item),
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-prev),
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-next) { background: #ffffff; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-item-active) { background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%); border-color: rgba(59,130,246,0.28); }
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-item a),
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-prev button),
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-next button) { color: #47627e; }
+html[data-theme='light'] .data-table-tab :deep(.ant-pagination .ant-pagination-item-active a) { color: #f8fbff; }
 </style>
