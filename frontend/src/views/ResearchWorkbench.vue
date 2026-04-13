@@ -3638,12 +3638,29 @@ html[data-theme='light'] .sub-card {
   border-color: rgba(187, 204, 220, 0.72);
   background: rgba(241, 246, 251, 0.98);
 }
+html[data-theme='light'] .platform-card,
+html[data-theme='light'] .card,
+html[data-theme='light'] .config-card,
+html[data-theme='light'] .result-card,
+html[data-theme='light'] .sub-card,
+html[data-theme='light'] .group-card,
+html[data-theme='light'] .platform-list__item,
+html[data-theme='light'] .platform-kpi {
+  background: #ffffff;
+}
+html[data-theme='light'] .content-panel {
+  background: rgba(247, 250, 255, 0.98);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
 html[data-theme='light'] .hero-card h2,
 html[data-theme='light'] .platform-card__title,
 html[data-theme='light'] .card-head,
 html[data-theme='light'] .sub-title,
 html[data-theme='light'] .card-head.between,
-html[data-theme='light'] .group-card strong {
+html[data-theme='light'] .group-card strong,
+html[data-theme='light'] .platform-list__item strong,
+html[data-theme='light'] .cohort-label,
+html[data-theme='light'] .collapse-head {
   color: #16324f;
 }
 html[data-theme='light'] .hero-card p,
@@ -3666,8 +3683,10 @@ html[data-theme='light'] .recommend,
 html[data-theme='light'] .label,
 html[data-theme='light'] .result-meta,
 html[data-theme='light'] .table-footnote,
-html[data-theme='light'] .empty-state {
-  color: #6f8399;
+html[data-theme='light'] .empty-state,
+html[data-theme='light'] .group-vs,
+html[data-theme='light'] .collapse-summary {
+  color: #5f738b;
 }
 html[data-theme='light'] .cohort-pill {
   background: rgba(219, 234, 254, 0.98);
@@ -3683,6 +3702,39 @@ html[data-theme='light'] .platform-chip { border-color: rgba(187, 204, 220, 0.72
 html[data-theme='light'] .platform-list__item { border-color: rgba(187, 204, 220, 0.72); background: #ffffff; }
 html[data-theme='light'] .artifact-link { color: #1d4ed8; }
 html[data-theme='light'] .cohort-pill.link:hover { background: rgba(191, 219, 254, 0.98); }
+html[data-theme='light'] .prep-options :deep(.ant-radio-wrapper),
+html[data-theme='light'] .prep-options :deep(.ant-radio-wrapper span),
+html[data-theme='light'] .cat-item,
+html[data-theme='light'] .var-type {
+  color: #3f556f;
+}
+html[data-theme='light'] .prep-hint,
+html[data-theme='light'] .prep-summary,
+html[data-theme='light'] .platform-card__sub,
+html[data-theme='light'] .platform-summary-row,
+html[data-theme='light'] .platform-list__meta,
+html[data-theme='light'] .platform-list__time,
+html[data-theme='light'] .platform-empty,
+html[data-theme='light'] .cohort-pill.empty,
+html[data-theme='light'] .nav-item,
+html[data-theme='light'] .var-category,
+html[data-theme='light'] .var-head-actions,
+html[data-theme='light'] .overview-line,
+html[data-theme='light'] .radio-option,
+html[data-theme='light'] .diag-search-tip,
+html[data-theme='light'] .status-line,
+html[data-theme='light'] .recommend,
+html[data-theme='light'] .label,
+html[data-theme='light'] .result-meta,
+html[data-theme='light'] .table-footnote,
+html[data-theme='light'] .empty-state,
+html[data-theme='light'] .group-vs,
+html[data-theme='light'] .collapse-summary {
+  color: #5f738b;
+}
+html[data-theme='light'] .empty-title {
+  color: #16324f;
+}
 html[data-theme='light'] .warn-banner {
   background: rgba(254, 243, 199, 0.98);
   border-color: rgba(245, 158, 11, 0.28);

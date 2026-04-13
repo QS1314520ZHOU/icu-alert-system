@@ -131,6 +131,12 @@ const routeDeptName = computed(() => {
   if (typeof raw === 'string') return raw.trim()
   return ''
 })
+const routeDeptDisplayName = computed(() => {
+  if (routeDeptName.value) return routeDeptName.value
+  if (!routeDeptCode.value) return ''
+  const hit = depts.value.find((item: any) => String(item?.deptCode || '').trim() === routeDeptCode.value)
+  return String(hit?.dept || '').trim()
+})
 const routeAlertLevel = computed(() => {
   const raw = route.query.alert_level || route.query.alertLevel
   if (Array.isArray(raw)) return raw[0]?.trim() ?? ''
@@ -192,8 +198,8 @@ const tagStats = computed(() => {
 const rescueRiskCount = computed(() => byDept.value.filter(p => p.hasRescueRisk).length)
 const activeOverviewFilters = computed(() => {
   const items: Array<{ key: string; label: string }> = []
-  if (routeDeptName.value) items.push({ key: 'dept', label: `科室 ${routeDeptName.value}` })
-  if (routeDeptCode.value && !routeDeptName.value) items.push({ key: 'dept_code', label: `科室编码 ${routeDeptCode.value}` })
+  if (routeDeptDisplayName.value) items.push({ key: 'dept', label: `科室 ${routeDeptDisplayName.value}` })
+  else if (routeDeptCode.value) items.push({ key: 'dept', label: '当前科室' })
   if (alertFilter.value === 'critical') items.push({ key: 'alert', label: '危重患者' })
   else if (alertFilter.value === 'warning') items.push({ key: 'alert', label: '警告 / 高危患者' })
   else if (alertFilter.value === 'normal') items.push({ key: 'alert', label: '正常患者' })

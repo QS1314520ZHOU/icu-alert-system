@@ -4683,6 +4683,20 @@ html[data-theme='light'] .detail-container {
     linear-gradient(180deg, #f4f8fc 0%, #edf3f9 100%);
   color: #1f3852;
 }
+html[data-theme='light'] .detail-page-header {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .detail-page-header :deep(.ant-page-header-heading-title) {
+  color: #16324f;
+}
+html[data-theme='light'] .detail-page-header :deep(.ant-page-header-heading-sub-title),
+html[data-theme='light'] .detail-page-header :deep(.ant-page-header-back-button) {
+  color: #47627e;
+}
 html[data-theme='light'] .monitor-hero,
 html[data-theme='light'] .weaning-card,
 html[data-theme='light'] .info-card,
@@ -4697,6 +4711,11 @@ html[data-theme='light'] .hero-tag,
 html[data-theme='light'] .hero-tag--soft,
 html[data-theme='light'] .hero-fact,
 html[data-theme='light'] .hero-vital,
+html[data-theme='light'] .hero-bundle,
+html[data-theme='light'] .hero-bundle-pill,
+html[data-theme='light'] .hero-vitals-badge,
+html[data-theme='light'] .hero-rescue-chip,
+html[data-theme='light'] .hero-rescue-tag,
 html[data-theme='light'] .weaning-score-box,
 html[data-theme='light'] .weaning-chip,
 html[data-theme='light'] .weaning-evidence-chip,
@@ -4717,6 +4736,10 @@ html[data-theme='light'] .kb-chunk-item {
 html[data-theme='light'] .hero-diagnosis,
 html[data-theme='light'] .hero-fact strong,
 html[data-theme='light'] .hero-vital strong,
+html[data-theme='light'] .hero-bundle-main,
+html[data-theme='light'] .hero-rescue-title,
+html[data-theme='light'] .hero-rescue-main,
+html[data-theme='light'] .hero-rescue-chip-value,
 html[data-theme='light'] .weaning-score-value,
 html[data-theme='light'] .weaning-card-main,
 html[data-theme='light'] .v-value,
@@ -4733,6 +4756,11 @@ html[data-theme='light'] .kb-chunk-title {
 html[data-theme='light'] .hero-meta,
 html[data-theme='light'] .hero-fact span,
 html[data-theme='light'] .hero-vitals-foot,
+html[data-theme='light'] .hero-bundle-title,
+html[data-theme='light'] .hero-bundle-meta,
+html[data-theme='light'] .hero-rescue-tag,
+html[data-theme='light'] .hero-rescue-chip-label,
+html[data-theme='light'] .hero-rescue-suggestion,
 html[data-theme='light'] .weaning-card-sub,
 html[data-theme='light'] .weaning-card-foot,
 html[data-theme='light'] .v-label,
@@ -4755,6 +4783,95 @@ html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab) {
   background: rgba(241, 246, 251, 0.98);
   border-color: rgba(187, 204, 220, 0.72);
   box-shadow: none;
+}
+html[data-theme='light'] .hero-bundle {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+}
+html[data-theme='light'] .hero-bundle-pill,
+html[data-theme='light'] .hero-vitals-badge {
+  color: #47627e;
+  background: rgba(241, 246, 251, 0.98);
+}
+html[data-theme='light'] .hero-bundle--green .hero-bundle-pill,
+html[data-theme='light'] .hero-bundle--green .hero-bundle-dot {
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(220, 252, 231, 0.9);
+}
+html[data-theme='light'] .hero-bundle--yellow .hero-bundle-pill,
+html[data-theme='light'] .hero-bundle--yellow .hero-bundle-dot {
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(254, 243, 199, 0.92);
+}
+html[data-theme='light'] .hero-bundle--red .hero-bundle-pill,
+html[data-theme='light'] .hero-bundle--red .hero-bundle-dot {
+  color: #dc2626;
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(254, 226, 226, 0.92);
+}
+html[data-theme='light'] .hero-bundle--orange .hero-bundle-pill,
+html[data-theme='light'] .hero-bundle--orange .hero-bundle-dot {
+  color: #ea580c;
+  border-color: rgba(251, 146, 60, 0.28);
+  background: rgba(255, 237, 213, 0.92);
+}
+html[data-theme='light'] .hero-bundle--blue .hero-bundle-pill,
+html[data-theme='light'] .hero-bundle--blue .hero-bundle-dot {
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.28);
+  background: rgba(219, 234, 254, 0.92);
+}
+html[data-theme='light'] .hero-bundle--gray .hero-bundle-pill,
+html[data-theme='light'] .hero-bundle--gray .hero-bundle-dot {
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(241, 245, 249, 0.98);
+}
+html[data-theme='light'] .hero-rescue {
+  border-color: rgba(248, 113, 113, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .hero-rescue--high {
+  border-color: rgba(251, 146, 60, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(251, 146, 60, 0.12), rgba(251, 146, 60, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,247,237,.98) 100%);
+}
+html[data-theme='light'] .hero-rescue--warning {
+  border-color: rgba(245, 158, 11, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,251,235,.98) 100%);
+}
+html[data-theme='light'] .hero-rescue-pill--critical {
+  color: #be123c;
+  background: rgba(255, 241, 242, 0.98);
+  border-color: rgba(251, 113, 133, 0.28);
+}
+html[data-theme='light'] .hero-rescue-pill--high {
+  color: #c2410c;
+  background: rgba(255, 237, 213, 0.98);
+  border-color: rgba(251, 146, 60, 0.28);
+}
+html[data-theme='light'] .hero-rescue-pill--warning {
+  color: #b45309;
+  background: rgba(254, 243, 199, 0.98);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+html[data-theme='light'] .hero-rescue-action {
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.98);
+  border-color: rgba(59, 130, 246, 0.24);
+}
+html[data-theme='light'] .hero-rescue-action:hover {
+  background: rgba(219, 234, 254, 0.98);
+  border-color: rgba(59, 130, 246, 0.32);
 }
 html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-btn) { color: #47627e; }
 html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active) {

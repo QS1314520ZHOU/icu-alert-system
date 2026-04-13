@@ -130,17 +130,17 @@
         <div class="insight-grid">
           <div class="insight-tile">
             <div class="insight-label">查看率</div>
-            <div class="insight-value">{{ Number(lifecycleSummary?.view_rate || 0) * 100 }}%</div>
+            <div class="insight-value">{{ formatPct(lifecycleSummary?.view_rate || 0) }}</div>
             <div class="insight-meta">中位查看 {{ lifecycleSummary?.median_view_minutes ?? '—' }} 分钟</div>
           </div>
           <div class="insight-tile">
             <div class="insight-label">确认率</div>
-            <div class="insight-value">{{ Number(lifecycleSummary?.ack_rate || 0) * 100 }}%</div>
+            <div class="insight-value">{{ formatPct(lifecycleSummary?.ack_rate || 0) }}</div>
             <div class="insight-meta">中位确认 {{ lifecycleSummary?.median_ack_minutes ?? '—' }} 分钟</div>
           </div>
           <div class="insight-tile">
             <div class="insight-label">行动率</div>
-            <div class="insight-value">{{ Number(lifecycleSummary?.action_rate || 0) * 100 }}%</div>
+            <div class="insight-value">{{ formatPct(lifecycleSummary?.action_rate || 0) }}</div>
             <div class="insight-meta">中位行动 {{ lifecycleSummary?.median_action_minutes ?? '—' }} 分钟</div>
           </div>
           <div class="insight-tile">
