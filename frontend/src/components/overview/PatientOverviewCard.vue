@@ -18,6 +18,11 @@
               <span class="patient-meta">{{ genderLabel }}/{{ patient.age || '—' }}</span>
             </div>
             <p class="diag-text" :title="patient.clinicalDiagnosis">{{ shortDiag(patient.clinicalDiagnosis) || '无初步诊断' }}</p>
+            <div class="monitor-meta-row">
+              <span class="monitor-meta-chip">{{ monitorSourceText }}</span>
+              <span class="monitor-meta-chip">{{ monitorUpdatedText }}</span>
+              <span v-if="patient.hasRescueRisk" class="monitor-meta-chip monitor-meta-chip--rescue">抢救期风险</span>
+            </div>
           </div>
         </div>
         <div :class="['status-badge', `status-badge--${patient.alertLevel || 'none'}`]">
@@ -122,7 +127,7 @@
         </div>
         <div v-if="note.suggestion" :class="['alert-card-suggestion', { 'alert-card-suggestion--rescue': isRescueSummary(note) }]">{{ note.suggestion }}</div>
       </div>
-      <div v-if="!alertNotes.length" v-for="(note, idx) in bedcard?.notes?.slice(0, 2)" :key="idx" class="alert-line">
+      <div v-if="!alertNotes.length" v-for="(note, idx) in fallbackNotes" :key="idx" class="alert-line">
         <span class="alert-dot alert-dot--red"></span>
         <span class="alert-text">{{ note }}</span>
       </div>
@@ -289,7 +294,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { getPatientBedcard } from '../../api'
-import { formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
 
 const bedcardCache = new Map<string, any>()
 
@@ -346,16 +351,33 @@ const formattedTubesList = computed(() => {
 
 const alertNotes = computed(() => {
   const list = Array.isArray(bedcard.value?.alert_notes) ? bedcard.value.alert_notes : []
-  return list.slice(0, 2)
+  return list.slice(0, 2).map((item: any) => normalizeAlertTextPayload(item))
 })
 
-const summaryCard = computed(() => bedcard.value?.alert_summary_card || null)
+const fallbackNotes = computed(() =>
+  (Array.isArray(bedcard.value?.notes) ? bedcard.value.notes : []).slice(0, 2).map((item: any) => humanizeClinicalText(item))
+)
+
+const summaryCard = computed(() => normalizeAlertTextPayload(bedcard.value?.alert_summary_card || null))
 
 const bundleProgress = computed(() => {
   const lights = (bundleLights(props.patient) || []).filter(l => l.state !== 'unknown')
   if (!lights.length) return ''
   const done = lights.filter(l => l.state === 'green').length
   return `${done}/${lights.length}`
+})
+const monitorSourceText = computed(() => {
+  const source = String(mergedVitals.value?.source || '').trim().toLowerCase()
+  if (source === 'monitor') return '监护仪'
+  if (source === 'nurse_manual') return '护士录入'
+  if (source === 'alert_snapshot') return '告警快照'
+  if (source === 'bedside_text') return '床旁记录'
+  if (source) return humanizeClinicalText(source)
+  return '监护来源未标注'
+})
+const monitorUpdatedText = computed(() => {
+  const text = noteTimeText(mergedVitals.value?.time)
+  return text ? `更新 ${text}` : '时间未知'
 })
 
 async function loadBedcard() {
@@ -411,6 +433,42 @@ function tubeClass(days: any) {
   return ''
 }
 
+function humanizeCodeToken(value: any) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const normalized = raw.toLowerCase()
+  const sourceMap: Record<string, string> = {
+    monitor: '监护仪',
+    nurse_manual: '护士录入',
+    alert_snapshot: '告警快照',
+    bedside_text: '床旁记录',
+    score: '评分记录',
+  }
+  if (sourceMap[normalized]) return sourceMap[normalized]
+  return formatAlertTypeLabel(normalized)
+}
+
+function humanizeClinicalText(value: any) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  return raw.replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/gi, (token) => humanizeCodeToken(token))
+}
+
+function normalizeAlertTextPayload<T>(payload: T): T {
+  if (!payload || typeof payload !== 'object') return payload
+  const row: any = { ...(payload as any) }
+  if (row.title != null) row.title = humanizeClinicalText(row.title)
+  if (row.summary != null) row.summary = humanizeClinicalText(row.summary)
+  if (row.suggestion != null) row.suggestion = humanizeClinicalText(row.suggestion)
+  if (row.rule_id != null) row.rule_id = humanizeClinicalText(row.rule_id)
+  if (row.alert_type != null) row.alert_type = humanizeClinicalText(row.alert_type)
+  if (row.source != null) row.source = humanizeClinicalText(row.source)
+  if (Array.isArray(row.evidence)) {
+    row.evidence = row.evidence.map((item: any) => humanizeClinicalText(item))
+  }
+  return row as T
+}
+
 function summaryChain(card: any) {
   const chain = card?.clinical_chain
   return chain && typeof chain === 'object' ? chain : null
@@ -422,7 +480,9 @@ function summaryGroups(card: any) {
 }
 
 function summaryEvidence(card: any) {
-  return Array.isArray(card?.evidence) ? card.evidence.filter((x: any) => String(x || '').trim()).slice(0, 3) : []
+  return Array.isArray(card?.evidence)
+    ? card.evidence.map((x: any) => humanizeClinicalText(x)).filter((x: any) => String(x || '').trim()).slice(0, 3)
+    : []
 }
 
 function summarySnapshot(card: any) {
@@ -764,6 +824,29 @@ section { display: flex; flex-direction: column; gap: 7px; }
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.monitor-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.monitor-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(8, 31, 47, 0.72);
+  border: 1px solid rgba(80, 199, 255, 0.1);
+  color: #8fd4e6;
+  font-size: 10px;
+  line-height: 1.3;
+}
+.monitor-meta-chip--rescue {
+  color: #fda4af;
+  border-color: rgba(251, 113, 133, 0.2);
+  background: rgba(71, 16, 28, 0.72);
 }
 .status-badge {
   flex-shrink: 0;
@@ -1559,8 +1642,10 @@ section { display: flex; flex-direction: column; gap: 7px; }
 html[data-theme='light'] .card {
   border: 1px solid rgba(0,0,0,0.06);
   border-radius: 14px;
-  background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 30%),
+    linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(248,250,253,.99) 100%);
+  box-shadow: 0 12px 24px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.04);
 }
 html[data-theme='light'] .card::after {
   display: none;
@@ -1573,18 +1658,114 @@ html[data-theme='light'] .card--high::before { background: #F97316; }
 html[data-theme='light'] .card--warning::before { background: #EAB308; }
 html[data-theme='light'] .card--normal::before { background: #22C55E; }
 html[data-theme='light'] .card--none::before { background: #94A3B8; }
+html[data-theme='light'] .card--critical {
+  background:
+    radial-gradient(circle at top right, rgba(239, 68, 68, 0.09), rgba(239, 68, 68, 0) 30%),
+    linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,247,247,.99) 100%);
+  border-color: rgba(248, 113, 113, 0.24);
+}
+html[data-theme='light'] .card--high,
+html[data-theme='light'] .card--warning {
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.09), rgba(245, 158, 11, 0) 30%),
+    linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,251,235,.99) 100%);
+}
+html[data-theme='light'] .card--high {
+  border-color: rgba(251, 146, 60, 0.24);
+}
+html[data-theme='light'] .card--warning {
+  border-color: rgba(245, 158, 11, 0.22);
+}
+html[data-theme='light'] .card--normal {
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0) 28%),
+    linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(240,253,244,.99) 100%);
+  border-color: rgba(74, 222, 128, 0.22);
+}
+html[data-theme='light'] .card--none {
+  border-color: rgba(59, 130, 246, 0.14);
+}
+html[data-theme='light'] .card--critical .sec-top {
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.14), rgba(248, 113, 113, 0) 36%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,244,246,.98) 100%);
+  border-color: rgba(248, 113, 113, 0.2);
+}
+html[data-theme='light'] .card--high .sec-top,
+html[data-theme='light'] .card--warning .sec-top {
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.14), rgba(245, 158, 11, 0) 36%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,248,238,.98) 100%);
+}
+html[data-theme='light'] .card--high .sec-top {
+  border-color: rgba(251, 146, 60, 0.2);
+}
+html[data-theme='light'] .card--warning .sec-top {
+  border-color: rgba(245, 158, 11, 0.18);
+}
+html[data-theme='light'] .card--normal .sec-top {
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,252,247,.98) 100%);
+  border-color: rgba(74, 222, 128, 0.18);
+}
+html[data-theme='light'] .card--none .sec-top {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(244,248,253,.98) 100%);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+html[data-theme='light'] .sec-top {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 8px 18px rgba(15,23,42,.04);
+}
+html[data-theme='light'] .card .sec-top::before {
+  width: 100%;
+  height: 3px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(59,130,246,.32), rgba(59,130,246,.04));
+}
+html[data-theme='light'] .card--critical .sec-top::before {
+  background: linear-gradient(90deg, rgba(239,68,68,.5), rgba(239,68,68,.08));
+}
+html[data-theme='light'] .card--high .sec-top::before,
+html[data-theme='light'] .card--warning .sec-top::before {
+  background: linear-gradient(90deg, rgba(245,158,11,.5), rgba(245,158,11,.08));
+}
+html[data-theme='light'] .card--normal .sec-top::before {
+  background: linear-gradient(90deg, rgba(34,197,94,.45), rgba(34,197,94,.08));
+}
 html[data-theme='light'] .bed-no {
-  background: #F1F5F9;
-  border: 1px solid rgba(0,0,0,0.06);
-  color: #334155;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e8eef7 100%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #1f3653;
   box-shadow: none;
+}
+html[data-theme='light'] .card--critical .bed-no {
+  background: linear-gradient(180deg, rgba(254,242,242,.98) 0%, rgba(255,228,230,.98) 100%);
+  border-color: rgba(248, 113, 113, 0.24);
+  color: #b91c1c;
+}
+html[data-theme='light'] .card--high .bed-no,
+html[data-theme='light'] .card--warning .bed-no {
+  background: linear-gradient(180deg, rgba(255,247,237,.98) 0%, rgba(255,237,213,.98) 100%);
+  border-color: rgba(251, 146, 60, 0.2);
+  color: #c2410c;
+}
+html[data-theme='light'] .card--normal .bed-no {
+  background: linear-gradient(180deg, rgba(240,253,244,.98) 0%, rgba(220,252,231,.98) 100%);
+  border-color: rgba(74, 222, 128, 0.22);
+  color: #047857;
 }
 html[data-theme='light'] .monitor-label,
 html[data-theme='light'] .monitor-code {
-  color: #64748B;
+  color: #5f738b;
 }
 html[data-theme='light'] .monitor-sep {
-  background: rgba(0,0,0,0.06);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.24), rgba(59, 130, 246, 0));
 }
 html[data-theme='light'] .patient-name,
 html[data-theme='light'] .v-val,
@@ -1596,8 +1777,13 @@ html[data-theme='light'] .alert-card-title,
 html[data-theme='light'] .pill--severity {
   color: #0F172A;
 }
+html[data-theme='light'] .card--critical .patient-name { color: #991b1b; }
+html[data-theme='light'] .card--high .patient-name,
+html[data-theme='light'] .card--warning .patient-name { color: #9a3412; }
+html[data-theme='light'] .card--normal .patient-name { color: #065f46; }
 html[data-theme='light'] .patient-meta,
 html[data-theme='light'] .diag-text,
+html[data-theme='light'] .monitor-meta-chip,
 html[data-theme='light'] .section-desc,
 html[data-theme='light'] .v-label,
 html[data-theme='light'] .info-label,
@@ -1610,20 +1796,30 @@ html[data-theme='light'] .summary-snapshot-label {
   color: #64748B;
 }
 html[data-theme='light'] .diag-text {
-  color: #64748B;
+  color: #556b86;
+}
+html[data-theme='light'] .monitor-meta-chip {
+  background: rgba(255,255,255,.98);
+  border-color: rgba(148, 163, 184, 0.16);
+  color: #556b86;
+}
+html[data-theme='light'] .monitor-meta-chip--rescue {
+  background: rgba(255,241,242,.98);
+  border-color: rgba(248, 113, 113, 0.22);
+  color: #be123c;
 }
 html[data-theme='light'] .section-title,
 html[data-theme='light'] .footer-title,
 html[data-theme='light'] .summary-block-label,
 html[data-theme='light'] .summary-chain-tag,
 html[data-theme='light'] .hover-drawer-label {
-  color: #64748B;
+  color: #4f6782;
   letter-spacing: 0;
   text-transform: none;
 }
 html[data-theme='light'] .sec-vitals {
-  background: #F8FAFC;
-  border: 1px solid rgba(0,0,0,0.04);
+  background: linear-gradient(180deg, rgba(245,248,252,.98) 0%, rgba(241,245,249,.98) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 10px;
 }
 html[data-theme='light'] .sec-vitals,
@@ -1645,14 +1841,22 @@ html[data-theme='light'] .vital-item {
   background: #FFFFFF;
   box-shadow: none;
 }
-html[data-theme='light'] .sec-vitals {
-  background: #F8FAFC;
-  border: 1px solid rgba(0,0,0,0.04);
-  border-radius: 10px;
+html[data-theme='light'] .sec-logistics,
+html[data-theme='light'] .sec-alerts,
+html[data-theme='light'] .sec-summary,
+html[data-theme='light'] .sec-footer {
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.98) 100%);
+}
+html[data-theme='light'] .bundle-panel,
+html[data-theme='light'] .summary-chain,
+html[data-theme='light'] .summary-snapshot,
+html[data-theme='light'] .alert-card,
+html[data-theme='light'] .summary-mini-chip {
+  background: linear-gradient(180deg, rgba(247,248,252,.98) 0%, rgba(240,244,249,.98) 100%);
 }
 html[data-theme='light'] .card:hover {
-  border-color: rgba(0,0,0,0.08);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  border-color: rgba(59, 130, 246, 0.22);
+  box-shadow: 0 18px 30px rgba(37,99,235,.08), 0 4px 12px rgba(15,23,42,.05);
 }
 html[data-theme='light'] .sec-rescue-spotlight,
 html[data-theme='light'] .summary-top--rescue,
@@ -1704,13 +1908,16 @@ html[data-theme='light'] .status-badge {
   padding: 6px 12px;
   border-width: 1px;
   border-style: solid;
-  box-shadow: none;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
 }
-html[data-theme='light'] .status-badge--critical { background: #FEF2F2; border-color: #FECACA; color: #DC2626; box-shadow: none; }
-html[data-theme='light'] .status-badge--high { background: #FFF7ED; border-color: #FED7AA; color: #EA580C; }
-html[data-theme='light'] .status-badge--warning { background: #FFFBEB; border-color: #FDE68A; color: #CA8A04; }
-html[data-theme='light'] .status-badge--normal { background: #F0FDF4; border-color: #BBF7D0; color: #16A34A; }
-html[data-theme='light'] .status-badge--none { background: #F8FAFC; border-color: #E2E8F0; color: #64748B; }
+html[data-theme='light'] .status-badge--critical { background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%); border-color: #ef4444; color: #fff7f7; }
+html[data-theme='light'] .status-badge--high { background: linear-gradient(180deg, #f97316 0%, #ea580c 100%); border-color: #f97316; color: #fff7ed; }
+html[data-theme='light'] .status-badge--warning { background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); border-color: #f59e0b; color: #fff8eb; }
+html[data-theme='light'] .status-badge--normal { background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%); border-color: #22c55e; color: #f0fdf4; }
+html[data-theme='light'] .status-badge--none { background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%); border-color: #94a3b8; color: #f8fafc; }
+html[data-theme='light'] .status-badge strong {
+  letter-spacing: .02em;
+}
 html[data-theme='light'] .allergy-tag {
   background: #FEF2F2;
   border-color: #FECACA;
@@ -1719,64 +1926,82 @@ html[data-theme='light'] .allergy-tag {
 html[data-theme='light'] .vital-item {
   min-height: 88px;
   padding: 12px 14px;
-  background: #F8FAFC;
-  border-color: rgba(0,0,0,0.04);
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.98) 100%);
+  border-color: rgba(148, 163, 184, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
 }
+html[data-theme='light'] .vital-item--hr {
+  background:
+    radial-gradient(circle at top right, rgba(59,130,246,.12), rgba(59,130,246,0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,247,255,.98) 100%);
+}
+html[data-theme='light'] .vital-item--bp {
+  background:
+    radial-gradient(circle at top right, rgba(245,158,11,.12), rgba(245,158,11,0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,249,239,.98) 100%);
+}
+html[data-theme='light'] .vital-item--spo2 {
+  background:
+    radial-gradient(circle at top right, rgba(6,182,212,.12), rgba(6,182,212,0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(240,253,255,.98) 100%);
+}
+html[data-theme='light'] .vital-item--temp {
+  background:
+    radial-gradient(circle at top right, rgba(139,92,246,.12), rgba(139,92,246,0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(247,245,255,.98) 100%);
+}
+html[data-theme='light'] .vital-item--hr .v-label { color: #2563eb; }
+html[data-theme='light'] .vital-item--bp .v-label { color: #d97706; }
+html[data-theme='light'] .vital-item--spo2 .v-label { color: #0891b2; }
+html[data-theme='light'] .vital-item--temp .v-label { color: #7c3aed; }
 html[data-theme='light'] .v-val {
   color: #0F172A;
   font-family: 'Rajdhani', 'SF Mono', monospace;
-  font-weight: 700;
+  font-weight: 800;
   text-shadow: none;
 }
 html[data-theme='light'] .vital-item.vital--orange {
-  border-color: rgba(0,0,0,0.04);
-  background: #F8FAFC;
+  border-color: rgba(251, 191, 36, 0.2);
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,251,235,.98) 100%);
 }
 html[data-theme='light'] .vital-item.vital--orange .v-label,
 html[data-theme='light'] .vital-item.vital--red .v-label {
-  color: #64748B;
+  color: #5f738b;
 }
 html[data-theme='light'] .vital-item.vital--orange .v-val {
   color: #D97706;
   font-weight: 700;
-  background: #FFFBEB;
+  background: rgba(255, 247, 237, 0.98);
   border-radius: 6px;
   padding: 2px 6px;
 }
 html[data-theme='light'] .vital-item.vital--red {
-  border-color: rgba(0,0,0,0.04);
-  background: #F8FAFC;
+  border-color: rgba(248, 113, 113, 0.22);
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
 }
 html[data-theme='light'] .vital-item.vital--red .v-val {
   color: #DC2626;
   font-weight: 700;
-  background: #FEF2F2;
+  background: rgba(255, 241, 242, 0.98);
   border-radius: 6px;
   padding: 2px 6px;
 }
 html[data-theme='light'] .summary-chip {
-  background: #EBF0FF;
-  border-color: #D6E0FF;
-  color: #2E5BFF;
+  background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%);
+  border-color: rgba(59, 130, 246, 0.18);
+  color: #1d4ed8;
 }
 html[data-theme='light'] .summary-chip--warning,
 html[data-theme='light'] .tube--orange {
-  background: #FFF5E6;
-  border-color: #F4D8B8;
+  background: linear-gradient(180deg, rgba(255,247,237,.98) 0%, rgba(255,237,213,.98) 100%);
+  border-color: rgba(251, 146, 60, 0.2);
   color: #E67E22;
 }
 html[data-theme='light'] .summary-chip--critical,
 html[data-theme='light'] .tube--red {
-  background: #FDEAEA;
-  border-color: #F5CFCF;
+  background: linear-gradient(180deg, rgba(254,242,242,.98) 0%, rgba(255,241,242,.98) 100%);
+  border-color: rgba(248, 113, 113, 0.22);
   color: #D63031;
-}
-html[data-theme='light'] .summary-mini-chip,
-html[data-theme='light'] .bundle-panel,
-html[data-theme='light'] .alert-card,
-html[data-theme='light'] .summary-chain,
-html[data-theme='light'] .summary-snapshot {
-  background: #F7F8FC;
 }
 html[data-theme='light'] .mini--green { background: #22C55E; box-shadow: none; }
 html[data-theme='light'] .mini--yellow { background: #EAB308; box-shadow: none; }

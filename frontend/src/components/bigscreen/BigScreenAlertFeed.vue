@@ -18,13 +18,13 @@
             </div>
           </div>
           <div class="alert-head-copy">
-            <div class="alert-name">{{ a.name || a.rule_id || '预警' }}</div>
+            <div class="alert-name">{{ humanizeClinicalText(a.name || a.rule_id || '预警') }}</div>
             <div class="alert-code">{{ formatAlertValue(a) }}</div>
           </div>
         </div>
         <div class="alert-head-side">
           <div :class="['sev-tag', `sev-tag--${a.severity || 'warning'}`]">{{ severityText(a.severity) }}</div>
-          <div class="alert-rule">{{ a.rule_id || a.alert_type || '规则' }}</div>
+          <div class="alert-rule">{{ humanizeClinicalText(a.rule_id || a.alert_type || '规则') }}</div>
         </div>
       </div>
 
@@ -151,7 +151,7 @@
           </div>
         </div>
         <div class="alert-meta-bar">
-          <div class="alert-meta">监护事件 · {{ a.rule_id || a.alert_type || '规则' }}</div>
+          <div class="alert-meta">监护事件 · {{ humanizeClinicalText(a.rule_id || a.alert_type || '规则') }}</div>
           <div class="alert-meta alert-meta--dim">{{ a.category ? labelCategory(a.category) : '综合监测' }}</div>
         </div>
       </div>
@@ -165,7 +165,7 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs'
-import { formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
 
 defineProps<{
   alerts: any[]
@@ -205,15 +205,15 @@ function hasExplanation(alert: any) {
 }
 
 function explanationSummary(alert: any) {
-  return explanationPayload(alert).summary || ''
+  return humanizeClinicalText(explanationPayload(alert).summary || '')
 }
 
 function explanationEvidence(alert: any) {
-  return explanationPayload(alert).evidence || []
+  return (explanationPayload(alert).evidence || []).map((item: any) => humanizeClinicalText(item))
 }
 
 function explanationSuggestion(alert: any) {
-  return explanationPayload(alert).suggestion || ''
+  return humanizeClinicalText(explanationPayload(alert).suggestion || '')
 }
 
 function isRescueRiskAlert(alert: any) {
@@ -246,7 +246,7 @@ function rescuePanelTitle(alert: any) {
   if (haystack.includes('bleed')) return '活动性出血风险'
   if (haystack.includes('post_extubation')) return '拔管后再插管高风险'
   if (haystack.includes('resp') || haystack.includes('hypoxia')) return '呼吸衰竭风险'
-  return String(alert?.name || alert?.rule_id || '抢救期预警')
+  return humanizeClinicalText(String(alert?.name || alert?.rule_id || '抢救期预警'))
 }
 
 function postExtubationExtra(alert: any) {
@@ -312,6 +312,27 @@ function compositeGroupLabel(raw: any) {
 
 function compositeChainLabel(raw: any) {
   return formatCompositeChainLabel(raw)
+}
+
+function humanizeCodeToken(value: any) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const normalized = raw.toLowerCase()
+  const sourceMap: Record<string, string> = {
+    monitor: '监护仪',
+    nurse_manual: '护士录入',
+    alert_snapshot: '告警快照',
+    bedside_text: '床旁记录',
+    vent_driving_pressure: '呼吸机驱动压',
+  }
+  if (sourceMap[normalized]) return sourceMap[normalized]
+  return formatAlertTypeLabel(normalized)
+}
+
+function humanizeClinicalText(value: any) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  return raw.replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/gi, (token) => humanizeCodeToken(token))
 }
 
 function severityClass(raw: any) {
@@ -490,7 +511,7 @@ function labelType(v: any) {
     steroid_long_term_taper: '长程激素减停',
     steroid_hyperglycemia: '激素相关高血糖',
   }
-  return map[k] || k
+  return map[k] || humanizeClinicalText(k)
 }
 
 function formatAlertValue(a: any) {
@@ -623,11 +644,11 @@ function formatAlertValue(a: any) {
   if (p && unitMap[p]) {
     if (v == null) return '—'
     const vs = typeof v === 'object' ? JSON.stringify(v) : String(v)
-    return `${vs}${unitMap[p]}`
+    return humanizeClinicalText(`${vs}${unitMap[p]}`)
   }
   if (v == null) return '—'
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
+  if (typeof v === 'object') return humanizeClinicalText(JSON.stringify(v))
+  return humanizeClinicalText(String(v))
 }
 
 function severityText(v: any) {
@@ -1251,13 +1272,26 @@ html[data-theme='light'] .alert-chain-chip,
 html[data-theme='light'] .alert-group-chip,
 html[data-theme='light'] .meta-pill,
 html[data-theme='light'] .sev-tag,
-html[data-theme='light'] .alert-empty {
+html[data-theme='light'] .alert-empty,
+html[data-theme='light'] .alert-explanation-block,
+html[data-theme='light'] .alert-rescue-evidence-chip,
+html[data-theme='light'] .alert-snapshot-chip,
+html[data-theme='light'] .alert-snapshot-badge,
+html[data-theme='light'] .alert-composite-code,
+html[data-theme='light'] .post-extub-panel,
+html[data-theme='light'] .post-extub-chip {
   border-color: rgba(0, 0, 0, 0.06);
   background: #F8FAFC;
   box-shadow: none;
 }
 html[data-theme='light'] .alert-row {
   background: #FFFFFF;
+}
+html[data-theme='light'] .alert-explanation,
+html[data-theme='light'] .alert-snapshot,
+html[data-theme='light'] .alert-chain,
+html[data-theme='light'] .post-extub-panel {
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.99) 100%);
 }
 html[data-theme='light'] .alert-patient,
 html[data-theme='light'] .alert-name,
@@ -1295,6 +1329,59 @@ html[data-theme='light'] .alert-row--rescue,
 html[data-theme='light'] .alert-explanation--rescue {
   border-color: #FECACA;
   background: #FEF2F2;
+}
+html[data-theme='light'] .alert-rescue-head {
+  border-bottom-color: rgba(248, 113, 113, 0.18);
+}
+html[data-theme='light'] .alert-rescue-tag,
+html[data-theme='light'] .post-extub-tag {
+  color: #be123c;
+  background: rgba(255, 241, 242, 0.98);
+  border-color: rgba(251, 113, 133, 0.24);
+}
+html[data-theme='light'] .alert-rescue-main,
+html[data-theme='light'] .post-extub-main {
+  color: #16324f;
+}
+html[data-theme='light'] .alert-explanation-block {
+  background: #ffffff;
+  border-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .alert-explanation-block--summary {
+  background: linear-gradient(180deg, rgba(255,245,246,.98) 0%, rgba(255,241,242,.99) 100%);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+html[data-theme='light'] .alert-explanation-block--suggestion {
+  background: linear-gradient(180deg, rgba(244,252,247,.98) 0%, rgba(236,253,243,.99) 100%);
+  border-color: rgba(74, 222, 128, 0.2);
+}
+html[data-theme='light'] .alert-explanation-text--summary {
+  color: #16324f;
+}
+html[data-theme='light'] .alert-explanation-text--suggestion {
+  color: #047857;
+}
+html[data-theme='light'] .alert-rescue-evidence-chip,
+html[data-theme='light'] .alert-snapshot-chip,
+html[data-theme='light'] .alert-chain-chip,
+html[data-theme='light'] .post-extub-chip {
+  background: #ffffff;
+  border-color: rgba(187, 204, 220, 0.72);
+  color: #334155;
+}
+html[data-theme='light'] .alert-snapshot-chip-value,
+html[data-theme='light'] .alert-snapshot-badge-name,
+html[data-theme='light'] .alert-snapshot-badge-dose {
+  color: #16324f;
+}
+html[data-theme='light'] .alert-snapshot-badge {
+  background: rgba(255,255,255,.98);
+  border-color: rgba(187, 204, 220, 0.72);
+}
+html[data-theme='light'] .alert-composite-code {
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.98);
+  border-color: rgba(59, 130, 246, 0.2);
 }
 @media (max-width: 1100px) {
   .alert-list {

@@ -4737,9 +4737,12 @@ html[data-theme='light'] .hero-diagnosis,
 html[data-theme='light'] .hero-fact strong,
 html[data-theme='light'] .hero-vital strong,
 html[data-theme='light'] .hero-bundle-main,
+html[data-theme='light'] .hero-vitals-title,
 html[data-theme='light'] .hero-rescue-title,
 html[data-theme='light'] .hero-rescue-main,
 html[data-theme='light'] .hero-rescue-chip-value,
+html[data-theme='light'] .weaning-card-title,
+html[data-theme='light'] .weaning-score-label,
 html[data-theme='light'] .weaning-score-value,
 html[data-theme='light'] .weaning-card-main,
 html[data-theme='light'] .v-value,
@@ -4756,6 +4759,7 @@ html[data-theme='light'] .kb-chunk-title {
 html[data-theme='light'] .hero-meta,
 html[data-theme='light'] .hero-fact span,
 html[data-theme='light'] .hero-vitals-foot,
+html[data-theme='light'] .hero-vitals-kicker,
 html[data-theme='light'] .hero-bundle-title,
 html[data-theme='light'] .hero-bundle-meta,
 html[data-theme='light'] .hero-rescue-tag,
@@ -4784,6 +4788,15 @@ html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab) {
   border-color: rgba(187, 204, 220, 0.72);
   box-shadow: none;
 }
+html[data-theme='light'] .info-card :deep(.ant-card-head-title) {
+  color: #1d4ed8;
+}
+html[data-theme='light'] .info-card :deep(.ant-card-body) {
+  color: #1f3852;
+}
+html[data-theme='light'] .info-card p {
+  color: #47627e;
+}
 html[data-theme='light'] .hero-bundle {
   background:
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
@@ -4791,8 +4804,45 @@ html[data-theme='light'] .hero-bundle {
 }
 html[data-theme='light'] .hero-bundle-pill,
 html[data-theme='light'] .hero-vitals-badge {
+  color: #334e68;
+  background: rgba(255, 255, 255, 0.98);
+}
+html[data-theme='light'] .hero-tag,
+html[data-theme='light'] .hero-tag--soft {
+  background: rgba(255, 255, 255, 0.98);
+  color: #2563eb;
+}
+html[data-theme='light'] .hero-tag--soft {
   color: #47627e;
-  background: rgba(241, 246, 251, 0.98);
+}
+html[data-theme='light'] .weaning-chip,
+html[data-theme='light'] .weaning-evidence-chip,
+html[data-theme='light'] .weaning-sbt-pill,
+html[data-theme='light'] .weaning-score-box,
+html[data-theme='light'] .v-item {
+  background: rgba(255, 255, 255, 0.98);
+}
+html[data-theme='light'] .weaning-chip,
+html[data-theme='light'] .weaning-evidence-chip {
+  color: #334e68;
+}
+html[data-theme='light'] .weaning-sbt-pill {
+  color: #334e68;
+}
+html[data-theme='light'] .weaning-sbt-pill.is-passed {
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(220, 252, 231, 0.98);
+}
+html[data-theme='light'] .weaning-sbt-pill.is-failed {
+  color: #be123c;
+  border-color: rgba(251, 113, 133, 0.28);
+  background: rgba(255, 241, 242, 0.98);
+}
+html[data-theme='light'] .weaning-sbt-pill.is-documented {
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.28);
+  background: rgba(219, 234, 254, 0.98);
 }
 html[data-theme='light'] .hero-bundle--green .hero-bundle-pill,
 html[data-theme='light'] .hero-bundle--green .hero-bundle-dot {

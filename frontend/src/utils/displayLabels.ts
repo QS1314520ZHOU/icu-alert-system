@@ -88,6 +88,12 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   early_mobility_recommendation: '早期活动建议',
   pe_suspected: '肺栓塞疑似',
   pe_wells_high: 'Wells 高风险',
+  extubation_failure_risk: '拔管失败风险',
+  post_extubation_failure_risk: '拔管后失败风险',
+  elevated_icp_risk: '颅压升高风险',
+  vent_driving_pressure: '呼吸机驱动压',
+  delirium_risk_critical: '谵妄风险危急',
+  emergency_admission: '急诊入院',
   hydrocephalus_acute: '急性脑积水',
   hypertensive_emergency: '高血压急症'
 }

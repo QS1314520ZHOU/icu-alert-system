@@ -376,25 +376,37 @@ onUnmounted(() => clearInterval(t))
 
 .theme-light .hdr {
   backdrop-filter: none;
+  position: sticky;
 }
 
 .theme-light .hdr-l {
   padding-right: 8px;
 }
 
+.theme-light .hdr::after {
+  content: '';
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(59,130,246,.22), rgba(59,130,246,.04), rgba(59,130,246,.18));
+}
+
 .theme-light .nav-btn {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .theme-light .nav-btn.active {
   color: var(--nav-btn-active-text);
   background: var(--nav-btn-active-bg);
   border-color: var(--nav-btn-active-border);
+  transform: translateY(-1px);
 }
 
 .theme-light .operator-pill,
 .theme-light .theme-toggle {
-  box-shadow: none;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.06);
 }
 
 .theme-light .operator-pill__input {

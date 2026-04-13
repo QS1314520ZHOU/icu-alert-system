@@ -3,7 +3,7 @@
     <!-- ====== 顶部信息带 ====== -->
     <header class="top-bar">
       <div class="summary-row">
-        <div class="sum-block">
+        <div class="sum-block sum-block--total">
           <span class="sum-val">{{ filteredPatients.length }}</span>
           <span class="sum-lbl">在科</span>
         </div>
@@ -12,19 +12,19 @@
           <span>后台同步中</span>
         </div>
         <div class="sum-divider"></div>
-        <div class="sum-block clickable" :class="{ chosen: alertFilter === 'critical' }"
+        <div class="sum-block sum-block--critical clickable" :class="{ chosen: alertFilter === 'critical' }"
              @click="toggleAlert('critical')">
           <span class="sum-dot dot-crit"></span>
           <span class="sum-val">{{ criticalCount }}</span>
           <span class="sum-lbl">危重</span>
         </div>
-        <div class="sum-block clickable" :class="{ chosen: alertFilter === 'warning' }"
+        <div class="sum-block sum-block--warning clickable" :class="{ chosen: alertFilter === 'warning' }"
              @click="toggleAlert('warning')">
           <span class="sum-dot dot-warn"></span>
           <span class="sum-val">{{ warningCount }}</span>
           <span class="sum-lbl">警告</span>
         </div>
-        <div class="sum-block clickable" :class="{ chosen: alertFilter === 'normal' }"
+        <div class="sum-block sum-block--normal clickable" :class="{ chosen: alertFilter === 'normal' }"
              @click="toggleAlert('normal')">
           <span class="sum-dot dot-ok"></span>
           <span class="sum-val">{{ normalCount }}</span>
@@ -69,6 +69,25 @@
           清空筛选
         </button>
       </div>
+
+      <div class="command-strip">
+        <div class="command-pill">
+          <span class="command-pill__label">监护范围</span>
+          <strong class="command-pill__value">{{ routeDeptDisplayName || curDept || '全科' }}</strong>
+        </div>
+        <div class="command-pill">
+          <span class="command-pill__label">视图模式</span>
+          <strong class="command-pill__value">{{ rescueOnly ? '抢救期快筛' : '全量监护' }}</strong>
+        </div>
+        <div class="command-pill">
+          <span class="command-pill__label">活跃筛选</span>
+          <strong class="command-pill__value">{{ activeOverviewFilters.length }}</strong>
+        </div>
+        <div class="command-pill">
+          <span class="command-pill__label">刷新节奏</span>
+          <strong class="command-pill__value">60s</strong>
+        </div>
+      </div>
     </header>
 
     <!-- ====== 加载态 ====== -->
@@ -77,15 +96,55 @@
       <p>正在加载患者数据…</p>
     </div>
 
-    <!-- ====== 卡片网格 ====== -->
-    <section v-else class="grid">
-      <PatientOverviewCard
-        v-for="p in showList"
-        :key="p._id"
-        :patient="p"
-        @select="goDetail"
-      />
+    <!-- ====== 风险分区 ====== -->
+    <section v-else-if="severitySections.length" class="lane-stack">
+      <article
+        v-for="lane in severitySections"
+        :key="lane.key"
+        :class="['lane-panel', `lane-panel--${lane.tone}`]"
+      >
+        <div class="lane-head">
+          <div class="lane-copy">
+            <div class="lane-kicker">风险分区</div>
+            <div class="lane-title">{{ lane.title }}</div>
+            <div class="lane-meta">{{ lane.meta }}</div>
+            <div v-if="lane.stats?.length" class="lane-stat-row">
+              <span v-for="(item, idx) in lane.stats" :key="`${lane.key}-stat-${idx}`" class="lane-stat-chip">
+                {{ item }}
+              </span>
+            </div>
+          </div>
+          <div :class="['lane-count', `lane-count--${lane.tone}`]">
+            {{ lane.rows.length }} 床
+          </div>
+        </div>
+        <div v-if="lane.featuredRows?.length" :class="['lane-brief', `lane-brief--${lane.tone}`]">
+          <span class="lane-brief__label">当前重点</span>
+          <div class="lane-brief__list">
+            <span v-for="row in lane.featuredRows" :key="`${lane.key}-${row.patient_id}`" class="lane-brief__chip">
+              <strong>{{ row.bed || '--' }}床</strong>
+              <span>{{ row.name || '未知患者' }}</span>
+            </span>
+          </div>
+        </div>
+        <div class="lane-grid">
+          <div
+            v-for="p in lane.rows"
+            :key="p._id"
+            class="lane-card-shell"
+          >
+            <PatientOverviewCard
+              :patient="p"
+              @select="goDetail"
+            />
+          </div>
+        </div>
+      </article>
     </section>
+
+    <div v-else class="overview-empty">
+      当前筛选下暂无患者
+    </div>
   </div>
 </template>
 
@@ -224,6 +283,58 @@ const showList = computed(() => {
     }
   }
   return ls
+})
+
+const severitySections = computed(() => {
+  const rows = showList.value
+  const criticalRows = rows.filter((p: any) => p.alertLevel === 'critical')
+  const warningRows = rows.filter((p: any) => ['warning', 'high'].includes(String(p.alertLevel || '')))
+  const normalRows = rows.filter((p: any) => !['warning', 'high', 'critical'].includes(String(p.alertLevel || '')))
+  const focusRows = (items: any[]) => items
+    .slice(0, 3)
+    .map((row: any) => ({
+      patient_id: String(row?._id || ''),
+      bed: String(row?.hisBed || '').trim(),
+      name: String(row?.name || '').trim(),
+    }))
+  return [
+    {
+      key: 'critical',
+      tone: 'critical',
+      title: '危急监护区',
+      meta: rescueOnly.value ? '优先处理抢救期高危与危急床位。' : '先看最需要立即干预的床位与抢救期风险。',
+      stats: [
+        `抢救期 ${criticalRows.filter((row: any) => row?.hasRescueRisk).length} 床`,
+        '立即处置优先',
+      ],
+      featuredRows: focusRows(criticalRows),
+      rows: criticalRows,
+    },
+    {
+      key: 'warning',
+      tone: 'warning',
+      title: '预警观察区',
+      meta: '聚焦正在恶化或需要尽快复评的患者，便于持续巡查。',
+      stats: [
+        `待复评 ${warningRows.length} 床`,
+        `抢救期 ${warningRows.filter((row: any) => row?.hasRescueRisk).length} 床`,
+      ],
+      featuredRows: focusRows(warningRows),
+      rows: warningRows,
+    },
+    {
+      key: 'normal',
+      tone: 'normal',
+      title: '稳定监护区',
+      meta: '保留基础监护视图，便于快速确认稳定患者的整体负荷。',
+      stats: [
+        `基础监护 ${normalRows.length} 床`,
+        '适合批量巡检',
+      ],
+      featuredRows: focusRows(normalRows),
+      rows: normalRows,
+    },
+  ].filter((section) => section.rows.length > 0)
 })
 
 /* ── 统计 ── */
@@ -766,6 +877,32 @@ onUnmounted(() => {
   border-color: rgba(251, 113, 133, 0.34);
   color: #ffe8ee;
 }
+.command-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.command-pill {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  background: rgba(8, 28, 44, 0.66);
+}
+.command-pill__label {
+  color: #7fd7eb;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.command-pill__value {
+  color: #ecfeff;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 800;
+}
 
 .loader {
   display: flex;
@@ -785,105 +922,437 @@ onUnmounted(() => {
 }
 @keyframes spin { to { transform: rotate(360deg) } }
 
-.grid {
+.lane-stack {
+  display: grid;
+  gap: 18px;
+}
+.lane-panel {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.05), rgba(34, 211, 238, 0) 24%),
+    linear-gradient(180deg, rgba(9, 22, 36, 0.88) 0%, rgba(6, 15, 27, 0.9) 100%);
+  box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.05), 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+.lane-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
+}
+.lane-panel--critical::before { background: linear-gradient(180deg, #fb7185 0%, #ef4444 100%); }
+.lane-panel--warning::before { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); }
+.lane-panel--normal::before { background: linear-gradient(180deg, #34d399 0%, #10b981 100%); }
+.lane-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lane-copy {
+  display: grid;
+  gap: 4px;
+}
+.lane-kicker {
+  color: #7fd7eb;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.lane-title {
+  color: #eafcff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.lane-meta {
+  color: #8eb3bc;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.lane-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+.lane-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(8, 28, 44, 0.64);
+  color: #cfefff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.lane-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(8, 28, 44, 0.72);
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  color: #dffbff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.lane-count--critical {
+  background: rgba(71, 16, 28, 0.16);
+  border-color: rgba(248, 113, 113, 0.24);
+  color: #fecdd3;
+}
+.lane-count--warning {
+  background: rgba(76, 43, 12, 0.16);
+  border-color: rgba(251, 191, 36, 0.22);
+  color: #fde68a;
+}
+.lane-count--normal {
+  background: rgba(7, 63, 55, 0.14);
+  border-color: rgba(74, 222, 128, 0.2);
+  color: #a7f3d0;
+}
+.lane-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
 }
+.lane-card-shell {
+  position: relative;
+}
+.lane-brief {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(8, 28, 44, 0.5);
+}
+.lane-brief__label {
+  color: #7fd7eb;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  flex: 0 0 auto;
+}
+.lane-brief__text {
+  color: #ecfeff;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lane-brief__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lane-brief__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 199, 255, 0.12);
+  background: rgba(8, 28, 44, 0.76);
+  color: #dffbff;
+  font-size: 12px;
+}
+.lane-brief__chip strong {
+  color: #ecfeff;
+  font-size: 12px;
+}
+.overview-empty {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(80, 199, 255, 0.18);
+  border-radius: 18px;
+  color: #8eb3bc;
+  background: rgba(8, 28, 44, 0.32);
+  font-size: 14px;
+  font-weight: 600;
+}
 html[data-theme='light'] .overview {
-  background: #F5F7FA;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.16) 0%, rgba(59, 130, 246, 0) 24%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.08) 0%, rgba(14, 165, 233, 0) 22%),
+    linear-gradient(180deg, #f4f8fd 0%, #eef4fb 100%);
   color: #0F172A;
 }
 html[data-theme='light'] .overview::before {
-  display: none;
+  display: block;
+  background:
+    linear-gradient(rgba(37, 99, 235, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.035) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: 0.35;
 }
 html[data-theme='light'] .overview::after {
-  display: none;
+  display: block;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.04), rgba(148, 163, 184, 0));
 }
 html[data-theme='light'] .top-bar {
-  border: 1px solid rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 16px;
   clip-path: none;
-  background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0) 26%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(247,250,255,.98) 100%);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.08);
+}
+html[data-theme='light'] .top-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, #2563EB 0%, #38BDF8 100%);
 }
 html[data-theme='light'] .sum-block {
   clip-path: none;
-  background: #FFFFFF;
-  border-color: rgba(0,0,0,0.06);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,253,.98) 100%);
+  border-color: rgba(148, 163, 184, 0.2);
   border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+html[data-theme='light'] .sum-block--total {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(239,246,255,.98) 100%);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+html[data-theme='light'] .sum-block--critical {
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.14), rgba(248, 113, 113, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,241,242,.98) 100%);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+html[data-theme='light'] .sum-block--warning {
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.14), rgba(245, 158, 11, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,247,237,.98) 100%);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+html[data-theme='light'] .sum-block--normal {
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(240,253,244,.98) 100%);
+  border-color: rgba(74, 222, 128, 0.2);
 }
 html[data-theme='light'] .sum-block.clickable:hover {
-  border-color: rgba(37, 99, 235, 0.12);
-  background: #FAFBFD;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  border-color: rgba(37, 99, 235, 0.24);
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(239,246,255,.98) 100%);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.1);
 }
 html[data-theme='light'] .sum-block.chosen {
-  background: #EFF6FF;
-  border-color: rgba(37, 99, 235, 0.2);
+  background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%);
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.12);
 }
-html[data-theme='light'] .sum-val { color: #0F172A; text-shadow: none; }
-html[data-theme='light'] .sum-lbl { color: #64748B; letter-spacing: 0; text-transform: none; }
+html[data-theme='light'] .sum-val { color: #16324f; text-shadow: none; }
+html[data-theme='light'] .sum-lbl { color: #556b86; letter-spacing: .02em; text-transform: none; }
+html[data-theme='light'] .sum-block--total .sum-val,
+html[data-theme='light'] .sum-block--total .sum-lbl {
+  color: #1d4ed8;
+}
+html[data-theme='light'] .sum-block--critical .sum-val,
+html[data-theme='light'] .sum-block--critical .sum-lbl {
+  color: #dc2626;
+}
+html[data-theme='light'] .sum-block--warning .sum-val,
+html[data-theme='light'] .sum-block--warning .sum-lbl {
+  color: #d97706;
+}
+html[data-theme='light'] .sum-block--normal .sum-val,
+html[data-theme='light'] .sum-block--normal .sum-lbl {
+  color: #059669;
+}
 html[data-theme='light'] .sum-divider { background: rgba(0,0,0,0.06); }
 html[data-theme='light'] .sum-sync {
-  border-color: rgba(0,0,0,0.06);
-  background: #F8FAFC;
-  color: #475569;
+  border-color: rgba(59, 130, 246, 0.16);
+  background: rgba(239, 246, 255, 0.98);
+  color: #1d4ed8;
 }
 html[data-theme='light'] .dept-pill {
-  background: #FFFFFF;
-  border-color: rgba(0,0,0,0.06);
-  color: #64748B;
+  background: rgba(255,255,255,.98);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #556b86;
 }
-html[data-theme='light'] .dept-pill i { color: #334155; }
+html[data-theme='light'] .dept-pill i { color: #16324f; }
 html[data-theme='light'] .dept-pill:hover {
-  color: #0F172A;
-  border-color: rgba(0,0,0,0.06);
-  background: #F1F5F9;
+  color: #16324f;
+  border-color: rgba(37, 99, 235, 0.2);
+  background: rgba(239,246,255,.98);
 }
 html[data-theme='light'] .dept-pill.active {
-  background: #EFF6FF;
+  background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%);
   color: #2563EB;
-  border-color: rgba(37, 99, 235, 0.2);
-  box-shadow: none;
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.12);
 }
 html[data-theme='light'] .chip {
-  background: #FFFFFF;
-  border-color: rgba(0,0,0,0.06);
-  color: #64748B;
+  background: rgba(255,255,255,.98);
+  border-color: rgba(148, 163, 184, 0.16);
+  color: #556b86;
 }
 html[data-theme='light'] .chip:hover {
-  background: #F1F5F9;
-  border-color: rgba(0,0,0,0.06);
+  background: rgba(239,246,255,.98);
+  border-color: rgba(59, 130, 246, 0.18);
 }
 html[data-theme='light'] .chip.chosen {
-  background: #EFF6FF !important;
-  border-color: rgba(37, 99, 235, 0.2);
+  background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%) !important;
+  border-color: rgba(37, 99, 235, 0.28);
   color: #2563EB !important;
-  box-shadow: none;
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.12);
 }
 html[data-theme='light'] .chip--rescue {
-  color: #DC2626;
-  border-color: #FECACA;
-  background: #FEF2F2;
+  color: #dc2626;
+  border-color: rgba(248, 113, 113, 0.28);
+  background: linear-gradient(180deg, rgba(254,242,242,.98) 0%, rgba(255,241,242,.98) 100%);
 }
-html[data-theme='light'] .filter-summary__label { color: #64748B; }
+html[data-theme='light'] .chip--rescue.chosen {
+  color: #be123c !important;
+  border-color: rgba(244, 63, 94, 0.3);
+  background: linear-gradient(180deg, rgba(255,241,242,.99) 0%, rgba(254,226,226,.99) 100%) !important;
+  box-shadow: 0 10px 18px rgba(244, 63, 94, 0.1);
+}
+html[data-theme='light'] .filter-summary__label { color: #4f6782; }
 html[data-theme='light'] .filter-summary__chip {
-  border-color: rgba(0,0,0,0.06);
-  background: #F8FAFC;
-  color: #475569;
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(248,250,252,.98);
+  color: #425a74;
 }
 html[data-theme='light'] .filter-summary__clear {
-  border-color: rgba(37, 99, 235, 0.16);
-  background: #EFF6FF;
+  border-color: rgba(37, 99, 235, 0.24);
+  background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%);
   color: #2563EB;
+}
+html[data-theme='light'] .command-pill {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(244,248,253,.98) 100%);
+}
+html[data-theme='light'] .command-pill__label {
+  color: #5f738b;
+}
+html[data-theme='light'] .command-pill__value {
+  color: #16324f;
 }
 html[data-theme='light'] .loader { color: #64748B; }
 html[data-theme='light'] .loader-ring {
   border-color: rgba(0,0,0,0.06);
   border-top-color: #2563EB;
   box-shadow: none;
+}
+html[data-theme='light'] .lane-panel {
+  border-color: rgba(148, 163, 184, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0) 24%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.99) 100%);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.06);
+}
+html[data-theme='light'] .lane-panel--critical {
+  border-color: rgba(248, 113, 113, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.08), rgba(248, 113, 113, 0) 24%),
+    linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,248,249,.99) 100%);
+}
+html[data-theme='light'] .lane-panel--warning {
+  border-color: rgba(245, 158, 11, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0) 24%),
+    linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,251,243,.99) 100%);
+}
+html[data-theme='light'] .lane-panel--normal {
+  border-color: rgba(74, 222, 128, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0) 24%),
+    linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(247,252,249,.99) 100%);
+}
+html[data-theme='light'] .lane-kicker {
+  color: #5f738b;
+}
+html[data-theme='light'] .lane-title {
+  color: #16324f;
+}
+html[data-theme='light'] .lane-meta {
+  color: #556b86;
+}
+html[data-theme='light'] .lane-stat-chip {
+  background: rgba(255,255,255,.98);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #425a74;
+}
+html[data-theme='light'] .lane-count {
+  background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%);
+  border-color: rgba(59,130,246,.22);
+  color: #1d4ed8;
+  box-shadow: 0 10px 18px rgba(37,99,235,.1);
+}
+html[data-theme='light'] .lane-count--critical {
+  background: linear-gradient(180deg, rgba(254,242,242,.99) 0%, rgba(255,226,226,.99) 100%);
+  border-color: rgba(248,113,113,.26);
+  color: #dc2626;
+  box-shadow: 0 10px 18px rgba(239,68,68,.08);
+}
+html[data-theme='light'] .lane-count--warning {
+  background: linear-gradient(180deg, rgba(255,247,237,.99) 0%, rgba(255,237,213,.99) 100%);
+  border-color: rgba(251,191,36,.24);
+  color: #d97706;
+  box-shadow: 0 10px 18px rgba(245,158,11,.08);
+}
+html[data-theme='light'] .lane-count--normal {
+  background: linear-gradient(180deg, rgba(240,253,244,.99) 0%, rgba(220,252,231,.99) 100%);
+  border-color: rgba(74,222,128,.24);
+  color: #059669;
+  box-shadow: 0 10px 18px rgba(34,197,94,.08);
+}
+html[data-theme='light'] .lane-brief {
+  background: rgba(255,255,255,.9);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme='light'] .lane-brief--critical {
+  background: rgba(255,245,246,.94);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+html[data-theme='light'] .lane-brief--warning {
+  background: rgba(255,249,239,.94);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+html[data-theme='light'] .lane-brief--normal {
+  background: rgba(244,252,247,.94);
+  border-color: rgba(74, 222, 128, 0.2);
+}
+html[data-theme='light'] .lane-brief__label {
+  color: #5f738b;
+}
+html[data-theme='light'] .lane-brief__text,
+html[data-theme='light'] .lane-brief__chip strong {
+  color: #16324f;
+}
+html[data-theme='light'] .lane-brief__chip {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,.98);
+  color: #556b86;
+}
+html[data-theme='light'] .overview-empty {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.99) 100%);
+  color: #556b86;
 }
 
 @media (max-width: 900px) {
@@ -892,6 +1361,26 @@ html[data-theme='light'] .loader-ring {
   }
   .top-bar {
     padding: 12px;
+  }
+  .command-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .lane-panel {
+    padding: 14px;
+  }
+  .lane-title {
+    font-size: 16px;
+  }
+  .lane-grid {
+    grid-template-columns: 1fr;
+  }
+  .command-strip {
+    grid-template-columns: 1fr;
+  }
+  .lane-brief {
+    flex-direction: column;
   }
 }
 </style>
