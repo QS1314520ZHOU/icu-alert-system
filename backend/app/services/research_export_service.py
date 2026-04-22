@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import pandas as pd
+try:
+    import pandas as pd
+except Exception:  # pragma: no cover
+    pd = None  # type: ignore
 from bson import ObjectId
 
 from app import runtime
@@ -22,6 +25,14 @@ logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
 EXPORT_DIR = Path("backend/exports")
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _require_research_export_deps() -> None:
+    missing: list[str] = []
+    if pd is None:
+        missing.append("pandas")
+    if missing:
+        raise RuntimeError(f"科研导出依赖缺失: {', '.join(missing)}")
 
 DATA_TYPE_LABELS: dict[str, str] = {
     "patients": "患者主表",
@@ -662,6 +673,7 @@ def _build_readme_text(scope_summary: dict[str, Any], estimates: list[dict[str, 
 
 
 async def preview_export(params: dict[str, Any]) -> dict[str, Any]:
+    _require_research_export_deps()
     patient_ids, department, dept_code, patient_scope, cohort_doc = await _resolve_cohort_scope(params)
     scope = await _build_scope(patient_ids, department, dept_code, patient_scope)
     data_types = [str(item).strip() for item in (params.get("data_types") or []) if str(item).strip()]
@@ -687,6 +699,7 @@ async def preview_export(params: dict[str, Any]) -> dict[str, Any]:
 
 
 async def run_export_task(task_id: str, params: dict[str, Any], created_by: str) -> None:
+    _require_research_export_deps()
     col = runtime.db.col("research_export_tasks")
     await col.update_one({"task_id": task_id}, {"$set": {"status": "processing", "progress": 5}})
     try:

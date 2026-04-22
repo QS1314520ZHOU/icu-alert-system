@@ -107,11 +107,13 @@ RUN pip3 install --no-cache-dir \
 #    -r requirements.cpu.txt          ← 含 torch==2.5.1 (CPU版)
 #
 #  GPU 构建必须:
-#    ① 只装 requirements.common.txt (不装 cpu.txt 避免覆盖 GPU torch)
+#    ① 装 requirements.common.txt + requirements.analytics.txt
+#       但不装 cpu.txt，避免覆盖 GPU torch
 #    ② 单独装 onnxruntime-gpu (替代 cpu.txt 里的 onnxruntime)
 # ===========================================================
 COPY backend/requirements*.txt ./
 RUN pip3 install --no-cache-dir -r requirements.common.txt && \
+    pip3 install --no-cache-dir -r requirements.analytics.txt && \
     pip3 install --no-cache-dir onnxruntime-gpu==1.20.1
 
 # ---- 2.6 安装打包工具 ----
@@ -134,6 +136,15 @@ providers = onnxruntime.get_available_providers(); print(f'ORT providers: {provi
 import fastapi; print(f'FastAPI: {fastapi.__version__}'); \
 import uvicorn; print(f'Uvicorn: {uvicorn.__version__}'); \
 import motor; print(f'Motor: {motor.version}'); \
+import pandas; print(f'Pandas: {pandas.__version__}'); \
+import scipy; print(f'SciPy: {scipy.__version__}'); \
+import sklearn; print(f'scikit-learn: {sklearn.__version__}'); \
+import lifelines; print(f'Lifelines: {lifelines.__version__}'); \
+import matplotlib; print(f'Matplotlib: {matplotlib.__version__}'); \
+import seaborn; print(f'Seaborn: {seaborn.__version__}'); \
+import statsmodels; print(f'Statsmodels: {statsmodels.__version__}'); \
+import pyarrow; print(f'PyArrow: {pyarrow.__version__}'); \
+import docx; print(f'python-docx: {docx.__version__}'); \
 print('>>> All OK'); \
 "
 
@@ -177,6 +188,14 @@ st_imports           = collect_submodules('sentence_transformers')
 tokenizer_imports    = collect_submodules('tokenizers')
 ort_imports          = collect_submodules('onnxruntime')
 numpy_imports        = collect_submodules('numpy')
+scipy_imports        = collect_submodules('scipy')
+pandas_imports       = collect_submodules('pandas')
+pyarrow_imports      = collect_submodules('pyarrow')
+statsmodels_imports  = collect_submodules('statsmodels')
+lifelines_imports    = collect_submodules('lifelines')
+matplotlib_imports   = collect_submodules('matplotlib')
+seaborn_imports      = collect_submodules('seaborn')
+docx_imports         = collect_submodules('docx')
 
 # ---------- 数据文件 ----------
 datas = [
@@ -198,12 +217,22 @@ datas += collect_data_files('torch')
 datas += collect_data_files('tzdata')
 datas += collect_data_files('onnxruntime')
 datas += collect_data_files('numpy')
+datas += collect_data_files('scipy')
+datas += collect_data_files('pandas')
+datas += collect_data_files('pyarrow')
+datas += collect_data_files('statsmodels')
+datas += collect_data_files('lifelines')
+datas += collect_data_files('matplotlib')
+datas += collect_data_files('seaborn')
+datas += collect_data_files('docx')
 
 # ---------- 二进制: torch 动态库 ----------
 binaries = []
 binaries += collect_dynamic_libs('torch')
 binaries += collect_dynamic_libs('onnxruntime')
 binaries += collect_dynamic_libs('numpy')
+binaries += collect_dynamic_libs('scipy')
+binaries += collect_dynamic_libs('pyarrow')
 
 # ---------- CUDA .so 从 nvidia.* pip 包收集 ----------
 cuda_bins = []
@@ -256,6 +285,14 @@ hidden_imports = (
     + tokenizer_imports
     + ort_imports
     + numpy_imports
+    + scipy_imports
+    + pandas_imports
+    + pyarrow_imports
+    + statsmodels_imports
+    + lifelines_imports
+    + matplotlib_imports
+    + seaborn_imports
+    + docx_imports
     + [
         # --- uvicorn ---
         'uvicorn.logging',
@@ -277,6 +314,8 @@ hidden_imports = (
         'numpy._core', 'numpy._core._exceptions',
         'numpy._core._multiarray_tests', 'numpy._core._multiarray_umath',
         'numpy.linalg', 'numpy.linalg.lapack_lite',
+        'pandas', 'pyarrow', 'scipy', 'statsmodels', 'seaborn',
+        'matplotlib', 'matplotlib.pyplot', 'docx',
         'onnxruntime',
         # --- nvidia CUDA 子包 ---
         'nvidia', 'nvidia.cublas', 'nvidia.cuda_runtime', 'nvidia.cudnn',
@@ -291,7 +330,7 @@ hidden_imports = (
 )
 
 excludes = [
-    'matplotlib', 'PIL', 'scipy', 'pandas',
+    'PIL',
     'tkinter', 'unittest', 'test', 'setuptools', 'pip',
 ]
 

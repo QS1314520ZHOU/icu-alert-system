@@ -11,10 +11,19 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
+try:
+    import pandas as pd
+except Exception:  # pragma: no cover
+    pd = None  # type: ignore
 from bson import ObjectId
-from scipy import stats
-from sklearn import metrics
+try:
+    from scipy import stats
+except Exception:  # pragma: no cover
+    stats = None  # type: ignore
+try:
+    from sklearn import metrics
+except Exception:  # pragma: no cover
+    metrics = None  # type: ignore
 try:
     from sklearn.linear_model import LinearRegression, LogisticRegression
 except Exception:  # pragma: no cover
@@ -73,6 +82,14 @@ RESEARCH_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 FIGURE_WIDTH_CM_SINGLE = 8.5
 FIGURE_WIDTH_CM_DOUBLE = 17.5
+
+
+def _require_research_analytics_deps() -> None:
+    missing: list[str] = []
+    if pd is None:
+        missing.append("pandas")
+    if missing:
+        raise RuntimeError(f"科研分析依赖缺失: {', '.join(missing)}")
 
 VITAL_CODE_MAP: dict[str, list[str]] = {
     "hr": ["param_HR", "param_PR"],
@@ -652,6 +669,7 @@ async def generate_table1(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -806,6 +824,7 @@ async def descriptive_statistics(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -979,6 +998,7 @@ async def survival_analysis(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -1305,6 +1325,7 @@ async def regression_analysis(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -1524,6 +1545,7 @@ async def roc_analysis(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -1616,6 +1638,7 @@ async def subgroup_analysis(
     time_field: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -1722,6 +1745,7 @@ async def correlation_analysis(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -1871,6 +1895,7 @@ async def trend_analysis(
     cohort_id: str | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved_ids = await _resolve_patient_ids(patient_ids, cohort_id, db)
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
@@ -2186,6 +2211,7 @@ async def export_figure(
     config=None,
     filename: str | None = None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     fmt_value = str(fmt or "png").lower()
     if fmt_value not in {"png", "svg", "pdf"}:
         raise ValueError("仅支持 png/svg/pdf")
@@ -2252,6 +2278,7 @@ async def export_table(
     config=None,
     filename: str | None = None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     fmt_value = str(fmt or "docx").lower()
     if fmt_value not in {"docx", "csv"}:
         raise ValueError("仅支持 docx/csv")
@@ -2289,6 +2316,7 @@ async def create_materials_bundle(
     bundle_name: str,
     files: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     safe_name = re.sub(r"[^A-Za-z0-9_\-]+", "_", str(bundle_name or "research_materials")).strip("_")
     zip_path = RESEARCH_EXPORT_DIR / f"{safe_name}_{timestamp}.zip"
@@ -2809,6 +2837,7 @@ async def build_custom_cohort(
     patient_scope: str = 'all',
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     cfg = _get_research_cfg(config)
     max_patients = int(cfg.get("max_export_patients", 10000) or 10000)
     scoped = _ensure_patient_id_set(patient_ids)
@@ -2907,6 +2936,7 @@ async def summarize_variables(
     fields: list[str] | None = None,
     config=None,
 ) -> dict[str, Any]:
+    _require_research_analytics_deps()
     resolved = await _resolve_patient_ids(patient_ids, cohort_id, db)
     if not resolved:
         return {"summaries": {}, "n_patients": 0}
