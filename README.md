@@ -1,125 +1,327 @@
-# ICU 智能预警系统 (ICU Alert System)
+# ICU 智能预警系统（ICU Alert System）
 
 ![ICU Alert System Logo](docs/images/logo.png)
 
-> **面向重症监护病区的全栈智能预警、流程监测、AI 决策支持与病区运营平台。**
+面向重症监护病区（ICU）的全栈平台，覆盖：
+
+- 患者风险实时预警
+- 护理与治疗流程联动（Bundle / 装置 / 管路）
+- 患者详情多维工作台（趋势、检验、用药、预警、AI）
+- 科研分析与导出
+- 大屏与病区运营视角
 
 ---
 
-## 🌟 项目亮点
+## 目录
 
-系统将床旁监护、检验、药物执行、护理评估、设备管理、实时预警、Analytics、数字孪生、MDT 和知识库统一到同一套后端规则引擎与前端工作台中，为临床提供 24/7 的智能守护。
-
-- **实时风险识别**：秒级处理监护与检验数据，支持 40+ 临床风险扫描器。
-- **治疗过程监测**：自动化跟踪撤机、CRRT、抗菌药、镇静镇痛、VTE 预防等关键流程。
-- **AI 辅助决策**：集成多模态大模型，提供临床推理、相似病例检索、交班摘要及反事实模拟。
-- **数字孪生 & 万物互联**：深度整合设备参数，构建患者数字化模型，实时反馈血流动力学与呼吸动力学状态。
-- **病区运营中枢**：提供大屏视图、护理工作量预测热力图及病区风险态势感知。
-
----
-
-## 📸 界面预览
-
-````carousel
-![Dashboard Mockup](docs/images/dashboard.png)
-<!-- slide -->
-![Patient Detail Mockup](docs/images/patient_detail.png)
-````
+- [1. 项目概览](#1-项目概览)
+- [2. 核心能力](#2-核心能力)
+- [3. 技术栈](#3-技术栈)
+- [4. 仓库结构](#4-仓库结构)
+- [5. 快速启动（本地开发）](#5-快速启动本地开发)
+- [6. Docker 部署](#6-docker-部署)
+- [7. 环境变量说明](#7-环境变量说明)
+- [8. 关键工作流](#8-关键工作流)
+- [9. 开发与构建命令](#9-开发与构建命令)
+- [10. 打包发布](#10-打包发布)
+- [11. 常见问题排查](#11-常见问题排查)
+- [12. 相关文档](#12-相关文档)
 
 ---
 
-## 🛠️ 技术栈
+## 1. 项目概览
 
-- **后端**: FastAPI (Python 3.10+), Redis (任务队列), MongoDB (结构化/非结构化数据)
-- **前端**: Vue 3, Vite, Ant Design Vue, ECharts (可视化)
-- **引擎**: 自研 AlertEngine (Mixin 架构), PopPK 药代动力学引擎
-- **AI**: LLM (Qwen, GPT等), RAG (知识检索), Vector Store
-- **部署**: Docker Compose, PyInstaller (EXE), Linux Binary
+本项目是一个 **前后端一体化 ICU 智能预警系统**：
+
+- **后端** 使用 FastAPI，负责患者数据聚合、规则扫描、AI 服务编排、WebSocket 推送。
+- **前端** 使用 Vue 3 + Vite，提供患者总览、患者详情、预警审核、AI 工作台、大屏与科研工作台。
+- **扫描 Worker** 独立进程持续执行临床规则，写入预警结果并触发联动。
+
+系统适合以下场景：
+
+- ICU 临床值班与床旁监护
+- 护理质控（Bundle / 装置留置 / HAI 风险）
+- 科室级风险态势追踪
+- 医疗 AI 辅助推理与科研分析
 
 ---
 
-## 🚀 快速开始
+## 2. 核心能力
 
-### 1. 克隆并安装依赖
+### 2.1 临床预警与规则引擎
+
+- 多扫描器并行处理患者状态
+- 支持分级风险（normal / warning / high / critical）
+- 支持预警审核、查看回执、闭环追踪
+
+> 扫描器细节请见：[SCANNERS.md](SCANNERS.md)
+
+### 2.2 患者详情工作台
+
+- 生命体征快照 + 趋势
+- 检验 / 用药 / 护理评估
+- 装置/管路联动视图
+- 器官风险热力图 + 预警聚焦
+
+### 2.3 AI 与知识增强
+
+- 检验摘要、风险预测、临床推理
+- 交班摘要（handoff）
+- 知识文档检索与片段浏览（RAG）
+- 多模块 AI 工作台整合展示
+
+### 2.4 运营与科研
+
+- 大屏监测（病区级）
+- 预警统计分析
+- 科研分析与导出流程
+
+---
+
+## 3. 技术栈
+
+### 后端
+
+- Python 3.10+
+- FastAPI / Uvicorn
+- Redis（队列/缓存）
+- MongoDB（业务数据）
+
+### 前端
+
+- Vue 3 + TypeScript
+- Vite
+- Ant Design Vue
+- ECharts
+- Pinia + Vue Router
+
+### 部署与发布
+
+- Docker Compose
+- PyInstaller（Windows EXE）
+- Linux binary 构建脚本
+
+---
+
+## 4. 仓库结构
+
+```text
+icu-alert-system/
+├─ backend/                    # FastAPI + 扫描引擎 + AI 服务
+│  ├─ app/
+│  │  ├─ alert_engine/         # 扫描器与预警引擎
+│  │  ├─ routers/              # API 路由
+│  │  ├─ services/             # 业务/AI/分析服务
+│  │  └─ main.py               # FastAPI 入口
+│  ├─ run_server.py            # 后端启动入口
+│  ├─ run_scan_worker.py       # 扫描 Worker 启动入口
+│  ├─ .env.example             # 后端环境变量模板
+│  └─ requirements*.txt
+├─ frontend/                   # Vue 3 前端
+│  ├─ src/
+│  ├─ scripts/sync-to-backend-static.mjs
+│  └─ package.json
+├─ docs/                       # 文档与图片资源
+├─ SCANNERS.md                 # 扫描器口径说明
+├─ docker-compose.yml
+└─ README.md
+```
+
+---
+
+## 5. 快速启动（本地开发）
+
+> 以下命令均以仓库根目录为起点。
+
+### 5.1 后端依赖安装
 
 ```bash
-# 后端
 cd backend
 python -m pip install -r requirements.txt
-
-# 前端
-cd frontend
-npm install
 ```
 
-### 2. 配置文件
+`backend/requirements.txt` 当前指向 `requirements.cpu.txt`，适合常规开发机。
 
-复制 `example.env` 为 `.env` 并填写数据库与 LLM 信息：
-```env
-LLM_API_KEY=your_key_here
-SMARTCARE_DB_HOST=127.0.0.1
-REDIS_HOST=127.0.0.1
-```
-
-### 3. 运行服务
+### 5.2 配置环境变量
 
 ```bash
-# 启动 API 服务
 cd backend
-python -m uvicorn app.main:app --reload
+cp .env.example .env
+```
 
-# 启动扫描 Worker (独立进程)
+按实际环境修改 `.env`（数据库、Redis、LLM）。
+
+### 5.3 启动后端 API
+
+```bash
+cd backend
+python run_server.py
+```
+
+默认端口：`8000`  
+健康检查：`http://127.0.0.1:8000/health`
+
+### 5.4 启动扫描 Worker（建议单独终端）
+
+```bash
+cd backend
 python run_scan_worker.py
+```
 
-# 启动前端
+### 5.5 启动前端
+
+```bash
 cd frontend
+npm install
 npm run dev
 ```
 
+默认地址：`http://127.0.0.1:5173`
+
 ---
 
-## 🐳 容器化部署
+## 6. Docker 部署
 
-使用 Docker 一键启动完整环境：
+项目提供 `docker-compose.yml`，内含：
+
+- `api`（FastAPI 服务）
+- `redis`（Redis 服务）
+
+启动：
 
 ```bash
 docker-compose up -d
 ```
 
----
+查看日志：
 
-## 📦 打包与分发
+```bash
+docker-compose logs -f api
+docker-compose logs -f redis
+```
 
-项目支持多种打包方式以适应离线部署环境：
+停止：
 
-- **Windows EXE**: 执行 `.\build_exe.ps1`
-- **Linux Binary**: 执行 `./build.sh`
-- **OEL8 特供版**: 执行 `.\build_oel8.ps1`
-
-详细打包说明请参考 [EXE_BUILD.md](file:///d:/icu-alert-system/EXE_BUILD.md) 和 [LINUX_BINARY_BUILD.md](file:///d:/icu-alert-system/LINUX_BINARY_BUILD.md)。
-
----
-
-## 🧠 核心规则逻辑
-
-系统中包含 40 余种临床扫描器，其详细的触发逻辑、计算公式及严重度定义请参阅：
-
-👉 **[扫描器与计算口径详解 (SCANNERS.md)](file:///d:/icu-alert-system/SCANNERS.md)**
+```bash
+docker-compose down
+```
 
 ---
 
-## ⚙️ 环境变量配置清单
+## 7. 环境变量说明
 
-| 变量名 | 默认值 | 说明 |
+主要变量来自 `backend/.env.example`。
+
+| 变量 | 示例 | 说明 |
 | --- | --- | --- |
-| `SMARTCARE_DB_HOST` | `127.0.0.1` | SmartCare 数据库地址 |
-| `REDIS_HOST` | `127.0.0.1` | Redis 地址 (用于任务队列) |
-| `LLM_MODEL` | `qwen2.5:32b` | 主模型选择 |
-| `LLM_BASE_URL` | - | LLM API 接口地址 |
-| `SECRET_KEY` | - | 应用通信密钥 |
+| `APP_HOST` | `0.0.0.0` | API 监听地址 |
+| `APP_PORT` | `8000` | API 端口 |
+| `SMARTCARE_DB_HOST` | `127.0.0.1` | SmartCare Mongo 地址 |
+| `SMARTCARE_DB_PORT` | `27017` | SmartCare Mongo 端口 |
+| `DATACENTER_DB_HOST` | `127.0.0.1` | DataCenter Mongo 地址 |
+| `DATACENTER_DB_PORT` | `27017` | DataCenter Mongo 端口 |
+| `REDIS_HOST` | `127.0.0.1` | Redis 地址 |
+| `REDIS_PORT` | `6379` | Redis 端口 |
+| `LLM_BASE_URL` | `http://127.0.0.1:11434/v1` | LLM API 基地址 |
+| `LLM_API_KEY` | `your_api_key` | LLM 访问密钥 |
+| `LLM_MODEL` | `qwen2.5:32b` | 主模型名 |
+| `SECRET_KEY` | `change-me` | 系统密钥 |
+| `CORS_ALLOWED_ORIGINS` | `http://127.0.0.1:5173` | CORS 白名单 |
 
 ---
 
-## 📄 许可证
+## 8. 关键工作流
 
-Copyright © 2026 ICU Alert System Team. All rights reserved.
+### 8.1 预警主链路
+
+1. Worker 拉取患者相关数据（监护、检验、装置等）  
+2. 扫描器计算风险并生成告警  
+3. 告警入库并可通过 WebSocket / API 提供给前端  
+4. 前端在总览、大屏、患者详情中展示并支持审核闭环
+
+### 8.2 前端构建与静态同步
+
+`frontend/package.json` 中：
+
+- `npm run build` 会执行 `postbuild`
+- `postbuild` 脚本会把前端产物同步到 `backend/static`
+
+因此只要在 `frontend/` 构建成功，后端静态资源会自动更新。
+
+---
+
+## 9. 开发与构建命令
+
+### 前端
+
+```bash
+cd frontend
+npm run dev       # 开发
+npm run build     # 生产构建 + 同步到 backend/static
+npm run preview   # 本地预览构建产物
+```
+
+### 后端
+
+```bash
+cd backend
+python run_server.py
+python run_scan_worker.py
+```
+
+---
+
+## 10. 打包发布
+
+按目标环境使用仓库根目录脚本：
+
+- Windows EXE：`build_exe.ps1` / `build_exe.bat`
+- Linux：`build.sh` / `build-universal.sh`
+- GPU/特定环境：`build-gpu.sh`、`Dockerfile.gpu-build` 等
+
+详细请参考：
+
+- [EXE_BUILD.md](EXE_BUILD.md)
+- [LINUX_BINARY_BUILD.md](LINUX_BINARY_BUILD.md)
+- [OEL8_BUILD.md](OEL8_BUILD.md)
+
+---
+
+## 11. 常见问题排查
+
+### 11.1 前端能开但没有数据
+
+- 检查后端 `8000` 端口是否启动
+- 检查 `backend/.env` 的数据库与 Redis 是否可连接
+- 访问 `/health` 验证 API 状态
+
+### 11.2 预警不刷新 / 不生成
+
+- 检查 `run_scan_worker.py` 是否在运行
+- 检查 Redis 连通性与鉴权配置
+- 查看后端日志是否有扫描器异常
+
+### 11.3 页面加载慢
+
+- 先看浏览器 Network 是否出现后端超时
+- 检查 Redis/Mongo 延迟
+- 排查是否同时触发大量患者级详情请求
+
+### 11.4 构建成功但页面资源未更新
+
+- 确认执行的是 `frontend` 下的 `npm run build`
+- 确认 `postbuild` 日志出现 `synced frontend dist to .../backend/static`
+
+---
+
+## 12. 相关文档
+
+- 扫描器与风险口径：[SCANNERS.md](SCANNERS.md)
+- 可执行打包：[EXE_BUILD.md](EXE_BUILD.md)
+- Linux 二进制构建：[LINUX_BINARY_BUILD.md](LINUX_BINARY_BUILD.md)
+- OEL8 构建：[OEL8_BUILD.md](OEL8_BUILD.md)
+
+---
+
+如需我再补一版 **“面向新同事入门（含系统架构图 + API 清单）”**，我可以继续在 `docs/` 下补齐并在 README 增加跳转。
+
