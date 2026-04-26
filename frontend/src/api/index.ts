@@ -31,7 +31,7 @@ const alertsApi = axios.create({
 // AI 调用可能耗时较长，单独加长超时
 const aiApi = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
-  timeout: 90000,
+  timeout: 120000,
 })
 
 // 获取科室列表
@@ -273,6 +273,12 @@ export const getAiFeedbackSummary = (params?: { days?: number; limit?: number })
 
 export const getAiMonitorSummary = (params?: { date?: string }) =>
   aiApi.get('/api/ai/monitor/summary', { params })
+
+export const postAiConsultChat = (payload: {
+  message: string
+  patient_id?: string
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>
+}) => aiApi.post('/api/ai/chat-consult', payload)
 
 // AI/RAG: 离线知识片段详情
 export const getKnowledgeChunk = (chunkId: string) =>

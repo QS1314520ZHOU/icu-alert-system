@@ -150,8 +150,8 @@ class AppConfig:
         return (
             llm_cfg.get("fast_model")
             or self.yaml_cfg.get("ai", {}).get("llm_fast_model")
-            or self.llm_model_medical
             or self.settings.LLM_MODEL
+            or self.llm_model_medical
         )
 
     @property

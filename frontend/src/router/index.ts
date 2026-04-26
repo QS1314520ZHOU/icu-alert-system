@@ -34,6 +34,12 @@ const router = createRouter({
       meta: { title: 'AI运营中心', useAntdTheme: true }
     },
     {
+      path: '/ai-consult',
+      name: 'ai-consult',
+      component: () => import('../views/AiConsult.vue'),
+      meta: { title: 'AI问诊', useAntdTheme: true }
+    },
+    {
       path: '/research-export',
       name: 'research-export',
       component: () => import('../views/ResearchExport.vue'),

@@ -72,6 +72,18 @@
           </div>
         </div>
       </div>
+      <div class="hero-visual">
+        <PatientBodyMapPanel
+          :organ-states="patientBodyMapStates"
+          :organ-details="patientBodyMapDetails"
+          :selected-organ="selectedBodyOrgan"
+          :modi="latestCompositeModi"
+          :organ-count="latestCompositeOrganCount"
+          :silhouette="patientSilhouette"
+          @organ-click="handleBodyOrganClick"
+          @open-alerts="openRescueAlerts"
+        />
+      </div>
       <div class="hero-side">
         <div class="hero-vitals-head">
           <div>
@@ -132,7 +144,17 @@
         </div>
         <div v-else class="vitals-empty">暂无监护数据</div>
       </a-card>
+      <a-card title="装置位置图" :bordered="false" class="info-card">
+        <PatientDeviceBodyMap :markers="deviceBodyMarkers" />
+      </a-card>
     </div>
+
+    <PatientDeviceHaiBundlePanel
+      :alerts="alerts"
+      :markers="deviceBodyMarkers"
+      @open-alerts="openRescueAlerts"
+      @focus-alert-types="handleDeviceHaiAlertFocus"
+    />
 
     <section class="weaning-strip">
       <div :class="['weaning-card', `weaning-card--${weaningRiskTone}`]">
@@ -327,6 +349,8 @@
             :ai-risk-explainability-rows="aiRiskExplainabilityRows"
             :format-alert-extra="formatAlertExtra"
             :acknowledge-alert="acknowledgeAlert"
+            :focused-organ="selectedBodyOrgan"
+            :focused-alert-types="focusedAlertTypes"
           />
         </a-tab-pane>
 
@@ -489,6 +513,7 @@ import {
 } from 'ant-design-vue'
 import {
   getPatientDetail,
+  getPatientBedcard,
   getPatientPersonalizedThresholdHistory,
   getPatientPersonalizedThresholds,
   getPatientVitals,
@@ -534,6 +559,11 @@ import {
 } from '../charts/icuTheme'
 import { getOperatorIdentity } from '../utils/operatorIdentity'
 import { onAlertMessage } from '../services/alertSocket'
+import {
+  buildDeviceMarkers,
+  buildPatientOrganStateFromAlerts,
+  normalizeBodyMapOrganKey,
+} from '../utils/bodyMap'
 
 const PatientTrendTab = defineAsyncComponent(() => import('../components/patient-detail/TrendTab.vue'))
 const PatientWaveformTab = defineAsyncComponent(() => import('../components/patient-detail/WaveformTab.vue'))
@@ -550,6 +580,9 @@ const PatientEcashBundleTab = defineAsyncComponent(() => import('../components/p
 const PatientMobilityTab = defineAsyncComponent(() => import('../components/patient-detail/MobilityTab.vue'))
 const PatientPeRiskTab = defineAsyncComponent(() => import('../components/patient-detail/PeRiskTab.vue'))
 const PatientEvidenceModal = defineAsyncComponent(() => import('../components/patient-detail/EvidenceModal.vue'))
+const PatientBodyMapPanel = defineAsyncComponent(() => import('../components/patient-detail/BodyMapPanel.vue'))
+const PatientDeviceBodyMap = defineAsyncComponent(() => import('../components/patient-detail/DeviceBodyMap.vue'))
+const PatientDeviceHaiBundlePanel = defineAsyncComponent(() => import('../components/patient-detail/DeviceHaiBundlePanel.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -559,9 +592,12 @@ function normalizeDetailTab(raw: any) {
   return detailTabKeys.has(key) ? key : 'trend'
 }
 const patient = ref<any>(null)
+const bedcard = ref<any>(null)
 const vitals = ref<any>(null)
 const activeTab = ref(normalizeDetailTab(route.query.tab))
 const tabsAnchor = ref<HTMLElement | null>(null)
+const selectedBodyOrgan = ref('respiratory')
+const focusedAlertTypes = ref<string[]>([])
 
 const trendWindow = ref('24h')
 const trendPoints = ref<any[]>([])
@@ -706,6 +742,12 @@ const displayGenderAge = computed(() =>
     .filter(Boolean)
     .join(' ')
 )
+const patientSilhouette = computed<'female' | 'male'>(() => {
+  const text = String(patient.value?.gender || patient.value?.genderText || patient.value?.hisSex || '').toLowerCase()
+  if (text.includes('female') || text.includes('女')) return 'female'
+  if (text.includes('male') || text.includes('男')) return 'male'
+  return 'female'
+})
 const heroMonitorUpdatedAt = computed(() => fmtTime(vitals.value?.time) || '—')
 const heroFactRows = computed(() => [
   { label: '患者', value: displayName.value },
@@ -955,6 +997,37 @@ async function openRescueAlerts() {
   tabsAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+async function handleBodyOrganClick(key: string) {
+  const nextKey = String(key || '').trim()
+  if (!nextKey) return
+  focusedAlertTypes.value = []
+  if (activeTab.value === 'alerts' && selectedBodyOrgan.value === nextKey) {
+    selectedBodyOrgan.value = ''
+    await nextTick()
+  }
+  selectedBodyOrgan.value = nextKey
+  await openRescueAlerts()
+}
+
+async function handleDeviceHaiAlertFocus(types: string[], organKey?: string) {
+  const nextTypes = Array.from(new Set((Array.isArray(types) ? types : []).map((item) => String(item || '').trim()).filter(Boolean)))
+  const sameTypes = nextTypes.join('|') === focusedAlertTypes.value.join('|')
+  const nextOrgan = organKey ? String(organKey || '').trim() : ''
+  const sameOrgan = !nextOrgan || selectedBodyOrgan.value === nextOrgan
+  if (activeTab.value === 'alerts' && sameTypes && sameOrgan) {
+    focusedAlertTypes.value = []
+    if (nextOrgan) {
+      selectedBodyOrgan.value = ''
+    }
+    await nextTick()
+  }
+  focusedAlertTypes.value = nextTypes
+  if (nextOrgan) {
+    selectedBodyOrgan.value = nextOrgan
+  }
+  await openRescueAlerts()
+}
+
 async function openTopicTab(tab: string) {
   activeTab.value = tab
   await nextTick()
@@ -1000,6 +1073,29 @@ const latestCompositeInvolvedText = computed(() => {
     .filter(Boolean)
   return names.length ? `涉及系统: ${names.join(' / ')}` : '涉及系统: 暂无'
 })
+
+const patientBodyMapStates = computed(() => buildPatientOrganStateFromAlerts(alerts.value))
+const patientBodyMapDetails = computed(() => {
+  const aiRows = aiRiskOrganRows(latestAiRiskAlert.value)
+  const aiMap = new Map<string, any>()
+  aiRows.forEach((row: any) => {
+    const key = normalizeBodyMapOrganKey(row?.key)
+    if (!key) return
+    aiMap.set(key, row)
+  })
+  return compositeOrganOrder.map((key) => {
+    const aiRow = aiMap.get(key)
+    const label = compositeOrganLabelDefault[key] || key
+    const alertCount = Number(latestCompositeExtra.value?.organ_alert_counts?.[key] || 0)
+    return {
+      key,
+      label,
+      status_text: aiRow?.status_text || undefined,
+      evidence: aiRow?.evidence || (alertCount ? `近 ${latestCompositeWindowHours.value}h 关联 ${alertCount} 条预警` : ''),
+    }
+  })
+})
+const deviceBodyMarkers = computed(() => buildDeviceMarkers({ alerts: alerts.value, bedcard: bedcard.value }))
 
 
 const ecashAlertTypes = new Set(['liberation_bundle', 'ecash_pain_overdue', 'ecash_pain_uncontrolled', 'ecash_rass_off_target', 'ecash_sat_due', 'ecash_benzo_in_use', 'ecash_sat_stress_reaction', 'sedation', 'delirium_risk', 'sedation_delirium_conversion'])
@@ -3263,7 +3359,10 @@ async function loadAiAll() {
 
 function resetDetailState() {
   patient.value = null
+  bedcard.value = null
   vitals.value = null
+  selectedBodyOrgan.value = 'respiratory'
+  focusedAlertTypes.value = []
   trendPoints.value = []
   waveformSelectedChannel.value = ''
   waveformChannels.value = []
@@ -3377,15 +3476,30 @@ async function loadDetailPage() {
         console.error('加载生命体征失败', e)
       }
     })(),
-    loadTrend(),
-    loadLabs(),
-    loadDrugs(),
-    loadAssessments(),
+    (async () => {
+      try {
+        const res = await getPatientBedcard(patientId)
+        bedcard.value = res.data?.data || null
+      } catch (e) {
+        console.error('加载床旁概览卡失败', e)
+      }
+    })(),
     loadAlerts(),
-    loadPersonalizedThresholds(),
     loadSepsisBundleStatus(),
     loadWeaningStatus(),
   ])
+
+  // 二阶段加载：将非首屏请求后置，避免与核心数据并发抢占导致“点开患者很慢”。
+  setTimeout(() => {
+    void Promise.allSettled([
+      loadTrend(),
+      loadLabs(),
+      loadDrugs(),
+      loadAssessments(),
+      loadPersonalizedThresholds(),
+    ])
+  }, 0)
+
   if (activeTab.value === 'similar' || !similarCaseLoaded.value) {
     void loadSimilarCaseReview()
   }
@@ -3401,6 +3515,19 @@ async function loadDetailPage() {
 watch(trendWindow, () => {
   if (activeTab.value === 'trend') loadTrend()
 })
+
+watch(patientBodyMapStates, (next) => {
+  const entries = Object.entries(next || {})
+  const top = entries
+    .sort((a, b) => {
+      const rank = (value: string) => ({ normal: 0, warning: 1, high: 2, critical: 3 } as Record<string, number>)[String(value || 'normal')] || 0
+      return rank(String(b[1])) - rank(String(a[1]))
+    })[0]
+  const selectedKey = selectedBodyOrgan.value as keyof typeof next
+  if (!selectedBodyOrgan.value || (top && String((next as any)?.[selectedKey] || 'normal') === 'normal')) {
+    selectedBodyOrgan.value = String(top?.[0] || 'respiratory')
+  }
+}, { immediate: true })
 
 watch(waveformHours, () => {
   if (activeTab.value === 'waveform') void loadWaveform()
@@ -3527,7 +3654,7 @@ onBeforeUnmount(() => {
 }
 .monitor-hero {
   display: grid;
-  grid-template-columns: 1.7fr 1.15fr;
+  grid-template-columns: 1.45fr 1.05fr 0.95fr;
   gap: 14px;
   margin-bottom: 16px;
   padding: 16px;
@@ -3543,6 +3670,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 10px;
   justify-content: center;
+}
+.hero-visual {
+  min-width: 0;
 }
 .hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2px; }
 .hero-tag {
@@ -3970,7 +4100,7 @@ onBeforeUnmount(() => {
 .weaning-sbt-pill.is-documented { color: #38bdf8; border-color: rgba(56, 189, 248, .24); }
 .detail-content {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(420px, 2fr);
+  grid-template-columns: minmax(240px, .9fr) minmax(360px, 1.6fr) minmax(320px, 1.2fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -4976,6 +5106,12 @@ html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
 html[data-theme='light'] .ai-error { color: #dc2626; }
 
 @media (max-width: 1500px) {
+  .monitor-hero {
+    grid-template-columns: 1.25fr 0.95fr;
+  }
+  .hero-main {
+    grid-column: 1 / -1;
+  }
   .ai-grid {
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   }

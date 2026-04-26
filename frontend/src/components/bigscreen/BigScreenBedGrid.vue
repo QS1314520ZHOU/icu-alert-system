@@ -28,6 +28,9 @@
         <div class="bed-diag-label">当前诊断</div>
         <div class="bed-diag">{{ shortDiag(patient.clinicalDiagnosis || patient.admissionDiagnosis) }}</div>
       </div>
+      <div class="bed-bodymap-wrap">
+        <OrganHeatmapFigure compact :organ-states="patient.organMap || {}" :silhouette="silhouetteByGender(patient.gender)" />
+      </div>
       <div class="bed-vitals">
         <div class="vital-cell">
           <span>心率</span>
@@ -101,6 +104,8 @@
 </template>
 
 <script setup lang="ts">
+import OrganHeatmapFigure from '../common/OrganHeatmapFigure.vue'
+
 defineProps<{
   patients: any[]
 }>()
@@ -109,6 +114,13 @@ function genderText(v: any) {
   if (v === 'Male' || v === '男') return '男'
   if (v === 'Female' || v === '女') return '女'
   return '—'
+}
+
+function silhouetteByGender(v: any) {
+  const text = String(v || '').toLowerCase()
+  if (text.includes('female') || text.includes('女')) return 'female'
+  if (text.includes('male') || text.includes('男')) return 'male'
+  return 'female'
 }
 
 function alertText(v: any) {
@@ -350,6 +362,11 @@ function riskSuggestion(value: any) {
   font-size: 11px;
   line-height: 1.4;
   min-height: 30px;
+}
+.bed-bodymap-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
 }
 .bed-vitals {
   display: grid;

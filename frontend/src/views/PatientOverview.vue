@@ -153,6 +153,7 @@ import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } fr
 import { useRoute, useRouter } from 'vue-router'
 import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getRecentAlerts } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
+import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
 const OVERVIEW_CACHE_TTL_MS = 60 * 1000
 const overviewCache = new Map<string, {
@@ -561,6 +562,7 @@ async function load(options?: { silent?: boolean }) {
     const allDepts = dr.data.departments || []
     const ls = pr.data.patients || []
     const recentAlerts = recentAlertRes.data?.records || []
+    const organMapByPatient = buildOrganStateMapByPatient(recentAlerts)
     const rescueSeverityMap = new Map<string, string>()
     const rescuePidSet = new Set(
       recentAlerts
@@ -600,6 +602,7 @@ async function load(options?: { silent?: boolean }) {
       alertLevel: rescueSeverityMap.get(String(p._id)) || 'none',
       hasRescueRisk: rescuePidSet.has(String(p._id)),
       rescueRiskSeverity: rescueSeverityMap.get(String(p._id)) || 'none',
+      organMap: organMapByPatient.get(String(p._id)) || undefined,
     }))
 
     const done = await Promise.all(head.map(async (p: any) => {
@@ -612,6 +615,7 @@ async function load(options?: { silent?: boolean }) {
       }
       p.hasRescueRisk = rescuePidSet.has(String(p._id))
       p.rescueRiskSeverity = rescueSeverity
+      p.organMap = organMapByPatient.get(String(p._id)) || undefined
       return p
     }))
 
@@ -1355,6 +1359,72 @@ html[data-theme='light'] .overview-empty {
   color: #556b86;
 }
 
+.overview {
+  padding: 18px;
+}
+.top-bar {
+  border-radius: 14px;
+  clip-path: none;
+}
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  align-items: stretch;
+}
+.sum-block {
+  min-width: 0;
+  justify-content: center;
+  clip-path: none;
+}
+.sum-divider {
+  display: none;
+}
+.dept-nav {
+  scrollbar-width: thin;
+}
+.tag-chips,
+.filter-summary {
+  align-items: center;
+}
+.command-strip {
+  grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+}
+.lane-stack {
+  gap: 14px;
+}
+.lane-panel {
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+}
+.lane-panel::before {
+  border-radius: 14px 14px 0 0;
+}
+.lane-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+.lane-copy {
+  min-width: 0;
+}
+.lane-grid {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.lane-card-shell {
+  min-width: 0;
+  display: flex;
+}
+.lane-card-shell :deep(.card) {
+  height: 520px;
+  min-height: 520px;
+}
+.lane-brief {
+  align-items: center;
+}
+
 @media (max-width: 900px) {
   .overview {
     padding: 16px;
@@ -1374,13 +1444,20 @@ html[data-theme='light'] .overview-empty {
     font-size: 16px;
   }
   .lane-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .command-strip {
     grid-template-columns: 1fr;
   }
   .lane-brief {
     flex-direction: column;
+  }
+  .lane-head {
+    grid-template-columns: 1fr;
+  }
+  .lane-card-shell :deep(.card) {
+    height: auto;
+    min-height: 0;
   }
 }
 </style>

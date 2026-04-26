@@ -174,9 +174,28 @@ async def call_llm_chat(
                 {"role": "user", "content": user_prompt},
             ],
         }
-        resp = await req_client.post(llm_url, json=payload, headers=headers)
-        resp.raise_for_status()
-        return resp.json()
+        max_retries = 3
+        for attempt in range(max_retries + 1):
+            resp = await req_client.post(llm_url, json=payload, headers=headers)
+            if resp.status_code != 429 or attempt == max_retries:
+                resp.raise_for_status()
+                return resp.json()
+            # Respect Retry-After header; fall back to exponential backoff
+            retry_after = resp.headers.get("retry-after")
+            if retry_after:
+                try:
+                    wait = min(float(retry_after), 30.0)
+                except (ValueError, TypeError):
+                    wait = 2.0 ** (attempt + 1)
+            else:
+                wait = 2.0 ** (attempt + 1)   # 2s, 4s, 8s
+            logger.warning(
+                "LLM 429 rate-limited (attempt %d/%d), retrying in %.1fs …",
+                attempt + 1, max_retries, wait,
+            )
+            await asyncio.sleep(wait)
+        # Should never reach here, but satisfy type checker
+        raise RuntimeError("LLM retry loop exited unexpectedly")
 
     if client is None:
         req_client_ctx = httpx.AsyncClient(timeout=httpx.Timeout(timeout_seconds))

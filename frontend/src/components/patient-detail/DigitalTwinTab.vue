@@ -32,13 +32,24 @@
           </div>
           <span :class="['risk-badge', hasTwinSnapshot ? 'is-low' : 'is-medium']">{{ hasTwinSnapshot ? '快照已接入' : '等待快照' }}</span>
         </div>
-        <div class="summary-panel">{{ twinOverviewSummary }}</div>
-        <div class="overview-grid">
-          <article v-for="item in twinOverviewCards" :key="item.label" class="overview-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-            <small>{{ item.meta }}</small>
-          </article>
+        <div class="twin-overview-split">
+          <DigitalTwinAvatarPanel
+            :snapshot="twinSnapshot"
+            :vitals-snapshot="twinVitals?.snapshot || {}"
+            :scores="twinRecord?.scores || {}"
+            :calc-time="fmtTime(twinRecord?.calc_time)"
+            :silhouette="patientSilhouette"
+          />
+          <div class="twin-overview-copy">
+            <div class="summary-panel">{{ twinOverviewSummary }}</div>
+            <div class="overview-grid">
+              <article v-for="item in twinOverviewCards" :key="item.label" class="overview-item">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+                <small>{{ item.meta }}</small>
+              </article>
+            </div>
+          </div>
         </div>
         <div class="chip-row">
           <span v-for="item in twinMetricChips" :key="item.label" class="info-chip">{{ item.label }} {{ item.value }}</span>
@@ -195,6 +206,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import DigitalTwinAvatarPanel from './DigitalTwinAvatarPanel.vue'
 import {
   getAiClinicalReasoning,
   getAiMultiAgentAssessment,
@@ -238,6 +250,12 @@ const twinSnapshot = computed(() => twinRecord.value?.snapshot || {})
 const twinPatient = computed(() => twinRecord.value?.patient || {})
 const twinVitals = computed(() => twinRecord.value?.vitals || {})
 const twinSummary = computed(() => twinRecord.value?.summary || {})
+const patientSilhouette = computed<'female' | 'male'>(() => {
+  const text = String(patient.value?.gender || patient.value?.genderText || patient.value?.hisSex || '').toLowerCase()
+  if (text.includes('female') || text.includes('女')) return 'female'
+  if (text.includes('male') || text.includes('男')) return 'male'
+  return 'female'
+})
 const planRecord = computed(() => proactivePlan.value?.plan || proactivePlan.value || {})
 const reasoningRecord = computed(() => reasoningPlan.value?.plan || reasoningPlan.value || {})
 const mdtRecord = computed(() => mdtAssessment.value?.assessment || mdtAssessment.value || {})
@@ -576,6 +594,8 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .curve-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22d3ee, #38bdf8); }
 .causal-fill { background: linear-gradient(90deg, #f59e0b, #fb7185); }
 .overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.twin-overview-split { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.twin-overview-copy { display: grid; gap: 12px; }
 .overview-item { display: grid; gap: 4px; }
 .overview-item span,.overview-item small { color: #8fb4c8; font-size: 12px; }
 .overview-item strong { color: #f4fbff; font-size: 16px; }
@@ -626,7 +646,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .effect-box.is-stable { background: rgba(56,189,248,.14); }
 .mdt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .error-panel { background: rgba(127,29,29,.22); border: 1px solid rgba(248,113,113,.26); color: #fecaca; }
-@media (max-width: 900px) { .overview-grid,.timeline-item { grid-template-columns: 1fr; } .timeline-rail { justify-items: start; padding-right: 0; padding-bottom: 8px; } .timeline-time { text-align: left; } .timeline-line { left: 5px; right: auto; top: 32px; bottom: -8px; } }
+@media (max-width: 900px) { .overview-grid,.timeline-item,.twin-overview-split { grid-template-columns: 1fr; } .timeline-rail { justify-items: start; padding-right: 0; padding-bottom: 8px; } .timeline-time { text-align: left; } .timeline-line { left: 5px; right: auto; top: 32px; bottom: -8px; } }
 @media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
 @media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
 

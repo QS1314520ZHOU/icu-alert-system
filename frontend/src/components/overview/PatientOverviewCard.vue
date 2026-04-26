@@ -1,6 +1,9 @@
 <template>
   <article
+    ref="cardEl"
     :class="['card', `card--${patient.alertLevel || 'none'}`, { 'card--flash': patient.alertFlash }]"
+    @mouseenter="handleCardIntent"
+    @focusin="handleCardIntent"
     @click="emit('select', patient._id)"
   >
     <section class="sec-top">
@@ -45,6 +48,25 @@
         <div v-for="v in vitalsData" :key="v.key" :class="['vital-item', `vital-item--${v.key}`, v.colorClass]">
           <span class="v-label">{{ v.label }}</span>
           <span class="v-val">{{ v.value }}<small v-if="v.unit && v.value !== '--'">{{ v.unit }}</small></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec-risk-fingerprint">
+      <div class="section-head">
+        <span class="section-title">器官风险指纹</span>
+        <span class="section-desc">6 轴扫描</span>
+      </div>
+      <div class="risk-fingerprint">
+        <OrganRiskRadar :scores="organRadarScores" :size="104" />
+        <div class="risk-fingerprint__chips">
+          <span
+            v-for="chip in organRiskChips"
+            :key="chip.key"
+            :class="['risk-fingerprint__chip', `is-${chip.severity}`]"
+          >
+            {{ chip.label }} · {{ chip.text }}
+          </span>
         </div>
       </div>
     </section>
@@ -292,11 +314,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { getPatientBedcard } from '../../api'
+import OrganRiskRadar from '../common/OrganRiskRadar.vue'
 import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
+import {
+  BODY_MAP_ORGAN_LABELS,
+  BODY_MAP_ORGAN_ORDER,
+  bodyMapSeverityText,
+  organStateMapToScores,
+  normalizeBodyMapSeverity,
+} from '../../utils/bodyMap'
 
-const bedcardCache = new Map<string, any>()
+const BEDCARD_CACHE_TTL_MS = 60 * 1000
+const BEDCARD_FAIL_COOLDOWN_MS = 20 * 1000
+const BEDCARD_MAX_CONCURRENT = 4
+const bedcardCache = new Map<string, { data: any; expiresAt: number }>()
+const bedcardInFlight = new Map<string, Promise<any>>()
+const bedcardFailCooldown = new Map<string, number>()
+const bedcardRequestQueue: Array<() => void> = []
+let bedcardActiveRequests = 0
 
 const props = defineProps<{
   patient: any
@@ -308,6 +345,9 @@ const emit = defineEmits<{
 
 const bedcard = ref<any>(null)
 const showAllTubes = ref(false)
+const cardEl = ref<HTMLElement | null>(null)
+const shouldLoadBedcard = ref(false)
+let cardObserver: IntersectionObserver | null = null
 const genderLabel = computed(() => props.patient?.gender === 'Female' ? '女' : props.patient?.gender === 'Male' ? '男' : '—')
 const alertStatus = computed(() => {
   const map: Record<string, string> = {
@@ -349,6 +389,20 @@ const formattedTubesList = computed(() => {
   return bedcard.value?.tubes || []
 })
 
+const organRadarScores = computed(() => organStateMapToScores(props.patient?.organMap || {}))
+const organRiskChips = computed(() =>
+  BODY_MAP_ORGAN_ORDER.map((key) => {
+    const severity = normalizeBodyMapSeverity(props.patient?.organMap?.[key])
+    return {
+      key,
+      label: BODY_MAP_ORGAN_LABELS[key],
+      severity,
+      text: bodyMapSeverityText(severity),
+    }
+  }).filter((item) => item.severity !== 'normal' || organRadarScores.value.every((score) => score === 0))
+    .slice(0, 4)
+)
+
 const alertNotes = computed(() => {
   const list = Array.isArray(bedcard.value?.alert_notes) ? bedcard.value.alert_notes : []
   return list.slice(0, 2).map((item: any) => normalizeAlertTextPayload(item))
@@ -380,26 +434,143 @@ const monitorUpdatedText = computed(() => {
   return text ? `更新 ${text}` : '时间未知'
 })
 
+function getCacheKey() {
+  return props.patient?._id ? String(props.patient._id) : ''
+}
+
+function tryUseCachedBedcard(cacheKey: string, now = Date.now()) {
+  const cached = bedcardCache.get(cacheKey)
+  if (!cached) return false
+  if (cached.expiresAt <= now) {
+    bedcardCache.delete(cacheKey)
+    return false
+  }
+  bedcard.value = cached.data
+  return true
+}
+
+function primeBedcardCache(cacheKey: string, data: any) {
+  bedcardCache.set(cacheKey, {
+    data,
+    expiresAt: Date.now() + BEDCARD_CACHE_TTL_MS,
+  })
+}
+
+function dequeueBedcardRequest() {
+  if (bedcardActiveRequests >= BEDCARD_MAX_CONCURRENT) return
+  const next = bedcardRequestQueue.shift()
+  if (next) next()
+}
+
+function runBedcardRequest<T>(task: () => Promise<T>) {
+  return new Promise<T>((resolve, reject) => {
+    const execute = () => {
+      bedcardActiveRequests += 1
+      task()
+        .then(resolve)
+        .catch(reject)
+        .finally(() => {
+          bedcardActiveRequests = Math.max(0, bedcardActiveRequests - 1)
+          dequeueBedcardRequest()
+        })
+    }
+    if (bedcardActiveRequests < BEDCARD_MAX_CONCURRENT) {
+      execute()
+    } else {
+      bedcardRequestQueue.push(execute)
+    }
+  })
+}
+
 async function loadBedcard() {
   if (!props.patient?._id) return
-  const cacheKey = String(props.patient._id)
-  if (bedcardCache.has(cacheKey)) {
-    bedcard.value = bedcardCache.get(cacheKey)
+  const cacheKey = getCacheKey()
+  const now = Date.now()
+  if (!cacheKey) return
+  if (tryUseCachedBedcard(cacheKey, now)) {
     return
   }
-  try {
+  const cooldownUntil = bedcardFailCooldown.get(cacheKey) || 0
+  if (cooldownUntil > now) return
+  const existing = bedcardInFlight.get(cacheKey)
+  if (existing) {
+    try {
+      const data = await existing
+      if (data) bedcard.value = data
+    } catch {
+      // noop: 失败由创建请求处处理
+    }
+    return
+  }
+  const request = runBedcardRequest(async () => {
     const res = await getPatientBedcard(props.patient._id)
     if (res.data?.code === 0) {
-      bedcard.value = res.data.data
-      bedcardCache.set(cacheKey, res.data.data)
+      const data = res.data.data || null
+      primeBedcardCache(cacheKey, data)
+      bedcardFailCooldown.delete(cacheKey)
+      return data
     }
+    throw new Error('bedcard response invalid')
+  })
+  bedcardInFlight.set(cacheKey, request)
+  try {
+    const data = await request
+    bedcard.value = data
   } catch (err) {
+    bedcardFailCooldown.set(cacheKey, now + BEDCARD_FAIL_COOLDOWN_MS)
     console.error('Failed to load bedcard:', err)
+  } finally {
+    bedcardInFlight.delete(cacheKey)
   }
 }
 
-onMounted(loadBedcard)
-watch(() => props.patient?._id, loadBedcard)
+function handleCardIntent() {
+  if (shouldLoadBedcard.value) return
+  shouldLoadBedcard.value = true
+  void loadBedcard()
+}
+
+onMounted(() => {
+  if (!cardEl.value || typeof IntersectionObserver === 'undefined') {
+    handleCardIntent()
+    return
+  }
+  cardObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return
+    handleCardIntent()
+    cardObserver?.disconnect()
+    cardObserver = null
+  }, { rootMargin: '180px 0px', threshold: 0.05 })
+  cardObserver.observe(cardEl.value)
+})
+
+onBeforeUnmount(() => {
+  if (cardObserver) {
+    cardObserver.disconnect()
+    cardObserver = null
+  }
+})
+
+watch(() => props.patient?._id, () => {
+  bedcard.value = null
+  showAllTubes.value = false
+  shouldLoadBedcard.value = false
+  if (cardObserver) {
+    cardObserver.disconnect()
+    cardObserver = null
+  }
+  if (!cardEl.value || typeof IntersectionObserver === 'undefined') {
+    handleCardIntent()
+    return
+  }
+  cardObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return
+    handleCardIntent()
+    cardObserver?.disconnect()
+    cardObserver = null
+  }, { rootMargin: '180px 0px', threshold: 0.05 })
+  cardObserver.observe(cardEl.value)
+})
 
 function vitalClass(type: string, val: any) {
   if (val == null) return ''
@@ -663,16 +834,16 @@ function bundleLights(patient: any) {
 
 .card {
   width: 100%;
-  min-height: 330px;
-  max-height: 420px;
+  min-height: 520px;
+  max-height: none;
   background:
     radial-gradient(circle at top right, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 28%),
     linear-gradient(180deg, rgba(7, 20, 34, 0.98) 0%, rgba(4, 12, 22, 0.99) 100%);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   cursor: pointer;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   overflow-y: auto;
@@ -684,7 +855,7 @@ function bundleLights(patient: any) {
 }
 .card::-webkit-scrollbar { display: none; }
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   border-color: rgba(103, 232, 249, 0.34);
   box-shadow: 0 20px 38px rgba(2, 6, 23, 0.5), 0 0 18px rgba(34, 211, 238, 0.1);
 }
@@ -746,7 +917,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 .patient-identity {
   display: flex;
@@ -755,7 +926,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   min-width: 0;
 }
 .bed-no {
-  min-width: 60px;
+  min-width: 54px;
   padding: 6px 10px;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(9, 45, 70, 0.98) 0%, rgba(6, 25, 42, 0.98) 100%);
@@ -850,8 +1021,8 @@ section { display: flex; flex-direction: column; gap: 7px; }
 }
 .status-badge {
   flex-shrink: 0;
-  min-width: 92px;
-  min-height: 52px;
+  min-width: 74px;
+  min-height: 40px;
   padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid transparent;
@@ -865,7 +1036,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   box-shadow: inset 0 0 0 1px rgba(109, 216, 255, 0.05);
 }
 .status-badge strong {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.1;
   letter-spacing: 0.04em;
 }
@@ -909,12 +1080,13 @@ section { display: flex; flex-direction: column; gap: 7px; }
 }
 
 .sec-vitals,
+.sec-risk-fingerprint,
 .sec-rescue-spotlight,
 .sec-logistics,
 .sec-alerts,
 .sec-summary,
 .sec-footer {
-  padding: 10px;
+  padding: 9px;
   background: linear-gradient(180deg, rgba(5, 18, 31, 0.92) 0%, rgba(7, 16, 28, 0.86) 100%);
   border: 1px solid rgba(71, 196, 255, 0.12);
   border-radius: 10px;
@@ -987,11 +1159,36 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .vital-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
+.risk-fingerprint {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.risk-fingerprint__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.risk-fingerprint__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(8, 28, 44, 0.82);
+  border: 1px solid rgba(80,199,255,.14);
+  color: #dffbff;
+  font-size: 11px;
+}
+.risk-fingerprint__chip.is-warning { color: #fde68a; border-color: rgba(245,158,11,.22); }
+.risk-fingerprint__chip.is-high { color: #fed7aa; border-color: rgba(249,115,22,.24); }
+.risk-fingerprint__chip.is-critical { color: #fecdd3; border-color: rgba(244,63,94,.24); }
 .vital-item {
-  min-height: 96px;
-  padding: 12px 16px 12px;
+  min-height: 76px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(8, 31, 49, 0.98) 0%, rgba(6, 21, 35, 0.98) 100%);
   border: 1px solid rgba(71, 196, 255, 0.14);
@@ -1022,7 +1219,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   text-shadow: 0 0 10px rgba(110, 231, 249, 0.12);
 }
 .vital-item--bp .v-val {
-  font-size: 32px;
+  font-size: 26px;
 }
 .v-val small {
   font-size: 14px;
@@ -1823,6 +2020,7 @@ html[data-theme='light'] .sec-vitals {
   border-radius: 10px;
 }
 html[data-theme='light'] .sec-vitals,
+html[data-theme='light'] .sec-risk-fingerprint,
 html[data-theme='light'] .sec-logistics,
 html[data-theme='light'] .sec-alerts,
 html[data-theme='light'] .sec-summary,
@@ -2010,6 +2208,11 @@ html[data-theme='light'] .mini--unknown { background: #CBD5E1; color: #475569; b
 html[data-theme='light'] .tube-toggle {
   color: #2563EB;
 }
+html[data-theme='light'] .risk-fingerprint__chip {
+  background: rgba(255,255,255,.96);
+  border-color: rgba(130, 170, 194, 0.24);
+  color: #27445b;
+}
 
 @media (max-width: 640px) {
   .card {
@@ -2044,6 +2247,10 @@ html[data-theme='light'] .tube-toggle {
     max-width: none;
     width: 100%;
     justify-content: flex-start;
+  }
+  .risk-fingerprint {
+    grid-template-columns: 1fr;
+    justify-items: center;
   }
 }
 </style>

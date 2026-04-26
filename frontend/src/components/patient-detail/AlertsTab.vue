@@ -78,6 +78,43 @@
         </section>
       </div>
     </div>
+    <div v-if="organFocusGroups.length" class="organ-focus-suite">
+      <div class="organ-focus-suite__head">
+        <div>
+          <div class="organ-focus-suite__title">器官关联告警定位</div>
+          <div class="organ-focus-suite__sub">点击人体图后将自动滚动到对应器官分组，并列出 MODI 关联源告警。</div>
+        </div>
+        <span v-if="focusedOrganLabel" class="organ-focus-suite__pill">当前定位 {{ focusedOrganLabel }}</span>
+      </div>
+      <div class="organ-focus-suite__grid">
+        <article
+          v-for="group in organFocusGroups"
+          :key="group.key"
+          :data-organ-group="group.key"
+          :class="['organ-focus-card', `sev-${severityClass(group.severity)}`, { 'is-active': props.focusedOrgan === group.key }]"
+        >
+          <div class="organ-focus-card__head">
+            <div>
+              <div class="organ-focus-card__name">{{ group.label }}</div>
+              <div class="organ-focus-card__meta">{{ group.rows.length }} 条关联源告警</div>
+            </div>
+            <span :class="['group-pill', `sev-${severityClass(group.severity)}`]">{{ severityText(group.severity) }}</span>
+          </div>
+          <div class="organ-focus-card__list">
+            <button
+              v-for="(row, rowIdx) in group.rows.slice(0, 4)"
+              :key="`${group.key}-${row.alert_type || rowIdx}`"
+              type="button"
+              class="organ-focus-card__item"
+              @click="scrollToAlertCard(row)"
+            >
+              <span>{{ sourceAlertDisplayName(row) }}</span>
+              <small>{{ fmtTime(row.time) || '—' }}</small>
+            </button>
+          </div>
+        </article>
+      </div>
+    </div>
     <div v-if="latestWeaningStatus?.weaning?.has_assessment || latestWeaningAlert || latestPostExtubationAlert" class="weaning-brief">
       <div class="weaning-brief-head">
         <div>
@@ -213,6 +250,10 @@
       <article
         v-for="(item, idx) in alerts"
         :key="item._id || item.created_at || idx"
+        :data-alert-type="String(item?.alert_type || '')"
+        :data-alert-name="String(item?.name || item?.rule_id || '')"
+        :data-alert-created-at="String(item?.created_at || '')"
+        :data-alert-card="alertCardKey(item, idx)"
         :class="['alert-card', `sev-${normalizeSeverity(item.severity)}`]"
       >
         <div class="alert-rail">
@@ -562,11 +603,12 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
+import { computed, defineAsyncComponent, nextTick, toRefs, watch } from 'vue'
 import { Button as AButton, Popover as APopover } from 'ant-design-vue'
 import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel } from '../../utils/displayLabels'
+import { BODY_MAP_ORGAN_LABELS, BODY_MAP_ORGAN_ORDER, normalizeBodyMapOrganKey } from '../../utils/bodyMap'
 
-defineProps<{
+const props = defineProps<{
   latestCompositeAlert: any
   latestCompositeWindowHours: any
   latestCompositeModi: any
@@ -605,7 +647,52 @@ defineProps<{
   aiRiskExplainabilityRows: (item: any) => any[]
   formatAlertExtra: (extra: any) => string
   acknowledgeAlert: (item: any, disposition?: string) => void | Promise<void>
+  focusedOrgan?: string
+  focusedAlertTypes?: string[]
 }>()
+
+const {
+  latestCompositeAlert,
+  latestCompositeWindowHours,
+  latestCompositeModi,
+  latestCompositeOrganCount,
+  latestCompositeInvolvedText,
+  compositeRadarOption,
+  latestWeaningAlert,
+  latestWeaningStatus,
+  latestPostExtubationAlert,
+  personalizedThresholdRecord,
+  personalizedThresholdHistory,
+  personalizedThresholdApprovedRecord,
+  personalizedThresholdLoading,
+  personalizedThresholdError,
+  personalizedThresholdReviewing,
+  alerts,
+} = toRefs(props)
+
+const {
+  reviewPersonalizedThreshold,
+  fmtTime,
+  normalizeSeverity,
+  alertSeverityText,
+  formatAlertValue,
+  alertTypeText,
+  alertCategoryText,
+  alertDetailFields,
+  isAiRiskAlert,
+  aiConfidenceClass,
+  aiRiskConfidenceLevel,
+  aiRiskLevelText,
+  feedbackOutcomeText,
+  submitAiFeedback,
+  aiRiskOrganRows,
+  aiRiskValidationIssues,
+  aiRiskHallucinations,
+  aiRiskEvidenceList,
+  openEvidence,
+  aiRiskExplainabilityRows,
+  acknowledgeAlert,
+} = props
 
 const CODE_LABELS: Record<string, string> = {
   extended_scenarios: '扩展场景',
@@ -1149,6 +1236,151 @@ function compositeGroups(alert: any) {
   return Array.isArray(rows) ? rows.filter((x: any) => x && typeof x === 'object') : []
 }
 
+function sourceAlertRows(alert: any) {
+  const rows = compositeExtra(alert)?.source_alerts
+  return Array.isArray(rows) ? rows.filter((x: any) => x && typeof x === 'object') : []
+}
+
+const focusedOrganLabel = computed(() => {
+  const key = normalizeBodyMapOrganKey(props.focusedOrgan)
+  return key ? BODY_MAP_ORGAN_LABELS[key] : ''
+})
+
+const organFocusGroups = computed(() => {
+  const labels = compositeExtra(latestCompositeAlert.value)?.organ_labels_cn || {}
+  const grouped = new Map<string, any[]>()
+  for (const row of sourceAlertRows(latestCompositeAlert.value)) {
+    const organs = Array.isArray(row?.organs) ? row.organs : []
+    for (const rawOrgan of organs) {
+      const key = normalizeBodyMapOrganKey(rawOrgan)
+      if (!key) continue
+      const bucket = grouped.get(key) || []
+      bucket.push(row)
+      grouped.set(key, bucket)
+    }
+  }
+  return BODY_MAP_ORGAN_ORDER
+    .map((key) => {
+      const rows = (grouped.get(key) || []).sort((a: any, b: any) => new Date(b?.time || 0).getTime() - new Date(a?.time || 0).getTime())
+      const severity = rows.reduce((current, row) => {
+        const next = String(row?.severity || 'warning').toLowerCase()
+        return severityWeight(next) > severityWeight(current) ? next : current
+      }, 'normal')
+      return {
+        key,
+        label: labels[key] || BODY_MAP_ORGAN_LABELS[key],
+        rows,
+        severity,
+      }
+    })
+    .filter((item) => item.rows.length)
+})
+
+function alertCardKey(item: any, idx: number) {
+  return String(item?._id || `${item?.alert_type || 'alert'}-${item?.created_at || idx}`)
+}
+
+function sourceAlertDisplayName(row: any) {
+  return String(row?.name || row?.rule_id || alertTypeText(row?.alert_type || '预警')).trim()
+}
+
+function severityWeight(value: any) {
+  return ({ normal: 0, warning: 1, high: 2, critical: 3 } as Record<string, number>)[String(value || 'normal').toLowerCase()] || 0
+}
+
+function scrollToAlertCard(row: any) {
+  focusAlertRow(row)
+}
+
+function flashTarget(target: HTMLElement, className: string) {
+  target.classList.add(className)
+  window.setTimeout(() => target.classList.remove(className), 1800)
+}
+
+function findAlertCardByTypes(types: string[]) {
+  if (typeof document === 'undefined') return null
+  const normalized = new Set(types.map((item) => String(item || '').trim()).filter(Boolean))
+  if (!normalized.size) return null
+  const cards = Array.from(document.querySelectorAll('[data-alert-type]')) as HTMLElement[]
+  return cards.find((card) => normalized.has(String(card.dataset.alertType || '').trim())) || null
+}
+
+function findAlertCardByRow(row: any) {
+  if (typeof document === 'undefined' || !row) return null
+  const type = String(row?.alert_type || '').trim()
+  if (!type) return null
+  const targetName = String(row?.name || row?.rule_id || '').trim()
+  const targetTime = new Date(row?.time || row?.created_at || 0).getTime()
+  const candidates = Array.from(document.querySelectorAll(`[data-alert-type="${type}"]`)) as HTMLElement[]
+  if (!candidates.length) return null
+  if (candidates.length === 1) return candidates[0]
+  const scored = candidates
+    .map((card) => {
+      const cardName = String(card.dataset.alertName || '').trim()
+      const cardTime = new Date(card.dataset.alertCreatedAt || 0).getTime()
+      const nameMatched = targetName && cardName === targetName ? 1 : 0
+      const timeGap = Number.isFinite(targetTime) && Number.isFinite(cardTime) ? Math.abs(cardTime - targetTime) : Number.MAX_SAFE_INTEGER
+      return { card, nameMatched, timeGap }
+    })
+    .sort((a, b) => {
+      if (b.nameMatched !== a.nameMatched) return b.nameMatched - a.nameMatched
+      return a.timeGap - b.timeGap
+    })
+  return scored[0]?.card || null
+}
+
+function focusAlertTypes(types: string[]) {
+  const target = findAlertCardByTypes(types)
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    flashTarget(target, 'alert-card--flash')
+  }
+}
+
+function focusAlertRow(row: any) {
+  const target = findAlertCardByRow(row)
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    flashTarget(target, 'alert-card--flash')
+    return
+  }
+  const type = String(row?.alert_type || '').trim()
+  if (type) {
+    focusAlertTypes([type])
+  }
+}
+
+watch(
+  () => props.focusedOrgan,
+  async (next) => {
+    const key = normalizeBodyMapOrganKey(next)
+    if (!key || typeof document === 'undefined' || (props.focusedAlertTypes || []).length) return
+    await nextTick()
+    const target = document.querySelector(`[data-organ-group="${key}"]`) as HTMLElement | null
+    const group = organFocusGroups.value.find((item) => item.key === key)
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      flashTarget(target, 'organ-focus-card--flash')
+    }
+    const firstRow = group?.rows?.[0]
+    if (firstRow) {
+      window.setTimeout(() => focusAlertRow(firstRow), target ? 180 : 0)
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => (props.focusedAlertTypes || []).join('|'),
+  async () => {
+    const types = Array.isArray(props.focusedAlertTypes) ? props.focusedAlertTypes : []
+    if (!types.length) return
+    await nextTick()
+    focusAlertTypes(types)
+  },
+  { immediate: true }
+)
+
 function compositeGroupLabel(raw: any) {
   return formatCompositeGroupLabel(raw)
 }
@@ -1308,6 +1540,107 @@ const DetailChart = defineAsyncComponent(async () => {
 }
 .composite-suite--headline {
   margin-top: 14px;
+}
+.organ-focus-suite {
+  margin-bottom: 16px;
+  border: 1px solid rgba(80,199,255,.14);
+  border-radius: 12px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+}
+.organ-focus-suite__head,
+.organ-focus-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.organ-focus-suite__title {
+  color: #eafcff;
+  font-size: 15px;
+  font-weight: 800;
+}
+.organ-focus-suite__sub {
+  margin-top: 4px;
+  color: #8da4c7;
+  font-size: 12px;
+}
+.organ-focus-suite__pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: rgba(8,28,44,.78);
+  color: #dffbff;
+  font-size: 12px;
+}
+.organ-focus-suite__grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.organ-focus-card {
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(7, 21, 34, .72);
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.organ-focus-card.sev-high {
+  border-color: rgba(249, 115, 22, .3);
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, .08);
+}
+.organ-focus-card.sev-critical {
+  border-color: rgba(244, 63, 94, .3);
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, .08);
+}
+.organ-focus-card.is-active {
+  border-color: rgba(110,231,249,.28);
+  box-shadow: 0 0 0 1px rgba(110,231,249,.12), 0 10px 18px rgba(0,0,0,.12);
+  transform: translateY(-1px);
+}
+.organ-focus-card--flash {
+  animation: organ-focus-flash 1.8s ease;
+}
+.organ-focus-card__name {
+  color: #eafcff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.organ-focus-card__meta {
+  margin-top: 3px;
+  color: #7fa0c5;
+  font-size: 11px;
+}
+.organ-focus-card__list {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+.organ-focus-card__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(11, 28, 44, .72);
+  border: 1px solid rgba(80,199,255,.08);
+  cursor: pointer;
+}
+.organ-focus-card__item span {
+  color: #d7e9ff;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: left;
+}
+.organ-focus-card__item small {
+  color: #7da7c4;
+  font-size: 10px;
+  flex: 0 0 auto;
 }
 .composite-chain-card,
 .composite-group-section {
@@ -1699,6 +2032,9 @@ const DetailChart = defineAsyncComponent(async () => {
   grid-template-columns: 18px 1fr;
   gap: 12px;
 }
+.alert-card--flash .alert-body {
+  animation: alert-card-flash 1.8s ease;
+}
 .alert-rail {
   display: flex;
   flex-direction: column;
@@ -1758,6 +2094,14 @@ const DetailChart = defineAsyncComponent(async () => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+}
+@keyframes organ-focus-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(110,231,249,0); }
+  50% { box-shadow: 0 0 0 4px rgba(110,231,249,.08), 0 14px 22px rgba(0,0,0,.16); }
+}
+@keyframes alert-card-flash {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(145,228,255,.04); }
+  50% { box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 0 0 4px rgba(110,231,249,.08), 0 16px 28px rgba(0,0,0,.14); }
 }
 .alert-title-row {
   display: flex;
@@ -2479,6 +2823,9 @@ const DetailChart = defineAsyncComponent(async () => {
   .group-grid {
     grid-template-columns: 1fr;
   }
+  .organ-focus-suite__grid {
+    grid-template-columns: 1fr;
+  }
   .context-row {
     grid-template-columns: 1fr;
     gap: 6px;
@@ -2513,11 +2860,17 @@ const DetailChart = defineAsyncComponent(async () => {
 
 /* Light mode overrides */
 html[data-theme='light'] .modi-panel { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
+html[data-theme='light'] .organ-focus-suite { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .modi-title { color: #16324f; }
+html[data-theme='light'] .organ-focus-suite__title,
+html[data-theme='light'] .organ-focus-card__name { color: #16324f; }
 html[data-theme='light'] .modi-sub, html[data-theme='light'] .modi-organs { color: #6a8098; }
+html[data-theme='light'] .organ-focus-suite__sub, html[data-theme='light'] .organ-focus-card__meta, html[data-theme='light'] .organ-focus-card__item small { color: #6a8098; }
 html[data-theme='light'] .modi-kpi { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); }
 html[data-theme='light'] .modi-kpi > span { color: #47627e; }
 html[data-theme='light'] .modi-kpi > strong { color: #1d4ed8; }
+html[data-theme='light'] .organ-focus-suite__pill, html[data-theme='light'] .organ-focus-card, html[data-theme='light'] .organ-focus-card__item { background: #ffffff; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .organ-focus-card__item span { color: #223a54; }
 html[data-theme='light'] .composite-chain-card, html[data-theme='light'] .composite-group-section { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); }
 html[data-theme='light'] .suite-tag { color: #1d4ed8; }
 html[data-theme='light'] .suite-code { background: #ffffff; border-color: rgba(187, 204, 220, 0.72); color: #3b82f6; }
@@ -2529,6 +2882,13 @@ html[data-theme='light'] .group-name { color: #16324f; }
 html[data-theme='light'] .group-sub { color: #6a8098; }
 html[data-theme='light'] .group-alert-name { color: #223a54; }
 html[data-theme='light'] .group-alert-time { color: #6f8399; }
+html[data-theme='light'] .group-alert-item {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .group-pill.sev-warning { color: #b45309; background: rgba(254,243,199,0.98); border-color: rgba(245,158,11,0.28); }
+html[data-theme='light'] .group-pill.sev-high { color: #c2410c; background: rgba(255,237,213,0.98); border-color: rgba(251,146,60,0.28); }
+html[data-theme='light'] .group-pill.sev-critical { color: #be123c; background: rgba(255,241,242,0.98); border-color: rgba(251,113,133,0.28); }
 html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,.72); }
 html[data-theme='light'] .weaning-brief-title, html[data-theme='light'] .reasoning-brief-title, html[data-theme='light'] .threshold-brief-title { color: #16324f; }
 html[data-theme='light'] .weaning-brief-sub, html[data-theme='light'] .reasoning-brief-sub, html[data-theme='light'] .threshold-brief-sub { color: #6a8098; }
@@ -2538,19 +2898,72 @@ html[data-theme='light'] .weaning-evidence-chip { background: rgba(243,248,252,0
 html[data-theme='light'] .weaning-sbt-meta { color: #6f8399; }
 html[data-theme='light'] .weaning-sbt-meta--risk { color: #dc2626; }
 html[data-theme='light'] .alert-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
+html[data-theme='light'] .alert-body {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%);
+  border-color: rgba(187,204,220,0.72);
+  box-shadow: none;
+}
+html[data-theme='light'] .alert-body--rescue {
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+}
 html[data-theme='light'] .alert-time { color: #6a8098; }
 html[data-theme='light'] .alert-line { background: rgba(187,204,220,0.4); }
 html[data-theme='light'] .alert-title { color: #16324f; }
 html[data-theme='light'] .alert-value { color: #1d4ed8; }
-html[data-theme='light'] .terminal-tag { color: #cbd5e1; }
+html[data-theme='light'] .terminal-tag {
+  color: #47627e;
+  background: rgba(243,248,252,0.98);
+  border-color: rgba(187,204,220,0.72);
+}
 html[data-theme='light'] .terminal-id { color: #64748b; }
 html[data-theme='light'] .post-extub-panel { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
 html[data-theme='light'] .post-extub-tag { color: #1d4ed8; }
 html[data-theme='light'] .post-extub-main { color: #223a54; }
 html[data-theme='light'] .post-extub-chip { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #47627e; }
 html[data-theme='light'] .post-extub-chip--warn { background: rgba(254,243,199,0.96); border-color: rgba(245,158,11,0.28); color: #b45309; }
+html[data-theme='light'] .alert-explanation {
+  border-color: rgba(187,204,220,0.72);
+  background: rgba(243,248,252,0.96);
+}
+html[data-theme='light'] .alert-explanation--rescue {
+  border-color: rgba(248,113,113,0.22);
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+}
+html[data-theme='light'] .rescue-headline {
+  border-bottom-color: rgba(248,113,113,0.2);
+}
+html[data-theme='light'] .rescue-headline-tag {
+  color: #be123c;
+  background: rgba(255,241,242,0.98);
+  border-color: rgba(251,113,133,0.28);
+}
+html[data-theme='light'] .rescue-headline-main {
+  color: #16324f;
+}
+html[data-theme='light'] .explanation-block {
+  background: #ffffff;
+  border-color: rgba(187,204,220,0.72);
+  box-shadow: none;
+}
+html[data-theme='light'] .explanation-block--summary {
+  background: linear-gradient(180deg, rgba(255,245,246,.98) 0%, rgba(255,241,242,.99) 100%);
+  border-color: rgba(248,113,113,0.22);
+}
+html[data-theme='light'] .explanation-block--evidence {
+  background: #ffffff;
+}
+html[data-theme='light'] .explanation-block--suggestion {
+  background: linear-gradient(180deg, rgba(244,252,247,.98) 0%, rgba(236,253,243,.99) 100%);
+  border-color: rgba(74,222,128,.2);
+}
 html[data-theme='light'] .explanation-label { color: #1d4ed8; }
 html[data-theme='light'] .explanation-text, html[data-theme='light'] .explanation-list { color: #223a54; }
+html[data-theme='light'] .explanation-text--summary { color: #16324f; }
+html[data-theme='light'] .explanation-text--suggestion { color: #047857; }
 html[data-theme='light'] .reasoning-card { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
 html[data-theme='light'] .reasoning-tag { color: #1d4ed8; }
 html[data-theme='light'] .reasoning-summary { color: #223a54; }

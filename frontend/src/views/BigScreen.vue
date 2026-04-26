@@ -131,6 +131,7 @@ import {
 import { onAlertMessage, speakCriticalAlert } from '../services/alertSocket'
 import { groupAlerts } from '../utils/groupAlerts'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
+import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 import {
   icuCategoryAxis,
   icuChartTokens,
@@ -543,6 +544,8 @@ function applyAlert(alert: any) {
     if (isRescueRiskAlert(alert)) {
       target.hasRescueRisk = true
     }
+    const organMapByPatient = buildOrganStateMapByPatient(alerts.value)
+    target.organMap = organMapByPatient.get(pid) || target.organMap
     target.alertHoldUntil = Date.now() + 30 * 60 * 1000
     target.alertFlash = true
     window.setTimeout(() => { target.alertFlash = false }, 15000)
@@ -550,8 +553,13 @@ function applyAlert(alert: any) {
 }
 
 async function loadAlerts() {
-  const res = await getRecentAlerts(50, buildPatientParams())
+  const res = await getRecentAlerts(200, buildPatientParams())
   alerts.value = res.data.records || []
+  const organMapByPatient = buildOrganStateMapByPatient(alerts.value)
+  patients.value = patients.value.map((row: any) => ({
+    ...row,
+    organMap: organMapByPatient.get(String(row?._id || '')) || row?.organMap,
+  }))
 }
 
 async function loadTrend() {
@@ -591,6 +599,7 @@ async function loadDepts() {
 async function loadPatients() {
   const res = await getPatients(buildPatientParams())
   const list = res.data.patients || []
+  const organMapByPatient = buildOrganStateMapByPatient(alerts.value)
   const head = list.slice(0, 60)
   const tail = list.slice(60).map((p: any) => ({
     ...p,
@@ -598,6 +607,7 @@ async function loadPatients() {
     alertLevel: 'none',
     postExtubationRisk: null,
     hasRescueRisk: false,
+    organMap: organMapByPatient.get(String(p._id)) || undefined,
   }))
 
   const done = await Promise.all(head.map(async (p: any) => {
@@ -616,6 +626,7 @@ async function loadPatients() {
       p.hasRescueRisk = false
     }
     p.alertLevel = p.alertLevel || 'none'
+    p.organMap = organMapByPatient.get(String(p._id)) || undefined
     return p
   }))
 
