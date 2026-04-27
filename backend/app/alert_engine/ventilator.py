@@ -17,6 +17,20 @@ def _parse_dt(value: Any) -> datetime | None:
         return None
 
 
+def _to_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", str(value).strip())
+    if not match:
+        return None
+    try:
+        return float(match.group(0))
+    except (TypeError, ValueError):
+        return None
+
+
 class VentilatorMixin:
     def _is_sbt_code(self, code: Any) -> bool:
         text = str(code or "").strip().lower()

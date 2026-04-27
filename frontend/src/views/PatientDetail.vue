@@ -7,218 +7,281 @@
       class="detail-page-header"
     />
 
-    <section class="monitor-hero">
-      <div class="hero-main">
-        <div class="hero-tag-row">
-          <span class="hero-tag">重症患者监护</span>
-          <span class="hero-tag hero-tag--soft">{{ displayDept }}</span>
-          <span class="hero-tag hero-tag--soft">{{ displayBed }}床</span>
-          <span class="hero-tag hero-tag--soft">HIS {{ displayHisPid }}</span>
-        </div>
-        <div class="hero-diagnosis">{{ displayDiagnosis }}</div>
-        <div class="hero-meta-row">
-          <div class="hero-meta">入院时间：{{ displayAdmissionTime }}</div>
-          <div class="hero-meta">监护更新：{{ heroMonitorUpdatedAt }}</div>
-        </div>
-        <div class="hero-fact-grid">
-          <div v-for="item in heroFactRows" :key="item.label" class="hero-fact">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </div>
-        </div>
-        <div class="hero-bundle" :class="`hero-bundle--${sepsisBundleStatusLight}`">
-          <div class="hero-bundle-head">
-            <span class="hero-bundle-title">脓毒症 1 小时解放束</span>
-            <span class="hero-bundle-pill">
-              <i class="hero-bundle-dot" />
-              {{ sepsisBundleStatusText }}
-            </span>
-          </div>
-          <div class="hero-bundle-main">{{ sepsisBundleConclusion }}</div>
-          <div class="hero-bundle-meta">
-            <span>{{ sepsisBundleTimelineText }}</span>
-            <span v-if="sepsisBundleExtraText">{{ sepsisBundleExtraText }}</span>
-          </div>
-        </div>
-        <div
-          v-if="postExtubationHeroVisible"
-          :class="['hero-rescue', `hero-rescue--${postExtubationHeroTone}`]"
+    <section class="detail-density-bar">
+      <div class="detail-density-copy">
+        <span class="detail-density-kicker">页面视图</span>
+        <strong>{{ isCompactDetail ? '简洁模式' : '全量模式' }}</strong>
+        <span>{{ isCompactDetail ? '只保留核心监护与分析' : '显示全部信息与工作区' }}</span>
+      </div>
+      <div class="detail-density-actions">
+        <button
+          :class="['detail-density-btn', { 'is-active': isCompactDetail }]"
+          type="button"
+          @click="setDetailDensity('compact')"
         >
-          <div class="hero-rescue-head">
-            <span class="hero-rescue-tag">抢救期风险卡</span>
-            <span :class="['hero-rescue-pill', `hero-rescue-pill--${postExtubationHeroTone}`]">
-              {{ postExtubationHeroSeverityText }}
-            </span>
-          </div>
-          <div class="hero-rescue-title">{{ postExtubationHeroTitle }}</div>
-          <div class="hero-rescue-main">{{ postExtubationHeroSummary }}</div>
-          <div v-if="postExtubationHeroChips.length" class="hero-rescue-chip-row">
-            <span
-              v-for="(chip, idx) in postExtubationHeroChips"
-              :key="`hero-rescue-chip-${idx}`"
-              class="hero-rescue-chip"
-            >
-              <span class="hero-rescue-chip-label">{{ chip.label }}</span>
-              <strong class="hero-rescue-chip-value">{{ chip.value }}</strong>
-            </span>
-          </div>
-          <div v-if="postExtubationHeroSuggestion" class="hero-rescue-suggestion">
-            {{ postExtubationHeroSuggestion }}
-          </div>
-          <div class="hero-rescue-actions">
-            <button class="hero-rescue-action" @click="openRescueAlerts">
-              查看抢救期预警详情
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="hero-visual">
-        <PatientBodyMapPanel
-          :organ-states="patientBodyMapStates"
-          :organ-details="patientBodyMapDetails"
-          :selected-organ="selectedBodyOrgan"
-          :modi="latestCompositeModi"
-          :organ-count="latestCompositeOrganCount"
-          :silhouette="patientSilhouette"
-          @organ-click="handleBodyOrganClick"
-          @open-alerts="openRescueAlerts"
-        />
-      </div>
-      <div class="hero-side">
-        <div class="hero-vitals-head">
-          <div>
-            <div class="hero-vitals-kicker">床旁快照</div>
-            <div class="hero-vitals-title">生命体征快照</div>
-          </div>
-          <div class="hero-vitals-badge">{{ vitalsSourceText || '未知来源' }}</div>
-        </div>
-        <div class="hero-vitals">
-          <div v-for="item in heroVitalsRows" :key="item.label" class="hero-vital">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </div>
-        </div>
-        <div class="hero-vitals-foot">
-          <span>来源 {{ vitalsSourceText || '—' }}</span>
-          <span>时间 {{ heroMonitorUpdatedAt }}</span>
-        </div>
+          简洁视图
+        </button>
+        <button
+          :class="['detail-density-btn', { 'is-active': !isCompactDetail }]"
+          type="button"
+          @click="setDetailDensity('full')"
+        >
+          全量视图
+        </button>
       </div>
     </section>
 
-    <div class="detail-content">
-      <a-card title="基本信息" :bordered="false" class="info-card">
-        <p>诊断: {{ displayDiagnosis }}</p>
-        <p>入院时间: {{ displayAdmissionTime }}</p>
-        <p>HIS编号: {{ displayHisPid }}</p>
-      </a-card>
-      <a-card title="生命体征" :bordered="false" class="info-card vitals-card">
-        <div v-if="vitals?.source" class="vitals-grid">
-          <div class="v-item">
-            <span class="v-label">来源</span>
-            <span class="v-value">{{ vitalsSourceText }}</span>
-          </div>
-          <div class="v-item">
-            <span class="v-label">时间</span>
-            <span class="v-value">{{ fmtTime(vitals.time) || '—' }}</span>
-          </div>
-          <div class="v-item">
-            <span class="v-label">HR</span>
-            <span class="v-value">{{ vitals.hr ?? '—' }}</span>
-          </div>
-          <div class="v-item">
-            <span class="v-label">SpO₂</span>
-            <span class="v-value">{{ vitals.spo2 != null ? vitals.spo2 + '%' : '—' }}</span>
-          </div>
-          <div class="v-item">
-            <span class="v-label">RR</span>
-            <span class="v-value">{{ vitals.rr ?? '—' }}</span>
-          </div>
-          <div class="v-item">
-            <span class="v-label">BP</span>
-            <span class="v-value">{{ fmtBP(vitals) }}</span>
-          </div>
-          <div class="v-item">
-            <span class="v-label">T</span>
-            <span class="v-value">{{ fmtTemp(vitals.temp) }}</span>
-          </div>
-        </div>
-        <div v-else class="vitals-empty">暂无监护数据</div>
-      </a-card>
-      <a-card title="装置位置图" :bordered="false" class="info-card">
-        <PatientDeviceBodyMap :markers="deviceBodyMarkers" />
-      </a-card>
-    </div>
+    <section class="detail-layout">
+      <aside class="detail-rail">
+        <div class="detail-rail-sticky">
+          <section class="monitor-hero monitor-hero--rail">
+            <div class="hero-main">
+              <div class="hero-tag-row">
+                <span class="hero-tag">重症患者监护</span>
+                <span class="hero-tag hero-tag--soft">{{ displayDept }}</span>
+                <span class="hero-tag hero-tag--soft">{{ displayBed }}床</span>
+                <span class="hero-tag hero-tag--soft">HIS {{ displayHisPid }}</span>
+              </div>
+              <div class="hero-diagnosis">{{ displayDiagnosis }}</div>
+              <div class="hero-meta-row">
+                <div class="hero-meta">入院：{{ displayAdmissionTime }}</div>
+                <div class="hero-meta">更新：{{ heroMonitorUpdatedAt }}</div>
+              </div>
+              <div class="hero-fact-grid">
+                <div v-for="item in heroFactRows" :key="item.label" class="hero-fact">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+              <div class="hero-bundle" :class="`hero-bundle--${sepsisBundleStatusLight}`">
+                <div class="hero-bundle-head">
+                  <span class="hero-bundle-title">脓毒症 1 小时解放束</span>
+                  <span class="hero-bundle-pill">
+                    <i class="hero-bundle-dot" />
+                    {{ sepsisBundleStatusText }}
+                  </span>
+                </div>
+                <div class="hero-bundle-main">{{ sepsisBundleConclusion }}</div>
+                <div class="hero-bundle-meta">
+                  <span>{{ sepsisBundleTimelineText }}</span>
+                  <span v-if="sepsisBundleExtraText">{{ sepsisBundleExtraText }}</span>
+                </div>
+              </div>
+              <div
+                v-if="postExtubationHeroVisible"
+                :class="['hero-rescue', `hero-rescue--${postExtubationHeroTone}`]"
+              >
+                <div class="hero-rescue-head">
+                  <span class="hero-rescue-tag">抢救期风险卡</span>
+                  <span :class="['hero-rescue-pill', `hero-rescue-pill--${postExtubationHeroTone}`]">
+                    {{ postExtubationHeroSeverityText }}
+                  </span>
+                </div>
+                <div class="hero-rescue-title">{{ postExtubationHeroTitle }}</div>
+                <div class="hero-rescue-main">{{ postExtubationHeroSummary }}</div>
+                <div v-if="postExtubationHeroChips.length" class="hero-rescue-chip-row">
+                  <span
+                    v-for="(chip, idx) in postExtubationHeroChips"
+                    :key="`hero-rescue-chip-${idx}`"
+                    class="hero-rescue-chip"
+                  >
+                    <span class="hero-rescue-chip-label">{{ chip.label }}</span>
+                    <strong class="hero-rescue-chip-value">{{ chip.value }}</strong>
+                  </span>
+                </div>
+                <div v-if="postExtubationHeroSuggestion" class="hero-rescue-suggestion">
+                  {{ postExtubationHeroSuggestion }}
+                </div>
+                <div class="hero-rescue-actions">
+                  <button class="hero-rescue-action" @click="openRescueAlerts">
+                    查看抢救期预警详情
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="hero-side">
+              <div class="hero-vitals-head">
+                <div>
+                  <div class="hero-vitals-kicker">床旁快照</div>
+                  <div class="hero-vitals-title">生命体征快照</div>
+                </div>
+                <div class="hero-vitals-badge">{{ vitalsSourceText || '未知来源' }}</div>
+              </div>
+              <div class="hero-vitals">
+                <div v-for="item in heroVitalsRows" :key="item.label" class="hero-vital">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+              <div class="hero-vitals-foot">
+                <span>来源 {{ vitalsSourceText || '—' }}</span>
+                <span>时间 {{ heroMonitorUpdatedAt }}</span>
+              </div>
+            </div>
+            <div class="hero-visual">
+              <PatientBodyMapPanel
+                compact
+                :organ-states="patientBodyMapStates"
+                :organ-details="patientBodyMapDetails"
+                :selected-organ="selectedBodyOrgan"
+                :modi="latestCompositeModi"
+                :organ-count="latestCompositeOrganCount"
+                :silhouette="patientSilhouette"
+                @organ-click="handleBodyOrganClick"
+                @open-alerts="openRescueAlerts"
+              />
+            </div>
+          </section>
 
-    <PatientDeviceHaiBundlePanel
-      :alerts="alerts"
-      :markers="deviceBodyMarkers"
-      @open-alerts="openRescueAlerts"
-      @focus-alert-types="handleDeviceHaiAlertFocus"
-    />
-
-    <section class="weaning-strip">
-      <div :class="['weaning-card', `weaning-card--${weaningRiskTone}`]">
-        <div class="weaning-card-head">
-          <div>
-            <div class="weaning-card-title">脱机风险评分</div>
-            <div class="weaning-card-sub">{{ fmtTime(weaningAssessment?.updated_at) || '暂无评估时间' }}</div>
+          <div v-if="!isCompactDetail" class="detail-content detail-content--rail">
+            <a-card title="基本信息" :bordered="false" class="info-card">
+              <p>诊断: {{ displayDiagnosis }}</p>
+              <p>入院时间: {{ displayAdmissionTime }}</p>
+              <p>HIS编号: {{ displayHisPid }}</p>
+            </a-card>
+            <a-card title="生命体征" :bordered="false" class="info-card vitals-card">
+              <div v-if="vitals?.source" class="vitals-grid">
+                <div class="v-item">
+                  <span class="v-label">来源</span>
+                  <span class="v-value">{{ vitalsSourceText }}</span>
+                </div>
+                <div class="v-item">
+                  <span class="v-label">时间</span>
+                  <span class="v-value">{{ fmtTime(vitals.time) || '—' }}</span>
+                </div>
+                <div class="v-item">
+                  <span class="v-label">HR</span>
+                  <span class="v-value">{{ vitals.hr ?? '—' }}</span>
+                </div>
+                <div class="v-item">
+                  <span class="v-label">SpO₂</span>
+                  <span class="v-value">{{ vitals.spo2 != null ? vitals.spo2 + '%' : '—' }}</span>
+                </div>
+                <div class="v-item">
+                  <span class="v-label">RR</span>
+                  <span class="v-value">{{ vitals.rr ?? '—' }}</span>
+                </div>
+                <div class="v-item">
+                  <span class="v-label">BP</span>
+                  <span class="v-value">{{ fmtBP(vitals) }}</span>
+                </div>
+                <div class="v-item">
+                  <span class="v-label">T</span>
+                  <span class="v-value">{{ fmtTemp(vitals.temp) }}</span>
+                </div>
+              </div>
+              <div v-else class="vitals-empty">暂无监护数据</div>
+            </a-card>
+            <a-card title="装置位置图" :bordered="false" class="info-card">
+              <PatientDeviceBodyMap :markers="deviceBodyMarkers" :silhouette="patientSilhouette" />
+            </a-card>
           </div>
-          <div class="weaning-score-box">
-            <span class="weaning-score-label">{{ weaningRiskLabel }}</span>
-            <strong class="weaning-score-value">{{ weaningAssessment?.risk_score ?? '—' }}</strong>
+
+          <PatientDeviceHaiBundlePanel
+            v-if="!isCompactDetail"
+            :alerts="alerts"
+            :markers="deviceBodyMarkers"
+            @open-alerts="openRescueAlerts"
+            @focus-alert-types="handleDeviceHaiAlertFocus"
+          />
+
+          <section class="weaning-strip weaning-strip--rail">
+            <div :class="['weaning-card', `weaning-card--${weaningRiskTone}`]">
+              <div class="weaning-card-head">
+                <div>
+                  <div class="weaning-card-title">脱机风险评分</div>
+                  <div class="weaning-card-sub">{{ fmtTime(weaningAssessment?.updated_at) || '暂无评估时间' }}</div>
+                </div>
+                <div class="weaning-score-box">
+                  <span class="weaning-score-label">{{ weaningRiskLabel }}</span>
+                  <strong class="weaning-score-value">{{ weaningAssessment?.risk_score ?? '—' }}</strong>
+                </div>
+              </div>
+              <div class="weaning-card-main">{{ weaningRecommendationText }}</div>
+              <div class="weaning-metric-row">
+                <span class="weaning-chip">P/F {{ weaningAssessment?.pf_ratio ?? '—' }}</span>
+                <span class="weaning-chip">RSBI {{ weaningAssessment?.rsbi ?? '—' }}</span>
+                <span class="weaning-chip">FiO₂ {{ weaningAssessment?.fio2 ?? '—' }}</span>
+                <span class="weaning-chip">PEEP {{ weaningAssessment?.peep ?? '—' }}</span>
+                <span class="weaning-chip">%FO {{ weaningAssessment?.fluid_overload_pct ?? '—' }}</span>
+              </div>
+              <div v-if="weaningTopEvidence.length" class="weaning-evidence-row">
+                <span v-for="(ev, idx) in weaningTopEvidence" :key="`wean-ev-${idx}`" class="weaning-evidence-chip">{{ ev }}</span>
+              </div>
+            </div>
+
+            <div class="weaning-card weaning-card--soft">
+              <div class="weaning-card-head">
+                <div>
+                  <div class="weaning-card-title">自主呼吸试验结构化记录</div>
+                  <div class="weaning-card-sub">{{ fmtTime(sbtAssessment?.trial_time) || '暂无自主呼吸试验记录' }}</div>
+                </div>
+                <span :class="['weaning-sbt-pill', `is-${String(sbtAssessment?.result || 'none').toLowerCase()}`]">
+                  {{ sbtAssessment?.label || '暂无自主呼吸试验记录' }}
+                </span>
+              </div>
+              <div class="weaning-metric-row">
+                <span class="weaning-chip">RSBI {{ sbtAssessment?.rsbi ?? '—' }}</span>
+                <span class="weaning-chip">RR {{ sbtAssessment?.rr ?? '—' }}</span>
+                <span class="weaning-chip">潮气量 {{ sbtAssessment?.vte_ml ?? '—' }}</span>
+                <span class="weaning-chip">FiO₂ {{ sbtAssessment?.fio2 ?? '—' }}</span>
+                <span class="weaning-chip">PEEP {{ sbtAssessment?.peep ?? '—' }}</span>
+              </div>
+              <div class="weaning-card-foot">
+                <span>来源 {{ sbtAssessment?.source || '—' }}</span>
+                <span v-if="sbtAssessment?.duration_minutes != null">时长 {{ sbtAssessment?.duration_minutes }} 分钟</span>
+                <span v-if="postExtubationRisk?.has_alert">拔管后风险 {{ fmtTime(postExtubationRisk?.created_at) || '—' }}</span>
+              </div>
+            </div>
+          </section>
+
+          <PatientWorkbenchHub
+            v-if="!isCompactDetail"
+            :topics="workbenchTopics"
+            :runtime="aiRuntimeSummary"
+            :similar="similarWorkbenchSummary"
+            :threshold="thresholdWorkbenchSummary"
+            :on-open="openTopicTab"
+            class="workbench-shell"
+          />
+        </div>
+      </aside>
+
+      <section class="detail-main-panel">
+        <div ref="tabsAnchor">
+      <a-card class="tabs-card" :bordered="false">
+        <div class="tab-toolbar">
+          <div class="tab-toolbar-copy">
+            <span class="tab-toolbar-kicker">核心入口</span>
+            <strong class="tab-toolbar-title">{{ isCompactDetail ? '优先查看重点页签' : '全部功能页签' }}</strong>
+          </div>
+          <div class="tab-toolbar-actions">
+            <div class="tab-group-bar">
+              <button
+                v-for="group in detailTabGroups"
+                :key="group.key"
+                :class="['tab-group-btn', { 'is-active': detailTabGroup === group.key }]"
+                type="button"
+                @click="detailTabGroup = group.key"
+              >
+                {{ group.label }}
+              </button>
+            </div>
+            <div class="tab-shortcuts">
+              <button
+                v-for="shortcut in detailTabShortcuts"
+                :key="shortcut.key"
+                :class="['tab-shortcut-btn', { 'is-active': activeTab === shortcut.key }]"
+                type="button"
+                @click="openTopicTab(shortcut.key)"
+              >
+                {{ shortcut.label }}
+              </button>
+            </div>
           </div>
         </div>
-        <div class="weaning-card-main">{{ weaningRecommendationText }}</div>
-        <div class="weaning-metric-row">
-          <span class="weaning-chip">P/F {{ weaningAssessment?.pf_ratio ?? '—' }}</span>
-          <span class="weaning-chip">RSBI {{ weaningAssessment?.rsbi ?? '—' }}</span>
-          <span class="weaning-chip">FiO₂ {{ weaningAssessment?.fio2 ?? '—' }}</span>
-          <span class="weaning-chip">PEEP {{ weaningAssessment?.peep ?? '—' }}</span>
-          <span class="weaning-chip">%FO {{ weaningAssessment?.fluid_overload_pct ?? '—' }}</span>
-        </div>
-        <div v-if="weaningTopEvidence.length" class="weaning-evidence-row">
-          <span v-for="(ev, idx) in weaningTopEvidence" :key="`wean-ev-${idx}`" class="weaning-evidence-chip">{{ ev }}</span>
-        </div>
-      </div>
-
-      <div class="weaning-card weaning-card--soft">
-        <div class="weaning-card-head">
-          <div>
-            <div class="weaning-card-title">自主呼吸试验结构化记录</div>
-            <div class="weaning-card-sub">{{ fmtTime(sbtAssessment?.trial_time) || '暂无自主呼吸试验记录' }}</div>
-          </div>
-          <span :class="['weaning-sbt-pill', `is-${String(sbtAssessment?.result || 'none').toLowerCase()}`]">
-            {{ sbtAssessment?.label || '暂无自主呼吸试验记录' }}
-          </span>
-        </div>
-        <div class="weaning-metric-row">
-          <span class="weaning-chip">RSBI {{ sbtAssessment?.rsbi ?? '—' }}</span>
-          <span class="weaning-chip">RR {{ sbtAssessment?.rr ?? '—' }}</span>
-          <span class="weaning-chip">潮气量 {{ sbtAssessment?.vte_ml ?? '—' }}</span>
-          <span class="weaning-chip">FiO₂ {{ sbtAssessment?.fio2 ?? '—' }}</span>
-          <span class="weaning-chip">PEEP {{ sbtAssessment?.peep ?? '—' }}</span>
-        </div>
-        <div class="weaning-card-foot">
-          <span>来源 {{ sbtAssessment?.source || '—' }}</span>
-          <span v-if="sbtAssessment?.duration_minutes != null">时长 {{ sbtAssessment?.duration_minutes }} 分钟</span>
-          <span v-if="postExtubationRisk?.has_alert">拔管后风险 {{ fmtTime(postExtubationRisk?.created_at) || '—' }}</span>
-        </div>
-      </div>
-    </section>
-
-    <PatientWorkbenchHub
-      :topics="workbenchTopics"
-      :runtime="aiRuntimeSummary"
-      :similar="similarWorkbenchSummary"
-      :threshold="thresholdWorkbenchSummary"
-      :on-open="openTopicTab"
-      class="workbench-shell"
-    />
-
-    <div ref="tabsAnchor">
-    <a-card class="tabs-card" :bordered="false">
-      <a-tabs v-model:activeKey="activeTab">
-        <a-tab-pane key="ecash" tab="eCASH / ABCDEF 解放束">
+        <a-tabs v-model:activeKey="activeTab">
+          <a-tab-pane v-if="isTabVisible('ecash')" key="ecash" tab="eCASH">
           <PatientEcashBundleTab
             v-if="activeTab === 'ecash'"
             :alerts="ecashAlerts"
@@ -226,25 +289,25 @@
             :fmt-time="fmtTime"
             :alert-type-text="alertTypeText"
           />
-        </a-tab-pane>
+          </a-tab-pane>
 
-        <a-tab-pane key="mobility" tab="ICU获得性衰弱 / 早期活动">
+          <a-tab-pane v-if="isTabVisible('mobility')" key="mobility" tab="早期活动">
           <PatientMobilityTab
             v-if="activeTab === 'mobility'"
             :alerts="mobilityAlerts"
             :fmt-time="fmtTime"
           />
-        </a-tab-pane>
+          </a-tab-pane>
 
-        <a-tab-pane key="pe" tab="肺栓塞检测 / Wells 评分">
+          <a-tab-pane v-if="isTabVisible('pe')" key="pe" tab="肺栓塞">
           <PatientPeRiskTab
             v-if="activeTab === 'pe'"
             :alerts="peAlerts"
             :fmt-time="fmtTime"
           />
-        </a-tab-pane>
+          </a-tab-pane>
 
-        <a-tab-pane key="trend" tab="生命体征趋势">
+          <a-tab-pane v-if="isTabVisible('trend')" key="trend" tab="趋势">
           <PatientTrendTab
             v-if="activeTab === 'trend'"
             v-model:trend-window="trendWindow"
@@ -252,9 +315,9 @@
             :trend-option="trendOption"
             :on-refresh="loadTrend"
           />
-        </a-tab-pane>
+          </a-tab-pane>
 
-        <a-tab-pane key="waveform" tab="波形工作台">
+          <a-tab-pane v-if="isTabVisible('waveform')" key="waveform" tab="波形">
           <PatientWaveformTab
             v-if="activeTab === 'waveform'"
             v-model:selected-channel="waveformSelectedChannel"
@@ -266,27 +329,27 @@
             :events="waveformEvents"
             :on-refresh="loadWaveform"
           />
-        </a-tab-pane>
+          </a-tab-pane>
 
-        <a-tab-pane key="labs" tab="检验结果时间线">
+          <a-tab-pane v-if="isTabVisible('labs')" key="labs" tab="检验">
           <PatientLabsTab
             v-if="activeTab === 'labs'"
             :labs="labs"
             :fmt-time="fmtTime"
             :lab-flag="labFlag"
           />
-        </a-tab-pane>
+          </a-tab-pane>
 
-        <a-tab-pane key="drugs" tab="用药记录">
+          <a-tab-pane v-if="isTabVisible('drugs')" key="drugs" tab="用药">
           <PatientDataTableTab
             v-if="activeTab === 'drugs'"
             :columns="drugColumns"
             :rows="drugTableRows"
             row-key="_id"
           />
-        </a-tab-pane>
+          </a-tab-pane>
 
-        <a-tab-pane key="assess" tab="护理评估">
+          <a-tab-pane v-if="isTabVisible('assess')" key="assess" tab="护理">
           <PatientDataTableTab
             v-if="activeTab === 'assess'"
             :columns="assessmentColumns"
@@ -295,7 +358,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="sbt" tab="自主呼吸试验记录">
+        <a-tab-pane v-if="isTabVisible('sbt')" key="sbt" tab="SBT">
           <PatientSbtTimelineTab
             v-if="activeTab === 'sbt'"
             :summary="sbtTimelineSummary"
@@ -308,7 +371,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="alerts" tab="预警与审核">
+        <a-tab-pane v-if="isTabVisible('alerts')" key="alerts" tab="预警">
           <PatientAlertsTab
             v-if="activeTab === 'alerts'"
             :latest-composite-alert="latestCompositeAlert"
@@ -354,7 +417,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="similar" tab="相似病例回顾">
+        <a-tab-pane v-if="isTabVisible('similar')" key="similar" tab="相似病例">
           <PatientSimilarCasesTab
             v-if="activeTab === 'similar'"
             :review="similarCaseReview"
@@ -365,7 +428,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="followup" tab="长期随访">
+        <a-tab-pane v-if="isTabVisible('followup')" key="followup" tab="随访">
           <PatientLongTermFollowupTab
             v-if="activeTab === 'followup'"
             :patient-id="String(route.params.id || '')"
@@ -375,7 +438,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="twin" tab="数字孪生快照 / 时间轴">
+        <a-tab-pane v-if="isTabVisible('twin')" key="twin" tab="数字孪生">
           <PatientDigitalTwinTab
             v-if="activeTab === 'twin'"
             :patient-id="String(route.params.id || '')"
@@ -383,7 +446,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane key="ai" tab="AI工作台">
+        <a-tab-pane v-if="isTabVisible('ai')" key="ai" tab="AI">
           <PatientAiTab
             v-if="activeTab === 'ai'"
             :patient="patient"
@@ -454,9 +517,11 @@
             :knowledge-error="knowledgeError"
           />
         </a-tab-pane>
-      </a-tabs>
-    </a-card>
-    </div>
+        </a-tabs>
+      </a-card>
+        </div>
+      </section>
+    </section>
 
     <PatientEvidenceModal
       v-if="evidenceModalOpen"
@@ -586,15 +651,51 @@ const PatientDeviceHaiBundlePanel = defineAsyncComponent(() => import('../compon
 
 const route = useRoute()
 const router = useRouter()
-const detailTabKeys = new Set(['ecash', 'mobility', 'pe', 'trend', 'waveform', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'followup', 'twin', 'ai'])
-function normalizeDetailTab(raw: any) {
+const detailTabOrder = ['ecash', 'mobility', 'pe', 'trend', 'waveform', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'followup', 'twin', 'ai'] as const
+type DetailTabKey = typeof detailTabOrder[number]
+type DetailDensityMode = 'compact' | 'full'
+type DetailTabGroup = 'focus' | 'monitor' | 'therapy' | 'history' | 'ai' | 'all'
+const detailTabKeys = new Set<string>(detailTabOrder)
+function normalizeDetailTab(raw: any): DetailTabKey {
   const key = String(raw || '').trim()
-  return detailTabKeys.has(key) ? key : 'trend'
+  return detailTabKeys.has(key) ? (key as DetailTabKey) : 'trend'
 }
 const patient = ref<any>(null)
 const bedcard = ref<any>(null)
 const vitals = ref<any>(null)
 const activeTab = ref(normalizeDetailTab(route.query.tab))
+const detailDensity = ref<DetailDensityMode>('compact')
+const isCompactDetail = computed(() => detailDensity.value === 'compact')
+const detailTabGroup = ref<DetailTabGroup>('focus')
+const detailTabShortcuts: Array<{ key: DetailTabKey; label: string }> = [
+  { key: 'alerts', label: '预警' },
+  { key: 'trend', label: '趋势' },
+  { key: 'labs', label: '检验' },
+  { key: 'waveform', label: '波形' },
+  { key: 'ai', label: 'AI' },
+]
+const detailTabGroups: Array<{ key: DetailTabGroup; label: string }> = [
+  { key: 'focus', label: '重点' },
+  { key: 'monitor', label: '监护' },
+  { key: 'therapy', label: '治疗' },
+  { key: 'history', label: '回顾' },
+  { key: 'ai', label: 'AI' },
+  { key: 'all', label: '全部' },
+]
+const detailTabGroupMap: Record<DetailTabGroup, DetailTabKey[]> = {
+  focus: ['alerts', 'trend', 'labs', 'waveform', 'ai'],
+  monitor: ['trend', 'waveform', 'labs', 'alerts'],
+  therapy: ['ecash', 'mobility', 'pe', 'drugs', 'assess', 'sbt'],
+  history: ['similar', 'followup', 'twin'],
+  ai: ['ai'],
+  all: [...detailTabOrder],
+}
+const visibleDetailTabs = computed<DetailTabKey[]>(() => {
+  if (!isCompactDetail.value || detailTabGroup.value === 'all') {
+    return [...detailTabOrder]
+  }
+  return detailTabGroupMap[detailTabGroup.value]
+})
 const tabsAnchor = ref<HTMLElement | null>(null)
 const selectedBodyOrgan = ref('respiratory')
 const focusedAlertTypes = ref<string[]>([])
@@ -1029,10 +1130,34 @@ async function handleDeviceHaiAlertFocus(types: string[], organKey?: string) {
 }
 
 async function openTopicTab(tab: string) {
-  activeTab.value = tab
+  const normalized = normalizeDetailTab(tab)
+  ensureTabVisible(normalized)
+  activeTab.value = normalized
   await nextTick()
   tabsAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+function setDetailDensity(mode: DetailDensityMode) {
+  detailDensity.value = mode
+  detailTabGroup.value = mode === 'compact' ? 'focus' : 'all'
+  ensureTabVisible(activeTab.value)
+}
+
+function isTabVisible(tab: DetailTabKey) {
+  return visibleDetailTabs.value.includes(tab)
+}
+
+function ensureTabVisible(tab: string) {
+  const tabKey = String(tab || '') as DetailTabKey
+  if (!detailTabKeys.has(tabKey)) return
+  if (!isCompactDetail.value || isTabVisible(tabKey)) return
+  const nextGroup = detailTabGroups.find(
+    (group) => group.key !== 'all' && detailTabGroupMap[group.key].includes(tabKey),
+  )?.key || 'all'
+  detailTabGroup.value = nextGroup
+}
+
+ensureTabVisible(activeTab.value)
 
 function sortAlertsDesc(rows: any[]) {
   return [...rows].sort((a: any, b: any) => dayjs(b?.created_at).valueOf() - dayjs(a?.created_at).valueOf())
@@ -3537,7 +3662,14 @@ watch(waveformSelectedChannel, () => {
   if (activeTab.value === 'waveform') void loadWaveform()
 })
 
+watch(visibleDetailTabs, (tabs) => {
+  if (tabs.length && !tabs.includes(activeTab.value as DetailTabKey)) {
+    activeTab.value = tabs[0] as DetailTabKey
+  }
+})
+
 watch(activeTab, (tab) => {
+  ensureTabVisible(tab)
   if (String(route.query.tab || '') !== tab) {
     router.replace({ query: { ...route.query, tab } })
   }
@@ -3652,10 +3784,96 @@ onBeforeUnmount(() => {
 .detail-page-header :deep(.ant-page-header-back-button) {
   color: #7ecce1;
 }
+.detail-density-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: linear-gradient(180deg, rgba(8,21,35,.92) 0%, rgba(5,14,24,.96) 100%);
+  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 10px 24px rgba(0,0,0,.16);
+}
+.detail-density-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: #a5d8e7;
+  font-size: 12px;
+}
+.detail-density-copy strong {
+  color: #ecfeff;
+  font-size: 14px;
+}
+.detail-density-kicker {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(13,82,110,.24);
+  border: 1px solid rgba(110,231,249,.18);
+  color: #bdf5ff;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.detail-density-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+.detail-density-btn,
+.tab-shortcut-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: rgba(8,28,44,.76);
+  color: #9fdcec;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.detail-density-btn:hover,
+.tab-shortcut-btn:hover {
+  border-color: rgba(110,231,249,.3);
+  color: #ecfeff;
+}
+.detail-density-btn.is-active,
+.tab-shortcut-btn.is-active {
+  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
+  border-color: rgba(110,231,249,.28);
+  color: #effcff;
+  box-shadow: 0 8px 20px rgba(14,116,144,.22);
+}
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.detail-rail,
+.detail-main-panel {
+  min-width: 0;
+}
+.detail-rail-sticky {
+  position: sticky;
+  top: 12px;
+  display: grid;
+  gap: 12px;
+}
 .monitor-hero {
   display: grid;
-  grid-template-columns: 1.45fr 1.05fr 0.95fr;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  grid-template-areas:
+    'main side'
+    'visual visual';
+  gap: 16px;
   margin-bottom: 16px;
   padding: 16px;
   border-radius: 14px;
@@ -3665,13 +3883,34 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(80,199,255,.14);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
 }
+.monitor-hero--rail {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'main'
+    'side'
+    'visual';
+  gap: 10px;
+  margin-bottom: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
 .hero-main {
   display: flex;
   flex-direction: column;
+  grid-area: main;
   gap: 10px;
-  justify-content: center;
+  justify-content: flex-start;
+  align-self: start;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(6,18,30,.86) 0%, rgba(5,14,24,.92) 100%);
+  border: 1px solid rgba(80,199,255,.1);
 }
 .hero-visual {
+  grid-area: visual;
   min-width: 0;
 }
 .hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2px; }
@@ -3688,10 +3927,10 @@ onBeforeUnmount(() => {
 }
 .hero-tag--soft { color: #dffbff; }
 .hero-diagnosis {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #ecfeff;
-  line-height: 1.25;
+  line-height: 1.35;
 }
 .hero-meta-row {
   display: flex;
@@ -3701,7 +3940,7 @@ onBeforeUnmount(() => {
 .hero-meta { color: #8fb8ca; font-size: 13px; }
 .hero-fact-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 .hero-fact {
@@ -3719,7 +3958,7 @@ onBeforeUnmount(() => {
 }
 .hero-fact strong {
   color: #effcff;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.4;
 }
 .hero-bundle {
@@ -3767,7 +4006,7 @@ onBeforeUnmount(() => {
 }
 .hero-bundle-main {
   color: #effcff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.35;
 }
@@ -3924,9 +4163,14 @@ onBeforeUnmount(() => {
   background: rgba(255,255,255,.12);
 }
 .hero-side {
+  grid-area: side;
   display: grid;
   gap: 10px;
   align-content: start;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(6,18,30,.86) 0%, rgba(5,14,24,.92) 100%);
+  border: 1px solid rgba(80,199,255,.1);
 }
 .hero-vitals-head {
   display: flex;
@@ -3943,7 +4187,7 @@ onBeforeUnmount(() => {
 }
 .hero-vitals-title {
   color: #effcff;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
 }
 .hero-vitals-badge {
@@ -3960,11 +4204,11 @@ onBeforeUnmount(() => {
 }
 .hero-vitals {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .hero-vital {
-  min-height: 88px;
+  min-height: 76px;
   padding: 12px;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(8,31,49,.98) 0%, rgba(6,21,35,.98) 100%);
@@ -3975,7 +4219,7 @@ onBeforeUnmount(() => {
 }
 .hero-vital span { font-size: 11px; color: #7ecce1; letter-spacing: .14em; }
 .hero-vital strong {
-  font-size: 24px;
+  font-size: 26px;
   color: #effcff;
   font-family: 'Segoe UI', 'Noto Sans SC', 'SF Mono', 'Consolas', monospace;
   line-height: 1;
@@ -3984,16 +4228,31 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
+  padding-top: 2px;
   color: #8fb8ca;
   font-size: 12px;
-}.weaning-strip {
+}
+.detail-content--rail,
+.weaning-strip--rail {
+  margin-bottom: 0;
+}
+.detail-content--rail {
+  grid-template-columns: 1fr;
+}
+.weaning-strip--rail {
+  grid-template-columns: 1fr;
+}
+.detail-main-panel > div {
+  min-width: 0;
+}
+.weaning-strip {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 .weaning-card {
-  padding: 14px;
+  padding: 12px;
   border-radius: 12px;
   border: 1px solid rgba(80,199,255,.14);
   background:
@@ -4001,7 +4260,8 @@ onBeforeUnmount(() => {
     linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.18);
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  align-content: start;
 }
 .weaning-card--soft {
   background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(5,14,24,.98) 100%);
@@ -4018,7 +4278,7 @@ onBeforeUnmount(() => {
 }
 .weaning-card-title {
   color: #7ed6eb;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -4050,7 +4310,7 @@ onBeforeUnmount(() => {
 }
 .weaning-card-main {
   color: #effcff;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.35;
 }
@@ -4101,8 +4361,8 @@ onBeforeUnmount(() => {
 .detail-content {
   display: grid;
   grid-template-columns: minmax(240px, .9fr) minmax(360px, 1.6fr) minmax(320px, 1.2fr);
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 .info-card {
   background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
@@ -4111,16 +4371,20 @@ onBeforeUnmount(() => {
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
 }
 .info-card :deep(.ant-card-head) {
+  min-height: 42px;
+  padding: 0 12px;
   border-bottom: 1px solid rgba(80,199,255,.1);
 }
 .info-card :deep(.ant-card-head-title) {
   color: #67e8f9;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
 .info-card :deep(.ant-card-body) {
   color: #dffbff;
+  padding: 12px;
 }
 .vitals-grid {
   display: grid;
@@ -4191,7 +4455,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   padding: 10px 0;
 }
-.workbench-shell { margin: 18px 0; }
+.workbench-shell { margin: 12px 0; }
 
 .tabs-card {
   background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
@@ -4261,7 +4525,63 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
+}
+.tab-toolbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tab-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+}
+.tab-toolbar-kicker {
+  color: #79cfe1;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.tab-toolbar-title {
+  color: #ecfeff;
+  font-size: 14px;
+}
+.tab-group-bar,
+.tab-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tab-group-bar {
+  justify-content: flex-end;
+}
+.tab-group-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: rgba(5,18,31,.72);
+  color: #76bfd3;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.tab-group-btn:hover {
+  border-color: rgba(110,231,249,.24);
+  color: #dffbff;
+}
+.tab-group-btn.is-active {
+  border-color: rgba(110,231,249,.26);
+  background: rgba(10,71,95,.66);
+  color: #effcff;
 }
 .chart-wrap {
   height: 360px;
@@ -4827,6 +5147,25 @@ html[data-theme='light'] .detail-page-header :deep(.ant-page-header-heading-sub-
 html[data-theme='light'] .detail-page-header :deep(.ant-page-header-back-button) {
   color: #47627e;
 }
+html[data-theme='light'] .detail-density-bar {
+  border-color: rgba(187, 204, 220, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .detail-density-copy {
+  color: #47627e;
+}
+html[data-theme='light'] .detail-density-copy strong,
+html[data-theme='light'] .tab-toolbar-title {
+  color: #16324f;
+}
+html[data-theme='light'] .detail-density-kicker {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.18);
+  color: #1d4ed8;
+}
 html[data-theme='light'] .monitor-hero,
 html[data-theme='light'] .weaning-card,
 html[data-theme='light'] .info-card,
@@ -4836,6 +5175,11 @@ html[data-theme='light'] .tabs-card {
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
     linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .hero-main,
+html[data-theme='light'] .hero-side {
+  background: rgba(255,255,255,.72);
+  border-color: rgba(187, 204, 220, 0.62);
 }
 html[data-theme='light'] .hero-tag,
 html[data-theme='light'] .hero-tag--soft,
@@ -5059,6 +5403,37 @@ html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active) {
   border-color: rgba(59, 130, 246, 0.32);
 }
 html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) { color: #f8fbff; }
+html[data-theme='light'] .detail-density-btn,
+html[data-theme='light'] .tab-shortcut-btn {
+  background: rgba(241, 246, 251, 0.98);
+  border-color: rgba(187, 204, 220, 0.72);
+  color: #47627e;
+}
+html[data-theme='light'] .tab-group-btn {
+  background: rgba(248, 251, 255, 0.98);
+  border-color: rgba(187, 204, 220, 0.68);
+  color: #5b728d;
+}
+html[data-theme='light'] .detail-density-btn:hover,
+html[data-theme='light'] .tab-shortcut-btn:hover,
+html[data-theme='light'] .tab-group-btn:hover {
+  border-color: rgba(59, 130, 246, 0.32);
+  color: #16324f;
+}
+html[data-theme='light'] .detail-density-btn.is-active,
+html[data-theme='light'] .tab-shortcut-btn.is-active {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.94) 0%, rgba(29, 78, 216, 0.98) 100%);
+  border-color: rgba(59, 130, 246, 0.32);
+  color: #f8fbff;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2);
+}
+html[data-theme='light'] .tab-group-btn.is-active {
+  background: rgba(219, 234, 254, 0.98);
+  border-color: rgba(59, 130, 246, 0.26);
+  color: #1d4ed8;
+  box-shadow: none;
+}
+html[data-theme='light'] .tab-toolbar-kicker { color: #47627e; }
 html[data-theme='light'] .tabs-card :deep(.ant-table-thead > tr > th) {
   background: rgba(241, 246, 251, 0.98);
   color: #47627e;
@@ -5106,11 +5481,8 @@ html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
 html[data-theme='light'] .ai-error { color: #dc2626; }
 
 @media (max-width: 1500px) {
-  .monitor-hero {
-    grid-template-columns: 1.25fr 0.95fr;
-  }
-  .hero-main {
-    grid-column: 1 / -1;
+  .detail-layout {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
   }
   .ai-grid {
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -5118,8 +5490,11 @@ html[data-theme='light'] .ai-error { color: #dc2626; }
 }
 
 @media (max-width: 1200px) {
-  .monitor-hero {
+  .detail-layout {
     grid-template-columns: 1fr;
+  }
+  .detail-rail-sticky {
+    position: static;
   }
   .weaning-strip {
     grid-template-columns: 1fr;
@@ -5135,6 +5510,16 @@ html[data-theme='light'] .ai-error { color: #dc2626; }
 @media (max-width: 980px) {
   .detail-container {
     padding: 0 8px 14px;
+  }
+  .detail-density-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .detail-density-actions {
+    width: 100%;
+  }
+  .detail-density-btn {
+    flex: 1;
   }
   .detail-content {
     grid-template-columns: 1fr;
@@ -5189,6 +5574,11 @@ html[data-theme='light'] .ai-error { color: #dc2626; }
   .tab-toolbar {
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .tab-toolbar-actions,
+  .tab-group-bar,
+  .tab-shortcuts {
+    justify-content: flex-start;
   }
   .modi-kpi-group {
     width: 100%;

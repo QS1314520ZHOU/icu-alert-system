@@ -1,5 +1,5 @@
 <template>
-  <section class="body-map-panel">
+  <section :class="['body-map-panel', { 'body-map-panel--compact': compact }]">
     <div class="body-map-panel__head">
       <div>
         <div class="body-map-panel__kicker">器官热力图</div>
@@ -13,6 +13,7 @@
 
     <div class="body-map-panel__grid">
       <OrganHeatmapFigure
+        :compact="compact"
         :organ-states="organStates"
         :selected-organ="selectedOrgan"
         :organ-tooltips="organTooltips"
@@ -63,6 +64,7 @@ const props = withDefaults(defineProps<{
   modi?: number | null
   organCount?: number | null
   silhouette?: 'female' | 'male'
+  compact?: boolean
 }>(), {
   organStates: () => ({}),
   organDetails: () => [],
@@ -70,6 +72,7 @@ const props = withDefaults(defineProps<{
   modi: null,
   organCount: null,
   silhouette: 'female',
+  compact: false,
 })
 
 const emit = defineEmits<{
@@ -124,9 +127,9 @@ const organTooltips = computed(() =>
 <style scoped>
 .body-map-panel {
   display: grid;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 14px;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
   background: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
   border: 1px solid rgba(80,199,255,.14);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
@@ -149,8 +152,8 @@ const organTooltips = computed(() =>
 .body-map-panel__title {
   margin-top: 4px;
   color: #effcff;
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 700;
 }
 .body-map-panel__stats {
   display: flex;
@@ -175,13 +178,15 @@ const organTooltips = computed(() =>
 }
 .body-map-panel__grid {
   display: grid;
-  grid-template-columns: minmax(250px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
 }
 .body-map-panel__side {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-content: start;
 }
 .body-map-panel__row {
   width: 100%;
@@ -189,7 +194,8 @@ const organTooltips = computed(() =>
   border: 1px solid rgba(80,199,255,.12);
   background: rgba(8, 28, 44, 0.7);
   border-radius: 12px;
-  padding: 10px 12px;
+  min-height: 82px;
+  padding: 11px 12px;
   cursor: pointer;
   transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
 }
@@ -202,6 +208,14 @@ const organTooltips = computed(() =>
 .body-map-panel__row strong {
   color: #effcff;
   font-size: 14px;
+}
+.body-map-panel__actions {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(80,199,255,.14);
+  background: rgba(5, 18, 30, 0.5);
 }
 .body-map-panel__row-meta,
 .body-map-panel__hint {
@@ -223,8 +237,28 @@ const organTooltips = computed(() =>
   color: #effcff;
   cursor: pointer;
 }
-@media (max-width: 980px) {
+.body-map-panel--compact .body-map-panel__title {
+  font-size: 15px;
+}
+.body-map-panel--compact .body-map-panel__grid {
+  grid-template-columns: 1fr;
+}
+.body-map-panel--compact .body-map-panel__side {
+  grid-template-columns: 1fr;
+}
+.body-map-panel--compact .body-map-panel__row {
+  min-height: 0;
+}
+.body-map-panel--compact .body-map-panel__row-meta {
+  line-height: 1.5;
+}
+@media (max-width: 1180px) {
   .body-map-panel__grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .body-map-panel__side {
     grid-template-columns: 1fr;
   }
 }
@@ -247,6 +281,10 @@ html[data-theme='light'] .body-map-panel__badge {
   background: rgba(255,255,255,.94);
   border-color: rgba(130, 170, 194, 0.24);
   color: #27445b;
+}
+html[data-theme='light'] .body-map-panel__actions {
+  background: rgba(255,255,255,.9);
+  border-color: rgba(130, 170, 194, 0.32);
 }
 html[data-theme='light'] .body-map-panel__action {
   background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%);

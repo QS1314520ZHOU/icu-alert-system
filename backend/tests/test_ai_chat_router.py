@@ -149,3 +149,78 @@ async def test_ai_chat_consult_degrades_when_circuit_breaker_open(monkeypatch: p
     assert body.get("code") == 0
     assert body.get("degraded") is True
     assert body.get("retry_after_seconds") == 164.0
+
+
+def test_strip_markdown_for_display_removes_think_blocks() -> None:
+    raw = "<think>这里是内部推理</think>\n**结论**：建议先复查乳酸并评估灌注。"
+    assert chat._strip_markdown_for_display(raw) == "结论：建议先复查乳酸并评估灌注。"
+
+
+def test_extract_llm_stream_delta_skips_reasoning_blocks() -> None:
+    payload = {
+        "choices": [
+            {
+                "delta": {
+                    "content": [
+                        {"type": "reasoning_content", "text": "先思考"},
+                        {"type": "output_text", "text": "最终答案"},
+                    ]
+                }
+            }
+        ]
+    }
+    assert chat._extract_llm_stream_delta(payload) == "最终答案"
+
+
+def test_finalize_ai_consult_answer_enforces_fixed_sections() -> None:
+    text = "感染可能性高，需要先复查乳酸并评估灌注。"
+    result = chat._finalize_ai_consult_answer(text)
+    assert "初步判断：" in result
+    assert "风险点：" in result
+    assert "建议检查：" in result
+    assert "下一步处理：" in result
+    assert "1、" in result
+
+
+def test_normalize_ai_consult_section_content_adds_numbering() -> None:
+    assert chat._normalize_ai_consult_section_content("感染风险高；循环不稳定；需动态复评") == (
+        "1、感染风险高\n2、循环不稳定\n3、需动态复评"
+    )
+
+
+def test_resolve_ai_consult_limits_supports_patient_or_complex_case() -> None:
+    normal = chat._resolve_ai_consult_limits(message="请给我一个初步建议", history=[], patient_context="")
+    patient_bound = chat._resolve_ai_consult_limits(message="请结合该患者情况分析", history=[], patient_context="患者标签: 1床")
+    complex_case = chat._resolve_ai_consult_limits(
+        message="患者乳酸持续升高且去甲肾上腺素加量，帮我做鉴别诊断和下一步处理",
+        history=[],
+        patient_context="",
+    )
+
+    assert normal[0] == 3200
+    assert patient_bound[0] >= 4096
+    assert complex_case[0] >= 4096
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_consult_strips_think_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_build_patient_context(patient_id: str | None, message: str):
+        del patient_id, message
+        return "", "", None, "none", ""
+
+    async def _fake_call_api_llm(*args: Any, **kwargs: Any) -> str:
+        del args, kwargs
+        return "<think>内部分析</think>\n1. 初步判断：感染可能性高。"
+
+    monkeypatch.setattr(chat, "_build_patient_context", _fake_build_patient_context)
+    monkeypatch.setattr(chat, "call_api_llm", _fake_call_api_llm)
+
+    payload = chat.ChatConsultPayload(message="请给出处理建议", history=[], patient_id=None)
+    res = await chat.ai_chat_consult(payload)
+
+    assert res.get("code") == 0
+    assert "<think>" not in str(res.get("answer") or "")
+    assert "内部分析" not in str(res.get("answer") or "")
+    assert "初步判断" in str(res.get("answer") or "")
+    assert "风险点" in str(res.get("answer") or "")
+    assert res.get("answer_max_tokens") == 3200

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from difflib import SequenceMatcher
 import json
 import logging
 import re
@@ -21,15 +22,51 @@ from app.utils.patient_helpers import patient_his_pid_candidates
 
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
-_AI_CONSULT_LLM_TIMEOUT_SECONDS = 20
-_AI_CONSULT_TOTAL_TIMEOUT_SECONDS = 36
-_AI_CONSULT_MAX_TOKENS = 900
+_AI_CONSULT_LLM_TIMEOUT_SECONDS = 90
+_AI_CONSULT_TOTAL_TIMEOUT_SECONDS = 120
+_AI_CONSULT_MAX_TOKENS = 3200
+_AI_CONSULT_COMPLEX_LLM_TIMEOUT_SECONDS = 120
+_AI_CONSULT_COMPLEX_TOTAL_TIMEOUT_SECONDS = 150
+_AI_CONSULT_COMPLEX_MAX_TOKENS = 4096
 _AI_CONSULT_PREVIEW_TIMEOUT_SECONDS = 6
 _AI_CONSULT_PREVIEW_MAX_TOKENS = 180
 _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS = 1.8
 _AI_CONSULT_CONTEXT_MAX_CHARS = 4200
 _AI_CONSULT_HISTORY_TURNS = 8
 _AI_CONSULT_HISTORY_ITEM_MAX_CHARS = 320
+_AI_CONSULT_SECTION_ORDER = ("初步判断", "风险点", "建议检查", "下一步处理")
+_AI_CONSULT_COMPLEX_KEYWORDS = (
+    "鉴别诊断",
+    "诊断思路",
+    "病因分析",
+    "复杂病例",
+    "多器官",
+    "休克",
+    "脓毒",
+    "感染性休克",
+    "乳酸",
+    "升压药",
+    "去甲肾上腺素",
+    "机械通气",
+    "呼吸衰竭",
+    "CRRT",
+    "ECMO",
+    "床旁超声",
+    "血流动力学",
+    "酸中毒",
+    "ARDS",
+    "神经评估",
+    "凝血",
+    "出血",
+)
+
+_AI_CONSULT_INTENT_RULES: list[tuple[str, str, tuple[str, ...]]] = [
+    ("检查建议", "建议检查", ("检查", "化验", "检验", "影像", "ct", "cta", "mri", "b超", "超声", "血气", "乳酸", "培养", "复查")),
+    ("下一步处理", "下一步处理", ("处理", "治疗", "怎么做", "怎么办", "处置", "干预", "用药", "补液", "升压", "呼吸机", "调整", "6小时", "下一步")),
+    ("风险识别", "风险点", ("风险", "警惕", "并发症", "恶化", "最危险", "高危", "危重", "预警")),
+    ("诊断判断", "初步判断", ("诊断", "判断", "考虑", "病因", "鉴别", "原因", "为什么", "初步判断", "诊断思路")),
+    ("病情总结", "初步判断", ("总结", "概括", "梳理", "汇总", "总体", "病情")),
+]
 
 _PATIENT_IDENTIFIER_FIELDS = (
     "hisPid",
@@ -90,6 +127,13 @@ def _strip_markdown_for_display(value: str | None) -> str:
     if not text:
         return ""
 
+    text = re.sub(r"<think\b[^>]*>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<think\b[^>]*>[\s\S]*$", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?think\b[^>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"&lt;think\b[^&]*&gt;[\s\S]*?&lt;/think&gt;", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"&lt;think\b[^&]*&gt;[\s\S]*$", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"&lt;/?think\b[^&]*&gt;", "", text, flags=re.IGNORECASE)
+
     full_fence = re.fullmatch(r"\s*```(?:[\w+-]+)?\s*([\s\S]*?)\s*```\s*", text, flags=re.IGNORECASE)
     if full_fence:
         text = str(full_fence.group(1) or "").strip()
@@ -111,6 +155,121 @@ def _strip_markdown_for_display(value: str | None) -> str:
     text = re.sub(r"^\s*[-*_]{3,}\s*$", "", text, flags=re.MULTILINE)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _extract_ai_consult_sections(text: str) -> dict[str, str]:
+    normalized = str(text or "").replace("\r\n", "\n").strip()
+    if not normalized:
+        return {}
+    normalized = re.sub(
+        r"(?<!^)(?<!\n)\s*(?=(?:[一二三四1-4]\s*[、.)：:]\s*)?(初步判断|风险点|建议检查|下一步处理)\s*[:：])",
+        "\n",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    pattern = re.compile(
+        r"(?mi)^\s*(?:[一二三四1-4]\s*[、.)：:]\s*)?(初步判断|风险点|建议检查|下一步处理)\s*[:：]?\s*"
+    )
+    matches = list(pattern.finditer(normalized))
+    if not matches:
+        return {}
+
+    sections: dict[str, str] = {}
+    for idx, match in enumerate(matches):
+        title = str(match.group(1) or "").strip()
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(normalized)
+        content = normalized[start:end].strip(" \n\t:：")
+        if content:
+            sections[title] = content
+    return sections
+
+
+def _normalize_ai_consult_section_content(content: str) -> str:
+    text = str(content or "").replace("\r\n", "\n").strip()
+    if not text:
+        return ""
+
+    rows = [row.strip() for row in text.split("\n") if row.strip()]
+    if len(rows) > 1:
+        normalized_rows: list[str] = []
+        for idx, row in enumerate(rows, start=1):
+            if re.match(r"^\s*(?:\d+[、.)：:]|[一二三四五六七八九十]+[、.)：:])", row):
+                normalized_rows.append(row)
+            else:
+                normalized_rows.append(f"{idx}、{row}")
+        return "\n".join(normalized_rows)
+
+    single = rows[0] if rows else text
+    if re.match(r"^\s*(?:\d+[、.)：:]|[一二三四五六七八九十]+[、.)：:])", single):
+        return single
+
+    parts = [item.strip(" \t。；;") for item in re.split(r"[；;]+", single) if item.strip(" \t。；;")]
+    if len(parts) <= 1:
+        return f"1、{single}"
+    return "\n".join(f"{idx}、{part}" for idx, part in enumerate(parts, start=1))
+
+
+def _finalize_ai_consult_answer(raw: str | None) -> str:
+    text = _strip_markdown_for_display(raw)
+    if not text:
+        text = "暂时没有生成有效回答，请稍后重试。"
+
+    parsed = _extract_ai_consult_sections(text)
+    if not parsed:
+        parsed = {
+            "初步判断": text,
+            "风险点": "1、当前原始回答未明确分段，请重点结合生命体征、器官灌注、意识状态和近期治疗反应综合判断。",
+            "建议检查": "1、建议补充最关键的生命体征趋势、化验变化、血气/乳酸及床旁评估信息。",
+            "下一步处理": "1、请优先处理当前最紧急问题，并结合补充信息动态调整方案。仅供临床参考，需结合床旁评估。",
+        }
+    else:
+        if "初步判断" not in parsed:
+            parsed["初步判断"] = text
+        if "风险点" not in parsed:
+            parsed["风险点"] = "1、原回答未单列风险点，请结合潜在休克、低氧、出血、感染进展等高危问题重点排查。"
+        if "建议检查" not in parsed:
+            parsed["建议检查"] = "1、请补充关键化验、影像、生命体征趋势和床旁评估。"
+        if "下一步处理" not in parsed:
+            parsed["下一步处理"] = "1、请按床旁紧急程度优先处理，并根据新增检查结果及时调整。仅供临床参考，需结合床旁评估。"
+
+    blocks: list[str] = []
+    for title in _AI_CONSULT_SECTION_ORDER:
+        content = str(parsed.get(title) or "").strip()
+        if not content:
+            continue
+        blocks.append(f"{title}：\n{_normalize_ai_consult_section_content(content)}")
+    return "\n\n".join(blocks).strip()
+
+
+def _resolve_ai_consult_limits(
+    *,
+    message: str,
+    history: list[ChatTurn],
+    patient_context: str,
+) -> tuple[int, int, int]:
+    text = _safe_text(message)
+    history_turns = len(history or [])
+    normalized_text = text.lower()
+    complex_hit = any(keyword.lower() in normalized_text for keyword in _AI_CONSULT_COMPLEX_KEYWORDS)
+    is_complex = bool(
+        patient_context
+        or history_turns >= 6
+        or len(text) >= 220
+        or text.count("\n") >= 4
+        or complex_hit
+    )
+    if is_complex:
+        return (
+            _AI_CONSULT_COMPLEX_MAX_TOKENS,
+            _AI_CONSULT_COMPLEX_LLM_TIMEOUT_SECONDS,
+            _AI_CONSULT_COMPLEX_TOTAL_TIMEOUT_SECONDS,
+        )
+    return (
+        _AI_CONSULT_MAX_TOKENS,
+        _AI_CONSULT_LLM_TIMEOUT_SECONDS,
+        _AI_CONSULT_TOTAL_TIMEOUT_SECONDS,
+    )
 
 
 def _parse_retry_after_seconds(error_text: str) -> float | None:
@@ -135,6 +294,8 @@ def _build_ai_consult_degraded_response(
     resolved_patient_id: str | None,
     patient_match_source: str | None,
     patient_match_note: str,
+    intent_primary: str | None = None,
+    intent_focus_section: str | None = None,
     retry_after_seconds: float | None = None,
 ) -> JSONResponse:
     degraded_answer = _build_ai_consult_degraded_answer(retry_after_seconds)
@@ -151,6 +312,8 @@ def _build_ai_consult_degraded_response(
             "resolved_patient_id": resolved_patient_id,
             "patient_match_source": patient_match_source,
             "patient_match_note": patient_match_note,
+            "intent_primary": intent_primary,
+            "intent_focus_section": intent_focus_section,
         },
     )
 
@@ -186,6 +349,97 @@ def _format_history(history: list[ChatTurn]) -> str:
 
 def _safe_text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _normalize_compare_text(value: str | None) -> str:
+    text = _strip_markdown_for_display(value)
+    if not text:
+        return ""
+    text = re.sub(
+        r"(?mi)^\s*(?:[一二三四1-4]\s*[、.)：:]\s*)?(初步判断|风险点|建议检查|下一步处理)\s*[:：]?\s*",
+        "",
+        text,
+    )
+    text = re.sub(r"\s+", "", text)
+    text = re.sub(r"[，。；：:、,.!?！？（）()\[\]【】“”\"'`~\-_/\\|]+", "", text)
+    return text[:4000]
+
+
+def _text_similarity(a: str | None, b: str | None) -> float:
+    left = _normalize_compare_text(a)
+    right = _normalize_compare_text(b)
+    if not left or not right:
+        return 0.0
+    return SequenceMatcher(None, left, right).ratio()
+
+
+def _latest_history_content(history: list[ChatTurn], role: Literal["user", "assistant"]) -> str:
+    for item in reversed(history or []):
+        if item.role != role:
+            continue
+        content = _safe_text(item.content)
+        if content:
+            return content
+    return ""
+
+
+def _should_retry_ai_consult_answer(
+    *,
+    message: str,
+    history: list[ChatTurn],
+    answer_text: str,
+) -> bool:
+    current_question = _safe_text(message)
+    previous_question = _latest_history_content(history, "user")
+    previous_answer = _latest_history_content(history, "assistant")
+    if not current_question or not previous_answer or not answer_text:
+        return False
+    if len(_normalize_compare_text(answer_text)) < 90:
+        return False
+    question_similarity = _text_similarity(current_question, previous_question)
+    answer_similarity = _text_similarity(answer_text, previous_answer)
+    return question_similarity < 0.72 and answer_similarity >= 0.84
+
+
+def _detect_ai_consult_intent(message: str) -> dict[str, str]:
+    text = _safe_text(message).lower()
+    primary = "综合评估"
+    focus_section = "初步判断 / 风险点 / 建议检查 / 下一步处理"
+    matched_keywords: list[str] = []
+
+    for intent_name, section_name, keywords in _AI_CONSULT_INTENT_RULES:
+        hits = [keyword for keyword in keywords if keyword.lower() in text]
+        if hits:
+            primary = intent_name
+            focus_section = section_name
+            matched_keywords = hits[:4]
+            break
+
+    focus_instruction_map = {
+        "建议检查": "本轮如果在问进一步检查，请把“建议检查”写得最具体，明确检查项目、目的和优先级，其他部分相对精简。",
+        "下一步处理": "本轮如果在问处置/治疗，请把“下一步处理”写成最优先、最可执行的动作清单，其他部分相对精简。",
+        "风险点": "本轮如果在问风险，请把“风险点”写成最核心的 3-5 条，并说明为什么危险，其他部分相对精简。",
+        "初步判断": "本轮如果在问诊断/判断，请把“初步判断”写得最完整，说明当前最可能方向与依据，其他部分相对精简。",
+    }
+    preview_focus_map = {
+        "建议检查": "首句优先回答最关键还缺什么检查。",
+        "下一步处理": "首句优先回答现在最先该做什么处理。",
+        "风险点": "首句优先回答当前最危险的风险是什么。",
+        "初步判断": "首句优先回答当前最可能的初步判断是什么。",
+    }
+    return {
+        "primary": primary,
+        "focus_section": focus_section,
+        "matched_keywords": "、".join(matched_keywords) if matched_keywords else "未命中显式关键词",
+        "focus_instruction": focus_instruction_map.get(
+            focus_section,
+            "请根据本轮问题重心作答，不要平均分配篇幅，不要机械重复患者概况。",
+        ),
+        "preview_instruction": preview_focus_map.get(
+            focus_section,
+            "首句优先回答本轮问题最核心的临床结论。",
+        ),
+    }
 
 
 def _format_dt(value: Any) -> str:
@@ -732,22 +986,32 @@ def _build_ai_consult_prompts(
     match_note: str,
     patient_context: str,
 ) -> tuple[str, str]:
+    intent = _detect_ai_consult_intent(message)
     system_prompt = (
         "你是 ICU AI 问诊助手，面向临床医生/护士提供中文辅助问答。"
         "请基于用户问题、历史对话以及患者上下文，输出简洁、专业、可执行的回答。"
         "若问题中提及具体患者姓名/住院号，优先使用已检索到的 patient 表匹配患者，不要混淆同名患者。"
-        "优先给出：1) 初步判断；2) 关键风险；3) 建议补充的信息/检查；4) 下一步处理建议。"
+        "必须严格按以下固定结构输出，并且四个标题都要出现："
+        "初步判断："
+        "风险点："
+        "建议检查："
+        "下一步处理："
+        "其中每一部分都要有具体内容，不能省略标题，不能合并标题。"
         "不要编造不存在的生命体征、化验或影像结果；若信息不足必须明确说明。"
         "若存在潜在急危重情况，先提示立即线下评估/抢救。"
+        "严禁输出 <think>、</think>、思维链、推理过程、内部分析草稿。"
         "只输出纯文本，不要使用任何 markdown 语法（如 #、*、-、```、[链接]()）。"
         "不要输出 markdown 表格，不要长篇空泛免责声明，结尾可简短提示“仅供临床参考，需结合床旁评估”。"
+        f"本轮问题意图判定为：{intent['primary']}，重点展开栏目：{intent['focus_section']}。"
+        f"{intent['focus_instruction']}"
     )
     user_prompt = (
+        f"【本轮问题意图】\n意图={intent['primary']}；重点栏目={intent['focus_section']}；关键词={intent['matched_keywords']}\n\n"
         f"【患者匹配信息】\n{match_note or '无额外匹配提示'}\n\n"
         f"【患者上下文】\n{patient_context or '未选择具体患者，本轮按通用 ICU 问答处理。'}\n\n"
         f"【历史对话】\n{_format_history(history)}\n\n"
         f"【本轮问题】\n{_clip_text(message, 2000)}\n\n"
-        "请直接回答本轮问题。"
+        f"请直接回答本轮问题，并优先把重点写在“{intent['focus_section']}”。"
     )
     return system_prompt, user_prompt
 
@@ -759,18 +1023,61 @@ def _build_ai_consult_preview_prompts(
     match_note: str,
     patient_context: str,
 ) -> tuple[str, str]:
+    intent = _detect_ai_consult_intent(message)
     system_prompt = (
         "你是 ICU AI 问诊助手。"
         "请先给出“首屏预览”回答：仅 1-2 句中文，聚焦初步判断与第一优先风险，必须可执行。"
+        "严禁输出 <think>、</think>、思维链或内部推理。"
         "不要使用 markdown，不要列表，不要展开细节，不要超过 90 字。"
         "若信息不足，明确指出最关键缺失信息。"
+        f"{intent['preview_instruction']}"
     )
     user_prompt = (
+        f"【本轮问题意图】意图={intent['primary']}；重点栏目={intent['focus_section']}；关键词={intent['matched_keywords']}\n"
         f"【患者匹配信息】{_clip_text(match_note or '无额外匹配提示', 200)}\n"
         f"【患者上下文】{_clip_text(patient_context or '未选择具体患者，本轮按通用 ICU 问答处理。', 900)}\n"
         f"【历史对话】{_clip_text(_format_history(history), 450)}\n"
         f"【本轮问题】{_clip_text(message, 800)}\n"
         "请输出首屏预览。"
+    )
+    return system_prompt, user_prompt
+
+
+def _build_ai_consult_retry_prompts(
+    *,
+    message: str,
+    history: list[ChatTurn],
+    match_note: str,
+    patient_context: str,
+) -> tuple[str, str]:
+    intent = _detect_ai_consult_intent(message)
+    previous_question = _latest_history_content(history, "user")
+    previous_answer = _latest_history_content(history, "assistant")
+    system_prompt = (
+        "你是 ICU AI 问诊助手。"
+        "上一轮回答与当前问题过于相似，需要你重新作答。"
+        "这一次必须优先响应【本轮问题】本身，不要只重复患者概况、固定模板或上一轮原话。"
+        "若当前问题与上一轮关注点不同，就必须体现新的分析角度。"
+        "仍然必须严格按以下固定结构输出，并且四个标题都要出现："
+        "初步判断："
+        "风险点："
+        "建议检查："
+        "下一步处理："
+        "每个部分都要有具体内容。"
+        "严禁输出 <think>、</think>、思维链、内部推理。"
+        "只输出纯文本，不要使用 markdown。"
+        f"本轮问题意图判定为：{intent['primary']}，重点展开栏目：{intent['focus_section']}。"
+        f"{intent['focus_instruction']}"
+    )
+    user_prompt = (
+        f"【本轮问题意图】\n意图={intent['primary']}；重点栏目={intent['focus_section']}；关键词={intent['matched_keywords']}\n\n"
+        f"【患者匹配信息】\n{match_note or '无额外匹配提示'}\n\n"
+        f"【患者上下文】\n{patient_context or '未选择具体患者，本轮按通用 ICU 问答处理。'}\n\n"
+        f"【上一轮用户问题】\n{_clip_text(previous_question or '无', 1200)}\n\n"
+        f"【上一轮助手回答】\n{_clip_text(previous_answer or '无', 1800)}\n\n"
+        f"【本轮问题】\n{_clip_text(message, 2000)}\n\n"
+        "请重新回答本轮问题；如果本轮在问检查，就把建议检查写具体；如果本轮在问处理，就把下一步处理写具体；"
+        "不要复述上一轮相同内容。"
     )
     return system_prompt, user_prompt
 
@@ -793,6 +1100,9 @@ def _extract_llm_stream_delta(payload: dict[str, Any]) -> str:
             chunks: list[str] = []
             for item in content:
                 if isinstance(item, dict):
+                    block_type = _safe_text(item.get("type") or item.get("content_type") or item.get("kind")).lower()
+                    if "reason" in block_type or "think" in block_type:
+                        continue
                     text = item.get("text")
                     if isinstance(text, str):
                         chunks.append(text)
@@ -815,12 +1125,14 @@ async def _iter_llm_stream(
     system_prompt: str,
     user_prompt: str,
     model: str | None,
+    max_tokens: int,
+    timeout_seconds: int,
 ):
     llm_url = cfg.settings.LLM_BASE_URL.rstrip("/") + "/chat/completions"
     payload = {
         "model": model or cfg.llm_fast_model,
         "temperature": 0.1,
-        "max_tokens": _AI_CONSULT_MAX_TOKENS,
+        "max_tokens": max_tokens,
         "stream": True,
         "messages": [
             {"role": "system", "content": system_prompt},
@@ -832,7 +1144,7 @@ async def _iter_llm_stream(
         "Authorization": f"Bearer {cfg.settings.LLM_API_KEY}",
     }
 
-    timeout = httpx.Timeout(_AI_CONSULT_TOTAL_TIMEOUT_SECONDS, read=_AI_CONSULT_TOTAL_TIMEOUT_SECONDS)
+    timeout = httpx.Timeout(timeout_seconds, read=timeout_seconds)
     async with httpx.AsyncClient(timeout=timeout) as client:
         async with client.stream("POST", llm_url, json=payload, headers=headers) as resp:
             resp.raise_for_status()
@@ -861,6 +1173,7 @@ async def ai_chat_consult(payload: ChatConsultPayload):
     message = str(payload.message or "").strip()
     if not message:
         return {"code": 400, "message": "message不能为空"}
+    intent = _detect_ai_consult_intent(message)
 
     patient_id = str(payload.patient_id or "").strip() or None
     try:
@@ -874,6 +1187,11 @@ async def ai_chat_consult(payload: ChatConsultPayload):
         match_note=match_note,
         patient_context=patient_context,
     )
+    max_tokens, llm_timeout_seconds, total_timeout_seconds = _resolve_ai_consult_limits(
+        message=message,
+        history=payload.history,
+        patient_context=patient_context,
+    )
 
     try:
         cfg = get_config()
@@ -882,12 +1200,32 @@ async def ai_chat_consult(payload: ChatConsultPayload):
                 system_prompt,
                 user_prompt,
                 cfg.llm_fast_model or cfg.llm_model_medical or None,
-                max_tokens=_AI_CONSULT_MAX_TOKENS,
-                timeout_seconds=_AI_CONSULT_LLM_TIMEOUT_SECONDS,
+                max_tokens=max_tokens,
+                timeout_seconds=llm_timeout_seconds,
             ),
-            timeout=_AI_CONSULT_TOTAL_TIMEOUT_SECONDS,
+            timeout=total_timeout_seconds,
         )
-        answer_text = _strip_markdown_for_display(str(answer or "").strip()) or "暂时没有生成有效回答，请稍后重试。"
+        answer_text = _finalize_ai_consult_answer(str(answer or "").strip())
+        if _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
+            retry_system_prompt, retry_user_prompt = _build_ai_consult_retry_prompts(
+                message=message,
+                history=payload.history,
+                match_note=match_note,
+                patient_context=patient_context,
+            )
+            retry_answer = await asyncio.wait_for(
+                call_api_llm(
+                    retry_system_prompt,
+                    retry_user_prompt,
+                    cfg.llm_fast_model or cfg.llm_model_medical or None,
+                    max_tokens=max_tokens,
+                    timeout_seconds=llm_timeout_seconds,
+                ),
+                timeout=total_timeout_seconds,
+            )
+            retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip())
+            if retry_text:
+                answer_text = retry_text
         return {
             "code": 0,
             "answer": answer_text,
@@ -896,6 +1234,9 @@ async def ai_chat_consult(payload: ChatConsultPayload):
             "resolved_patient_id": resolved_patient_id,
             "patient_match_source": match_source,
             "patient_match_note": match_note,
+            "answer_max_tokens": max_tokens,
+            "intent_primary": intent["primary"],
+            "intent_focus_section": intent["focus_section"],
         }
     except LLMRuntimeUnavailableError as exc:
         retry_after_seconds = _parse_retry_after_seconds(str(exc))
@@ -908,6 +1249,8 @@ async def ai_chat_consult(payload: ChatConsultPayload):
             resolved_patient_id=resolved_patient_id,
             patient_match_source=match_source,
             patient_match_note=match_note,
+            intent_primary=intent["primary"],
+            intent_focus_section=intent["focus_section"],
         )
     except (asyncio.TimeoutError, httpx.TimeoutException) as exc:
         logger.warning("AI consult chat timeout, degraded: %s", exc)
@@ -919,6 +1262,8 @@ async def ai_chat_consult(payload: ChatConsultPayload):
             resolved_patient_id=resolved_patient_id,
             patient_match_source=match_source,
             patient_match_note=match_note,
+            intent_primary=intent["primary"],
+            intent_focus_section=intent["focus_section"],
         )
     except Exception as exc:
         logger.exception("AI consult chat error")
@@ -927,6 +1272,8 @@ async def ai_chat_consult(payload: ChatConsultPayload):
             "message": "AI服务异常",
             "answer": "",
             "error": f"AI服务异常: {str(exc)[:120]}",
+            "intent_primary": intent["primary"],
+            "intent_focus_section": intent["focus_section"],
         }
 
 
@@ -935,6 +1282,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
     message = str(payload.message or "").strip()
     if not message:
         return JSONResponse(status_code=400, content={"code": 400, "message": "message不能为空"})
+    intent = _detect_ai_consult_intent(message)
 
     patient_id = str(payload.patient_id or "").strip() or None
     try:
@@ -946,6 +1294,11 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
         message=message,
         history=payload.history,
         match_note=match_note,
+        patient_context=patient_context,
+    )
+    max_tokens, llm_timeout_seconds, total_timeout_seconds = _resolve_ai_consult_limits(
+        message=message,
+        history=payload.history,
         patient_context=patient_context,
     )
     preview_system_prompt, preview_user_prompt = _build_ai_consult_preview_prompts(
@@ -968,10 +1321,14 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                 "patient_match_source": match_source,
                 "patient_match_note": match_note,
                 "model": model_name or "",
+                "answer_max_tokens": max_tokens,
+                "intent_primary": intent["primary"],
+                "intent_focus_section": intent["focus_section"],
             },
         )
 
         raw_answer_chunks: list[str] = []
+        visible_answer_text = ""
         stream_used = False
         preview_emitted = False
         first_delta_received = False
@@ -991,6 +1348,8 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 model=model_name,
+                max_tokens=max_tokens,
+                timeout_seconds=total_timeout_seconds,
             )
             next_delta_task: asyncio.Task = asyncio.create_task(anext(stream_iter))
 
@@ -1020,7 +1379,16 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                     if preview_task and not preview_task.done():
                         preview_task.cancel()
                     raw_answer_chunks.append(delta)
-                    yield _sse_pack("delta", {"text": delta})
+                    new_visible_text = _strip_markdown_for_display("".join(raw_answer_chunks).strip())
+                    if new_visible_text:
+                        if new_visible_text.startswith(visible_answer_text):
+                            delta_text = new_visible_text[len(visible_answer_text):]
+                        else:
+                            delta_text = ""
+                        if delta_text or not visible_answer_text:
+                            visible_answer_text = new_visible_text
+                        if delta_text:
+                            yield _sse_pack("delta", {"text": delta_text})
                     next_delta_task = asyncio.create_task(anext(stream_iter))
         except Exception as stream_exc:
             logger.warning("AI consult stream failed, fallback to non-stream: %s", stream_exc)
@@ -1035,15 +1403,24 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                         system_prompt,
                         user_prompt,
                         model_name,
-                        max_tokens=_AI_CONSULT_MAX_TOKENS,
-                        timeout_seconds=_AI_CONSULT_LLM_TIMEOUT_SECONDS,
+                        max_tokens=max_tokens,
+                        timeout_seconds=llm_timeout_seconds,
                     ),
-                    timeout=_AI_CONSULT_TOTAL_TIMEOUT_SECONDS,
+                    timeout=total_timeout_seconds,
                 )
                 fallback_text = str(fallback_answer or "").strip()
                 if fallback_text:
                     raw_answer_chunks.append(fallback_text)
-                    yield _sse_pack("delta", {"text": fallback_text})
+                    new_visible_text = _strip_markdown_for_display("".join(raw_answer_chunks).strip())
+                    if new_visible_text:
+                        if new_visible_text.startswith(visible_answer_text):
+                            delta_text = new_visible_text[len(visible_answer_text):]
+                        else:
+                            delta_text = ""
+                        if delta_text or not visible_answer_text:
+                            visible_answer_text = new_visible_text
+                        if delta_text:
+                            yield _sse_pack("delta", {"text": delta_text})
         except LLMRuntimeUnavailableError as exc:
             retry_after_seconds = _parse_retry_after_seconds(str(exc))
             yield _sse_pack(
@@ -1060,6 +1437,8 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                     "patient_match_source": match_source,
                     "patient_match_note": match_note,
                     "stream_used": stream_used,
+                    "intent_primary": intent["primary"],
+                    "intent_focus_section": intent["focus_section"],
                 },
             )
             return
@@ -1078,6 +1457,8 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                     "patient_match_source": match_source,
                     "patient_match_note": match_note,
                     "stream_used": stream_used,
+                    "intent_primary": intent["primary"],
+                    "intent_focus_section": intent["focus_section"],
                 },
             )
             return
@@ -1093,7 +1474,30 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
             )
             return
 
-        answer_text = _strip_markdown_for_display("".join(raw_answer_chunks).strip()) or "暂时没有生成有效回答，请稍后重试。"
+        answer_text = _finalize_ai_consult_answer(visible_answer_text or "".join(raw_answer_chunks).strip())
+        if _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
+            try:
+                retry_system_prompt, retry_user_prompt = _build_ai_consult_retry_prompts(
+                    message=message,
+                    history=payload.history,
+                    match_note=match_note,
+                    patient_context=patient_context,
+                )
+                retry_answer = await asyncio.wait_for(
+                    call_api_llm(
+                        retry_system_prompt,
+                        retry_user_prompt,
+                        model_name,
+                        max_tokens=max_tokens,
+                        timeout_seconds=llm_timeout_seconds,
+                    ),
+                    timeout=total_timeout_seconds,
+                )
+                retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip())
+                if retry_text:
+                    answer_text = retry_text
+            except Exception as retry_exc:
+                logger.warning("AI consult stream duplicate-answer retry skipped: %s", retry_exc)
         yield _sse_pack(
             "done",
             {
@@ -1105,6 +1509,9 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                 "patient_match_source": match_source,
                 "patient_match_note": match_note,
                 "stream_used": stream_used,
+                "answer_max_tokens": max_tokens,
+                "intent_primary": intent["primary"],
+                "intent_focus_section": intent["focus_section"],
             },
         )
 

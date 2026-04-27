@@ -54,6 +54,7 @@ RUN cd /src/backend && \
         --collect-all tokenizers \
         --collect-all onnxruntime \
         --collect-all numpy \
+        --collect-all statsmodels \
         --collect-submodules uvicorn \
         --collect-submodules starlette \
         --collect-submodules fastapi \

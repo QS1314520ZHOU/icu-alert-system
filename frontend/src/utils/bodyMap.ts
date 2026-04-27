@@ -207,10 +207,32 @@ export type BodyMapDeviceSite =
   | 'leftArm'
   | 'rightArm'
 
+export type BodyMapDeviceKind =
+  | 'airway'
+  | 'centralLine'
+  | 'arterialLine'
+  | 'urinary'
+  | 'feeding'
+  | 'drainage'
+  | 'dialysis'
+  | 'other'
+
+export const BODY_MAP_DEVICE_SITE_LABELS: Record<BodyMapDeviceSite, string> = {
+  mouth: '口鼻/气道',
+  neck: '颈部',
+  leftChest: '左胸',
+  rightChest: '右胸',
+  abdomen: '腹部',
+  pelvis: '盆腔/会阴',
+  leftArm: '左上肢',
+  rightArm: '右上肢',
+}
+
 export type BodyMapDeviceMarker = {
   key: string
   label: string
   site: BodyMapDeviceSite
+  kind: BodyMapDeviceKind
   severity: BodyMapSeverity
   daysText?: string
   detail?: string
@@ -229,12 +251,34 @@ function dwellDaysSeverity(value: any) {
 function detectDeviceSite(type: string, name: string, site: string): BodyMapDeviceSite {
   const haystack = `${type} ${name} ${site}`.toLowerCase()
   if (/ett|气管|经口|口咽|口鼻|trache|airway/.test(haystack)) return 'mouth'
-  if (/cvc|picc|锁骨|颈|深静脉|中心静脉|swan/.test(haystack)) return 'neck'
+  if (/股|femoral|腹股沟/.test(haystack)) return 'pelvis'
   if (/foley|导尿|尿管|膀胱/.test(haystack)) return 'pelvis'
-  if (/腹|胃|肠|引流|造瘘/.test(haystack)) return 'abdomen'
+  if (/picc|肱静脉|桡动脉|尺动脉|radial|brachial/.test(haystack)) {
+    if (/left|左/.test(haystack)) return 'leftArm'
+    if (/right|右/.test(haystack)) return 'rightArm'
+  }
+  if (/锁骨下|subclavian|胸腔|胸管|胸膜/.test(haystack)) {
+    if (/left|左/.test(haystack)) return 'leftChest'
+    if (/right|右/.test(haystack)) return 'rightChest'
+    return 'rightChest'
+  }
+  if (/cvc|颈|深静脉|中心静脉|swan|jugular/.test(haystack)) return 'neck'
   if (/left|左/.test(haystack)) return 'leftArm'
   if (/right|右/.test(haystack)) return 'rightArm'
+  if (/腹|胃|肠|引流|造瘘/.test(haystack)) return 'abdomen'
   return 'rightChest'
+}
+
+function detectDeviceKind(type: string, name: string, site: string): BodyMapDeviceKind {
+  const haystack = `${type} ${name} ${site}`.toLowerCase()
+  if (/ett|气管|trache|airway/.test(haystack)) return 'airway'
+  if (/picc|cvc|中心静脉|深静脉|swan|cvp/.test(haystack)) return 'centralLine'
+  if (/arterial|动脉|a-line|radial/.test(haystack)) return 'arterialLine'
+  if (/foley|导尿|尿管|膀胱/.test(haystack)) return 'urinary'
+  if (/胃管|鼻饲|空肠|feeding|ng|nj|peg/.test(haystack)) return 'feeding'
+  if (/透析|dialysis|crrt/.test(haystack)) return 'dialysis'
+  if (/引流|drain|chest tube|胸管|造瘘/.test(haystack)) return 'drainage'
+  return 'other'
 }
 
 function shortDeviceLabel(type: string, name: string) {
@@ -263,6 +307,7 @@ export function buildDeviceMarkers(payload: {
       key: `${name}-${category}-${siteText}` || `tube-${markers.length}`,
       label: shortDeviceLabel(category, name),
       site: detectDeviceSite(category, name, siteText),
+      kind: detectDeviceKind(category, name, siteText),
       severity: dwellDaysSeverity(dwellDays),
       daysText: Number.isFinite(dwellDays) ? `D${dwellDays}` : '',
       detail: name || category || '留置装置',
@@ -285,6 +330,7 @@ export function buildDeviceMarkers(payload: {
       key: `${label}-${markers.length}`,
       label,
       site: detectDeviceSite(type, label, extra?.site || ''),
+      kind: detectDeviceKind(type, label, extra?.site || ''),
       severity: normalizeBodyMapSeverity(alert?.severity || dwellDaysSeverity(lineDays)),
       daysText: Number.isFinite(lineDays) ? `D${lineDays}` : '',
       detail: String(alert?.name || type || '装置管理提醒'),

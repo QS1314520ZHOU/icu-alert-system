@@ -67,6 +67,7 @@ RUN cd /src/backend && \
         --collect-all transformers \
         --collect-all tokenizers \
         --collect-all onnxruntime \
+        --collect-all statsmodels \
         --collect-submodules uvicorn \
         --collect-submodules starlette \
         --collect-submodules fastapi \
