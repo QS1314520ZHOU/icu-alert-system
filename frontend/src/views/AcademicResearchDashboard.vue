@@ -67,7 +67,7 @@
               <a-tag :color="statusColor(project.status)">{{ project.status || '计划中' }}</a-tag>
             </div>
             <h3>{{ project.title }}</h3>
-            <p>负责人：{{ project.owner || '未指定' }}</p>
+            <p>负责人：{{ ownerLabel(project.owner) }}</p>
             <small>{{ project.journal_or_funding_source || project.remarks || '暂无备注' }}</small>
           </article>
         </div>
@@ -304,13 +304,11 @@ const ethicalRiskMap: Record<string, string> = {
 const fieldMap: Record<string, string> = {
   _id: '患者主键',
   hisPid: 'HIS 患者号',
-  age: '年龄',
+  derived_age: '年龄',
   birthday: '出生日期',
-  sex: '性别',
-  gender: '性别',
+  gender_combined: '性别',
   clinicalDiagnosis: '临床诊断',
   icuAdmissionTime: 'ICU 入科时间',
-  admissionTime: '入院时间',
 }
 
 function resetForm() {
@@ -372,6 +370,11 @@ function localizeText(text: string) {
 }
 function fieldLabel(field: string) {
   return fieldMap[field] || field
+}
+function ownerLabel(value: any) {
+  const text = String(value || '').trim()
+  if (!text || text.toLowerCase() === 'anonymous') return '待填写'
+  return text
 }
 function statusColor(status: string) {
   return status === '已发表' || status === '结题' ? 'green' : status === '投稿中' ? 'purple' : status === '进行中' ? 'blue' : 'gold'

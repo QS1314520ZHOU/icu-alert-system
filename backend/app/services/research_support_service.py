@@ -70,11 +70,14 @@ def build_data_governance_recommendations(report: dict[str, Any]) -> list[dict[s
 
 async def create_project(payload: dict[str, Any], actor: str) -> dict[str, Any]:
     now = datetime.now()
+    owner = str(payload.get("owner") or "").strip()
+    if not owner and actor and actor != "anonymous":
+        owner = actor
     doc = {
         "project_id": str(uuid.uuid4()),
         "title": payload.get("title") or "未命名科研项目",
         "type": payload.get("type") or "课题",
-        "owner": payload.get("owner") or actor,
+        "owner": owner,
         "participants": payload.get("participants") or [],
         "status": payload.get("status") or "计划中",
         "journal_or_funding_source": payload.get("journal_or_funding_source") or "",

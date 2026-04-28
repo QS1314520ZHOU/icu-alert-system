@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import uuid
+import re
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -55,6 +56,81 @@ def _year(value: Any) -> str:
         return ""
 
 
+def _parse_dt(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except Exception:
+        pass
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(text[:19], fmt)
+        except Exception:
+            continue
+    return None
+
+
+def _birth_date(row: dict[str, Any]) -> datetime | None:
+    for key in ("birthday", "birthDate", "birth_date", "dateOfBirth", "hisBirthday"):
+        parsed = _parse_dt(row.get(key))
+        if parsed:
+            return parsed
+    return None
+
+
+def _age_reference_date(row: dict[str, Any]) -> datetime:
+    for key in ("icuDischargeTime", "dischargeTime", "outTime", "leaveTime", "deathTime", "icuAdmissionTime", "admissionTime"):
+        parsed = _parse_dt(row.get(key))
+        if parsed:
+            return parsed
+    return datetime.now()
+
+
+def _age_years(row: dict[str, Any]) -> int | None:
+    for key in ("age", "hisAge"):
+        raw = row.get(key)
+        if raw not in (None, ""):
+            match = re.search(r"\d+(?:\.\d+)?", str(raw))
+            if match:
+                return int(float(match.group(0)))
+    birth = _birth_date(row)
+    if not birth:
+        return None
+    ref = _age_reference_date(row)
+    years = ref.year - birth.year - (1 if (ref.month, ref.day) < (birth.month, birth.day) else 0)
+    return max(0, years)
+
+
+def _gender_value(row: dict[str, Any]) -> str:
+    for key in ("sex", "gender", "hisSex", "hisGender"):
+        value = str(row.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _diagnosis_value(row: dict[str, Any]) -> str:
+    for key in ("clinicalDiagnosis", "admissionDiagnosis", "hisDiagnose", "diagnosis"):
+        value = str(row.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _first_dt_value(row: dict[str, Any], keys: tuple[str, ...]) -> Any:
+    for key in keys:
+        value = row.get(key)
+        if _parse_dt(value):
+            return value
+    return None
+
+
 def _patient_scope_query(scope: str, department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
     query = research_patient_scope_query(scope)
     clauses = [query]
@@ -78,10 +154,16 @@ async def _patients(scope: str, limit: int = 10000, department: str | None = Non
 async def build_data_quality_report(scope: str = "all", department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
     patients = await _patients(scope, limit=5000, department=department, dept_code=dept_code)
     total = len(patients)
-    fields = ["_id", "hisPid", "age", "birthday", "sex", "gender", "clinicalDiagnosis", "icuAdmissionTime", "admissionTime"]
-    missing = {}
-    for field in fields:
-        missing[field] = sum(1 for row in patients if row.get(field) in (None, ""))
+    checks = {
+        "_id": lambda row: row.get("_id"),
+        "hisPid": lambda row: row.get("hisPid") or row.get("hisPID"),
+        "derived_age": _age_years,
+        "birthday": _birth_date,
+        "gender_combined": _gender_value,
+        "clinicalDiagnosis": _diagnosis_value,
+        "icuAdmissionTime": lambda row: _first_dt_value(row, ("icuAdmissionTime", "admissionTime")),
+    }
+    missing = {field: sum(1 for row in patients if not resolver(row)) for field, resolver in checks.items()}
     issues = []
     for row in patients:
         start = row.get("icuAdmissionTime") or row.get("admissionTime")
