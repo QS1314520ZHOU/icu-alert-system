@@ -22,7 +22,7 @@
 
     <div v-if="trendPoints?.length" class="chart-panel">
       <div class="chart-wrap">
-        <DetailChart :option="trendOption" autoresize />
+        <DetailChart :option="trendOption" :init-options="chartInitOptions" autoresize />
       </div>
     </div>
     <div v-else class="tab-empty">暂无趋势数据</div>
@@ -32,6 +32,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
 import { Button as AButton, RadioButton as ARadioButton, RadioGroup as ARadioGroup } from 'ant-design-vue'
+import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
 
 const props = defineProps<{
   trendWindow: string
@@ -49,6 +50,8 @@ const DetailChart = defineAsyncComponent(async () => {
   const mod = await import('vue-echarts')
   return mod.default
 })
+
+const chartInitOptions = createChartInitOptions()
 
 function pickLast(key: string) {
   const rows = Array.isArray(props.trendPoints) ? props.trendPoints : []

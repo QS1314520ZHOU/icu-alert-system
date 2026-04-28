@@ -479,6 +479,7 @@ import {
   icuTooltip,
   icuValueAxis,
 } from '../charts/icuTheme'
+import { chartInitOptions as createChartInitOptions } from '../charts/displayQuality'
 import { formatAlertTypeLabel, formatScenarioGroupLabel } from '../utils/displayLabels'
 
 const AnalyticsChart = defineAsyncComponent(async () => {
@@ -487,11 +488,7 @@ const AnalyticsChart = defineAsyncComponent(async () => {
   return mod.default
 })
 
-const chartInitOptions = {
-  devicePixelRatio: typeof window !== 'undefined'
-    ? Math.max(window.devicePixelRatio || 1, window.innerWidth <= 1920 ? 1.5 : 1)
-    : 1,
-}
+const chartInitOptions = createChartInitOptions()
 
 const route = useRoute()
 const router = useRouter()

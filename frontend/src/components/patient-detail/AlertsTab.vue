@@ -21,7 +21,7 @@
       </div>
       <div class="modi-organs">{{ latestCompositeInvolvedText }}</div>
       <div class="modi-chart">
-        <DetailChart :option="compositeRadarOption" autoresize />
+        <DetailChart :option="compositeRadarOption" :init-options="chartInitOptions" autoresize />
       </div>
       <div v-if="compositeClinicalChain(latestCompositeAlert) || compositeGroups(latestCompositeAlert).length" class="composite-suite composite-suite--headline">
         <section v-if="compositeClinicalChain(latestCompositeAlert)" class="composite-chain-card">
@@ -605,6 +605,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, toRefs, watch } from 'vue'
 import { Button as AButton, Popover as APopover } from 'ant-design-vue'
+import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
 import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel } from '../../utils/displayLabels'
 import { BODY_MAP_ORGAN_LABELS, BODY_MAP_ORGAN_ORDER, normalizeBodyMapOrganKey } from '../../utils/bodyMap'
 
@@ -1473,6 +1474,8 @@ const DetailChart = defineAsyncComponent(async () => {
   const mod = await import('vue-echarts')
   return mod.default
 })
+
+const chartInitOptions = createChartInitOptions()
 </script>
 
 <style scoped>

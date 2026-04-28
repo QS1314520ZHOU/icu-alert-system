@@ -9,7 +9,7 @@
         <div class="panel-scale">在院分布</div>
       </div>
       <div class="chart-wrap">
-        <BigScreenChart :option="deptOption" autoresize />
+        <BigScreenChart :option="deptOption" :init-options="chartInitOptions" autoresize />
       </div>
     </section>
     <section class="stat-block stat-block--green">
@@ -21,7 +21,7 @@
         <div class="panel-scale">护理闭环</div>
       </div>
       <div class="chart-wrap">
-        <BigScreenChart :option="bundleOption" autoresize />
+        <BigScreenChart :option="bundleOption" :init-options="chartInitOptions" autoresize />
       </div>
     </section>
     <section class="stat-block stat-block--amber">
@@ -33,7 +33,7 @@
         <div class="panel-scale">24 小时滚动</div>
       </div>
       <div class="chart-wrap">
-        <BigScreenChart :option="alertTrendOption" autoresize />
+        <BigScreenChart :option="alertTrendOption" :init-options="chartInitOptions" autoresize />
       </div>
     </section>
     <section class="stat-block stat-block--rose">
@@ -45,7 +45,7 @@
         <div class="panel-scale">装置风险分层</div>
       </div>
       <div class="chart-wrap chart-wrap-heatmap">
-        <BigScreenChart :option="deviceHeatmapOption" autoresize />
+        <BigScreenChart :option="deviceHeatmapOption" :init-options="chartInitOptions" autoresize />
       </div>
     </section>
   </aside>
@@ -53,6 +53,7 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
+import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
 
 defineProps<{
   deptOption: any
@@ -66,6 +67,8 @@ const BigScreenChart = defineAsyncComponent(async () => {
   const mod = await import('vue-echarts')
   return mod.default
 })
+
+const chartInitOptions = createChartInitOptions()
 </script>
 
 <style scoped>

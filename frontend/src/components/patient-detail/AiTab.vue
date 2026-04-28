@@ -374,7 +374,7 @@
               <span class="curve-meta">{{ forecastModelLabel }}</span>
               <span class="curve-meta">{{ forecastHorizonText }}</span>
             </div>
-            <AiRiskChart :option="riskForecastOption" autoresize class="risk-curve-chart" />
+            <AiRiskChart :option="riskForecastOption" :init-options="chartInitOptions" autoresize class="risk-curve-chart" />
           </div>
           <div v-if="forecastSummaryBlock.visible" class="ai-workbench-section">
             <div class="ai-workbench-title">模型总结</div>
@@ -568,6 +568,7 @@ import {
   Spin as ASpin,
   Table as ATable,
 } from 'ant-design-vue'
+import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
 import { icuCategoryAxis, icuGrid, icuTooltip, icuValueAxis } from '../../charts/icuTheme'
 
 const props = defineProps<{
@@ -644,6 +645,8 @@ const AiRiskChart = defineAsyncComponent(async () => {
   const mod = await import('vue-echarts')
   return mod.default
 })
+
+const chartInitOptions = createChartInitOptions()
 
 const organLabelMap: Record<string, string> = {
   respiratory: '呼吸',
