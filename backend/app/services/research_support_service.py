@@ -114,13 +114,49 @@ async def delete_project(project_id: str) -> dict[str, Any]:
     return {"deleted": int(getattr(result, "deleted_count", 0))}
 
 
-async def _department_snapshot() -> dict[str, Any]:
-    patient_count = await runtime.db.col("patient").count_documents(research_patient_scope_query("all"))
-    active_count = await runtime.db.col("patient").count_documents(research_patient_scope_query("in_dept"))
-    ards_alerts = await runtime.db.col("alert_records").count_documents({"alert_type": {"$regex": "ards|prone|vent", "$options": "i"}})
-    sepsis_alerts = await runtime.db.col("alert_records").count_documents({"alert_type": {"$regex": "sepsis|bundle", "$options": "i"}})
-    high_dp = await runtime.db.col("alert_records").count_documents({"alert_type": "driving_pressure"})
+def _normalize_scope(department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
+    dept_name = str(department or "").strip()
+    dept_code_text = str(dept_code or "").strip()
+    if dept_name and not dept_code_text and dept_name.isdigit():
+        dept_code_text = dept_name
+        dept_name = ""
+    if dept_name and dept_code_text and (dept_name == dept_code_text or dept_name.isdigit()):
+        dept_name = ""
     return {
+        "department": dept_name or None,
+        "dept_code": dept_code_text or None,
+        "patient_scope": patient_scope or "in_dept",
+    }
+
+
+def _patient_query_for_scope(scope: dict[str, Any]) -> dict[str, Any]:
+    clauses = [research_patient_scope_query(scope.get("patient_scope") or "in_dept")]
+    if scope.get("dept_code"):
+        clauses.append({"deptCode": scope["dept_code"]})
+    elif scope.get("department"):
+        clauses.append({"$or": [{"hisDept": scope["department"]}, {"dept": scope["department"]}]})
+    return {"$and": clauses} if len(clauses) > 1 else clauses[0]
+
+
+def _alert_query_for_scope(scope: dict[str, Any], alert_type: Any) -> dict[str, Any]:
+    query: dict[str, Any] = {"alert_type": alert_type}
+    if scope.get("dept_code"):
+        query["deptCode"] = scope["dept_code"]
+    elif scope.get("department"):
+        query["dept"] = scope["department"]
+    return query
+
+
+async def _department_snapshot(department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
+    scope = _normalize_scope(department=department, dept_code=dept_code, patient_scope=patient_scope)
+    all_scope = {**scope, "patient_scope": "all"}
+    patient_count = await runtime.db.col("patient").count_documents(_patient_query_for_scope(all_scope))
+    active_count = await runtime.db.col("patient").count_documents(_patient_query_for_scope(scope))
+    ards_alerts = await runtime.db.col("alert_records").count_documents(_alert_query_for_scope(scope, {"$regex": "ards|prone|vent", "$options": "i"}))
+    sepsis_alerts = await runtime.db.col("alert_records").count_documents(_alert_query_for_scope(scope, {"$regex": "sepsis|bundle", "$options": "i"}))
+    high_dp = await runtime.db.col("alert_records").count_documents(_alert_query_for_scope(scope, "driving_pressure"))
+    return {
+        "scope": scope,
         "patient_count": patient_count,
         "active_patient_count": active_count,
         "quality_signals": {
@@ -128,7 +164,7 @@ async def _department_snapshot() -> dict[str, Any]:
             "sepsis_bundle_related_alerts": sepsis_alerts,
             "high_driving_pressure_alerts": high_dp,
         },
-        "data_quality": await build_data_quality_report("all"),
+        "data_quality": await build_data_quality_report(scope.get("patient_scope") or "in_dept", department=scope.get("department"), dept_code=scope.get("dept_code")),
         "limitations": ["当前为院内结构化数据摘要，指南差距指标需与本地质控口径进一步校准。"],
     }
 
@@ -209,16 +245,21 @@ def _fallback_topics(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     return topics
 
 
-async def list_topic_suggestions() -> dict[str, Any]:
-    cursor = runtime.db.col("research_topic_suggestions").find({}).sort("generated_at", -1).limit(100)
+async def list_topic_suggestions(department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
+    scope = _normalize_scope(department=department, dept_code=dept_code, patient_scope=patient_scope)
+    query: dict[str, Any] = {}
+    if scope.get("dept_code") or scope.get("department"):
+        query["scope"] = scope
+    cursor = runtime.db.col("research_topic_suggestions").find(query).sort("generated_at", -1).limit(100)
     rows = [serialize_doc(doc) async for doc in cursor]
     if rows:
-        return {"topic_suggestions": rows}
-    return {"topic_suggestions": _fallback_topics(await _department_snapshot()), "is_mock": True}
+        return {"topic_suggestions": rows, "scope": scope}
+    return {"topic_suggestions": _fallback_topics(await _department_snapshot(department=department, dept_code=dept_code, patient_scope=patient_scope)), "is_mock": True, "scope": scope}
 
 
-async def generate_topic_suggestions(actor: str) -> dict[str, Any]:
-    snapshot = await _department_snapshot()
+async def generate_topic_suggestions(actor: str, department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
+    scope = _normalize_scope(department=department, dept_code=dept_code, patient_scope=patient_scope)
+    snapshot = await _department_snapshot(department=department, dept_code=dept_code, patient_scope=patient_scope)
     cfg = runtime.config
     model = str(getattr(cfg, "llm_fast_model", "") or getattr(cfg.settings, "LLM_MODEL", "") or "unknown")
     try:
@@ -237,8 +278,8 @@ async def generate_topic_suggestions(actor: str) -> dict[str, Any]:
     now = datetime.now()
     docs = []
     for item in topics[:5]:
-        doc = {**item, "suggestion_id": str(uuid.uuid4()), "generated_at": now, "created_at": now, "created_by": actor, "model": model, "prompt_version": RESEARCH_TOPIC_PROMPT_VERSION, "degraded": degraded, "data_snapshot": snapshot}
+        doc = {**item, "suggestion_id": str(uuid.uuid4()), "scope": scope, "generated_at": now, "created_at": now, "created_by": actor, "model": model, "prompt_version": RESEARCH_TOPIC_PROMPT_VERSION, "degraded": degraded, "data_snapshot": snapshot}
         await runtime.db.col("research_topic_suggestions").insert_one(doc)
         docs.append(doc)
     await write_ai_generation_log(runtime.db, module="research_support", action="topic_suggestions", model=model, prompt_version=RESEARCH_TOPIC_PROMPT_VERSION, source_data_summary=snapshot, result=docs, actor=actor, success=not degraded)
-    return {"topic_suggestions": serialize_doc(docs), "degraded": degraded}
+    return {"topic_suggestions": serialize_doc(docs), "degraded": degraded, "scope": scope}

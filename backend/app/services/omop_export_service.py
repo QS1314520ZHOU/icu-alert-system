@@ -55,13 +55,28 @@ def _year(value: Any) -> str:
         return ""
 
 
-async def _patients(scope: str, limit: int = 10000) -> list[dict[str, Any]]:
-    cursor = runtime.db.col("patient").find(research_patient_scope_query(scope)).limit(limit)
+def _patient_scope_query(scope: str, department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+    query = research_patient_scope_query(scope)
+    clauses = [query]
+    dept_name = str(department or "").strip()
+    dept_code_text = str(dept_code or "").strip()
+    if dept_name and not dept_code_text and dept_name.isdigit():
+        dept_code_text = dept_name
+        dept_name = ""
+    if dept_code_text:
+        clauses.append({"deptCode": dept_code_text})
+    elif dept_name:
+        clauses.append({"$or": [{"hisDept": dept_name}, {"dept": dept_name}]})
+    return {"$and": clauses} if len(clauses) > 1 else query
+
+
+async def _patients(scope: str, limit: int = 10000, department: str | None = None, dept_code: str | None = None) -> list[dict[str, Any]]:
+    cursor = runtime.db.col("patient").find(_patient_scope_query(scope, department=department, dept_code=dept_code)).limit(limit)
     return [doc async for doc in cursor]
 
 
-async def build_data_quality_report(scope: str = "all") -> dict[str, Any]:
-    patients = await _patients(scope, limit=5000)
+async def build_data_quality_report(scope: str = "all", department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+    patients = await _patients(scope, limit=5000, department=department, dept_code=dept_code)
     total = len(patients)
     fields = ["_id", "hisPid", "age", "birthday", "sex", "gender", "clinicalDiagnosis", "icuAdmissionTime", "admissionTime"]
     missing = {}
@@ -75,6 +90,8 @@ async def build_data_quality_report(scope: str = "all") -> dict[str, Any]:
             issues.append({"patient_id": str(row.get("_id")), "issue": "出科时间早于入科时间"})
     return {
         "scope": scope,
+        "department": str(department or "").strip() or None,
+        "dept_code": str(dept_code or "").strip() or None,
         "patient_count": total,
         "missing_rate": {field: round(count / total, 4) if total else 0 for field, count in missing.items()},
         "time_logic_errors": issues[:100],
@@ -104,7 +121,7 @@ def _write_csv(zf: zipfile.ZipFile, name: str, rows: list[dict[str, Any]]) -> No
 async def run_omop_export(payload: dict[str, Any], actor: str = "anonymous") -> dict[str, Any]:
     task_id = str(uuid.uuid4())
     scope = str(payload.get("patient_scope") or "all")
-    patients = await _patients(scope, limit=int(payload.get("limit") or 10000))
+    patients = await _patients(scope, limit=int(payload.get("limit") or 10000), department=payload.get("department") or payload.get("dept"), dept_code=payload.get("dept_code"))
     person_rows = []
     visit_rows = []
     condition_rows = []

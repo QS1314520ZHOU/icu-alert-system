@@ -222,7 +222,7 @@ import {
   Textarea as ATextarea,
   message,
 } from 'ant-design-vue'
-import { getDataQuality, getResearchProjects, getTopicSuggestions, postGenerateTopicSuggestions, postOmopExport, postResearchProject } from '../api/researchSupport'
+import { getDataQuality, getResearchProjects, getTopicSuggestions, postGenerateTopicSuggestions, postOmopExport, postResearchProject, type ResearchScopeParams } from '../api/researchSupport'
 
 const route = useRoute()
 const loading = ref(false)
@@ -259,6 +259,12 @@ const milestones = computed(() => portfolio.value?.upcoming_milestones || [])
 const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 患者')
+const researchScopeParams = computed<ResearchScopeParams>(() => {
+  const params: ResearchScopeParams = { patient_scope: routeDeptCode.value || routeDeptName.value ? 'in_dept' : 'all' }
+  if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+  else if (routeDeptName.value) params.department = routeDeptName.value
+  return params
+})
 
 const titleMap: Record<string, string> = {
   'Prone Positioning Effectiveness in ARDS Patients': 'ARDS 患者俯卧位治疗效果研究',
@@ -377,7 +383,7 @@ function confidenceLabel(value: string) {
 async function loadAll() {
   loading.value = true
   try {
-    const [p, t, q] = await Promise.all([getResearchProjects(), getTopicSuggestions(), getDataQuality()])
+    const [p, t, q] = await Promise.all([getResearchProjects(), getTopicSuggestions(researchScopeParams.value), getDataQuality(researchScopeParams.value)])
     projects.value = p.data?.projects || []
     portfolio.value = p.data?.portfolio || {}
     topics.value = t.data?.topic_suggestions || []
@@ -391,7 +397,7 @@ async function loadAll() {
 async function generateTopics() {
   topicLoading.value = true
   try {
-    const res = await postGenerateTopicSuggestions()
+    const res = await postGenerateTopicSuggestions(researchScopeParams.value)
     topics.value = res.data?.topic_suggestions || []
     topicIsFallback.value = Boolean(res.data?.degraded)
     message.success(res.data?.degraded ? 'AI 暂不可用，已展示规则兜底建议' : '已生成课题建议')
@@ -402,9 +408,7 @@ async function generateTopics() {
 async function exportOmop() {
   omopLoading.value = true
   try {
-    const payload: Record<string, any> = { patient_scope: routeDeptCode.value || routeDeptName.value ? 'in_dept' : 'all' }
-    if (routeDeptCode.value) payload.dept_code = routeDeptCode.value
-    else if (routeDeptName.value) payload.department = routeDeptName.value
+    const payload: Record<string, any> = { ...researchScopeParams.value }
     const res = await postOmopExport(payload)
     message.success(`OMOP 脱敏导出完成：${res.data?.task?.task_id || ''}`)
   } finally {

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from typing import Optional
+
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from app import runtime
@@ -45,13 +47,27 @@ async def remove_research_project(project_id: str):
 
 
 @router.get("/topic-suggestions")
-async def topic_suggestions():
-    return {"code": 0, **await list_topic_suggestions()}
+async def topic_suggestions(
+    department: Optional[str] = Query(None),
+    dept: Optional[str] = Query(None),
+    dept_code: Optional[str] = Query(None),
+    patient_scope: str = Query("in_dept"),
+):
+    return {"code": 0, **await list_topic_suggestions(department=department or dept, dept_code=dept_code, patient_scope=patient_scope)}
 
 
 @router.post("/topic-suggestions/generate")
-async def generate_topics(request: Request):
-    return {"code": 0, **await generate_topic_suggestions(_actor(request))}
+async def generate_topics(request: Request, payload: dict = Body(default={})):
+    body = payload or {}
+    return {
+        "code": 0,
+        **await generate_topic_suggestions(
+            _actor(request),
+            department=body.get("department") or body.get("dept"),
+            dept_code=body.get("dept_code"),
+            patient_scope=str(body.get("patient_scope") or "in_dept"),
+        ),
+    }
 
 
 @router.post("/omop/export")
@@ -79,6 +95,11 @@ async def omop_export_download(task_id: str):
 
 
 @router.get("/data-quality")
-async def data_quality():
-    report = await build_data_quality_report("all")
+async def data_quality(
+    department: Optional[str] = Query(None),
+    dept: Optional[str] = Query(None),
+    dept_code: Optional[str] = Query(None),
+    patient_scope: str = Query("in_dept"),
+):
+    report = await build_data_quality_report(patient_scope, department=department or dept, dept_code=dept_code)
     return {"code": 0, "report": report, "recommendations": build_data_governance_recommendations(report)}
