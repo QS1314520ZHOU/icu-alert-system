@@ -53,6 +53,7 @@ def build_research_topic_prompts(snapshot: dict[str, Any]) -> tuple[str, str]:
         "你需要基于科室聚合数据、质量指标和指南差距，提出潜在科研课题。"
         "你只能输出严格 JSON，不要输出 markdown。"
         "所有建议都必须可追溯到输入数据摘要，不允许凭空编造。"
+        "面向中国医院 ICU 科研团队，除必要医学缩写外，所有字段必须使用简体中文。"
     )
     user_prompt = (
         "请根据以下科室聚合数据摘要输出 JSON：\n"
@@ -79,6 +80,9 @@ def build_research_topic_prompts(snapshot: dict[str, Any]) -> tuple[str, str]:
         "2. 若样本量不足或数据缺失，请在 data_basis 或 ethical_risk 中明确限制。\n"
         "3. feasibility_score 为 0-100 的整数。\n"
         "4. 不要输出 5 条以上建议。\n\n"
+        "5. title、clinical_question、data_basis、study_design、primary_outcome、ethical_risk、"
+        "inclusion_criteria、exclusion_criteria、secondary_outcomes、required_data_fields 均用简体中文；"
+        "ARDS、ICU、P/F、PEEP、Bundle 等通用医学缩写可以保留。\n\n"
         f"输入数据摘要：\n{_json_text(snapshot)}"
     )
     return system_prompt, user_prompt

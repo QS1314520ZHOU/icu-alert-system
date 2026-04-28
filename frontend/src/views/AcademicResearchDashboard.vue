@@ -152,8 +152,9 @@
             <h3>{{ localizeTitle(topic.title) }}</h3>
             <a-button class="topic-action" size="small" type="primary" ghost @click="createProjectFromTopic(topic)">转为项目</a-button>
           </div>
+          <div v-if="showOriginalTitle(topic.title)" class="topic-original-title">原题：{{ topic.title }}</div>
           <div class="topic-meta-strip">
-            <span>{{ topic.study_design || '研究设计待定' }}</span>
+            <span>{{ localizeStudyDesign(topic.study_design) }}</span>
             <span>可行性 {{ topic.feasibility_score || '—' }}</span>
             <span>{{ confidenceLabel(topic.confidence) }}</span>
           </div>
@@ -165,11 +166,11 @@
           <dl class="topic-detail-grid">
             <div>
               <dt>主要结局</dt>
-              <dd>{{ topic.primary_outcome || '待 PI 确认' }}</dd>
+              <dd>{{ localizeOutcome(topic.primary_outcome) }}</dd>
             </div>
             <div>
               <dt>伦理风险</dt>
-              <dd>{{ topic.ethical_risk || '需伦理秘书评估' }}</dd>
+              <dd>{{ localizeEthicalRisk(topic.ethical_risk) }}</dd>
             </div>
           </dl>
           <div class="topic-foot">
@@ -261,12 +262,38 @@ const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || 
 
 const titleMap: Record<string, string> = {
   'Prone Positioning Effectiveness in ARDS Patients': 'ARDS 患者俯卧位治疗效果研究',
+  'Prone Positioning Efficacy in ARDS Patients within the ICU': 'ICU 内 ARDS 患者俯卧位疗效研究',
   'Compliance with Sepsis 3-Hour Bundle and Patient Outcomes': '脓毒症 3 小时 Bundle 依从性与预后研究',
+  'Sepsis Bundle Compliance and Patient Outcomes': '脓毒症 Bundle 依从性与患者结局研究',
   'High Driving Pressure as a Predictor of Ventilator-Associated Lung Injury': '高驱动压暴露预测呼吸机相关肺损伤研究',
+  'Impact of High Driving Pressure on Ventilator-Associated Outcomes': '高驱动压对机械通气相关结局的影响研究',
   'Impact of Data Quality Issues on Quality-Signal Reporting Accuracy': '数据质量问题对重症质控信号准确性的影响研究',
 }
 const questionMap: Record<string, string> = {
   'Does early prone positioning improve 28-day mortality among ICU patients diagnosed with ARDS?': '早期俯卧位治疗是否改善 ARDS ICU 患者 28 天结局？',
+  'Does early implementation of prone positioning improve 28-day mortality among ARDS patients identified by ARDS/prone related alerts?': '对 ARDS 或俯卧位相关预警患者，早期实施俯卧位是否可降低 28 天全因死亡率？',
+  'Is higher compliance with the sepsis care bundle associated with reduced ICU mortality among patients flagged by sepsis bundle alerts?': '在脓毒症 Bundle 预警患者中，更高的 Bundle 依从性是否与 ICU 死亡率下降相关？',
+  'Does exposure to high driving pressure (>15 cmH₂O) increase the risk of ventilator-associated lung injury and mortality in ICU patients?': 'ICU 患者暴露于高驱动压（>15 cmH₂O）是否增加呼吸机相关肺损伤和死亡风险？',
+  'Does exposure to high driving pressure (>15 cmH2O) increase the risk of ventilator-associated lung injury and mortality in ICU patients?': 'ICU 患者暴露于高驱动压（>15 cmH2O）是否增加呼吸机相关肺损伤和死亡风险？',
+}
+const studyDesignMap: Record<string, string> = {
+  'Retrospective cohort study': '回顾性队列研究',
+  'Retrospective cohort': '回顾性队列研究',
+  'Retrospective case-control study': '回顾性病例对照研究',
+  'Retrospective cross-sectional analysis': '回顾性横断面分析',
+  'Quality improvement project': '质量改进项目',
+  'QI project': '质量改进项目',
+}
+const outcomeMap: Record<string, string> = {
+  '28-day all-cause mortality': '28 天全因死亡率',
+  'ICU mortality': 'ICU 死亡率',
+  'Mortality during ICU stay': 'ICU 期间死亡率',
+  'Ventilator-associated lung injury': '呼吸机相关肺损伤',
+}
+const ethicalRiskMap: Record<string, string> = {
+  'Low risk, using existing anonymized clinical data, no intervention required.': '低风险，使用既往匿名化临床数据，无需干预。',
+  'Low risk, based on observational study using existing data.': '低风险，基于既往数据的观察性研究。',
+  'Low to moderate risk; requires protection of respiratory parameters integrity; if key variables are missing, analysis may be limited.': '低至中等风险，需确保呼吸机参数完整性；若关键变量缺失，分析能力会受限。',
 }
 const fieldMap: Record<string, string> = {
   _id: '患者主键',
@@ -297,8 +324,8 @@ function createProjectFromTopic(topic: any) {
     remarks: [
       `临床问题：${localizeQuestion(topic.clinical_question)}`,
       `数据依据：${localizeText(topic.data_basis)}`,
-      `主要结局：${topic.primary_outcome || '待确认'}`,
-      `伦理提示：${topic.ethical_risk || '需评估'}`,
+      `主要结局：${localizeOutcome(topic.primary_outcome)}`,
+      `伦理提示：${localizeEthicalRisk(topic.ethical_risk)}`,
     ].join('\n'),
   })
   drawerOpen.value = true
@@ -306,12 +333,33 @@ function createProjectFromTopic(topic: any) {
 function localizeTitle(text: string) {
   return titleMap[text] || text || '未命名课题建议'
 }
+function showOriginalTitle(text: string) {
+  return Boolean(text && titleMap[text] && titleMap[text] !== text)
+}
 function localizeQuestion(text: string) {
   return questionMap[text] || text || '待明确临床问题'
+}
+function localizeStudyDesign(text: string) {
+  return studyDesignMap[text] || text || '研究设计待定'
+}
+function localizeOutcome(text: string) {
+  return outcomeMap[text] || text || '待 PI 确认'
+}
+function localizeEthicalRisk(text: string) {
+  return ethicalRiskMap[text] || localizeText(text) || '需伦理秘书评估'
 }
 function localizeText(text: string) {
   if (!text) return '暂无数据依据'
   return String(text)
+    .replace(/Based on\s+(\d+)\s+patients/i, '基于 $1 名患者')
+    .replace(/(\d+)\s+patients/i, '$1 名患者')
+    .replace(/records?/i, '条记录')
+    .replace(/ARDS or prone related alerts/gi, 'ARDS 或俯卧位相关预警')
+    .replace(/sepsis bundle related alerts/gi, '脓毒症 Bundle 相关预警')
+    .replace(/high driving pressure alerts/gi, '高驱动压预警')
+    .replace(/clinical diagnosis missing rate/gi, '临床诊断缺失率')
+    .replace(/age and gender missing rate/gi, '年龄和性别缺失率')
+    .replace(/requires further validation/i, '需要进一步验证')
     .replace('identified in the dataset', '条相关信号来自当前数据集')
     .replace('total ICU admissions', '例 ICU 入院记录')
     .replace('supports risk adjustment', '支持风险校正')
@@ -609,6 +657,12 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   font-size: 17px;
   line-height: 1.45;
 }
+.topic-original-title {
+  margin-top: -6px;
+  color: #7f9aab;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .topic-meta-strip {
   display: flex;
   flex-wrap: wrap;
@@ -723,6 +777,9 @@ html[data-theme='light'] .distribution-grid strong,
 html[data-theme='light'] .milestone-list strong,
 html[data-theme='light'] .empty-project h2 {
   color: #12314f;
+}
+html[data-theme='light'] .topic-original-title {
+  color: #64748b;
 }
 html[data-theme='light'] .research-hero p,
 html[data-theme='light'] .guide-card p,
