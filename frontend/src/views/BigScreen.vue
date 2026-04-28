@@ -563,7 +563,7 @@ async function loadAlerts() {
 }
 
 async function loadTrend() {
-  const res = await getAlertStats('24h')
+  const res = await getAlertStats('24h', buildPatientParams())
   trendSeries.value = res.data.series || []
 }
 

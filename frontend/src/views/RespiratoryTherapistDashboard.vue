@@ -119,7 +119,30 @@
         <a-button size="small" @click="recordAirway">补录气道记录</a-button>
         <a-button size="small" type="primary" ghost @click="saveDifficultAirwayPlan">标记困难气道预案</a-button>
       </div>
-      <pre class="json">{{ airwayPlan }}</pre>
+      <section class="airway-plan-card">
+        <div class="airway-plan-card__head">
+          <div>
+            <span>预案状态</span>
+            <strong>{{ airwayPlanView.statusText }}</strong>
+          </div>
+          <a-tag :color="airwayPlanView.tagColor">{{ airwayPlanView.riskText }}</a-tag>
+        </div>
+        <p>{{ airwayPlanView.note }}</p>
+        <div class="airway-plan-grid">
+          <article>
+            <span>困难气道</span>
+            <strong>{{ airwayPlanView.difficultAirway ? '已标记' : '未标记' }}</strong>
+          </article>
+          <article>
+            <span>备选设备</span>
+            <strong>{{ airwayPlanView.equipment }}</strong>
+          </article>
+          <article>
+            <span>联络团队</span>
+            <strong>{{ airwayPlanView.contacts }}</strong>
+          </article>
+        </div>
+      </section>
     </a-drawer>
   </div>
 </template>
@@ -159,7 +182,7 @@ const sbt = ref<any>({})
 const drawerOpen = ref(false)
 const drawerPatient = ref<any>(null)
 const timeline = ref<any[]>([])
-const airwayPlan = ref('')
+const airwayPlan = ref<any>({})
 const riskOptions = [
   { value: 'all', label: '全部风险' },
   { value: '高驱动压', label: '高驱动压' },
@@ -214,6 +237,22 @@ const topActions = computed(() => patients.value.flatMap((patient) => (patient.w
   bed_no: patient.bed_no,
   name: patient.name,
 }))).sort((a, b) => (a.priority === 'high' ? -1 : 1) - (b.priority === 'high' ? -1 : 1)).slice(0, 6))
+const airwayPlanView = computed(() => {
+  const plan = airwayPlan.value || {}
+  const risk = String(plan.risk_level || 'unknown').toLowerCase()
+  const isDefault = Boolean(plan.is_default || plan.is_mock)
+  const equipment = Array.isArray(plan.backup_equipment) ? plan.backup_equipment.filter(Boolean) : []
+  const contacts = Array.isArray(plan.contacts) ? plan.contacts.filter(Boolean) : []
+  return {
+    statusText: isDefault ? '默认流程提醒' : '已维护预案',
+    riskText: risk === 'high' ? '高风险' : risk === 'medium' ? '中风险' : '待评估',
+    tagColor: risk === 'high' ? 'red' : risk === 'medium' ? 'gold' : 'blue',
+    difficultAirway: Boolean(plan.difficult_airway),
+    equipment: equipment.length ? equipment.join(' / ') : '待补充',
+    contacts: contacts.length ? contacts.join(' / ') : '待补充',
+    note: plan.note || '暂无预案说明，建议由呼吸治疗师与麻醉团队补充。',
+  }
+})
 function fmt(v: any) { return v ? new Date(v).toLocaleString('zh-CN') : '—' }
 function scoreColor(score: number) { return Number(score || 0) >= 85 ? 'green' : Number(score || 0) >= 70 ? 'gold' : 'red' }
 function rowProps(record: any) { return { onClick: () => openPatient(record) } }
@@ -239,7 +278,7 @@ async function openPatient(row: any) {
   drawerOpen.value = true
   const [tl, plan] = await Promise.all([getVentilatorTimeline(row.patient_id), getAirwayPlan(row.patient_id)])
   timeline.value = tl.data?.timeline || []
-  airwayPlan.value = JSON.stringify(plan.data?.plan || {}, null, 2)
+  airwayPlan.value = plan.data?.plan || {}
 }
 async function recordSbt(row: any, status: 'completed' | 'failed') {
   await postSbtStatus(row.patient_id, { status, note: status === 'completed' ? '呼吸治疗师工作台记录 SBT 已完成' : '呼吸治疗师工作台记录 SBT 失败，原因待补充' })
@@ -267,7 +306,7 @@ async function saveDifficultAirwayPlan() {
   })
   message.success('已标记困难气道预案')
   const plan = await getAirwayPlan(drawerPatient.value.patient_id)
-  airwayPlan.value = JSON.stringify(plan.data?.plan || {}, null, 2)
+  airwayPlan.value = plan.data?.plan || {}
 }
 watch(() => [route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
   void loadAll()
@@ -354,6 +393,44 @@ p { margin: 4px 0 0; color: #8aa4b8; }
   gap: 8px;
   margin-bottom: 10px;
 }
-.json { white-space: pre-wrap; color: #b7ccda; background: rgba(2,8,20,.3); padding: 10px; border-radius: 8px; }
+.airway-plan-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(45,212,191,.18);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(15,118,110,.2), rgba(2,8,20,.24));
+}
+.airway-plan-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.airway-plan-card span,
+.airway-plan-grid span {
+  display: block;
+  color: #8aa4b8;
+  font-size: 12px;
+}
+.airway-plan-card strong,
+.airway-plan-grid strong {
+  color: #e6f7ff;
+}
+.airway-plan-card p {
+  margin: 0;
+  color: #b7ccda;
+}
+.airway-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.airway-plan-grid article {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.04);
+}
 @media (max-width: 1100px) { .layout, .kpis, .drawer-summary { grid-template-columns: 1fr; } .topbar { flex-direction: column; } }
 </style>

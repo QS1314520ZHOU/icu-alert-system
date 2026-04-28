@@ -84,12 +84,12 @@ export const postAlertAcknowledge = (alertId: string, payload?: { actor?: string
   api.post(`/api/alerts/${alertId}/acknowledge`, payload || {})
 
 // 获取最近预警
-export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string }) =>
+export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string; patient_id?: string; bed?: string }) =>
   analyticsApi.get('/api/alerts/recent', { params: { limit, ...(params || {}) } })
 
 // 获取预警统计
-export const getAlertStats = (window = '24h') =>
-  analyticsApi.get('/api/alerts/stats', { params: { window } })
+export const getAlertStats = (window = '24h', params?: { dept?: string; dept_code?: string }) =>
+  analyticsApi.get('/api/alerts/stats', { params: { window, ...(params || {}) } })
 
 export const getAlertLifecycleAnalytics = (params?: { window?: string; dept?: string; dept_code?: string }) =>
   analyticsApi.get('/api/alerts/lifecycle/analytics', { params })

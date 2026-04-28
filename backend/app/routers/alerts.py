@@ -36,12 +36,21 @@ async def recent_alerts(
     limit: int = Query(50, ge=1, le=200),
     dept: Optional[str] = Query(None, description="科室名称"),
     dept_code: Optional[str] = Query(None, description="科室代码"),
+    patient_id: Optional[str] = Query(None, description="患者ID"),
+    bed: Optional[str] = Query(None, description="床号"),
     role: Optional[str] = Query(None, description="角色过滤: nurse/doctor/pharmacist"),
 ):
     col = runtime.db.col("alert_records")
     query: dict = {"is_active": True}
+    if patient_id or bed:
+        scoped_or = []
+        if patient_id:
+            scoped_or.append({"patient_id": patient_id})
+        if bed:
+            scoped_or.append({"bed": bed})
+        query["$or"] = scoped_or
     if dept:
-        query["dept"] = dept
+        query.setdefault("$and", []).append({"dept": dept})
     elif dept_code:
         patient_ids = []
         patient_query = {"$and": [admitted_patient_query(), {"deptCode": dept_code}]}
@@ -49,24 +58,25 @@ async def recent_alerts(
         async for patient in cursor_p:
             patient_ids.append(str(patient.get("_id")))
         if patient_ids:
-            query = {
-                "is_active": True,
-                "$or": [
-                    {"patient_id": {"$in": patient_ids}},
-                    {
-                        "$and": [
-                            {"deptCode": dept_code},
-                            {"$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}]},
-                        ]
-                    },
-                ],
-            }
+            dept_or = [
+                {"patient_id": {"$in": patient_ids}},
+                {
+                    "$and": [
+                        {"deptCode": dept_code},
+                        {"$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}]},
+                    ]
+                },
+            ]
         else:
-            query = {
-                "is_active": True,
-                "deptCode": dept_code,
-                "$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}],
-            }
+            dept_or = [
+                {
+                    "$and": [
+                        {"deptCode": dept_code},
+                        {"$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}]},
+                    ]
+                }
+            ]
+        query.setdefault("$and", []).append({"$or": dept_or})
     if role:
         query.setdefault("$and", []).append(
             {
@@ -107,12 +117,29 @@ async def alert_lifecycle_analytics(
 
 
 @router.get("/api/alerts/stats")
-async def alert_stats(window: str = Query("24h")):
+async def alert_stats(
+    window: str = Query("24h"),
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+):
     hours = window_to_hours(window, default=24)
     since = datetime.utcnow() - timedelta(hours=hours)
+    match_query: dict = {"created_at": {"$gte": since}}
+    if dept:
+        match_query["dept"] = dept
+    elif dept_code:
+        patient_ids = []
+        patient_query = {"$and": [admitted_patient_query(), {"deptCode": dept_code}]}
+        cursor_p = runtime.db.col("patient").find(patient_query, {"_id": 1})
+        async for patient in cursor_p:
+            patient_ids.append(str(patient.get("_id")))
+        if patient_ids:
+            match_query["$or"] = [{"patient_id": {"$in": patient_ids}}, {"deptCode": dept_code}]
+        else:
+            match_query["deptCode"] = dept_code
 
     pipeline = [
-        {"$match": {"created_at": {"$gte": since}}},
+        {"$match": match_query},
         {
             "$group": {
                 "_id": {

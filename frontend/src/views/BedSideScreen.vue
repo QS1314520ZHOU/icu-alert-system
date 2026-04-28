@@ -105,6 +105,8 @@ import { onAlertMessage } from '../services/alertSocket'
 const route = useRoute()
 const patientId = computed(() => String(route.params.patientId || ''))
 const bedId = computed(() => String(route.query.bedId || route.query.bed || ''))
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 
 // ── 时钟 ──────────────────────────────────────────────────────
 const currentTime = ref(dayjs().format('HH:mm:ss'))
@@ -209,7 +211,15 @@ async function loadVitals() {
 
 async function loadAlerts() {
   try {
-    const res = await getRecentAlerts(30)
+    const params: { patient_id?: string; bed?: string; dept?: string; dept_code?: string } = {}
+    if (patientId.value) params.patient_id = patientId.value
+    const currentBed = String(patient.value?.hisBed || bedId.value || '').trim()
+    if (currentBed) params.bed = currentBed
+    const currentDeptCode = String(patient.value?.deptCode || routeDeptCode.value || '').trim()
+    const currentDept = String(patient.value?.hisDept || patient.value?.dept || routeDeptName.value || '').trim()
+    if (currentDeptCode) params.dept_code = currentDeptCode
+    else if (currentDept) params.dept = currentDept
+    const res = await getRecentAlerts(30, params)
     allAlerts.value = res?.data?.records || []
   } catch {
     allAlerts.value = []
@@ -220,7 +230,8 @@ let offAlert: (() => void) | null = null
 let refreshTimer: number
 
 onMounted(async () => {
-  await Promise.all([loadPatient(), loadVitals(), loadAlerts()])
+  await Promise.all([loadPatient(), loadVitals()])
+  await loadAlerts()
 
   // 时钟
   clockTimer = window.setInterval(() => {
@@ -256,7 +267,8 @@ onUnmounted(() => {
 
 watch(patientId, async (nextId, prevId) => {
   if (!nextId || nextId === prevId) return
-  await Promise.all([loadPatient(), loadVitals(), loadAlerts()])
+  await Promise.all([loadPatient(), loadVitals()])
+  await loadAlerts()
 })
 </script>
 

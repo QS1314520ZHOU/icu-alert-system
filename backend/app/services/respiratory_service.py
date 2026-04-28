@@ -621,7 +621,7 @@ async def get_airway_plan(patient_id: str) -> dict[str, Any]:
             "backup_equipment": ["视频喉镜", "纤支镜", "环甲膜穿刺包"],
             "contacts": ["麻醉科", "耳鼻喉科"],
             "note": "暂无人工维护预案，展示默认流程提醒。",
-            "is_mock": True,
+            "is_default": True,
         }
     }
 
