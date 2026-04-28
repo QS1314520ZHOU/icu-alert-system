@@ -1,16 +1,28 @@
 <template>
   <div class="detail-tab trend-tab">
     <div class="tab-toolbar">
-      <a-radio-group :value="trendWindow" size="small" @update:value="(v: any) => emit('update:trendWindow', v)">
-        <a-radio-button value="24h">24h</a-radio-button>
-        <a-radio-button value="48h">48h</a-radio-button>
-        <a-radio-button value="7d">7d</a-radio-button>
-      </a-radio-group>
+      <div class="toolbar-left">
+        <a-radio-group :value="trendWindow" size="small" @update:value="(v: any) => emit('update:trendWindow', v)">
+          <a-radio-button value="24h">24h</a-radio-button>
+          <a-radio-button value="48h">48h</a-radio-button>
+          <a-radio-button value="7d">7d</a-radio-button>
+        </a-radio-group>
+        <span class="toolbar-hint">按窗口复盘生命体征波动与灌注/氧合变化。</span>
+      </div>
       <a-button size="small" @click="onRefresh">刷新</a-button>
     </div>
+
+    <section v-if="summaryCards.length" class="summary-grid">
+      <article v-for="card in summaryCards" :key="card.key" class="summary-card">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.current }}</strong>
+        <small>{{ card.delta }}</small>
+      </article>
+    </section>
+
     <div v-if="trendPoints?.length" class="chart-panel">
       <div class="chart-wrap">
-      <DetailChart :option="trendOption" autoresize />
+        <DetailChart :option="trendOption" autoresize />
       </div>
     </div>
     <div v-else class="tab-empty">暂无趋势数据</div>
@@ -18,10 +30,10 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import { Button as AButton, RadioButton as ARadioButton, RadioGroup as ARadioGroup } from 'ant-design-vue'
 
-defineProps<{
+const props = defineProps<{
   trendWindow: string
   trendPoints: any[]
   trendOption: any
@@ -37,6 +49,50 @@ const DetailChart = defineAsyncComponent(async () => {
   const mod = await import('vue-echarts')
   return mod.default
 })
+
+function pickLast(key: string) {
+  const rows = Array.isArray(props.trendPoints) ? props.trendPoints : []
+  for (let idx = rows.length - 1; idx >= 0; idx -= 1) {
+    const value = Number(rows[idx]?.[key])
+    if (Number.isFinite(value)) return value
+  }
+  return null
+}
+
+function pickFirst(key: string) {
+  const rows = Array.isArray(props.trendPoints) ? props.trendPoints : []
+  for (let idx = 0; idx < rows.length; idx += 1) {
+    const value = Number(rows[idx]?.[key])
+    if (Number.isFinite(value)) return value
+  }
+  return null
+}
+
+function diffText(current: number | null, previous: number | null, unit = '') {
+  if (current == null || previous == null) return '趋势基线不足'
+  const delta = current - previous
+  const prefix = delta > 0 ? '+' : ''
+  return `${prefix}${delta.toFixed(Math.abs(delta) >= 10 ? 0 : 1)}${unit}`
+}
+
+const summaryCards = computed(() => {
+  const defs = [
+    { key: 'hr', label: 'HR', unit: '/min' },
+    { key: 'spo2', label: 'SpO2', unit: '%' },
+    { key: 'rr', label: 'RR', unit: '/min' },
+    { key: 'temp', label: '体温', unit: '°C' },
+  ]
+  return defs.map((item) => {
+    const current = pickLast(item.key)
+    const first = pickFirst(item.key)
+    return {
+      key: item.key,
+      label: item.label,
+      current: current == null ? '—' : `${current.toFixed(item.key === 'temp' ? 1 : 0)}${item.unit}`,
+      delta: diffText(current, first, item.unit),
+    }
+  })
+})
 </script>
 
 <style scoped>
@@ -50,6 +106,43 @@ const DetailChart = defineAsyncComponent(async () => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.toolbar-hint {
+  color: #88b6c8;
+  font-size: 12px;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.summary-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(7,20,34,.92) 0%, rgba(4,12,22,.94) 100%);
+  border: 1px solid rgba(80,199,255,.12);
+}
+.summary-card span,
+.summary-card small {
+  color: #88b6c8;
+  font-size: 12px;
+}
+.summary-card strong {
+  display: block;
+  margin-top: 6px;
+  color: #effcff;
+  font-size: 20px;
+  font-weight: 800;
+}
+.summary-card small {
+  display: block;
+  margin-top: 8px;
 }
 .chart-panel {
   padding: 12px;
@@ -92,20 +185,39 @@ const DetailChart = defineAsyncComponent(async () => {
   border-color: rgba(80,199,255,.14);
   color: #dffbff;
 }
-html[data-theme='light'] .trend-tab .chart-panel {
-  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,248,253,.98) 100%);
-  border-color: rgba(187,204,220,.72);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+@media (max-width: 920px) {
+  .summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
+@media (max-width: 640px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+html[data-theme='light'] .toolbar-hint,
+html[data-theme='light'] .summary-card span,
+html[data-theme='light'] .summary-card small,
+html[data-theme='light'] .trend-tab .tab-empty { color: #5f7690; }
+html[data-theme='light'] .summary-card,
+html[data-theme='light'] .trend-tab .chart-panel {
+  background:
+    radial-gradient(circle at top right, rgba(56,189,248,.10), rgba(56,189,248,0) 40%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,248,253,.98) 100%);
+  border-color: rgba(187,204,220,.72);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .summary-card strong { color: #16324f; }
 html[data-theme='light'] .trend-tab .tab-empty {
-  color: #5f7690;
   background: rgba(238,245,252,.92);
   border-color: rgba(153,183,206,.5);
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper) {
   border-color: rgba(187,204,220,.72) !important;
-  background: rgba(241,246,251,.98) !important;
+  background: linear-gradient(180deg, rgba(251,253,255,.98), rgba(239,245,250,.98)) !important;
   color: #56718d !important;
+  box-shadow: 0 3px 10px rgba(15,23,42,0.04);
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper-checked) {
   background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%) !important;
@@ -113,8 +225,9 @@ html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper-checked) {
   border-color: rgba(59,130,246,.34) !important;
 }
 html[data-theme='light'] .trend-tab :deep(.ant-btn) {
-  background: rgba(241,246,251,.98);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
   border-color: rgba(187,204,220,.72);
   color: #355a7c;
+  box-shadow: 0 4px 12px rgba(15,23,42,0.05);
 }
 </style>

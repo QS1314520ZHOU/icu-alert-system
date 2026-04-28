@@ -16,66 +16,60 @@
           <span :class="['hero-badge', `hero-badge--${closureTone}`]">闭环 {{ closureLabel }}</span>
           <span v-if="isSessionClosed" class="hero-badge hero-badge--closed">已归档只读</span>
         </div>
-        <div v-if="viewMode === 'moderator'" class="hero-conclusion-row">
-          <div class="hero-conclusion-card">
+        <section v-if="viewMode === 'moderator'" class="mdt-cockpit">
+          <div class="cockpit-main">
             <span>总控结论</span>
             <strong>{{ metaSummary }}</strong>
-          </div>
-          <div class="hero-conclusion-card hero-conclusion-card--soft">
-            <span>冲突焦点</span>
-            <strong>{{ conflictRows.length ? conflictRows[0]?.summary || '存在跨专科冲突' : '当前无明显冲突' }}</strong>
-          </div>
-          <div class="hero-conclusion-card hero-conclusion-card--soft">
-            <span>首要动作</span>
-            <strong>{{ metaActions[0] || '等待总控智能体生成行动建议' }}</strong>
-          </div>
-        </div>
-        <div v-if="viewMode === 'moderator' && ownerSummaryRows.length" class="hero-conclusion-row">
-          <div class="hero-conclusion-card hero-conclusion-card--soft hero-conclusion-card--todo">
-            <span>负责人看板</span>
-            <div class="todo-list">
-              <div v-for="item in ownerSummaryRows" :key="item.owner" class="todo-row">
-                <strong>{{ item.owner }}</strong>
-                <small>待执行 {{ item.pending }} / 进行中 {{ item.inProgress }} / 已完成 {{ item.completed }}</small>
-              </div>
+            <div class="cockpit-actions">
+              <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存会话</a-button>
+              <a-button size="small" :loading="generatingDocType === 'mdt_summary'" :disabled="isSessionClosed" @click="generateDocument('mdt_summary')">生成材料</a-button>
+              <a-button size="small" :disabled="!autoSessionSummary" @click="copyText(autoSessionSummary, '会诊摘要已复制')">复制摘要</a-button>
             </div>
           </div>
-        </div>
-        <div v-if="viewMode === 'moderator'" class="hero-conclusion-row">
-          <div class="hero-conclusion-card hero-conclusion-card--soft hero-conclusion-card--todo">
-            <span>会诊元数据编辑</span>
+          <div class="cockpit-side">
+            <article class="cockpit-card">
+              <span>首要冲突</span>
+              <strong>{{ topConflictSummary }}</strong>
+            </article>
+            <article class="cockpit-card cockpit-card--accent">
+              <span>下一动作</span>
+              <strong>{{ nextActionText }}</strong>
+            </article>
+            <article class="cockpit-card">
+              <span>闭环进度</span>
+              <div class="closure-meter">
+                <i :style="{ width: `${closurePercent}%` }"></i>
+              </div>
+              <strong>{{ closurePercent }}% · {{ closureLabel }}</strong>
+            </article>
+          </div>
+        </section>
+        <section v-if="viewMode === 'moderator'" class="session-snapshot">
+          <article v-for="item in cockpitMetricRows" :key="item.label" class="snapshot-item">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </article>
+        </section>
+        <section v-if="viewMode === 'moderator'" class="hero-editor-grid">
+          <div class="hero-editor-card">
+            <div class="detail-label">会诊元数据</div>
             <div class="meta-edit-grid">
               <input v-model="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="标签：如 脓毒症、撤机、高乳酸" />
               <input v-model="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="参与成员：ICU、感染、呼吸、药学" />
               <textarea v-model="finalSummary" class="field-textarea" :disabled="isSessionClosed" rows="3" placeholder="最终纪要（留空则关闭会话时自动生成）"></textarea>
             </div>
           </div>
-        </div>
-        <div v-if="viewMode === 'moderator' && linkedDocumentSummaryRows.length" class="hero-conclusion-row">
-          <div class="hero-conclusion-card hero-conclusion-card--soft hero-conclusion-card--todo">
-            <span>文书联动摘要</span>
-            <div class="todo-list">
-              <div v-for="item in linkedDocumentSummaryRows" :key="item.label" class="todo-row">
-                <strong>{{ item.label }}</strong>
-                <small>{{ item.value }}</small>
+          <div class="hero-editor-card">
+            <div class="detail-label">负责人负荷</div>
+            <div v-if="ownerSummaryRows.length" class="owner-mini-list">
+              <div v-for="item in ownerSummaryRows.slice(0, 4)" :key="item.owner" class="owner-mini-row">
+                <strong>{{ item.owner }}</strong>
+                <span>待 {{ item.pending }} / 进 {{ item.inProgress }} / 完 {{ item.completed }}</span>
               </div>
             </div>
+            <div v-else class="empty-box empty-box--compact">暂无负责人分配。</div>
           </div>
-        </div>
-        <div v-if="viewMode === 'moderator'" class="hero-conclusion-row">
-          <div class="hero-conclusion-card hero-conclusion-card--soft">
-            <span>会诊标签</span>
-            <strong>{{ sessionTags.length ? sessionTags.join('、') : '未设置' }}</strong>
-          </div>
-          <div class="hero-conclusion-card hero-conclusion-card--soft">
-            <span>参与成员</span>
-            <strong>{{ sessionParticipants.length ? sessionParticipants.join('、') : '未设置' }}</strong>
-          </div>
-          <div class="hero-conclusion-card hero-conclusion-card--soft">
-            <span>最终纪要</span>
-            <strong>{{ finalSummary || '未填写，关闭会话时将自动生成摘要' }}</strong>
-          </div>
-        </div>
+        </section>
         <div v-if="viewMode === 'moderator' && isSessionClosed && finalSummary" class="hero-conclusion-row">
           <div class="hero-conclusion-card hero-conclusion-card--soft hero-conclusion-card--todo">
             <span>归档纪要</span>
@@ -280,7 +274,7 @@
         </a-card>
       </aside>
 
-      <main class="mdt-content">
+      <main :class="['mdt-content', `mdt-content--${viewMode}`]">
         <a-card v-if="viewMode === 'deep'" :bordered="false" class="mdt-panel mdt-panel--hero" :title="`${activeSystemLabel} 详细分析`">
           <div class="section-kicker">专科深度面板</div>
           <div class="summary-box summary-box--hero">{{ isGeneratingAssessment ? '总控智能体正在汇总专科意见、冲突焦点与优先级动作。' : metaSummary }}</div>
@@ -442,7 +436,7 @@
           </a-card>
         </div>
 
-        <div :class="['mdt-content-grid', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+        <div :class="['mdt-content-grid', 'mdt-grid--timeline', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
           <a-card :bordered="false" class="mdt-panel" title="MDT 冲突高亮">
             <div v-if="conflictRows.length" class="conflict-list">
               <article v-for="(item, idx) in conflictRows" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-card">
@@ -493,7 +487,7 @@
           </a-card>
         </div>
 
-        <div :class="['mdt-content-grid', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+        <div :class="['mdt-content-grid', 'mdt-grid--decisions', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
           <a-card :bordered="false" class="mdt-panel" title="会诊活动时间线">
             <div v-if="activityTimelineRows.length" class="detail-timeline">
               <article v-for="item in activityTimelineRows" :key="item.id" class="timeline-item">
@@ -521,8 +515,8 @@
           </a-card>
         </div>
 
-        <div v-if="viewMode === 'deep'" class="mdt-content-grid">
-          <a-card :bordered="false" class="mdt-panel" title="总控智能体全局优先级">
+        <div :class="['mdt-content-grid', 'mdt-grid--assessment', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+          <a-card v-if="viewMode === 'deep'" :bordered="false" class="mdt-panel" title="总控智能体全局优先级">
             <div v-if="priorityRows.length" class="priority-row">
               <article v-for="item in priorityRows" :key="`${item.agent}-${item.domain}`" :class="['priority-card', `is-${item.priority || 'medium'}`]">
                 <div class="priority-card__head">
@@ -536,6 +530,18 @@
           </a-card>
 
           <a-card :bordered="false" class="mdt-panel" title="决议记录与执行追踪">
+            <div class="decision-command-strip">
+              <div>
+                <div class="section-kicker">执行驾驶舱</div>
+                <strong>{{ pendingDecisionCount + inProgressDecisionCount }} 项仍需推进</strong>
+                <span>{{ completedDecisionCount }} 项已闭环，{{ dismissedDecisionCount }} 项已取消</span>
+              </div>
+              <div class="decision-command-actions">
+                <a-button size="small" :disabled="isSessionClosed || !metaActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
+                <a-button size="small" :disabled="isSessionClosed || !decisionRows.length" @click="fillDecisionDefaults">补全默认字段</a-button>
+                <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存</a-button>
+              </div>
+            </div>
             <div class="decision-summary-row">
               <div class="sheet-item">
                 <span>待执行</span>
@@ -634,20 +640,32 @@
           </a-card>
         </div>
 
-        <div :class="['mdt-content-grid', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+        <div :class="['mdt-content-grid', 'mdt-grid--documents', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
           <a-card :bordered="false" class="mdt-panel" title="会诊记录 / 病程记录">
+            <div class="doc-status-board">
+              <article v-for="item in documentStatusRows" :key="item.key" class="doc-status-card">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.status }}</strong>
+                <small>{{ item.detail }}</small>
+              </article>
+            </div>
             <div v-if="viewMode === 'moderator'" class="doc-stack doc-stack--compact">
               <div class="doc-block">
                 <div class="detail-label">会诊记录摘要</div>
                 <div class="summary-box">{{ consultRecord || '暂无会诊记录，可切换到深度视图编辑完整文书。' }}</div>
                 <div class="workspace-actions">
                   <a-button size="small" :loading="generatingDocType === 'consultation_request'" @click="generateDocument('consultation_request')">智能生成会诊记录</a-button>
+                  <a-button size="small" :disabled="!consultRecord" @click="copyText(consultRecord, '会诊记录已复制')">复制</a-button>
                   <a-button size="small" type="primary" :loading="savingWorkspace" @click="saveWorkspace">保存摘要</a-button>
                 </div>
               </div>
               <div class="doc-block">
                 <div class="detail-label">病程记录摘要</div>
                 <div class="summary-box">{{ progressRecord || '暂无病程记录，可切换到深度视图编辑完整文书。' }}</div>
+                <div class="workspace-actions">
+                  <a-button size="small" :loading="generatingDocType === 'daily_progress'" @click="generateDocument('daily_progress')">智能生成病程记录</a-button>
+                  <a-button size="small" :disabled="!progressRecord" @click="copyText(progressRecord, '病程记录已复制')">复制</a-button>
+                </div>
               </div>
             </div>
             <div v-else class="doc-stack">
@@ -1022,6 +1040,39 @@ const latestGeneratedDocuments = computed(() =>
     return acc
   }, {})
 )
+const topConflictSummary = computed(() => conflictRows.value.length ? (conflictRows.value[0]?.summary || '存在跨专科冲突') : '当前无明显冲突')
+const nextActionText = computed(() => metaActions.value[0] || todoRows.value[0]?.action || '等待总控智能体生成行动建议')
+const closurePercent = computed(() => {
+  const total = decisionRows.value.length
+  if (!total) return 0
+  return Math.round((completedDecisionCount.value / total) * 100)
+})
+const cockpitMetricRows = computed(() => [
+  { label: '患者', value: patientHeadline.value },
+  { label: '阶段', value: currentPhaseLabel.value },
+  { label: '参与成员', value: sessionParticipants.value.length ? sessionParticipants.value.slice(0, 4).join('、') : '未设置' },
+  { label: '标签', value: sessionTags.value.length ? sessionTags.value.slice(0, 4).join('、') : '未设置' },
+])
+const documentStatusRows = computed(() => [
+  {
+    key: 'mdt_summary',
+    label: '讨论材料',
+    status: latestGeneratedDocuments.value.mdt_summary ? '已生成' : '待生成',
+    detail: latestGeneratedDocuments.value.mdt_summary ? '可继续刷新材料' : '建议会前先生成',
+  },
+  {
+    key: 'consultation_request',
+    label: '会诊记录',
+    status: consultRecord.value ? '已填写' : '待填写',
+    detail: consultRecord.value ? `${consultRecord.value.length} 字` : '可由 AI 生成',
+  },
+  {
+    key: 'daily_progress',
+    label: '病程记录',
+    status: progressRecord.value ? '已填写' : '待填写',
+    detail: progressRecord.value ? `${progressRecord.value.length} 字` : '可由 AI 生成',
+  },
+])
 const selectedPatientLabel = computed(() => {
   if (patient.value) {
     const bed = patient.value?.hisBed || patient.value?.bed || '--'
@@ -1111,13 +1162,6 @@ const autoSessionSummary = computed(() => {
     parts.push(`执行概况：待执行${pendingDecisionCount.value}，进行中${inProgressDecisionCount.value}，已完成${completedDecisionCount.value}`)
   }
   return parts.join('\n')
-})
-const linkedDocumentSummaryRows = computed(() => {
-  const rows: Array<{ label: string; value: string }> = []
-  rows.push({ label: '会诊记录', value: consultRecord.value ? `已填写 ${consultRecord.value.length} 字` : '未填写，关闭会话时将自动补入纪要摘要' })
-  rows.push({ label: '病程记录', value: progressRecord.value ? `已填写 ${progressRecord.value.length} 字` : '未填写，关闭会话时将自动补入纪要摘要' })
-  rows.push({ label: '自动纪要', value: autoSessionSummary.value || '等待总控智能体生成可汇总内容' })
-  return rows
 })
 const activityTimelineRows = computed(() =>
   activityLog.value
@@ -1475,6 +1519,51 @@ function markVisibleDecisions(status: 'in_progress' | 'completed') {
   appendActivityLog('批量推进决议', `已将 ${ids.size} 条可见决议更新为${decisionStatusLabel(status)}`)
 }
 
+function syncDecisionsFromMetaActions() {
+  if (isSessionClosed.value || !metaActions.value.length) return
+  const existing = new Set(decisions.value.map((item: any) => String(item.action || '').trim()).filter(Boolean))
+  const additions = metaActions.value
+    .filter((item: string) => !existing.has(String(item || '').trim()))
+    .map((item: string, idx: number) => ({
+      id: `decision-ai-${Date.now()}-${idx}`,
+      action: item,
+      owner: '值班医生',
+      deadline: idx === 0 ? '立即' : '6h',
+      monitoring: '按系统指标复评',
+      review_time: '6h',
+      status: 'pending',
+      note: '由总控智能体动作同步',
+    }))
+  if (!additions.length) return
+  decisions.value = [...decisions.value, ...additions]
+  appendActivityLog('同步 AI 动作', `已追加 ${additions.length} 条 AI 最终动作到决议列表`)
+}
+
+function fillDecisionDefaults() {
+  if (isSessionClosed.value) return
+  decisions.value = decisionRows.value.map((item: any, idx: number) => ({
+    ...item,
+    id: item.id || `decision-${Date.now()}-${idx}`,
+    owner: String(item.owner || '').trim() || '值班医生',
+    deadline: String(item.deadline || '').trim() || (idx === 0 ? '立即' : '6h'),
+    monitoring: String(item.monitoring || '').trim() || '按系统指标复评',
+    review_time: String(item.review_time || '').trim() || '6h',
+    status: String(item.status || '').trim() || 'pending',
+  }))
+  appendActivityLog('补全决议字段', '已补全负责人、时限、监测指标与复评时间')
+}
+
+async function copyText(text: string, successText = '已复制') {
+  const value = String(text || '').trim()
+  if (!value) return
+  try {
+    await navigator.clipboard.writeText(value)
+    appendActivityLog('复制内容', successText)
+  } catch {
+    error.value = '复制失败，请检查浏览器剪贴板权限。'
+  }
+}
+
 async function switchSession(sessionId: string) {
   if (!selectedPatientId.value || !sessionId) return
   if (workspaceDirty.value && !window.confirm('当前 MDT 会话有未保存变更，确认切换会话吗？')) return
@@ -1656,6 +1745,8 @@ onMounted(async () => {
   display: grid;
   gap: 14px;
   position: relative;
+  width: 100%;
+  max-width: none;
 }
 .mdt-page::before {
   content: '';
@@ -1677,11 +1768,14 @@ onMounted(async () => {
 .mdt-hero {
   position: relative;
   overflow: hidden;
+  padding: 2px;
+}
+.mdt-hero :deep(.ant-card-body) {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.85fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
   gap: 18px;
   align-items: stretch;
-  padding: 2px;
+  padding: 16px;
 }
 .mdt-hero__copy,.mdt-hero__side {
   position: relative;
@@ -1689,9 +1783,9 @@ onMounted(async () => {
 }
 .mdt-hero__copy {
   display: grid;
-  align-content: center;
+  align-content: start;
   gap: 10px;
-  padding: 16px 10px 16px 16px;
+  padding: 0;
 }
 .mdt-kicker {
   color: #8eb6c9;
@@ -1710,7 +1804,7 @@ onMounted(async () => {
 .mdt-desc {
   margin: 0;
   color: #9eb8c7;
-  max-width: 680px;
+  max-width: 980px;
   font-size: 13px;
   line-height: 1.7;
 }
@@ -1784,6 +1878,119 @@ onMounted(async () => {
 .hero-conclusion-card--todo {
   grid-column: 1 / -1;
 }
+.mdt-cockpit {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+  gap: 12px;
+}
+.cockpit-main,
+.cockpit-card,
+.hero-editor-card,
+.snapshot-item,
+.decision-command-strip,
+.doc-status-card {
+  border-radius: 12px;
+  border: 1px solid rgba(125, 167, 214, 0.16);
+  background: rgba(9, 20, 31, 0.88);
+}
+.cockpit-main {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+.cockpit-main span,
+.cockpit-card span,
+.snapshot-item span,
+.doc-status-card span {
+  color: #89a6b8;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cockpit-main strong {
+  color: #f3f8fb;
+  font-size: 15px;
+  line-height: 1.75;
+}
+.cockpit-actions,
+.decision-command-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cockpit-side {
+  display: grid;
+  gap: 10px;
+}
+.cockpit-card {
+  display: grid;
+  gap: 7px;
+  padding: 12px 14px;
+}
+.cockpit-card--accent {
+  border-color: rgba(34, 211, 238, 0.26);
+  background: linear-gradient(180deg, rgba(12, 45, 68, 0.78), rgba(9, 20, 31, 0.9));
+}
+.cockpit-card strong,
+.snapshot-item strong,
+.doc-status-card strong {
+  color: #f3f8fb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.closure-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(125, 167, 214, 0.12);
+}
+.closure-meter i {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22d3ee, #34d399);
+}
+.session-snapshot {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.snapshot-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+.hero-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+  gap: 10px;
+}
+.hero-editor-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.owner-mini-list {
+  display: grid;
+  gap: 8px;
+}
+.owner-mini-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(7, 17, 27, 0.7);
+  color: #9eb8c7;
+  font-size: 12px;
+}
+.owner-mini-row strong {
+  color: #f3f8fb;
+}
+.empty-box--compact {
+  padding: 10px 12px;
+}
 .meta-edit-grid {
   display: grid;
   gap: 8px;
@@ -1832,7 +2039,8 @@ onMounted(async () => {
 .mdt-hero__side {
   display: grid;
   gap: 10px;
-  padding: 14px 14px 14px 0;
+  align-content: start;
+  padding: 0;
 }
 .mdt-toolbar,
 .mini-card {
@@ -1915,9 +2123,10 @@ onMounted(async () => {
 }
 .mdt-workspace {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 310px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
+  width: 100%;
 }
 .mdt-sidebar,
 .mdt-content,
@@ -1928,6 +2137,71 @@ onMounted(async () => {
 .mdt-sidebar {
   position: sticky;
   top: 16px;
+}
+.mdt-content {
+  min-width: 0;
+  align-items: start;
+}
+.mdt-content--moderator {
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, .78fr);
+  grid-auto-flow: row dense;
+}
+.mdt-content--moderator > .mdt-content-grid {
+  display: contents;
+}
+.mdt-content--moderator .mdt-grid--assessment > .mdt-panel:last-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+.mdt-content--moderator .mdt-grid--assessment > .mdt-panel:first-child {
+  grid-column: 2;
+  grid-row: 1;
+}
+.mdt-content--moderator .mdt-grid--decisions > .mdt-panel:last-child {
+  grid-column: 1;
+  grid-row: 2 / span 2;
+}
+.mdt-content--moderator .mdt-grid--documents > .mdt-panel:first-child {
+  grid-column: 1;
+  grid-row: 4;
+}
+.mdt-content--moderator .mdt-grid--timeline > .mdt-panel:first-child {
+  grid-column: 2;
+  grid-row: 2;
+}
+.mdt-content--moderator .mdt-grid--timeline > .mdt-panel:last-child {
+  grid-column: 2;
+  grid-row: 3;
+}
+.mdt-content--moderator .mdt-grid--documents > .mdt-panel:last-child {
+  grid-column: 2;
+  grid-row: 4;
+}
+.mdt-content--moderator .mdt-panel {
+  min-width: 0;
+}
+.mdt-content--moderator .mdt-panel :deep(.ant-card-body) {
+  padding: 16px;
+}
+.mdt-content--moderator .mdt-grid--timeline .detail-timeline,
+.mdt-content--moderator .mdt-grid--timeline .impact-list,
+.mdt-content--moderator .mdt-grid--documents .decision-list {
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 3px;
+}
+.mdt-content--moderator .mdt-grid--assessment .detail-stack {
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+}
+.mdt-content--moderator .mdt-grid--assessment .detail-stack .summary-box,
+.mdt-content--moderator .mdt-grid--assessment .detail-stack .detail-block:last-child {
+  grid-column: 1 / -1;
+}
+.mdt-content--moderator .conflict-list,
+.mdt-content--moderator .detail-stack,
+.mdt-content--moderator .impact-list,
+.mdt-content--moderator .decision-list {
+  gap: 8px;
 }
 .patient-sheet {
   display: grid;
@@ -2138,10 +2412,10 @@ onMounted(async () => {
   line-height: 1.7;
 }
 .mdt-content-grid {
-  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
 }
 .mdt-content-grid--single {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, .98fr) minmax(340px, .72fr);
 }
 .section-kicker {
   color: #8ea8b8;
@@ -2283,6 +2557,38 @@ onMounted(async () => {
   display: grid;
   gap: 12px;
 }
+.mdt-content--moderator .decision-buckets {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+.mdt-content--moderator .decision-bucket {
+  min-width: 0;
+}
+.mdt-content--moderator .decision-list {
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 3px;
+}
+.decision-command-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.decision-command-strip > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.decision-command-strip strong {
+  color: #f3f8fb;
+  font-size: 16px;
+}
+.decision-command-strip span {
+  color: #9eb8c7;
+  font-size: 12px;
+}
 .decision-bucket {
   display: grid;
   gap: 10px;
@@ -2385,13 +2691,44 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 .doc-stack--compact .summary-box {
-  min-height: 88px;
+  min-height: 70px;
   display: flex;
   align-items: center;
+}
+.doc-status-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.doc-status-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+.doc-status-card small {
+  color: #9eb8c7;
+  font-size: 11px;
 }
 .decision-form__grid,
 .doc-stack {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mdt-content--moderator .decision-form__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mdt-content--moderator .doc-stack--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mdt-content--moderator .doc-status-board {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.mdt-content-grid--single > .mdt-panel:only-child,
+.mdt-content-grid--single > .mdt-panel:nth-child(1):last-child {
+  grid-column: 1 / -1;
+}
+.mdt-content-grid--single > .mdt-panel:nth-child(1):not(:last-child) {
+  grid-column: auto;
 }
 .mdt-panel--hero :deep(.ant-card-body) {
   display: grid;
@@ -2460,6 +2797,13 @@ html[data-theme='light'] .mdt-panel {
 html[data-theme='light'] .hero-badge,
 html[data-theme='light'] .hero-conclusion-card,
 html[data-theme='light'] .todo-row,
+html[data-theme='light'] .cockpit-main,
+html[data-theme='light'] .cockpit-card,
+html[data-theme='light'] .hero-editor-card,
+html[data-theme='light'] .snapshot-item,
+html[data-theme='light'] .owner-mini-row,
+html[data-theme='light'] .decision-command-strip,
+html[data-theme='light'] .doc-status-card,
 html[data-theme='light'] .mdt-toolbar,
 html[data-theme='light'] .mini-card,
 html[data-theme='light'] .sheet-item,
@@ -2492,6 +2836,12 @@ html[data-theme='light'] .mdt-select {
 }
 html[data-theme='light'] .mdt-title,
 html[data-theme='light'] .hero-conclusion-card strong,
+html[data-theme='light'] .cockpit-main strong,
+html[data-theme='light'] .cockpit-card strong,
+html[data-theme='light'] .snapshot-item strong,
+html[data-theme='light'] .owner-mini-row strong,
+html[data-theme='light'] .decision-command-strip strong,
+html[data-theme='light'] .doc-status-card strong,
 html[data-theme='light'] .mini-card strong,
 html[data-theme='light'] .patient-sheet__name,
 html[data-theme='light'] .sheet-item strong,
@@ -2507,6 +2857,13 @@ html[data-theme='light'] .conflict-card__title {
 html[data-theme='light'] .mdt-kicker,
 html[data-theme='light'] .mdt-desc,
 html[data-theme='light'] .hero-conclusion-card span,
+html[data-theme='light'] .cockpit-main span,
+html[data-theme='light'] .cockpit-card span,
+html[data-theme='light'] .snapshot-item span,
+html[data-theme='light'] .owner-mini-row,
+html[data-theme='light'] .decision-command-strip span,
+html[data-theme='light'] .doc-status-card span,
+html[data-theme='light'] .doc-status-card small,
 html[data-theme='light'] .todo-row small,
 html[data-theme='light'] .toolbar-label,
 html[data-theme='light'] .mini-card span,
@@ -2553,6 +2910,11 @@ html[data-theme='light'] .row-active-chip {
   background: rgba(219, 234, 254, 0.98);
   border-color: rgba(59, 130, 246, 0.28);
   color: #1d4ed8;
+}
+html[data-theme='light'] .cockpit-card--accent {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0) 45%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(239,246,255,.98));
 }
 html[data-theme='light'] .hero-badge--critical {
   background: rgba(255, 241, 244, 0.98);
@@ -2611,11 +2973,241 @@ html[data-theme='light'] .error-box {
   background: rgba(255, 241, 242, 0.98);
   color: #be123c;
 }
+
+/* Align MDT light mode with the cyan workspace pages: pale shell, dark clinical data tiles, white panels. */
+html[data-theme='light'] .mdt-page {
+  min-height: calc(100vh - 88px);
+  padding: 22px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(34, 211, 238, .12), transparent 30%),
+    radial-gradient(circle at 88% 8%, rgba(20, 184, 166, .10), transparent 30%),
+    linear-gradient(180deg, rgba(236, 252, 255, .92), rgba(245, 250, 255, .96));
+  color: #07172b;
+}
+html[data-theme='light'] .mdt-page::before {
+  display: none;
+}
+html[data-theme='light'] .mdt-hero {
+  border-color: rgba(15, 23, 42, .08);
+  background: linear-gradient(135deg, rgba(7, 25, 42, .96), rgba(14, 30, 45, .94));
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .12);
+}
+html[data-theme='light'] .mdt-panel {
+  border-color: rgba(226, 232, 240, .96);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .08);
+}
+html[data-theme='light'] .mdt-panel :deep(.ant-card-head) {
+  border-bottom-color: rgba(226, 232, 240, .86);
+}
+html[data-theme='light'] .mdt-panel :deep(.ant-card-head-title) {
+  color: #07172b;
+  font-weight: 800;
+}
+html[data-theme='light'] .mdt-title,
+html[data-theme='light'] .cockpit-main strong,
+html[data-theme='light'] .cockpit-card strong,
+html[data-theme='light'] .snapshot-item strong,
+html[data-theme='light'] .sheet-item strong,
+html[data-theme='light'] .system-card__domain,
+html[data-theme='light'] .specialist-row__domain,
+html[data-theme='light'] .focus-specialist-card__head strong,
+html[data-theme='light'] .mini-card strong,
+html[data-theme='light'] .decision-command-strip strong,
+html[data-theme='light'] .decision-item__head strong,
+html[data-theme='light'] .priority-card__head strong,
+html[data-theme='light'] .conflict-card__title,
+html[data-theme='light'] .doc-status-card strong,
+html[data-theme='light'] .impact-card__text,
+html[data-theme='light'] .alert-chain__text,
+html[data-theme='light'] .summary-box {
+  color: #f8fbff;
+}
+html[data-theme='light'] .mdt-kicker,
+html[data-theme='light'] .mdt-desc,
+html[data-theme='light'] .cockpit-main span,
+html[data-theme='light'] .cockpit-card span,
+html[data-theme='light'] .snapshot-item span,
+html[data-theme='light'] .sheet-item span,
+html[data-theme='light'] .system-card__priority,
+html[data-theme='light'] .system-card__status,
+html[data-theme='light'] .system-card__summary,
+html[data-theme='light'] .specialist-row__summary,
+html[data-theme='light'] .specialist-row__meta,
+html[data-theme='light'] .mini-card span,
+html[data-theme='light'] .mini-card small,
+html[data-theme='light'] .decision-command-strip span,
+html[data-theme='light'] .decision-item__head span,
+html[data-theme='light'] .decision-item__meta span,
+html[data-theme='light'] .impact-card__title,
+html[data-theme='light'] .impact-card__sub,
+html[data-theme='light'] .alert-chain__time,
+html[data-theme='light'] .alert-chain__sub,
+html[data-theme='light'] .doc-status-card span,
+html[data-theme='light'] .doc-status-card small,
+html[data-theme='light'] .summary-box,
+html[data-theme='light'] .empty-box {
+  color: #9fc4d7;
+}
+html[data-theme='light'] .cockpit-main,
+html[data-theme='light'] .cockpit-card,
+html[data-theme='light'] .snapshot-item,
+html[data-theme='light'] .sheet-item,
+html[data-theme='light'] .system-card,
+html[data-theme='light'] .specialist-row,
+html[data-theme='light'] .focus-specialist-card,
+html[data-theme='light'] .mini-card,
+html[data-theme='light'] .decision-command-strip,
+html[data-theme='light'] .decision-item,
+html[data-theme='light'] .priority-card,
+html[data-theme='light'] .conflict-card,
+html[data-theme='light'] .impact-card,
+html[data-theme='light'] .alert-chain__item,
+html[data-theme='light'] .doc-status-card,
+html[data-theme='light'] .summary-box,
+html[data-theme='light'] .empty-box,
+html[data-theme='light'] .deep-panel,
+html[data-theme='light'] .assistant-note,
+html[data-theme='light'] .timeline-item,
+html[data-theme='light'] .trend-metrics__item,
+html[data-theme='light'] .detail-block {
+  border-color: rgba(125, 167, 214, .14);
+  background: linear-gradient(135deg, rgba(71, 88, 102, .96), rgba(42, 57, 72, .98));
+  box-shadow: none;
+}
+html[data-theme='light'] .cockpit-card--accent,
+html[data-theme='light'] .sheet-item:nth-child(2),
+html[data-theme='light'] .doc-status-card:nth-child(2) {
+  border-color: rgba(34, 211, 238, .18);
+  background: linear-gradient(135deg, rgba(50, 103, 116, .92), rgba(42, 57, 72, .98));
+}
+html[data-theme='light'] .sheet-item:nth-child(3),
+html[data-theme='light'] .doc-status-card:nth-child(3) {
+  border-color: rgba(245, 158, 11, .20);
+  background: linear-gradient(135deg, rgba(117, 98, 66, .88), rgba(42, 57, 72, .98));
+}
+html[data-theme='light'] .hero-editor-card,
+html[data-theme='light'] .mdt-toolbar,
+html[data-theme='light'] .doc-block {
+  border-color: rgba(226, 232, 240, .92);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+}
+html[data-theme='light'] .hero-editor-card .detail-label,
+html[data-theme='light'] .toolbar-label,
+html[data-theme='light'] .patient-sheet__sub {
+  color: #64748b;
+}
+html[data-theme='light'] .patient-sheet__name,
+html[data-theme='light'] .hero-editor-card .empty-box,
+html[data-theme='light'] .doc-block .detail-label {
+  color: #07172b;
+}
+html[data-theme='light'] .doc-block .summary-box {
+  border-color: rgba(203, 213, 225, .78);
+  background: rgba(248, 250, 252, .98);
+  color: #334155;
+}
+html[data-theme='light'] .owner-mini-row,
+html[data-theme='light'] .todo-row,
+html[data-theme='light'] .session-chip,
+html[data-theme='light'] .chip,
+html[data-theme='light'] .inline-toggle {
+  border-color: rgba(203, 213, 225, .86);
+  background: rgba(248, 250, 252, .96);
+  color: #334155;
+}
+html[data-theme='light'] .owner-mini-row strong,
+html[data-theme='light'] .todo-row strong {
+  color: #07172b;
+}
+html[data-theme='light'] .panel-select,
+html[data-theme='light'] .field-input,
+html[data-theme='light'] .field-textarea,
+html[data-theme='light'] .mdt-select {
+  border-color: rgba(203, 213, 225, .92);
+  background: rgba(248, 250, 252, .98);
+  color: #0f172a;
+}
+html[data-theme='light'] .panel-select:focus,
+html[data-theme='light'] .field-input:focus,
+html[data-theme='light'] .field-textarea:focus,
+html[data-theme='light'] .mdt-select:focus {
+  border-color: rgba(37, 99, 235, .42);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+  outline: none;
+}
+html[data-theme='light'] .hero-badge {
+  border-color: rgba(125, 167, 214, .22);
+  background: rgba(15, 33, 52, .76);
+  color: #dff7ff;
+}
+html[data-theme='light'] .hero-badge--soft {
+  background: rgba(255, 255, 255, .10);
+  color: #b7d9ea;
+}
+html[data-theme='light'] .hero-badge--focus,
+html[data-theme='light'] .row-active-chip {
+  border-color: rgba(103, 232, 249, .28);
+  background: rgba(8, 64, 84, .72);
+  color: #67e8f9;
+}
+html[data-theme='light'] .system-card.is-active,
+html[data-theme='light'] .specialist-row.is-active {
+  border-color: rgba(34, 211, 238, .34);
+  background: linear-gradient(135deg, rgba(8, 64, 84, .82), rgba(42, 57, 72, .98));
+  box-shadow: inset 3px 0 0 rgba(34, 211, 238, .9);
+}
+html[data-theme='light'] .system-card:hover,
+html[data-theme='light'] .specialist-row:hover {
+  border-color: rgba(34, 211, 238, .28);
+}
+html[data-theme='light'] .mini-link {
+  color: #67e8f9;
+}
+html[data-theme='light'] .action-list,
+html[data-theme='light'] .assistant-note__text,
+html[data-theme='light'] .trend-placeholder__caption,
+html[data-theme='light'] .timeline-item span,
+html[data-theme='light'] .timeline-item small {
+  color: #c7deea;
+}
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--assessment > .mdt-panel:last-child,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--decisions > .mdt-panel:last-child,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-panel:first-child {
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 34%),
+    rgba(255, 255, 255, .98);
+}
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--assessment > .mdt-panel:first-child,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--timeline > .mdt-panel,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-panel:last-child {
+  background:
+    radial-gradient(circle at top right, rgba(15, 118, 110, .09), transparent 36%),
+    rgba(248, 252, 255, .98);
+}
 @media (max-width: 1280px) {
-  .mdt-hero,
+  .mdt-hero :deep(.ant-card-body),
+  .mdt-cockpit,
+  .hero-editor-grid,
   .mdt-workspace,
+  .mdt-content--moderator,
   .mdt-content-grid,
   .deep-panel-grid {
+    grid-template-columns: 1fr;
+  }
+  .mdt-content--moderator > .mdt-content-grid {
+    display: grid;
+  }
+  .mdt-content--moderator .mdt-grid--assessment > .mdt-panel,
+  .mdt-content--moderator .mdt-grid--decisions > .mdt-panel,
+  .mdt-content--moderator .mdt-grid--documents > .mdt-panel,
+  .mdt-content--moderator .mdt-grid--timeline > .mdt-panel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .mdt-content--moderator .mdt-grid--assessment .detail-stack,
+  .mdt-content--moderator .decision-buckets {
     grid-template-columns: 1fr;
   }
   .mdt-sidebar {
@@ -2624,6 +3216,8 @@ html[data-theme='light'] .error-box {
 }
 @media (max-width: 1100px) {
   .hero-conclusion-row,
+  .session-snapshot,
+  .doc-status-board,
   .priority-row,
   .patient-sheet__grid,
   .trend-metrics,
@@ -2632,6 +3226,8 @@ html[data-theme='light'] .error-box {
 }
 @media (max-width: 720px) {
   .hero-conclusion-row,
+  .session-snapshot,
+  .doc-status-board,
   .priority-row,
   .patient-sheet__grid,
   .mdt-toolbar__actions,
