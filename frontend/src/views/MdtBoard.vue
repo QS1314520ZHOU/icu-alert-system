@@ -280,7 +280,7 @@
                 <a-button type="primary" :loading="loading" @click="loadAssessment(true)">
                   {{ selectedPatientId ? '刷新 MDT 会诊' : '先选择患者' }}
                 </a-button>
-                <a-button :disabled="isSessionClosed || !metaActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
+                <a-button :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
                 <a-button :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存会话</a-button>
               </div>
             </a-card>
@@ -724,7 +724,7 @@
                 <span>{{ completedDecisionCount }} 项已闭环，{{ dismissedDecisionCount }} 项已取消</span>
               </div>
               <div class="decision-command-actions">
-                <a-button size="small" :disabled="isSessionClosed || !metaActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
+                <a-button size="small" :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
                 <a-button size="small" :disabled="isSessionClosed || !decisionRows.length" @click="fillDecisionDefaults">补全默认字段</a-button>
                 <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存</a-button>
               </div>
@@ -1001,6 +1001,13 @@ const metaActions = computed(() => Array.isArray(metaSummaryRecord.value?.final_
 const metaActionCount = computed(() => metaActions.value.length)
 const priorityRows = computed(() => Array.isArray(metaSummaryRecord.value?.top_priorities) ? metaSummaryRecord.value.top_priorities : [])
 const activeSpecialist = computed(() => specialistRows.value.find((item: any) => item.agent === activeAgent.value) || specialistRows.value[0] || null)
+const syncableAiActions = computed(() => {
+  const rows = metaActions.value.length
+    ? metaActions.value
+    : specialistRows.value.flatMap((item: any) => Array.isArray(item?.recommendations) ? item.recommendations : [])
+  const actions = rows.map((item: any) => String(item || '').trim()).filter(Boolean)
+  return Array.from(new Set<string>(actions)).slice(0, 8)
+})
 const systemCards = computed(() => {
   const systems = [
     { agent: 'hemodynamic_agent', domain: 'hemodynamic', label: '循环系统' },
@@ -1744,9 +1751,9 @@ function markVisibleDecisions(status: 'in_progress' | 'completed') {
 }
 
 function syncDecisionsFromMetaActions() {
-  if (isSessionClosed.value || !metaActions.value.length) return
+  if (isSessionClosed.value || !syncableAiActions.value.length) return
   const existing = new Set(decisions.value.map((item: any) => String(item.action || '').trim()).filter(Boolean))
-  const additions = metaActions.value
+  const additions = syncableAiActions.value
     .filter((item: string) => !existing.has(String(item || '').trim()))
     .map((item: string, idx: number) => ({
       id: `decision-ai-${Date.now()}-${idx}`,
@@ -3911,6 +3918,42 @@ html[data-theme='light'] .guide-score span {
 }
 html[data-theme='light'] .guide-score strong {
   color: #065f46;
+}
+html[data-theme='light'] .mdt-flow-step,
+html[data-theme='light'] .clinical-fact,
+html[data-theme='light'] .session-compact-item {
+  border-color: rgba(203, 213, 225, .82);
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .08), rgba(56, 189, 248, 0) 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+}
+html[data-theme='light'] .mdt-flow-step__index {
+  border: 1px solid rgba(186, 230, 253, .92);
+  background: rgba(240, 249, 255, .98);
+  color: #0369a1;
+}
+html[data-theme='light'] .mdt-flow-step strong,
+html[data-theme='light'] .clinical-fact strong,
+html[data-theme='light'] .session-compact-item strong {
+  color: #16324f;
+}
+html[data-theme='light'] .mdt-flow-step small,
+html[data-theme='light'] .clinical-fact span,
+html[data-theme='light'] .session-compact-item span {
+  color: #64748b;
+}
+html[data-theme='light'] .mdt-flow-step.is-active {
+  border-color: rgba(14, 165, 233, .36);
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .14), transparent 42%),
+    linear-gradient(180deg, rgba(248, 253, 255, .99), rgba(232, 247, 252, .98));
+  box-shadow: 0 10px 24px rgba(14, 165, 233, .10);
+}
+html[data-theme='light'] .mdt-flow-step.is-done {
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, .10), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(240, 253, 250, .98));
 }
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),
