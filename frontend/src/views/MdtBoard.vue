@@ -2974,7 +2974,7 @@ html[data-theme='light'] .error-box {
   color: #be123c;
 }
 
-/* Align MDT light mode with the cyan workspace pages: pale shell, dark clinical data tiles, white panels. */
+/* Align MDT light mode with the cyan workspace pages: pale shell and true light cards. */
 html[data-theme='light'] .mdt-page {
   min-height: calc(100vh - 88px);
   padding: 22px;
@@ -3185,6 +3185,148 @@ html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-pan
   background:
     radial-gradient(circle at top right, rgba(15, 118, 110, .09), transparent 36%),
     rgba(248, 252, 255, .98);
+}
+html[data-theme='light'] .mdt-hero {
+  border-color: rgba(187, 204, 220, .82);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(34, 211, 238, .14), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(59, 130, 246, .10), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(241, 248, 253, .98));
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .10);
+}
+html[data-theme='light'] .mdt-title,
+html[data-theme='light'] .cockpit-main strong,
+html[data-theme='light'] .cockpit-card strong,
+html[data-theme='light'] .snapshot-item strong,
+html[data-theme='light'] .sheet-item strong,
+html[data-theme='light'] .system-card__domain,
+html[data-theme='light'] .specialist-row__domain,
+html[data-theme='light'] .focus-specialist-card__head strong,
+html[data-theme='light'] .mini-card strong,
+html[data-theme='light'] .decision-command-strip strong,
+html[data-theme='light'] .decision-item__head strong,
+html[data-theme='light'] .priority-card__head strong,
+html[data-theme='light'] .conflict-card__title,
+html[data-theme='light'] .doc-status-card strong,
+html[data-theme='light'] .impact-card__text,
+html[data-theme='light'] .alert-chain__text,
+html[data-theme='light'] .summary-box,
+html[data-theme='light'] .patient-sheet__name,
+html[data-theme='light'] .deep-panel__title,
+html[data-theme='light'] .timeline-item strong {
+  color: #16324f;
+}
+html[data-theme='light'] .mdt-kicker,
+html[data-theme='light'] .mdt-desc,
+html[data-theme='light'] .cockpit-main span,
+html[data-theme='light'] .cockpit-card span,
+html[data-theme='light'] .snapshot-item span,
+html[data-theme='light'] .sheet-item span,
+html[data-theme='light'] .system-card__priority,
+html[data-theme='light'] .system-card__status,
+html[data-theme='light'] .system-card__summary,
+html[data-theme='light'] .specialist-row__summary,
+html[data-theme='light'] .specialist-row__meta,
+html[data-theme='light'] .mini-card span,
+html[data-theme='light'] .mini-card small,
+html[data-theme='light'] .decision-command-strip span,
+html[data-theme='light'] .decision-item__head span,
+html[data-theme='light'] .decision-item__meta span,
+html[data-theme='light'] .impact-card__title,
+html[data-theme='light'] .impact-card__sub,
+html[data-theme='light'] .alert-chain__time,
+html[data-theme='light'] .alert-chain__sub,
+html[data-theme='light'] .doc-status-card span,
+html[data-theme='light'] .doc-status-card small,
+html[data-theme='light'] .empty-box,
+html[data-theme='light'] .toolbar-label,
+html[data-theme='light'] .detail-label,
+html[data-theme='light'] .conflict-card__agents,
+html[data-theme='light'] .patient-sheet__sub,
+html[data-theme='light'] .section-kicker,
+html[data-theme='light'] .trend-placeholder__caption,
+html[data-theme='light'] .assistant-note__label,
+html[data-theme='light'] .assistant-note__text,
+html[data-theme='light'] .timeline-item span,
+html[data-theme='light'] .timeline-item small,
+html[data-theme='light'] .decision-bucket__head,
+html[data-theme='light'] .action-list {
+  color: #64748b;
+}
+html[data-theme='light'] .cockpit-main,
+html[data-theme='light'] .cockpit-card,
+html[data-theme='light'] .snapshot-item,
+html[data-theme='light'] .sheet-item,
+html[data-theme='light'] .system-card,
+html[data-theme='light'] .specialist-row,
+html[data-theme='light'] .focus-specialist-card,
+html[data-theme='light'] .mini-card,
+html[data-theme='light'] .decision-command-strip,
+html[data-theme='light'] .decision-item,
+html[data-theme='light'] .priority-card,
+html[data-theme='light'] .conflict-card,
+html[data-theme='light'] .impact-card,
+html[data-theme='light'] .alert-chain__item,
+html[data-theme='light'] .doc-status-card,
+html[data-theme='light'] .summary-box,
+html[data-theme='light'] .empty-box,
+html[data-theme='light'] .deep-panel,
+html[data-theme='light'] .assistant-note,
+html[data-theme='light'] .timeline-item,
+html[data-theme='light'] .trend-metrics__item,
+html[data-theme='light'] .detail-block,
+html[data-theme='light'] .hero-conclusion-card,
+html[data-theme='light'] .hero-editor-card,
+html[data-theme='light'] .mdt-toolbar,
+html[data-theme='light'] .doc-block,
+html[data-theme='light'] .owner-mini-row,
+html[data-theme='light'] .todo-row {
+  border-color: rgba(203, 213, 225, .82);
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .08), rgba(56, 189, 248, 0) 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+}
+html[data-theme='light'] .cockpit-card--accent,
+html[data-theme='light'] .sheet-item:nth-child(2),
+html[data-theme='light'] .sheet-item:nth-child(3),
+html[data-theme='light'] .doc-status-card:nth-child(2),
+html[data-theme='light'] .doc-status-card:nth-child(3),
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--assessment > .mdt-panel:last-child,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--decisions > .mdt-panel:last-child,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-panel:first-child,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--assessment > .mdt-panel:first-child,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--timeline > .mdt-panel,
+html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-panel:last-child {
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(239, 248, 252, .98));
+}
+html[data-theme='light'] .hero-badge {
+  border-color: rgba(203, 213, 225, .86);
+  background: rgba(248, 250, 252, .94);
+  color: #334155;
+}
+html[data-theme='light'] .hero-badge--soft {
+  background: rgba(241, 245, 249, .96);
+  color: #475569;
+}
+html[data-theme='light'] .hero-badge--focus,
+html[data-theme='light'] .row-active-chip {
+  border-color: rgba(56, 189, 248, .28);
+  background: rgba(240, 249, 255, .98);
+  color: #0369a1;
+}
+html[data-theme='light'] .system-card.is-active,
+html[data-theme='light'] .specialist-row.is-active {
+  border-color: rgba(56, 189, 248, .38);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .14), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+  box-shadow: inset 3px 0 0 rgba(14, 165, 233, .75);
+}
+html[data-theme='light'] .mini-link {
+  color: #2563eb;
 }
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),
