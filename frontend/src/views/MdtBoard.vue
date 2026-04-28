@@ -1,137 +1,110 @@
 <template>
   <div class="mdt-page">
     <a-card :bordered="false" class="mdt-hero">
-      <div class="mdt-hero__copy">
-        <div class="mdt-kicker">MDT 临床协作工作站</div>
-        <h1 class="mdt-title">MDT 多智能体会诊</h1>
-        <p class="mdt-desc">以七大生理系统为骨架，以 MDT 讨论流为主线，把患者数字孪生、专科分析、冲突协调与执行决议收敛到一个临床工作站。</p>
-        <div class="mdt-hero__badges">
-          <span class="hero-badge">{{ loading ? '会诊处理中' : '会诊就绪' }}</span>
-          <span v-if="workspaceDirty" class="hero-badge hero-badge--warning">有未保存变更</span>
-          <span class="hero-badge hero-badge--soft">{{ selectedPatientLabel }}</span>
-          <span class="hero-badge hero-badge--focus">聚焦 {{ activeSystemLabel }}</span>
-          <span v-if="currentSessionId" class="hero-badge hero-badge--soft">会话 {{ currentSessionLabel }}</span>
-          <span class="hero-badge hero-badge--soft">阶段 {{ currentPhaseLabel }}</span>
-          <span :class="['hero-badge', `hero-badge--${mdtSeverityTone}`]">风险 {{ mdtSeverityLabel }}</span>
-          <span :class="['hero-badge', `hero-badge--${closureTone}`]">闭环 {{ closureLabel }}</span>
-          <span v-if="isSessionClosed" class="hero-badge hero-badge--closed">已归档只读</span>
-        </div>
-        <section v-if="viewMode === 'moderator'" class="mdt-cockpit">
-          <div class="cockpit-main">
-            <span>总控结论</span>
-            <strong>{{ metaSummary }}</strong>
-            <div class="cockpit-actions">
-              <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存会话</a-button>
-              <a-button size="small" :loading="generatingDocType === 'mdt_summary'" :disabled="isSessionClosed" @click="generateDocument('mdt_summary')">生成材料</a-button>
-              <a-button size="small" :disabled="!autoSessionSummary" @click="copyText(autoSessionSummary, '会诊摘要已复制')">复制摘要</a-button>
+      <section class="mdt-command-center">
+        <header class="mdt-command-top">
+          <div class="mdt-command-title">
+            <div class="mdt-kicker">ICU MDT Command Center</div>
+            <h1 class="mdt-title">MDT 多学科会诊指挥台</h1>
+            <p class="mdt-desc">以患者为中心，把专科意见、冲突裁决、执行闭环和文书归档收敛在同一张临床作战图上。</p>
+          </div>
+          <div class="mdt-hero__badges">
+            <span class="hero-badge">{{ loading ? '会诊处理中' : '会诊就绪' }}</span>
+            <span v-if="workspaceDirty" class="hero-badge hero-badge--warning">有未保存变更</span>
+            <span class="hero-badge hero-badge--soft">{{ selectedPatientLabel }}</span>
+            <span class="hero-badge hero-badge--focus">聚焦 {{ activeSystemLabel }}</span>
+            <span v-if="currentSessionId" class="hero-badge hero-badge--soft">会话 {{ currentSessionLabel }}</span>
+            <span class="hero-badge hero-badge--soft">阶段 {{ currentPhaseLabel }}</span>
+            <span :class="['hero-badge', `hero-badge--${mdtSeverityTone}`]">风险 {{ mdtSeverityLabel }}</span>
+            <span :class="['hero-badge', `hero-badge--${closureTone}`]">闭环 {{ closureLabel }}</span>
+            <span v-if="isSessionClosed" class="hero-badge hero-badge--closed">已归档只读</span>
+          </div>
+        </header>
+
+        <section class="mdt-clinical-strip">
+          <article class="clinical-card clinical-card--patient">
+            <div class="clinical-card__head">
+              <span>患者入口</span>
+              <strong>{{ patientHeadline }}</strong>
             </div>
-          </div>
-          <div class="cockpit-side">
-            <article class="cockpit-card">
-              <span>首要冲突</span>
-              <strong>{{ topConflictSummary }}</strong>
-            </article>
-            <article class="cockpit-card cockpit-card--accent">
-              <span>下一动作</span>
-              <strong>{{ nextActionText }}</strong>
-            </article>
-            <article class="cockpit-card">
-              <span>闭环进度</span>
-              <div class="closure-meter">
-                <i :style="{ width: `${closurePercent}%` }"></i>
-              </div>
-              <strong>{{ closurePercent }}% · {{ closureLabel }}</strong>
-            </article>
-          </div>
-        </section>
-        <section v-if="viewMode === 'moderator'" class="session-snapshot">
-          <article v-for="item in cockpitMetricRows" :key="item.label" class="snapshot-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </article>
-        </section>
-        <section v-if="viewMode === 'moderator'" class="hero-editor-grid">
-          <div class="hero-editor-card">
-            <div class="detail-label">会诊元数据</div>
-            <div class="meta-edit-grid">
-              <input v-model="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="标签：如 脓毒症、撤机、高乳酸" />
-              <input v-model="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="参与成员：ICU、感染、呼吸、药学" />
-              <textarea v-model="finalSummary" class="field-textarea" :disabled="isSessionClosed" rows="3" placeholder="最终纪要（留空则关闭会话时自动生成）"></textarea>
-            </div>
-          </div>
-          <div class="hero-editor-card">
-            <div class="detail-label">负责人负荷</div>
-            <div v-if="ownerSummaryRows.length" class="owner-mini-list">
-              <div v-for="item in ownerSummaryRows.slice(0, 4)" :key="item.owner" class="owner-mini-row">
-                <strong>{{ item.owner }}</strong>
-                <span>待 {{ item.pending }} / 进 {{ item.inProgress }} / 完 {{ item.completed }}</span>
-              </div>
-            </div>
-            <div v-else class="empty-box empty-box--compact">暂无负责人分配。</div>
-          </div>
-        </section>
-        <div v-if="viewMode === 'moderator' && isSessionClosed && finalSummary" class="hero-conclusion-row">
-          <div class="hero-conclusion-card hero-conclusion-card--soft hero-conclusion-card--todo">
-            <span>归档纪要</span>
-            <div class="summary-box">{{ finalSummary }}</div>
-          </div>
-        </div>
-        <div v-if="signalSourceRows.length" class="hero-conclusion-row">
-          <div v-for="item in signalSourceRows" :key="item.label" class="hero-conclusion-card hero-conclusion-card--soft">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
-          </div>
-        </div>
-        <div v-if="viewMode === 'moderator' && todoRows.length" class="hero-conclusion-row">
-          <div class="hero-conclusion-card hero-conclusion-card--soft hero-conclusion-card--todo">
-            <span>待办清单</span>
-            <div class="todo-list">
-              <div v-for="item in todoRows" :key="item.id" class="todo-row">
-                <strong>{{ item.action }}</strong>
-                <small>{{ item.owner }} / {{ item.deadline || '时限未填' }}</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="mdt-hero__side">
-        <div class="mdt-toolbar">
-          <div class="toolbar-label">患者检索</div>
-          <div class="mdt-toolbar__row">
             <select v-model="selectedPatientId" class="mdt-select">
               <option value="">选择患者</option>
               <option v-for="item in patientOptions" :key="item.value" :value="item.value">
                 {{ item.label }}
               </option>
             </select>
-            <div v-if="selectedPatientOutOfDeptHint" class="toolbar-hint">
-              {{ selectedPatientOutOfDeptHint }}
+            <div v-if="selectedPatientOutOfDeptHint" class="toolbar-hint">{{ selectedPatientOutOfDeptHint }}</div>
+            <div class="clinical-actions">
+              <a-button size="small" type="primary" :loading="loading" @click="loadAssessment(true)">刷新会诊</a-button>
+              <a-button size="small" @click="openPatientDetail" :disabled="!selectedPatientId">患者详情</a-button>
+              <select v-model="viewMode" class="mdt-select mdt-select--compact">
+                <option value="moderator">主持视图</option>
+                <option value="deep">深度视图</option>
+              </select>
+            </div>
+          </article>
+
+          <article class="clinical-card clinical-card--summary">
+            <div class="clinical-card__head">
+              <span>总控裁决</span>
+              <strong>{{ metaSummary }}</strong>
+            </div>
+            <div class="clinical-actions">
+              <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存会话</a-button>
+              <a-button size="small" :loading="generatingDocType === 'mdt_summary'" :disabled="isSessionClosed" @click="generateDocument('mdt_summary')">生成材料</a-button>
+              <a-button size="small" :disabled="!autoSessionSummary" @click="copyText(autoSessionSummary, '会诊摘要已复制')">复制摘要</a-button>
+            </div>
+          </article>
+
+          <article class="clinical-card clinical-card--metrics">
+            <div class="clinical-card__head">
+              <span>临床态势</span>
+              <strong>{{ mdtSeverityLabel }} · {{ closureLabel }}</strong>
+            </div>
+            <div class="clinical-metric-grid">
+              <div v-for="item in cockpitMetricRows" :key="item.label" class="clinical-metric">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+              <div v-for="item in signalSourceRows" :key="item.label" class="clinical-metric">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
+            <div class="closure-meter">
+              <i :style="{ width: `${closurePercent}%` }"></i>
+            </div>
+          </article>
+
+          <article class="clinical-card clinical-card--handoff">
+            <div class="clinical-card__head">
+              <span>冲突与下一步</span>
+              <strong>{{ topConflictSummary }}</strong>
+            </div>
+            <div class="next-action-box">{{ nextActionText }}</div>
+            <div v-if="ownerSummaryRows.length" class="owner-mini-list">
+              <div v-for="item in ownerSummaryRows.slice(0, 3)" :key="item.owner" class="owner-mini-row">
+                <strong>{{ item.owner }}</strong>
+                <span>待 {{ item.pending }} / 进 {{ item.inProgress }} / 完 {{ item.completed }}</span>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section v-if="viewMode === 'moderator'" class="mdt-clinical-meta">
+          <div class="meta-edit-grid">
+            <input v-model="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="标签：如 脓毒症、撤机、高乳酸" />
+            <input v-model="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="参与成员：ICU、感染、呼吸、药学" />
+            <textarea v-model="finalSummary" class="field-textarea" :disabled="isSessionClosed" rows="2" placeholder="最终纪要（留空则关闭会话时自动生成）"></textarea>
+          </div>
+          <div v-if="todoRows.length" class="todo-list todo-list--inline">
+            <div v-for="item in todoRows.slice(0, 3)" :key="item.id" class="todo-row">
+              <strong>{{ item.action }}</strong>
+              <small>{{ item.owner }} / {{ item.deadline || '时限未填' }}</small>
             </div>
           </div>
-        <div class="mdt-toolbar__actions">
-          <a-button size="small" type="primary" :loading="loading" @click="loadAssessment(true)">刷新会诊</a-button>
-          <a-button size="small" ghost @click="openPatientDetail" :disabled="!selectedPatientId">打开患者详情</a-button>
-        </div>
-        <div class="mdt-toolbar__row">
-          <select v-model="viewMode" class="mdt-select mdt-select--compact">
-            <option value="moderator">主持视图</option>
-            <option value="deep">深度视图</option>
-          </select>
-        </div>
-        </div>
-        <div class="mdt-hero__mini">
-          <div class="mini-card">
-            <span>患者摘要</span>
-            <strong>{{ patientHeadline }}</strong>
-            <small>{{ patientSubline }}</small>
-          </div>
-          <div class="mini-card mini-card--accent">
-            <span>裁决状态</span>
-            <strong>{{ loading ? '处理中' : '已汇总' }}</strong>
-            <small>{{ metaActionCount }} 条最终动作</small>
-          </div>
-        </div>
-      </div>
+        </section>
+      </section>
     </a-card>
 
     <section class="mdt-workspace">
@@ -1772,14 +1745,27 @@ onMounted(async () => {
 }
 .mdt-hero :deep(.ant-card-body) {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
-  gap: 18px;
-  align-items: stretch;
-  padding: 16px;
+  padding: 14px;
 }
+.mdt-command-center,
 .mdt-hero__copy,.mdt-hero__side {
   position: relative;
   z-index: 1;
+}
+.mdt-command-center {
+  display: grid;
+  gap: 12px;
+}
+.mdt-command-top {
+  display: grid;
+  grid-template-columns: minmax(320px, .82fr) minmax(0, 1.18fr);
+  gap: 18px;
+  align-items: start;
+}
+.mdt-command-title {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 .mdt-hero__copy {
   display: grid;
@@ -1804,7 +1790,7 @@ onMounted(async () => {
 .mdt-desc {
   margin: 0;
   color: #9eb8c7;
-  max-width: 980px;
+  max-width: 760px;
   font-size: 13px;
   line-height: 1.7;
 }
@@ -1812,6 +1798,7 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 .hero-badge {
   display: inline-flex;
@@ -1877,6 +1864,116 @@ onMounted(async () => {
 }
 .hero-conclusion-card--todo {
   grid-column: 1 / -1;
+}
+.mdt-clinical-strip {
+  display: grid;
+  grid-template-columns: minmax(280px, .92fr) minmax(360px, 1.2fr) minmax(260px, .9fr) minmax(300px, .98fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.clinical-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 167, 214, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 36%),
+    rgba(9, 20, 31, 0.88);
+}
+.clinical-card--patient {
+  border-left: 4px solid rgba(96, 165, 250, .86);
+}
+.clinical-card--summary {
+  border-left: 4px solid rgba(34, 211, 238, .86);
+}
+.clinical-card--metrics {
+  border-left: 4px solid rgba(52, 211, 153, .82);
+}
+.clinical-card--handoff {
+  border-left: 4px solid rgba(251, 191, 36, .82);
+}
+.clinical-card__head {
+  display: grid;
+  gap: 5px;
+}
+.clinical-card__head span,
+.clinical-metric span {
+  color: #89a6b8;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.clinical-card__head strong {
+  color: #f3f8fb;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.clinical-card--summary .clinical-card__head strong {
+  display: -webkit-box;
+  min-height: 44px;
+  max-height: 68px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.clinical-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+.clinical-card--patient .clinical-actions {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, .9fr);
+}
+.clinical-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.clinical-metric {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 167, 214, 0.12);
+  background: rgba(7, 17, 27, .62);
+}
+.clinical-metric strong {
+  color: #f3f8fb;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.next-action-box {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, .18);
+  background: rgba(82, 48, 12, .26);
+  color: #ffe9a8;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.mdt-clinical-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, .9fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 167, 214, 0.14);
+  background: rgba(9, 20, 31, 0.68);
+}
+.mdt-clinical-meta .meta-edit-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+.mdt-clinical-meta .field-textarea {
+  grid-column: 1 / -1;
+  min-height: 58px;
+}
+.todo-list--inline {
+  align-content: stretch;
 }
 .mdt-cockpit {
   display: grid;
@@ -2123,8 +2220,8 @@ onMounted(async () => {
 }
 .mdt-workspace {
   display: grid;
-  grid-template-columns: 310px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
   width: 100%;
 }
@@ -2143,7 +2240,7 @@ onMounted(async () => {
   align-items: start;
 }
 .mdt-content--moderator {
-  grid-template-columns: minmax(0, 1.45fr) minmax(340px, .78fr);
+  grid-template-columns: minmax(0, 1.38fr) minmax(360px, .82fr);
   grid-auto-flow: row dense;
 }
 .mdt-content--moderator > .mdt-content-grid {
@@ -3194,6 +3291,42 @@ html[data-theme='light'] .mdt-hero {
     linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(241, 248, 253, .98));
   box-shadow: 0 16px 38px rgba(15, 23, 42, .10);
 }
+html[data-theme='light'] .clinical-card {
+  border-color: rgba(191, 219, 254, .82);
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .10), rgba(56, 189, 248, 0) 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(239, 248, 252, .98));
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+}
+html[data-theme='light'] .clinical-card--patient {
+  border-left-color: rgba(37, 99, 235, .72);
+}
+html[data-theme='light'] .clinical-card--summary {
+  border-left-color: rgba(14, 165, 233, .72);
+}
+html[data-theme='light'] .clinical-card--metrics {
+  border-left-color: rgba(16, 185, 129, .72);
+}
+html[data-theme='light'] .clinical-card--handoff {
+  border-left-color: rgba(245, 158, 11, .72);
+}
+html[data-theme='light'] .clinical-card__head strong,
+html[data-theme='light'] .clinical-metric strong {
+  color: #16324f;
+}
+html[data-theme='light'] .clinical-card__head span,
+html[data-theme='light'] .clinical-metric span {
+  color: #64748b;
+}
+html[data-theme='light'] .clinical-metric {
+  border-color: rgba(203, 213, 225, .82);
+  background: rgba(248, 250, 252, .92);
+}
+html[data-theme='light'] .next-action-box {
+  border-color: rgba(245, 158, 11, .30);
+  background: rgba(255, 251, 235, .96);
+  color: #92400e;
+}
 html[data-theme='light'] .mdt-title,
 html[data-theme='light'] .cockpit-main strong,
 html[data-theme='light'] .cockpit-card strong,
@@ -3280,7 +3413,8 @@ html[data-theme='light'] .hero-editor-card,
 html[data-theme='light'] .mdt-toolbar,
 html[data-theme='light'] .doc-block,
 html[data-theme='light'] .owner-mini-row,
-html[data-theme='light'] .todo-row {
+html[data-theme='light'] .todo-row,
+html[data-theme='light'] .mdt-clinical-meta {
   border-color: rgba(203, 213, 225, .82);
   background:
     radial-gradient(circle at top right, rgba(56, 189, 248, .08), rgba(56, 189, 248, 0) 38%),
@@ -3330,6 +3464,9 @@ html[data-theme='light'] .mini-link {
 }
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),
+  .mdt-command-top,
+  .mdt-clinical-strip,
+  .mdt-clinical-meta,
   .mdt-cockpit,
   .hero-editor-grid,
   .mdt-workspace,
@@ -3357,6 +3494,7 @@ html[data-theme='light'] .mini-link {
   }
 }
 @media (max-width: 1100px) {
+  .clinical-metric-grid,
   .hero-conclusion-row,
   .session-snapshot,
   .doc-status-board,
@@ -3367,6 +3505,9 @@ html[data-theme='light'] .mini-link {
   .doc-stack { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 720px) {
+  .clinical-actions,
+  .clinical-card--patient .clinical-actions,
+  .mdt-clinical-meta .meta-edit-grid,
   .hero-conclusion-row,
   .session-snapshot,
   .doc-status-board,
