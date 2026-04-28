@@ -66,6 +66,49 @@ def _vent_param(params: dict[str, Any], *codes: str) -> Any:
     return None
 
 
+def _append_department_scope(query: dict[str, Any], *, department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+    dept_name = str(department or "").strip()
+    dept_code_text = str(dept_code or "").strip()
+    if dept_name and not dept_code_text and dept_name.isdigit():
+        dept_code_text = dept_name
+        dept_name = ""
+    if dept_name and dept_code_text and (dept_name == dept_code_text or dept_name.isdigit()):
+        dept_name = ""
+    clauses: list[dict[str, Any]] = [query] if query else []
+    if dept_code_text:
+        clauses.append({"deptCode": dept_code_text})
+    elif dept_name:
+        clauses.append({"$or": [{"hisDept": dept_name}, {"dept": dept_name}]})
+    if not clauses:
+        return {}
+    return clauses[0] if len(clauses) == 1 else {"$and": clauses}
+
+
+def _patient_matches_department(patient: dict[str, Any], *, department: str | None = None, dept_code: str | None = None) -> bool:
+    dept_name = str(department or "").strip()
+    dept_code_text = str(dept_code or "").strip()
+    if dept_name and not dept_code_text and dept_name.isdigit():
+        dept_code_text = dept_name
+        dept_name = ""
+    if dept_code_text:
+        return str(patient.get("deptCode") or "").strip() == dept_code_text
+    if dept_name:
+        return dept_name in {str(patient.get("hisDept") or "").strip(), str(patient.get("dept") or "").strip()}
+    return True
+
+
+def _patient_matches_scope(patient: dict[str, Any], scope: str | None) -> bool:
+    token = str(scope or "in_dept").strip().lower()
+    status = str(patient.get("status") or "").strip()
+    in_dept_statuses = {"admitted", "在科", "住院", "icu", "icu在科"}
+    out_dept_statuses = {"discharged", "出科", "出院", "离科", "转出", "dead", "death", "deceased", "死亡"}
+    if token in {"in_dept", "active", "admitted"}:
+        return status in in_dept_statuses
+    if token in {"out_dept", "discharged"}:
+        return status in out_dept_statuses
+    return not status or status in in_dept_statuses or status in out_dept_statuses
+
+
 async def _active_ventilator(
     patient: dict[str, Any],
     bind_hint: dict[str, Any] | None = None,
@@ -364,7 +407,7 @@ def evaluate_sbt_candidate(row: dict[str, Any], hemodynamic_stable: bool = True,
     }
 
 
-async def list_ventilated_patients() -> dict[str, Any]:
+async def list_ventilated_patients(*, department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
     rows = []
     seen: set[str] = set()
 
@@ -391,6 +434,10 @@ async def list_ventilated_patients() -> dict[str, Any]:
             patient = await runtime.db.col("patient").find_one({"_id": safe_oid(pid) or pid})
         if not patient:
             continue
+        if not _patient_matches_scope(patient, patient_scope):
+            continue
+        if not _patient_matches_department(patient, department=department, dept_code=dept_code):
+            continue
         cap_hint = cap_by_device.get(str(bind.get("deviceID") or ""))
         row = await build_ventilated_patient_row(patient, bind_hint=bind, cap_hint=cap_hint, fast=True)
         if row:
@@ -399,7 +446,8 @@ async def list_ventilated_patients() -> dict[str, Any]:
             seen.add(pid)
 
     if not rows:
-        cursor = runtime.db.col("patient").find(research_patient_scope_query("in_dept")).sort("hisBed", 1).limit(300)
+        query = _append_department_scope(research_patient_scope_query(patient_scope or "in_dept"), department=department, dept_code=dept_code)
+        cursor = runtime.db.col("patient").find(query).sort("hisBed", 1).limit(300)
         async for patient in cursor:
             row = await build_ventilated_patient_row(patient, fast=True)
             if row:
@@ -418,11 +466,20 @@ async def list_ventilated_patients() -> dict[str, Any]:
         "difficult_airway_count": sum(1 for row in rows if row.get("difficult_airway")),
         "avg_safety_score": round(sum(int(row.get("safety_score") or 0) for row in rows) / len(rows), 1) if rows else 0,
     }
-    return {"patients": rows, "stats": stats, "generated_at": serialize_doc(datetime.now())}
+    return {
+        "patients": rows,
+        "stats": stats,
+        "scope": {
+            "department": str(department or "").strip() or None,
+            "dept_code": str(dept_code or "").strip() or None,
+            "patient_scope": patient_scope or "in_dept",
+        },
+        "generated_at": serialize_doc(datetime.now()),
+    }
 
 
-async def list_sbt_candidates() -> dict[str, Any]:
-    dashboard = await list_ventilated_patients()
+async def list_sbt_candidates(*, department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
+    dashboard = await list_ventilated_patients(department=department, dept_code=dept_code, patient_scope=patient_scope)
     rows = dashboard["patients"]
     completed_cursor = runtime.db.col("score").find({"score_type": "sbt_assessment"}).sort("trial_time", -1).limit(200)
     completed_by_patient: dict[str, dict[str, Any]] = {}

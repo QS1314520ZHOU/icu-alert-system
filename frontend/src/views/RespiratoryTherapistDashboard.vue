@@ -11,6 +11,7 @@
         <a-button :loading="loading" @click="loadAll">刷新</a-button>
       </a-space>
     </section>
+    <div class="scope-strip">当前范围：{{ scopeLabel }} · 仅统计在科机械通气与 SBT 待办</div>
     <section class="kpis">
       <article v-for="card in kpis" :key="card.label"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></article>
     </section>
@@ -124,7 +125,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   Button as AButton,
   Card as ACard,
@@ -145,8 +147,9 @@ import {
   TimelineItem as ATimelineItem,
   message,
 } from 'ant-design-vue'
-import { getAirwayPlan, getSbtCandidates, getVentilatedPatients, getVentilatorTimeline, postAirwayPlan, postAirwayRecord, postSbtStatus } from '../api/respiratory'
+import { getAirwayPlan, getSbtCandidates, getVentilatedPatients, getVentilatorTimeline, postAirwayPlan, postAirwayRecord, postSbtStatus, type RespiratoryScopeParams } from '../api/respiratory'
 
+const route = useRoute()
 const loading = ref(false)
 const keyword = ref('')
 const riskFilter = ref('all')
@@ -165,6 +168,9 @@ const riskOptions = [
   { value: '困难气道', label: '困难气道' },
   { value: 'sbt', label: 'SBT候选' },
 ]
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
+const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 在科患者')
 const columns = [
   { title: '床号', dataIndex: 'bed_no', width: 70 },
   { title: '患者', dataIndex: 'name', width: 100 },
@@ -211,10 +217,16 @@ const topActions = computed(() => patients.value.flatMap((patient) => (patient.w
 function fmt(v: any) { return v ? new Date(v).toLocaleString('zh-CN') : '—' }
 function scoreColor(score: number) { return Number(score || 0) >= 85 ? 'green' : Number(score || 0) >= 70 ? 'gold' : 'red' }
 function rowProps(record: any) { return { onClick: () => openPatient(record) } }
+function requestParams(): RespiratoryScopeParams {
+  const params: RespiratoryScopeParams = { patient_scope: 'in_dept' }
+  if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+  else if (routeDeptName.value) params.dept = routeDeptName.value
+  return params
+}
 async function loadAll() {
   loading.value = true
   try {
-    const [p, s] = await Promise.all([getVentilatedPatients(), getSbtCandidates()])
+    const [p, s] = await Promise.all([getVentilatedPatients(requestParams()), getSbtCandidates(requestParams())])
     patients.value = p.data?.patients || []
     stats.value = p.data?.stats || {}
     sbt.value = s.data || {}
@@ -257,6 +269,10 @@ async function saveDifficultAirwayPlan() {
   const plan = await getAirwayPlan(drawerPatient.value.patient_id)
   airwayPlan.value = JSON.stringify(plan.data?.plan || {}, null, 2)
 }
+watch(() => [route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
+  void loadAll()
+})
+
 onMounted(loadAll)
 </script>
 
@@ -273,6 +289,16 @@ h1 { margin: 0; font-size: 22px; letter-spacing: 0; }
 p { margin: 4px 0 0; color: #8aa4b8; }
 .search-box { width: 240px; }
 .risk-select { width: 150px; }
+.scope-strip {
+  display: inline-flex;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border: 1px solid rgba(103,232,249,.18);
+  border-radius: 999px;
+  color: #bfefff;
+  background: rgba(8,47,73,.24);
+  font-size: 12px;
+}
 .kpis { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .kpis article { border: 1px solid rgba(125,167,214,.16); border-radius: 16px; padding: 12px; background: rgba(10,25,42,.9); }
 .kpis span { color: #8aa4b8; display: block; }

@@ -2,8 +2,10 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL ?? '', timeout: 60000 })
 
-export const getVentilatedPatients = () => api.get('/api/respiratory/ventilated-patients')
-export const getSbtCandidates = () => api.get('/api/respiratory/sbt-candidates')
+export type RespiratoryScopeParams = { dept?: string; dept_code?: string; patient_scope?: 'in_dept' | 'out_dept' | 'all' }
+
+export const getVentilatedPatients = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/ventilated-patients', { params })
+export const getSbtCandidates = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/sbt-candidates', { params })
 export const postSbtStatus = (patientId: string, payload: Record<string, any>) =>
   api.post(`/api/respiratory/sbt/${patientId}/status`, payload)
 export const getVentilatorTimeline = (patientId: string, hours = 72) =>

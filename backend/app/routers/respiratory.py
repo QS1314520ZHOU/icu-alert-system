@@ -21,13 +21,21 @@ def _actor(request: Request) -> str:
 
 
 @router.get("/ventilated-patients")
-async def ventilated_patients():
-    return {"code": 0, **await list_ventilated_patients()}
+async def ventilated_patients(
+    dept: str | None = Query(None, description="科室名称"),
+    dept_code: str | None = Query(None, description="科室代码"),
+    patient_scope: str = Query("in_dept", description="患者范围"),
+):
+    return {"code": 0, **await list_ventilated_patients(department=dept, dept_code=dept_code, patient_scope=patient_scope)}
 
 
 @router.get("/sbt-candidates")
-async def sbt_candidates():
-    return {"code": 0, **await list_sbt_candidates()}
+async def sbt_candidates(
+    dept: str | None = Query(None, description="科室名称"),
+    dept_code: str | None = Query(None, description="科室代码"),
+    patient_scope: str = Query("in_dept", description="患者范围"),
+):
+    return {"code": 0, **await list_sbt_candidates(department=dept, dept_code=dept_code, patient_scope=patient_scope)}
 
 
 @router.post("/sbt/{patient_id}/status")

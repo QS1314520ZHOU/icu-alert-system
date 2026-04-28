@@ -12,6 +12,7 @@
         <a-button :loading="omopLoading" @click="exportOmop">导出 OMOP 数据包</a-button>
       </a-space>
     </section>
+    <div class="scope-strip">当前科研数据范围：{{ scopeLabel }} · {{ routeDeptCode || routeDeptName ? '按当前科室导出' : '全院 ICU 数据' }}</div>
 
     <section class="guide-rail">
       <article v-for="step in guideSteps" :key="step.title" class="guide-card">
@@ -142,7 +143,7 @@
     <a-card class="panel topic-panel" :bordered="false">
       <template #title>AI 潜在课题推荐</template>
       <template #extra>
-        <span class="panel-hint">基于数据摘要生成，需要 PI 人工确认</span>
+        <span class="panel-hint">{{ topicSourceLabel }}，需要 PI 人工确认</span>
       </template>
       <a-empty v-if="!topics.length" description="暂无课题建议。点击“AI 生成课题建议”开始发现选题。" />
       <div v-else class="topic-grid">
@@ -204,6 +205,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   Alert as AAlert,
   Button as AButton,
@@ -221,6 +223,7 @@ import {
 } from 'ant-design-vue'
 import { getDataQuality, getResearchProjects, getTopicSuggestions, postGenerateTopicSuggestions, postOmopExport, postResearchProject } from '../api/researchSupport'
 
+const route = useRoute()
 const loading = ref(false)
 const topicLoading = ref(false)
 const omopLoading = ref(false)
@@ -252,6 +255,9 @@ const missingRows = computed(() => Object.entries(quality.value?.missing_rate ||
 const topicSourceLabel = computed(() => topicIsFallback.value ? '系统内置兜底建议' : 'AI / 数据摘要生成')
 const statusRows = computed(() => Object.entries(portfolio.value?.by_status || {}).map(([key, value]) => ({ key, value })))
 const milestones = computed(() => portfolio.value?.upcoming_milestones || [])
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
+const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 患者')
 
 const titleMap: Record<string, string> = {
   'Prone Positioning Effectiveness in ARDS Patients': 'ARDS 患者俯卧位治疗效果研究',
@@ -348,7 +354,10 @@ async function generateTopics() {
 async function exportOmop() {
   omopLoading.value = true
   try {
-    const res = await postOmopExport({ patient_scope: 'all' })
+    const payload: Record<string, any> = { patient_scope: routeDeptCode.value || routeDeptName.value ? 'in_dept' : 'all' }
+    if (routeDeptCode.value) payload.dept_code = routeDeptCode.value
+    else if (routeDeptName.value) payload.department = routeDeptName.value
+    const res = await postOmopExport(payload)
     message.success(`OMOP 脱敏导出完成：${res.data?.task?.task_id || ''}`)
   } finally {
     omopLoading.value = false
@@ -401,6 +410,16 @@ onMounted(loadAll)
 h1, h2, h3, p { margin: 0; }
 h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .research-hero p { margin-top: 8px; color: #9fc4d7; }
+.scope-strip {
+  display: inline-flex;
+  margin: 14px 0 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(103,232,249,.18);
+  border-radius: 999px;
+  color: #bfefff;
+  background: rgba(8,47,73,.24);
+  font-size: 12px;
+}
 .guide-rail, .kpi-grid, .dashboard-grid, .topic-grid, .portfolio-grid {
   display: grid;
   gap: 12px;
@@ -652,6 +671,7 @@ html[data-theme='light'] .research-page {
     linear-gradient(180deg, rgba(236, 252, 255, .96), rgba(247, 250, 252, .98));
 }
 html[data-theme='light'] .research-hero,
+html[data-theme='light'] .scope-strip,
 html[data-theme='light'] .panel,
 html[data-theme='light'] .guide-card,
 html[data-theme='light'] .kpi-card,
@@ -713,6 +733,7 @@ html[data-theme='light'] .omop-note p,
 html[data-theme='light'] .project-card small,
 html[data-theme='light'] .topic-foot,
 html[data-theme='light'] .panel-hint,
+html[data-theme='light'] .scope-strip,
 html[data-theme='light'] .quality-row,
 html[data-theme='light'] .soft-empty,
 html[data-theme='light'] .kpi-card span,

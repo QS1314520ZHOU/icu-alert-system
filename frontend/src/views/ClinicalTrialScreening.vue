@@ -68,7 +68,7 @@
         <template #title>临床试验列表</template>
         <template #extra>
           <a-space>
-            <a-button size="small" @click="createDemoTrial" :loading="demoLoading">一键示例</a-button>
+            <a-button size="small" @click="createDemoTrial" :loading="demoLoading">演示模板</a-button>
             <a-button size="small" type="primary" @click="openNewTrial">新建</a-button>
           </a-space>
         </template>
@@ -98,6 +98,8 @@
             <a-space wrap>
               <a-button size="small" type="primary" ghost @click="activate(trial)">启用招募</a-button>
               <a-button size="small" @click="openParse(trial)">AI 解析标准</a-button>
+              <a-button size="small" @click="editTrial(trial)">编辑</a-button>
+              <a-button size="small" danger ghost @click="removeTrial(trial)">删除</a-button>
             </a-space>
           </article>
         </div>
@@ -260,7 +262,7 @@ import {
   Textarea as ATextarea,
   message,
 } from 'ant-design-vue'
-import { getClinicalTrials, getTrialCandidates, postActivateTrial, postCandidateStatus, postClinicalTrial, postParseCriteria, postScreenTrials, type ClinicalTrialScopeParams } from '../api/clinicalTrials'
+import { deleteClinicalTrial, getClinicalTrials, getTrialCandidates, postActivateTrial, postCandidateStatus, postClinicalTrial, postParseCriteria, postScreenTrials, putClinicalTrial, type ClinicalTrialScopeParams } from '../api/clinicalTrials'
 
 const route = useRoute()
 const loading = ref(false)
@@ -273,6 +275,7 @@ const trialDrawer = ref(false)
 const parseOpen = ref(false)
 const candidateOpen = ref(false)
 const selectedTrial = ref<any>(null)
+const editingTrialId = ref('')
 const selectedCandidate = ref<any>(null)
 const lastScreenResult = ref<any>(null)
 const trialForm = reactive<any>({ trial_name: '', registration_no: '', pi: '', status: '准备中', inclusionText: '[]', exclusionText: '[]' })
@@ -323,6 +326,7 @@ function demoRules() {
 }
 function resetForm() {
   Object.assign(trialForm, { trial_name: '', registration_no: '', pi: '', status: '准备中', inclusionText: '[]', exclusionText: '[]' })
+  editingTrialId.value = ''
 }
 function openNewTrial() {
   resetForm()
@@ -332,6 +336,18 @@ function fillDemoRules() {
   const rules = demoRules()
   trialForm.inclusionText = JSON.stringify(rules.inclusion, null, 2)
   trialForm.exclusionText = JSON.stringify(rules.exclusion, null, 2)
+}
+function editTrial(row: any) {
+  editingTrialId.value = row.trial_id
+  Object.assign(trialForm, {
+    trial_name: row.trial_name || '',
+    registration_no: row.registration_no || '',
+    pi: row.pi || '',
+    status: row.status || '准备中',
+    inclusionText: JSON.stringify(row.inclusion_rules || [], null, 2),
+    exclusionText: JSON.stringify(row.exclusion_rules || [], null, 2),
+  })
+  trialDrawer.value = true
 }
 function statusLabel(v: string) {
   return ({ pending: '待确认', notified: '已通知', doctor_confirmed_suitable: '医生确认适合', doctor_confirmed_not_suitable: '医生确认不适合', research_team_contacted: '已联系研究团队', enrolled: '已入组', not_enrolled: '不入组' } as any)[v] || v
@@ -371,13 +387,30 @@ async function saveTrial() {
   }
   saving.value = true
   try {
-    await postClinicalTrial({ ...trialForm, inclusion_rules: parseJson(trialForm.inclusionText), exclusion_rules: parseJson(trialForm.exclusionText) })
-    message.success('试验已保存')
+    const payload = { ...trialForm, inclusion_rules: parseJson(trialForm.inclusionText), exclusion_rules: parseJson(trialForm.exclusionText) }
+    if (editingTrialId.value) await putClinicalTrial(editingTrialId.value, payload)
+    else await postClinicalTrial(payload)
+    message.success(editingTrialId.value ? '试验已更新' : '试验已保存')
     trialDrawer.value = false
+    editingTrialId.value = ''
     await loadAll()
   } finally {
     saving.value = false
   }
+}
+function removeTrial(row: any) {
+  AModal.confirm({
+    title: '删除临床试验配置',
+    content: `确认删除“${row.trial_name || '未命名试验'}”？候选记录不会自动入组，删除后该试验不再参与筛选。`,
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    async onOk() {
+      await deleteClinicalTrial(row.trial_id)
+      message.success('试验已删除')
+      await loadAll()
+    },
+  })
 }
 async function createDemoTrial() {
   demoLoading.value = true
