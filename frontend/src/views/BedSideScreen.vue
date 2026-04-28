@@ -19,14 +19,6 @@
       <div class="bedside-clock">{{ currentTime }}</div>
     </header>
 
-    <!-- 诊断 -->
-    <section class="bedside-diag">
-      <span class="bedside-section-label">当前诊断</span>
-      <span class="bedside-diag__text">
-        {{ patient?.clinicalDiagnosis || patient?.admissionDiagnosis || '暂无' }}
-      </span>
-    </section>
-
     <!-- 生命体征 -->
     <section class="bedside-vitals">
       <div class="vital-card" :class="warnClass(vitals.hr, 60, 100)">
@@ -60,36 +52,61 @@
 
     <!-- 待办提醒 -->
     <section class="bedside-todos">
-      <div class="bedside-section-label">床旁待办</div>
-      <div v-if="todos.length === 0" class="bedside-todos__empty">暂无待办事项</div>
+      <div class="section-title-row">
+        <div>
+          <span class="bedside-section-label">床旁待办</span>
+          <strong>{{ bedsideTodos.length ? `${bedsideTodos.length} 项需处理` : '暂无待办' }}</strong>
+        </div>
+        <button class="voice-toggle" :class="{ active: speechEnabled }" @click="toggleSpeech">
+          {{ speechEnabled ? '语音开启' : '语音关闭' }}
+        </button>
+      </div>
+      <div v-if="bedsideTodos.length === 0" class="bedside-todos__empty">
+        当前无活跃处置项，继续按班次复核管路、泵速、约束与皮肤。
+      </div>
       <div
-        v-for="todo in todos"
+        v-for="todo in bedsideTodos"
         :key="todo.id"
         :class="['todo-item', `todo-item--${todo.priority || 'normal'}`]"
       >
         <span class="todo-item__dot"></span>
-        <span class="todo-item__text">{{ todo.content }}</span>
+        <span class="todo-item__text">
+          <strong>{{ todo.title }}</strong>
+          <small>{{ todo.detail }}</small>
+        </span>
         <span class="todo-item__time">{{ todo.time }}</span>
+        <button class="done-btn" :disabled="closingAlertIds.has(todo.id)" @click="acknowledgeAlert(todo.id)">
+          {{ closingAlertIds.has(todo.id) ? '处理中' : '确认' }}
+        </button>
       </div>
     </section>
 
     <!-- 最近预警 -->
     <section class="bedside-alerts">
-      <div class="bedside-section-label">本床预警</div>
+      <div class="section-title-row">
+        <div>
+          <span class="bedside-section-label">本床预警</span>
+          <strong>{{ patientAlerts.length ? '优先看前 3 条' : '暂无活跃预警' }}</strong>
+        </div>
+        <button class="voice-toggle ghost" @click="testSpeech">试播</button>
+      </div>
       <div v-if="patientAlerts.length === 0" class="bedside-alerts__empty">暂无活跃预警</div>
       <div
-        v-for="alert in patientAlerts"
+        v-for="alert in patientAlerts.slice(0, 3)"
         :key="alert._id || alert.rule_id"
         :class="['alert-row', `alert-row--${alert.severity || 'warning'}`]"
       >
-        <span class="alert-row__name">{{ alert.name }}</span>
-        <span class="alert-row__severity">{{ alert.severity?.toUpperCase() }}</span>
+        <span class="alert-row__name">
+          <strong>{{ alert.name }}</strong>
+          <small>{{ alertSuggestion(alert) }}</small>
+        </span>
+        <span class="alert-row__severity">{{ severityText(alert.severity) }}</span>
       </div>
     </section>
 
     <!-- 语音播报状态角标 -->
     <div class="speech-badge" :class="{ active: speechActive }">
-      <span class="speech-badge__icon">🔊</span>
+      <span class="speech-badge__icon">声</span>
       <span class="speech-badge__label">{{ speechActive ? '播报中' : '语音就绪' }}</span>
     </div>
   </div>
@@ -99,7 +116,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
-import { getPatientDetail, getPatientVitals, getRecentAlerts } from '../api'
+import { getPatientDetail, getPatientVitals, getRecentAlerts, postAlertAcknowledge } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 
 const route = useRoute()
@@ -116,8 +133,9 @@ let clockTimer: number
 const patient = ref<any>(null)
 const vitals = ref<any>({})
 const allAlerts = ref<any[]>([])
-const todos = ref<any[]>([])
 const speechActive = ref(false)
+const speechEnabled = ref(true)
+const closingAlertIds = ref<Set<string>>(new Set())
 
 // 只保留本床预警
 const patientAlerts = computed(() =>
@@ -127,16 +145,55 @@ const patientAlerts = computed(() =>
       String(a.bed) === (patient.value?.hisBed || bedId.value)
   ).slice(0, 6)
 )
+const bedsideTodos = computed(() =>
+  patientAlerts.value.slice(0, 4).map((alert: any) => {
+    const id = String(alert._id || alert.record_id || alert.rule_id || '')
+    return {
+      id,
+      priority: String(alert.severity || 'normal').toLowerCase(),
+      title: alert.name || '床旁预警待确认',
+      detail: alertSuggestion(alert),
+      time: formatAlertTime(alert.created_at || alert.time),
+    }
+  }).filter((item) => item.id)
+)
 
 // ── 工具函数 ──────────────────────────────────────────────────
 function alertText(level?: string) {
   const map: Record<string, string> = {
     critical: '危急',
+    high: '高危',
     warning: '警告',
     info: '关注',
     none: '正常',
   }
   return map[level || 'none'] || '正常'
+}
+
+function severityText(level?: string) {
+  const map: Record<string, string> = {
+    critical: '危急',
+    high: '高危',
+    warning: '警告',
+    info: '关注',
+  }
+  return map[String(level || '').toLowerCase()] || '关注'
+}
+
+function alertSuggestion(alert: any) {
+  const severity = String(alert?.severity || '').toLowerCase()
+  const text = String(alert?.name || alert?.rule_id || '').toLowerCase()
+  if (severity === 'critical') return '立即复核患者、设备与医嘱，必要时呼叫医生到床旁。'
+  if (text.includes('spo2') || text.includes('氧') || text.includes('呼吸')) return '先看氧疗连接、气道通畅、体位和监护探头。'
+  if (text.includes('血压') || text.includes('shock') || text.includes('乳酸')) return '复测血压灌注，核对升压药、液体和乳酸趋势。'
+  return '完成床旁复核后点击确认，交班时追踪是否复发。'
+}
+
+function formatAlertTime(value: any) {
+  if (!value) return '刚刚'
+  const parsed = dayjs(value)
+  if (!parsed.isValid()) return '刚刚'
+  return parsed.format('HH:mm')
 }
 
 function genderText(g?: string | number) {
@@ -156,7 +213,30 @@ function warnClass(val: any, low: number, high: number) {
 const SPEECH_ENABLED_KEY = 'icu_bedside_speech_enabled'
 
 function isSpeechEnabled() {
-  return localStorage.getItem(SPEECH_ENABLED_KEY) !== '0'
+  return speechEnabled.value
+}
+
+function toggleSpeech() {
+  speechEnabled.value = !speechEnabled.value
+  localStorage.setItem(SPEECH_ENABLED_KEY, speechEnabled.value ? '1' : '0')
+}
+
+function speakText(text: string) {
+  if (!isSpeechEnabled()) return
+  if (!('speechSynthesis' in window)) return
+  const utter = new SpeechSynthesisUtterance(text)
+  utter.lang = 'zh-CN'
+  utter.rate = 0.92
+  utter.volume = 1
+  speechActive.value = true
+  utter.onend = () => { speechActive.value = false }
+  utter.onerror = () => { speechActive.value = false }
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(utter)
+}
+
+function testSpeech() {
+  speakText(`${patient.value?.hisBed || bedId.value || '本'}床，语音播报正常。`)
 }
 
 function speakAlert(msg: { type: string; data: any }) {
@@ -173,21 +253,8 @@ function speakAlert(msg: { type: string; data: any }) {
 
   if (!isThisBed) return
   if (String(alert.severity || '').toLowerCase() !== 'critical') return
-  if (!isSpeechEnabled()) return
-  if (!('speechSynthesis' in window)) return
-
   const text = `危急预警：${alert.name || '未知预警'}，${alert.patient_name || '患者'}，请立即处置`
-  const utter = new SpeechSynthesisUtterance(text)
-  utter.lang = 'zh-CN'
-  utter.rate = 0.95
-  utter.volume = 1
-
-  speechActive.value = true
-  utter.onend = () => { speechActive.value = false }
-  utter.onerror = () => { speechActive.value = false }
-
-  window.speechSynthesis.cancel() // 中断上一条
-  window.speechSynthesis.speak(utter)
+  speakText(text)
 }
 
 // ── 加载数据 ──────────────────────────────────────────────────
@@ -226,10 +293,25 @@ async function loadAlerts() {
   }
 }
 
+async function acknowledgeAlert(alertId: string) {
+  if (!alertId || closingAlertIds.value.has(alertId)) return
+  closingAlertIds.value = new Set([...closingAlertIds.value, alertId])
+  try {
+    await postAlertAcknowledge(alertId, { actor: 'bedside-screen', note: '床旁屏确认处理', disposition: 'bedside_confirmed' })
+    allAlerts.value = allAlerts.value.filter((item: any) => String(item._id || item.record_id || item.rule_id || '') !== alertId)
+    speakText('已确认，待办已关闭。')
+  } finally {
+    const next = new Set(closingAlertIds.value)
+    next.delete(alertId)
+    closingAlertIds.value = next
+  }
+}
+
 let offAlert: (() => void) | null = null
 let refreshTimer: number
 
 onMounted(async () => {
+  speechEnabled.value = localStorage.getItem(SPEECH_ENABLED_KEY) !== '0'
   await Promise.all([loadPatient(), loadVitals()])
   await loadAlerts()
 
@@ -276,7 +358,9 @@ watch(patientId, async (nextId, prevId) => {
 /* ── 根容器 ────────────────────────────── */
 .bedside-screen {
   min-height: 100vh;
-  background: #0a0e1a;
+  background:
+    radial-gradient(circle at 0 0, rgba(14,165,233,.16), transparent 34%),
+    linear-gradient(145deg, #07111f, #0a1324 58%, #071018);
   color: #e8eaf0;
   font-family: var(--app-display-font);
   display: flex;
@@ -292,8 +376,8 @@ watch(patientId, async (nextId, prevId) => {
 .bedside-header {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 16px 28px;
+  gap: 28px;
+  padding: 22px 34px;
   background: rgba(255,255,255,0.04);
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
@@ -303,16 +387,16 @@ watch(patientId, async (nextId, prevId) => {
   gap: 4px;
 }
 .bed-no {
-  font-size: 3rem;
+  font-size: clamp(4rem, 7vw, 7.5rem);
   font-weight: 800;
   line-height: 1;
   color: #a8d8ff;
 }
-.bed-label { font-size: 1rem; color: #8090a8; }
+.bed-label { font-size: 1.35rem; color: #8090a8; }
 
 .bedside-header__info { flex: 1; }
-.patient-name { font-size: 1.5rem; font-weight: 700; }
-.patient-meta { font-size: 0.85rem; color: #8090a8; margin-top: 2px; }
+.patient-name { font-size: clamp(2rem, 3.4vw, 3.4rem); font-weight: 800; }
+.patient-meta { font-size: 1.2rem; color: #9fb3c8; margin-top: 6px; }
 
 .bedside-header__level {
   display: flex;
@@ -330,8 +414,8 @@ watch(patientId, async (nextId, prevId) => {
 .lamp-none     { background: #3a5a3a; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-.level-text { font-size: 1rem; font-weight: 600; }
-.bedside-clock { font-size: 1.2rem; font-variant-numeric: tabular-nums; color: #8090a8; }
+.level-text { font-size: 1.4rem; font-weight: 800; }
+.bedside-clock { font-size: 1.6rem; font-variant-numeric: tabular-nums; color: #9fb3c8; }
 
 /* ── 诊断 ───────────────────────────────── */
 .bedside-diag {
@@ -352,17 +436,17 @@ watch(patientId, async (nextId, prevId) => {
 
 /* ── 生命体征 ───────────────────────────── */
 .bedside-vitals {
-  display: flex;
-  gap: 12px;
-  padding: 20px 28px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  padding: 26px 34px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 .vital-card {
-  flex: 1;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 16px 12px;
+  border-radius: 22px;
+  padding: 22px 14px;
   text-align: center;
   transition: border-color 0.3s;
 }
@@ -370,64 +454,115 @@ watch(patientId, async (nextId, prevId) => {
   border-color: #ffb800;
   background: rgba(255,184,0,0.07);
 }
-.vital-card--bp { flex: 1.4; }
-.vital-card__label { font-size: 0.72rem; color: #607080; margin-bottom: 8px; }
-.vital-card__value { font-size: 2rem; font-weight: 700; line-height: 1; color: #e0eeff; }
-.bp-value { font-size: 1.5rem; }
-.vital-card__unit  { font-size: 0.7rem; color: #506070; margin-top: 4px; }
+.vital-card--bp { grid-column: span 1; }
+.vital-card__label { font-size: 1rem; color: #7f94aa; margin-bottom: 12px; }
+.vital-card__value { font-size: clamp(3rem, 5.2vw, 5.4rem); font-weight: 800; line-height: 1; color: #e0eeff; }
+.bp-value { font-size: clamp(2rem, 3.5vw, 3.6rem); }
+.vital-card__unit  { font-size: 0.95rem; color: #6d8196; margin-top: 8px; }
 
 /* ── 待办 ───────────────────────────────── */
 .bedside-todos {
-  padding: 16px 28px;
+  padding: 20px 34px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 .bedside-todos__empty,
-.bedside-alerts__empty { color: #405060; font-size: 0.85rem; }
+.bedside-alerts__empty { color: #66788c; font-size: 1.35rem; padding: 12px 0; }
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.section-title-row > div {
+  display: grid;
+  gap: 4px;
+}
+.section-title-row strong {
+  color: #e6f4ff;
+  font-size: 1.65rem;
+}
 .todo-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 0.9rem;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.08);
+  font-size: 1.25rem;
 }
 .todo-item__dot {
-  width: 8px; height: 8px;
+  width: 14px; height: 14px;
   border-radius: 50%;
   background: #4080c0;
   flex-shrink: 0;
 }
 .todo-item--urgent .todo-item__dot { background: #ff4040; }
 .todo-item--high   .todo-item__dot { background: #ffb800; }
-.todo-item__text { flex: 1; }
-.todo-item__time { font-size: 0.75rem; color: #506070; white-space: nowrap; }
+.todo-item__text { flex: 1; display: grid; gap: 4px; }
+.todo-item__text strong { color: #f1f7ff; }
+.todo-item__text small { color: #9fb3c8; font-size: 1rem; }
+.todo-item__time { font-size: 1rem; color: #76899e; white-space: nowrap; }
+.done-btn,
+.voice-toggle {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  color: #06202f;
+  background: #7dd3fc;
+  font-weight: 800;
+  cursor: pointer;
+}
+.done-btn:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+.voice-toggle {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  color: #cfe8ff;
+}
+.voice-toggle.active {
+  background: rgba(34,197,94,.16);
+  border-color: rgba(74,222,128,.4);
+  color: #bbf7d0;
+}
+.voice-toggle.ghost {
+  background: rgba(14,165,233,.12);
+  color: #bae6fd;
+}
 
 /* ── 预警 ───────────────────────────────── */
 .bedside-alerts {
-  padding: 16px 28px;
+  padding: 20px 34px 34px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   flex: 1;
 }
 .alert-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
   background: rgba(255,255,255,0.03);
-  font-size: 0.88rem;
+  font-size: 1.2rem;
 }
 .alert-row--critical { background: rgba(255,40,40,0.12); }
 .alert-row--warning  { background: rgba(255,184,0,0.10); }
-.alert-row__name { color: #c8d8e8; }
+.alert-row__name { color: #c8d8e8; display: grid; gap: 5px; }
+.alert-row__name strong { color: #f5f9ff; font-size: 1.35rem; }
+.alert-row__name small { color: #9fb3c8; font-size: 1rem; }
 .alert-row__severity {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 1.15rem;
+  font-weight: 800;
   color: #8090a8;
+  white-space: nowrap;
 }
 .alert-row--critical .alert-row__severity { color: #ff6060; }
 .alert-row--warning  .alert-row__severity { color: #ffb800; }
@@ -443,8 +578,8 @@ watch(patientId, async (nextId, prevId) => {
   background: rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 0.78rem;
+  padding: 8px 16px;
+  font-size: 1rem;
   color: #607080;
   transition: all 0.3s;
 }
@@ -453,9 +588,11 @@ watch(patientId, async (nextId, prevId) => {
   color: #00c8ff;
   box-shadow: 0 0 12px rgba(0,200,255,0.3);
 }
-.speech-badge__icon { font-size: 1rem; }
+.speech-badge__icon { font-size: 1rem; font-weight: 800; }
 html[data-theme='light'] .bedside-screen {
-  background: #f3f8fd;
+  background:
+    radial-gradient(circle at 0 0, rgba(14,165,233,.12), transparent 34%),
+    linear-gradient(145deg, #f5fbff, #eef7fb 58%, #f8fcff);
   color: #1f3852;
 }
 html[data-theme='light'] .bedside-screen.level-critical { background: #fff5f5; }
@@ -478,7 +615,14 @@ html[data-theme='light'] .bedside-alerts__empty {
 }
 html[data-theme='light'] .patient-name,
 html[data-theme='light'] .vital-card__value,
-html[data-theme='light'] .alert-row__name { color: #16324f; }
+html[data-theme='light'] .section-title-row strong,
+html[data-theme='light'] .todo-item__text strong,
+html[data-theme='light'] .alert-row__name,
+html[data-theme='light'] .alert-row__name strong { color: #16324f; }
+html[data-theme='light'] .todo-item__text small,
+html[data-theme='light'] .alert-row__name small {
+  color: #5b7188;
+}
 html[data-theme='light'] .bedside-diag,
 html[data-theme='light'] .bedside-vitals,
 html[data-theme='light'] .bedside-todos {
@@ -486,6 +630,7 @@ html[data-theme='light'] .bedside-todos {
 }
 html[data-theme='light'] .bedside-diag__text { color: #47627e; }
 html[data-theme='light'] .vital-card,
+html[data-theme='light'] .todo-item,
 html[data-theme='light'] .alert-row {
   background: rgba(241,246,251,.96);
   border-color: rgba(187,204,220,.72);
@@ -508,5 +653,32 @@ html[data-theme='light'] .speech-badge.active {
   border-color: rgba(59,130,246,.34);
   color: #1d4ed8;
   box-shadow: 0 0 12px rgba(37,99,235,.18);
+}
+html[data-theme='light'] .voice-toggle {
+  background: #eef6ff;
+  border-color: rgba(148,163,184,.42);
+  color: #2563eb;
+}
+html[data-theme='light'] .voice-toggle.active {
+  background: #ecfdf5;
+  border-color: rgba(34,197,94,.32);
+  color: #047857;
+}
+html[data-theme='light'] .voice-toggle.ghost {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+html[data-theme='light'] .done-btn {
+  background: #2563eb;
+  color: white;
+}
+
+@media (max-width: 1100px) {
+  .bedside-header {
+    flex-wrap: wrap;
+  }
+  .bedside-vitals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>
