@@ -1823,6 +1823,29 @@ html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) { back
 html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) { background: #ffffff; color: #223a54; border-bottom-color: rgba(187,204,220,.72); }
 html[data-theme='light'] .ai-evidence-link { color: #2563eb; }
 html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
+html[data-theme='light'] .ai-fallback-note {
+  border-color: rgba(217, 119, 6, .34);
+  background: linear-gradient(180deg, rgba(255, 251, 235, .98), rgba(254, 243, 199, .86));
+  color: #92400e;
+  font-weight: 650;
+}
+html[data-theme='light'] .ai-risk-card .wb-kpi span,
+html[data-theme='light'] .ai-risk-card .ai-workbench-title {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+html[data-theme='light'] .ai-risk-card .summary-text,
+html[data-theme='light'] .ai-risk-card .summary-list,
+html[data-theme='light'] .ai-risk-card .workbench-text,
+html[data-theme='light'] .ai-risk-card p {
+  color: #2f4f6f;
+}
+html[data-theme='light'] .ai-risk-card .summary-chip {
+  background: #ffffff;
+  border-color: rgba(59, 130, 246, .24);
+  color: #1e3a5f;
+  font-weight: 600;
+}
 </style>
 
 
