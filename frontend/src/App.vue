@@ -9,27 +9,16 @@
             <div class="hdr-sub">重症监护智能预警平台</div>
           </div>
         </div>
-        <nav
-          ref="menuRef"
-          :class="['hdr-menu', { 'is-dragging': menuDragging }]"
-          @pointerdown="onMenuPointerDown"
-          @pointermove="onMenuPointerMove"
-          @pointerup="onMenuPointerUp"
-          @pointercancel="onMenuPointerUp"
-          @pointerleave="onMenuPointerUp"
-        >
-          <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">患者总览</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">质控分析</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'rounding-sheet' }]" @click="onNav('rounding-sheet')">查房报告</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'respiratory-dashboard' }]" @click="onNav('respiratory-dashboard')">呼吸治疗</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'research-export' }]" @click="onNav('research-export')">科研导出</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'research-workbench' }]" @click="onNav('research-workbench')">科研分析</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'academic-research' }]" @click="onNav('academic-research')">学术科研</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'clinical-trials' }]" @click="onNav('clinical-trials')">临床试验</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'mdt' }]" @click="onNav('mdt')">MDT会诊</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'bigscreen' }]" @click="onNav('bigscreen')">护士站大屏</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'ai-consult' }]" @click="onNav('ai-consult')">AI问诊</button>
-          <button type="button" :class="['nav-btn', { active: navKey === 'ai-ops' }]" @click="onNav('ai-ops')">AI运营</button>
+        <nav class="hdr-menu">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            type="button"
+            :class="['nav-btn', { active: navKey === item.key }]"
+            @click="onNav(item.key)"
+          >
+            <span v-for="line in item.lines" :key="line">{{ line }}</span>
+          </button>
         </nav>
         <div class="hdr-tools">
           <label class="operator-pill" title="用于记录告警查看 / 确认操作人">
@@ -80,14 +69,23 @@ const operatorIdentity = ref('')
 const antTheme = ref<any>(null)
 const antThemeReady = ref(false)
 const themeWrapper = shallowRef<any>('div')
-const menuRef = ref<HTMLElement | null>(null)
-const menuDragging = ref(false)
-const menuDragged = ref(false)
-const menuDragStartX = ref(0)
-const menuDragStartScroll = ref(0)
 let t: any
 const THEME_KEY = 'icu_theme_mode'
 let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> | null = null
+const navItems = [
+  { key: 'overview', lines: ['患者', '总览'] },
+  { key: 'analytics', lines: ['质控', '分析'] },
+  { key: 'rounding-sheet', lines: ['查房', '报告'] },
+  { key: 'respiratory-dashboard', lines: ['呼吸', '治疗'] },
+  { key: 'research-export', lines: ['科研', '导出'] },
+  { key: 'research-workbench', lines: ['科研', '分析'] },
+  { key: 'academic-research', lines: ['学术', '科研'] },
+  { key: 'clinical-trials', lines: ['临床', '试验'] },
+  { key: 'mdt', lines: ['MDT', '会诊'] },
+  { key: 'bigscreen', lines: ['护士站', '大屏'] },
+  { key: 'ai-consult', lines: ['AI', '问诊'] },
+  { key: 'ai-ops', lines: ['AI', '运营'] },
+]
 
 const navKey = computed(() => {
   if (route.path.startsWith('/bigscreen')) return 'bigscreen'
@@ -144,7 +142,6 @@ const themeWrapperProps = computed(() =>
 )
 
 function onNav(key: string) {
-  if (menuDragging.value || menuDragged.value) return
   const pathMap: Record<string, string> = {
     overview: '/',
     analytics: '/analytics',
@@ -161,38 +158,6 @@ function onNav(key: string) {
   }
   const path = pathMap[key] || '/'
   router.push({ path, query: route.query })
-}
-
-function onMenuPointerDown(event: PointerEvent) {
-  const el = menuRef.value
-  if (!el || el.scrollWidth <= el.clientWidth) return
-  menuDragging.value = true
-  menuDragged.value = false
-  menuDragStartX.value = event.clientX
-  menuDragStartScroll.value = el.scrollLeft
-  el.setPointerCapture?.(event.pointerId)
-}
-
-function onMenuPointerMove(event: PointerEvent) {
-  const el = menuRef.value
-  if (!el || !menuDragging.value) return
-  const dx = event.clientX - menuDragStartX.value
-  if (Math.abs(dx) > 2) {
-    menuDragged.value = true
-    el.scrollLeft = menuDragStartScroll.value - dx
-    event.preventDefault()
-  }
-}
-
-function onMenuPointerUp(event: PointerEvent) {
-  const el = menuRef.value
-  if (el?.hasPointerCapture?.(event.pointerId)) {
-    el.releasePointerCapture(event.pointerId)
-  }
-  window.setTimeout(() => {
-    menuDragging.value = false
-    menuDragged.value = false
-  }, 0)
 }
 
 async function ensureAntdTheme() {
@@ -281,7 +246,7 @@ onUnmounted(() => clearInterval(t))
 .root { min-height: 100vh; background: var(--app-bg); font-family: var(--app-display-font, 'Noto Sans SC', 'Segoe UI', sans-serif); }
 .hdr {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(260px, auto);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   background: var(--hdr-bg-strong) !important;
@@ -313,56 +278,40 @@ onUnmounted(() => clearInterval(t))
 .hdr-title { font-size: 18px; font-weight: 800; color: var(--hdr-title); letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
 .hdr-sub { font-size: 11px; color: var(--hdr-sub); letter-spacing: 0.06em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
 .hdr-menu {
-  position: relative;
   min-width: 0;
-  max-width: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 6px;
   min-height: 60px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 8px 8px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(96, 165, 250, .48) transparent;
-  cursor: grab;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-  mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
-}
-.hdr-menu::-webkit-scrollbar {
-  height: 5px;
-}
-.hdr-menu::-webkit-scrollbar-track {
-  background: transparent;
-}
-.hdr-menu::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(96, 165, 250, .42);
-}
-.hdr-menu.is-dragging {
-  cursor: grabbing;
-  user-select: none;
+  overflow: visible;
+  padding: 6px 2px;
 }
 .nav-btn {
-  display: inline-flex;
+  display: inline-grid;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-width: fit-content;
-  white-space: nowrap;
+  min-width: 58px;
+  min-height: 42px;
+  white-space: normal;
   user-select: none;
   border: 1px solid var(--nav-btn-border);
   background: var(--nav-btn-bg);
   color: var(--nav-btn-text);
   border-radius: 12px;
-  padding: 8px 11px;
-  font-size: 13px;
+  padding: 6px 10px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0;
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1;
+}
+.nav-btn span {
+  display: block;
+  line-height: 1.15;
 }
 .nav-btn:hover { color: var(--nav-btn-hover-text); background: var(--nav-btn-hover-bg); border-color: var(--nav-btn-hover-border); }
 .nav-btn.active {
@@ -526,7 +475,7 @@ onUnmounted(() => clearInterval(t))
 @media (max-width: 1200px) {
   .hdr { gap: 12px; padding: 0 12px; }
   .hdr-sub { display: none; }
-  .nav-btn { font-size: 13px; padding: 8px 10px; }
+  .nav-btn { min-width: 54px; min-height: 40px; font-size: 12px; padding: 5px 8px; }
   .operator-pill__label,
   .toggle-text {
     display: none;
@@ -550,6 +499,7 @@ onUnmounted(() => clearInterval(t))
     grid-area: nav;
     width: 100%;
     min-height: 48px;
+    justify-content: flex-start;
     border-top: 1px solid var(--hdr-border);
   }
   .hdr-tools { grid-area: tools; }
@@ -584,8 +534,10 @@ onUnmounted(() => clearInterval(t))
     letter-spacing: 0.06em;
   }
   .nav-btn {
-    font-size: 13px;
-    padding: 8px 10px;
+    min-width: 58px;
+    min-height: 42px;
+    font-size: 12px;
+    padding: 6px 10px;
     letter-spacing: 0;
   }
   .operator-pill__label,
