@@ -40,6 +40,30 @@ const router = createRouter({
       meta: { title: 'AI问诊', useAntdTheme: true }
     },
     {
+      path: '/rounding-sheet',
+      name: 'rounding-sheet',
+      component: () => import('../views/RoundingSheetView.vue'),
+      meta: { title: '智能查房报告', useAntdTheme: true }
+    },
+    {
+      path: '/respiratory-dashboard',
+      name: 'respiratory-dashboard',
+      component: () => import('../views/RespiratoryTherapistDashboard.vue'),
+      meta: { title: '呼吸治疗师工作面板', useAntdTheme: true }
+    },
+    {
+      path: '/academic-research',
+      name: 'academic-research',
+      component: () => import('../views/AcademicResearchDashboard.vue'),
+      meta: { title: '科室学术科研支撑', useAntdTheme: true }
+    },
+    {
+      path: '/clinical-trials',
+      name: 'clinical-trials',
+      component: () => import('../views/ClinicalTrialScreening.vue'),
+      meta: { title: '临床试验筛选', useAntdTheme: true }
+    },
+    {
       path: '/research-export',
       name: 'research-export',
       component: () => import('../views/ResearchExport.vue'),

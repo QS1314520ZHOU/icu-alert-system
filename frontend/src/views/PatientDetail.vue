@@ -175,6 +175,21 @@
             <a-card title="装置位置图" :bordered="false" class="info-card">
               <PatientDeviceBodyMap :markers="deviceBodyMarkers" :silhouette="patientSilhouette" />
             </a-card>
+            <a-card title="Clinical Trial Match / 临床试验匹配" :bordered="false" class="info-card">
+              <div v-if="trialMatchLoading" class="trial-match-empty">正在加载临床试验匹配…</div>
+              <div v-else-if="trialMatchError" class="trial-match-empty trial-match-empty--error">{{ trialMatchError }}</div>
+              <div v-else-if="!trialMatches.length" class="trial-match-empty">暂无可能符合的临床试验提醒</div>
+              <div v-else class="trial-match-list">
+                <article v-for="match in trialMatches.slice(0, 3)" :key="match.candidate_id" class="trial-match-card">
+                  <div class="trial-match-head">
+                    <strong>{{ match.trial_name }}</strong>
+                    <span>{{ Math.round((match.match_evidence?.confidence || 0) * 100) }}%</span>
+                  </div>
+                  <p>{{ match.message || '该患者可能符合临床试验入组标准，请人工确认。' }}</p>
+                  <small>满足 {{ match.match_evidence?.matched_inclusion?.length || 0 }} 条入组依据，缺失 {{ match.match_evidence?.missing_data?.length || 0 }} 项待确认数据</small>
+                </article>
+              </div>
+            </a-card>
           </div>
 
           <PatientDeviceHaiBundlePanel
@@ -615,6 +630,7 @@ import {
   reviewPatientPersonalizedThreshold,
   reloadKnowledge,
 } from '../api'
+import { getPatientTrialMatches } from '../api/clinicalTrials'
 import {
   icuCategoryAxis,
   icuGrid,
@@ -713,6 +729,9 @@ const labs = ref<any[]>([])
 const drugs = ref<any[]>([])
 const assessments = ref<any[]>([])
 const alerts = ref<any[]>([])
+const trialMatches = ref<any[]>([])
+const trialMatchLoading = ref(false)
+const trialMatchError = ref('')
 const sepsisBundleStatus = ref<any>(null)
 const weaningStatus = ref<any>(null)
 const sbtTimelineSummary = ref<any>(null)
@@ -1625,8 +1644,18 @@ function stripMarkdownFence(raw: string) {
     .trim()
 }
 
+function stripModelThinking(raw: any) {
+  return String(raw || '')
+    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
+    .replace(/<reasoning\b[^>]*>[\s\S]*?<\/reasoning>/gi, '')
+    .replace(/<analysis\b[^>]*>[\s\S]*?<\/analysis>/gi, '')
+    .replace(/^\s*(思考过程|推理过程|内部推理|模型思考|Chain\s*of\s*Thought|Reasoning)\s*[：:]\s*[\s\S]*?(?=(\n\s*)?(```|\{|\[|#{1,4}\s|结论[：:]|建议[：:]|评估[：:]|摘要[：:]))/i, '')
+    .replace(/^\s*(思考|Thinking|Reasoning)\s*[：:]\s*$/gim, '')
+    .trim()
+}
+
 function sanitizeAiNarrative(raw: any) {
-  const text = stripMarkdownFence(String(raw || ''))
+  const text = stripMarkdownFence(stripModelThinking(raw))
   if (!text) return ''
   const lines = text
     .split(/\r?\n/)
@@ -3290,7 +3319,7 @@ async function loadAiLab() {
   aiLabLoading.value = true
   try {
     const res = await getAiLabSummary(patientId)
-    aiLabSummary.value = res.data.summary || ''
+    aiLabSummary.value = stripModelThinking(res.data.summary || '')
     aiLabError.value = formatAiError(res.data.error || '')
   } catch (e) {
     aiLabError.value = '智能服务不可用'
@@ -3311,11 +3340,11 @@ async function loadAiRules() {
     aiRulePayload.value = Array.isArray(recommendations) ? recommendations : null
     const rawText = res.data.raw_text
     if (typeof rawText === 'string' && rawText.trim()) {
-      aiRuleText.value = rawText
+      aiRuleText.value = stripModelThinking(rawText)
     } else if (typeof recommendations === 'string') {
-      aiRuleText.value = recommendations
+      aiRuleText.value = stripModelThinking(recommendations)
     } else if (Array.isArray(recommendations)) {
-      aiRuleText.value = JSON.stringify(recommendations, null, 2)
+      aiRuleText.value = stripModelThinking(JSON.stringify(recommendations, null, 2))
     } else {
       aiRuleText.value = ''
     }
@@ -3336,7 +3365,7 @@ async function loadAiRisk() {
   try {
     const res = await getAiRiskForecast(patientId)
     aiRiskForecast.value = res.data || null
-    aiRiskText.value = res.data.risk_summary || ''
+    aiRiskText.value = stripModelThinking(res.data.risk_summary || '')
     aiRiskError.value = formatAiError(res.data.error || '')
   } catch (e) {
     aiRiskForecast.value = null
@@ -3372,9 +3401,22 @@ async function loadMetabolicPhase(refresh = false) {
   try {
     const res = await getAiMetabolicPhase(patientId, { refresh })
     metabolicPhaseRecord.value = res.data.record || null
-    metabolicPhaseError.value = formatAiError(res.data.error || '')
+    metabolicPhaseError.value = metabolicPhaseRecord.value?.degraded
+      ? ''
+      : formatAiError(res.data.error || '')
   } catch (e) {
-    metabolicPhaseError.value = '代谢阶段服务不可用'
+    metabolicPhaseRecord.value = {
+      phase: 'insufficient_data',
+      phase_label: '数据不足，需床旁确认',
+      phase_scores: { ebb: 0, transition: 0, anabolic: 0 },
+      nutrition_target: { kcal: [15, 20], protein: [0.8, 1.2] },
+      nutrition_mismatch: {
+        trigger: false,
+        recommendation: '建议补充体重、乳酸、血糖波动、炎症指标、SOFA、血管活性药和近24小时营养供给后重新生成。',
+      },
+      degraded: true,
+    }
+    metabolicPhaseError.value = ''
   } finally {
     metabolicPhaseLoading.value = false
   }
@@ -3406,9 +3448,25 @@ async function loadFibrinolysis(refresh = false) {
   try {
     const res = await getAiFibrinolysisMonitor(patientId, { refresh })
     fibrinolysisRecord.value = res.data.record || null
-    fibrinolysisError.value = formatAiError(res.data.error || '')
+    fibrinolysisError.value = fibrinolysisRecord.value?.degraded
+      ? ''
+      : formatAiError(res.data.error || '')
   } catch (e) {
-    fibrinolysisError.value = '纤溶监测服务不可用'
+    fibrinolysisRecord.value = {
+      score_type: 'fibrinolysis_monitor',
+      assessment: {
+        phenotype: 'insufficient_data',
+        severity: 'low',
+        score: 0,
+        evidence: [
+          '当前缺少足够的凝血/纤溶证据，暂不能可靠区分高纤溶、纤溶关闭或混合表型。',
+          '建议补充 TEG/ROTEM LY30/ML、D-dimer、FDP、纤维蛋白原、血小板、PT/APTT 及出血/感染背景后重新生成。',
+        ],
+        recommendation: '请结合床旁出血表现、血栓风险、感染/休克状态和动态凝血结果复核；系统仅提示需补充证据，不生成强制医嘱。',
+      },
+      degraded: true,
+    }
+    fibrinolysisError.value = ''
   } finally {
     fibrinolysisLoading.value = false
   }
@@ -3465,6 +3523,23 @@ async function loadAiHandoff() {
   }
 }
 
+async function loadClinicalTrialMatches() {
+  if (trialMatchLoading.value) return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  trialMatchError.value = ''
+  trialMatchLoading.value = true
+  try {
+    const res = await getPatientTrialMatches(patientId)
+    trialMatches.value = res.data?.matches || []
+  } catch (e) {
+    trialMatchError.value = '临床试验匹配加载失败'
+    trialMatches.value = []
+  } finally {
+    trialMatchLoading.value = false
+  }
+}
+
 async function loadAiAll() {
   if (aiAutoLoaded.value) return
   aiAutoLoaded.value = true
@@ -3499,6 +3574,9 @@ function resetDetailState() {
   drugs.value = []
   assessments.value = []
   alerts.value = []
+  trialMatches.value = []
+  trialMatchLoading.value = false
+  trialMatchError.value = ''
   sepsisBundleStatus.value = null
   weaningStatus.value = null
   sbtTimelineSummary.value = null
@@ -3612,6 +3690,7 @@ async function loadDetailPage() {
     loadAlerts(),
     loadSepsisBundleStatus(),
     loadWeaningStatus(),
+    loadClinicalTrialMatches(),
   ])
 
   // 二阶段加载：将非首屏请求后置，避免与核心数据并发抢占导致“点开患者很慢”。
@@ -3769,6 +3848,53 @@ onBeforeUnmount(() => {
   resize: vertical;
   min-height: 96px;
 }
+.trial-match-empty {
+  padding: 14px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(80,199,255,.12);
+  background: rgba(7,20,34,.56);
+  color: #9bcde0;
+  font-size: 12px;
+  text-align: center;
+}
+.trial-match-empty--error {
+  color: #fda4af;
+  border-color: rgba(251,113,133,.18);
+}
+.trial-match-list {
+  display: grid;
+  gap: 8px;
+}
+.trial-match-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(34,197,94,.2);
+  background: rgba(6,78,59,.16);
+}
+.trial-match-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #ecfeff;
+  font-size: 12px;
+}
+.trial-match-head span {
+  color: #86efac;
+  font-family: 'Rajdhani', 'Consolas', monospace;
+  font-weight: 800;
+}
+.trial-match-card p {
+  margin: 0;
+  color: #c9d9e6;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.trial-match-card small {
+  color: #88a2b4;
+  line-height: 1.45;
+}
 .detail-page-header {
   background: linear-gradient(180deg, rgba(9,22,36,.94) 0%, rgba(6,15,27,.92) 100%);
   border-radius: 12px;
@@ -3861,11 +3987,15 @@ onBeforeUnmount(() => {
 .detail-main-panel {
   min-width: 0;
 }
+.detail-rail {
+  overflow: hidden;
+}
 .detail-rail-sticky {
   position: sticky;
   top: 12px;
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 .monitor-hero {
   display: grid;
@@ -3912,6 +4042,8 @@ onBeforeUnmount(() => {
 .hero-visual {
   grid-area: visual;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 .hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2px; }
 .hero-tag {
@@ -4232,15 +4364,21 @@ onBeforeUnmount(() => {
   color: #8fb8ca;
   font-size: 12px;
 }
-.detail-content--rail,
-.weaning-strip--rail {
+.detail-content.detail-content--rail,
+.weaning-strip.weaning-strip--rail {
   margin-bottom: 0;
 }
-.detail-content--rail {
+.detail-content.detail-content--rail {
   grid-template-columns: 1fr;
 }
-.weaning-strip--rail {
+.weaning-strip.weaning-strip--rail {
   grid-template-columns: 1fr;
+}
+.detail-content.detail-content--rail > *,
+.weaning-strip.weaning-strip--rail > *,
+.detail-rail-sticky > * {
+  min-width: 0;
+  max-width: 100%;
 }
 .detail-main-panel > div {
   min-width: 0;
@@ -4369,6 +4507,12 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(80,199,255,.14);
   border-radius: 12px;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+  min-width: 0;
+  max-width: 100%;
+}
+.info-card :deep(.ant-card-body) {
+  min-width: 0;
+  overflow: hidden;
 }
 .info-card :deep(.ant-card-head) {
   min-height: 42px;

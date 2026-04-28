@@ -27,6 +27,10 @@ from app.routers.followup import router as followup_router
 from app.routers.knowledge import router as knowledge_router
 from app.routers.patient_data import router as patient_data_router
 from app.routers.patients import router as patients_router
+from app.routers.rounding import router as rounding_router
+from app.routers.respiratory import router as respiratory_router
+from app.routers.research_support import router as research_support_router
+from app.routers.clinical_trials import router as clinical_trials_router
 from app.routers.research_platform import router as research_platform_router
 from app.routers.system import router as system_router
 from app.routers.waveforms import router as waveforms_router
@@ -172,6 +176,10 @@ app.include_router(patient_data_router)
 app.include_router(alerts_router)
 app.include_router(analytics_router)
 app.include_router(followup_router)
+app.include_router(rounding_router)
+app.include_router(respiratory_router)
+app.include_router(research_support_router)
+app.include_router(clinical_trials_router)
 app.include_router(ai_router)
 app.include_router(knowledge_router)
 app.include_router(waveforms_router)

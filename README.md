@@ -80,6 +80,26 @@
 ### 1.11 系统后台管理与运行控制 (System Admin)
 - **预警引擎与扫描器管控**：提供系统运行时接口，支持对特定医学扫描器的强制紧急触发，用于系统调试或人工高优告警重算。
 
+### 1.12 智能查房报告 (Rounding Sheet)
+- **过夜摘要**：按 8/12/24/48 小时时间窗汇总预警、生命体征、实验室、用药、呼吸机、护理、出入量、感染与营养变化。
+- **器官系统视图**：按神经、呼吸、循环、肾脏/液体、感染、营养、凝血和其他事件分类展示查房重点。
+- **AI 关注点**：复用 LLM runtime 生成 3-5 条可审计关注点，所有输出均标注“仅供临床决策支持，不替代医生判断”。
+
+### 1.13 呼吸治疗师工作面板 (Respiratory Dashboard)
+- **机械通气患者一览**：统一计算 Driving Pressure、P/F Ratio、SBT 候选状态与风险标签。
+- **SBT 待办**：复用/扩展撤机扫描能力，输出可评估、暂不适合、已完成和失败原因。
+- **气道管理**：支持气囊压、吸痰、人工气道、VAP bundle、困难气道预案记录与提醒。
+
+### 1.14 科室学术与科研支撑 (Academic & Research Support)
+- **科研项目看板**：管理论文、课题、基金、伦理、专利与指南共识等项目全生命周期。
+- **AI 课题推荐**：基于可追溯聚合数据和质量差距生成课题建议，输出数据依据、限制和可行性评分。
+- **OMOP 最小导出**：提供 PERSON、VISIT_OCCURRENCE、CONDITION_OCCURRENCE、DRUG_EXPOSURE、MEASUREMENT、PROCEDURE_OCCURRENCE、OBSERVATION 的脱敏 CSV ZIP 导出框架和数据质量检查。
+
+### 1.15 临床试验智能筛选 (Clinical Trial Screening)
+- **试验配置与规则引擎**：支持结构化入排标准、时间窗、规则解释和 AI 辅助自然语言解析草案。
+- **自动候选筛选**：新增 ClinicalTrialScreeningScanner，当前患者满足入组且未触发排除时，仅提示“可能符合”。
+- **医生确认闭环**：候选状态流转、匹配依据、缺失数据和置信度均可审计，患者详情页同步展示提醒卡片。
+
 ---
 
 ## 2. 完整后端 API 接口清单
@@ -145,6 +165,48 @@
 
 ### 2.8 后台管理接口 (Admin)
 - `POST /api/admin/scanner/trigger` : 手动触发底层的离线预警引擎特定扫描器（Scanner）立刻执行。
+
+### 2.9 智能查房报告接口 (Rounding Sheet)
+- `GET /api/rounding/patients` : 获取今日需要查房的 ICU 患者列表和基础风险信息。
+- `GET /api/rounding/{patient_id}/summary?hours=24` : 获取单个患者过去 N 小时结构化查房摘要。
+- `POST /api/rounding/{patient_id}/ai-insights` : 生成并审计 AI 查房关注点。
+- `POST /api/rounding/export` : 导出 Markdown 或 HTML 查房报告。
+
+### 2.10 呼吸治疗师接口 (Respiratory Dashboard)
+- `GET /api/respiratory/ventilated-patients` : 获取全科机械通气患者和统一计算指标。
+- `GET /api/respiratory/sbt-candidates` : 获取 SBT 候选和暂不适合原因。
+- `POST /api/respiratory/sbt/{patient_id}/status` : 更新 SBT 状态。
+- `GET /api/respiratory/{patient_id}/ventilator-timeline?hours=72` : 获取呼吸机参数变化时间线。
+- `GET /api/respiratory/{patient_id}/airway-records` : 获取气道管理记录。
+- `POST /api/respiratory/{patient_id}/airway-records` : 新增气道管理记录。
+- `GET /api/respiratory/{patient_id}/airway-plan` : 获取困难气道预案。
+- `POST /api/respiratory/{patient_id}/airway-plan` : 保存困难气道预案并写入审计日志。
+
+### 2.11 学术科研支撑接口 (Academic & Research Support)
+- `GET /api/research/projects` : 获取科研项目列表。
+- `POST /api/research/projects` : 新建科研项目。
+- `PUT /api/research/projects/{project_id}` : 更新科研项目。
+- `DELETE /api/research/projects/{project_id}` : 删除科研项目。
+- `GET /api/research/topic-suggestions` : 获取已生成课题建议。
+- `POST /api/research/topic-suggestions/generate` : 基于数据摘要生成 AI 课题建议。
+- `POST /api/research/omop/export` : 提交 OMOP CDM 最小脱敏导出任务。
+- `GET /api/research/omop/export/{task_id}/status` : 查询 OMOP 导出任务状态。
+- `GET /api/research/omop/export/{task_id}/download` : 下载 OMOP CSV ZIP。
+- `GET /api/research/data-quality` : 获取科研导出数据质量报告。
+
+### 2.12 临床试验筛选接口 (Clinical Trial Screening)
+- `GET /api/clinical-trials` : 获取临床试验列表。
+- `POST /api/clinical-trials` : 新建临床试验。
+- `GET /api/clinical-trials/{trial_id}` : 获取试验详情。
+- `PUT /api/clinical-trials/{trial_id}` : 更新试验。
+- `DELETE /api/clinical-trials/{trial_id}` : 删除试验。
+- `POST /api/clinical-trials/{trial_id}/parse-criteria` : AI 解析自然语言入排标准草案。
+- `POST /api/clinical-trials/{trial_id}/activate` : 启用试验筛选。
+- `POST /api/clinical-trials/{trial_id}/deactivate` : 停用试验筛选。
+- `POST /api/clinical-trials/screen` : 手动触发当前患者试验筛选。
+- `GET /api/clinical-trials/candidates` : 获取候选患者列表。
+- `GET /api/clinical-trials/patients/{patient_id}/matches` : 获取患者详情页临床试验匹配提醒。
+- `POST /api/clinical-trials/candidates/{candidate_id}/status` : 更新候选状态并记录审计日志。
 
 ---
 
@@ -238,6 +300,16 @@ npm install
 npm run dev
 ```
 前端默认地址：`http://127.0.0.1:5173`。
+
+**新增模块验证：**
+```bash
+# 后端关键服务单元测试
+python -m pytest backend/tests/test_rounding_service.py backend/tests/test_respiratory_service.py backend/tests/test_omop_export_service.py backend/tests/test_clinical_trial_service.py
+
+# 前端类型检查与生产构建
+cd frontend
+npm run build
+```
 
 ### 4.2 打包与发行
 

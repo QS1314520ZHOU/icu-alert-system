@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from typing import Any
 
@@ -129,6 +130,24 @@ def _should_trip_breaker(exc: Exception) -> bool:
     return False
 
 
+def sanitize_llm_text(text: Any) -> str:
+    """Remove model-internal thinking traces before the text reaches UI/storage."""
+    cleaned = str(text or "")
+    if not cleaned:
+        return ""
+    cleaned = re.sub(r"<think\b[^>]*>[\s\S]*?</think>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<reasoning\b[^>]*>[\s\S]*?</reasoning>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<analysis\b[^>]*>[\s\S]*?</analysis>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(
+        r"^\s*(?:思考过程|推理过程|内部推理|模型思考|Chain\s*of\s*Thought|Reasoning)\s*[：:]\s*[\s\S]*?(?=(?:\n\s*)?(?:```|\{|\[|#{1,4}\s|结论[：:]|建议[：:]|评估[：:]|摘要[：:]))",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"^\s*(?:思考|Thinking|Reasoning)\s*[：:]\s*$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
+    return cleaned.strip()
+
+
 async def call_llm_chat(
     *,
     cfg,
@@ -212,7 +231,8 @@ async def call_llm_chat(
                 used_model = candidate
                 used_fallback = degraded_mode or (idx > 0) or (candidate == models_meta.get("fallback_model") and has_real_degrade)
                 await _FAILURE_TRACKER.record_success()
-                text = data["choices"][0]["message"]["content"]
+                message = data["choices"][0].get("message") or {}
+                text = sanitize_llm_text(message.get("content") or "")
                 usage = data.get("usage") if isinstance(data, dict) else None
                 return {
                     "text": text,

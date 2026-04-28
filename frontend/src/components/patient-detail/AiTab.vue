@@ -71,6 +71,9 @@
       </div>
       <a-spin :spinning="metabolicPhaseLoading">
         <div v-if="metabolicPhaseRecord" class="ai-risk-card">
+          <div v-if="metabolicPhaseRecord?.degraded" class="ai-fallback-note">
+            当前代谢阶段证据不足，系统先展示保守营养目标。请补充关键数据后重新生成。
+          </div>
           <div class="workbench-kpis">
             <div class="wb-kpi">
               <span>当前阶段</span>
@@ -149,6 +152,9 @@
       </div>
       <a-spin :spinning="fibrinolysisLoading">
         <div v-if="fibrinolysisAssessment" class="ai-risk-card">
+          <div v-if="fibrinolysisRecord?.degraded" class="ai-fallback-note">
+            当前纤溶监测证据不足，系统先展示需补充的数据清单。请完善凝血/纤溶证据后重新生成。
+          </div>
           <div class="workbench-kpis">
             <div class="wb-kpi">
               <span>表型</span>
@@ -168,6 +174,10 @@
             <div class="summary-chip-group">
               <span v-for="(item, idx) in fibrinolysisEvidence" :key="`fib-ev-${idx}`" class="summary-chip">{{ item }}</span>
             </div>
+          </div>
+          <div v-if="fibrinolysisAssessment?.recommendation" class="ai-workbench-section">
+            <div class="ai-workbench-title">复核建议</div>
+            <div class="summary-text">{{ fibrinolysisAssessment?.recommendation }}</div>
           </div>
         </div>
         <div v-else class="ai-empty">暂无内容</div>
@@ -265,7 +275,50 @@
         <a-button size="small" type="link" :loading="aiLabLoading" @click="loadAiLab">重新生成</a-button>
       </div>
       <a-spin :spinning="aiLabLoading">
-        <div v-if="aiLabSummary" class="ai-rich" v-html="renderAiRichText(aiLabSummary)"></div>
+        <div v-if="aiLabSummary" class="lab-summary-board">
+          <div class="lab-summary-hero">
+            <div>
+              <span class="lab-summary-kicker">LAB AI BRIEF</span>
+              <strong>{{ aiLabStructured.title }}</strong>
+            </div>
+            <span class="lab-summary-badge">{{ aiLabStructured.abnormalItems.length }} 项重点异常</span>
+          </div>
+          <div v-if="aiLabStructured.abnormalItems.length" class="lab-abnormal-grid">
+            <div
+              v-for="(item, idx) in aiLabStructured.abnormalItems"
+              :key="`lab-abn-${idx}`"
+              class="lab-abnormal-card"
+            >
+              <div class="lab-abnormal-head">
+                <span class="lab-marker"></span>
+                <strong>{{ item.name }}</strong>
+                <span>{{ item.flag }}</span>
+              </div>
+              <div class="lab-value-line">{{ item.value }}</div>
+              <p>{{ item.meaning }}</p>
+            </div>
+          </div>
+          <div class="lab-summary-columns">
+            <section v-if="aiLabStructured.clinicalMeaning.length" class="lab-summary-section">
+              <div class="lab-section-title">临床意义</div>
+              <ul class="lab-clean-list">
+                <li v-for="(item, idx) in aiLabStructured.clinicalMeaning" :key="`lab-meaning-${idx}`">{{ item }}</li>
+              </ul>
+            </section>
+            <section v-if="aiLabStructured.recommendations.length" class="lab-summary-section lab-summary-section--action">
+              <div class="lab-section-title">后续建议</div>
+              <ol class="lab-action-list">
+                <li v-for="(item, idx) in aiLabStructured.recommendations" :key="`lab-rec-${idx}`">{{ item }}</li>
+              </ol>
+            </section>
+          </div>
+          <div v-if="aiLabStructured.otherLines.length" class="lab-summary-section">
+            <div class="lab-section-title">补充信息</div>
+            <div class="summary-chip-group">
+              <span v-for="(item, idx) in aiLabStructured.otherLines" :key="`lab-other-${idx}`" class="summary-chip">{{ item }}</span>
+            </div>
+          </div>
+        </div>
         <div v-else class="ai-empty">暂无内容</div>
       </a-spin>
       <div v-if="aiLabError" class="ai-error">{{ aiLabError }}</div>
@@ -646,11 +699,88 @@ const forecastHorizonText = computed(() => {
 
 function cleanSummaryLine(v: any) {
   return String(v || '')
+    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
+    .replace(/<reasoning\b[^>]*>[\s\S]*?<\/reasoning>/gi, '')
+    .replace(/<analysis\b[^>]*>[\s\S]*?<\/analysis>/gi, '')
+    .replace(/^\s*(思考过程|推理过程|内部推理|模型思考|Chain\s*of\s*Thought|Reasoning)\s*[：:]\s*[\s\S]*?(?=(\n\s*)?(```|\{|\[|#{1,4}\s|结论[：:]|建议[：:]|评估[：:]|摘要[：:]))/i, '')
     .replace(/[*#>`~_\[\]]+/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/[：:]\s*-/g, '：')
     .trim()
 }
+
+function normalizeLabSummaryLine(v: any) {
+  return cleanSummaryLine(v)
+    .replace(/^\|+|\|+$/g, '')
+    .replace(/^-+\s*/, '')
+    .replace(/^一、\s*/, '')
+    .trim()
+}
+
+function parseLabPipeRow(line: string) {
+  const cells = String(line || '')
+    .split('|')
+    .map((cell) => normalizeLabSummaryLine(cell))
+    .filter(Boolean)
+  if (cells.length < 2) return null
+  const joined = cells.join(' ')
+  if (/项目|结果|参考范围|异常意义|-{3,}/.test(joined)) return null
+  const name = cells[0] || '指标'
+  const value = cells[1] || ''
+  const ref = cells[2] || ''
+  const meaning = cells.slice(3).join('；') || ref || '需结合趋势和临床背景复核'
+  const flag = /↑|升高|增高|高/.test(value + meaning)
+    ? '升高'
+    : (/↓|降低|低/.test(value + meaning) ? '降低' : '异常')
+  return { name, value: ref ? `${value}｜参考 ${ref}` : value, meaning, flag }
+}
+
+const aiLabStructured = computed(() => {
+  const text = String(props.aiLabSummary || '')
+  const lines = text.split(/\r?\n/).map(normalizeLabSummaryLine).filter(Boolean)
+  const title = lines.find((line) => !/^临床意义|后续建议|建议|项目|结果|参考范围|异常意义$/i.test(line) && !line.includes('|')) || '检验异常摘要'
+  const abnormalItems: Array<{ name: string; value: string; meaning: string; flag: string }> = []
+  const clinicalMeaning: string[] = []
+  const recommendations: string[] = []
+  const otherLines: string[] = []
+  let section = ''
+
+  lines.forEach((line) => {
+    if (/^临床意义/.test(line)) {
+      section = 'meaning'
+      return
+    }
+    if (/^(后续建议|建议|处理建议|复查建议)/.test(line)) {
+      section = 'recommendation'
+      return
+    }
+    const row = line.includes('|') ? parseLabPipeRow(line) : null
+    if (row) {
+      abnormalItems.push(row)
+      return
+    }
+    if (line === title || /^项目|结果|参考范围|异常意义|[-|]+$/.test(line)) return
+    const cleaned = line.replace(/^[-•]\s*/, '').replace(/^\d+[.、]\s*/, '').trim()
+    if (!cleaned) return
+    if (section === 'meaning' || /提示|考虑|说明|临床|受损|损伤|风险/.test(cleaned)) {
+      clinicalMeaning.push(cleaned)
+      return
+    }
+    if (section === 'recommendation' || /建议|复查|监测|维持|会诊|评估|避免|考虑/.test(cleaned)) {
+      recommendations.push(cleaned)
+      return
+    }
+    otherLines.push(cleaned)
+  })
+
+  return {
+    title,
+    abnormalItems: abnormalItems.slice(0, 8),
+    clinicalMeaning: Array.from(new Set(clinicalMeaning)).slice(0, 5),
+    recommendations: Array.from(new Set(recommendations)).slice(0, 6),
+    otherLines: Array.from(new Set(otherLines)).slice(0, 6),
+  }
+})
 
 function suggestionByRisk(level: string) {
   const map: Record<string, string> = {
@@ -1006,6 +1136,7 @@ const fibrinolysisLabel = computed(() => {
   const value = String(fibrinolysisAssessment.value?.phenotype || '')
   if (value === 'hyperfibrinolysis') return '高纤溶'
   if (value === 'fibrinolysis_shutdown') return '纤溶关闭'
+  if (value === 'insufficient_data') return '证据不足'
   return value || '—'
 })
 const fibrinolysisEvidence = computed(() => Array.isArray(fibrinolysisAssessment.value?.evidence) ? fibrinolysisAssessment.value.evidence.slice(0, 5) : [])
@@ -1154,6 +1285,123 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   border-radius: 4px;
   padding: 1px 5px;
   color: #eaffff;
+}
+.lab-summary-board {
+  display: grid;
+  gap: 12px;
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+.lab-summary-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid rgba(103, 232, 249, .18);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(20, 184, 166, .16), transparent 36%),
+    linear-gradient(135deg, rgba(8, 47, 73, .82), rgba(7, 20, 34, .94));
+}
+.lab-summary-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #67e8f9;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+.lab-summary-hero strong {
+  color: #effcff;
+  font-size: 16px;
+  line-height: 1.35;
+}
+.lab-summary-badge {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, .28);
+  background: rgba(120, 83, 14, .22);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 700;
+}
+.lab-abnormal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+.lab-abnormal-card {
+  padding: 11px 12px;
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(9,31,48,.92), rgba(5,18,31,.96));
+}
+.lab-abnormal-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #bfefff;
+  font-size: 12px;
+}
+.lab-abnormal-head strong {
+  color: #effcff;
+  font-size: 13px;
+}
+.lab-marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #fb7185;
+  box-shadow: 0 0 12px rgba(251,113,133,.8);
+}
+.lab-value-line {
+  margin-top: 7px;
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+.lab-abnormal-card p {
+  margin: 7px 0 0;
+  color: #9fb5d0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.lab-summary-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.lab-summary-section {
+  padding: 12px;
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: 12px;
+  background: rgba(8,28,44,.72);
+}
+.lab-summary-section--action {
+  border-color: rgba(34, 211, 238, .18);
+}
+.lab-section-title {
+  margin-bottom: 8px;
+  color: #67e8f9;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.lab-clean-list,
+.lab-action-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #d7e6fb;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.lab-clean-list li + li,
+.lab-action-list li + li {
+  margin-top: 6px;
 }
 .ai-risk-card,
 .handoff-wrap,
@@ -1475,6 +1723,15 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   font-size: 11px;
   margin-top: 6px;
 }
+.ai-fallback-note {
+  padding: 9px 10px;
+  border: 1px solid rgba(251, 191, 36, .22);
+  border-radius: 10px;
+  color: #fde68a;
+  background: rgba(120, 83, 14, .18);
+  font-size: 12px;
+  line-height: 1.6;
+}
 
 @media (max-width: 1500px) {
   .ai-grid {
@@ -1490,7 +1747,8 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
     min-height: 0;
   }
   .ai-rule-wrap,
-  .ai-rich {
+  .ai-rich,
+  .lab-summary-board {
     max-height: 56vh;
   }
   .workbench-kpis {
@@ -1498,6 +1756,13 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   }
   .isbar-grid {
     grid-template-columns: 1fr;
+  }
+  .lab-summary-columns {
+    grid-template-columns: 1fr;
+  }
+  .lab-summary-hero {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
@@ -1518,6 +1783,13 @@ html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-act
 html[data-theme='light'] .ai-rich { color: #223a54; }
 html[data-theme='light'] .ai-rich :deep(h4) { color: #16324f; }
 html[data-theme='light'] .ai-rich :deep(code) { background: rgba(243,248,252,.96); border-color: rgba(187,204,220,.72); color: #223a54; }
+html[data-theme='light'] .lab-summary-hero { background: linear-gradient(135deg, #ffffff, #eef7fb); border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .lab-summary-hero strong { color: #16324f; }
+html[data-theme='light'] .lab-summary-badge { background: rgba(254,243,199,.72); border-color: rgba(217,119,6,.25); color: #92400e; }
+html[data-theme='light'] .lab-abnormal-card, html[data-theme='light'] .lab-summary-section { background: #ffffff; border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .lab-abnormal-head, html[data-theme='light'] .lab-abnormal-head strong { color: #16324f; }
+html[data-theme='light'] .lab-value-line { color: #b45309; }
+html[data-theme='light'] .lab-abnormal-card p, html[data-theme='light'] .lab-clean-list, html[data-theme='light'] .lab-action-list { color: #47627e; }
 html[data-theme='light'] .ai-risk-card, html[data-theme='light'] .handoff-wrap, html[data-theme='light'] .kb-doc-meta, html[data-theme='light'] .kb-chunk-item { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
 html[data-theme='light'] .handoff-wrap p, html[data-theme='light'] .ai-risk-card p, html[data-theme='light'] .kb-doc-meta p { color: #6f8399; }
 html[data-theme='light'] .wb-kpi { border-color: rgba(187,204,220,.72); background: #ffffff; }

@@ -22,6 +22,87 @@ router = APIRouter()
 logger = logging.getLogger("icu-alert")
 
 
+def _fallback_metabolic_phase_record(patient: dict, patient_id: str, error: str | None = None) -> dict:
+    now = datetime.now()
+    weight = None
+    for key in ("weight", "bodyWeight", "body_weight", "weightKg", "weight_kg"):
+        try:
+            if patient.get(key):
+                weight = float(patient.get(key))
+                break
+        except Exception:
+            continue
+    weight = weight if weight and weight > 0 else 60.0
+    kcal = [15, 20]
+    protein = [0.8, 1.2]
+    return {
+        "patient_id": patient_id,
+        "patient_name": patient.get("name") or "",
+        "bed": patient.get("hisBed") or patient.get("bed") or "",
+        "dept": patient.get("dept") or patient.get("hisDept") or "",
+        "score_type": "metabolic_phase_detector",
+        "phase": "insufficient_data",
+        "phase_label": "数据不足，需床旁确认",
+        "phase_scores": {"ebb": 0, "transition": 0, "anabolic": 0},
+        "phase_features": {},
+        "nutrition_target": {
+            "kcal": kcal,
+            "protein": protein,
+            "estimated_daily_kcal": [round(weight * kcal[0]), round(weight * kcal[1])],
+            "estimated_daily_protein": [round(weight * protein[0], 1), round(weight * protein[1], 1)],
+        },
+        "nutrition_mismatch": {
+            "trigger": False,
+            "evidence": ["当前缺少足够的代谢阶段评分数据，暂按保守营养目标展示。"],
+            "recommendation": "建议补充/核对体重、乳酸、血糖波动、CRP/前白蛋白、SOFA、血管活性药和近24小时热卡/蛋白供给后重新生成。",
+        },
+        "state": {"weight_kg": weight, "fallback": True},
+        "calc_time": now,
+        "updated_at": now,
+        "degraded": True,
+        "error": error or "metabolic phase scanner returned no record",
+        "disclaimer": "仅供临床决策支持，不替代医生判断。",
+    }
+
+
+def _fallback_fibrinolysis_record(patient: dict, patient_id: str, error: str | None = None) -> dict:
+    now = datetime.now()
+    return {
+        "patient_id": patient_id,
+        "patient_name": patient.get("name") or "",
+        "bed": patient.get("hisBed") or patient.get("bed") or "",
+        "dept": patient.get("dept") or patient.get("hisDept") or "",
+        "score_type": "fibrinolysis_monitor",
+        "assessment": {
+            "phenotype": "insufficient_data",
+            "score": 0,
+            "severity": "low",
+            "labs": {
+                "d_dimer": None,
+                "fdp": None,
+                "fibrinogen": None,
+                "platelet": None,
+                "pt": None,
+                "aptt": None,
+            },
+            "lysis_marker": {"ly30": None, "ml": None},
+            "bleeding_context": "unknown",
+            "sepsis_context": "unknown",
+            "evidence": [
+                "当前缺少足够的凝血/纤溶证据，暂不能可靠区分高纤溶、纤溶关闭或混合表型。",
+                "建议补充或核对 TEG/ROTEM LY30/ML、D-dimer、FDP、纤维蛋白原、血小板、PT/APTT 及活动性出血/感染背景。",
+            ],
+            "recommendation": "请结合床旁出血表现、血栓风险、感染/休克状态和动态凝血结果复核；系统仅提示需补充证据，不生成强制医嘱。",
+            "safety_notice": "仅供临床决策支持，不替代医生判断。",
+        },
+        "calc_time": now,
+        "updated_at": now,
+        "degraded": True,
+        "error": error or "fibrinolysis monitor scanner returned no record",
+        "disclaimer": "仅供临床决策支持，不替代医生判断。",
+    }
+
+
 @router.get("/api/ai/risk-forecast/{patient_id}")
 async def ai_risk_forecast(patient_id: str):
     try:
@@ -203,17 +284,28 @@ async def ai_metabolic_phase(patient_id: str, refresh: bool = Query(default=Fals
                 {"patient_id": str(pid), "score_type": "metabolic_phase_detector"},
                 sort=[("calc_time", -1)],
             )
+        scanner_error = ""
         if not record:
-            scanner = MetabolicPhaseDetectorScanner(runtime.alert_engine)
-            await scanner.scan(str(pid))
-            record = await runtime.db.col("score").find_one(
-                {"patient_id": str(pid), "score_type": "metabolic_phase_detector"},
-                sort=[("calc_time", -1)],
-            )
-        return {"code": 0, "record": serialize_doc(record) if record else None}
+            try:
+                scanner = MetabolicPhaseDetectorScanner(runtime.alert_engine)
+                await scanner.scan(str(pid))
+                record = await runtime.db.col("score").find_one(
+                    {"patient_id": str(pid), "score_type": "metabolic_phase_detector"},
+                    sort=[("calc_time", -1)],
+                )
+            except Exception as scan_exc:
+                scanner_error = str(scan_exc)[:160]
+                logger.warning("metabolic phase scanner degraded patient_id=%s error=%s", patient_id, scanner_error)
+        if not record:
+            record = _fallback_metabolic_phase_record(patient, str(pid), scanner_error or None)
+        return {"code": 0, "record": serialize_doc(record), "error": scanner_error}
     except Exception as exc:
         logger.error("AI metabolic phase error: %s", exc)
-        return {"code": 0, "record": None, "error": f"代谢阶段检测异常: {str(exc)[:120]}"}
+        return {
+            "code": 0,
+            "record": serialize_doc(_fallback_metabolic_phase_record(patient, str(pid), str(exc)[:160])),
+            "error": f"代谢阶段检测异常，已展示基础兜底评估: {str(exc)[:120]}",
+        }
 
 
 @router.get("/api/ai/beta-blocker-advisor/{patient_id}")
@@ -265,17 +357,28 @@ async def ai_fibrinolysis_monitor(patient_id: str, refresh: bool = Query(default
                 {"patient_id": str(pid), "score_type": "fibrinolysis_monitor"},
                 sort=[("calc_time", -1)],
             )
+        scanner_error = ""
         if not record:
-            scanner = FibrinolysisMonitorScanner(runtime.alert_engine)
-            await scanner.scan(str(pid))
-            record = await runtime.db.col("score").find_one(
-                {"patient_id": str(pid), "score_type": "fibrinolysis_monitor"},
-                sort=[("calc_time", -1)],
-            )
-        return {"code": 0, "record": serialize_doc(record) if record else None}
+            try:
+                scanner = FibrinolysisMonitorScanner(runtime.alert_engine)
+                await scanner.scan(str(pid))
+                record = await runtime.db.col("score").find_one(
+                    {"patient_id": str(pid), "score_type": "fibrinolysis_monitor"},
+                    sort=[("calc_time", -1)],
+                )
+            except Exception as scan_exc:
+                scanner_error = str(scan_exc)[:160]
+                logger.warning("fibrinolysis monitor scanner degraded patient_id=%s error=%s", patient_id, scanner_error)
+        if not record:
+            record = _fallback_fibrinolysis_record(patient, str(pid), scanner_error or None)
+        return {"code": 0, "record": serialize_doc(record), "error": scanner_error}
     except Exception as exc:
         logger.error("AI fibrinolysis monitor error: %s", exc)
-        return {"code": 0, "record": None, "error": f"纤溶功能监测异常: {str(exc)[:120]}"}
+        return {
+            "code": 0,
+            "record": serialize_doc(_fallback_fibrinolysis_record(patient, str(pid), str(exc)[:160])),
+            "error": f"纤溶功能监测异常，已展示基础兜底评估: {str(exc)[:120]}",
+        }
 
 
 @router.get("/api/ai/prone-position/{patient_id}")

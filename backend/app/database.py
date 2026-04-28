@@ -205,6 +205,19 @@ class DatabaseManager:
             await rehab_referral_col.create_index([("patient_id", 1), ("status", 1), ("created_at", -1)])
             await rehab_referral_col.create_index([("case_id", 1), ("created_at", -1)])
 
+            await self.col("audit_logs").create_index([("module", 1), ("action", 1), ("created_at", -1)])
+            await self.col("ai_generated_content_logs").create_index([("module", 1), ("patient_id", 1), ("generated_at", -1)])
+            await self.col("rounding_export_tasks").create_index([("task_id", 1)], unique=True)
+            await self.col("airway_records").create_index([("patient_id", 1), ("recorded_at", -1)])
+            await self.col("airway_plans").create_index([("patient_id", 1), ("updated_at", -1)])
+            await self.col("research_projects").create_index([("project_id", 1)], unique=True)
+            await self.col("research_topic_suggestions").create_index([("generated_at", -1)])
+            await self.col("omop_export_tasks").create_index([("task_id", 1)], unique=True)
+            await self.col("clinical_trials").create_index([("trial_id", 1)], unique=True)
+            await self.col("clinical_trials").create_index([("status", 1), ("updated_at", -1)])
+            await self.col("clinical_trial_candidates").create_index([("candidate_id", 1)], unique=True)
+            await self.col("clinical_trial_candidates").create_index([("patient_id", 1), ("updated_at", -1)])
+
             logger.info("✅ 预警系统索引创建完成")
             await self._seed_default_rules()
         except Exception as e:

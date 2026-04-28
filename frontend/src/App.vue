@@ -12,8 +12,12 @@
         <nav class="hdr-menu">
           <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">患者总览</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">质控分析</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'rounding-sheet' }]" @click="onNav('rounding-sheet')">查房报告</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'respiratory-dashboard' }]" @click="onNav('respiratory-dashboard')">呼吸治疗</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'research-export' }]" @click="onNav('research-export')">科研导出</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'research-workbench' }]" @click="onNav('research-workbench')">科研分析</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'academic-research' }]" @click="onNav('academic-research')">学术科研</button>
+          <button type="button" :class="['nav-btn', { active: navKey === 'clinical-trials' }]" @click="onNav('clinical-trials')">临床试验</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'mdt' }]" @click="onNav('mdt')">MDT会诊</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'bigscreen' }]" @click="onNav('bigscreen')">护士站大屏</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'ai-consult' }]" @click="onNav('ai-consult')">AI问诊</button>
@@ -75,8 +79,12 @@ let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> |
 const navKey = computed(() => {
   if (route.path.startsWith('/bigscreen')) return 'bigscreen'
   if (route.path.startsWith('/analytics')) return 'analytics'
+  if (route.path.startsWith('/rounding-sheet')) return 'rounding-sheet'
+  if (route.path.startsWith('/respiratory-dashboard')) return 'respiratory-dashboard'
   if (route.path.startsWith('/research-export')) return 'research-export'
   if (route.path.startsWith('/research-workbench')) return 'research-workbench'
+  if (route.path.startsWith('/academic-research')) return 'academic-research'
+  if (route.path.startsWith('/clinical-trials')) return 'clinical-trials'
   if (route.path.startsWith('/mdt')) return 'mdt'
   if (route.path.startsWith('/ai-consult')) return 'ai-consult'
   if (route.path.startsWith('/ai-ops')) return 'ai-ops'
@@ -126,8 +134,12 @@ function onNav(key: string) {
   const pathMap: Record<string, string> = {
     overview: '/',
     analytics: '/analytics',
+    'rounding-sheet': '/rounding-sheet',
+    'respiratory-dashboard': '/respiratory-dashboard',
     'research-export': '/research-export',
     'research-workbench': '/research-workbench',
+    'academic-research': '/academic-research',
+    'clinical-trials': '/clinical-trials',
     mdt: '/mdt',
     'ai-consult': '/ai-consult',
     'ai-ops': '/ai-ops',
