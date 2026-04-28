@@ -9,7 +9,15 @@
             <div class="hdr-sub">重症监护智能预警平台</div>
           </div>
         </div>
-        <nav class="hdr-menu">
+        <nav
+          ref="menuRef"
+          :class="['hdr-menu', { 'is-dragging': menuDragging }]"
+          @pointerdown="onMenuPointerDown"
+          @pointermove="onMenuPointerMove"
+          @pointerup="onMenuPointerUp"
+          @pointercancel="onMenuPointerUp"
+          @pointerleave="onMenuPointerUp"
+        >
           <button type="button" :class="['nav-btn', { active: navKey === 'overview' }]" @click="onNav('overview')">患者总览</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'analytics' }]" @click="onNav('analytics')">质控分析</button>
           <button type="button" :class="['nav-btn', { active: navKey === 'rounding-sheet' }]" @click="onNav('rounding-sheet')">查房报告</button>
@@ -72,6 +80,11 @@ const operatorIdentity = ref('')
 const antTheme = ref<any>(null)
 const antThemeReady = ref(false)
 const themeWrapper = shallowRef<any>('div')
+const menuRef = ref<HTMLElement | null>(null)
+const menuDragging = ref(false)
+const menuDragged = ref(false)
+const menuDragStartX = ref(0)
+const menuDragStartScroll = ref(0)
 let t: any
 const THEME_KEY = 'icu_theme_mode'
 let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> | null = null
@@ -131,6 +144,7 @@ const themeWrapperProps = computed(() =>
 )
 
 function onNav(key: string) {
+  if (menuDragging.value || menuDragged.value) return
   const pathMap: Record<string, string> = {
     overview: '/',
     analytics: '/analytics',
@@ -147,6 +161,38 @@ function onNav(key: string) {
   }
   const path = pathMap[key] || '/'
   router.push({ path, query: route.query })
+}
+
+function onMenuPointerDown(event: PointerEvent) {
+  const el = menuRef.value
+  if (!el || el.scrollWidth <= el.clientWidth) return
+  menuDragging.value = true
+  menuDragged.value = false
+  menuDragStartX.value = event.clientX
+  menuDragStartScroll.value = el.scrollLeft
+  el.setPointerCapture?.(event.pointerId)
+}
+
+function onMenuPointerMove(event: PointerEvent) {
+  const el = menuRef.value
+  if (!el || !menuDragging.value) return
+  const dx = event.clientX - menuDragStartX.value
+  if (Math.abs(dx) > 2) {
+    menuDragged.value = true
+    el.scrollLeft = menuDragStartScroll.value - dx
+    event.preventDefault()
+  }
+}
+
+function onMenuPointerUp(event: PointerEvent) {
+  const el = menuRef.value
+  if (el?.hasPointerCapture?.(event.pointerId)) {
+    el.releasePointerCapture(event.pointerId)
+  }
+  window.setTimeout(() => {
+    menuDragging.value = false
+    menuDragged.value = false
+  }, 0)
 }
 
 async function ensureAntdTheme() {
@@ -235,16 +281,16 @@ onUnmounted(() => clearInterval(t))
 .root { min-height: 100vh; background: var(--app-bg); font-family: var(--app-display-font, 'Noto Sans SC', 'Segoe UI', sans-serif); }
 .hdr {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(260px, auto);
   align-items: center;
-  gap: 18px;
+  gap: 12px;
   background: var(--hdr-bg-strong) !important;
   backdrop-filter: blur(14px);
   padding: 0 24px;
   min-height: 60px;
   height: auto !important;
   line-height: normal !important;
-  overflow: hidden;
+  overflow: visible;
   border-bottom: 1px solid var(--hdr-border);
   box-shadow: var(--hdr-shadow);
   position: sticky; top: 0; z-index: 100;
@@ -267,26 +313,45 @@ onUnmounted(() => clearInterval(t))
 .hdr-title { font-size: 18px; font-weight: 800; color: var(--hdr-title); letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
 .hdr-sub { font-size: 11px; color: var(--hdr-sub); letter-spacing: 0.06em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
 .hdr-menu {
+  position: relative;
   min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
   min-height: 60px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 8px 2px;
-  scrollbar-width: none;
+  padding: 8px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(96, 165, 250, .48) transparent;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
 }
 .hdr-menu::-webkit-scrollbar {
-  display: none;
+  height: 5px;
+}
+.hdr-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hdr-menu::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(96, 165, 250, .42);
+}
+.hdr-menu.is-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 .nav-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-width: max-content;
+  min-width: fit-content;
   white-space: nowrap;
+  user-select: none;
   border: 1px solid var(--nav-btn-border);
   background: var(--nav-btn-bg);
   color: var(--nav-btn-text);
@@ -309,8 +374,9 @@ onUnmounted(() => clearInterval(t))
 .hdr-tools {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-width: max-content;
+  justify-self: end;
 }
 .operator-pill {
   display: inline-flex;
@@ -329,7 +395,7 @@ onUnmounted(() => clearInterval(t))
   white-space: nowrap;
 }
 .operator-pill__input {
-  width: 118px;
+  width: clamp(88px, 8vw, 118px);
   border: 0;
   outline: 0;
   background: transparent;
@@ -461,6 +527,13 @@ onUnmounted(() => clearInterval(t))
   .hdr { gap: 12px; padding: 0 12px; }
   .hdr-sub { display: none; }
   .nav-btn { font-size: 13px; padding: 8px 10px; }
+  .operator-pill__label,
+  .toggle-text {
+    display: none;
+  }
+  .operator-pill__input {
+    width: 88px;
+  }
 }
 
 @media (max-width: 920px) {
