@@ -147,20 +147,21 @@
       <a-empty v-if="!topics.length" description="暂无课题建议。点击“AI 生成课题建议”开始发现选题。" />
       <div v-else class="topic-grid">
         <article v-for="topic in topics" :key="topic.suggestion_id || topic.title" class="topic-card">
-          <div class="topic-head">
-            <div class="topic-tags">
-              <a-tag color="cyan">{{ topic.study_design || '研究设计待定' }}</a-tag>
-              <a-tag :color="scoreColor(topic.feasibility_score)">可行性 {{ topic.feasibility_score || '—' }}</a-tag>
-            </div>
+          <div class="topic-title-row">
+            <h3>{{ localizeTitle(topic.title) }}</h3>
             <a-button class="topic-action" size="small" type="primary" ghost @click="createProjectFromTopic(topic)">转为项目</a-button>
           </div>
-          <h3>{{ localizeTitle(topic.title) }}</h3>
-          <p>{{ localizeQuestion(topic.clinical_question) }}</p>
+          <div class="topic-meta-strip">
+            <span>{{ topic.study_design || '研究设计待定' }}</span>
+            <span>可行性 {{ topic.feasibility_score || '—' }}</span>
+            <span>{{ confidenceLabel(topic.confidence) }}</span>
+          </div>
+          <p class="topic-question">{{ localizeQuestion(topic.clinical_question) }}</p>
           <div class="evidence-box">
             <strong>数据依据</strong>
             <span>{{ localizeText(topic.data_basis) }}</span>
           </div>
-          <dl>
+          <dl class="topic-detail-grid">
             <div>
               <dt>主要结局</dt>
               <dd>{{ topic.primary_outcome || '待 PI 确认' }}</dd>
@@ -172,7 +173,7 @@
           </dl>
           <div class="topic-foot">
             <span>{{ topic.multi_center_potential ? '适合多中心协作' : '单中心优先' }}</span>
-            <span>{{ confidenceLabel(topic.confidence) }}</span>
+            <span>需 PI 复核</span>
           </div>
         </article>
       </div>
@@ -314,9 +315,6 @@ function fieldLabel(field: string) {
 }
 function statusColor(status: string) {
   return status === '已发表' || status === '结题' ? 'green' : status === '投稿中' ? 'purple' : status === '进行中' ? 'blue' : 'gold'
-}
-function scoreColor(score: number) {
-  return Number(score || 0) >= 85 ? 'green' : Number(score || 0) >= 70 ? 'cyan' : 'gold'
 }
 function confidenceLabel(value: string) {
   return ({ high: '置信度较高', medium: '置信度中等', low: '置信度较低' } as any)[value] || '需人工复核'
@@ -469,27 +467,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   gap: 10px;
   align-items: center;
 }
-.topic-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: start;
-}
-.topic-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
-.topic-tags :deep(.ant-tag) {
-  max-width: 100%;
-  white-space: normal;
-  line-height: 1.35;
-  word-break: break-word;
-}
-.topic-action {
-  flex-shrink: 0;
-}
+.topic-action { flex-shrink: 0; }
 .project-card small, .topic-foot, .panel-hint, .quality-row, .soft-empty { color: #88a2b4; }
 .quality-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
 .quality-summary article { padding: 12px; }
@@ -573,16 +551,33 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .milestone-list strong { color: #e6f7ff; }
 .milestone-list span { color: #b7cfe0; }
 .milestone-list small { color: #88a2b4; }
-.topic-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.topic-panel :deep(.ant-card-body) {
+  padding: 18px;
+}
+.topic-grid {
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  align-items: stretch;
+}
 .topic-card {
   min-width: 0;
-  padding: 14px;
+  padding: 18px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  align-content: start;
   overflow: hidden;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 38%),
+    linear-gradient(180deg, rgba(10, 27, 43, .96), rgba(7, 20, 34, .94));
+}
+.topic-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
 }
 .topic-card h3,
-.topic-card p,
+.topic-question,
 .topic-card dd,
 .evidence-box span,
 .topic-foot span {
@@ -591,9 +586,31 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   word-break: break-word;
 }
 .topic-card h3 {
+  color: #f0fbff;
+  font-size: 17px;
   line-height: 1.45;
 }
-.topic-card > p,
+.topic-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.topic-meta-strip span {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 232, 249, .14);
+  background: rgba(14, 116, 144, .14);
+  color: #9be7ff;
+  font-size: 12px;
+}
+.topic-question {
+  color: #c8dfed;
+  line-height: 1.7;
+}
+.topic-question,
 .evidence-box span,
 .topic-card dd {
   display: -webkit-box;
@@ -603,21 +620,148 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 }
 .evidence-box {
   display: grid;
-  gap: 4px;
-  padding: 10px;
-  border-radius: 12px;
-  background: rgba(2, 8, 20, .24);
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(2, 8, 20, .28);
+  border: 1px solid rgba(125, 167, 214, .1);
 }
 .evidence-box strong, .topic-card dt { color: #67e8f9; }
-.topic-card dl { display: grid; gap: 8px; margin: 0; }
+.evidence-box span {
+  color: #b7cfe0;
+  line-height: 1.65;
+}
+.topic-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.topic-detail-grid > div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(2, 8, 20, .18);
+}
 .topic-card dd { margin: 2px 0 0; }
 .drawer-tip { margin-bottom: 12px; }
+html[data-theme='light'] .research-page {
+  color: #10243d;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(14, 165, 233, .14), transparent 30%),
+    radial-gradient(circle at 88% 12%, rgba(20, 184, 166, .10), transparent 32%),
+    linear-gradient(180deg, rgba(236, 252, 255, .96), rgba(247, 250, 252, .98));
+}
+html[data-theme='light'] .research-hero,
+html[data-theme='light'] .panel,
+html[data-theme='light'] .guide-card,
+html[data-theme='light'] .kpi-card,
+html[data-theme='light'] .project-card,
+html[data-theme='light'] .topic-card,
+html[data-theme='light'] .quality-summary article,
+html[data-theme='light'] .distribution-grid article,
+html[data-theme='light'] .milestone-list article,
+html[data-theme='light'] .governance-card,
+html[data-theme='light'] .empty-project,
+html[data-theme='light'] .omop-note,
+html[data-theme='light'] .evidence-box,
+html[data-theme='light'] .topic-detail-grid > div {
+  border-color: rgba(203, 213, 225, .82);
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+}
+html[data-theme='light'] .kpi-card--cyan,
+html[data-theme='light'] .topic-card {
+  border-color: rgba(14, 165, 233, .22);
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+}
+html[data-theme='light'] .kpi-card--amber {
+  border-color: rgba(245, 158, 11, .26);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 251, 235, .96));
+}
+html[data-theme='light'] .kpi-card--rose {
+  border-color: rgba(251, 113, 133, .24);
+  background:
+    radial-gradient(circle at top right, rgba(251, 113, 133, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 241, 242, .96));
+}
+html[data-theme='light'] h1,
+html[data-theme='light'] .guide-card strong,
+html[data-theme='light'] .project-card h3,
+html[data-theme='light'] .topic-card h3,
+html[data-theme='light'] .kpi-card strong,
+html[data-theme='light'] .quality-summary strong,
+html[data-theme='light'] .omop-note strong,
+html[data-theme='light'] .section-title,
+html[data-theme='light'] .governance-card strong,
+html[data-theme='light'] .distribution-grid strong,
+html[data-theme='light'] .milestone-list strong,
+html[data-theme='light'] .empty-project h2 {
+  color: #12314f;
+}
+html[data-theme='light'] .research-hero p,
+html[data-theme='light'] .guide-card p,
+html[data-theme='light'] .project-card p,
+html[data-theme='light'] .topic-question,
+html[data-theme='light'] .topic-card dd,
+html[data-theme='light'] .omop-note p,
+html[data-theme='light'] .project-card small,
+html[data-theme='light'] .topic-foot,
+html[data-theme='light'] .panel-hint,
+html[data-theme='light'] .quality-row,
+html[data-theme='light'] .soft-empty,
+html[data-theme='light'] .kpi-card span,
+html[data-theme='light'] .kpi-card small,
+html[data-theme='light'] .quality-summary span,
+html[data-theme='light'] .governance-card p,
+html[data-theme='light'] .distribution-grid span,
+html[data-theme='light'] .milestone-list span,
+html[data-theme='light'] .milestone-list small,
+html[data-theme='light'] .empty-project p,
+html[data-theme='light'] .evidence-box span {
+  color: #64748b;
+}
+html[data-theme='light'] .eyebrow,
+html[data-theme='light'] .guide-card span,
+html[data-theme='light'] .evidence-box strong,
+html[data-theme='light'] .topic-card dt {
+  color: #0369a1;
+}
+html[data-theme='light'] .topic-meta-strip span {
+  border-color: rgba(186, 230, 253, .88);
+  background: rgba(240, 249, 255, .98);
+  color: #0369a1;
+}
+html[data-theme='light'] .quality-table {
+  border-color: rgba(203, 213, 225, .82);
+}
+html[data-theme='light'] .quality-row {
+  border-bottom-color: rgba(203, 213, 225, .72);
+}
+html[data-theme='light'] .quality-row--head {
+  background: rgba(240, 249, 255, .98);
+  color: #0369a1;
+}
+html[data-theme='light'] .topic-action.ant-btn-background-ghost {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, .32);
+  background: rgba(239, 246, 255, .92);
+}
 @media (max-width: 1280px) {
   .guide-rail, .kpi-grid, .dashboard-grid, .portfolio-grid { grid-template-columns: 1fr 1fr; }
+  .topic-grid { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
 }
 @media (max-width: 760px) {
   .research-page { padding: 12px; }
   .research-hero { flex-direction: column; }
   .guide-rail, .kpi-grid, .dashboard-grid, .quality-summary, .portfolio-grid { grid-template-columns: 1fr; }
+  .topic-grid,
+  .topic-detail-grid { grid-template-columns: 1fr; }
+  .topic-title-row { grid-template-columns: 1fr; }
 }
 </style>
