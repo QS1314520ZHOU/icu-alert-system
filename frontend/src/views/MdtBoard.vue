@@ -892,7 +892,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button as AButton, Card as ACard } from 'ant-design-vue'
+import { Button as AButton, Card as ACard, message } from 'ant-design-vue'
 import {
   generateAiDocument,
   getAiMdtWorkspace,
@@ -1002,10 +1002,15 @@ const metaActionCount = computed(() => metaActions.value.length)
 const priorityRows = computed(() => Array.isArray(metaSummaryRecord.value?.top_priorities) ? metaSummaryRecord.value.top_priorities : [])
 const activeSpecialist = computed(() => specialistRows.value.find((item: any) => item.agent === activeAgent.value) || specialistRows.value[0] || null)
 const syncableAiActions = computed(() => {
-  const rows = metaActions.value.length
-    ? metaActions.value
-    : specialistRows.value.flatMap((item: any) => Array.isArray(item?.recommendations) ? item.recommendations : [])
-  const actions = rows.map((item: any) => String(item || '').trim()).filter(Boolean)
+  const rows = [
+    ...metaActions.value,
+    ...priorityRows.value.map((item: any) => item?.action || item?.recommendation || item?.summary || item?.title || ''),
+    ...specialistRows.value.flatMap((item: any) => Array.isArray(item?.recommendations) ? item.recommendations : []),
+  ]
+  const actions = rows.map((item: any) => {
+    if (typeof item === 'string') return item.trim()
+    return String(item?.action || item?.recommendation || item?.summary || item?.title || '').trim()
+  }).filter(Boolean)
   return Array.from(new Set<string>(actions)).slice(0, 8)
 })
 const systemCards = computed(() => {
@@ -1751,7 +1756,14 @@ function markVisibleDecisions(status: 'in_progress' | 'completed') {
 }
 
 function syncDecisionsFromMetaActions() {
-  if (isSessionClosed.value || !syncableAiActions.value.length) return
+  if (isSessionClosed.value) {
+    message.warning('当前 MDT 会话已归档，只读状态下不能同步 AI 动作')
+    return
+  }
+  if (!syncableAiActions.value.length) {
+    message.info('当前 AI 会诊结果还没有可同步动作，可先生成/刷新 MDT 会诊或手动新增决议')
+    return
+  }
   const existing = new Set(decisions.value.map((item: any) => String(item.action || '').trim()).filter(Boolean))
   const additions = syncableAiActions.value
     .filter((item: string) => !existing.has(String(item || '').trim()))
@@ -1765,9 +1777,13 @@ function syncDecisionsFromMetaActions() {
       status: 'pending',
       note: '由总控智能体动作同步',
     }))
-  if (!additions.length) return
+  if (!additions.length) {
+    message.info('AI 动作已全部在决议列表中，无需重复同步')
+    return
+  }
   decisions.value = [...decisions.value, ...additions]
   appendActivityLog('同步 AI 动作', `已追加 ${additions.length} 条 AI 最终动作到决议列表`)
+  message.success(`已同步 ${additions.length} 条 AI 动作到决议列表`)
 }
 
 function fillDecisionDefaults() {

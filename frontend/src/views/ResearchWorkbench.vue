@@ -2483,6 +2483,25 @@ function useDefaultSubgroups() {
   ]
 }
 
+function hydratePlanSubgroups(raw: any) {
+  const rows = Array.isArray(raw) ? raw : []
+  const parsed = rows
+    .map((item: any, idx: number) => {
+      const name = String(item?.name || item?.label || item?.key || `亚组${idx + 1}`).trim()
+      const filter = item?.filter || item?.condition || item?.where || null
+      if (!filter || typeof filter !== 'object') return null
+      return {
+        key: `ai_${idx}_${name}`,
+        label: name,
+        enabled: true,
+        filterText: JSON.stringify(filter),
+      }
+    })
+    .filter(Boolean) as Array<{ key: string; label: string; enabled: boolean; filterText: string }>
+  if (parsed.length) subgroupForm.subgroups = parsed
+  else if (!subgroupForm.subgroups.length) useDefaultSubgroups()
+}
+
 function normalizeAnalysisKey(value: string): AnalysisKey | null {
   const key = String(value || '').trim() as AnalysisKey
   if (['table1', 'survival', 'regression', 'roc', 'subgroup', 'trend', 'correlation'].includes(key)) return key
@@ -2630,7 +2649,7 @@ async function applyAiPlan(plan: AnyRecord, autoRun = true, runStep?: PlannerRun
     survival: runSurvival,
     regression: runRegression,
     roc: runRoc,
-    subgroup: async () => message.info('亚组分析暂未接入 AI 自动运行，请手动点运行'),
+    subgroup: runSubgroup,
     trend: runTrend,
     correlation: runCorrelation,
   }
@@ -2644,6 +2663,19 @@ async function applyAiPlan(plan: AnyRecord, autoRun = true, runStep?: PlannerRun
     if (key === 'roc' && Array.isArray(item?.params?.predictors)) {
       rocForm.predictors = item.params.predictors.map(normalizePlanVariable).filter((f: string) => variableCatalog.some((x) => x.field === f))
       if (item?.params?.outcome) rocForm.outcome = normalizePlanVariable(item.params.outcome)
+    }
+    if (key === 'subgroup') {
+      const params = (item?.params || {}) as AnyRecord
+      if (params?.exposure) {
+        const exposure = normalizePlanVariable(params.exposure)
+        if (variableCatalog.some((x) => x.field === exposure)) subgroupForm.exposure = exposure
+      }
+      if (params?.outcome) {
+        const outcome = normalizePlanVariable(params.outcome)
+        if (variableCatalog.some((x) => x.field === outcome)) subgroupForm.outcome = outcome
+      }
+      if (params?.outcome_type) subgroupForm.outcome_type = String(params.outcome_type) === 'continuous' ? 'continuous' : 'binary'
+      hydratePlanSubgroups(params?.subgroups)
     }
     if (key === 'trend' && Array.isArray(item?.params?.indicators)) {
       trendForm.indicators = item.params.indicators.map(normalizePlanVariable).filter((f: string) => variableCatalog.some((x) => x.field === f))
