@@ -21,6 +21,20 @@
           </div>
         </header>
 
+        <section v-if="viewMode === 'moderator'" class="mdt-flow">
+          <article
+            v-for="step in workflowSteps"
+            :key="step.key"
+            :class="['mdt-flow-step', { 'is-active': step.key === currentWorkflowStep, 'is-done': step.done }]"
+          >
+            <span class="mdt-flow-step__index">{{ step.index }}</span>
+            <div>
+              <strong>{{ step.title }}</strong>
+              <small>{{ step.desc }}</small>
+            </div>
+          </article>
+        </section>
+
         <section class="mdt-clinical-strip">
           <article class="clinical-card clinical-card--patient">
             <div class="clinical-card__head">
@@ -248,6 +262,206 @@
       </aside>
 
       <main :class="['mdt-content', `mdt-content--${viewMode}`]">
+        <section v-if="viewMode === 'moderator'" class="mdt-moderator-board">
+          <div class="mdt-primary-lane">
+            <a-card :bordered="false" class="mdt-panel mdt-guide-panel">
+              <div class="guide-header">
+                <div>
+                  <div class="section-kicker">今日会诊路径</div>
+                  <h2>{{ primaryGuidanceTitle }}</h2>
+                  <p>{{ primaryGuidanceText }}</p>
+                </div>
+                <div class="guide-score">
+                  <span>闭环率</span>
+                  <strong>{{ closurePercent }}%</strong>
+                </div>
+              </div>
+              <div class="guide-actions">
+                <a-button type="primary" :loading="loading" @click="loadAssessment(true)">
+                  {{ selectedPatientId ? '刷新 MDT 会诊' : '先选择患者' }}
+                </a-button>
+                <a-button :disabled="isSessionClosed || !metaActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
+                <a-button :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存会话</a-button>
+              </div>
+            </a-card>
+
+            <a-card :bordered="false" class="mdt-panel" title="1. 总控结论">
+              <div class="clinical-summary-layout">
+                <div class="summary-box summary-box--hero">
+                  {{ isGeneratingAssessment ? '总控智能体正在汇总专科意见、冲突焦点与优先级动作。' : metaSummary }}
+                </div>
+                <div class="clinical-facts">
+                  <div class="clinical-fact">
+                    <span>风险等级</span>
+                    <strong>{{ mdtSeverityLabel }}</strong>
+                  </div>
+                  <div class="clinical-fact">
+                    <span>当前阶段</span>
+                    <strong>{{ currentPhaseLabel }}</strong>
+                  </div>
+                  <div class="clinical-fact">
+                    <span>聚焦系统</span>
+                    <strong>{{ activeSystemLabel }}</strong>
+                  </div>
+                </div>
+              </div>
+            </a-card>
+
+            <a-card :bordered="false" class="mdt-panel" title="2. 冲突焦点与专科意见">
+              <div class="mdt-review-grid">
+                <section>
+                  <div class="detail-label">需要主持人裁决</div>
+                  <div v-if="conflictRows.length" class="conflict-list">
+                    <article v-for="(item, idx) in conflictRows.slice(0, 4)" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-card">
+                      <div class="conflict-card__title">{{ item.summary || '存在跨专科冲突' }}</div>
+                      <div class="conflict-card__agents">{{ (item.agents || []).map(domainLabel).join(' / ') || '多专科' }}</div>
+                      <div class="conflict-card__meta">{{ item.resolution_focus || '需结合动态病情进一步裁决。' }}</div>
+                    </article>
+                  </div>
+                  <div v-else-if="isGeneratingAssessment" class="empty-box">会诊生成中，正在汇总冲突焦点。</div>
+                  <div v-else class="empty-box">当前没有明显冲突，可直接进入执行闭环。</div>
+                </section>
+                <section>
+                  <div class="detail-label">当前专科意见 · {{ activeSystemLabel }}</div>
+                  <div v-if="activeSpecialist" class="detail-stack">
+                    <div class="summary-box">{{ activeSpecialist.summary || '暂无摘要' }}</div>
+                    <div class="detail-block">
+                      <div class="detail-label">建议动作</div>
+                      <ul class="action-list">
+                        <li v-for="(item, idx) in (activeSpecialist.recommendations || []).slice(0, 4)" :key="`moderator-rec-${idx}`">{{ item }}</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div v-else class="empty-box">点击左侧七大系统，查看对应专科意见。</div>
+                </section>
+              </div>
+            </a-card>
+
+            <a-card :bordered="false" class="mdt-panel" title="3. 决议记录与闭环">
+              <div class="decision-command-strip">
+                <div>
+                  <div class="section-kicker">执行闭环</div>
+                  <strong>{{ pendingDecisionCount + inProgressDecisionCount }} 项仍需推进</strong>
+                  <span>{{ completedDecisionCount }} 项已完成，{{ dismissedDecisionCount }} 项已取消</span>
+                </div>
+                <div class="decision-command-actions">
+                  <a-button size="small" :disabled="isSessionClosed || !decisionRows.length" @click="fillDecisionDefaults">补全字段</a-button>
+                  <a-button size="small" @click="addDecision" :disabled="isSessionClosed">新增决议</a-button>
+                  <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存决议</a-button>
+                </div>
+              </div>
+              <div class="decision-summary-row">
+                <div class="sheet-item">
+                  <span>待执行</span>
+                  <strong>{{ pendingDecisionCount }}</strong>
+                </div>
+                <div class="sheet-item">
+                  <span>进行中</span>
+                  <strong>{{ inProgressDecisionCount }}</strong>
+                </div>
+                <div class="sheet-item">
+                  <span>已完成</span>
+                  <strong>{{ completedDecisionCount }}</strong>
+                </div>
+                <div class="sheet-item">
+                  <span>已取消</span>
+                  <strong>{{ dismissedDecisionCount }}</strong>
+                </div>
+              </div>
+              <div class="workspace-actions workspace-actions--top">
+                <a-button size="small" :disabled="isSessionClosed" @click="setPhase('collecting')">收集中</a-button>
+                <a-button size="small" :disabled="isSessionClosed" @click="setPhase('conflict_review')">冲突评审</a-button>
+                <a-button size="small" type="primary" :disabled="isSessionClosed" @click="setPhase('finalizing')">裁决定稿</a-button>
+                <label class="inline-toggle">
+                  <input v-model="decisionOpenOnly" type="checkbox">
+                  <span>只看待执行</span>
+                </label>
+              </div>
+              <div class="decision-list decision-list--guided">
+                <article v-for="(item, idx) in guidedDecisionRows" :key="item.id || `guided-decision-${idx}`" class="decision-item">
+                  <div class="decision-item__head">
+                    <strong>决议 {{ Number(idx) + 1 }}</strong>
+                    <span>{{ ({ pending: '待执行', in_progress: '进行中', completed: '已完成', dismissed: '已取消', draft: '草稿' } as Record<string, string>)[String(item.status || 'pending').toLowerCase()] || '待执行' }}</span>
+                  </div>
+                  <div class="decision-form">
+                    <input v-model="item.action" class="field-input" :disabled="isSessionClosed" placeholder="输入 MDT 决议动作" />
+                    <div class="decision-form__grid">
+                      <input v-model="item.owner" class="field-input" :disabled="isSessionClosed" placeholder="负责人" />
+                      <input v-model="item.deadline" class="field-input" :disabled="isSessionClosed" placeholder="执行时限" />
+                      <input v-model="item.monitoring" class="field-input" :disabled="isSessionClosed" placeholder="监测指标" />
+                      <select v-model="item.status" class="panel-select" :disabled="isSessionClosed">
+                        <option value="pending">待执行</option>
+                        <option value="in_progress">进行中</option>
+                        <option value="completed">已完成</option>
+                        <option value="dismissed">已取消</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="decision-item__meta">
+                    <button type="button" class="mini-link" :disabled="isSessionClosed" @click="markDecisionStatus(item.id, 'completed')">标记完成</button>
+                    <button type="button" class="mini-link" :disabled="isSessionClosed" @click="removeDecision(item.id)">删除</button>
+                  </div>
+                </article>
+              </div>
+            </a-card>
+          </div>
+
+          <aside class="mdt-action-rail">
+            <a-card :bordered="false" class="mdt-panel" title="主持人下一步">
+              <div class="next-action-box next-action-box--large">{{ nextActionText }}</div>
+              <div v-if="todoRows.length" class="todo-list">
+                <div v-for="item in todoRows.slice(0, 4)" :key="item.id" class="todo-row">
+                  <strong>{{ item.action }}</strong>
+                  <small>{{ item.owner }} / {{ item.deadline || '时限未填' }}</small>
+                </div>
+              </div>
+            </a-card>
+
+            <a-card :bordered="false" class="mdt-panel" title="会诊信息">
+              <div class="meta-edit-grid">
+                <input v-model="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="标签：脓毒症、撤机、高乳酸" />
+                <input v-model="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="参与成员：ICU、感染、呼吸、药学" />
+                <textarea v-model="finalSummary" class="field-textarea" :disabled="isSessionClosed" rows="4" placeholder="最终纪要（留空则关闭会话时自动生成）"></textarea>
+              </div>
+            </a-card>
+
+            <a-card :bordered="false" class="mdt-panel" title="文书与归档">
+              <div class="doc-status-board doc-status-board--rail">
+                <article v-for="item in documentStatusRows" :key="item.key" class="doc-status-card">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.status }}</strong>
+                  <small>{{ item.detail }}</small>
+                </article>
+              </div>
+              <div class="workspace-actions">
+                <a-button size="small" :loading="generatingDocType === 'consultation_request'" @click="generateDocument('consultation_request')">生成会诊记录</a-button>
+                <a-button size="small" :loading="generatingDocType === 'daily_progress'" @click="generateDocument('daily_progress')">生成病程</a-button>
+              </div>
+            </a-card>
+
+            <a-card :bordered="false" class="mdt-panel" title="最近会话">
+              <div class="workspace-actions workspace-actions--top workspace-actions--sidebar">
+                <a-button size="small" @click="startNewSession">新建</a-button>
+                <a-button size="small" :disabled="!currentSessionId" @click="duplicateCurrentSession">复制</a-button>
+                <a-button size="small" :disabled="!currentSessionId" @click="exportCurrentSession">导出</a-button>
+              </div>
+              <div v-if="visibleWorkspaceSessions.length" class="session-compact-list">
+                <button
+                  v-for="item in visibleWorkspaceSessions.slice(0, 5)"
+                  :key="item.session_id"
+                  type="button"
+                  :class="['session-compact-item', { 'is-active': currentSessionId === item.session_id }]"
+                  @click="switchSession(String(item.session_id || ''))"
+                >
+                  <strong>{{ item.title || 'MDT 会话' }}</strong>
+                  <span>{{ phaseLabel(item.phase) }} · {{ item.updated_at ? String(item.updated_at).slice(5, 16).replace('T', ' ') : '时间未记载' }}</span>
+                </button>
+              </div>
+              <div v-else class="empty-box">当前患者暂无已保存 MDT 会话。</div>
+            </a-card>
+          </aside>
+        </section>
+
         <a-card v-if="viewMode === 'deep'" :bordered="false" class="mdt-panel mdt-panel--hero" :title="`${activeSystemLabel} 详细分析`">
           <div class="section-kicker">专科深度面板</div>
           <div class="summary-box summary-box--hero">{{ isGeneratingAssessment ? '总控智能体正在汇总专科意见、冲突焦点与优先级动作。' : metaSummary }}</div>
@@ -409,7 +623,7 @@
           </a-card>
         </div>
 
-        <div :class="['mdt-content-grid', 'mdt-grid--timeline', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--timeline']">
           <a-card :bordered="false" class="mdt-panel" title="MDT 冲突高亮">
             <div v-if="conflictRows.length" class="conflict-list">
               <article v-for="(item, idx) in conflictRows" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-card">
@@ -460,7 +674,7 @@
           </a-card>
         </div>
 
-        <div :class="['mdt-content-grid', 'mdt-grid--decisions', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--decisions']">
           <a-card :bordered="false" class="mdt-panel" title="会诊活动时间线">
             <div v-if="activityTimelineRows.length" class="detail-timeline">
               <article v-for="item in activityTimelineRows" :key="item.id" class="timeline-item">
@@ -488,7 +702,7 @@
           </a-card>
         </div>
 
-        <div :class="['mdt-content-grid', 'mdt-grid--assessment', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--assessment']">
           <a-card v-if="viewMode === 'deep'" :bordered="false" class="mdt-panel" title="总控智能体全局优先级">
             <div v-if="priorityRows.length" class="priority-row">
               <article v-for="item in priorityRows" :key="`${item.agent}-${item.domain}`" :class="['priority-card', `is-${item.priority || 'medium'}`]">
@@ -613,7 +827,7 @@
           </a-card>
         </div>
 
-        <div :class="['mdt-content-grid', 'mdt-grid--documents', { 'mdt-content-grid--single': viewMode === 'moderator' }]">
+        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--documents']">
           <a-card :bordered="false" class="mdt-panel" title="会诊记录 / 病程记录">
             <div class="doc-status-board">
               <article v-for="item in documentStatusRows" :key="item.key" class="doc-status-card">
@@ -622,26 +836,7 @@
                 <small>{{ item.detail }}</small>
               </article>
             </div>
-            <div v-if="viewMode === 'moderator'" class="doc-stack doc-stack--compact">
-              <div class="doc-block">
-                <div class="detail-label">会诊记录摘要</div>
-                <div class="summary-box">{{ consultRecord || '暂无会诊记录，可切换到深度视图编辑完整文书。' }}</div>
-                <div class="workspace-actions">
-                  <a-button size="small" :loading="generatingDocType === 'consultation_request'" @click="generateDocument('consultation_request')">智能生成会诊记录</a-button>
-                  <a-button size="small" :disabled="!consultRecord" @click="copyText(consultRecord, '会诊记录已复制')">复制</a-button>
-                  <a-button size="small" type="primary" :loading="savingWorkspace" @click="saveWorkspace">保存摘要</a-button>
-                </div>
-              </div>
-              <div class="doc-block">
-                <div class="detail-label">病程记录摘要</div>
-                <div class="summary-box">{{ progressRecord || '暂无病程记录，可切换到深度视图编辑完整文书。' }}</div>
-                <div class="workspace-actions">
-                  <a-button size="small" :loading="generatingDocType === 'daily_progress'" @click="generateDocument('daily_progress')">智能生成病程记录</a-button>
-                  <a-button size="small" :disabled="!progressRecord" @click="copyText(progressRecord, '病程记录已复制')">复制</a-button>
-                </div>
-              </div>
-            </div>
-            <div v-else class="doc-stack">
+            <div class="doc-stack">
               <div class="doc-block">
                 <div class="detail-label">MDT 会诊记录</div>
                 <textarea v-model="consultRecord" class="field-textarea field-textarea--lg" :disabled="isSessionClosed" rows="8" placeholder="可先编辑，再一键保存或用智能生成。"></textarea>
@@ -1006,6 +1201,12 @@ const decisionBuckets = computed(() => {
     { key: 'dismissed', label: '已取消', items: rows.filter((item: any) => String(item.status || '') === 'dismissed') },
   ].filter((bucket) => bucket.items.length > 0 || !decisionOpenOnly.value)
 })
+const guidedDecisionRows = computed(() => {
+  const rows = decisionOpenOnly.value
+    ? decisionRows.value.filter((item: any) => ['pending', 'in_progress'].includes(String(item.status || 'pending')))
+    : decisionRows.value
+  return rows.slice(0, 6)
+})
 const latestGeneratedDocuments = computed(() =>
   workspaceDocuments.value.reduce((acc: Record<string, any>, item: any) => {
     const key = String(item?.doc_type || '')
@@ -1153,6 +1354,56 @@ const todoRows = computed(() =>
     .filter((item: any) => ['pending', 'in_progress'].includes(String(item.status || 'pending')))
     .slice(0, 5)
 )
+const currentWorkflowStep = computed(() => {
+  if (!selectedPatientId.value) return 'patient'
+  if (isGeneratingAssessment.value || (!conflictRows.value.length && !metaActions.value.length && !decisions.value.length)) return 'review'
+  if (pendingDecisionCount.value || inProgressDecisionCount.value) return 'decision'
+  return 'archive'
+})
+const workflowSteps = computed(() => [
+  {
+    key: 'patient',
+    index: '01',
+    title: '选择患者',
+    desc: selectedPatientId.value ? selectedPatientLabel.value : '先选床号或从患者详情带入',
+    done: Boolean(selectedPatientId.value),
+  },
+  {
+    key: 'review',
+    index: '02',
+    title: '看结论与冲突',
+    desc: conflictRows.value.length ? `${conflictRows.value.length} 个冲突需裁决` : '确认总控结论和专科意见',
+    done: Boolean(selectedPatientId.value && !isGeneratingAssessment.value && (conflictRows.value.length || metaActions.value.length || decisions.value.length)),
+  },
+  {
+    key: 'decision',
+    index: '03',
+    title: '形成决议',
+    desc: decisionRows.value.length ? `${decisionRows.value.length} 条决议，${pendingDecisionCount.value + inProgressDecisionCount.value} 条待推进` : '同步 AI 动作或新增决议',
+    done: Boolean(decisionRows.value.length && completedDecisionCount.value === decisionRows.value.length),
+  },
+  {
+    key: 'archive',
+    index: '04',
+    title: '生成文书',
+    desc: consultRecord.value || progressRecord.value ? '文书已形成，可保存归档' : '生成会诊记录和病程记录',
+    done: Boolean(consultRecord.value || progressRecord.value || isSessionClosed.value),
+  },
+])
+const primaryGuidanceTitle = computed(() => {
+  if (!selectedPatientId.value) return '先选患者，页面会自动收敛到这次 MDT'
+  if (isGeneratingAssessment.value) return '正在生成会诊，先等总控智能体汇总'
+  if (conflictRows.value.length) return '先裁决冲突，再下执行动作'
+  if (pendingDecisionCount.value || inProgressDecisionCount.value) return '现在重点是把决议闭环'
+  return '会诊基本闭环，可以生成文书归档'
+})
+const primaryGuidanceText = computed(() => {
+  if (!selectedPatientId.value) return '左侧选择患者后，系统会自动拉取专科意见、冲突焦点和历史会话，避免医生先面对一整屏空信息。'
+  if (isGeneratingAssessment.value) return '请稍候，生成完成后优先看“总控结论”和“冲突焦点”，不用在所有模块里来回找。'
+  if (conflictRows.value.length) return `当前有 ${conflictRows.value.length} 个跨专科冲突，建议先确认主持人裁决，再同步为执行决议。`
+  if (pendingDecisionCount.value || inProgressDecisionCount.value) return `还有 ${pendingDecisionCount.value + inProgressDecisionCount.value} 条决议未闭环，优先明确负责人、时限和监测指标。`
+  return '决议已基本完成，建议生成会诊记录和病程记录，并保存或关闭当前会话。'
+})
 const closureTone = computed(() => {
   if (pendingDecisionCount.value > 0) return 'warning'
   if (completedDecisionCount.value > 0 && completedDecisionCount.value === decisionRows.value.length) return 'soft'
@@ -1800,6 +2051,54 @@ onMounted(async () => {
   gap: 8px;
   justify-content: flex-end;
 }
+.mdt-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.mdt-flow-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 167, 214, 0.14);
+  background: rgba(9, 20, 31, 0.72);
+}
+.mdt-flow-step__index {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(15, 42, 61, 0.9);
+  color: #a7dff2;
+  font-size: 12px;
+  font-weight: 800;
+}
+.mdt-flow-step strong {
+  display: block;
+  color: #f3f8fb;
+  font-size: 13px;
+}
+.mdt-flow-step small {
+  display: block;
+  margin-top: 3px;
+  color: #91adbd;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.mdt-flow-step.is-active {
+  border-color: rgba(34, 211, 238, 0.36);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 40%),
+    rgba(9, 25, 38, 0.9);
+}
+.mdt-flow-step.is-done .mdt-flow-step__index {
+  background: rgba(10, 82, 61, 0.92);
+  color: #bbf7d0;
+}
 .hero-badge {
   display: inline-flex;
   align-items: center;
@@ -2240,39 +2539,7 @@ onMounted(async () => {
   align-items: start;
 }
 .mdt-content--moderator {
-  grid-template-columns: minmax(0, 1.38fr) minmax(360px, .82fr);
-  grid-auto-flow: row dense;
-}
-.mdt-content--moderator > .mdt-content-grid {
-  display: contents;
-}
-.mdt-content--moderator .mdt-grid--assessment > .mdt-panel:last-child {
-  grid-column: 1;
-  grid-row: 1;
-}
-.mdt-content--moderator .mdt-grid--assessment > .mdt-panel:first-child {
-  grid-column: 2;
-  grid-row: 1;
-}
-.mdt-content--moderator .mdt-grid--decisions > .mdt-panel:last-child {
-  grid-column: 1;
-  grid-row: 2 / span 2;
-}
-.mdt-content--moderator .mdt-grid--documents > .mdt-panel:first-child {
-  grid-column: 1;
-  grid-row: 4;
-}
-.mdt-content--moderator .mdt-grid--timeline > .mdt-panel:first-child {
-  grid-column: 2;
-  grid-row: 2;
-}
-.mdt-content--moderator .mdt-grid--timeline > .mdt-panel:last-child {
-  grid-column: 2;
-  grid-row: 3;
-}
-.mdt-content--moderator .mdt-grid--documents > .mdt-panel:last-child {
-  grid-column: 2;
-  grid-row: 4;
+  grid-template-columns: 1fr;
 }
 .mdt-content--moderator .mdt-panel {
   min-width: 0;
@@ -2299,6 +2566,139 @@ onMounted(async () => {
 .mdt-content--moderator .impact-list,
 .mdt-content--moderator .decision-list {
   gap: 8px;
+}
+.mdt-moderator-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, .7fr);
+  gap: 14px;
+  align-items: start;
+}
+.mdt-primary-lane,
+.mdt-action-rail {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.mdt-action-rail {
+  position: sticky;
+  top: 16px;
+}
+.mdt-guide-panel :deep(.ant-card-body) {
+  padding: 18px;
+}
+.guide-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+.guide-header h2 {
+  margin: 4px 0 6px;
+  color: #f3f8fb;
+  font-size: clamp(20px, 1.7vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+.guide-header p {
+  margin: 0;
+  color: #a8c0ce;
+  font-size: 13px;
+  line-height: 1.75;
+}
+.guide-score {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  min-width: 96px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(52, 211, 153, 0.18);
+  background: rgba(9, 57, 43, 0.44);
+}
+.guide-score span {
+  color: #9fd8c2;
+  font-size: 11px;
+}
+.guide-score strong {
+  color: #d8fff0;
+  font-size: 28px;
+  line-height: 1;
+}
+.guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.clinical-summary-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, .38fr);
+  gap: 12px;
+}
+.clinical-facts {
+  display: grid;
+  gap: 8px;
+}
+.clinical-fact {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(125, 167, 214, 0.14);
+  background: rgba(9, 20, 31, 0.74);
+}
+.clinical-fact span {
+  color: #89a6b8;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.clinical-fact strong {
+  color: #f3f8fb;
+  font-size: 16px;
+}
+.mdt-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  gap: 12px;
+}
+.next-action-box--large {
+  font-size: 14px;
+  line-height: 1.75;
+}
+.decision-list--guided {
+  max-height: 560px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.doc-status-board--rail {
+  grid-template-columns: 1fr;
+}
+.session-compact-list {
+  display: grid;
+  gap: 8px;
+}
+.session-compact-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid rgba(125, 167, 214, 0.12);
+  background: rgba(9, 20, 31, 0.78);
+  cursor: pointer;
+}
+.session-compact-item strong {
+  color: #f3f8fb;
+  font-size: 12px;
+}
+.session-compact-item span {
+  color: #93adbc;
+  font-size: 11px;
+}
+.session-compact-item.is-active {
+  border-color: rgba(34, 211, 238, 0.32);
+  box-shadow: inset 3px 0 0 rgba(34, 211, 238, .82);
 }
 .patient-sheet {
   display: grid;
@@ -2892,6 +3292,11 @@ html[data-theme='light'] .mdt-panel {
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 html[data-theme='light'] .hero-badge,
+html[data-theme='light'] .mdt-flow-step,
+html[data-theme='light'] .mdt-flow-step__index,
+html[data-theme='light'] .clinical-fact,
+html[data-theme='light'] .guide-score,
+html[data-theme='light'] .session-compact-item,
 html[data-theme='light'] .hero-conclusion-card,
 html[data-theme='light'] .todo-row,
 html[data-theme='light'] .cockpit-main,
@@ -2932,6 +3337,11 @@ html[data-theme='light'] .mdt-select {
   box-shadow: none;
 }
 html[data-theme='light'] .mdt-title,
+html[data-theme='light'] .mdt-flow-step strong,
+html[data-theme='light'] .guide-header h2,
+html[data-theme='light'] .guide-score strong,
+html[data-theme='light'] .clinical-fact strong,
+html[data-theme='light'] .session-compact-item strong,
 html[data-theme='light'] .hero-conclusion-card strong,
 html[data-theme='light'] .cockpit-main strong,
 html[data-theme='light'] .cockpit-card strong,
@@ -2953,6 +3363,11 @@ html[data-theme='light'] .conflict-card__title {
 }
 html[data-theme='light'] .mdt-kicker,
 html[data-theme='light'] .mdt-desc,
+html[data-theme='light'] .mdt-flow-step small,
+html[data-theme='light'] .guide-header p,
+html[data-theme='light'] .guide-score span,
+html[data-theme='light'] .clinical-fact span,
+html[data-theme='light'] .session-compact-item span,
 html[data-theme='light'] .hero-conclusion-card span,
 html[data-theme='light'] .cockpit-main span,
 html[data-theme='light'] .cockpit-card span,
@@ -3054,6 +3469,16 @@ html[data-theme='light'] .system-card:hover,
 html[data-theme='light'] .specialist-row:hover {
   border-color: rgba(59, 130, 246, 0.28);
 }
+html[data-theme='light'] .mdt-flow-step.is-active {
+  border-color: rgba(14, 165, 233, .32);
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+}
+html[data-theme='light'] .mdt-flow-step.is-done .mdt-flow-step__index {
+  background: rgba(220, 252, 231, .98);
+  color: #047857;
+}
 html[data-theme='light'] .summary-box--hero {
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
 }
@@ -3148,6 +3573,10 @@ html[data-theme='light'] .empty-box {
 }
 html[data-theme='light'] .cockpit-main,
 html[data-theme='light'] .cockpit-card,
+html[data-theme='light'] .mdt-flow-step,
+html[data-theme='light'] .clinical-fact,
+html[data-theme='light'] .guide-score,
+html[data-theme='light'] .session-compact-item,
 html[data-theme='light'] .snapshot-item,
 html[data-theme='light'] .sheet-item,
 html[data-theme='light'] .system-card,
@@ -3462,14 +3891,39 @@ html[data-theme='light'] .specialist-row.is-active {
 html[data-theme='light'] .mini-link {
   color: #2563eb;
 }
+html[data-theme='light'] .guide-header h2,
+html[data-theme='light'] .clinical-fact strong,
+html[data-theme='light'] .session-compact-item strong {
+  color: #16324f;
+}
+html[data-theme='light'] .guide-header p,
+html[data-theme='light'] .clinical-fact span,
+html[data-theme='light'] .session-compact-item span,
+html[data-theme='light'] .mdt-flow-step small {
+  color: #64748b;
+}
+html[data-theme='light'] .guide-score {
+  border-color: rgba(16, 185, 129, .24);
+  background: rgba(236, 253, 245, .98);
+}
+html[data-theme='light'] .guide-score span {
+  color: #047857;
+}
+html[data-theme='light'] .guide-score strong {
+  color: #065f46;
+}
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),
   .mdt-command-top,
+  .mdt-flow,
   .mdt-clinical-strip,
   .mdt-clinical-meta,
   .mdt-cockpit,
   .hero-editor-grid,
   .mdt-workspace,
+  .mdt-moderator-board,
+  .clinical-summary-layout,
+  .mdt-review-grid,
   .mdt-content--moderator,
   .mdt-content-grid,
   .deep-panel-grid {
@@ -3490,6 +3944,9 @@ html[data-theme='light'] .mini-link {
     grid-template-columns: 1fr;
   }
   .mdt-sidebar {
+    position: static;
+  }
+  .mdt-action-rail {
     position: static;
   }
 }
