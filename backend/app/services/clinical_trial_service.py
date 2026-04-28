@@ -58,6 +58,24 @@ def _field_value(patient: dict[str, Any], field: str) -> Any:
     return None
 
 
+def _append_department_scope(query: dict[str, Any], *, department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+    dept_name = str(department or "").strip()
+    dept_code_text = str(dept_code or "").strip()
+    if dept_name and not dept_code_text and dept_name.isdigit():
+        dept_code_text = dept_name
+        dept_name = ""
+    if dept_name and dept_code_text and (dept_name == dept_code_text or dept_name.isdigit()):
+        dept_name = ""
+    clauses: list[dict[str, Any]] = [query] if query else []
+    if dept_code_text:
+        clauses.append({"deptCode": dept_code_text})
+    elif dept_name:
+        clauses.append({"$or": [{"hisDept": dept_name}, {"dept": dept_name}]})
+    if not clauses:
+        return {}
+    return clauses[0] if len(clauses) == 1 else {"$and": clauses}
+
+
 def _op_match(actual: Any, operator: str, expected: Any) -> tuple[bool, str]:
     op = str(operator or "eq").lower()
     a_num = _num(actual)
@@ -239,10 +257,15 @@ async def parse_criteria(trial_id: str, payload: dict[str, Any], actor: str) -> 
     return {"parse_result": serialize_doc(doc)}
 
 
-async def screen_patients() -> dict[str, Any]:
+async def screen_patients(*, department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
     evaluator = RuleEvaluator()
     trials = [doc async for doc in runtime.db.col("clinical_trials").find({"status": "招募中"}).limit(100)]
-    patients = [doc async for doc in runtime.db.col("patient").find(research_patient_scope_query("in_dept")).limit(500)]
+    patient_query = _append_department_scope(
+        research_patient_scope_query(patient_scope or "in_dept"),
+        department=department,
+        dept_code=dept_code,
+    )
+    patients = [doc async for doc in runtime.db.col("patient").find(patient_query).limit(500)]
     candidates = []
     diagnostics = []
     now = datetime.now()
@@ -285,6 +308,8 @@ async def screen_patients() -> dict[str, Any]:
                 "patient_id": str(patient.get("_id")),
                 "patient_name": _mask_name(patient.get("name") or patient.get("hisName")),
                 "bed_no": patient.get("hisBed") or patient.get("bed") or "",
+                "department": patient.get("hisDept") or patient.get("dept") or "",
+                "dept_code": patient.get("deptCode") or "",
                 "status": (existing or {}).get("status") or "pending",
                 "match_evidence": explanation,
                 "message": explanation["message"],
@@ -301,13 +326,28 @@ async def screen_patients() -> dict[str, Any]:
     return {
         "scanned_trials": len(trials),
         "scanned_patients": len(patients),
+        "scope": {
+            "department": str(department or "").strip() or None,
+            "dept_code": str(dept_code or "").strip() or None,
+            "patient_scope": patient_scope or "in_dept",
+        },
         "candidates": serialize_doc(candidates),
         "diagnostics": serialize_doc(diagnostics),
     }
 
 
-async def list_candidates() -> dict[str, Any]:
-    cursor = runtime.db.col("clinical_trial_candidates").find({}).sort("updated_at", -1).limit(300)
+async def list_candidates(*, department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+    dept_name = str(department or "").strip()
+    dept_code_text = str(dept_code or "").strip()
+    if dept_name and not dept_code_text and dept_name.isdigit():
+        dept_code_text = dept_name
+        dept_name = ""
+    query: dict[str, Any] = {}
+    if dept_code_text:
+        query["dept_code"] = dept_code_text
+    elif dept_name:
+        query["department"] = dept_name
+    cursor = runtime.db.col("clinical_trial_candidates").find(query).sort("updated_at", -1).limit(300)
     return {"candidates": [serialize_doc(doc) async for doc in cursor]}
 
 

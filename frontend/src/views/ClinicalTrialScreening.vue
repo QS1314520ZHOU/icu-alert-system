@@ -113,6 +113,7 @@
           <div class="empty-badge">Match</div>
           <h2>暂未产生候选患者</h2>
           <p>{{ candidateEmptyText }}</p>
+          <div class="scope-note">当前筛选范围：{{ scopeLabel }}</div>
           <div v-if="lastScreenResult" class="screen-diagnostics">
             <strong>最近一次筛选</strong>
             <span>扫描试验 {{ lastScreenResult.scanned_trials || 0 }} 个，患者 {{ lastScreenResult.scanned_patients || 0 }} 人，候选 {{ lastScreenResult.candidates?.length || 0 }} 人</span>
@@ -237,7 +238,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   Alert as AAlert,
   Button as AButton,
@@ -253,8 +255,9 @@ import {
   Textarea as ATextarea,
   message,
 } from 'ant-design-vue'
-import { getClinicalTrials, getTrialCandidates, postActivateTrial, postCandidateStatus, postClinicalTrial, postParseCriteria, postScreenTrials } from '../api/clinicalTrials'
+import { getClinicalTrials, getTrialCandidates, postActivateTrial, postCandidateStatus, postClinicalTrial, postParseCriteria, postScreenTrials, type ClinicalTrialScopeParams } from '../api/clinicalTrials'
 
+const route = useRoute()
 const loading = ref(false)
 const screening = ref(false)
 const saving = ref(false)
@@ -273,6 +276,9 @@ const parseForm = reactive<any>({
   exclusion_text: '年龄 <18 岁；已明确拒绝研究；临终照护或治疗限制。',
 })
 const statusOptions = ['准备中', '招募中', '暂停', '结束'].map((value) => ({ value, label: value }))
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
+const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 在科患者')
 
 const activeTrialCount = computed(() => trials.value.filter((trial) => trial.status === '招募中').length)
 const pendingCount = computed(() => candidates.value.filter((item) => item.status === 'pending').length)
@@ -292,6 +298,12 @@ const screenDiagnosticText = computed(() => {
   if (first.excluded) parts.push(`${first.excluded} 人触发排除标准`)
   return parts.length ? `${first.trial_name || '当前试验'}：${parts.join('，')}。` : ''
 })
+function requestParams(): ClinicalTrialScopeParams {
+  const params: ClinicalTrialScopeParams = { patient_scope: 'in_dept' }
+  if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+  else if (routeDeptName.value) params.dept = routeDeptName.value
+  return params
+}
 
 function demoRules() {
   return {
@@ -340,7 +352,7 @@ function ruleText(item: any) {
 async function loadAll() {
   loading.value = true
   try {
-    const [t, c] = await Promise.all([getClinicalTrials(), getTrialCandidates()])
+    const [t, c] = await Promise.all([getClinicalTrials(), getTrialCandidates(requestParams())])
     trials.value = t.data?.trials || []
     candidates.value = c.data?.candidates || []
   } finally {
@@ -379,7 +391,7 @@ async function createDemoTrial() {
     })
     const trialId = res.data?.trial?.trial_id
     if (trialId) await postActivateTrial(trialId)
-    await postScreenTrials()
+    await postScreenTrials(requestParams())
     message.success('已创建示例试验并完成一次筛选')
     await loadAll()
   } finally {
@@ -403,7 +415,7 @@ async function parseCriteria() {
 async function screen() {
   screening.value = true
   try {
-    const res = await postScreenTrials()
+    const res = await postScreenTrials(requestParams())
     lastScreenResult.value = res.data || null
     const count = res.data?.candidates?.length || 0
     const scannedPatients = res.data?.scanned_patients ?? 0
@@ -424,6 +436,10 @@ async function setCandidateStatus(status: string) {
   message.success('候选状态已更新')
   await loadAll()
 }
+watch(() => [route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
+  void loadAll()
+})
+
 onMounted(loadAll)
 </script>
 
@@ -524,6 +540,14 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   color: #67e8f9;
   font-size: 12px;
 }
+.scope-note {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(103,232,249,.18);
+  background: rgba(8, 47, 73, .24);
+  color: #bfefff;
+  font-size: 12px;
+}
 .trial-list, .candidate-list { display: grid; gap: 10px; }
 .trial-card, .candidate-card {
   padding: 13px;
@@ -574,6 +598,114 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   border-color: rgba(74,222,128,.25);
 }
 .mb { margin-bottom: 12px; }
+html[data-theme='light'] .trial-page {
+  color: #10243d;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(14, 165, 233, .14), transparent 30%),
+    radial-gradient(circle at 86% 10%, rgba(20, 184, 166, .10), transparent 32%),
+    linear-gradient(180deg, rgba(236, 252, 255, .96), rgba(247, 250, 252, .98));
+}
+html[data-theme='light'] .trial-hero,
+html[data-theme='light'] .panel,
+html[data-theme='light'] .guide-rail article,
+html[data-theme='light'] .kpi-card,
+html[data-theme='light'] .trial-card,
+html[data-theme='light'] .candidate-card,
+html[data-theme='light'] .empty-state,
+html[data-theme='light'] .screen-diagnostics,
+html[data-theme='light'] .scope-note,
+html[data-theme='light'] .status-flow span {
+  border-color: rgba(203, 213, 225, .82);
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+}
+html[data-theme='light'] .kpi-card--green {
+  border-color: rgba(16, 185, 129, .24);
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(236, 253, 245, .96));
+}
+html[data-theme='light'] .kpi-card--cyan {
+  border-color: rgba(14, 165, 233, .24);
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+}
+html[data-theme='light'] .kpi-card--amber {
+  border-color: rgba(245, 158, 11, .26);
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 251, 235, .96));
+}
+html[data-theme='light'] h1,
+html[data-theme='light'] .guide-rail strong,
+html[data-theme='light'] .trial-card h3,
+html[data-theme='light'] .candidate-card h3,
+html[data-theme='light'] .kpi-card strong,
+html[data-theme='light'] .empty-state h2,
+html[data-theme='light'] .match-detail h2 {
+  color: #12314f;
+}
+html[data-theme='light'] .trial-hero p,
+html[data-theme='light'] .guide-rail p,
+html[data-theme='light'] .trial-card p,
+html[data-theme='light'] .candidate-card p,
+html[data-theme='light'] .empty-state p,
+html[data-theme='light'] .match-detail p,
+html[data-theme='light'] .match-detail li,
+html[data-theme='light'] .panel-hint,
+html[data-theme='light'] .trial-card span,
+html[data-theme='light'] .rule-summary,
+html[data-theme='light'] .candidate-meta,
+html[data-theme='light'] .kpi-card span,
+html[data-theme='light'] .kpi-card small,
+html[data-theme='light'] .screen-diagnostics,
+html[data-theme='light'] .scope-note,
+html[data-theme='light'] .status-flow span {
+  color: #64748b;
+}
+html[data-theme='light'] .eyebrow,
+html[data-theme='light'] .guide-rail span,
+html[data-theme='light'] .screen-diagnostics strong,
+html[data-theme='light'] .match-detail h3,
+html[data-theme='light'] .candidate-meta strong {
+  color: #0369a1;
+}
+html[data-theme='light'] .empty-badge,
+html[data-theme='light'] .bed-pill {
+  border-color: rgba(14, 165, 233, .24);
+  background: rgba(240, 249, 255, .98);
+  color: #0369a1;
+}
+html[data-theme='light'] .candidate-card:hover {
+  border-color: rgba(14, 165, 233, .38);
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .14), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(232, 247, 252, .98));
+  box-shadow: inset 3px 0 0 rgba(14, 165, 233, .68), 0 8px 20px rgba(14, 165, 233, .08);
+}
+html[data-theme='light'] .status-flow span.done {
+  color: #047857;
+  border-color: rgba(16, 185, 129, .24);
+  background: rgba(236, 253, 245, .98);
+}
+html[data-theme='light'] .trial-page :deep(.ant-card-head) {
+  border-bottom-color: rgba(203, 213, 225, .82);
+}
+html[data-theme='light'] .trial-page :deep(.ant-card-head-title) {
+  color: #12314f;
+  font-weight: 800;
+}
+html[data-theme='light'] .trial-page :deep(.ant-input),
+html[data-theme='light'] .trial-page :deep(.ant-select-selector),
+html[data-theme='light'] .trial-page :deep(.ant-input-affix-wrapper),
+html[data-theme='light'] .trial-page :deep(textarea.ant-input) {
+  border-color: rgba(203, 213, 225, .92) !important;
+  background: rgba(248, 250, 252, .98) !important;
+  color: #0f172a !important;
+}
 @media (max-width: 1280px) {
   .guide-rail, .kpi-grid, .layout { grid-template-columns: 1fr 1fr; }
 }

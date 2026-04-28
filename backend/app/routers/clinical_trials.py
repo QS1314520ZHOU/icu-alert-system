@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body, Query, Request
 
 from app.services.clinical_trial_service import (
     create_trial,
@@ -34,13 +34,20 @@ async def add_clinical_trial(request: Request, payload: dict = Body(default={}))
 
 
 @router.post("/screen")
-async def screen_trials():
-    return {"code": 0, **await screen_patients()}
+async def screen_trials(
+    dept: str | None = Query(None, description="科室名称"),
+    dept_code: str | None = Query(None, description="科室代码"),
+    patient_scope: str = Query("in_dept", description="患者范围"),
+):
+    return {"code": 0, **await screen_patients(department=dept, dept_code=dept_code, patient_scope=patient_scope)}
 
 
 @router.get("/candidates")
-async def trial_candidates():
-    return {"code": 0, **await list_candidates()}
+async def trial_candidates(
+    dept: str | None = Query(None, description="科室名称"),
+    dept_code: str | None = Query(None, description="科室代码"),
+):
+    return {"code": 0, **await list_candidates(department=dept, dept_code=dept_code)}
 
 
 @router.get("/patients/{patient_id}/matches")
