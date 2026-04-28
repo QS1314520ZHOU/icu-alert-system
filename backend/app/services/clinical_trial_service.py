@@ -30,6 +30,10 @@ def _num(value: Any) -> float | None:
     try:
         if value is None or value == "":
             return None
+        if isinstance(value, str):
+            match = re.search(r"-?\d+(?:\.\d+)?", value)
+            if match:
+                return float(match.group(0))
         return float(value)
     except Exception:
         return None
@@ -37,9 +41,19 @@ def _num(value: Any) -> float | None:
 
 def _field_value(patient: dict[str, Any], field: str) -> Any:
     key = str(field or "").strip()
+    if key == "age":
+        for candidate in ("age", "hisAge"):
+            value = patient.get(candidate)
+            if value not in (None, ""):
+                return value
+        birthday_age = calculate_age(patient.get("birthday"))
+        if birthday_age:
+            return birthday_age
     aliases = {
         "age": ["age", "hisAge"],
-        "diagnosis": ["clinicalDiagnosis", "admissionDiagnosis", "hisDiagnose", "diagnosis"],
+        "diagnosis": ["clinicalDiagnosis", "admissionDiagnosis", "hisDiagnose", "diagnosis", "dischargedDiagnosis", "diagnosisHistoryList", "curIcuDiagnosisHistory"],
+        "diagnosis_code": ["clinicalDiagnosisCodeList", "dischargedDiagnosisIcd", "diagnosisCode", "icdCode", "icd"],
+        "icd": ["clinicalDiagnosisCodeList", "dischargedDiagnosisIcd", "diagnosisCode", "icdCode", "icd"],
         "sex": ["sex", "gender", "hisSex"],
         "department": ["hisDept", "dept"],
         "icu_hours": ["icuAdmissionTime", "admissionTime"],
@@ -54,8 +68,39 @@ def _field_value(patient: dict[str, Any], field: str) -> Any:
     }
     for candidate in aliases.get(key, [key]):
         if patient.get(candidate) not in (None, ""):
-            return patient.get(candidate)
+            return _flatten_value(patient.get(candidate))
     return None
+
+
+def _flatten_value(value: Any) -> str:
+    if value in (None, ""):
+        return ""
+    if isinstance(value, list):
+        parts = [_flatten_value(item) for item in value]
+        return " | ".join(part for part in parts if part)
+    if isinstance(value, dict):
+        preferred = ["diagnosis", "name", "text", "value", "label", "code", "icd", "icdCode"]
+        parts = [_flatten_value(value.get(key)) for key in preferred if value.get(key) not in (None, "")]
+        if not parts:
+            parts = [_flatten_value(item) for item in value.values()]
+        return " | ".join(part for part in parts if part)
+    return str(value).strip()
+
+
+def _patient_diagnosis_summary(patient: dict[str, Any]) -> str:
+    seen: set[str] = set()
+    parts: list[str] = []
+    for key in ("clinicalDiagnosis", "admissionDiagnosis", "diagnosisHistoryList", "curIcuDiagnosisHistory", "dischargedDiagnosis"):
+        text = _flatten_value(patient.get(key))
+        if text and text not in seen:
+            seen.add(text)
+            parts.append(text)
+    return " | ".join(parts)
+
+
+def _is_diagnosis_rule(rule: dict[str, Any]) -> bool:
+    text = f"{rule.get('field') or ''} {rule.get('source_text') or ''}".lower()
+    return any(token in text for token in ("diagnosis", "diagnose", "diag", "icd", "诊断", "疾病"))
 
 
 def _append_department_scope(query: dict[str, Any], *, department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
@@ -124,10 +169,12 @@ class RuleEvaluator:
         if exclusion:
             passed = len(matched) == 0
         else:
-            # Inclusion screening is intentionally permissive for research recruitment:
-            # matched objective evidence can create a "needs confirmation" candidate even
-            # when age/scores/labs are missing, as long as no rule is clearly unmet.
-            passed = len(unmet) == 0 and (len(matched) > 0 or not rules)
+            # Diagnosis/ICD rules are core eligibility gates. Do not create a candidate
+            # from age-only evidence when the diagnosis rule is missing or not matched.
+            diagnosis_rules = [rule for rule in rules or [] if _is_diagnosis_rule(rule)]
+            matched_diagnosis = {id(item.get("rule")) for item in matched if _is_diagnosis_rule(item.get("rule") or {})}
+            diagnosis_passed = not diagnosis_rules or all(id(rule) in matched_diagnosis for rule in diagnosis_rules)
+            passed = len(unmet) == 0 and diagnosis_passed and (len(matched) > 0 or not rules)
         total = max(1, len(rules or []))
         confidence = round((len(matched) + (0 if missing else 0.2)) / total, 2) if not exclusion else round(1 - len(matched) / total, 2)
         return {"passed": passed, "matched": matched, "unmet": unmet, "missing": missing, "confidence": max(0.0, min(1.0, confidence))}
@@ -269,6 +316,7 @@ async def screen_patients(*, department: str | None = None, dept_code: str | Non
     candidates = []
     diagnostics = []
     now = datetime.now()
+    current_candidate_ids: set[str] = set()
     for trial in trials:
         trial_diag = {
             "trial_id": trial.get("trial_id"),
@@ -300,6 +348,7 @@ async def screen_patients(*, department: str | None = None, dept_code: str | Non
                 continue
             trial_diag["matched"] += 1
             candidate_id = f"{trial.get('trial_id')}:{patient.get('_id')}"
+            current_candidate_ids.add(candidate_id)
             existing = await runtime.db.col("clinical_trial_candidates").find_one({"candidate_id": candidate_id})
             doc = {
                 "candidate_id": candidate_id,
@@ -310,6 +359,7 @@ async def screen_patients(*, department: str | None = None, dept_code: str | Non
                 "bed_no": patient.get("hisBed") or patient.get("bed") or "",
                 "department": patient.get("hisDept") or patient.get("dept") or "",
                 "dept_code": patient.get("deptCode") or "",
+                "diagnosis_summary": _patient_diagnosis_summary(patient),
                 "status": (existing or {}).get("status") or "pending",
                 "match_evidence": explanation,
                 "message": explanation["message"],
@@ -323,6 +373,20 @@ async def screen_patients(*, department: str | None = None, dept_code: str | Non
                 await runtime.db.col("clinical_trial_candidates").insert_one(doc)
             candidates.append(doc)
         diagnostics.append(trial_diag)
+    stale_candidate_query: dict[str, Any] = {"trial_id": {"$in": [trial.get("trial_id") for trial in trials if trial.get("trial_id")]}}
+    dept_name = str(department or "").strip()
+    dept_code_text = str(dept_code or "").strip()
+    if dept_name and not dept_code_text and dept_name.isdigit():
+        dept_code_text = dept_name
+        dept_name = ""
+    if dept_code_text:
+        stale_candidate_query["dept_code"] = dept_code_text
+    elif dept_name:
+        stale_candidate_query["department"] = dept_name
+    if current_candidate_ids:
+        stale_candidate_query["candidate_id"] = {"$nin": list(current_candidate_ids)}
+    if stale_candidate_query["trial_id"]["$in"]:
+        await runtime.db.col("clinical_trial_candidates").delete_many(stale_candidate_query)
     return {
         "scanned_trials": len(trials),
         "scanned_patients": len(patients),

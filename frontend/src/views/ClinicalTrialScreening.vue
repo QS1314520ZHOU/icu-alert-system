@@ -132,6 +132,7 @@
               <div>
                 <h3>{{ candidate.patient_name || '脱敏患者' }}</h3>
                 <p>{{ candidate.trial_name }}</p>
+                <div class="candidate-diagnosis">{{ candidate.diagnosis_summary || '暂无诊断摘要' }}</div>
               </div>
             </div>
             <div class="candidate-meta">
@@ -179,6 +180,10 @@
     <a-drawer v-model:open="candidateOpen" width="760" title="匹配详情">
       <div v-if="selectedCandidate" class="match-detail">
         <h2>{{ selectedCandidate.message || '该患者可能符合临床试验入组标准，请人工确认。' }}</h2>
+        <section class="diagnosis-evidence">
+          <h3>系统抓取到的诊断</h3>
+          <p>{{ selectedCandidate.diagnosis_summary || '暂无诊断摘要，不能仅凭年龄等非诊断项判断入组。' }}</p>
+        </section>
         <section>
           <h3>状态流转</h3>
           <div class="status-flow">
@@ -488,7 +493,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .guide-rail article { padding: 14px; display: grid; gap: 6px; }
 .guide-rail span { color: #22d3ee; font-weight: 900; }
 .guide-rail strong, .trial-card h3, .candidate-card h3 { color: #f0fbff; }
-.guide-rail p, .trial-card p, .candidate-card p, .empty-state p, .match-detail p, .match-detail li { color: #b7cfe0; }
+.guide-rail p, .trial-card p, .candidate-card p, .empty-state p, .match-detail p, .match-detail li, .candidate-diagnosis { color: #b7cfe0; }
 .kpi-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 14px;
@@ -576,10 +581,26 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   border: 1px solid rgba(103,232,249,.18);
 }
 .candidate-meta strong { color: #67e8f9; font-size: 20px; }
+.candidate-diagnosis {
+  display: -webkit-box;
+  margin-top: 6px;
+  max-width: 560px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 .match-detail { display: grid; gap: 16px; }
 .match-detail h2 { color: #f0fbff; font-size: 18px; }
 .match-detail h3 { color: #67e8f9; font-size: 14px; }
 .match-detail ul { margin: 8px 0 0; padding-left: 18px; }
+.diagnosis-evidence {
+  padding: 12px;
+  border: 1px solid rgba(103,232,249,.18);
+  border-radius: 14px;
+  background: rgba(8, 47, 73, .24);
+}
 .status-flow {
   display: flex;
   flex-wrap: wrap;
@@ -652,6 +673,7 @@ html[data-theme='light'] .trial-hero p,
 html[data-theme='light'] .guide-rail p,
 html[data-theme='light'] .trial-card p,
 html[data-theme='light'] .candidate-card p,
+html[data-theme='light'] .candidate-diagnosis,
 html[data-theme='light'] .empty-state p,
 html[data-theme='light'] .match-detail p,
 html[data-theme='light'] .match-detail li,
@@ -697,6 +719,10 @@ html[data-theme='light'] .trial-page :deep(.ant-card-head) {
 html[data-theme='light'] .trial-page :deep(.ant-card-head-title) {
   color: #12314f;
   font-weight: 800;
+}
+html[data-theme='light'] .diagnosis-evidence {
+  border-color: rgba(14, 165, 233, .18);
+  background: linear-gradient(180deg, rgba(240, 249, 255, .96), rgba(255, 255, 255, .98));
 }
 html[data-theme='light'] .trial-page :deep(.ant-input),
 html[data-theme='light'] .trial-page :deep(.ant-select-selector),
