@@ -56,7 +56,7 @@ def _patient_name(patient: dict[str, Any]) -> str:
     name = str(patient.get("name") or patient.get("hisName") or "").strip()
     if not name:
         return "未命名患者"
-    return f"{name[0]}*{name[-1]}" if len(name) > 1 else f"{name}*"
+    return name
 
 
 def _vent_param(params: dict[str, Any], *codes: str) -> Any:
@@ -248,6 +248,81 @@ def _worklist_actions(row: dict[str, Any]) -> list[dict[str, Any]]:
     if row.get("difficult_airway"):
         actions.append({"priority": "high", "title": "确认困难气道预案", "detail": "查阅备选设备和联系人，确保急救流程清晰。"})
     return actions[:5]
+
+
+def _respiratory_completion(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build a small closure dashboard for respiratory therapy."""
+    total = len(rows)
+    if not total:
+        return {
+            "percent": 100,
+            "status": "ready",
+            "label": "暂无机械通气患者",
+            "data_quality": {"percent": 100, "missing": []},
+            "tasks": [],
+            "gaps": [],
+        }
+    completed = 0
+    gaps: list[dict[str, Any]] = []
+    tasks: list[dict[str, Any]] = []
+    missing_counter: dict[str, int] = {}
+    for row in rows:
+        row_done = 0
+        if row.get("safety_score") is not None:
+            row_done += 1
+        if row.get("risk_tags") is not None:
+            row_done += 1
+        if row.get("sbt_candidate_status"):
+            row_done += 1
+        if row.get("airway_type") and row.get("airway_type") != "气管插管/气切待确认":
+            row_done += 1
+        if row.get("latest_cuff_pressure"):
+            row_done += 1
+        completed += row_done
+        for key in (row.get("parameter_completeness") or {}).get("missing") or []:
+            missing_counter[key] = missing_counter.get(key, 0) + 1
+        for action in row.get("worklist_actions") or []:
+            tasks.append(
+                {
+                    "patient_id": row.get("patient_id"),
+                    "bed_no": row.get("bed_no"),
+                    "name": row.get("name"),
+                    "priority": action.get("priority") or "medium",
+                    "title": action.get("title"),
+                    "detail": action.get("detail"),
+                    "action": "进入患者",
+                }
+            )
+    denominator = total * 5
+    percent = round(completed / denominator * 100) if denominator else 100
+    for key, count in sorted(missing_counter.items(), key=lambda item: item[1], reverse=True)[:5]:
+        gaps.append({"key": key, "label": _respiratory_field_label(key), "count": count})
+    return {
+        "percent": max(0, min(100, percent)),
+        "status": "ready" if percent >= 90 else "open",
+        "label": f"{total} 人机械通气，{len(tasks)} 个待办",
+        "data_quality": {
+            "percent": max(0, min(100, round((1 - sum(missing_counter.values()) / max(1, total * 9)) * 100))),
+            "missing": gaps,
+        },
+        "tasks": tasks[:8],
+        "gaps": gaps,
+    }
+
+
+def _respiratory_field_label(key: str) -> str:
+    labels = {
+        "ventilator_mode": "通气模式",
+        "fio2": "FiO2",
+        "peep": "PEEP",
+        "vt": "潮气量",
+        "pplat": "平台压",
+        "driving_pressure": "驱动压",
+        "spo2": "SpO2",
+        "pf_ratio": "P/F",
+        "rass": "RASS",
+    }
+    return labels.get(key, key)
 
 
 async def build_ventilated_patient_row(
@@ -466,9 +541,11 @@ async def list_ventilated_patients(*, department: str | None = None, dept_code: 
         "difficult_airway_count": sum(1 for row in rows if row.get("difficult_airway")),
         "avg_safety_score": round(sum(int(row.get("safety_score") or 0) for row in rows) / len(rows), 1) if rows else 0,
     }
+    completion = _respiratory_completion(rows)
     return {
         "patients": rows,
         "stats": stats,
+        "completion": completion,
         "scope": {
             "department": str(department or "").strip() or None,
             "dept_code": str(dept_code or "").strip() or None,

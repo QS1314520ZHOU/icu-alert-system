@@ -52,9 +52,9 @@ export default defineConfig(({ mode }) => {
         injectRegister: 'auto',
         includeAssets: ['vite.svg'],
         manifest: {
-          name: 'ICU智能预警系统',
-          short_name: 'ICU预警',
-          description: 'ICU 智能预警与质控分析平台',
+          name: 'ICU智能协同工作台',
+          short_name: 'ICU协同',
+          description: '重症监护预警、交班、查房与质控协同平台',
           theme_color: '#0e1728',
           background_color: '#0a0a14',
           display: 'standalone',

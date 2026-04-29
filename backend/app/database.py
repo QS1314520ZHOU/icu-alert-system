@@ -1,5 +1,5 @@
 """
-ICU智能预警系统 - 数据库连接管理
+ICU智能协同工作台 - 数据库连接管理
 使用 PyMongo 4.16 原生 AsyncMongoClient（Motor 已废弃）
 """
 import logging
@@ -138,6 +138,16 @@ class DatabaseManager:
             await alert_col.create_index([("viewed_at", 1), ("acknowledged_at", 1)])
             await alert_col.create_index([("actionability_score", -1), ("created_at", -1)])
 
+            outcome_col = self.col("alert_outcomes")
+            await outcome_col.create_index([("alert_id", 1)], unique=True)
+            await outcome_col.create_index([("patient_id", 1), ("fired_at", -1)])
+            await outcome_col.create_index([("scanner_name", 1), ("fired_at", -1)])
+            await outcome_col.create_index([("disposition", 1), ("fired_at", -1)])
+            await outcome_col.create_index([("manual_review_required", 1), ("updated_at", -1)])
+
+            await self.col("model_calibration_runs").create_index([("job_type", 1), ("created_at", -1)])
+            await self.col("adaptive_threshold_reviews").create_index([("scanner_name", 1), ("status", 1)], unique=True)
+
             # 预警规则索引
             rule_col = self.col("alert_rules")
             await rule_col.create_index([("rule_id", 1)], unique=True)
@@ -149,6 +159,8 @@ class DatabaseManager:
                 [("source_code", 1), ("source_name", 1)], unique=True
             )
             await mapping_col.create_index([("standard_concept", 1)])
+            await self.col("runtime_configs").create_index([("key", 1)], unique=True)
+            await self.col("runtime_configs").create_index([("updated_at", -1)])
 
             # 评分记录索引
             score_col = self.col("score")
@@ -210,6 +222,11 @@ class DatabaseManager:
             await self.col("rounding_export_tasks").create_index([("task_id", 1)], unique=True)
             await self.col("airway_records").create_index([("patient_id", 1), ("recorded_at", -1)])
             await self.col("airway_plans").create_index([("patient_id", 1), ("updated_at", -1)])
+            await self.col("clinical_tasks").create_index([("task_id", 1)], unique=True)
+            await self.col("clinical_tasks").create_index([("patient_id", 1), ("status", 1), ("updated_at", -1)])
+            await self.col("clinical_tasks").create_index([("module", 1), ("status", 1), ("updated_at", -1)])
+            await self.col("nutrition_tasks").create_index([("task_id", 1)], unique=True)
+            await self.col("nutrition_tasks").create_index([("patient_id", 1), ("status", 1), ("updated_at", -1)])
             await self.col("research_projects").create_index([("project_id", 1)], unique=True)
             await self.col("research_topic_suggestions").create_index([("generated_at", -1)])
             await self.col("omop_export_tasks").create_index([("task_id", 1)], unique=True)

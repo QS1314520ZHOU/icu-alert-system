@@ -1,5 +1,5 @@
 """
-ICU智能预警系统 - FastAPI 主应用
+ICU智能协同工作台 - FastAPI 主应用
 """
 from __future__ import annotations
 
@@ -29,8 +29,10 @@ from app.routers.patient_data import router as patient_data_router
 from app.routers.patients import router as patients_router
 from app.routers.rounding import router as rounding_router
 from app.routers.respiratory import router as respiratory_router
+from app.routers.nutrition import router as nutrition_router
 from app.routers.research_support import router as research_support_router
 from app.routers.clinical_trials import router as clinical_trials_router
+from app.routers.clinical_workflow import router as clinical_workflow_router
 from app.routers.research_platform import router as research_platform_router
 from app.routers.system import router as system_router
 from app.routers.waveforms import router as waveforms_router
@@ -89,7 +91,7 @@ def _error_log_path() -> Path:
 async def lifespan(application: FastAPI):
     global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service
 
-    logger.info("🚀 ICU智能预警系统启动中...")
+    logger.info("🚀 ICU智能协同工作台启动中...")
 
     config = get_config()
     db = DatabaseManager(config)
@@ -124,17 +126,17 @@ async def lifespan(application: FastAPI):
     application.state.ai_monitor = ai_monitor
     application.state.ai_rag_service = ai_rag_service
 
-    logger.info("✅ ICU智能预警系统启动完成")
+    logger.info("✅ ICU智能协同工作台启动完成")
     yield
 
-    logger.info("⏹️ ICU智能预警系统关闭中...")
+    logger.info("⏹️ ICU智能协同工作台关闭中...")
     await alert_engine.stop()
     await ws_mgr.stop_redis_relay()
     await db.disconnect()
-    logger.info("✅ ICU智能预警系统已关闭")
+    logger.info("✅ ICU智能协同工作台已关闭")
 
 
-app = FastAPI(title="ICU智能预警系统", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="ICU智能协同工作台", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -178,8 +180,10 @@ app.include_router(analytics_router)
 app.include_router(followup_router)
 app.include_router(rounding_router)
 app.include_router(respiratory_router)
+app.include_router(nutrition_router)
 app.include_router(research_support_router)
 app.include_router(clinical_trials_router)
+app.include_router(clinical_workflow_router)
 app.include_router(ai_router)
 app.include_router(knowledge_router)
 app.include_router(waveforms_router)

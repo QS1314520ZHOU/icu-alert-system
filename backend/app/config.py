@@ -1,5 +1,5 @@
 """
-ICU智能预警系统 - 配置加载
+ICU智能协同工作台 - 配置加载
 从 .env 读取敏感信息，从 config.yaml 读取业务配置
 """
 import os

@@ -80,8 +80,53 @@ export const getPatientAlerts = (patientId: string) =>
 export const postPatientAlertsViewed = (patientId: string, payload?: { alert_ids?: string[]; actor?: string; source?: string }) =>
   api.post(`/api/patients/${patientId}/alerts/view`, payload || {})
 
-export const postAlertAcknowledge = (alertId: string, payload?: { actor?: string; note?: string; disposition?: string }) =>
+export const postAlertAcknowledge = (alertId: string, payload?: { actor?: string; note?: string; disposition?: string; override_reason_code?: string; override_reason_text?: string }) =>
   api.post(`/api/alerts/${alertId}/acknowledge`, payload || {})
+
+export const getScannerHealth = (params?: { days?: number }) =>
+  analyticsApi.get('/api/admin/scanner-health', { params })
+
+export const postScannerHealthRecalculate = (payload?: { days?: number }) =>
+  analyticsApi.post('/api/admin/scanner-health/recalculate', payload || {})
+
+export const postScannerHealthInferOutcomes = (params?: { limit?: number; min_age_minutes?: number }) =>
+  analyticsApi.post('/api/admin/scanner-health/infer-outcomes', undefined, { params })
+
+export const getRuntimeConfig = () =>
+  analyticsApi.get('/api/admin/runtime-config')
+
+export const postRuntimeModules = (payload: { modules: any[] }) =>
+  analyticsApi.post('/api/admin/runtime-config/modules', payload)
+
+export const postRuntimeAi = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/admin/runtime-config/ai', payload)
+
+export const postRuntimeAlertRule = (ruleId: string, payload: Record<string, any>) =>
+  analyticsApi.post(`/api/admin/runtime-config/alert-rules/${ruleId}`, payload)
+
+export const postRuntimeFieldMapping = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/admin/runtime-config/field-mapping', payload)
+
+export const getClinicalRoleHome = (params?: { userName?: string; role?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
+  analyticsApi.get('/api/clinical-workflow/role-home', { params })
+
+export const getClinicalAccount = (params?: { userName?: string; role?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
+  analyticsApi.get('/api/clinical-workflow/role-home', { params })
+
+export const getClinicalPatientStory = (patientId: string, params?: { hours?: number }) =>
+  analyticsApi.get(`/api/clinical-workflow/patients/${patientId}/story`, { params })
+
+export const getClinicalPatientHandoff = (patientId: string, params?: { role?: string; hours?: number }) =>
+  analyticsApi.get(`/api/clinical-workflow/patients/${patientId}/handoff`, { params })
+
+export const getClinicalQualitySummary = (params?: { days?: number; dept?: string; dept_code?: string; deptCode?: string }) =>
+  analyticsApi.get('/api/clinical-workflow/quality-summary', { params })
+
+export const postClinicalTask = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/clinical-workflow/tasks', payload)
+
+export const closeClinicalTask = (taskId: string, payload?: Record<string, any>) =>
+  analyticsApi.post(`/api/clinical-workflow/tasks/${taskId}/close`, payload || {})
 
 // 获取最近预警
 export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string; patient_id?: string; bed?: string }) =>

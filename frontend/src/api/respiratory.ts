@@ -16,3 +16,9 @@ export const postAirwayRecord = (patientId: string, payload: Record<string, any>
 export const getAirwayPlan = (patientId: string) => api.get(`/api/respiratory/${patientId}/airway-plan`)
 export const postAirwayPlan = (patientId: string, payload: Record<string, any>) =>
   api.post(`/api/respiratory/${patientId}/airway-plan`, payload)
+
+export const postRespiratoryTaskDone = (patientId: string, payload: Record<string, any>) =>
+  api.post(`/api/respiratory/${patientId}/airway-records`, {
+    ...payload,
+    note: payload?.note || '呼吸治疗工作台一键闭环记录。',
+  })

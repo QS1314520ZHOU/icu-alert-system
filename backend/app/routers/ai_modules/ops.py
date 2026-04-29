@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, Query
 
 from app import runtime
 from app.config import get_config
+from app.services.llm_runtime import sanitize_llm_text
 from app.utils.api_llm import call_api_llm
 from app.utils.patient_data import fetch_dc_exam_items_by_his_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
@@ -295,7 +296,7 @@ async def ai_lab_summary(patient_id: str):
             max_tokens=1400,
             timeout_seconds=180,
         )
-        return {"code": 0, "summary": summary}
+        return {"code": 0, "summary": sanitize_llm_text(summary)}
     except Exception as exc:
         logger.error("AI lab summary error: %s", exc)
         return {"code": 0, "summary": "", "error": f"AI服务异常: {str(exc)[:100]}"}

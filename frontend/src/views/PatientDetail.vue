@@ -31,6 +31,20 @@
       </div>
     </section>
 
+    <section class="patient-action-rail">
+      <button
+        v-for="item in patientActionRail"
+        :key="item.key"
+        type="button"
+        :class="['patient-action-tile', `tone-${item.tone}`]"
+        @click="openTopicTab(item.tab)"
+      >
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+        <em>{{ item.hint }}</em>
+      </button>
+    </section>
+
     <section class="detail-layout">
       <aside class="detail-rail">
         <div class="detail-rail-sticky">
@@ -1250,6 +1264,22 @@ const ecashAlerts = computed(() => sortAlertsDesc(alerts.value.filter((row: any)
 const mobilityAlerts = computed(() => sortAlertsDesc(alerts.value.filter((row: any) => mobilityAlertTypes.has(String(row?.alert_type || '')))))
 const peAlerts = computed(() => sortAlertsDesc(alerts.value.filter((row: any) => peAlertTypes.has(String(row?.alert_type || '')))))
 const latestEcashBundleAlert = computed(() => ecashAlerts.value.find((row: any) => String(row?.alert_type || '') === 'liberation_bundle') || ecashAlerts.value[0] || null)
+const patientActionRail = computed(() => {
+  const highAlerts = alerts.value.filter((row: any) => ['critical', 'high'].includes(String(row?.severity || '').toLowerCase())).length
+  const abnormalLabs = labs.value.filter((row: any) => {
+    const flag = String(row?.flag || row?.abnormalFlag || row?.resultFlag || '').toLowerCase()
+    return flag && !['n', 'normal', '正常'].includes(flag)
+  }).length
+  const sbtLabel = sbtAssessment.value?.label || (weaningAssessment.value?.has_assessment ? '已评估' : '待评估')
+  const aiState = aiRuntimeSummary.value.level === 'red' ? '异常' : '正常'
+  return [
+    { key: 'alert', label: '高危预警', value: highAlerts, hint: latestCompositeInvolvedText.value.replace('涉及系统: ', '') || '看预警', tab: 'alerts', tone: highAlerts ? 'danger' : 'stable' },
+    { key: 'sbt', label: '撤机/SBT', value: sbtLabel, hint: `P/F ${weaningAssessment.value?.pf_ratio ?? '—'}`, tab: 'sbt', tone: weaningAssessment.value?.risk_level === 'high' ? 'danger' : 'info' },
+    { key: 'lab', label: '异常检验', value: abnormalLabs, hint: '看趋势和检验', tab: 'labs', tone: abnormalLabs ? 'warning' : 'stable' },
+    { key: 'ai', label: 'AI辅助', value: aiState, hint: latestAiRiskAlert.value?.name || '解释与建议', tab: 'ai', tone: aiRuntimeSummary.value.level === 'red' ? 'danger' : 'info' },
+    { key: 'drug', label: '用药', value: drugTableRows.value.length, hint: '医嘱/执行', tab: 'drugs', tone: 'stable' },
+  ]
+})
 
 function topicToneFromSeverity(severity: any) {
   const sev = String(severity || '').toLowerCase()
@@ -2023,7 +2053,7 @@ async function copyHandoffSummary() {
 }
 void copyHandoffSummary
 
-async function acknowledgeAlert(item: any, disposition = '') {
+async function acknowledgeAlert(item: any, disposition = '', meta?: { override_reason_code?: string; override_reason_text?: string }) {
   const alertId = String(item?._id || '').trim()
   if (!alertId) {
     message.error('缺少告警ID，无法确认')
@@ -2033,6 +2063,8 @@ async function acknowledgeAlert(item: any, disposition = '') {
     const res = await postAlertAcknowledge(alertId, {
       actor: getOperatorIdentity(),
       ...(disposition ? { disposition } : {}),
+      ...(meta?.override_reason_code ? { override_reason_code: meta.override_reason_code } : {}),
+      ...(meta?.override_reason_text ? { override_reason_text: meta.override_reason_text } : {}),
     })
     const record = res.data?.record
     if (record) {
@@ -2042,10 +2074,11 @@ async function acknowledgeAlert(item: any, disposition = '') {
       }
     }
     const dispositionLabels: Record<string, string> = {
-      resolved: '✅ 已处理',
-      watching: '👁 观察中',
-      false_positive: '❌ 误报',
-      escalate: '📞 已通知医生',
+      resolved: '已处理',
+      watching: '观察中',
+      false_positive: '不相关',
+      later: '稍后看',
+      escalate: '已通知医生',
     }
     message.success(disposition ? `告警已确认：${dispositionLabels[disposition] ?? disposition}` : '告警已确认')
   } catch (e: any) {
@@ -3922,6 +3955,48 @@ onBeforeUnmount(() => {
   background: linear-gradient(180deg, rgba(8,21,35,.92) 0%, rgba(5,14,24,.96) 100%);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 10px 24px rgba(0,0,0,.16);
 }
+.patient-action-rail {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.patient-action-tile {
+  min-height: 94px;
+  padding: 13px;
+  border: 1px solid rgba(125, 211, 252, .14);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(8, 42, 62, .9), rgba(7, 20, 34, .96));
+  text-align: left;
+  cursor: pointer;
+}
+.patient-action-tile span,
+.patient-action-tile em {
+  display: block;
+  color: #8aa4b8;
+  font-size: 12px;
+  font-style: normal;
+}
+.patient-action-tile strong {
+  display: block;
+  margin: 4px 0;
+  color: #f0fbff;
+  font-size: 24px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.patient-action-tile.tone-danger {
+  border-color: rgba(251, 113, 133, .36);
+  background: linear-gradient(145deg, rgba(127, 29, 29, .38), rgba(7, 20, 34, .96));
+}
+.patient-action-tile.tone-warning {
+  border-color: rgba(251, 191, 36, .32);
+  background: linear-gradient(145deg, rgba(113, 63, 18, .3), rgba(7, 20, 34, .96));
+}
+.patient-action-tile.tone-info { border-color: rgba(103, 232, 249, .28); }
+.patient-action-tile.tone-stable { border-color: rgba(52, 211, 153, .22); }
 .detail-density-copy {
   display: flex;
   flex-wrap: wrap;

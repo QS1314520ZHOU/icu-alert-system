@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
+from app.services.alert_outcome_service import AlertOutcomeService
 
 
 class AlertIntelligenceMixin:
@@ -338,6 +339,10 @@ class AlertIntelligenceMixin:
     async def _after_alert_persisted(self, alert_doc: dict, patient_doc: dict | None) -> None:
         if self._is_hemo_context_alert(alert_doc):
             await self._mark_source_alerts_merged(alert_doc)
+        try:
+            await AlertOutcomeService(self.db).ensure_for_alert(alert_doc)
+        except Exception:
+            pass
 
     async def _alert_intelligence_intercept(self, alert_doc: dict, patient_doc: dict | None) -> dict | None:
         cfg = self._alert_intel_cfg()

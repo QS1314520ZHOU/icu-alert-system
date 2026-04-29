@@ -1,5 +1,5 @@
 """
-ICU智能预警系统 - WebSocket 连接管理
+ICU智能协同工作台 - WebSocket 连接管理
 """
 from __future__ import annotations
 

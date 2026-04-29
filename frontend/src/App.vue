@@ -2,52 +2,58 @@
   <component :is="themeWrapperComponent" v-bind="themeWrapperProps">
     <div class="root" :class="`theme-${themeMode}`">
       <header class="hdr">
-        <div class="hdr-l">
-          <span class="hdr-icon">✚</span>
-          <div>
-            <div class="hdr-title">ICU 智能预警系统</div>
-            <div class="hdr-sub">重症监护智能预警平台</div>
+        <div class="hdr-top">
+          <div class="hdr-l">
+            <span class="hdr-icon">✚</span>
+            <div>
+              <div class="hdr-title">ICU智能协同工作台</div>
+              <div class="hdr-sub">重症监护预警、交班、查房与质控协同平台</div>
+            </div>
+          </div>
+          <div class="hdr-tools">
+            <label class="operator-pill" title="用于记录告警查看 / 确认操作人">
+              <span class="operator-pill__label">操作人</span>
+              <span v-if="routeUserName" class="operator-pill__name">{{ operatorDisplayName || routeUserName }}</span>
+              <input
+                v-else
+                v-model.trim="operatorIdentity"
+                class="operator-pill__input"
+                type="text"
+                maxlength="48"
+                placeholder="请输入工号/姓名"
+                @change="onOperatorIdentityChange"
+              />
+            </label>
+            <div class="theme-toggle">
+              <span class="toggle-text">{{ notifyEnabled ? '通知开' : '通知关' }}</span>
+              <label class="switch">
+                <input type="checkbox" :checked="notifyEnabled" @change="onNotifyToggle(($event.target as HTMLInputElement)?.checked)" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="theme-toggle" :title="themeMode === 'dark' ? '当前夜间模式' : '当前白天模式'">
+              <span class="theme-lbl">🌞</span>
+              <label class="switch switch--compact">
+                <input type="checkbox" :checked="themeMode === 'dark'" @change="onThemeToggle(($event.target as HTMLInputElement)?.checked)" />
+                <span class="switch-slider switch-slider--compact"></span>
+              </label>
+              <span class="theme-lbl">🌙</span>
+            </div>
+            <span class="hdr-clock">{{ now }}</span>
           </div>
         </div>
-        <nav class="hdr-menu">
-          <button
-            v-for="item in navItems"
-            :key="item.key"
-            type="button"
-            :class="['nav-btn', { active: navKey === item.key }]"
-            @click="onNav(item.key)"
-          >
-            <span v-for="line in item.lines" :key="line">{{ line }}</span>
-          </button>
-        </nav>
-        <div class="hdr-tools">
-          <label class="operator-pill" title="用于记录告警查看 / 确认操作人">
-            <span class="operator-pill__label">操作人</span>
-            <input
-              v-model.trim="operatorIdentity"
-              class="operator-pill__input"
-              type="text"
-              maxlength="48"
-              placeholder="请输入工号/姓名"
-              @change="onOperatorIdentityChange"
-            />
-          </label>
-          <div class="theme-toggle">
-            <span class="toggle-text">{{ notifyEnabled ? '通知开' : '通知关' }}</span>
-            <label class="switch">
-              <input type="checkbox" :checked="notifyEnabled" @change="onNotifyToggle(($event.target as HTMLInputElement)?.checked)" />
-              <span class="switch-slider"></span>
-            </label>
-          </div>
-          <div class="theme-toggle" :title="themeMode === 'dark' ? '当前夜间模式' : '当前白天模式'">
-            <span class="theme-lbl">🌞</span>
-            <label class="switch switch--compact">
-              <input type="checkbox" :checked="themeMode === 'dark'" @change="onThemeToggle(($event.target as HTMLInputElement)?.checked)" />
-              <span class="switch-slider switch-slider--compact"></span>
-            </label>
-            <span class="theme-lbl">🌙</span>
-          </div>
-          <span class="hdr-clock">{{ now }}</span>
+        <div class="hdr-nav-shell">
+          <nav class="hdr-menu">
+            <button
+              v-for="item in navItems"
+              :key="item.key"
+              type="button"
+              :class="['nav-btn', { active: navKey === item.key }]"
+              @click="onNav(item.key)"
+            >
+              <span v-for="line in item.lines" :key="line">{{ line }}</span>
+            </button>
+          </nav>
         </div>
       </header>
       <main class="body"><router-view /></main>
@@ -58,6 +64,7 @@
 <script setup lang="ts">
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getClinicalAccount } from './api'
 import { getOperatorIdentity, setOperatorIdentity } from './utils/operatorIdentity'
 import { setThemeMode } from './composables/themeMode'
 const route = useRoute()
@@ -66,6 +73,7 @@ const now = ref('')
 const themeMode = ref<'dark' | 'light'>('dark')
 const notifyEnabled = ref(false)
 const operatorIdentity = ref('')
+const operatorDisplayName = ref('')
 const antTheme = ref<any>(null)
 const antThemeReady = ref(false)
 const themeWrapper = shallowRef<any>('div')
@@ -73,10 +81,12 @@ let t: any
 const THEME_KEY = 'icu_theme_mode'
 let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> | null = null
 const navItems = [
+  { key: 'clinical-workflow', lines: ['临床', '工作台'] },
   { key: 'overview', lines: ['患者', '总览'] },
   { key: 'analytics', lines: ['质控', '分析'] },
   { key: 'rounding-sheet', lines: ['查房', '报告'] },
   { key: 'respiratory-dashboard', lines: ['呼吸', '治疗'] },
+  { key: 'nutrition-support', lines: ['营养', '支持'] },
   { key: 'research-export', lines: ['科研', '导出'] },
   { key: 'research-workbench', lines: ['科研', '分析'] },
   { key: 'academic-research', lines: ['学术', '科研'] },
@@ -85,13 +95,17 @@ const navItems = [
   { key: 'bigscreen', lines: ['护士站', '大屏'] },
   { key: 'ai-consult', lines: ['AI', '问诊'] },
   { key: 'ai-ops', lines: ['AI', '运营'] },
+  { key: 'scanner-health', lines: ['规则', '健康'] },
+  { key: 'runtime-config', lines: ['配置', '中心'] },
 ]
 
 const navKey = computed(() => {
+  if (route.path.startsWith('/clinical-workflow')) return 'clinical-workflow'
   if (route.path.startsWith('/bigscreen')) return 'bigscreen'
   if (route.path.startsWith('/analytics')) return 'analytics'
   if (route.path.startsWith('/rounding-sheet')) return 'rounding-sheet'
   if (route.path.startsWith('/respiratory-dashboard')) return 'respiratory-dashboard'
+  if (route.path.startsWith('/nutrition-support')) return 'nutrition-support'
   if (route.path.startsWith('/research-export')) return 'research-export'
   if (route.path.startsWith('/research-workbench')) return 'research-workbench'
   if (route.path.startsWith('/academic-research')) return 'academic-research'
@@ -99,7 +113,13 @@ const navKey = computed(() => {
   if (route.path.startsWith('/mdt')) return 'mdt'
   if (route.path.startsWith('/ai-consult')) return 'ai-consult'
   if (route.path.startsWith('/ai-ops')) return 'ai-ops'
+  if (route.path.startsWith('/admin/scanner-health')) return 'scanner-health'
+  if (route.path.startsWith('/admin/runtime-config')) return 'runtime-config'
   return 'overview'
+})
+const routeUserName = computed(() => {
+  const value = route.query.userName
+  return String(Array.isArray(value) ? value[0] : value || '').trim()
 })
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
@@ -143,10 +163,12 @@ const themeWrapperProps = computed(() =>
 
 function onNav(key: string) {
   const pathMap: Record<string, string> = {
+    'clinical-workflow': '/clinical-workflow',
     overview: '/',
     analytics: '/analytics',
     'rounding-sheet': '/rounding-sheet',
     'respiratory-dashboard': '/respiratory-dashboard',
+    'nutrition-support': '/nutrition-support',
     'research-export': '/research-export',
     'research-workbench': '/research-workbench',
     'academic-research': '/academic-research',
@@ -154,6 +176,8 @@ function onNav(key: string) {
     mdt: '/mdt',
     'ai-consult': '/ai-consult',
     'ai-ops': '/ai-ops',
+    'scanner-health': '/admin/scanner-health',
+    'runtime-config': '/admin/runtime-config',
     bigscreen: '/bigscreen',
   }
   const path = pathMap[key] || '/'
@@ -195,6 +219,32 @@ function onOperatorIdentityChange() {
   operatorIdentity.value = setOperatorIdentity(operatorIdentity.value)
 }
 
+function syncOperatorFromRoute() {
+  const normalized = routeUserName.value
+  if (normalized) {
+    operatorIdentity.value = setOperatorIdentity(normalized)
+  }
+}
+
+async function resolveOperatorDisplayName() {
+  const userName = routeUserName.value
+  if (!userName) {
+    operatorDisplayName.value = ''
+    return
+  }
+  try {
+    const { data } = await getClinicalAccount({
+      userName,
+      dept_code: String(route.query.dept_code || route.query.deptCode || '').trim() || undefined,
+      dept: String(route.query.dept || route.query.department || '').trim() || undefined,
+    })
+    const account = data?.account || {}
+    operatorDisplayName.value = String(account.trueName || account.display_name || userName).trim()
+  } catch {
+    operatorDisplayName.value = userName
+  }
+}
+
 async function initNotify() {
   const mod = await loadAlertSocketModule()
   notifyEnabled.value = mod.getAlertNotifyEnabled()
@@ -230,10 +280,16 @@ watch(routeNeedsAntdTheme, (needs) => {
   if (needs) void ensureAntdTheme()
 }, { immediate: true })
 
+watch(() => route.query.userName, () => {
+  syncOperatorFromRoute()
+  void resolveOperatorDisplayName()
+}, { immediate: true })
+
 onMounted(() => {
   initTheme()
   void initNotify()
   operatorIdentity.value = getOperatorIdentity()
+  syncOperatorFromRoute()
   tick()
   t = setInterval(tick, 1000)
 })
@@ -246,21 +302,30 @@ onUnmounted(() => clearInterval(t))
 .root { min-height: 100vh; background: var(--app-bg); font-family: var(--app-display-font, 'Noto Sans SC', 'Segoe UI', sans-serif); }
 .hdr {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  background: var(--hdr-bg-strong) !important;
+  grid-template-columns: 1fr;
+  gap: 0;
+  background:
+    radial-gradient(circle at 12% -40%, rgba(34, 211, 238, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(7, 18, 31, 0.98) 0%, rgba(5, 15, 26, 0.96) 58%, rgba(3, 12, 22, 0.98) 100%) !important;
   backdrop-filter: blur(14px);
-  padding: 0 24px;
-  min-height: 60px;
+  padding: 0;
+  min-height: 104px;
   height: auto !important;
   line-height: normal !important;
-  overflow: visible;
+  overflow: hidden;
   border-bottom: 1px solid var(--hdr-border);
   box-shadow: var(--hdr-shadow);
   position: sticky; top: 0; z-index: 100;
 }
-.hdr-l { display: flex; align-items: center; gap: 12px; }
+.hdr-top {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 16px 24px 10px;
+}
+.hdr-l { display: flex; align-items: center; gap: 12px; min-width: 270px; }
 .hdr-l > div { display: flex; flex-direction: column; justify-content: center; }
 .hdr-icon {
   width: 34px;
@@ -277,32 +342,57 @@ onUnmounted(() => clearInterval(t))
 }
 .hdr-title { font-size: 18px; font-weight: 800; color: var(--hdr-title); letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
 .hdr-sub { font-size: 11px; color: var(--hdr-sub); letter-spacing: 0.06em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
+.hdr-nav-shell {
+  min-width: 0;
+  padding: 0 24px 14px;
+  position: relative;
+}
+.hdr-nav-shell::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.22), transparent);
+}
 .hdr-menu {
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-height: 60px;
-  overflow: visible;
-  padding: 6px 2px;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-height: 40px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 12px 2px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 211, 252, 0.32) transparent;
+  mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 16px), transparent 100%);
+}
+.hdr-menu::-webkit-scrollbar {
+  height: 4px;
+}
+.hdr-menu::-webkit-scrollbar-thumb {
+  background: rgba(125, 211, 252, 0.28);
+  border-radius: 999px;
 }
 .nav-btn {
-  display: inline-grid;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-width: 58px;
-  min-height: 42px;
-  white-space: normal;
+  min-width: 0;
+  min-height: 36px;
+  white-space: nowrap;
   user-select: none;
   border: 1px solid var(--nav-btn-border);
-  background: var(--nav-btn-bg);
+  background: rgba(8, 31, 49, 0.76);
   color: var(--nav-btn-text);
   border-radius: 12px;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 0 14px;
+  font-size: 13px;
   font-weight: 750;
   letter-spacing: 0;
   cursor: pointer;
@@ -310,8 +400,12 @@ onUnmounted(() => clearInterval(t))
   line-height: 1;
 }
 .nav-btn span {
-  display: block;
-  line-height: 1.15;
+  display: inline;
+  line-height: 1;
+}
+.nav-btn span + span::before {
+  content: '';
+  display: none;
 }
 .nav-btn:hover { color: var(--nav-btn-hover-text); background: var(--nav-btn-hover-bg); border-color: var(--nav-btn-hover-border); }
 .nav-btn.active {
@@ -319,6 +413,7 @@ onUnmounted(() => clearInterval(t))
   background: var(--nav-btn-active-bg);
   border-color: var(--nav-btn-active-border);
   box-shadow: var(--nav-btn-active-shadow);
+  transform: translateY(-1px);
 }
 .hdr-tools {
   display: flex;
@@ -354,6 +449,15 @@ onUnmounted(() => clearInterval(t))
 }
 .operator-pill__input::placeholder {
   color: var(--hdr-sub);
+}
+.operator-pill__name {
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hdr-title);
+  font-size: 12px;
+  font-weight: 800;
 }
 .theme-toggle {
   display: inline-flex;
@@ -423,7 +527,7 @@ onUnmounted(() => clearInterval(t))
   white-space: nowrap;
   letter-spacing: 0.02em;
 }
-.body { background: var(--app-bg); min-height: calc(100vh - 60px); }
+.body { background: var(--app-bg); min-height: calc(100vh - 104px); }
 
 .theme-light .hdr {
   backdrop-filter: none;
@@ -473,9 +577,11 @@ onUnmounted(() => clearInterval(t))
 }
 
 @media (max-width: 1200px) {
-  .hdr { gap: 12px; padding: 0 12px; }
+  .hdr-top { gap: 12px; padding: 14px 14px 8px; }
+  .hdr-nav-shell { padding: 0 14px 12px; }
+  .hdr-nav-shell::before { left: 14px; right: 14px; }
   .hdr-sub { display: none; }
-  .nav-btn { min-width: 54px; min-height: 40px; font-size: 12px; padding: 5px 8px; }
+  .nav-btn { min-height: 32px; font-size: 12px; padding: 0 10px; }
   .operator-pill__label,
   .toggle-text {
     display: none;
@@ -486,23 +592,13 @@ onUnmounted(() => clearInterval(t))
 }
 
 @media (max-width: 920px) {
-  .hdr {
-    grid-template-columns: auto auto;
-    grid-template-areas:
-      "brand tools"
-      "nav nav";
-    align-items: center;
-    overflow: visible;
+  .hdr { overflow: hidden; }
+  .hdr-top {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
-  .hdr-l { grid-area: brand; }
-  .hdr-menu {
-    grid-area: nav;
-    width: 100%;
-    min-height: 48px;
-    justify-content: flex-start;
-    border-top: 1px solid var(--hdr-border);
-  }
-  .hdr-tools { grid-area: tools; }
+  .hdr-l { min-width: 0; }
+  .hdr-menu { width: 100%; min-height: 42px; justify-content: flex-start; }
   .hdr-tools { margin-left: auto; }
   .hdr-clock { display: none; }
 }
@@ -534,10 +630,10 @@ onUnmounted(() => clearInterval(t))
     letter-spacing: 0.06em;
   }
   .nav-btn {
-    min-width: 58px;
-    min-height: 42px;
+    min-width: auto;
+    min-height: 34px;
     font-size: 12px;
-    padding: 6px 10px;
+    padding: 0 10px;
     letter-spacing: 0;
   }
   .operator-pill__label,

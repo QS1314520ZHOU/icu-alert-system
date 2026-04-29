@@ -2,17 +2,17 @@
   <div class="rounding-page">
     <section class="rounding-hero">
       <div class="hero-copy">
-        <div class="eyebrow">ICU Daily Rounds</div>
-        <h1>Rounding Sheet / 智能查房报告</h1>
+        <div class="eyebrow">ICU 查房</div>
+        <h1>患者查房单</h1>
         <p>
-          当前范围：<strong>{{ scopeLabel }}</strong>，聚合过去 {{ hours }} 小时的预警、趋势、检验、用药、护理与 AI 关注点。
+          <strong>{{ scopeLabel }}</strong> · 过去 {{ hours }} 小时
         </p>
       </div>
       <div class="hero-actions">
         <a-select v-model:value="hours" :options="hourOptions" class="hour-select" />
         <a-button :loading="loading" @click="loadPatients">刷新</a-button>
         <a-button type="primary" :loading="exporting" :disabled="!selectedPatientIds.length" @click="exportSelected">
-          导出 {{ selectedPatientIds.length || '' }} 份 Markdown
+          导出 {{ selectedPatientIds.length || '' }} 份
         </a-button>
       </div>
     </section>
@@ -21,7 +21,7 @@
       <article class="metric-card metric-card--cyan">
         <span>查房患者</span>
         <strong>{{ patients.length }}</strong>
-        <small>{{ scope?.dept_code || routeDeptCode || '全部在科' }}</small>
+        <small>{{ scopeLabel }}</small>
       </article>
       <article class="metric-card metric-card--red">
         <span>危急风险</span>
@@ -36,7 +36,7 @@
       <article class="metric-card">
         <span>已勾选导出</span>
         <strong>{{ selectedPatientIds.length }}</strong>
-        <small>支持 Markdown 交班留痕</small>
+        <small>查房留痕</small>
       </article>
     </section>
 
@@ -102,66 +102,49 @@
             <a-space wrap>
               <a-tag :color="riskColor(activePatient.risk_level)">{{ riskText(activePatient.risk_level) }}</a-tag>
               <a-button size="small" :loading="summaryLoading" @click="loadSummary">刷新摘要</a-button>
-              <a-button size="small" type="primary" :loading="aiLoading" @click="loadAi">生成 AI 关注点</a-button>
+              <a-button size="small" type="primary" :loading="aiLoading" @click="loadAi">生成关注点</a-button>
             </a-space>
           </div>
 
           <a-spin :spinning="summaryLoading">
             <div v-if="summary" class="summary-content">
               <div class="quick-strip">
-                <article>
-                  <span>关键事件</span>
-                  <strong>{{ summary.key_events?.length || 0 }}</strong>
+                <article class="completion-card">
+                  <span>查房闭环</span>
+                  <strong>{{ summary.completion?.percent ?? 0 }}%</strong>
+                  <i><b :style="{ width: `${summary.completion?.percent ?? 0}%` }"></b></i>
                 </article>
-                <article>
-                  <span>趋势指标</span>
-                  <strong>{{ summary.trend_highlights?.length || 0 }}</strong>
-                </article>
-                <article>
-                  <span>用药调整</span>
-                  <strong>{{ summary.medication_changes?.length || 0 }}</strong>
-                </article>
-                <article>
-                  <span>数据缺口</span>
-                  <strong>{{ summary.data_quality?.data_gaps?.length || 0 }}</strong>
+                <article v-for="chip in summary.completion?.chips || []" :key="chip.label">
+                  <span>{{ chip.label }}</span>
+                  <strong>{{ chip.value }}</strong>
                 </article>
               </div>
 
               <section class="briefing-section">
                 <div class="briefing-main">
-                  <div class="section-title">晨会 Briefing / 过夜摘要</div>
-                  <p class="digest-headline">{{ summary.overnight_digest?.headline || '暂无可汇总的过夜变化，请结合床旁记录复核。' }}</p>
-                  <div class="digest-grid">
-                    <article>
-                      <span>预警记录</span>
-                      <strong>{{ summary.overnight_digest?.alerts?.length || 0 }}</strong>
-                      <small>{{ firstText(summary.overnight_digest?.alerts, '暂无新增预警') }}</small>
-                    </article>
-                    <article>
-                      <span>检验变化</span>
-                      <strong>{{ summary.overnight_digest?.labs?.length || 0 }}</strong>
-                      <small>{{ firstText(summary.overnight_digest?.labs, '暂无检验变化') }}</small>
-                    </article>
-                    <article>
-                      <span>医嘱/用药</span>
-                      <strong>{{ summary.overnight_digest?.medications?.length || 0 }}</strong>
-                      <small>{{ firstText(summary.overnight_digest?.medications, '暂无医嘱调整') }}</small>
-                    </article>
-                    <article>
-                      <span>护理处置</span>
-                      <strong>{{ summary.overnight_digest?.nursing?.length || 0 }}</strong>
-                      <small>{{ firstText(summary.overnight_digest?.nursing, '暂无护理处置') }}</small>
-                    </article>
+                  <div class="section-title">今日动作</div>
+                  <div class="action-grid">
+                    <button
+                      v-for="item in summary.completion?.tasks || []"
+                      :key="`${item.title}-${item.source}`"
+                      type="button"
+                      :class="['action-card', `prio-${item.priority}`]"
+                      @click="markRoundAction(item)"
+                    >
+                      <strong>{{ shortText(item.title, 18) }}</strong>
+                      <span>{{ item.action }}</span>
+                    </button>
+                    <div v-if="!(summary.completion?.tasks || []).length" class="soft-empty">今日查房动作已清空。</div>
                   </div>
                 </div>
                 <div class="briefing-side">
-                  <div class="section-title">查房待确认清单</div>
+                  <div class="section-title">数据质量 {{ summary.completion?.data_quality?.percent ?? 0 }}%</div>
                   <div class="checklist">
                     <article v-for="item in summary.rounding_checklist || []" :key="`${item.label}-${item.source}`" class="check-item">
                       <span :class="['check-dot', `check-${item.status}`]"></span>
                       <div>
                         <strong>{{ item.label }}</strong>
-                        <small>{{ item.source }}</small>
+                        <small>{{ sourceText(item.source) }}</small>
                       </div>
                     </article>
                   </div>
@@ -169,19 +152,15 @@
               </section>
 
               <section class="priority-section">
-                <div class="section-title">今日优先关注问题</div>
+                <div class="section-title">优先问题</div>
                 <div v-if="summary.clinical_priorities?.length" class="priority-grid">
                   <article v-for="item in summary.clinical_priorities" :key="item.title" class="priority-card">
                     <div class="priority-head">
                       <a-tag :color="focusColor(item.risk_level)">{{ riskText(item.risk_level) }}</a-tag>
-                      <strong>{{ item.title }}</strong>
+                      <strong>{{ shortText(item.title, 18) }}</strong>
                     </div>
-                    <p>{{ item.why_it_matters }}</p>
                     <div class="evidence-list">
-                      <span v-for="evidence in (item.evidence || []).slice(0, 3)" :key="evidence">{{ evidence }}</span>
-                    </div>
-                    <div class="question-list">
-                      <em v-for="question in (item.rounding_questions || []).slice(0, 2)" :key="question">{{ question }}</em>
+                      <span v-for="evidence in (item.evidence || []).slice(0, 2)" :key="evidence">{{ shortText(evidenceText(evidence), 30) }}</span>
                     </div>
                   </article>
                 </div>
@@ -200,8 +179,7 @@
                   />
                 </div>
                 <div class="bodymap-side">
-                  <div class="section-title">人体图 / 器官系统查房定位</div>
-                  <p>按过去 {{ hours }} 小时的器官系统事件数和严重度点亮人体图，点击器官可跳转到对应系统。</p>
+                  <div class="section-title">器官定位</div>
                   <div class="organ-chip-grid">
                     <button
                       v-for="item in organFocusRows"
@@ -214,17 +192,16 @@
                       <span>{{ item.count }} 条 · {{ severityText(item.severity) }}</span>
                     </button>
                   </div>
-                  <div class="bodymap-note">人体图为查房导航与风险提示，不替代医生判断。</div>
                 </div>
               </section>
 
               <section class="trend-section">
-                <div class="section-title">生命体征趋势 Highlights</div>
+                <div class="section-title">生命体征</div>
                 <div v-if="summary.trend_highlights?.length" class="trend-grid">
                   <article v-for="item in summary.trend_highlights" :key="item.code || item.label" class="trend-card">
                     <span>{{ item.label }}</span>
                     <strong>{{ item.latest ?? '—' }}</strong>
-                    <small>范围 {{ item.min ?? '—' }} - {{ item.max ?? '—' }}，{{ item.points || 0 }} 点</small>
+                    <small>{{ item.min ?? '—' }} - {{ item.max ?? '—' }} · {{ item.points || 0 }}点</small>
                   </article>
                 </div>
                 <div v-else class="soft-empty">暂无床旁生命体征趋势，建议确认监护数据同步。</div>
@@ -239,9 +216,8 @@
                       </a-tag>
                       <strong>{{ systemAssessment(system.key)?.headline }}</strong>
                     </div>
-                    <p>{{ systemAssessment(system.key)?.action_hint }}</p>
-                    <span v-for="evidence in (systemAssessment(system.key)?.evidence || []).slice(0, 3)" :key="evidence">
-                      {{ evidence }}
+                    <span v-for="evidence in (systemAssessment(system.key)?.evidence || []).slice(0, 2)" :key="evidence">
+                      {{ evidenceText(evidence) }}
                     </span>
                   </article>
                   <a-empty v-if="!systemCount(system.key)" description="暂无重点事件" />
@@ -258,15 +234,15 @@
               </a-tabs>
 
               <section class="ai-box">
-                <div class="section-title">AI 关注点提示</div>
-                <a-empty v-if="!aiPoints.length" description="点击“生成 AI 关注点”获取 3-5 条查房提示" />
+                <div class="section-title">智能关注点</div>
+                <a-empty v-if="!aiPoints.length" description="点击“生成关注点”获取查房提示" />
                 <article v-for="(point, idx) in aiPoints" :key="idx" class="focus-card">
                   <div class="focus-head">
                     <a-tag :color="focusColor(point.risk_level)">{{ riskText(point.risk_level) || point.risk_level }}</a-tag>
                     <strong>{{ point.title }}</strong>
                   </div>
-                  <p>{{ point.suggested_attention }}</p>
-                  <small>{{ (point.evidence || []).join('；') }}</small>
+                  <p>{{ shortText(point.suggested_attention, 36) }}</p>
+                  <small>{{ (point.evidence || []).slice(0, 2).map((x: any) => shortText(x, 20)).join('；') }}</small>
                 </article>
                 <div class="disclaimer">仅供临床决策支持，不替代医生判断。</div>
               </section>
@@ -297,9 +273,10 @@ import {
   message,
 } from 'ant-design-vue'
 import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
-import { getDepartments } from '../api'
+import { getDepartments, postClinicalTask } from '../api'
 import { getRoundingPatients, getRoundingSummary, postRoundingAiInsights, postRoundingExport } from '../api/rounding'
 import { BODY_MAP_ORGAN_LABELS, bodyMapSeverityText, type BodyMapOrganKey, type BodyMapSeverity } from '../utils/bodyMap'
+import { formatBeijingTime } from '../utils/time'
 
 const route = useRoute()
 
@@ -458,8 +435,24 @@ function eventLabel(type: string) {
 function eventColor(type: string) {
   return ({ alert: 'volcano', lab: 'geekblue', medication: 'purple', nursing_event: 'green' } as any)[type] || 'cyan'
 }
-function firstText(rows: any[], fallback: string) {
-  return Array.isArray(rows) && rows.length ? String(rows[0] || fallback) : fallback
+function shortText(value: any, max = 30) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim()
+  return text.length > max ? `${text.slice(0, max)}...` : text
+}
+function evidenceText(value: any) {
+  let text = String(value || '').replace(/\s+/g, ' ').trim()
+  text = text.replace(/[（(]([^()（）]*\d{4}-\d{2}-\d{2}T[^()（）]*)[）)]/g, (_match, raw) => ` ${formatBeijingTime(raw, '')}`)
+  text = text.replace(/(\d{4}-\d{2}-\d{2}T[^\s)）]+)/g, (_match, raw) => formatBeijingTime(raw, ''))
+  text = text.replace(/\s+/g, ' ').replace(/[（(]\s*[）)]/g, '').trim()
+  return text
+}
+function sourceText(value: any) {
+  return ({
+    alert_records: '预警',
+    order_records: '医嘱',
+    bedside: '床旁',
+    lis: '检验',
+  } as Record<string, string>)[String(value || '')] || '核对'
 }
 function assessmentColor(v: string) {
   return v === 'critical' ? 'red' : v === 'high' ? 'volcano' : v === 'watch' ? 'gold' : 'green'
@@ -468,13 +461,28 @@ function assessmentText(v: string) {
   return ({ critical: '危急', high: '高危', watch: '关注', stable: '平稳' } as any)[v] || '关注'
 }
 function fmt(v: any) {
-  return v ? new Date(v).toLocaleString('zh-CN') : '—'
+  return formatBeijingTime(v, '—')
 }
 function systemCount(key: string) {
   return summary.value?.systems?.[key]?.length || 0
 }
 function systemAssessment(key: string) {
   return (summary.value?.system_assessments || []).find((item: any) => item.system === key)
+}
+async function markRoundAction(item: any) {
+  if (!activePatient.value?.patient_id) return
+  const { data } = await postClinicalTask({
+    patient_id: activePatient.value.patient_id,
+    bed: activePatient.value.bed_no,
+    name: activePatient.value.name,
+    module: 'rounding',
+    task_type: 'rounding_action',
+    title: item?.title || '查房动作',
+    detail: item?.action || '',
+    priority: item?.priority || 'medium',
+    source: '查房动作板',
+  })
+  message.success(data?.deduped ? '查房任务已存在' : '已创建查房任务')
 }
 function handleOrganClick(organKey: string) {
   selectedOrgan.value = organKey
@@ -517,6 +525,14 @@ async function loadPatients() {
     patients.value = res.data?.patients || []
     scope.value = res.data?.scope || null
     selectedPatientIds.value = selectedPatientIds.value.filter((id) => patients.value.some((patient) => patient.patient_id === id))
+    const queryPatientId = String(route.query.patientId || route.query.patient_id || '').trim()
+    const queryPatient = queryPatientId
+      ? patients.value.find((patient) => String(patient.patient_id || patient.id || patient.hisPid || '') === queryPatientId)
+      : null
+    if (queryPatient && activePatient.value?.patient_id !== queryPatient.patient_id) {
+      await selectPatient(queryPatient)
+      return
+    }
     if (!patients.value.some((patient) => patient.patient_id === activePatient.value?.patient_id)) {
       activePatient.value = null
       summary.value = null
@@ -576,7 +592,7 @@ async function exportSelected() {
 watch(hours, () => {
   if (activePatient.value) loadSummary()
 })
-watch(() => [route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
+watch(() => [route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department, route.query.patientId, route.query.patient_id], () => {
   loadPatients()
 })
 
@@ -743,7 +759,7 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
 .summary-content { display: grid; gap: 14px; margin-top: 14px; }
 .quick-strip, .trend-grid, .digest-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1.25fr repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 .quick-strip article, .trend-card, .focus-card, .digest-grid article, .priority-card, .assessment-card {
@@ -754,6 +770,20 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
 }
 .quick-strip span, .trend-card span, .digest-grid span { display: block; color: #8aa4b8; }
 .quick-strip strong, .trend-card strong, .digest-grid strong { display: block; margin-top: 4px; color: #e6f7ff; font-size: 24px; }
+.completion-card i {
+  display: block;
+  height: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+}
+.completion-card b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #67e8f9);
+}
 .digest-grid small {
   display: block;
   margin-top: 6px;
@@ -784,6 +814,41 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
   padding: 12px;
   border-radius: 16px;
   background: rgba(2, 8, 20, .24);
+}
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.action-card {
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid rgba(125,211,252,.16);
+  border-radius: 14px;
+  color: inherit;
+  background: rgba(2, 8, 20, .28);
+  text-align: left;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease;
+}
+.action-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(103,232,249,.42);
+}
+.action-card.prio-high {
+  border-color: rgba(251,113,133,.28);
+}
+.action-card strong,
+.action-card span {
+  display: block;
+}
+.action-card strong {
+  color: #e6f7ff;
+}
+.action-card span {
+  margin-top: 8px;
+  color: #8bdcf1;
+  font-size: 12px;
 }
 .checklist {
   display: grid;
@@ -824,10 +889,13 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-items: stretch;
 }
 .priority-card {
   display: grid;
-  gap: 9px;
+  gap: 10px;
+  align-content: start;
+  min-height: 118px;
 }
 .priority-head {
   display: flex;
@@ -836,6 +904,7 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
 }
 .priority-head strong {
   color: #e6f7ff;
+  line-height: 1.35;
 }
 .priority-card p {
   color: #c9d9e6;
@@ -843,18 +912,27 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
 }
 .evidence-list, .question-list {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 .evidence-list span {
-  padding: 7px 9px;
-  border-radius: 10px;
+  min-height: 30px;
+  padding: 8px 10px;
+  border-radius: 12px;
   color: #bfefff;
   background: rgba(14, 116, 144, .18);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .question-list em {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 12px;
   color: #fef3c7;
+  background: rgba(113, 63, 18, .22);
   font-style: normal;
   font-size: 12px;
+  line-height: 1.45;
 }
 .bodymap-section {
   display: grid;
@@ -1149,14 +1227,14 @@ html[data-theme='light'] .rounding-page :deep(.ant-empty-description) {
   color: #64748b;
 }
 @media (max-width: 1280px) {
-  .metric-grid, .quick-strip, .trend-grid, .digest-grid, .priority-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-grid, .quick-strip, .trend-grid, .digest-grid, .priority-grid, .action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rounding-layout { grid-template-columns: 1fr; }
   .patient-list { max-height: 420px; }
 }
 @media (max-width: 760px) {
   .rounding-page { padding: 12px; }
   .rounding-hero, .summary-head { flex-direction: column; align-items: stretch; }
-  .metric-grid, .quick-strip, .trend-grid, .filters, .bodymap-section, .organ-chip-grid, .briefing-section, .digest-grid, .priority-grid { grid-template-columns: 1fr; }
+  .metric-grid, .quick-strip, .trend-grid, .filters, .bodymap-section, .organ-chip-grid, .briefing-section, .digest-grid, .priority-grid, .action-grid { grid-template-columns: 1fr; }
   .patient-card { grid-template-columns: 24px 50px minmax(0, 1fr); }
 }
 </style>

@@ -216,6 +216,26 @@ const deptPressureLabel = computed(() => {
   const top = [...map.entries()].sort((a, b) => b[1] - a[1])[0]
   return top ? `${top[0]} · ${top[1]} 床` : '暂无科室压力数据'
 })
+
+const deptDistributionRows = computed(() => {
+  const map = new Map<string, number>()
+  const rows = filteredPatients.value.length ? filteredPatients.value : patients.value
+  rows.forEach((row: any) => {
+    const key = String(row?.hisDept || row?.dept || row?.department || '未知科室').trim() || '未知科室'
+    map.set(key, (map.get(key) || 0) + 1)
+  })
+  if (map.size) {
+    return [...map.entries()]
+      .map(([dept, patientCount]) => ({ dept, patientCount }))
+      .sort((a, b) => Number(b.patientCount || 0) - Number(a.patientCount || 0))
+  }
+  return depts.value
+    .map((row: any) => ({
+      dept: String(row?.dept || row?.department || row?.name || '未知科室').trim() || '未知科室',
+      patientCount: Number(row?.patientCount || row?.count || 0),
+    }))
+    .filter((row: any) => row.patientCount > 0)
+})
 const commandKpis = computed(() => [
   {
     label: '危急床位',
@@ -300,15 +320,16 @@ const showAlerts = computed(() => {
 const deptOption = computed(() => {
   const tokens = chartTokens.value
   const light = isLightTheme.value
-  const data = depts.value.map((d, idx) => ({
-    name: d.dept,
+  const source = deptDistributionRows.value
+  const data = source.map((d, idx) => ({
+    name: d.dept || '未知科室',
     value: d.patientCount,
     itemStyle: {
       color: chartColors[idx % chartColors.length],
     },
   }))
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
-  const hasData = data.length > 0
+  const hasData = total > 0
   return {
     backgroundColor: 'transparent',
     tooltip: icuTooltip({
@@ -358,7 +379,7 @@ const deptOption = computed(() => {
         },
       },
     ],
-    series: [
+    series: hasData ? [
       {
         type: 'pie',
         radius: ['48%', '72%'],
@@ -372,7 +393,7 @@ const deptOption = computed(() => {
         labelLine: { lineStyle: { color: light ? 'rgba(148, 163, 184, 0.9)' : 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
         itemStyle: { borderColor: light ? '#FFFFFF' : '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
       }
-    ],
+    ] : [],
   }
 })
 const alertTrendOption = computed(() => {
@@ -585,7 +606,8 @@ async function loadDepts() {
   // 若带科室参数，直接基于患者列表统计，避免“切换页面参数丢失”
   if (routeDeptCode.value || routeDeptName.value) {
     const map = new Map<string, number>()
-    patients.value.forEach((p: any) => {
+    const rows = filteredPatients.value.length ? filteredPatients.value : patients.value
+    rows.forEach((p: any) => {
       const name = p.hisDept || p.dept || '未知'
       map.set(name, (map.get(name) || 0) + 1)
     })

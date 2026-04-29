@@ -1,5 +1,5 @@
 """
-ICU智能预警系统 - 预警引擎基础工具
+ICU智能协同工作台 - 预警引擎基础工具
 """
 from __future__ import annotations
 

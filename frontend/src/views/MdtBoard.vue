@@ -4,24 +4,138 @@
       <section class="mdt-command-center">
         <header class="mdt-command-top">
           <div class="mdt-command-title">
-            <div class="mdt-kicker">ICU MDT Command Center</div>
-            <h1 class="mdt-title">MDT 多学科会诊指挥台</h1>
-            <p class="mdt-desc">以患者为中心，把专科意见、冲突裁决、执行闭环和文书归档收敛在同一张临床作战图上。</p>
+            <div class="mdt-kicker">ICU MDT</div>
+            <h1 class="mdt-title">多学科会诊</h1>
+            <p class="mdt-desc">先看哪个系统最危险，再决定谁来处理。</p>
           </div>
           <div class="mdt-hero__badges">
             <span class="hero-badge">{{ loading ? '会诊处理中' : '会诊就绪' }}</span>
-            <span v-if="workspaceDirty" class="hero-badge hero-badge--warning">有未保存变更</span>
             <span class="hero-badge hero-badge--soft">{{ selectedPatientLabel }}</span>
             <span class="hero-badge hero-badge--focus">聚焦 {{ activeSystemLabel }}</span>
-            <span v-if="currentSessionId" class="hero-badge hero-badge--soft">会话 {{ currentSessionLabel }}</span>
-            <span class="hero-badge hero-badge--soft">阶段 {{ currentPhaseLabel }}</span>
             <span :class="['hero-badge', `hero-badge--${mdtSeverityTone}`]">风险 {{ mdtSeverityLabel }}</span>
             <span :class="['hero-badge', `hero-badge--${closureTone}`]">闭环 {{ closureLabel }}</span>
+            <span v-if="workspaceDirty" class="hero-badge hero-badge--warning">未保存</span>
             <span v-if="isSessionClosed" class="hero-badge hero-badge--closed">已归档只读</span>
           </div>
         </header>
 
-        <section v-if="viewMode === 'moderator'" class="mdt-flow">
+        <section v-if="viewMode === 'moderator'" class="mdt-simple-board">
+          <section class="mdt-simple-left">
+            <div class="simple-patient-card">
+              <div>
+                <span>当前患者</span>
+                <strong>{{ patientHeadline }}</strong>
+                <small>{{ patientSubline }}</small>
+              </div>
+              <select v-model="selectedPatientId" class="mdt-select">
+                <option value="">选择患者</option>
+                <option v-for="item in patientOptions" :key="item.value" :value="item.value">
+                  {{ item.label }}
+                </option>
+              </select>
+              <div class="simple-actions">
+                <a-button type="primary" :loading="loading" @click="loadAssessment(true)">
+                  {{ selectedPatientId ? '生成会诊' : '先选患者' }}
+                </a-button>
+                <a-button :disabled="!selectedPatientId" @click="openPatientDetail">患者详情</a-button>
+                <a-button @click="viewMode = 'deep'">详细会诊</a-button>
+              </div>
+            </div>
+
+            <div class="mdt-body-card">
+              <OrganHeatmapFigure
+                compact
+                show-legend
+                :organ-states="mdtOrganStates"
+                :organ-tooltips="mdtOrganTooltips"
+                @organ-click="handleMdtOrganClick"
+              />
+            </div>
+          </section>
+
+          <section class="mdt-simple-right">
+            <article class="simple-card simple-card--summary">
+              <span>总控结论</span>
+              <strong>{{ mdtSeverityLabel }}</strong>
+              <div class="moderator-metrics">
+                <i><b :style="{ width: `${closurePercent}%` }"></b></i>
+                <em>闭环 {{ closurePercent }}%</em>
+              </div>
+              <p>{{ shortMdtText(metaSummary, 38) }}</p>
+            </article>
+
+            <article class="simple-card simple-card--decisions">
+              <div class="simple-card-head">
+                <span>决议闭环</span>
+                <strong>{{ pendingDecisionCount + inProgressDecisionCount }}</strong>
+              </div>
+              <div class="decision-pill-row">
+                <button
+                  v-for="item in moderatorDecisionRows"
+                  :key="item.id"
+                  type="button"
+                  :class="['decision-pill', `status-${item.status || 'pending'}`]"
+                  @click="markDecisionDone(item)"
+                >
+                  <strong>{{ shortMdtText(item.action, 24) }}</strong>
+                  <span>{{ item.owner || '责任人待定' }}</span>
+                </button>
+              </div>
+            </article>
+
+            <article class="simple-card">
+              <div class="simple-card-head">
+                <span>最危险器官</span>
+                <strong>{{ mdtOrganRows[0]?.label || '暂无' }}</strong>
+              </div>
+              <div class="organ-pill-grid">
+                <button
+                  v-for="item in mdtOrganRows"
+                  :key="item.agent"
+                  type="button"
+                  :class="['organ-pill', `is-${item.severity}`, { active: activeSpecialist?.agent === item.agent }]"
+                  @click="selectSpecialist(item.agent)"
+                >
+                  <span>{{ item.label }}</span>
+                  <b>{{ item.text }}</b>
+                </button>
+              </div>
+            </article>
+
+            <article class="simple-card">
+              <div class="simple-card-head">
+                <span>需要裁决</span>
+                <strong>{{ conflictRows.length }} 项</strong>
+              </div>
+              <div v-if="conflictRows.length" class="simple-list">
+                <div v-for="(item, idx) in conflictRows.slice(0, 3)" :key="`simple-conflict-${idx}`">
+                  <strong>{{ shortMdtText(item.summary || '跨专科意见不一致', 34) }}</strong>
+                  <span>{{ (item.agents || []).map(domainLabel).join(' / ') || '多专科' }}</span>
+                </div>
+              </div>
+              <div v-else class="simple-empty">暂无明显冲突</div>
+            </article>
+
+            <article class="simple-card">
+              <div class="simple-card-head">
+                <span>下一步动作</span>
+                <strong>{{ syncableAiActions.length || decisionRows.length }}</strong>
+              </div>
+              <div v-if="syncableAiActions.length" class="simple-list">
+                <div v-for="item in syncableAiActions.slice(0, 3)" :key="item">
+                  <strong>{{ shortMdtText(item, 38) }}</strong>
+                </div>
+              </div>
+              <div v-else class="simple-empty">生成会诊后自动列出</div>
+              <div class="simple-actions slim">
+                <a-button size="small" type="primary" :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步动作</a-button>
+                <a-button size="small" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存</a-button>
+              </div>
+            </article>
+          </section>
+        </section>
+
+        <section v-if="viewMode === 'deep'" class="mdt-flow">
           <article
             v-for="step in workflowSteps"
             :key="step.key"
@@ -35,7 +149,7 @@
           </article>
         </section>
 
-        <section class="mdt-clinical-strip">
+        <section v-if="viewMode === 'deep'" class="mdt-clinical-strip">
           <article class="clinical-card clinical-card--patient">
             <div class="clinical-card__head">
               <span>患者入口</span>
@@ -105,7 +219,7 @@
           </article>
         </section>
 
-        <section v-if="viewMode === 'moderator'" class="mdt-clinical-meta">
+        <section v-if="viewMode === 'deep'" class="mdt-clinical-meta">
           <div class="meta-edit-grid">
             <input v-model="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="标签：如 脓毒症、撤机、高乳酸" />
             <input v-model="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="参与成员：ICU、感染、呼吸、药学" />
@@ -121,7 +235,7 @@
       </section>
     </a-card>
 
-    <section class="mdt-workspace">
+    <section v-if="viewMode === 'deep'" class="mdt-workspace">
       <aside class="mdt-sidebar">
         <a-card :bordered="false" class="mdt-panel" title="患者数字孪生总览">
           <div class="patient-sheet">
@@ -239,7 +353,7 @@
                   </span>
                   <span v-if="item.template_name" class="session-chip session-chip--tag">模板 {{ templateLabel(item.template_name) }}</span>
                   <span v-if="sessionDecisionCount(item) > 0" class="session-chip">{{ sessionCompletionRate(item) }}%</span>
-                  <span class="session-chip">{{ item.updated_at ? String(item.updated_at).slice(5, 16).replace('T', ' ') : '时间未记载' }}</span>
+                  <span class="session-chip">{{ formatBeijingTime(item.updated_at) }}</span>
                   <span v-if="String(item.phase || '') === 'closed'" class="session-chip session-chip--closed">已关闭</span>
                   <span v-for="tag in (item.tags || []).slice(0, 3)" :key="`${item.session_id}-${tag}`" class="session-chip session-chip--tag">{{ tag }}</span>
                 </div>
@@ -262,7 +376,7 @@
       </aside>
 
       <main :class="['mdt-content', `mdt-content--${viewMode}`]">
-        <section v-if="viewMode === 'moderator'" class="mdt-moderator-board">
+        <section class="mdt-moderator-board">
           <div class="mdt-primary-lane">
             <a-card :bordered="false" class="mdt-panel mdt-guide-panel">
               <div class="guide-header">
@@ -454,7 +568,7 @@
                   @click="switchSession(String(item.session_id || ''))"
                 >
                   <strong>{{ item.title || 'MDT 会话' }}</strong>
-                  <span>{{ phaseLabel(item.phase) }} · {{ item.updated_at ? String(item.updated_at).slice(5, 16).replace('T', ' ') : '时间未记载' }}</span>
+                  <span>{{ phaseLabel(item.phase) }} · {{ formatBeijingTime(item.updated_at) }}</span>
                 </button>
               </div>
               <div v-else class="empty-box">当前患者暂无已保存 MDT 会话。</div>
@@ -514,7 +628,7 @@
                     <article v-for="(item, idx) in activeSystemPanel.vasopressor_timeline.slice().reverse().slice(0, 6)" :key="`vaso-${idx}`" class="timeline-item">
                       <strong>{{ item.drug }}</strong>
                       <span>{{ item.dose_display || item.order_name || '剂量未结构化' }}</span>
-                      <small>{{ item.time ? String(item.time).slice(0, 16).replace('T', ' ') : '时间未记载' }}</small>
+                      <small>{{ formatBeijingTime(item.time) }}</small>
                     </article>
                   </div>
                 </template>
@@ -533,7 +647,7 @@
                     <article v-for="(item, idx) in activeSystemPanel.culture_timeline.slice(0, 6)" :key="`culture-${idx}`" class="timeline-item">
                       <strong>{{ item.title }}</strong>
                       <span>{{ item.detail }}</span>
-                      <small>{{ item.time ? String(item.time).slice(0, 16).replace('T', ' ') : '时间未记载' }}</small>
+                      <small>{{ formatBeijingTime(item.time) }}</small>
                     </article>
                   </div>
                 </template>
@@ -554,7 +668,7 @@
                     <article v-for="(item, idx) in activeSystemPanel.ventilator_timeline.slice().reverse().slice(0, 6)" :key="`vent-${idx}`" class="timeline-item">
                       <strong>{{ item.mode || activeSystemPanel.latest?.mode || '通气支持' }}</strong>
                       <span>FiO2 {{ item.fio2 ?? '—' }} / PEEP {{ item.peep ?? '—' }} / RR {{ item.rr ?? '—' }} / Vte {{ item.vte ?? '—' }}</span>
-                      <small>{{ item.time ? String(item.time).slice(0, 16).replace('T', ' ') : '时间未记载' }}</small>
+                      <small>{{ formatBeijingTime(item.time) }}</small>
                     </article>
                   </div>
                 </template>
@@ -607,7 +721,7 @@
               <article v-for="(item, idx) in activeSystemPanel.ventilator_timeline.slice().reverse().slice(0, 8)" :key="`resp-impact-${idx}`" class="impact-card">
                 <div class="impact-card__title">{{ item.mode || activeSystemPanel.latest?.mode || '通气支持' }}</div>
                 <div class="impact-card__text">FiO2 {{ item.fio2 ?? '—' }} / PEEP {{ item.peep ?? '—' }} / RR {{ item.rr ?? '—' }} / PIP {{ item.pip ?? '—' }}</div>
-                <div class="impact-card__sub">{{ item.time ? String(item.time).slice(0, 16).replace('T', ' ') : '时间未记载' }}</div>
+                <div class="impact-card__sub">{{ formatBeijingTime(item.time) }}</div>
               </article>
             </div>
             <div v-else-if="filteredDrugs.length" class="impact-list">
@@ -616,7 +730,7 @@
                 <div class="impact-card__text">
                   {{ item.dose || '--' }}{{ item.doseUnit || '' }} / {{ item.route || '给药途径未记载' }} / {{ item.frequency || '频次未记载' }}
                 </div>
-                <div class="impact-card__sub">{{ item.executeTime ? String(item.executeTime).slice(0, 16).replace('T', ' ') : '执行时间未记载' }}</div>
+                <div class="impact-card__sub">{{ formatBeijingTime(item.executeTime, '执行时间未记载') }}</div>
               </article>
             </div>
             <div v-else class="empty-box">当前系统暂无明显相关结构化事件。</div>
@@ -907,6 +1021,9 @@ import {
   listAiMdtWorkspaceSessions,
   saveAiMdtWorkspace,
 } from '../api'
+import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
+import { formatBeijingTime } from '../utils/time'
+import { BODY_MAP_ORGAN_LABELS, bodyMapSeverityText, type BodyMapOrganKey, type BodyMapSeverity } from '../utils/bodyMap'
 
 const router = useRouter()
 const route = useRoute()
@@ -1033,6 +1150,48 @@ const systemCards = computed(() => {
     }
   })
 })
+const mdtDomainToOrgan: Record<string, BodyMapOrganKey | ''> = {
+  hemodynamic: 'circulatory',
+  respiratory: 'respiratory',
+  infection: 'circulatory',
+  renal: 'renal',
+  neuro: 'neurologic',
+  nutrition: 'hepatic',
+  pharmacy: 'coagulation',
+}
+const mdtOrganRows = computed(() => systemCards.value.map((item: any) => {
+  const severity = priorityToBodySeverity(item.priority)
+  return {
+    ...item,
+    organKey: mdtDomainToOrgan[item.domain] || '',
+    severity,
+    text: bodyMapSeverityText(severity),
+  }
+}).sort((a: any, b: any) => bodySeverityRank(b.severity) - bodySeverityRank(a.severity)))
+const mdtOrganStates = computed(() => {
+  const states: Record<string, BodyMapSeverity> = {
+    neurologic: 'normal',
+    respiratory: 'normal',
+    circulatory: 'normal',
+    hepatic: 'normal',
+    coagulation: 'normal',
+    renal: 'normal',
+  }
+  for (const row of mdtOrganRows.value) {
+    if (!row.organKey) continue
+    if (bodySeverityRank(row.severity) > bodySeverityRank(states[row.organKey])) states[row.organKey] = row.severity
+  }
+  return states
+})
+const mdtOrganTooltips = computed(() => Object.fromEntries(Object.entries(mdtOrganStates.value).map(([key, severity]) => {
+  const row = mdtOrganRows.value.find((item: any) => item.organKey === key)
+  return [key, {
+    label: BODY_MAP_ORGAN_LABELS[key as BodyMapOrganKey] || key,
+    statusText: bodyMapSeverityText(severity),
+    detail: row?.summary ? shortMdtText(row.summary, 34) : '暂无突出专科意见',
+    severity,
+  }]
+})))
 const isGeneratingAssessment = computed(() => Boolean(selectedPatientId.value) && loading.value && !specialistRows.value.length)
 const activeSystemDomain = computed(() => String(activeSpecialist.value?.domain || 'hemodynamic'))
 const activeSystemLabel = computed(() => activeSpecialist.value ? domainLabel(activeSpecialist.value.domain) : '系统')
@@ -1219,6 +1378,7 @@ const guidedDecisionRows = computed(() => {
     : decisionRows.value
   return rows.slice(0, 6)
 })
+const moderatorDecisionRows = computed(() => decisionRows.value.slice(0, 3))
 const latestGeneratedDocuments = computed(() =>
   workspaceDocuments.value.reduce((acc: Record<string, any>, item: any) => {
     const key = String(item?.doc_type || '')
@@ -1358,7 +1518,7 @@ const activityTimelineRows = computed(() =>
       id: `${item?.created_at || idx}-${idx}`,
       title: String(item?.title || '会诊动作'),
       detail: String(item?.detail || '无附加描述'),
-      timeLabel: item?.created_at ? String(item.created_at).slice(0, 16).replace('T', ' ') : '时间未记载',
+      timeLabel: formatBeijingTime(item?.created_at),
     }))
 )
 const todoRows = computed(() =>
@@ -1472,6 +1632,28 @@ function domainLabel(domain: any) {
     nutrition_agent: '营养',
     pharmacy_agent: '药学',
   } as Record<string, string>)[key] || key || '未知专科'
+}
+
+function bodySeverityRank(value: any) {
+  return ({ normal: 0, warning: 1, high: 2, critical: 3 } as Record<string, number>)[String(value || 'normal')] || 0
+}
+
+function priorityToBodySeverity(priority: any): BodyMapSeverity {
+  const key = String(priority || 'medium').toLowerCase()
+  if (key === 'critical') return 'critical'
+  if (key === 'high') return 'high'
+  if (key === 'low') return 'normal'
+  return 'warning'
+}
+
+function shortMdtText(value: any, max = 52) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim()
+  return text.length > max ? `${text.slice(0, max)}...` : text || '暂无'
+}
+
+function handleMdtOrganClick(organKey: string) {
+  const row = mdtOrganRows.value.find((item: any) => item.organKey === organKey)
+  if (row?.agent) selectSpecialist(row.agent)
 }
 
 function priorityLabel(priority: any) {
@@ -1743,6 +1925,18 @@ function markDecisionStatus(id: string, status: 'pending' | 'completed') {
     return item
   })
   appendActivityLog('更新决议状态', `${action || '决议'} -> ${decisionStatusLabel(status)}`)
+}
+
+function markDecisionDone(row: any) {
+  if (isSessionClosed.value) {
+    message.warning('当前 MDT 会话已归档，不能修改决议')
+    return
+  }
+  const id = row?.id
+  if (!id) return
+  if (!decisions.value.length) fillDecisionDefaults()
+  markDecisionStatus(id, 'completed')
+  message.success('决议已闭环')
 }
 
 function markVisibleDecisions(status: 'in_progress' | 'completed') {
@@ -2121,6 +2315,211 @@ onMounted(async () => {
 .mdt-flow-step.is-done .mdt-flow-step__index {
   background: rgba(10, 82, 61, 0.92);
   color: #bbf7d0;
+}
+.mdt-simple-board {
+  display: grid;
+  grid-template-columns: minmax(380px, .95fr) minmax(420px, 1.05fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.mdt-simple-left,
+.mdt-simple-right {
+  display: grid;
+  gap: 12px;
+}
+.simple-patient-card,
+.mdt-body-card,
+.simple-card {
+  border: 1px solid rgba(125, 211, 252, .15);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, .10), transparent 34%),
+    rgba(7, 20, 34, .82);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+}
+.simple-patient-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+.simple-patient-card span,
+.simple-card span {
+  display: block;
+  color: #8aa4b8;
+  font-size: 12px;
+}
+.simple-patient-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #f0fbff;
+  font-size: 24px;
+}
+.simple-patient-card small {
+  display: block;
+  margin-top: 5px;
+  color: #9fc4d7;
+  line-height: 1.45;
+}
+.simple-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.simple-actions.slim {
+  margin-top: 8px;
+}
+.mdt-body-card {
+  display: grid;
+  place-items: center;
+  min-height: 470px;
+  padding: 12px;
+}
+.mdt-body-card :deep(.organ-heatmap) {
+  width: min(100%, 430px);
+}
+.mdt-simple-right {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.simple-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 170px;
+  padding: 16px;
+}
+.simple-card--summary {
+  min-height: 132px;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(94, 234, 212, .14), transparent 34%),
+    linear-gradient(135deg, rgba(8, 64, 84, .72), rgba(7, 20, 34, .86));
+}
+.simple-card--decisions {
+  min-height: 132px;
+}
+.moderator-metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.moderator-metrics i {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+}
+.moderator-metrics b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #67e8f9);
+}
+.moderator-metrics em {
+  color: #a7f3d0;
+  font-style: normal;
+  font-size: 12px;
+}
+.simple-card--summary strong,
+.simple-card-head strong {
+  display: block;
+  color: #f0fbff;
+  font-size: 22px;
+}
+.simple-card p {
+  margin: 0;
+  color: #b7d9ea;
+  line-height: 1.55;
+}
+.simple-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.organ-pill-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.organ-pill {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid rgba(125, 211, 252, .14);
+  border-radius: 12px;
+  padding: 9px 10px;
+  color: #dffbff;
+  background: rgba(2, 8, 20, .26);
+  cursor: pointer;
+}
+.organ-pill.active {
+  border-color: rgba(103, 232, 249, .42);
+  background: rgba(14, 116, 144, .24);
+}
+.organ-pill span,
+.organ-pill b {
+  font-size: 12px;
+}
+.organ-pill b {
+  color: #67e8f9;
+}
+.organ-pill.is-high b,
+.organ-pill.is-critical b {
+  color: #fb7185;
+}
+.organ-pill.is-warning b {
+  color: #fbbf24;
+}
+.simple-list {
+  display: grid;
+  gap: 8px;
+}
+.simple-list div,
+.simple-empty {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(2, 8, 20, .28);
+  border: 1px solid rgba(125, 211, 252, .12);
+}
+.simple-list strong {
+  display: block;
+  color: #f0fbff;
+  line-height: 1.4;
+}
+.simple-list span,
+.simple-empty {
+  color: #8aa4b8;
+  font-size: 12px;
+}
+.decision-pill-row {
+  display: grid;
+  gap: 8px;
+}
+.decision-pill {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid rgba(125, 211, 252, .14);
+  border-radius: 12px;
+  color: inherit;
+  background: rgba(2, 8, 20, .28);
+  text-align: left;
+  cursor: pointer;
+}
+.decision-pill:hover {
+  border-color: rgba(103,232,249,.42);
+}
+.decision-pill.status-completed {
+  border-color: rgba(52,211,153,.24);
+  background: rgba(20,83,45,.18);
+}
+.decision-pill strong,
+.decision-pill span {
+  display: block;
+}
+.decision-pill strong {
+  color: #f0fbff;
+  font-size: 13px;
 }
 .hero-badge {
   display: inline-flex;

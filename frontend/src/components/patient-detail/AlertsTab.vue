@@ -490,10 +490,18 @@
               </span>
             </span>
             <div v-else class="ack-disposition-bar">
-              <a-button size="small" type="primary" ghost @click="acknowledgeAlert(item, 'resolved')">✅ 已处理</a-button>
-              <a-button size="small" ghost @click="acknowledgeAlert(item, 'watching')">👁 观察中</a-button>
-              <a-button size="small" ghost @click="acknowledgeAlert(item, 'false_positive')">❌ 误报</a-button>
-              <a-button size="small" danger ghost @click="acknowledgeAlert(item, 'escalate')">📞 通知医生</a-button>
+              <a-button size="small" type="primary" ghost @click="acknowledgeAlertWithReason(item, 'resolved')">已处理</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'false_positive')">不相关</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'later')">稍后看</a-button>
+              <a-select
+                class="ack-reason-select"
+                size="small"
+                allow-clear
+                placeholder="原因"
+                :value="ackReasonValue(item)"
+                :options="ackReasonOptions"
+                @change="(value: any) => setAckReason(item, value)"
+              />
             </div>
           </div>
           <div
@@ -603,8 +611,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, toRefs, watch } from 'vue'
-import { Button as AButton, Popover as APopover } from 'ant-design-vue'
+import { computed, defineAsyncComponent, nextTick, ref, toRefs, watch } from 'vue'
+import { Button as AButton, Popover as APopover, Select as ASelect } from 'ant-design-vue'
 import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
 import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel } from '../../utils/displayLabels'
 import { BODY_MAP_ORGAN_LABELS, BODY_MAP_ORGAN_ORDER, normalizeBodyMapOrganKey } from '../../utils/bodyMap'
@@ -647,7 +655,7 @@ const props = defineProps<{
   openEvidence: (evidence: any) => void
   aiRiskExplainabilityRows: (item: any) => any[]
   formatAlertExtra: (extra: any) => string
-  acknowledgeAlert: (item: any, disposition?: string) => void | Promise<void>
+  acknowledgeAlert: (item: any, disposition?: string, meta?: { override_reason_code?: string; override_reason_text?: string }) => void | Promise<void>
   focusedOrgan?: string
   focusedAlertTypes?: string[]
 }>()
@@ -1069,10 +1077,15 @@ function fallbackExtraRows(item: any) {
 
 function ackDispositionText(value: any) {
   const map: Record<string, string> = {
-    resolved: '✅ 已处理',
-    watching: '👁 观察中',
-    false_positive: '❌ 误报',
-    escalate: '📞 通知医生',
+    resolved: '已处理',
+    accepted: '已处理',
+    watching: '观察中',
+    later: '稍后看',
+    false_positive: '不相关',
+    override: '不相关',
+    overridden: '不相关',
+    ignored: '稍后看',
+    escalate: '通知医生',
   }
   const key = String(value || '').toLowerCase()
   return map[key] || String(value || '')
@@ -1476,6 +1489,38 @@ const DetailChart = defineAsyncComponent(async () => {
 })
 
 const chartInitOptions = createChartInitOptions()
+const ackReasonByAlertId = ref<Record<string, string>>({})
+const ackReasonOptions = [
+  { label: '不符合当前病情', value: 'not_clinically_relevant' },
+  { label: '已有处置覆盖', value: 'already_addressed' },
+  { label: '重复/噪声告警', value: 'duplicate_or_noise' },
+  { label: '仅需观察', value: 'monitoring_only' },
+]
+
+function alertAckKey(item: any) {
+  return String(item?._id || item?.alert_id || item?.created_at || '')
+}
+
+function ackReasonValue(item: any) {
+  return ackReasonByAlertId.value[alertAckKey(item)] || undefined
+}
+
+function setAckReason(item: any, value: any) {
+  const key = alertAckKey(item)
+  if (!key) return
+  if (!value) {
+    const next = { ...ackReasonByAlertId.value }
+    delete next[key]
+    ackReasonByAlertId.value = next
+    return
+  }
+  ackReasonByAlertId.value = { ...ackReasonByAlertId.value, [key]: String(value) }
+}
+
+async function acknowledgeAlertWithReason(item: any, disposition?: string) {
+  const reason = ackReasonValue(item)
+  await acknowledgeAlert(item, disposition, reason ? { override_reason_code: reason } : undefined)
+}
 </script>
 
 <style scoped>
@@ -2619,6 +2664,9 @@ const chartInitOptions = createChartInitOptions()
   height: 22px !important;
   padding: 0 8px !important;
   border-radius: 999px !important;
+}
+.ack-reason-select {
+  min-width: 118px;
 }
 .alert-meta {
   margin-top: 8px;

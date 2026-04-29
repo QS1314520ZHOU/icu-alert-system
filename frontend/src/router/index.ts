@@ -28,10 +28,28 @@ const router = createRouter({
       meta: { title: '历史预警分析', useAntdTheme: true }
     },
     {
+      path: '/clinical-workflow',
+      name: 'clinical-workflow',
+      component: () => import('../views/ClinicalWorkflow.vue'),
+      meta: { title: '临床工作台', useAntdTheme: true }
+    },
+    {
       path: '/ai-ops',
       name: 'ai-ops',
       component: () => import('../views/AiOps.vue'),
       meta: { title: 'AI运营中心', useAntdTheme: true }
+    },
+    {
+      path: '/admin/scanner-health',
+      name: 'scanner-health',
+      component: () => import('../views/ScannerHealth.vue'),
+      meta: { title: '规则健康', useAntdTheme: true }
+    },
+    {
+      path: '/admin/runtime-config',
+      name: 'runtime-config',
+      component: () => import('../views/RuntimeConfigCenter.vue'),
+      meta: { title: '配置中心', useAntdTheme: true }
     },
     {
       path: '/ai-consult',
@@ -50,6 +68,12 @@ const router = createRouter({
       name: 'respiratory-dashboard',
       component: () => import('../views/RespiratoryTherapistDashboard.vue'),
       meta: { title: '呼吸治疗师工作面板', useAntdTheme: true }
+    },
+    {
+      path: '/nutrition-support',
+      name: 'nutrition-support',
+      component: () => import('../views/NutritionSupportDashboard.vue'),
+      meta: { title: '营养支持工作台', useAntdTheme: true }
     },
     {
       path: '/academic-research',

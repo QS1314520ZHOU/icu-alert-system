@@ -49,9 +49,7 @@ def _patient_name(patient: dict[str, Any]) -> str:
     name = str(patient.get("name") or patient.get("hisName") or "").strip()
     if not name:
         return "未命名患者"
-    if len(name) <= 1:
-        return f"{name}*"
-    return f"{name[0]}*{name[-1]}"
+    return name
 
 
 def _diagnosis(patient: dict[str, Any]) -> str:
@@ -412,6 +410,55 @@ def _build_checklist(summary: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _build_rounding_completion(summary: dict[str, Any]) -> dict[str, Any]:
+    checklist = summary.get("rounding_checklist") or []
+    tasks: list[dict[str, Any]] = []
+    for item in checklist:
+        status = str(item.get("status") or "")
+        if status in {"todo", "missing"}:
+            tasks.append(
+                {
+                    "title": item.get("label") or "查房复核",
+                    "source": item.get("source") or "",
+                    "priority": "high" if status == "todo" else "medium",
+                    "action": "查房确认",
+                }
+            )
+    for priority in summary.get("clinical_priorities") or []:
+        tasks.append(
+            {
+                "title": priority.get("title") or "优先问题",
+                "source": "clinical_priority",
+                "priority": priority.get("risk_level") or "medium",
+                "action": "同步今日计划",
+            }
+        )
+    evidence_blocks = [
+        bool(summary.get("key_events")),
+        bool(summary.get("trend_highlights")),
+        bool(summary.get("medication_changes")),
+        bool(summary.get("nursing_events")),
+        bool(summary.get("clinical_priorities")),
+    ]
+    complete = sum(1 for item in evidence_blocks if item)
+    data_gaps = (summary.get("data_quality") or {}).get("data_gaps") or []
+    data_quality = max(0, round((1 - len(data_gaps) / 4) * 100))
+    percent = round((complete / len(evidence_blocks)) * 70 + data_quality * 0.3)
+    return {
+        "percent": max(0, min(100, percent)),
+        "status": "ready" if percent >= 90 else "open",
+        "label": f"{len(tasks)} 个查房动作",
+        "data_quality": {"percent": data_quality, "gaps": data_gaps[:5]},
+        "tasks": tasks[:8],
+        "chips": [
+            {"label": "预警", "value": len(summary.get("key_events") or [])},
+            {"label": "趋势", "value": len(summary.get("trend_highlights") or [])},
+            {"label": "医嘱", "value": len(summary.get("medication_changes") or [])},
+            {"label": "护理", "value": len(summary.get("nursing_events") or [])},
+        ],
+    }
+
+
 async def build_rounding_summary(patient_id: str, hours: int = 24) -> dict[str, Any]:
     hours = min(max(int(hours or 24), 8), 48)
     patient = await _patient_or_none(patient_id)
@@ -482,6 +529,7 @@ async def build_rounding_summary(patient_id: str, hours: int = 24) -> dict[str, 
         },
     }
     summary["rounding_checklist"] = _build_checklist(summary)
+    summary["completion"] = _build_rounding_completion(summary)
     return {"code": 0, "summary": serialize_doc(summary)}
 
 

@@ -28,6 +28,11 @@ class TemporalRiskModelRuntime:
         cfg = self.config.yaml_cfg.get("ai_service", {}).get("temporal_model", {})
         return cfg if isinstance(cfg, dict) else {}
 
+    def _heuristic_enabled(self) -> bool:
+        cfg = self._cfg()
+        value = cfg.get("heuristic_fallback_enabled", True)
+        return bool(value)
+
     def _discover_candidates(self) -> list[Path]:
         cfg = self._cfg()
         root = model_search_roots()[0].parent
@@ -239,6 +244,138 @@ class TemporalRiskModelRuntime:
             "future_probabilities": future_probabilities,
         }
 
+    def _heuristic_predict(
+        self,
+        *,
+        sequence: np.ndarray,
+        meta_features: np.ndarray | None,
+        organ_keys: list[str],
+        horizons: tuple[int, ...],
+    ) -> dict[str, Any]:
+        seq = np.asarray(sequence, dtype=np.float32)
+        if seq.ndim == 3:
+            seq = seq[0]
+        elif seq.ndim == 1:
+            seq = seq.reshape(-1, 1)
+        if seq.ndim != 2 or seq.size == 0:
+            return {
+                "available": False,
+                "backend": "heuristic",
+                "device": "cpu",
+                "model_path": "",
+                "reason": "invalid_heuristic_input",
+            }
+
+        latest = seq[-1]
+        reference = seq[max(0, len(seq) - min(4, len(seq)))]
+        latest_meta = None
+        if meta_features is not None:
+            meta = np.asarray(meta_features, dtype=np.float32)
+            latest_meta = meta.reshape(-1) if meta.size else None
+
+        def _col(index: int, default: float) -> float:
+            if index < latest.shape[0]:
+                return float(latest[index])
+            return float(default)
+
+        def _delta(index: int) -> float:
+            if index < latest.shape[0] and index < reference.shape[0]:
+                return float(latest[index] - reference[index])
+            return 0.0
+
+        hr = _col(0, 88.0)
+        map_value = _col(1, 75.0)
+        spo2 = _col(2, 97.0)
+        rr = _col(3, 19.0)
+        temp = _col(4, 36.8)
+
+        age = float(latest_meta[0]) if latest_meta is not None and latest_meta.size >= 1 else 65.0
+        on_vent = float(latest_meta[3]) if latest_meta is not None and latest_meta.size >= 4 else 0.0
+        sofa = float(latest_meta[4]) if latest_meta is not None and latest_meta.size >= 5 else 5.0
+        lactate = float(latest_meta[5]) if latest_meta is not None and latest_meta.size >= 6 else 1.6
+
+        map_drop = -_delta(1)
+        spo2_drop = -_delta(2)
+        rr_rise = _delta(3)
+        hr_rise = _delta(0)
+        temp_rise = _delta(4)
+
+        circulatory_score = (
+            max(0.0, (65.0 - map_value) / 12.0) * 1.4 +
+            max(0.0, (lactate - 2.0) / 2.5) * 1.1 +
+            max(0.0, map_drop / 8.0) * 0.8 +
+            max(0.0, (hr - 110.0) / 25.0) * 0.35
+        )
+        respiratory_score = (
+            max(0.0, (93.0 - spo2) / 5.0) * 1.2 +
+            max(0.0, (rr - 24.0) / 8.0) * 0.6 +
+            max(0.0, spo2_drop / 3.0) * 0.8 +
+            max(0.0, on_vent) * 0.35
+        )
+        renal_score = (
+            max(0.0, (lactate - 2.2) / 3.0) * 0.35 +
+            max(0.0, (sofa - 6.0) / 4.0) * 0.75 +
+            max(0.0, (age - 75.0) / 15.0) * 0.15
+        )
+        neurologic_score = (
+            max(0.0, (sofa - 7.0) / 4.0) * 0.55 +
+            max(0.0, (temp - 38.2) / 1.2) * 0.15 +
+            max(0.0, (35.8 - temp) / 1.0) * 0.2 +
+            max(0.0, hr_rise / 18.0) * 0.15
+        )
+
+        global_logit = (
+            circulatory_score * 0.42 +
+            respiratory_score * 0.34 +
+            renal_score * 0.16 +
+            neurologic_score * 0.08 +
+            max(0.0, temp_rise / 0.8) * 0.08 -
+            1.55
+        )
+        probability = 1.0 / (1.0 + np.exp(-np.clip(global_logit, -8.0, 8.0)))
+
+        organ_lookup = {
+            "respiratory": 1.0 / (1.0 + np.exp(-np.clip(respiratory_score - 0.8, -8.0, 8.0))),
+            "circulatory": 1.0 / (1.0 + np.exp(-np.clip(circulatory_score - 0.8, -8.0, 8.0))),
+            "renal": 1.0 / (1.0 + np.exp(-np.clip(renal_score - 0.8, -8.0, 8.0))),
+            "neurologic": 1.0 / (1.0 + np.exp(-np.clip(neurologic_score - 0.8, -8.0, 8.0))),
+        }
+        organ_probabilities = {
+            key: round(float(organ_lookup.get(key, probability)), 4)
+            for key in organ_keys
+        }
+
+        trend_pressure = max(
+            0.0,
+            max(0.0, map_drop / 10.0) +
+            max(0.0, spo2_drop / 4.0) +
+            max(0.0, rr_rise / 10.0) +
+            max(0.0, hr_rise / 20.0)
+        )
+        future_probabilities: dict[int, float] = {}
+        for hour in horizons:
+            horizon_weight = min(float(hour) / 24.0, 1.0)
+            adjusted = probability + (1.0 - probability) * trend_pressure * 0.16 * horizon_weight
+            future_probabilities[int(hour)] = round(float(np.clip(adjusted, 0.01, 0.99)), 4)
+
+        return {
+            "available": True,
+            "backend": "heuristic",
+            "device": "cpu",
+            "model_path": "",
+            "reason": f"{self._reason or 'heuristic'}:trend_inferred",
+            "probability": round(float(np.clip(probability, 0.01, 0.99)), 4),
+            "organ_probabilities": organ_probabilities,
+            "future_probabilities": future_probabilities,
+            "components": {
+                "circulatory": round(float(circulatory_score), 4),
+                "respiratory": round(float(respiratory_score), 4),
+                "renal": round(float(renal_score), 4),
+                "neurologic": round(float(neurologic_score), 4),
+                "trend_pressure": round(float(trend_pressure), 4),
+            },
+        }
+
     def predict(
         self,
         *,
@@ -250,6 +387,13 @@ class TemporalRiskModelRuntime:
         self._ensure_loaded()
         organ_keys = organ_keys or []
         if self._backend == "heuristic" or self._model is None:
+            if self._heuristic_enabled():
+                return self._heuristic_predict(
+                    sequence=sequence,
+                    meta_features=meta_features,
+                    organ_keys=organ_keys,
+                    horizons=horizons,
+                )
             return {
                 "available": False,
                 "backend": self._backend,
@@ -308,6 +452,6 @@ class TemporalRiskModelRuntime:
             "backend": self._backend,
             "device": self._device,
             "model_path": self._model_path,
-            "available": bool(self._backend != "heuristic" and self._model is not None),
+            "available": bool((self._backend != "heuristic" and self._model is not None) or (self._backend == "heuristic" and self._heuristic_enabled())),
             "reason": self._reason,
         }

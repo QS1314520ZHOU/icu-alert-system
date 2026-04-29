@@ -7,6 +7,7 @@ import time
 from typing import Any
 
 import httpx
+from app import runtime
 
 logger = logging.getLogger("icu-alert")
 
@@ -88,18 +89,83 @@ class _LLMFailureTracker:
 _FAILURE_TRACKER = _LLMFailureTracker()
 
 
-def _llm_runtime_cfg(cfg) -> tuple[int, int]:
+async def _runtime_ai_config() -> dict[str, Any]:
+    try:
+        if runtime.db is None:
+            return {}
+        doc = await runtime.db.col("runtime_configs").find_one({"key": "ai"})
+        value = (doc or {}).get("value") or {}
+        return value if isinstance(value, dict) else {}
+    except Exception:
+        return {}
+
+
+async def _llm_runtime_cfg(cfg) -> tuple[int, int]:
     ai_service = cfg.yaml_cfg.get("ai_service", {}) if isinstance(cfg.yaml_cfg, dict) else {}
     llm_cfg = ai_service.get("llm", {}) if isinstance(ai_service, dict) else {}
+    runtime_ai = await _runtime_ai_config()
+    if runtime_ai:
+        llm_cfg = {**llm_cfg, **runtime_ai}
     breaker_cfg = llm_cfg.get("circuit_breaker", {}) if isinstance(llm_cfg, dict) else {}
     threshold = int(breaker_cfg.get("failure_threshold", 3) or 3)
     cooldown_seconds = int(breaker_cfg.get("cooldown_seconds", 180) or 180)
     return max(1, threshold), max(10, cooldown_seconds)
 
 
-def resolve_model_candidates(cfg, requested_model: str | None = None) -> tuple[list[str], bool, dict[str, Any]]:
-    primary = str(requested_model or cfg.llm_fast_model or cfg.settings.LLM_MODEL or "").strip()
-    explicit_fallback = str(cfg.llm_fallback_model or "").strip()
+def _purpose_from_requested_model(requested_model: str | None) -> str:
+    text = str(requested_model or "").strip().lower()
+    if text in {"fast", "quick", "summary", "handoff"}:
+        return "fast"
+    if text in {"medical", "clinical", "risk"}:
+        return "medical"
+    if text in {"reasoning", "推理"}:
+        return "reasoning"
+    if text in {"long", "long_context", "context"}:
+        return "long_context"
+    return ""
+
+
+def _provider_candidates(runtime_ai: dict[str, Any], requested_model: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    providers = [p for p in runtime_ai.get("providers") or [] if isinstance(p, dict) and p.get("enabled", True)]
+    if not providers:
+        return [], {}
+    requested = str(requested_model or "").strip()
+    purpose = _purpose_from_requested_model(requested)
+    routes = runtime_ai.get("routes") if isinstance(runtime_ai.get("routes"), dict) else {}
+    routed_provider_id = str(routes.get(purpose) or "").strip() if purpose else ""
+    if routed_provider_id:
+        selected = [p for p in providers if str(p.get("id") or "") == routed_provider_id]
+    elif purpose:
+        selected = [p for p in providers if str(p.get("purpose") or "").strip().lower() == purpose]
+    elif requested:
+        selected = [p for p in providers if str(p.get("model") or "").strip() == requested or str(p.get("id") or "").strip() == requested]
+    else:
+        selected = [p for p in providers if str(p.get("purpose") or "").strip().lower() == "fast"]
+    fallback_id = str(routes.get("fallback") or "").strip()
+    fallback = [p for p in providers if str(p.get("id") or "") == fallback_id] if fallback_id else []
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in sorted(selected + fallback + providers, key=lambda row: int(row.get("priority") or 50)):
+        key = str(item.get("id") or item.get("model") or item.get("base_url") or "")
+        if key and key not in seen:
+            seen.add(key)
+            merged.append(item)
+    meta = {
+        "primary_model": str(merged[0].get("model") or "") if merged else "",
+        "fallback_model": str(fallback[0].get("model") or "") if fallback else "",
+        "provider_pool": True,
+        "purpose": purpose or "model",
+    }
+    return merged, meta
+
+
+async def resolve_model_candidates(cfg, requested_model: str | None = None) -> tuple[list[Any], bool, dict[str, Any]]:
+    runtime_ai = await _runtime_ai_config()
+    provider_rows, provider_meta = _provider_candidates(runtime_ai, requested_model)
+    if provider_rows:
+        return provider_rows, len(provider_rows) > 1, provider_meta
+    primary = str(requested_model or runtime_ai.get("fast_model") or cfg.llm_fast_model or cfg.settings.LLM_MODEL or "").strip()
+    explicit_fallback = str(runtime_ai.get("fallback_model") or cfg.llm_fallback_model or "").strip()
     if explicit_fallback:
         fallback = explicit_fallback
     else:
@@ -138,6 +204,17 @@ def sanitize_llm_text(text: Any) -> str:
     cleaned = re.sub(r"<think\b[^>]*>[\s\S]*?</think>", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"<reasoning\b[^>]*>[\s\S]*?</reasoning>", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"<analysis\b[^>]*>[\s\S]*?</analysis>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<think\b[^>]*>[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<reasoning\b[^>]*>[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<analysis\b[^>]*>[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"</?(?:think|reasoning|analysis)\b[^>]*>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"&lt;think\b[^&]*&gt;[\s\S]*?&lt;/think&gt;", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"&lt;think\b[^&]*&gt;[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"&lt;/?(?:think|reasoning|analysis)\b[^&]*&gt;", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<\s*(?:think|reasoning|analysis)\b[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"&lt;\s*(?:think|reasoning|analysis)\b[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^\s*&lt;?\s*(?:think|reasoning|analysis)\b.*$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
+    cleaned = re.sub(r"^\s*<\s*(?:think|reasoning|analysis)\b.*$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
     cleaned = re.sub(
         r"^\s*(?:思考过程|推理过程|内部推理|模型思考|Chain\s*of\s*Thought|Reasoning)\s*[：:]\s*[\s\S]*?(?=(?:\n\s*)?(?:```|\{|\[|#{1,4}\s|结论[：:]|建议[：:]|评估[：:]|摘要[：:]))",
         "",
@@ -159,14 +236,20 @@ async def call_llm_chat(
     timeout_seconds: float = 60,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
-    threshold, cooldown_seconds = _llm_runtime_cfg(cfg)
-    normal_candidates, has_real_degrade, models_meta = resolve_model_candidates(cfg, model)
+    runtime_ai = await _runtime_ai_config()
+    if runtime_ai and runtime_ai.get("enabled") is False:
+        raise LLMRuntimeUnavailableError("AI能力已在运行时配置中心关闭")
+    if runtime_ai:
+        temperature = float(runtime_ai.get("temperature", temperature) or temperature)
+        max_tokens = int(runtime_ai.get("max_tokens", max_tokens) or max_tokens)
+        timeout_seconds = float(runtime_ai.get("timeout", timeout_seconds) or timeout_seconds)
+    threshold, cooldown_seconds = await _llm_runtime_cfg(cfg)
+    normal_candidates, has_real_degrade, models_meta = await resolve_model_candidates(cfg, model)
     circuit_open, retry_after_seconds = await _FAILURE_TRACKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
     if circuit_open:
         raise LLMRuntimeUnavailableError(
             f"LLM runtime circuit breaker open, retry after {retry_after_seconds:.1f}s"
         )
-    llm_base_url = cfg.settings.LLM_BASE_URL.rstrip("/")
     candidates = normal_candidates
     degraded_mode = False
 
@@ -174,20 +257,43 @@ async def call_llm_chat(
     if not candidates:
         raise LLMRuntimeUnavailableError("LLM runtime has no available model candidates")
 
-    llm_url = llm_base_url + "/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {cfg.settings.LLM_API_KEY}",
-    }
     last_exc: Exception | None = None
     used_model = ""
     used_fallback = False
 
-    async def _send(req_client: httpx.AsyncClient, model_name: str) -> dict[str, Any]:
-        payload = {
-            "model": model_name,
+    def _candidate_parts(candidate: Any) -> dict[str, Any]:
+        if isinstance(candidate, dict):
+            return {
+                "model": str(candidate.get("model") or "").strip(),
+                "base_url": str(candidate.get("base_url") or cfg.settings.LLM_BASE_URL or "").rstrip("/"),
+                "api_key": str(candidate.get("api_key") or cfg.settings.LLM_API_KEY or ""),
+                "temperature": float(candidate.get("temperature", temperature) or temperature),
+                "max_tokens": int(candidate.get("max_tokens", max_tokens) or max_tokens),
+                "timeout": float(candidate.get("timeout", timeout_seconds) or timeout_seconds),
+                "provider_id": str(candidate.get("id") or ""),
+                "provider_name": str(candidate.get("name") or candidate.get("id") or ""),
+            }
+        return {
+            "model": str(candidate or "").strip(),
+            "base_url": str(cfg.settings.LLM_BASE_URL or "").rstrip("/"),
+            "api_key": str(cfg.settings.LLM_API_KEY or ""),
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "timeout": timeout_seconds,
+            "provider_id": "",
+            "provider_name": "",
+        }
+
+    async def _send(req_client: httpx.AsyncClient, parts: dict[str, Any]) -> dict[str, Any]:
+        llm_url = parts["base_url"] + "/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {parts['api_key']}",
+        }
+        payload = {
+            "model": parts["model"],
+            "temperature": parts["temperature"],
+            "max_tokens": parts["max_tokens"],
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -227,9 +333,10 @@ async def call_llm_chat(
             req_client = await req_client_ctx.__aenter__()  # type: ignore[union-attr]
         for idx, candidate in enumerate(candidates):
             try:
-                data = await _send(req_client, candidate)
-                used_model = candidate
-                used_fallback = degraded_mode or (idx > 0) or (candidate == models_meta.get("fallback_model") and has_real_degrade)
+                parts = _candidate_parts(candidate)
+                data = await _send(req_client, parts)
+                used_model = parts["model"]
+                used_fallback = degraded_mode or (idx > 0) or (used_model == models_meta.get("fallback_model") and has_real_degrade)
                 await _FAILURE_TRACKER.record_success()
                 message = data["choices"][0].get("message") or {}
                 text = sanitize_llm_text(message.get("content") or "")
@@ -240,9 +347,12 @@ async def call_llm_chat(
                     "model": used_model,
                     "degraded_mode": used_fallback,
                     "meta": {
-                        "url": llm_url,
+                        "url": parts["base_url"] + "/chat/completions",
                         "primary_model": models_meta.get("primary_model"),
                         "fallback_model": models_meta.get("fallback_model"),
+                        "provider_id": parts.get("provider_id"),
+                        "provider_name": parts.get("provider_name"),
+                        "provider_pool": models_meta.get("provider_pool", False),
                         "circuit_open": False,
                         "circuit_state": "half_open" if _FAILURE_TRACKER.half_open_probe_active else "closed",
                         "retry_after_seconds": retry_after_seconds,

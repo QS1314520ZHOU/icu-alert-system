@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from bson import ObjectId
+from app.services.alert_outcome_service import AlertOutcomeService
 
 
 class AlertActionabilityScorerMixin:
@@ -549,6 +550,10 @@ class AlertActionabilityScorerMixin:
             {"_id": {"$in": object_ids}, "$or": [{"viewed_at": None}, {"viewed_at": {"$exists": False}}]},
             {"$set": {"viewed_at": now, "view_source": source, "view_actor": actor, "lifecycle_updated_at": now}},
         )
+        try:
+            await AlertOutcomeService(self.db).record_viewed([str(oid) for oid in object_ids], actor=actor, source=source)
+        except Exception:
+            pass
         return int(result.modified_count or 0)
 
     async def acknowledge_alert(
@@ -558,16 +563,18 @@ class AlertActionabilityScorerMixin:
         actor: str = "",
         note: str = "",
         disposition: str = "",
+        override_reason_code: str = "",
+        override_reason_text: str = "",
     ) -> dict[str, Any] | None:
         """
         确认预警。
         disposition 取值：
-          resolved       — 已处理
-          watching       — 已知/观察中
-          false_positive — 误报/不相关
-          escalate       — 需通知医生
+          resolved / accepted       — 已处理
+          watching / later          — 稍后看/观察中
+          false_positive / override — 不相关/覆盖
+          escalate                  — 需通知医生
         """
-        VALID_DISPOSITIONS = {"resolved", "watching", "false_positive", "escalate", ""}
+        VALID_DISPOSITIONS = {"resolved", "accepted", "watching", "later", "false_positive", "override", "overridden", "escalate", "ignored", ""}
         disposition = str(disposition or "").strip().lower()
         if disposition not in VALID_DISPOSITIONS:
             disposition = ""
@@ -585,6 +592,11 @@ class AlertActionabilityScorerMixin:
         }
         if disposition:
             update_fields["ack_disposition"] = disposition
+        if override_reason_code or override_reason_text:
+            update_fields["override_reason"] = {
+                "code": str(override_reason_code or "").strip(),
+                "text": str(override_reason_text or "").strip(),
+            }
         await self.db.col("alert_records").update_one(
             {"_id": oid},
             {"$set": update_fields},
@@ -592,7 +604,18 @@ class AlertActionabilityScorerMixin:
         doc = await self.db.col("alert_records").find_one({"_id": oid})
         if not doc:
             return None
-        return await self.refresh_alert_lifecycle(doc, persist=True)
+        doc = await self.refresh_alert_lifecycle(doc, persist=True)
+        try:
+            await AlertOutcomeService(self.db).record_acknowledgement(
+                doc,
+                actor=actor,
+                disposition=disposition,
+                reason_code=override_reason_code,
+                reason_text=override_reason_text or note,
+            )
+        except Exception:
+            pass
+        return doc
 
     async def alert_lifecycle_analytics(self, *, hours: int = 24, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         window_hours = max(int(hours or 24), 1)

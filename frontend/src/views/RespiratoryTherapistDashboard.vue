@@ -2,8 +2,8 @@
   <div class="work-page">
     <section class="topbar">
       <div>
-        <h1>Respiratory Dashboard / 呼吸治疗师工作面板</h1>
-        <p>机械通气患者、SBT 候选、气道记录和困难气道预案统一管理，按安全评分和待办优先处理。</p>
+        <h1>呼吸治疗工作台</h1>
+        <p>{{ completion.label || '按床位处理机械通气、撤机与气道安全。' }}</p>
       </div>
       <a-space wrap>
         <a-input v-model:value="keyword" allow-clear placeholder="搜索床号 / 姓名 / 诊断" class="search-box" />
@@ -15,66 +15,133 @@
     <section class="kpis">
       <article v-for="card in kpis" :key="card.label"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></article>
     </section>
-    <section class="workbench-strip">
-      <article v-for="item in topActions" :key="`${item.patient_id}-${item.title}`" class="action-card" @click="openPatient(item.patient)">
-        <div>
-          <a-tag :color="item.priority === 'high' ? 'red' : 'gold'">{{ item.priority === 'high' ? '优先' : '待办' }}</a-tag>
-          <strong>{{ item.bed_no }}床 {{ item.name }} · {{ item.title }}</strong>
-        </div>
-        <p>{{ item.detail }}</p>
+    <section class="closure-strip">
+      <article>
+        <span>闭环完成</span>
+        <strong>{{ completion.percent ?? 100 }}%</strong>
+        <i><b :style="{ width: `${completion.percent ?? 100}%` }"></b></i>
       </article>
-      <article v-if="!topActions.length" class="action-card muted-card">
-        <strong>暂无高优先级呼吸治疗待办</strong>
-        <p>仍建议按班次复核气囊压、湿化、管路固定和 VAP bundle。</p>
+      <article>
+        <span>数据质量</span>
+        <strong>{{ completion.data_quality?.percent ?? 100 }}%</strong>
+        <i><b :style="{ width: `${completion.data_quality?.percent ?? 100}%` }"></b></i>
+      </article>
+      <article>
+        <span>待办任务</span>
+        <strong>{{ completion.tasks?.length || 0 }}</strong>
+        <small>{{ topMissingText }}</small>
       </article>
     </section>
-    <section class="layout">
-      <a-card title="呼吸机患者" class="panel" :bordered="false">
-        <a-table row-key="patient_id" size="small" :loading="loading" :data-source="filteredPatients" :columns="columns" :pagination="{ pageSize: 8 }" :custom-row="rowProps">
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'safety_score'">
-              <a-tag :color="scoreColor(record.safety_score)">{{ record.safety_score ?? '—' }}</a-tag>
-            </template>
-            <template v-if="column.key === 'risk_tags'">
-              <a-space wrap><a-tag v-for="tag in record.risk_tags" :key="tag" color="volcano">{{ tag }}</a-tag></a-space>
-            </template>
-            <template v-else-if="column.key === 'sbt'">
-              <a-tag :color="record.sbt_candidate_status?.status === 'candidate' ? 'green' : 'gold'">
-                {{ record.sbt_candidate_status?.status === 'candidate' ? '可评估' : '暂不适合' }}
-              </a-tag>
-            </template>
-          </template>
-        </a-table>
-      </a-card>
-      <a-card title="SBT 待办" class="panel" :bordered="false">
+    <section class="bedside-command">
+      <article v-for="item in bedsideCommand" :key="item.key" :class="['bedside-tile', `tone-${item.tone}`]">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+        <small>{{ item.hint }}</small>
+      </article>
+    </section>
+    <section class="command-layout">
+      <section class="patient-panel">
+        <div class="panel-head">
+          <div>
+            <strong>呼吸患者</strong>
+            <span>{{ filteredPatients.length }} 人</span>
+          </div>
+          <em>点击床位查看完整参数</em>
+        </div>
+        <div v-if="loading" class="soft-empty">正在整理呼吸机患者...</div>
+        <div v-else-if="filteredPatients.length" class="vent-card-grid">
+          <button
+            v-for="patient in filteredPatients"
+            :key="patient.patient_id"
+            type="button"
+            :class="['vent-patient-card', `tone-${patientTone(patient)}`]"
+            @click="openPatient(patient)"
+          >
+            <div class="vent-card-top">
+              <span class="bed-badge">{{ patient.bed_no || '--' }}床</span>
+              <div class="vent-card-name">
+                <strong>{{ patient.name || '患者' }}</strong>
+                <small>{{ patient.ventilator_mode || '模式未记载' }}</small>
+              </div>
+              <b>{{ patient.safety_score ?? '—' }}</b>
+            </div>
+            <div class="vent-meter-row">
+              <span><i>FiO2</i><strong>{{ patient.fio2 ?? '—' }}</strong></span>
+              <span><i>PEEP</i><strong>{{ patient.peep ?? '—' }}</strong></span>
+              <span><i>DP</i><strong>{{ patient.driving_pressure ?? '—' }}</strong></span>
+              <span><i>P/F</i><strong>{{ patient.pf_ratio ?? '—' }}</strong></span>
+            </div>
+            <div class="vent-chip-row">
+              <span v-for="tag in compactRiskTags(patient)" :key="tag">{{ tag }}</span>
+              <span v-if="patient.sbt_candidate_status?.status === 'candidate'" class="is-ok">SBT可评估</span>
+            </div>
+          </button>
+        </div>
+        <div v-else class="soft-empty">当前范围暂无机械通气患者。</div>
+      </section>
+
+      <section class="sbt-panel">
+        <div class="panel-head">
+          <div>
+            <strong>SBT 待办</strong>
+            <span>{{ (sbt.todo?.length || 0) + (sbt.not_suitable?.length || 0) }} 人</span>
+          </div>
+        </div>
         <a-tabs>
+          <a-tab-pane key="tasks" :tab="`闭环任务 ${completion.tasks?.length || 0}`">
+            <div class="sbt-list">
+              <article v-for="item in completion.tasks || []" :key="`${item.patient_id}-${item.title}`" :class="['sbt-card', item.priority === 'high' ? 'danger' : '']">
+                <div>
+                  <strong>{{ item.bed_no || '--' }}床 {{ item.name || '患者' }}</strong>
+                  <span>{{ item.title }}</span>
+                </div>
+                <div class="sbt-actions">
+                  <a-button size="small" @click="openTaskPatient(item)">查看</a-button>
+                  <a-button size="small" type="primary" @click="closeRespTask(item)">完成</a-button>
+                </div>
+              </article>
+              <div v-if="!(completion.tasks || []).length" class="soft-empty small">呼吸任务已清空</div>
+            </div>
+          </a-tab-pane>
           <a-tab-pane key="todo" :tab="`今日可评估 ${sbt.todo?.length || 0}`">
-            <a-list :data-source="sbt.todo || []">
-              <template #renderItem="{ item }">
-                <a-list-item>
-                  <div class="sbt-row">
-                    <span>{{ item.bed_no }}床 {{ item.name }} · P/F {{ item.pf_ratio || '—' }}</span>
-                    <a-space>
-                      <a-button size="small" type="primary" @click.stop="recordSbt(item, 'completed')">记录完成</a-button>
-                      <a-button size="small" danger @click.stop="recordSbt(item, 'failed')">记录失败</a-button>
-                    </a-space>
-                  </div>
-                </a-list-item>
-              </template>
-            </a-list>
+            <div class="sbt-list">
+              <article v-for="item in sbt.todo || []" :key="`todo-${item.patient_id}`" class="sbt-card">
+                <div>
+                  <strong>{{ item.bed_no }}床 {{ item.name }}</strong>
+                  <span>P/F {{ item.pf_ratio || '—' }}</span>
+                </div>
+                <div class="sbt-actions">
+                  <a-button size="small" type="primary" @click.stop="recordSbt(item, 'completed')">完成</a-button>
+                  <a-button size="small" danger @click.stop="recordSbt(item, 'failed')">失败</a-button>
+                </div>
+              </article>
+              <div v-if="!(sbt.todo || []).length" class="soft-empty small">暂无今日可评估患者</div>
+            </div>
           </a-tab-pane>
           <a-tab-pane key="no" :tab="`暂不适合 ${sbt.not_suitable?.length || 0}`">
-            <a-list :data-source="sbt.not_suitable || []">
-              <template #renderItem="{ item }"><a-list-item>{{ item.patient?.bed_no }}床 {{ item.patient?.name }} · {{ (item.reasons || []).join('；') }}</a-list-item></template>
-            </a-list>
+            <div class="sbt-list">
+              <article v-for="item in sbt.not_suitable || []" :key="`no-${item.patient?.patient_id || item.patient?.bed_no}`" class="sbt-card muted">
+                <div>
+                  <strong>{{ item.patient?.bed_no }}床 {{ item.patient?.name }}</strong>
+                  <span>{{ (item.reasons || []).slice(0, 2).join(' / ') || '原因待核' }}</span>
+                </div>
+              </article>
+              <div v-if="!(sbt.not_suitable || []).length" class="soft-empty small">暂无暂不适合患者</div>
+            </div>
           </a-tab-pane>
           <a-tab-pane key="fail" :tab="`失败 ${sbt.failed?.length || 0}`">
-            <a-list :data-source="sbt.failed || []">
-              <template #renderItem="{ item }"><a-list-item>{{ item.patient?.bed_no }}床 {{ item.patient?.name }} · {{ item.reason || '未记录原因' }}</a-list-item></template>
-            </a-list>
+            <div class="sbt-list">
+              <article v-for="item in sbt.failed || []" :key="`fail-${item.patient?.patient_id || item.patient?.bed_no}`" class="sbt-card danger">
+                <div>
+                  <strong>{{ item.patient?.bed_no }}床 {{ item.patient?.name }}</strong>
+                  <span>{{ item.reason || '未记录原因' }}</span>
+                </div>
+              </article>
+              <div v-if="!(sbt.failed || []).length" class="soft-empty small">暂无失败记录</div>
+            </div>
           </a-tab-pane>
         </a-tabs>
-      </a-card>
+      </section>
     </section>
 
     <a-drawer v-model:open="drawerOpen" width="720" :title="drawerPatient ? `${drawerPatient.bed_no}床 ${drawerPatient.name}` : '患者详情'">
@@ -152,25 +219,21 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Button as AButton,
-  Card as ACard,
   Descriptions as ADescriptions,
   DescriptionsItem as ADescriptionsItem,
   Divider as ADivider,
   Drawer as ADrawer,
   Input as AInput,
-  List as AList,
-  ListItem as AListItem,
   Select as ASelect,
   Space as ASpace,
-  Table as ATable,
   Tabs as ATabs,
   TabPane as ATabPane,
-  Tag as ATag,
   Timeline as ATimeline,
   TimelineItem as ATimelineItem,
   message,
 } from 'ant-design-vue'
-import { getAirwayPlan, getSbtCandidates, getVentilatedPatients, getVentilatorTimeline, postAirwayPlan, postAirwayRecord, postSbtStatus, type RespiratoryScopeParams } from '../api/respiratory'
+import { getAirwayPlan, getSbtCandidates, getVentilatedPatients, getVentilatorTimeline, postAirwayPlan, postAirwayRecord, postRespiratoryTaskDone, postSbtStatus, type RespiratoryScopeParams } from '../api/respiratory'
+import { formatBeijingTime } from '../utils/time'
 
 const route = useRoute()
 const loading = ref(false)
@@ -179,6 +242,7 @@ const riskFilter = ref('all')
 const patients = ref<any[]>([])
 const stats = ref<any>({})
 const sbt = ref<any>({})
+const completion = ref<any>({})
 const drawerOpen = ref(false)
 const drawerPatient = ref<any>(null)
 const timeline = ref<any[]>([])
@@ -194,26 +258,6 @@ const riskOptions = [
 const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 在科患者')
-const columns = [
-  { title: '床号', dataIndex: 'bed_no', width: 70 },
-  { title: '患者', dataIndex: 'name', width: 100 },
-  { title: '安全', key: 'safety_score', width: 70 },
-  { title: '体位', dataIndex: 'position', width: 90 },
-  { title: '模式', dataIndex: 'ventilator_mode', width: 100 },
-  { title: 'FiO2', dataIndex: 'fio2', width: 70 },
-  { title: 'PEEP', dataIndex: 'peep', width: 70 },
-  { title: 'VT', dataIndex: 'vt', width: 70 },
-  { title: 'VT(set)', dataIndex: 'vt_set', width: 85 },
-  { title: '峰流速', dataIndex: 'peak_flow', width: 85 },
-  { title: 'Pplat', dataIndex: 'pplat', width: 80 },
-  { title: '气道阻力', dataIndex: 'airway_resistance', width: 90 },
-  { title: 'P0.1', dataIndex: 'p01', width: 70 },
-  { title: 'C_STAT', dataIndex: 'c_stat', width: 80 },
-  { title: 'DP', dataIndex: 'driving_pressure', width: 70 },
-  { title: 'P/F', dataIndex: 'pf_ratio', width: 80 },
-  { title: 'SBT', key: 'sbt', width: 90 },
-  { title: '风险标签', key: 'risk_tags' },
-]
 const filteredPatients = computed(() => {
   const q = keyword.value.trim().toLowerCase()
   return patients.value.filter((row) => {
@@ -230,13 +274,24 @@ const kpis = computed(() => [
   { label: '低氧合', value: stats.value.low_oxygenation_count || 0 },
   { label: '平均安全分', value: stats.value.avg_safety_score || 0 },
 ])
-const topActions = computed(() => patients.value.flatMap((patient) => (patient.worklist_actions || []).map((action: any) => ({
-  ...action,
-  patient,
-  patient_id: patient.patient_id,
-  bed_no: patient.bed_no,
-  name: patient.name,
-}))).sort((a, b) => (a.priority === 'high' ? -1 : 1) - (b.priority === 'high' ? -1 : 1)).slice(0, 6))
+const topMissingText = computed(() => {
+  const gaps = completion.value?.data_quality?.missing || []
+  if (!gaps.length) return '关键字段齐全'
+  return gaps.slice(0, 2).map((item: any) => `${item.label}${item.count}`).join(' / ')
+})
+const bedsideCommand = computed(() => {
+  const rows = patients.value || []
+  const highDp = rows.filter((row: any) => (row.risk_tags || []).includes('高驱动压')).length
+  const lowOxy = rows.filter((row: any) => (row.risk_tags || []).includes('低氧合')).length
+  const cuffTodo = rows.filter((row: any) => (row.risk_tags || []).includes('气囊压待测')).length
+  const sbtReady = rows.filter((row: any) => row.sbt_candidate_status?.status === 'candidate').length
+  return [
+    { key: 'oxygen', label: '氧合优先', value: lowOxy, hint: '先看 P/F 与 FiO2', tone: lowOxy ? 'danger' : 'stable' },
+    { key: 'protect', label: '肺保护', value: highDp, hint: '复核 DP/Pplat/VT', tone: highDp ? 'warning' : 'stable' },
+    { key: 'sbt', label: '今日 SBT', value: sbtReady, hint: '可床旁评估', tone: sbtReady ? 'info' : 'stable' },
+    { key: 'airway', label: '气道补录', value: cuffTodo, hint: '气囊压/湿化/固定', tone: cuffTodo ? 'warning' : 'stable' },
+  ]
+})
 const airwayPlanView = computed(() => {
   const plan = airwayPlan.value || {}
   const risk = String(plan.risk_level || 'unknown').toLowerCase()
@@ -253,9 +308,20 @@ const airwayPlanView = computed(() => {
     note: plan.note || '暂无预案说明，建议由呼吸治疗师与麻醉团队补充。',
   }
 })
-function fmt(v: any) { return v ? new Date(v).toLocaleString('zh-CN') : '—' }
-function scoreColor(score: number) { return Number(score || 0) >= 85 ? 'green' : Number(score || 0) >= 70 ? 'gold' : 'red' }
-function rowProps(record: any) { return { onClick: () => openPatient(record) } }
+
+function fmt(v: any) { return formatBeijingTime(v, '—') }
+function compactRiskTags(patient: any) {
+  const tags = Array.isArray(patient?.risk_tags) ? patient.risk_tags.filter(Boolean) : []
+  if (tags.length) return tags.slice(0, 3)
+  return ['常规复核']
+}
+function patientTone(patient: any) {
+  const score = Number(patient?.safety_score || 0)
+  const tags = Array.isArray(patient?.risk_tags) ? patient.risk_tags : []
+  if (tags.includes('低氧合') || tags.includes('高驱动压') || score < 60) return 'danger'
+  if (tags.length || score < 80) return 'warn'
+  return 'stable'
+}
 function requestParams(): RespiratoryScopeParams {
   const params: RespiratoryScopeParams = { patient_scope: 'in_dept' }
   if (routeDeptCode.value) params.dept_code = routeDeptCode.value
@@ -268,10 +334,24 @@ async function loadAll() {
     const [p, s] = await Promise.all([getVentilatedPatients(requestParams()), getSbtCandidates(requestParams())])
     patients.value = p.data?.patients || []
     stats.value = p.data?.stats || {}
+    completion.value = p.data?.completion || {}
     sbt.value = s.data || {}
   } finally {
     loading.value = false
   }
+}
+async function openTaskPatient(item: any) {
+  const row = patients.value.find((patient) => patient.patient_id === item.patient_id)
+  if (row) await openPatient(row)
+}
+async function closeRespTask(item: any) {
+  await postRespiratoryTaskDone(item.patient_id, {
+    airway_type: '床旁已复核',
+    humidification_status: '已复核',
+    note: `闭环：${item.title || '呼吸治疗任务'}。${item.detail || ''}`,
+  })
+  message.success('已记录闭环')
+  await loadAll()
 }
 async function openPatient(row: any) {
   drawerPatient.value = row
@@ -324,8 +404,8 @@ onMounted(loadAll)
     radial-gradient(circle at 88% 14%, rgba(20,184,166,.1), transparent 32%);
 }
 .topbar { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-h1 { margin: 0; font-size: 22px; letter-spacing: 0; }
-p { margin: 4px 0 0; color: #8aa4b8; }
+h1 { margin: 0; font-size: 26px; letter-spacing: 0; color: #f0fbff; }
+p { margin: 6px 0 0; color: #8aa4b8; }
 .search-box { width: 240px; }
 .risk-select { width: 150px; }
 .scope-strip {
@@ -342,37 +422,271 @@ p { margin: 4px 0 0; color: #8aa4b8; }
 .kpis article { border: 1px solid rgba(125,167,214,.16); border-radius: 16px; padding: 12px; background: rgba(10,25,42,.9); }
 .kpis span { color: #8aa4b8; display: block; }
 .kpis strong { font-size: 28px; color: #e6f7ff; }
-.workbench-strip {
+.closure-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: 1fr 1fr minmax(180px, .7fr);
   gap: 10px;
   margin-bottom: 14px;
 }
-.action-card {
-  display: grid;
-  gap: 8px;
-  padding: 13px;
-  border: 1px solid rgba(125,167,214,.16);
+.closure-strip article {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(45,212,191,.16);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(8,42,62,.72), rgba(7,20,34,.78));
-  cursor: pointer;
+  background: linear-gradient(135deg, rgba(20,83,45,.2), rgba(8,47,73,.2));
 }
-.action-card div {
+.closure-strip span,
+.closure-strip small {
+  display: block;
+  color: #8aa4b8;
+  font-size: 12px;
+}
+.closure-strip strong {
+  display: block;
+  margin-top: 2px;
+  color: #e6f7ff;
+  font-size: 24px;
+}
+.closure-strip i {
+  display: block;
+  height: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(2,8,20,.38);
+}
+.closure-strip b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #67e8f9);
+}
+.bedside-command {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.bedside-tile {
+  min-height: 106px;
+  padding: 14px;
+  border: 1px solid rgba(125,211,252,.14);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(8,42,62,.88), rgba(7,20,34,.94));
+}
+.bedside-tile span,
+.bedside-tile small {
+  display: block;
+  color: #8aa4b8;
+  font-size: 12px;
+}
+.bedside-tile strong {
+  display: block;
+  margin: 4px 0;
+  color: #f0fbff;
+  font-size: 34px;
+  line-height: 1;
+}
+.bedside-tile.tone-danger { border-color: rgba(251,113,133,.36); background: linear-gradient(145deg, rgba(127,29,29,.38), rgba(7,20,34,.94)); }
+.bedside-tile.tone-warning { border-color: rgba(251,191,36,.32); background: linear-gradient(145deg, rgba(113,63,18,.32), rgba(7,20,34,.94)); }
+.bedside-tile.tone-info { border-color: rgba(103,232,249,.28); }
+.bedside-tile.tone-stable { border-color: rgba(52,211,153,.22); }
+.command-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, .65fr);
+  gap: 16px;
+  align-items: start;
+}
+.patient-panel,
+.sbt-panel {
+  border: 1px solid rgba(125,167,214,.16);
+  border-radius: 20px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56,189,248,.1), transparent 30%),
+    rgba(7,20,34,.92);
+}
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(125,211,252,.12);
+}
+.panel-head strong {
+  display: block;
+  color: #f0fbff;
+  font-size: 19px;
+}
+.panel-head span,
+.panel-head em {
+  display: block;
+  margin-top: 3px;
+  color: #8aa4b8;
+  font-size: 12px;
+  font-style: normal;
+}
+.vent-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+.vent-patient-card {
+  display: grid;
+  gap: 12px;
+  min-height: 154px;
+  padding: 14px;
+  border: 1px solid rgba(103,232,249,.16);
+  border-radius: 18px;
+  color: inherit;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(56,189,248,.14), transparent 34%),
+    linear-gradient(145deg, rgba(8,42,62,.86), rgba(7,20,34,.9));
+  text-align: left;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.vent-patient-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(103,232,249,.42);
+}
+.vent-patient-card.tone-danger { border-color: rgba(251,113,133,.34); }
+.vent-patient-card.tone-warn { border-color: rgba(251,191,36,.26); }
+.vent-patient-card.tone-stable { border-color: rgba(52,211,153,.22); }
+.vent-card-top {
   display: flex;
   gap: 8px;
   align-items: center;
 }
-.action-card strong { color: #e6f7ff; }
-.action-card p { color: #b7ccda; }
-.muted-card { cursor: default; }
-.layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(360px, .8fr); gap: 14px; }
-.panel { background: rgba(10,25,42,.92); border-radius: 16px; }
-.sbt-row {
-  width: 100%;
+.bed-badge {
+  min-width: 58px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #06131b;
+  background: linear-gradient(135deg, #67e8f9, #a7f3d0);
+  font-size: 16px;
+  font-weight: 950;
+  box-shadow: 0 10px 18px rgba(34,211,238,.14);
+}
+.vent-card-name {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.vent-card-name strong {
+  color: #e6f7ff;
+  font-size: 17px;
+  line-height: 1.15;
+}
+.vent-card-name small {
+  color: #8bdcf1;
+  font-size: 13px;
+  font-weight: 800;
+}
+.vent-card-top b {
+  margin-left: auto;
+  min-width: 38px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #a7f3d0;
+  background: rgba(2,8,20,.38);
+  border: 1px solid rgba(125,211,252,.16);
+}
+.vent-meter-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+.vent-meter-row span {
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: 12px;
+  background: rgba(2,8,20,.28);
+  border: 1px solid rgba(125,211,252,.12);
+}
+.vent-meter-row i,
+.vent-meter-row strong {
+  display: block;
+  text-align: center;
+}
+.vent-meter-row i {
+  color: #8aa4b8;
+  font-style: normal;
+  font-size: 11px;
+}
+.vent-meter-row strong {
+  margin-top: 3px;
+  color: #f0fbff;
+  font-size: 15px;
+}
+.vent-chip-row {
+  display: flex;
+  align-content: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vent-chip-row span {
+  padding: 5px 8px;
+  border: 1px solid rgba(125,211,252,.16);
+  border-radius: 999px;
+  color: #c7f9ff;
+  background: rgba(2,8,20,.28);
+  font-size: 12px;
+  line-height: 1;
+}
+.vent-chip-row .is-ok {
+  color: #a7f3d0;
+  border-color: rgba(52,211,153,.24);
+}
+.sbt-list {
+  display: grid;
+  gap: 10px;
+}
+.sbt-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(125,211,252,.14);
+  border-radius: 14px;
+  background: rgba(2,8,20,.28);
+}
+.sbt-card strong,
+.sbt-card span {
+  display: block;
+}
+.sbt-card strong { color: #f0fbff; }
+.sbt-card span {
+  margin-top: 4px;
+  color: #8aa4b8;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.sbt-card.muted { border-color: rgba(251,191,36,.2); }
+.sbt-card.danger { border-color: rgba(251,113,133,.24); }
+.sbt-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.soft-empty {
+  min-height: 160px;
+  display: grid;
+  place-content: center;
+  border: 1px dashed rgba(125,211,252,.18);
+  border-radius: 16px;
+  color: #8aa4b8;
+  text-align: center;
+}
+.soft-empty.small {
+  min-height: 96px;
 }
 .drawer-summary {
   display: grid;
@@ -432,5 +746,5 @@ p { margin: 4px 0 0; color: #8aa4b8; }
   border-radius: 12px;
   background: rgba(255,255,255,.04);
 }
-@media (max-width: 1100px) { .layout, .kpis, .drawer-summary { grid-template-columns: 1fr; } .topbar { flex-direction: column; } }
+@media (max-width: 1100px) { .command-layout, .kpis, .closure-strip, .bedside-command, .drawer-summary { grid-template-columns: 1fr; } .topbar { flex-direction: column; } }
 </style>

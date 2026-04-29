@@ -1,0 +1,51 @@
+scanner: sepsis
+accepted_if:
+  window_hours: 6
+  min_signals: 2
+  signals:
+    - name: broad_spectrum_antibiotic
+      keywords:
+        - 美罗培南
+        - 亚胺培南
+        - 哌拉西林
+        - 他唑巴坦
+        - 头孢
+        - 万古霉素
+        - 替考拉宁
+        - antibiotic
+        - antimicrobial
+      time_fields:
+        - orderTime
+        - startTime
+        - created_at
+        - time
+    - name: blood_culture
+      keywords:
+        - 血培养
+        - blood culture
+      time_fields:
+        - orderTime
+        - recordTime
+        - created_at
+        - time
+    - name: lactate_recheck
+      keywords:
+        - 乳酸
+        - lactate
+      time_fields:
+        - orderTime
+        - recordTime
+        - created_at
+        - time
+    - name: fluid_resuscitation
+      keywords:
+        - 液体复苏
+        - 乳酸林格
+        - 氯化钠
+        - crystalloid
+        - bolus
+      time_fields:
+        - orderTime
+        - startTime
+        - created_at
+        - time

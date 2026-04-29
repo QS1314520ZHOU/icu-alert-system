@@ -51,6 +51,7 @@
 import { computed, defineAsyncComponent } from 'vue'
 import { Button as AButton, RadioButton as ARadioButton, RadioGroup as ARadioGroup, Select as ASelect } from 'ant-design-vue'
 import { icuCategoryAxis, icuGrid, icuTooltip, icuValueAxis } from '../../charts/icuTheme'
+import { formatBeijingTime } from '../../utils/time'
 
 const props = defineProps<{
   loading: boolean
@@ -77,8 +78,7 @@ const DetailChart = defineAsyncComponent(async () => {
 const chartOption = computed(() => {
   const rows = Array.isArray(props.points) ? props.points : []
   const xs = rows.map((row: any) => {
-    const value = String(row?.time || '')
-    return value ? value.slice(5, 16).replace('T', ' ') : '—'
+    return formatBeijingTime(row?.time, '—')
   })
   const ys = rows.map((row: any) => row?.value ?? null)
   return {
