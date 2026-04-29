@@ -78,7 +78,13 @@
 - **随访任务与转诊闭环**：为高风险患者建立长期随访档案，自动生成随访任务清单（如 30天/90天 电话回访），并支持向康复科一键发起康复转诊请求 (Rehab Referrals)。
 
 ### 1.11 系统后台管理与运行控制 (System Admin)
-- **预警引擎与扫描器管控**：提供系统运行时接口，支持对特定医学扫描器的强制紧急触发，用于系统调试或人工高优告警重算。
+- **运行时配置中心 (Runtime Config Center)**：全新的 Web 界面配置中心，支持在不重启系统的情况下，热更新并动态配置：
+  - **各个业务功能模块**（如医生查房、营养支持等）的界面显隐与开关。
+  - **AI 多模型与地址池配置**：直接在前端界面中构建模型池，配置多个不同供应商的模型接口地址、API Key 及超时设置。
+  - **动态模型路由**：将不同的临床推理任务（如快速摘要、医疗推理、复杂推理、长上下文及高可用兜底）动态分配给适合的模型，即时生效。
+  - **预警引擎与扫描规则调整**：实时修改预警规则的条件参数或阈值（如心率上下限等）并立即生效。
+  - **数据字段映射**：支持动态修改底层核心表和数据的标准化映射关系。
+- **特定扫描器管控**：提供系统运行时接口，支持对特定医学扫描器的强制紧急触发，用于系统调试或人工高优告警重算。
 
 ### 1.12 智能查房报告 (Rounding Sheet)
 - **过夜摘要**：按 8/12/24/48 小时时间窗汇总预警、生命体征、实验室、用药、呼吸机、护理、出入量、感染与营养变化。
@@ -163,8 +169,13 @@
 - `GET /api/followup_tasks/patients/{patient_id}` : 查询针对该患者设定的定期回访任务。
 - `GET /api/rehab_referrals/patients/{patient_id}` : 查询或下达针对该患者的早期/出院后康复治疗转诊记录。
 
-### 2.8 后台管理接口 (Admin)
+### 2.8 后台管理与运行时配置接口 (Admin)
 - `POST /api/admin/scanner/trigger` : 手动触发底层的离线预警引擎特定扫描器（Scanner）立刻执行。
+- `GET /api/admin/runtime-config` : 获取系统的完整运行时配置。
+- `POST /api/admin/runtime-config/modules` : 热更新各个模块开启状态。
+- `POST /api/admin/runtime-config/ai` : 热更新 AI 多模型配置与供应商地址池。
+- `POST /api/admin/runtime-config/alert-rules/{rule_id}` : 修改底层的临床预警报警规则阈值。
+- `POST /api/admin/runtime-config/field-mapping` : 修改核心字段标准化字典映射。
 
 ### 2.9 智能查房报告接口 (Rounding Sheet)
 - `GET /api/rounding/patients` : 获取今日需要查房的 ICU 患者列表和基础风险信息。
@@ -210,7 +221,7 @@
 
 ---
 
-## 3. 部署与如何配置 docker-compose.yml
+## 3. 部署与环境配置
 
 系统采用 Docker 化一键部署，核心服务包括 `api`（FastAPI 服务）和 `redis`（缓存与消息队列）。业务数据依赖 MongoDB。
 
@@ -232,42 +243,35 @@ services:
       - redis
 ```
 
-### 3.2 如何配置与使用
+### 3.2 动态配置中心与 .env 文件
 
-要修改 `docker-compose.yml` 里的变量，**不需要直接修改 yaml 文件本身**，而是通过同级目录或 `backend/` 下的 `.env` 文件进行配置映射。
+为了支持高度定制和不停机的动态更新，本系统采用 **双层配置架构**：
 
-**步骤 1：复制环境模板文件**
-```bash
-cp backend/.env.example backend/.env
-```
+1. **部署基础变量 (.env)**
+   要修改基础环境变量，请复制并编辑同级目录或 `backend/` 下的 `.env` 文件：
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+   **数据库配置**：在 `.env` 内配置 MongoDB IP（`SMARTCARE_DB_HOST`）和可选的账号密码。
+   **Redis 缓存**：默认无需修改 `REDIS_HOST=icu_alert_redis`，可通过 `REDIS_PASSWORD` 加密。
 
-**步骤 2：编辑 `.env` 文件**
-打开 `.env` 文件，根据您的实际服务器和第三方账号情况填写：
-
-1. **数据库配置（MongoDB）**：
-   - 假设您的 Mongo 服务不在同一个 docker 网络内，而在宿主机或外部机器，请将 `SMARTCARE_DB_HOST` 配置为具体的局域网 IP（例如 `192.168.1.100`）。
-   - 如果需要账号密码认证，补充填写 `SMARTCARE_DB_USER` 和 `SMARTCARE_DB_PASSWORD`。
+2. **运行时配置中心 (Runtime Config Center - 推荐 AI 配置方式)**
+   大模型 API 路由和医学预警规则在部署后，推荐通过系统内置的**运行时配置中心页面**进行可视化动态配置：
    
-2. **AI 与大模型服务配置**：
-   系统底层接入大模型，同时为了在不同场景下平衡响应速度、专业性与逻辑推理能力，采用了**多模型路由编排机制**。您可以在 `.env` 中按需配置以下四种模型（若未配置，系统会自动降级或复用主模型）：
-   
-   - **基础服务地址与鉴权**：
-     - `LLM_BASE_URL`：大模型 API 的基地址（需兼容 OpenAI 格式）。例如局域网内的 Ollama 填 `http://host.docker.internal:11434/v1`，或中转 API 填 `https://api.example.com/v1`。
-     - `LLM_API_KEY`：访问大模型的密钥令牌（若是本地无鉴权的 Ollama，可填任意值如 `ollama`）。
+   在浏览器进入 `配置中心`，即可完成以下操作（写入数据库后立即生效，**无需重启容器**）：
+   - **模型供应商池管理**：您可以任意新增多个大模型的接口地址（比如同时添加本地的 Ollama 服务和公有云的 API，配置各自的 API Key、模型标识及超时时间）。
+   - **多路路由分发**：系统可根据任务特征自动分流请求，您可在前端页面分别指定：
+     - **快速摘要 (Fast)**: 用于快速总结、基础图文。
+     - **医疗推理 (Medical)**: 处理病历提取、专科检验解读。
+     - **复杂推理 (Reasoning)**: 科研级多步长逻辑推理（支持思维链）。
+     - **高可用兜底 (Fallback)**: 遇到网络波动或并发熔断时，自动回滚重试的兜底模型。
+   - **阈值热更新**：直接在页面更改诸如“危急心率上限”等预警规则阈值，引擎扫描时将自动采用新参数。
 
-   - **多模型角色配置**：
-     - `LLM_MODEL` (快速/主干模型)：用于日常的快速对话、简单的信息提取或无需深层推理的常规分析，响应速度最快。默认值：`qwen2.5:32b`。
-     - `LLM_MODEL_MEDICAL` (医疗专业模型)：在处理检验指标解读、复杂病历提取或临床诊断建议（如出院准备度）等需要强医学先验知识的场景时调用。若不填则降级使用主模型。
-     - `LLM_REASONING_MODEL` (深度推理模型)：用于极其复杂的长文本多步逻辑推理任务（如科研复杂数据关联与 H&P 推理引擎）。通常可配置为具有强化学习 CoT（思维链）机制的模型（如 `deepseek-reasoner` 等）。
-     - `LLM_FALLBACK_MODEL` (高可用兜底模型)：当以上模型由于网络波动、API 限流（HTTP 429 等）触发熔断时，系统会自动重试此兜底模型，确保服务高可用性。
-
-3. **Redis 配置**：
-   `docker-compose.yml` 内部默认包含了一个 Redis 容器。
-   - 一般无需修改 `REDIS_HOST`（保留默认的 `icu_alert_redis` 即可让 API 访问到 Redis 容器）。
-   - 如需加固，可以在 `.env` 内设置 `REDIS_PASSWORD=YourStrongPass`，YAML 会自动注入密码给 Redis 服务并配置 API 使用密码连接。
+> **提示：** 
+> 运行时配置中心启用的配置将自动覆盖对应的 `.env` 初始配置。如配置中心为空，系统会降级回退读取 `.env` 中定义的 `LLM_BASE_URL` 等环境变量兜底。
 
 **步骤 3：启动容器**
-确保 `.env` 就绪后，在 `docker-compose.yml` 所在目录执行：
+确保 `.env` 及所需环境就绪后，在 `docker-compose.yml` 所在目录执行：
 
 ```bash
 # 启动所有服务
@@ -337,7 +341,7 @@ icu-alert-system/
 ├─ frontend/                   # Vue 3 前端
 │  ├─ src/
 │  │  ├─ components/           # (BigScreen, PatientDetail 等)
-│  │  ├─ views/                # (病区概览, 大屏, 科研工作台等)
+│  │  ├─ views/                # (病区概览, 大屏, 配置中心等)
 │  │  └─ api/                  # 前端 Axios 接口定义
 │  └─ package.json
 ├─ docs/                       # 文档与图片资源
