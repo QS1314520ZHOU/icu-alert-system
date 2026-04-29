@@ -322,6 +322,7 @@ export const getAiMonitorSummary = (params?: { date?: string }) =>
 export const postAiConsultChat = (payload: {
   message: string
   patient_id?: string
+  patient_ids?: string[]
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
 }) => aiApi.post('/api/ai/chat-consult', payload)
 

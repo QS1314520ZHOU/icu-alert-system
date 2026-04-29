@@ -1,0 +1,50 @@
+[
+  {
+    "id": "fluid_balance_monitoring",
+    "title": "ICU液体平衡与电解质纠正指南",
+    "source": "ROSE Concept + FACTT Trial (NEJM 2006) + Clinical Practice",
+    "recommendation": "液体平衡监测与目标",
+    "tags": ["fluid_balance", "io", "monitoring", "fluid_overload"],
+    "text": "FACTT试验(N=1000)：ARDS患者保守液体策略(目标CVP<4/PCWP<8)vs开放策略,7天累计液体平衡差7L,保守组机械通气天数少2.5天(p<0.001),ICU住院缩短(p=0.01),60天死亡率无差异。液体累积>10%体重(即70kg患者正平衡>7L)与ICU死亡率显著增加相关。监测频率：q1h记录入量(静脉液体/药物/血制品/肠内营养/冲管液)+出量(尿量/引流/CRRT超滤/胃肠丢失/不显性失水约500-800mL/d)。每日计算累计液体平衡。液体蠕变(fluid creep)：维持输液和药物稀释液常占总入量的30-40%→浓缩药物配制/减少不必要维持液/使用最小冲管量。"
+  },
+  {
+    "id": "fluid_diuretic_strategy",
+    "title": "ICU液体平衡与电解质纠正指南",
+    "source": "DOSE Trial + ADQI Consensus + Clinical Practice",
+    "recommendation": "利尿剂使用策略",
+    "tags": ["furosemide", "diuretic", "deresuscitation", "resistance"],
+    "text": "利尿时机：血流动力学稳定(MAP>=65,NE<=0.1且减量中/停用)、复苏阶段结束后(ROSE模型E阶段)。呋塞米：bolus 20-40mg IV试验剂量→评估2h尿量反应→目标尿量1-3mL/kg/h。持续泵注(5-20mg/h)较间断推注更平稳、更少低血压。DOSE试验(N=308)：低剂量vs高剂量、bolus vs泵注在72h症状缓解无差异,高剂量组液体丢失更多。利尿剂抵抗(呋塞米>160-200mg/d无反应)分阶段处理：1)确认容量过负荷(非低灌注致少尿)→PLR试验阴性。2)加用氯噻嗪或美托拉宗(远端小管阻断,联合增效50-100%)。3)加用螺内酯(醛固酮亢进时)。4)加用乙酰唑胺(代谢性碱中毒时特别有效)。5)利尿无效→CRRT超滤。监测：q4-6h电解质(低钾/低镁/低钠/代碱)、肌酐(利尿过度致肾前性AKI)。"
+  },
+  {
+    "id": "fluid_hyponatremia_correction",
+    "title": "ICU液体平衡与电解质纠正指南",
+    "source": "European Clinical Practice Guideline 2014 + AJM Expert Review",
+    "recommendation": "低钠血症评估与纠正",
+    "tags": ["hyponatremia", "sodium", "correction", "osmotic_demyelination"],
+    "text": "低钠血症分级：轻度(130-134)、中度(125-129)、重度(<125)。首先评估容量状态和渗透压：低渗(真性低钠)→低容量(脱水/利尿剂/肾上腺功能不全)、等容量(SIADH/甲减)、高容量(心衰/肝硬化/肾病综合征)。急性症状性低钠(癫痫/昏迷/24h内发生)：3%高渗盐水100mL IV/10min→可重复2次(目标1h内升Na+ 4-6mEq/L→症状缓解)。慢性低钠(>48h或不确定)：纠正速率关键——24h内<=10mEq/L,48h内<=18mEq/L(避免渗透性脱髓鞘综合征ODS)。理想目标:每日升4-8mEq/L。SIADH：限水(一线,<1000mL/d)→呋塞米+口服盐(增加自由水排泄)→托伐普坦(V2受体拮抗剂,15mg PO qd起始,仅住院使用,禁用于肝病)。过快纠正补救：发现超速→D5W输注+去氨加压素(DDAVP 2μg IV q6-8h)重新降低Na+。"
+  },
+  {
+    "id": "fluid_hypernatremia_correction",
+    "title": "ICU液体平衡与电解质纠正指南",
+    "source": "EMCrit IBCC + Clinical Practice",
+    "recommendation": "高钠血症评估与纠正",
+    "tags": ["hypernatremia", "free_water", "correction", "dehydration"],
+    "text": "高钠血症(Na+>145mmol/L)：ICU发生率10-26%,独立死亡率危险因素。病因：自由水丢失(意识障碍不能饮水/尿崩症/高热/腹泻)、钠过多(高渗盐水/碳酸氢钠过量/盐中毒)。自由水缺失计算：FWD=TBW×(当前Na+/140-1),TBW=体重×0.5(女)或0.6(男)。纠正速率：慢性(>48h)每24h降Na+<=10mEq/L。急性(<24h)可快速纠正。纠正途径：肠内首选(水/稀释的EN)→D5W IV(低渗,但需大量)→0.45%NS(低渗且补充容量)→0.9%NS(Na+>168时NS也相对低渗)。监测Na+ q4-6h(纠正期间)。ICU特殊问题：高渗利尿(甘露醇/高渗盐水后)、CRRT期间(可调整置换液Na+浓度定制化纠正)。尿崩症(中枢性)：DDAVP 1-2μg IV q12h→监测尿量和Na+(目标尿量<200mL/h)。肾性尿崩：噻嗪类+低盐低蛋白饮食。"
+  },
+  {
+    "id": "fluid_potassium_management",
+    "title": "ICU液体平衡与电解质纠正指南",
+    "source": "AHA ACLS + KDIGO + ICU Clinical Practice",
+    "recommendation": "钾离子紊乱管理",
+    "tags": ["potassium", "hyperkalemia", "hypokalemia", "ecg", "emergency"],
+    "text": "高钾血症(K+>5.5mmol/L)紧急处理(K+>6.5或ECG改变)：1)心肌保护-葡萄糖酸钙10% 10mL IV/2-3min(起效1-3min,持续30-60min,可重复;注意:不降钾,仅稳膜)。2)钾转移-胰岛素10U+D50W 50mL IV(起效15-30min,降K+ 0.5-1.2mmol/L,持续4-6h)→沙丁胺醇10-20mg雾化(辅助,起效30min,降K+ 0.5mmol/L)→碳酸氢钠(仅在代谢性酸中毒时有效)。3)钾排出-呋塞米40-80mg IV(有尿)→SPS(聚磺苯乙烯钠,慢/口服/灌肠)或Patiromer/ZS-9(新型钾结合剂)→紧急CRRT(利尿无反应)。低钾血症(K+<3.5mmol/L)：<3.0或有症状→KCl 10-20mEq/h IV(中心静脉,最大40mEq/h ICU监测下)+口服补钾(更安全更持久)。合并低镁时必须先补镁(否则补钾无效)。目标ICU K+ 4.0-4.5mmol/L(心律失常高风险患者)。"
+  },
+  {
+    "id": "fluid_calcium_magnesium_phosphate",
+    "title": "ICU液体平衡与电解质纠正指南",
+    "source": "ICU Clinical Practice + ESPEN 2019",
+    "recommendation": "钙镁磷管理",
+    "tags": ["calcium", "magnesium", "phosphate", "refeeding", "replacement"],
+    "text": "低钙(iCa<0.9mmol/L)：症状性(手足搐搦/Chvostek征/QTc延长/低血压)→10%葡萄糖酸钙10-20mL IV/10-20min→持续泵注(10%葡萄糖酸钙40-60mL/24h in D5W)。常见原因：大量输血(枸橼酸螯合)、脓毒症、CRRT(RCA过度)、低镁、维生素D缺乏。高钙(校正Ca>2.8或iCa>1.35)：NS大量补液(200-300mL/h)→呋塞米(水化充分后)→降钙素4U/kg SC q12h(快速但短效24-48h)→唑来膦酸4mg IV/15min(起效2-4天)→严重时CRRT。低镁(Mg2+<0.7mmol/L)：MgSO4 2-4g IV/1h→持续泵注(4-8g/24h)。目标>=1.0mmol/L。低镁致难治性低钾和QTc延长。CRRT患者常规补镁。低磷(PO4<0.65mmol/L)：磷酸钾/磷酸钠20-40mmol IV/6h。严重低磷(<0.32mmol/L)可致呼吸肌无力/需紧急补充。再喂养综合征(营养启动后24-72h)：低磷为最早最特征性表现→前3天每6-12h监测PO4/K+/Mg2+。"
+  }
+]

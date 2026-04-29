@@ -1,0 +1,50 @@
+[
+  {
+    "id": "alf_diagnosis_classification",
+    "title": "急性肝衰竭ICU管理指南",
+    "source": "AASLD 2023 ALF Guidelines + O'Grady Classification",
+    "recommendation": "ALF诊断与分类",
+    "tags": ["liver_failure", "alf", "coagulopathy", "encephalopathy", "diagnosis"],
+    "text": "急性肝衰竭(ALF)定义：无已知慢性肝病患者出现急性肝损伤+凝血障碍(INR>=1.5)+肝性脑病(任何程度)。O'Grady分类：超急性(<7天,最常见对乙酰氨基酚,预后相对较好)、急性(7-21天)、亚急性(21天-26周,预后最差)。病因评估(ICU紧急)：对乙酰氨基酚(最常见40-50%→查APAP水平/NAC治疗)、病毒性(HAV/HBV/HEV)、自身免疫性肝炎(ANA/ASMA/IgG)、Wilson病(铜蓝蛋白/24h尿铜/碱性磷酸酶/胆红素比值)、药物性(详细用药史)、缺血性肝炎(Shock liver)、Budd-Chiari(超声多普勒)、妊娠相关(HELLP/AFLP)、不明原因(约20%)。"
+  },
+  {
+    "id": "alf_kings_college_prognosis",
+    "title": "急性肝衰竭ICU管理指南",
+    "source": "King's College Hospital Criteria 1989 + MELD Score",
+    "recommendation": "预后评估与移植标准",
+    "tags": ["kings_college", "prognosis", "transplant", "meld"],
+    "text": "King's College Criteria(KCC)用于判断是否需要紧急肝移植：对乙酰氨基酚中毒：动脉pH<7.30(充分复苏后)或同时满足以下三项:INR>6.5、肌酐>300μmol/L(3.4mg/dL)、III-IV度肝性脑病。非对乙酰氨基酚：INR>6.5(单独)或以下五项中任意三项:年龄<10或>40、病因为非HAV非HBV/药物性/Wilson/不明原因、黄疸至脑病间隔>7天、INR>3.5、胆红素>300μmol/L(17.5mg/dL)。KCC特异性高(>90%)但敏感性有限(60-70%)。MELD>30提示预后不良。Factor V<20%(欧洲Clichy标准)也用于移植决策。一旦符合移植标准应立即联系移植中心。NAC对非对乙酰氨基酚ALF(I-II度脑病)也显示改善移植免存活率。"
+  },
+  {
+    "id": "alf_hepatic_encephalopathy",
+    "title": "急性肝衰竭ICU管理指南",
+    "source": "AASLD/EASL 2022 HE Guidelines + West Haven Criteria",
+    "recommendation": "肝性脑病分级与管理",
+    "tags": ["hepatic_encephalopathy", "ammonia", "lactulose", "icp", "cerebral_edema"],
+    "text": "West Haven分级：I级-注意力下降/欣快/焦虑(可能遗漏);II级-嗜睡/定向障碍/扑翼样震颤;III级-嗜睡但可唤醒/明显混乱;IV级-昏迷。ALF脑水肿风险高(与慢性肝病HE不同)：III-IV级HE脑水肿发生率25-35%。监测：血氨(>200μmol/L脑水肿风险显著增加)、GCS q2-4h、瞳孔反应(单侧或双侧散大提示脑疝)。有创ICP监测争议但可考虑(出血风险10-20%,KCC推荐中心使用)。ICP管理：目标ICP<20-25mmHg、CPP>50-60mmHg。一线：高渗盐水(23.4% 30mL IV推注或3% NS持续泵注目标Na+ 145-155mmol/L)优于甘露醇。体位：床头抬高30度。避免刺激/过度搬运。温度控制:预防性维持35-36°C(降低脑代谢)。乳果糖在ALF中作用有限(与慢性HE不同)。不推荐预防性使用抗生素降氨。"
+  },
+  {
+    "id": "alf_coagulopathy_management",
+    "title": "急性肝衰竭ICU管理指南",
+    "source": "AASLD 2023 + Expert Consensus",
+    "recommendation": "凝血障碍管理",
+    "tags": ["coagulopathy", "inr", "bleeding", "factor_v", "thromboelastography"],
+    "text": "ALF凝血障碍的悖论：INR升高但不等同于出血风险增加——ALF同时丢失促凝和抗凝因子,处于'再平衡'状态。TEG/ROTEM比INR更能反映真实凝血功能。不应仅因INR升高而预防性输注FFP/凝血因子(掩盖预后指标+容量过负荷+输血相关肺损伤)。纠正凝血的指征：活动性出血、有创操作前(INR>1.5且需穿刺/手术)。FFP 15-20mL/kg(仅维持2-4h)、冷沉淀(Fib<1.5g/L)、PLT输注(PLT<50×10^9/L且出血或操作)。rFVIIa不推荐常规使用(增加血栓风险)。VTE预防：ALF患者也可发生VTE→TEG正常或高凝时应予药物预防。Factor V是有用的预后指标(而非治疗目标)。维生素K 10mg IV×1(排除维生素K缺乏)。"
+  },
+  {
+    "id": "alf_organ_support",
+    "title": "急性肝衰竭ICU管理指南",
+    "source": "AASLD 2023 + SSC 2021 + Clinical Practice",
+    "recommendation": "ALF多器官支持",
+    "tags": ["liver_failure", "hemodynamic", "renal", "infection", "nutrition"],
+    "text": "血流动力学：ALF呈高动力循环(类似脓毒症:低SVR/高CO)→NE维持MAP>=65(参考hemodynamic_management.json)。肾上腺功能不全常见→氢化可的松200mg/d(肾上腺功能检测异常或难治性低血压时)。肾脏：AKI发生率40-80%,肝肾综合征(HRS)常见→充分灌注/避免肾毒药/必要时CRRT(枸橼酸抗凝注意:严重肝衰无法代谢枸橼酸→需用无抗凝或肝素)。感染：ALF免疫麻痹(补体下降/白细胞功能障碍)→感染率80%。定期筛查培养(血/尿/痰q48h)。不推荐预防性抗生素(AASLD),但高度警惕早期感染征象。代谢：低血糖常见(肝糖原耗竭)→持续D10%输注+q1-2h监测BG。低磷(肝再生标志→好征象)。营养:可早期肠内营养(不限制蛋白)。"
+  },
+  {
+    "id": "alf_nac_specific_treatment",
+    "title": "急性肝衰竭ICU管理指南",
+    "source": "AASLD 2023 + Prescott Protocol + Lee 2009 (Gastro)",
+    "recommendation": "N-乙酰半胱氨酸(NAC)与特异性治疗",
+    "tags": ["nac", "acetaminophen", "antidote", "treatment"],
+    "text": "对乙酰氨基酚(APAP)中毒：NAC是特效解毒剂,越早越好(摄入后8h内效果最佳,但任何时间点均应给予)。IV方案(Prescott)：150mg/kg/200mL/1h→50mg/kg/500mL/4h→100mg/kg/1000mL/16h(总300mg/kg/21h)。过敏反应(皮疹/支气管痉挛)发生率10-20%→减慢速率+抗组胺药处理,不停药。NAC继续至INR<2.0且肝酶下降。非APAP ALF：Lee 2009 RCT(N=173)显示NAC改善I-II度HE患者移植免存活率(52% vs 30%,p=0.01)→建议所有非APAP ALF(I-II度HE)给予NAC IV 150mg/kg/24h。特异性治疗:自身免疫性→高剂量甲泼尼龙(争议但可尝试);HSV→阿昔洛韦;Wilson→分子吸附(MARS)+紧急移植;毒蕈中毒→青霉素G+水飞蓟宾。"
+  }
+]

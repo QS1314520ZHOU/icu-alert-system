@@ -1,0 +1,42 @@
+[
+  {
+    "id": "glucose_icu_target",
+    "title": "ICU血糖管理与胰岛素方案",
+    "source": "SCCM 2024 + NICE-SUGAR Trial (NEJM 2009) + ADA 2024",
+    "recommendation": "ICU血糖控制目标",
+    "tags": ["glucose", "insulin", "target", "hypoglycemia"],
+    "text": "NICE-SUGAR试验(N=6104)证实强化血糖控制(81-108mg/dL)较宽松控制(144-180mg/dL)增加90天死亡率(27.5% vs 24.9%,p=0.02),主要归因于严重低血糖(<40mg/dL)发生率增加6倍(6.8% vs 0.5%)。SCCM 2024推荐ICU血糖目标140-180mg/dL(多数成人)。启动胰岛素泵注指征：连续两次血糖>180mg/dL。血糖<70mg/dL为低血糖,<40mg/dL为严重低血糖(需立即处理)。特殊人群：心脏手术后可考虑更严格目标(110-140)、DKA/HHS另行处理。血糖变异性(glycemic variability)与死亡率独立相关:SD>20mg/dL或CV>20%需优化方案。"
+  },
+  {
+    "id": "glucose_insulin_infusion_protocol",
+    "title": "ICU血糖管理与胰岛素方案",
+    "source": "Modified Yale IIP + Clinical Practice",
+    "recommendation": "胰岛素泵注方案(改良Yale方案)",
+    "tags": ["insulin", "infusion", "protocol", "yale", "titration"],
+    "text": "改良Yale胰岛素泵注方案(IIP)：初始剂量根据血糖计算：BG 180-220=2U/h,221-260=3U/h,261-300=4U/h,301-350=5U/h,>350=6U/h(通常不bolus,DKA除外)。调整原则：血糖变化率决定调整幅度。BG下降>60mg/dL/h→减量50%。BG下降30-60且在目标范围→维持。BG未下降或上升→增量(增加当前速率的1-2U/h或按表格升级)。目标140-180期间每1h测血糖(稳定后可延至2h)。低血糖处理:<70→停泵+D50W 25mL IV→15min复查→BG>100后以前一速率50%重启。换液/中断超过30min需重新评估。肠内/肠外营养中断或停止时应立即减量或停泵(防止低血糖)。"
+  },
+  {
+    "id": "glucose_dka_management",
+    "title": "ICU血糖管理与胰岛素方案",
+    "source": "ADA 2024 DKA Consensus + JBDS 2023",
+    "recommendation": "糖尿病酮症酸中毒(DKA)管理",
+    "tags": ["dka", "ketoacidosis", "insulin", "fluid", "potassium"],
+    "text": "DKA诊断：血糖>250mg/dL(可正常:euDKA如SGLT2i)、pH<7.30、HCO3<18mmol/L、酮体阳性(β-羟丁酸>3mmol/L)、AG>12。严重DKA(ICU收治)：pH<7.0、HCO3<10、K+<3.5(纠正前禁胰岛素)、意识障碍、血流动力学不稳定。液体复苏：0.9%NS 15-20mL/kg/h第1h(约1-1.5L)→根据Na+校正和容量状态选NS或0.45%NS 250-500mL/h(Na+正常或高时用0.45%)→BG降至200-250时加D5%液体。胰岛素：0.1-0.14U/kg/h持续泵注(无bolus,ADA 2024更新)。BG下降目标50-75mg/dL/h。BG<200→减胰岛素至0.02-0.05U/kg/h+D5%液体,维持BG 150-200直至AG关闭。钾替：K+<5.3→每升液体加20-40mEqKCl;K+<3.5→先补钾再给胰岛素。碳酸氢钠：仅pH<6.9时考虑(100mL 8.4%NaHCO3+20mEqKCl/400mL水/2h)。"
+  },
+  {
+    "id": "glucose_hhs_management",
+    "title": "ICU血糖管理与胰岛素方案",
+    "source": "ADA 2024 + Joint British Diabetes Societies 2023",
+    "recommendation": "高渗高血糖状态(HHS)管理",
+    "tags": ["hhs", "hyperosmolar", "dehydration", "insulin"],
+    "text": "HHS诊断：血糖>600mg/dL、血浆渗透压>320mOsm/kg(计算:2×Na+glucose/18+BUN/2.8)、pH>7.30(无显著酮症酸中毒)、严重脱水(平均失水8-10L)。HHS死亡率(10-20%)远高于DKA(1-5%)。液体复苏是核心(比DKA更重要)：0.9%NS 1-1.5L/h前2h→根据校正Na+调整(校正Na+=实测Na++1.6×(BG-100)/100)→校正Na+高用0.45%NS→4-14mL/kg/h。胰岛素：不急于给胰岛素(液体复苏本身可降BG50-80mg/dL/h)。ADA 2024建议液体复苏1-2h后开始低剂量胰岛素0.025-0.05U/kg/h(避免渗透压过快变化致脑水肿)。BG下降不超过75mg/dL/h。监测：血浆渗透压q2h、Na+q2h(Na+下降速率<10mEq/L/24h)、尿量(目标>0.5mL/kg/h)。VTE预防:HHS高凝状态需药物预防。"
+  },
+  {
+    "id": "glucose_steroid_refeeding",
+    "title": "ICU血糖管理与胰岛素方案",
+    "source": "Clinical Practice + ESPEN 2019",
+    "recommendation": "特殊场景血糖管理(类固醇/营养/CRRT)",
+    "tags": ["steroid", "hyperglycemia", "refeeding", "crrt", "enteral_nutrition"],
+    "text": "类固醇相关高血糖：地塞米松/甲泼尼龙等导致以午后和夜间为主的高血糖模式,空腹血糖可正常。处理：胰岛素泵注(ICU)或NPH胰岛素(与类固醇同步给药,覆盖作用时间)。肠内营养相关：持续泵注EN期间高血糖→胰岛素泵注+血糖监测q2-4h;EN中断>2h需减量或停泵。肠外营养(PN)：PN中可直接加入胰岛素(起始0.1U/g葡萄糖)。CRRT相关：含葡萄糖置换液(如Hemosol B0含葡萄糖)可致高血糖→需增加胰岛素。枸橼酸抗凝(ACD-A含柠檬酸→代谢产生碳酸氢盐,不直接升糖但枸橼酸钠含糖配方需注意)。再喂养综合征(Refeeding)：营养启动后出现低磷/低钾/低镁,同时可出现高血糖→监测PO4/K+/Mg2+ q6-12h首3天,起始营养10-15kcal/kg/d缓慢递增。"
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "pcac_initial_stabilization",
+    "title": "心脏骤停后综合管理",
+    "source": "AHA 2023 Focused Update + AHA 2025 Post-Cardiac Arrest Care Guidelines",
+    "recommendation": "ROSC后初始稳定化",
+    "tags": ["cardiac_arrest", "rosc", "post_resuscitation", "stabilization"],
+    "text": "恢复自主循环(ROSC)后立即：确认气道安全(维持ETT或紧急插管)、12导联ECG(评估STEMI)、有创动脉压监测、中心静脉通路、连续SpO2和ETCO2监测。血流动力学目标：MAP>=65mmHg(SBP>=90)、升压药首选NE、充分液体复苏(避免过度)。避免低血压(SBP<90持续>30min与不良神经预后相关)。呼吸管理：滴定FiO2维持SpO2 92-98%(避免高氧PaO2>300mmHg,与氧化应激和神经损伤相关)。PaCO2目标35-45mmHg(避免过度通气致脑灌注不足、避免高碳酸血症致颅内压升高)。血糖维持<180mg/dL,避免低血糖。"
+  },
+  {
+    "id": "pcac_ttm",
+    "title": "心脏骤停后综合管理",
+    "source": "TTM Trial (NEJM 2013) + TTM2 Trial (NEJM 2021) + AHA 2023",
+    "recommendation": "目标温度管理(TTM)",
+    "tags": ["ttm", "hypothermia", "temperature", "neuroprotection"],
+    "text": "AHA 2023更新：推荐对心脏骤停后昏迷(无法遵从指令)的成人积极预防发热,维持体温<=37.5°C至少72h(强推荐)。TTM2试验(N=1900)比较33°C vs 正常体温(<=37.5°C)6个月死亡率无差异(50% vs 48%)。因此不再强调33°C目标,防止发热同样有效。实施：入院后尽快开始(ROSC后数小时内)、使用体温反馈装置(血管内冷却导管/体表冷却)、连续核心体温监测(食管/膀胱/肺动脉)。复温：主动复温速率<=0.25-0.5°C/h(过快复温增加反弹性颅内压升高和电解质紊乱)。监测：复温期间密切关注K+(低温时细胞内移→复温时释放致高钾)、血糖(低温致胰岛素抵抗)、电解质q4h。寒战管理：对乙酰氨基酚/镁剂/右美托咪定/NMBA(最后手段)。"
+  },
+  {
+    "id": "pcac_coronary_evaluation",
+    "title": "心脏骤停后综合管理",
+    "source": "AHA 2023 + COACT Trial (NEJM 2019)",
+    "recommendation": "冠脉评估与PCI策略",
+    "tags": ["cardiac_arrest", "stemi", "pci", "coronary", "angiography"],
+    "text": "STEMI：ROSC后ECG显示ST抬高→急诊冠脉造影+PCI(强推荐,不受昏迷状态影响)。非STEMI/无ST抬高：COACT试验(N=552)显示院外心脏骤停(VF/VT)无STEMI患者急诊vs延迟(入院后稳定再择期)冠脉造影90天生存率无差异。AHA 2023：无STEMI的心脏骤停后昏迷患者不常规急诊造影(条件推荐);若存在高度怀疑ACS的临床线索(胸痛前驱/反复可电击节律/心源性休克/持续ST动态变化)可考虑急诊造影。心脏骤停后血流动力学不稳定:排除PE(床旁超声/CTPA)、主动脉夹层、心包填塞等非冠脉病因。"
+  },
+  {
+    "id": "pcac_neuro_prognostication",
+    "title": "心脏骤停后综合管理",
+    "source": "AHA 2023 + ERC-ESICM 2021 Prognostication Guidelines",
+    "recommendation": "神经功能预后评估",
+    "tags": ["cardiac_arrest", "neuroprognostication", "eeg", "nse", "pupil"],
+    "text": "神经预后评估时机：ROSC后>=72h(排除镇静和低温影响后)。多模态评估(单一指标不应决定撤除生命支持)：临床检查-双侧瞳孔光反射消失(72h)FPR<1%、双侧角膜反射消失、GCS-M<=2(72h,排除镇静/NMBA)。电生理-EEG持续抑制或爆发-抑制(>72h)、SSEP双侧N20消失(FPR<1%,最可靠单一指标)。生物标志物-NSE>60μg/L(48-72h)与不良预后高度相关。影像-脑CT灰白质比值下降(24-48h内)、MRI DWI广泛皮层弥散受限(2-5天)。AHA推荐：至少两种不同模态的指标一致提示不良预后后方可进行撤除生命支持讨论。自动瞳孔仪(NPi)：NPi<2双侧提示不良预后,优于手动评估。"
+  },
+  {
+    "id": "pcac_seizure_management",
+    "title": "心脏骤停后综合管理",
+    "source": "AHA 2023 + ERC-ESICM 2021",
+    "recommendation": "心脏骤停后癫痫与肌阵挛管理",
+    "tags": ["cardiac_arrest", "seizure", "myoclonus", "eeg", "status_epilepticus"],
+    "text": "心脏骤停后癫痫发生率10-35%(临床)、至少30%(EEG监测)。需持续EEG监测>=24h(理想48-72h)。分类：电发作(EEG异常无临床表现)、临床癫痫、癫痫持续状态、肌阵挛(Lance-Adams综合征vs缺氧后肌阵挛)。治疗：左乙拉西坦(一线,2000-4000mg负荷)、丙戊酸(一线,20-30mg/kg负荷)。癫痫持续状态：苯二氮卓→左乙拉西坦/丙戊酸→丙泊酚/咪达唑仑持续输注(难治性)。重要注意：肌阵挛本身不等同于不良预后——Lance-Adams综合征(意识恢复后的意向性肌阵挛)预后可接受;而缺氧后肌阵挛(昏迷+广泛/对称+爆发-抑制EEG背景)通常预后极差。不应仅因存在肌阵挛而放弃治疗。"
+  },
+  {
+    "id": "pcac_organ_support",
+    "title": "心脏骤停后综合管理",
+    "source": "AHA 2025 + SSC 2021 + Clinical Practice",
+    "recommendation": "骤停后器官支持与并发症管理",
+    "tags": ["cardiac_arrest", "organ_support", "shock", "aki", "coagulopathy"],
+    "text": "心脏骤停后综合征(Post-Cardiac Arrest Syndrome)包括：1)全身缺血再灌注损伤(类似脓毒症,SIRS/血管麻痹/DIC样凝血障碍)→按脓毒性休克原则管理液体和升压药。2)心肌功能障碍(stunned myocardium)→多巴酚丁胺/米力农,严重时VA-ECMO,通常48-72h可逆。3)急性肾损伤→维持灌注/避免肾毒性药/必要时CRRT。4)肝损伤(缺氧性肝炎)→转氨酶可升至>10000U/L后自发恢复,支持治疗。5)凝血障碍→监测DIC评分,纠正凝血因子(参考isth_dic.json)。ROSC后乳酸清除是评估复苏效果的重要指标,乳酸持续>4mmol/L预后差。"
+  }
+]

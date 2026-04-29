@@ -19,7 +19,7 @@ def _actor(request: Request) -> str:
 
 @router.get("/role-home")
 async def role_home(
-    role: str = Query("doctor"),
+    role: str | None = Query(None),
     dept: str | None = Query(None),
     dept_code: str | None = Query(None),
     deptCode: str | None = Query(None),

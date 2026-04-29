@@ -9,16 +9,17 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from bson import ObjectId
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 import httpx
 from pydantic import BaseModel, Field
 
 from app import runtime
 from app.config import get_config
+from app.services.audit_service import normalize_actor, write_ai_generation_log
 from app.services.llm_runtime import LLMRuntimeUnavailableError
 from app.utils.api_llm import call_api_llm
-from app.utils.patient_helpers import patient_his_pid_candidates
+from app.utils.patient_helpers import bed_match, normalize_bed, patient_his_pid_candidates
 
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
@@ -113,6 +114,7 @@ class ChatConsultPayload(BaseModel):
     message: str = Field(..., min_length=1, max_length=4000)
     history: list[ChatTurn] = Field(default_factory=list)
     patient_id: str | None = Field(default=None, max_length=64)
+    patient_ids: list[str] = Field(default_factory=list, max_length=8)
 
 
 def _clip_text(value: str | None, limit: int = 1200) -> str:
@@ -187,10 +189,16 @@ def _extract_ai_consult_sections(text: str) -> dict[str, str]:
 
 def _normalize_ai_consult_section_content(content: str) -> str:
     text = str(content or "").replace("\r\n", "\n").strip()
-    if not text:
+    if not text or _is_placeholder_ai_consult_section_text(text):
         return ""
 
-    rows = [row.strip() for row in text.split("\n") if row.strip()]
+    rows = [
+        row.strip()
+        for row in text.split("\n")
+        if row.strip() and not _is_placeholder_ai_consult_section_text(row)
+    ]
+    if not rows:
+        return ""
     if len(rows) > 1:
         normalized_rows: list[str] = []
         for idx, row in enumerate(rows, start=1):
@@ -201,45 +209,107 @@ def _normalize_ai_consult_section_content(content: str) -> str:
         return "\n".join(normalized_rows)
 
     single = rows[0] if rows else text
+    if _is_placeholder_ai_consult_section_text(single):
+        return ""
     if re.match(r"^\s*(?:\d+[、.)：:]|[一二三四五六七八九十]+[、.)：:])", single):
         return single
 
-    parts = [item.strip(" \t。；;") for item in re.split(r"[；;]+", single) if item.strip(" \t。；;")]
+    parts = [
+        item.strip(" \t。；;")
+        for item in re.split(r"[；;]+", single)
+        if item.strip(" \t。；;") and not _is_placeholder_ai_consult_section_text(item)
+    ]
     if len(parts) <= 1:
         return f"1、{single}"
     return "\n".join(f"{idx}、{part}" for idx, part in enumerate(parts, start=1))
 
 
-def _finalize_ai_consult_answer(raw: str | None) -> str:
+def _is_placeholder_ai_consult_section_text(value: str | None) -> bool:
+    text = _strip_markdown_for_display(value).strip()
+    if not text:
+        return True
+
+    normalized = text.lower()
+    normalized = re.sub(r"^\s*(?:\d+|[一二三四五六七八九十]+)\s*[、.)：:]\s*", "", normalized)
+    normalized = re.sub(r"[\s\-_—–。；;，,：:、.]+", "", normalized)
+    return normalized in {"", "无", "暂无", "未提供", "na", "n/a", "null", "none"}
+
+
+def _format_rag_citation(item: dict[str, Any], idx: int) -> str:
+    source = _safe_text(item.get("source") or item.get("title") or item.get("doc_id") or f"指南{idx}")
+    rec = _safe_text(item.get("recommendation") or item.get("section_title"))
+    grade = _safe_text(item.get("recommendation_grade"))
+    label = source
+    if grade:
+        label += f" {grade}"
+    if rec:
+        label += f"：{_clip_text(rec, 80)}"
+    return label
+
+
+def _format_rag_evidence_block(rag_hits: list[dict[str, Any]]) -> str:
+    if not rag_hits:
+        return "无指南检索命中"
+    lines = []
+    for idx, item in enumerate(rag_hits[:6], start=1):
+        citation = _format_rag_citation(item, idx)
+        content = _clip_text(_safe_text(item.get("content")), 260)
+        chunk_id = _safe_text(item.get("chunk_id"))
+        lines.append(f"[R{idx}] {citation}；chunk={chunk_id}；内容摘录：{content}")
+    return "\n".join(lines)
+
+
+def _append_rag_citations(answer: str, rag_hits: list[dict[str, Any]]) -> str:
+    text = _strip_markdown_for_display(answer)
+    if not rag_hits:
+        return text
+    existing = text.lower()
+    citations: list[str] = []
+    for idx, item in enumerate(rag_hits[:4], start=1):
+        citation = _format_rag_citation(item, idx)
+        source = _safe_text(item.get("source") or item.get("title") or item.get("doc_id"))
+        if source and source.lower() in existing:
+            continue
+        citations.append(f"{idx}、根据 {citation}")
+    if not citations:
+        return text
+    return f"{text}\n\n引用来源：\n" + "\n".join(citations)
+
+
+def _finalize_ai_consult_answer(raw: str | None, rag_hits: list[dict[str, Any]] | None = None) -> str:
     text = _strip_markdown_for_display(raw)
     if not text:
         text = "暂时没有生成有效回答，请稍后重试。"
 
+    fallback_sections = {
+        "初步判断": "1、当前回答未形成有效初步判断，请结合已加载患者上下文、生命体征、主要诊断、近期预警和检验结果重新评估；若信息不足，应明确补充关键数据后再判断。",
+        "风险点": "1、原回答未单列风险点，请结合潜在休克、低氧、出血、感染进展等高危问题重点排查。",
+        "建议检查": "1、请补充关键化验、影像、生命体征趋势和床旁评估。",
+        "下一步处理": "1、请按床旁紧急程度优先处理，并根据新增检查结果及时调整。仅供临床参考，需结合床旁评估。",
+    }
     parsed = _extract_ai_consult_sections(text)
     if not parsed:
+        initial_text = "" if _is_placeholder_ai_consult_section_text(text) else text
         parsed = {
-            "初步判断": text,
+            "初步判断": initial_text or fallback_sections["初步判断"],
             "风险点": "1、当前原始回答未明确分段，请重点结合生命体征、器官灌注、意识状态和近期治疗反应综合判断。",
             "建议检查": "1、建议补充最关键的生命体征趋势、化验变化、血气/乳酸及床旁评估信息。",
             "下一步处理": "1、请优先处理当前最紧急问题，并结合补充信息动态调整方案。仅供临床参考，需结合床旁评估。",
         }
     else:
-        if "初步判断" not in parsed:
-            parsed["初步判断"] = text
-        if "风险点" not in parsed:
-            parsed["风险点"] = "1、原回答未单列风险点，请结合潜在休克、低氧、出血、感染进展等高危问题重点排查。"
-        if "建议检查" not in parsed:
-            parsed["建议检查"] = "1、请补充关键化验、影像、生命体征趋势和床旁评估。"
-        if "下一步处理" not in parsed:
-            parsed["下一步处理"] = "1、请按床旁紧急程度优先处理，并根据新增检查结果及时调整。仅供临床参考，需结合床旁评估。"
+        for title, fallback in fallback_sections.items():
+            content = str(parsed.get(title) or "").strip()
+            if not content or _is_placeholder_ai_consult_section_text(content):
+                parsed[title] = fallback
 
     blocks: list[str] = []
     for title in _AI_CONSULT_SECTION_ORDER:
         content = str(parsed.get(title) or "").strip()
-        if not content:
+        normalized_content = _normalize_ai_consult_section_content(content)
+        if not normalized_content:
             continue
-        blocks.append(f"{title}：\n{_normalize_ai_consult_section_content(content)}")
-    return "\n\n".join(blocks).strip()
+        blocks.append(f"{title}：\n{normalized_content}")
+    return _append_rag_citations("\n\n".join(blocks).strip(), rag_hits or [])
 
 
 def _resolve_ai_consult_limits(
@@ -286,7 +356,66 @@ def _parse_retry_after_seconds(error_text: str) -> float | None:
         return None
 
 
-def _build_ai_consult_degraded_response(
+async def _write_ai_consult_log(
+    *,
+    request: Request | None,
+    payload: ChatConsultPayload,
+    answer: Any,
+    success: bool,
+    model: str = "",
+    patient_ids: list[str] | None = None,
+    patient_label: str = "",
+    match_source: str = "",
+    match_note: str = "",
+    rag_hits: list[dict[str, Any]] | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    actor = normalize_actor(
+        request.headers.get("X-User-Id") if request is not None else "",
+        request.headers.get("x-operator-id") if request is not None else "",
+        request.headers.get("X-Operator-Id") if request is not None else "",
+    )
+    ids = [str(item).strip() for item in (patient_ids or []) if str(item).strip()]
+    try:
+        await write_ai_generation_log(
+            runtime.db,
+            module="ai_consult",
+            action="chat_consult",
+            model=model,
+            prompt_version="ai_consult_v2_multi_patient_rag_audit",
+            actor=actor,
+            patient_id=ids[0] if ids else None,
+            success=success,
+            source_data_summary={
+                "message": _clip_text(payload.message, 1200),
+                "history_turns": len(payload.history or []),
+                "patient_ids": ids,
+                "patient_label": patient_label,
+                "patient_match_source": match_source,
+                "patient_match_note": match_note,
+                "rag_sources": [
+                    {
+                        "chunk_id": item.get("chunk_id"),
+                        "source": item.get("source"),
+                        "recommendation": item.get("recommendation"),
+                        "recommendation_grade": item.get("recommendation_grade"),
+                        "score": item.get("score"),
+                    }
+                    for item in (rag_hits or [])[:8]
+                ],
+            },
+            result=answer,
+            metadata={
+                "patient_ids": ids,
+                "rag_chunk_ids": [item.get("chunk_id") for item in (rag_hits or [])[:8] if item.get("chunk_id")],
+                **(metadata or {}),
+            },
+        )
+    except Exception as exc:
+        logger.warning("AI consult audit log write failed: %s", exc)
+
+
+def _build_ai_consult_degraded_payload(
     *,
     message: str,
     patient_context_used: bool,
@@ -297,25 +426,26 @@ def _build_ai_consult_degraded_response(
     intent_primary: str | None = None,
     intent_focus_section: str | None = None,
     retry_after_seconds: float | None = None,
-) -> JSONResponse:
+) -> dict[str, Any]:
     degraded_answer = _build_ai_consult_degraded_answer(retry_after_seconds)
-    return JSONResponse(
-        status_code=200,
-        content={
-            "code": 0,
-            "message": message,
-            "answer": degraded_answer,
-            "degraded": True,
-            "retry_after_seconds": retry_after_seconds,
-            "patient_context_used": patient_context_used,
-            "patient_label": patient_label,
-            "resolved_patient_id": resolved_patient_id,
-            "patient_match_source": patient_match_source,
-            "patient_match_note": patient_match_note,
-            "intent_primary": intent_primary,
-            "intent_focus_section": intent_focus_section,
-        },
-    )
+    return {
+        "code": 0,
+        "message": message,
+        "answer": degraded_answer,
+        "degraded": True,
+        "retry_after_seconds": retry_after_seconds,
+        "patient_context_used": patient_context_used,
+        "patient_label": patient_label,
+        "resolved_patient_id": resolved_patient_id,
+        "patient_match_source": patient_match_source,
+        "patient_match_note": patient_match_note,
+        "intent_primary": intent_primary,
+        "intent_focus_section": intent_focus_section,
+    }
+
+
+def _build_ai_consult_degraded_response(**kwargs: Any) -> JSONResponse:
+    return JSONResponse(status_code=200, content=_build_ai_consult_degraded_payload(**kwargs))
 
 
 def _build_ai_consult_degraded_answer(retry_after_seconds: float | None = None) -> str:
@@ -334,6 +464,18 @@ def _patient_label(patient: dict) -> str:
     name = str(patient.get("name") or patient.get("hisName") or "未知患者").strip()
     diagnosis = str(patient.get("clinicalDiagnosis") or patient.get("admissionDiagnosis") or "暂无诊断").strip()
     return f"{bed}床 · {name} · {diagnosis}"
+
+
+def _patient_bed(patient: dict[str, Any]) -> str:
+    return _safe_text(
+        patient.get("hisBed")
+        or patient.get("bed")
+        or patient.get("bedNo")
+        or patient.get("bed_no")
+        or patient.get("bedNumber")
+        or patient.get("bedName")
+        or patient.get("curBed")
+    )
 
 
 def _format_history(history: list[ChatTurn]) -> str:
@@ -462,13 +604,19 @@ def _to_num(value: Any) -> float | None:
         return None
 
 
-def _extract_patient_mentions(message: str) -> tuple[list[str], list[str]]:
+def _extract_patient_mentions(message: str) -> tuple[list[str], list[str], list[str]]:
     text = _safe_text(message)
     if not text:
         return [], []
 
     identifiers: list[str] = []
     names: list[str] = []
+    beds: list[str] = []
+
+    for match in re.finditer(r"(?<!\d)(\d{1,3})\s*(?:床|床位)", text):
+        token = _safe_text(match.group(1)).lstrip("0") or "0"
+        if token and token not in beds:
+            beds.append(token)
 
     id_patterns = [
         r"(?:住院号|病案号|病历号|患者号|病人号|mrn|hispid|patient[\s_-]*id|患者id)\s*[:：#]?\s*([A-Za-z0-9_-]{3,64})",
@@ -490,7 +638,7 @@ def _extract_patient_mentions(message: str) -> tuple[list[str], list[str]]:
                 continue
             if token not in names:
                 names.append(token)
-    return identifiers[:6], names[:4]
+    return identifiers[:6], names[:4], beds[:8]
 
 
 def _is_likely_active_status(status: str) -> bool:
@@ -504,7 +652,7 @@ def _is_likely_active_status(status: str) -> bool:
     return True
 
 
-def _rank_patient_match(patient: dict[str, Any], *, identifiers: list[str], names: list[str]) -> int:
+def _rank_patient_match(patient: dict[str, Any], *, identifiers: list[str], names: list[str], beds: list[str] | None = None) -> int:
     score = 0
     if _is_likely_active_status(_safe_text(patient.get("status"))):
         score += 200
@@ -516,7 +664,10 @@ def _rank_patient_match(patient: dict[str, Any], *, identifiers: list[str], name
         value = _safe_text(patient.get(field))
         if value and value in names:
             score += 80
-    if _safe_text(patient.get("hisBed") or patient.get("bed")):
+    bed = normalize_bed(_patient_bed(patient)) or _safe_text(patient.get("hisBed") or patient.get("bed")).lstrip("0")
+    if beds and bed in {normalize_bed(item) or item for item in beds}:
+        score += 100
+    if _patient_bed(patient):
         score += 10
     if _safe_text(patient.get("dept") or patient.get("hisDept")):
         score += 5
@@ -580,41 +731,116 @@ async def _find_patients_by_names(names: list[str]) -> list[dict[str, Any]]:
     return rows
 
 
+async def _find_patients_by_beds(beds: list[str]) -> list[dict[str, Any]]:
+    tokens = [item for item in beds if _safe_text(item)]
+    if not tokens:
+        return []
+    normalized_tokens = [normalize_bed(token) or token for token in tokens]
+    variants: list[str] = []
+    for token in tokens:
+        raw = _safe_text(token)
+        normalized = normalize_bed(raw) or raw
+        for candidate in {raw, normalized, raw.zfill(2), raw.zfill(3), f"{raw}床", f"{raw.zfill(2)}床", f"{normalized}床", f"BED{raw}", f"BED{raw.zfill(2)}"}:
+            if candidate and candidate not in variants:
+                variants.append(candidate)
+    regex_terms = []
+    for token in normalized_tokens:
+        escaped = re.escape(token)
+        regex_terms.append({"hisBed": {"$regex": rf"(^|[^0-9])0*{escaped}([^0-9]|$|床)", "$options": "i"}})
+        regex_terms.append({"bed": {"$regex": rf"(^|[^0-9])0*{escaped}([^0-9]|$|床)", "$options": "i"}})
+        regex_terms.append({"bedNo": {"$regex": rf"(^|[^0-9])0*{escaped}([^0-9]|$|床)", "$options": "i"}})
+        regex_terms.append({"bed_no": {"$regex": rf"(^|[^0-9])0*{escaped}([^0-9]|$|床)", "$options": "i"}})
+    query = {
+        "$or": [
+            {"hisBed": {"$in": variants}},
+            {"bed": {"$in": variants}},
+            {"bedNo": {"$in": variants}},
+            {"bed_no": {"$in": variants}},
+            *regex_terms,
+        ]
+    }
+    cursor = runtime.db.col("patient").find(query).limit(80)
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    async for item in cursor:
+        patient_bed = _patient_bed(item)
+        if normalized_tokens and not any(bed_match(patient_bed, token) for token in normalized_tokens):
+            continue
+        key = _safe_text(item.get("_id"))
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        rows.append(item)
+    return rows
+
+
 async def _resolve_patient_from_payload(
     patient_id: str | None,
+    patient_ids: list[str] | None,
     message: str,
-) -> tuple[dict[str, Any] | None, str | None, str, str]:
-    identifiers, names = _extract_patient_mentions(message)
+) -> tuple[list[dict[str, Any]], list[str], str, str]:
+    explicit_ids = []
+    for item in [patient_id, *(patient_ids or [])]:
+        token = _safe_text(item)
+        if token and token not in explicit_ids:
+            explicit_ids.append(token)
+
+    selected_patients: list[dict[str, Any]] = []
+    seen_selected: set[str] = set()
+    for token in explicit_ids[:8]:
+        patient = await _load_patient_by_id(token)
+        if not patient:
+            continue
+        key = _safe_text(patient.get("_id"))
+        if key and key not in seen_selected:
+            seen_selected.add(key)
+            selected_patients.append(patient)
+
+    identifiers, names, beds = _extract_patient_mentions(message)
     match_note = ""
-    if identifiers or names:
+    if identifiers or names or beds:
         candidates: list[dict[str, Any]] = []
         if identifiers:
             candidates.extend(await _find_patients_by_identifiers(identifiers))
-        if not candidates and names:
+        if names:
             candidates.extend(await _find_patients_by_names(names))
+        if beds:
+            candidates.extend(await _find_patients_by_beds(beds))
         if candidates:
+            deduped: dict[str, dict[str, Any]] = {}
+            for row in candidates:
+                key = _safe_text(row.get("_id"))
+                if key and key not in deduped:
+                    deduped[key] = row
             ranked = sorted(
-                candidates,
-                key=lambda row: _rank_patient_match(row, identifiers=identifiers, names=names),
+                deduped.values(),
+                key=lambda row: _rank_patient_match(row, identifiers=identifiers, names=names, beds=beds),
                 reverse=True,
             )
-            chosen = ranked[0]
-            return chosen, _safe_text(chosen.get("_id")), "message_mention", "已按提及的姓名/住院号匹配患者。"
+            for chosen in ranked[:8]:
+                key = _safe_text(chosen.get("_id"))
+                if key and key not in seen_selected:
+                    seen_selected.add(key)
+                    selected_patients.append(chosen)
+            matched_beds = {normalize_bed(_patient_bed(row)) for row in selected_patients if normalize_bed(_patient_bed(row))}
+            requested_beds = {normalize_bed(item) or item for item in beds}
+            missing_beds = sorted(requested_beds - matched_beds, key=lambda item: int(item) if str(item).isdigit() else str(item))
+            note = "已按提及的床号/姓名/住院号匹配患者。"
+            if missing_beds:
+                note += " 未匹配到床号：" + "、".join(f"{bed}床" for bed in missing_beds) + "。"
+            return selected_patients, [_safe_text(row.get("_id")) for row in selected_patients if _safe_text(row.get("_id"))], "message_mention", note
         mention_tokens = []
+        if beds:
+            mention_tokens.append("床号: " + "、".join(f"{bed}床" for bed in beds))
         if names:
             mention_tokens.append("姓名: " + "、".join(names))
         if identifiers:
             mention_tokens.append("住院号/患者号: " + "、".join(identifiers))
         match_note = "检测到患者线索（" + "；".join(mention_tokens) + "），但未在 patient 表中检索到匹配患者。"
 
-    token = _safe_text(patient_id)
-    if token:
-        patient = await _load_patient_by_id(token)
-        if patient:
-            return patient, token, "selected_patient_id", match_note
-        if not (identifiers or names):
-            raise ValueError("无效患者ID")
-    return None, None, "none", match_note
+    if explicit_ids and not selected_patients and not (identifiers or names or beds):
+        raise ValueError("无效患者ID")
+    return selected_patients, [_safe_text(row.get("_id")) for row in selected_patients if _safe_text(row.get("_id"))], "selected_patient_id" if selected_patients else "none", match_note
 
 
 async def _collect_alert_summary(pid_str: str) -> str:
@@ -924,13 +1150,72 @@ async def _collect_lab_exam_summary(patient_doc: dict[str, Any]) -> tuple[str, s
 
 async def _build_patient_context(
     patient_id: str | None,
+    patient_ids: list[str] | None,
     message: str,
-) -> tuple[str, str, str | None, str, str]:
-    patient, resolved_patient_id, match_source, match_note = await _resolve_patient_from_payload(patient_id, message)
-    if not patient or not resolved_patient_id:
-        return "", "", None, match_source, match_note
+) -> tuple[str, str, str | None, list[str], str, str]:
+    patients, resolved_patient_ids, match_source, match_note = await _resolve_patient_from_payload(patient_id, patient_ids, message)
+    if not patients or not resolved_patient_ids:
+        return "", "", None, [], match_source, match_note
 
+    async def build_one(patient: dict[str, Any], resolved_patient_id: str, index: int) -> str:
+        lines = [
+            f"【患者{index}】",
+            f"患者标签: {_patient_label(patient)}",
+            f"患者ID: {resolved_patient_id}",
+            f"性别: {patient.get('gender') or patient.get('sex') or '未知'}",
+            f"年龄: {patient.get('age') or patient.get('hisAge') or '未知'}",
+            f"住院号: {patient.get('hisPid') or patient.get('hisPID') or patient.get('patientId') or patient.get('mrn') or '未知'}",
+            f"科室: {patient.get('dept') or patient.get('deptName') or patient.get('hisDept') or patient.get('ward') or '未知'}",
+            f"护理级别: {patient.get('nursingLevel') or '未知'}",
+            f"主要诊断: {patient.get('clinicalDiagnosis') or patient.get('admissionDiagnosis') or '暂无诊断'}",
+        ]
+
+        obs, io_text, drug_text, order_text, nursing_tuple, lab_exam_tuple, alert_text = await asyncio.gather(
+            _await_with_timeout(_collect_observation_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
+            _await_with_timeout(_collect_io_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
+            _await_with_timeout(_collect_drug_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
+            _await_with_timeout(_collect_order_summary(patient), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
+            _await_with_timeout(_collect_nursing_summary(patient, resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ("", "")),
+            _await_with_timeout(_collect_lab_exam_summary(patient), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ("", "")),
+            _await_with_timeout(_collect_alert_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
+        )
+
+        if obs:
+            lines.append("观察项(近24h/最新): " + _clip_text(obs, 800))
+        if io_text:
+            lines.append("出入量总结: " + _clip_text(io_text, 600))
+        if drug_text:
+            lines.append("用药执行(近24h): " + _clip_text(drug_text, 900))
+        if order_text:
+            lines.append("医嘱摘要: " + _clip_text(order_text, 900))
+        nursing_record_text, nursing_plan_text = nursing_tuple
+        if nursing_record_text:
+            lines.append("护理记录(近24h): " + _clip_text(nursing_record_text, 800))
+        if nursing_plan_text:
+            lines.append(nursing_plan_text)
+        lab_text, exam_text = lab_exam_tuple
+        if lab_text:
+            lines.append("检验摘要(近72h): " + _clip_text(lab_text, 900))
+        if exam_text:
+            lines.append("检查摘要(近72h): " + _clip_text(exam_text, 600))
+        if alert_text:
+            lines.append("最近预警: " + _clip_text(alert_text, 600))
+        return "\n".join(lines)
+
+    blocks = await asyncio.gather(*[build_one(patient, resolved_patient_ids[idx], idx + 1) for idx, patient in enumerate(patients[:6])])
     lines = [
+        f"多患者上下文: 共加载 {len(blocks)} 位患者。若问题涉及比较，请逐床说明差异、优先级和依据。",
+        *blocks,
+    ]
+    if match_note:
+        lines.insert(1, f"患者匹配说明: {match_note}")
+    context = "\n\n".join(lines)
+    labels = "；".join(_patient_label(patient) for patient in patients[:6])
+    return _clip_text(context, _AI_CONSULT_CONTEXT_MAX_CHARS * max(1, min(len(blocks), 2))), labels, resolved_patient_ids[0] if resolved_patient_ids else None, resolved_patient_ids, match_source, match_note
+
+
+def _legacy_single_patient_context_lines(patient: dict[str, Any], resolved_patient_id: str) -> list[str]:
+    return [
         f"患者标签: {_patient_label(patient)}",
         f"患者ID: {resolved_patient_id}",
         f"性别: {patient.get('gender') or patient.get('sex') or '未知'}",
@@ -941,42 +1226,17 @@ async def _build_patient_context(
         f"主要诊断: {patient.get('clinicalDiagnosis') or patient.get('admissionDiagnosis') or '暂无诊断'}",
     ]
 
-    if match_note:
-        lines.append(f"患者匹配说明: {match_note}")
 
-    obs, io_text, drug_text, order_text, nursing_tuple, lab_exam_tuple, alert_text = await asyncio.gather(
-        _await_with_timeout(_collect_observation_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
-        _await_with_timeout(_collect_io_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
-        _await_with_timeout(_collect_drug_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
-        _await_with_timeout(_collect_order_summary(patient), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
-        _await_with_timeout(_collect_nursing_summary(patient, resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ("", "")),
-        _await_with_timeout(_collect_lab_exam_summary(patient), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ("", "")),
-        _await_with_timeout(_collect_alert_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
-    )
-
-    if obs:
-        lines.append("观察项(近24h/最新): " + _clip_text(obs, 1000))
-    if io_text:
-        lines.append("出入量总结: " + _clip_text(io_text, 800))
-    if drug_text:
-        lines.append("用药执行(近24h): " + _clip_text(drug_text, 1200))
-    if order_text:
-        lines.append("医嘱摘要: " + _clip_text(order_text, 1200))
-    nursing_record_text, nursing_plan_text = nursing_tuple
-    if nursing_record_text:
-        lines.append("护理记录(近24h): " + _clip_text(nursing_record_text, 1000))
-    if nursing_plan_text:
-        lines.append(nursing_plan_text)
-    lab_text, exam_text = lab_exam_tuple
-    if lab_text:
-        lines.append("检验摘要(近72h): " + _clip_text(lab_text, 1200))
-    if exam_text:
-        lines.append("检查摘要(近72h): " + _clip_text(exam_text, 800))
-    if alert_text:
-        lines.append("最近预警: " + _clip_text(alert_text, 800))
-
-    context = "\n".join(lines)
-    return _clip_text(context, _AI_CONSULT_CONTEXT_MAX_CHARS), _patient_label(patient), resolved_patient_id, match_source, match_note
+def _search_ai_consult_rag(message: str, patient_context: str) -> list[dict[str, Any]]:
+    rag = getattr(runtime, "ai_rag_service", None)
+    if rag is None:
+        return []
+    try:
+        query = _clip_text(f"{message}\n{patient_context}", 2400)
+        return rag.search(query, top_k=5)
+    except Exception as exc:
+        logger.warning("AI consult RAG search skipped: %s", exc)
+        return []
 
 
 def _build_ai_consult_prompts(
@@ -985,6 +1245,7 @@ def _build_ai_consult_prompts(
     history: list[ChatTurn],
     match_note: str,
     patient_context: str,
+    rag_hits: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     intent = _detect_ai_consult_intent(message)
     system_prompt = (
@@ -997,7 +1258,9 @@ def _build_ai_consult_prompts(
         "建议检查："
         "下一步处理："
         "其中每一部分都要有具体内容，不能省略标题，不能合并标题。"
+        "禁止用“-”、“无”、“暂无”、“N/A”等占位符作为任一栏目内容；信息不足时必须说明缺什么信息和如何补充。"
         "不要编造不存在的生命体征、化验或影像结果；若信息不足必须明确说明。"
+        "如使用指南证据，必须在相关句子中写明来源，例如“根据 SSC 2021 指南 1A 推荐...”。"
         "若存在潜在急危重情况，先提示立即线下评估/抢救。"
         "严禁输出 <think>、</think>、思维链、推理过程、内部分析草稿。"
         "只输出纯文本，不要使用任何 markdown 语法（如 #、*、-、```、[链接]()）。"
@@ -1009,6 +1272,7 @@ def _build_ai_consult_prompts(
         f"【本轮问题意图】\n意图={intent['primary']}；重点栏目={intent['focus_section']}；关键词={intent['matched_keywords']}\n\n"
         f"【患者匹配信息】\n{match_note or '无额外匹配提示'}\n\n"
         f"【患者上下文】\n{patient_context or '未选择具体患者，本轮按通用 ICU 问答处理。'}\n\n"
+        f"【指南证据/RAG】\n{_format_rag_evidence_block(rag_hits or [])}\n\n"
         f"【历史对话】\n{_format_history(history)}\n\n"
         f"【本轮问题】\n{_clip_text(message, 2000)}\n\n"
         f"请直接回答本轮问题，并优先把重点写在“{intent['focus_section']}”。"
@@ -1022,6 +1286,7 @@ def _build_ai_consult_preview_prompts(
     history: list[ChatTurn],
     match_note: str,
     patient_context: str,
+    rag_hits: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     intent = _detect_ai_consult_intent(message)
     system_prompt = (
@@ -1036,6 +1301,7 @@ def _build_ai_consult_preview_prompts(
         f"【本轮问题意图】意图={intent['primary']}；重点栏目={intent['focus_section']}；关键词={intent['matched_keywords']}\n"
         f"【患者匹配信息】{_clip_text(match_note or '无额外匹配提示', 200)}\n"
         f"【患者上下文】{_clip_text(patient_context or '未选择具体患者，本轮按通用 ICU 问答处理。', 900)}\n"
+        f"【指南证据/RAG】{_clip_text(_format_rag_evidence_block(rag_hits or []), 500)}\n"
         f"【历史对话】{_clip_text(_format_history(history), 450)}\n"
         f"【本轮问题】{_clip_text(message, 800)}\n"
         "请输出首屏预览。"
@@ -1049,6 +1315,7 @@ def _build_ai_consult_retry_prompts(
     history: list[ChatTurn],
     match_note: str,
     patient_context: str,
+    rag_hits: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     intent = _detect_ai_consult_intent(message)
     previous_question = _latest_history_content(history, "user")
@@ -1064,6 +1331,8 @@ def _build_ai_consult_retry_prompts(
         "建议检查："
         "下一步处理："
         "每个部分都要有具体内容。"
+        "禁止用“-”、“无”、“暂无”、“N/A”等占位符作为任一栏目内容；信息不足时必须说明缺什么信息和如何补充。"
+        "如使用指南证据，必须在相关句子中写明来源，例如“根据 SSC 2021 指南 1A 推荐...”。"
         "严禁输出 <think>、</think>、思维链、内部推理。"
         "只输出纯文本，不要使用 markdown。"
         f"本轮问题意图判定为：{intent['primary']}，重点展开栏目：{intent['focus_section']}。"
@@ -1073,6 +1342,7 @@ def _build_ai_consult_retry_prompts(
         f"【本轮问题意图】\n意图={intent['primary']}；重点栏目={intent['focus_section']}；关键词={intent['matched_keywords']}\n\n"
         f"【患者匹配信息】\n{match_note or '无额外匹配提示'}\n\n"
         f"【患者上下文】\n{patient_context or '未选择具体患者，本轮按通用 ICU 问答处理。'}\n\n"
+        f"【指南证据/RAG】\n{_format_rag_evidence_block(rag_hits or [])}\n\n"
         f"【上一轮用户问题】\n{_clip_text(previous_question or '无', 1200)}\n\n"
         f"【上一轮助手回答】\n{_clip_text(previous_answer or '无', 1800)}\n\n"
         f"【本轮问题】\n{_clip_text(message, 2000)}\n\n"
@@ -1169,23 +1439,33 @@ async def _iter_llm_stream(
 
 
 @router.post("/api/ai/chat-consult")
-async def ai_chat_consult(payload: ChatConsultPayload):
+async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
     message = str(payload.message or "").strip()
     if not message:
         return {"code": 400, "message": "message不能为空"}
     intent = _detect_ai_consult_intent(message)
 
     patient_id = str(payload.patient_id or "").strip() or None
+    resolved_patient_ids: list[str] = []
+    rag_hits: list[dict[str, Any]] = []
+    patient_context = ""
+    patient_label = ""
+    resolved_patient_id: str | None = None
+    match_source = "none"
+    match_note = ""
+    model_name = ""
     try:
-        patient_context, patient_label, resolved_patient_id, match_source, match_note = await _build_patient_context(patient_id, message)
+        patient_context, patient_label, resolved_patient_id, resolved_patient_ids, match_source, match_note = await _build_patient_context(patient_id, payload.patient_ids, message)
     except ValueError as exc:
         return {"code": 400, "message": str(exc)}
 
+    rag_hits = _search_ai_consult_rag(message, patient_context)
     system_prompt, user_prompt = _build_ai_consult_prompts(
         message=message,
         history=payload.history,
         match_note=match_note,
         patient_context=patient_context,
+        rag_hits=rag_hits,
     )
     max_tokens, llm_timeout_seconds, total_timeout_seconds = _resolve_ai_consult_limits(
         message=message,
@@ -1195,53 +1475,62 @@ async def ai_chat_consult(payload: ChatConsultPayload):
 
     try:
         cfg = get_config()
+        model_name = cfg.llm_fast_model or cfg.llm_model_medical or ""
         answer = await asyncio.wait_for(
             call_api_llm(
                 system_prompt,
                 user_prompt,
-                cfg.llm_fast_model or cfg.llm_model_medical or None,
+                model_name or None,
                 max_tokens=max_tokens,
                 timeout_seconds=llm_timeout_seconds,
             ),
             timeout=total_timeout_seconds,
         )
-        answer_text = _finalize_ai_consult_answer(str(answer or "").strip())
+        answer_text = _finalize_ai_consult_answer(str(answer or "").strip(), rag_hits)
         if _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
             retry_system_prompt, retry_user_prompt = _build_ai_consult_retry_prompts(
                 message=message,
                 history=payload.history,
                 match_note=match_note,
                 patient_context=patient_context,
+                rag_hits=rag_hits,
             )
             retry_answer = await asyncio.wait_for(
                 call_api_llm(
                     retry_system_prompt,
                     retry_user_prompt,
-                    cfg.llm_fast_model or cfg.llm_model_medical or None,
+                    model_name or None,
                     max_tokens=max_tokens,
                     timeout_seconds=llm_timeout_seconds,
                 ),
                 timeout=total_timeout_seconds,
             )
-            retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip())
+            retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip(), rag_hits)
             if retry_text:
                 answer_text = retry_text
-        return {
+        response = {
             "code": 0,
             "answer": answer_text,
             "patient_context_used": bool(patient_context),
             "patient_label": patient_label,
             "resolved_patient_id": resolved_patient_id,
+            "resolved_patient_ids": resolved_patient_ids,
             "patient_match_source": match_source,
             "patient_match_note": match_note,
             "answer_max_tokens": max_tokens,
             "intent_primary": intent["primary"],
             "intent_focus_section": intent["focus_section"],
+            "rag_sources": [
+                {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
+                for item in rag_hits[:6]
+            ],
         }
+        await _write_ai_consult_log(request=request, payload=payload, answer=response, success=True, model=model_name, patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits)
+        return response
     except LLMRuntimeUnavailableError as exc:
         retry_after_seconds = _parse_retry_after_seconds(str(exc))
         logger.warning("AI consult chat degraded due to LLM runtime unavailable: %s", exc)
-        return _build_ai_consult_degraded_response(
+        response = _build_ai_consult_degraded_payload(
             message="AI服务暂时繁忙，已降级为提示模式",
             retry_after_seconds=retry_after_seconds,
             patient_context_used=bool(patient_context),
@@ -1252,9 +1541,12 @@ async def ai_chat_consult(payload: ChatConsultPayload):
             intent_primary=intent["primary"],
             intent_focus_section=intent["focus_section"],
         )
+        response["resolved_patient_ids"] = resolved_patient_ids
+        await _write_ai_consult_log(request=request, payload=payload, answer=response, success=True, model=model_name, patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"degraded": True})
+        return JSONResponse(status_code=200, content=response)
     except (asyncio.TimeoutError, httpx.TimeoutException) as exc:
         logger.warning("AI consult chat timeout, degraded: %s", exc)
-        return _build_ai_consult_degraded_response(
+        response = _build_ai_consult_degraded_payload(
             message="AI服务响应超时，已降级为提示模式",
             retry_after_seconds=10,
             patient_context_used=bool(patient_context),
@@ -1265,9 +1557,12 @@ async def ai_chat_consult(payload: ChatConsultPayload):
             intent_primary=intent["primary"],
             intent_focus_section=intent["focus_section"],
         )
+        response["resolved_patient_ids"] = resolved_patient_ids
+        await _write_ai_consult_log(request=request, payload=payload, answer=response, success=True, model=model_name, patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"degraded": True, "timeout": True})
+        return JSONResponse(status_code=200, content=response)
     except Exception as exc:
         logger.exception("AI consult chat error")
-        return {
+        response = {
             "code": 500,
             "message": "AI服务异常",
             "answer": "",
@@ -1275,10 +1570,12 @@ async def ai_chat_consult(payload: ChatConsultPayload):
             "intent_primary": intent["primary"],
             "intent_focus_section": intent["focus_section"],
         }
+        await _write_ai_consult_log(request=request, payload=payload, answer=response, success=False, model=model_name, patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"error": str(exc)[:300]})
+        return response
 
 
 @router.post("/api/ai/chat-consult/stream")
-async def ai_chat_consult_stream(payload: ChatConsultPayload):
+async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
     message = str(payload.message or "").strip()
     if not message:
         return JSONResponse(status_code=400, content={"code": 400, "message": "message不能为空"})
@@ -1286,15 +1583,17 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
 
     patient_id = str(payload.patient_id or "").strip() or None
     try:
-        patient_context, patient_label, resolved_patient_id, match_source, match_note = await _build_patient_context(patient_id, message)
+        patient_context, patient_label, resolved_patient_id, resolved_patient_ids, match_source, match_note = await _build_patient_context(patient_id, payload.patient_ids, message)
     except ValueError as exc:
         return JSONResponse(status_code=400, content={"code": 400, "message": str(exc)})
 
+    rag_hits = _search_ai_consult_rag(message, patient_context)
     system_prompt, user_prompt = _build_ai_consult_prompts(
         message=message,
         history=payload.history,
         match_note=match_note,
         patient_context=patient_context,
+        rag_hits=rag_hits,
     )
     max_tokens, llm_timeout_seconds, total_timeout_seconds = _resolve_ai_consult_limits(
         message=message,
@@ -1306,6 +1605,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
         history=payload.history,
         match_note=match_note,
         patient_context=patient_context,
+        rag_hits=rag_hits,
     )
 
     async def _event_stream():
@@ -1318,12 +1618,17 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                 "patient_context_used": bool(patient_context),
                 "patient_label": patient_label,
                 "resolved_patient_id": resolved_patient_id,
+                "resolved_patient_ids": resolved_patient_ids,
                 "patient_match_source": match_source,
                 "patient_match_note": match_note,
                 "model": model_name or "",
                 "answer_max_tokens": max_tokens,
                 "intent_primary": intent["primary"],
                 "intent_focus_section": intent["focus_section"],
+                "rag_sources": [
+                    {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
+                    for item in rag_hits[:6]
+                ],
             },
         )
 
@@ -1423,58 +1728,57 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                             yield _sse_pack("delta", {"text": delta_text})
         except LLMRuntimeUnavailableError as exc:
             retry_after_seconds = _parse_retry_after_seconds(str(exc))
-            yield _sse_pack(
-                "done",
-                {
-                    "code": 0,
-                    "degraded": True,
-                    "message": "AI服务暂时繁忙，已降级为提示模式",
-                    "answer": _build_ai_consult_degraded_answer(retry_after_seconds),
-                    "retry_after_seconds": retry_after_seconds,
-                    "patient_context_used": bool(patient_context),
-                    "patient_label": patient_label,
-                    "resolved_patient_id": resolved_patient_id,
-                    "patient_match_source": match_source,
-                    "patient_match_note": match_note,
-                    "stream_used": stream_used,
-                    "intent_primary": intent["primary"],
-                    "intent_focus_section": intent["focus_section"],
-                },
-            )
+            degraded_payload = {
+                "code": 0,
+                "degraded": True,
+                "message": "AI服务暂时繁忙，已降级为提示模式",
+                "answer": _build_ai_consult_degraded_answer(retry_after_seconds),
+                "retry_after_seconds": retry_after_seconds,
+                "patient_context_used": bool(patient_context),
+                "patient_label": patient_label,
+                "resolved_patient_id": resolved_patient_id,
+                "resolved_patient_ids": resolved_patient_ids,
+                "patient_match_source": match_source,
+                "patient_match_note": match_note,
+                "stream_used": stream_used,
+                "intent_primary": intent["primary"],
+                "intent_focus_section": intent["focus_section"],
+            }
+            await _write_ai_consult_log(request=request, payload=payload, answer=degraded_payload, success=True, model=model_name or "", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"stream": True, "degraded": True})
+            yield _sse_pack("done", degraded_payload)
             return
         except (asyncio.TimeoutError, httpx.TimeoutException):
-            yield _sse_pack(
-                "done",
-                {
-                    "code": 0,
-                    "degraded": True,
-                    "message": "AI服务响应超时，已降级为提示模式",
-                    "answer": _build_ai_consult_degraded_answer(10),
-                    "retry_after_seconds": 10,
-                    "patient_context_used": bool(patient_context),
-                    "patient_label": patient_label,
-                    "resolved_patient_id": resolved_patient_id,
-                    "patient_match_source": match_source,
-                    "patient_match_note": match_note,
-                    "stream_used": stream_used,
-                    "intent_primary": intent["primary"],
-                    "intent_focus_section": intent["focus_section"],
-                },
-            )
+            timeout_payload = {
+                "code": 0,
+                "degraded": True,
+                "message": "AI服务响应超时，已降级为提示模式",
+                "answer": _build_ai_consult_degraded_answer(10),
+                "retry_after_seconds": 10,
+                "patient_context_used": bool(patient_context),
+                "patient_label": patient_label,
+                "resolved_patient_id": resolved_patient_id,
+                "resolved_patient_ids": resolved_patient_ids,
+                "patient_match_source": match_source,
+                "patient_match_note": match_note,
+                "stream_used": stream_used,
+                "intent_primary": intent["primary"],
+                "intent_focus_section": intent["focus_section"],
+            }
+            await _write_ai_consult_log(request=request, payload=payload, answer=timeout_payload, success=True, model=model_name or "", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"stream": True, "degraded": True, "timeout": True})
+            yield _sse_pack("done", timeout_payload)
             return
         except Exception as exc:
             logger.exception("AI consult stream fallback failed")
-            yield _sse_pack(
-                "error",
-                {
-                    "code": 500,
-                    "message": "AI服务异常",
-                    "error": f"AI服务异常: {str(exc)[:120]}",
-                },
-            )
+            error_payload = {
+                "code": 500,
+                "message": "AI服务异常",
+                "error": f"AI服务异常: {str(exc)[:120]}",
+            }
+            await _write_ai_consult_log(request=request, payload=payload, answer=error_payload, success=False, model=model_name or "", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"stream": True, "error": str(exc)[:300]})
+            yield _sse_pack("error", error_payload)
             return
 
-        answer_text = _finalize_ai_consult_answer(visible_answer_text or "".join(raw_answer_chunks).strip())
+        answer_text = _finalize_ai_consult_answer(visible_answer_text or "".join(raw_answer_chunks).strip(), rag_hits)
         if _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
             try:
                 retry_system_prompt, retry_user_prompt = _build_ai_consult_retry_prompts(
@@ -1482,6 +1786,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                     history=payload.history,
                     match_note=match_note,
                     patient_context=patient_context,
+                    rag_hits=rag_hits,
                 )
                 retry_answer = await asyncio.wait_for(
                     call_api_llm(
@@ -1493,27 +1798,31 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload):
                     ),
                     timeout=total_timeout_seconds,
                 )
-                retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip())
+                retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip(), rag_hits)
                 if retry_text:
                     answer_text = retry_text
             except Exception as retry_exc:
                 logger.warning("AI consult stream duplicate-answer retry skipped: %s", retry_exc)
-        yield _sse_pack(
-            "done",
-            {
+        done_payload = {
                 "code": 0,
                 "answer": answer_text,
                 "patient_context_used": bool(patient_context),
                 "patient_label": patient_label,
                 "resolved_patient_id": resolved_patient_id,
+                "resolved_patient_ids": resolved_patient_ids,
                 "patient_match_source": match_source,
                 "patient_match_note": match_note,
                 "stream_used": stream_used,
                 "answer_max_tokens": max_tokens,
                 "intent_primary": intent["primary"],
                 "intent_focus_section": intent["focus_section"],
-            },
-        )
+                "rag_sources": [
+                    {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
+                    for item in rag_hits[:6]
+                ],
+            }
+        await _write_ai_consult_log(request=request, payload=payload, answer=done_payload, success=True, model=model_name or "", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"stream": True, "stream_used": stream_used})
+        yield _sse_pack("done", done_payload)
 
     return StreamingResponse(
         _event_stream(),

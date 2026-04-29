@@ -1,0 +1,42 @@
+[
+  {
+    "id": "arrhythmia_new_onset_af",
+    "title": "ICU心律失常管理指南",
+    "source": "AHA/ACC/HRS 2023 AF Guideline + EMCrit IBCC",
+    "recommendation": "ICU新发房颤管理",
+    "tags": ["atrial_fibrillation", "rate_control", "rhythm_control", "icu"],
+    "text": "ICU新发房颤(NOAF)发生率5-15%(脓毒症高达40%)。首先处理诱因(脓毒症/低钾/低镁/低氧/疼痛/过量儿茶酚胺/甲亢)。心率控制(目标HR<110,血流动力学稳定时)：一线β受体阻滞剂(艾司洛尔50-200μg/kg/min滴定,起效快/半衰期短/血流动力学不稳可快速停药)或美托洛尔2.5-5mg IV q5min(共15mg)→口服25-50mg q6h。二线地尔硫卓0.25mg/kg IV→5-15mg/h泵注(禁用于射血分数降低的心衰)。胺碘酮150mg IV/10min→1mg/min×6h→0.5mg/min×18h(心功能差或低血压时首选,兼有节律控制作用)。血流动力学不稳定(MAP<65/休克/急性肺水肿)：同步电复律100-200J双相→200J。纠正低钾至K+>=4.0、低镁补Mg2+至>=1.0mmol/L。NOAF>48h或时间不确定需评估抗凝(参考vte_prophylaxis.json关于CHA2DS2-VASc)。"
+  },
+  {
+    "id": "arrhythmia_qtc_prolongation",
+    "title": "ICU心律失常管理指南",
+    "source": "AHA Scientific Statement 2010 + CredibleMeds + Clinical Practice",
+    "recommendation": "QTc延长管理与TdP预防",
+    "tags": ["qtc", "torsades_de_pointes", "drug_induced", "magnesium"],
+    "text": "QTc阈值：男>450ms注意/>500ms高危/增加>60ms基线高危;女>460ms注意/>500ms高危。QTc>500ms时TdP(尖端扭转型室速)风险显著增加。ICU常见致QTc延长药物：胺碘酮/索他洛尔/氟哌啶醇(>2mg IV)/昂丹司琼(>16mg)/氟康唑/环丙沙星/莫西沙星/美沙酮/丙泊酚(大剂量)/阿奇霉素。管理流程：QTc>500ms→立即审查并停用所有可停的致QTc延长药物→纠正电解质(K+>4.0,Mg2+>1.0)→经验性补镁(2g MgSO4 IV/30min)→持续心电监测→复查ECG。TdP发作：1g-2g MgSO4 IV推注(1-2min)→临时起搏(overdrive pacing 90-110bpm)或异丙肾上腺素(2-10μg/min维持HR>90)→不稳定时除颤。禁用胺碘酮治疗TdP(进一步延长QTc)。"
+  },
+  {
+    "id": "arrhythmia_vt_vf",
+    "title": "ICU心律失常管理指南",
+    "source": "AHA ACLS 2025 + AHA 2020 Guidelines",
+    "recommendation": "室速(VT)与室颤(VF)管理",
+    "tags": ["ventricular_tachycardia", "ventricular_fibrillation", "acls", "defibrillation"],
+    "text": "无脉VT/VF(心脏骤停)：立即高质量CPR+除颤(双相200J→360J递增)→肾上腺素1mg IV q3-5min→胺碘酮300mg IV(首剂)→150mg IV(二剂)→持续CPR-除颤循环。有脉VT(稳定/宽QRS)：血流动力学稳定→胺碘酮150mg IV/10min(可重复至总量2.2g/24h)或利多卡因1-1.5mg/kg IV→0.5-0.75mg/kg q5-10min(总量3mg/kg)→普鲁卡因胺(若前两者无效)15-18mg/kg IV/60min。血流动力学不稳定→同步电复律100J(单形)或除颤(多形)。反复VT/VF(电风暴)：纠正可逆原因(电解质/缺血/药物)、深度镇静(丙泊酚)、β受体阻滞剂(艾司洛尔是电风暴的关键药物:500μg/kg负荷→50-200μg/kg/min)、导管消融。"
+  },
+  {
+    "id": "arrhythmia_bradycardia",
+    "title": "ICU心律失常管理指南",
+    "source": "AHA ACLS 2025 + Clinical Practice",
+    "recommendation": "缓慢性心律失常管理",
+    "tags": ["bradycardia", "heart_block", "pacing", "atropine"],
+    "text": "有症状性心动过缓(HR<50伴低血压/意识改变/胸痛/急性心衰)：一线阿托品0.5mg IV q3-5min(最大3mg;二度II型和三度房室传导阻滞对阿托品反应差)。阿托品无效→经皮起搏(临时起搏器,起搏频率60-80bpm,逐渐增加电流至夺获,通常50-100mA)。起搏桥接时可用：多巴胺5-20μg/kg/min或肾上腺素2-10μg/min输注维持心率。ICU特殊考虑：β受体阻滞剂/钙通道阻滞剂过量→胰高血糖素3-10mg IV→高剂量胰岛素(1U/kg bolus+1-10U/kg/h)+葡萄糖+脂肪乳(严重时)。洋地黄中毒→Digoxin-Fab抗体。严重高钾致心动过缓→紧急钙剂+胰岛素/葡萄糖+透析。三度房室传导阻滞需心内科会诊评估永久起搏器。"
+  },
+  {
+    "id": "arrhythmia_svt_aflutter",
+    "title": "ICU心律失常管理指南",
+    "source": "AHA/ACC/HRS 2015 SVT Guideline + ACLS",
+    "recommendation": "室上性心动过速与心房扑动",
+    "tags": ["svt", "atrial_flutter", "adenosine", "cardioversion"],
+    "text": "窄QRS心动过速(SVT)：血流动力学稳定→迷走刺激(Valsalva改良法:半卧位吹注射器10s→迅速平卧并被动抬腿45度)→腺苷6mg快速IV推注(不经慢,需冲生理盐水20mL)→无效12mg→无效12mg。腺苷禁忌(哮喘/严重COPD/预激AF)→维拉帕米2.5-5mg IV/2min或地尔硫卓0.25mg/kg IV。不稳定→同步电复律50-100J。心房扑动(锯齿波,250-350bpm,常2:1下传致HR 150)：心率控制比AF更难(可能需更高药物剂量)。电复律是房扑最有效治疗:同步50-100J。药物控制同AF方案。ICU心房扑动高度提示基础心脏病或肺部疾病,需评估病因。"
+  }
+]

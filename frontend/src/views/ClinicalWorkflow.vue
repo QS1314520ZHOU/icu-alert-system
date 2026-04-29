@@ -628,6 +628,7 @@ const activeSignalFilter = ref('')
 const simpleImage = AEmpty.PRESENTED_IMAGE_SIMPLE
 
 const routeUserName = computed(() => String(route.query.userName || '').trim())
+const routeRole = computed(() => String(route.query.role || route.query.userRole || '').trim())
 const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const routeDept = computed(() => String(route.query.dept || route.query.department || '').trim())
 const cards = computed(() => home.value?.cards || [])
@@ -1288,6 +1289,7 @@ async function loadHome() {
   try {
     const { data } = await getClinicalRoleHome({
       userName: routeUserName.value || undefined,
+      role: routeRole.value || undefined,
       dept_code: routeDeptCode.value || undefined,
       dept: routeDept.value || undefined,
     })
@@ -1346,7 +1348,7 @@ async function openHandoff(patientId: string) {
   }
 }
 
-watch(() => [route.query.userName, route.query.deptCode, route.query.dept_code, route.query.dept], () => {
+watch(() => [route.query.userName, route.query.role, route.query.userRole, route.query.deptCode, route.query.dept_code, route.query.dept], () => {
   void loadHome()
 })
 

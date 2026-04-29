@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from bson import ObjectId
+from starlette.requests import Request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -88,6 +89,10 @@ class _FakeDb:
         return self._patient
 
 
+def _fake_request() -> Request:
+    return Request({"type": "http", "method": "POST", "path": "/api/ai/chat-consult", "headers": []})
+
+
 @pytest.mark.asyncio
 async def test_resolve_patient_from_message_identifier(monkeypatch: pytest.MonkeyPatch) -> None:
     p1 = ObjectId()
@@ -100,15 +105,17 @@ async def test_resolve_patient_from_message_identifier(monkeypatch: pytest.Monke
     )
     monkeypatch.setattr(chat.runtime, "db", db, raising=False)
 
-    patient, resolved_id, source, note = await chat._resolve_patient_from_payload(
+    patients, resolved_ids, source, note = await chat._resolve_patient_from_payload(
+        None,
         None,
         "请评估住院号 H1001 患者当前感染风险。",
     )
 
+    patient = patients[0] if patients else None
     assert patient is not None
-    assert resolved_id == str(p1)
+    assert resolved_ids == [str(p1)]
     assert source == "message_mention"
-    assert "匹配患者" in note
+    assert "匹配" in note
 
 
 @pytest.mark.asyncio
@@ -117,31 +124,37 @@ async def test_resolve_patient_message_name_overrides_invalid_payload_id(monkeyp
     db = _FakeDb([{"_id": target_id, "name": "王小明", "hisPid": "HX009", "status": "admitted"}])
     monkeypatch.setattr(chat.runtime, "db", db, raising=False)
 
-    patient, resolved_id, source, _ = await chat._resolve_patient_from_payload(
+    patients, resolved_ids, source, _ = await chat._resolve_patient_from_payload(
         "not-a-valid-objectid",
+        None,
         "患者 王小明 现在乳酸升高，怎么处理？",
     )
 
+    patient = patients[0] if patients else None
     assert patient is not None
-    assert resolved_id == str(target_id)
+    assert resolved_ids == [str(target_id)]
     assert source == "message_mention"
 
 
 @pytest.mark.asyncio
 async def test_ai_chat_consult_degrades_when_circuit_breaker_open(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def _fake_build_patient_context(patient_id: str | None, message: str):
-        del patient_id, message
-        return "", "", None, "none", ""
+    async def _fake_build_patient_context(patient_id: str | None, patient_ids: list[str] | None, message: str):
+        del patient_id, patient_ids, message
+        return "", "", None, [], "none", ""
 
     async def _fake_call_api_llm(*args: Any, **kwargs: Any) -> str:
         del args, kwargs
         raise LLMRuntimeUnavailableError("LLM runtime circuit breaker open, retry after 164.0s")
 
+    async def _fake_write_ai_consult_log(**kwargs: Any) -> None:
+        del kwargs
+
     monkeypatch.setattr(chat, "_build_patient_context", _fake_build_patient_context)
     monkeypatch.setattr(chat, "call_api_llm", _fake_call_api_llm)
+    monkeypatch.setattr(chat, "_write_ai_consult_log", _fake_write_ai_consult_log)
 
     payload = chat.ChatConsultPayload(message="请给出处理建议", history=[], patient_id=None)
-    res = await chat.ai_chat_consult(payload)
+    res = await chat.ai_chat_consult(payload, _fake_request())
 
     body = json.loads(res.body.decode("utf-8")) if hasattr(res, "body") else {}
     assert hasattr(res, "status_code")
@@ -188,6 +201,18 @@ def test_normalize_ai_consult_section_content_adds_numbering() -> None:
     )
 
 
+def test_finalize_ai_consult_answer_replaces_placeholder_sections() -> None:
+    text = "初步判断：\n-\n\n风险点：\n暂无\n\n建议检查：\nN/A\n\n下一步处理：\n1、-"
+    result = chat._finalize_ai_consult_answer(text)
+
+    assert "初步判断：\n1、-" not in result
+    assert "风险点：\n1、暂无" not in result
+    assert "建议检查：\n1、N/A" not in result
+    assert "下一步处理：\n1、-" not in result
+    assert "当前回答未形成有效初步判断" in result
+    assert "请补充关键化验" in result
+
+
 def test_resolve_ai_consult_limits_supports_patient_or_complex_case() -> None:
     normal = chat._resolve_ai_consult_limits(message="请给我一个初步建议", history=[], patient_context="")
     patient_bound = chat._resolve_ai_consult_limits(message="请结合该患者情况分析", history=[], patient_context="患者标签: 1床")
@@ -204,19 +229,23 @@ def test_resolve_ai_consult_limits_supports_patient_or_complex_case() -> None:
 
 @pytest.mark.asyncio
 async def test_ai_chat_consult_strips_think_content(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def _fake_build_patient_context(patient_id: str | None, message: str):
-        del patient_id, message
-        return "", "", None, "none", ""
+    async def _fake_build_patient_context(patient_id: str | None, patient_ids: list[str] | None, message: str):
+        del patient_id, patient_ids, message
+        return "", "", None, [], "none", ""
 
     async def _fake_call_api_llm(*args: Any, **kwargs: Any) -> str:
         del args, kwargs
         return "<think>内部分析</think>\n1. 初步判断：感染可能性高。"
 
+    async def _fake_write_ai_consult_log(**kwargs: Any) -> None:
+        del kwargs
+
     monkeypatch.setattr(chat, "_build_patient_context", _fake_build_patient_context)
     monkeypatch.setattr(chat, "call_api_llm", _fake_call_api_llm)
+    monkeypatch.setattr(chat, "_write_ai_consult_log", _fake_write_ai_consult_log)
 
     payload = chat.ChatConsultPayload(message="请给出处理建议", history=[], patient_id=None)
-    res = await chat.ai_chat_consult(payload)
+    res = await chat.ai_chat_consult(payload, _fake_request())
 
     assert res.get("code") == 0
     assert "<think>" not in str(res.get("answer") or "")

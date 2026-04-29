@@ -1,0 +1,42 @@
+[
+  {
+    "id": "pi_risk_assessment",
+    "title": "ICU压力性损伤预防与管理指南",
+    "source": "NPUAP/EPUAP/PPPIA 2019 + Braden Scale",
+    "recommendation": "压力性损伤风险评估",
+    "tags": ["pressure_injury", "braden", "risk", "assessment", "skin"],
+    "text": "ICU患者压力性损伤(PI)发生率10-40%。入ICU 8h内完成首次Braden评分(总分6-23)：感觉感知(1-4)、皮肤潮湿(1-4)、活动力(1-4)、移动力(1-4)、营养(1-4)、摩擦与剪力(1-3)。评分<=12高风险,13-14中风险,15-16低风险(有其他风险因素时)。ICU特殊高危因素(Braden外)：升压药使用(尤其NE>0.1μg/kg/min,组织灌注下降)、机械通气(镇静制动)、CRRT/ECMO(不能翻身)、水肿/低白蛋白(<25g/L)、糖尿病、贫血(Hb<80g/L)、俯卧位通气。频率：Braden q24h+每班次皮肤检查(特别是骶尾部/足跟/枕部/耳廓/鼻梁面罩压迫处)。医疗设备相关PI(MDRPI)：ETT固定带/NG管/SpO2探头/CVC固定贴→每班检查设备接触部位。"
+  },
+  {
+    "id": "pi_prevention_bundle",
+    "title": "ICU压力性损伤预防与管理指南",
+    "source": "NPUAP/EPUAP/PPPIA 2019 + SSCM Bundle Approach",
+    "recommendation": "压力性损伤预防Bundle",
+    "tags": ["prevention", "repositioning", "surface", "nutrition", "moisture"],
+    "text": "ICU PI预防Bundle(SSKIN)：Surface(支撑面)-高风险患者使用交替压力气垫或低气压持续支撑床垫(替代标准医院床垫);避免环形减压垫(反增压力)。Skin inspection(皮肤检查)-每班次高危部位检查(骶尾/足跟/肩胛/枕部);使用结构化评估表记录。Keep moving(翻身)-q2h体位变换(30度侧卧交替);使用翻身记录表确保执行;ECMO/俯卧位/血流动力学极不稳定时采用微翻身(15度)或使用旋转治疗床。Incontinence/moisture(潮湿管理)-尿便失禁使用屏障乳霜/透明敷料保护;大便失禁管理系统(FMS)减少骶尾部暴露;汗液过多保持皮肤干燥。Nutrition(营养)-蛋白摄入1.25-1.5g/kg/d(高风险PI患者);补充维生素C 500mg bid+锌220mg qd(辅助创面愈合,证据有限但安全)。足跟保护：悬空足跟(枕头/专用装置)→足跟PI是最可预防的类型。"
+  },
+  {
+    "id": "pi_staging_classification",
+    "title": "ICU压力性损伤预防与管理指南",
+    "source": "NPUAP/EPUAP/PPPIA 2019 International Guideline",
+    "recommendation": "压力性损伤分期",
+    "tags": ["staging", "classification", "wound", "assessment"],
+    "text": "NPUAP 2016更新分期：1期-完整皮肤不可漂白性发红(按压后不变白),深色皮肤可能表现为颜色改变/温度变化/水肿/硬结。2期-部分皮层缺失(表皮和/或真皮),表现为浅表溃疡(粉红色伤口床无腐肉)或完整/破裂的浆液性水疱。3期-全层皮肤缺失(皮下脂肪可见但不暴露骨骼/肌腱/肌肉),可有腐肉但不掩盖组织缺损深度。4期-全层组织缺失(骨骼/肌腱/肌肉暴露),常有腐肉或焦痂。不可分期-全层缺失被腐肉/焦痂覆盖无法判断深度(需清创后重新分期)。深部组织损伤(DTPI)-完整或破裂皮肤下局限区域紫色/栗色变色或充血水疱(可能快速进展为深部溃疡)。ICU注意：升压药相关DTPI可在减药后24-72h显现。"
+  },
+  {
+    "id": "pi_wound_management",
+    "title": "ICU压力性损伤预防与管理指南",
+    "source": "NPUAP/EPUAP/PPPIA 2019 + TIME Framework",
+    "recommendation": "压力性损伤伤口管理",
+    "tags": ["wound_care", "debridement", "dressing", "infection", "healing"],
+    "text": "TIME框架：T-Tissue(组织管理)-清除坏死组织:自溶性清创(水胶体/水凝胶敷料保湿溶解,最温和)、酶学清创(胶原酶)、手术/器械清创(大量坏死组织/感染时);稳定的干燥焦痂(足跟)不清创(保护层)除非有感染征象。I-Infection(感染控制)-伤口感染征象:红肿热痛加重/脓性渗出/肉芽组织脆弱易出血/伤口扩大/恶臭/全身发热;局部感染→碘伏/银离子敷料;深部/骨髓炎→全身抗生素+深部组织培养。M-Moisture(湿度平衡)-保持伤口湿润(促进愈合)但不浸渍(损伤周围皮肤):渗出少→水凝胶/薄水胶体;渗出多→泡沫敷料/藻酸盐。E-Edge(边缘推进)-监测伤口面积变化(每周测量长×宽×深);2-4周无缩小趋势→重新评估方案/会诊造口伤口专科护士。负压伤口治疗(NPWT/VAC)：3-4期大面积PI,促进肉芽生长、减少换药频率。"
+  },
+  {
+    "id": "pi_prone_ecmo_special",
+    "title": "ICU压力性损伤预防与管理指南",
+    "source": "NPUAP/EPUAP 2019 + ICU Expert Consensus",
+    "recommendation": "俯卧位/ECMO/特殊场景PI预防",
+    "tags": ["prone", "ecmo", "mdrpi", "prevention", "special"],
+    "text": "俯卧位通气PI预防(发生率高达30-50%)：面部-使用凝胶头枕(马蹄形)/每2h调整头部位置(左右交替)/额头和颧骨贴泡沫敷料保护。胸部-乳房(女性)和男性生殖器保护/胸前放置凝胶垫。髋/膝-髂前上棘和膝盖放置泡沫保护。ETT/CVC-俯卧前确认管路无压迫/ETT固定器不压迫面部。每次翻转(仰→俯/俯→仰)进行全身皮肤检查。ECMO相关：插管部位周围皮肤q4h检查/减少管路张力/股部管路使用泡沫保护。长期卧床(>7天)高危患者：考虑旋转治疗床(Roto-Prone/Kinetic)或空气流化床(Clinitron)。医疗设备相关PI预防：q2h重新固定/旋转SpO2探头位置/NG管固定位置交替/面罩(NIV)每2-4h松解评估鼻梁和面颊。"
+  }
+]

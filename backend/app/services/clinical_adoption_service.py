@@ -67,6 +67,50 @@ CLINICAL_LABELS: dict[str, str] = {
 }
 
 
+ROLE_ALIASES: dict[str, str] = {
+    "主任": "director",
+    "科主任": "director",
+    "主任医师": "director",
+    "副主任": "director",
+    "副主任医师": "director",
+    "director": "director",
+    "dept_director": "director",
+    "department_director": "director",
+    "departmentdirector": "director",
+    "deputy_director": "director",
+    "deputydirector": "director",
+    "护士长": "head_nurse",
+    "护理组长": "head_nurse",
+    "head_nurse": "head_nurse",
+    "headnurse": "head_nurse",
+    "head nurse": "head_nurse",
+    "nurse_leader": "head_nurse",
+    "nurseleader": "head_nurse",
+    "matron": "head_nurse",
+    "护士": "nurse",
+    "护理": "nurse",
+    "nurse": "nurse",
+    "practice_nurse": "nurse",
+    "practicenurse": "nurse",
+    "医生": "doctor",
+    "医师": "doctor",
+    "住院医": "doctor",
+    "主治": "doctor",
+    "doctor": "doctor",
+    "physician": "doctor",
+    "residentdoctor": "doctor",
+    "attendingdoctor": "doctor",
+}
+
+
+def _normalize_role_key(value: Any, default: str = "doctor") -> str:
+    raw = _text(value).lower()
+    if not raw:
+        return default
+    compact = raw.replace("-", "_").replace(" ", "_")
+    return ROLE_ALIASES.get(raw) or ROLE_ALIASES.get(compact) or raw
+
+
 def _contains_cjk(value: str) -> bool:
     return any("\u4e00" <= char <= "\u9fff" for char in value)
 
@@ -112,7 +156,7 @@ class ClinicalAdoptionService:
 
     def _normalize_role(self, account: dict[str, Any] | None, fallback: str = "doctor") -> str:
         if not account:
-            return _text(fallback).lower() or "doctor"
+            return _normalize_role_key(fallback)
         fields = [
             "roleName",
             "role",
@@ -125,15 +169,9 @@ class ClinicalAdoptionService:
             "name",
         ]
         text = " ".join(_text(account.get(field)) for field in fields).lower()
-        profession = _text(account.get("profession")).strip().lower()
-        if profession in {"director", "deputydirector", "deputy_director", "departmentdirector", "department_director"}:
-            return "director"
-        if profession in {"nurseleader", "nurse_leader", "headnurse", "head_nurse", "matron"}:
-            return "head_nurse"
-        if profession in {"nurse", "practicenurse", "practice_nurse"}:
-            return "nurse"
-        if profession in {"doctor", "physician", "residentdoctor", "attendingdoctor"}:
-            return "doctor"
+        profession = _normalize_role_key(account.get("profession"), "")
+        if profession in {"director", "head_nurse", "nurse", "doctor"}:
+            return profession
         if any(token in text for token in ["科主任", "主任医师", "副主任医师", "副主任", "主任", "director", "deputydirector", "deputy director"]):
             return "director"
         if any(token in text for token in ["护士长", "护理组长", "head nurse", "head_nurse"]):
@@ -142,7 +180,7 @@ class ClinicalAdoptionService:
             return "nurse"
         if any(token in text for token in ["医生", "医师", "住院医", "主治", "doctor", "physician"]):
             return "doctor"
-        return _text(fallback).lower() or "doctor"
+        return _normalize_role_key(fallback)
 
     def _dept_code_tokens(self, value: Any) -> list[str]:
         tokens: list[str] = []
@@ -168,10 +206,10 @@ class ClinicalAdoptionService:
             pass
         return "、".join(names_by_code.get(code, code) for code in codes)
 
-    async def resolve_account(self, user_name: str | None, *, fallback_role: str = "doctor") -> dict[str, Any]:
+    async def resolve_account(self, user_name: str | None, *, fallback_role: str | None = "doctor") -> dict[str, Any]:
         user_name = _text(user_name)
         if not user_name:
-            return {"userName": "", "role": _text(fallback_role).lower() or "doctor", "found": False}
+            return {"userName": "", "role": _normalize_role_key(fallback_role), "found": False}
         query = {
             "$or": [
                 {"userName": user_name},
@@ -219,12 +257,15 @@ class ClinicalAdoptionService:
 
     async def _patient_scope(self, *, dept: str | None = None, dept_code: str | None = None, limit: int = 120) -> list[dict[str, Any]]:
         base_query: dict[str, Any] = admitted_patient_query()
-        scope_query: dict[str, Any] | None = None
+        scope_terms: list[dict[str, Any]] = []
         if dept:
-            scope_query = {"$or": [{"hisDept": dept}, {"dept": dept}]}
-        elif dept_code:
+            scope_terms.extend([{"hisDept": dept}, {"dept": dept}])
+        if dept_code:
             codes = self._dept_code_tokens(dept_code)
-            scope_query = {"deptCode": {"$in": codes}} if len(codes) > 1 else {"deptCode": dept_code}
+            if codes:
+                scope_terms.append({"deptCode": {"$in": codes}})
+                scope_terms.append({"departmentCode": {"$in": codes}})
+        scope_query = {"$or": scope_terms} if scope_terms else None
         query = {"$and": [base_query, scope_query]} if scope_query else base_query
         cursor = self.db.col("patient").find(
             query,
@@ -1365,9 +1406,9 @@ class ClinicalAdoptionService:
             "items": rows,
         }
 
-    async def role_home(self, *, role: str = "doctor", dept: str | None = None, dept_code: str | None = None, user_name: str | None = None) -> dict[str, Any]:
+    async def role_home(self, *, role: str | None = None, dept: str | None = None, dept_code: str | None = None, user_name: str | None = None) -> dict[str, Any]:
         account = await self.resolve_account(user_name, fallback_role=role)
-        role = account.get("role") or _text(role).lower() or "doctor"
+        role = _normalize_role_key(role or account.get("role"))
         dept = dept or account.get("dept")
         dept_code = dept_code or account.get("dept_code")
         patients = await self._patient_scope(dept=dept, dept_code=dept_code)

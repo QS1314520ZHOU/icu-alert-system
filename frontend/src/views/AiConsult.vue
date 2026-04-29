@@ -12,20 +12,21 @@
         </div>
       </div>
       <div class="consult-hero__tools">
-        <div class="field-label">绑定患者（可选）</div>
+        <div class="field-label">绑定患者（可多选）</div>
         <a-select
-          v-model:value="selectedPatientId"
+          v-model:value="selectedPatientIds"
+          mode="multiple"
           allow-clear
           show-search
           option-filter-prop="label"
-          placeholder="不选则为通用问答"
+          placeholder="不选则为通用问答；可选择 3 床、5 床等多个患者"
           :options="patientOptions"
           :loading="patientsLoading"
           class="patient-select"
         />
         <div class="tool-row">
           <a-button size="small" :loading="patientsLoading" @click="loadPatients">刷新患者</a-button>
-          <a-button size="small" ghost :disabled="!selectedPatientId" @click="openPatientDetail">打开患者详情</a-button>
+          <a-button size="small" ghost :disabled="selectedPatientIds.length !== 1" @click="openPatientDetail">打开患者详情</a-button>
           <a-button size="small" ghost :disabled="messages.length <= 1" @click="exportConversation">导出问诊</a-button>
           <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportConsultSummary">导出会诊摘要</a-button>
           <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportProgressNoteTemplate">导出病程记录</a-button>
@@ -56,7 +57,7 @@
           <template #title>使用建议</template>
           <ul class="tip-list">
             <li>可以连续追问，系统会保留最近对话上下文。</li>
-            <li>选中患者后，AI 会自动带入患者标签与最近预警。</li>
+            <li>可同时选中多个患者，或直接说“3床比5床更需要关注吗”。</li>
             <li>描述越具体，回答越有针对性，例如：指标变化、治疗时序、当前顾虑。</li>
           </ul>
         </a-card>
@@ -189,7 +190,7 @@ const router = useRouter()
 const route = useRoute()
 const patientsLoading = ref(false)
 const sending = ref(false)
-const selectedPatientId = ref<string | undefined>(undefined)
+const selectedPatientIds = ref<string[]>([])
 const patients = ref<any[]>([])
 const draft = ref('')
 const messages = ref<ChatMessage[]>([])
@@ -212,8 +213,12 @@ const patientOptions = computed(() =>
 )
 
 const selectedPatientLabel = computed(() => {
-  const target = patientOptions.value.find((item) => item.value === selectedPatientId.value)
-  return target?.label || '未绑定具体患者'
+  const labels = selectedPatientIds.value
+    .map((id) => patientOptions.value.find((item) => item.value === id)?.label)
+    .filter(Boolean)
+  if (!labels.length) return '未绑定具体患者'
+  if (labels.length === 1) return labels[0] || '未绑定具体患者'
+  return `已绑定 ${labels.length} 位患者：${labels.map((item) => String(item).split(' · ')[0]).join('、')}`
 })
 
 const latestAssistantMessage = computed(() => {
@@ -228,7 +233,7 @@ const latestUserMessage = computed(() => {
 
 const latestAssistantSections = computed(() => parseStructuredSections(latestAssistantMessage.value?.content || ''))
 
-const storageKey = computed(() => `icu-ai-consult:${selectedPatientId.value || 'global'}`)
+const storageKey = computed(() => `icu-ai-consult:${selectedPatientIds.value.length ? selectedPatientIds.value.join(',') : 'global'}`)
 
 function pickRouteText(...values: any[]): string {
   for (const value of values) {
@@ -260,7 +265,7 @@ function createMessage(role: ChatRole, content: string, extra: Partial<ChatMessa
 function defaultAssistantGreeting() {
   return createMessage(
     'assistant',
-    selectedPatientId.value
+    selectedPatientIds.value.length
       ? `你好，我是 AI 问诊助手。当前已绑定患者：${selectedPatientLabel.value}。你可以直接追问病情判断、风险点、检查建议或下一步处理。`
       : '你好，我是 AI 问诊助手。你可以直接输入临床问题，我会按“初步判断 / 风险提醒 / 下一步建议”的方式回答。'
   )
@@ -512,9 +517,7 @@ function exportConversation() {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
-    const patientPart = selectedPatientId.value
-      ? String(selectedPatientLabel.value.split('·')[0] || '已绑定患者').trim()
-      : '通用问答'
+    const patientPart = exportPatientPart()
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
     anchor.href = url
     anchor.download = `AI问诊-${patientPart}-${stamp}.txt`
@@ -538,9 +541,7 @@ function exportConsultSummary() {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
-    const patientPart = selectedPatientId.value
-      ? String(selectedPatientLabel.value.split('·')[0] || '已绑定患者').trim()
-      : '通用问答'
+    const patientPart = exportPatientPart()
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
     anchor.href = url
     anchor.download = `AI会诊摘要-${patientPart}-${stamp}.txt`
@@ -564,9 +565,7 @@ function exportProgressNoteTemplate() {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
-    const patientPart = selectedPatientId.value
-      ? String(selectedPatientLabel.value.split('·')[0] || '已绑定患者').trim()
-      : '通用问答'
+    const patientPart = exportPatientPart()
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
     anchor.href = url
     anchor.download = `病程记录模板-${patientPart}-${stamp}.txt`
@@ -590,9 +589,7 @@ function exportConsultDocument() {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
-    const patientPart = selectedPatientId.value
-      ? String(selectedPatientLabel.value.split('·')[0] || '已绑定患者').trim()
-      : '通用问答'
+    const patientPart = exportPatientPart()
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
     anchor.href = url
     anchor.download = `会诊申请单-意见单-${patientPart}-${stamp}.txt`
@@ -620,6 +617,11 @@ function safeJsonParse(raw: string) {
   }
 }
 
+function exportPatientPart() {
+  if (!selectedPatientIds.value.length) return '通用问答'
+  return selectedPatientLabel.value.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40)
+}
+
 function scheduleSaveConversation(delay = 180) {
   if (saveTimer != null) window.clearTimeout(saveTimer)
   saveTimer = window.setTimeout(() => {
@@ -642,6 +644,7 @@ async function streamConsultReply(
   payload: {
     message: string
     patient_id?: string
+    patient_ids?: string[]
     history?: Array<{ role: 'user' | 'assistant'; content: string }>
   },
   options: {
@@ -788,8 +791,8 @@ function usePrompt(prompt: string) {
 }
 
 function openPatientDetail() {
-  if (!selectedPatientId.value) return
-  router.push({ path: `/patient/${selectedPatientId.value}`, query: { tab: 'ai' } })
+  if (selectedPatientIds.value.length !== 1) return
+  router.push({ path: `/patient/${selectedPatientIds.value[0]}`, query: { tab: 'ai' } })
 }
 
 function clearConversation() {
@@ -833,7 +836,8 @@ async function sendMessage() {
       donePayload = await streamConsultReply(
         {
           message: content,
-          patient_id: selectedPatientId.value,
+          patient_id: selectedPatientIds.value[0],
+          patient_ids: selectedPatientIds.value,
           history,
         },
         {
@@ -859,7 +863,8 @@ async function sendMessage() {
       } else {
         const fallbackRes = await postAiConsultChat({
           message: content,
-          patient_id: selectedPatientId.value,
+          patient_id: selectedPatientIds.value[0],
+          patient_ids: selectedPatientIds.value,
           history,
         })
         if (Number(fallbackRes.data?.code) !== 0) {
@@ -891,9 +896,9 @@ async function sendMessage() {
   }
 }
 
-watch(selectedPatientId, () => {
+watch(selectedPatientIds, () => {
   loadConversation()
-})
+}, { deep: true })
 
 watch(messages, () => {
   scheduleSaveConversation()
@@ -903,7 +908,7 @@ onMounted(async () => {
   await loadPatients()
   const fromRoute = routePatientId.value
   if (fromRoute && patients.value.some((item: any) => String(item?._id || '') === fromRoute)) {
-    selectedPatientId.value = fromRoute
+    selectedPatientIds.value = [fromRoute]
   }
   loadConversation()
 })
