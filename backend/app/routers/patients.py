@@ -91,6 +91,11 @@ async def get_patient(patient_id: str):
     return {"code": 0, "patient": row}
 
 
+@router.get("/api/patients/{patient_id}/ai-watching")
+async def get_ai_watching(patient_id: str, hours: int = Query(1, ge=1, le=24)):
+    return await runtime.ai_watching_service.get_watching_summary(patient_id, hours)
+
+
 @router.post("/api/patients/bundle-status")
 async def patient_bundle_statuses(patient_ids: list[str] = Body(default=[])):
     """批量获取患者 ABCDEF bundle 状态。"""

@@ -57,6 +57,7 @@
         </div>
       </header>
       <main class="body"><router-view /></main>
+      <AiPulseFloater />
     </div>
   </component>
 </template>
@@ -65,6 +66,7 @@
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getClinicalAccount } from './api'
+import AiPulseFloater from './components/AiPulseFloater.vue'
 import { getOperatorIdentity, setOperatorIdentity } from './utils/operatorIdentity'
 import { setThemeMode } from './composables/themeMode'
 const route = useRoute()

@@ -61,6 +61,42 @@ class WebSocketManager:
             meta = self._client_meta.setdefault(ws, {})
             meta["roles"] = self._normalize_roles(roles)
 
+    async def update_viewer_context(self, ws: WebSocket, context: dict[str, Any]) -> None:
+        async with self._lock:
+            if ws not in self._clients:
+                return
+            meta = self._client_meta.setdefault(ws, {})
+            viewer = meta.setdefault("viewer_context", {})
+            viewer.update({k: v for k, v in (context or {}).items() if v is not None})
+
+    async def online_viewers(self) -> list[tuple[WebSocket, dict[str, Any]]]:
+        async with self._lock:
+            rows: list[tuple[WebSocket, dict[str, Any]]] = []
+            for ws in self._clients:
+                meta = dict(self._client_meta.get(ws) or {})
+                meta["roles"] = self._normalize_roles(meta.get("roles"))
+                meta["viewer_context"] = dict(meta.get("viewer_context") or {})
+                rows.append((ws, meta))
+            return rows
+
+    async def get_meta(self, ws: WebSocket) -> dict[str, Any]:
+        async with self._lock:
+            meta = dict(self._client_meta.get(ws) or {})
+            meta["roles"] = self._normalize_roles(meta.get("roles"))
+            meta["viewer_context"] = dict(meta.get("viewer_context") or {})
+            return meta
+
+    async def send_to(self, ws: WebSocket, message: dict[str, Any]) -> bool:
+        data = json.dumps(message, ensure_ascii=False, default=str)
+        try:
+            await ws.send_text(data)
+            return True
+        except Exception:
+            async with self._lock:
+                self._clients.discard(ws)
+                self._client_meta.pop(ws, None)
+            return False
+
     async def broadcast(self, message: dict[str, Any], *, roles: Any = None) -> None:
         data = json.dumps(message, ensure_ascii=False, default=str)
         route_roles = set(self._normalize_roles(roles))

@@ -9,7 +9,9 @@ from app.config import AppConfig
 from app.database import DatabaseManager
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
+from app.services.ai_watching_service import AiWatchingService
 from app.services.rag_service import RagService
+from app.services.pulse_service import PulseService
 from app.ws_manager import WebSocketManager
 
 db: DatabaseManager | None = None
@@ -19,6 +21,8 @@ alert_engine: AlertEngine | None = None
 ai_handoff_service: AiHandoffService | None = None
 ai_monitor: AiMonitor | None = None
 ai_rag_service: RagService | None = None
+ai_watching_service: AiWatchingService | None = None
+pulse_service: PulseService | None = None
 
 
 def set_runtime(
@@ -30,8 +34,10 @@ def set_runtime(
     ai_handoff_service_value: AiHandoffService,
     ai_monitor_value: AiMonitor,
     ai_rag_service_value: RagService,
+    ai_watching_service_value: AiWatchingService | None = None,
+    pulse_service_value: PulseService | None = None,
 ) -> None:
-    global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service
+    global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service, ai_watching_service, pulse_service
 
     db = db_value
     config = config_value
@@ -40,6 +46,8 @@ def set_runtime(
     ai_handoff_service = ai_handoff_service_value
     ai_monitor = ai_monitor_value
     ai_rag_service = ai_rag_service_value
+    ai_watching_service = ai_watching_service_value
+    pulse_service = pulse_service_value
 
 
 def _resolve_state_attr(request: Request | None, name: str):
@@ -99,6 +107,20 @@ def get_ai_rag_service_dep(request: Request) -> RagService:
     return value
 
 
+def get_ai_watching_service_dep(request: Request) -> AiWatchingService:
+    value = _resolve_state_attr(request, "ai_watching_service")
+    if value is None:
+        raise HTTPException(status_code=503, detail="AI watching service not ready")
+    return value
+
+
+def get_pulse_service_dep(request: Request) -> PulseService:
+    value = _resolve_state_attr(request, "pulse_service")
+    if value is None:
+        raise HTTPException(status_code=503, detail="Pulse service not ready")
+    return value
+
+
 DbDep = Annotated[DatabaseManager, Depends(get_db)]
 ConfigDep = Annotated[AppConfig, Depends(get_config_dep)]
 WsMgrDep = Annotated[WebSocketManager, Depends(get_ws_mgr_dep)]
@@ -106,3 +128,5 @@ AlertEngineDep = Annotated[AlertEngine, Depends(get_alert_engine_dep)]
 AiHandoffDep = Annotated[AiHandoffService, Depends(get_ai_handoff_service_dep)]
 AiMonitorDep = Annotated[AiMonitor, Depends(get_ai_monitor_dep)]
 AiRagDep = Annotated[RagService, Depends(get_ai_rag_service_dep)]
+AiWatchingDep = Annotated[AiWatchingService, Depends(get_ai_watching_service_dep)]
+PulseDep = Annotated[PulseService, Depends(get_pulse_service_dep)]

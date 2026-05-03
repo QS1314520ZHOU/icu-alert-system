@@ -3011,6 +3011,28 @@ class BaseEngine:
         except Exception as e:
             logger.warning(f"WebSocket 广播失败: {e}")
 
+    async def _query_unviewed_alerts(
+        self,
+        patient_id: str | None = None,
+        hours: int = 1,
+        severities: list[str] | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        since = datetime.now() - timedelta(hours=max(1, int(hours or 1)))
+        severity_list = severities or ["critical", "high"]
+        query: dict[str, Any] = {
+            "severity": {"$in": severity_list},
+            "created_at": {"$gte": since},
+            "$and": [
+                {"viewed": {"$ne": True}},
+                {"viewed_at": {"$in": [None]}}
+            ],
+        }
+        if patient_id:
+            query["patient_id"] = str(patient_id)
+        cursor = self.db.col("alert_records").find(query).sort("created_at", -1).limit(max(1, int(limit or 20)))
+        return [doc async for doc in cursor]
+
     async def _is_suppressed(self, patient_id: str, rule_id: str | None, same_rule_seconds: int, max_per_hour: int) -> bool:
         if not rule_id:
             return False

@@ -189,6 +189,28 @@ ai_service:
     enabled: true
     persist_window_minutes: 60
 
+  pulse:
+    enabled: true
+    loop_interval_seconds: 30
+    push_threshold: 0.55
+    cooldown_minutes_per_patient: 10
+    max_pushes_per_viewer_per_hour: 12
+    candidate_lookback_minutes: 5
+    overdue_alert_minutes: 30
+    overdue_mdt_minutes: 120
+    narrate_model: fast
+
+  watching:
+    weights:
+      scanner_runs: 0.05
+      labs_reviewed: 0.2
+      drugs_reviewed: 0.1
+      imaging_reports_reviewed: 1.5
+      alerts_critical: 2.0
+    cap_minutes: 60
+    findings_max: 3
+    cache_ttl_seconds: 60
+
 research:
   figure_dpi: 300
   figure_font_family: "Times New Roman"

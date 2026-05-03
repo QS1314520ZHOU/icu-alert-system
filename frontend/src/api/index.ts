@@ -49,6 +49,9 @@ export const getPatientVitals = (patientId: string) =>
 export const getPatientDetail = (patientId: string) =>
   api.get(`/api/patients/${patientId}`)
 
+export const getAiWatching = (patientId: string, hours = 1) =>
+  api.get(`/api/patients/${patientId}/ai-watching`, { params: { hours } })
+
 // 获取患者床旁概览卡片数据 (增强型)
 export const getPatientBedcard = (patientId: string) =>
   api.get(`/api/patients/${patientId}/bedcard`)

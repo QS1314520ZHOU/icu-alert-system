@@ -9,6 +9,7 @@ const listeners = new Set<Listener>()
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 const NOTIFY_KEY = 'icu_alert_notify_enabled'
+const pendingMessages: any[] = []
 
 function buildWsUrl() {
   const base = import.meta.env.VITE_WS_BASE_URL as string | undefined
@@ -64,6 +65,12 @@ function connect() {
   if (socket) return
   const url = buildWsUrl()
   socket = new WebSocket(url)
+
+  socket.onopen = () => {
+    while (pendingMessages.length && socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(pendingMessages.shift()))
+    }
+  }
 
   socket.onmessage = evt => {
     try {
@@ -139,4 +146,13 @@ export function onAlertMessage(listener: Listener) {
       socket = null
     }
   }
+}
+
+export function sendAlertSocketMessage(message: Record<string, any>) {
+  connect()
+  if (socket?.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message))
+    return
+  }
+  pendingMessages.push(message)
 }

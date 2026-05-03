@@ -7,6 +7,8 @@
       class="detail-page-header"
     />
 
+    <AiWatchingBar :patient-id="String(route.params.id || '')" />
+
     <section class="detail-density-bar">
       <div class="detail-density-copy">
         <span class="detail-density-kicker">页面视图</span>
@@ -654,6 +656,7 @@ import {
 } from '../charts/icuTheme'
 import { getOperatorIdentity } from '../utils/operatorIdentity'
 import { onAlertMessage } from '../services/alertSocket'
+import AiWatchingBar from '../components/AiWatchingBar.vue'
 import {
   buildDeviceMarkers,
   buildPatientOrganStateFromAlerts,

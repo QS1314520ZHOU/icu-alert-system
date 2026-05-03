@@ -28,6 +28,7 @@
         <div class="bed-diag-label">当前诊断</div>
         <div class="bed-diag">{{ shortDiag(patient.clinicalDiagnosis || patient.admissionDiagnosis) }}</div>
       </div>
+      <AiWatchingBar class="bed-watching" :patient-id="String(patient._id || '')" compact />
       <div class="bed-bodymap-wrap">
         <OrganHeatmapFigure compact :organ-states="patient.organMap || {}" :silhouette="silhouetteByGender(patient.gender)" />
       </div>
@@ -105,6 +106,7 @@
 
 <script setup lang="ts">
 import OrganHeatmapFigure from '../common/OrganHeatmapFigure.vue'
+import AiWatchingBar from '../AiWatchingBar.vue'
 
 defineProps<{
   patients: any[]
@@ -367,6 +369,17 @@ function riskSuggestion(value: any) {
   display: flex;
   justify-content: center;
   margin-top: 8px;
+}
+.bed-watching {
+  margin-top: 8px;
+}
+.bed-watching :deep(.ai-watching-bar) {
+  min-height: 32px;
+  border-radius: 10px;
+  padding: 5px 8px;
+}
+.bed-watching :deep(.watching-text) {
+  font-size: 10px;
 }
 .bed-vitals {
   display: grid;

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import os
+import asyncio
 from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -39,6 +40,10 @@ from app.routers.waveforms import router as waveforms_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
+from app.services.ai_watching_service import AiWatchingService
+from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
+from app.services.multi_agent_orchestrator import ICUMultiAgentOrchestrator
+from app.services.pulse_service import PulseService
 from app.services.rag_service import RagService
 from app.utils.runtime_paths import static_dir
 from app.ws_manager import WebSocketManager
@@ -74,6 +79,9 @@ alert_engine: AlertEngine = None  # type: ignore[assignment]
 ai_handoff_service: AiHandoffService = None  # type: ignore[assignment]
 ai_monitor: AiMonitor = None  # type: ignore[assignment]
 ai_rag_service: RagService = None  # type: ignore[assignment]
+ai_watching_service: AiWatchingService = None  # type: ignore[assignment]
+pulse_service: PulseService = None  # type: ignore[assignment]
+pulse_task = None
 bootstrap_config = get_config()
 
 
@@ -89,7 +97,7 @@ def _error_log_path() -> Path:
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service
+    global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service, ai_watching_service, pulse_service, pulse_task
 
     logger.info("🚀 ICU智能协同工作台启动中...")
 
@@ -107,6 +115,32 @@ async def lifespan(application: FastAPI):
     ai_handoff_service = AiHandoffService(db, config)
     ai_monitor = AiMonitor(db, config)
     ai_rag_service = RagService(config)
+    clinical_reasoning_agent = ClinicalReasoningAgent(
+        db=db,
+        config=config,
+        alert_engine=alert_engine,
+        rag_service=ai_rag_service,
+        ai_monitor=ai_monitor,
+        ai_handoff_service=ai_handoff_service,
+    )
+    multi_agent_orchestrator = ICUMultiAgentOrchestrator(
+        db=db,
+        config=config,
+        alert_engine=alert_engine,
+        rag_service=ai_rag_service,
+        ai_monitor=ai_monitor,
+        ai_handoff_service=ai_handoff_service,
+    )
+    ai_watching_service = AiWatchingService(db, config)
+    pulse_service = PulseService(
+        db=db,
+        config=config,
+        ws_mgr=ws_mgr,
+        alert_engine=alert_engine,
+        multi_agent_orchestrator=multi_agent_orchestrator,
+        clinical_reasoning_agent=clinical_reasoning_agent,
+        ai_monitor=ai_monitor,
+    )
 
     runtime.set_runtime(
         db_value=db,
@@ -116,6 +150,8 @@ async def lifespan(application: FastAPI):
         ai_handoff_service_value=ai_handoff_service,
         ai_monitor_value=ai_monitor,
         ai_rag_service_value=ai_rag_service,
+        ai_watching_service_value=ai_watching_service,
+        pulse_service_value=pulse_service,
     )
 
     application.state.db = db
@@ -125,11 +161,21 @@ async def lifespan(application: FastAPI):
     application.state.ai_handoff_service = ai_handoff_service
     application.state.ai_monitor = ai_monitor
     application.state.ai_rag_service = ai_rag_service
+    application.state.ai_watching_service = ai_watching_service
+    application.state.pulse_service = pulse_service
+
+    if pulse_service.is_enabled():
+        pulse_task = asyncio.create_task(pulse_service.run_loop(), name="pulse-service-loop")
 
     logger.info("✅ ICU智能协同工作台启动完成")
     yield
 
     logger.info("⏹️ ICU智能协同工作台关闭中...")
+    if pulse_service:
+        pulse_service.stop()
+    if pulse_task:
+        pulse_task.cancel()
+        await asyncio.gather(pulse_task, return_exceptions=True)
     await alert_engine.stop()
     await ws_mgr.stop_redis_relay()
     await db.disconnect()
