@@ -140,8 +140,34 @@ class RoleHomeService:
         extra = row.get("extra") if isinstance(row.get("extra"), dict) else {}
         for value in (extra.get("top_actions"), row.get("top_actions"), extra.get("actions"), row.get("recommendations")):
             if isinstance(value, list) and value:
-                return _text(value[0]) or "进入患者详情复核。"
-        return _text(row.get("explanation") or row.get("name") or row.get("alert_type")) or "进入患者详情复核。"
+                return self._format_action_text(value[0])
+            if isinstance(value, dict):
+                return self._format_action_text(value)
+        return self._format_action_text(row.get("explanation") or row.get("name") or row.get("alert_type"))
+
+    def _format_action_text(self, value: Any) -> str:
+        if isinstance(value, dict):
+            summary = _text(value.get("summary") or value.get("text") or value.get("title") or value.get("problem"))
+            suggestion = _text(value.get("suggestion") or value.get("recommendation") or value.get("action"))
+            evidence = value.get("evidence")
+            if isinstance(evidence, list):
+                evidence_text = "；".join(_text(item) for item in evidence[:2] if _text(item))
+            else:
+                evidence_text = _text(evidence)
+            parts = []
+            if summary:
+                parts.append(summary)
+            if evidence_text:
+                parts.append(f"依据：{evidence_text}")
+            if suggestion:
+                parts.append(f"建议：{suggestion}")
+            return "。".join(parts[:3]) or "进入患者详情复核。"
+        text = _text(value)
+        if not text:
+            return "进入患者详情复核。"
+        if "'summary'" in text or '"summary"' in text:
+            return "综合风险推理已生成结构化结论，建议进入患者详情查看证据和处置建议。"
+        return text
 
     async def doctor_home(self, user_id: str) -> dict[str, Any]:
         account = await self._account_by_user_id(user_id)

@@ -25,7 +25,7 @@
           <i :class="`tone-${tone(item.risk_level)}`"></i>
           <div>
             <strong>{{ item.bed || '--' }}床 {{ item.name || '未知患者' }}</strong>
-            <span>{{ item.reason || '暂无一句话理由' }}</span>
+            <span>{{ cleanReason(item.reason) }}</span>
           </div>
           <b>{{ item.risk_score || 0 }}</b>
         </article>
@@ -133,6 +133,17 @@ function tone(value: string) {
 }
 function goPatient(id: string) {
   if (id) router.push({ path: `/patient/${id}`, query: route.query })
+}
+function cleanReason(value: any) {
+  if (value && typeof value === 'object') {
+    const summary = String(value.summary || value.text || value.title || '').trim()
+    const suggestion = String(value.suggestion || value.recommendation || '').trim()
+    return [summary, suggestion ? `建议：${suggestion}` : ''].filter(Boolean).join('。') || '进入患者详情复核。'
+  }
+  const text = String(value || '').trim()
+  if (!text) return '暂无一句话理由'
+  if (text.includes("'summary'") || text.includes('"summary"')) return '综合风险推理已生成结论，点击进入患者详情查看证据和建议。'
+  return text
 }
 async function load() {
   if (!userId.value) {
