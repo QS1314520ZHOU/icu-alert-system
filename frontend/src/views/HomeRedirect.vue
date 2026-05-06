@@ -25,7 +25,7 @@ const userId = computed(() => String(route.query.user_id || route.query.userId |
 const hint = computed(() => userId.value ? `当前账号：${userId.value}` : '未带账号参数，保留手动入口。')
 
 function push(path: string) {
-  router.replace({ path, query: { ...route.query, user_id: userId.value || route.query.user_id } })
+  router.replace({ path, query: cleanIdentityQuery(route.query) })
 }
 function goDoctor() { push('/doctor-home') }
 function goNurse() { push('/nurse-home') }
@@ -45,6 +45,17 @@ onMounted(async () => {
     // keep manual role choices visible
   }
 })
+
+function cleanIdentityQuery(query: Record<string, any>) {
+  const next: Record<string, any> = { ...query }
+  if (next.userName) {
+    delete next.user_id
+    delete next.userId
+  } else if (next.userId) {
+    delete next.user_id
+  }
+  return next
+}
 </script>
 
 <style scoped>

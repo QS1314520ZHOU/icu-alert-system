@@ -19,7 +19,7 @@
       <section class="panel focus-panel">
         <div class="panel-head">
           <strong>我的今日重点</strong>
-          <span>按 IntegratedRiskReasoning 风险排序</span>
+          <span>按综合风险推理排序</span>
         </div>
         <article v-for="item in focusPatients" :key="item.patient_id" class="focus-row" @click="goPatient(item.patient_id)">
           <i :class="`tone-${tone(item.risk_level)}`"></i>
@@ -109,7 +109,7 @@ const aiStats = computed(() => {
     { label: '待跟进', value: a.pending_followup ?? 0 },
     { label: '综合判断', value: a.integrated_reasoning ?? 0 },
     { label: '判断采纳', value: a.integrated_adopted ?? 0 },
-    { label: 'Pulse点击', value: `${a.pulse_clicks ?? 0}/${a.pulse_pushes ?? 0}` },
+    { label: '主动提醒点击', value: `${a.pulse_clicks ?? 0}/${a.pulse_pushes ?? 0}` },
   ]
 })
 const qualityLights = computed(() => {
@@ -154,11 +154,21 @@ function tick() {
   clock.value = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 onMounted(() => {
+  cleanDuplicateIdentityQuery()
   tick()
   timer = setInterval(tick, 1000)
   void load()
 })
 onUnmounted(() => clearInterval(timer))
+
+function cleanDuplicateIdentityQuery() {
+  if (route.query.userName && (route.query.user_id || route.query.userId)) {
+    const query = { ...route.query }
+    delete query.user_id
+    delete query.userId
+    router.replace({ path: route.path, query })
+  }
+}
 </script>
 
 <style scoped>

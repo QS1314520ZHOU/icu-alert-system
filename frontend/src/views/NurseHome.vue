@@ -22,7 +22,7 @@
           <div class="bed-cloud"><span v-for="b in headBeds" :key="b.patient_id">{{ b.bed || '--' }}床 {{ b.name }}</span></div>
         </section>
         <section class="panel">
-          <div class="panel-head"><strong>工作负荷热力图</strong><span>本班 nurseRecords 密度</span></div>
+          <div class="panel-head"><strong>工作负荷热力图</strong><span>本班护理记录密度</span></div>
           <div class="heatmap"><span v-for="row in heatmap" :key="row.nurse" :class="`density-${row.tone}`">{{ row.nurse }} · {{ row.task_density }}</span></div>
         </section>
       </main>
@@ -49,7 +49,7 @@
 
         <aside class="side">
           <section class="panel">
-            <div class="panel-head"><strong>安全清单 Bundle</strong><span>红黄绿闭环</span></div>
+            <div class="panel-head"><strong>安全清单</strong><span>红黄绿闭环</span></div>
             <article v-for="item in bundles" :key="item.code" :class="`bundle is-${item.tone}`">
               <strong>{{ item.name }}</strong>
               <span>{{ item.completed }}/{{ item.total }}</span>
@@ -73,9 +73,9 @@
       <section :class="['handoff-bar', { open: handoffShouldOpen }]">
         <div>
           <strong>一键交班</strong>
-          <span>下班前 1 小时自动展开，按 I-PASS 生成本班交班单。</span>
+          <span>下班前 1 小时自动展开，按标准交班结构生成本班交班单。</span>
         </div>
-        <button type="button" :disabled="handoffLoading || !beds.length" @click="generateHandoff">{{ handoffLoading ? '生成中' : '生成本班 I-PASS 交班单' }}</button>
+        <button type="button" :disabled="handoffLoading || !beds.length" @click="generateHandoff">{{ handoffLoading ? '生成中' : '生成本班交班单' }}</button>
       </section>
 
       <div v-if="selectedTask" class="modal-mask" @click.self="selectedTask = null">
@@ -96,11 +96,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getNurseHome, postNurseHandoffGenerate, postNurseTaskExecute } from '../api'
 import { getOperatorIdentity } from '../utils/operatorIdentity'
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 const home = ref<any>(null)
@@ -178,7 +179,19 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(() => void load())
+onMounted(() => {
+  cleanDuplicateIdentityQuery()
+  void load()
+})
+
+function cleanDuplicateIdentityQuery() {
+  if (route.query.userName && (route.query.user_id || route.query.userId)) {
+    const query = { ...route.query }
+    delete query.user_id
+    delete query.userId
+    router.replace({ path: route.path, query })
+  }
+}
 </script>
 
 <style scoped>

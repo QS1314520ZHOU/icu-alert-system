@@ -2,7 +2,7 @@
   <section class="clinical-summary">
     <div class="summary-head">
       <div class="title-block">
-        <span class="eyebrow">CLINICAL BRIEF</span>
+        <span class="eyebrow">临床摘要</span>
         <strong>{{ patientTitle }}</strong>
         <small>最近 {{ summary?.hours || 24 }} 小时临床摘要</small>
       </div>
