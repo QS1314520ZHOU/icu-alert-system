@@ -49,6 +49,8 @@
               :key="item.key"
               type="button"
               :class="['nav-btn', { active: navKey === item.key }]"
+              @mouseenter="preloadNav(item.key)"
+              @focus="preloadNav(item.key)"
               @click="onNav(item.key)"
             >
               <span v-for="line in item.lines" :key="line">{{ line }}</span>
@@ -66,6 +68,7 @@
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getClinicalAccount } from './api'
+import { preloadCoreRouteComponents, preloadRouteComponent } from './router'
 import AiPulseFloater from './components/AiPulseFloater.vue'
 import { getOperatorIdentity, setOperatorIdentity } from './utils/operatorIdentity'
 import { setThemeMode } from './composables/themeMode'
@@ -102,6 +105,26 @@ const navItems = [
   { key: 'scanner-health', lines: ['规则', '健康'] },
   { key: 'runtime-config', lines: ['配置', '中心'] },
 ]
+const navComponentMap: Record<string, Parameters<typeof preloadRouteComponent>[0]> = {
+  'doctor-home': 'doctorHome',
+  'nurse-home': 'nurseHome',
+  'clinical-workflow': 'clinicalWorkflow',
+  overview: 'overview',
+  analytics: 'analytics',
+  'rounding-sheet': 'roundingSheet',
+  'respiratory-dashboard': 'respiratoryDashboard',
+  'nutrition-support': 'nutritionSupport',
+  'research-export': 'researchExport',
+  'research-workbench': 'researchWorkbench',
+  'academic-research': 'academicResearch',
+  'clinical-trials': 'clinicalTrials',
+  mdt: 'mdtBoard',
+  'ai-consult': 'aiConsult',
+  'ai-ops': 'aiOps',
+  'scanner-health': 'scannerHealth',
+  'runtime-config': 'runtimeConfig',
+  bigscreen: 'bigScreen',
+}
 
 const navKey = computed(() => {
   if (route.path.startsWith('/doctor-home')) return 'doctor-home'
@@ -189,7 +212,22 @@ function onNav(key: string) {
     bigscreen: '/bigscreen',
   }
   const path = pathMap[key] || '/'
-  router.push({ path, query: route.query })
+  router.push({ path, query: navIdentityQuery() })
+}
+
+function navIdentityQuery() {
+  const allowed = ['user_id', 'userId', 'userName', 'username', 'role', 'dept', 'dept_code', 'deptCode', 'department']
+  const next: Record<string, any> = {}
+  for (const key of allowed) {
+    const value = route.query[key]
+    if (value != null && value !== '') next[key] = value
+  }
+  return next
+}
+
+function preloadNav(key: string) {
+  const componentKey = navComponentMap[key]
+  if (componentKey) void preloadRouteComponent(componentKey)
 }
 
 async function ensureAntdTheme() {
@@ -295,6 +333,7 @@ watch(() => route.query.userName, () => {
 
 onMounted(() => {
   initTheme()
+  preloadCoreRouteComponents()
   void initNotify()
   operatorIdentity.value = getOperatorIdentity()
   syncOperatorFromRoute()

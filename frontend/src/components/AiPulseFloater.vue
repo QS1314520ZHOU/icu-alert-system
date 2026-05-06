@@ -62,6 +62,7 @@ const showHistory = ref(false)
 const paused = ref(false)
 let hideTimer: number | null = null
 let contextTimer: number | null = null
+let lastContextKey = ''
 
 const currentPatientId = computed(() => {
   if (route.name === 'patient-detail') return String(route.params.id || '')
@@ -98,6 +99,15 @@ function toggleHistory() {
 function scheduleContextReport() {
   if (contextTimer) window.clearTimeout(contextTimer)
   contextTimer = window.setTimeout(() => {
+    const contextKey = [
+      route.path,
+      currentPatientId.value || '',
+      String(route.query.dept_code || route.query.deptCode || ''),
+      String(route.query.role || 'doctor'),
+      String(route.query.userName || ''),
+    ].join('|')
+    if (contextKey === lastContextKey) return
+    lastContextKey = contextKey
     store.reportViewerContext(route.fullPath, currentPatientId.value || null, {
       dept_code: route.query.dept_code || route.query.deptCode || '',
       role: route.query.role || 'doctor',
