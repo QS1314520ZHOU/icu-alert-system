@@ -7,7 +7,6 @@ import time
 from typing import Any
 
 import httpx
-from app import runtime
 
 logger = logging.getLogger("icu-alert")
 
@@ -91,6 +90,8 @@ _FAILURE_TRACKER = _LLMFailureTracker()
 
 async def _runtime_ai_config() -> dict[str, Any]:
     try:
+        from app import runtime
+
         if runtime.db is None:
             return {}
         doc = await runtime.db.col("runtime_configs").find_one({"key": "ai"})
@@ -234,6 +235,7 @@ async def call_llm_chat(
     temperature: float = 0.1,
     max_tokens: int = 4096,
     timeout_seconds: float = 60,
+    response_format: dict[str, Any] | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     runtime_ai = await _runtime_ai_config()
@@ -299,6 +301,8 @@ async def call_llm_chat(
                 {"role": "user", "content": user_prompt},
             ],
         }
+        if response_format:
+            payload["response_format"] = response_format
         max_retries = 3
         for attempt in range(max_retries + 1):
             resp = await req_client.post(llm_url, json=payload, headers=headers)

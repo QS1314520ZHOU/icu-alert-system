@@ -1,6 +1,8 @@
 """ICU multi-agent orchestration service."""
 from __future__ import annotations
 
+import json
+import re
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Any
@@ -9,6 +11,15 @@ from bson import ObjectId
 
 from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
+from app.services.llm_runtime import call_llm_chat
+from app.services.mdt_prompts import (
+    MODERATOR_SYSTEM,
+    build_moderator_user_prompt,
+    build_specialist_system_prompt,
+    build_specialist_user_prompt,
+    validate_moderator_output,
+    validate_specialist_output,
+)
 from app.services.patient_digital_twin import PatientDigitalTwinService
 
 
@@ -63,11 +74,64 @@ class ICUMultiAgentOrchestrator:
         cfg = self._cfg()
         return max(5, int(cfg.get("digital_twin_cache_minutes", 90) or 90))
 
+    def _use_llm_agents(self) -> bool:
+        cfg = self._cfg()
+        return bool(cfg.get("use_llm_agents") or cfg.get("enabled_llm_agents"))
+
     async def _load_patient(self, patient_id: str) -> dict[str, Any] | None:
         try:
             return await self.db.col("patient").find_one({"_id": ObjectId(patient_id)})
         except Exception:
             return None
+
+    def _parse_json_object(self, text: str) -> dict[str, Any] | None:
+        raw = str(text or "").strip()
+        if not raw:
+            return None
+        raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
+        raw = re.sub(r"\s*```$", "", raw)
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else None
+        except Exception:
+            pass
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                parsed = json.loads(raw[start : end + 1])
+                return parsed if isinstance(parsed, dict) else None
+            except Exception:
+                return None
+        return None
+
+    async def _knowledge_chunks(self, twin: dict[str, Any], agent_name: str | None = None) -> list[dict[str, Any]]:
+        if not self.rag_service:
+            return []
+        try:
+            query_parts = [str(item.get("title") or item.get("problem") or item) for item in (twin.get("problem_list") or [])[:6]]
+            if agent_name:
+                query_parts.append(agent_name)
+            query = "；".join(part for part in query_parts if part.strip()) or "ICU MDT 会诊"
+            if hasattr(self.rag_service, "search"):
+                rows = await self.rag_service.search(query=query, top_k=6)
+            elif hasattr(self.rag_service, "retrieve"):
+                rows = await self.rag_service.retrieve(query, top_k=6)
+            else:
+                return []
+            out = []
+            for idx, row in enumerate(rows or []):
+                if not isinstance(row, dict):
+                    continue
+                chunk_id = str(row.get("chunk_id") or row.get("id") or row.get("_id") or f"chunk-{idx + 1}")
+                out.append({
+                    "chunk_id": chunk_id,
+                    "title": str(row.get("title") or row.get("document_title") or "知识片段"),
+                    "snippet": str(row.get("snippet") or row.get("content") or row.get("text") or "")[:500],
+                })
+            return out
+        except Exception:
+            return []
 
     def _labs(self, twin: dict[str, Any]) -> dict[str, Any]:
         facts = twin.get("facts") if isinstance(twin.get("facts"), dict) else {}
@@ -220,8 +284,101 @@ class ICUMultiAgentOrchestrator:
         summary = concerns[0] if concerns else "当前药学风险未见明显升级信号"
         return SpecialistAssessment("pharmacy_agent", "pharmacy", summary, concerns, recs or ["继续做肾毒性/相互作用复核"], self._priority_from_flags(False, bool(concerns)), evidence)
 
+    def _rule_assessment_from_specialist(self, result: SpecialistAssessment) -> dict[str, Any]:
+        return {
+            "summary": result.summary,
+            "concerns": result.concerns,
+            "recommendations": result.recommendations,
+            "evidence": result.evidence,
+            "priority": result.priority,
+        }
+
+    def _specialist_to_payload(self, result: SpecialistAssessment, *, source: str = "rule") -> dict[str, Any]:
+        return {
+            "agent": result.agent,
+            "domain": result.domain,
+            "summary": result.summary,
+            "concerns": result.concerns,
+            "recommendations": result.recommendations,
+            "priority": result.priority,
+            "evidence": result.evidence,
+            "strategy_tags": [],
+            "source": source,
+        }
+
+    async def _rule_specialist_assessment(self, name: str, twin: dict[str, Any]) -> SpecialistAssessment:
+        agent = self.agents[name]
+        return await agent(twin) if name == "pharmacy_agent" else agent(twin)
+
+    async def _call_specialist_llm(
+        self,
+        *,
+        agent_name: str,
+        twin: dict[str, Any],
+        rule_assessment: dict[str, Any],
+        knowledge_chunks: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        system_prompt = build_specialist_system_prompt(agent_name)
+        user_prompt = build_specialist_user_prompt(
+            agent_name=agent_name,
+            twin=twin,
+            rule_assessment=rule_assessment,
+            knowledge_chunks=knowledge_chunks,
+        )
+        model = self.config.llm_model_medical or self.config.llm_fast_model
+        result = await call_llm_chat(
+            cfg=self.config,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model,
+            temperature=0.1,
+            max_tokens=2000,
+            timeout_seconds=60,
+            response_format={"type": "json_object"},
+        )
+        raw = self._parse_json_object(str(result.get("text") or "")) or {}
+        valid_ids = {str(c.get("chunk_id")) for c in knowledge_chunks if c.get("chunk_id")}
+        validated = validate_specialist_output(agent_name, raw, valid_ids)
+        validated["summary"] = validated.get("summary") or rule_assessment.get("summary") or ""
+        validated["concerns"] = validated.get("concerns") or rule_assessment.get("concerns") or []
+        validated["recommendations"] = validated.get("recommendations") or rule_assessment.get("recommendations") or []
+        validated["priority"] = validated.get("priority") or rule_assessment.get("priority") or "medium"
+        return {
+            **validated,
+            "agent": agent_name,
+            "domain": agent_name.replace("_agent", ""),
+            "evidence": rule_assessment.get("evidence") or [],
+            "source": "llm",
+            "llm_meta": {
+                "model": result.get("model"),
+                "degraded_mode": result.get("degraded_mode"),
+            },
+        }
+
     def detect_conflicts(self, assessments: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
         conflicts: list[dict[str, Any]] = []
+        tag_map = {name: set(row.get("strategy_tags") or []) for name, row in assessments.items()}
+        if "fluid_positive" in tag_map.get("hemodynamic_agent", set()) and "fluid_restrict" in tag_map.get("renal_agent", set()):
+            conflicts.append({
+                "type": "fluid_strategy_conflict",
+                "agents": ["hemodynamic_agent", "renal_agent"],
+                "summary": "循环复苏与肾脏限液策略冲突",
+                "resolution_focus": "依据灌注、肺水征、尿量和容量反应性裁决",
+            })
+        if tag_map.get("respiratory_agent", set()) & {"weaning_ready", "sbt_indicated", "extubation_ready"} and tag_map.get("neuro_agent", set()) & {"sedation_deepen"}:
+            conflicts.append({
+                "type": "weaning_sedation_conflict",
+                "agents": ["respiratory_agent", "neuro_agent"],
+                "summary": "撤机条件与加深镇静策略冲突",
+                "resolution_focus": "重新设定 RASS 目标并评估 SAT/SBT 时机",
+            })
+        if tag_map.get("infection_agent", set()) & {"antibiotic_escalation"} and tag_map.get("renal_agent", set()) & {"renal_dose_adjust"}:
+            conflicts.append({
+                "type": "antiinfective_renal_conflict",
+                "agents": ["infection_agent", "renal_agent", "pharmacy_agent"],
+                "summary": "抗感染强化与肾功能剂量调整冲突",
+                "resolution_focus": "药学协同，按 eGFR/CRRT 和 PK/PD 个体化剂量",
+            })
         renal_recs = " ".join(str(x) for x in (assessments.get("renal_agent", {}).get("recommendations") or []))
         hemo_recs = " ".join(str(x) for x in (assessments.get("hemodynamic_agent", {}).get("recommendations") or []))
         infect_recs = " ".join(str(x) for x in (assessments.get("infection_agent", {}).get("recommendations") or []))
@@ -240,6 +397,48 @@ class ICUMultiAgentOrchestrator:
                 "resolution_focus": "需联动药学和肾功能做剂量个体化调整",
             })
         return conflicts
+
+    async def _moderator_synthesize(
+        self,
+        *,
+        twin: dict[str, Any],
+        assessments: dict[str, dict[str, Any]],
+        conflicts: list[dict[str, Any]],
+        knowledge_chunks: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        user_prompt = build_moderator_user_prompt(
+            twin=twin,
+            assessments=assessments,
+            conflicts=conflicts,
+            knowledge_chunks=knowledge_chunks,
+        )
+        model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.llm_fast_model
+        result = await call_llm_chat(
+            cfg=self.config,
+            system_prompt=MODERATOR_SYSTEM,
+            user_prompt=user_prompt,
+            model=model,
+            temperature=0.1,
+            max_tokens=2500,
+            timeout_seconds=90,
+            response_format={"type": "json_object"},
+        )
+        raw = self._parse_json_object(str(result.get("text") or "")) or {}
+        valid_ids = {str(c.get("chunk_id")) for c in knowledge_chunks if c.get("chunk_id")}
+        validated = validate_moderator_output(raw, valid_ids)
+        return {
+            **validated,
+            "top_priorities": [
+                {"agent": item.get("agent"), "summary": item.get("summary"), "priority": item.get("priority")}
+                for item in assessments.values()
+            ][:3],
+            "final_actions": [d.get("action") for d in validated.get("decisions", []) if d.get("action")],
+            "source": "llm",
+            "llm_meta": {
+                "model": result.get("model"),
+                "degraded_mode": result.get("degraded_mode"),
+            },
+        }
 
     async def _meta_synthesize(self, *, twin: dict[str, Any], assessments: dict[str, dict[str, Any]], conflicts: list[dict[str, Any]]) -> dict[str, Any]:
         priorities = sorted(
@@ -323,20 +522,36 @@ class ICUMultiAgentOrchestrator:
             return None
 
         assessments: dict[str, dict[str, Any]] = {}
-        for name, agent in self.agents.items():
-            result = await agent(twin) if name == "pharmacy_agent" else agent(twin)
-            assessments[name] = {
-                "agent": result.agent,
-                "domain": result.domain,
-                "summary": result.summary,
-                "concerns": result.concerns,
-                "recommendations": result.recommendations,
-                "priority": result.priority,
-                "evidence": result.evidence,
-            }
+        for name in self.agents:
+            rule_result = await self._rule_specialist_assessment(name, twin)
+            if self._use_llm_agents():
+                chunks = await self._knowledge_chunks(twin, name)
+                try:
+                    assessments[name] = await self._call_specialist_llm(
+                        agent_name=name,
+                        twin=twin,
+                        rule_assessment=self._rule_assessment_from_specialist(rule_result),
+                        knowledge_chunks=chunks,
+                    )
+                except Exception as exc:
+                    assessments[name] = {
+                        **self._specialist_to_payload(rule_result, source="rule_fallback"),
+                        "llm_error": f"{exc.__class__.__name__}: {exc}",
+                    }
+            else:
+                assessments[name] = self._specialist_to_payload(rule_result)
 
         conflicts = self.detect_conflicts(assessments)
-        meta_plan = await self._meta_synthesize(twin=twin, assessments=assessments, conflicts=conflicts)
+        if self._use_llm_agents():
+            chunks = await self._knowledge_chunks(twin, "moderator")
+            try:
+                meta_plan = await self._moderator_synthesize(twin=twin, assessments=assessments, conflicts=conflicts, knowledge_chunks=chunks)
+            except Exception as exc:
+                meta_plan = await self._meta_synthesize(twin=twin, assessments=assessments, conflicts=conflicts)
+                meta_plan["source"] = "rule_fallback"
+                meta_plan["llm_error"] = f"{exc.__class__.__name__}: {exc}"
+        else:
+            meta_plan = await self._meta_synthesize(twin=twin, assessments=assessments, conflicts=conflicts)
 
         result = {
             "patient_id": patient_id,
