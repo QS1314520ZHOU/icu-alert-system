@@ -23,7 +23,28 @@
         </section>
         <section class="panel">
           <div class="panel-head"><strong>工作负荷热力图</strong><span>本班护理记录密度</span></div>
-          <div class="heatmap"><span v-for="row in heatmap" :key="row.nurse" :class="`density-${row.tone}`">{{ row.nurse }} · {{ row.task_density }}</span></div>
+          <div class="heatmap">
+            <article v-for="row in heatmap" :key="row.nurse" :class="`density-${row.tone}`">
+              <strong>{{ row.nurse }} · {{ row.task_density }}</strong>
+              <i>
+                <b v-for="bucket in row.buckets || []" :key="`${row.nurse}-${bucket.time}`" :style="{ height: `${Math.min(100, Math.max(12, Number(bucket.count || 0) * 10))}%` }" :title="`${bucket.time} ${bucket.count}条`"></b>
+              </i>
+            </article>
+          </div>
+        </section>
+        <section class="panel head-side">
+          <div class="panel-head"><strong>异常事件</strong><span>{{ headEvents.length }} 条</span></div>
+          <article v-for="event in headEvents" :key="`${event.patient_id}-${event.time}-${event.title}`" class="head-event">
+            <strong>{{ event.bed || '--' }}床 {{ event.title }}</strong>
+            <span>{{ event.type }} · {{ fmt(event.time) }}</span>
+          </article>
+          <div v-if="!headEvents.length" class="empty small">本班暂无未闭环护理异常。</div>
+          <div class="quality-row">
+            <span>跌倒 {{ headQuality.falls || 0 }}</span>
+            <span>压疮 {{ headQuality.pressure_ulcers || 0 }}</span>
+            <span>管路脱出 {{ headQuality.line_displacement || 0 }}</span>
+            <span>给药差错 {{ headQuality.medication_errors || 0 }}</span>
+          </div>
         </section>
       </main>
 
@@ -38,7 +59,7 @@
             <div v-for="bed in beds" :key="bed.patient_id" class="bed-line">
               <strong>{{ bed.bed || '--' }}床</strong>
               <div class="task-strip">
-                <button v-for="task in tasksByBed(bed.patient_id)" :key="task.task_id" type="button" :class="`task-card is-${task.status}`" @click="selectTask(task)">
+                <button v-for="task in tasksByBed(bed.patient_id)" :key="task.task_id" type="button" :class="`task-card is-${task.status}`" :style="{ marginLeft: taskOffset(task) }" @click="selectTask(task)">
                   {{ task.title }}
                 </button>
               </div>
@@ -73,9 +94,19 @@
       <section :class="['handoff-bar', { open: handoffShouldOpen }]">
         <div>
           <strong>一键交班</strong>
-          <span>下班前 1 小时自动展开，按标准交班结构生成本班交班单。</span>
+          <span>{{ handoffError || handoffStatus }}</span>
         </div>
         <button type="button" :disabled="handoffLoading || !beds.length" @click="generateHandoff">{{ handoffLoading ? '生成中' : '生成本班交班单' }}</button>
+      </section>
+      <section v-if="handoffItems.length" class="panel handoff-editor">
+        <div class="panel-head"><strong>本班 I-PASS 交班单</strong><span>可编辑确认</span></div>
+        <article v-for="item in handoffItems" :key="item.patient_id" class="handoff-item">
+          <strong>{{ item.bed || '--' }}床 {{ item.name || '未知患者' }}</strong>
+          <label v-for="section in ipassSections" :key="`${item.patient_id}-${section.key}`">
+            <span>{{ section.label }}</span>
+            <textarea v-model="item.ipass[section.key]" rows="2"></textarea>
+          </label>
+        </article>
       </section>
 
       <div v-if="selectedTask" class="modal-mask" @click.self="selectedTask = null">
@@ -98,17 +129,19 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, postNurseTaskExecute } from '../api'
-import { getOperatorIdentity } from '../utils/operatorIdentity'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const loading = ref(false)
 const error = ref('')
 const home = ref<any>(null)
 const selectedTask = ref<any>(null)
 const handoffLoading = ref(false)
+const handoffError = ref('')
 
-const userId = computed(() => String(route.query.user_id || route.query.userId || route.query.userName || getOperatorIdentity() || '').trim())
+const userId = computed(() => String(auth.effectiveUserId || '').trim())
 const isHeadMode = computed(() => String(route.query.view || '').toLowerCase() === 'head' || ['head_nurse', 'charge_nurse'].includes(String(home.value?.account?.role || '').toLowerCase()))
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别护士')
 const beds = computed(() => home.value?.beds || [])
@@ -117,6 +150,18 @@ const bundles = computed(() => home.value?.bundles || [])
 const reminders = computed(() => home.value?.ai_reminders || [])
 const headBeds = computed(() => home.value?.head_view?.beds || [])
 const heatmap = computed(() => home.value?.head_view?.workload_heatmap || [])
+const headEvents = computed(() => home.value?.head_view?.events || [])
+const headQuality = computed(() => home.value?.head_view?.quality || {})
+const handoff = ref<any>(null)
+const handoffItems = computed(() => handoff.value?.items || [])
+const handoffStatus = computed(() => handoff.value?.handoff_id ? `已生成 ${handoffItems.value.length} 床交班单，可在下方编辑确认。` : '下班前 1 小时自动展开，按 I-PASS 结构生成本班交班单。')
+const ipassSections = [
+  { key: 'illness_severity', label: '病情严重度' },
+  { key: 'patient_summary', label: '患者摘要' },
+  { key: 'action_list', label: '行动清单' },
+  { key: 'situation_awareness', label: '风险预判' },
+  { key: 'synthesis_by_receiver', label: '接班确认' },
+]
 const shiftText = computed(() => {
   const s = home.value?.shift
   if (!s) return '班次待配置'
@@ -125,7 +170,9 @@ const shiftText = computed(() => {
 const bedText = computed(() => beds.value.length ? beds.value.map((b: any) => `${b.bed}床`).join(' / ') : '待接班')
 const ticks = computed(() => {
   const start = new Date(home.value?.shift?.start || Date.now())
-  return Array.from({ length: 7 }, (_, idx) => new Date(start.getTime() + idx * 60 * 60 * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+  const end = new Date(home.value?.shift?.end || start.getTime() + 8 * 60 * 60 * 1000)
+  const hours = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 60 / 60 / 1000))
+  return Array.from({ length: hours + 1 }, (_, idx) => new Date(start.getTime() + idx * 60 * 60 * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
 })
 const handoffShouldOpen = computed(() => {
   const end = new Date(home.value?.shift?.end || 0).getTime()
@@ -134,6 +181,14 @@ const handoffShouldOpen = computed(() => {
 
 function tasksByBed(pid: string) {
   return (home.value?.timeline || []).filter((task: any) => task.patient_id === pid)
+}
+function taskOffset(task: any) {
+  const start = new Date(home.value?.shift?.start || 0).getTime()
+  const end = new Date(home.value?.shift?.end || 0).getTime()
+  const due = new Date(task?.due_at || 0).getTime()
+  if (!start || !end || end <= start || !due) return '0'
+  const percent = Math.max(0, Math.min(86, ((due - start) / (end - start)) * 100))
+  return `${percent}%`
 }
 function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
@@ -168,11 +223,39 @@ async function feedbackReminder(item: any, disposition: string) {
 }
 async function generateHandoff() {
   handoffLoading.value = true
+  handoffError.value = ''
   try {
-    await postNurseHandoffGenerate({ user_id: userId.value, patient_ids: beds.value.map((b: any) => b.patient_id), shift_code: home.value?.shift?.code || 'auto' })
+    const { data } = await postNurseHandoffGenerate({ user_id: userId.value, patient_ids: beds.value.map((b: any) => b.patient_id), shift_code: home.value?.shift?.code || 'auto' })
+    handoff.value = normalizeHandoff(data?.data || {})
+  } catch (err: any) {
+    handoffError.value = err?.message || '交班单生成失败，请稍后重试。'
   } finally {
     handoffLoading.value = false
   }
+}
+function normalizeHandoff(doc: any) {
+  const items = Array.isArray(doc?.items) ? doc.items : []
+  return {
+    ...doc,
+    items: items.map((item: any) => ({
+      ...item,
+      ipass: normalizeIpass(item?.ipass),
+    })),
+  }
+}
+function normalizeIpass(value: any) {
+  const source = value && typeof value === 'object' ? value : {}
+  return {
+    illness_severity: stringifySection(source.illness_severity || source.severity),
+    patient_summary: stringifySection(source.patient_summary || source.summary),
+    action_list: stringifySection(source.action_list || source.actions),
+    situation_awareness: stringifySection(source.situation_awareness || source.awareness),
+    synthesis_by_receiver: stringifySection(source.synthesis_by_receiver || source.receiver),
+  }
+}
+function stringifySection(value: any) {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean).join('\n')
+  return String(value || '').trim()
 }
 async function load() {
   if (!userId.value) {
@@ -184,6 +267,7 @@ async function load() {
   try {
     const { data } = await getNurseHome({ user_id: userId.value, shift_code: 'auto', view: String(route.query.view || '') || undefined })
     home.value = data?.data || {}
+    auth.updateAccount(home.value?.account)
   } catch (err: any) {
     error.value = err?.message || '护士首页加载失败'
   } finally {
@@ -191,17 +275,14 @@ async function load() {
   }
 }
 onMounted(() => {
+  auth.hydrateFromQuery(route.query)
   cleanDuplicateIdentityQuery()
   void load()
 })
 
 function cleanDuplicateIdentityQuery() {
-  if (route.query.userName && (route.query.user_id || route.query.userId)) {
-    const query = { ...route.query }
-    delete query.user_id
-    delete query.userId
-    router.replace({ path: route.path, query })
-  }
+  const query = auth.cleanIdentityQuery(route.query)
+  if (JSON.stringify(query) !== JSON.stringify(route.query)) router.replace({ path: route.path, query })
 }
 </script>
 
@@ -224,7 +305,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .time-head { min-width: 760px; display: grid; grid-template-columns: 84px repeat(7, 1fr); color: #8caabd; font-size: 12px; }
 .bed-line { min-width: 760px; display: grid; grid-template-columns: 84px minmax(0,1fr); align-items: stretch; gap: 8px; }
 .bed-line > strong { display: grid; place-items: center; color: #f8fbff; border-radius: 8px; background: rgba(11,33,50,.72); }
-.task-strip { min-height: 58px; display: flex; align-items: center; gap: 8px; padding: 7px; border-radius: 8px; background: rgba(11,33,50,.48); overflow-x: auto; }
+.task-strip { min-height: 58px; position: relative; display: flex; align-items: center; gap: 8px; padding: 7px; border-radius: 8px; background: repeating-linear-gradient(90deg, rgba(125,211,252,.08) 0, rgba(125,211,252,.08) 1px, rgba(11,33,50,.48) 1px, rgba(11,33,50,.48) 10.416%); overflow-x: auto; }
 .task-card { flex: 0 0 132px; font-size: 12px; }
 .is-future { opacity: .7; }
 .is-soon { border-color: rgba(56,189,248,.55); }
@@ -251,10 +332,25 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .task-modal strong { color: #fff; font-size: 18px; }
 .modal-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .bed-cloud, .heatmap { display: flex; flex-wrap: wrap; gap: 8px; }
-.bed-cloud span, .heatmap span { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); color: #eafcff; }
+.bed-cloud span, .heatmap article { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); color: #eafcff; }
+.heatmap article { min-width: 150px; display: grid; gap: 8px; }
+.heatmap i { height: 42px; display: flex; align-items: end; gap: 3px; }
+.heatmap b { width: 10px; min-height: 8px; border-radius: 3px 3px 0 0; background: #38bdf8; }
 .density-high { border: 1px solid rgba(239,68,68,.6); }
 .density-medium { border: 1px solid rgba(245,158,11,.55); }
 .density-low { border: 1px solid rgba(52,211,153,.45); }
+.head-side { grid-column: 1 / -1; }
+.head-event { display: grid; gap: 4px; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.72); }
+.head-event strong { color: #fff; font-size: 13px; }
+.head-event span, .quality-row span { color: #91adbd; font-size: 12px; }
+.quality-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.quality-row span { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); }
+.handoff-editor { margin-top: -4px; }
+.handoff-item { display: grid; gap: 8px; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.58); }
+.handoff-item > strong { color: #fff; }
+.handoff-item label { display: grid; gap: 4px; }
+.handoff-item label span { color: #91adbd; font-size: 12px; }
+.handoff-item textarea { resize: vertical; min-height: 58px; border-radius: 8px; border: 1px solid rgba(125,211,252,.18); background: rgba(5,18,30,.9); color: #eafcff; padding: 8px; }
 @media (max-width: 1024px) { .nurse-top, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 760px) { .side, .handoff-bar { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; } }
 </style>

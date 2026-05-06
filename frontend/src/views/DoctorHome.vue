@@ -80,17 +80,18 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDoctorHome } from '../api'
-import { getOperatorIdentity } from '../utils/operatorIdentity'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const loading = ref(false)
 const error = ref('')
 const home = ref<any>(null)
 const clock = ref('')
 let timer: any
 
-const userId = computed(() => String(route.query.user_id || route.query.userId || route.query.userName || getOperatorIdentity() || '').trim())
+const userId = computed(() => String(auth.effectiveUserId || '').trim())
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别医生')
 const focusPatients = computed(() => home.value?.focus_patients || [])
 const pendingTasks = computed(() => (home.value?.pending_tasks || []).slice(0, 8))
@@ -155,6 +156,7 @@ async function load() {
   try {
     const { data } = await getDoctorHome({ user_id: userId.value })
     home.value = data?.data || {}
+    auth.updateAccount(home.value?.account)
   } catch (err: any) {
     error.value = err?.message || '医生首页加载失败'
   } finally {
@@ -165,6 +167,7 @@ function tick() {
   clock.value = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 onMounted(() => {
+  auth.hydrateFromQuery(route.query)
   cleanDuplicateIdentityQuery()
   tick()
   timer = setInterval(tick, 1000)
@@ -173,12 +176,8 @@ onMounted(() => {
 onUnmounted(() => clearInterval(timer))
 
 function cleanDuplicateIdentityQuery() {
-  if (route.query.userName && (route.query.user_id || route.query.userId)) {
-    const query = { ...route.query }
-    delete query.user_id
-    delete query.userId
-    router.replace({ path: route.path, query })
-  }
+  const query = auth.cleanIdentityQuery(route.query)
+  if (JSON.stringify(query) !== JSON.stringify(route.query)) router.replace({ path: route.path, query })
 }
 </script>
 

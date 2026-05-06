@@ -169,8 +169,11 @@ export const getNurseHome = (params: { user_id: string; shift_code?: string; vie
 export const getNurseTimeline = (params: { user_id: string; shift_code?: string }) =>
   analyticsApi.get('/api/home/nurse/timeline', { params })
 
-export const getNurseBundles = (params: { patient_ids: string; shift_code?: string }) =>
+export const getNurseBundles = (params: { patient_ids: string[] | string; shift_code?: string }) =>
   analyticsApi.get('/api/home/nurse/bundles', { params })
+
+export const postNurseBundles = (payload: { patient_ids: string[]; shift_code?: string }) =>
+  analyticsApi.post('/api/home/nurse/bundles', payload)
 
 export const postNurseTaskExecute = (taskId: string, payload: Record<string, any>) =>
   analyticsApi.post(`/api/home/nurse/task/${taskId}/execute`, payload)
@@ -181,8 +184,8 @@ export const postNurseReminderFeedback = (alertId: string, payload: { actor?: st
 export const postNurseHandoffGenerate = (payload: { user_id: string; patient_ids: string[]; shift_code?: string }) =>
   aiApi.post('/api/home/nurse/handoff/generate', payload)
 
-export const getCurrentShift = () =>
-  api.get('/api/shift/current')
+export const getCurrentShift = (params?: { now?: string }) =>
+  api.get('/api/shift/current', { params })
 
 export const getShiftList = (params?: { refresh?: boolean }) =>
   api.get('/api/shift/list', { params })

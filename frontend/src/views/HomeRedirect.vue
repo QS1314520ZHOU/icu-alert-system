@@ -17,24 +17,27 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getClinicalAccount } from '../api'
-import { getOperatorIdentity } from '../utils/operatorIdentity'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
-const userId = computed(() => String(route.query.user_id || route.query.userId || route.query.userName || getOperatorIdentity() || '').trim())
+const auth = useAuthStore()
+const userId = computed(() => String(auth.effectiveUserId || '').trim())
 const hint = computed(() => userId.value ? `当前账号：${userId.value}` : '未带账号参数，保留手动入口。')
 
 function push(path: string) {
-  router.replace({ path, query: cleanIdentityQuery(route.query) })
+  router.replace({ path, query: auth.cleanIdentityQuery(route.query) })
 }
 function goDoctor() { push('/doctor-home') }
 function goNurse() { push('/nurse-home') }
 function goOverview() { push('/patients') }
 
 onMounted(async () => {
+  auth.hydrateFromQuery(route.query)
   if (!userId.value) return
   try {
     const { data } = await getClinicalAccount({ userName: userId.value })
+    auth.updateAccount(data?.account)
     const role = String(data?.account?.role || route.query.role || '').toLowerCase()
     if (['nurse', 'head_nurse', 'charge_nurse'].includes(role)) {
       push('/nurse-home')
@@ -45,17 +48,6 @@ onMounted(async () => {
     // keep manual role choices visible
   }
 })
-
-function cleanIdentityQuery(query: Record<string, any>) {
-  const next: Record<string, any> = { ...query }
-  if (next.userName) {
-    delete next.user_id
-    delete next.userId
-  } else if (next.userId) {
-    delete next.user_id
-  }
-  return next
-}
 </script>
 
 <style scoped>

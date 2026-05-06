@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
@@ -53,8 +55,22 @@ async def nurse_timeline(user_id: str = Query(...), shift_code: str = Query("aut
 
 
 @router.get("/api/home/nurse/bundles")
-async def nurse_bundles(patient_ids: str = Query(""), shift_code: str = Query("auto")):
-    ids = [item.strip() for item in str(patient_ids or "").split(",") if item.strip()]
+async def nurse_bundles(patient_ids: list[str] = Query(default=[]), shift_code: str = Query("auto")):
+    raw_ids = patient_ids or []
+    if len(raw_ids) == 1 and "," in raw_ids[0]:
+        raw_ids = raw_ids[0].split(",")
+    ids = [str(item).strip() for item in raw_ids if str(item or "").strip()]
+    result = await _service().nurse_bundles(ids, shift_code=shift_code)
+    return {"code": 0, "data": serialize_doc(result)}
+
+
+@router.post("/api/home/nurse/bundles")
+async def nurse_bundles_post(payload: dict = Body(default={})):
+    raw_ids = (payload or {}).get("patient_ids")
+    if not isinstance(raw_ids, list):
+        raw_ids = []
+    ids = [str(item).strip() for item in raw_ids if str(item or "").strip()]
+    shift_code = str((payload or {}).get("shift_code") or "auto")
     result = await _service().nurse_bundles(ids, shift_code=shift_code)
     return {"code": 0, "data": serialize_doc(result)}
 
@@ -81,8 +97,14 @@ async def generate_nurse_handoff(request: Request, payload: dict = Body(default=
 
 
 @router.get("/api/shift/current")
-async def current_shift():
-    result = await ShiftService(runtime.db).get_current_shift()
+async def current_shift(now: str | None = Query(None)):
+    parsed_now = None
+    if now:
+        try:
+            parsed_now = datetime.fromisoformat(str(now).replace("Z", "+00:00"))
+        except Exception:
+            parsed_now = None
+    result = await ShiftService(runtime.db).get_current_shift(parsed_now)
     return {"code": 0, "data": serialize_doc(result.to_dict() if result else None)}
 
 

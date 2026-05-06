@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+import re
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
 from bson import ObjectId
@@ -29,6 +30,17 @@ def _dt(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def _as_api_tz(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=API_TZ)
+    return value.astimezone(API_TZ)
+
+
+def _contains_any(value: Any, keywords: Iterable[str]) -> bool:
+    text = _text(value).lower()
+    return bool(text) and any(_text(keyword).lower() in text for keyword in keywords if _text(keyword))
 
 
 def _patient_id(patient: dict[str, Any]) -> str:
@@ -318,6 +330,205 @@ class RoleHomeService:
             return "due"
         return "overdue"
 
+    def _nursing_task_catalog(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "key": "turn_q2h",
+                "title": "q2h 翻身",
+                "period": timedelta(hours=2),
+                "keywords": ["翻身", "体位", "侧卧", "turn", "position"],
+            },
+            {
+                "key": "oral_care_q4h",
+                "title": "q4h 口腔护理",
+                "period": timedelta(hours=4),
+                "keywords": ["口腔护理", "口护", "口腔清洁", "oral_care", "oral care"],
+            },
+            {
+                "key": "shift_assessment",
+                "title": "q-shift 护理评估",
+                "period": None,
+                "keywords": ["护理评估", "跌倒", "压疮", "约束", "管路", "评估"],
+            },
+            {
+                "key": "line_check_q8h",
+                "title": "q8h 管路评估",
+                "period": timedelta(hours=8),
+                "keywords": ["管路", "导管", "cvc", "尿管", "引流管", "line"],
+            },
+        ]
+
+    def _record_patient_query(self, patient: dict[str, Any] | None, pid: str) -> dict[str, Any]:
+        keys = self._patient_alert_keys(patient) if patient else [pid]
+        keys = [key for key in keys if _text(key)]
+        return {"$or": [{"pid": {"$in": keys}}, {"patient_id": {"$in": keys}}, {"patientId": {"$in": keys}}, {"hisPid": {"$in": keys}}]}
+
+    def _record_task_text_query(self, keywords: list[str]) -> dict[str, Any]:
+        regex = "|".join(re.escape(keyword) for keyword in keywords if _text(keyword))
+        return {
+            "$or": [
+                {"careType": {"$regex": regex, "$options": "i"}},
+                {"task_type": {"$regex": regex, "$options": "i"}},
+                {"task_id": {"$regex": regex, "$options": "i"}},
+                {"content": {"$regex": regex, "$options": "i"}},
+                {"recordTitle": {"$regex": regex, "$options": "i"}},
+                {"title": {"$regex": regex, "$options": "i"}},
+                {"name": {"$regex": regex, "$options": "i"}},
+            ]
+        }
+
+    async def _latest_nursing_task_record(self, patient: dict[str, Any] | None, pid: str, keywords: list[str]) -> dict[str, Any] | None:
+        query = {"$and": [self._record_patient_query(patient, pid), self._record_task_text_query(keywords)]}
+        projection = {"recordTime": 1, "time": 1, "created_at": 1, "createTime": 1, "careType": 1, "content": 1, "title": 1, "recordTitle": 1}
+        for collection in ("nurseRecords", "nursing_record"):
+            try:
+                row = await self.db.col(collection).find_one(query, projection, sort=[("recordTime", -1), ("time", -1), ("created_at", -1), ("createTime", -1)])
+                if row:
+                    return row
+            except Exception:
+                continue
+        return None
+
+    def _due_from_last_done(self, last_done_at: datetime | None, period: timedelta | None, shift: ShiftInfo) -> datetime:
+        if period is None:
+            return shift.end - timedelta(hours=1)
+        base = _as_api_tz(last_done_at) if last_done_at else shift.start
+        due_at = base + period
+        while due_at < shift.start:
+            due_at += period
+        return due_at
+
+    async def _latest_record_by_keywords(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], keywords: list[str], hours: int) -> tuple[bool, str, datetime | None]:
+        since = datetime.now(API_TZ) - timedelta(hours=max(1, hours))
+        latest: datetime | None = None
+        for pid in patient_ids:
+            row = await self._latest_nursing_task_record(patients_by_id.get(pid), pid, keywords)
+            if not row:
+                continue
+            when = _dt(row.get("recordTime") or row.get("time") or row.get("created_at") or row.get("createTime"))
+            if when and _as_api_tz(when) >= since and (latest is None or _as_api_tz(when) > latest):
+                latest = _as_api_tz(when)
+        return bool(latest), "nurseRecords" if latest else "", latest
+
+    async def _latest_bedside_by_keywords(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], keywords: list[str], hours: int) -> tuple[bool, str, datetime | None]:
+        since = datetime.now(API_TZ) - timedelta(hours=max(1, hours))
+        regex = "|".join(re.escape(keyword) for keyword in keywords if _text(keyword))
+        latest: datetime | None = None
+        for pid in patient_ids:
+            patient = patients_by_id.get(pid)
+            keys = self._patient_alert_keys(patient) if patient else [pid]
+            query = {
+                "$and": [
+                    {"pid": {"$in": keys}},
+                    {"time": {"$gte": since}},
+                    {"$or": [
+                        {"code": {"$regex": regex, "$options": "i"}},
+                        {"name": {"$regex": regex, "$options": "i"}},
+                        {"paramName": {"$regex": regex, "$options": "i"}},
+                        {"strVal": {"$regex": regex, "$options": "i"}},
+                        {"value": {"$regex": regex, "$options": "i"}},
+                    ]},
+                ]
+            }
+            try:
+                row = await self.db.col("bedside").find_one(query, {"time": 1}, sort=[("time", -1)])
+            except Exception:
+                row = None
+            when = _dt((row or {}).get("time"))
+            if when and (latest is None or _as_api_tz(when) > latest):
+                latest = _as_api_tz(when)
+        return bool(latest), "bedside" if latest else "", latest
+
+    async def _latest_bed_angle_done(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]]) -> tuple[bool, str, datetime | None]:
+        since = datetime.now(API_TZ) - timedelta(hours=4)
+        latest: datetime | None = None
+        for pid in patient_ids:
+            patient = patients_by_id.get(pid)
+            keys = self._patient_alert_keys(patient) if patient else [pid]
+            query = {
+                "$and": [
+                    {"pid": {"$in": keys}},
+                    {"time": {"$gte": since}},
+                    {"$or": [{"code": "param_bed_angle"}, {"paramCode": "param_bed_angle"}, {"name": {"$regex": "床头|床角度|bed_angle", "$options": "i"}}]},
+                ]
+            }
+            try:
+                cursor = self.db.col("bedside").find(query, {"time": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1}).sort("time", -1).limit(20)
+                rows = [row async for row in cursor]
+            except Exception:
+                rows = []
+            for row in rows:
+                value = None
+                for field in ("fVal", "intVal", "strVal", "value"):
+                    try:
+                        value = float(str(row.get(field)).replace("°", ""))
+                        break
+                    except Exception:
+                        pass
+                if value is not None and value >= 30:
+                    when = _as_api_tz(_dt(row.get("time")) or datetime.now(API_TZ))
+                    if latest is None or when > latest:
+                        latest = when
+        if latest:
+            return True, "bedside:param_bed_angle", latest
+        return await self._latest_bedside_by_keywords(patient_ids, patients_by_id, ["床头抬高", "抬高床头", "半卧位", "30°", "30度"], 24)
+
+    async def _latest_drug_or_order_by_keywords(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], keywords: list[str], hours: int) -> tuple[bool, str, datetime | None]:
+        since = datetime.now(API_TZ) - timedelta(hours=max(1, hours))
+        regex = "|".join(re.escape(keyword) for keyword in keywords if _text(keyword))
+        latest: datetime | None = None
+        for pid in patient_ids:
+            patient = patients_by_id.get(pid)
+            keys = self._patient_alert_keys(patient) if patient else [pid]
+            query = {
+                "$and": [
+                    {"pid": {"$in": keys}},
+                    {"$or": [{"exeTime": {"$gte": since}}, {"executeTime": {"$gte": since}}, {"time": {"$gte": since}}, {"startTime": {"$gte": since}}, {"orderTime": {"$gte": since}}]},
+                    {"$or": [{"drugName": {"$regex": regex, "$options": "i"}}, {"orderName": {"$regex": regex, "$options": "i"}}, {"name": {"$regex": regex, "$options": "i"}}]},
+                ]
+            }
+            try:
+                row = await self.db.col("drugExe").find_one(query, {"exeTime": 1, "executeTime": 1, "time": 1, "startTime": 1, "orderTime": 1}, sort=[("exeTime", -1), ("executeTime", -1), ("time", -1), ("startTime", -1), ("orderTime", -1)])
+            except Exception:
+                row = None
+            when = _dt((row or {}).get("exeTime") or (row or {}).get("executeTime") or (row or {}).get("time") or (row or {}).get("startTime") or (row or {}).get("orderTime"))
+            if when and (latest is None or _as_api_tz(when) > latest):
+                latest = _as_api_tz(when)
+        return bool(latest), "drugExe" if latest else "", latest
+
+    async def _bundle_hob_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_bed_angle_done(patient_ids, patients_by_id)
+
+    async def _bundle_oral_care_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_record_by_keywords(patient_ids, patients_by_id, ["口腔护理", "口护", "口腔清洁", "oral_care", "oral care"], 4)
+
+    async def _bundle_subglottic_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_record_by_keywords(patient_ids, patients_by_id, ["声门下", "吸引", "subglottic"], 8)
+
+    async def _bundle_sat_done(self, patient_ids, patients_by_id, label):
+        record = await self._latest_record_by_keywords(patient_ids, patients_by_id, ["镇静中断", "自主清醒", "SAT", "停镇静", "暂停镇静"], 24)
+        if record[0]:
+            return record
+        return await self._latest_drug_or_order_by_keywords(patient_ids, patients_by_id, ["停用咪达唑仑", "停用丙泊酚", "暂停咪达唑仑", "暂停丙泊酚", "SAT"], 24)
+
+    async def _bundle_stress_ulcer_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_drug_or_order_by_keywords(patient_ids, patients_by_id, ["奥美拉唑", "泮托拉唑", "兰索拉唑", "雷贝拉唑", "法莫替丁", "雷尼替丁", "PPI", "H2RA"], 48)
+
+    async def _bundle_foley_review_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_record_by_keywords(patient_ids, patients_by_id, ["尿管必要", "导尿管评估", "尿管评估", "foley"], 24)
+
+    async def _bundle_perineal_care_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_record_by_keywords(patient_ids, patients_by_id, ["尿道口护理", "会阴护理", "尿管护理"], 24)
+
+    async def _bundle_cvc_review_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_record_by_keywords(patient_ids, patients_by_id, ["CVC必要", "中心静脉", "深静脉", "导管必要", "置管评估"], 24)
+
+    async def _bundle_dressing_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_record_by_keywords(patient_ids, patients_by_id, ["敷料", "换药", "穿刺点", "贴膜"], 24)
+
+    async def _bundle_shift_assessment_done(self, patient_ids, patients_by_id, label):
+        return await self._latest_record_by_keywords(patient_ids, patients_by_id, [label, f"{label}评估", "护理评估"], 12)
+
     async def nurse_timeline(self, user_id: str, shift_code: str | ShiftInfo | None = "auto") -> dict[str, Any]:
         if isinstance(shift_code, ShiftInfo):
             shift = shift_code
@@ -334,63 +545,116 @@ class RoleHomeService:
         ]
         grouped = await self._latest_scores_by_patient([row["patient_id"] for row in beds], scanner_names, patients_by_id)
         tasks: list[dict[str, Any]] = []
+        catalog = self._nursing_task_catalog()
         for bed in beds:
             pid = bed["patient_id"]
+            patient = patients_by_id.get(pid)
             rows = grouped.get(pid, [])
-            seeds = rows[:8] or [
-                {"name": "q2h 翻身", "rule_id": "scanner_nurse_reminders"},
-                {"name": "q4h 口腔护理", "rule_id": "scanner_nurse_reminders"},
-                {"name": "q-shift 评估", "rule_id": "scanner_nurse_reminders"},
-            ]
-            for idx, row in enumerate(seeds):
-                due_at = shift.start + timedelta(minutes=30 + idx * 60)
-                if due_at < datetime.now(API_TZ) - timedelta(hours=1):
-                    due_at = datetime.now(API_TZ) + timedelta(minutes=10 + idx * 20)
-                done = bool(row.get("acknowledged_at") or row.get("ack_disposition"))
+            for idx, spec in enumerate(catalog):
+                row = next(
+                    (
+                        item for item in rows
+                        if any(_contains_any(item.get(field), spec["keywords"]) for field in ("name", "alert_type", "rule_id", "scanner_name"))
+                    ),
+                    {},
+                )
+                latest_record = await self._latest_nursing_task_record(patient, pid, spec["keywords"])
+                last_done_at = None
+                if latest_record:
+                    last_done_at = _dt(latest_record.get("recordTime") or latest_record.get("time") or latest_record.get("created_at") or latest_record.get("createTime"))
+                due_at = self._due_from_last_done(last_done_at, spec.get("period"), shift)
+                done = bool(last_done_at and shift.start <= _as_api_tz(last_done_at) < shift.end and due_at >= shift.end)
                 tasks.append(
                     {
-                        "task_id": _text(row.get("_id")) or f"{pid}-{idx}",
+                        "task_id": _text(row.get("_id")) or f"{pid}-{spec['key']}",
                         "alert_id": _text(row.get("_id")) if row.get("_id") else "",
                         "patient_id": pid,
                         "bed": bed["bed"],
                         "patient_name": bed["name"],
-                        "title": _text(row.get("name") or row.get("alert_type") or row.get("rule_id")) or "护理任务",
-                        "source": _text(row.get("rule_id") or row.get("scanner_name") or row.get("alert_type")),
+                        "title": spec["title"],
+                        "source": _text(row.get("rule_id") or row.get("scanner_name") or row.get("alert_type")) or "nurseRecords",
                         "due_at": due_at,
                         "status": self._task_status(due_at, done),
-                        "detail": _text(((row.get("extra") or {}) if isinstance(row.get("extra"), dict) else {}).get("suggestion") or row.get("name")),
+                        "last_done_at": last_done_at,
+                        "period_minutes": int(spec["period"].total_seconds() / 60) if spec.get("period") else None,
+                        "detail": _text(((row.get("extra") or {}) if isinstance(row.get("extra"), dict) else {}).get("suggestion") or (latest_record or {}).get("content") or spec["title"]),
+                    }
+                )
+            for row in rows[:4]:
+                title = _text(row.get("name") or row.get("alert_type") or row.get("rule_id"))
+                if not title or any(_contains_any(title, spec["keywords"]) for spec in catalog):
+                    continue
+                due_at = _as_api_tz(_dt(row.get("created_at")) or datetime.now(API_TZ))
+                tasks.append(
+                    {
+                        "task_id": _text(row.get("_id")) or f"{pid}-alert-{len(tasks)}",
+                        "alert_id": _text(row.get("_id")) if row.get("_id") else "",
+                        "patient_id": pid,
+                        "bed": bed["bed"],
+                        "patient_name": bed["name"],
+                        "title": title,
+                        "source": _text(row.get("rule_id") or row.get("scanner_name") or row.get("alert_type")),
+                        "due_at": due_at,
+                        "status": self._task_status(due_at, bool(row.get("acknowledged_at") or row.get("ack_disposition"))),
+                        "detail": _text(((row.get("extra") or {}) if isinstance(row.get("extra"), dict) else {}).get("suggestion") or title),
                     }
                 )
         clean_beds = [{k: v for k, v in row.items() if k != "patient_doc"} for row in beds]
         return {"shift": shift.to_dict(), "beds": clean_beds, "pending_handover": assignments["pending_handover"], "tasks": tasks}
 
     async def nurse_bundles(self, patient_ids: list[str], shift_code: str | None = "auto", patients_by_id: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
-        rows = await self._latest_scores_by_patient(patient_ids, ["scanner_hai_bundle", "hai_bundle_monitor", "scanner_nurse_reminders"], patients_by_id)
-        bundle_names = [
-            ("vap", "VAP 预防清单", ["床头抬高30度", "口腔护理q4h", "声门下吸引", "镇静中断", "消化道溃疡预防"]),
-            ("cauti", "CAUTI 预防", ["尿管必要性", "尿道口护理"]),
-            ("clabsi", "CLABSI 预防", ["CVC必要性评估", "敷料评估"]),
-            ("shift_assessment", "跌倒/压疮/约束/管路评估", ["跌倒", "压疮", "约束", "管路"]),
-        ]
+        patient_map = patients_by_id or await self._patients_by_ids(patient_ids)
+        rows = await self._latest_scores_by_patient(patient_ids, ["HAI_VAP_BUNDLE_MISSING", "HAI_CVC_REVIEW", "HAI_CAUTI_RISK", "scanner_hai_bundle", "hai_bundle_monitor"], patient_map)
         bundles = []
-        for code, name, items in bundle_names:
-            related = [row for group in rows.values() for row in group if code in _text(row.get("rule_id") or row.get("alert_type") or row.get("scanner_name") or row.get("name")).lower() or name.split()[0].lower() in _text(row.get("name")).lower()]
-            if not related:
-                complete = 0
-                data_state = "missing"
-            else:
-                missing_count = 0
-                for row in related:
+        checks = [
+            ("vap", "VAP 预防清单", [
+                ("床头抬高30度", self._bundle_hob_done),
+                ("口腔护理q4h", self._bundle_oral_care_done),
+                ("声门下吸引", self._bundle_subglottic_done),
+                ("镇静中断", self._bundle_sat_done),
+                ("消化道溃疡预防", self._bundle_stress_ulcer_done),
+            ]),
+            ("cauti", "CAUTI 预防", [
+                ("尿管必要性", self._bundle_foley_review_done),
+                ("尿道口护理", self._bundle_perineal_care_done),
+            ]),
+            ("clabsi", "CLABSI 预防", [
+                ("CVC必要性评估", self._bundle_cvc_review_done),
+                ("敷料评估", self._bundle_dressing_done),
+            ]),
+            ("shift_assessment", "跌倒/压疮/约束/管路评估", [
+                ("跌倒", self._bundle_shift_assessment_done),
+                ("压疮", self._bundle_shift_assessment_done),
+                ("约束", self._bundle_shift_assessment_done),
+                ("管路", self._bundle_shift_assessment_done),
+            ]),
+        ]
+        for code, name, item_specs in checks:
+            item_rows = []
+            for label, checker in item_specs:
+                done, source, last_done_at = await checker(patient_ids, patient_map, label)
+                item_rows.append({"name": label, "done": done, "source": source, "last_done_at": last_done_at})
+            related_alerts = [
+                row for group in rows.values() for row in group
+                if code in _text(row.get("rule_id") or row.get("alert_type") or row.get("scanner_name") or row.get("name")).lower()
+                or (code == "vap" and _text(row.get("rule_id")) == "HAI_VAP_BUNDLE_MISSING")
+                or (code == "clabsi" and _text(row.get("rule_id")) == "HAI_CVC_REVIEW")
+                or (code == "cauti" and _text(row.get("rule_id")) == "HAI_CAUTI_RISK")
+            ]
+            if related_alerts:
+                for row in related_alerts:
                     extra = row.get("extra") if isinstance(row.get("extra"), dict) else {}
                     missing = extra.get("missing_items") or extra.get("pending_items") or []
-                    if isinstance(missing, list):
-                        missing_count += len(missing)
-                    elif missing:
-                        missing_count += 1
-                complete = max(0, len(items) - min(len(items), missing_count))
-                data_state = "synced"
-            tone = "green" if complete == len(items) else "yellow" if complete >= max(1, len(items) // 2) else "red"
-            bundles.append({"code": code, "name": name, "completed": complete, "total": len(items), "tone": tone, "data_state": data_state, "items": [{"name": item, "done": idx < complete} for idx, item in enumerate(items)]})
+                    missing_text = " ".join(_text(item) for item in missing) if isinstance(missing, list) else _text(missing)
+                    for item in item_rows:
+                        if missing_text and _contains_any(missing_text, [item["name"].replace("30度", ""), item["name"].replace("q4h", "")]):
+                            item["done"] = False
+                            item["source"] = _text(row.get("rule_id")) or item["source"]
+            complete = sum(1 for item in item_rows if item.get("done"))
+            total = len(item_rows)
+            has_any_source = any(_text(item.get("source")) for item in item_rows) or bool(related_alerts)
+            tone = "green" if complete == total else "yellow" if complete >= max(1, total // 2) else "red"
+            bundles.append({"code": code, "name": name, "completed": complete, "total": total, "tone": tone, "data_state": "synced" if has_any_source else "missing", "items": item_rows})
         return {"bundles": bundles}
 
     async def _nursing_workload(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -465,17 +729,69 @@ class RoleHomeService:
 
     async def _head_nurse_view(self, shift: ShiftInfo) -> dict[str, Any]:
         all_patients = [row async for row in self.db.col("patient").find(admitted_patient_query(), {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "pid": 1}).limit(160)]
+        patients_by_id = {_patient_id(row): row for row in all_patients if _patient_id(row)}
+        patient_ids = list(patients_by_id.keys())
         cursor = self.db.col("nurseRecords").find(self._record_time_query(shift.start, shift.end), {"userName": 1, "username": 1, "trueName": 1, "userId": 1, "recordTime": 1, "time": 1}).limit(3000)
         counts: dict[str, int] = {}
+        hourly: dict[str, dict[str, int]] = {}
         async for row in cursor:
             name = self._record_user_name(row) or self._record_user_id(row) or "未识别护士"
             counts[name] = counts.get(name, 0) + 1
-        heatmap = [{"nurse": nurse, "task_density": count, "tone": "high" if count > 20 else "medium" if count > 8 else "low"} for nurse, count in sorted(counts.items(), key=lambda item: -item[1])]
+            when = _dt(row.get("recordTime") or row.get("time"))
+            bucket = _as_api_tz(when).strftime("%H:00") if when else "未识别"
+            hourly.setdefault(name, {})[bucket] = hourly.setdefault(name, {}).get(bucket, 0) + 1
+        heatmap = [
+            {
+                "nurse": nurse,
+                "task_density": count,
+                "tone": "high" if count > 20 else "medium" if count > 8 else "low",
+                "buckets": [{"time": key, "count": value} for key, value in sorted(hourly.get(nurse, {}).items())],
+            }
+            for nurse, count in sorted(counts.items(), key=lambda item: -item[1])
+        ]
+        events: list[dict[str, Any]] = []
+        if patient_ids:
+            alert_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
+            cursor_alerts = self.db.col("alert_records").find(
+                {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": shift.start}, "$or": [{"acknowledged_at": {"$exists": False}}, {"acknowledged_at": None}, {"ack_disposition": {"$in": [None, ""]}}]},
+                {"patient_id": 1, "name": 1, "rule_id": 1, "alert_type": 1, "scanner_name": 1, "severity": 1, "created_at": 1},
+            ).sort("created_at", -1).limit(120)
+            async for row in cursor_alerts:
+                if not self._nursing_alert_allowed(row):
+                    continue
+                pid = self._patient_id_from_alert_key(patients_by_id, row.get("patient_id"))
+                patient = patients_by_id.get(pid, {})
+                events.append(
+                    {
+                        "type": "未闭环护理提醒",
+                        "patient_id": pid,
+                        "bed": _bed(patient),
+                        "name": _name(patient),
+                        "title": _text(row.get("name") or row.get("alert_type") or row.get("rule_id")) or "护理提醒",
+                        "severity": _text(row.get("severity") or "warning"),
+                        "time": row.get("created_at"),
+                    }
+                )
+                if len(events) >= 12:
+                    break
+        quality_keywords = {
+            "falls": ["跌倒", "坠床"],
+            "pressure_ulcers": ["压疮", "压力性损伤"],
+            "line_displacement": ["管路脱出", "非计划拔管", "脱管"],
+            "medication_errors": ["给药差错", "用药错误"],
+        }
+        quality = {key: 0 for key in quality_keywords}
+        cursor_quality = self.db.col("nurseRecords").find(self._record_time_query(shift.start, shift.end), {"content": 1, "recordTitle": 1, "title": 1, "careType": 1}).limit(3000)
+        async for row in cursor_quality:
+            text = " ".join(_text(row.get(key)) for key in ("content", "recordTitle", "title", "careType"))
+            for key, keywords in quality_keywords.items():
+                if _contains_any(text, keywords):
+                    quality[key] += 1
         return {
             "beds": [{"patient_id": _patient_id(row), "bed": _bed(row), "name": _name(row)} for row in all_patients],
             "workload_heatmap": heatmap,
-            "events": [],
-            "quality": {"falls": 0, "pressure_ulcers": 0, "line_displacement": 0, "medication_errors": 0},
+            "events": events,
+            "quality": quality,
         }
 
     async def execute_nurse_task(self, task_id: str, payload: dict[str, Any], actor: str) -> dict[str, Any]:
