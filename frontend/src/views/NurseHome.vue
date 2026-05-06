@@ -64,7 +64,7 @@
                 </button>
               </div>
             </div>
-            <div v-if="!beds.length" class="empty small">本班还没有由第一条护理记录反推到你的分管床，前端显示待接班。</div>
+            <div v-if="!beds.length" class="empty small">暂无分管床位。</div>
           </div>
         </section>
 
@@ -259,7 +259,7 @@ function stringifySection(value: any) {
 }
 async function load() {
   if (!userId.value) {
-    error.value = '缺少 user_id，无法按本班第一条护理记录反推分管床位。'
+    error.value = '未识别当前账号。'
     return
   }
   loading.value = true

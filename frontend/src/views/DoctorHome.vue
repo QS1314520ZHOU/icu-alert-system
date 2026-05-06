@@ -29,7 +29,7 @@
           </div>
           <b>{{ item.risk_score || 0 }}</b>
         </article>
-        <div v-if="!focusPatients.length" class="empty small">当前账号暂无 bedDoctorId 匹配的在科患者。</div>
+        <div v-if="!focusPatients.length" class="empty small">暂无重点关注患者。</div>
       </section>
 
       <section class="panel">
@@ -148,7 +148,7 @@ function cleanReason(value: any) {
 }
 async function load() {
   if (!userId.value) {
-    error.value = '缺少 user_id，无法按 bedDoctorId 过滤我的床。'
+    error.value = '未识别当前账号。'
     return
   }
   loading.value = true
