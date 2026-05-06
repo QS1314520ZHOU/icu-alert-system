@@ -264,9 +264,9 @@ class RoleHomeService:
             "empty_reason": "",
         }
         if not account.get("found"):
-            data_state["empty_reason"] = "未在 account 表匹配到当前账号，无法换算为 bedDoctorId。"
+            data_state["empty_reason"] = "当前账号未完成医生身份识别，请确认已使用医生账号进入。"
         elif not patients:
-            data_state["empty_reason"] = f"patient 表中暂无 bedDoctorId={doctor_user_id} 的在科患者。"
+            data_state["empty_reason"] = "当前账号暂未匹配到分管在科患者，请确认患者主管医生信息已维护。"
         return {
             "account": account,
             "doctor_user_id": doctor_user_id,

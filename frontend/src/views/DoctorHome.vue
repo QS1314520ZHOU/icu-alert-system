@@ -95,7 +95,7 @@ const userId = computed(() => String(auth.effectiveUserId || '').trim())
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别医生')
 const focusPatients = computed(() => home.value?.focus_patients || [])
 const pendingTasks = computed(() => (home.value?.pending_tasks || []).slice(0, 8))
-const doctorEmptyText = computed(() => home.value?.data_state?.empty_reason || '暂无重点关注患者。')
+const doctorEmptyText = computed(() => cleanEmptyText(home.value?.data_state?.empty_reason, '当前暂无需要置顶的分管患者，请确认患者主管医生信息已维护。'))
 const shiftText = computed(() => {
   const s = home.value?.shift
   if (!s) return '班次待配置'
@@ -145,6 +145,12 @@ function cleanReason(value: any) {
   const text = String(value || '').trim()
   if (!text) return '暂无一句话理由'
   if (text.includes("'summary'") || text.includes('"summary"')) return '综合风险推理已生成结论，点击进入患者详情查看证据和建议。'
+  return text
+}
+function cleanEmptyText(value: any, fallback: string) {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  if (/patient\s*表|account\s*表|bedDoctorId|user[_-]?id|userId|collection|集合|数据库/i.test(text)) return fallback
   return text
 }
 async function load() {

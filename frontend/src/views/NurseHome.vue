@@ -160,7 +160,7 @@ const headBeds = computed(() => home.value?.head_view?.beds || [])
 const heatmap = computed(() => home.value?.head_view?.workload_heatmap || [])
 const headEvents = computed(() => home.value?.head_view?.events || [])
 const headQuality = computed(() => home.value?.head_view?.quality || {})
-const nurseEmptyText = computed(() => home.value?.data_state?.empty_reason || '暂无分管床位。')
+const nurseEmptyText = computed(() => cleanEmptyText(home.value?.data_state?.empty_reason, '本班暂未识别到分管床位，请完成接班护理记录后刷新。'))
 const handoff = ref<any>(null)
 const handoffItems = computed(() => handoff.value?.items || [])
 const handoffStatus = computed(() => handoff.value?.handoff_id ? `已生成 ${handoffItems.value.length} 床 ISBAR 交班单，可在下方编辑确认。` : '下班前 1 小时自动展开，按 ISBAR 结构生成本班交班单。')
@@ -216,6 +216,12 @@ function shortText(value: any) {
 }
 function displayName(value: any) {
   return formatAlertTypeLabel(value).replace(/\bBundle\b/gi, '防控清单')
+}
+function cleanEmptyText(value: any, fallback: string) {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  if (/patient\s*表|account\s*表|nurseRecords|bedDoctorId|user[_-]?id|userId|collection|集合|数据库/i.test(text)) return fallback
+  return text
 }
 function selectTask(task: any) {
   selectedTask.value = task
