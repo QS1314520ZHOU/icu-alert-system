@@ -99,12 +99,18 @@
         <button type="button" :disabled="handoffLoading || !beds.length" @click="generateHandoff">{{ handoffLoading ? '生成中' : '生成本班交班单' }}</button>
       </section>
       <section v-if="handoffItems.length" class="panel handoff-editor">
-        <div class="panel-head"><strong>本班 I-PASS 交班单</strong><span>可编辑确认</span></div>
+        <div class="panel-head">
+          <strong>本班交班单</strong>
+          <div class="handoff-switch">
+            <button type="button" :class="{ active: handoffMode === 'isbar' }" @click="handoffMode = 'isbar'">ISBAR</button>
+            <button type="button" :class="{ active: handoffMode === 'ipass' }" @click="handoffMode = 'ipass'">I-PASS</button>
+          </div>
+        </div>
         <article v-for="item in handoffItems" :key="item.patient_id" class="handoff-item">
           <strong>{{ item.bed || '--' }}床 {{ item.name || '未知患者' }}</strong>
-          <label v-for="section in ipassSections" :key="`${item.patient_id}-${section.key}`">
+          <label v-for="section in activeHandoffSections" :key="`${item.patient_id}-${section.key}`">
             <span>{{ section.label }}</span>
-            <textarea v-model="item.ipass[section.key]" rows="2"></textarea>
+            <textarea v-model="item[handoffMode][section.key]" rows="2"></textarea>
           </label>
         </article>
       </section>
@@ -140,6 +146,7 @@ const home = ref<any>(null)
 const selectedTask = ref<any>(null)
 const handoffLoading = ref(false)
 const handoffError = ref('')
+const handoffMode = ref<'isbar' | 'ipass'>('isbar')
 
 const userId = computed(() => String(auth.effectiveUserId || '').trim())
 const isHeadMode = computed(() => String(route.query.view || '').toLowerCase() === 'head' || ['head_nurse', 'charge_nurse'].includes(String(home.value?.account?.role || '').toLowerCase()))
@@ -154,7 +161,14 @@ const headEvents = computed(() => home.value?.head_view?.events || [])
 const headQuality = computed(() => home.value?.head_view?.quality || {})
 const handoff = ref<any>(null)
 const handoffItems = computed(() => handoff.value?.items || [])
-const handoffStatus = computed(() => handoff.value?.handoff_id ? `已生成 ${handoffItems.value.length} 床交班单，可在下方编辑确认。` : '下班前 1 小时自动展开，按 I-PASS 结构生成本班交班单。')
+const handoffStatus = computed(() => handoff.value?.handoff_id ? `已生成 ${handoffItems.value.length} 床 ISBAR 交班单，可在下方编辑确认。` : '下班前 1 小时自动展开，按 ISBAR 结构生成本班交班单。')
+const isbarSections = [
+  { key: 'identify', label: 'I 识别' },
+  { key: 'situation', label: 'S 现状' },
+  { key: 'background', label: 'B 背景' },
+  { key: 'assessment', label: 'A 评估' },
+  { key: 'recommendation', label: 'R 建议' },
+]
 const ipassSections = [
   { key: 'illness_severity', label: '病情严重度' },
   { key: 'patient_summary', label: '患者摘要' },
@@ -162,6 +176,7 @@ const ipassSections = [
   { key: 'situation_awareness', label: '风险预判' },
   { key: 'synthesis_by_receiver', label: '接班确认' },
 ]
+const activeHandoffSections = computed(() => handoffMode.value === 'isbar' ? isbarSections : ipassSections)
 const shiftText = computed(() => {
   const s = home.value?.shift
   if (!s) return '班次待配置'
@@ -240,6 +255,7 @@ function normalizeHandoff(doc: any) {
     items: items.map((item: any) => ({
       ...item,
       ipass: normalizeIpass(item?.ipass),
+      isbar: normalizeIsbar(item?.isbar, item?.ipass, item),
     })),
   }
 }
@@ -251,6 +267,17 @@ function normalizeIpass(value: any) {
     action_list: stringifySection(source.action_list || source.actions),
     situation_awareness: stringifySection(source.situation_awareness || source.awareness),
     synthesis_by_receiver: stringifySection(source.synthesis_by_receiver || source.receiver),
+  }
+}
+function normalizeIsbar(value: any, ipassValue: any, item: any) {
+  const source = value && typeof value === 'object' ? value : {}
+  const ipass = normalizeIpass(ipassValue)
+  return {
+    identify: stringifySection(source.identify || source.identification || `${item?.bed || '--'}床 ${item?.name || '未知患者'}`),
+    situation: stringifySection(source.situation || ipass.patient_summary),
+    background: stringifySection(source.background || ipass.situation_awareness),
+    assessment: stringifySection(source.assessment || ipass.synthesis_by_receiver),
+    recommendation: stringifySection(source.recommendation || ipass.action_list),
   }
 }
 function stringifySection(value: any) {
@@ -346,6 +373,9 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .quality-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .quality-row span { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); }
 .handoff-editor { margin-top: -4px; }
+.handoff-switch { display: flex; gap: 6px; }
+.handoff-switch button { min-height: 34px; padding: 0 10px; }
+.handoff-switch button.active { border-color: rgba(52,211,153,.55); color: #bbf7d0; background: rgba(13,74,55,.72); }
 .handoff-item { display: grid; gap: 8px; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.58); }
 .handoff-item > strong { color: #fff; }
 .handoff-item label { display: grid; gap: 4px; }

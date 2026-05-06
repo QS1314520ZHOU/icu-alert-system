@@ -818,6 +818,24 @@ class RoleHomeService:
         )
         return {"task_id": _text(task_id), "status": action, "recorded_at": now, "nursing_record_written": action == "executed"}
 
+    def _isbar_from_ipass(self, patient: dict[str, Any], summary: dict[str, Any]) -> dict[str, Any]:
+        actions = summary.get("action_list") if isinstance(summary.get("action_list"), list) else []
+        awareness = summary.get("situation_awareness") if isinstance(summary.get("situation_awareness"), list) else []
+        severity = _text(summary.get("illness_severity") or "watcher")
+        severity_label = {
+            "stable": "稳定",
+            "watcher": "需关注",
+            "unstable": "不稳定",
+            "critical": "危重",
+        }.get(severity.lower(), severity or "需关注")
+        return {
+            "identify": f"{_bed(patient) or '--'}床 {_name(patient)}，当前病情：{severity_label}。",
+            "situation": _text(summary.get("patient_summary")) or "本班需结合最新生命体征和护理记录交接。",
+            "background": "；".join(_text(item) for item in awareness[:3] if _text(item)) or "基础诊断、管路、治疗和护理风险请接班后复核。",
+            "assessment": "；".join(_text(item) for item in awareness[3:6] if _text(item)) or _text(summary.get("synthesis_by_receiver")) or "目前结构化数据有限，需床旁复核。",
+            "recommendation": "；".join(_text(item) for item in actions[:4] if _text(item)) or "接班后优先核对生命体征、管路、皮肤、入出量和未完成任务。",
+        }
+
     async def generate_nurse_handoff(self, user_id: str, patient_ids: list[str], shift_code: str | None = "auto") -> dict[str, Any]:
         account = await self._account_by_user_id(user_id)
         shift = await self.shift_service.resolve_shift(shift_code)
@@ -842,7 +860,7 @@ class RoleHomeService:
                     "synthesis_by_receiver": "请下一班接班后复核床旁监护、管路、皮肤和入出量。",
                     "confidence_level": "low",
                 }
-            rows.append({"patient_id": pid, "bed": _bed(patient), "name": _name(patient), "ipass": summary})
+            rows.append({"patient_id": pid, "bed": _bed(patient), "name": _name(patient), "ipass": summary, "isbar": self._isbar_from_ipass(patient, summary)})
         doc = {"handoff_id": str(uuid.uuid4()), "user_id": _text(user_id), "userName": account.get("userName"), "shift": shift.to_dict() if shift else None, "items": rows, "created_at": datetime.now(API_TZ)}
         await self.db.col("handoff_record").insert_one(doc)
         return doc
