@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 import re
 from datetime import datetime, timedelta
@@ -289,19 +290,133 @@ class RoleHomeService:
     def _record_time_query(self, start: datetime, end: datetime) -> dict[str, Any]:
         return {"$or": [{"recordTime": {"$gte": start, "$lt": end}}, {"time": {"$gte": start, "$lt": end}}, {"created_at": {"$gte": start, "$lt": end}}, {"createTime": {"$gte": start, "$lt": end}}]}
 
+    def _record_time_value(self, row: dict[str, Any]) -> datetime | None:
+        return _dt(row.get("recordTime") or row.get("time") or row.get("created_at") or row.get("createTime"))
+
+    def _record_patient_value(self, row: dict[str, Any]) -> Any:
+        return row.get("pid") or row.get("patient_id") or row.get("patientId") or row.get("hisPid")
+
+    def _patients_key_index(self, patients_by_id: dict[str, dict[str, Any]]) -> dict[str, str]:
+        index: dict[str, str] = {}
+        for pid, patient in patients_by_id.items():
+            for key in self._patient_alert_keys(patient):
+                if _text(key):
+                    index[_text(key)] = pid
+        return index
+
+    async def _nursing_records_for_patients(
+        self,
+        patients_by_id: dict[str, dict[str, Any]],
+        *,
+        start: datetime,
+        end: datetime,
+        limit: int = 5000,
+        collections: tuple[str, ...] = ("nurseRecords", "nursing_record"),
+    ) -> list[dict[str, Any]]:
+        keys: list[Any] = []
+        seen: set[str] = set()
+        for patient in patients_by_id.values():
+            for key in self._patient_alert_keys(patient):
+                marker = f"{type(key).__name__}:{key}"
+                if _text(key) and marker not in seen:
+                    seen.add(marker)
+                    keys.append(key)
+        if not keys:
+            return []
+        query = {
+            "$and": [
+                self._record_time_query(start, end),
+                {"$or": [{"pid": {"$in": keys}}, {"patient_id": {"$in": keys}}, {"patientId": {"$in": keys}}, {"hisPid": {"$in": keys}}]},
+            ]
+        }
+        projection = {
+            "pid": 1,
+            "patient_id": 1,
+            "patientId": 1,
+            "hisPid": 1,
+            "recordTime": 1,
+            "time": 1,
+            "created_at": 1,
+            "createTime": 1,
+            "careType": 1,
+            "task_type": 1,
+            "task_id": 1,
+            "content": 1,
+            "recordTitle": 1,
+            "title": 1,
+            "name": 1,
+            "userName": 1,
+            "username": 1,
+            "trueName": 1,
+            "userId": 1,
+            "recorderId": 1,
+            "recordUserId": 1,
+            "operatorId": 1,
+            "creatorId": 1,
+        }
+        rows: list[dict[str, Any]] = []
+        for collection in collections:
+            try:
+                cursor = self.db.col(collection).find(query, projection).sort([("recordTime", 1), ("time", 1), ("created_at", 1), ("createTime", 1)]).limit(limit)
+                rows.extend([row async for row in cursor])
+            except Exception:
+                continue
+        rows.sort(key=lambda row: _as_api_tz(self._record_time_value(row) or datetime.max.replace(tzinfo=API_TZ)))
+        return rows
+
+    def _record_matches_task(self, row: dict[str, Any], keywords: list[str]) -> bool:
+        return any(
+            _contains_any(row.get(field), keywords)
+            for field in ("careType", "task_type", "task_id", "content", "recordTitle", "title", "name")
+        )
+
+    async def _latest_nursing_task_records_by_patient(
+        self,
+        patient_ids: list[str],
+        patients_by_id: dict[str, dict[str, Any]],
+        catalog: list[dict[str, Any]],
+        shift: ShiftInfo,
+    ) -> dict[tuple[str, str], dict[str, Any]]:
+        if not patient_ids or not catalog:
+            return {}
+        start = shift.start - timedelta(hours=24)
+        records = await self._nursing_records_for_patients(patients_by_id, start=start, end=shift.end, limit=8000)
+        key_index = self._patients_key_index(patients_by_id)
+        latest: dict[tuple[str, str], dict[str, Any]] = {}
+        latest_time: dict[tuple[str, str], datetime] = {}
+        patient_filter = set(patient_ids)
+        for row in records:
+            pid = key_index.get(_text(self._record_patient_value(row)))
+            if not pid or pid not in patient_filter:
+                continue
+            when = self._record_time_value(row)
+            if not when:
+                continue
+            when_api = _as_api_tz(when)
+            for spec in catalog:
+                if not self._record_matches_task(row, spec["keywords"]):
+                    continue
+                marker = (pid, spec["key"])
+                if marker not in latest_time or when_api > latest_time[marker]:
+                    latest_time[marker] = when_api
+                    latest[marker] = row
+        return latest
+
     async def nurse_patient_assignments(self, user_id: str, shift: ShiftInfo) -> dict[str, Any]:
         patients = [row async for row in self.db.col("patient").find(admitted_patient_query(), {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "hisPID": 1, "pid": 1}).limit(160)]
+        patients_by_id = {_patient_id(patient): patient for patient in patients if _patient_id(patient)}
+        key_index = self._patients_key_index(patients_by_id)
+        records = await self._nursing_records_for_patients(patients_by_id, start=shift.start, end=shift.end, limit=8000, collections=("nurseRecords",))
+        first_by_patient: dict[str, dict[str, Any]] = {}
+        for row in records:
+            pid = key_index.get(_text(self._record_patient_value(row)))
+            if pid and pid not in first_by_patient:
+                first_by_patient[pid] = row
         assigned: list[dict[str, Any]] = []
         pending_handover: list[dict[str, Any]] = []
         for patient in patients:
-            keys = self._patient_alert_keys(patient)
-            query = {
-                "$and": [
-                    {"$or": [{"pid": {"$in": keys}}, {"patient_id": {"$in": keys}}, {"patientId": {"$in": keys}}, {"hisPid": {"$in": keys}}]},
-                    self._record_time_query(shift.start, shift.end),
-                ]
-            }
-            first = await self.db.col("nurseRecords").find_one(query, sort=[("recordTime", 1), ("time", 1), ("created_at", 1)])
+            pid = _patient_id(patient)
+            first = first_by_patient.get(pid)
             patient_row = {"patient_id": _patient_id(patient), "bed": _bed(patient), "name": _name(patient)}
             if not first:
                 pending_handover.append(patient_row)
@@ -309,7 +424,7 @@ class RoleHomeService:
             owner_id = self._record_user_id(first)
             owner_name = self._record_user_name(first)
             if owner_id == _text(user_id) or owner_name == _text(user_id):
-                assigned.append({**patient_row, "patient_doc": patient, "responsible_nurse": owner_name or owner_id, "first_record_time": first.get("recordTime") or first.get("time") or first.get("created_at")})
+                assigned.append({**patient_row, "patient_doc": patient, "responsible_nurse": owner_name or owner_id, "first_record_time": self._record_time_value(first)})
         return {"assigned": assigned, "pending_handover": pending_handover}
 
     async def _open_tasks_for_patients(self, patient_ids: list[str], limit: int = 20) -> list[dict[str, Any]]:
@@ -566,9 +681,14 @@ class RoleHomeService:
         grouped = await self._latest_scores_by_patient([row["patient_id"] for row in beds], scanner_names, patients_by_id)
         tasks: list[dict[str, Any]] = []
         catalog = self._nursing_task_catalog()
+        latest_task_records = await self._latest_nursing_task_records_by_patient(
+            [row["patient_id"] for row in beds],
+            patients_by_id,
+            catalog,
+            shift,
+        )
         for bed in beds:
             pid = bed["patient_id"]
-            patient = patients_by_id.get(pid)
             rows = grouped.get(pid, [])
             for idx, spec in enumerate(catalog):
                 row = next(
@@ -578,10 +698,10 @@ class RoleHomeService:
                     ),
                     {},
                 )
-                latest_record = await self._latest_nursing_task_record(patient, pid, spec["keywords"])
+                latest_record = latest_task_records.get((pid, spec["key"]))
                 last_done_at = None
                 if latest_record:
-                    last_done_at = _dt(latest_record.get("recordTime") or latest_record.get("time") or latest_record.get("created_at") or latest_record.get("createTime"))
+                    last_done_at = self._record_time_value(latest_record)
                 due_at = self._due_from_last_done(last_done_at, spec.get("period"), shift)
                 done = bool(last_done_at and shift.start <= _as_api_tz(last_done_at) < shift.end and due_at >= shift.end)
                 tasks.append(
@@ -708,6 +828,17 @@ class RoleHomeService:
         allowed = ["复测", "生命体征", "镇静", "入量", "出量", "管路", "皮肤", "压力", "尿量", "护理", "bundle", "rass", "cam"]
         return any(k.lower() in text for k in allowed) and not any(k.lower() in text for k in blocked)
 
+    async def _nurse_ai_reminders(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], shift: ShiftInfo) -> list[dict[str, Any]]:
+        if not patient_ids:
+            return []
+        alert_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
+        cursor = self.db.col("alert_records").find(
+            {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": shift.start}},
+            {"name": 1, "rule_id": 1, "alert_type": 1, "scanner_name": 1, "patient_id": 1, "severity": 1, "created_at": 1},
+        ).sort("created_at", -1).limit(80)
+        alerts = [row async for row in cursor]
+        return [row for row in alerts if self._nursing_alert_allowed(row)][:8]
+
     async def nurse_home(self, user_id: str, shift_code: str | None = "auto", *, view: str | None = None) -> dict[str, Any]:
         account = await self._account_by_user_id(user_id)
         shift = await self.shift_service.resolve_shift(shift_code)
@@ -716,14 +847,16 @@ class RoleHomeService:
         timeline = await self.nurse_timeline(user_id, shift)
         patient_ids = [row["patient_id"] for row in timeline.get("beds") or []]
         patients_by_id = await self._patients_by_ids(patient_ids)
-        workload = await self._nursing_workload(patient_ids, patients_by_id)
-        bundles = await self.nurse_bundles(patient_ids, shift.code, patients_by_id)
-        alerts = []
-        if patient_ids:
-            alert_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
-            cursor = self.db.col("alert_records").find({"patient_id": {"$in": alert_keys}, "created_at": {"$gte": shift.start}}, {"name": 1, "rule_id": 1, "alert_type": 1, "scanner_name": 1, "patient_id": 1, "severity": 1, "created_at": 1}).sort("created_at", -1).limit(80)
-            alerts = [row async for row in cursor]
-        nursing_alerts = [row for row in alerts if self._nursing_alert_allowed(row)][:8]
+        workload_task = self._nursing_workload(patient_ids, patients_by_id)
+        reminders_task = self._nurse_ai_reminders(patient_ids, patients_by_id, shift)
+        bundles_task = self.nurse_bundles(patient_ids, shift.code, patients_by_id)
+        workload, nursing_alerts = await asyncio.gather(workload_task, reminders_task)
+        bundle_degraded = ""
+        try:
+            bundles = await asyncio.wait_for(bundles_task, timeout=4)
+        except Exception:
+            bundle_degraded = "安全清单数据同步较慢，已先展示本班任务。"
+            bundles = {"bundles": []}
         head_mode = view == "head" or account.get("role") in {"head_nurse", "charge_nurse"}
         head = await self._head_nurse_view(shift) if head_mode else None
         return {
@@ -740,6 +873,7 @@ class RoleHomeService:
             "workload": workload,
             "timeline": timeline.get("tasks") or [],
             "bundles": bundles.get("bundles") or [],
+            "bundle_degraded": bundle_degraded,
             "ai_reminders": nursing_alerts,
             "head_view": head,
             "generated_at": datetime.now(API_TZ),

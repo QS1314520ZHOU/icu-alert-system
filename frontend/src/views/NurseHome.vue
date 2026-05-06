@@ -75,6 +75,8 @@
               <strong>{{ displayName(item.name || item.code) }}</strong>
               <span>{{ item.data_state === 'missing' ? '暂无同步' : `${item.completed}/${item.total}` }}</span>
             </article>
+            <div v-if="home?.bundle_degraded && !bundles.length" class="empty small">{{ home.bundle_degraded }}</div>
+            <div v-else-if="!bundles.length" class="empty small">本班安全清单暂无同步记录。</div>
           </section>
           <section class="panel">
             <div class="panel-head"><strong>与我相关的 AI 提醒</strong><span>护理执行相关</span></div>
