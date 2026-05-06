@@ -372,7 +372,7 @@ export const postAiMdtDecisionConfirm = (
   patientId: string,
   sessionId: string,
   decisionId: string,
-  payload: { action: 'confirm' | 'reject' | 'revise'; actor?: string; note?: string }
+  payload: { action: 'confirm' | 'reject' | 'revise'; actor?: string; note?: string; expected_version?: number }
 ) => aiApi.post(`/api/ai/mdt-workspace/${patientId}/sessions/${sessionId}/decisions/${decisionId}/confirm`, payload)
 
 export const generateAiDocument = (

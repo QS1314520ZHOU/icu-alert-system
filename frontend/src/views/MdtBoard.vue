@@ -2154,6 +2154,7 @@ async function confirmDecision(row: any, action: 'confirm' | 'reject' | 'revise'
       action,
       actor,
       note: row.note || '',
+      expected_version: Number(row.version || 1),
     })
     if (Number(res.data?.code) !== 0) throw new Error(res.data?.message || '确认失败')
     const next = res.data?.decision || {}
@@ -2161,7 +2162,7 @@ async function confirmDecision(row: any, action: 'confirm' | 'reject' | 'revise'
     appendActivityLog(action === 'confirm' ? '医生确认 AI 决议' : '医生反馈 AI 决议', `${row.action || '决议'} -> ${decisionStatusLabel(next.status)}`)
     message.success(action === 'confirm' ? '医生已确认，可进入执行追踪' : '已记录医生反馈')
   } catch (err: any) {
-    message.error(err?.message || '确认失败')
+    message.error(err?.response?.data?.message || err?.message || '确认失败')
   } finally {
     const nextSet = new Set(confirmingDecisionIds.value)
     nextSet.delete(id)

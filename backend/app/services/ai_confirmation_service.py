@@ -23,6 +23,10 @@ def normalize_ai_decision(item: dict[str, Any], idx: int = 1) -> dict[str, Any]:
     if status not in AI_CONFIRMATION_STATUSES and status not in {"in_progress", "completed", "dismissed"}:
         status = "pending_confirmation"
     decision["id"] = str(decision.get("id") or f"decision-{idx}")
+    try:
+        decision["version"] = max(1, int(decision.get("version") or 1))
+    except Exception:
+        decision["version"] = 1
     decision["status"] = status
     decision["requires_confirmation"] = bool(decision.get("requires_confirmation", True))
     decision.setdefault("confirmation_status", "confirmed" if decision.get("confirmed_at") else "pending")
@@ -40,16 +44,25 @@ async def confirm_mdt_decision(
     action: str,
     actor: str,
     note: str = "",
+    expected_version: int | None = None,
 ) -> dict[str, Any] | None:
     actor_name = normalize_actor(actor)
     action_key = str(action or "").strip().lower()
     if action_key not in {"confirm", "reject", "revise"}:
         raise ValueError("action 必须是 confirm、reject 或 revise")
 
-    record = await db.col("score").find_one(
-        {"patient_id": str(patient_id), "score_type": "mdt_workspace_record", "session_id": str(session_id)}
-    )
+    query = {"patient_id": str(patient_id), "score_type": "mdt_workspace_record", "session_id": str(session_id)}
+    if expected_version is not None:
+        query["decisions"] = {"$elemMatch": {"id": str(decision_id), "version": int(expected_version)}}
+    record = await db.col("score").find_one(query)
     if not record:
+        if expected_version is not None:
+            stale = await db.col("score").find_one(
+                {"patient_id": str(patient_id), "score_type": "mdt_workspace_record", "session_id": str(session_id), "decisions.id": str(decision_id)},
+                {"_id": 1},
+            )
+            if stale:
+                raise ValueError("该决议已被他人更新，请刷新后重试")
         return None
 
     decisions = []
@@ -64,6 +77,7 @@ async def confirm_mdt_decision(
             decision["confirmed_by"] = actor_name
             decision["confirmed_at"] = now
             decision["confirmation_note"] = str(note or "").strip()
+            decision["version"] = int(decision.get("version") or 1) + 1
             if action_key == "confirm":
                 decision["status"] = "doctor_confirmed"
                 decision["confirmation_status"] = "confirmed"
@@ -81,8 +95,8 @@ async def confirm_mdt_decision(
     if not target:
         return None
 
-    await db.col("score").update_one(
-        {"_id": record["_id"]},
+    update_result = await db.col("score").update_one(
+        {"_id": record["_id"], **({"decisions": {"$elemMatch": {"id": str(decision_id), "version": int(expected_version)}}} if expected_version is not None else {})},
         {
             "$set": {
                 "decisions": decisions,
@@ -92,6 +106,8 @@ async def confirm_mdt_decision(
             }
         },
     )
+    if update_result.modified_count == 0:
+        raise ValueError("该决议已被他人更新，请刷新后重试")
     log_doc = {
         "module": "mdt_workspace",
         "patient_id": str(patient_id),
