@@ -876,4 +876,95 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   background: rgba(255,255,255,.04);
 }
 @media (max-width: 1100px) { .command-layout, .kpis, .closure-strip, .bedside-command, .drawer-summary { grid-template-columns: 1fr; } .topbar { flex-direction: column; } }
+
+html[data-theme='light'] .work-page {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 30%),
+    radial-gradient(circle at 88% 14%, rgba(20, 184, 166, 0.08), transparent 32%),
+    #f5f7fa;
+}
+html[data-theme='light'] h1,
+html[data-theme='light'] .kpis strong,
+html[data-theme='light'] .rt-task strong,
+html[data-theme='light'] .closure-strip strong,
+html[data-theme='light'] .bedside-tile strong,
+html[data-theme='light'] .panel-head strong,
+html[data-theme='light'] .vent-card-name strong,
+html[data-theme='light'] .vent-meter-row strong,
+html[data-theme='light'] .sbt-card strong,
+html[data-theme='light'] .drawer-summary strong,
+html[data-theme='light'] .airway-plan-card strong,
+html[data-theme='light'] .airway-plan-grid strong {
+  color: #0f172a;
+}
+html[data-theme='light'] p,
+html[data-theme='light'] .kpis span,
+html[data-theme='light'] .rt-task span,
+html[data-theme='light'] .closure-strip span,
+html[data-theme='light'] .closure-strip small,
+html[data-theme='light'] .bedside-tile span,
+html[data-theme='light'] .bedside-tile small,
+html[data-theme='light'] .panel-head span,
+html[data-theme='light'] .panel-head em,
+html[data-theme='light'] .vent-meter-row i,
+html[data-theme='light'] .sbt-card span,
+html[data-theme='light'] .soft-empty,
+html[data-theme='light'] .drawer-summary span,
+html[data-theme='light'] .airway-plan-card span,
+html[data-theme='light'] .airway-plan-grid span,
+html[data-theme='light'] .airway-plan-card p {
+  color: #64748b;
+}
+html[data-theme='light'] .scope-strip {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.18);
+}
+html[data-theme='light'] .kpis article,
+html[data-theme='light'] .rt-worklist,
+html[data-theme='light'] .rt-task,
+html[data-theme='light'] .closure-strip article,
+html[data-theme='light'] .bedside-tile,
+html[data-theme='light'] .patient-panel,
+html[data-theme='light'] .sbt-panel,
+html[data-theme='light'] .vent-patient-card,
+html[data-theme='light'] .vent-meter-row span,
+html[data-theme='light'] .sbt-card,
+html[data-theme='light'] .drawer-summary article,
+html[data-theme='light'] .airway-plan-card,
+html[data-theme='light'] .airway-plan-grid article {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(145, 176, 199, 0.32);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+html[data-theme='light'] .vent-patient-card,
+html[data-theme='light'] .bedside-tile,
+html[data-theme='light'] .patient-panel,
+html[data-theme='light'] .sbt-panel {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.08), transparent 34%),
+    #ffffff;
+}
+html[data-theme='light'] .closure-strip article,
+html[data-theme='light'] .airway-plan-card {
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.98), rgba(239, 246, 255, 0.98));
+}
+html[data-theme='light'] .vent-card-name small,
+html[data-theme='light'] .vent-chip-row span,
+html[data-theme='light'] .vent-chip-row .is-ok {
+  color: #2563eb;
+}
+html[data-theme='light'] .vent-card-top b {
+  color: #059669;
+  background: #ecfdf5;
+  border-color: rgba(16, 185, 129, 0.22);
+}
+html[data-theme='light'] .vent-chip-row span {
+  background: #f8fafc;
+  border-color: rgba(145, 176, 199, 0.3);
+}
+html[data-theme='light'] .soft-empty {
+  background: #ffffff;
+  border-color: rgba(145, 176, 199, 0.32);
+}
 </style>

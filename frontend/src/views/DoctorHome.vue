@@ -216,4 +216,55 @@ button { min-height: 44px; border-radius: 8px; border: 1px solid rgba(125,211,25
 .empty.small { padding: 10px; }
 .empty.danger { color: #fecaca; }
 @media (max-width: 1024px) { .doctor-grid { height: auto; grid-template-columns: 1fr; grid-template-rows: none; } .kpi-grid, .lights { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+html[data-theme='light'] .role-home {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 28%),
+    radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.06), transparent 32%);
+}
+html[data-theme='light'] .home-top,
+html[data-theme='light'] .panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(145, 176, 199, 0.32);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+html[data-theme='light'] .home-top strong,
+html[data-theme='light'] .panel-head strong,
+html[data-theme='light'] .focus-row strong,
+html[data-theme='light'] .task-row strong,
+html[data-theme='light'] .kpi strong,
+html[data-theme='light'] .light b,
+html[data-theme='light'] .focus-row b {
+  color: #0f172a;
+}
+html[data-theme='light'] .home-top span,
+html[data-theme='light'] .panel-head span,
+html[data-theme='light'] .focus-row span,
+html[data-theme='light'] .task-row span,
+html[data-theme='light'] .kpi span,
+html[data-theme='light'] .empty {
+  color: #64748b;
+}
+html[data-theme='light'] .focus-row,
+html[data-theme='light'] .task-row,
+html[data-theme='light'] .kpi,
+html[data-theme='light'] .light,
+html[data-theme='light'] .empty {
+  background: #f8fafc;
+  border: 1px solid rgba(145, 176, 199, 0.26);
+}
+html[data-theme='light'] button {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.18);
+  color: #1d4ed8;
+}
+html[data-theme='light'] button:hover {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+html[data-theme='light'] .empty.danger {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.18);
+}
 </style>

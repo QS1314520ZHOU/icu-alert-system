@@ -78,4 +78,31 @@ onMounted(async () => {
   color: #e9fbff;
   padding: 0 14px;
 }
+
+html[data-theme='light'] .home-redirect {
+  background:
+    radial-gradient(circle at 18% 6%, rgba(59, 130, 246, 0.08), transparent 28%),
+    radial-gradient(circle at 86% 18%, rgba(20, 184, 166, 0.07), transparent 30%);
+}
+html[data-theme='light'] .redirect-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(145, 176, 199, 0.32);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+html[data-theme='light'] .redirect-panel span,
+html[data-theme='light'] .redirect-panel p {
+  color: #64748b;
+}
+html[data-theme='light'] .redirect-panel strong {
+  color: #0f172a;
+}
+html[data-theme='light'] .actions button {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.2);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .actions button:hover {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, 0.32);
+}
 </style>

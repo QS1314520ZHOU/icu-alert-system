@@ -383,4 +383,84 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .handoff-item textarea { resize: vertical; min-height: 58px; border-radius: 8px; border: 1px solid rgba(125,211,252,.18); background: rgba(5,18,30,.9); color: #eafcff; padding: 8px; }
 @media (max-width: 1024px) { .nurse-top, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 760px) { .side, .handoff-bar { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; } }
+
+html[data-theme='light'] .nurse-home {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 28%),
+    radial-gradient(circle at 88% 12%, rgba(16, 185, 129, 0.07), transparent 30%);
+}
+html[data-theme='light'] .nurse-top,
+html[data-theme='light'] .panel,
+html[data-theme='light'] .handoff-bar,
+html[data-theme='light'] .task-modal {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(145, 176, 199, 0.32);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+html[data-theme='light'] .nurse-top strong,
+html[data-theme='light'] .panel-head strong,
+html[data-theme='light'] .bed-line > strong,
+html[data-theme='light'] .bundle strong,
+html[data-theme='light'] .reminder strong,
+html[data-theme='light'] .handoff-bar strong,
+html[data-theme='light'] .task-modal strong,
+html[data-theme='light'] .head-event strong,
+html[data-theme='light'] .handoff-item > strong,
+html[data-theme='light'] .heatmap article,
+html[data-theme='light'] .bed-cloud span {
+  color: #0f172a;
+}
+html[data-theme='light'] .nurse-top span,
+html[data-theme='light'] .panel-head span,
+html[data-theme='light'] .empty,
+html[data-theme='light'] .bundle span,
+html[data-theme='light'] .task-modal p,
+html[data-theme='light'] .handoff-bar span,
+html[data-theme='light'] .head-event span,
+html[data-theme='light'] .quality-row span,
+html[data-theme='light'] .handoff-item label span {
+  color: #64748b;
+}
+html[data-theme='light'] .bed-line > strong,
+html[data-theme='light'] .task-strip,
+html[data-theme='light'] .bundle,
+html[data-theme='light'] .reminder,
+html[data-theme='light'] .empty,
+html[data-theme='light'] .bed-cloud span,
+html[data-theme='light'] .heatmap article,
+html[data-theme='light'] .head-event,
+html[data-theme='light'] .quality-row span,
+html[data-theme='light'] .handoff-item {
+  background: #f8fafc;
+  border-color: rgba(145, 176, 199, 0.26);
+}
+html[data-theme='light'] .task-strip {
+  background: repeating-linear-gradient(90deg, rgba(37, 99, 235, 0.08) 0, rgba(37, 99, 235, 0.08) 1px, #f8fafc 1px, #f8fafc 10.416%);
+}
+html[data-theme='light'] button {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.18);
+  color: #1d4ed8;
+}
+html[data-theme='light'] button:hover {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+html[data-theme='light'] .handoff-switch button.active {
+  background: #dcfce7;
+  border-color: rgba(22, 163, 74, 0.28);
+  color: #15803d;
+}
+html[data-theme='light'] .handoff-item textarea {
+  background: #ffffff;
+  border-color: rgba(145, 176, 199, 0.36);
+  color: #0f172a;
+}
+html[data-theme='light'] .workload i {
+  background: #e2e8f0;
+}
+html[data-theme='light'] .danger,
+html[data-theme='light'] .is-overdue {
+  color: #b91c1c;
+}
 </style>

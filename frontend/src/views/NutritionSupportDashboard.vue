@@ -1077,4 +1077,125 @@ meter::-webkit-meter-optimum-value { background: linear-gradient(90deg, #84cc16,
   .closed-loop-grid { grid-template-columns: 1fr; }
   .topbar { flex-direction: column; }
 }
+
+html[data-theme='light'] .nutrition-page {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.08), transparent 30%),
+    radial-gradient(circle at 92% 10%, rgba(245, 158, 11, 0.07), transparent 32%),
+    #f5f7fa;
+}
+html[data-theme='light'] h1,
+html[data-theme='light'] .kpi strong,
+html[data-theme='light'] .panel-head strong,
+html[data-theme='light'] .identity strong,
+html[data-theme='light'] .score-strip strong,
+html[data-theme='light'] .route-donut strong,
+html[data-theme='light'] .priority-item span,
+html[data-theme='light'] .chart-head,
+html[data-theme='light'] .drawer-kpis strong,
+html[data-theme='light'] .target-card strong,
+html[data-theme='light'] .closed-loop-grid strong,
+html[data-theme='light'] .prescription-card strong,
+html[data-theme='light'] .lab-grid strong,
+html[data-theme='light'] .ai-card__head strong,
+html[data-theme='light'] .ai-advice-list b,
+html[data-theme='light'] .action-list strong,
+html[data-theme='light'] .task-list b,
+html[data-theme='light'] .order-list span {
+  color: #0f172a;
+}
+html[data-theme='light'] p,
+html[data-theme='light'] .kpi span,
+html[data-theme='light'] .panel-head span,
+html[data-theme='light'] .panel-head em,
+html[data-theme='light'] .identity small,
+html[data-theme='light'] .score-strip i,
+html[data-theme='light'] .progress-pair label,
+html[data-theme='light'] .route-donut span,
+html[data-theme='light'] .priority-item small,
+html[data-theme='light'] .mini-empty,
+html[data-theme='light'] .role-strip span,
+html[data-theme='light'] .soft-empty,
+html[data-theme='light'] .drawer-kpis span,
+html[data-theme='light'] .lab-grid span,
+html[data-theme='light'] .lab-grid small,
+html[data-theme='light'] .target-card span,
+html[data-theme='light'] .closed-loop-grid span,
+html[data-theme='light'] .closed-loop-grid small,
+html[data-theme='light'] .prescription-card span,
+html[data-theme='light'] .prescription-card small,
+html[data-theme='light'] .ai-card__head span,
+html[data-theme='light'] .ai-card p,
+html[data-theme='light'] .ai-text,
+html[data-theme='light'] .ai-advice-list span,
+html[data-theme='light'] .order-list small,
+html[data-theme='light'] .action-list span,
+html[data-theme='light'] .task-list span,
+html[data-theme='light'] .task-list small {
+  color: #64748b;
+}
+html[data-theme='light'] .scope-strip {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: rgba(22, 163, 74, 0.18);
+}
+html[data-theme='light'] .kpi,
+html[data-theme='light'] .patient-panel,
+html[data-theme='light'] .visual-panel,
+html[data-theme='light'] .nutrition-card,
+html[data-theme='light'] .score-strip span,
+html[data-theme='light'] .route-buttons button,
+html[data-theme='light'] .mini-chart,
+html[data-theme='light'] .priority-box,
+html[data-theme='light'] .priority-item,
+html[data-theme='light'] .role-strip button,
+html[data-theme='light'] .soft-empty,
+html[data-theme='light'] .drawer-kpis article,
+html[data-theme='light'] .lab-grid article,
+html[data-theme='light'] .target-card,
+html[data-theme='light'] .closed-loop-grid article,
+html[data-theme='light'] .prescription-card,
+html[data-theme='light'] .prescription-card div,
+html[data-theme='light'] .detail-chart-grid article,
+html[data-theme='light'] .glucose-line,
+html[data-theme='light'] .order-list article,
+html[data-theme='light'] .action-list button,
+html[data-theme='light'] .task-list article,
+html[data-theme='light'] .ai-card,
+html[data-theme='light'] .ai-advice-list article {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(145, 176, 199, 0.32);
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+html[data-theme='light'] .patient-panel,
+html[data-theme='light'] .visual-panel,
+html[data-theme='light'] .nutrition-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.08), transparent 34%),
+    #ffffff;
+}
+html[data-theme='light'] .route-donut {
+  background:
+    radial-gradient(circle, #ffffff 0 55%, transparent 56%),
+    conic-gradient(#22c55e 0 var(--en), #38bdf8 var(--en) calc(var(--en) + var(--pn)), #f59e0b calc(var(--en) + var(--pn)) calc(var(--en) + var(--pn) + var(--mix)), rgba(148,163,184,.28) 0);
+}
+html[data-theme='light'] .chips span,
+html[data-theme='light'] .risk-lights span {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: rgba(22, 163, 74, 0.18);
+}
+html[data-theme='light'] .card-top b,
+html[data-theme='light'] .role-strip b,
+html[data-theme='light'] .chart-head span,
+html[data-theme='light'] .order-list b {
+  color: #16a34a;
+}
+html[data-theme='light'] .card-top b {
+  background: #f0fdf4;
+  border-color: rgba(22, 163, 74, 0.18);
+}
+html[data-theme='light'] meter::-webkit-meter-bar {
+  background: #e2e8f0;
+}
 </style>
