@@ -48,9 +48,23 @@ def _field(row: dict[str, Any], *names: str) -> str:
     return ""
 
 
+def _hour_field(row: dict[str, Any], *names: str) -> str:
+    for name in names:
+        raw = row.get(name)
+        if raw in (None, ""):
+            continue
+        try:
+            hour = int(float(str(raw).strip()))
+        except Exception:
+            continue
+        if 0 <= hour <= 24:
+            return f"{hour % 24:02d}:00"
+    return ""
+
+
 def _normalize_shift(row: dict[str, Any], idx: int) -> dict[str, str] | None:
-    start = _field(row, "startTime", "start_time", "beginTime", "begin", "start")
-    end = _field(row, "endTime", "end_time", "finishTime", "finish", "end")
+    start = _field(row, "startTime", "start_time", "beginTime", "begin", "start") or _hour_field(row, "banCiStartHour", "startHour", "obsStartHour")
+    end = _field(row, "endTime", "end_time", "finishTime", "finish", "end") or _hour_field(row, "banCiEndHour", "endHour", "obsEndHour")
     if not _parse_hm(start) or not _parse_hm(end):
         return None
     code = _field(row, "shiftCode", "code", "banCiCode", "id", "_id") or f"shift_{idx + 1}"
@@ -99,7 +113,7 @@ class ShiftService:
         end_t = _parse_hm(row.get("end_time")) or time(23, 59, 59)
         start = datetime.combine(day, start_t).replace(tzinfo=API_TZ)
         end = datetime.combine(day, end_t).replace(tzinfo=API_TZ)
-        if start_t > end_t:
+        if start_t >= end_t:
             end += timedelta(days=1)
         return start, end
 

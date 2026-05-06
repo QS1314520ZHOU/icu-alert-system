@@ -64,7 +64,7 @@
                 </button>
               </div>
             </div>
-            <div v-if="!beds.length" class="empty small">暂无分管床位。</div>
+            <div v-if="!beds.length" class="empty small">{{ nurseEmptyText }}</div>
           </div>
         </section>
 
@@ -160,6 +160,7 @@ const headBeds = computed(() => home.value?.head_view?.beds || [])
 const heatmap = computed(() => home.value?.head_view?.workload_heatmap || [])
 const headEvents = computed(() => home.value?.head_view?.events || [])
 const headQuality = computed(() => home.value?.head_view?.quality || {})
+const nurseEmptyText = computed(() => home.value?.data_state?.empty_reason || '暂无分管床位。')
 const handoff = ref<any>(null)
 const handoffItems = computed(() => handoff.value?.items || [])
 const handoffStatus = computed(() => handoff.value?.handoff_id ? `已生成 ${handoffItems.value.length} 床 ISBAR 交班单，可在下方编辑确认。` : '下班前 1 小时自动展开，按 ISBAR 结构生成本班交班单。')

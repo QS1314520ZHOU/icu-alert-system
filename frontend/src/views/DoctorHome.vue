@@ -29,7 +29,7 @@
           </div>
           <b>{{ item.risk_score || 0 }}</b>
         </article>
-        <div v-if="!focusPatients.length" class="empty small">暂无重点关注患者。</div>
+        <div v-if="!focusPatients.length" class="empty small">{{ doctorEmptyText }}</div>
       </section>
 
       <section class="panel">
@@ -95,6 +95,7 @@ const userId = computed(() => String(auth.effectiveUserId || '').trim())
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别医生')
 const focusPatients = computed(() => home.value?.focus_patients || [])
 const pendingTasks = computed(() => (home.value?.pending_tasks || []).slice(0, 8))
+const doctorEmptyText = computed(() => home.value?.data_state?.empty_reason || '暂无重点关注患者。')
 const shiftText = computed(() => {
   const s = home.value?.shift
   if (!s) return '班次待配置'

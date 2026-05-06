@@ -76,6 +76,9 @@ class RoleHomeService:
                 {"user_id": uid},
                 {"userName": uid},
                 {"username": uid},
+                {"trueName": uid},
+                {"name": uid},
+                {"realName": uid},
                 {"account": uid},
                 {"loginName": uid},
                 {"工号": uid},
@@ -86,7 +89,8 @@ class RoleHomeService:
             return {"user_id": uid, "userName": uid, "display_name": uid, "role": "doctor", "found": False}
         role = self.adoption._normalize_role(row, "doctor")
         return {
-            "user_id": uid,
+            "user_id": _text(row.get("username") or row.get("userName") or row.get("userId") or uid),
+            "requested_user_id": uid,
             "userName": row.get("userName") or row.get("username") or row.get("account") or uid,
             "trueName": row.get("trueName"),
             "display_name": row.get("trueName") or row.get("name") or row.get("realName") or row.get("userName") or uid,
@@ -95,6 +99,9 @@ class RoleHomeService:
             "dept_code": row.get("deptCode") or row.get("departmentCode"),
             "found": True,
         }
+
+    def _account_patient_user_id(self, account: dict[str, Any], fallback: str) -> str:
+        return _text(account.get("userName") or account.get("user_id") or fallback)
 
     def _patient_alert_keys(self, patient: dict[str, Any]) -> list[Any]:
         keys: list[Any] = []
@@ -207,7 +214,8 @@ class RoleHomeService:
     async def doctor_home(self, user_id: str) -> dict[str, Any]:
         account = await self._account_by_user_id(user_id)
         shift = await self.shift_service.get_current_shift()
-        patients = await self._doctor_patients(user_id)
+        doctor_user_id = self._account_patient_user_id(account, user_id)
+        patients = await self._doctor_patients(doctor_user_id)
         risk_by_patient = await self._latest_integrated_risk(patients)
         focus = []
         for patient in patients:
@@ -249,8 +257,20 @@ class RoleHomeService:
         }
         open_tasks = await self._open_tasks_for_patients([_patient_id(patient) for patient in patients])
         quality = await self.adoption.quality_summary(days=7, dept=account.get("dept"), dept_code=account.get("dept_code"))
+        data_state = {
+            "account_found": bool(account.get("found")),
+            "doctor_user_id": doctor_user_id,
+            "managed_beds": len(patients),
+            "empty_reason": "",
+        }
+        if not account.get("found"):
+            data_state["empty_reason"] = "未在 account 表匹配到当前账号，无法换算为 bedDoctorId。"
+        elif not patients:
+            data_state["empty_reason"] = f"patient 表中暂无 bedDoctorId={doctor_user_id} 的在科患者。"
         return {
             "account": account,
+            "doctor_user_id": doctor_user_id,
+            "data_state": data_state,
             "shift": shift.to_dict() if shift else None,
             "managed_beds": len(patients),
             "focus_patients": focus[:5],
@@ -709,6 +729,12 @@ class RoleHomeService:
         return {
             "account": account,
             "shift": shift.to_dict(),
+            "data_state": {
+                "account_found": bool(account.get("found")),
+                "assigned_beds": len(timeline.get("beds") or []),
+                "pending_handover_beds": len(timeline.get("pending_handover") or []),
+                "empty_reason": "" if timeline.get("beds") else "本班次尚未找到第一条护理记录归属当前护士；护士长视图仍可查看全科。",
+            },
             "beds": timeline.get("beds") or [],
             "pending_handover": timeline.get("pending_handover") or [],
             "workload": workload,
