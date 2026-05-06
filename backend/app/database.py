@@ -4,6 +4,7 @@ ICU智能协同工作台 - 数据库连接管理
 """
 import logging
 from pymongo import AsyncMongoClient
+from pymongo.errors import OperationFailure
 import redis.asyncio as aioredis
 
 logger = logging.getLogger("icu-alert")
@@ -130,6 +131,16 @@ class DatabaseManager:
     async def _create_indexes(self):
         """为预警系统创建必要索引"""
         try:
+            async def ensure_ttl_index(collection, keys, *, name: str, expire_after_seconds: int) -> None:
+                try:
+                    await collection.create_index(keys, name=name, expireAfterSeconds=expire_after_seconds)
+                except OperationFailure as exc:
+                    text = str(exc)
+                    if "IndexOptionsConflict" not in text and "already exists with different options" not in text:
+                        raise
+                    await collection.drop_index(name)
+                    await collection.create_index(keys, name=name, expireAfterSeconds=expire_after_seconds)
+
             # 预警记录索引
             alert_col = self.col("alert_records")
             await alert_col.create_index([("patient_id", 1), ("created_at", -1)])
@@ -234,8 +245,14 @@ class DatabaseManager:
             await self.col("clinical_trials").create_index([("status", 1), ("updated_at", -1)])
             await self.col("clinical_trial_candidates").create_index([("candidate_id", 1)], unique=True)
             await self.col("clinical_trial_candidates").create_index([("patient_id", 1), ("updated_at", -1)])
-            await self.col("scanner_runs").create_index([("scanner_name", 1), ("created_at", -1)])
-            await self.col("scanner_runs").create_index([("created_at", -1)])
+            scanner_runs_col = self.col("scanner_runs")
+            await scanner_runs_col.create_index([("scanner_name", 1), ("created_at", -1)])
+            await ensure_ttl_index(
+                scanner_runs_col,
+                [("created_at", 1)],
+                name="scanner_runs_created_at_ttl_14d",
+                expire_after_seconds=14 * 24 * 3600,
+            )
             await self.col("llm_call_logs").create_index([("created_at", -1)])
             await self.col("llm_call_logs").create_index([("cache_key", 1), ("created_at", -1)])
 
