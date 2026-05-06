@@ -368,6 +368,13 @@ export const saveAiMdtWorkspace = (
   }
 ) => aiApi.post(`/api/ai/mdt-workspace/${patientId}`, payload)
 
+export const postAiMdtDecisionConfirm = (
+  patientId: string,
+  sessionId: string,
+  decisionId: string,
+  payload: { action: 'confirm' | 'reject' | 'revise'; actor?: string; note?: string }
+) => aiApi.post(`/api/ai/mdt-workspace/${patientId}/sessions/${sessionId}/decisions/${decisionId}/confirm`, payload)
+
 export const generateAiDocument = (
   patientId: string,
   payload: { doc_type: 'mdt_summary' | 'daily_progress' | 'consultation_request'; time_range?: { start?: string; end?: string; hours?: number } }

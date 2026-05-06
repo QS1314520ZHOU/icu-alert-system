@@ -67,7 +67,7 @@
             <article class="simple-card simple-card--decisions">
               <div class="simple-card-head">
                 <span>决议闭环</span>
-                <strong>{{ pendingDecisionCount + inProgressDecisionCount }}</strong>
+                <strong>{{ pendingConfirmationCount + pendingDecisionCount + inProgressDecisionCount }}</strong>
               </div>
               <div class="decision-pill-row">
                 <button
@@ -455,8 +455,8 @@
               <div class="decision-command-strip">
                 <div>
                   <div class="section-kicker">执行闭环</div>
-                  <strong>{{ pendingDecisionCount + inProgressDecisionCount }} 项仍需推进</strong>
-                  <span>{{ completedDecisionCount }} 项已完成，{{ dismissedDecisionCount }} 项已取消</span>
+                  <strong>{{ pendingConfirmationCount }} 项需医生确认</strong>
+                  <span>{{ pendingDecisionCount + inProgressDecisionCount }} 项确认后推进，{{ completedDecisionCount }} 项已完成</span>
                 </div>
                 <div class="decision-command-actions">
                   <a-button size="small" :disabled="isSessionClosed || !decisionRows.length" @click="fillDecisionDefaults">补全字段</a-button>
@@ -466,7 +466,11 @@
               </div>
               <div class="decision-summary-row">
                 <div class="sheet-item">
-                  <span>待执行</span>
+                  <span>待医生确认</span>
+                  <strong>{{ pendingConfirmationCount }}</strong>
+                </div>
+                <div class="sheet-item">
+                  <span>确认后待执行</span>
                   <strong>{{ pendingDecisionCount }}</strong>
                 </div>
                 <div class="sheet-item">
@@ -488,14 +492,14 @@
                 <a-button size="small" type="primary" :disabled="isSessionClosed" @click="setPhase('finalizing')">裁决定稿</a-button>
                 <label class="inline-toggle">
                   <input v-model="decisionOpenOnly" type="checkbox">
-                  <span>只看待执行</span>
+                  <span>只看未闭环</span>
                 </label>
               </div>
               <div class="decision-list decision-list--guided">
                 <article v-for="(item, idx) in guidedDecisionRows" :key="item.id || `guided-decision-${idx}`" class="decision-item">
                   <div class="decision-item__head">
                     <strong>决议 {{ Number(idx) + 1 }}</strong>
-                    <span>{{ ({ pending: '待执行', in_progress: '进行中', completed: '已完成', dismissed: '已取消', draft: '草稿' } as Record<string, string>)[String(item.status || 'pending').toLowerCase()] || '待执行' }}</span>
+                    <span>{{ decisionStatusLabel(item.status) }}</span>
                   </div>
                   <div class="decision-form">
                     <input v-model="item.action" class="field-input" :disabled="isSessionClosed" placeholder="输入 MDT 决议动作" />
@@ -504,15 +508,24 @@
                       <input v-model="item.deadline" class="field-input" :disabled="isSessionClosed" placeholder="执行时限" />
                       <input v-model="item.monitoring" class="field-input" :disabled="isSessionClosed" placeholder="监测指标" />
                       <select v-model="item.status" class="panel-select" :disabled="isSessionClosed">
-                        <option value="pending">待执行</option>
+                        <option value="pending_confirmation">待医生确认</option>
+                        <option value="doctor_confirmed">医生已确认</option>
+                        <option value="pending">确认后待执行</option>
                         <option value="in_progress">进行中</option>
                         <option value="completed">已完成</option>
+                        <option value="rejected">医生不采纳</option>
+                        <option value="needs_revision">需修改</option>
                         <option value="dismissed">已取消</option>
                       </select>
                     </div>
+                    <div v-if="item.requires_confirmation !== false" class="decision-safety">
+                      AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。
+                    </div>
                   </div>
                   <div class="decision-item__meta">
-                    <button type="button" class="mini-link" :disabled="isSessionClosed" @click="markDecisionStatus(item.id, 'completed')">标记完成</button>
+                    <button v-if="needsDoctorConfirmation(item)" type="button" class="mini-link" :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)" @click="confirmDecision(item, 'confirm')">医生确认</button>
+                    <button v-if="needsDoctorConfirmation(item)" type="button" class="mini-link" :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)" @click="confirmDecision(item, 'reject')">不采纳</button>
+                    <button v-if="!needsDoctorConfirmation(item)" type="button" class="mini-link" :disabled="isSessionClosed" @click="markDecisionStatus(item.id, 'completed')">标记完成</button>
                     <button type="button" class="mini-link" :disabled="isSessionClosed" @click="removeDecision(item.id)">删除</button>
                   </div>
                 </article>
@@ -834,8 +847,8 @@
             <div class="decision-command-strip">
               <div>
                 <div class="section-kicker">执行驾驶舱</div>
-                <strong>{{ pendingDecisionCount + inProgressDecisionCount }} 项仍需推进</strong>
-                <span>{{ completedDecisionCount }} 项已闭环，{{ dismissedDecisionCount }} 项已取消</span>
+              <strong>{{ pendingConfirmationCount }} 项需医生确认</strong>
+                <span>{{ pendingDecisionCount + inProgressDecisionCount }} 项确认后推进，{{ completedDecisionCount }} 项已闭环</span>
               </div>
               <div class="decision-command-actions">
                 <a-button size="small" :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
@@ -845,7 +858,11 @@
             </div>
             <div class="decision-summary-row">
               <div class="sheet-item">
-                <span>待执行</span>
+                <span>待医生确认</span>
+                <strong>{{ pendingConfirmationCount }}</strong>
+              </div>
+              <div class="sheet-item">
+                <span>确认后待执行</span>
                 <strong>{{ pendingDecisionCount }}</strong>
               </div>
               <div class="sheet-item">
@@ -867,7 +884,7 @@
               <a-button size="small" type="primary" :disabled="isSessionClosed" @click="setPhase('finalizing')">裁决定稿</a-button>
               <label class="inline-toggle">
                 <input v-model="decisionOpenOnly" type="checkbox">
-                <span>只看待执行</span>
+                <span>只看未闭环</span>
               </label>
             </div>
             <div class="workspace-actions workspace-actions--top workspace-actions--sidebar">
@@ -876,7 +893,7 @@
                 <option v-for="item in decisionOwnerOptions" :key="item" :value="item">{{ item }}</option>
               </select>
               <div class="decision-batch-actions">
-                <a-button size="small" :disabled="isSessionClosed" @click="markVisibleDecisions('in_progress')">批量进行中</a-button>
+                <a-button size="small" :disabled="isSessionClosed || !currentSessionId" @click="markVisibleDecisions('doctor_confirmed')">批量确认</a-button>
                 <a-button size="small" type="primary" :disabled="isSessionClosed" @click="markVisibleDecisions('completed')">批量完成</a-button>
               </div>
             </div>
@@ -900,18 +917,43 @@
                         <input v-model="item.monitoring" class="field-input" :disabled="isSessionClosed" placeholder="监测指标" />
                         <input v-model="item.review_time" class="field-input" :disabled="isSessionClosed" placeholder="复评时间" />
                         <select v-model="item.status" class="panel-select" :disabled="isSessionClosed">
-                          <option value="pending">待执行</option>
+                          <option value="pending_confirmation">待医生确认</option>
+                          <option value="doctor_confirmed">医生已确认</option>
+                          <option value="pending">确认后待执行</option>
                           <option value="in_progress">进行中</option>
                           <option value="completed">已完成</option>
+                          <option value="rejected">医生不采纳</option>
+                          <option value="needs_revision">需修改</option>
                           <option value="dismissed">已取消</option>
                         </select>
+                      </div>
+                      <div v-if="item.requires_confirmation !== false" class="decision-safety">
+                        AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。
                       </div>
                       <textarea v-model="item.note" class="field-textarea" :disabled="isSessionClosed" rows="2" placeholder="补充说明 / 平衡方案"></textarea>
                     </div>
                     <div class="decision-item__meta">
-                      <span>状态：{{ ({ pending: '待执行', in_progress: '进行中', completed: '已完成', dismissed: '已取消', draft: '草稿' } as Record<string, string>)[String(item.status || 'pending').toLowerCase()] || '待执行' }}</span>
+                      <span>状态：{{ decisionStatusLabel(item.status) }}</span>
                       <button
-                        v-if="String(item.status || 'pending') !== 'completed'"
+                        v-if="needsDoctorConfirmation(item)"
+                        type="button"
+                        class="mini-link"
+                        :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)"
+                        @click="confirmDecision(item, 'confirm')"
+                      >
+                        医生确认
+                      </button>
+                      <button
+                        v-if="needsDoctorConfirmation(item)"
+                        type="button"
+                        class="mini-link"
+                        :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)"
+                        @click="confirmDecision(item, 'reject')"
+                      >
+                        不采纳
+                      </button>
+                      <button
+                        v-if="!needsDoctorConfirmation(item) && String(item.status || 'pending') !== 'completed'"
                         type="button"
                         class="mini-link"
                         :disabled="isSessionClosed"
@@ -920,11 +962,11 @@
                         标记完成
                     </button>
                     <button
-                        v-else
+                        v-else-if="!needsDoctorConfirmation(item)"
                         type="button"
                         class="mini-link"
                         :disabled="isSessionClosed"
-                        @click="markDecisionStatus(item.id, 'pending')"
+                        @click="markDecisionStatus(item.id, 'doctor_confirmed')"
                       >
                         重新打开
                       </button>
@@ -1019,10 +1061,12 @@ import {
   getPatientVitalsTrend,
   getPatients,
   listAiMdtWorkspaceSessions,
+  postAiMdtDecisionConfirm,
   saveAiMdtWorkspace,
 } from '../api'
 import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
 import { formatBeijingTime } from '../utils/time'
+import { getOperatorIdentity } from '../utils/operatorIdentity'
 import { BODY_MAP_ORGAN_LABELS, bodyMapSeverityText, type BodyMapOrganKey, type BodyMapSeverity } from '../utils/bodyMap'
 
 const router = useRouter()
@@ -1062,6 +1106,7 @@ const decisionOwnerFilter = ref('')
 const lastSavedSnapshot = ref('')
 const selectedTemplateKey = ref('')
 const activityLog = ref<any[]>([])
+const confirmingDecisionIds = ref<Set<string>>(new Set())
 
 const sessionTemplates = [
   {
@@ -1351,30 +1396,35 @@ const decisionRows = computed(() => decisions.value.length ? decisions.value : [
   deadline: '6h',
   monitoring: '按系统指标复评',
   review_time: '6h',
-  status: 'pending',
+  status: 'pending_confirmation',
   note: '',
+  requires_confirmation: true,
+  confirmation_status: 'pending',
 }])
-const pendingDecisionCount = computed(() => decisionRows.value.filter((item: any) => String(item.status || 'pending') === 'pending').length)
+const pendingConfirmationCount = computed(() => decisionRows.value.filter((item: any) => needsDoctorConfirmation(item)).length)
+const pendingDecisionCount = computed(() => decisionRows.value.filter((item: any) => ['doctor_confirmed', 'pending'].includes(String(item.status || '').toLowerCase())).length)
 const inProgressDecisionCount = computed(() => decisionRows.value.filter((item: any) => String(item.status || '') === 'in_progress').length)
 const completedDecisionCount = computed(() => decisionRows.value.filter((item: any) => String(item.status || '') === 'completed').length)
-const dismissedDecisionCount = computed(() => decisionRows.value.filter((item: any) => String(item.status || '') === 'dismissed').length)
+const dismissedDecisionCount = computed(() => decisionRows.value.filter((item: any) => ['dismissed', 'rejected'].includes(String(item.status || '').toLowerCase())).length)
 const decisionOwnerOptions = computed(() => Array.from(new Set(decisionRows.value.map((item: any) => String(item.owner || '').trim()).filter(Boolean))))
 const decisionBuckets = computed(() => {
   const owner = decisionOwnerFilter.value.trim()
   const sourceRows = decisionOpenOnly.value
-    ? decisionRows.value.filter((item: any) => String(item.status || 'pending') === 'pending')
+    ? decisionRows.value.filter((item: any) => !['completed', 'dismissed', 'rejected'].includes(String(item.status || 'pending_confirmation').toLowerCase()))
     : decisionRows.value
   const rows = owner ? sourceRows.filter((item: any) => String(item.owner || '').trim() === owner) : sourceRows
   return [
-    { key: 'pending', label: '待执行', items: rows.filter((item: any) => String(item.status || 'pending') === 'pending') },
+    { key: 'pending_confirmation', label: '待医生确认', items: rows.filter((item: any) => needsDoctorConfirmation(item)) },
+    { key: 'doctor_confirmed', label: '确认后待执行', items: rows.filter((item: any) => ['doctor_confirmed', 'pending'].includes(String(item.status || '').toLowerCase())) },
     { key: 'in_progress', label: '进行中', items: rows.filter((item: any) => String(item.status || '') === 'in_progress') },
     { key: 'completed', label: '已完成', items: rows.filter((item: any) => String(item.status || '') === 'completed') },
-    { key: 'dismissed', label: '已取消', items: rows.filter((item: any) => String(item.status || '') === 'dismissed') },
+    { key: 'dismissed', label: '已取消/不采纳', items: rows.filter((item: any) => ['dismissed', 'rejected'].includes(String(item.status || '').toLowerCase())) },
+    { key: 'needs_revision', label: '需修改', items: rows.filter((item: any) => String(item.status || '') === 'needs_revision') },
   ].filter((bucket) => bucket.items.length > 0 || !decisionOpenOnly.value)
 })
 const guidedDecisionRows = computed(() => {
   const rows = decisionOpenOnly.value
-    ? decisionRows.value.filter((item: any) => ['pending', 'in_progress'].includes(String(item.status || 'pending')))
+    ? decisionRows.value.filter((item: any) => !['completed', 'dismissed', 'rejected'].includes(String(item.status || 'pending_confirmation').toLowerCase()))
     : decisionRows.value
   return rows.slice(0, 6)
 })
@@ -1504,8 +1554,8 @@ const autoSessionSummary = computed(() => {
   if (metaSummary.value) parts.push(`总控结论：${metaSummary.value}`)
   if (conflictRows.value.length) parts.push(`冲突焦点：${conflictRows.value.map((item: any) => item.summary || '跨专科冲突').slice(0, 2).join('；')}`)
   if (metaActions.value.length) parts.push(`关键动作：${metaActions.value.slice(0, 3).join('；')}`)
-  if (pendingDecisionCount.value || inProgressDecisionCount.value || completedDecisionCount.value) {
-    parts.push(`执行概况：待执行${pendingDecisionCount.value}，进行中${inProgressDecisionCount.value}，已完成${completedDecisionCount.value}`)
+  if (pendingConfirmationCount.value || pendingDecisionCount.value || inProgressDecisionCount.value || completedDecisionCount.value) {
+    parts.push(`执行概况：待医生确认${pendingConfirmationCount.value}，确认后待执行${pendingDecisionCount.value}，进行中${inProgressDecisionCount.value}，已完成${completedDecisionCount.value}`)
   }
   return parts.join('\n')
 })
@@ -1529,7 +1579,7 @@ const todoRows = computed(() =>
 const currentWorkflowStep = computed(() => {
   if (!selectedPatientId.value) return 'patient'
   if (isGeneratingAssessment.value || (!conflictRows.value.length && !metaActions.value.length && !decisions.value.length)) return 'review'
-  if (pendingDecisionCount.value || inProgressDecisionCount.value) return 'decision'
+  if (pendingConfirmationCount.value || pendingDecisionCount.value || inProgressDecisionCount.value) return 'decision'
   return 'archive'
 })
 const workflowSteps = computed(() => [
@@ -1551,7 +1601,7 @@ const workflowSteps = computed(() => [
     key: 'decision',
     index: '03',
     title: '形成决议',
-    desc: decisionRows.value.length ? `${decisionRows.value.length} 条决议，${pendingDecisionCount.value + inProgressDecisionCount.value} 条待推进` : '同步 AI 动作或新增决议',
+    desc: decisionRows.value.length ? `${decisionRows.value.length} 条建议，${pendingConfirmationCount.value} 条需医生确认` : '同步 AI 动作或新增决议',
     done: Boolean(decisionRows.value.length && completedDecisionCount.value === decisionRows.value.length),
   },
   {
@@ -1566,24 +1616,27 @@ const primaryGuidanceTitle = computed(() => {
   if (!selectedPatientId.value) return '先选患者，页面会自动收敛到这次 MDT'
   if (isGeneratingAssessment.value) return '正在生成会诊，先等总控智能体汇总'
   if (conflictRows.value.length) return '先裁决冲突，再下执行动作'
-  if (pendingDecisionCount.value || inProgressDecisionCount.value) return '现在重点是把决议闭环'
+  if (pendingConfirmationCount.value) return '先由医生确认 AI 决议草案'
+  if (pendingDecisionCount.value || inProgressDecisionCount.value) return '现在重点是把已确认决议闭环'
   return '会诊基本闭环，可以生成文书归档'
 })
 const primaryGuidanceText = computed(() => {
   if (!selectedPatientId.value) return '左侧选择患者后，系统会自动拉取专科意见、冲突焦点和历史会话，避免医生先面对一整屏空信息。'
   if (isGeneratingAssessment.value) return '请稍候，生成完成后优先看“总控结论”和“冲突焦点”，不用在所有模块里来回找。'
   if (conflictRows.value.length) return `当前有 ${conflictRows.value.length} 个跨专科冲突，建议先确认主持人裁决，再同步为执行决议。`
-  if (pendingDecisionCount.value || inProgressDecisionCount.value) return `还有 ${pendingDecisionCount.value + inProgressDecisionCount.value} 条决议未闭环，优先明确负责人、时限和监测指标。`
+  if (pendingConfirmationCount.value) return `还有 ${pendingConfirmationCount.value} 条 AI 建议草案未由医生确认，确认前不能作为医嘱或执行任务。`
+  if (pendingDecisionCount.value || inProgressDecisionCount.value) return `还有 ${pendingDecisionCount.value + inProgressDecisionCount.value} 条已确认决议未闭环，优先明确负责人、时限和监测指标。`
   return '决议已基本完成，建议生成会诊记录和病程记录，并保存或关闭当前会话。'
 })
 const closureTone = computed(() => {
-  if (pendingDecisionCount.value > 0) return 'warning'
+  if (pendingConfirmationCount.value > 0 || pendingDecisionCount.value > 0) return 'warning'
   if (completedDecisionCount.value > 0 && completedDecisionCount.value === decisionRows.value.length) return 'soft'
   return 'soft'
 })
 const closureLabel = computed(() => {
   const total = decisionRows.value.length
   if (!total) return '未生成决议'
+  if (pendingConfirmationCount.value) return `待确认 ${pendingConfirmationCount.value}/${total}`
   if (completedDecisionCount.value === total) return `已闭环 ${completedDecisionCount.value}/${total}`
   return `进行中 ${completedDecisionCount.value}/${total}`
 })
@@ -1681,7 +1734,45 @@ function sessionCompletionRate(session: any) {
 }
 
 function decisionStatusLabel(status: any) {
-  return ({ pending: '待执行', in_progress: '进行中', completed: '已完成', dismissed: '已取消', draft: '草稿' } as Record<string, string>)[String(status || 'pending').toLowerCase()] || '待执行'
+  return ({
+    pending_confirmation: '待医生确认',
+    doctor_confirmed: '医生已确认',
+    pending: '确认后待执行',
+    in_progress: '进行中',
+    completed: '已完成',
+    rejected: '医生不采纳',
+    needs_revision: '需修改',
+    dismissed: '已取消',
+    draft: '草稿',
+  } as Record<string, string>)[String(status || 'pending_confirmation').toLowerCase()] || '待医生确认'
+}
+
+function normalizeDecision(item: any, idx = 0) {
+  const row = { ...(item || {}) }
+  let status = String(row.status || '').trim().toLowerCase()
+  if (['pending', 'in_progress', 'completed'].includes(status) && !row.confirmed_at) status = 'pending_confirmation'
+  if (!status) status = 'pending_confirmation'
+  return {
+    ...row,
+    id: row.id || `decision-${Date.now()}-${idx}`,
+    status,
+    owner: String(row.owner || '').trim() || '值班医生',
+    deadline: String(row.deadline || '').trim() || (idx === 0 ? '立即' : '6h'),
+    monitoring: String(row.monitoring || '').trim() || '按系统指标复评',
+    review_time: String(row.review_time || '').trim() || '6h',
+    requires_confirmation: row.requires_confirmation === false ? false : true,
+    confirmation_status: row.confirmation_status || (row.confirmed_at ? 'confirmed' : 'pending'),
+    safety_notice: row.safety_notice || 'AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。',
+  }
+}
+
+function normalizeDecisionList(rows: any[]) {
+  return (Array.isArray(rows) ? rows : []).map((item, idx) => normalizeDecision(item, idx)).filter((item) => String(item.action || '').trim())
+}
+
+function needsDoctorConfirmation(item: any) {
+  const status = String(item?.status || 'pending_confirmation').toLowerCase()
+  return item?.requires_confirmation !== false || ['pending_confirmation', 'needs_revision'].includes(status)
 }
 
 function templateLabel(key: any) {
@@ -1707,8 +1798,10 @@ function buildTemplateDecisions(template: typeof sessionTemplates[number]) {
     deadline: item.deadline,
     monitoring: item.monitoring,
     review_time: item.review_time,
-    status: 'pending',
+    status: 'pending_confirmation',
     note: '',
+    requires_confirmation: true,
+    confirmation_status: 'pending',
   }))
 }
 
@@ -1760,7 +1853,7 @@ async function loadWorkspaceExtras(patientId: string) {
   selectedTemplateKey.value = String(workspaceRecord.value?.template_name || '')
   systemPanels.value = systemPanelsRes.data?.panels || {}
   decisions.value = Array.isArray(workspaceRecord.value?.decisions) && workspaceRecord.value.decisions.length
-    ? workspaceRecord.value.decisions
+    ? normalizeDecisionList(workspaceRecord.value.decisions)
     : metaActions.value.slice(0, 4).map((item: string, idx: number) => ({
         id: `decision-${idx + 1}`,
         action: item,
@@ -1768,8 +1861,10 @@ async function loadWorkspaceExtras(patientId: string) {
         deadline: idx === 0 ? '立即' : '6h',
         monitoring: '按系统指标复评',
         review_time: '6h',
-        status: 'pending',
+        status: 'pending_confirmation',
         note: '',
+        requires_confirmation: true,
+        confirmation_status: 'pending',
       }))
   consultRecord.value = String(workspaceRecord.value?.consult_record || '')
   progressRecord.value = String(workspaceRecord.value?.progress_record || '')
@@ -1813,16 +1908,16 @@ async function loadAssessment(refresh = false) {
     activeAgent.value = specialistRows.value[0]?.agent || ''
     await extrasPromise
     if (!decisions.value.length && metaActions.value.length) {
-      decisions.value = metaActions.value.slice(0, 4).map((item: string, idx: number) => ({
+      decisions.value = metaActions.value.slice(0, 4).map((item: string, idx: number) => normalizeDecision({
         id: `decision-${idx + 1}`,
         action: item,
         owner: '值班医生',
         deadline: idx === 0 ? '立即' : '6h',
         monitoring: '按系统指标复评',
         review_time: '6h',
-        status: 'pending',
+        status: 'pending_confirmation',
         note: '',
-      }))
+      }, idx))
     }
   } catch {
     if (loadToken !== currentLoadToken.value) return
@@ -1902,11 +1997,13 @@ function addDecision() {
       deadline: '6h',
       monitoring: '按系统指标复评',
       review_time: '6h',
-      status: 'pending',
+      status: 'pending_confirmation',
       note: '',
+      requires_confirmation: true,
+      confirmation_status: 'pending',
     },
   ]
-  appendActivityLog('新增决议', '已新增 1 条待执行决议')
+  appendActivityLog('新增决议', '已新增 1 条待医生确认的建议草案')
 }
 
 function removeDecision(id: string) {
@@ -1915,11 +2012,15 @@ function removeDecision(id: string) {
   appendActivityLog('删除决议', hit?.action || '已删除 1 条决议')
 }
 
-function markDecisionStatus(id: string, status: 'pending' | 'completed') {
+function markDecisionStatus(id: string, status: 'pending_confirmation' | 'doctor_confirmed' | 'pending' | 'in_progress' | 'completed' | 'dismissed' | 'rejected' | 'needs_revision') {
   let action = ''
   decisions.value = decisions.value.map((item: any) => {
     if (item.id === id) {
       action = item.action || ''
+      if (['in_progress', 'completed'].includes(status) && needsDoctorConfirmation(item)) {
+        message.warning('该 AI 建议尚未由医生确认，不能直接进入执行状态')
+        return item
+      }
       return { ...item, status }
     }
     return item
@@ -1935,16 +2036,54 @@ function markDecisionDone(row: any) {
   const id = row?.id
   if (!id) return
   if (!decisions.value.length) fillDecisionDefaults()
+  if (needsDoctorConfirmation(row)) {
+    message.warning('请先完成医生确认，确认后才能标记完成')
+    return
+  }
   markDecisionStatus(id, 'completed')
   message.success('决议已闭环')
 }
 
-function markVisibleDecisions(status: 'in_progress' | 'completed') {
+async function confirmDecision(row: any, action: 'confirm' | 'reject' | 'revise' = 'confirm') {
+  if (!selectedPatientId.value || !currentSessionId.value || !row?.id) {
+    message.warning('请先保存 MDT 会话，再进行医生确认')
+    return
+  }
+  const actor = getOperatorIdentity() || 'doctor'
+  const id = String(row.id)
+  confirmingDecisionIds.value = new Set([...confirmingDecisionIds.value, id])
+  try {
+    const res = await postAiMdtDecisionConfirm(selectedPatientId.value, currentSessionId.value, id, {
+      action,
+      actor,
+      note: row.note || '',
+    })
+    if (Number(res.data?.code) !== 0) throw new Error(res.data?.message || '确认失败')
+    const next = res.data?.decision || {}
+    decisions.value = decisions.value.map((item: any) => item.id === id ? normalizeDecision({ ...item, ...next }, 0) : item)
+    appendActivityLog(action === 'confirm' ? '医生确认 AI 决议' : '医生反馈 AI 决议', `${row.action || '决议'} -> ${decisionStatusLabel(next.status)}`)
+    message.success(action === 'confirm' ? '医生已确认，可进入执行追踪' : '已记录医生反馈')
+  } catch (err: any) {
+    message.error(err?.message || '确认失败')
+  } finally {
+    const nextSet = new Set(confirmingDecisionIds.value)
+    nextSet.delete(id)
+    confirmingDecisionIds.value = nextSet
+  }
+}
+
+async function markVisibleDecisions(status: 'doctor_confirmed' | 'in_progress' | 'completed') {
   const ids = new Set(
     decisionBuckets.value.flatMap((bucket: any) => (bucket.items || []).map((item: any) => item.id))
   )
+  if (status === 'doctor_confirmed') {
+    for (const row of decisionRows.value.filter((item: any) => ids.has(item.id) && needsDoctorConfirmation(item))) {
+      await confirmDecision(row, 'confirm')
+    }
+    return
+  }
   decisions.value = decisions.value.map((item: any) =>
-    ids.has(item.id) ? { ...item, status } : item
+    ids.has(item.id) && !needsDoctorConfirmation(item) ? { ...item, status } : item
   )
   appendActivityLog('批量推进决议', `已将 ${ids.size} 条可见决议更新为${decisionStatusLabel(status)}`)
 }
@@ -1968,8 +2107,10 @@ function syncDecisionsFromMetaActions() {
       deadline: idx === 0 ? '立即' : '6h',
       monitoring: '按系统指标复评',
       review_time: '6h',
-      status: 'pending',
-      note: '由总控智能体动作同步',
+      status: 'pending_confirmation',
+      note: '由总控智能体动作同步，需医生确认后才能执行',
+      requires_confirmation: true,
+      confirmation_status: 'pending',
     }))
   if (!additions.length) {
     message.info('AI 动作已全部在决议列表中，无需重复同步')
@@ -1989,7 +2130,9 @@ function fillDecisionDefaults() {
     deadline: String(item.deadline || '').trim() || (idx === 0 ? '立即' : '6h'),
     monitoring: String(item.monitoring || '').trim() || '按系统指标复评',
     review_time: String(item.review_time || '').trim() || '6h',
-    status: String(item.status || '').trim() || 'pending',
+    status: String(item.status || '').trim() || 'pending_confirmation',
+    requires_confirmation: item.requires_confirmation === false ? false : true,
+    confirmation_status: item.confirmation_status || (item.confirmed_at ? 'confirmed' : 'pending'),
   }))
   appendActivityLog('补全决议字段', '已补全负责人、时限、监测指标与复评时间')
 }
@@ -2013,7 +2156,7 @@ async function switchSession(sessionId: string) {
   workspaceDocuments.value = Array.isArray(res.data?.documents) ? res.data.documents : []
   generatedOrderDrafts.value = Array.isArray(res.data?.order_drafts) ? res.data.order_drafts : []
   currentSessionId.value = sessionId
-  decisions.value = Array.isArray(workspaceRecord.value?.decisions) ? workspaceRecord.value.decisions : []
+  decisions.value = Array.isArray(workspaceRecord.value?.decisions) ? normalizeDecisionList(workspaceRecord.value.decisions) : []
   consultRecord.value = String(workspaceRecord.value?.consult_record || '')
   progressRecord.value = String(workspaceRecord.value?.progress_record || '')
   finalSummary.value = String(workspaceRecord.value?.final_summary || '')
@@ -2040,16 +2183,16 @@ function startNewSession() {
   if (workspaceDirty.value && !window.confirm('当前 MDT 会话有未保存变更，确认新建会话吗？')) return
   currentSessionId.value = ''
   workspaceRecord.value = { phase: 'collecting' }
-  decisions.value = metaActions.value.slice(0, 4).map((item: string, idx: number) => ({
+  decisions.value = metaActions.value.slice(0, 4).map((item: string, idx: number) => normalizeDecision({
     id: `decision-${idx + 1}`,
     action: item,
     owner: '值班医生',
     deadline: idx === 0 ? '立即' : '6h',
     monitoring: '按系统指标复评',
     review_time: '6h',
-    status: 'pending',
+    status: 'pending_confirmation',
     note: '',
-  }))
+  }, idx))
   consultRecord.value = ''
   progressRecord.value = ''
   finalSummary.value = ''
@@ -2065,7 +2208,7 @@ function duplicateCurrentSession() {
   if (!currentSessionId.value) return
   currentSessionId.value = ''
   workspaceRecord.value = { ...(workspaceRecord.value || {}), phase: 'collecting' }
-  decisions.value = decisions.value.map((item: any, idx: number) => ({ ...item, id: `decision-${Date.now()}-${idx}`, status: item.status === 'completed' ? 'pending' : item.status }))
+  decisions.value = decisions.value.map((item: any, idx: number) => normalizeDecision({ ...item, id: `decision-${Date.now()}-${idx}`, status: 'pending_confirmation', confirmed_at: null, confirmed_by: null, requires_confirmation: true }, idx))
   generatedOrderDrafts.value = generatedOrderDrafts.value.map((item: any, idx: number) => ({ ...item, id: `order-${Date.now()}-${idx}` }))
   finalSummary.value = finalSummary.value || autoSessionSummary.value
   activityLog.value = [
@@ -3569,6 +3712,15 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 10px;
 }
+.decision-safety {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  background: rgba(82, 48, 12, 0.26);
+  color: #ffe9a8;
+  font-size: 12px;
+  line-height: 1.55;
+}
 .decision-form,
 .decision-form__grid,
 .doc-stack,
@@ -3859,6 +4011,11 @@ html[data-theme='light'] .hero-badge--warning {
   background: rgba(254, 243, 199, 0.98);
   border-color: rgba(251, 191, 36, 0.3);
   color: #b45309;
+}
+html[data-theme='light'] .decision-safety {
+  border-color: rgba(217, 119, 6, 0.24);
+  background: #fff7ed;
+  color: #9a3412;
 }
 html[data-theme='light'] .hero-badge--closed,
 html[data-theme='light'] .session-chip--closed {

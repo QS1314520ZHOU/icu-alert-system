@@ -9,6 +9,7 @@ from fastapi import APIRouter, Body, Query
 
 from app import runtime
 from app.config import get_config
+from app.services.ai_confirmation_service import normalize_ai_decision, confirm_mdt_decision
 from app.services.document_generator import ClinicalDocumentGenerator
 from app.utils.serialization import serialize_doc
 
@@ -44,11 +45,18 @@ def _normalize_mdt_decisions(payload: dict | None) -> list[dict]:
                 "deadline": str(item.get("deadline") or "").strip() or "6h",
                 "monitoring": str(item.get("monitoring") or "").strip() or "按系统指标复评",
                 "review_time": str(item.get("review_time") or "").strip() or "6h",
-                "status": str(item.get("status") or "pending").strip() or "pending",
+                "status": str(item.get("status") or "pending_confirmation").strip() or "pending_confirmation",
                 "note": str(item.get("note") or "").strip(),
+                "requires_confirmation": True if item.get("requires_confirmation") is None else bool(item.get("requires_confirmation")),
+                "confirmed_by": item.get("confirmed_by"),
+                "confirmed_at": item.get("confirmed_at"),
+                "confirmation_note": str(item.get("confirmation_note") or "").strip(),
+                "confirmation_status": str(item.get("confirmation_status") or "").strip() or ("confirmed" if item.get("confirmed_at") else "pending"),
+                "safety_notice": str(item.get("safety_notice") or "").strip()
+                or "AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。",
             }
         )
-    return normalized
+    return [normalize_ai_decision(item, idx) for idx, item in enumerate(normalized, start=1)]
 
 
 def _build_order_drafts(*, patient: dict, assessment: dict | None, decisions: list[dict]) -> list[dict]:
@@ -62,9 +70,9 @@ def _build_order_drafts(*, patient: dict, assessment: dict | None, decisions: li
     actions = list(dict.fromkeys([*base_actions, *meta_actions]))[:8]
     drafts = []
     for idx, action in enumerate(actions, start=1):
-        drafts.append({"id": f"order-{idx}", "category": "医嘱建议", "order_text": f"{patient_name}：{action}", "priority": "high" if idx <= 2 else "medium", "status": "draft", "source": "mdt_workspace"})
+        drafts.append({"id": f"order-{idx}", "category": "待审核医嘱建议", "order_text": f"{patient_name}：{action}", "priority": "high" if idx <= 2 else "medium", "status": "doctor_review_required", "source": "mdt_workspace", "requires_confirmation": True})
     if not drafts:
-        drafts.append({"id": "order-1", "category": "医嘱建议", "order_text": f"{patient_name}：等待 MDT 决议后生成待审核医嘱草稿。", "priority": "medium", "status": "draft", "source": "mdt_workspace"})
+        drafts.append({"id": "order-1", "category": "待审核医嘱建议", "order_text": f"{patient_name}：等待 MDT 决议后生成待审核医嘱草稿。", "priority": "medium", "status": "doctor_review_required", "source": "mdt_workspace", "requires_confirmation": True})
     return drafts
 
 
@@ -164,7 +172,9 @@ async def ai_mdt_workspace(patient_id: str, session_id: str | None = Query(None)
     documents_cursor = runtime.db.col("score").find({"patient_id": str(pid), "score_type": "clinical_document", "doc_type": {"$in": ["mdt_summary", "daily_progress", "consultation_request"]}}).sort("updated_at", -1).limit(20)
     documents = [serialize_doc(doc) async for doc in documents_cursor]
     assessment = await runtime.db.col("score").find_one({"patient_id": str(pid), "score_type": "multi_agent_mdt_assessment"}, sort=[("calc_time", -1)])
-    decisions = workspace.get("decisions") if isinstance(workspace, dict) and isinstance(workspace.get("decisions"), list) else []
+    decisions = [normalize_ai_decision(item, idx) for idx, item in enumerate(workspace.get("decisions") if isinstance(workspace, dict) and isinstance(workspace.get("decisions"), list) else [], start=1)]
+    if isinstance(workspace, dict):
+        workspace = {**workspace, "decisions": decisions}
     order_drafts = workspace.get("order_drafts") if isinstance(workspace, dict) and isinstance(workspace.get("order_drafts"), list) else []
     if not order_drafts:
         order_drafts = _build_order_drafts(patient=patient, assessment=assessment, decisions=decisions)
@@ -217,7 +227,7 @@ async def ai_save_mdt_workspace(patient_id: str, payload: dict = Body(default={}
         order_text = str(item.get("order_text") or item.get("text") or "").strip()
         if not order_text:
             continue
-        normalized_orders.append({"id": str(item.get("id") or f"order-{idx}"), "category": str(item.get("category") or "医嘱建议").strip(), "order_text": order_text, "priority": str(item.get("priority") or "medium").strip(), "status": str(item.get("status") or "draft").strip(), "source": str(item.get("source") or "mdt_workspace").strip()})
+        normalized_orders.append({"id": str(item.get("id") or f"order-{idx}"), "category": str(item.get("category") or "待审核医嘱建议").strip(), "order_text": order_text, "priority": str(item.get("priority") or "medium").strip(), "status": str(item.get("status") or "doctor_review_required").strip(), "source": str(item.get("source") or "mdt_workspace").strip(), "requires_confirmation": True if item.get("requires_confirmation") is None else bool(item.get("requires_confirmation"))})
     if not normalized_orders:
         normalized_orders = _build_order_drafts(patient=patient, assessment=assessment, decisions=decisions)
 
@@ -254,3 +264,26 @@ async def ai_save_mdt_workspace(patient_id: str, payload: dict = Body(default={}
         insert_res = await runtime.db.col("score").insert_one(record)
         record["_id"] = insert_res.inserted_id
     return {"code": 0, "workspace": serialize_doc(record)}
+
+
+@router.post("/api/ai/mdt-workspace/{patient_id}/sessions/{session_id}/decisions/{decision_id}/confirm")
+async def ai_confirm_mdt_decision(patient_id: str, session_id: str, decision_id: str, payload: dict = Body(default={})):
+    try:
+        ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    try:
+        decision = await confirm_mdt_decision(
+            runtime.db,
+            patient_id=patient_id,
+            session_id=session_id,
+            decision_id=decision_id,
+            action=str((payload or {}).get("action") or "confirm"),
+            actor=str((payload or {}).get("actor") or "doctor"),
+            note=str((payload or {}).get("note") or ""),
+        )
+    except ValueError as exc:
+        return {"code": 400, "message": str(exc)}
+    if not decision:
+        return {"code": 404, "message": "未找到待确认的 MDT 决议"}
+    return {"code": 0, "decision": serialize_doc(decision)}
