@@ -5,6 +5,24 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'home',
+      component: () => import('../views/HomeRedirect.vue'),
+      meta: { title: '角色首页' }
+    },
+    {
+      path: '/doctor-home',
+      name: 'doctor-home',
+      component: () => import('../views/DoctorHome.vue'),
+      meta: { title: '医生首页' }
+    },
+    {
+      path: '/nurse-home',
+      name: 'nurse-home',
+      component: () => import('../views/NurseHome.vue'),
+      meta: { title: '护士首页' }
+    },
+    {
+      path: '/patients',
       name: 'overview',
       component: () => import('../views/PatientOverview.vue'),
       meta: { title: '患者总览' }

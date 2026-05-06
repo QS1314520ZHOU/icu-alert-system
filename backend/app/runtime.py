@@ -23,6 +23,8 @@ ai_monitor: AiMonitor | None = None
 ai_rag_service: RagService | None = None
 ai_watching_service: AiWatchingService | None = None
 pulse_service: PulseService | None = None
+shift_config: dict | None = None
+shift_config_loaded_at = None
 
 
 def set_runtime(

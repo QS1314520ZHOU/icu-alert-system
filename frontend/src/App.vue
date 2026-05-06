@@ -83,6 +83,8 @@ let t: any
 const THEME_KEY = 'icu_theme_mode'
 let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> | null = null
 const navItems = [
+  { key: 'doctor-home', lines: ['医生', '首页'] },
+  { key: 'nurse-home', lines: ['护士', '首页'] },
   { key: 'clinical-workflow', lines: ['临床', '工作台'] },
   { key: 'overview', lines: ['患者', '总览'] },
   { key: 'analytics', lines: ['质控', '分析'] },
@@ -102,6 +104,8 @@ const navItems = [
 ]
 
 const navKey = computed(() => {
+  if (route.path.startsWith('/doctor-home')) return 'doctor-home'
+  if (route.path.startsWith('/nurse-home')) return 'nurse-home'
   if (route.path.startsWith('/clinical-workflow')) return 'clinical-workflow'
   if (route.path.startsWith('/bigscreen')) return 'bigscreen'
   if (route.path.startsWith('/analytics')) return 'analytics'
@@ -165,8 +169,10 @@ const themeWrapperProps = computed(() =>
 
 function onNav(key: string) {
   const pathMap: Record<string, string> = {
+    'doctor-home': '/doctor-home',
+    'nurse-home': '/nurse-home',
     'clinical-workflow': '/clinical-workflow',
-    overview: '/',
+    overview: '/patients',
     analytics: '/analytics',
     'rounding-sheet': '/rounding-sheet',
     'respiratory-dashboard': '/respiratory-dashboard',

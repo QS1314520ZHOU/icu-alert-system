@@ -25,6 +25,7 @@ from app.routers.ai import router as ai_router
 from app.routers.alerts import router as alerts_router
 from app.routers.analytics import router as analytics_router
 from app.routers.followup import router as followup_router
+from app.routers.home import router as home_router
 from app.routers.knowledge import router as knowledge_router
 from app.routers.patient_data import router as patient_data_router
 from app.routers.patients import router as patients_router
@@ -163,6 +164,12 @@ async def lifespan(application: FastAPI):
     application.state.ai_rag_service = ai_rag_service
     application.state.ai_watching_service = ai_watching_service
     application.state.pulse_service = pulse_service
+    try:
+        from app.services.shift_service import ShiftService
+
+        await ShiftService(db).refresh_cache()
+    except Exception as exc:
+        logger.warning("班次配置加载失败（非致命）: %s", exc)
 
     if pulse_service.is_enabled():
         pulse_task = asyncio.create_task(pulse_service.run_loop(), name="pulse-service-loop")
@@ -224,6 +231,7 @@ app.include_router(patient_data_router)
 app.include_router(alerts_router)
 app.include_router(analytics_router)
 app.include_router(followup_router)
+app.include_router(home_router)
 app.include_router(rounding_router)
 app.include_router(respiratory_router)
 app.include_router(nutrition_router)

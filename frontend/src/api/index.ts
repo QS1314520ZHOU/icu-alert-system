@@ -160,6 +160,30 @@ export const getClinicalPatientHandoff = (patientId: string, params?: { role?: s
 export const getClinicalQualitySummary = (params?: { days?: number; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/clinical-workflow/quality-summary', { params })
 
+export const getDoctorHome = (params: { user_id: string }) =>
+  analyticsApi.get('/api/home/doctor', { params })
+
+export const getNurseHome = (params: { user_id: string; shift_code?: string; view?: string }) =>
+  analyticsApi.get('/api/home/nurse', { params })
+
+export const getNurseTimeline = (params: { user_id: string; shift_code?: string }) =>
+  analyticsApi.get('/api/home/nurse/timeline', { params })
+
+export const getNurseBundles = (params: { patient_ids: string; shift_code?: string }) =>
+  analyticsApi.get('/api/home/nurse/bundles', { params })
+
+export const postNurseTaskExecute = (taskId: string, payload: Record<string, any>) =>
+  analyticsApi.post(`/api/home/nurse/task/${taskId}/execute`, payload)
+
+export const postNurseHandoffGenerate = (payload: { user_id: string; patient_ids: string[]; shift_code?: string }) =>
+  aiApi.post('/api/home/nurse/handoff/generate', payload)
+
+export const getCurrentShift = () =>
+  api.get('/api/shift/current')
+
+export const getShiftList = (params?: { refresh?: boolean }) =>
+  api.get('/api/shift/list', { params })
+
 export const postClinicalTask = (payload: Record<string, any>) =>
   analyticsApi.post('/api/clinical-workflow/tasks', payload)
 
