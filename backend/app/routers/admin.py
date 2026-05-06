@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app import runtime
+from app.services.admin_quality_service import admin_quality_summary
 from app.services.alert_outcome_service import AlertOutcomeService
 from app.services.model_calibration_runtime import ModelCalibrationRuntime
 from app.services.outcome_inference_worker import OutcomeInferenceWorker
@@ -81,6 +82,13 @@ async def scanner_health(days: int = 30):
             )
         result = {"days": result.get("days") or days, "source": "registered_scanners", "rows": scanners, "total_scanners": len(scanners)}
     return {"code": 0, **serialize_doc(result)}
+
+
+@router.get("/quality-closed-loop")
+async def quality_closed_loop(days: int = 30):
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    return {"code": 0, **await admin_quality_summary(runtime.db, days=days)}
 
 
 @router.post("/scanner-health/recalculate")

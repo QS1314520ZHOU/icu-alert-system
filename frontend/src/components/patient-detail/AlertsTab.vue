@@ -491,8 +491,14 @@
             </span>
             <div v-else class="ack-disposition-bar">
               <a-button size="small" type="primary" ghost @click="acknowledgeAlertWithReason(item, 'resolved')">已处理</a-button>
-              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'false_positive')">不相关</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'watching')">暂不处理</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'false_positive')">误报</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'duplicate')">重复预警</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'data_error')">数据错误</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'handoff_doctor')">转交医生</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'handoff_nurse')">转交护士</a-button>
               <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'later')">稍后看</a-button>
+              <a-button size="small" ghost @click="acknowledgeAlertWithReason(item, 'review_2h')">2小时复评</a-button>
               <a-select
                 class="ack-reason-select"
                 size="small"
@@ -503,6 +509,12 @@
                 @change="(value: any) => setAckReason(item, value)"
               />
             </div>
+          </div>
+          <div v-if="item.disposition || item.review_due_at || item.review_result" class="alert-lifecycle-box">
+            <span>处置：{{ item.disposition?.action ? ackDispositionText(item.disposition.action) : ackDispositionText(item.ack_disposition) || '已记录' }}</span>
+            <span v-if="item.disposition?.actor">处理人：{{ item.disposition.actor }}</span>
+            <span v-if="item.review_due_at">复评：{{ fmtTime(item.review_due_at) }}</span>
+            <span v-if="item.review_result?.result">复评结果：{{ item.review_result.result }}</span>
           </div>
           <div
             v-if="item.parameter || item.condition?.operator || item.condition?.threshold"
@@ -1082,6 +1094,12 @@ function ackDispositionText(value: any) {
     watching: '观察中',
     later: '稍后看',
     false_positive: '不相关',
+    duplicate: '重复预警',
+    data_error: '数据错误',
+    handoff_doctor: '转交医生',
+    handoff_nurse: '转交护士',
+    needs_review: '需要复评',
+    handled: '已处理',
     override: '不相关',
     overridden: '不相关',
     ignored: '稍后看',
@@ -1492,6 +1510,12 @@ const chartInitOptions = createChartInitOptions()
 const ackReasonByAlertId = ref<Record<string, string>>({})
 const ackReasonOptions = [
   { label: '不符合当前病情', value: 'not_clinically_relevant' },
+  { label: '数据错误', value: 'data_error' },
+  { label: '患者基础状态如此', value: 'baseline_status' },
+  { label: '已知情况', value: 'known_issue' },
+  { label: '重复报警', value: 'duplicate_alert' },
+  { label: '临床不相关', value: 'clinically_irrelevant' },
+  { label: '其他', value: 'other' },
   { label: '已有处置覆盖', value: 'already_addressed' },
   { label: '重复/噪声告警', value: 'duplicate_or_noise' },
   { label: '仅需观察', value: 'monitoring_only' },
@@ -2667,6 +2691,18 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .ack-reason-select {
   min-width: 118px;
+}
+.alert-lifecycle-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  background: rgba(8, 38, 30, 0.52);
+  color: #b4f3ca;
+  font-size: 12px;
 }
 .alert-meta {
   margin-top: 8px;

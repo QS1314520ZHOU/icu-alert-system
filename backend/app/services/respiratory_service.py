@@ -474,12 +474,97 @@ def evaluate_sbt_candidate(row: dict[str, Any], hemodynamic_stable: bool = True,
         reasons.append("仍需血管活性药或循环不稳")
     if rass is not None and not (float(cfg.get("rass_min", -2)) <= rass <= float(cfg.get("rass_max", 1))):
         reasons.append(f"RASS {rass} 不在目标范围")
+    score = 50
+    if fio2 is not None and fio2 <= float(cfg.get("fio2_max", 0.5)):
+        score += 10
+    if peep is not None and peep <= float(cfg.get("peep_max", 8)):
+        score += 10
+    if pf_ratio is not None and pf_ratio >= float(cfg.get("pf_ratio_min", 150)):
+        score += 15
+    if hemodynamic_stable:
+        score += 10
+    if rass is not None and float(cfg.get("rass_min", -2)) <= rass <= float(cfg.get("rass_max", 1)):
+        score += 5
+    recommendation = "建议评估 SBT" if not reasons else f"暂不建议 SBT：{'；'.join(reasons[:3])}"
     return {
         "status": "candidate" if not reasons else "not_suitable",
         "reasons": reasons,
         "criteria": cfg,
+        "score": max(0, min(100, score - len(reasons) * 8)),
+        "recommendation": recommendation,
         "confidence": 0.78 if not reasons else 0.55,
     }
+
+
+async def respiratory_worklist(*, department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
+    dashboard = await list_ventilated_patients(department=department, dept_code=dept_code, patient_scope=patient_scope)
+    rows = dashboard.get("patients") or []
+    tasks: list[dict[str, Any]] = []
+    for row in rows:
+        sbt = row.get("sbt_candidate_status") or {}
+        if sbt.get("status") == "candidate":
+            tasks.append(
+                {
+                    "task_id": f"sbt:{row.get('patient_id')}",
+                    "patient_id": row.get("patient_id"),
+                    "bed_no": row.get("bed_no"),
+                    "name": row.get("name"),
+                    "title": f"评估 {row.get('bed_no') or '--'}床 SBT 候选",
+                    "reason": sbt.get("recommendation") or "建议评估 SBT",
+                    "priority": "medium",
+                    "category": "sbt",
+                    "score": sbt.get("score"),
+                    "status": "open",
+                    "created_at": datetime.now(),
+                }
+            )
+        for action in row.get("worklist_actions") or []:
+            task_key = str(action.get("title") or "resp_task").replace(" ", "_")
+            tasks.append(
+                {
+                    "task_id": f"{task_key}:{row.get('patient_id')}",
+                    "patient_id": row.get("patient_id"),
+                    "bed_no": row.get("bed_no"),
+                    "name": row.get("name"),
+                    "title": f"{row.get('bed_no') or '--'}床 {action.get('title')}",
+                    "reason": action.get("detail") or "",
+                    "priority": action.get("priority") or "medium",
+                    "category": "ventilation",
+                    "score": row.get("safety_score"),
+                    "status": "open",
+                    "created_at": datetime.now(),
+                }
+            )
+    priority_order = {"high": 0, "critical": 0, "medium": 1, "warning": 1, "low": 2}
+    tasks.sort(key=lambda item: (priority_order.get(str(item.get("priority") or "medium"), 2), str(item.get("bed_no") or "")))
+    return {
+        "tasks": serialize_doc(tasks[:50]),
+        "summary": {
+            "total": len(tasks),
+            "high": sum(1 for item in tasks if str(item.get("priority")) in {"high", "critical"}),
+            "sbt": sum(1 for item in tasks if item.get("category") == "sbt"),
+            "generated_at": serialize_doc(datetime.now()),
+        },
+    }
+
+
+async def close_respiratory_task(task_id: str, payload: dict[str, Any], actor: str) -> dict[str, Any]:
+    now = datetime.now()
+    doc = {
+        "task_id": str(task_id),
+        "patient_id": str(payload.get("patient_id") or "").strip(),
+        "status": str(payload.get("status") or "completed").strip() or "completed",
+        "result": str(payload.get("result") or "").strip(),
+        "note": str(payload.get("note") or "").strip(),
+        "closed_by": actor,
+        "closed_at": now,
+        "created_at": now,
+        "updated_at": now,
+        "source": "respiratory_worklist",
+    }
+    await runtime.db.col("respiratory_task_closures").insert_one(doc)
+    await write_audit_log(runtime.db, action="close_respiratory_task", module="respiratory", actor=actor, target_type="respiratory_task", target_id=task_id, detail={"patient_id": doc["patient_id"], "status": doc["status"]})
+    return {"closure": serialize_doc(doc)}
 
 
 async def list_ventilated_patients(*, department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:

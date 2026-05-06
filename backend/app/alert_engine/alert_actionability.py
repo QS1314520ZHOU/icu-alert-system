@@ -617,6 +617,95 @@ class AlertActionabilityScorerMixin:
             pass
         return doc
 
+    async def disposition_alert(
+        self,
+        alert_id: str,
+        *,
+        action: str = "",
+        reason: str = "",
+        actor: str = "",
+        review_after_minutes: int | None = None,
+        review_metrics: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        try:
+            oid = ObjectId(str(alert_id))
+        except Exception:
+            return None
+        now = datetime.now()
+        actor = self._normalize_lifecycle_actor(actor)
+        action = str(action or "handled").strip().lower()
+        review_minutes = int(review_after_minutes or 0)
+        review_due_at = now + timedelta(minutes=review_minutes) if review_minutes > 0 else None
+        update_fields: dict[str, Any] = {
+            "acknowledged_at": now,
+            "ack_actor": actor,
+            "ack_note": reason,
+            "ack_disposition": action,
+            "disposition": {
+                "action": action,
+                "reason": reason,
+                "actor": actor,
+                "time": now,
+                "review_after_minutes": review_minutes,
+                "review_metrics": review_metrics or [],
+            },
+            "lifecycle_updated_at": now,
+        }
+        if review_due_at:
+            update_fields["review_due_at"] = review_due_at
+            update_fields["review_status"] = "pending"
+        if action in {"handled", "resolved", "false_positive", "duplicate", "data_error", "ignore"}:
+            update_fields["is_active"] = False
+        await self.db.col("alert_records").update_one({"_id": oid}, {"$set": update_fields})
+        doc = await self.db.col("alert_records").find_one({"_id": oid})
+        if not doc:
+            return None
+        doc = await self.refresh_alert_lifecycle(doc, persist=True)
+        try:
+            await AlertOutcomeService(self.db).record_acknowledgement(
+                doc,
+                actor=actor,
+                disposition=action,
+                reason_text=reason,
+            )
+        except Exception:
+            pass
+        return doc
+
+    async def review_alert(
+        self,
+        alert_id: str,
+        *,
+        result: str = "",
+        evidence: list[str] | None = None,
+        actor: str = "",
+    ) -> dict[str, Any] | None:
+        try:
+            oid = ObjectId(str(alert_id))
+        except Exception:
+            return None
+        now = datetime.now()
+        actor = self._normalize_lifecycle_actor(actor)
+        result = str(result or "reviewed").strip().lower()
+        update_fields = {
+            "review_status": result,
+            "reviewed_at": now,
+            "review_actor": actor,
+            "review_result": {
+                "result": result,
+                "evidence": evidence or [],
+                "actor": actor,
+                "time": now,
+                "improved": result in {"improved", "resolved", "better"},
+            },
+            "lifecycle_updated_at": now,
+        }
+        await self.db.col("alert_records").update_one({"_id": oid}, {"$set": update_fields})
+        doc = await self.db.col("alert_records").find_one({"_id": oid})
+        if not doc:
+            return None
+        return await self.refresh_alert_lifecycle(doc, persist=True)
+
     async def alert_lifecycle_analytics(self, *, hours: int = 24, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         window_hours = max(int(hours or 24), 1)
         since = datetime.now() - timedelta(hours=window_hours)

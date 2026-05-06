@@ -41,6 +41,15 @@ export const getDepartments = () => api.get('/api/departments')
 export const getPatients = (params?: { dept?: string; dept_code?: string; patient_scope?: 'in_dept' | 'out_dept' | 'all' }) =>
   api.get('/api/patients', { params })
 
+export type PatientPriorityFilter = {
+  dept?: string
+  dept_code?: string
+  limit?: number
+}
+
+export const getPatientPriority = (params?: PatientPriorityFilter) =>
+  analyticsApi.get('/api/patients/priority', { params })
+
 // 获取患者生命体征
 export const getPatientVitals = (patientId: string) =>
   api.get(`/api/patients/${patientId}/vitals`)
@@ -48,6 +57,9 @@ export const getPatientVitals = (patientId: string) =>
 // 获取患者详情
 export const getPatientDetail = (patientId: string) =>
   api.get(`/api/patients/${patientId}`)
+
+export const getPatientClinicalSummary = (patientId: string, params?: { hours?: number }) =>
+  analyticsApi.get(`/api/patients/${patientId}/clinical-summary`, { params })
 
 export const getAiWatching = (patientId: string, hours = 1) =>
   api.get(`/api/patients/${patientId}/ai-watching`, { params: { hours } })
@@ -86,6 +98,26 @@ export const postPatientAlertsViewed = (patientId: string, payload?: { alert_ids
 export const postAlertAcknowledge = (alertId: string, payload?: { actor?: string; note?: string; disposition?: string; override_reason_code?: string; override_reason_text?: string }) =>
   api.post(`/api/alerts/${alertId}/acknowledge`, payload || {})
 
+export const postAlertDisposition = (
+  alertId: string,
+  payload: {
+    action: string
+    reason?: string
+    actor?: string
+    review_after_minutes?: number
+    review_metrics?: string[]
+  }
+) => api.post(`/api/alerts/${alertId}/disposition`, payload)
+
+export const postAlertReview = (
+  alertId: string,
+  payload: {
+    result: string
+    evidence?: string[]
+    actor?: string
+  }
+) => api.post(`/api/alerts/${alertId}/review`, payload)
+
 export const getScannerHealth = (params?: { days?: number }) =>
   analyticsApi.get('/api/admin/scanner-health', { params })
 
@@ -94,6 +126,9 @@ export const postScannerHealthRecalculate = (payload?: { days?: number }) =>
 
 export const postScannerHealthInferOutcomes = (params?: { limit?: number; min_age_minutes?: number }) =>
   analyticsApi.post('/api/admin/scanner-health/infer-outcomes', undefined, { params })
+
+export const getAdminQualityClosedLoop = (params?: { days?: number }) =>
+  analyticsApi.get('/api/admin/quality-closed-loop', { params })
 
 export const getRuntimeConfig = () =>
   analyticsApi.get('/api/admin/runtime-config')

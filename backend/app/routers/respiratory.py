@@ -4,9 +4,11 @@ from fastapi import APIRouter, Body, Query, Request
 
 from app.services.respiratory_service import (
     create_airway_record,
+    close_respiratory_task,
     get_airway_plan,
     list_airway_records,
     list_sbt_candidates,
+    respiratory_worklist,
     list_ventilated_patients,
     update_sbt_status,
     upsert_airway_plan,
@@ -36,6 +38,20 @@ async def sbt_candidates(
     patient_scope: str = Query("in_dept", description="患者范围"),
 ):
     return {"code": 0, **await list_sbt_candidates(department=dept, dept_code=dept_code, patient_scope=patient_scope)}
+
+
+@router.get("/worklist")
+async def worklist(
+    dept: str | None = Query(None, description="科室名称"),
+    dept_code: str | None = Query(None, description="科室代码"),
+    patient_scope: str = Query("in_dept", description="患者范围"),
+):
+    return {"code": 0, **await respiratory_worklist(department=dept, dept_code=dept_code, patient_scope=patient_scope)}
+
+
+@router.post("/worklist/{task_id}/close")
+async def close_worklist_task(task_id: str, request: Request, payload: dict = Body(default={})):
+    return {"code": 0, **await close_respiratory_task(task_id, payload or {}, _actor(request))}
 
 
 @router.post("/sbt/{patient_id}/status")

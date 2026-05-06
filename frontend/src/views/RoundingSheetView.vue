@@ -246,6 +246,17 @@
                 </article>
                 <div class="disclaimer">仅供临床决策支持，不替代医生判断。</div>
               </section>
+              <section class="editable-rounding">
+                <div class="section-title">查房记录确认</div>
+                <textarea v-model="editableDraft" rows="8" placeholder="AI 初稿和系统分类会自动汇总到这里，医生可编辑后确认。" />
+                <div class="version-row">
+                  <span v-for="item in versionHistory" :key="item.id">{{ item.label }}</span>
+                </div>
+                <div class="confirm-row">
+                  <a-button size="small" @click="buildEditableDraft">生成系统分类初稿</a-button>
+                  <a-button size="small" type="primary" @click="confirmRoundingDraft">医生确认</a-button>
+                </div>
+              </section>
             </div>
           </a-spin>
         </template>
@@ -274,7 +285,15 @@ import {
 } from 'ant-design-vue'
 import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
 import { getDepartments, postClinicalTask } from '../api'
-import { getRoundingPatients, getRoundingSummary, postRoundingAiInsights, postRoundingExport } from '../api/rounding'
+import {
+  getRoundingPatients,
+  getRoundingSummary,
+  getRoundingVersions,
+  postRoundingAiInsights,
+  postRoundingExport,
+  postRoundingVersion,
+  postRoundingVersionConfirm,
+} from '../api/rounding'
 import { BODY_MAP_ORGAN_LABELS, bodyMapSeverityText, type BodyMapOrganKey, type BodyMapSeverity } from '../utils/bodyMap'
 import { formatBeijingTime } from '../utils/time'
 
@@ -295,6 +314,9 @@ const activePatient = ref<any>(null)
 const summary = ref<any>(null)
 const selectedPatientIds = ref<string[]>([])
 const aiPoints = ref<any[]>([])
+const editableDraft = ref('')
+const versionHistory = ref<any[]>([])
+const latestVersionId = ref('')
 const activeSystemTab = ref('respiratory')
 const selectedOrgan = ref('')
 
@@ -549,7 +571,10 @@ async function selectPatient(row: any) {
   activePatient.value = row
   aiPoints.value = []
   selectedOrgan.value = ''
+  editableDraft.value = ''
+  latestVersionId.value = ''
   await loadSummary()
+  await loadVersionHistory()
 }
 async function loadSummary() {
   if (!activePatient.value) return
@@ -558,6 +583,7 @@ async function loadSummary() {
     const res = await getRoundingSummary(activePatient.value.patient_id, hours.value)
     summary.value = res.data?.summary || null
     activeSystemTab.value = pickInitialSystemTab()
+    buildEditableDraft()
   } finally {
     summaryLoading.value = false
   }
@@ -575,9 +601,56 @@ async function loadAi() {
     const res = await postRoundingAiInsights(activePatient.value.patient_id, hours.value)
     aiPoints.value = res.data?.insights?.focus_points || []
     if (summary.value) summary.value.ai_focus_points = aiPoints.value
+    buildEditableDraft()
   } finally {
     aiLoading.value = false
   }
+}
+
+function buildEditableDraft() {
+  if (!summary.value) return
+  const rows: string[] = []
+  rows.push(`查房患者：${activePatient.value?.bed_no || '--'}床 ${activePatient.value?.name || ''}`)
+  rows.push(`夜间/近${hours.value}小时事件：`)
+  ;(summary.value.night_events || summary.value.recent_events || []).slice(0, 6).forEach((item: any) => rows.push(`- ${fmt(item.time)} ${item.title || item.event || item.name || '事件'}`))
+  rows.push('未处理预警：')
+  ;(summary.value.unhandled_alerts || summary.value.completion?.tasks || []).slice(0, 6).forEach((item: any) => rows.push(`- ${item.title || item.action || '待处理事项'}`))
+  rows.push('今日问题清单：')
+  ;(summary.value.clinical_priorities || []).slice(0, 6).forEach((item: any, idx: number) => rows.push(`${idx + 1}. ${item.title || '临床问题'}`))
+  rows.push('按系统分类：')
+  systemTabs.forEach((system) => {
+    const assess = systemAssessment(system.key)
+    const events = summary.value?.systems?.[system.key] || []
+    rows.push(`${system.label}：${assess?.headline || events[0]?.title || '暂无明确问题'}；待复评：${events.length ? `${events.length}项事件` : '常规复评'}`)
+  })
+  editableDraft.value = rows.join('\n')
+  versionHistory.value = [{ id: 'ai', label: `版本1：AI/系统初稿 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` }]
+}
+
+async function loadVersionHistory() {
+  if (!activePatient.value?.patient_id) return
+  const res = await getRoundingVersions(activePatient.value.patient_id)
+  const rows = res.data?.versions || []
+  versionHistory.value = rows.map((item: any) => ({
+    id: item.version_id,
+    label: `版本${item.version_no}：${item.status === 'confirmed' ? '医生确认' : item.source || '草稿'} ${fmt(item.created_at)}`,
+  }))
+  latestVersionId.value = rows[0]?.version_id || ''
+}
+
+async function confirmRoundingDraft() {
+  if (!activePatient.value?.patient_id || !editableDraft.value.trim()) return
+  const saved = await postRoundingVersion(activePatient.value.patient_id, {
+    content: editableDraft.value,
+    status: 'draft',
+    source: 'doctor_edit',
+    summary_snapshot: summary.value || {},
+  })
+  const versionId = saved.data?.version?.version_id
+  if (versionId) {
+    await postRoundingVersionConfirm(activePatient.value.patient_id, versionId, { status: 'confirmed' })
+  }
+  await loadVersionHistory()
 }
 async function exportSelected() {
   exporting.value = true
@@ -1003,6 +1076,38 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
   padding: 12px;
   border-radius: 16px;
   background: rgba(8, 28, 44, .42);
+}
+.editable-rounding {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(125,167,214,.16);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(10,25,42,.72);
+}
+.editable-rounding textarea {
+  width: 100%;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid rgba(125,211,252,.16);
+  background: rgba(8,20,34,.94);
+  color: #e6f7ff;
+  padding: 10px 12px;
+  line-height: 1.7;
+}
+.version-row,
+.confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.version-row span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(8,47,73,.5);
+  color: #bfefff;
+  font-size: 12px;
 }
 .system-tabs {
   padding: 4px 10px 10px;

@@ -31,6 +31,9 @@
           <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportConsultSummary">导出会诊摘要</a-button>
           <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportProgressNoteTemplate">导出病程记录</a-button>
           <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportConsultDocument">导出会诊单</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="generateDocumentDraft('rounding')">生成查房摘要</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="generateDocumentDraft('handoff')">生成交班摘要</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="generateDocumentDraft('problem')">生成问题清单</a-button>
           <a-button size="small" danger ghost @click="clearConversation">清空对话</a-button>
         </div>
       </div>
@@ -49,6 +52,22 @@
               @click="usePrompt(prompt)"
             >
               {{ prompt }}
+            </button>
+          </div>
+        </a-card>
+
+        <a-card :bordered="false" class="consult-panel">
+          <template #title>患者上下文</template>
+          <div class="prompt-list">
+            <button
+              v-for="item in contextInsertions"
+              :key="item.key"
+              type="button"
+              class="prompt-chip"
+              :disabled="!selectedPatientIds.length"
+              @click="insertContext(item.text)"
+            >
+              {{ item.label }}
             </button>
           </div>
         </a-card>
@@ -87,6 +106,9 @@
                 >
                   {{ intentBadgeLabel(item.intentPrimary, item.intentFocusSection) }}
                 </span>
+                <span v-if="item.role === 'assistant' && highRiskText(item.content)" class="chat-intent-badge is-high-risk">
+                  高风险建议需确认
+                </span>
               </div>
               <a-button
                 v-if="item.role === 'assistant' && item.content"
@@ -100,6 +122,9 @@
             </div>
             <template v-if="item.role === 'assistant' && parseStructuredSections(item.content).length">
               <div class="chat-bubble chat-bubble--structured">
+                <div v-if="highRiskText(item.content)" class="high-risk-warning">
+                  该建议涉及高风险医疗决策，请由责任医生确认后执行。
+                </div>
                 <div
                   v-for="(section, idx) in parseStructuredSections(item.content)"
                   :key="`${item.id}-section-${idx}`"
@@ -203,6 +228,15 @@ const quickPrompts = [
   '如果我要进一步明确诊断，还建议补哪些检查？',
   '请帮我梳理接下来 6 小时的观察重点和处理优先级。',
   '当前治疗方案里有哪些高风险点需要立刻警惕？',
+]
+
+const contextInsertions = [
+  { key: 'patient', label: '插入当前患者上下文', text: '请结合当前已绑定患者上下文回答。' },
+  { key: 'summary24', label: '插入最近24小时摘要', text: '请重点分析该患者最近24小时摘要、关键变化和待处理事项。' },
+  { key: 'alerts', label: '插入未处理预警', text: '请聚焦当前未处理预警，按问题、证据、风险、建议、复评输出。' },
+  { key: 'labs', label: '插入最新检验', text: '请结合最新检验和血气结果，说明异常指标的临床意义。' },
+  { key: 'vent', label: '插入呼吸机参数', text: '请结合呼吸机参数、氧合、P/F、PEEP、FiO2评估呼吸风险。' },
+  { key: 'drugs', label: '插入当前用药', text: '请结合当前用药，特别是升压药、镇静镇痛、抗感染和肾毒性药物评估风险。' },
 ]
 
 const patientOptions = computed(() =>
@@ -331,11 +365,11 @@ function parseStructuredSections(content: string): StructuredSection[] {
   const text = String(content || '').replace(/\r\n/g, '\n').trim()
   if (!text) return []
 
-  const pattern = /(?:^|\n{2,})(初步判断|风险点|建议检查|下一步处理)：\n([\s\S]*?)(?=\n{2,}(?:初步判断|风险点|建议检查|下一步处理)：\n|$)/g
+  const pattern = /(?:^|\n{2,})(初步判断|关键证据|风险点|不确定性|建议检查|下一步处理建议|下一步处理|安全提示)：\n([\s\S]*?)(?=\n{2,}(?:初步判断|关键证据|风险点|不确定性|建议检查|下一步处理建议|下一步处理|安全提示)：\n|$)/g
   const sections: StructuredSection[] = []
   let match: RegExpExecArray | null
   while ((match = pattern.exec(text)) !== null) {
-    const title = String(match[1] || '').trim()
+    const title = String(match[1] || '').trim() === '下一步处理' ? '下一步处理建议' : String(match[1] || '').trim()
     const body = String(match[2] || '').trim()
     if (!title || !body) continue
     const lines = body
@@ -349,14 +383,36 @@ function parseStructuredSections(content: string): StructuredSection[] {
 
 function sectionToneClass(title: string) {
   if (title === '风险点') return 'consult-section--risk'
-  if (title === '下一步处理') return 'consult-section--action'
+  if (title === '下一步处理建议') return 'consult-section--action'
   if (title === '建议检查') return 'consult-section--exam'
+  if (title === '安全提示') return 'consult-section--safety'
+  if (title === '不确定性') return 'consult-section--uncertain'
   return 'consult-section--judgement'
 }
 
 function lineToneClass(title: string) {
   if (title === '风险点') return 'consult-section__line--risk'
+  if (title === '安全提示') return 'consult-section__line--safety'
   return ''
+}
+
+function highRiskText(content: string) {
+  const text = String(content || '')
+  return /剂量|停用|抢救|插管|拔管|升压药|去甲肾上腺素|抗生素更换|有创|手术|穿刺|镇静加深|机械通气参数调整/.test(text)
+}
+
+function insertContext(text: string) {
+  const prefix = selectedPatientIds.value.length ? `已绑定患者：${selectedPatientLabel.value}\n` : ''
+  draft.value = `${draft.value ? `${draft.value}\n\n` : ''}${prefix}${text}`.trim()
+}
+
+function generateDocumentDraft(type: 'rounding' | 'handoff' | 'problem') {
+  const map = {
+    rounding: '请基于上一次回答生成可编辑的查房摘要，按循环、呼吸、感染、肾脏、神经、营养、镇痛镇静、护理问题分类。',
+    handoff: '请基于上一次回答生成交班摘要，突出当前问题、已处理事项、待复评事项和夜间风险。',
+    problem: '请基于上一次回答生成今日问题清单和复评计划。',
+  }
+  draft.value = map[type]
 }
 
 function priorityBadgeLabel(index: number) {
@@ -1148,6 +1204,11 @@ onBeforeUnmount(() => {
   border-color: rgba(245, 158, 11, 0.24);
   color: #fde68a;
 }
+.chat-intent-badge.is-high-risk {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fecaca;
+  background: rgba(69, 10, 10, 0.44);
+}
 
 .chat-bubble {
   max-width: min(820px, 100%);
@@ -1202,6 +1263,18 @@ onBeforeUnmount(() => {
 
 .consult-section__line--risk {
   color: #ffd5d5;
+}
+.consult-section__line--safety {
+  color: #fde68a;
+}
+.high-risk-warning {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.26);
+  background: rgba(69, 10, 10, 0.42);
+  color: #fecaca;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .priority-badge {
@@ -1265,6 +1338,15 @@ onBeforeUnmount(() => {
 .consult-section--exam .consult-section__title {
   color: #bfdbfe;
   background: rgba(37, 99, 235, 0.18);
+}
+.consult-section--safety {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(52, 34, 9, 0.24);
+}
+.consult-section--safety .consult-section__title,
+.consult-section--uncertain .consult-section__title {
+  color: #fde68a;
+  background: rgba(202, 138, 4, 0.16);
 }
 
 .chat-row.is-user .chat-bubble {
@@ -1363,6 +1445,11 @@ html[data-theme='light'] .chat-intent-badge.is-action {
   color: #92400e;
   border-color: rgba(245, 158, 11, 0.3);
 }
+html[data-theme='light'] .chat-intent-badge.is-high-risk {
+  color: #b91c1c;
+  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(254, 242, 242, 0.98);
+}
 
 html[data-theme='light'] .consult-hero h1 {
   color: #16324f;
@@ -1438,6 +1525,13 @@ html[data-theme='light'] .consult-section--exam {
 html[data-theme='light'] .consult-section--exam .consult-section__title {
   color: #1d4ed8;
   background: rgba(219, 234, 254, 0.98);
+}
+html[data-theme='light'] .consult-section--safety,
+html[data-theme='light'] .consult-section--uncertain,
+html[data-theme='light'] .high-risk-warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(255, 251, 235, 0.98);
+  color: #92400e;
 }
 
 html[data-theme='light'] .chat-row.is-user .chat-bubble {

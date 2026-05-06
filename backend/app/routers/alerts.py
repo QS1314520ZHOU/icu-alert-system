@@ -107,6 +107,36 @@ async def acknowledge_alert(alert_id: str, request: Request, payload: dict = Bod
     return {"code": 0, "record": serialize_doc(doc)}
 
 
+@router.post("/api/alerts/{alert_id}/disposition")
+async def disposition_alert(alert_id: str, request: Request, payload: dict = Body(default={})):
+    body = payload or {}
+    doc = await runtime.alert_engine.disposition_alert(
+        alert_id,
+        action=str(body.get("action") or "handled").strip(),
+        reason=str(body.get("reason") or "").strip(),
+        actor=resolve_actor_identity(body, request),
+        review_after_minutes=int(body.get("review_after_minutes") or 0),
+        review_metrics=[str(item).strip() for item in (body.get("review_metrics") or []) if str(item).strip()],
+    )
+    if not doc:
+        return {"code": 404, "message": "告警不存在"}
+    return {"code": 0, "record": serialize_doc(doc)}
+
+
+@router.post("/api/alerts/{alert_id}/review")
+async def review_alert(alert_id: str, request: Request, payload: dict = Body(default={})):
+    body = payload or {}
+    doc = await runtime.alert_engine.review_alert(
+        alert_id,
+        result=str(body.get("result") or "reviewed").strip(),
+        evidence=[str(item).strip() for item in (body.get("evidence") or []) if str(item).strip()],
+        actor=resolve_actor_identity(body, request),
+    )
+    if not doc:
+        return {"code": 404, "message": "告警不存在"}
+    return {"code": 0, "record": serialize_doc(doc)}
+
+
 @router.get("/api/alerts/lifecycle/analytics")
 async def alert_lifecycle_analytics(
     window: str = Query("24h"),

@@ -707,3 +707,80 @@ async def export_rounding_report(payload: dict[str, Any], actor: str = "anonymou
     await runtime.db.col("rounding_export_tasks").insert_one(doc)
     await write_audit_log(runtime.db, action="export_rounding_report", module="rounding", actor=actor, target_type="rounding_export", target_id=task_id, detail={"patient_count": len(summaries), "format": fmt})
     return {"code": 0, "task": serialize_doc({k: v for k, v in doc.items() if k != "file_path"})}
+
+
+async def list_rounding_versions(patient_id: str, limit: int = 20) -> dict[str, Any]:
+    cursor = runtime.db.col("rounding_report_versions").find(
+        {"patient_id": str(patient_id)}
+    ).sort([("version_no", -1), ("created_at", -1)]).limit(max(1, min(int(limit or 20), 100)))
+    rows = [serialize_doc(doc) async for doc in cursor]
+    return {"versions": rows}
+
+
+async def save_rounding_version(patient_id: str, payload: dict[str, Any], actor: str = "anonymous") -> dict[str, Any]:
+    now = datetime.now()
+    latest = await runtime.db.col("rounding_report_versions").find_one(
+        {"patient_id": str(patient_id)},
+        sort=[("version_no", -1)],
+    )
+    version_no = int((latest or {}).get("version_no") or 0) + 1
+    content = str(payload.get("content") or "").strip()
+    if not content:
+        return {"code": 400, "message": "content 不能为空"}
+    doc = {
+        "version_id": str(uuid.uuid4()),
+        "patient_id": str(patient_id),
+        "version_no": version_no,
+        "status": str(payload.get("status") or "draft").strip() or "draft",
+        "source": str(payload.get("source") or "doctor_edit").strip() or "doctor_edit",
+        "content": content,
+        "content_hash": source_hash(content),
+        "summary_snapshot": payload.get("summary_snapshot") or {},
+        "created_by": actor,
+        "updated_by": actor,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await runtime.db.col("rounding_report_versions").insert_one(doc)
+    await write_audit_log(
+        runtime.db,
+        action="save_rounding_version",
+        module="rounding",
+        actor=actor,
+        target_type="rounding_report_version",
+        target_id=doc["version_id"],
+        detail={"patient_id": patient_id, "version_no": version_no, "status": doc["status"]},
+    )
+    return {"code": 0, "version": serialize_doc(doc)}
+
+
+async def confirm_rounding_version(patient_id: str, version_id: str, payload: dict[str, Any], actor: str = "anonymous") -> dict[str, Any]:
+    now = datetime.now()
+    doc = await runtime.db.col("rounding_report_versions").find_one(
+        {"patient_id": str(patient_id), "version_id": str(version_id)}
+    )
+    if not doc:
+        return {"code": 404, "message": "版本不存在"}
+    update = {
+        "status": str(payload.get("status") or "confirmed").strip() or "confirmed",
+        "confirmed_by": actor,
+        "confirmed_at": now,
+        "confirm_note": str(payload.get("note") or "").strip(),
+        "updated_by": actor,
+        "updated_at": now,
+    }
+    await runtime.db.col("rounding_report_versions").update_one(
+        {"_id": doc["_id"]},
+        {"$set": update},
+    )
+    updated = await runtime.db.col("rounding_report_versions").find_one({"_id": doc["_id"]})
+    await write_audit_log(
+        runtime.db,
+        action="confirm_rounding_version",
+        module="rounding",
+        actor=actor,
+        target_type="rounding_report_version",
+        target_id=str(version_id),
+        detail={"patient_id": patient_id, "status": update["status"]},
+    )
+    return {"code": 0, "version": serialize_doc(updated)}

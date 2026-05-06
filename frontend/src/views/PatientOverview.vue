@@ -90,6 +90,24 @@
       </div>
     </header>
 
+    <PriorityFocusPanel
+      v-if="!loading"
+      :rows="priorityRows"
+      @select="goDetail"
+    />
+
+    <section v-if="!loading" class="quick-filter-panel">
+      <button
+        v-for="item in quickFilters"
+        :key="item.key"
+        type="button"
+        :class="['quick-filter-btn', { active: workflowFilter === item.key }]"
+        @click="workflowFilter = workflowFilter === item.key ? 'all' : item.key"
+      >
+        {{ item.label }}
+      </button>
+    </section>
+
     <!-- ====== 加载态 ====== -->
     <div v-if="loading" class="loader">
       <div class="loader-ring"></div>
@@ -151,7 +169,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getRecentAlerts } from '../api'
+import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getRecentAlerts, getPatientPriority } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
@@ -164,6 +182,7 @@ const overviewCache = new Map<string, {
 }>()
 
 const PatientOverviewCard = defineAsyncComponent(() => import('../components/overview/PatientOverviewCard.vue'))
+const PriorityFocusPanel = defineAsyncComponent(() => import('../components/overview/PriorityFocusPanel.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -175,6 +194,8 @@ const curDept = ref('全部')
 const tagFilter = ref('')
 const alertFilter = ref('')
 const rescueOnly = ref(false)
+const workflowFilter = ref('all')
+const priorityRows = ref<any[]>([])
 let iv: any = null
 let offAlert: any = null
 let bundleRequestToken = 0
@@ -243,6 +264,25 @@ const byDept = computed(() =>
 
 const filteredPatients = computed(() => byDept.value)
 
+const quickFilters = [
+  { key: 'all', label: '全部' },
+  { key: 'critical', label: '危重' },
+  { key: 'unhandled', label: '未处理预警' },
+  { key: 'new', label: '新发预警' },
+  { key: 'up', label: '风险上升' },
+  { key: 'vent', label: '机械通气' },
+  { key: 'infection', label: '感染风险' },
+  { key: 'weaning', label: '脱机候选' },
+  { key: 'nutrition', label: '营养风险' },
+  { key: 'missing', label: '数据缺失' },
+]
+
+const priorityByPatient = computed(() => {
+  const map = new Map<string, any>()
+  priorityRows.value.forEach((item: any) => map.set(String(item.patient_id || ''), item))
+  return map
+})
+
 /* ── 标签统计 ── */
 const tagStats = computed(() => {
   const m: Record<string, any> = {}
@@ -268,6 +308,10 @@ const activeOverviewFilters = computed(() => {
     items.push({ key: 'tag', label: hit?.label ? `标签 ${hit.label}` : `标签 ${tagFilter.value}` })
   }
   if (rescueOnly.value) items.push({ key: 'rescue', label: '抢救期风险' })
+  if (workflowFilter.value && workflowFilter.value !== 'all') {
+    const hit = quickFilters.find(item => item.key === workflowFilter.value)
+    items.push({ key: 'workflow', label: hit?.label || workflowFilter.value })
+  }
   return items
 })
 
@@ -282,6 +326,21 @@ const showList = computed(() => {
     } else {
       ls = ls.filter(p => p.alertLevel === alertFilter.value)
     }
+  }
+  if (workflowFilter.value && workflowFilter.value !== 'all') {
+    ls = ls.filter((p: any) => {
+      const row = priorityByPatient.value.get(String(p?._id || '')) || {}
+      if (workflowFilter.value === 'critical') return row.risk_level === 'critical' || p.alertLevel === 'critical'
+      if (workflowFilter.value === 'unhandled') return Number(row.unhandled_alerts || 0) > 0
+      if (workflowFilter.value === 'new') return Number(row.new_alerts_6h || 0) > 0
+      if (workflowFilter.value === 'up') return row.risk_trend === 'up'
+      if (workflowFilter.value === 'vent') return !!row.mechanical_ventilation
+      if (workflowFilter.value === 'infection') return !!row.infection_risk
+      if (workflowFilter.value === 'weaning') return !!row.weaning_candidate
+      if (workflowFilter.value === 'nutrition') return !!row.nutrition_risk
+      if (workflowFilter.value === 'missing') return !!row.data_missing
+      return true
+    })
   }
   return ls
 })
@@ -383,6 +442,7 @@ function selectDept(dept: string) {
   alertFilter.value = ''
   tagFilter.value = ''
   rescueOnly.value = false
+  workflowFilter.value = 'all'
   if (showDeptNav.value) syncDeptQuery(dept)
 }
 
@@ -394,6 +454,7 @@ function clearOverviewFilters() {
   tagFilter.value = ''
   alertFilter.value = ''
   rescueOnly.value = false
+  workflowFilter.value = 'all'
   router.replace({
     query: {
       ...(routeDeptCode.value ? { dept_code: routeDeptCode.value } : {}),
@@ -554,14 +615,16 @@ async function load(options?: { silent?: boolean }) {
         ? { dept: deptName, patient_scope: 'in_dept' as const }
         : { patient_scope: 'in_dept' as const }
 
-    const [dr, pr, recentAlertRes] = await Promise.all([
+    const [dr, pr, recentAlertRes, priorityRes] = await Promise.all([
       getDepartments(),
       getPatients(params),
       getRecentAlerts(200, params).catch(() => ({ data: { records: [] } })),
+      getPatientPriority({ ...params, limit: 160 }).catch(() => ({ data: { data: [] } })),
     ])
     const allDepts = dr.data.departments || []
     const ls = pr.data.patients || []
     const recentAlerts = recentAlertRes.data?.records || []
+    priorityRows.value = Array.isArray(priorityRes.data?.data) ? priorityRes.data.data : []
     const organMapByPatient = buildOrganStateMapByPatient(recentAlerts)
     const rescueSeverityMap = new Map<string, string>()
     const rescuePidSet = new Set(
@@ -616,11 +679,16 @@ async function load(options?: { silent?: boolean }) {
       p.hasRescueRisk = rescuePidSet.has(String(p._id))
       p.rescueRiskSeverity = rescueSeverity
       p.organMap = organMapByPatient.get(String(p._id)) || undefined
+      p.workflowPriority = priorityByPatient.value.get(String(p._id)) || null
       return p
     }))
 
-    const ord: Record<string, number> = { critical: 0, warning: 1, none: 2, normal: 3 }
+    const ord: Record<string, number> = { critical: 0, high: 1, warning: 2, none: 3, normal: 4 }
     const all = [...done, ...tail].sort((a, b) => {
+      const pa = Number(priorityByPatient.value.get(String(a?._id || ''))?.priority_score || 0)
+      const pb = Number(priorityByPatient.value.get(String(b?._id || ''))?.priority_score || 0)
+      const d0 = pb - pa
+      if (d0) return d0
       const d = (ord[a.alertLevel] ?? 9) - (ord[b.alertLevel] ?? 9)
       return d || String(a.hisBed).localeCompare(String(b.hisBed), undefined, { numeric: true })
     })
@@ -885,6 +953,31 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+.quick-filter-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(80, 199, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(8, 28, 44, 0.5);
+}
+.quick-filter-btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background: rgba(8, 28, 44, 0.74);
+  color: #cfefff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.quick-filter-btn.active {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(14, 116, 144, 0.56);
+  color: #ecfeff;
 }
 .command-pill {
   display: grid;
@@ -1357,6 +1450,17 @@ html[data-theme='light'] .overview-empty {
   border-color: rgba(148, 163, 184, 0.18);
   background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.99) 100%);
   color: #556b86;
+}
+html[data-theme='light'] .quick-filter-panel,
+html[data-theme='light'] .quick-filter-btn {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,.98);
+  color: #556b86;
+}
+html[data-theme='light'] .quick-filter-btn.active {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%);
+  color: #1d4ed8;
 }
 
 .overview {

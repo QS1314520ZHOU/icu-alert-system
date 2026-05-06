@@ -39,6 +39,25 @@
         <small>{{ item.hint }}</small>
       </article>
     </section>
+    <section class="rt-worklist">
+      <div class="panel-head">
+        <div>
+          <strong>今日工作清单</strong>
+          <span>{{ respiratoryWorklist.length }} 项</span>
+        </div>
+      </div>
+      <div class="rt-worklist-grid">
+        <article v-for="(item, idx) in respiratoryWorklist" :key="`${item.patient_id}-${item.title}-${idx}`" :class="['rt-task', `tone-${item.tone}`]">
+          <b>{{ Number(idx) + 1 }}</b>
+          <div>
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.reason }}</span>
+          </div>
+          <a-button size="small" @click="openTaskPatient(item)">查看</a-button>
+        </article>
+        <div v-if="!respiratoryWorklist.length" class="soft-empty small">暂无待处理呼吸治疗任务。</div>
+      </div>
+    </section>
     <section class="command-layout">
       <section class="patient-panel">
         <div class="panel-head">
@@ -109,6 +128,7 @@
                 <div>
                   <strong>{{ item.bed_no }}床 {{ item.name }}</strong>
                   <span>P/F {{ item.pf_ratio || '—' }}</span>
+                  <span>SBT 候选评分：{{ item.sbt_candidate_status?.score ?? sbtCandidateScore(item) }}/100 · {{ item.sbt_candidate_status?.recommendation || sbtCandidateReason(item) }}</span>
                 </div>
                 <div class="sbt-actions">
                   <a-button size="small" type="primary" @click.stop="recordSbt(item, 'completed')">完成</a-button>
@@ -232,7 +252,19 @@ import {
   TimelineItem as ATimelineItem,
   message,
 } from 'ant-design-vue'
-import { getAirwayPlan, getSbtCandidates, getVentilatedPatients, getVentilatorTimeline, postAirwayPlan, postAirwayRecord, postRespiratoryTaskDone, postSbtStatus, type RespiratoryScopeParams } from '../api/respiratory'
+import {
+  closeRespiratoryWorklistTask,
+  getAirwayPlan,
+  getRespiratoryWorklist,
+  getSbtCandidates,
+  getVentilatedPatients,
+  getVentilatorTimeline,
+  postAirwayPlan,
+  postAirwayRecord,
+  postRespiratoryTaskDone,
+  postSbtStatus,
+  type RespiratoryScopeParams,
+} from '../api/respiratory'
 import { formatBeijingTime } from '../utils/time'
 
 const route = useRoute()
@@ -243,6 +275,7 @@ const patients = ref<any[]>([])
 const stats = ref<any>({})
 const sbt = ref<any>({})
 const completion = ref<any>({})
+const worklist = ref<any>({ tasks: [], summary: {} })
 const drawerOpen = ref(false)
 const drawerPatient = ref<any>(null)
 const timeline = ref<any[]>([])
@@ -292,6 +325,25 @@ const bedsideCommand = computed(() => {
     { key: 'airway', label: '气道补录', value: cuffTodo, hint: '气囊压/湿化/固定', tone: cuffTodo ? 'warning' : 'stable' },
   ]
 })
+const respiratoryWorklist = computed(() => {
+  if (Array.isArray(worklist.value?.tasks) && worklist.value.tasks.length) {
+    return worklist.value.tasks.map((item: any) => ({
+      ...item,
+      tone: item.priority === 'high' ? 'danger' : item.priority === 'medium' ? 'warning' : 'info',
+    })).slice(0, 8)
+  }
+  const rows: any[] = []
+  for (const item of sbt.value?.todo || []) {
+    rows.push({ ...item, title: `评估 ${item.bed_no || '--'}床 SBT 候选`, reason: sbtCandidateReason(item), tone: 'info' })
+  }
+  for (const item of patients.value.filter((row: any) => (row.risk_tags || []).includes('气囊压待测')).slice(0, 4)) {
+    rows.push({ ...item, title: `复查 ${item.bed_no || '--'}床 气囊压`, reason: '近8小时缺失或异常需补录', tone: 'warning' })
+  }
+  for (const item of patients.value.filter((row: any) => (row.risk_tags || []).includes('高驱动压')).slice(0, 4)) {
+    rows.push({ ...item, title: `复核 ${item.bed_no || '--'}床 肺保护通气参数`, reason: '关注 VT/Pplat/Driving Pressure', tone: 'danger' })
+  }
+  return rows.slice(0, 8)
+})
 const airwayPlanView = computed(() => {
   const plan = airwayPlan.value || {}
   const risk = String(plan.risk_level || 'unknown').toLowerCase()
@@ -322,6 +374,24 @@ function patientTone(patient: any) {
   if (tags.length || score < 80) return 'warn'
   return 'stable'
 }
+function sbtCandidateScore(row: any) {
+  let score = 50
+  if (Number(row?.pf_ratio || 0) >= 150) score += 15
+  if (Number(row?.peep || 99) <= 8) score += 10
+  if (Number(row?.fio2 || 1) <= 0.5) score += 10
+  const rass = Number(row?.rass)
+  if (Number.isFinite(rass) && rass >= -2 && rass <= 1) score += 10
+  if (!(row?.risk_tags || []).includes('低氧合')) score += 5
+  return Math.min(100, score)
+}
+function sbtCandidateReason(row: any) {
+  const blockers = []
+  if (row?.rass == null) blockers.push('RASS缺失')
+  if (Number(row?.fio2 || 0) > 0.5) blockers.push('FiO2偏高')
+  if (Number(row?.peep || 0) > 8) blockers.push('PEEP偏高')
+  if ((row?.risk_tags || []).includes('低氧合')) blockers.push('氧合不稳')
+  return blockers.length ? `阻碍因素：${blockers.slice(0, 2).join('、')}` : '建议评估 SBT'
+}
 function requestParams(): RespiratoryScopeParams {
   const params: RespiratoryScopeParams = { patient_scope: 'in_dept' }
   if (routeDeptCode.value) params.dept_code = routeDeptCode.value
@@ -331,11 +401,12 @@ function requestParams(): RespiratoryScopeParams {
 async function loadAll() {
   loading.value = true
   try {
-    const [p, s] = await Promise.all([getVentilatedPatients(requestParams()), getSbtCandidates(requestParams())])
+    const [p, s, w] = await Promise.all([getVentilatedPatients(requestParams()), getSbtCandidates(requestParams()), getRespiratoryWorklist(requestParams())])
     patients.value = p.data?.patients || []
     stats.value = p.data?.stats || {}
     completion.value = p.data?.completion || {}
     sbt.value = s.data || {}
+    worklist.value = w.data || { tasks: [], summary: {} }
   } finally {
     loading.value = false
   }
@@ -345,6 +416,14 @@ async function openTaskPatient(item: any) {
   if (row) await openPatient(row)
 }
 async function closeRespTask(item: any) {
+  if (item.task_id) {
+    await closeRespiratoryWorklistTask(item.task_id, {
+      patient_id: item.patient_id,
+      status: 'completed',
+      result: '床旁已复核',
+      note: `闭环：${item.title || '呼吸治疗任务'}。${item.reason || item.detail || ''}`,
+    })
+  }
   await postRespiratoryTaskDone(item.patient_id, {
     airway_type: '床旁已复核',
     humidification_status: '已复核',
@@ -427,6 +506,56 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   grid-template-columns: 1fr 1fr minmax(180px, .7fr);
   gap: 10px;
   margin-bottom: 14px;
+}
+.rt-worklist {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(125,167,214,.16);
+  border-radius: 16px;
+  background: rgba(10,25,42,.82);
+}
+.rt-worklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+.rt-task {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(125,211,252,.14);
+  background: rgba(8,28,44,.72);
+}
+.rt-task b {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(59,130,246,.24);
+  color: #fff;
+}
+.rt-task strong,
+.rt-task span {
+  display: block;
+}
+.rt-task strong {
+  color: #e6f7ff;
+}
+.rt-task span {
+  color: #8aa4b8;
+  font-size: 12px;
+}
+.rt-task.tone-danger {
+  border-color: rgba(248,113,113,.26);
+}
+.rt-task.tone-warning {
+  border-color: rgba(245,158,11,.24);
 }
 .closure-strip article {
   min-width: 0;

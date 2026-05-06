@@ -6,7 +6,15 @@ from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from app import runtime
-from app.services.rounding_service import export_rounding_report, generate_ai_focus_points, list_rounding_patients, build_rounding_summary
+from app.services.rounding_service import (
+    build_rounding_summary,
+    confirm_rounding_version,
+    export_rounding_report,
+    generate_ai_focus_points,
+    list_rounding_patients,
+    list_rounding_versions,
+    save_rounding_version,
+)
 
 router = APIRouter(prefix="/api/rounding", tags=["rounding"])
 
@@ -34,6 +42,22 @@ async def rounding_summary(patient_id: str, hours: int = Query(24, ge=8, le=48))
 async def rounding_ai_insights(patient_id: str, request: Request, payload: dict = Body(default={})):
     hours = int((payload or {}).get("hours") or 24)
     return await generate_ai_focus_points(patient_id, hours=hours, actor=_actor(request))
+
+
+@router.get("/{patient_id}/versions")
+async def rounding_versions(patient_id: str, limit: int = Query(20, ge=1, le=100)):
+    result = await list_rounding_versions(patient_id, limit=limit)
+    return {"code": 0, **result}
+
+
+@router.post("/{patient_id}/versions")
+async def rounding_save_version(patient_id: str, request: Request, payload: dict = Body(default={})):
+    return await save_rounding_version(patient_id, payload or {}, actor=_actor(request))
+
+
+@router.post("/{patient_id}/versions/{version_id}/confirm")
+async def rounding_confirm_version(patient_id: str, version_id: str, request: Request, payload: dict = Body(default={})):
+    return await confirm_rounding_version(patient_id, version_id, payload or {}, actor=_actor(request))
 
 
 @router.post("/export")

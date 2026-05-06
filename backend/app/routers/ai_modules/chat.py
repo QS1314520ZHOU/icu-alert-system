@@ -35,7 +35,7 @@ _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS = 1.8
 _AI_CONSULT_CONTEXT_MAX_CHARS = 4200
 _AI_CONSULT_HISTORY_TURNS = 8
 _AI_CONSULT_HISTORY_ITEM_MAX_CHARS = 320
-_AI_CONSULT_SECTION_ORDER = ("初步判断", "风险点", "建议检查", "下一步处理")
+_AI_CONSULT_SECTION_ORDER = ("初步判断", "关键证据", "风险点", "不确定性", "建议检查", "下一步处理建议", "安全提示")
 _AI_CONSULT_COMPLEX_KEYWORDS = (
     "鉴别诊断",
     "诊断思路",
@@ -164,13 +164,13 @@ def _extract_ai_consult_sections(text: str) -> dict[str, str]:
     if not normalized:
         return {}
     normalized = re.sub(
-        r"(?<!^)(?<!\n)\s*(?=(?:[一二三四1-4]\s*[、.)：:]\s*)?(初步判断|风险点|建议检查|下一步处理)\s*[:：])",
+        r"(?<!^)(?<!\n)\s*(?=(?:[一二三四1-7]\s*[、.)：:]\s*)?(初步判断|关键证据|风险点|不确定性|建议检查|下一步处理建议|下一步处理|安全提示)\s*[:：])",
         "\n",
         normalized,
         flags=re.IGNORECASE,
     )
     pattern = re.compile(
-        r"(?mi)^\s*(?:[一二三四1-4]\s*[、.)：:]\s*)?(初步判断|风险点|建议检查|下一步处理)\s*[:：]?\s*"
+        r"(?mi)^\s*(?:[一二三四五六七1-7]\s*[、.)：:]\s*)?(初步判断|关键证据|风险点|不确定性|建议检查|下一步处理建议|下一步处理|安全提示)\s*[:：]?\s*"
     )
     matches = list(pattern.finditer(normalized))
     if not matches:
@@ -179,6 +179,8 @@ def _extract_ai_consult_sections(text: str) -> dict[str, str]:
     sections: dict[str, str] = {}
     for idx, match in enumerate(matches):
         title = str(match.group(1) or "").strip()
+        if title == "下一步处理":
+            title = "下一步处理建议"
         start = match.end()
         end = matches[idx + 1].start() if idx + 1 < len(matches) else len(normalized)
         content = normalized[start:end].strip(" \n\t:：")
@@ -283,18 +285,24 @@ def _finalize_ai_consult_answer(raw: str | None, rag_hits: list[dict[str, Any]] 
 
     fallback_sections = {
         "初步判断": "1、当前回答未形成有效初步判断，请结合已加载患者上下文、生命体征、主要诊断、近期预警和检验结果重新评估；若信息不足，应明确补充关键数据后再判断。",
+        "关键证据": "1、当前可引用证据不足，请核对生命体征、检验、用药、护理评估和预警触发依据。",
         "风险点": "1、原回答未单列风险点，请结合潜在休克、低氧、出血、感染进展等高危问题重点排查。",
+        "不确定性": "1、系统无法替代床旁查体；缺失数据、采样时间和患者基础状态需由临床人员确认。",
         "建议检查": "1、请补充关键化验、影像、生命体征趋势和床旁评估。",
-        "下一步处理": "1、请按床旁紧急程度优先处理，并根据新增检查结果及时调整。仅供临床参考，需结合床旁评估。",
+        "下一步处理建议": "1、请按床旁紧急程度优先处理，并根据新增检查结果及时调整。",
+        "安全提示": "1、以上内容仅作为临床辅助，不替代医生判断。高风险处置需由责任医生确认。",
     }
     parsed = _extract_ai_consult_sections(text)
     if not parsed:
         initial_text = "" if _is_placeholder_ai_consult_section_text(text) else text
         parsed = {
             "初步判断": initial_text or fallback_sections["初步判断"],
+            "关键证据": fallback_sections["关键证据"],
             "风险点": "1、当前原始回答未明确分段，请重点结合生命体征、器官灌注、意识状态和近期治疗反应综合判断。",
+            "不确定性": fallback_sections["不确定性"],
             "建议检查": "1、建议补充最关键的生命体征趋势、化验变化、血气/乳酸及床旁评估信息。",
-            "下一步处理": "1、请优先处理当前最紧急问题，并结合补充信息动态调整方案。仅供临床参考，需结合床旁评估。",
+            "下一步处理建议": "1、请优先处理当前最紧急问题，并结合补充信息动态调整方案。",
+            "安全提示": fallback_sections["安全提示"],
         }
     else:
         for title, fallback in fallback_sections.items():
@@ -310,6 +318,38 @@ def _finalize_ai_consult_answer(raw: str | None, rag_hits: list[dict[str, Any]] 
             continue
         blocks.append(f"{title}：\n{normalized_content}")
     return _append_rag_citations("\n\n".join(blocks).strip(), rag_hits or [])
+
+
+def _ai_consult_structured_fields(answer: str, rag_hits: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    sections = _extract_ai_consult_sections(answer)
+    def _lines(title: str) -> list[str]:
+        return [
+            line.strip()
+            for line in str(sections.get(title) or "").splitlines()
+            if line.strip()
+        ]
+
+    evidence = []
+    for idx, line in enumerate(_lines("关键证据")[:8], start=1):
+        evidence.append({"type": "clinical_context", "name": f"证据{idx}", "value": line, "unit": "", "time": None, "source": "AI回答结构化"})
+    for item in (rag_hits or [])[:6]:
+        evidence.append(
+            {
+                "type": "knowledge",
+                "name": str(item.get("recommendation") or item.get("source") or "指南证据"),
+                "value": str(item.get("content") or "")[:240],
+                "unit": "",
+                "time": None,
+                "source": str(item.get("source") or item.get("doc_id") or "RAG"),
+                "chunk_id": item.get("chunk_id"),
+            }
+        )
+    safety = _lines("安全提示") or ["以上内容仅作为临床辅助，不替代医生判断。高风险处置需由责任医生确认。"]
+    return {
+        "evidence": evidence,
+        "uncertainties": _lines("不确定性"),
+        "safety_warnings": safety,
+    }
 
 
 def _resolve_ai_consult_limits(
@@ -441,6 +481,7 @@ def _build_ai_consult_degraded_payload(
         "patient_match_note": patient_match_note,
         "intent_primary": intent_primary,
         "intent_focus_section": intent_focus_section,
+        **_ai_consult_structured_fields(degraded_answer, []),
     }
 
 
@@ -1252,11 +1293,14 @@ def _build_ai_consult_prompts(
         "你是 ICU AI 问诊助手，面向临床医生/护士提供中文辅助问答。"
         "请基于用户问题、历史对话以及患者上下文，输出简洁、专业、可执行的回答。"
         "若问题中提及具体患者姓名/住院号，优先使用已检索到的 patient 表匹配患者，不要混淆同名患者。"
-        "必须严格按以下固定结构输出，并且四个标题都要出现："
+        "必须严格按以下固定结构输出，并且七个标题都要出现："
         "初步判断："
+        "关键证据："
         "风险点："
+        "不确定性："
         "建议检查："
-        "下一步处理："
+        "下一步处理建议："
+        "安全提示："
         "其中每一部分都要有具体内容，不能省略标题，不能合并标题。"
         "禁止用“-”、“无”、“暂无”、“N/A”等占位符作为任一栏目内容；信息不足时必须说明缺什么信息和如何补充。"
         "不要编造不存在的生命体征、化验或影像结果；若信息不足必须明确说明。"
@@ -1264,7 +1308,7 @@ def _build_ai_consult_prompts(
         "若存在潜在急危重情况，先提示立即线下评估/抢救。"
         "严禁输出 <think>、</think>、思维链、推理过程、内部分析草稿。"
         "只输出纯文本，不要使用任何 markdown 语法（如 #、*、-、```、[链接]()）。"
-        "不要输出 markdown 表格，不要长篇空泛免责声明，结尾可简短提示“仅供临床参考，需结合床旁评估”。"
+        "安全提示必须包含“仅作为临床辅助，不替代医生判断。高风险处置需由责任医生确认”。"
         f"本轮问题意图判定为：{intent['primary']}，重点展开栏目：{intent['focus_section']}。"
         f"{intent['focus_instruction']}"
     )
@@ -1325,11 +1369,14 @@ def _build_ai_consult_retry_prompts(
         "上一轮回答与当前问题过于相似，需要你重新作答。"
         "这一次必须优先响应【本轮问题】本身，不要只重复患者概况、固定模板或上一轮原话。"
         "若当前问题与上一轮关注点不同，就必须体现新的分析角度。"
-        "仍然必须严格按以下固定结构输出，并且四个标题都要出现："
+        "仍然必须严格按以下固定结构输出，并且七个标题都要出现："
         "初步判断："
+        "关键证据："
         "风险点："
+        "不确定性："
         "建议检查："
-        "下一步处理："
+        "下一步处理建议："
+        "安全提示："
         "每个部分都要有具体内容。"
         "禁止用“-”、“无”、“暂无”、“N/A”等占位符作为任一栏目内容；信息不足时必须说明缺什么信息和如何补充。"
         "如使用指南证据，必须在相关句子中写明来源，例如“根据 SSC 2021 指南 1A 推荐...”。"
@@ -1524,6 +1571,7 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
                 {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
                 for item in rag_hits[:6]
             ],
+            **_ai_consult_structured_fields(answer_text, rag_hits),
         }
         await _write_ai_consult_log(request=request, payload=payload, answer=response, success=True, model=model_name, patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits)
         return response
@@ -1820,6 +1868,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                     {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
                     for item in rag_hits[:6]
                 ],
+                **_ai_consult_structured_fields(answer_text, rag_hits),
             }
         await _write_ai_consult_log(request=request, payload=payload, answer=done_payload, success=True, model=model_name or "", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"stream": True, "stream_used": stream_used})
         yield _sse_pack("done", done_payload)

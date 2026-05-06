@@ -37,6 +37,45 @@
       </div>
     </section>
 
+    <section class="admin-quality-grid">
+      <article class="scanner-command-card">
+        <div class="scanner-command-head">
+          <span>规则误报闭环</span>
+          <strong>{{ quality.summary?.rules || 0 }} 条规则</strong>
+        </div>
+        <div class="quality-list">
+          <button v-for="row in (quality.rule_false_positive_rows || []).slice(0, 5)" :key="row.rule" type="button">
+            <strong>{{ scannerLabel(row.rule) }}</strong>
+            <span>误报 {{ percentText(row.false_positive_rate) }} / 重复 {{ percentText(row.duplicate_rate) }} / 数据错 {{ percentText(row.data_error_rate) }}</span>
+          </button>
+        </div>
+      </article>
+      <article class="scanner-command-card">
+        <div class="scanner-command-head">
+          <span>科室响应</span>
+          <strong>{{ quality.summary?.median_response_minutes ?? '—' }} 分钟</strong>
+        </div>
+        <div class="quality-list">
+          <button v-for="row in (quality.department_response_rows || []).slice(0, 5)" :key="row.dept" type="button">
+            <strong>{{ row.dept }}</strong>
+            <span>确认率 {{ percentText(row.ack_rate) }} / 中位响应 {{ row.median_response_minutes ?? '—' }} 分钟</span>
+          </button>
+        </div>
+      </article>
+      <article class="scanner-command-card">
+        <div class="scanner-command-head">
+          <span>模块使用率</span>
+          <strong>{{ quality.summary?.modules_used || 0 }} 个模块</strong>
+        </div>
+        <div class="quality-list">
+          <button v-for="row in (quality.module_usage_rows || []).slice(0, 5)" :key="row.module" type="button">
+            <strong>{{ row.module }}</strong>
+            <span>{{ row.events }} 次 / {{ row.actor_count }} 人 / 最近 {{ fmtTime(row.last_used_at) }}</span>
+          </button>
+        </div>
+      </article>
+    </section>
+
     <section class="scanner-command-grid">
       <article class="scanner-command-card">
         <div class="scanner-command-head">
@@ -141,7 +180,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button as AButton, Card as ACard, Segmented as ASegmented, Space as ASpace, Table as ATable, message } from 'ant-design-vue'
-import { getScannerHealth, postScannerHealthInferOutcomes, postScannerHealthRecalculate } from '../api'
+import { getAdminQualityClosedLoop, getScannerHealth, postScannerHealthInferOutcomes, postScannerHealthRecalculate } from '../api'
 
 const router = useRouter()
 const days = ref(30)
@@ -151,6 +190,7 @@ const loading = ref(false)
 const recalculating = ref(false)
 const inferring = ref(false)
 const source = ref('')
+const quality = ref<any>({ summary: {}, rule_false_positive_rows: [], department_response_rows: [], module_usage_rows: [] })
 const dayOptions = [
   { label: '7天', value: 7 },
   { label: '30天', value: 30 },
@@ -180,6 +220,11 @@ function percentText(value: any) {
   const num = Number(value)
   if (!Number.isFinite(num)) return '—'
   return `${Math.round(num * 100)}%`
+}
+
+function fmtTime(value: any) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 function driftText(value: any) {
@@ -271,10 +316,14 @@ function openPatient(patientId: any) {
 async function loadRows() {
   loading.value = true
   try {
-    const res = await getScannerHealth({ days: days.value })
+    const [res, qualityRes] = await Promise.all([
+      getScannerHealth({ days: days.value }),
+      getAdminQualityClosedLoop({ days: days.value }).catch(() => ({ data: {} })),
+    ])
     rows.value = Array.isArray(res.data?.rows) ? res.data.rows : []
     focusedRow.value = rows.value.find((row) => row.review_suggestion) || rows.value[0] || null
     source.value = String(res.data?.source || '')
+    quality.value = qualityRes.data || quality.value
   } finally {
     loading.value = false
   }
@@ -314,6 +363,11 @@ onMounted(() => { void loadRows() })
 .scanner-health-label,.muted { color: #8cb7c9; font-size: 12px; }
 .scanner-health-notice { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(251,191,36,.22); background: rgba(66,46,9,.42); color: #fde68a; font-size: 12px; }
 .scanner-health-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.admin-quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.quality-list { display: grid; gap: 8px; }
+.quality-list button { display: grid; gap: 4px; width: 100%; text-align: left; border: 1px solid rgba(125,167,214,.14); border-radius: 12px; background: rgba(8,28,44,.64); color: #dff8ff; padding: 9px 10px; }
+.quality-list strong { color: #eafcff; font-size: 12px; }
+.quality-list span { color: #8aa4b8; font-size: 11px; }
 .scanner-health-kpi { padding: 16px; border-radius: 14px; border: 1px solid rgba(125,211,252,.14); background: linear-gradient(180deg, rgba(11,31,50,.92), rgba(8,20,34,.98)); }
 .scanner-health-kpi.is-red { border-color: rgba(251,113,133,.28); }
 .scanner-health-kpi span { display: block; color: #8cb7c9; font-size: 12px; }
@@ -353,6 +407,8 @@ html[data-theme='light'] .scanner-health-filter,
 html[data-theme='light'] .scanner-health-panel,
 html[data-theme='light'] .scanner-health-kpi,
 html[data-theme='light'] .scanner-command-card { background: #fff; border-color: rgba(145,176,199,.36); }
+html[data-theme='light'] .quality-list button { background: #fff; border-color: rgba(145,176,199,.28); }
+html[data-theme='light'] .quality-list strong { color: #16324f; }
 html[data-theme='light'] .scanner-health-kpi strong,
 html[data-theme='light'] .scanner-name-cell,
 html[data-theme='light'] .scanner-command-head strong,
@@ -367,10 +423,12 @@ html[data-theme='light'] .scanner-focus span,
 html[data-theme='light'] .muted { color: #5f7690; }
 @media (max-width: 900px) {
   .scanner-health-kpis,
+  .admin-quality-grid,
   .scanner-command-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
   .scanner-health-kpis,
+  .admin-quality-grid,
   .scanner-command-grid { grid-template-columns: 1fr; }
 }
 </style>

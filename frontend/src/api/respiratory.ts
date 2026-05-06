@@ -6,6 +6,9 @@ export type RespiratoryScopeParams = { dept?: string; dept_code?: string; patien
 
 export const getVentilatedPatients = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/ventilated-patients', { params })
 export const getSbtCandidates = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/sbt-candidates', { params })
+export const getRespiratoryWorklist = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/worklist', { params })
+export const closeRespiratoryWorklistTask = (taskId: string, payload: Record<string, any>) =>
+  api.post(`/api/respiratory/worklist/${encodeURIComponent(taskId)}/close`, payload)
 export const postSbtStatus = (patientId: string, payload: Record<string, any>) =>
   api.post(`/api/respiratory/sbt/${patientId}/status`, payload)
 export const getVentilatorTimeline = (patientId: string, hours = 72) =>

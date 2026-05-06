@@ -9,6 +9,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, Query
 
 from app import runtime
+from app.services.workflow_summary_service import build_clinical_summary, build_patient_priority
 from app.utils.analytics_ai import summarize_weaning_timeline
 from app.utils.alerting import derive_sepsis_bundle_status, normalize_sbt_status, normalize_weaning_status
 from app.utils.patient_helpers import admitted_patient_query, calculate_age, infer_clinical_tags, research_patient_scope_query
@@ -74,6 +75,17 @@ async def get_patients(
     return {"code": 0, "patients": patients}
 
 
+@router.get("/api/patients/priority")
+async def get_patient_priority(
+    dept: Optional[str] = Query(None, description="科室名称"),
+    dept_code: Optional[str] = Query(None, description="科室代码"),
+    limit: int = Query(120, ge=1, le=300, description="返回患者上限"),
+):
+    """按临床工作流优先级返回今日重点关注患者。"""
+    rows = await build_patient_priority(runtime.db, dept=dept, dept_code=dept_code, limit=limit)
+    return {"code": 0, "data": rows}
+
+
 @router.get("/api/patients/{patient_id}")
 async def get_patient(patient_id: str):
     """获取患者详细信息"""
@@ -89,6 +101,15 @@ async def get_patient(patient_id: str):
     if not row.get("age"):
         row["age"] = calculate_age(doc.get("birthday"))
     return {"code": 0, "patient": row}
+
+
+@router.get("/api/patients/{patient_id}/clinical-summary")
+async def get_patient_clinical_summary(patient_id: str, hours: int = Query(24, ge=1, le=72)):
+    """患者工作流摘要：24小时事件、Top风险、恶化指标、待办。"""
+    data = await build_clinical_summary(runtime.db, patient_id, hours=hours)
+    if data is None:
+        return {"code": 404, "message": "患者不存在或ID无效"}
+    return {"code": 0, "data": data}
 
 
 @router.get("/api/patients/{patient_id}/ai-watching")

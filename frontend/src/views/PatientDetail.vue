@@ -9,6 +9,12 @@
 
     <AiWatchingBar :patient-id="String(route.params.id || '')" />
 
+    <ClinicalSummaryPanel
+      :summary="clinicalSummary"
+      :loading="clinicalSummaryLoading"
+      @refresh="loadClinicalSummary"
+    />
+
     <section class="detail-density-bar">
       <div class="detail-density-copy">
         <span class="detail-density-kicker">页面视图</span>
@@ -618,8 +624,10 @@ import {
   getPatientDrugs,
   getPatientAssessments,
   getPatientAlerts,
+  getPatientClinicalSummary,
   postPatientAlertsViewed,
   postAlertAcknowledge,
+  postAlertDisposition,
   getPatientSepsisBundleStatus,
   getPatientWeaningTimeline,
   getPatientSimilarCaseOutcomes,
@@ -681,6 +689,7 @@ const PatientEvidenceModal = defineAsyncComponent(() => import('../components/pa
 const PatientBodyMapPanel = defineAsyncComponent(() => import('../components/patient-detail/BodyMapPanel.vue'))
 const PatientDeviceBodyMap = defineAsyncComponent(() => import('../components/patient-detail/DeviceBodyMap.vue'))
 const PatientDeviceHaiBundlePanel = defineAsyncComponent(() => import('../components/patient-detail/DeviceHaiBundlePanel.vue'))
+const ClinicalSummaryPanel = defineAsyncComponent(() => import('../components/patient-detail/ClinicalSummaryPanel.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -746,6 +755,8 @@ const labs = ref<any[]>([])
 const drugs = ref<any[]>([])
 const assessments = ref<any[]>([])
 const alerts = ref<any[]>([])
+const clinicalSummary = ref<any>(null)
+const clinicalSummaryLoading = ref(false)
 const trialMatches = ref<any[]>([])
 const trialMatchLoading = ref(false)
 const trialMatchError = ref('')
@@ -2063,12 +2074,22 @@ async function acknowledgeAlert(item: any, disposition = '', meta?: { override_r
     return
   }
   try {
-    const res = await postAlertAcknowledge(alertId, {
-      actor: getOperatorIdentity(),
-      ...(disposition ? { disposition } : {}),
-      ...(meta?.override_reason_code ? { override_reason_code: meta.override_reason_code } : {}),
-      ...(meta?.override_reason_text ? { override_reason_text: meta.override_reason_text } : {}),
-    })
+    const workflowActions = new Set(['handled', 'resolved', 'watching', 'false_positive', 'duplicate', 'data_error', 'handoff_doctor', 'handoff_nurse', 'review_2h'])
+    const action = disposition === 'review_2h' ? 'needs_review' : disposition === 'resolved' ? 'handled' : disposition || 'handled'
+    const res = workflowActions.has(disposition)
+      ? await postAlertDisposition(alertId, {
+          actor: getOperatorIdentity(),
+          action,
+          reason: meta?.override_reason_text || meta?.override_reason_code || '',
+          review_after_minutes: disposition === 'review_2h' ? 120 : action === 'needs_review' ? 120 : undefined,
+          review_metrics: disposition === 'review_2h' ? ['lactate', 'map', 'spo2', 'urine'] : undefined,
+        })
+      : await postAlertAcknowledge(alertId, {
+          actor: getOperatorIdentity(),
+          ...(disposition ? { disposition } : {}),
+          ...(meta?.override_reason_code ? { override_reason_code: meta.override_reason_code } : {}),
+          ...(meta?.override_reason_text ? { override_reason_text: meta.override_reason_text } : {}),
+        })
     const record = res.data?.record
     if (record) {
       const idx = alerts.value.findIndex((row: any) => String(row?._id || '') === String(record?._id || ''))
@@ -3508,6 +3529,20 @@ async function loadFibrinolysis(refresh = false) {
   }
 }
 
+async function loadClinicalSummary() {
+  const patientId = String(route.params.id || '').trim()
+  if (!patientId) return
+  clinicalSummaryLoading.value = true
+  try {
+    const res = await getPatientClinicalSummary(patientId, { hours: 24 })
+    clinicalSummary.value = res.data?.data || null
+  } catch {
+    clinicalSummary.value = null
+  } finally {
+    clinicalSummaryLoading.value = false
+  }
+}
+
 async function loadPronePosition(refresh = false) {
   if (pronePositionLoading.value) return
   const patientId = route.params.id as string
@@ -3724,6 +3759,7 @@ async function loadDetailPage() {
       }
     })(),
     loadAlerts(),
+    loadClinicalSummary(),
     loadSepsisBundleStatus(),
     loadWeaningStatus(),
     loadClinicalTrialMatches(),
