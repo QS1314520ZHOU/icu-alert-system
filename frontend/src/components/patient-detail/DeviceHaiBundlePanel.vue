@@ -2,7 +2,7 @@
   <section class="device-hai-panel">
     <div class="device-hai-panel__head">
       <div>
-        <div class="device-hai-panel__kicker">装置 × HAI Bundle</div>
+        <div class="device-hai-panel__kicker">装置 × 院感防控清单</div>
         <div class="device-hai-panel__title">装置必要性与感染预防联动</div>
       </div>
       <button type="button" class="device-hai-panel__action" @click="emit('open-alerts')">查看相关预警</button>
@@ -138,7 +138,7 @@ const rows = computed(() => {
       statusText: cvcAlerts.length ? '需复核' : (cvcMarker ? '持续巡视' : '未识别'),
       alertTypes: Array.from(new Set(cvcAlerts.map((row: any) => String(row?.alert_type || '').trim()).filter(Boolean))),
       alertEntries: alertEntryRows(cvcAlerts),
-      chips: [cvcMarker?.daysText, cvcAlerts[0]?.extra?.bundle ? `Bundle ${cvcAlerts[0].extra.bundle}` : '', cvcAlerts.length ? `${cvcAlerts.length} 条提醒` : ''].filter(Boolean),
+      chips: [cvcMarker?.daysText, cvcAlerts[0]?.extra?.bundle ? `清单 ${cvcAlerts[0].extra.bundle}` : '', cvcAlerts.length ? `${cvcAlerts.length} 条提醒` : ''].filter(Boolean),
       summary: explanationText(cvcAlerts[0]) || '暂未触发中心静脉导管相关 HAI / 装置管理提醒。',
       bullets: [
         cvcAlerts[0]?.extra?.blood_culture ? '已出现血培养阳性线索，需结合导管相关感染排查。' : '',
@@ -163,7 +163,7 @@ const rows = computed(() => {
     {
       key: 'ett',
       organKey: 'respiratory',
-      title: '气管插管 / VAP Bundle',
+      title: '气管插管 / VAP 预防清单',
       subtitle: ettMarker?.detail || '联动气道装置留置、拔管时机与 VAP 缺项',
       tone: toneFromAlerts(ettAlerts, ettMarker?.severity || 'normal'),
       statusText: ettAlerts.length ? '需跟进' : (ettMarker ? '持续巡视' : '未识别'),
@@ -172,7 +172,7 @@ const rows = computed(() => {
       chips: [ettMarker?.daysText, ettAlerts[0]?.extra?.vent_days != null ? `通气 D${ettAlerts[0].extra.vent_days}` : '', ettAlerts.length ? `${ettAlerts.length} 条提醒` : ''].filter(Boolean),
       summary: explanationText(ettAlerts[0]) || '暂未触发气管插管相关 HAI / 装置管理提醒。',
       bullets: [
-        ...(Array.isArray(ettAlerts[0]?.extra?.missing_items) ? ettAlerts[0].extra.missing_items.map((item: any) => `VAP Bundle 缺项：${item}`) : []),
+        ...(Array.isArray(ettAlerts[0]?.extra?.missing_items) ? ettAlerts[0].extra.missing_items.map((item: any) => `VAP 预防清单缺项：${item}`) : []),
       ].filter(Boolean),
     },
   ]

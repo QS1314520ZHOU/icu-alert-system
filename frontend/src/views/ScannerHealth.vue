@@ -181,6 +181,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button as AButton, Card as ACard, Segmented as ASegmented, Space as ASpace, Table as ATable, message } from 'ant-design-vue'
 import { getAdminQualityClosedLoop, getScannerHealth, postScannerHealthInferOutcomes, postScannerHealthRecalculate } from '../api'
+import { formatAlertTypeLabel } from '../utils/displayLabels'
 
 const router = useRouter()
 const days = ref(30)
@@ -232,14 +233,14 @@ function driftText(value: any) {
 }
 
 function scannerLabel(value: any) {
-  const key = String(value || '').trim()
+  const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
   const map: Record<string, string> = {
     sofa: '器官衰竭评分',
     qsofa: '快速脓毒症评分',
     septic_shock: '脓毒性休克',
-    sepsis_bundle_overdue_3h: '脓毒症Bundle超时3小时',
-    liberation_bundle: '撤机与镇静唤醒Bundle',
-    vap_bundle_missing: '呼吸机相关肺炎Bundle缺项',
+    sepsis_bundle_overdue_3h: '脓毒症救治清单超时',
+    liberation_bundle: '撤机与镇静唤醒评估',
+    vap_bundle_missing: 'VAP 预防清单缺项',
     weaning: '撤机筛查',
     pupil: '瞳孔异常',
     delirium_risk: '谵妄风险',
@@ -277,9 +278,7 @@ function scannerLabel(value: any) {
     steroid_hyperglycemia: '激素相关高血糖',
   }
   if (map[key]) return map[key]
-  return key
-    .replace(/_/g, ' ')
-    .replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
+  return formatAlertTypeLabel(value)
 }
 
 function shortScannerLabel(value: any) {
@@ -403,12 +402,29 @@ onMounted(() => { void loadRows() })
 .drift-pill.is-red { border-color: rgba(251,113,133,.28); color: #fecaca; }
 .override-list { display: flex; gap: 6px; flex-wrap: wrap; }
 .override-chip { border: 1px solid rgba(125,211,252,.14); background: rgba(10,36,54,.82); color: #d7f3ff; border-radius: 999px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+html[data-theme='light'] .scanner-health-page { color: #0f172a; }
 html[data-theme='light'] .scanner-health-filter,
 html[data-theme='light'] .scanner-health-panel,
 html[data-theme='light'] .scanner-health-kpi,
-html[data-theme='light'] .scanner-command-card { background: #fff; border-color: rgba(145,176,199,.36); }
-html[data-theme='light'] .quality-list button { background: #fff; border-color: rgba(145,176,199,.28); }
+html[data-theme='light'] .scanner-command-card {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.06), transparent 36%),
+    #ffffff;
+  border-color: rgba(148, 163, 184, 0.24);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+html[data-theme='light'] .scanner-health-notice {
+  border-color: rgba(245, 158, 11, 0.22);
+  background: #fffbeb;
+  color: #92400e;
+}
+html[data-theme='light'] .quality-list button {
+  background: #f8fbff;
+  border-color: rgba(148, 163, 184, 0.22);
+  color: #0f172a;
+}
 html[data-theme='light'] .quality-list strong { color: #16324f; }
+html[data-theme='light'] .quality-list span { color: #64748b; }
 html[data-theme='light'] .scanner-health-kpi strong,
 html[data-theme='light'] .scanner-name-cell,
 html[data-theme='light'] .scanner-command-head strong,
@@ -421,6 +437,51 @@ html[data-theme='light'] .scanner-task span,
 html[data-theme='light'] .scanner-empty,
 html[data-theme='light'] .scanner-focus span,
 html[data-theme='light'] .muted { color: #5f7690; }
+html[data-theme='light'] .scanner-task,
+html[data-theme='light'] .scanner-focus div,
+html[data-theme='light'] .scanner-empty {
+  background: #f8fbff;
+  border-color: rgba(148, 163, 184, 0.22);
+}
+html[data-theme='light'] .scanner-focus p { color: #334155; }
+html[data-theme='light'] .scanner-light {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: rgba(16, 185, 129, 0.24);
+}
+html[data-theme='light'] .scanner-light.is-yellow {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: rgba(245, 158, 11, 0.24);
+}
+html[data-theme='light'] .scanner-light.is-red {
+  color: #be123c;
+  background: #fff1f2;
+  border-color: rgba(244, 63, 94, 0.24);
+}
+html[data-theme='light'] .review-tag {
+  color: #be123c;
+  background: #fff1f2;
+  border-color: rgba(244, 63, 94, 0.24);
+}
+html[data-theme='light'] .drift-pill { color: #047857; background: #ecfdf5; }
+html[data-theme='light'] .drift-pill.is-yellow { color: #b45309; background: #fffbeb; }
+html[data-theme='light'] .drift-pill.is-red { color: #be123c; background: #fff1f2; }
+html[data-theme='light'] .override-chip {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.22);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .scanner-health-panel :deep(.ant-table),
+html[data-theme='light'] .scanner-health-panel :deep(.ant-table-container),
+html[data-theme='light'] .scanner-health-panel :deep(.ant-table-cell) {
+  background: #ffffff;
+  color: #1f2937;
+}
+html[data-theme='light'] .scanner-health-panel :deep(.ant-table-thead > tr > th) {
+  background: #f1f5f9;
+  color: #475569;
+}
 @media (max-width: 900px) {
   .scanner-health-kpis,
   .admin-quality-grid,

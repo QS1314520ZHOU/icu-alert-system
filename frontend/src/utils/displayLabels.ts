@@ -56,6 +56,7 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   vte_bleeding_linkage: 'VTE 出血风险联动',
   vte_immobility_no_prophylaxis: '卧床无 VTE 预防',
   nutrition_start_delay: '营养启动延迟',
+  nutrition_monitor: '营养监测',
   nutrition_calorie_not_reached: '热卡未达标',
   nutrition_feeding_intolerance: '喂养不耐受',
   nutrition_refeeding_risk: '再喂养风险',
@@ -64,7 +65,8 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   cvc_review: '中心静脉导管评估',
   foley_review: '导尿管评估',
   ett_extubation_delay: '拔管延迟',
-  liberation_bundle: 'ABCDEF 解放束',
+  liberation_bundle: '撤机与镇静唤醒评估',
+  liberation_bundle_overdue: '撤机与镇静唤醒逾期',
   fluid_responsiveness: '容量反应性',
   crrt_filter_clotting: 'CRRT 滤器凝堵',
   crrt_citrate_ica: '枸橼酸 iCa',
@@ -79,6 +81,7 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   steroid_long_term_taper: '长程激素减停',
   steroid_hyperglycemia: '激素相关高血糖',
   ecash_rass_off_target: 'RASS 未达目标',
+  ecash_bundle: '镇痛镇静谵妄评估',
   ecash_sat_due: '自主唤醒试验到期',
   ecash_pain_overdue: '疼痛评估逾期',
   ecash_pain_uncontrolled: '疼痛控制不佳',
@@ -95,13 +98,47 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   delirium_risk_critical: '谵妄风险危急',
   emergency_admission: '急诊入院',
   hydrocephalus_acute: '急性脑积水',
-  hypertensive_emergency: '高血压急症'
+  hypertensive_emergency: '高血压急症',
+  sepsis_sofa: '脓毒症 SOFA 风险',
+  sepsis_qsofa: '脓毒症 qSOFA 风险',
+  sepsis_bundle_overdue_3h: '脓毒症救治清单超时',
+  hai_vap_bundle_missing: 'VAP 预防清单缺项',
+  vap_bundle_missing: 'VAP 预防清单缺项',
+  hai_cvc_review: '中心静脉导管感染风险评估',
+  hai_cauti_risk: '导尿管感染风险',
+  integrated_risk_reasoning: '综合风险推理',
+  scanner_nurse_reminders: '护理提醒',
+  scanner_nursing_workload: '护理工作负荷',
+  scanner_nutrition_monitor: '营养监测',
+  scanner_ventilator_weaning: '撤机评估',
+  scanner_vanco_tdm_closed_loop: '万古霉素 TDM 闭环',
+  crrt_monitor: 'CRRT 监测',
+  hai_bundle_monitor: '院感防控清单监测',
+  circadian_protector: '昼夜节律保护',
+  clinical_reasoning_agent: '临床推理助手',
+  ai_handoff: '智能交班',
+  pulse: '主动提醒',
+  proactive: '主动干预',
+  metabolic: '代谢评估',
 }
 
 export function formatAlertTypeLabel(value: any) {
-  const key = String(value || '').trim()
+  const raw = String(value || '').trim()
+  const key = raw.toLowerCase().replace(/[\s-]+/g, '_')
   if (!key) return '未命名规则'
-  return ALERT_TYPE_LABELS[key] || key.replace(/_/g, ' ')
+  return ALERT_TYPE_LABELS[key] || raw
+    .replace(/_/g, ' ')
+    .replace(/\bSOFA\b/i, 'SOFA')
+    .replace(/\bQSOFA\b/i, 'qSOFA')
+    .replace(/\bVAP\b/i, 'VAP')
+    .replace(/\bHAI\b/i, '院感')
+    .replace(/\bBUNDLE\b/i, '清单')
+    .replace(/\bNUTRITION\b/i, '营养')
+    .replace(/\bLIBERATION\b/i, '撤机')
+    .replace(/\bOVERDUE\b/i, '逾期')
+    .replace(/\bSTART\b/i, '启动')
+    .replace(/\bDELAY\b/i, '延迟')
+    .replace(/\bSEPSIS\b/i, '脓毒症')
 }
 
 const COMPOSITE_GROUP_LABELS: Record<string, string> = {
@@ -119,19 +156,19 @@ const COMPOSITE_CHAIN_LABELS: Record<string, string> = {
 }
 
 export function formatScenarioGroupLabel(value: any) {
-  const key = String(value || '').trim()
+  const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
   if (!key) return '未分组'
   return SCENARIO_GROUP_LABELS[key] || key.replace(/_/g, ' ')
 }
 
 export function formatCompositeGroupLabel(value: any) {
-  const key = String(value || '').trim()
+  const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
   if (!key) return '未分组'
   return COMPOSITE_GROUP_LABELS[key] || key.replace(/_/g, ' ')
 }
 
 export function formatCompositeChainLabel(value: any) {
-  const key = String(value || '').trim()
+  const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
   if (!key) return '未定义链路'
   return COMPOSITE_CHAIN_LABELS[key] || key.replace(/_/g, ' ')
 }

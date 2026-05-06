@@ -731,6 +731,20 @@ html[data-theme='light'] .detail-container .ai-risk-summary,
 html[data-theme='light'] .detail-container .ai-risk-card,
 html[data-theme='light'] .detail-container .ai-risk-organ,
 html[data-theme='light'] .detail-container .ai-risk-section,
+html[data-theme='light'] .detail-container .summary-card,
+html[data-theme='light'] .detail-container .summary-mini-chip,
+html[data-theme='light'] .detail-container .summary-chip,
+html[data-theme='light'] .detail-container .summary-snapshot,
+html[data-theme='light'] .detail-container .summary-main-wrap,
+html[data-theme='light'] .detail-container .summary-chain,
+html[data-theme='light'] .detail-container .topic-card,
+html[data-theme='light'] .detail-container .ops-card,
+html[data-theme='light'] .detail-container .side-panel,
+html[data-theme='light'] .detail-container .side-block,
+html[data-theme='light'] .detail-container .case-card,
+html[data-theme='light'] .detail-container .score-box,
+html[data-theme='light'] .detail-container .outcome-board,
+html[data-theme='light'] .detail-container .profile-chip,
 html[data-theme='light'] .detail-container .alert-detail-item,
 html[data-theme='light'] .detail-container .alert-extra,
 html[data-theme='light'] .detail-container .kb-doc-meta,
@@ -751,6 +765,16 @@ html[data-theme='light'] .detail-container .ai-risk-summary strong,
 html[data-theme='light'] .detail-container .ai-risk-card strong,
 html[data-theme='light'] .detail-container .ai-risk-organ-name,
 html[data-theme='light'] .detail-container .ai-risk-section-title,
+html[data-theme='light'] .detail-container .summary-card strong,
+html[data-theme='light'] .detail-container .summary-title,
+html[data-theme='light'] .detail-container .summary-mini-chip-value,
+html[data-theme='light'] .detail-container .summary-main,
+html[data-theme='light'] .detail-container .summary-chain-text,
+html[data-theme='light'] .detail-container .topic-card-title,
+html[data-theme='light'] .detail-container .topic-card-main,
+html[data-theme='light'] .detail-container .ops-main,
+html[data-theme='light'] .detail-container .case-name,
+html[data-theme='light'] .detail-container .score-value,
 html[data-theme='light'] .detail-container .kb-chunk-title {
   color: var(--text-main) !important;
 }
@@ -761,11 +785,33 @@ html[data-theme='light'] .detail-container .ai-risk-organ-status,
 html[data-theme='light'] .detail-container .ai-risk-organ-evidence,
 html[data-theme='light'] .detail-container .ai-risk-organ-conf,
 html[data-theme='light'] .detail-container .ai-risk-list,
+html[data-theme='light'] .detail-container .summary-card span,
+html[data-theme='light'] .detail-container .summary-card small,
+html[data-theme='light'] .detail-container .summary-mini-chip-label,
+html[data-theme='light'] .detail-container .summary-block-label,
+html[data-theme='light'] .detail-container .summary-snapshot-label,
+html[data-theme='light'] .detail-container .summary-chain-tag,
+html[data-theme='light'] .detail-container .summary-chain-code,
+html[data-theme='light'] .detail-container .topic-card-sub,
+html[data-theme='light'] .detail-container .topic-card-meta,
+html[data-theme='light'] .detail-container .ops-foot,
+html[data-theme='light'] .detail-container .case-rank,
+html[data-theme='light'] .detail-container .case-foot,
 html[data-theme='light'] .detail-container .kb-doc-meta p,
 html[data-theme='light'] .detail-container .kb-chunk-content {
   color: var(--text-muted) !important;
 }
 html[data-theme='light'] .detail-container .alert-meta > span {
+  background: var(--icu-surface) !important;
+  border-color: var(--icu-border) !important;
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .topic-chip,
+html[data-theme='light'] .detail-container .ops-chip,
+html[data-theme='light'] .detail-container .ops-bullet,
+html[data-theme='light'] .detail-container .topic-card-count,
+html[data-theme='light'] .detail-container .match-chip,
+html[data-theme='light'] .detail-container .case-diagnosis {
   background: var(--icu-surface) !important;
   border-color: var(--icu-border) !important;
   color: var(--text-muted) !important;

@@ -10,7 +10,7 @@
         <div class="pulse-card__bar"></div>
         <div class="pulse-card__head">
           <span class="pulse-source">{{ sourceLabel(activePulse.source) }}</span>
-          <button class="pulse-icon-btn" type="button" @click="dismiss(activePulse)">x</button>
+          <button class="pulse-icon-btn" type="button" @click="dismiss(activePulse)">×</button>
         </div>
         <div class="pulse-card__headline">{{ activePulse.headline }}</div>
         <div class="pulse-card__action">{{ activePulse.action_hint }}</div>
@@ -28,7 +28,7 @@
     <transition name="pulse-history-pop">
       <div v-if="showHistory" class="pulse-history">
         <div class="pulse-history__head">
-          <strong>AI Pulse</strong>
+          <strong>AI提醒</strong>
           <span>24小时内</span>
         </div>
         <div v-if="!history.length" class="pulse-history__empty">暂无主动提醒</div>
@@ -281,6 +281,59 @@ onUnmounted(() => {
 .pulse-history__item span { color: #67e8f9; font-size: 10px; }
 .pulse-history__item strong { color: #effcff; font-size: 12px; line-height: 1.45; }
 .pulse-history__item em { color: #9cc9d8; font-size: 11px; font-style: normal; }
+html[data-theme='light'] .pulse-card {
+  border-color: rgba(59, 130, 246, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98));
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+html[data-theme='light'] .pulse-source {
+  border-color: rgba(59, 130, 246, 0.18);
+  background: rgba(239, 246, 255, 0.98);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .pulse-icon-btn {
+  border-color: rgba(148, 163, 184, 0.26);
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+}
+html[data-theme='light'] .pulse-card__headline,
+html[data-theme='light'] .pulse-history__head strong,
+html[data-theme='light'] .pulse-history__item strong {
+  color: #0f172a;
+}
+html[data-theme='light'] .pulse-card__action,
+html[data-theme='light'] .pulse-history__item em {
+  color: #475569;
+}
+html[data-theme='light'] .pulse-primary {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+html[data-theme='light'] .pulse-fab {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+html[data-theme='light'] .pulse-history {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+}
+html[data-theme='light'] .pulse-history__head span,
+html[data-theme='light'] .pulse-history__empty {
+  color: #64748b;
+}
+html[data-theme='light'] .pulse-history__item {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(248, 251, 255, 0.98);
+}
+html[data-theme='light'] .pulse-history__item span {
+  color: #2563eb;
+}
 .pulse-slide-enter-active,
 .pulse-slide-leave-active,
 .pulse-history-pop-enter-active,

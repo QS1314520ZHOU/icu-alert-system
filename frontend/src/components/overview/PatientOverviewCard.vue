@@ -125,7 +125,7 @@
       </div>
       <div class="alert-line" v-if="bundleProgress">
         <span class="alert-dot alert-dot--yellow"></span>
-        <span class="alert-text">Bundle 完成度 {{ bundleProgress }}</span>
+        <span class="alert-text">防控清单完成度 {{ bundleProgress }}</span>
       </div>
       <div v-for="(note, idx) in alertNotes" :key="`${note.rule_id || note.title || 'note'}-${idx}`" :class="['alert-card', `alert-card--${note.severity || 'high'}`]">
         <div class="alert-card-top">
@@ -289,7 +289,7 @@
     <section class="sec-footer">
       <div class="bundle-panel">
         <div class="bundle-head">
-          <span class="footer-title">ABCDEF Bundle</span>
+          <span class="footer-title">ABCDEF 防控清单</span>
           <span v-if="bundleProgress" class="bundle-score">{{ bundleProgress }}</span>
         </div>
         <div class="bundle-dots">

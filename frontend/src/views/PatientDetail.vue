@@ -988,8 +988,8 @@ const sepsisBundleConclusion = computed(() => {
   if (status?.status === 'met_late') return `首剂抗生素已补执行，但超过 1h 时限${name}`
   if (status?.status === 'overdue_3h') return '首剂抗生素已超过 3h 仍未执行'
   if (status?.status === 'overdue_1h') return '首剂抗生素已超过 1h 未执行'
-  if (status?.status === 'pending') return '已进入 Sepsis Bundle 计时，请盯紧首剂抗生素'
-  return '当前未进入 Sepsis 1h Bundle 计时'
+  if (status?.status === 'pending') return '已进入脓毒症救治清单计时，请盯紧首剂抗生素'
+  return '当前未进入脓毒症 1 小时救治清单计时'
 })
 const sepsisBundleTimelineText = computed(() => {
   const status = sepsisBundleStatusResolved.value
@@ -1002,7 +1002,7 @@ const sepsisBundleTimelineText = computed(() => {
   if (status?.status === 'pending' || status?.status === 'overdue_1h' || status?.status === 'overdue_3h') {
     return `起点 ${started || '—'} · 1h截止 ${deadline1h || '—'}`
   }
-  return '未见脓毒症 Bundle 计时记录'
+  return '未见脓毒症救治清单计时记录'
 })
 const sepsisBundleExtraText = computed(() => {
   const status = sepsisBundleStatusResolved.value
@@ -3201,7 +3201,7 @@ async function loadSepsisBundleStatus() {
     sepsisBundleStatus.value = res.data?.status || null
     sepsisBundleNow.value = Date.now()
   } catch (e) {
-    console.error('加载Sepsis Bundle状态失败', e)
+    console.error('加载脓毒症救治清单状态失败', e)
     sepsisBundleStatus.value = null
   }
 }

@@ -246,7 +246,7 @@ const form = reactive<any>({
 })
 
 const guideSteps = [
-  { index: '01', title: '发现问题', desc: '从预警、Bundle、呼吸机、数据质量中识别可研究的临床差距。' },
+  { index: '01', title: '发现问题', desc: '从预警、防控清单、呼吸机、数据质量中识别可研究的临床差距。' },
   { index: '02', title: '一键立项', desc: '把 AI 推荐转为项目卡，补充负责人、状态、伦理和时间节点。' },
   { index: '03', title: '数据准备', desc: '先看缺失率和时间逻辑，再导出脱敏 OMOP CSV ZIP。' },
 ]
@@ -269,8 +269,8 @@ const researchScopeParams = computed<ResearchScopeParams>(() => {
 const titleMap: Record<string, string> = {
   'Prone Positioning Effectiveness in ARDS Patients': 'ARDS 患者俯卧位治疗效果研究',
   'Prone Positioning Efficacy in ARDS Patients within the ICU': 'ICU 内 ARDS 患者俯卧位疗效研究',
-  'Compliance with Sepsis 3-Hour Bundle and Patient Outcomes': '脓毒症 3 小时 Bundle 依从性与预后研究',
-  'Sepsis Bundle Compliance and Patient Outcomes': '脓毒症 Bundle 依从性与患者结局研究',
+  'Compliance with Sepsis 3-Hour Bundle and Patient Outcomes': '脓毒症 3 小时救治清单依从性与预后研究',
+  'Sepsis Bundle Compliance and Patient Outcomes': '脓毒症救治清单依从性与患者结局研究',
   'High Driving Pressure as a Predictor of Ventilator-Associated Lung Injury': '高驱动压暴露预测呼吸机相关肺损伤研究',
   'Impact of High Driving Pressure on Ventilator-Associated Outcomes': '高驱动压对机械通气相关结局的影响研究',
   'Impact of Data Quality Issues on Quality-Signal Reporting Accuracy': '数据质量问题对重症质控信号准确性的影响研究',
@@ -278,7 +278,7 @@ const titleMap: Record<string, string> = {
 const questionMap: Record<string, string> = {
   'Does early prone positioning improve 28-day mortality among ICU patients diagnosed with ARDS?': '早期俯卧位治疗是否改善 ARDS ICU 患者 28 天结局？',
   'Does early implementation of prone positioning improve 28-day mortality among ARDS patients identified by ARDS/prone related alerts?': '对 ARDS 或俯卧位相关预警患者，早期实施俯卧位是否可降低 28 天全因死亡率？',
-  'Is higher compliance with the sepsis care bundle associated with reduced ICU mortality among patients flagged by sepsis bundle alerts?': '在脓毒症 Bundle 预警患者中，更高的 Bundle 依从性是否与 ICU 死亡率下降相关？',
+  'Is higher compliance with the sepsis care bundle associated with reduced ICU mortality among patients flagged by sepsis bundle alerts?': '在脓毒症救治清单预警患者中，更高的清单依从性是否与 ICU 死亡率下降相关？',
   'Does exposure to high driving pressure (>15 cmH₂O) increase the risk of ventilator-associated lung injury and mortality in ICU patients?': 'ICU 患者暴露于高驱动压（>15 cmH₂O）是否增加呼吸机相关肺损伤和死亡风险？',
   'Does exposure to high driving pressure (>15 cmH2O) increase the risk of ventilator-associated lung injury and mortality in ICU patients?': 'ICU 患者暴露于高驱动压（>15 cmH2O）是否增加呼吸机相关肺损伤和死亡风险？',
 }
@@ -359,7 +359,7 @@ function localizeText(text: string) {
     .replace(/(\d+)\s+patients/i, '$1 名患者')
     .replace(/records?/i, '条记录')
     .replace(/ARDS or prone related alerts/gi, 'ARDS 或俯卧位相关预警')
-    .replace(/sepsis bundle related alerts/gi, '脓毒症 Bundle 相关预警')
+    .replace(/sepsis bundle related alerts/gi, '脓毒症救治清单相关预警')
     .replace(/high driving pressure alerts/gi, '高驱动压预警')
     .replace(/clinical diagnosis missing rate/gi, '临床诊断缺失率')
     .replace(/age and gender missing rate/gi, '年龄和性别缺失率')

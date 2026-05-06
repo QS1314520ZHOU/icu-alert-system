@@ -349,7 +349,7 @@ onUnmounted(() => clearInterval(t))
   box-shadow: var(--hdr-icon-shadow);
 }
 .hdr-title { font-size: 18px; font-weight: 800; color: var(--hdr-title); letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
-.hdr-sub { font-size: 11px; color: var(--hdr-sub); letter-spacing: 0.06em; line-height: 1.2; margin-top: 2px; text-transform: uppercase; }
+.hdr-sub { font-size: 11px; color: var(--hdr-sub); letter-spacing: 0.06em; line-height: 1.2; margin-top: 2px; }
 .hdr-nav-shell {
   min-width: 0;
   padding: 0 24px 14px;
@@ -538,8 +538,13 @@ onUnmounted(() => clearInterval(t))
 .body { background: var(--app-bg); min-height: calc(100vh - 104px); }
 
 .theme-light .hdr {
+  background:
+    radial-gradient(circle at 10% -35%, rgba(59, 130, 246, 0.16), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 255, 0.96) 58%, rgba(239, 246, 255, 0.98) 100%) !important;
   backdrop-filter: none;
   position: sticky;
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
 .theme-light .hdr-l {
@@ -558,22 +563,79 @@ onUnmounted(() => clearInterval(t))
 
 .theme-light .nav-btn {
   font-weight: 600;
+  background: rgba(255, 255, 255, 0.82);
+  color: #334155;
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.theme-light .nav-btn:hover {
+  color: #1d4ed8;
+  background: rgba(239, 246, 255, 0.98);
+  border-color: rgba(59, 130, 246, 0.28);
 }
 
 .theme-light .nav-btn.active {
-  color: var(--nav-btn-active-text);
-  background: var(--nav-btn-active-bg);
-  border-color: var(--nav-btn-active-border);
+  color: #ffffff;
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  border-color: rgba(37, 99, 235, 0.38);
   transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.22);
+}
+
+.theme-light .hdr-title {
+  color: #0f172a;
+}
+
+.theme-light .hdr-sub,
+.theme-light .operator-pill__label,
+.theme-light .toggle-text,
+.theme-light .hdr-clock,
+.theme-light .theme-lbl {
+  color: #64748b;
+}
+
+.theme-light .hdr-icon {
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: rgba(59, 130, 246, 0.24);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
+}
+
+.theme-light .hdr-nav-shell::before {
+  background: linear-gradient(90deg, transparent, rgba(59,130,246,.22), transparent);
+}
+
+.theme-light .hdr-menu {
+  scrollbar-color: rgba(37, 99, 235, 0.28) transparent;
+}
+
+.theme-light .hdr-menu::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.24);
 }
 
 .theme-light .operator-pill,
 .theme-light .theme-toggle {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(148, 163, 184, 0.28);
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.06);
 }
 
 .theme-light .operator-pill__input {
   font-weight: 600;
+  color: #0f172a;
+}
+
+.theme-light .operator-pill__name {
+  color: #0f172a;
+}
+
+.theme-light .switch-slider {
+  background: rgba(148, 163, 184, 0.36);
+}
+
+.theme-light .switch input:checked + .switch-slider {
+  background: #2563eb;
 }
 
 .theme-light .switch-slider::before {

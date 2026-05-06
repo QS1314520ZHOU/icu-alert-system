@@ -38,7 +38,7 @@
       <article class="config-panel ai-panel">
         <div class="panel-head">
           <div>
-            <span>AI配置</span>
+          <span>AI 配置</span>
             <strong>{{ ai.enabled === false ? '已关闭' : '已启用' }}</strong>
           </div>
           <a-button size="small" type="primary" :loading="saving.ai" @click="saveAi">保存</a-button>
@@ -46,7 +46,7 @@
         <div class="ai-form">
           <label><span>AI总开关</span><a-switch v-model:checked="ai.enabled" checked-children="启用" un-checked-children="关闭" /></label>
           <label><span>温度</span><a-input-number v-model:value="ai.temperature" :min="0" :max="2" :step="0.1" /></label>
-          <label><span>最大Token</span><a-input-number v-model:value="ai.max_tokens" :min="128" :max="8192" /></label>
+          <label><span>最大输出长度</span><a-input-number v-model:value="ai.max_tokens" :min="128" :max="8192" /></label>
           <label><span>超时秒数</span><a-input-number v-model:value="ai.timeout" :min="5" :max="180" /></label>
         </div>
         <div class="route-form">
@@ -80,7 +80,7 @@
             <label><span>优先级</span><a-input-number v-model:value="provider.priority" :min="1" :max="999" /></label>
             <label class="wide"><span>接口地址</span><a-input v-model:value="provider.base_url" placeholder="http://host:port/v1" /></label>
             <label><span>模型名</span><a-input v-model:value="provider.model" placeholder="模型ID" /></label>
-            <label class="wide"><span>API Key</span><a-input-password v-model:value="provider.api_key" placeholder="可留空或填密钥" /></label>
+            <label class="wide"><span>接口密钥</span><a-input-password v-model:value="provider.api_key" placeholder="可留空或填密钥" /></label>
             <label><span>超时</span><a-input-number v-model:value="provider.timeout" :min="5" :max="180" /></label>
           </div>
         </article>
@@ -408,11 +408,56 @@ onMounted(loadConfig)
   cursor: pointer;
 }
 html[data-theme='light'] .config-hero,
-html[data-theme='light'] .config-panel { background: #fff; border-color: rgba(15,23,42,.08); }
+html[data-theme='light'] .config-panel {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.06), transparent 34%),
+    #ffffff;
+  border-color: rgba(148, 163, 184, 0.24);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+html[data-theme='light'] .config-hero {
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
 html[data-theme='light'] .config-hero h1,
 html[data-theme='light'] .panel-head strong,
 html[data-theme='light'] .module-row strong,
 html[data-theme='light'] .mapping-list strong { color: #0f172a; }
+html[data-theme='light'] .config-hero span,
+html[data-theme='light'] .config-hero p,
+html[data-theme='light'] .panel-head span,
+html[data-theme='light'] .module-row span,
+html[data-theme='light'] .mapping-list span,
+html[data-theme='light'] .ai-form label,
+html[data-theme='light'] .route-form label,
+html[data-theme='light'] .provider-grid label {
+  color: #64748b;
+}
+html[data-theme='light'] .module-row,
+html[data-theme='light'] .provider-card,
+html[data-theme='light'] .rule-row,
+html[data-theme='light'] .mapping-list button {
+  background: #f8fbff;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+html[data-theme='light'] .rule-head {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+html[data-theme='light'] .route-form {
+  border-top-color: rgba(148, 163, 184, 0.22);
+}
+html[data-theme='light'] .config-error {
+  background: #fff7ed;
+  border-color: rgba(249, 115, 22, 0.24);
+  color: #9a3412;
+}
+html[data-theme='light'] .config-error strong {
+  color: #7c2d12;
+}
 @media (max-width: 1100px) {
   .config-grid, .ai-form, .route-form, .provider-grid, .mapping-editor { grid-template-columns: 1fr; }
   .provider-grid .wide { grid-column: span 1; }

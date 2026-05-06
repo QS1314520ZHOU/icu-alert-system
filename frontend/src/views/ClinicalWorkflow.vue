@@ -682,7 +682,7 @@ const activeAntibioticBars = computed(() => {
     percent: Math.max(8, Math.round((Number(row.value || 0) / max) * 100)),
   }))
 })
-const antibioticPanelTitle = computed(() => activeAntibioticPatient.value ? `${selectedPatient.value?.bed || '--'}床 DDDS` : '全科 DDDS')
+const antibioticPanelTitle = computed(() => activeAntibioticPatient.value ? `${selectedPatient.value?.bed || '--'}床 抗菌药强度` : '全科抗菌药强度')
 const filteredPriorityQueue = computed(() => {
   const rows = priorityQueue.value || []
   const key = activeSignalFilter.value
@@ -711,7 +711,7 @@ const directorMorningTiles = computed(() => [
   { key: 'night', label: '昨夜事件', value: priorityQueue.value.filter((row: any) => Number(row.risk_score || 0) > 0).length, hint: '看事件链', tone: 'info' },
   { key: 'open', label: '未闭环', value: cards.value.find((card: any) => card.key === 'unacked')?.value || 0, hint: '筛选床位', tone: Number(cards.value.find((card: any) => card.key === 'unacked')?.value || 0) ? 'warning' : 'stable' },
   { key: 'discharge', label: '可转出', value: dischargeLights.value.filter((row: any) => (row.lights || []).every((light: any) => light.ok)).length, hint: '看转出灯', tone: 'stable' },
-  { key: 'antibiotic', label: '抗菌药', value: antibioticSummary.value.today || 0, hint: 'DDDS', tone: antibioticIntensity.value?.available ? 'info' : 'warning' },
+  { key: 'antibiotic', label: '抗菌药', value: antibioticSummary.value.today || 0, hint: '强度', tone: antibioticIntensity.value?.available ? 'info' : 'warning' },
   { key: 'rules', label: '规则噪音', value: scannerReview.value.length, hint: '规则健康', tone: scannerReview.value.length ? 'warning' : 'stable' },
   { key: 'case', label: '典型病例', value: priorityQueue.value[0]?.bed || '--', hint: priorityQueue.value[0]?.name || '暂无', tone: priorityQueue.value.length ? 'high' : 'stable' },
 ])

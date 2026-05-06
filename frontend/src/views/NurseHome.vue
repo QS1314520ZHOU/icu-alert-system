@@ -72,14 +72,14 @@
           <section class="panel">
             <div class="panel-head"><strong>安全清单</strong><span>红黄绿闭环</span></div>
             <article v-for="item in bundles" :key="item.code" :class="`bundle is-${item.tone}`">
-              <strong>{{ item.name }}</strong>
+              <strong>{{ displayName(item.name || item.code) }}</strong>
               <span>{{ item.data_state === 'missing' ? '暂无同步' : `${item.completed}/${item.total}` }}</span>
             </article>
           </section>
           <section class="panel">
             <div class="panel-head"><strong>与我相关的 AI 提醒</strong><span>护理执行相关</span></div>
             <article v-for="item in reminders" :key="item._id || item.created_at" class="reminder">
-              <strong>{{ shortText(item.name || item.alert_type || item.rule_id) }}</strong>
+              <strong>{{ shortText(displayName(item.name || item.alert_type || item.rule_id)) }}</strong>
               <div>
                 <button type="button" @click="feedbackReminder(item, 'resolved')">已处理</button>
                 <button type="button" @click="feedbackReminder(item, 'escalate')">转给医生</button>
@@ -136,6 +136,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, postNurseTaskExecute } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { formatAlertTypeLabel } from '../utils/displayLabels'
 
 const route = useRoute()
 const router = useRouter()
@@ -211,6 +212,9 @@ function fmt(value: any) {
 function shortText(value: any) {
   const text = String(value || 'AI提醒')
   return text.length > 20 ? `${text.slice(0, 20)}...` : text
+}
+function displayName(value: any) {
+  return formatAlertTypeLabel(value).replace(/\bBundle\b/gi, '防控清单')
 }
 function selectTask(task: any) {
   selectedTask.value = task
