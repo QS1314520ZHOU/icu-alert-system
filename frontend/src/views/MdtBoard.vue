@@ -399,6 +399,24 @@
               </div>
             </a-card>
 
+            <a-card :bordered="false" class="mdt-panel mdt-action-board" title="会中行动看板">
+              <div class="mdt-action-board__grid">
+                <article v-for="item in mdtActionBoardRows" :key="item.key" :class="['mdt-action-card', `is-${item.tone}`]">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                  <small>{{ item.detail }}</small>
+                </article>
+              </div>
+              <div class="mdt-next-step">
+                <div>
+                  <span>下一步</span>
+                  <strong>{{ nextStepAction.title }}</strong>
+                  <small>{{ nextStepAction.detail }}</small>
+                </div>
+                <a-button type="primary" size="small" :disabled="!nextStepAction.enabled" @click="runNextStepAction">{{ nextStepAction.button }}</a-button>
+              </div>
+            </a-card>
+
             <a-card :bordered="false" class="mdt-panel" title="1. 总控结论">
               <div class="clinical-summary-layout">
                 <div class="summary-box summary-box--hero">
@@ -995,6 +1013,12 @@
             <div class="doc-stack">
               <div class="doc-block">
                 <div class="detail-label">MDT 会诊记录</div>
+                <div v-if="mdtSummarySections.length" class="mdt-document-sections">
+                  <article v-for="item in mdtSummarySections" :key="item.heading" class="mdt-document-section">
+                    <strong>{{ item.heading }}</strong>
+                    <p>{{ item.content }}</p>
+                  </article>
+                </div>
                 <textarea v-model="consultRecord" class="field-textarea field-textarea--lg" :disabled="isSessionClosed" rows="8" placeholder="可先编辑，再一键保存或用智能生成。"></textarea>
                 <div class="workspace-actions">
                   <a-button size="small" :disabled="isSessionClosed" :loading="generatingDocType === 'mdt_summary'" @click="generateDocument('mdt_summary')">智能生成讨论材料</a-button>
@@ -1013,7 +1037,7 @@
             <div class="impact-list">
               <article v-if="latestGeneratedDocuments.mdt_summary" class="impact-card">
                 <div class="impact-card__title">最新 MDT 讨论材料</div>
-                <div class="impact-card__text">{{ latestGeneratedDocuments.mdt_summary.document?.document_text || latestGeneratedDocuments.mdt_summary.summary || '已生成' }}</div>
+                <div class="impact-card__text">{{ latestMdtDocumentPreview }}</div>
               </article>
               <article v-if="latestGeneratedDocuments.daily_progress" class="impact-card">
                 <div class="impact-card__title">最新病程记录</div>
@@ -1474,6 +1498,62 @@ const documentStatusRows = computed(() => [
     detail: progressRecord.value ? `${progressRecord.value.length} 字` : '可由 AI 生成',
   },
 ])
+const mdtSummarySections = computed(() => {
+  const doc = latestGeneratedDocuments.value.mdt_summary?.document || {}
+  const sections = Array.isArray(doc.sections) ? doc.sections : []
+  return sections
+    .map((item: any) => ({
+      heading: String(item?.heading || '').trim(),
+      content: String(item?.content || '').trim(),
+    }))
+    .filter((item: any) => item.heading && item.content)
+    .slice(0, 6)
+})
+const latestMdtDocumentPreview = computed(() => {
+  if (mdtSummarySections.value.length) {
+    return mdtSummarySections.value.map((item: any) => `${item.heading}：${shortMdtText(item.content, 80)}`).join('\n')
+  }
+  return shortMdtText(latestGeneratedDocuments.value.mdt_summary?.document?.document_text || latestGeneratedDocuments.value.mdt_summary?.summary || '已生成', 220)
+})
+const mdtActionBoardRows = computed(() => [
+  {
+    key: 'problem',
+    label: '先确认主要问题',
+    value: conflictRows.value.length ? `${conflictRows.value.length} 个冲突` : activeSystemLabel.value,
+    detail: conflictRows.value.length ? '先完成主持人裁决' : shortMdtText(metaSummary.value, 34),
+    tone: conflictRows.value.length ? 'warning' : 'soft',
+  },
+  {
+    key: 'evidence',
+    label: '再看关键证据',
+    value: `${signalSourceRows.value.reduce((sum, item) => sum + (parseInt(item.value, 10) || 0), 0)} 条`,
+    detail: signalSourceRows.value.map((item) => `${item.label}${item.value}`).join('，') || '暂无结构化证据',
+    tone: signalSourceRows.value.length ? 'info' : 'muted',
+  },
+  {
+    key: 'decision',
+    label: '形成决议',
+    value: `${decisionRows.value.length} 条`,
+    detail: pendingConfirmationCount.value ? `${pendingConfirmationCount.value} 条需医生确认` : '确认负责人、时限和复评',
+    tone: pendingConfirmationCount.value ? 'warning' : 'soft',
+  },
+  {
+    key: 'review',
+    label: '复评归档',
+    value: `${completedDecisionCount.value}/${Math.max(decisionRows.value.length, 1)}`,
+    detail: consultRecord.value || progressRecord.value ? '文书已形成' : '待生成会诊记录',
+    tone: completedDecisionCount.value === decisionRows.value.length && decisionRows.value.length ? 'soft' : 'info',
+  },
+])
+const nextStepAction = computed(() => {
+  if (!selectedPatientId.value) return { title: '选择患者', detail: '先选择本次会诊患者。', button: '选择患者', enabled: false, action: 'none' }
+  if (isGeneratingAssessment.value) return { title: '等待会诊生成', detail: '生成完成后先看冲突和决议。', button: '生成中', enabled: false, action: 'none' }
+  if (!decisionRows.value.length && syncableAiActions.value.length) return { title: '同步 AI 动作为决议草案', detail: '同步后逐条确认负责人、时限和复评指标。', button: '同步动作', enabled: !isSessionClosed.value, action: 'sync' }
+  if (pendingConfirmationCount.value) return { title: '医生确认决议草案', detail: '确认前不能作为医嘱或任务执行。', button: '批量确认', enabled: !isSessionClosed.value, action: 'confirm' }
+  if (pendingDecisionCount.value || inProgressDecisionCount.value) return { title: '推进未闭环决议', detail: '优先完成已确认但未闭环的决议。', button: '批量完成', enabled: !isSessionClosed.value, action: 'complete' }
+  if (!consultRecord.value && !progressRecord.value) return { title: '生成会诊记录', detail: '把问题、证据、决议和复评写成可归档记录。', button: '生成记录', enabled: !isSessionClosed.value, action: 'document' }
+  return { title: '保存并归档', detail: '当前会诊已形成记录，可保存会话。', button: '保存会话', enabled: !isSessionClosed.value, action: 'save' }
+})
 const selectedPatientLabel = computed(() => {
   if (patient.value) {
     const bed = patient.value?.hisBed || patient.value?.bed || '--'
@@ -1712,6 +1792,15 @@ function shortMdtText(value: any, max = 52) {
 function handleMdtOrganClick(organKey: string) {
   const row = mdtOrganRows.value.find((item: any) => item.organKey === organKey)
   if (row?.agent) selectSpecialist(row.agent)
+}
+
+function runNextStepAction() {
+  const action = nextStepAction.value.action
+  if (action === 'sync') return syncDecisionsFromMetaActions()
+  if (action === 'confirm') return markVisibleDecisions('doctor_confirmed')
+  if (action === 'complete') return markVisibleDecisions('completed')
+  if (action === 'document') return generateDocument('consultation_request')
+  if (action === 'save') return saveWorkspace()
 }
 
 function priorityLabel(priority: any) {
@@ -3147,6 +3236,69 @@ onMounted(async () => {
 .mdt-content--moderator .mdt-grid--assessment .detail-stack .detail-block:last-child {
   grid-column: 1 / -1;
 }
+.mdt-action-board :deep(.ant-card-body) {
+  display: grid;
+  gap: 12px;
+}
+.mdt-action-board__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.mdt-action-card {
+  display: grid;
+  gap: 6px;
+  min-height: 98px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(125, 167, 214, 0.14);
+  background: rgba(9, 20, 31, 0.78);
+}
+.mdt-action-card span,
+.mdt-next-step span {
+  color: #8ea8b8;
+  font-size: 11px;
+}
+.mdt-action-card strong,
+.mdt-next-step strong {
+  color: #f3f8fb;
+  font-size: 17px;
+  line-height: 1.25;
+}
+.mdt-action-card small,
+.mdt-next-step small {
+  color: #a5bfcd;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.mdt-action-card.is-warning {
+  border-color: rgba(251, 191, 36, 0.24);
+  background: linear-gradient(180deg, rgba(48, 34, 13, 0.84), rgba(18, 25, 31, 0.78));
+}
+.mdt-action-card.is-info {
+  border-color: rgba(96, 165, 250, 0.24);
+}
+.mdt-action-card.is-soft {
+  border-color: rgba(52, 211, 153, 0.2);
+}
+.mdt-action-card.is-muted {
+  opacity: .78;
+}
+.mdt-next-step {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  background: linear-gradient(90deg, rgba(15, 38, 58, 0.9), rgba(10, 22, 33, 0.86));
+}
+.mdt-next-step > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
 .mdt-content--moderator .conflict-list,
 .mdt-content--moderator .detail-stack,
 .mdt-content--moderator .impact-list,
@@ -3750,6 +3902,29 @@ onMounted(async () => {
   display: grid;
   gap: 10px;
 }
+.mdt-document-sections {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.mdt-document-section {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 167, 214, 0.12);
+  background: rgba(9, 20, 31, 0.68);
+}
+.mdt-document-section strong {
+  color: #f3f8fb;
+  font-size: 13px;
+}
+.mdt-document-section p {
+  margin: 0;
+  color: #cfdfe8;
+  font-size: 12px;
+  line-height: 1.65;
+}
 .workspace-actions--top {
   grid-template-columns: repeat(4, minmax(0, auto));
   justify-content: start;
@@ -4081,6 +4256,31 @@ html[data-theme='light'] .mdt-flow-step.is-done .mdt-flow-step__index {
 }
 html[data-theme='light'] .summary-box--hero {
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
+}
+html[data-theme='light'] .mdt-action-card,
+html[data-theme='light'] .mdt-document-section {
+  border-color: rgba(203, 213, 225, .82);
+  background: rgba(248, 250, 252, .98);
+}
+html[data-theme='light'] .mdt-next-step {
+  border-color: rgba(37, 99, 235, .24);
+  background: linear-gradient(90deg, rgba(239, 246, 255, .98), rgba(248, 250, 252, .98));
+}
+html[data-theme='light'] .mdt-action-card.is-warning {
+  border-color: rgba(217, 119, 6, .28);
+  background: linear-gradient(180deg, rgba(255, 251, 235, .98), rgba(255, 255, 255, .98));
+}
+html[data-theme='light'] .mdt-action-card span,
+html[data-theme='light'] .mdt-next-step span,
+html[data-theme='light'] .mdt-action-card small,
+html[data-theme='light'] .mdt-next-step small,
+html[data-theme='light'] .mdt-document-section p {
+  color: #60758a;
+}
+html[data-theme='light'] .mdt-action-card strong,
+html[data-theme='light'] .mdt-next-step strong,
+html[data-theme='light'] .mdt-document-section strong {
+  color: #18344f;
 }
 html[data-theme='light'] .trend-placeholder__chart span {
   background: linear-gradient(180deg, rgba(59, 130, 246, 0.78), rgba(59, 130, 246, 0.2));

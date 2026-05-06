@@ -265,15 +265,119 @@ class ClinicalDocumentGenerator:
         except Exception:
             return None
 
-    def _fallback_document(self, template: DocumentTemplate, structured_data: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def _first_text(*values: Any) -> str:
+        for value in values:
+            text = str(value or "").strip()
+            if text:
+                return text
+        return ""
+
+    def _fallback_mdt_summary(self, template: DocumentTemplate, structured_data: dict[str, Any]) -> dict[str, Any]:
         patient = structured_data.get("patient") if isinstance(structured_data.get("patient"), dict) else {}
+        vitals = structured_data.get("latest_vitals") if isinstance(structured_data.get("latest_vitals"), dict) else {}
+        alerts = structured_data.get("alerts_24h") if isinstance(structured_data.get("alerts_24h"), list) else []
+        labs = structured_data.get("labs_24h") if isinstance(structured_data.get("labs_24h"), list) else []
+        drugs = structured_data.get("drugs_24h") if isinstance(structured_data.get("drugs_24h"), list) else []
+        problem_list = structured_data.get("problem_list") if isinstance(structured_data.get("problem_list"), list) else []
+        reasoning = structured_data.get("clinical_reasoning") if isinstance(structured_data.get("clinical_reasoning"), dict) else {}
+
         diagnosis = str(patient.get("diagnosis") or "未提供诊断").strip()
+        alert_titles = [
+            self._first_text(item.get("name"), item.get("alert_type"), item.get("parameter"))
+            for item in alerts[:5]
+            if isinstance(item, dict)
+        ]
+        alert_titles = [item for item in alert_titles if item]
+        problem_titles = [
+            self._first_text(item.get("problem") if isinstance(item, dict) else item, item.get("title") if isinstance(item, dict) else "")
+            for item in problem_list[:5]
+        ]
+        problem_titles = [item for item in problem_titles if item]
+        vital_parts = []
+        for label, key in (("HR", "hr"), ("MAP", "map"), ("SpO2", "spo2"), ("RR", "rr"), ("体温", "temp")):
+            if vitals.get(key) is not None:
+                vital_parts.append(f"{label} {vitals.get(key)}")
+        lab_parts = []
+        for item in labs[:6]:
+            if not isinstance(item, dict):
+                continue
+            name = self._first_text(item.get("itemName"), item.get("itemCnName"), item.get("name"))
+            value = self._first_text(item.get("result"), item.get("resultValue"), item.get("value"))
+            if name and value:
+                lab_parts.append(f"{name} {value}")
+        drug_parts = [
+            self._first_text(item.get("drugName"), item.get("orderName"), item.get("name"))
+            for item in drugs[:6]
+            if isinstance(item, dict)
+        ]
+        drug_parts = [item for item in drug_parts if item]
+
+        actions = []
+        for source in (reasoning.get("recommendations"), reasoning.get("action_items"), reasoning.get("plan")):
+            if isinstance(source, list):
+                for item in source[:5]:
+                    if isinstance(item, dict):
+                        text = self._first_text(item.get("action"), item.get("recommendation"), item.get("title"))
+                    else:
+                        text = str(item or "").strip()
+                    if text:
+                        actions.append(text)
+            elif isinstance(source, str) and source.strip():
+                actions.append(source.strip())
+        if not actions and alert_titles:
+            actions.append("围绕高优先级告警逐项确认问题、责任人、处理时限和复评指标。")
+        if not actions:
+            actions.append("先由主持医生确认主要问题，再形成不超过 3 条可执行决议。")
+
         sections = [
-            {"heading": "患者概况", "content": f"患者 {patient.get('name') or '未知'}，床位 {patient.get('bed') or '未提供'}，主要诊断：{diagnosis}。"},
-            {"heading": "当前情况", "content": "AI 文书结构化生成失败，当前已回退为基础内容，请结合结构化数据人工补充。"},
+            {
+                "heading": "患者概况",
+                "content": f"患者 {patient.get('name') or '未知'}，床位 {patient.get('bed') or '未提供'}，主要诊断：{diagnosis}。",
+            },
+            {
+                "heading": "本次MDT要解决的问题",
+                "content": "；".join(problem_titles[:4] or alert_titles[:4] or ["当前结构化数据未形成明确问题清单，需结合床旁情况确认主要矛盾。"]),
+            },
+            {
+                "heading": "关键证据",
+                "content": "；".join((vital_parts + lab_parts + alert_titles)[:8] or ["暂无足够结构化证据，建议先核对生命体征、检验、用药和重要告警。"]),
+            },
+            {
+                "heading": "决议草案",
+                "content": "；".join(actions[:5]),
+            },
+            {
+                "heading": "负责人和复评",
+                "content": "每条决议需记录负责人、执行时限、监测指标和复评时间；建议按 6h/12h/24h 复评病情、指标变化和决议执行结果。",
+            },
+            {
+                "heading": "安全提示",
+                "content": "以上为结构化数据生成的MDT讨论草稿，仅供会诊记录整理；涉及医嘱、侵入操作、用药调整和生命支持变更，必须由执业医生确认。",
+            },
         ]
         text = "\n".join([f"{item['heading']}：{item['content']}" for item in sections])
-        return {"title": template.title, "sections": sections, "document_text": text, "key_facts_used": []}
+        return {"title": template.title, "sections": sections, "document_text": text, "key_facts_used": (vital_parts + lab_parts + alert_titles)[:12]}
+
+    def _fallback_document(self, template: DocumentTemplate, structured_data: dict[str, Any]) -> dict[str, Any]:
+        if template.doc_type == "mdt_summary":
+            return self._fallback_mdt_summary(template, structured_data)
+        patient = structured_data.get("patient") if isinstance(structured_data.get("patient"), dict) else {}
+        diagnosis = str(patient.get("diagnosis") or "未提供诊断").strip()
+        alerts = structured_data.get("alerts_24h") if isinstance(structured_data.get("alerts_24h"), list) else []
+        alert_titles = [
+            self._first_text(item.get("name"), item.get("alert_type"), item.get("parameter"))
+            for item in alerts[:4]
+            if isinstance(item, dict)
+        ]
+        alert_titles = [item for item in alert_titles if item]
+        sections = [
+            {"heading": "患者概况", "content": f"患者 {patient.get('name') or '未知'}，床位 {patient.get('bed') or '未提供'}，主要诊断：{diagnosis}。"},
+            {"heading": "当前情况", "content": "已基于当前结构化数据生成基础草稿，需由责任医生结合床旁情况补充确认。"},
+            {"heading": "重点问题", "content": "；".join(alert_titles or ["暂无足够结构化告警信息，建议先核对生命体征、检验、用药和治疗计划。"])},
+        ]
+        text = "\n".join([f"{item['heading']}：{item['content']}" for item in sections])
+        return {"title": template.title, "sections": sections, "document_text": text, "key_facts_used": alert_titles[:12]}
 
     def _quality_checker(self, document: dict[str, Any], structured_data: dict[str, Any]) -> dict[str, Any]:
         text = json.dumps(document, ensure_ascii=False)
