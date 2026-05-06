@@ -86,7 +86,7 @@ async def create_export_task(req: ExportRequest, request: Request, db: DatabaseM
 
 
 @router.get("/export/{task_id}/status")
-async def get_export_status(task_id: str):
+async def get_export_status(task_id: str, db: DatabaseManager = Depends(runtime.get_db)):
     col = db.col("research_export_tasks")
     doc = await col.find_one({"task_id": task_id}, {"_id": 0})
     if not doc:
@@ -96,8 +96,8 @@ async def get_export_status(task_id: str):
 
 
 @router.get("/export/{task_id}/download")
-async def download_export(task_id: str):
-    col = runtime.db.col("research_export_tasks")
+async def download_export(task_id: str, db: DatabaseManager = Depends(runtime.get_db)):
+    col = db.col("research_export_tasks")
     doc = await col.find_one({"task_id": task_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -118,7 +118,7 @@ async def export_history(
     export_mode: str | None = Query(None),
 ):
     created_by = request.headers.get("X-User-Id", "anonymous")
-    col = runtime.db.col("research_export_tasks")
+    col = db.col("research_export_tasks")
     query: dict[str, object] = {"created_by": created_by}
     if str(status or "").strip():
         query["status"] = str(status).strip()
