@@ -173,7 +173,7 @@ class ScanTaskWorker:
                     logger.warning("[scan-worker:%s] unknown scanner %s", idx, scanner_name)
                     await self.queue.ack(scanner_name, task_id)
                     continue
-                await scanner.scan()
+                await scanner.run_with_telemetry()
                 await self.queue.ack(scanner_name, task_id)
             except asyncio.CancelledError:
                 raise
@@ -217,7 +217,7 @@ async def run_inline_loops(
             while not stop_event.is_set():
                 try:
                     async with semaphore:
-                        await scanner.scan()
+                        await scanner.run_with_telemetry()
                 except Exception as exc:
                     logger.exception("[%s] 扫描失败: %s", scanner.name, exc)
                 await _sleep(scanner.interval_seconds())
@@ -262,7 +262,7 @@ async def run_inline_loops(
     async def _run_scanner(scanner: BaseScanner) -> None:
         try:
             async with semaphore:
-                await scanner.scan()
+                await scanner.run_with_telemetry()
         except Exception as exc:
             logger.exception("[%s] 扫描失败: %s", scanner.name, exc)
 
@@ -304,7 +304,7 @@ async def run_scanners_once(scanners: list[BaseScanner], semaphore: asyncio.Sema
     for scanner in scanners:
         try:
             async with semaphore:
-                await scanner.scan()
+                await scanner.run_with_telemetry()
         except Exception as exc:
             logger.exception("[%s] 单次执行失败: %s", scanner.name, exc)
 

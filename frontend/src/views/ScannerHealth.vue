@@ -35,6 +35,10 @@
         <span>平均阳性预测值</span>
         <strong>{{ percentText(avgPpv) }}</strong>
       </div>
+      <div class="scanner-health-kpi">
+        <span>运行异常</span>
+        <strong>{{ runtimeErrorCount }}</strong>
+      </div>
     </section>
 
     <section class="admin-quality-grid">
@@ -123,7 +127,11 @@
           <div><span>闭环</span><b>{{ focusedRow.closure?.percent ?? 0 }}%</b></div>
           <div><span>PPV</span><b>{{ percentText(focusedRow.ppv) }}</b></div>
           <div><span>覆盖</span><b>{{ percentText(focusedRow.override_rate) }}</b></div>
+          <div><span>执行成功率</span><b>{{ percentText(focusedRow.runtime_health?.success_rate) }}</b></div>
+          <div><span>P95耗时</span><b>{{ durationText(focusedRow.runtime_health?.p95_duration_ms) }}</b></div>
+          <div><span>最近执行</span><b>{{ fmtTime(focusedRow.runtime_health?.last_run_at) }}</b></div>
           <p>{{ focusedRow.threshold_advice || focusedRow.closure?.label || '规则状态平稳，建议保留常规抽查。' }}</p>
+          <p v-if="focusedRow.runtime_health?.last_error" class="runtime-error">最近异常：{{ focusedRow.runtime_health.last_error }}</p>
         </div>
         <div v-else class="scanner-empty">点击左侧规则灯查看</div>
       </article>
@@ -155,6 +163,12 @@
           </template>
           <template v-else-if="column.key === 'drift_status'">
             <span :class="['drift-pill', `is-${record.drift_status || 'green'}`]">{{ driftText(record.drift_status) }}</span>
+          </template>
+          <template v-else-if="column.key === 'runtime_health'">
+            <div class="runtime-cell">
+              <span :class="['drift-pill', `is-${record.runtime_health?.tone || 'unknown'}`]">{{ runtimeText(record.runtime_health) }}</span>
+              <small>P95 {{ durationText(record.runtime_health?.p95_duration_ms) }} / 最近 {{ fmtTime(record.runtime_health?.last_run_at) }}</small>
+            </div>
           </template>
           <template v-else-if="column.key === 'recent_overrides'">
             <div v-if="record.recent_overrides?.length" class="override-list">
@@ -201,6 +215,7 @@ const columns = [
   { title: '触发数', dataIndex: 'fired_count', key: 'fired_count', width: 90 },
   { title: '阳性预测值', dataIndex: 'ppv', key: 'ppv', width: 110 },
   { title: '覆盖率', dataIndex: 'override_rate', key: 'override_rate', width: 100 },
+  { title: '执行健康', dataIndex: 'runtime_health', key: 'runtime_health', width: 170 },
   { title: '响应中位时间(分钟)', dataIndex: 'median_time_to_action_minutes', key: 'median_time_to_action_minutes', width: 150 },
   { title: '24h事件率', dataIndex: 'event_24h_rate', key: 'event_24h_rate', width: 110 },
   { title: '需提醒人数', dataIndex: 'nnt', key: 'nnt', width: 110 },
@@ -210,6 +225,7 @@ const columns = [
 const reviewCount = computed(() => rows.value.filter((row) => row.review_suggestion).length)
 const redCount = computed(() => rows.value.filter((row) => String(row.drift_status || '').toLowerCase() === 'red').length)
 const yellowCount = computed(() => rows.value.filter((row) => String(row.drift_status || '').toLowerCase() === 'yellow').length)
+const runtimeErrorCount = computed(() => rows.value.filter((row) => ['red', 'yellow'].includes(String(row.runtime_health?.tone || '').toLowerCase())).length)
 const totalFired = computed(() => rows.value.reduce((sum, row) => sum + Number(row.fired_count || 0), 0))
 const avgPpv = computed(() => {
   if (!rows.value.length) return 0
@@ -230,6 +246,19 @@ function fmtTime(value: any) {
 
 function driftText(value: any) {
   return ({ green: '绿', yellow: '黄', red: '红' } as Record<string, string>)[String(value || '').toLowerCase()] || '绿'
+}
+
+function runtimeText(value: any) {
+  if (!value || !value.run_count) return '未运行'
+  const tone = String(value.tone || '').toLowerCase()
+  const label = ({ green: '正常', yellow: '需关注', red: '异常' } as Record<string, string>)[tone] || '未知'
+  return `${label} ${percentText(value.success_rate)}`
+}
+
+function durationText(value: any) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  return num >= 1000 ? `${(num / 1000).toFixed(1)}秒` : `${Math.round(num)}毫秒`
 }
 
 function scannerLabel(value: any) {
@@ -361,7 +390,7 @@ onMounted(() => { void loadRows() })
 .scanner-health-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .scanner-health-label,.muted { color: #8cb7c9; font-size: 12px; }
 .scanner-health-notice { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(251,191,36,.22); background: rgba(66,46,9,.42); color: #fde68a; font-size: 12px; }
-.scanner-health-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.scanner-health-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .admin-quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .quality-list { display: grid; gap: 8px; }
 .quality-list button { display: grid; gap: 4px; width: 100%; text-align: left; border: 1px solid rgba(125,167,214,.14); border-radius: 12px; background: rgba(8,28,44,.64); color: #dff8ff; padding: 9px 10px; }
@@ -394,12 +423,16 @@ onMounted(() => { void loadRows() })
 .scanner-focus span { color: #8cb7c9; }
 .scanner-focus b { color: #ecfeff; }
 .scanner-focus p { margin: 0; color: #bfefff; line-height: 1.55; }
+.runtime-error { color: #fecaca !important; }
+.runtime-cell { display: grid; gap: 4px; }
+.runtime-cell small { color: #8cb7c9; font-size: 11px; }
 .scanner-name-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: #ecfeff; }
 .scanner-name-cell small { color: #6aa7bd; font-size: 11px; }
 .review-tag { padding: 2px 8px; border-radius: 999px; color: #fecaca; border: 1px solid rgba(251,113,133,.28); background: rgba(69,10,10,.38); font-size: 11px; }
 .drift-pill { display: inline-flex; min-width: 42px; justify-content: center; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(52,211,153,.24); color: #86efac; }
 .drift-pill.is-yellow { border-color: rgba(251,191,36,.28); color: #fde68a; }
 .drift-pill.is-red { border-color: rgba(251,113,133,.28); color: #fecaca; }
+.drift-pill.is-unknown { border-color: rgba(148,163,184,.24); color: #cbd5e1; }
 .override-list { display: flex; gap: 6px; flex-wrap: wrap; }
 .override-chip { border: 1px solid rgba(125,211,252,.14); background: rgba(10,36,54,.82); color: #d7f3ff; border-radius: 999px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
 html[data-theme='light'] .scanner-health-page { color: #0f172a; }

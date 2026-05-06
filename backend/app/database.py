@@ -234,6 +234,10 @@ class DatabaseManager:
             await self.col("clinical_trials").create_index([("status", 1), ("updated_at", -1)])
             await self.col("clinical_trial_candidates").create_index([("candidate_id", 1)], unique=True)
             await self.col("clinical_trial_candidates").create_index([("patient_id", 1), ("updated_at", -1)])
+            await self.col("scanner_runs").create_index([("scanner_name", 1), ("created_at", -1)])
+            await self.col("scanner_runs").create_index([("created_at", -1)])
+            await self.col("llm_call_logs").create_index([("created_at", -1)])
+            await self.col("llm_call_logs").create_index([("cache_key", 1), ("created_at", -1)])
 
             logger.info("✅ 预警系统索引创建完成")
             await self._seed_default_rules()

@@ -11,7 +11,7 @@ from fastapi import APIRouter, Body, Query
 
 from app import runtime
 from app.config import get_config
-from app.services.llm_runtime import sanitize_llm_text
+from app.services.llm_runtime import llm_runtime_snapshot, sanitize_llm_text
 from app.utils.api_llm import call_api_llm
 from app.utils.patient_data import fetch_dc_exam_items_by_his_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
@@ -177,15 +177,29 @@ async def ai_feedback_summary(days: int = Query(default=7, ge=1, le=90), limit: 
 async def ai_monitor_summary(date: str | None = Query(default=None)):
     try:
         summary = await runtime.ai_monitor.get_daily_summary(date=date)
+        runtime_snapshot = await llm_runtime_snapshot()
         return {
             "code": 0,
             "date": summary.get("date") or date or datetime.now(API_TZ).strftime("%Y-%m-%d"),
             "stats": [serialize_doc(item) for item in summary.get("stats", [])],
             "active_alerts": [serialize_doc(item) for item in summary.get("active_alerts", [])],
+            "runtime": serialize_doc(runtime_snapshot),
         }
     except Exception as exc:
         logger.error("AI monitor summary error: %s", exc)
-        return {"code": 0, "date": date or datetime.now(API_TZ).strftime("%Y-%m-%d"), "stats": [], "active_alerts": [], "error": f"监控汇总异常: {str(exc)[:120]}"}
+        runtime_snapshot = {}
+        try:
+            runtime_snapshot = await llm_runtime_snapshot()
+        except Exception:
+            runtime_snapshot = {}
+        return {
+            "code": 0,
+            "date": date or datetime.now(API_TZ).strftime("%Y-%m-%d"),
+            "stats": [],
+            "active_alerts": [],
+            "runtime": serialize_doc(runtime_snapshot),
+            "error": f"监控汇总异常: {str(exc)[:120]}",
+        }
 
 
 @router.get("/api/ai/rule-recommendations/{patient_id}")

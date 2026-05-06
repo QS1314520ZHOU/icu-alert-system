@@ -37,6 +37,11 @@
         <strong class="ops-kpi-value">{{ thresholdSummary.pending_review || 0 }}</strong>
         <small>已批准 {{ thresholdSummary.approved || 0 }} / 已拒绝 {{ thresholdSummary.rejected || 0 }}</small>
       </div>
+      <div class="ops-kpi ops-kpi--runtime">
+        <span class="ops-kpi-label">AI 中枢</span>
+        <strong class="ops-kpi-value">{{ runtimeStatusText }}</strong>
+        <small>缓存 {{ runtimeCacheSize }} 条 / 并发上限 {{ runtimeConcurrencyLimit }}</small>
+      </div>
     </section>
 
     <section class="ops-action-strip">
@@ -54,6 +59,30 @@
     </section>
 
     <section class="ops-grid">
+      <a-card title="AI 中枢运行态" :bordered="false" class="ops-panel">
+        <div class="ops-runtime-grid">
+          <div class="ops-runtime-item">
+            <span>缓存条目</span>
+            <strong>{{ runtimeCacheSize }}</strong>
+          </div>
+          <div class="ops-runtime-item">
+            <span>并发上限</span>
+            <strong>{{ runtimeConcurrencyLimit }}</strong>
+          </div>
+          <div class="ops-runtime-item">
+            <span>降级状态</span>
+            <strong>{{ runtimeDegradedText }}</strong>
+          </div>
+          <div class="ops-runtime-item">
+            <span>最近异常</span>
+            <strong>{{ runtimeLastErrorText }}</strong>
+          </div>
+        </div>
+        <div class="ops-runtime-note">
+          用于观察大模型调用的缓存、限流和自动降级状态，帮助判断 AI 响应慢是模型侧、缓存未命中还是并发拥塞。
+        </div>
+      </a-card>
+
       <a-card title="智能运行监控" :bordered="false" class="ops-panel">
         <div v-if="monitorStats.length" class="ops-table-wrap">
           <a-table
@@ -210,6 +239,7 @@ const days = ref(7)
 const thresholdStatus = ref<'all' | 'pending_review' | 'approved' | 'rejected'>('all')
 const monitorStats = ref<any[]>([])
 const activeMonitorAlerts = ref<any[]>([])
+const runtimeSummary = ref<any>({})
 const feedbackSummary = ref<any>({ total: 0, by_outcome: {}, by_module: {}, confirmed_ratio: 0, inaccurate_ratio: 0 })
 const feedbackRows = ref<any[]>([])
 const thresholdSummary = ref<any>({ pending_review: 0, approved: 0, rejected: 0 })
@@ -262,6 +292,33 @@ const thresholdColumns = [
 const feedbackModuleRows = computed(() => {
   const src = feedbackSummary.value?.by_module || {}
   return Object.keys(src).map((key) => ({ module: key, count: Number(src[key] || 0) })).sort((a, b) => b.count - a.count)
+})
+
+const runtimeCacheSize = computed(() => {
+  const value = Number(runtimeSummary.value?.cache_size)
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0
+})
+
+const runtimeConcurrencyLimit = computed(() => {
+  const value = Number(runtimeSummary.value?.concurrency_limit)
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : '未初始化'
+})
+
+const runtimeStatusText = computed(() => {
+  if (runtimeSummary.value?.open) return '熔断中'
+  if (runtimeSummary.value?.last_error) return '需关注'
+  return '正常'
+})
+
+const runtimeDegradedText = computed(() => {
+  if (runtimeSummary.value?.open) return '已熔断'
+  if (runtimeSummary.value?.failure_count) return `连续异常 ${runtimeSummary.value.failure_count} 次`
+  return '未降级'
+})
+
+const runtimeLastErrorText = computed(() => {
+  const text = String(runtimeSummary.value?.last_error || '').trim()
+  return text ? text.slice(0, 46) : '无'
 })
 
 const opsActions = computed(() => [
@@ -411,6 +468,7 @@ async function loadAll() {
     ])
     monitorStats.value = Array.isArray(monitorRes.data?.stats) ? monitorRes.data.stats : []
     activeMonitorAlerts.value = Array.isArray(monitorRes.data?.active_alerts) ? monitorRes.data.active_alerts : []
+    runtimeSummary.value = monitorRes.data?.runtime || {}
     feedbackSummary.value = feedbackRes.data?.summary || { total: 0, by_outcome: {}, by_module: {}, confirmed_ratio: 0, inaccurate_ratio: 0 }
     feedbackRows.value = Array.isArray(feedbackRes.data?.recent) ? feedbackRes.data.recent : []
     thresholdSummary.value = thresholdRes.data?.summary || { pending_review: 0, approved: 0, rejected: 0 }
@@ -431,10 +489,11 @@ onMounted(() => { void loadAll() })
 .ops-filter-row,.ops-kpi-strip,.ops-chip-row,.ops-alert-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .ops-filter-row { justify-content: space-between; align-items: center; }
 .ops-label { color: #8cb7c9; font-size: 12px; }
-.ops-kpi-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ops-kpi-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .ops-kpi { padding: 16px; border-radius: 16px; border: 1px solid rgba(125,211,252,.14); background: linear-gradient(180deg, rgba(11,31,50,.92), rgba(8,20,34,.98)); }
 .ops-kpi--warn { border-color: rgba(251,191,36,.2); }
 .ops-kpi--review { border-color: rgba(52,211,153,.2); }
+.ops-kpi--runtime { border-color: rgba(96,165,250,.22); }
 .ops-kpi-label { color: #8cb7c9; font-size: 12px; }
 .ops-kpi-value { display: block; margin-top: 8px; color: #ecfeff; font-size: 28px; }
 .ops-kpi small { color: #86aabd; }
@@ -446,6 +505,11 @@ onMounted(() => { void loadAll() })
 .ops-action-meta { color: #86aabd; font-size: 11px; line-height: 1.5; }
 .ops-grid { display: grid; grid-template-columns: 1.1fr 1.2fr; gap: 14px; }
 .ops-panel--wide { grid-column: 1 / -1; }
+.ops-runtime-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ops-runtime-item { min-height: 74px; padding: 12px; border-radius: 12px; border: 1px solid rgba(125,211,252,.12); background: rgba(9,26,42,.72); display: grid; align-content: center; gap: 6px; }
+.ops-runtime-item span { color: #8cb7c9; font-size: 12px; }
+.ops-runtime-item strong { color: #ecfeff; font-size: 18px; line-height: 1.2; word-break: break-word; }
+.ops-runtime-note { margin-top: 12px; color: #86aabd; font-size: 12px; line-height: 1.7; }
 .ops-empty { color: #8cb7c9; padding: 18px 0; }
 .ops-chip,.ops-alert-pill { padding: 6px 10px; border-radius: 999px; background: rgba(10,36,54,.92); color: #d7f3ff; border: 1px solid rgba(125,211,252,.14); font-size: 12px; }
 .ops-module-list { display: grid; gap: 8px; margin: 14px 0; }
@@ -494,6 +558,7 @@ html[data-theme='light'] .ops-action-tile,
 html[data-theme='light'] .ops-chip,
 html[data-theme='light'] .ops-alert-pill,
 html[data-theme='light'] .ops-module-row,
+html[data-theme='light'] .ops-runtime-item,
 html[data-theme='light'] .ops-review-input,
 html[data-theme='light'] .ops-review-textarea,
 html[data-theme='light'] .ops-outcome {
@@ -523,11 +588,14 @@ html[data-theme='light'] .ops-action-label,
 html[data-theme='light'] .ops-action-meta,
 html[data-theme='light'] .ops-threshold-note,
 html[data-theme='light'] .ops-review-label,
+html[data-theme='light'] .ops-runtime-item span,
+html[data-theme='light'] .ops-runtime-note,
 html[data-theme='light'] .ops-empty {
   color: var(--ops-text-sub);
 }
 html[data-theme='light'] .ops-kpi-value,
-html[data-theme='light'] .ops-action-value {
+html[data-theme='light'] .ops-action-value,
+html[data-theme='light'] .ops-runtime-item strong {
   color: var(--ops-text-main);
 }
 html[data-theme='light'] .ops-link { color: #165ec9; }
@@ -562,11 +630,17 @@ html[data-theme='light'] .ops-kpi--warn {
 html[data-theme='light'] .ops-kpi--review {
   border-color: rgba(16, 185, 129, 0.34);
 }
+html[data-theme='light'] .ops-kpi--runtime {
+  border-color: rgba(59, 130, 246, 0.34);
+}
 html[data-theme='light'] .ops-kpi--warn::after {
   background: linear-gradient(100deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0) 48%);
 }
 html[data-theme='light'] .ops-kpi--review::after {
   background: linear-gradient(100deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 48%);
+}
+html[data-theme='light'] .ops-kpi--runtime::after {
+  background: linear-gradient(100deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 48%);
 }
 html[data-theme='light'] :deep(.ant-card-head-title) {
   color: #1d4f7a;

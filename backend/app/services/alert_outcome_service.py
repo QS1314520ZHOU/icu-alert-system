@@ -278,7 +278,9 @@ class AlertOutcomeService:
         since = datetime.now() - timedelta(days=max(int(days or 30), 1))
         docs = [doc async for doc in self.db.col("alert_outcomes").find({"fired_at": {"$gte": since}}).limit(5000)]
         if not docs:
-            return await self._scanner_health_from_alert_records(since=since, days=days)
+            result = await self._scanner_health_from_alert_records(since=since, days=days)
+            result["rows"] = await self._attach_scanner_run_health(result.get("rows") or [], since=since)
+            return result
         by_scanner: dict[str, list[dict[str, Any]]] = {}
         for doc in docs:
             by_scanner.setdefault(str(doc.get("scanner_name") or "unknown"), []).append(doc)
@@ -321,6 +323,7 @@ class AlertOutcomeService:
                 }
             )
         rows.sort(key=lambda row: (row["drift_status"] != "red", row["drift_status"] != "yellow", -row["fired_count"]))
+        rows = await self._attach_scanner_run_health(rows, since=since)
         return {"days": days, "source": "alert_outcomes", "rows": rows, "total_scanners": len(rows)}
 
     async def _scanner_health_from_alert_records(self, *, since: datetime, days: int) -> dict[str, Any]:
@@ -385,6 +388,73 @@ class AlertOutcomeService:
             )
         rows.sort(key=lambda row: (row["drift_status"] != "red", row["drift_status"] != "yellow", -row["fired_count"]))
         return {"days": days, "source": "alert_records_fallback", "rows": rows, "total_scanners": len(rows)}
+
+    async def _attach_scanner_run_health(self, rows: list[dict[str, Any]], *, since: datetime) -> list[dict[str, Any]]:
+        runs_by_scanner: dict[str, list[dict[str, Any]]] = {}
+        cursor = self.db.col("scanner_runs").find(
+            {"created_at": {"$gte": since}},
+            {"scanner_name": 1, "status": 1, "duration_ms": 1, "error": 1, "created_at": 1},
+        ).sort("created_at", -1).limit(10000)
+        async for run in cursor:
+            scanner = str(run.get("scanner_name") or "unknown")
+            runs_by_scanner.setdefault(scanner, []).append(run)
+
+        existing = {str(row.get("scanner_name") or "") for row in rows}
+        for scanner, runs in runs_by_scanner.items():
+            if scanner not in existing:
+                rows.append(
+                    {
+                        "scanner_name": scanner,
+                        "fired_count": 0,
+                        "ppv": 0.0,
+                        "override_rate": 0.0,
+                        "median_time_to_action_minutes": None,
+                        "event_24h_rate": 0.0,
+                        "nnt": None,
+                        "drift_status": "green",
+                        "review_suggestion": False,
+                        "threshold_advice": "",
+                        "closure": {"percent": 100, "tasks": [], "label": "暂无触发"},
+                        "recent_overrides": [],
+                    }
+                )
+
+        for row in rows:
+            scanner = str(row.get("scanner_name") or "unknown")
+            runs = runs_by_scanner.get(scanner, [])
+            if not runs:
+                row["runtime_health"] = {
+                    "run_count": 0,
+                    "success_rate": None,
+                    "error_rate": None,
+                    "avg_duration_ms": None,
+                    "p95_duration_ms": None,
+                    "last_run_at": None,
+                    "last_status": "unknown",
+                    "last_error": "",
+                    "tone": "unknown",
+                }
+                continue
+            durations = sorted(float(run.get("duration_ms") or 0) for run in runs)
+            errors = [run for run in runs if str(run.get("status") or "") != "success"]
+            p95_index = min(len(durations) - 1, max(0, int(round(len(durations) * 0.95)) - 1))
+            error_rate = len(errors) / len(runs)
+            tone = "red" if error_rate >= 0.2 else "yellow" if error_rate >= 0.05 else "green"
+            row["runtime_health"] = {
+                "run_count": len(runs),
+                "success_rate": round(1 - error_rate, 3),
+                "error_rate": round(error_rate, 3),
+                "avg_duration_ms": round(sum(durations) / len(durations), 1) if durations else None,
+                "p95_duration_ms": round(durations[p95_index], 1) if durations else None,
+                "last_run_at": runs[0].get("created_at"),
+                "last_status": str(runs[0].get("status") or "unknown"),
+                "last_error": str((errors[0] if errors else {}).get("error") or "")[:200],
+                "tone": tone,
+            }
+            if tone == "red":
+                row["review_suggestion"] = True
+                row["threshold_advice"] = row.get("threshold_advice") or "该规则执行失败率偏高，建议先排查数据源或扫描器异常"
+        return rows
 
     def _scanner_closure(self, *, total: int, accepted: int, overridden: int, ack_minutes: list[float], drift: str) -> dict[str, Any]:
         if total <= 0:

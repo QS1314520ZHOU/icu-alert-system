@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from abc import ABC, abstractmethod
+from datetime import datetime
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Coroutine, TypeVar
 
@@ -44,6 +46,43 @@ class BaseScanner(ABC):
         disabled = cfg.get("disabled_scanners", []) if isinstance(cfg, dict) else []
         disabled_names = {str(name).strip() for name in disabled if str(name).strip()}
         return self.name not in disabled_names
+
+    async def record_run_telemetry(
+        self,
+        *,
+        status: str,
+        duration_ms: float,
+        error: str = "",
+    ) -> None:
+        try:
+            now = datetime.now()
+            await self.engine.db.col("scanner_runs").insert_one(
+                {
+                    "scanner_name": self.name,
+                    "status": status,
+                    "duration_ms": round(float(duration_ms or 0), 2),
+                    "error": str(error or "")[:500],
+                    "runtime_role": getattr(self.engine, "runtime_role", "api"),
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            )
+        except Exception as exc:
+            logger.debug("[%s] scanner telemetry write failed: %s", self.name, exc)
+
+    async def run_with_telemetry(self) -> None:
+        started = time.perf_counter()
+        status = "success"
+        error = ""
+        try:
+            await self.scan()
+        except Exception as exc:
+            status = "error"
+            error = str(exc)
+            raise
+        finally:
+            duration_ms = (time.perf_counter() - started) * 1000
+            await self.record_run_telemetry(status=status, duration_ms=duration_ms, error=error)
 
     def _llm_timeout(self) -> float:
         """从配置读取 LLM 超时秒数，默认 45s。"""

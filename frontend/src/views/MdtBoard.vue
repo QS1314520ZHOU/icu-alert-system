@@ -3106,6 +3106,19 @@ onMounted(async () => {
 .mdt-sidebar {
   position: sticky;
   top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 167, 214, 0.42) transparent;
+}
+.mdt-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.mdt-sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(125, 167, 214, 0.36);
 }
 .mdt-content {
   min-width: 0;
@@ -4568,6 +4581,9 @@ html[data-theme='light'] .mdt-flow-step.is-done {
   }
   .mdt-sidebar {
     position: static;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
   .mdt-action-rail {
     position: static;

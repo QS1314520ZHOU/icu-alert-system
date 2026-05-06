@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import re
 import time
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -86,6 +88,73 @@ class _LLMFailureTracker:
 
 
 _FAILURE_TRACKER = _LLMFailureTracker()
+_LLM_SEMAPHORE: asyncio.Semaphore | None = None
+_LLM_CONCURRENCY_LIMIT = 0
+_LLM_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_LLM_CACHE_LOCK = asyncio.Lock()
+
+
+def _prompt_hash(*parts: Any) -> str:
+    raw = "\n\n".join(str(part or "") for part in parts)
+    return hashlib.sha256(raw.encode("utf-8", errors="ignore")).hexdigest()
+
+
+def _cache_ttl_seconds(runtime_ai: dict[str, Any]) -> int:
+    try:
+        cache_cfg = runtime_ai.get("cache") if isinstance(runtime_ai.get("cache"), dict) else {}
+        if cache_cfg.get("enabled") is False:
+            return 0
+        return int(cache_cfg.get("ttl_seconds") or runtime_ai.get("cache_ttl_seconds") or 900)
+    except Exception:
+        return 900
+
+
+def _concurrency_limit(runtime_ai: dict[str, Any]) -> int:
+    try:
+        return max(1, int(runtime_ai.get("concurrency_limit") or runtime_ai.get("max_concurrent") or 4))
+    except Exception:
+        return 4
+
+
+async def _get_cache(cache_key: str, ttl_seconds: int) -> dict[str, Any] | None:
+    if ttl_seconds <= 0 or not cache_key:
+        return None
+    now = time.time()
+    async with _LLM_CACHE_LOCK:
+        cached = _LLM_CACHE.get(cache_key)
+        if not cached:
+            return None
+        expires_at, value = cached
+        if expires_at <= now:
+            _LLM_CACHE.pop(cache_key, None)
+            return None
+        return {**value, "cache_hit": True, "meta": {**(value.get("meta") or {}), "cache_hit": True}}
+
+
+async def _set_cache(cache_key: str, ttl_seconds: int, value: dict[str, Any]) -> None:
+    if ttl_seconds <= 0 or not cache_key:
+        return
+    async with _LLM_CACHE_LOCK:
+        if len(_LLM_CACHE) > 512:
+            now = time.time()
+            stale = [key for key, (expires_at, _) in _LLM_CACHE.items() if expires_at <= now]
+            for key in stale[:128]:
+                _LLM_CACHE.pop(key, None)
+            if len(_LLM_CACHE) > 512:
+                for key in list(_LLM_CACHE.keys())[:128]:
+                    _LLM_CACHE.pop(key, None)
+        _LLM_CACHE[cache_key] = (time.time() + ttl_seconds, value)
+
+
+async def _write_llm_call_log(doc: dict[str, Any]) -> None:
+    try:
+        from app import runtime
+
+        if runtime.db is None:
+            return
+        await runtime.db.col("llm_call_logs").insert_one(doc)
+    except Exception as exc:
+        logger.debug("LLM telemetry write failed: %s", exc)
 
 
 async def _runtime_ai_config() -> dict[str, Any]:
@@ -238,6 +307,7 @@ async def call_llm_chat(
     response_format: dict[str, Any] | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
+    global _LLM_SEMAPHORE, _LLM_CONCURRENCY_LIMIT
     runtime_ai = await _runtime_ai_config()
     if runtime_ai and runtime_ai.get("enabled") is False:
         raise LLMRuntimeUnavailableError("AI能力已在运行时配置中心关闭")
@@ -245,6 +315,27 @@ async def call_llm_chat(
         temperature = float(runtime_ai.get("temperature", temperature) or temperature)
         max_tokens = int(runtime_ai.get("max_tokens", max_tokens) or max_tokens)
         timeout_seconds = float(runtime_ai.get("timeout", timeout_seconds) or timeout_seconds)
+    cache_key = _prompt_hash(model or "", temperature, max_tokens, response_format or {}, system_prompt, user_prompt)
+    ttl_seconds = _cache_ttl_seconds(runtime_ai)
+    cached = await _get_cache(cache_key, ttl_seconds)
+    if cached:
+        await _write_llm_call_log(
+            {
+                "cache_key": cache_key,
+                "model": cached.get("model") or model or "",
+                "status": "cache_hit",
+                "cache_hit": True,
+                "duration_ms": 0,
+                "degraded_mode": bool(cached.get("degraded_mode")),
+                "usage": cached.get("usage"),
+                "created_at": datetime.now(),
+            }
+        )
+        return cached
+    limit = _concurrency_limit(runtime_ai)
+    if _LLM_SEMAPHORE is None:
+        _LLM_SEMAPHORE = asyncio.Semaphore(limit)
+        _LLM_CONCURRENCY_LIMIT = limit
     threshold, cooldown_seconds = await _llm_runtime_cfg(cfg)
     normal_candidates, has_real_degrade, models_meta = await resolve_model_candidates(cfg, model)
     circuit_open, retry_after_seconds = await _FAILURE_TRACKER.before_call(threshold=threshold, cooldown_seconds=cooldown_seconds)
@@ -262,6 +353,7 @@ async def call_llm_chat(
     last_exc: Exception | None = None
     used_model = ""
     used_fallback = False
+    call_started = time.perf_counter()
 
     def _candidate_parts(candidate: Any) -> dict[str, Any]:
         if isinstance(candidate, dict):
@@ -335,50 +427,86 @@ async def call_llm_chat(
         req_client = client
         if req_client is None:
             req_client = await req_client_ctx.__aenter__()  # type: ignore[union-attr]
-        for idx, candidate in enumerate(candidates):
-            try:
-                parts = _candidate_parts(candidate)
-                data = await _send(req_client, parts)
-                used_model = parts["model"]
-                used_fallback = degraded_mode or (idx > 0) or (used_model == models_meta.get("fallback_model") and has_real_degrade)
-                await _FAILURE_TRACKER.record_success()
-                message = data["choices"][0].get("message") or {}
-                text = sanitize_llm_text(message.get("content") or "")
-                usage = data.get("usage") if isinstance(data, dict) else None
-                return {
-                    "text": text,
-                    "usage": usage,
-                    "model": used_model,
-                    "degraded_mode": used_fallback,
-                    "meta": {
-                        "url": parts["base_url"] + "/chat/completions",
-                        "primary_model": models_meta.get("primary_model"),
-                        "fallback_model": models_meta.get("fallback_model"),
-                        "provider_id": parts.get("provider_id"),
-                        "provider_name": parts.get("provider_name"),
-                        "provider_pool": models_meta.get("provider_pool", False),
-                        "circuit_open": False,
-                        "circuit_state": "half_open" if _FAILURE_TRACKER.half_open_probe_active else "closed",
-                        "retry_after_seconds": retry_after_seconds,
-                    },
-                }
-            except Exception as e:
-                last_exc = e
-                if not degraded_mode and idx == 0 and _should_trip_breaker(e):
-                    await _FAILURE_TRACKER.record_failure(
-                        threshold=threshold,
-                        cooldown_seconds=cooldown_seconds,
-                        error=str(e),
+        async with _LLM_SEMAPHORE:
+            for idx, candidate in enumerate(candidates):
+                try:
+                    parts = _candidate_parts(candidate)
+                    data = await _send(req_client, parts)
+                    used_model = parts["model"]
+                    used_fallback = degraded_mode or (idx > 0) or (used_model == models_meta.get("fallback_model") and has_real_degrade)
+                    await _FAILURE_TRACKER.record_success()
+                    message = data["choices"][0].get("message") or {}
+                    text = sanitize_llm_text(message.get("content") or "")
+                    usage = data.get("usage") if isinstance(data, dict) else None
+                    result = {
+                        "text": text,
+                        "usage": usage,
+                        "model": used_model,
+                        "degraded_mode": used_fallback,
+                        "cache_hit": False,
+                        "meta": {
+                            "url": parts["base_url"] + "/chat/completions",
+                            "primary_model": models_meta.get("primary_model"),
+                            "fallback_model": models_meta.get("fallback_model"),
+                            "provider_id": parts.get("provider_id"),
+                            "provider_name": parts.get("provider_name"),
+                            "provider_pool": models_meta.get("provider_pool", False),
+                            "circuit_open": False,
+                            "circuit_state": "half_open" if _FAILURE_TRACKER.half_open_probe_active else "closed",
+                            "retry_after_seconds": retry_after_seconds,
+                            "cache_key": cache_key,
+                            "cache_hit": False,
+                        },
+                    }
+                    await _set_cache(cache_key, ttl_seconds, result)
+                    await _write_llm_call_log(
+                        {
+                            "cache_key": cache_key,
+                            "model": used_model,
+                            "provider_id": parts.get("provider_id"),
+                            "provider_name": parts.get("provider_name"),
+                            "status": "success",
+                            "cache_hit": False,
+                            "duration_ms": round((time.perf_counter() - call_started) * 1000, 1),
+                            "degraded_mode": used_fallback,
+                            "usage": usage,
+                            "prompt_hash": cache_key,
+                            "created_at": datetime.now(),
+                        }
                     )
-                continue
+                    return result
+                except Exception as e:
+                    last_exc = e
+                    if not degraded_mode and idx == 0 and _should_trip_breaker(e):
+                        await _FAILURE_TRACKER.record_failure(
+                            threshold=threshold,
+                            cooldown_seconds=cooldown_seconds,
+                            error=str(e),
+                        )
+                    continue
     finally:
         if req_client_ctx is not None:
             await req_client_ctx.__aexit__(None, None, None)
 
     if last_exc:
+        await _write_llm_call_log(
+            {
+                "cache_key": cache_key,
+                "model": used_model or model or "",
+                "status": "error",
+                "cache_hit": False,
+                "duration_ms": round((time.perf_counter() - call_started) * 1000, 1),
+                "degraded_mode": used_fallback,
+                "error": str(last_exc)[:500],
+                "created_at": datetime.now(),
+            }
+        )
         raise last_exc
     raise RuntimeError("LLM 调用失败")
 
 
 async def llm_runtime_snapshot() -> dict[str, Any]:
-    return await _FAILURE_TRACKER.snapshot()
+    snapshot = await _FAILURE_TRACKER.snapshot()
+    snapshot["cache_size"] = len(_LLM_CACHE)
+    snapshot["concurrency_limit"] = _LLM_CONCURRENCY_LIMIT or None
+    return snapshot
