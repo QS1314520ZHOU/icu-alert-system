@@ -34,7 +34,7 @@
                 </option>
               </select>
               <div class="simple-actions">
-                <a-button type="primary" :loading="loading" @click="loadAssessment(true)">
+                <a-button type="primary" :loading="loading" @click="handleGenerateAssessment">
                   {{ selectedPatientId ? '生成会诊' : '先选患者' }}
                 </a-button>
                 <a-button :disabled="!selectedPatientId" @click="openPatientDetail">患者详情</a-button>
@@ -163,7 +163,7 @@
             </select>
             <div v-if="selectedPatientOutOfDeptHint" class="toolbar-hint">{{ selectedPatientOutOfDeptHint }}</div>
             <div class="clinical-actions">
-              <a-button size="small" type="primary" :loading="loading" @click="loadAssessment(true)">刷新会诊</a-button>
+              <a-button size="small" type="primary" :loading="loading" @click="handleGenerateAssessment">刷新会诊</a-button>
               <a-button size="small" @click="openPatientDetail" :disabled="!selectedPatientId">患者详情</a-button>
               <select v-model="viewMode" class="mdt-select mdt-select--compact">
                 <option value="moderator">主持视图</option>
@@ -391,7 +391,7 @@
                 </div>
               </div>
               <div class="guide-actions">
-                <a-button type="primary" :loading="loading" @click="loadAssessment(true)">
+                <a-button type="primary" :loading="loading" @click="handleGenerateAssessment">
                   {{ selectedPatientId ? '刷新 MDT 会诊' : '先选择患者' }}
                 </a-button>
                 <a-button :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
@@ -1108,6 +1108,11 @@ const selectedTemplateKey = ref('')
 const activityLog = ref<any[]>([])
 const confirmingDecisionIds = ref<Set<string>>(new Set())
 
+const needsDoctorConfirmation = (item: any) => {
+  const status = String(item?.status || 'pending_confirmation').toLowerCase()
+  return item?.requires_confirmation !== false || ['pending_confirmation', 'needs_revision'].includes(status)
+}
+
 const sessionTemplates = [
   {
     key: 'sepsis',
@@ -1770,11 +1775,6 @@ function normalizeDecisionList(rows: any[]) {
   return (Array.isArray(rows) ? rows : []).map((item, idx) => normalizeDecision(item, idx)).filter((item) => String(item.action || '').trim())
 }
 
-function needsDoctorConfirmation(item: any) {
-  const status = String(item?.status || 'pending_confirmation').toLowerCase()
-  return item?.requires_confirmation !== false || ['pending_confirmation', 'needs_revision'].includes(status)
-}
-
 function templateLabel(key: any) {
   return sessionTemplates.find((item) => item.key === String(key || ''))?.label || String(key || '未使用模板')
 }
@@ -1927,6 +1927,14 @@ async function loadAssessment(refresh = false) {
       loading.value = false
     }
   }
+}
+
+function handleGenerateAssessment() {
+  if (!selectedPatientId.value) {
+    message.warning('请先选择患者')
+    return
+  }
+  void loadAssessment(true)
 }
 
 async function saveWorkspace() {
