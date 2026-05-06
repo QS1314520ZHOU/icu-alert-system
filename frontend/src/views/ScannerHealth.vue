@@ -73,7 +73,7 @@
         </div>
         <div class="quality-list">
           <button v-for="row in (quality.module_usage_rows || []).slice(0, 5)" :key="row.module" type="button">
-            <strong>{{ row.module }}</strong>
+            <strong>{{ moduleLabel(row.module) }}</strong>
             <span>{{ row.events }} 次 / {{ row.actor_count }} 人 / 最近 {{ fmtTime(row.last_used_at) }}</span>
           </button>
         </div>
@@ -192,11 +192,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button as AButton, Card as ACard, Segmented as ASegmented, Space as ASpace, Table as ATable, message } from 'ant-design-vue'
 import { getAdminQualityClosedLoop, getScannerHealth, postScannerHealthInferOutcomes, postScannerHealthRecalculate } from '../api'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 
+const route = useRoute()
 const router = useRouter()
 const days = ref(30)
 const rows = ref<any[]>([])
@@ -232,6 +233,14 @@ const avgPpv = computed(() => {
   return rows.value.reduce((sum, row) => sum + Number(row.ppv || 0), 0) / rows.value.length
 })
 const closureTasks = computed(() => rows.value.flatMap((row) => (row.closure?.tasks || []).map((task: any) => ({ ...task, scanner_name: row.scanner_name }))))
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDept = computed(() => String(route.query.dept || route.query.department || '').trim())
+const scopedParams = computed(() => {
+  const params: { days: number; dept?: string; dept_code?: string } = { days: days.value }
+  if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+  else if (routeDept.value) params.dept = routeDept.value
+  return params
+})
 
 function percentText(value: any) {
   const num = Number(value)
@@ -310,6 +319,28 @@ function scannerLabel(value: any) {
   return formatAlertTypeLabel(value)
 }
 
+function moduleLabel(value: any) {
+  const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+  const map: Record<string, string> = {
+    clinical_trials: '临床试验',
+    ai_confirmation: 'AI确认',
+    respiratory: '呼吸治疗',
+    clinical_workflow: '临床工作流',
+    nutrition: '营养支持',
+    rounding: '查房报告',
+    research_support: '科研支持',
+    research_export: '科研导出',
+    research_analytics: '科研分析',
+    runtime_config: '运行配置',
+    mdt: 'MDT会诊',
+    ai_consult: 'AI问诊',
+    alerts: '预警处置',
+    followup: '随访管理',
+    scanner_health: '规则健康',
+  }
+  return map[key] || formatAlertTypeLabel(value)
+}
+
 function shortScannerLabel(value: any) {
   const text = scannerLabel(value)
   return text.length > 6 ? text.slice(0, 6) : text
@@ -338,15 +369,15 @@ function shortId(value: any) {
 function openPatient(patientId: any) {
   const id = String(patientId || '').trim()
   if (!id) return
-  router.push({ path: `/patient/${id}`, query: { tab: 'alerts' } })
+  router.push({ path: `/patient/${id}`, query: { ...route.query, tab: 'alerts' } })
 }
 
 async function loadRows() {
   loading.value = true
   try {
     const [res, qualityRes] = await Promise.all([
-      getScannerHealth({ days: days.value }),
-      getAdminQualityClosedLoop({ days: days.value }).catch(() => ({ data: {} })),
+      getScannerHealth(scopedParams.value),
+      getAdminQualityClosedLoop(scopedParams.value).catch(() => ({ data: {} })),
     ])
     rows.value = Array.isArray(res.data?.rows) ? res.data.rows : []
     focusedRow.value = rows.value.find((row) => row.review_suggestion) || rows.value[0] || null
@@ -380,7 +411,7 @@ async function inferOutcomes() {
   }
 }
 
-watch(days, () => { void loadRows() })
+watch(() => [days.value, route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => { void loadRows() })
 onMounted(() => { void loadRows() })
 </script>
 

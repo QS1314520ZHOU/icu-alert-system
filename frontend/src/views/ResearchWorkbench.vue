@@ -36,7 +36,7 @@
         </div>
         <div v-if="platformMissingRows.length" class="platform-chip-row">
           <span v-for="item in platformMissingRows" :key="item.module" class="platform-chip platform-chip--warn">
-            缺 {{ item.module }}
+            缺 {{ platformModuleLabel(item.module) }}
           </span>
         </div>
         <div v-if="platformStatusError" class="platform-error">{{ platformStatusError }}</div>
@@ -59,8 +59,8 @@
         <div v-if="recentPlatformJobs.length" class="platform-list">
           <div v-for="item in recentPlatformJobs" :key="item.job_id" class="platform-list__item">
             <div>
-              <strong>{{ item.title || item.kind || '任务' }}</strong>
-              <div class="platform-list__meta">{{ item.kind }} · {{ item.status }} · {{ item.progress }}%</div>
+              <strong>{{ platformJobTitle(item) }}</strong>
+              <div class="platform-list__meta">{{ platformKindLabel(item.kind) }} · {{ platformStatusLabel(item.status) }} · {{ Number(item.progress || 0) }}%</div>
             </div>
             <span class="platform-list__time">{{ item.created_at ? String(item.created_at).slice(5, 16).replace('T', ' ') : '—' }}</span>
           </div>
@@ -80,8 +80,8 @@
         <div v-if="recentPlatformArtifacts.length" class="platform-list">
           <div v-for="item in recentPlatformArtifacts" :key="item.artifact_id" class="platform-list__item">
             <div>
-              <strong>{{ item.title || item.file_name || '产物' }}</strong>
-              <div class="platform-list__meta">{{ item.artifact_type || 'file' }} · {{ item.source || 'research' }}</div>
+              <strong>{{ platformArtifactTitle(item) }}</strong>
+              <div class="platform-list__meta">{{ platformArtifactTypeLabel(item.artifact_type) }} · {{ platformSourceLabel(item.source) }}</div>
             </div>
             <a :href="item.download_url || '#'" class="artifact-link" target="_blank" rel="noopener noreferrer">下载</a>
           </div>
@@ -2186,6 +2186,118 @@ function analysisTitle(key: string): string {
     correlation: '相关性分析',
   }
   return map[key] || key
+}
+
+function platformKindLabel(value: any): string {
+  const key = String(value || '').trim().toLowerCase()
+  const map: Record<string, string> = {
+    analytics: '统计分析',
+    export: '数据导出',
+    artifact: '导出产物',
+    research: '科研任务',
+  }
+  return map[key] || '科研任务'
+}
+
+function platformStatusLabel(value: any): string {
+  const key = String(value || '').trim().toLowerCase()
+  const map: Record<string, string> = {
+    pending: '待执行',
+    queued: '排队中',
+    processing: '执行中',
+    running: '执行中',
+    in_progress: '执行中',
+    completed: '已完成',
+    success: '已完成',
+    failed: '失败',
+    error: '失败',
+    cancelled: '已取消',
+    canceled: '已取消',
+  }
+  return map[key] || '状态待确认'
+}
+
+function platformAnalysisLabel(value: any): string {
+  const key = String(value || '').trim().toLowerCase()
+  const map: Record<string, string> = {
+    table1: '基线特征表',
+    survival: '生存分析',
+    regression: '回归分析',
+    roc: '受试者工作特征分析',
+    subgroup: '亚组分析',
+    trend: '趋势分析',
+    correlation: '相关性分析',
+    descriptive: '描述性统计',
+    export_bundle: '科研导出包',
+    export_table: '表格导出',
+    export_figure: '图表导出',
+  }
+  return map[key] || String(value || '').trim() || '科研任务'
+}
+
+function platformSourceLabel(value: any): string {
+  const key = String(value || '').trim().toLowerCase()
+  const map: Record<string, string> = {
+    research_export_tasks: '科研导出任务',
+    research_analytics_tasks: '科研分析任务',
+    research_analytics_export: '科研分析导出',
+    research: '科研平台',
+    file: '文件',
+  }
+  return map[key] || '科研平台'
+}
+
+function platformArtifactTypeLabel(value: any): string {
+  const key = String(value || '').trim().toLowerCase()
+  const map: Record<string, string> = {
+    export_bundle: '导出包',
+    figure: '图表',
+    table: '表格',
+    file: '文件',
+    csv: '电子表格',
+    xlsx: '电子表格',
+    zip: '压缩包',
+  }
+  return map[key] || '产物'
+}
+
+function platformModuleLabel(value: any): string {
+  const key = String(value || '').trim()
+  const lower = key.toLowerCase()
+  const map: Record<string, string> = {
+    sklearn: '统计建模依赖',
+    scipy: '科学计算依赖',
+    pandas: '数据表处理依赖',
+    numpy: '数值计算依赖',
+    lifelines: '生存分析依赖',
+    matplotlib: '图表绘制依赖',
+    openpyxl: '表格导出依赖',
+  }
+  return map[lower] || key || '依赖'
+}
+
+function platformJobTitle(item: AnyRecord): string {
+  const title = String(item?.title || '').trim()
+  const fallback = platformAnalysisLabel(item?.task_type || item?.kind)
+  return platformAnalysisLabel(title || fallback)
+}
+
+function formatResearchExportFileName(value: any): string {
+  const text = String(value || '').trim()
+  const matched = text.match(/^research_export_(\d{8})_(\d{6})\.zip$/i)
+  if (!matched) return text
+  const date = matched[1] || ''
+  const time = matched[2] || ''
+  return `科研导出包 ${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)} ${time.slice(0, 2)}:${time.slice(2, 4)}`
+}
+
+function platformArtifactTitle(item: AnyRecord): string {
+  const title = String(item?.title || '').trim()
+  const fileName = String(item?.file_name || '').trim()
+  const labeled = platformAnalysisLabel(title)
+  if (labeled && labeled !== title) return labeled
+  const formattedFileName = formatResearchExportFileName(fileName)
+  return formattedFileName || platformArtifactTypeLabel(item?.artifact_type)
 }
 
 function analysisLabel(field: string): string {

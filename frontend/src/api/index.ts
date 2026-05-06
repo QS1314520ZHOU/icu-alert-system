@@ -118,7 +118,7 @@ export const postAlertReview = (
   }
 ) => api.post(`/api/alerts/${alertId}/review`, payload)
 
-export const getScannerHealth = (params?: { days?: number }) =>
+export const getScannerHealth = (params?: { days?: number; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/admin/scanner-health', { params })
 
 export const postScannerHealthRecalculate = (payload?: { days?: number }) =>
@@ -127,7 +127,7 @@ export const postScannerHealthRecalculate = (payload?: { days?: number }) =>
 export const postScannerHealthInferOutcomes = (params?: { limit?: number; min_age_minutes?: number }) =>
   analyticsApi.post('/api/admin/scanner-health/infer-outcomes', undefined, { params })
 
-export const getAdminQualityClosedLoop = (params?: { days?: number }) =>
+export const getAdminQualityClosedLoop = (params?: { days?: number; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/admin/quality-closed-loop', { params })
 
 export const getRuntimeConfig = () =>
@@ -160,19 +160,19 @@ export const getClinicalPatientHandoff = (patientId: string, params?: { role?: s
 export const getClinicalQualitySummary = (params?: { days?: number; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/clinical-workflow/quality-summary', { params })
 
-export const getDoctorHome = (params: { user_id: string }) =>
+export const getDoctorHome = (params: { user_id: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/home/doctor', { params })
 
-export const getNurseHome = (params: { user_id: string; shift_code?: string; view?: string }) =>
+export const getNurseHome = (params: { user_id: string; shift_code?: string; view?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/home/nurse', { params })
 
-export const getNurseTimeline = (params: { user_id: string; shift_code?: string }) =>
+export const getNurseTimeline = (params: { user_id: string; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/home/nurse/timeline', { params })
 
-export const getNurseBundles = (params: { patient_ids: string[] | string; shift_code?: string }) =>
+export const getNurseBundles = (params: { patient_ids: string[] | string; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/home/nurse/bundles', { params })
 
-export const postNurseBundles = (payload: { patient_ids: string[]; shift_code?: string }) =>
+export const postNurseBundles = (payload: { patient_ids: string[]; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.post('/api/home/nurse/bundles', payload)
 
 export const postNurseTaskExecute = (taskId: string, payload: Record<string, any>) =>
@@ -181,7 +181,7 @@ export const postNurseTaskExecute = (taskId: string, payload: Record<string, any
 export const postNurseReminderFeedback = (alertId: string, payload: { actor?: string; disposition?: string; note?: string; override_reason_code?: string; override_reason_text?: string }) =>
   api.post(`/api/alerts/${alertId}/acknowledge`, payload)
 
-export const postNurseHandoffGenerate = (payload: { user_id: string; patient_ids: string[]; shift_code?: string }) =>
+export const postNurseHandoffGenerate = (payload: { user_id: string; patient_ids: string[]; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   aiApi.post('/api/home/nurse/handoff/generate', payload)
 
 export const getCurrentShift = (params?: { now?: string }) =>

@@ -71,7 +71,7 @@ def _build_order_drafts(*, patient: dict, assessment: dict | None, decisions: li
     drafts = []
     for idx, action in enumerate(actions, start=1):
         source_decision = next((row for row in decisions if str(row.get("action") or "").strip() == str(action).strip()), None)
-        confirmed = bool(source_decision and source_decision.get("confirmed_at") and source_decision.get("requires_confirmation") is False)
+        confirmed = _is_confirmed_decision(source_decision)
         drafts.append({
             "id": f"order-{idx}",
             "category": "待审核医嘱建议",
@@ -91,8 +91,14 @@ def _build_order_drafts(*, patient: dict, assessment: dict | None, decisions: li
 
 
 def assert_decision_confirmed(decision: dict) -> None:
-    if decision.get("requires_confirmation") and not decision.get("confirmed_at"):
+    if not _is_confirmed_decision(decision):
         raise PermissionError(f"决议 {decision.get('id') or ''} 未经医生确认，不能转为正式医嘱")
+
+
+def _is_confirmed_decision(decision: dict | None) -> bool:
+    if not isinstance(decision, dict):
+        return False
+    return bool(decision.get("confirmed_at")) or str(decision.get("confirmation_status") or "").strip().lower() == "confirmed" or str(decision.get("status") or "").strip().lower() == "doctor_confirmed" or decision.get("requires_confirmation") is False
 
 
 def _decision_map(decisions: list[dict]) -> dict[str, dict]:
@@ -105,7 +111,7 @@ def _normalize_order_draft(item: dict, idx: int, decisions_by_id: dict[str, dict
         return {}
     source_decision_id = str(item.get("source_decision_id") or item.get("decision_id") or "").strip()
     source_decision = decisions_by_id.get(source_decision_id) if source_decision_id else None
-    confirmed = bool(source_decision and source_decision.get("confirmed_at") and source_decision.get("requires_confirmation") is False)
+    confirmed = _is_confirmed_decision(source_decision)
     status = str(item.get("status") or "").strip() or ("doctor_confirmed" if confirmed else "doctor_review_required")
     requires_confirmation = True if item.get("requires_confirmation") is None else bool(item.get("requires_confirmation"))
     if source_decision:

@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDoctorHome } from '../api'
 import { useAuthStore } from '../stores/auth'
@@ -92,6 +92,8 @@ const clock = ref('')
 let timer: any
 
 const userId = computed(() => String(auth.effectiveUserId || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
+const routeDept = computed(() => String(route.query.dept || route.query.department || auth.dept || '').trim())
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别医生')
 const focusPatients = computed(() => home.value?.focus_patients || [])
 const pendingTasks = computed(() => (home.value?.pending_tasks || []).slice(0, 8))
@@ -161,7 +163,10 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await getDoctorHome({ user_id: userId.value })
+    const params: { user_id: string; dept?: string; dept_code?: string } = { user_id: userId.value }
+    if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+    else if (routeDept.value) params.dept = routeDept.value
+    const { data } = await getDoctorHome(params)
     home.value = data?.data || {}
     auth.updateAccount(home.value?.account)
   } catch (err: any) {
@@ -181,6 +186,11 @@ onMounted(() => {
   void load()
 })
 onUnmounted(() => clearInterval(timer))
+
+watch(() => [route.query.user_id, route.query.userId, route.query.userName, route.query.username, route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
+  auth.hydrateFromQuery(route.query)
+  void load()
+})
 
 function cleanDuplicateIdentityQuery() {
   const query = auth.cleanIdentityQuery(route.query)

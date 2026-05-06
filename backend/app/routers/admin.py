@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app import runtime
@@ -58,10 +58,15 @@ async def trigger_scanner(req: ScannerTriggerRequest):
 
 
 @router.get("/scanner-health")
-async def scanner_health(days: int = 30):
+async def scanner_health(
+    days: int = 30,
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
     if runtime.db is None:
         raise HTTPException(status_code=503, detail="Database runtime not ready")
-    result = await AlertOutcomeService(runtime.db).scanner_health(days=max(min(int(days or 30), 90), 1))
+    result = await AlertOutcomeService(runtime.db).scanner_health(days=max(min(int(days or 30), 90), 1), dept=dept, dept_code=dept_code or deptCode)
     if not result.get("rows") and runtime.alert_engine is not None:
         scanners = []
         for scanner in runtime.alert_engine._active_scanners():
@@ -85,10 +90,15 @@ async def scanner_health(days: int = 30):
 
 
 @router.get("/quality-closed-loop")
-async def quality_closed_loop(days: int = 30):
+async def quality_closed_loop(
+    days: int = 30,
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
     if runtime.db is None:
         raise HTTPException(status_code=503, detail="Database runtime not ready")
-    return {"code": 0, **await admin_quality_summary(runtime.db, days=days)}
+    return {"code": 0, **await admin_quality_summary(runtime.db, days=days, dept=dept, dept_code=dept_code or deptCode)}
 
 
 @router.post("/scanner-health/recalculate")

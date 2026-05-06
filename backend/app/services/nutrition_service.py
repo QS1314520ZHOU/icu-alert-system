@@ -1234,6 +1234,6 @@ async def close_nutrition_task(task_id: str, payload: dict[str, Any], actor: str
         action="close_task",
         target_type="nutrition_task",
         target_id=task_id,
-        detail={"matched": result.matched_count, **update},
+        detail={"matched": result.matched_count, "patient_id": (doc or {}).get("patient_id"), **update},
     )
     return {"task": serialize_doc(doc or {"task_id": task_id, **update})}

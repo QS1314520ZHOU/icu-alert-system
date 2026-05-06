@@ -54,6 +54,39 @@ class AlertOutcomeService:
     def _scanner_name(self, alert_doc: dict[str, Any]) -> str:
         return str(alert_doc.get("scanner_name") or alert_doc.get("alert_type") or alert_doc.get("rule_id") or "unknown")
 
+    def _text(self, value: Any) -> str:
+        return str(value or "").strip()
+
+    def _dept_scope_query(self, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any] | None:
+        dept_text = self._text(dept)
+        dept_code_text = self._text(dept_code)
+        if dept_text and not dept_code_text and dept_text.isdigit():
+            dept_code_text = dept_text
+            dept_text = ""
+        clauses: list[dict[str, Any]] = []
+        if dept_code_text:
+            codes = [item.strip() for item in dept_code_text.split(",") if item.strip()]
+            if codes:
+                clauses.append({"deptCode": {"$in": codes}})
+        if dept_text:
+            clauses.append({"$or": [{"dept": dept_text}, {"hisDept": dept_text}, {"department": dept_text}, {"deptName": dept_text}]})
+        if not clauses:
+            return None
+        return clauses[0] if len(clauses) == 1 else {"$or": clauses}
+
+    async def _patient_keys_for_dept(self, *, dept: str | None = None, dept_code: str | None = None) -> set[str]:
+        scope = self._dept_scope_query(dept=dept, dept_code=dept_code)
+        if not scope:
+            return set()
+        cursor = self.db.col("patient").find(scope, {"_id": 1, "patientId": 1, "pid": 1, "hisPid": 1, "hisPID": 1})
+        keys: set[str] = set()
+        async for patient in cursor:
+            for field in ("_id", "patientId", "pid", "hisPid", "hisPID"):
+                value = self._text(patient.get(field))
+                if value:
+                    keys.add(value)
+        return keys
+
     def normalize_disposition(self, value: Any) -> str:
         key = str(value or "").strip().lower()
         return {
@@ -274,11 +307,15 @@ class AlertOutcomeService:
         )
         return await self.db.col("alert_outcomes").find_one({"alert_id": alert_id})
 
-    async def scanner_health(self, *, days: int = 30, limit_examples: int = 5) -> dict[str, Any]:
+    async def scanner_health(self, *, days: int = 30, limit_examples: int = 5, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         since = datetime.now() - timedelta(days=max(int(days or 30), 1))
-        docs = [doc async for doc in self.db.col("alert_outcomes").find({"fired_at": {"$gte": since}}).limit(5000)]
+        patient_keys = await self._patient_keys_for_dept(dept=dept, dept_code=dept_code) if (self._text(dept) or self._text(dept_code)) else set()
+        outcome_query: dict[str, Any] = {"fired_at": {"$gte": since}}
+        if self._text(dept) or self._text(dept_code):
+            outcome_query = {"$and": [outcome_query, {"patient_id": {"$in": list(patient_keys)}}]} if patient_keys else {"_id": {"$exists": False}}
+        docs = [doc async for doc in self.db.col("alert_outcomes").find(outcome_query).limit(5000)]
         if not docs:
-            result = await self._scanner_health_from_alert_records(since=since, days=days)
+            result = await self._scanner_health_from_alert_records(since=since, days=days, patient_keys=patient_keys if (self._text(dept) or self._text(dept_code)) else None)
             result["rows"] = await self._attach_scanner_run_health(result.get("rows") or [], since=since)
             return result
         by_scanner: dict[str, list[dict[str, Any]]] = {}
@@ -326,9 +363,12 @@ class AlertOutcomeService:
         rows = await self._attach_scanner_run_health(rows, since=since)
         return {"days": days, "source": "alert_outcomes", "rows": rows, "total_scanners": len(rows)}
 
-    async def _scanner_health_from_alert_records(self, *, since: datetime, days: int) -> dict[str, Any]:
+    async def _scanner_health_from_alert_records(self, *, since: datetime, days: int, patient_keys: set[str] | None = None) -> dict[str, Any]:
+        query: dict[str, Any] = {"created_at": {"$gte": since}}
+        if patient_keys is not None:
+            query = {"$and": [query, {"patient_id": {"$in": list(patient_keys)}}]} if patient_keys else {"_id": {"$exists": False}}
         cursor = self.db.col("alert_records").find(
-            {"created_at": {"$gte": since}},
+            query,
             {
                 "_id": 1,
                 "alert_type": 1,

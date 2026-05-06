@@ -1814,5 +1814,5 @@ class ClinicalAdoptionService:
         }
         await self.db.col("clinical_tasks").update_one({"task_id": task_id}, {"$set": update})
         doc = await self.db.col("clinical_tasks").find_one({"task_id": task_id})
-        await write_audit_log(self.db, action="close_task", module=(doc or {}).get("module") or "clinical_workflow", actor=actor, target_type="clinical_task", target_id=task_id, detail={"outcome": update["outcome"]})
+        await write_audit_log(self.db, action="close_task", module=(doc or {}).get("module") or "clinical_workflow", actor=actor, target_type="clinical_task", target_id=task_id, detail={"outcome": update["outcome"], "patient_id": (doc or {}).get("patient_id")})
         return {"task": serialize_doc(doc or {"task_id": task_id, **update})}

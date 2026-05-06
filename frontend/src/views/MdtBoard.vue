@@ -1,1078 +1,140 @@
 <template>
   <div class="mdt-page">
     <a-card :bordered="false" class="mdt-hero">
-      <section class="mdt-command-center">
-        <header class="mdt-command-top">
-          <div class="mdt-command-title">
-            <div class="mdt-kicker">ICU MDT</div>
-            <h1 class="mdt-title">多学科会诊</h1>
-            <p class="mdt-desc">先看哪个系统最危险，再决定谁来处理。</p>
-          </div>
-          <div class="mdt-hero__badges">
-            <span class="hero-badge">{{ loading ? '会诊处理中' : '会诊就绪' }}</span>
-            <span class="hero-badge hero-badge--soft">{{ selectedPatientLabel }}</span>
-            <span class="hero-badge hero-badge--focus">聚焦 {{ activeSystemLabel }}</span>
-            <span :class="['hero-badge', `hero-badge--${mdtSeverityTone}`]">风险 {{ mdtSeverityLabel }}</span>
-            <span :class="['hero-badge', `hero-badge--${closureTone}`]">闭环 {{ closureLabel }}</span>
-            <span v-if="workspaceDirty" class="hero-badge hero-badge--warning">未保存</span>
-            <span v-if="isSessionClosed" class="hero-badge hero-badge--closed">已归档只读</span>
-          </div>
-        </header>
+      <MdtHeader
+        :patient-label="selectedPatientLabel"
+        :patient-headline="patientHeadline"
+        :severity-label="mdtSeverityLabel"
+        :severity-tone="mdtSeverityTone"
+        :closure-percent="closurePercent"
+        :pending-confirmation-count="pendingConfirmationCount"
+        :workspace-dirty="workspaceDirty"
+        :is-session-closed="isSessionClosed"
+        @open-session-drawer="sessionDrawerOpen = true"
+      />
 
-        <section v-if="viewMode === 'moderator'" class="mdt-simple-board">
-          <section class="mdt-simple-left">
-            <div class="simple-patient-card">
-              <div>
-                <span>当前患者</span>
-                <strong>{{ patientHeadline }}</strong>
-                <small>{{ patientSubline }}</small>
-              </div>
-              <select v-model="selectedPatientId" class="mdt-select">
-                <option value="">选择患者</option>
-                <option v-for="item in patientOptions" :key="item.value" :value="item.value">
-                  {{ item.label }}
-                </option>
-              </select>
-              <div class="simple-actions">
-                <a-button type="primary" :loading="loading" @click="handleGenerateAssessment">
-                  {{ selectedPatientId ? '生成会诊' : '先选患者' }}
-                </a-button>
-                <a-button :disabled="!selectedPatientId" @click="openPatientDetail">患者详情</a-button>
-                <a-button @click="viewMode = 'deep'">详细会诊</a-button>
-              </div>
-            </div>
-
-            <div class="mdt-body-card">
-              <OrganHeatmapFigure
-                compact
-                show-legend
-                :organ-states="mdtOrganStates"
-                :organ-tooltips="mdtOrganTooltips"
-                @organ-click="handleMdtOrganClick"
-              />
-            </div>
-          </section>
-
-          <section class="mdt-simple-right">
-            <article class="simple-card simple-card--summary">
-              <span>总控结论</span>
-              <strong>{{ mdtSeverityLabel }}</strong>
-              <div class="moderator-metrics">
-                <i><b :style="{ width: `${closurePercent}%` }"></b></i>
-                <em>闭环 {{ closurePercent }}%</em>
-              </div>
-              <p>{{ shortMdtText(metaSummary, 38) }}</p>
-            </article>
-
-            <article class="simple-card simple-card--decisions">
-              <div class="simple-card-head">
-                <span>决议闭环</span>
-                <strong>{{ pendingConfirmationCount + pendingDecisionCount + inProgressDecisionCount }}</strong>
-              </div>
-              <div class="decision-pill-row">
-                <button
-                  v-for="item in moderatorDecisionRows"
-                  :key="item.id"
-                  type="button"
-                  :class="['decision-pill', `status-${item.status || 'pending'}`]"
-                  @click="markDecisionDone(item)"
-                >
-                  <strong>{{ shortMdtText(item.action, 24) }}</strong>
-                  <span>{{ item.owner || '责任人待定' }}</span>
-                </button>
-              </div>
-            </article>
-
-            <article class="simple-card">
-              <div class="simple-card-head">
-                <span>最危险器官</span>
-                <strong>{{ mdtOrganRows[0]?.label || '暂无' }}</strong>
-              </div>
-              <div class="organ-pill-grid">
-                <button
-                  v-for="item in mdtOrganRows"
-                  :key="item.agent"
-                  type="button"
-                  :class="['organ-pill', `is-${item.severity}`, { active: activeSpecialist?.agent === item.agent }]"
-                  @click="selectSpecialist(item.agent)"
-                >
-                  <span>{{ item.label }}</span>
-                  <b>{{ item.text }}</b>
-                </button>
-              </div>
-            </article>
-
-            <article class="simple-card">
-              <div class="simple-card-head">
-                <span>需要裁决</span>
-                <strong>{{ conflictRows.length }} 项</strong>
-              </div>
-              <div v-if="conflictRows.length" class="simple-list">
-                <div v-for="(item, idx) in conflictRows.slice(0, 3)" :key="`simple-conflict-${idx}`">
-                  <strong>{{ shortMdtText(item.summary || '跨专科意见不一致', 34) }}</strong>
-                  <span>{{ (item.agents || []).map(domainLabel).join(' / ') || '多专科' }}</span>
-                </div>
-              </div>
-              <div v-else class="simple-empty">暂无明显冲突</div>
-            </article>
-
-            <article class="simple-card">
-              <div class="simple-card-head">
-                <span>下一步动作</span>
-                <strong>{{ syncableAiActions.length || decisionRows.length }}</strong>
-              </div>
-              <div v-if="syncableAiActions.length" class="simple-list">
-                <div v-for="item in syncableAiActions.slice(0, 3)" :key="item">
-                  <strong>{{ shortMdtText(item, 38) }}</strong>
-                </div>
-              </div>
-              <div v-else class="simple-empty">生成会诊后自动列出</div>
-              <div class="simple-actions slim">
-                <a-button size="small" type="primary" :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步动作</a-button>
-                <a-button size="small" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存</a-button>
-              </div>
-            </article>
-          </section>
-        </section>
-
-        <section v-if="viewMode === 'deep'" class="mdt-flow">
-          <article
-            v-for="step in workflowSteps"
-            :key="step.key"
-            :class="['mdt-flow-step', { 'is-active': step.key === currentWorkflowStep, 'is-done': step.done }]"
-          >
-            <span class="mdt-flow-step__index">{{ step.index }}</span>
-            <div>
-              <strong>{{ step.title }}</strong>
-              <small>{{ step.desc }}</small>
-            </div>
-          </article>
-        </section>
-
-        <section v-if="viewMode === 'deep'" class="mdt-clinical-strip">
-          <article class="clinical-card clinical-card--patient">
-            <div class="clinical-card__head">
-              <span>患者入口</span>
-              <strong>{{ patientHeadline }}</strong>
-            </div>
-            <select v-model="selectedPatientId" class="mdt-select">
-              <option value="">选择患者</option>
-              <option v-for="item in patientOptions" :key="item.value" :value="item.value">
-                {{ item.label }}
-              </option>
-            </select>
-            <div v-if="selectedPatientOutOfDeptHint" class="toolbar-hint">{{ selectedPatientOutOfDeptHint }}</div>
-            <div class="clinical-actions">
-              <a-button size="small" type="primary" :loading="loading" @click="handleGenerateAssessment">刷新会诊</a-button>
-              <a-button size="small" @click="openPatientDetail" :disabled="!selectedPatientId">患者详情</a-button>
-              <select v-model="viewMode" class="mdt-select mdt-select--compact">
-                <option value="moderator">主持视图</option>
-                <option value="deep">深度视图</option>
-              </select>
-            </div>
-          </article>
-
-          <article class="clinical-card clinical-card--summary">
-            <div class="clinical-card__head">
-              <span>总控裁决</span>
-              <strong>{{ metaSummary }}</strong>
-            </div>
-            <div class="clinical-actions">
-              <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存会话</a-button>
-              <a-button size="small" :loading="generatingDocType === 'mdt_summary'" :disabled="isSessionClosed" @click="generateDocument('mdt_summary')">生成材料</a-button>
-              <a-button size="small" :disabled="!autoSessionSummary" @click="copyText(autoSessionSummary, '会诊摘要已复制')">复制摘要</a-button>
-            </div>
-          </article>
-
-          <article class="clinical-card clinical-card--metrics">
-            <div class="clinical-card__head">
-              <span>临床态势</span>
-              <strong>{{ mdtSeverityLabel }} · {{ closureLabel }}</strong>
-            </div>
-            <div class="clinical-metric-grid">
-              <div v-for="item in cockpitMetricRows" :key="item.label" class="clinical-metric">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-              <div v-for="item in signalSourceRows" :key="item.label" class="clinical-metric">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-            <div class="closure-meter">
-              <i :style="{ width: `${closurePercent}%` }"></i>
-            </div>
-          </article>
-
-          <article class="clinical-card clinical-card--handoff">
-            <div class="clinical-card__head">
-              <span>冲突与下一步</span>
-              <strong>{{ topConflictSummary }}</strong>
-            </div>
-            <div class="next-action-box">{{ nextActionText }}</div>
-            <div v-if="ownerSummaryRows.length" class="owner-mini-list">
-              <div v-for="item in ownerSummaryRows.slice(0, 3)" :key="item.owner" class="owner-mini-row">
-                <strong>{{ item.owner }}</strong>
-                <span>待 {{ item.pending }} / 进 {{ item.inProgress }} / 完 {{ item.completed }}</span>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section v-if="viewMode === 'deep'" class="mdt-clinical-meta">
-          <div class="meta-edit-grid">
-            <input v-model="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="标签：如 脓毒症、撤机、高乳酸" />
-            <input v-model="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="参与成员：ICU、感染、呼吸、药学" />
-            <textarea v-model="finalSummary" class="field-textarea" :disabled="isSessionClosed" rows="2" placeholder="最终纪要（留空则关闭会话时自动生成）"></textarea>
-          </div>
-          <div v-if="todoRows.length" class="todo-list todo-list--inline">
-            <div v-for="item in todoRows.slice(0, 3)" :key="item.id" class="todo-row">
-              <strong>{{ item.action }}</strong>
-              <small>{{ item.owner }} / {{ item.deadline || '时限未填' }}</small>
-            </div>
-          </div>
-        </section>
-      </section>
+      <MdtStepBar
+        v-model="currentMdtStep"
+        :steps="mdtStepRows"
+      />
     </a-card>
 
-    <section v-if="viewMode === 'deep'" class="mdt-workspace">
-      <aside class="mdt-sidebar">
-        <a-card :bordered="false" class="mdt-panel" title="患者数字孪生总览">
-          <div class="patient-sheet">
-            <div class="patient-sheet__name">{{ patientHeadline }}</div>
-            <div class="patient-sheet__sub">{{ patientSubline }}</div>
-            <div class="patient-sheet__grid">
-              <div class="sheet-item">
-                <span>七大系统</span>
-                <strong>{{ systemCards.length }}</strong>
-              </div>
-              <div class="sheet-item">
-                <span>冲突焦点</span>
-                <strong>{{ conflictRows.length }}</strong>
-              </div>
-              <div class="sheet-item">
-                <span>决议动作</span>
-                <strong>{{ metaActionCount }}</strong>
-              </div>
-              <div class="sheet-item">
-                <span>会诊状态</span>
-                <strong>{{ loading ? '处理中' : '就绪' }}</strong>
-              </div>
-            </div>
-          </div>
-        </a-card>
-
-        <a-card :bordered="false" class="mdt-panel" title="七大生理系统">
-          <div class="system-grid">
-            <article v-for="item in systemCards" :key="item.agent" :class="['system-card', `is-${item.priority || 'medium'}`, { 'is-active': activeSpecialist?.agent === item.agent }]" @click="selectSpecialist(item.agent)">
-              <div class="system-card__head">
-                <div>
-                  <div class="system-card__domain">{{ item.label }}</div>
-                  <div class="system-card__priority">{{ priorityLabel(item.priority) }}</div>
-                </div>
-                <span class="system-card__status">{{ item.hasData ? '已评估' : '待补充' }}</span>
-              </div>
-              <div class="system-card__summary">{{ item.summary }}</div>
-            </article>
-          </div>
-        </a-card>
-
-        <a-card :bordered="false" class="mdt-panel" title="专科意见板">
-          <div v-if="specialistRows.length" class="specialist-list">
-            <article v-for="item in specialistRows" :key="item.agent" :class="['specialist-row', `is-${item.priority || 'medium'}`, { 'is-active': activeSpecialist?.agent === item.agent }]" @click="selectSpecialist(item.agent)">
-              <div class="specialist-row__main">
-                <div class="specialist-row__domain">{{ domainLabel(item.domain) }}</div>
-                <div class="specialist-row__summary">{{ item.summary || '暂无摘要' }}</div>
-              </div>
-              <div class="specialist-row__meta">
-                <span>{{ priorityLabel(item.priority) }}</span>
-                <span v-if="activeSpecialist?.agent === item.agent" class="row-active-chip">当前聚焦</span>
-              </div>
-            </article>
-          </div>
-          <div v-if="activeSpecialist" class="focus-specialist-card">
-            <div class="focus-specialist-card__head">
-              <strong>当前聚焦：{{ activeSystemLabel }}</strong>
-              <span>{{ priorityLabel(activeSpecialist.priority) }}</span>
-            </div>
-            <div class="focus-specialist-card__summary">{{ activeSpecialist.summary || '暂无该专科摘要' }}</div>
-            <div class="session-chip-row">
-              <span class="session-chip">{{ (activeSpecialist.concerns || []).length }} 条关注点</span>
-              <span class="session-chip">{{ (activeSpecialist.recommendations || []).length }} 条建议</span>
-              <span class="session-chip">{{ (activeSpecialist.evidence || []).length }} 条证据</span>
-            </div>
-          </div>
-          <div v-else-if="isGeneratingAssessment" class="empty-box">已选中患者，正在生成 MDT 会诊结果，请稍候。</div>
-          <div v-else class="empty-box">选择患者后加载会诊结果。</div>
-        </a-card>
-
-        <a-card :bordered="false" class="mdt-panel" title="最近会诊会话">
-          <div class="workspace-actions workspace-actions--top workspace-actions--sidebar">
-              <a-button size="small" @click="startNewSession">新建会话</a-button>
-              <a-button size="small" ghost :disabled="!currentSessionId" @click="duplicateCurrentSession">复制当前会话</a-button>
-              <a-button size="small" ghost :disabled="!currentSessionId" @click="exportCurrentSession">导出会话</a-button>
-              <a-button v-if="isSessionClosed" size="small" ghost @click="reopenCurrentSession">复开会话</a-button>
-              <label class="inline-toggle">
-                <input v-model="sessionListOpenOnly" type="checkbox">
-                <span>仅看未关闭</span>
-              </label>
-          </div>
-          <div class="workspace-actions workspace-actions--top workspace-actions--sidebar">
-            <select v-model="selectedTemplateKey" class="panel-select">
-              <option value="">选择会诊模板</option>
-              <option v-for="item in sessionTemplates" :key="item.key" :value="item.key">{{ item.label }}</option>
-            </select>
-            <a-button size="small" ghost :disabled="isSessionClosed || !selectedTemplateKey" @click="applySessionTemplate">套用模板</a-button>
-          </div>
-          <div class="workspace-actions workspace-actions--top workspace-actions--sidebar">
-            <input v-model="sessionSearch" class="field-input" placeholder="搜索会话标题/摘要" />
-            <select v-model="sessionPhaseFilter" class="panel-select">
-              <option value="">全部阶段</option>
-              <option value="collecting">收集中</option>
-              <option value="conflict_review">冲突评审</option>
-              <option value="finalizing">裁决定稿</option>
-              <option value="closed">已关闭</option>
-            </select>
-          </div>
-          <div v-if="workspaceSessions.length" class="specialist-list">
-            <article
-              v-for="item in visibleWorkspaceSessions"
-              :key="item.session_id"
-              :class="['specialist-row', { 'is-active': currentSessionId === item.session_id }]"
-              @click="switchSession(String(item.session_id || ''))"
-            >
-              <div class="specialist-row__main">
-                <div class="system-card__domain">{{ item.title || 'MDT 会话' }}</div>
-                <div class="specialist-row__summary">{{ item.summary || item.final_summary || '暂无摘要' }}</div>
-                <div v-if="item.final_summary" class="specialist-row__summary muted-line">{{ item.final_summary }}</div>
-              <div class="session-chip-row">
-                  <span class="session-chip">{{ (item.decisions || []).length }} 条决议</span>
-                  <span class="session-chip">{{ sessionCompletedCount(item) }}/{{ sessionDecisionCount(item) }} 完成</span>
-                  <span v-if="sessionDecisionCount(item) > 0" :class="['session-chip', sessionCompletedCount(item) === sessionDecisionCount(item) ? 'session-chip--done' : 'session-chip--running']">
-                    {{ sessionCompletedCount(item) === sessionDecisionCount(item) ? '已闭环' : '进行中' }}
-                  </span>
-                  <span v-if="item.template_name" class="session-chip session-chip--tag">模板 {{ templateLabel(item.template_name) }}</span>
-                  <span v-if="sessionDecisionCount(item) > 0" class="session-chip">{{ sessionCompletionRate(item) }}%</span>
-                  <span class="session-chip">{{ formatBeijingTime(item.updated_at) }}</span>
-                  <span v-if="String(item.phase || '') === 'closed'" class="session-chip session-chip--closed">已关闭</span>
-                  <span v-for="tag in (item.tags || []).slice(0, 3)" :key="`${item.session_id}-${tag}`" class="session-chip session-chip--tag">{{ tag }}</span>
-                </div>
-              </div>
-              <div class="specialist-row__meta">
-                <span>{{ phaseLabel(item.phase) }}</span>
-                <button
-                  v-if="currentSessionId === item.session_id && String(item.phase || '') !== 'closed'"
-                  type="button"
-                  class="mini-link"
-                  @click.stop="closeCurrentSession"
-                >
-                  关闭
-                </button>
-              </div>
-            </article>
-          </div>
-          <div v-else class="empty-box">当前患者暂无已保存 MDT 会话。</div>
-        </a-card>
+    <section class="mdt-step-layout">
+      <aside class="mdt-summary-rail">
+        <MdtSummaryRail
+          :patient-headline="patientHeadline"
+          :patient-subline="patientSubline"
+          :severity-label="mdtSeverityLabel"
+          :decision-total-count="decisionRows.length"
+          :pending-confirmation-count="pendingConfirmationCount"
+          :completed-decision-count="completedDecisionCount"
+          :closure-percent="closurePercent"
+          :next-action-text="nextActionText"
+          :todo-rows="todoRows"
+        />
       </aside>
 
-      <main :class="['mdt-content', `mdt-content--${viewMode}`]">
-        <section class="mdt-moderator-board">
-          <div class="mdt-primary-lane">
-            <a-card :bordered="false" class="mdt-panel mdt-guide-panel">
-              <div class="guide-header">
-                <div>
-                  <div class="section-kicker">今日会诊路径</div>
-                  <h2>{{ primaryGuidanceTitle }}</h2>
-                  <p>{{ primaryGuidanceText }}</p>
-                </div>
-                <div class="guide-score">
-                  <span>闭环率</span>
-                  <strong>{{ closurePercent }}%</strong>
-                </div>
-              </div>
-              <div class="guide-actions">
-                <a-button type="primary" :loading="loading" @click="handleGenerateAssessment">
-                  {{ selectedPatientId ? '刷新 MDT 会诊' : '先选择患者' }}
-                </a-button>
-                <a-button :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
-                <a-button :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存会话</a-button>
-              </div>
-            </a-card>
+      <main class="mdt-step-main">
+        <MdtPatientStep
+          v-if="currentMdtStep === 'patient'"
+          v-model:selected-patient-id="selectedPatientId"
+          :patient-options="patientOptions"
+          :patient-headline="patientHeadline"
+          :patient-subline="patientSubline"
+          :loading="loading"
+          :organ-rows="mdtOrganRows"
+          :organ-states="mdtOrganStates"
+          :organ-tooltips="mdtOrganTooltips"
+          :selected-patient-out-of-dept-hint="selectedPatientOutOfDeptHint"
+          @generate="handleGenerateAssessment"
+          @open-patient="openPatientDetail"
+          @organ-click="handleMdtOrganClick"
+          @next="goMdtStep('review')"
+        />
 
-            <a-card :bordered="false" class="mdt-panel mdt-action-board" title="会中行动看板">
-              <div class="mdt-action-board__grid">
-                <article v-for="item in mdtActionBoardRows" :key="item.key" :class="['mdt-action-card', `is-${item.tone}`]">
-                  <span>{{ item.label }}</span>
-                  <strong>{{ item.value }}</strong>
-                  <small>{{ item.detail }}</small>
-                </article>
-              </div>
-              <div class="mdt-next-step">
-                <div>
-                  <span>下一步</span>
-                  <strong>{{ nextStepAction.title }}</strong>
-                  <small>{{ nextStepAction.detail }}</small>
-                </div>
-                <a-button type="primary" size="small" :disabled="!nextStepAction.enabled" @click="runNextStepAction">{{ nextStepAction.button }}</a-button>
-              </div>
-            </a-card>
+        <MdtReviewStep
+          v-else-if="currentMdtStep === 'review'"
+          :meta-summary="metaSummary"
+          :mdt-severity-label="mdtSeverityLabel"
+          :active-system-label="activeSystemLabel"
+          :conflict-rows="conflictRows"
+          :specialist-rows="specialistRows"
+          :system-cards="systemCards"
+          :active-specialist="activeSpecialist"
+          :syncable-ai-actions="syncableAiActions"
+          :is-generating-assessment="isGeneratingAssessment"
+          @select-specialist="selectSpecialist"
+          @sync-decisions="syncDecisionsFromMetaActions"
+          @next="goMdtStep('decision')"
+        />
 
-            <a-card :bordered="false" class="mdt-panel" title="1. 总控结论">
-              <div class="clinical-summary-layout">
-                <div class="summary-box summary-box--hero">
-                  {{ isGeneratingAssessment ? '总控智能体正在汇总专科意见、冲突焦点与优先级动作。' : metaSummary }}
-                </div>
-                <div class="clinical-facts">
-                  <div class="clinical-fact">
-                    <span>风险等级</span>
-                    <strong>{{ mdtSeverityLabel }}</strong>
-                  </div>
-                  <div class="clinical-fact">
-                    <span>当前阶段</span>
-                    <strong>{{ currentPhaseLabel }}</strong>
-                  </div>
-                  <div class="clinical-fact">
-                    <span>聚焦系统</span>
-                    <strong>{{ activeSystemLabel }}</strong>
-                  </div>
-                </div>
-              </div>
-            </a-card>
+        <MdtDecisionStep
+          v-else-if="currentMdtStep === 'decision'"
+          :decision-rows="guidedDecisionRows"
+          :pending-confirmation-count="pendingConfirmationCount"
+          :pending-decision-count="pendingDecisionCount"
+          :in-progress-decision-count="inProgressDecisionCount"
+          :completed-decision-count="completedDecisionCount"
+          :dismissed-decision-count="dismissedDecisionCount"
+          :saving-workspace="savingWorkspace"
+          :is-session-closed="isSessionClosed"
+          :confirming-decision-ids="confirmingDecisionIds"
+          @add="addDecision"
+          @save="saveWorkspace"
+          @fill-defaults="fillDecisionDefaults"
+          @confirm="confirmDecision"
+          @mark-status="markDecisionStatus"
+          @remove="removeDecision"
+          @next="goMdtStep('archive')"
+        />
 
-            <a-card :bordered="false" class="mdt-panel" title="2. 冲突焦点与专科意见">
-              <div class="mdt-review-grid">
-                <section>
-                  <div class="detail-label">需要主持人裁决</div>
-                  <div v-if="conflictRows.length" class="conflict-list">
-                    <article v-for="(item, idx) in conflictRows.slice(0, 4)" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-card">
-                      <div class="conflict-card__title">{{ item.summary || '存在跨专科冲突' }}</div>
-                      <div class="conflict-card__agents">{{ (item.agents || []).map(domainLabel).join(' / ') || '多专科' }}</div>
-                      <div class="conflict-card__meta">{{ item.resolution_focus || '需结合动态病情进一步裁决。' }}</div>
-                    </article>
-                  </div>
-                  <div v-else-if="isGeneratingAssessment" class="empty-box">会诊生成中，正在汇总冲突焦点。</div>
-                  <div v-else class="empty-box">当前没有明显冲突，可直接进入执行闭环。</div>
-                </section>
-                <section>
-                  <div class="detail-label">当前专科意见 · {{ activeSystemLabel }}</div>
-                  <div v-if="activeSpecialist" class="detail-stack">
-                    <div class="summary-box">{{ activeSpecialist.summary || '暂无摘要' }}</div>
-                    <div class="detail-block">
-                      <div class="detail-label">建议动作</div>
-                      <ul class="action-list">
-                        <li v-for="(item, idx) in (activeSpecialist.recommendations || []).slice(0, 4)" :key="`moderator-rec-${idx}`">{{ item }}</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div v-else class="empty-box">点击左侧七大系统，查看对应专科意见。</div>
-                </section>
-              </div>
-            </a-card>
-
-            <a-card :bordered="false" class="mdt-panel" title="3. 决议记录与闭环">
-              <div class="decision-command-strip">
-                <div>
-                  <div class="section-kicker">执行闭环</div>
-                  <strong>{{ pendingConfirmationCount }} 项需医生确认</strong>
-                  <span>{{ pendingDecisionCount + inProgressDecisionCount }} 项确认后推进，{{ completedDecisionCount }} 项已完成</span>
-                </div>
-                <div class="decision-command-actions">
-                  <a-button size="small" :disabled="isSessionClosed || !decisionRows.length" @click="fillDecisionDefaults">补全字段</a-button>
-                  <a-button size="small" @click="addDecision" :disabled="isSessionClosed">新增决议</a-button>
-                  <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存决议</a-button>
-                </div>
-              </div>
-              <div class="decision-summary-row">
-                <div class="sheet-item">
-                  <span>待医生确认</span>
-                  <strong>{{ pendingConfirmationCount }}</strong>
-                </div>
-                <div class="sheet-item">
-                  <span>确认后待执行</span>
-                  <strong>{{ pendingDecisionCount }}</strong>
-                </div>
-                <div class="sheet-item">
-                  <span>进行中</span>
-                  <strong>{{ inProgressDecisionCount }}</strong>
-                </div>
-                <div class="sheet-item">
-                  <span>已完成</span>
-                  <strong>{{ completedDecisionCount }}</strong>
-                </div>
-                <div class="sheet-item">
-                  <span>已取消</span>
-                  <strong>{{ dismissedDecisionCount }}</strong>
-                </div>
-              </div>
-              <div class="workspace-actions workspace-actions--top">
-                <a-button size="small" :disabled="isSessionClosed" @click="setPhase('collecting')">收集中</a-button>
-                <a-button size="small" :disabled="isSessionClosed" @click="setPhase('conflict_review')">冲突评审</a-button>
-                <a-button size="small" type="primary" :disabled="isSessionClosed" @click="setPhase('finalizing')">裁决定稿</a-button>
-                <label class="inline-toggle">
-                  <input v-model="decisionOpenOnly" type="checkbox">
-                  <span>只看未闭环</span>
-                </label>
-              </div>
-              <div class="decision-list decision-list--guided">
-                <article v-for="(item, idx) in guidedDecisionRows" :key="item.id || `guided-decision-${idx}`" class="decision-item">
-                  <div class="decision-item__head">
-                    <strong>决议 {{ Number(idx) + 1 }}</strong>
-                    <span>{{ decisionStatusLabel(item.status) }}</span>
-                  </div>
-                  <div class="decision-form">
-                    <input v-model="item.action" class="field-input" :disabled="isSessionClosed" placeholder="输入 MDT 决议动作" />
-                    <div class="decision-form__grid">
-                      <input v-model="item.owner" class="field-input" :disabled="isSessionClosed" placeholder="负责人" />
-                      <input v-model="item.deadline" class="field-input" :disabled="isSessionClosed" placeholder="执行时限" />
-                      <input v-model="item.monitoring" class="field-input" :disabled="isSessionClosed" placeholder="监测指标" />
-                      <select v-model="item.status" class="panel-select" :disabled="isSessionClosed">
-                        <option value="pending_confirmation">待医生确认</option>
-                        <option value="doctor_confirmed">医生已确认</option>
-                        <option value="pending">确认后待执行</option>
-                        <option value="in_progress">进行中</option>
-                        <option value="completed">已完成</option>
-                        <option value="rejected">医生不采纳</option>
-                        <option value="needs_revision">需修改</option>
-                        <option value="dismissed">已取消</option>
-                      </select>
-                    </div>
-                    <div v-if="item.requires_confirmation !== false" class="decision-safety">
-                      AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。
-                    </div>
-                  </div>
-                  <div class="decision-item__meta">
-                    <button v-if="needsDoctorConfirmation(item)" type="button" class="mini-link" :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)" @click="confirmDecision(item, 'confirm')">医生确认</button>
-                    <button v-if="needsDoctorConfirmation(item)" type="button" class="mini-link" :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)" @click="confirmDecision(item, 'reject')">不采纳</button>
-                    <button v-if="!needsDoctorConfirmation(item)" type="button" class="mini-link" :disabled="isSessionClosed" @click="markDecisionStatus(item.id, 'completed')">标记完成</button>
-                    <button type="button" class="mini-link" :disabled="isSessionClosed" @click="removeDecision(item.id)">删除</button>
-                  </div>
-                </article>
-              </div>
-            </a-card>
-          </div>
-
-          <aside class="mdt-action-rail">
-            <a-card :bordered="false" class="mdt-panel" title="主持人下一步">
-              <div class="next-action-box next-action-box--large">{{ nextActionText }}</div>
-              <div v-if="todoRows.length" class="todo-list">
-                <div v-for="item in todoRows.slice(0, 4)" :key="item.id" class="todo-row">
-                  <strong>{{ item.action }}</strong>
-                  <small>{{ item.owner }} / {{ item.deadline || '时限未填' }}</small>
-                </div>
-              </div>
-            </a-card>
-
-            <a-card :bordered="false" class="mdt-panel" title="会诊信息">
-              <div class="meta-edit-grid">
-                <input v-model="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="标签：脓毒症、撤机、高乳酸" />
-                <input v-model="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="参与成员：ICU、感染、呼吸、药学" />
-                <textarea v-model="finalSummary" class="field-textarea" :disabled="isSessionClosed" rows="4" placeholder="最终纪要（留空则关闭会话时自动生成）"></textarea>
-              </div>
-            </a-card>
-
-            <a-card :bordered="false" class="mdt-panel" title="文书与归档">
-              <div class="doc-status-board doc-status-board--rail">
-                <article v-for="item in documentStatusRows" :key="item.key" class="doc-status-card">
-                  <span>{{ item.label }}</span>
-                  <strong>{{ item.status }}</strong>
-                  <small>{{ item.detail }}</small>
-                </article>
-              </div>
-              <div class="workspace-actions">
-                <a-button size="small" :loading="generatingDocType === 'consultation_request'" @click="generateDocument('consultation_request')">生成会诊记录</a-button>
-                <a-button size="small" :loading="generatingDocType === 'daily_progress'" @click="generateDocument('daily_progress')">生成病程</a-button>
-              </div>
-            </a-card>
-
-            <a-card :bordered="false" class="mdt-panel" title="最近会话">
-              <div class="workspace-actions workspace-actions--top workspace-actions--sidebar">
-                <a-button size="small" @click="startNewSession">新建</a-button>
-                <a-button size="small" :disabled="!currentSessionId" @click="duplicateCurrentSession">复制</a-button>
-                <a-button size="small" :disabled="!currentSessionId" @click="exportCurrentSession">导出</a-button>
-              </div>
-              <div v-if="visibleWorkspaceSessions.length" class="session-compact-list">
-                <button
-                  v-for="item in visibleWorkspaceSessions.slice(0, 5)"
-                  :key="item.session_id"
-                  type="button"
-                  :class="['session-compact-item', { 'is-active': currentSessionId === item.session_id }]"
-                  @click="switchSession(String(item.session_id || ''))"
-                >
-                  <strong>{{ item.title || 'MDT 会话' }}</strong>
-                  <span>{{ phaseLabel(item.phase) }} · {{ formatBeijingTime(item.updated_at) }}</span>
-                </button>
-              </div>
-              <div v-else class="empty-box">当前患者暂无已保存 MDT 会话。</div>
-            </a-card>
-          </aside>
-        </section>
-
-        <a-card v-if="viewMode === 'deep'" :bordered="false" class="mdt-panel mdt-panel--hero" :title="`${activeSystemLabel} 详细分析`">
-          <div class="section-kicker">专科深度面板</div>
-          <div class="summary-box summary-box--hero">{{ isGeneratingAssessment ? '总控智能体正在汇总专科意见、冲突焦点与优先级动作。' : metaSummary }}</div>
-          <div class="deep-panel-grid">
-            <section class="deep-panel">
-              <div class="deep-panel__title">{{ activeSystemLabel }}趋势与证据</div>
-              <div class="deep-panel__body">
-                <div class="trend-placeholder">
-                  <div class="trend-placeholder__header">
-                    <strong>{{ activeSystemLabel }}趋势</strong>
-                    <select v-model="trendWindow" class="panel-select">
-                      <option value="24h">24h</option>
-                      <option value="72h">72h</option>
-                    </select>
-                  </div>
-                  <div class="trend-placeholder__chart">
-                    <span v-for="item in trendBars" :key="item.key" :style="{ height: `${item.height}%` }" :title="item.text"></span>
-                  </div>
-                  <div class="trend-metrics">
-                    <div v-for="item in trendMetricCards.slice(0, 4)" :key="`metric-${item.key}`" class="trend-metrics__item">
-                      <span>{{ item.label }}</span>
-                      <strong>{{ displayMetricValue(item.value) != null ? `${displayMetricValue(item.value)}${item.unit ? ` ${item.unit}` : ''}` : '—' }}</strong>
-                    </div>
-                  </div>
-                  <div class="trend-placeholder__caption">{{ activeSystemPanel?.summary || activeSpecialist?.summary || '等待系统分析结果' }}</div>
-                </div>
-                <div class="chip-row">
-                  <span v-for="(item, idx) in activeSpecialist?.evidence || []" :key="`hero-evidence-${idx}`" class="chip">{{ item }}</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="deep-panel">
-              <div class="deep-panel__title">{{ detailPanelTitle }}</div>
-              <div class="deep-panel__body">
-                <template v-if="activeSystemDomain === 'hemodynamic' && activeSystemPanel">
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">血管活性药</div>
-                    <div class="assistant-note__text">
-                      {{ activeSystemPanel.active_vasopressors?.length ? activeSystemPanel.active_vasopressors.map((item: any) => `${item.drug}${item.dose_display ? ` ${item.dose_display}` : ''}`).join('；') : '当前未识别到持续血管活性药事件。' }}
-                    </div>
-                  </div>
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">液体平衡</div>
-                    <div class="assistant-note__text">
-                      {{ activeSystemPanel.fluid_balance?.windows?.length ? activeSystemPanel.fluid_balance.windows.map((item: any) => `${item.label}净平衡 ${item.net_ml} mL`).join('；') : '当前无可用液体平衡窗口。' }}
-                    </div>
-                  </div>
-                  <div v-if="activeSystemPanel.vasopressor_timeline?.length" class="detail-timeline">
-                    <article v-for="(item, idx) in activeSystemPanel.vasopressor_timeline.slice().reverse().slice(0, 6)" :key="`vaso-${idx}`" class="timeline-item">
-                      <strong>{{ item.drug }}</strong>
-                      <span>{{ item.dose_display || item.order_name || '剂量未结构化' }}</span>
-                      <small>{{ formatBeijingTime(item.time) }}</small>
-                    </article>
-                  </div>
-                </template>
-                <template v-else-if="activeSystemDomain === 'infection' && activeSystemPanel">
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">降阶梯判断</div>
-                    <div class="assistant-note__text">{{ activeSystemPanel.deescalation?.title || '暂无判断' }} · {{ activeSystemPanel.deescalation?.detail || '等待培养与药敏结果。' }}</div>
-                  </div>
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">当前抗菌药</div>
-                    <div class="assistant-note__text">
-                      {{ activeSystemPanel.current_antibiotics?.length ? activeSystemPanel.current_antibiotics.map((item: any) => `${item.name}${item.broad_spectrum ? '·广谱' : ''}`).join('；') : '当前未识别到持续抗菌药疗程。' }}
-                    </div>
-                  </div>
-                  <div v-if="activeSystemPanel.culture_timeline?.length" class="detail-timeline">
-                    <article v-for="(item, idx) in activeSystemPanel.culture_timeline.slice(0, 6)" :key="`culture-${idx}`" class="timeline-item">
-                      <strong>{{ item.title }}</strong>
-                      <span>{{ item.detail }}</span>
-                      <small>{{ formatBeijingTime(item.time) }}</small>
-                    </article>
-                  </div>
-                </template>
-                <template v-else-if="activeSystemDomain === 'respiratory' && activeSystemPanel">
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">当前通气支持</div>
-                    <div class="assistant-note__text">
-                      模式 {{ activeSystemPanel.latest?.mode || '—' }} / FiO2 {{ activeSystemPanel.latest?.fio2 ?? '—' }}% / PEEP {{ activeSystemPanel.latest?.peep ?? '—' }} cmH2O / RR {{ activeSystemPanel.latest?.rr ?? '—' }} /min
-                    </div>
-                  </div>
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">P/F 趋势</div>
-                    <div class="assistant-note__text">
-                      {{ activeSystemPanel.pf_trend?.pf_ratio != null ? `P/F ${activeSystemPanel.pf_trend.pf_ratio}，趋势 ${activeSystemPanel.pf_trend.trend || 'stable'}` : '当前未生成 P/F 趋势。' }}
-                    </div>
-                  </div>
-                  <div v-if="activeSystemPanel.ventilator_timeline?.length" class="detail-timeline">
-                    <article v-for="(item, idx) in activeSystemPanel.ventilator_timeline.slice().reverse().slice(0, 6)" :key="`vent-${idx}`" class="timeline-item">
-                      <strong>{{ item.mode || activeSystemPanel.latest?.mode || '通气支持' }}</strong>
-                      <span>FiO2 {{ item.fio2 ?? '—' }} / PEEP {{ item.peep ?? '—' }} / RR {{ item.rr ?? '—' }} / Vte {{ item.vte ?? '—' }}</span>
-                      <small>{{ formatBeijingTime(item.time) }}</small>
-                    </article>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">类型判断</div>
-                    <div class="assistant-note__text">{{ activeSpecialist?.summary || '暂无系统级判断' }}</div>
-                  </div>
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">证据</div>
-                    <div class="assistant-note__text">{{ activeSpecialistEvidence }}</div>
-                  </div>
-                  <div class="assistant-note">
-                    <div class="assistant-note__label">建议</div>
-                    <div class="assistant-note__text">{{ activeSpecialistSuggestion }}</div>
-                  </div>
-                </template>
-              </div>
-            </section>
-          </div>
-        </a-card>
-
-        <div v-if="viewMode === 'deep'" class="mdt-content-grid">
-          <a-card :bordered="false" class="mdt-panel" title="相关告警链">
-            <div v-if="filteredAlerts.length" class="alert-chain">
-              <article v-for="(item, idx) in filteredAlerts" :key="`chain-${idx}`" class="alert-chain__item">
-                <div class="alert-chain__time">{{ item.created_at ? String(item.created_at).slice(11, 16) : `链路 ${Number(idx) + 1}` }}</div>
-                <div class="alert-chain__text">{{ item.name || item.alert_type || item.rule_id || '告警事件' }}</div>
-                <div class="alert-chain__sub">{{ item.explanation?.summary || item.explanation || '' }}</div>
-              </article>
-            </div>
-            <div v-else class="empty-box">当前系统暂无结构化告警链，等待更多事件数据。</div>
-          </a-card>
-
-          <a-card :bordered="false" class="mdt-panel" :title="impactPanelTitle">
-            <div v-if="activeSystemDomain === 'hemodynamic' && activeSystemPanel?.fluid_balance?.windows?.length" class="impact-list">
-              <article v-for="item in activeSystemPanel.fluid_balance.windows" :key="item.label" class="impact-card">
-                <div class="impact-card__title">{{ item.label }} 液体平衡</div>
-                <div class="impact-card__text">入量 {{ item.intake_ml }} mL / 出量 {{ item.output_ml }} mL / 净平衡 {{ item.net_ml }} mL</div>
-              </article>
-            </div>
-            <div v-else-if="activeSystemDomain === 'infection' && activeSystemPanel?.coverage_mismatches?.length" class="impact-list">
-              <article v-for="(item, idx) in activeSystemPanel.coverage_mismatches" :key="`mismatch-${idx}`" class="impact-card">
-                <div class="impact-card__title">{{ item.organism || '覆盖偏差' }}</div>
-                <div class="impact-card__text">{{ item.suggestion || '当前方案与药敏不一致。' }}</div>
-                <div class="impact-card__sub">{{ (item.resistant_to || []).join(' / ') }}</div>
-              </article>
-            </div>
-            <div v-else-if="activeSystemDomain === 'respiratory' && activeSystemPanel?.ventilator_timeline?.length" class="impact-list">
-              <article v-for="(item, idx) in activeSystemPanel.ventilator_timeline.slice().reverse().slice(0, 8)" :key="`resp-impact-${idx}`" class="impact-card">
-                <div class="impact-card__title">{{ item.mode || activeSystemPanel.latest?.mode || '通气支持' }}</div>
-                <div class="impact-card__text">FiO2 {{ item.fio2 ?? '—' }} / PEEP {{ item.peep ?? '—' }} / RR {{ item.rr ?? '—' }} / PIP {{ item.pip ?? '—' }}</div>
-                <div class="impact-card__sub">{{ formatBeijingTime(item.time) }}</div>
-              </article>
-            </div>
-            <div v-else-if="filteredDrugs.length" class="impact-list">
-              <article v-for="item in filteredDrugs" :key="`${item.drugName}-${item.executeTime}`" class="impact-card">
-                <div class="impact-card__title">{{ item.drugName || item.orderName || '用药' }}</div>
-                <div class="impact-card__text">
-                  {{ item.dose || '--' }}{{ item.doseUnit || '' }} / {{ item.route || '给药途径未记载' }} / {{ item.frequency || '频次未记载' }}
-                </div>
-                <div class="impact-card__sub">{{ formatBeijingTime(item.executeTime, '执行时间未记载') }}</div>
-              </article>
-            </div>
-            <div v-else class="empty-box">当前系统暂无明显相关结构化事件。</div>
-          </a-card>
-        </div>
-
-        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--timeline']">
-          <a-card :bordered="false" class="mdt-panel" title="MDT 冲突高亮">
-            <div v-if="conflictRows.length" class="conflict-list">
-              <article v-for="(item, idx) in conflictRows" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-card">
-                <div class="conflict-card__title">{{ item.summary || '存在跨专科冲突' }}</div>
-                <div class="conflict-card__agents">{{ (item.agents || []).map(domainLabel).join(' / ') || '多专科' }}</div>
-                <div class="conflict-card__meta">{{ item.resolution_focus || '需结合动态病情进一步裁决。' }}</div>
-              </article>
-            </div>
-            <div v-else-if="isGeneratingAssessment" class="empty-box">会诊生成中，正在汇总冲突焦点与总控智能体裁决。</div>
-            <div v-else class="empty-box">当前未识别到明显跨专科冲突，可继续按总控智能体裁决跟踪执行。</div>
-          </a-card>
-
-          <a-card v-if="viewMode === 'deep'" :bordered="false" class="mdt-panel" title="冲突解释面板">
-            <div v-if="conflictExplainRows.length" class="detail-stack">
-              <div v-for="item in conflictExplainRows" :key="item.id" class="impact-card">
-                <div class="impact-card__title">{{ item.title }}</div>
-                <div class="impact-card__text">涉及专科：{{ item.agents }}</div>
-                <div class="impact-card__sub">{{ item.focus }}</div>
-              </div>
-            </div>
-            <div v-else class="empty-box">当前没有需要额外解释的跨专科冲突。</div>
-          </a-card>
-
-          <a-card :bordered="false" class="mdt-panel" :title="`专科意见与智能预填充 · ${activeSystemLabel}`">
-            <div v-if="activeSpecialist" class="detail-stack">
-              <div class="summary-box">{{ activeSpecialist.summary || '暂无摘要' }}</div>
-              <div class="detail-block">
-                <div class="detail-label">该专科视角评估</div>
-                <ul class="action-list">
-                  <li v-for="(item, idx) in activeSpecialist.concerns || []" :key="`concern-${idx}`">{{ item }}</li>
-                </ul>
-              </div>
-              <div class="detail-block">
-                <div class="detail-label">智能预填充建议</div>
-                <ul class="action-list">
-                  <li v-for="(item, idx) in activeSpecialist.recommendations || []" :key="`rec-${idx}`">{{ item }}</li>
-                </ul>
-              </div>
-              <div class="detail-block">
-                <div class="detail-label">证据线索</div>
-                <div class="chip-row">
-                  <span v-for="(item, idx) in activeSpecialist.evidence || []" :key="`evidence-${idx}`" class="chip">{{ item }}</span>
-                </div>
-              </div>
-            </div>
-            <div v-else-if="isGeneratingAssessment" class="empty-box">专科智能体正在生成细化意见与建议动作。</div>
-            <div v-else class="empty-box">点击左侧专科卡片后查看详细意见。</div>
-          </a-card>
-        </div>
-
-        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--decisions']">
-          <a-card :bordered="false" class="mdt-panel" title="会诊活动时间线">
-            <div v-if="activityTimelineRows.length" class="detail-timeline">
-              <article v-for="item in activityTimelineRows" :key="item.id" class="timeline-item">
-                <strong>{{ item.title }}</strong>
-                <span>{{ item.detail }}</span>
-                <small>{{ item.timeLabel }}</small>
-              </article>
-            </div>
-            <div v-else class="empty-box">当前会话尚未形成活动轨迹，保存、切换阶段或推进决议后会自动沉淀时间线。</div>
-          </a-card>
-
-          <a-card :bordered="false" class="mdt-panel" title="会诊模板与归档摘要">
-            <div class="impact-list">
-              <article v-for="item in sessionTemplates" :key="item.key" class="impact-card">
-                <div class="impact-card__title">{{ item.label }}</div>
-                <div class="impact-card__text">{{ item.summary }}</div>
-                <div class="impact-card__sub">{{ item.tags.join(' / ') || '未设标签' }}</div>
-              </article>
-              <article v-if="workspaceRecord?.template_name || finalSummary" class="impact-card">
-                <div class="impact-card__title">当前会话归档信息</div>
-                <div class="impact-card__text">模板：{{ workspaceRecord?.template_name ? templateLabel(workspaceRecord.template_name) : '未使用模板' }}</div>
-                <div class="impact-card__sub">{{ finalSummary || '尚未生成最终纪要' }}</div>
-              </article>
-            </div>
-          </a-card>
-        </div>
-
-        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--assessment']">
-          <a-card v-if="viewMode === 'deep'" :bordered="false" class="mdt-panel" title="总控智能体全局优先级">
-            <div v-if="priorityRows.length" class="priority-row">
-              <article v-for="item in priorityRows" :key="`${item.agent}-${item.domain}`" :class="['priority-card', `is-${item.priority || 'medium'}`]">
-                <div class="priority-card__head">
-                  <strong>{{ domainLabel(item.domain) }}</strong>
-                  <span>{{ priorityLabel(item.priority) }}</span>
-                </div>
-                <div class="priority-card__main">{{ item.summary || '待补充摘要' }}</div>
-              </article>
-            </div>
-            <div v-else class="empty-box">等待总控智能体汇总全局优先级。</div>
-          </a-card>
-
-          <a-card :bordered="false" class="mdt-panel" title="决议记录与执行追踪">
-            <div class="decision-command-strip">
-              <div>
-                <div class="section-kicker">执行驾驶舱</div>
-              <strong>{{ pendingConfirmationCount }} 项需医生确认</strong>
-                <span>{{ pendingDecisionCount + inProgressDecisionCount }} 项确认后推进，{{ completedDecisionCount }} 项已闭环</span>
-              </div>
-              <div class="decision-command-actions">
-                <a-button size="small" :disabled="isSessionClosed || !syncableAiActions.length" @click="syncDecisionsFromMetaActions">同步 AI 动作</a-button>
-                <a-button size="small" :disabled="isSessionClosed || !decisionRows.length" @click="fillDecisionDefaults">补全默认字段</a-button>
-                <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存</a-button>
-              </div>
-            </div>
-            <div class="decision-summary-row">
-              <div class="sheet-item">
-                <span>待医生确认</span>
-                <strong>{{ pendingConfirmationCount }}</strong>
-              </div>
-              <div class="sheet-item">
-                <span>确认后待执行</span>
-                <strong>{{ pendingDecisionCount }}</strong>
-              </div>
-              <div class="sheet-item">
-                <span>进行中</span>
-                <strong>{{ inProgressDecisionCount }}</strong>
-              </div>
-              <div class="sheet-item">
-                <span>已完成</span>
-                <strong>{{ completedDecisionCount }}</strong>
-              </div>
-              <div class="sheet-item">
-                <span>已取消</span>
-                <strong>{{ dismissedDecisionCount }}</strong>
-              </div>
-            </div>
-            <div class="workspace-actions workspace-actions--top">
-              <a-button size="small" :disabled="isSessionClosed" @click="setPhase('collecting')">收集中</a-button>
-              <a-button size="small" :disabled="isSessionClosed" @click="setPhase('conflict_review')">冲突评审</a-button>
-              <a-button size="small" type="primary" :disabled="isSessionClosed" @click="setPhase('finalizing')">裁决定稿</a-button>
-              <label class="inline-toggle">
-                <input v-model="decisionOpenOnly" type="checkbox">
-                <span>只看未闭环</span>
-              </label>
-            </div>
-            <div class="workspace-actions workspace-actions--top workspace-actions--sidebar">
-              <select v-model="decisionOwnerFilter" class="panel-select">
-                <option value="">全部负责人</option>
-                <option v-for="item in decisionOwnerOptions" :key="item" :value="item">{{ item }}</option>
-              </select>
-              <div class="decision-batch-actions">
-                <a-button size="small" :disabled="isSessionClosed || !currentSessionId" @click="markVisibleDecisions('doctor_confirmed')">批量确认</a-button>
-                <a-button size="small" type="primary" :disabled="isSessionClosed" @click="markVisibleDecisions('completed')">批量完成</a-button>
-              </div>
-            </div>
-            <div class="decision-buckets">
-              <section v-for="bucket in decisionBuckets" :key="bucket.key" class="decision-bucket">
-                <div class="decision-bucket__head">
-                  <strong>{{ bucket.label }}</strong>
-                  <span>{{ bucket.items.length }} 条</span>
-                </div>
-                <div class="decision-list">
-                  <article v-for="(item, idx) in bucket.items" :key="item.id || `decision-${idx}`" class="decision-item">
-                    <div class="decision-item__head">
-                      <strong>决议 {{ Number(idx) + 1 }}</strong>
-                      <span>{{ bucket.label }}</span>
-                    </div>
-                    <div class="decision-form">
-                      <input v-model="item.action" class="field-input" :disabled="isSessionClosed" placeholder="输入 MDT 决议动作" />
-                      <div class="decision-form__grid">
-                        <input v-model="item.owner" class="field-input" :disabled="isSessionClosed" placeholder="负责人" />
-                        <input v-model="item.deadline" class="field-input" :disabled="isSessionClosed" placeholder="执行时限" />
-                        <input v-model="item.monitoring" class="field-input" :disabled="isSessionClosed" placeholder="监测指标" />
-                        <input v-model="item.review_time" class="field-input" :disabled="isSessionClosed" placeholder="复评时间" />
-                        <select v-model="item.status" class="panel-select" :disabled="isSessionClosed">
-                          <option value="pending_confirmation">待医生确认</option>
-                          <option value="doctor_confirmed">医生已确认</option>
-                          <option value="pending">确认后待执行</option>
-                          <option value="in_progress">进行中</option>
-                          <option value="completed">已完成</option>
-                          <option value="rejected">医生不采纳</option>
-                          <option value="needs_revision">需修改</option>
-                          <option value="dismissed">已取消</option>
-                        </select>
-                      </div>
-                      <div v-if="item.requires_confirmation !== false" class="decision-safety">
-                        AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。
-                      </div>
-                      <textarea v-model="item.note" class="field-textarea" :disabled="isSessionClosed" rows="2" placeholder="补充说明 / 平衡方案"></textarea>
-                    </div>
-                    <div class="decision-item__meta">
-                      <span>状态：{{ decisionStatusLabel(item.status) }}</span>
-                      <button
-                        v-if="needsDoctorConfirmation(item)"
-                        type="button"
-                        class="mini-link"
-                        :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)"
-                        @click="confirmDecision(item, 'confirm')"
-                      >
-                        医生确认
-                      </button>
-                      <button
-                        v-if="needsDoctorConfirmation(item)"
-                        type="button"
-                        class="mini-link"
-                        :disabled="isSessionClosed || confirmingDecisionIds.has(item.id)"
-                        @click="confirmDecision(item, 'reject')"
-                      >
-                        不采纳
-                      </button>
-                      <button
-                        v-if="!needsDoctorConfirmation(item) && String(item.status || 'pending') !== 'completed'"
-                        type="button"
-                        class="mini-link"
-                        :disabled="isSessionClosed"
-                        @click="markDecisionStatus(item.id, 'completed')"
-                      >
-                        标记完成
-                    </button>
-                    <button
-                        v-else-if="!needsDoctorConfirmation(item)"
-                        type="button"
-                        class="mini-link"
-                        :disabled="isSessionClosed"
-                        @click="markDecisionStatus(item.id, 'doctor_confirmed')"
-                      >
-                        重新打开
-                      </button>
-                      <button type="button" class="mini-link" :disabled="isSessionClosed" @click="removeDecision(item.id)">删除</button>
-                    </div>
-                  </article>
-                </div>
-              </section>
-            </div>
-            <div class="workspace-actions">
-              <a-button size="small" :disabled="isSessionClosed" @click="addDecision">新增决议</a-button>
-              <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存决议</a-button>
-            </div>
-          </a-card>
-        </div>
-
-        <div v-if="viewMode === 'deep'" :class="['mdt-content-grid', 'mdt-grid--documents']">
-          <a-card :bordered="false" class="mdt-panel" title="会诊记录 / 病程记录">
-            <div class="doc-status-board">
-              <article v-for="item in documentStatusRows" :key="item.key" class="doc-status-card">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.status }}</strong>
-                <small>{{ item.detail }}</small>
-              </article>
-            </div>
-            <div class="doc-stack">
-              <div class="doc-block">
-                <div class="detail-label">MDT 会诊记录</div>
-                <div v-if="mdtSummarySections.length" class="mdt-document-sections">
-                  <article v-for="item in mdtSummarySections" :key="item.heading" class="mdt-document-section">
-                    <strong>{{ item.heading }}</strong>
-                    <p>{{ item.content }}</p>
-                  </article>
-                </div>
-                <textarea v-model="consultRecord" class="field-textarea field-textarea--lg" :disabled="isSessionClosed" rows="8" placeholder="可先编辑，再一键保存或用智能生成。"></textarea>
-                <div class="workspace-actions">
-                  <a-button size="small" :disabled="isSessionClosed" :loading="generatingDocType === 'mdt_summary'" @click="generateDocument('mdt_summary')">智能生成讨论材料</a-button>
-                  <a-button size="small" :disabled="isSessionClosed" :loading="generatingDocType === 'consultation_request'" @click="generateDocument('consultation_request')">智能生成会诊记录</a-button>
-                </div>
-              </div>
-              <div class="doc-block">
-                <div class="detail-label">病程记录</div>
-                <textarea v-model="progressRecord" class="field-textarea field-textarea--lg" :disabled="isSessionClosed" rows="8" placeholder="将 MDT 讨论要点整合进当日病程记录。"></textarea>
-                <div class="workspace-actions">
-                  <a-button size="small" :disabled="isSessionClosed" :loading="generatingDocType === 'daily_progress'" @click="generateDocument('daily_progress')">智能生成病程记录</a-button>
-                  <a-button size="small" type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="saveWorkspace">保存文书</a-button>
-                </div>
-              </div>
-            </div>
-            <div class="impact-list">
-              <article v-if="latestGeneratedDocuments.mdt_summary" class="impact-card">
-                <div class="impact-card__title">最新 MDT 讨论材料</div>
-                <div class="impact-card__text">{{ latestMdtDocumentPreview }}</div>
-              </article>
-              <article v-if="latestGeneratedDocuments.daily_progress" class="impact-card">
-                <div class="impact-card__title">最新病程记录</div>
-                <div class="impact-card__text">{{ latestGeneratedDocuments.daily_progress.document?.document_text || latestGeneratedDocuments.daily_progress.summary || '已生成' }}</div>
-              </article>
-            </div>
-          </a-card>
-
-          <a-card :bordered="false" class="mdt-panel" title="医嘱草稿">
-            <div class="decision-list">
-              <article v-for="item in generatedOrderDrafts" :key="item.id" class="decision-item">
-                <div class="decision-item__head">
-                  <strong>{{ item.category || '医嘱建议' }}</strong>
-                  <span>{{ priorityLabel(item.priority) }}</span>
-                </div>
-                <textarea v-model="item.order_text" class="field-textarea" :disabled="isSessionClosed" rows="3"></textarea>
-                <div class="decision-item__meta">
-                  <span>状态：{{ ({ pending: '待执行', in_progress: '进行中', completed: '已完成', dismissed: '已取消', draft: '草稿' } as Record<string, string>)[String(item.status || 'draft').toLowerCase()] || '草稿' }}</span>
-                  <span>来源：{{ item.source === 'mdt_workspace' ? 'MDT 工作台' : (item.source || 'MDT 工作台') }}</span>
-                </div>
-              </article>
-            </div>
-          </a-card>
-        </div>
+        <MdtArchiveStep
+          v-else-if="currentMdtStep === 'archive'"
+          v-model:tags-text="tagsText"
+          v-model:participants-text="participantsText"
+          v-model:final-summary="finalSummary"
+          v-model:consult-record="consultRecord"
+          v-model:progress-record="progressRecord"
+          :document-status-rows="documentStatusRows"
+          :generating-doc-type="generatingDocType"
+          :auto-session-summary="autoSessionSummary"
+          :mdt-summary-preview="latestMdtDocumentPreview"
+          :is-session-closed="isSessionClosed"
+          :saving-workspace="savingWorkspace"
+          @save="saveWorkspace"
+          @generate-document="generateDocument"
+          @copy-summary="copyText(autoSessionSummary, '会诊摘要已复制')"
+          @close-session="closeCurrentSession"
+          @export-session="exportCurrentSession"
+        />
       </main>
     </section>
+
+    <MdtSessionDrawer
+      v-model:open="sessionDrawerOpen"
+      :sessions="visibleWorkspaceSessions"
+      :current-session-id="currentSessionId"
+      :session-list-open-only="sessionListOpenOnly"
+      :session-search="sessionSearch"
+      :session-phase-filter="sessionPhaseFilter"
+      @update:session-list-open-only="sessionListOpenOnly = $event"
+      @update:session-search="sessionSearch = $event"
+      @update:session-phase-filter="sessionPhaseFilter = $event"
+      @switch-session="switchSession"
+      @start-new-session="startNewSession"
+      @duplicate-current-session="duplicateCurrentSession"
+      @export-current-session="exportCurrentSession"
+      @close-current-session="closeCurrentSession"
+      @reopen-current-session="reopenCurrentSession"
+    />
 
     <div v-if="error" class="error-box">{{ error }}</div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button as AButton, Card as ACard, message } from 'ant-design-vue'
+import { Card as ACard, message } from 'ant-design-vue'
 import {
   generateAiDocument,
   getAiMdtWorkspace,
@@ -1088,7 +150,14 @@ import {
   postAiMdtDecisionConfirm,
   saveAiMdtWorkspace,
 } from '../api'
-import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
+import MdtArchiveStep from '../components/mdt/MdtArchiveStep.vue'
+import MdtDecisionStep from '../components/mdt/MdtDecisionStep.vue'
+import MdtHeader from '../components/mdt/MdtHeader.vue'
+import MdtPatientStep from '../components/mdt/MdtPatientStep.vue'
+import MdtReviewStep from '../components/mdt/MdtReviewStep.vue'
+import MdtSessionDrawer from '../components/mdt/MdtSessionDrawer.vue'
+import MdtStepBar from '../components/mdt/MdtStepBar.vue'
+import MdtSummaryRail from '../components/mdt/MdtSummaryRail.vue'
 import { formatBeijingTime } from '../utils/time'
 import { getOperatorIdentity } from '../utils/operatorIdentity'
 import { BODY_MAP_ORGAN_LABELS, bodyMapSeverityText, type BodyMapOrganKey, type BodyMapSeverity } from '../utils/bodyMap'
@@ -1122,6 +191,8 @@ const generatingDocType = ref('')
 const workspaceSessions = ref<any[]>([])
 const currentSessionId = ref('')
 const viewMode = ref<'moderator' | 'deep'>('moderator')
+const currentMdtStep = ref<'patient' | 'review' | 'decision' | 'archive'>('patient')
+const sessionDrawerOpen = ref(false)
 const sessionListOpenOnly = ref(true)
 const decisionOpenOnly = ref(true)
 const sessionSearch = ref('')
@@ -1132,9 +203,18 @@ const selectedTemplateKey = ref('')
 const activityLog = ref<any[]>([])
 const confirmingDecisionIds = ref<Set<string>>(new Set())
 
+const isDecisionConfirmed = (item: any) => {
+  const status = String(item?.status || '').toLowerCase()
+  const confirmationStatus = String(item?.confirmation_status || '').toLowerCase()
+  return Boolean(item?.confirmed_at) || confirmationStatus === 'confirmed' || status === 'doctor_confirmed' || item?.requires_confirmation === false
+}
+
 const needsDoctorConfirmation = (item: any) => {
   const status = String(item?.status || 'pending_confirmation').toLowerCase()
-  return item?.requires_confirmation !== false || ['pending_confirmation', 'needs_revision'].includes(status)
+  const confirmationStatus = String(item?.confirmation_status || '').toLowerCase()
+  if (isDecisionConfirmed(item)) return false
+  if (confirmationStatus === 'rejected') return false
+  return ['pending_confirmation', 'needs_revision'].includes(status) || item?.requires_confirmation !== false
 }
 
 const sessionTemplates = [
@@ -1697,6 +777,36 @@ const workflowSteps = computed(() => [
     done: Boolean(consultRecord.value || progressRecord.value || isSessionClosed.value),
   },
 ])
+const mdtStepRows = computed(() => [
+  {
+    key: 'patient' as const,
+    index: '01',
+    title: '选择患者',
+    desc: '选择患者并生成 MDT 会诊',
+    done: Boolean(selectedPatientId.value && assessmentResult.value),
+  },
+  {
+    key: 'review' as const,
+    index: '02',
+    title: '冲突评审',
+    desc: '查看总控结论和专科意见',
+    done: Boolean(decisionRows.value.length || syncableAiActions.value.length),
+  },
+  {
+    key: 'decision' as const,
+    index: '03',
+    title: '决议确认',
+    desc: '形成决议并由医生确认',
+    done: decisionRows.value.length > 0 && pendingConfirmationCount.value === 0,
+  },
+  {
+    key: 'archive' as const,
+    index: '04',
+    title: '文书归档',
+    desc: '生成记录、病程并归档',
+    done: isSessionClosed.value,
+  },
+])
 const primaryGuidanceTitle = computed(() => {
   if (!selectedPatientId.value) return '先选患者，页面会自动收敛到这次 MDT'
   if (isGeneratingAssessment.value) return '正在生成会诊，先等总控智能体汇总'
@@ -1813,6 +923,27 @@ function phaseLabel(phase: any) {
   return ({ collecting: '收集中', conflict_review: '冲突评审', finalizing: '裁决定稿', closed: '已关闭' } as Record<string, string>)[key] || '裁决定稿'
 }
 
+function stepFromPhase(phase?: string) {
+  if (phase === 'collecting') return 'patient'
+  if (phase === 'conflict_review') return 'review'
+  if (phase === 'finalizing') return 'decision'
+  if (phase === 'closed') return 'archive'
+  return 'patient'
+}
+
+function phaseFromStep(step: string) {
+  if (step === 'patient') return 'collecting'
+  if (step === 'review') return 'conflict_review'
+  if (step === 'decision') return 'finalizing'
+  if (step === 'archive') return 'finalizing'
+  return 'collecting'
+}
+
+function goMdtStep(step: 'patient' | 'review' | 'decision' | 'archive') {
+  currentMdtStep.value = step
+  setPhase(phaseFromStep(step) as 'collecting' | 'conflict_review' | 'finalizing' | 'closed')
+}
+
 function sessionDecisionCount(session: any) {
   return Array.isArray(session?.decisions) ? session.decisions.length : 0
 }
@@ -1844,8 +975,11 @@ function decisionStatusLabel(status: any) {
 function normalizeDecision(item: any, idx = 0) {
   const row = { ...(item || {}) }
   let status = String(row.status || '').trim().toLowerCase()
-  if (['pending', 'in_progress', 'completed'].includes(status) && !row.confirmed_at) status = 'pending_confirmation'
+  const confirmationStatus = String(row.confirmation_status || '').trim().toLowerCase()
+  const confirmed = Boolean(row.confirmed_at) || confirmationStatus === 'confirmed' || status === 'doctor_confirmed' || row.requires_confirmation === false
+  if (['pending', 'in_progress', 'completed'].includes(status) && !confirmed) status = 'pending_confirmation'
   if (!status) status = 'pending_confirmation'
+  if (confirmed && status === 'pending_confirmation') status = 'doctor_confirmed'
   return {
     ...row,
     id: row.id || `decision-${Date.now()}-${idx}`,
@@ -1854,8 +988,8 @@ function normalizeDecision(item: any, idx = 0) {
     deadline: String(row.deadline || '').trim() || (idx === 0 ? '立即' : '6h'),
     monitoring: String(row.monitoring || '').trim() || '按系统指标复评',
     review_time: String(row.review_time || '').trim() || '6h',
-    requires_confirmation: row.requires_confirmation === false ? false : true,
-    confirmation_status: row.confirmation_status || (row.confirmed_at ? 'confirmed' : 'pending'),
+    requires_confirmation: confirmed ? false : (row.requires_confirmation === false ? false : true),
+    confirmation_status: row.confirmation_status || (confirmed ? 'confirmed' : 'pending'),
     safety_notice: row.safety_notice || 'AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。',
   }
 }
@@ -2074,7 +1208,7 @@ async function generateDocument(docType: 'mdt_summary' | 'daily_progress' | 'con
     const doc = res.data?.document
     if (doc) {
       workspaceDocuments.value = [doc, ...workspaceDocuments.value.filter((item: any) => item?._id !== doc?._id)]
-      const text = String(doc?.document?.document_text || '')
+      const text = extractGeneratedDocumentText(doc, docType)
       if (docType === 'consultation_request') consultRecord.value = text
       if (docType === 'daily_progress') progressRecord.value = text
       appendActivityLog('生成文书', `${({ mdt_summary: '讨论材料', daily_progress: '病程记录', consultation_request: '会诊记录' } as Record<string, string>)[docType] || docType} 已更新`)
@@ -2168,6 +1302,39 @@ async function confirmDecision(row: any, action: 'confirm' | 'reject' | 'revise'
     nextSet.delete(id)
     confirmingDecisionIds.value = nextSet
   }
+}
+
+function extractGeneratedDocumentText(doc: any, docType: 'mdt_summary' | 'daily_progress' | 'consultation_request') {
+  const document = doc?.document || {}
+  const rawText = String(document?.document_text || '').trim()
+  const sections = Array.isArray(document?.sections) ? document.sections : []
+  const sectionText = sections
+    .map((item: any) => {
+      const heading = String(item?.heading || '').trim()
+      const content = String(item?.content || '').trim()
+      return heading && content ? `${heading}：${content}` : ''
+    })
+    .filter(Boolean)
+    .join('\n')
+  const text = rawText || sectionText
+  if (text) return text
+  if (docType === 'consultation_request') {
+    return [
+      '会诊目的：请相关专科协助评估当前主要问题、处理优先级和复评计划。',
+      `患者概况：${patientHeadline.value}，${patientSubline.value}。`,
+      '申请会诊原因：请结合 MDT 冲突焦点和床旁病情补充。',
+      '需协助解决事项：请明确诊断判断、治疗方向、风险边界和下一次复评时间。',
+    ].join('\n')
+  }
+  if (docType === 'daily_progress') {
+    return [
+      '病情变化：请补充近24小时生命体征、检验、用药和治疗反应变化。',
+      `今日评估：${patientHeadline.value}，${patientSubline.value}。`,
+      '处理经过：请补充已执行处置和当前疗效。',
+      '后续计划：继续按 MDT 决议复评关键指标，正式病历需医生审核。',
+    ].join('\n')
+  }
+  return ''
 }
 
 async function markVisibleDecisions(status: 'doctor_confirmed' | 'in_progress' | 'completed') {
@@ -2388,6 +1555,35 @@ function openPatientDetail() {
   router.push({ path: `/patient/${selectedPatientId.value}`, query: { tab: 'twin' } })
 }
 
+void viewMode
+void metaActionCount
+void displayMetricValue
+void activeSpecialistEvidence
+void activeSpecialistSuggestion
+void detailPanelTitle
+void impactPanelTitle
+void decisionOwnerOptions
+void moderatorDecisionRows
+void topConflictSummary
+void cockpitMetricRows
+void latestMdtDocumentPreview
+void mdtActionBoardRows
+void ownerSummaryRows
+void activityTimelineRows
+void currentWorkflowStep
+void workflowSteps
+void primaryGuidanceTitle
+void primaryGuidanceText
+void closureTone
+void closureLabel
+void conflictExplainRows
+void runNextStepAction
+void priorityLabel
+void sessionCompletionRate
+void templateLabel
+void markDecisionDone
+void applySessionTemplate
+
 watch(() => route.query.patient_id ?? route.query.patientId, (value) => {
   const next = String(Array.isArray(value) ? value[0] : value || '').trim()
   if (next && next !== selectedPatientId.value) {
@@ -2408,6 +1604,19 @@ watch(selectedPatientId, (value, oldValue) => {
 watch(trendWindow, () => {
   if (!selectedPatientId.value) return
   void loadWorkspaceExtras(selectedPatientId.value)
+})
+
+watch(() => workspaceRecord.value?.phase, (phase) => {
+  const next = stepFromPhase(String(phase || ''))
+  if (currentMdtStep.value !== next) currentMdtStep.value = next
+})
+
+watch(currentMdtStep, (step, previous) => {
+  if (step === previous) return
+  const nextPhase = phaseFromStep(step)
+  if (String(workspaceRecord.value?.phase || '') !== nextPhase) {
+    setPhase(nextPhase as 'collecting' | 'conflict_review' | 'finalizing' | 'closed')
+  }
 })
 
 onMounted(async () => {
@@ -2455,6 +1664,20 @@ onMounted(async () => {
 .mdt-hero :deep(.ant-card-body) {
   display: grid;
   padding: 14px;
+}
+.mdt-step-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.32fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.mdt-summary-rail,
+.mdt-step-main {
+  min-width: 0;
+}
+.mdt-step-main {
+  display: grid;
+  gap: 14px;
 }
 .mdt-command-center,
 .mdt-hero__copy,.mdt-hero__side {
@@ -4749,8 +3972,32 @@ html[data-theme='light'] .mdt-flow-step.is-done {
     radial-gradient(circle at top right, rgba(16, 185, 129, .10), transparent 40%),
     linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(240, 253, 250, .98));
 }
+html[data-theme='light'] .mdt-hero {
+  border-color: #dbeafe;
+  background: #ffffff !important;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+}
+html[data-theme='light'] .mdt-step-layout {
+  color: #0f172a;
+}
+html[data-theme='light'] .mdt-step-layout :deep(.ant-card),
+html[data-theme='light'] .mdt-step-layout :deep(.ant-card-body) {
+  color: #0f172a;
+}
+html[data-theme='light'] .mdt-step-layout textarea,
+html[data-theme='light'] .mdt-step-layout input,
+html[data-theme='light'] .mdt-step-layout select {
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+}
+html[data-theme='light'] .mdt-step-layout textarea::placeholder,
+html[data-theme='light'] .mdt-step-layout input::placeholder {
+  color: #94a3b8 !important;
+}
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),
+  .mdt-step-layout,
   .mdt-command-top,
   .mdt-flow,
   .mdt-clinical-strip,
@@ -4821,3 +4068,4 @@ html[data-theme='light'] .mdt-flow-step.is-done {
   .mdt-hero__side { padding: 14px; }
 }
 </style>
+

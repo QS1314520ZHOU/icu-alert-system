@@ -33,8 +33,13 @@ def _actor(request: Request, fallback: str = "") -> str:
 
 
 @router.get("/api/home/doctor")
-async def doctor_home(user_id: str = Query(...)):
-    result = await _service().doctor_home(user_id)
+async def doctor_home(
+    user_id: str = Query(...),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
+    result = await _service().doctor_home(user_id, dept=dept, dept_code=dept_code or deptCode)
     return {"code": 0, "data": serialize_doc(result)}
 
 
@@ -43,24 +48,39 @@ async def nurse_home(
     user_id: str = Query(...),
     shift_code: str = Query("auto"),
     view: str | None = Query(None),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
 ):
-    result = await _service().nurse_home(user_id, shift_code=shift_code, view=view)
+    result = await _service().nurse_home(user_id, shift_code=shift_code, view=view, dept=dept, dept_code=dept_code or deptCode)
     return {"code": 0, "data": serialize_doc(result)}
 
 
 @router.get("/api/home/nurse/timeline")
-async def nurse_timeline(user_id: str = Query(...), shift_code: str = Query("auto")):
-    result = await _service().nurse_timeline(user_id, shift_code=shift_code)
+async def nurse_timeline(
+    user_id: str = Query(...),
+    shift_code: str = Query("auto"),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
+    result = await _service().nurse_timeline(user_id, shift_code=shift_code, dept=dept, dept_code=dept_code or deptCode)
     return {"code": 0, "data": serialize_doc(result)}
 
 
 @router.get("/api/home/nurse/bundles")
-async def nurse_bundles(patient_ids: list[str] = Query(default=[]), shift_code: str = Query("auto")):
+async def nurse_bundles(
+    patient_ids: list[str] = Query(default=[]),
+    shift_code: str = Query("auto"),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
     raw_ids = patient_ids or []
     if len(raw_ids) == 1 and "," in raw_ids[0]:
         raw_ids = raw_ids[0].split(",")
     ids = [str(item).strip() for item in raw_ids if str(item or "").strip()]
-    result = await _service().nurse_bundles(ids, shift_code=shift_code)
+    result = await _service().nurse_bundles(ids, shift_code=shift_code, dept=dept, dept_code=dept_code or deptCode)
     return {"code": 0, "data": serialize_doc(result)}
 
 
@@ -71,7 +91,12 @@ async def nurse_bundles_post(payload: dict = Body(default={})):
         raw_ids = []
     ids = [str(item).strip() for item in raw_ids if str(item or "").strip()]
     shift_code = str((payload or {}).get("shift_code") or "auto")
-    result = await _service().nurse_bundles(ids, shift_code=shift_code)
+    result = await _service().nurse_bundles(
+        ids,
+        shift_code=shift_code,
+        dept=str((payload or {}).get("dept") or "").strip() or None,
+        dept_code=str((payload or {}).get("dept_code") or (payload or {}).get("deptCode") or "").strip() or None,
+    )
     return {"code": 0, "data": serialize_doc(result)}
 
 
@@ -92,6 +117,8 @@ async def generate_nurse_handoff(request: Request, payload: dict = Body(default=
         user_id,
         [str(item) for item in patient_ids if str(item or "").strip()],
         shift_code=str((payload or {}).get("shift_code") or "auto"),
+        dept=str((payload or {}).get("dept") or "").strip() or None,
+        dept_code=str((payload or {}).get("dept_code") or (payload or {}).get("deptCode") or "").strip() or None,
     )
     return {"code": 0, "data": serialize_doc(result)}
 

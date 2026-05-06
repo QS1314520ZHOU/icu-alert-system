@@ -134,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, postNurseTaskExecute } from '../api'
 import { useAuthStore } from '../stores/auth'
@@ -152,6 +152,8 @@ const handoffError = ref('')
 const handoffMode = ref<'isbar' | 'ipass'>('isbar')
 
 const userId = computed(() => String(auth.effectiveUserId || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
+const routeDept = computed(() => String(route.query.dept || route.query.department || auth.dept || '').trim())
 const isHeadMode = computed(() => String(route.query.view || '').toLowerCase() === 'head' || ['head_nurse', 'charge_nurse'].includes(String(home.value?.account?.role || '').toLowerCase()))
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别护士')
 const beds = computed(() => home.value?.beds || [])
@@ -253,7 +255,14 @@ async function generateHandoff() {
   handoffLoading.value = true
   handoffError.value = ''
   try {
-    const { data } = await postNurseHandoffGenerate({ user_id: userId.value, patient_ids: beds.value.map((b: any) => b.patient_id), shift_code: home.value?.shift?.code || 'auto' })
+    const payload: { user_id: string; patient_ids: string[]; shift_code: string; dept?: string; dept_code?: string } = {
+      user_id: userId.value,
+      patient_ids: beds.value.map((b: any) => b.patient_id),
+      shift_code: home.value?.shift?.code || 'auto',
+    }
+    if (routeDeptCode.value) payload.dept_code = routeDeptCode.value
+    else if (routeDept.value) payload.dept = routeDept.value
+    const { data } = await postNurseHandoffGenerate(payload)
     handoff.value = normalizeHandoff(data?.data || {})
   } catch (err: any) {
     handoffError.value = err?.message || '交班单生成失败，请稍后重试。'
@@ -305,7 +314,14 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await getNurseHome({ user_id: userId.value, shift_code: 'auto', view: String(route.query.view || '') || undefined })
+    const params: { user_id: string; shift_code: string; view?: string; dept?: string; dept_code?: string } = {
+      user_id: userId.value,
+      shift_code: 'auto',
+      view: String(route.query.view || '') || undefined,
+    }
+    if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+    else if (routeDept.value) params.dept = routeDept.value
+    const { data } = await getNurseHome(params)
     home.value = data?.data || {}
     auth.updateAccount(home.value?.account)
   } catch (err: any) {
@@ -317,6 +333,11 @@ async function load() {
 onMounted(() => {
   auth.hydrateFromQuery(route.query)
   cleanDuplicateIdentityQuery()
+  void load()
+})
+
+watch(() => [route.query.user_id, route.query.userId, route.query.userName, route.query.username, route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department, route.query.view], () => {
+  auth.hydrateFromQuery(route.query)
   void load()
 })
 

@@ -104,6 +104,41 @@ class RoleHomeService:
     def _account_patient_user_id(self, account: dict[str, Any], fallback: str) -> str:
         return _text(account.get("userName") or account.get("user_id") or fallback)
 
+    def _department_scope_query(self, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any] | None:
+        dept_text = _text(dept)
+        dept_code_text = _text(dept_code)
+        if dept_text and not dept_code_text and dept_text.isdigit():
+            dept_code_text = dept_text
+            dept_text = ""
+        clauses: list[dict[str, Any]] = []
+        if dept_code_text:
+            codes = [item.strip() for item in dept_code_text.split(",") if item.strip()]
+            if codes:
+                clauses.append({"deptCode": {"$in": codes}})
+        if dept_text:
+            clauses.append(
+                {
+                    "$or": [
+                        {"dept": dept_text},
+                        {"hisDept": dept_text},
+                        {"department": dept_text},
+                        {"deptName": dept_text},
+                    ]
+                }
+            )
+        if not clauses:
+            return None
+        return clauses[0] if len(clauses) == 1 else {"$or": clauses}
+
+    def _with_department_scope(self, base_query: dict[str, Any], *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+        scope = self._department_scope_query(dept=dept, dept_code=dept_code)
+        if not scope:
+            return base_query
+        return {"$and": [base_query, scope]}
+
+    def _account_scoped_dept(self, account: dict[str, Any], *, dept: str | None = None, dept_code: str | None = None) -> tuple[str | None, str | None]:
+        return _text(dept) or None, _text(dept_code) or _text(account.get("dept_code")) or None
+
     def _patient_alert_keys(self, patient: dict[str, Any]) -> list[Any]:
         keys: list[Any] = []
         oid = patient.get("_id")
@@ -119,11 +154,12 @@ class RoleHomeService:
                 out.append(key)
         return out
 
-    async def _doctor_patients(self, user_id: str) -> list[dict[str, Any]]:
+    async def _doctor_patients(self, user_id: str, *, dept: str | None = None, dept_code: str | None = None) -> list[dict[str, Any]]:
         query = {"$and": [admitted_patient_query(), {"bedDoctorId": _text(user_id)}]}
+        query = self._with_department_scope(query, dept=dept, dept_code=dept_code)
         cursor = self.db.col("patient").find(
             query,
-            {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "bedNo": 1, "bedDoctorId": 1, "hisPid": 1, "hisPID": 1, "pid": 1, "clinicalDiagnosis": 1, "admissionDiagnosis": 1},
+            {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "bedNo": 1, "bedDoctorId": 1, "hisPid": 1, "hisPID": 1, "pid": 1, "clinicalDiagnosis": 1, "admissionDiagnosis": 1, "dept": 1, "hisDept": 1, "deptCode": 1},
         ).limit(120)
         return [row async for row in cursor]
 
@@ -212,11 +248,12 @@ class RoleHomeService:
             return "综合风险推理已生成结构化结论，建议进入患者详情查看证据和处置建议。"
         return text
 
-    async def doctor_home(self, user_id: str) -> dict[str, Any]:
+    async def doctor_home(self, user_id: str, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         account = await self._account_by_user_id(user_id)
         shift = await self.shift_service.get_current_shift()
+        dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
         doctor_user_id = self._account_patient_user_id(account, user_id)
-        patients = await self._doctor_patients(doctor_user_id)
+        patients = await self._doctor_patients(doctor_user_id, dept=dept, dept_code=dept_code)
         risk_by_patient = await self._latest_integrated_risk(patients)
         focus = []
         for patient in patients:
@@ -257,10 +294,12 @@ class RoleHomeService:
             "pulse_clicks": sum(1 for row in alerts if row.get("clicked_at")),
         }
         open_tasks = await self._open_tasks_for_patients([_patient_id(patient) for patient in patients])
-        quality = await self.adoption.quality_summary(days=7, dept=account.get("dept"), dept_code=account.get("dept_code"))
+        quality = await self.adoption.quality_summary(days=7, dept=dept or account.get("dept"), dept_code=dept_code)
         data_state = {
             "account_found": bool(account.get("found")),
             "doctor_user_id": doctor_user_id,
+            "dept": dept,
+            "dept_code": dept_code,
             "managed_beds": len(patients),
             "empty_reason": "",
         }
@@ -402,8 +441,9 @@ class RoleHomeService:
                     latest[marker] = row
         return latest
 
-    async def nurse_patient_assignments(self, user_id: str, shift: ShiftInfo) -> dict[str, Any]:
-        patients = [row async for row in self.db.col("patient").find(admitted_patient_query(), {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "hisPID": 1, "pid": 1}).limit(160)]
+    async def nurse_patient_assignments(self, user_id: str, shift: ShiftInfo, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+        query = self._with_department_scope(admitted_patient_query(), dept=dept, dept_code=dept_code)
+        patients = [row async for row in self.db.col("patient").find(query, {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "hisPID": 1, "pid": 1, "dept": 1, "hisDept": 1, "deptCode": 1}).limit(160)]
         patients_by_id = {_patient_id(patient): patient for patient in patients if _patient_id(patient)}
         key_index = self._patients_key_index(patients_by_id)
         records = await self._nursing_records_for_patients(patients_by_id, start=shift.start, end=shift.end, limit=8000, collections=("nurseRecords",))
@@ -664,14 +704,14 @@ class RoleHomeService:
     async def _bundle_shift_assessment_done(self, patient_ids, patients_by_id, label):
         return await self._latest_record_by_keywords(patient_ids, patients_by_id, [label, f"{label}评估", "护理评估"], 12)
 
-    async def nurse_timeline(self, user_id: str, shift_code: str | ShiftInfo | None = "auto") -> dict[str, Any]:
+    async def nurse_timeline(self, user_id: str, shift_code: str | ShiftInfo | None = "auto", *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         if isinstance(shift_code, ShiftInfo):
             shift = shift_code
         else:
             shift = await self.shift_service.resolve_shift(shift_code)
         if not shift:
             return {"shift": None, "beds": [], "tasks": [], "degraded": "未配置 banCiInfoList，无法计算本班时间轴。"}
-        assignments = await self.nurse_patient_assignments(user_id, shift)
+        assignments = await self.nurse_patient_assignments(user_id, shift, dept=dept, dept_code=dept_code)
         beds = assignments["assigned"]
         patients_by_id = {row["patient_id"]: row.get("patient_doc") for row in beds if row.get("patient_doc")}
         scanner_names = [
@@ -742,8 +782,9 @@ class RoleHomeService:
         clean_beds = [{k: v for k, v in row.items() if k != "patient_doc"} for row in beds]
         return {"shift": shift.to_dict(), "beds": clean_beds, "pending_handover": assignments["pending_handover"], "tasks": tasks}
 
-    async def nurse_bundles(self, patient_ids: list[str], shift_code: str | None = "auto", patients_by_id: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
-        patient_map = patients_by_id or await self._patients_by_ids(patient_ids)
+    async def nurse_bundles(self, patient_ids: list[str], shift_code: str | None = "auto", patients_by_id: dict[str, dict[str, Any]] | None = None, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+        patient_map = patients_by_id or await self._patients_by_ids(patient_ids, dept=dept, dept_code=dept_code)
+        patient_ids = [pid for pid in patient_ids if pid in patient_map]
         rows = await self._latest_scores_by_patient(patient_ids, ["HAI_VAP_BUNDLE_MISSING", "HAI_CVC_REVIEW", "HAI_CAUTI_RISK", "scanner_hai_bundle", "hai_bundle_monitor"], patient_map)
         bundles = []
         checks = [
@@ -839,17 +880,18 @@ class RoleHomeService:
         alerts = [row async for row in cursor]
         return [row for row in alerts if self._nursing_alert_allowed(row)][:8]
 
-    async def nurse_home(self, user_id: str, shift_code: str | None = "auto", *, view: str | None = None) -> dict[str, Any]:
+    async def nurse_home(self, user_id: str, shift_code: str | None = "auto", *, view: str | None = None, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         account = await self._account_by_user_id(user_id)
+        dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
         shift = await self.shift_service.resolve_shift(shift_code)
         if not shift:
             return {"account": account, "shift": None, "beds": [], "degraded": "未配置 banCiInfoList，无法识别当前班次。"}
-        timeline = await self.nurse_timeline(user_id, shift)
+        timeline = await self.nurse_timeline(user_id, shift, dept=dept, dept_code=dept_code)
         patient_ids = [row["patient_id"] for row in timeline.get("beds") or []]
-        patients_by_id = await self._patients_by_ids(patient_ids)
+        patients_by_id = await self._patients_by_ids(patient_ids, dept=dept, dept_code=dept_code)
         workload_task = self._nursing_workload(patient_ids, patients_by_id)
         reminders_task = self._nurse_ai_reminders(patient_ids, patients_by_id, shift)
-        bundles_task = self.nurse_bundles(patient_ids, shift.code, patients_by_id)
+        bundles_task = self.nurse_bundles(patient_ids, shift.code, patients_by_id, dept=dept, dept_code=dept_code)
         workload, nursing_alerts = await asyncio.gather(workload_task, reminders_task)
         bundle_degraded = ""
         try:
@@ -858,12 +900,14 @@ class RoleHomeService:
             bundle_degraded = "安全清单数据同步较慢，已先展示本班任务。"
             bundles = {"bundles": []}
         head_mode = view == "head" or account.get("role") in {"head_nurse", "charge_nurse"}
-        head = await self._head_nurse_view(shift) if head_mode else None
+        head = await self._head_nurse_view(shift, dept=dept, dept_code=dept_code) if head_mode else None
         return {
             "account": account,
             "shift": shift.to_dict(),
             "data_state": {
                 "account_found": bool(account.get("found")),
+                "dept": dept,
+                "dept_code": dept_code,
                 "assigned_beds": len(timeline.get("beds") or []),
                 "pending_handover_beds": len(timeline.get("pending_handover") or []),
                 "empty_reason": "" if timeline.get("beds") else "本班次尚未找到第一条护理记录归属当前护士；护士长视图仍可查看全科。",
@@ -879,19 +923,35 @@ class RoleHomeService:
             "generated_at": datetime.now(API_TZ),
         }
 
-    async def _patients_by_ids(self, patient_ids: list[str]) -> dict[str, dict[str, Any]]:
+    async def _patients_by_ids(self, patient_ids: list[str], *, dept: str | None = None, dept_code: str | None = None) -> dict[str, dict[str, Any]]:
         result: dict[str, dict[str, Any]] = {}
+        dept_scope = self._department_scope_query(dept=dept, dept_code=dept_code)
         for pid in patient_ids:
-            patient = await self.db.col("patient").find_one({"_id": ObjectId(pid)} if ObjectId.is_valid(pid) else {"$or": [{"_id": pid}, {"pid": pid}, {"hisPid": pid}, {"patientId": pid}]})
+            query = {"_id": ObjectId(pid)} if ObjectId.is_valid(pid) else {"$or": [{"_id": pid}, {"pid": pid}, {"hisPid": pid}, {"patientId": pid}]}
+            if dept_scope:
+                query = {"$and": [query, dept_scope]}
+            patient = await self.db.col("patient").find_one(query)
             if patient:
                 result[_patient_id(patient)] = patient
         return result
 
-    async def _head_nurse_view(self, shift: ShiftInfo) -> dict[str, Any]:
-        all_patients = [row async for row in self.db.col("patient").find(admitted_patient_query(), {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "pid": 1}).limit(160)]
+    async def _head_nurse_view(self, shift: ShiftInfo, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+        query = self._with_department_scope(admitted_patient_query(), dept=dept, dept_code=dept_code)
+        all_patients = [row async for row in self.db.col("patient").find(query, {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "pid": 1, "dept": 1, "hisDept": 1, "deptCode": 1}).limit(160)]
         patients_by_id = {_patient_id(row): row for row in all_patients if _patient_id(row)}
         patient_ids = list(patients_by_id.keys())
-        cursor = self.db.col("nurseRecords").find(self._record_time_query(shift.start, shift.end), {"userName": 1, "username": 1, "trueName": 1, "userId": 1, "recordTime": 1, "time": 1}).limit(3000)
+        if (dept or dept_code) and not patient_ids:
+            return {"beds": [], "workload_heatmap": [], "events": [], "quality": {"falls": 0, "pressure_ulcers": 0, "line_displacement": 0, "medication_errors": 0}}
+        record_query: dict[str, Any] = self._record_time_query(shift.start, shift.end)
+        if patients_by_id:
+            patient_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
+            record_query = {
+                "$and": [
+                    record_query,
+                    {"$or": [{"pid": {"$in": patient_keys}}, {"patient_id": {"$in": patient_keys}}, {"patientId": {"$in": patient_keys}}, {"hisPid": {"$in": patient_keys}}]},
+                ]
+            }
+        cursor = self.db.col("nurseRecords").find(record_query, {"userName": 1, "username": 1, "trueName": 1, "userId": 1, "recordTime": 1, "time": 1}).limit(3000)
         counts: dict[str, int] = {}
         hourly: dict[str, dict[str, int]] = {}
         async for row in cursor:
@@ -941,7 +1001,7 @@ class RoleHomeService:
             "medication_errors": ["给药差错", "用药错误"],
         }
         quality = {key: 0 for key in quality_keywords}
-        cursor_quality = self.db.col("nurseRecords").find(self._record_time_query(shift.start, shift.end), {"content": 1, "recordTitle": 1, "title": 1, "careType": 1}).limit(3000)
+        cursor_quality = self.db.col("nurseRecords").find(record_query, {"content": 1, "recordTitle": 1, "title": 1, "careType": 1}).limit(3000)
         async for row in cursor_quality:
             text = " ".join(_text(row.get(key)) for key in ("content", "recordTitle", "title", "careType"))
             for key, keywords in quality_keywords.items():
@@ -996,12 +1056,17 @@ class RoleHomeService:
             "recommendation": "；".join(_text(item) for item in actions[:4] if _text(item)) or "接班后优先核对生命体征、管路、皮肤、入出量和未完成任务。",
         }
 
-    async def generate_nurse_handoff(self, user_id: str, patient_ids: list[str], shift_code: str | None = "auto") -> dict[str, Any]:
+    async def generate_nurse_handoff(self, user_id: str, patient_ids: list[str], shift_code: str | None = "auto", *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         account = await self._account_by_user_id(user_id)
+        dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
         shift = await self.shift_service.resolve_shift(shift_code)
         rows = []
+        dept_scope = self._department_scope_query(dept=dept, dept_code=dept_code)
         for pid in patient_ids[:8]:
-            patient = await self.db.col("patient").find_one({"_id": ObjectId(pid)} if ObjectId.is_valid(pid) else {"$or": [{"_id": pid}, {"pid": pid}, {"hisPid": pid}]})
+            patient_query = {"_id": ObjectId(pid)} if ObjectId.is_valid(pid) else {"$or": [{"_id": pid}, {"pid": pid}, {"hisPid": pid}]}
+            if dept_scope:
+                patient_query = {"$and": [patient_query, dept_scope]}
+            patient = await self.db.col("patient").find_one(patient_query)
             if not patient:
                 continue
             summary = None
@@ -1021,6 +1086,6 @@ class RoleHomeService:
                     "confidence_level": "low",
                 }
             rows.append({"patient_id": pid, "bed": _bed(patient), "name": _name(patient), "ipass": summary, "isbar": self._isbar_from_ipass(patient, summary)})
-        doc = {"handoff_id": str(uuid.uuid4()), "user_id": _text(user_id), "userName": account.get("userName"), "shift": shift.to_dict() if shift else None, "items": rows, "created_at": datetime.now(API_TZ)}
+        doc = {"handoff_id": str(uuid.uuid4()), "user_id": _text(user_id), "userName": account.get("userName"), "dept": dept, "dept_code": dept_code, "shift": shift.to_dict() if shift else None, "items": rows, "created_at": datetime.now(API_TZ)}
         await self.db.col("handoff_record").insert_one(doc)
         return doc

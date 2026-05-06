@@ -363,6 +363,11 @@ class ClinicalDocumentGenerator:
         if template.doc_type == "mdt_summary":
             return self._fallback_mdt_summary(template, structured_data)
         patient = structured_data.get("patient") if isinstance(structured_data.get("patient"), dict) else {}
+        vitals = structured_data.get("latest_vitals") if isinstance(structured_data.get("latest_vitals"), dict) else {}
+        labs = structured_data.get("labs_24h") if isinstance(structured_data.get("labs_24h"), list) else []
+        drugs = structured_data.get("drugs_24h") if isinstance(structured_data.get("drugs_24h"), list) else []
+        problem_list = structured_data.get("problem_list") if isinstance(structured_data.get("problem_list"), list) else []
+        reasoning = structured_data.get("clinical_reasoning") if isinstance(structured_data.get("clinical_reasoning"), dict) else {}
         diagnosis = str(patient.get("diagnosis") or "未提供诊断").strip()
         alerts = structured_data.get("alerts_24h") if isinstance(structured_data.get("alerts_24h"), list) else []
         alert_titles = [
@@ -371,13 +376,63 @@ class ClinicalDocumentGenerator:
             if isinstance(item, dict)
         ]
         alert_titles = [item for item in alert_titles if item]
-        sections = [
-            {"heading": "患者概况", "content": f"患者 {patient.get('name') or '未知'}，床位 {patient.get('bed') or '未提供'}，主要诊断：{diagnosis}。"},
-            {"heading": "当前情况", "content": "已基于当前结构化数据生成基础草稿，需由责任医生结合床旁情况补充确认。"},
-            {"heading": "重点问题", "content": "；".join(alert_titles or ["暂无足够结构化告警信息，建议先核对生命体征、检验、用药和治疗计划。"])},
+        vital_parts = []
+        for label, key in (("HR", "hr"), ("MAP", "map"), ("SpO2", "spo2"), ("RR", "rr"), ("体温", "temp")):
+            if vitals.get(key) is not None:
+                vital_parts.append(f"{label} {vitals.get(key)}")
+        lab_parts = []
+        for item in labs[:6]:
+            if not isinstance(item, dict):
+                continue
+            name = self._first_text(item.get("itemName"), item.get("itemCnName"), item.get("name"))
+            value = self._first_text(item.get("result"), item.get("resultValue"), item.get("value"))
+            if name and value:
+                lab_parts.append(f"{name} {value}")
+        drug_parts = [
+            self._first_text(item.get("drugName"), item.get("orderName"), item.get("name"))
+            for item in drugs[:6]
+            if isinstance(item, dict)
         ]
+        drug_parts = [item for item in drug_parts if item]
+        problem_titles = [
+            self._first_text(item.get("problem") if isinstance(item, dict) else item, item.get("title") if isinstance(item, dict) else "")
+            for item in problem_list[:5]
+        ]
+        problem_titles = [item for item in problem_titles if item]
+        plan_items: list[str] = []
+        for source in (reasoning.get("recommendations"), reasoning.get("action_items"), reasoning.get("plan")):
+            if isinstance(source, list):
+                for item in source[:5]:
+                    text = self._first_text(item.get("action"), item.get("recommendation"), item.get("title")) if isinstance(item, dict) else str(item or "").strip()
+                    if text:
+                        plan_items.append(text)
+            elif isinstance(source, str) and source.strip():
+                plan_items.append(source.strip())
+
+        if template.doc_type == "consultation_request":
+            sections = [
+                {"heading": "会诊目的", "content": "请相关专科协助评估当前主要问题、处理优先级和复评计划。"},
+                {"heading": "患者概况", "content": f"患者 {patient.get('name') or '未知'}，床位 {patient.get('bed') or '未提供'}，主要诊断：{diagnosis}。"},
+                {"heading": "申请会诊原因", "content": "；".join(problem_titles[:4] or alert_titles[:4] or ["当前结构化数据不足，需结合床旁病情明确会诊问题。"])},
+                {"heading": "目前资料摘要", "content": "；".join((vital_parts + lab_parts + drug_parts)[:8] or ["暂无足够生命体征、检验或用药摘要。"])},
+                {"heading": "需协助解决事项", "content": "请给出诊断判断、治疗方向、风险边界和下一次复评时间；高风险处置需由主管医生确认。"},
+            ]
+        elif template.doc_type == "daily_progress":
+            sections = [
+                {"heading": "病情变化", "content": "；".join((vital_parts + alert_titles)[:8] or ["近24小时结构化趋势不足，需补充床旁观察和监护数据。"])},
+                {"heading": "今日评估", "content": f"主要诊断：{diagnosis}。当前重点问题：{'；'.join(problem_titles[:4] or alert_titles[:4] or ['暂未形成明确问题清单'])}。"},
+                {"heading": "处理经过", "content": "；".join(drug_parts[:6] or ["暂无可用用药/治疗执行摘要，需由责任医生补充。"])},
+                {"heading": "后续计划", "content": "；".join(plan_items[:5] or ["继续复核生命体征、检验、用药和治疗反应，按病情制定复评计划。"])},
+                {"heading": "安全提示", "content": "本病程为结构化数据辅助草稿，需执业医生审核后写入正式病历。"},
+            ]
+        else:
+            sections = [
+                {"heading": "患者概况", "content": f"患者 {patient.get('name') or '未知'}，床位 {patient.get('bed') or '未提供'}，主要诊断：{diagnosis}。"},
+                {"heading": "当前情况", "content": "已基于当前结构化数据生成基础草稿，需由责任医生结合床旁情况补充确认。"},
+                {"heading": "重点问题", "content": "；".join(alert_titles or ["暂无足够结构化告警信息，建议先核对生命体征、检验、用药和治疗计划。"])},
+            ]
         text = "\n".join([f"{item['heading']}：{item['content']}" for item in sections])
-        return {"title": template.title, "sections": sections, "document_text": text, "key_facts_used": alert_titles[:12]}
+        return {"title": template.title, "sections": sections, "document_text": text, "key_facts_used": (vital_parts + lab_parts + alert_titles)[:12]}
 
     def _quality_checker(self, document: dict[str, Any], structured_data: dict[str, Any]) -> dict[str, Any]:
         text = json.dumps(document, ensure_ascii=False)
@@ -515,6 +570,7 @@ class ClinicalDocumentGenerator:
             + " 输出严格JSON，字段仅包含 title, sections, document_text, key_facts_used。"
             + " sections 为数组，每项包含 heading 和 content。"
             + " document_text 必须是完整自然语言文书。"
+            + " 会诊申请单必须突出会诊目的、申请原因、需协助解决事项；日常病程记录必须突出病情变化、今日评估、处理经过、后续计划，两者不得使用同一套段落。"
         )
 
         llm_cfg = (self.config.yaml_cfg or {}).get("ai_service", {}).get("llm", {})
