@@ -52,7 +52,7 @@
             <div class="panel-head"><strong>安全清单</strong><span>红黄绿闭环</span></div>
             <article v-for="item in bundles" :key="item.code" :class="`bundle is-${item.tone}`">
               <strong>{{ item.name }}</strong>
-              <span>{{ item.completed }}/{{ item.total }}</span>
+              <span>{{ item.data_state === 'missing' ? '暂无同步' : `${item.completed}/${item.total}` }}</span>
             </article>
           </section>
           <section class="panel">
@@ -60,9 +60,9 @@
             <article v-for="item in reminders" :key="item._id || item.created_at" class="reminder">
               <strong>{{ shortText(item.name || item.alert_type || item.rule_id) }}</strong>
               <div>
-                <button type="button">已处理</button>
-                <button type="button">转给医生</button>
-                <button type="button">不是问题</button>
+                <button type="button" @click="feedbackReminder(item, 'resolved')">已处理</button>
+                <button type="button" @click="feedbackReminder(item, 'escalate')">转给医生</button>
+                <button type="button" @click="feedbackReminder(item, 'false_positive')">不是问题</button>
               </div>
             </article>
             <div v-if="!reminders.length" class="empty small">暂无护理执行相关 AI 提醒。</div>
@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getNurseHome, postNurseHandoffGenerate, postNurseTaskExecute } from '../api'
+import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, postNurseTaskExecute } from '../api'
 import { getOperatorIdentity } from '../utils/operatorIdentity'
 
 const route = useRoute()
@@ -153,6 +153,17 @@ async function executeTask(action: string) {
     actor: userId.value,
   })
   selectedTask.value = null
+  await load()
+}
+async function feedbackReminder(item: any, disposition: string) {
+  const alertId = String(item?._id || item?.alert_id || '').trim()
+  if (!alertId) return
+  await postNurseReminderFeedback(alertId, {
+    actor: userId.value,
+    disposition,
+    note: disposition === 'escalate' ? '护士首页转给医生' : disposition === 'false_positive' ? '护士首页反馈不是问题' : '护士首页标记已处理',
+    override_reason_code: disposition === 'false_positive' ? 'not_nursing_issue' : undefined,
+  })
   await load()
 }
 async function generateHandoff() {

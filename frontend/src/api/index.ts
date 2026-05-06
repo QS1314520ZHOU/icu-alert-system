@@ -175,6 +175,9 @@ export const getNurseBundles = (params: { patient_ids: string; shift_code?: stri
 export const postNurseTaskExecute = (taskId: string, payload: Record<string, any>) =>
   analyticsApi.post(`/api/home/nurse/task/${taskId}/execute`, payload)
 
+export const postNurseReminderFeedback = (alertId: string, payload: { actor?: string; disposition?: string; note?: string; override_reason_code?: string; override_reason_text?: string }) =>
+  api.post(`/api/alerts/${alertId}/acknowledge`, payload)
+
 export const postNurseHandoffGenerate = (payload: { user_id: string; patient_ids: string[]; shift_code?: string }) =>
   aiApi.post('/api/home/nurse/handoff/generate', payload)
 

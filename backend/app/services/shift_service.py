@@ -99,17 +99,29 @@ class ShiftService:
         end_t = _parse_hm(row.get("end_time")) or time(23, 59, 59)
         start = datetime.combine(day, start_t).replace(tzinfo=API_TZ)
         end = datetime.combine(day, end_t).replace(tzinfo=API_TZ)
-        if start_t >= end_t:
+        if start_t > end_t:
             end += timedelta(days=1)
         return start, end
 
-    async def get_shift_window(self, shift_code: str, day: date | None = None) -> ShiftInfo | None:
+    async def get_shift_window(self, shift_code: str, day: date | None = None, now: datetime | None = None) -> ShiftInfo | None:
         code = _text(shift_code)
-        target_day = day or datetime.now(API_TZ).date()
+        current = now or datetime.now(API_TZ)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=API_TZ)
+        candidate_days = [day] if day else [current.date(), current.date() - timedelta(days=1), current.date() + timedelta(days=1)]
         for row in await self._items():
             if row.get("code") == code or row.get("name") == code:
-                start, end = self._window_for(row, target_day)
-                return ShiftInfo(code=row["code"], name=row["name"], start_time=row["start_time"], end_time=row["end_time"], start=start, end=end)
+                fallback: ShiftInfo | None = None
+                for target_day in candidate_days:
+                    if target_day is None:
+                        continue
+                    start, end = self._window_for(row, target_day)
+                    info = ShiftInfo(code=row["code"], name=row["name"], start_time=row["start_time"], end_time=row["end_time"], start=start, end=end)
+                    if fallback is None:
+                        fallback = info
+                    if start <= current < end:
+                        return info
+                return fallback
         return None
 
     async def get_current_shift(self, now: datetime | None = None) -> ShiftInfo | None:
