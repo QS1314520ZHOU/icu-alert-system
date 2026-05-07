@@ -165,7 +165,7 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs'
-import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatSeverityLabel } from '../../utils/displayLabels'
 
 defineProps<{
   alerts: any[]
@@ -652,13 +652,7 @@ function formatAlertValue(a: any) {
 }
 
 function severityText(v: any) {
-  const map: Record<string, string> = {
-    warning: '关注',
-    high: '高危',
-    critical: '危急',
-    normal: '平稳',
-  }
-  return map[String(v || 'warning')] || '关注'
+  return formatSeverityLabel(v)
 }
 </script>
 

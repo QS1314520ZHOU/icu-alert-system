@@ -326,6 +326,23 @@ class RoleHomeService:
     def _record_user_name(self, row: dict[str, Any]) -> str:
         return _text(row.get("userName") or row.get("username") or row.get("trueName") or row.get("name") or row.get("recorderName"))
 
+    def _record_user_values(self, row: dict[str, Any]) -> set[str]:
+        return {
+            value
+            for value in (
+                self._record_user_id(row),
+                _text(row.get("userName")),
+                _text(row.get("username")),
+                _text(row.get("trueName")),
+                _text(row.get("name")),
+                _text(row.get("recorderName")),
+                _text(row.get("工号")),
+                _text(row.get("account")),
+                _text(row.get("loginName")),
+            )
+            if value
+        }
+
     def _record_time_query(self, start: datetime, end: datetime) -> dict[str, Any]:
         return {"$or": [{"recordTime": {"$gte": start, "$lt": end}}, {"time": {"$gte": start, "$lt": end}}, {"created_at": {"$gte": start, "$lt": end}}, {"createTime": {"$gte": start, "$lt": end}}]}
 
@@ -444,6 +461,8 @@ class RoleHomeService:
     async def nurse_patient_assignments(self, user_id: str, shift: ShiftInfo, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         query = self._with_department_scope(admitted_patient_query(), dept=dept, dept_code=dept_code)
         patients = [row async for row in self.db.col("patient").find(query, {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "hisPID": 1, "pid": 1, "dept": 1, "hisDept": 1, "deptCode": 1}).limit(160)]
+        if not patients and (dept or dept_code):
+            patients = [row async for row in self.db.col("patient").find(admitted_patient_query(), {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "hisPID": 1, "pid": 1, "dept": 1, "hisDept": 1, "deptCode": 1}).limit(160)]
         patients_by_id = {_patient_id(patient): patient for patient in patients if _patient_id(patient)}
         key_index = self._patients_key_index(patients_by_id)
         records = await self._nursing_records_for_patients(patients_by_id, start=shift.start, end=shift.end, limit=8000, collections=("nurseRecords",))
@@ -463,7 +482,7 @@ class RoleHomeService:
                 continue
             owner_id = self._record_user_id(first)
             owner_name = self._record_user_name(first)
-            if owner_id == _text(user_id) or owner_name == _text(user_id):
+            if _text(user_id) in self._record_user_values(first):
                 assigned.append({**patient_row, "patient_doc": patient, "responsible_nurse": owner_name or owner_id, "first_record_time": self._record_time_value(first)})
         return {"assigned": assigned, "pending_handover": pending_handover}
 
@@ -506,32 +525,7 @@ class RoleHomeService:
         return "overdue"
 
     def _nursing_task_catalog(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "key": "turn_q2h",
-                "title": "q2h 翻身",
-                "period": timedelta(hours=2),
-                "keywords": ["翻身", "体位", "侧卧", "turn", "position"],
-            },
-            {
-                "key": "oral_care_q4h",
-                "title": "q4h 口腔护理",
-                "period": timedelta(hours=4),
-                "keywords": ["口腔护理", "口护", "口腔清洁", "oral_care", "oral care"],
-            },
-            {
-                "key": "shift_assessment",
-                "title": "q-shift 护理评估",
-                "period": None,
-                "keywords": ["护理评估", "跌倒", "压疮", "约束", "管路", "评估"],
-            },
-            {
-                "key": "line_check_q8h",
-                "title": "q8h 管路评估",
-                "period": timedelta(hours=8),
-                "keywords": ["管路", "导管", "cvc", "尿管", "引流管", "line"],
-            },
-        ]
+        return []
 
     def _record_patient_query(self, patient: dict[str, Any] | None, pid: str) -> dict[str, Any]:
         keys = self._patient_alert_keys(patient) if patient else [pid]
@@ -780,7 +774,13 @@ class RoleHomeService:
                     }
                 )
         clean_beds = [{k: v for k, v in row.items() if k != "patient_doc"} for row in beds]
-        return {"shift": shift.to_dict(), "beds": clean_beds, "pending_handover": assignments["pending_handover"], "tasks": tasks}
+        return {
+            "shift": shift.to_dict(),
+            "beds": clean_beds,
+            "pending_handover": assignments["pending_handover"],
+            "tasks": tasks,
+            "_patients_by_id": patients_by_id,
+        }
 
     async def nurse_bundles(self, patient_ids: list[str], shift_code: str | None = "auto", patients_by_id: dict[str, dict[str, Any]] | None = None, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
         patient_map = patients_by_id or await self._patients_by_ids(patient_ids, dept=dept, dept_code=dept_code)
@@ -811,9 +811,16 @@ class RoleHomeService:
             ]),
         ]
         for code, name, item_specs in checks:
+            check_results = await asyncio.gather(
+                *(checker(patient_ids, patient_map, label) for label, checker in item_specs),
+                return_exceptions=True,
+            )
             item_rows = []
-            for label, checker in item_specs:
-                done, source, last_done_at = await checker(patient_ids, patient_map, label)
+            for (label, _checker), result in zip(item_specs, check_results):
+                if isinstance(result, Exception):
+                    done, source, last_done_at = False, "", None
+                else:
+                    done, source, last_done_at = result
                 item_rows.append({"name": label, "done": done, "source": source, "last_done_at": last_done_at})
             related_alerts = [
                 row for group in rows.values() for row in group
@@ -888,19 +895,27 @@ class RoleHomeService:
             return {"account": account, "shift": None, "beds": [], "degraded": "未配置 banCiInfoList，无法识别当前班次。"}
         timeline = await self.nurse_timeline(user_id, shift, dept=dept, dept_code=dept_code)
         patient_ids = [row["patient_id"] for row in timeline.get("beds") or []]
-        patients_by_id = await self._patients_by_ids(patient_ids, dept=dept, dept_code=dept_code)
+        patients_by_id = timeline.get("_patients_by_id") or {}
+        if patient_ids and not patients_by_id:
+            patients_by_id = await self._patients_by_ids(patient_ids, dept=dept, dept_code=dept_code)
         workload_task = self._nursing_workload(patient_ids, patients_by_id)
         reminders_task = self._nurse_ai_reminders(patient_ids, patients_by_id, shift)
         bundles_task = self.nurse_bundles(patient_ids, shift.code, patients_by_id, dept=dept, dept_code=dept_code)
         workload, nursing_alerts = await asyncio.gather(workload_task, reminders_task)
         bundle_degraded = ""
         try:
-            bundles = await asyncio.wait_for(bundles_task, timeout=4)
+            bundles = await asyncio.wait_for(bundles_task, timeout=1.5)
         except Exception:
             bundle_degraded = "安全清单数据同步较慢，已先展示本班任务。"
             bundles = {"bundles": []}
         head_mode = view == "head" or account.get("role") in {"head_nurse", "charge_nurse"}
-        head = await self._head_nurse_view(shift, dept=dept, dept_code=dept_code) if head_mode else None
+        head = None
+        head_degraded = ""
+        if head_mode:
+            try:
+                head = await asyncio.wait_for(self._head_nurse_view(shift, dept=dept, dept_code=dept_code), timeout=1.5)
+            except Exception:
+                head_degraded = "护士长扩展数据同步较慢，已先展示床位和任务。"
         return {
             "account": account,
             "shift": shift.to_dict(),
@@ -920,6 +935,7 @@ class RoleHomeService:
             "bundle_degraded": bundle_degraded,
             "ai_reminders": nursing_alerts,
             "head_view": head,
+            "head_degraded": head_degraded,
             "generated_at": datetime.now(API_TZ),
         }
 
@@ -951,7 +967,7 @@ class RoleHomeService:
                     {"$or": [{"pid": {"$in": patient_keys}}, {"patient_id": {"$in": patient_keys}}, {"patientId": {"$in": patient_keys}}, {"hisPid": {"$in": patient_keys}}]},
                 ]
             }
-        cursor = self.db.col("nurseRecords").find(record_query, {"userName": 1, "username": 1, "trueName": 1, "userId": 1, "recordTime": 1, "time": 1}).limit(3000)
+        cursor = self.db.col("nurseRecords").find(record_query, {"userName": 1, "username": 1, "trueName": 1, "userId": 1, "recordTime": 1, "time": 1}).limit(1200)
         counts: dict[str, int] = {}
         hourly: dict[str, dict[str, int]] = {}
         async for row in cursor:
@@ -975,7 +991,7 @@ class RoleHomeService:
             cursor_alerts = self.db.col("alert_records").find(
                 {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": shift.start}, "$or": [{"acknowledged_at": {"$exists": False}}, {"acknowledged_at": None}, {"ack_disposition": {"$in": [None, ""]}}]},
                 {"patient_id": 1, "name": 1, "rule_id": 1, "alert_type": 1, "scanner_name": 1, "severity": 1, "created_at": 1},
-            ).sort("created_at", -1).limit(120)
+            ).sort("created_at", -1).limit(80)
             async for row in cursor_alerts:
                 if not self._nursing_alert_allowed(row):
                     continue
@@ -1001,7 +1017,7 @@ class RoleHomeService:
             "medication_errors": ["给药差错", "用药错误"],
         }
         quality = {key: 0 for key in quality_keywords}
-        cursor_quality = self.db.col("nurseRecords").find(record_query, {"content": 1, "recordTitle": 1, "title": 1, "careType": 1}).limit(3000)
+        cursor_quality = self.db.col("nurseRecords").find(record_query, {"content": 1, "recordTitle": 1, "title": 1, "careType": 1}).limit(1200)
         async for row in cursor_quality:
             text = " ".join(_text(row.get(key)) for key in ("content", "recordTitle", "title", "careType"))
             for key, keywords in quality_keywords.items():

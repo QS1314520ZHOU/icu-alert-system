@@ -32,6 +32,10 @@ def _actor(request: Request, fallback: str = "") -> str:
     )
 
 
+def _public_payload(result: dict):
+    return {key: value for key, value in (result or {}).items() if not str(key).startswith("_")}
+
+
 @router.get("/api/home/doctor")
 async def doctor_home(
     user_id: str = Query(...),
@@ -53,7 +57,7 @@ async def nurse_home(
     deptCode: str | None = Query(None),
 ):
     result = await _service().nurse_home(user_id, shift_code=shift_code, view=view, dept=dept, dept_code=dept_code or deptCode)
-    return {"code": 0, "data": serialize_doc(result)}
+    return {"code": 0, "data": serialize_doc(_public_payload(result))}
 
 
 @router.get("/api/home/nurse/timeline")
@@ -65,7 +69,7 @@ async def nurse_timeline(
     deptCode: str | None = Query(None),
 ):
     result = await _service().nurse_timeline(user_id, shift_code=shift_code, dept=dept, dept_code=dept_code or deptCode)
-    return {"code": 0, "data": serialize_doc(result)}
+    return {"code": 0, "data": serialize_doc(_public_payload(result))}
 
 
 @router.get("/api/home/nurse/bundles")

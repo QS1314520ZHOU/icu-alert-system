@@ -317,7 +317,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { getPatientBedcard } from '../../api'
 import OrganRiskRadar from '../common/OrganRiskRadar.vue'
-import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatSeverityLabel } from '../../utils/displayLabels'
 import {
   BODY_MAP_ORGAN_LABELS,
   BODY_MAP_ORGAN_ORDER,
@@ -781,10 +781,7 @@ function severityTone(raw: any) {
 }
 
 function severityLabel(raw: any) {
-  const tone = severityTone(raw)
-  if (tone === 'critical') return '危急'
-  if (tone === 'high') return '高危'
-  return '预警'
+  return formatSeverityLabel(severityTone(raw))
 }
 
 

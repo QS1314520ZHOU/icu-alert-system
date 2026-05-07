@@ -15,64 +15,78 @@
 
     <div v-if="loading" class="empty">正在汇总我管的床、昨夜 AI 监控和待办...</div>
     <div v-else-if="error" class="empty danger">{{ error }}</div>
-    <main v-else class="doctor-grid">
-      <section class="panel focus-panel">
-        <div class="panel-head">
-          <strong>我的今日重点</strong>
-          <span>按综合风险推理排序</span>
-        </div>
-        <article v-for="item in focusPatients" :key="item.patient_id" class="focus-row" @click="goPatient(item.patient_id)">
-          <i :class="`tone-${tone(item.risk_level)}`"></i>
-          <div>
-            <strong>{{ item.bed || '--' }}床 {{ item.name || '未知患者' }}</strong>
-            <span>{{ cleanReason(item.reason) }}</span>
-          </div>
-          <b>{{ item.risk_score || 0 }}</b>
+    <template v-else>
+      <section class="doctor-summary">
+        <article v-for="item in doctorSummary" :key="item.key" :class="['summary-card', `is-${item.tone}`]">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+          <em>{{ item.hint }}</em>
         </article>
-        <div v-if="!focusPatients.length" class="empty small">{{ doctorEmptyText }}</div>
       </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <strong>AI 昨夜替我做了什么</strong>
-          <span>过去 12 小时</span>
-        </div>
-        <div class="kpi-grid">
-          <div v-for="item in aiStats" :key="item.label" class="kpi">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
+      <main class="doctor-grid">
+        <section class="panel focus-panel">
+          <div class="panel-head">
+            <strong>我的今日重点</strong>
+            <span>按床位数字和综合风险排序</span>
           </div>
-        </div>
-        <button class="full-btn" type="button" @click="$router.push({ path: '/clinical-workflow', query: route.query })">查看夜班完整工作日志</button>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <strong>我的待办</strong>
-          <span>未签 / 未关闭 / 未确认</span>
-        </div>
-        <div class="task-list">
-          <article v-for="item in pendingTasks" :key="item.task_id || item.title" class="task-row">
-            <strong>{{ item.title || item.detail || '临床任务' }}</strong>
-            <span>{{ item.bed_label || item.bed || '--' }}床 · {{ item.module_label || item.module || '临床' }}</span>
+          <article v-for="item in sortedFocusPatients" :key="item.patient_id" class="focus-row" @click="goPatient(item.patient_id)">
+            <i :class="`tone-${tone(item.risk_level)}`"></i>
+            <div>
+              <strong>{{ displayBed(item.bed) }} {{ item.name || '未知患者' }}</strong>
+              <span>{{ cleanReason(item.reason) }}</span>
+              <small>
+                <em>{{ riskLabel(item.risk_level) }}</em>
+                <em>评分 {{ item.risk_score || 0 }}</em>
+              </small>
+            </div>
+            <button type="button" @click.stop="goPatient(item.patient_id)">查看</button>
           </article>
-          <div v-if="!pendingTasks.length" class="empty small">暂无待办，仍建议复核高风险患者详情。</div>
-        </div>
-      </section>
+          <div v-if="!sortedFocusPatients.length" class="empty small">{{ doctorEmptyText }}</div>
+        </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <strong>科室质控速览</strong>
-          <span>当日维度</span>
-        </div>
-        <div class="lights">
-          <button v-for="item in qualityLights" :key="item.key" type="button" :class="`light is-${item.tone}`" @click="$router.push('/analytics')">
-            <span>{{ item.label }}</span>
-            <b>{{ item.value }}</b>
-          </button>
-        </div>
-      </section>
-    </main>
+        <section class="panel">
+          <div class="panel-head">
+            <strong>AI 昨夜替我做了什么</strong>
+            <span>过去 12 小时</span>
+          </div>
+          <div class="kpi-grid">
+            <div v-for="item in aiStats" :key="item.label" class="kpi">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </div>
+          <button class="full-btn" type="button" @click="$router.push({ path: '/clinical-workflow', query: route.query })">查看夜班完整工作日志</button>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <strong>我的待办</strong>
+            <span>未签 / 未关闭 / 未确认</span>
+          </div>
+          <div class="task-list">
+            <article v-for="item in pendingTasks" :key="item.task_id || item.title" class="task-row">
+              <strong>{{ item.title || item.detail || '临床任务' }}</strong>
+              <span>{{ displayBed(item.bed_label || item.bed) }} · {{ item.module_label || item.module || '临床' }}</span>
+            </article>
+            <div v-if="!pendingTasks.length" class="empty small">暂无待办，仍建议复核高风险患者详情。</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <strong>科室质控速览</strong>
+            <span>近 7 日质量信号</span>
+          </div>
+          <div class="lights">
+            <button v-for="item in qualityLights" :key="item.key" type="button" :class="`light is-${item.tone}`" @click="$router.push('/analytics')">
+              <span>{{ item.label }}</span>
+              <b>{{ item.value }}</b>
+            </button>
+          </div>
+        </section>
+      </main>
+    </template>
   </section>
 </template>
 
@@ -81,6 +95,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDoctorHome } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { formatRiskLevelLabel } from '../utils/displayLabels'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,6 +111,7 @@ const routeDeptCode = computed(() => String(route.query.dept_code || route.query
 const routeDept = computed(() => String(route.query.dept || route.query.department || auth.dept || '').trim())
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别医生')
 const focusPatients = computed(() => home.value?.focus_patients || [])
+const sortedFocusPatients = computed(() => sortBeds(focusPatients.value, (row: any) => row?.bed))
 const pendingTasks = computed(() => (home.value?.pending_tasks || []).slice(0, 8))
 const doctorEmptyText = computed(() => cleanEmptyText(home.value?.data_state?.empty_reason, '当前暂无需要置顶的分管患者，请确认患者主管医生信息已维护。'))
 const shiftText = computed(() => {
@@ -116,6 +132,18 @@ const aiStats = computed(() => {
     { label: '主动提醒点击', value: `${a.pulse_clicks ?? 0}/${a.pulse_pushes ?? 0}` },
   ]
 })
+const doctorSummary = computed(() => {
+  const a = home.value?.ai_night_watch || {}
+  const managed = Number(home.value?.managed_beds ?? home.value?.data_state?.managed_beds ?? 0)
+  const highRisk = focusPatients.value.filter((item: any) => ['critical', 'high', 'warning'].includes(String(item?.risk_level || '').toLowerCase())).length
+  const pending = Number(a.pending_followup ?? 0)
+  return [
+    { key: 'beds', label: '分管床位', value: managed, hint: '当前账号匹配', tone: managed ? 'blue' : 'muted' },
+    { key: 'risk', label: '重点风险', value: highRisk, hint: '需优先复核', tone: highRisk ? 'red' : 'green' },
+    { key: 'pending', label: '待跟进告警', value: pending, hint: '过去 12 小时', tone: pending ? 'yellow' : 'green' },
+    { key: 'tasks', label: '临床待办', value: pendingTasks.value.length, hint: '未签未确认', tone: pendingTasks.value.length ? 'yellow' : 'green' },
+  ]
+})
 const qualityLights = computed(() => {
   const q = home.value?.quality_summary || {}
   const rows = q?.scanner_health?.rows || q?.rows || []
@@ -134,6 +162,40 @@ function tone(value: string) {
   if (key === 'warning') return 'warning'
   if (key === 'info') return 'info'
   return 'unknown'
+}
+function riskLabel(value: any) {
+  return formatRiskLevelLabel(value, '待评估')
+}
+function displayBed(value: any) {
+  const text = String(value || '').trim()
+  if (!text || text === '--') return '--床'
+  return text.includes('床') ? text : `${text}床`
+}
+function bedSortParts(value: any) {
+  const raw = String(value || '').trim()
+  const normalized = raw
+    .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+    .replace(/[\s_-]+/g, '')
+  const numberHit = normalized.match(/\d+/)
+  return {
+    hasNumber: numberHit ? 0 : 1,
+    number: numberHit ? Number(numberHit[0]) : Number.MAX_SAFE_INTEGER,
+    suffix: numberHit ? normalized.slice((numberHit.index || 0) + numberHit[0].length) : normalized,
+    raw: normalized,
+  }
+}
+function sortBeds(rows: any[], getBed: (row: any) => any = (row) => row?.bed) {
+  return [...(rows || [])].sort((a: any, b: any) => {
+    const scoreDiff = Number(b?.risk_score || 0) - Number(a?.risk_score || 0)
+    if (scoreDiff) return scoreDiff
+    const left = bedSortParts(getBed(a))
+    const right = bedSortParts(getBed(b))
+    if (left.hasNumber !== right.hasNumber) return left.hasNumber - right.hasNumber
+    if (left.number !== right.number) return left.number - right.number
+    const suffixCompare = left.suffix.localeCompare(right.suffix, 'zh-CN', { numeric: true, sensitivity: 'base' })
+    if (suffixCompare) return suffixCompare
+    return left.raw.localeCompare(right.raw, 'zh-CN', { numeric: true, sensitivity: 'base' })
+  })
 }
 function goPatient(id: string) {
   if (id) router.push({ path: `/patient/${id}`, query: route.query })
@@ -202,18 +264,27 @@ function cleanDuplicateIdentityQuery() {
 .role-home { padding: 14px; display: grid; gap: 12px; }
 .home-top { min-height: 72px; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(7,20,34,.82); }
 .home-top div { display: grid; gap: 4px; }
-.home-top span, .panel-head span, .focus-row span, .task-row span, .empty { color: #8eaabd; font-size: 12px; }
+.home-top span, .panel-head span, .focus-row span, .task-row span, .empty, .summary-card span, .summary-card em { color: #8eaabd; font-size: 12px; }
 .home-top strong { color: #f8fbff; font-size: 20px; }
 .top-meta { display: flex !important; flex-direction: row; align-items: center; flex-wrap: wrap; }
 button { min-height: 44px; border-radius: 8px; border: 1px solid rgba(125,211,252,.2); background: rgba(13,44,66,.78); color: #eafcff; padding: 0 12px; cursor: pointer; }
-.doctor-grid { height: calc(100vh - 224px); min-height: 560px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 12px; }
+.doctor-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.summary-card { min-height: 86px; display: grid; align-content: center; gap: 4px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(6,18,31,.74); }
+.summary-card strong { color: #f8fbff; font-size: 26px; line-height: 1; }
+.summary-card.is-red { border-color: rgba(239,68,68,.42); }
+.summary-card.is-yellow { border-color: rgba(245,158,11,.42); }
+.summary-card.is-green { border-color: rgba(52,211,153,.34); }
+.summary-card.is-blue { border-color: rgba(56,189,248,.34); }
+.doctor-grid { min-height: 560px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .95fr); grid-template-rows: auto auto; gap: 12px; }
 .panel { min-width: 0; overflow: auto; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(6,18,31,.74); }
 .panel-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .panel-head strong { color: #f4fbff; font-size: 15px; }
 .focus-row, .task-row { display: grid; grid-template-columns: 4px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.72); cursor: pointer; }
 .focus-row i { width: 4px; height: 100%; min-height: 42px; border-radius: 999px; background: #94a3b8; }
 .focus-row strong, .task-row strong { color: #eef8ff; font-size: 13px; }
-.focus-row b { color: #fff; }
+.focus-row small { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.focus-row small em { padding: 2px 7px; border-radius: 999px; background: rgba(125,211,252,.1); color: #bfefff; font-size: 11px; font-style: normal; }
+.focus-row button { min-height: 34px; padding: 0 10px; }
 .tone-critical { background: #ef4444 !important; }
 .tone-warning { background: #f59e0b !important; }
 .tone-info { background: #38bdf8 !important; }
@@ -232,7 +303,7 @@ button { min-height: 44px; border-radius: 8px; border: 1px solid rgba(125,211,25
 .empty { padding: 14px; border-radius: 8px; background: rgba(11,33,50,.58); }
 .empty.small { padding: 10px; }
 .empty.danger { color: #fecaca; }
-@media (max-width: 1024px) { .doctor-grid { height: auto; grid-template-columns: 1fr; grid-template-rows: none; } .kpi-grid, .lights { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 1024px) { .doctor-summary, .doctor-grid { grid-template-columns: 1fr; grid-template-rows: none; } .kpi-grid, .lights { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 
 html[data-theme='light'] .role-home {
   background:
@@ -240,7 +311,8 @@ html[data-theme='light'] .role-home {
     radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.06), transparent 32%);
 }
 html[data-theme='light'] .home-top,
-html[data-theme='light'] .panel {
+html[data-theme='light'] .panel,
+html[data-theme='light'] .summary-card {
   background: rgba(255, 255, 255, 0.96);
   border-color: rgba(145, 176, 199, 0.32);
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
@@ -251,7 +323,7 @@ html[data-theme='light'] .focus-row strong,
 html[data-theme='light'] .task-row strong,
 html[data-theme='light'] .kpi strong,
 html[data-theme='light'] .light b,
-html[data-theme='light'] .focus-row b {
+html[data-theme='light'] .summary-card strong {
   color: #0f172a;
 }
 html[data-theme='light'] .home-top span,
@@ -259,8 +331,14 @@ html[data-theme='light'] .panel-head span,
 html[data-theme='light'] .focus-row span,
 html[data-theme='light'] .task-row span,
 html[data-theme='light'] .kpi span,
-html[data-theme='light'] .empty {
+html[data-theme='light'] .empty,
+html[data-theme='light'] .summary-card span,
+html[data-theme='light'] .summary-card em {
   color: #64748b;
+}
+html[data-theme='light'] .focus-row small em {
+  background: #eff6ff;
+  color: #2563eb;
 }
 html[data-theme='light'] .focus-row,
 html[data-theme='light'] .task-row,

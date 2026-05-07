@@ -5,6 +5,15 @@ type AlertMessage = {
 
 type Listener = (msg: AlertMessage) => void
 
+const SEVERITY_TEXT: Record<string, string> = {
+  critical: '危急',
+  high: '高危',
+  warning: '预警',
+  info: '关注',
+  low: '低危',
+  normal: '正常',
+}
+
 const listeners = new Set<Listener>()
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
@@ -50,7 +59,7 @@ function notifyAlert(msg: AlertMessage) {
   if (!document.hidden) return
 
   const title = alert?.name || 'ICU 新预警'
-  const severity = String(alert?.severity || 'warning').toUpperCase()
+  const severity = SEVERITY_TEXT[String(alert?.severity || 'warning').toLowerCase()] || '预警'
   const body = `${alert?.bed || '--'}床 ${alert?.patient_name || '未知患者'} · ${severity}`
   const tag = String(alert?._id || `${alert?.patient_id || ''}:${alert?.rule_id || ''}`)
 

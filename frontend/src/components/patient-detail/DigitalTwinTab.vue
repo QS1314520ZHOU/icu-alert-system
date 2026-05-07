@@ -207,6 +207,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DigitalTwinAvatarPanel from './DigitalTwinAvatarPanel.vue'
+import { formatStatusLabel } from '../../utils/displayLabels'
 import {
   getAiClinicalReasoning,
   getAiMultiAgentAssessment,
@@ -475,8 +476,7 @@ function timelineMetricLabel(value: any) {
   return ({ map: 'MAP', hr: 'HR', spo2: 'SpO2', rr: 'RR', temp: '体温', lac: '乳酸', lactate: '乳酸', cr: '肌酐', wbc: '白细胞', plt: '血小板', tbil: '总胆红素', inr: 'INR', ph: 'pH', pao2: 'PaO2' } as Record<string, string>)[key] || String(value || '').toUpperCase()
 }
 function timelineLevelLabel(value: any) {
-  const key = String(value || '').toLowerCase()
-  return ({ warning: '警示', high: '高危', critical: '危急', medium: '中等', low: '低危', pending: '待处理', completed: '已完成', in_progress: '处理中', dismissed: '已忽略' } as Record<string, string>)[key] || String(value || '状态待补')
+  return formatStatusLabel(value, '状态待补')
 }
 function timelineDisplayLabel(item: any) {
   const source = String(item?.source || '').toLowerCase()

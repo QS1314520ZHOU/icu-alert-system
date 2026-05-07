@@ -62,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
     const nextDeptCode = firstQuery(query, ['dept_code', 'deptCode'])
     if (nextUserId) userId.value = nextUserId
     if (nextUserName) userName.value = nextUserName
-    if (!nextUserId && nextUserName && !userId.value) userId.value = nextUserName
+    if (!nextUserId && nextUserName) userId.value = nextUserName
     if (nextRole) role.value = nextRole
     if (nextDept) dept.value = nextDept
     if (nextDeptCode) deptCode.value = nextDeptCode

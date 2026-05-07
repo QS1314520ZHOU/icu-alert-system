@@ -208,3 +208,227 @@ export function formatExplanationFieldLabel(value: any) {
   return EXPLANATION_FIELD_LABELS[key] || key.replace(/_/g, ' ')
 }
 
+const SEVERITY_LABELS: Record<string, string> = {
+  critical: '危急',
+  high: '高危',
+  warning: '预警',
+  warn: '预警',
+  medium: '中危',
+  info: '关注',
+  low: '低危',
+  normal: '正常',
+  none: '正常',
+  ok: '正常',
+  failure: '衰竭',
+  impaired: '受损',
+  blocked: '阻断',
+  red: '红色',
+  yellow: '黄色',
+  green: '绿色',
+}
+
+const RISK_LABELS: Record<string, string> = {
+  critical: '危急风险',
+  high: '高风险',
+  warning: '预警风险',
+  medium: '中风险',
+  low: '低风险',
+  normal: '低风险',
+  none: '低风险',
+  unknown: '未分层',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: '待处理',
+  pending_review: '待审核',
+  open: '待处理',
+  in_progress: '处理中',
+  active: '执行中',
+  monitoring: '监测中',
+  completed: '已完成',
+  closed: '已关闭',
+  cancelled: '已取消',
+  dismissed: '不采纳',
+  approved: '已批准',
+  rejected: '已拒绝',
+  accepted: '已接收',
+  scheduled: '已排期',
+  resolved: '已处理',
+  false_positive: '不是问题',
+  todo: '待完成',
+  done: '已完成',
+  draft: '草稿',
+  confirmed: '已确认',
+  failed: '失败',
+  success: '成功',
+  ok: '正常',
+  normal: '正常',
+  blocked: '阻断',
+  impaired: '受损',
+  failure: '衰竭',
+}
+
+const CLINICAL_TERM_LABELS: Record<string, string> = {
+  integrated_risk: '综合风险',
+  integrated_risk_reasoning: '综合风险推理',
+  risk_level: '风险等级',
+  severity: '严重程度',
+  status: '状态',
+  evidence: '依据',
+  suggestions: '建议',
+  recommendation: '建议',
+  reasoning: '推理依据',
+  review_time: '复评时间',
+  worsening_indicators: '恶化趋势指标',
+  fibrinolysis_state: '纤溶状态',
+  fibrinolysis: '纤溶',
+  modi: '多器官恶化指数',
+  multi_organ_deterioration_index: '多器官恶化指数',
+  gcs: '格拉斯哥昏迷评分',
+  glasgow_coma_scale: '格拉斯哥昏迷评分',
+  rass: '镇静躁动评分',
+  cam_icu: '谵妄评估',
+  sofa: '序贯器官衰竭评分',
+  qsofa: '快速序贯器官衰竭评分',
+  apache: '急性生理与慢性健康评分',
+  ards: '急性呼吸窘迫综合征',
+  aki: '急性肾损伤',
+  crrt: '连续肾脏替代治疗',
+  vte: '静脉血栓栓塞',
+  vap: '呼吸机相关肺炎',
+  hai: '院内感染',
+  hit: '肝素诱导性血小板减少',
+  map: '平均动脉压',
+  sbp: '收缩压',
+  dbp: '舒张压',
+  bp: '血压',
+  hr: '心率',
+  rr: '呼吸频率',
+  spo2: '血氧饱和度',
+  fio2: '吸入氧浓度',
+  peep: '呼气末正压',
+  pf_ratio: '氧合指数',
+  p_f_ratio: '氧合指数',
+  pao2: '动脉氧分压',
+  paco2: '动脉二氧化碳分压',
+  temp: '体温',
+  temperature: '体温',
+  lactate: '乳酸',
+  lac: '乳酸',
+  creatinine: '肌酐',
+  cr: '肌酐',
+  bun: '尿素氮',
+  wbc: '白细胞',
+  rbc: '红细胞',
+  hb: '血红蛋白',
+  hgb: '血红蛋白',
+  plt: '血小板',
+  pct: '降钙素原',
+  crp: 'C 反应蛋白',
+  il6: '白介素 6',
+  inr: '国际标准化比值',
+  aptt: '活化部分凝血活酶时间',
+  pt: '凝血酶原时间',
+  ddimer: 'D-二聚体',
+  d_dimer: 'D-二聚体',
+  fibrinogen: '纤维蛋白原',
+  glucose: '血糖',
+  glu: '血糖',
+  sodium: '钠',
+  potassium: '钾',
+  chloride: '氯',
+  calcium: '钙',
+  magnesium: '镁',
+  bilirubin: '胆红素',
+  albumin: '白蛋白',
+  alt: '谷丙转氨酶',
+  ast: '谷草转氨酶',
+  ph: '酸碱度',
+  urine: '尿量',
+  urine_output: '尿量',
+  vasopressor: '升压药',
+  ventilator: '呼吸机',
+  ventilation: '通气',
+  oxygenation: '氧合',
+  sedation: '镇静',
+  delirium: '谵妄',
+  sepsis: '脓毒症',
+  shock: '休克',
+  bleeding: '出血',
+  infection: '感染',
+  nutrition: '营养',
+  renal: '肾脏',
+  respiratory: '呼吸',
+  hemodynamic: '血流动力学',
+  neurological: '神经系统',
+  metabolic: '代谢',
+  coagulation: '凝血',
+  cardiac: '心脏',
+  liver: '肝脏',
+  kidney: '肾脏',
+  lung: '肺部',
+  high_risk: '高风险',
+  medium_risk: '中风险',
+  low_risk: '低风险',
+  critical_risk: '危急风险',
+}
+
+function normalizeLabelKey(value: any) {
+  return String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+}
+
+export function formatSeverityLabel(value: any, fallback = '关注') {
+  const key = normalizeLabelKey(value)
+  if (!key) return fallback
+  return SEVERITY_LABELS[key] || fallback
+}
+
+export function formatRiskLevelLabel(value: any, fallback = '未分层') {
+  const key = normalizeLabelKey(value)
+  if (!key) return fallback
+  return RISK_LABELS[key] || formatSeverityLabel(key, fallback)
+}
+
+export function formatStatusLabel(value: any, fallback = '未知') {
+  const key = normalizeLabelKey(value)
+  if (!key) return fallback
+  return STATUS_LABELS[key] || SEVERITY_LABELS[key] || String(value || fallback).replace(/_/g, ' ')
+}
+
+export function formatClinicalTermLabel(value: any, fallback = '临床指标') {
+  const raw = String(value ?? '').trim()
+  const key = normalizeLabelKey(raw)
+  if (!key) return fallback
+  if (CLINICAL_TERM_LABELS[key]) return CLINICAL_TERM_LABELS[key]
+  if (ALERT_TYPE_LABELS[key]) return ALERT_TYPE_LABELS[key]
+  if (STATUS_LABELS[key]) return STATUS_LABELS[key]
+  if (RISK_LABELS[key]) return RISK_LABELS[key]
+  if (SEVERITY_LABELS[key]) return SEVERITY_LABELS[key]
+  if (/^[a-z][a-z0-9_-]*$/i.test(raw) && /[_-]/.test(raw)) {
+    const translated = key.split('_').map((part) => CLINICAL_TERM_LABELS[part] || STATUS_LABELS[part] || RISK_LABELS[part] || SEVERITY_LABELS[part] || '').filter(Boolean)
+    if (translated.length) return Array.from(new Set(translated)).join('')
+    return fallback
+  }
+  if (/^[a-z]{2,}$/i.test(raw)) return fallback
+  return raw
+}
+
+export function formatClinicalText(value: any, fallback = '暂无') {
+  const raw = String(value ?? '').trim()
+  if (!raw) return fallback
+  const protectedTerms = new Map<string, string>()
+  let text = raw.replace(/\b(?:I-PASS|ISBAR|AI)\b/g, (match) => {
+    const token = `__KEEP_${protectedTerms.size}__`
+    protectedTerms.set(token, match)
+    return token
+  })
+  text = text.replace(
+    /\b[a-zA-Z][a-zA-Z0-9]*(?:[_-][a-zA-Z0-9]+)+\b|\b(?:critical|high|warning|warn|medium|low|normal|pending|active|resolved|open|closed|completed|failed|success|impaired|failure|blocked|modi|gcs|sofa|qsofa|rass|plt|map|spo2|sbp|dbp|hr|rr|temp|lac|cr|wbc|pct|inr)\b/gi,
+    (match) => formatClinicalTermLabel(match, match),
+  )
+  protectedTerms.forEach((value, token) => {
+    text = text.replace(token, value)
+  })
+  return text
+}
+

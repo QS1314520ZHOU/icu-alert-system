@@ -118,6 +118,7 @@ import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import { getPatientDetail, getPatientVitals, getRecentAlerts, postAlertAcknowledge } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
+import { formatSeverityLabel } from '../utils/displayLabels'
 
 const route = useRoute()
 const patientId = computed(() => String(route.params.patientId || ''))
@@ -171,13 +172,7 @@ function alertText(level?: string) {
 }
 
 function severityText(level?: string) {
-  const map: Record<string, string> = {
-    critical: '危急',
-    high: '高危',
-    warning: '警告',
-    info: '关注',
-  }
-  return map[String(level || '').toLowerCase()] || '关注'
+  return formatSeverityLabel(level)
 }
 
 function alertSuggestion(alert: any) {

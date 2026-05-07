@@ -27,8 +27,8 @@
           <div class="problem-head">
             <b>{{ item.rank }}</b>
             <div>
-              <strong>{{ item.problem }}</strong>
-              <em>{{ riskText(item.risk) }} · {{ item.status || '待确认' }}</em>
+              <strong>{{ clinicalText(item.problem, '待确认问题') }}</strong>
+              <em>{{ riskText(item.risk) }} · {{ statusText(item.status) }}</em>
             </div>
           </div>
           <dl>
@@ -50,7 +50,7 @@
         </div>
         <div v-if="(summary.worsening_indicators || []).length" class="worse-grid">
           <span v-for="item in summary.worsening_indicators" :key="`${item.name}-${item.time}`">
-            {{ item.name || '指标' }} {{ arrow(item.direction) }} {{ item.from ?? '—' }} → {{ item.to ?? '—' }} {{ item.unit || '' }}
+            {{ clinicalTerm(item.name, '指标') }} {{ arrow(item.direction) }} {{ clinicalText(item.from, '—') }} → {{ clinicalText(item.to, '—') }} {{ clinicalText(item.unit, '') }}
           </span>
         </div>
         <div v-else class="summary-empty small">近窗口未提取到明确恶化指标，可能因数据缺失或暂无趋势型预警。</div>
@@ -63,6 +63,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import dayjs from 'dayjs'
+import { formatClinicalTermLabel, formatClinicalText, formatRiskLevelLabel, formatStatusLabel } from '../../utils/displayLabels'
 
 const props = defineProps<{ summary: any; loading?: boolean }>()
 defineEmits<{ (e: 'refresh'): void }>()
@@ -77,18 +78,29 @@ const summaryCards = computed(() =>
     const parts = String(line).split(/[:：]/)
     const label = parts.shift()?.trim() || '摘要'
     const value = parts.join('：').trim() || line
-    return { label, value }
+    return {
+      label: formatClinicalText(label, '摘要'),
+      value: formatClinicalText(value, '暂无'),
+    }
   }),
 )
 const topProblems = computed(() => (props.summary?.top_problems || []).slice(0, 3))
 
 function listText(items: any[]) {
-  const rows = Array.isArray(items) ? items.map((item) => String(item || '').trim()).filter(Boolean) : []
+  const rows = Array.isArray(items) ? items.map((item) => formatClinicalText(item, '').trim()).filter(Boolean) : []
   return rows.length ? rows.slice(0, 3).join('；') : '暂无明确依据'
 }
 function riskText(value: string) {
-  const map: Record<string, string> = { critical: '危急', high: '高风险', warning: '预警', info: '提示', unknown: '待确认' }
-  return map[String(value || '').toLowerCase()] || value || '待确认'
+  return formatRiskLevelLabel(value, '待确认')
+}
+function statusText(value: any) {
+  return formatStatusLabel(value, '待确认')
+}
+function clinicalTerm(value: any, fallback = '临床指标') {
+  return formatClinicalTermLabel(value, fallback)
+}
+function clinicalText(value: any, fallback = '暂无') {
+  return formatClinicalText(value, fallback)
 }
 function problemTone(value: string) {
   const key = String(value || '').toLowerCase()

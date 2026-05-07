@@ -551,10 +551,10 @@
               >
                 <div class="ai-risk-organ-top">
                   <span class="ai-risk-organ-name">{{ row.label }}</span>
-                  <span class="ai-risk-organ-status">{{ row.status_text }}</span>
+                  <span class="ai-risk-organ-status">{{ aiRiskStatusText(row.status_text || row.status) }}</span>
                 </div>
                 <div class="ai-risk-organ-evidence">{{ row.evidence || '未见证据' }}</div>
-                <div class="ai-risk-organ-conf">置信度 {{ row.confidence_level }}</div>
+                <div class="ai-risk-organ-conf">置信度 {{ aiRiskStatusText(row.confidence_level) }}</div>
               </div>
             </div>
             <div v-if="aiRiskValidationIssues(item).length" class="ai-risk-section">
@@ -626,7 +626,7 @@
 import { computed, defineAsyncComponent, nextTick, ref, toRefs, watch } from 'vue'
 import { Button as AButton, Popover as APopover, Select as ASelect } from 'ant-design-vue'
 import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
-import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel, formatSeverityLabel, formatStatusLabel } from '../../utils/displayLabels'
 import { BODY_MAP_ORGAN_LABELS, BODY_MAP_ORGAN_ORDER, normalizeBodyMapOrganKey } from '../../utils/bodyMap'
 
 const props = defineProps<{
@@ -1223,10 +1223,11 @@ function severityClass(raw: any) {
 }
 
 function severityText(raw: any) {
-  const sev = severityClass(raw)
-  if (sev === 'critical') return '危急'
-  if (sev === 'high') return '高风险'
-  return '预警'
+  return formatSeverityLabel(severityClass(raw))
+}
+
+function aiRiskStatusText(value: any) {
+  return formatStatusLabel(value, '待确认')
 }
 
 function weaningSeverity(raw: any) {

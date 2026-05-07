@@ -107,6 +107,7 @@
 <script setup lang="ts">
 import OrganHeatmapFigure from '../common/OrganHeatmapFigure.vue'
 import AiWatchingBar from '../AiWatchingBar.vue'
+import { formatSeverityLabel } from '../../utils/displayLabels'
 
 defineProps<{
   patients: any[]
@@ -158,10 +159,7 @@ function riskTone(value: any) {
 }
 
 function riskText(value: any) {
-  const sev = riskTone(value)
-  if (sev === 'critical') return '危急'
-  if (sev === 'high') return '高危'
-  return '关注'
+  return formatSeverityLabel(riskTone(value))
 }
 
 function formatMetric(value: any) {

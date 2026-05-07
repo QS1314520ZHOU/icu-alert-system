@@ -570,6 +570,7 @@ import {
 } from 'ant-design-vue'
 import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
 import { icuCategoryAxis, icuGrid, icuTooltip, icuValueAxis } from '../../charts/icuTheme'
+import { formatStatusLabel } from '../../utils/displayLabels'
 
 const props = defineProps<{
   patient?: any
@@ -819,12 +820,7 @@ function handoffSeverityText(v: any) {
 }
 
 function handoffConfidenceText(v: any) {
-  const map: Record<string, string> = {
-    low: '低',
-    medium: '中',
-    high: '高',
-  }
-  return map[String(v || '').toLowerCase()] || String(v || '低')
+  return formatStatusLabel(v, '低')
 }
 
 function handoffValidationText(handoff: any) {

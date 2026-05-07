@@ -160,7 +160,11 @@
                       <strong>{{ shortText(item.title, 18) }}</strong>
                     </div>
                     <div class="evidence-list">
-                      <span v-for="evidence in (item.evidence || []).slice(0, 2)" :key="evidence">{{ shortText(evidenceText(evidence), 30) }}</span>
+                      <span v-for="evidence in (item.evidence || []).slice(0, 2)" :key="evidence" class="evidence-item">
+                        <b>{{ shortText(evidenceParts(evidence).main, 24) }}</b>
+                        <em v-if="evidenceParts(evidence).value">值：{{ shortText(evidenceParts(evidence).value, 16) }}</em>
+                        <i v-if="evidenceParts(evidence).time">时间：{{ evidenceParts(evidence).time }}</i>
+                      </span>
                     </div>
                   </article>
                 </div>
@@ -296,6 +300,7 @@ import {
 } from '../api/rounding'
 import { BODY_MAP_ORGAN_LABELS, bodyMapSeverityText, type BodyMapOrganKey, type BodyMapSeverity } from '../utils/bodyMap'
 import { formatBeijingTime } from '../utils/time'
+import { formatRiskLevelLabel } from '../utils/displayLabels'
 
 const route = useRoute()
 
@@ -449,7 +454,7 @@ function focusColor(v: string) {
   return v === 'high' ? 'red' : v === 'medium' ? 'gold' : 'blue'
 }
 function riskText(v: string) {
-  return ({ critical: '危急', high: '高', medium: '中', low: '低' } as any)[v] || v || '—'
+  return formatRiskLevelLabel(v, '—')
 }
 function eventLabel(type: string) {
   return ({ alert: '预警', lab: '检验', medication: '用药', nursing_event: '护理' } as any)[type] || type || '事件'
@@ -467,6 +472,16 @@ function evidenceText(value: any) {
   text = text.replace(/(\d{4}-\d{2}-\d{2}T[^\s)）]+)/g, (_match, raw) => formatBeijingTime(raw, ''))
   text = text.replace(/\s+/g, ' ').replace(/[（(]\s*[）)]/g, '').trim()
   return text
+}
+function evidenceParts(value: any) {
+  const raw = String(value || '').replace(/\s+/g, ' ').trim()
+  const timeMatch = raw.match(/[（(]?(\d{4}-\d{2}-\d{2}T[^\s)）]+)[）)]?/)
+  const time = timeMatch ? formatBeijingTime(timeMatch[1], '') : ''
+  const withoutTime = raw.replace(/[（(]?\d{4}-\d{2}-\d{2}T[^\s)）]+[）)]?/g, '').trim()
+  const [mainRaw, ...rest] = withoutTime.split(/[:：]/)
+  const main = evidenceText(mainRaw || withoutTime || '证据')
+  const valueText = evidenceText(rest.join('：').trim())
+  return { main, value: valueText, time }
 }
 function sourceText(value: any) {
   return ({
@@ -988,7 +1003,7 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
   gap: 8px;
 }
 .evidence-list span {
-  min-height: 30px;
+  min-height: 42px;
   padding: 8px 10px;
   border-radius: 12px;
   color: #bfefff;
@@ -996,6 +1011,30 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
   line-height: 1.45;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+.evidence-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+.evidence-item b,
+.evidence-item em,
+.evidence-item i {
+  min-width: 0;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.35;
+}
+.evidence-item b {
+  color: #dffbff;
+}
+.evidence-item em {
+  color: #fef3c7;
+}
+.evidence-item i {
+  color: #9bd8e8;
+  white-space: nowrap;
 }
 .question-list em {
   display: block;

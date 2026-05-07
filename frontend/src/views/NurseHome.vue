@@ -12,14 +12,30 @@
       <button type="button" @click="load">刷新</button>
     </header>
 
-    <div v-if="loading" class="empty">正在生成本班时间轴和护理闭环任务...</div>
+    <div v-if="loading" class="empty">正在读取本班床位和风险提醒...</div>
     <div v-else-if="error" class="empty danger">{{ error }}</div>
 
     <template v-else>
+      <section class="nurse-summary">
+        <article v-for="item in nurseSummary" :key="item.key" :class="['summary-card', `is-${item.tone}`]">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+          <em>{{ item.hint }}</em>
+        </article>
+      </section>
+      <div v-if="home?.head_degraded || home?.bundle_degraded" class="empty small">
+        {{ home?.head_degraded || home?.bundle_degraded }}
+      </div>
+
       <main v-if="isHeadMode" class="head-layout">
         <section class="panel">
-          <div class="panel-head"><strong>全科床位</strong><span>{{ headBeds.length }} 床</span></div>
-          <div class="bed-cloud"><span v-for="b in headBeds" :key="b.patient_id">{{ b.bed || '--' }}床 {{ b.name }}</span></div>
+          <div class="panel-head"><strong>全科床位</strong><span>{{ sortedHeadBeds.length }} 床</span></div>
+          <div class="bed-cloud">
+            <span v-for="b in sortedHeadBeds" :key="b.patient_id">
+              <b>{{ displayBed(b.bed) }}</b>
+              <em>{{ b.name || '未知患者' }}</em>
+            </span>
+          </div>
         </section>
         <section class="panel">
           <div class="panel-head"><strong>工作负荷热力图</strong><span>本班护理记录密度</span></div>
@@ -34,10 +50,12 @@
         </section>
         <section class="panel head-side">
           <div class="panel-head"><strong>异常事件</strong><span>{{ headEvents.length }} 条</span></div>
-          <article v-for="event in headEvents" :key="`${event.patient_id}-${event.time}-${event.title}`" class="head-event">
-            <strong>{{ event.bed || '--' }}床 {{ event.title }}</strong>
-            <span>{{ event.type }} · {{ fmt(event.time) }}</span>
-          </article>
+          <div class="head-event-grid">
+            <article v-for="event in sortedHeadEvents" :key="`${event.patient_id}-${event.time}-${event.title}`" class="head-event">
+              <strong>{{ displayBed(event.bed) }} {{ event.title }}</strong>
+              <span>{{ event.type }} · {{ fmt(event.time) }}</span>
+            </article>
+          </div>
           <div v-if="!headEvents.length" class="empty small">本班暂无未闭环护理异常。</div>
           <div class="quality-row">
             <span>跌倒 {{ headQuality.falls || 0 }}</span>
@@ -49,28 +67,49 @@
       </main>
 
       <main v-else class="nurse-grid">
-        <section class="panel timeline-panel">
-          <div class="panel-head"><strong>今日时间轴</strong><span>5 分钟格 · 点击任务处理</span></div>
-          <div class="timeline">
-            <div class="time-head">
-              <span>床位</span>
-              <span v-for="tick in ticks" :key="tick">{{ tick }}</span>
-            </div>
-            <div v-for="bed in beds" :key="bed.patient_id" class="bed-line">
-              <strong>{{ bed.bed || '--' }}床</strong>
-              <div class="task-strip">
-                <button v-for="task in tasksByBed(bed.patient_id)" :key="task.task_id" type="button" :class="`task-card is-${task.status}`" :style="{ marginLeft: taskOffset(task) }" @click="selectTask(task)">
-                  {{ task.title }}
-                </button>
+        <section class="panel beds-panel">
+          <div class="panel-head">
+            <strong>我的床位</strong>
+            <span>{{ sortedBeds.length }} 床</span>
+          </div>
+          <div class="bed-board">
+            <article v-for="bed in sortedBeds" :key="bed.patient_id" class="bed-card">
+              <div class="bed-card__main">
+                <strong>{{ displayBed(bed.bed) }}</strong>
+                <span>{{ bed.name || '未知患者' }}</span>
               </div>
-            </div>
+              <div class="bed-card__meta">
+                <span>责任护士 {{ bed.responsible_nurse || accountName }}</span>
+                <span>首次记录 {{ fmt(bed.first_record_time) }}</span>
+              </div>
+              <button
+                v-if="tasksByBed(bed.patient_id).length"
+                type="button"
+                class="bed-risk-button"
+                @click="selectTask(tasksByBed(bed.patient_id)[0])"
+              >
+                {{ tasksByBed(bed.patient_id).length }} 条风险提醒
+              </button>
+              <span v-else class="bed-clear">暂无风险提醒</span>
+            </article>
             <div v-if="!beds.length" class="empty small">{{ nurseEmptyText }}</div>
           </div>
         </section>
 
         <aside class="side">
           <section class="panel">
-            <div class="panel-head"><strong>安全清单</strong><span>红黄绿闭环</span></div>
+            <div class="panel-head"><strong>本班提醒</strong><span>{{ (home?.timeline || []).length }} 条</span></div>
+            <article v-for="task in home?.timeline || []" :key="task.task_id" :class="['notice-card', `is-${task.status}`]" @click="selectTask(task)">
+              <div>
+                <strong>{{ cleanVisibleText(displayName(task.title)) }}</strong>
+                <span>{{ displayBed(task.bed) }} {{ task.patient_name || '未知患者' }} · {{ fmt(task.due_at) }}</span>
+              </div>
+              <button type="button">处理</button>
+            </article>
+            <div v-if="!(home?.timeline || []).length" class="empty small">本班暂无需要处理的风险提醒。</div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><strong>安全清单</strong><span>闭环状态</span></div>
             <article v-for="item in bundles" :key="item.code" :class="`bundle is-${item.tone}`">
               <strong>{{ displayName(item.name || item.code) }}</strong>
               <span>{{ item.data_state === 'missing' ? '暂无同步' : `${item.completed}/${item.total}` }}</span>
@@ -79,7 +118,7 @@
             <div v-else-if="!bundles.length" class="empty small">本班安全清单暂无同步记录。</div>
           </section>
           <section class="panel">
-            <div class="panel-head"><strong>与我相关的 AI 提醒</strong><span>护理执行相关</span></div>
+            <div class="panel-head"><strong>AI 提醒</strong><span>护理相关</span></div>
             <article v-for="item in reminders" :key="item._id || item.created_at" class="reminder">
               <strong>{{ shortText(displayName(item.name || item.alert_type || item.rule_id)) }}</strong>
               <div>
@@ -98,7 +137,7 @@
           <strong>一键交班</strong>
           <span>{{ handoffError || handoffStatus }}</span>
         </div>
-        <button type="button" :disabled="handoffLoading || !beds.length" @click="generateHandoff">{{ handoffLoading ? '生成中' : '生成本班交班单' }}</button>
+        <button type="button" :disabled="handoffLoading || !sortedBeds.length" @click="generateHandoff">{{ handoffLoading ? '生成中' : '生成本班交班单' }}</button>
       </section>
       <section v-if="handoffItems.length" class="panel handoff-editor">
         <div class="panel-head">
@@ -140,6 +179,9 @@ import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, post
 import { useAuthStore } from '../stores/auth'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 
+const NURSE_HOME_CACHE_TTL_MS = 2 * 60 * 1000
+const nurseHomeCache = new Map<string, { ts: number; data: any }>()
+
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -154,6 +196,13 @@ const handoffMode = ref<'isbar' | 'ipass'>('isbar')
 const userId = computed(() => String(auth.effectiveUserId || '').trim())
 const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDept = computed(() => String(route.query.dept || route.query.department || auth.dept || '').trim())
+const homeCacheKey = computed(() => JSON.stringify({
+  user_id: userId.value,
+  shift_code: 'auto',
+  view: String(route.query.view || '') || '',
+  dept: routeDept.value,
+  dept_code: routeDeptCode.value,
+}))
 const isHeadMode = computed(() => String(route.query.view || '').toLowerCase() === 'head' || ['head_nurse', 'charge_nurse'].includes(String(home.value?.account?.role || '').toLowerCase()))
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别护士')
 const beds = computed(() => home.value?.beds || [])
@@ -161,8 +210,11 @@ const workload = computed(() => home.value?.workload || {})
 const bundles = computed(() => home.value?.bundles || [])
 const reminders = computed(() => home.value?.ai_reminders || [])
 const headBeds = computed(() => home.value?.head_view?.beds || [])
+const sortedBeds = computed(() => sortBeds(beds.value))
+const sortedHeadBeds = computed(() => sortBeds(headBeds.value))
 const heatmap = computed(() => home.value?.head_view?.workload_heatmap || [])
 const headEvents = computed(() => home.value?.head_view?.events || [])
+const sortedHeadEvents = computed(() => sortBeds(headEvents.value, (row: any) => row?.bed))
 const headQuality = computed(() => home.value?.head_view?.quality || {})
 const nurseEmptyText = computed(() => cleanEmptyText(home.value?.data_state?.empty_reason, '本班暂未识别到分管床位，请完成接班护理记录后刷新。'))
 const handoff = ref<any>(null)
@@ -188,28 +240,39 @@ const shiftText = computed(() => {
   if (!s) return '班次待配置'
   return `${s.name} ${String(s.start || '').slice(11, 16)}-${String(s.end || '').slice(11, 16)}`
 })
-const bedText = computed(() => beds.value.length ? beds.value.map((b: any) => `${b.bed}床`).join(' / ') : '待接班')
-const ticks = computed(() => {
-  const start = new Date(home.value?.shift?.start || Date.now())
-  const end = new Date(home.value?.shift?.end || start.getTime() + 8 * 60 * 60 * 1000)
-  const hours = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 60 / 60 / 1000))
-  return Array.from({ length: hours + 1 }, (_, idx) => new Date(start.getTime() + idx * 60 * 60 * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
-})
+const bedText = computed(() => sortedBeds.value.length ? sortedBeds.value.map((b: any) => displayBed(b.bed)).join(' / ') : '待接班')
 const handoffShouldOpen = computed(() => {
   const end = new Date(home.value?.shift?.end || 0).getTime()
   return end > 0 && end - Date.now() <= 60 * 60 * 1000
 })
+const taskStatusStats = computed(() => {
+  const rows = home.value?.timeline || []
+  const counts = rows.reduce((acc: Record<string, number>, task: any) => {
+    const key = String(task?.status || 'future').trim() || 'future'
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+  return [
+    { key: 'overdue', label: '逾期', value: counts.overdue || 0 },
+    { key: 'due', label: '到点', value: counts.due || 0 },
+    { key: 'soon', label: '临近', value: counts.soon || 0 },
+    { key: 'future', label: '待执行', value: counts.future || 0 },
+    { key: 'done', label: '已完成', value: counts.done || 0 },
+  ]
+})
+const nurseSummary = computed(() => {
+  const qualityTotal = Object.values(headQuality.value || {}).reduce((sum: number, value: any) => sum + Number(value || 0), 0)
+  const overdue = taskStatusStats.value.find((item) => item.key === 'overdue')?.value || 0
+  return [
+    { key: 'beds', label: isHeadMode.value ? '全科床位' : '我的床位', value: isHeadMode.value ? sortedHeadBeds.value.length : sortedBeds.value.length, hint: isHeadMode.value ? '当前科室在科' : '本班归属', tone: 'blue' },
+    { key: 'tasks', label: '本班任务', value: (home.value?.timeline || []).length, hint: overdue ? `${overdue} 项逾期` : '按时间轴执行', tone: overdue ? 'red' : 'green' },
+    { key: 'reminders', label: 'AI 提醒', value: reminders.value.length + headEvents.value.length, hint: isHeadMode.value ? '含未闭环事件' : '护理执行相关', tone: reminders.value.length || headEvents.value.length ? 'yellow' : 'green' },
+    { key: 'quality', label: '护理质控', value: qualityTotal, hint: isHeadMode.value ? '本班事件命中' : `${bundles.value.length} 项安全清单`, tone: qualityTotal ? 'yellow' : 'green' },
+  ]
+})
 
 function tasksByBed(pid: string) {
   return (home.value?.timeline || []).filter((task: any) => task.patient_id === pid)
-}
-function taskOffset(task: any) {
-  const start = new Date(home.value?.shift?.start || 0).getTime()
-  const end = new Date(home.value?.shift?.end || 0).getTime()
-  const due = new Date(task?.due_at || 0).getTime()
-  if (!start || !end || end <= start || !due) return '0'
-  const percent = Math.max(0, Math.min(86, ((due - start) / (end - start)) * 100))
-  return `${percent}%`
 }
 function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
@@ -220,6 +283,41 @@ function shortText(value: any) {
 }
 function displayName(value: any) {
   return formatAlertTypeLabel(value).replace(/\bBundle\b/gi, '防控清单')
+}
+function cleanVisibleText(value: any) {
+  return String(value || '')
+    .replace(/PRE-DELIRIC近似/g, '谵妄风险')
+    .replace(/[()（）]/g, '')
+    .trim()
+}
+function displayBed(value: any) {
+  const text = String(value || '').trim()
+  if (!text || text === '--') return '--床'
+  return text.includes('床') ? text : `${text}床`
+}
+function bedSortParts(value: any) {
+  const raw = String(value || '').trim()
+  const normalized = raw
+    .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+    .replace(/[\s_-]+/g, '')
+  const numberHit = normalized.match(/\d+/)
+  return {
+    hasNumber: numberHit ? 0 : 1,
+    number: numberHit ? Number(numberHit[0]) : Number.MAX_SAFE_INTEGER,
+    suffix: numberHit ? normalized.slice((numberHit.index || 0) + numberHit[0].length) : normalized,
+    raw: normalized,
+  }
+}
+function sortBeds(rows: any[], getBed: (row: any) => any = (row) => row?.bed) {
+  return [...(rows || [])].sort((a: any, b: any) => {
+    const left = bedSortParts(getBed(a))
+    const right = bedSortParts(getBed(b))
+    if (left.hasNumber !== right.hasNumber) return left.hasNumber - right.hasNumber
+    if (left.number !== right.number) return left.number - right.number
+    const suffixCompare = left.suffix.localeCompare(right.suffix, 'zh-CN', { numeric: true, sensitivity: 'base' })
+    if (suffixCompare) return suffixCompare
+    return left.raw.localeCompare(right.raw, 'zh-CN', { numeric: true, sensitivity: 'base' })
+  })
 }
 function cleanEmptyText(value: any, fallback: string) {
   const text = String(value || '').trim()
@@ -257,7 +355,7 @@ async function generateHandoff() {
   try {
     const payload: { user_id: string; patient_ids: string[]; shift_code: string; dept?: string; dept_code?: string } = {
       user_id: userId.value,
-      patient_ids: beds.value.map((b: any) => b.patient_id),
+      patient_ids: sortedBeds.value.map((b: any) => b.patient_id),
       shift_code: home.value?.shift?.code || 'auto',
     }
     if (routeDeptCode.value) payload.dept_code = routeDeptCode.value
@@ -311,7 +409,14 @@ async function load() {
     error.value = '未识别当前账号。'
     return
   }
-  loading.value = true
+  const cached = nurseHomeCache.get(homeCacheKey.value)
+  const canUseCache = cached && Date.now() - cached.ts < NURSE_HOME_CACHE_TTL_MS
+  if (canUseCache) {
+    home.value = cached.data
+    loading.value = false
+  } else {
+    loading.value = true
+  }
   error.value = ''
   try {
     const params: { user_id: string; shift_code: string; view?: string; dept?: string; dept_code?: string } = {
@@ -323,9 +428,10 @@ async function load() {
     else if (routeDept.value) params.dept = routeDept.value
     const { data } = await getNurseHome(params)
     home.value = data?.data || {}
+    nurseHomeCache.set(homeCacheKey.value, { ts: Date.now(), data: home.value })
     auth.updateAccount(home.value?.account)
   } catch (err: any) {
-    error.value = err?.message || '护士首页加载失败'
+    if (!canUseCache) error.value = err?.message || '护士首页加载失败'
   } finally {
     loading.value = false
   }
@@ -351,17 +457,31 @@ function cleanDuplicateIdentityQuery() {
 .nurse-home { padding: 12px; display: grid; gap: 12px; }
 .nurse-top { min-height: 80px; display: grid; grid-template-columns: minmax(0,1fr) 320px auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(7,20,34,.82); }
 .nurse-top strong { color: #f8fbff; font-size: 20px; }
-.nurse-top span, .panel-head span, .empty, .bundle span, .task-modal p { color: #91adbd; font-size: 12px; }
+.nurse-top span, .panel-head span, .empty, .bundle span, .task-modal p, .summary-card span, .summary-card em { color: #91adbd; font-size: 12px; }
 .workload { display: grid; gap: 6px; }
 .workload i { height: 8px; border-radius: 999px; background: rgba(148,163,184,.25); overflow: hidden; }
 .workload b { display: block; height: 100%; background: #38bdf8; }
 button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radius: 8px; background: rgba(13,44,66,.78); color: #eafcff; padding: 0 10px; cursor: pointer; }
+.nurse-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.summary-card { min-height: 82px; display: grid; align-content: center; gap: 4px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(6,18,31,.74); }
+.summary-card strong { color: #f8fbff; font-size: 25px; line-height: 1; }
+.summary-card em { font-style: normal; }
+.summary-card.is-red { border-color: rgba(239,68,68,.48); }
+.summary-card.is-yellow { border-color: rgba(245,158,11,.42); }
+.summary-card.is-green { border-color: rgba(52,211,153,.34); }
+.summary-card.is-blue { border-color: rgba(56,189,248,.34); }
 .nurse-grid { min-height: 560px; display: grid; grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); gap: 12px; }
 .side, .head-layout { display: grid; gap: 12px; }
 .head-layout { grid-template-columns: 1fr 1fr; }
 .panel { min-width: 0; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(6,18,31,.74); }
 .panel-head { display: flex; justify-content: space-between; gap: 10px; }
 .panel-head strong { color: #f4fbff; }
+.task-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.task-legend span { padding: 5px 9px; border-radius: 999px; background: rgba(11,33,50,.72); color: #91adbd; font-size: 12px; }
+.task-legend .is-overdue { color: #fecaca; border: 1px solid rgba(239,68,68,.4); }
+.task-legend .is-due { color: #fde68a; border: 1px solid rgba(245,158,11,.4); }
+.task-legend .is-soon { color: #bae6fd; border: 1px solid rgba(56,189,248,.36); }
+.task-legend .is-done { color: #bbf7d0; border: 1px solid rgba(52,211,153,.36); }
 .timeline { overflow: auto; display: grid; gap: 8px; }
 .time-head { min-width: 760px; display: grid; grid-template-columns: 84px repeat(7, 1fr); color: #8caabd; font-size: 12px; }
 .bed-line { min-width: 760px; display: grid; grid-template-columns: 84px minmax(0,1fr); align-items: stretch; gap: 8px; }
@@ -392,8 +512,38 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .task-modal { width: min(520px, calc(100vw - 24px)); display: grid; gap: 12px; padding: 16px; border-radius: 8px; border: 1px solid rgba(125,211,252,.22); background: #081827; }
 .task-modal strong { color: #fff; font-size: 18px; }
 .modal-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
-.bed-cloud, .heatmap { display: flex; flex-wrap: wrap; gap: 8px; }
-.bed-cloud span, .heatmap article { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); color: #eafcff; }
+.bed-cloud { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 8px; }
+.heatmap { display: flex; flex-wrap: wrap; gap: 8px; }
+.bed-cloud span {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid rgba(125,211,252,.12);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(13,44,66,.82), rgba(8,28,44,.72));
+  color: #eafcff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.bed-cloud span b {
+  color: #f8fbff;
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 800;
+}
+.bed-cloud span em {
+  min-width: 0;
+  color: #91adbd;
+  font-size: 12px;
+  line-height: 1.2;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.heatmap article { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); color: #eafcff; }
 .heatmap article { min-width: 150px; display: grid; gap: 8px; }
 .heatmap i { height: 42px; display: flex; align-items: end; gap: 3px; }
 .heatmap b { width: 10px; min-height: 8px; border-radius: 3px 3px 0 0; background: #38bdf8; }
@@ -401,6 +551,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .density-medium { border: 1px solid rgba(245,158,11,.55); }
 .density-low { border: 1px solid rgba(52,211,153,.45); }
 .head-side { grid-column: 1 / -1; }
+.head-event-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .head-event { display: grid; gap: 4px; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.72); }
 .head-event strong { color: #fff; font-size: 13px; }
 .head-event span, .quality-row span { color: #91adbd; font-size: 12px; }
@@ -415,8 +566,116 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .handoff-item label { display: grid; gap: 4px; }
 .handoff-item label span { color: #91adbd; font-size: 12px; }
 .handoff-item textarea { resize: vertical; min-height: 58px; border-radius: 8px; border: 1px solid rgba(125,211,252,.18); background: rgba(5,18,30,.9); color: #eafcff; padding: 8px; }
-@media (max-width: 1024px) { .nurse-top, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 760px) { .side, .handoff-bar { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; } }
+.beds-panel {
+  min-height: 420px;
+}
+.bed-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.bed-card {
+  min-width: 0;
+  min-height: 142px;
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(125, 211, 252, .16);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(10, 32, 50, .92), rgba(7, 22, 36, .86));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+.bed-card__main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.bed-card__main strong {
+  color: #f8fbff;
+  font-size: 24px;
+  line-height: 1;
+}
+.bed-card__main span {
+  min-width: 0;
+  color: #d7eefc;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bed-card__meta {
+  display: grid;
+  gap: 4px;
+}
+.bed-card__meta span,
+.bed-clear {
+  color: #91adbd;
+  font-size: 12px;
+}
+.bed-risk-button {
+  width: 100%;
+  min-height: 38px;
+  border-color: rgba(245, 158, 11, .48);
+  background: rgba(80, 45, 13, .55);
+  color: #fde68a;
+}
+.bed-clear {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  color: #bbf7d0;
+}
+.notice-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(125, 211, 252, .14);
+  border-radius: 8px;
+  background: rgba(11, 33, 50, .72);
+  cursor: pointer;
+}
+.notice-card div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.notice-card strong {
+  min-width: 0;
+  color: #edf8ff;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notice-card span {
+  color: #91adbd;
+  font-size: 12px;
+}
+.notice-card button {
+  min-height: 34px;
+  flex: 0 0 auto;
+}
+.notice-card.is-overdue {
+  border-color: rgba(239, 68, 68, .42);
+  background: rgba(69, 20, 28, .46);
+}
+.notice-card.is-due {
+  border-color: rgba(245, 158, 11, .42);
+}
+.notice-card.is-soon {
+  border-color: rgba(56, 189, 248, .38);
+}
+.notice-card.is-done {
+  opacity: .72;
+}
+@media (max-width: 1024px) { .nurse-top, .nurse-summary, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) { .side, .handoff-bar, .head-event-grid { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; } }
 
 html[data-theme='light'] .nurse-home {
   background:
@@ -426,7 +685,8 @@ html[data-theme='light'] .nurse-home {
 html[data-theme='light'] .nurse-top,
 html[data-theme='light'] .panel,
 html[data-theme='light'] .handoff-bar,
-html[data-theme='light'] .task-modal {
+html[data-theme='light'] .task-modal,
+html[data-theme='light'] .summary-card {
   background: rgba(255, 255, 255, 0.96);
   border-color: rgba(145, 176, 199, 0.32);
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
@@ -441,8 +701,14 @@ html[data-theme='light'] .task-modal strong,
 html[data-theme='light'] .head-event strong,
 html[data-theme='light'] .handoff-item > strong,
 html[data-theme='light'] .heatmap article,
-html[data-theme='light'] .bed-cloud span {
+html[data-theme='light'] .summary-card strong {
   color: #0f172a;
+}
+html[data-theme='light'] .bed-cloud span b {
+  color: #0f172a;
+}
+html[data-theme='light'] .bed-cloud span em {
+  color: #64748b;
 }
 html[data-theme='light'] .nurse-top span,
 html[data-theme='light'] .panel-head span,
@@ -452,7 +718,9 @@ html[data-theme='light'] .task-modal p,
 html[data-theme='light'] .handoff-bar span,
 html[data-theme='light'] .head-event span,
 html[data-theme='light'] .quality-row span,
-html[data-theme='light'] .handoff-item label span {
+html[data-theme='light'] .handoff-item label span,
+html[data-theme='light'] .summary-card span,
+html[data-theme='light'] .summary-card em {
   color: #64748b;
 }
 html[data-theme='light'] .bed-line > strong,
@@ -467,6 +735,38 @@ html[data-theme='light'] .quality-row span,
 html[data-theme='light'] .handoff-item {
   background: #f8fafc;
   border-color: rgba(145, 176, 199, 0.26);
+}
+html[data-theme='light'] .task-legend span {
+  background: #f8fafc;
+}
+html[data-theme='light'] .bed-cloud span {
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+html[data-theme='light'] .bed-card,
+html[data-theme='light'] .notice-card {
+  background: #ffffff;
+  border-color: rgba(145, 176, 199, 0.3);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+html[data-theme='light'] .bed-card__main strong,
+html[data-theme='light'] .bed-card__main span,
+html[data-theme='light'] .notice-card strong {
+  color: #0f172a;
+}
+html[data-theme='light'] .bed-card__meta span,
+html[data-theme='light'] .bed-clear,
+html[data-theme='light'] .notice-card span {
+  color: #64748b;
+}
+html[data-theme='light'] .bed-risk-button {
+  background: #fffbeb;
+  border-color: rgba(245, 158, 11, 0.34);
+  color: #92400e;
+}
+html[data-theme='light'] .notice-card.is-overdue {
+  background: #fef2f2;
+  border-color: rgba(220, 38, 38, 0.26);
 }
 html[data-theme='light'] .task-strip {
   background: repeating-linear-gradient(90deg, rgba(37, 99, 235, 0.08) 0, rgba(37, 99, 235, 0.08) 1px, #f8fafc 1px, #f8fafc 10.416%);
