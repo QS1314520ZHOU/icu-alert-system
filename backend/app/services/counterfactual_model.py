@@ -449,7 +449,7 @@ class TransformerCounterfactualModel:
         try:
             import torch  # type: ignore
         except Exception as exc:
-            self._set_unavailable("torch_unavailable", f"torch unavailable: {exc.__class__.__name__}")
+            self._set_unavailable("torch_unavailable", f"torch unavailable: {exc.__class__.__name__}: {str(exc)[:160]}")
             return
         self._torch = torch
         for path in self._candidate_paths():

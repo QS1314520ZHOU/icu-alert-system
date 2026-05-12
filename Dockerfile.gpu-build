@@ -142,8 +142,15 @@ backend_root = os.path.join(project_root, 'backend')
 sys.path.insert(0, backend_root)
 sys.path.insert(0, project_root)
 
-# ========== 子模块: 只对项目代码全量收集 ==========
+# ========== 子模块 ==========
 app_imports = collect_submodules('app')
+torch_imports = collect_submodules('torch')
+torchvision_imports = collect_submodules('torchvision')
+torchaudio_imports = collect_submodules('torchaudio')
+transformer_imports = collect_submodules('transformers')
+chronos_imports = collect_submodules('chronos')
+sentence_transformer_imports = collect_submodules('sentence_transformers')
+tokenizer_imports = collect_submodules('tokenizers')
 
 # ========== 数据文件 ==========
 datas = [
@@ -210,9 +217,19 @@ for d in search_dirs:
 binaries += cuda_bins
 print(f"[SPEC] Collected {len(cuda_bins)} CUDA .so files")
 print(f"[SPEC] Collected {len(app_imports)} app submodules")
+print(f"[SPEC] Collected {len(torch_imports)} torch submodules")
 
 # ========== hidden imports ==========
-hidden_imports = app_imports + [
+hidden_imports = (
+    app_imports
+    + torch_imports
+    + torchvision_imports
+    + torchaudio_imports
+    + transformer_imports
+    + chronos_imports
+    + sentence_transformer_imports
+    + tokenizer_imports
+    + [
     # uvicorn 完整链
     'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
     'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
@@ -243,7 +260,8 @@ hidden_imports = app_imports + [
     'httpx', 'jose', 'passlib', 'bcrypt',
     'pydantic', 'pydantic_settings', 'pydantic.deprecated.decorator',
     'yaml', 'dotenv', 'websockets', 'zoneinfo', 'encodings.idna', 'tzdata',
-]
+    ]
+)
 
 excludes = ['PIL', 'tkinter', 'unittest', 'test', 'setuptools', 'pip']
 
@@ -277,7 +295,11 @@ RUN cd /build && \
         2>&1 | tee /build/pyinstaller.log && \
     test -f /build/dist/icu-alert-system/icu-alert-system || \
         { echo "=== BUILD FAILED ==="; tail -100 /build/pyinstaller.log; exit 1; } && \
-    echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)"
+    echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)" && \
+    cd /build/dist/icu-alert-system && \
+    LD_LIBRARY_PATH="/build/dist/icu-alert-system/_internal:${LD_LIBRARY_PATH:-}" \
+    ICU_IMPORT_SELF_TEST=1 \
+    ./icu-alert-system
 
 # ---- 2.11 .env.template ----
 RUN cat > /build/dist/icu-alert-system/.env.template << 'ENVEOF'

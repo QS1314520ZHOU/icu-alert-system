@@ -87,34 +87,38 @@ class ICUFoundationModelService:
         if self._loaded:
             return
         self._loaded = True
+        model_path = None
+        for path in self._candidate_paths():
+            if path.exists():
+                model_path = path
+                break
+        if model_path is None:
+            model_dir = self._knowledge_guided_dir() if self._provider == "knowledge_guided" else self._icarefm_dir()
+            self._unavailable_reason = f"no torch weight found under {model_dir}"
+            return
         try:
             import torch  # type: ignore
         except Exception as exc:
-            self._unavailable_reason = f"torch unavailable: {exc.__class__.__name__}"
+            self._unavailable_reason = f"torch unavailable: {exc.__class__.__name__}: {str(exc)[:160]}"
             return
         self._torch = torch
-        for path in self._candidate_paths():
-            if not path.exists():
-                continue
-            try:
-                self._model_path = path
-                if path.suffix.lower() in {".pt", ".pth"}:
-                    try:
-                        self._model = torch.jit.load(str(path), map_location=self._device)
-                    except Exception:
-                        self._model = torch.load(str(path), map_location=self._device)
-                else:
-                    self._model = torch.load(str(path), map_location=self._device)
-                if hasattr(self._model, "eval"):
-                    self._model.eval()
-                self._unavailable_reason = ""
-                return
-            except Exception as exc:
-                self._model = None
-                self._unavailable_reason = f"load failed: {exc.__class__.__name__}: {str(exc)[:120]}"
-                return
-        model_dir = self._knowledge_guided_dir() if self._provider == "knowledge_guided" else self._icarefm_dir()
-        self._unavailable_reason = f"no torch weight found under {model_dir}"
+        try:
+            self._model_path = model_path
+            if model_path.suffix.lower() in {".pt", ".pth"}:
+                try:
+                    self._model = torch.jit.load(str(model_path), map_location=self._device)
+                except Exception:
+                    self._model = torch.load(str(model_path), map_location=self._device)
+            else:
+                self._model = torch.load(str(model_path), map_location=self._device)
+            if hasattr(self._model, "eval"):
+                self._model.eval()
+            self._unavailable_reason = ""
+            return
+        except Exception as exc:
+            self._model = None
+            self._unavailable_reason = f"load failed: {exc.__class__.__name__}: {str(exc)[:120]}"
+            return
 
     async def _load_patient_state(self, patient_id: str) -> dict[str, Any]:
         patient = None

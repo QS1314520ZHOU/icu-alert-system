@@ -134,7 +134,7 @@ class VitalTrajectoryForecaster:
         try:
             import torch  # type: ignore
         except Exception as exc:
-            self._unavailable_reason = f"torch unavailable: {exc.__class__.__name__}"
+            self._unavailable_reason = f"torch unavailable: {exc.__class__.__name__}: {str(exc)[:160]}"
             return
         self._torch = torch
         root = self._model_dir()

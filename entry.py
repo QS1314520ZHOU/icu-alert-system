@@ -120,6 +120,28 @@ def check_gpu():
         print(f"[ICU] GPU 预检失败: {e}")
 
 
+def import_self_test():
+    """Fail the packaged binary early if bundled ML imports are broken."""
+    checks = [
+        ("torch", "import torch; print('torch', torch.__version__, 'cuda', getattr(torch.version, 'cuda', None))"),
+        ("chronos", "import chronos; print('chronos ok')"),
+        ("transformers", "import transformers; print('transformers', transformers.__version__)"),
+        ("onnxruntime", "import onnxruntime as ort; print('onnxruntime', ort.__version__)"),
+    ]
+    failed = False
+    for name, code in checks:
+        try:
+            namespace = {}
+            exec(code, namespace, namespace)
+        except Exception as exc:
+            failed = True
+            print(f"[ICU][SELFTEST] {name} import failed: {exc.__class__.__name__}: {exc}")
+            print(traceback.format_exc())
+    if failed:
+        sys.exit(86)
+    print("[ICU][SELFTEST] packaged ML imports OK")
+
+
 def graceful_shutdown(signum, frame):
     print(f"\n[ICU] 收到信号 {signum}, 正在关闭...")
     sys.exit(0)
@@ -142,6 +164,10 @@ if __name__ == '__main__':
 
     # 设置 CUDA
     setup_cuda_env()
+
+    if os.environ.get('ICU_IMPORT_SELF_TEST', '').lower() in ('1', 'true', 'yes'):
+        import_self_test()
+        sys.exit(0)
 
     # 信号处理
     signal.signal(signal.SIGINT, graceful_shutdown)
