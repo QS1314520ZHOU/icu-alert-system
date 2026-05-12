@@ -254,6 +254,8 @@ class DatabaseManager:
             await self.col("clinical_tasks").create_index([("module", 1), ("status", 1), ("updated_at", -1)])
             await self.col("nutrition_tasks").create_index([("task_id", 1)], unique=True)
             await self.col("nutrition_tasks").create_index([("patient_id", 1), ("status", 1), ("updated_at", -1)])
+            await self.col("nutrition_detail_cache").create_index([("patient_id", 1)], unique=True)
+            await self.col("nutrition_detail_cache").create_index([("updated_at", -1)])
             await self.col("research_projects").create_index([("project_id", 1)], unique=True)
             await self.col("research_topic_suggestions").create_index([("generated_at", -1)])
             await self.col("omop_export_tasks").create_index([("task_id", 1)], unique=True)

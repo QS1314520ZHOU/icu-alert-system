@@ -528,6 +528,15 @@ async function openPatient(row: any) {
   aiAdvice.value = null
   const { data } = await getNutritionPatient(row.patient_id)
   drawerPatient.value = data?.patient || row
+  if (data?.meta?.refreshing) {
+    window.setTimeout(async () => {
+      if (!drawerOpen.value || drawerPatient.value?.patient_id !== row.patient_id) return
+      const refreshed = await getNutritionPatient(row.patient_id)
+      if (!refreshed.data?.meta?.refreshing) {
+        drawerPatient.value = refreshed.data?.patient || drawerPatient.value
+      }
+    }, 1200)
+  }
 }
 async function openById(patientId: string) {
   const hit = patients.value.find((item) => item.patient_id === patientId)

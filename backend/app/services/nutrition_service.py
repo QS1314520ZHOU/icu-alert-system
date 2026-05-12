@@ -18,6 +18,8 @@ logger = logging.getLogger("icu-alert")
 
 NUTRITION_DETAIL_TIMEOUT_SECONDS = 1.8
 NUTRITION_OPTIONAL_TIMEOUT_SECONDS = 0.45
+NUTRITION_DETAIL_CACHE_SECONDS = 300
+_NUTRITION_REFRESHING: set[str] = set()
 
 NUTRITION_ORDER_RE = re.compile(
     r"肠内|肠外|营养|脂肪乳|氨基酸|葡萄糖|EN|PN|TPN|百普|瑞素|能全|佳维体|力能|卡文|丙氨酰谷氨酰胺",
@@ -959,6 +961,43 @@ async def build_nutrition_row(patient: dict[str, Any]) -> dict[str, Any]:
     return serialize_doc(row)
 
 
+async def _cached_nutrition_row(patient_id: str) -> dict[str, Any] | None:
+    try:
+        cutoff = datetime.now() - timedelta(seconds=NUTRITION_DETAIL_CACHE_SECONDS)
+        doc = await runtime.db.col("nutrition_detail_cache").find_one(
+            {"patient_id": patient_id, "updated_at": {"$gte": cutoff}},
+            sort=[("updated_at", -1)],
+        )
+        row = (doc or {}).get("row")
+        if isinstance(row, dict):
+            row["cache_hit"] = True
+            row["cache_updated_at"] = doc.get("updated_at")
+            return serialize_doc(row)
+    except Exception as exc:
+        logger.debug("nutrition cache read failed patient_id=%s: %s", patient_id, exc)
+    return None
+
+
+async def _refresh_nutrition_detail_cache(patient: dict[str, Any]) -> None:
+    patient_id = str(patient.get("_id") or "")
+    if not patient_id:
+        return
+    if patient_id in _NUTRITION_REFRESHING:
+        return
+    _NUTRITION_REFRESHING.add(patient_id)
+    try:
+        row = await build_nutrition_row(patient)
+        await runtime.db.col("nutrition_detail_cache").update_one(
+            {"patient_id": patient_id},
+            {"$set": {"patient_id": patient_id, "row": row, "updated_at": datetime.now()}, "$setOnInsert": {"created_at": datetime.now()}},
+            upsert=True,
+        )
+    except Exception as exc:
+        logger.warning("nutrition cache refresh failed patient_id=%s: %s", patient_id, exc)
+    finally:
+        _NUTRITION_REFRESHING.discard(patient_id)
+
+
 def build_nutrition_light_row(patient: dict[str, Any]) -> dict[str, Any]:
     pid = str(patient.get("_id") or "")
     weight = _weight(patient)
@@ -1103,15 +1142,18 @@ async def nutrition_patient_detail(patient_id: str) -> dict[str, Any]:
     patient = await runtime.db.col("patient").find_one(query)
     if not patient:
         return {"patient": None, "message": "未找到患者"}
+    pid = str(patient.get("_id") or patient_id)
+    cached = await _cached_nutrition_row(pid)
+    if cached:
+        return {"patient": cached, "meta": {"degraded": False, "cache_hit": True}}
+    row = build_nutrition_light_row(patient)
+    row["degraded"] = True
+    row["degraded_reason"] = "nutrition_detail_background_refresh"
     try:
-        row = await asyncio.wait_for(build_nutrition_row(patient), timeout=NUTRITION_DETAIL_TIMEOUT_SECONDS)
-        return {"patient": row, "meta": {"degraded": False}}
-    except asyncio.TimeoutError:
-        logger.warning("nutrition detail timeout patient_id=%s", patient_id)
-        row = build_nutrition_light_row(patient)
-        row["degraded"] = True
-        row["degraded_reason"] = "nutrition_detail_timeout"
-        return {"patient": row, "meta": {"degraded": True, "reason": "nutrition_detail_timeout"}}
+        asyncio.create_task(_refresh_nutrition_detail_cache(patient))
+    except RuntimeError:
+        pass
+    return {"patient": row, "meta": {"degraded": True, "reason": "nutrition_detail_background_refresh", "refreshing": True}}
 
 
 def _nutrition_ai_fallback(row: dict[str, Any]) -> dict[str, Any]:
