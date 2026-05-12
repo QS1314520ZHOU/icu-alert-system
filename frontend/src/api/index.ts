@@ -155,7 +155,7 @@ export const getClinicalRoleHome = (params?: { userName?: string; role?: string;
   analyticsApi.get('/api/clinical-workflow/role-home', { params, timeout: 8000 })
 
 export const getClinicalAccount = (params?: { userName?: string; role?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
-  api.get('/api/clinical-workflow/account', { params, timeout: 2500 })
+  api.get('/api/clinical-workflow/account', { params, timeout: 800 })
 
 export const getClinicalPatientStory = (patientId: string, params?: { hours?: number }) =>
   analyticsApi.get(`/api/clinical-workflow/patients/${patientId}/story`, { params })

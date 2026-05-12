@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Body, Query, Request
 
@@ -9,6 +11,8 @@ from app.services.clinical_adoption_service import ClinicalAdoptionService
 from app.utils.serialization import serialize_doc
 
 router = APIRouter(prefix="/api/clinical-workflow", tags=["clinical-workflow"])
+_ACCOUNT_CACHE: dict[str, tuple[datetime, dict[str, Any]]] = {}
+_ACCOUNT_CACHE_TTL = timedelta(minutes=5)
 
 
 def _service() -> ClinicalAdoptionService:
@@ -17,6 +21,47 @@ def _service() -> ClinicalAdoptionService:
 
 def _actor(request: Request) -> str:
     return request.headers.get("X-User-Id") or request.headers.get("x-operator-id") or "anonymous"
+
+
+def _account_cache_key(user_name: str | None, role: str | None, dept: str | None, dept_code: str | None) -> str:
+    return "|".join([str(user_name or ""), str(role or ""), str(dept or ""), str(dept_code or "")])
+
+
+def _fallback_account(user_name: str | None, role: str | None, dept: str | None, dept_code: str | None) -> dict[str, Any]:
+    account = {
+        "userName": user_name or "",
+        "display_name": user_name or "",
+        "role": role or "doctor",
+        "found": False,
+        "fast_fallback": True,
+    }
+    if dept_code:
+        account["dept_code"] = dept_code
+    if dept:
+        account["dept"] = dept
+    return account
+
+
+async def _resolve_account_fast(user_name: str | None, role: str | None, dept: str | None, dept_code: str | None) -> dict[str, Any]:
+    key = _account_cache_key(user_name, role, dept, dept_code)
+    cached = _ACCOUNT_CACHE.get(key)
+    now = datetime.now()
+    if cached and cached[0] > now:
+        return dict(cached[1])
+    fallback = _fallback_account(user_name, role, dept, dept_code)
+    if runtime.db is None or not user_name:
+        return fallback
+    try:
+        account = await asyncio.wait_for(_service().resolve_account(user_name, fallback_role=role or "doctor"), timeout=0.12)
+    except Exception:
+        return fallback
+    if dept_code and not account.get("dept_code"):
+        account["dept_code"] = dept_code
+    if dept and not account.get("dept"):
+        account["dept"] = dept
+    account["fast_fallback"] = False
+    _ACCOUNT_CACHE[key] = (now + _ACCOUNT_CACHE_TTL, dict(account))
+    return account
 
 
 @router.get("/role-home")
@@ -40,21 +85,7 @@ async def account(
     userName: str | None = Query(None),
 ):
     fallback_dept_code = dept_code or deptCode
-    fallback_role = role or "doctor"
-    fallback_account = {
-        "userName": userName or "",
-        "display_name": userName or "",
-        "role": fallback_role,
-        "found": False,
-    }
-    try:
-        account = await asyncio.wait_for(_service().resolve_account(userName, fallback_role=fallback_role), timeout=0.8)
-    except Exception:
-        account = fallback_account
-    if fallback_dept_code and not account.get("dept_code"):
-        account["dept_code"] = fallback_dept_code
-    if dept and not account.get("dept"):
-        account["dept"] = dept
+    account = await _resolve_account_fast(userName, role or "doctor", dept, fallback_dept_code)
     return {"code": 0, "account": serialize_doc(account)}
 
 
