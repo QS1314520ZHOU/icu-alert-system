@@ -350,6 +350,18 @@ RUN cd /build && \
         { echo "=== BUILD FAILED ==="; tail -100 /build/pyinstaller.log; exit 1; } && \
     test -f /build/dist/icu-alert-system/_internal/transformers/models/__init__.py || \
         { echo "=== BUILD FAILED: missing transformers/models/__init__.py ==="; exit 1; } && \
+    test -f /build/dist/icu-alert-system/_internal/sentence_transformers/__init__.py || \
+        { echo "=== BUILD FAILED: missing sentence_transformers/__init__.py ==="; exit 1; } && \
+    test -f /build/dist/icu-alert-system/_internal/tokenizers/__init__.py || \
+        { echo "=== BUILD FAILED: missing tokenizers/__init__.py ==="; exit 1; } && \
+    test -f /build/dist/icu-alert-system/_internal/chronos/__init__.py || \
+        { echo "=== BUILD FAILED: missing chronos/__init__.py ==="; exit 1; } && \
+    ls /build/dist/icu-alert-system/_internal/torch/_C*.so >/dev/null 2>&1 || \
+        { echo "=== BUILD FAILED: missing torch/_C*.so ==="; exit 1; } && \
+    ls /build/dist/icu-alert-system/_internal/torch/lib/libtorch* >/dev/null 2>&1 || \
+        { echo "=== BUILD FAILED: missing torch/lib/libtorch* ==="; exit 1; } && \
+    test -d /build/dist/icu-alert-system/_internal/onnxruntime/capi || \
+        { echo "=== BUILD FAILED: missing onnxruntime/capi ==="; exit 1; } && \
     echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)"
 
 # ---- 2.11 .env.template ----
