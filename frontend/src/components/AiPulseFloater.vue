@@ -69,6 +69,8 @@ const currentPatientId = computed(() => {
   return String(route.query.patient_id || route.query.patientId || '')
 })
 
+const currentDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+
 function sourceLabel(source: string) {
   const labels: Record<string, string> = {
     alert: '预警',
@@ -102,14 +104,14 @@ function scheduleContextReport() {
     const contextKey = [
       route.path,
       currentPatientId.value || '',
-      String(route.query.dept_code || route.query.deptCode || ''),
+      currentDeptCode.value,
       String(route.query.role || 'doctor'),
       String(route.query.userName || ''),
     ].join('|')
     if (contextKey === lastContextKey) return
     lastContextKey = contextKey
     store.reportViewerContext(route.fullPath, currentPatientId.value || null, {
-      dept_code: route.query.dept_code || route.query.deptCode || '',
+      dept_code: currentDeptCode.value,
       role: route.query.role || 'doctor',
       actor: route.query.userName || '',
     })
@@ -126,6 +128,7 @@ function armAutoHide() {
   }, 12000)
 }
 
+watch(currentDeptCode, (value) => store.setCurrentDeptCode(value), { immediate: true })
 watch(() => route.fullPath, scheduleContextReport, { immediate: true })
 watch(activePulse, (value) => {
   if (value) armAutoHide()

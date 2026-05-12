@@ -47,6 +47,7 @@ class PulseNarration:
     deep_link: str
     source: str
     occurred_at: str
+    dept_code: str = ""
 
 
 class PulseService:
@@ -100,15 +101,14 @@ class PulseService:
         )
         novelty = 0.3 if recent_same else 1.0
         role_fit = 1.2 if viewer.role and viewer.role == candidate.owner_role else 0.6
-        dept_fit = 1.0
         patient = await self._load_patient(candidate.patient_id)
-        patient_dept = str((patient or {}).get("deptCode") or "").strip()
+        patient_dept = self._candidate_dept_code(candidate, patient)
         if viewer.dept_code and patient_dept and viewer.dept_code != patient_dept:
-            dept_fit = 0.5
+            return 0.0
         patient_focus = 1.5 if viewer.current_patient_id and viewer.current_patient_id == candidate.patient_id else 1.0
         age_hours = max(0.0, (datetime.now() - candidate.occurred_at).total_seconds() / 3600)
         time_decay = (0.9 ** age_hours) if age_hours > 1 else 1.0
-        raw_score = severity_weight * novelty * role_fit * dept_fit * patient_focus * time_decay
+        raw_score = severity_weight * novelty * role_fit * patient_focus * time_decay
         # Keep the 0-1 contract without letting boosted high/medium events saturate
         # into the same score as a truly critical event.
         cap = 1.0 if candidate.severity == "critical" else 0.95 if candidate.severity == "high" else 0.8
@@ -117,6 +117,7 @@ class PulseService:
     async def narrate(self, candidate: PulseCandidate) -> PulseNarration:
         candidate_id = f"{candidate.source}_{candidate.event_id}"
         raw = candidate.raw if isinstance(candidate.raw, dict) else {}
+        patient = await self._load_patient(candidate.patient_id)
         explanation = raw.get("explanation") if isinstance(raw.get("explanation"), dict) else {}
         compact = self._compact_existing_narration(candidate)
         headline = str(compact.get("headline") or explanation.get("summary") or raw.get("summary") or raw.get("name") or "").strip()
@@ -140,6 +141,7 @@ class PulseService:
             deep_link=self._deep_link(candidate),
             source=candidate.source,
             occurred_at=candidate.occurred_at.isoformat(),
+            dept_code=self._candidate_dept_code(candidate, patient),
         )
 
     async def push_pulse(self, viewer_id: str, narration: PulseNarration, *, score: float | None = None, ws=None, candidate_type: str | None = None) -> None:
@@ -362,6 +364,17 @@ class PulseService:
         bed = str((patient or {}).get("hisBed") or doc.get("bed") or "").strip()
         name = str((patient or {}).get("name") or doc.get("patient_name") or "").strip()
         return f"{bed}床·{name}" if bed or name else "未知床位"
+
+    @staticmethod
+    def _candidate_dept_code(candidate: PulseCandidate, patient: dict | None = None) -> str:
+        raw = candidate.raw if isinstance(candidate.raw, dict) else {}
+        return str(
+            (patient or {}).get("deptCode")
+            or raw.get("deptCode")
+            or raw.get("dept_code")
+            or raw.get("current_dept_code")
+            or ""
+        ).strip()
 
     @staticmethod
     def _owner_role(doc: dict[str, Any]) -> str:

@@ -98,13 +98,31 @@ class PulseScoringTest(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(critical_score, 0.95)
         self.assertGreaterEqual(high_score, 0.55)
 
-    async def test_role_and_dept_mismatch_pushes_candidate_below_threshold(self):
+    async def test_dept_mismatch_is_filtered_out(self):
         viewer = self._viewer(role="nurse", dept_code="ICU-Z", current_patient_id=None)
         candidate = self._candidate(severity="high", owner_role="doctor")
 
         score = await self.service.score_candidate(candidate, viewer)
 
-        self.assertLess(score, 0.55)
+        self.assertEqual(score, 0.0)
+
+    async def test_same_dept_still_scores_candidate(self):
+        viewer = self._viewer(dept_code="ICU-A")
+        candidate = self._candidate(severity="high")
+
+        score = await self.service.score_candidate(candidate, viewer)
+
+        self.assertGreaterEqual(score, 0.55)
+
+    def test_candidate_dept_code_prefers_patient_then_raw(self):
+        candidate = self._candidate()
+        candidate.raw["deptCode"] = "ICU-RAW"
+
+        patient_dept = self.service._candidate_dept_code(candidate, {"deptCode": "ICU-PATIENT"})
+        raw_dept = self.service._candidate_dept_code(candidate)
+
+        self.assertEqual(patient_dept, "ICU-PATIENT")
+        self.assertEqual(raw_dept, "ICU-RAW")
 
     async def test_recent_same_patient_type_is_downweighted_for_novelty(self):
         self.db.col("pulse_events").docs.append(
