@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from datetime import datetime, timedelta
@@ -55,6 +56,17 @@ def resolve_actor_identity(payload: dict | None, request: Request) -> str:
             return value
     return ""
 logger = logging.getLogger("icu-alert")
+
+BEDCARD_OPTIONAL_TIMEOUT_SECONDS = 0.12
+_BEDCARD_CACHE_TTL_SECONDS = 8.0
+_bedcard_cache: dict[str, tuple[datetime, dict]] = {}
+
+
+async def _optional(coro, default, *, timeout: float = BEDCARD_OPTIONAL_TIMEOUT_SECONDS):
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout)
+    except Exception:
+        return default
 
 
 def _vital_codes() -> dict[str, list[str]]:
@@ -718,6 +730,11 @@ async def patient_bedcard(patient_id: str):
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
+    cache_key = str(pid)
+    cached = _bedcard_cache.get(cache_key)
+    if cached and (datetime.now() - cached[0]).total_seconds() < _BEDCARD_CACHE_TTL_SECONDS:
+        return {"code": 0, "data": serialize_doc(cached[1])}
+
     patient = await runtime.db.col("patient").find_one({"_id": pid})
     if not patient:
         return {"code": 404, "message": "未找到患者"}
@@ -733,142 +750,78 @@ async def patient_bedcard(patient_id: str):
         "isolation": "保护性隔离" if "特级" in str(patient.get("nursingLevel", "")) else "",
     }
 
-    active_devices = []
-    device_binds = runtime.db.col("deviceBind").find({"pid": pid_str, "unBindTime": None})
-    async for bind in device_binds:
-        device_id = bind.get("deviceID")
-        if not device_id:
-            continue
-        info = await runtime.db.col("deviceInfo").find_one({"_id": safe_oid(device_id) or device_id})
-        device_name = info.get("deviceName", "") if info else bind.get("type", "")
-        device_type = infer_device_type(device_name) or bind.get("type", "unknown")
-        device_row = {"name": device_name, "type": device_type, "bindTime": bind.get("bindTime")}
-        caps = await latest_params_by_device(device_id, ["param_vent_mode", "param_fio2", "param_peep", "param_crrt_mode"])
-        if caps and caps.get("params"):
-            params = caps["params"]
-            if device_type == "vent":
-                details = []
-                if params.get("param_vent_mode"):
-                    details.append(str(params.get("param_vent_mode")))
-                if params.get("param_fio2"):
-                    details.append(f"FiO2 {params.get('param_fio2')}%")
-                if params.get("param_peep"):
-                    details.append(f"PEEP {params.get('param_peep')}")
-                if details:
-                    device_row["details"] = " ".join(details)
-            elif device_type == "crrt" and params.get("param_crrt_mode"):
-                device_row["details"] = f"模式:{params.get('param_crrt_mode')}"
-        active_devices.append(device_row)
+    async def load_devices() -> list[dict]:
+        active_devices = []
+        device_binds = runtime.db.col("deviceBind").find({"pid": pid_str, "unBindTime": None}, {"deviceID": 1, "type": 1, "bindTime": 1}).sort("bindTime", -1).limit(6)
+        binds = [bind async for bind in device_binds]
+        ids = [bind.get("deviceID") for bind in binds if bind.get("deviceID")]
+        info_by_id = {}
+        if ids:
+            info_cursor = runtime.db.col("deviceInfo").find({"_id": {"$in": [safe_oid(item) or item for item in ids]}}, {"deviceName": 1})
+            info_by_id = {str(info.get("_id")): info async for info in info_cursor}
+        for bind in binds:
+            device_id = bind.get("deviceID")
+            info = info_by_id.get(str(device_id)) if device_id else None
+            device_name = info.get("deviceName", "") if info else bind.get("type", "")
+            active_devices.append({"name": device_name, "type": infer_device_type(device_name) or bind.get("type", "unknown"), "bindTime": bind.get("bindTime")})
+        return active_devices
 
-    active_tubes = []
-    now = datetime.now()
-    tubes_cursor = runtime.db.col("tubeExe").find({"pid": pid_str, "stopTime": None}).sort("startTime", 1)
-    async for tube in tubes_cursor:
-        start_time = tube.get("startTime")
-        dwell_days = 0
-        if start_time:
-            try:
-                if isinstance(start_time, datetime):
-                    parsed = start_time
-                else:
-                    value = str(start_time).replace("Z", "+00:00")
-                    parsed = datetime.fromisoformat(value) if "." in value or "+" in value else datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")
-                dwell_days = max(0, (now - parsed).days)
-            except Exception as exc:
-                logger.warning("Failed to parse tube startTime %s: %s", start_time, exc)
-        tube_name = str(tube.get("name") or tube.get("type") or "").lower()
-        category = "other"
-        if any(key in tube_name for key in ["气管", "插管", "气切", "ett", "tracheo"]):
-            category = "airway"
-        elif any(key in tube_name for key in ["cvc", "picc", "动脉", "静脉", "导管", "穿刺", "swan", "留置针"]):
-            category = "vascular"
-        elif any(key in tube_name for key in ["引流", "胸管", "胃管", "t管", "造瘘", "鼻肠"]):
-            category = "drain"
-        elif any(key in tube_name for key in ["导尿", "尿管", "foley"]):
-            category = "urinary"
-        active_tubes.append(
-            {
-                "name": tube.get("name") or tube.get("type") or "未知管路",
-                "category": category,
-                "site": tube.get("body") or "",
-                "dwellDays": dwell_days,
-                "startTime": start_time,
-            }
+    async def load_tubes() -> list[dict]:
+        active_tubes = []
+        now = datetime.now()
+        tubes_cursor = runtime.db.col("tubeExe").find({"pid": pid_str, "stopTime": None}, {"name": 1, "type": 1, "body": 1, "startTime": 1}).sort("startTime", 1).limit(24)
+        async for tube in tubes_cursor:
+            start_time = tube.get("startTime")
+            dwell_days = 0
+            if start_time:
+                try:
+                    if isinstance(start_time, datetime):
+                        parsed = start_time
+                    else:
+                        value = str(start_time).replace("Z", "+00:00")
+                        parsed = datetime.fromisoformat(value) if "." in value or "+" in value else datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")
+                    dwell_days = max(0, (now - parsed).days)
+                except Exception as exc:
+                    logger.warning("Failed to parse tube startTime %s: %s", start_time, exc)
+            tube_name = str(tube.get("name") or tube.get("type") or "").lower()
+            category = "other"
+            if any(key in tube_name for key in ["气管", "插管", "气切", "ett", "tracheo"]):
+                category = "airway"
+            elif any(key in tube_name for key in ["cvc", "picc", "动脉", "静脉", "导管", "穿刺", "swan", "留置针"]):
+                category = "vascular"
+            elif any(key in tube_name for key in ["引流", "胸管", "胃管", "t管", "造瘘", "鼻肠"]):
+                category = "drain"
+            elif any(key in tube_name for key in ["导尿", "尿管", "foley"]):
+                category = "urinary"
+            active_tubes.append({"name": tube.get("name") or tube.get("type") or "未知管路", "category": category, "site": tube.get("body") or "", "dwellDays": dwell_days, "startTime": start_time})
+        return active_tubes
+
+    async def load_metrics() -> dict:
+        metrics = {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": {}}
+        sofa_doc, fluid_alert, fallback_vitals = await asyncio.gather(
+            _optional(runtime.db.col("score").find_one({"patient_id": pid_str, "score_type": "sofa"}, {"score": 1}, sort=[("calc_time", -1)]), None, timeout=0.04),
+            _optional(runtime.db.col("alert_records").find_one({"patient_id": pid_str, "alert_type": "fluid_balance"}, {"extra.windows.24h.net_ml": 1}, sort=[("created_at", -1)]), None, timeout=0.04),
+            _optional(_fallback_vitals_from_alert_snapshot(pid_str), None, timeout=0.04),
         )
+        if sofa_doc:
+            metrics["sofa"] = sofa_doc.get("score")
+        if fluid_alert and fluid_alert.get("extra"):
+            metrics["netFluid24h"] = ((fluid_alert["extra"].get("windows") or {}).get("24h") or {}).get("net_ml")
+        if fallback_vitals:
+            metrics["vitals"] = {
+                "hr": fallback_vitals.get("hr"),
+                "sbp": fallback_vitals.get("ibp_sys") or fallback_vitals.get("nibp_sys"),
+                "dbp": fallback_vitals.get("ibp_dia") or fallback_vitals.get("nibp_dia"),
+                "spo2": fallback_vitals.get("spo2"),
+                "t": fallback_vitals.get("temp"),
+                "map": fallback_vitals.get("ibp_map") or fallback_vitals.get("nibp_map"),
+                "time": fallback_vitals.get("time"),
+                "source": fallback_vitals.get("source"),
+            }
+        return metrics
 
-    metrics = {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": {}}
-    sofa_doc = await runtime.db.col("score").find_one({"patient_id": pid_str, "score_type": "sofa"}, sort=[("calc_time", -1)])
-    if sofa_doc:
-        metrics["sofa"] = sofa_doc.get("score")
-
-    query_pids = [pid_str]
-    his_pid = patient_his_pid(patient)
-    if his_pid and his_pid not in query_pids:
-        query_pids.append(his_pid)
-    code_map = _vital_codes()
-    cap_codes = [
-        *code_map["hr"],
-        *code_map["sbp"],
-        *code_map["dbp"],
-        *code_map["spo2"],
-        *code_map["temp"],
-        "param_glu_lab",
-        "param_glu_poc",
-    ]
-    cap_res = await latest_params_by_pid(query_pids, cap_codes, lookback_minutes=10080)
-    if not cap_res:
-        monitor_device_id = await get_device_id(pid_str, "monitor", patient_doc=patient)
-        if not monitor_device_id:
-            monitor_device_id = await get_device_id(pid_str, None, patient_doc=patient)
-        if monitor_device_id:
-            cap_res = await latest_params_by_device(
-                monitor_device_id,
-                cap_codes,
-                lookback_minutes=10080,
-            )
-    if cap_res and cap_res.get("params"):
-        params = cap_res["params"]
-        metrics["vitals"] = {
-            "hr": _pick_param(params, code_map["hr"]),
-            "sbp": _pick_param(params, code_map["sbp"]),
-            "dbp": _pick_param(params, code_map["dbp"]),
-            "spo2": _pick_param(params, code_map["spo2"]),
-            "t": _pick_param(params, code_map["temp"]),
-        }
-        metrics["glucose"] = params.get("param_glu_lab") or params.get("param_glu_poc")
-    fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
-    if fallback_vitals:
-        merged_fallback = {
-            "hr": fallback_vitals.get("hr"),
-            "sbp": fallback_vitals.get("ibp_sys") or fallback_vitals.get("nibp_sys"),
-            "dbp": fallback_vitals.get("ibp_dia") or fallback_vitals.get("nibp_dia"),
-            "spo2": fallback_vitals.get("spo2"),
-            "t": fallback_vitals.get("temp"),
-            "map": fallback_vitals.get("ibp_map") or fallback_vitals.get("nibp_map"),
-            "time": fallback_vitals.get("time"),
-            "source": fallback_vitals.get("source"),
-        }
-        if not metrics["vitals"]:
-            metrics["vitals"] = merged_fallback
-        else:
-            for key, value in merged_fallback.items():
-                if metrics["vitals"].get(key) in (None, "") and value not in (None, ""):
-                    metrics["vitals"][key] = value
-
-    fluid_alert = await runtime.db.col("alert_records").find_one({"patient_id": pid_str, "alert_type": "fluid_balance"}, sort=[("created_at", -1)])
-    if fluid_alert and fluid_alert.get("extra"):
-        metrics["netFluid24h"] = ((fluid_alert["extra"].get("windows") or {}).get("24h") or {}).get("net_ml")
-
-    notes = []
-    alert_notes = []
-    alert_summary_card = None
-    since_24h = datetime.now() - timedelta(hours=24)
-    alert_cursor = runtime.db.col("alert_records").find(
-        {"patient_id": pid_str, "is_active": True, "severity": {"$in": ["high", "critical"]}, "created_at": {"$gte": since_24h}}
-    ).sort("created_at", -1).limit(5)
-    async for alert in alert_cursor:
+    def build_alert_card(alert: dict) -> tuple[str, dict]:
         name = alert.get("name") or alert.get("rule_id", "高危预警")
-        notes.append(name)
         explanation = alert.get("explanation")
         explanation_summary = ""
         explanation_suggestion = ""
@@ -893,58 +846,64 @@ async def patient_bedcard(patient_id: str):
                 "hours_since_extubation": extra.get("hours_since_extubation"),
                 "accessory_muscle_use": extra.get("accessory_muscle_use"),
             }
-        if alert_summary_card is None:
-            alert_summary_card = {
-                "title": name,
-                "severity": alert.get("severity") or "high",
-                "summary": explanation_summary,
-                "suggestion": explanation_suggestion,
-                "evidence": explanation_evidence[:3],
-                "clinical_chain": extra.get("clinical_chain") if isinstance(extra.get("clinical_chain"), dict) else None,
-                "aggregated_groups": extra.get("aggregated_groups")[:3] if isinstance(extra.get("aggregated_groups"), list) else [],
-                "context_snapshot": extra.get("context_snapshot") if isinstance(extra.get("context_snapshot"), dict) else None,
-                "alert_type": alert.get("alert_type") or "",
-                "category": alert.get("category") or "",
-                "rule_id": alert.get("rule_id") or "",
-                "created_at": alert.get("created_at"),
-                "post_extubation_snapshot": post_extubation_snapshot,
-            }
-        alert_notes.append(
-            {
-                "title": name,
-                "severity": alert.get("severity") or "high",
-                "summary": explanation_summary,
-                "suggestion": explanation_suggestion,
-                "evidence": explanation_evidence[:2],
-                "context_snapshot": extra.get("context_snapshot") if isinstance(extra.get("context_snapshot"), dict) else None,
-                "alert_type": alert.get("alert_type") or "",
-                "category": alert.get("category") or "",
-                "rule_id": alert.get("rule_id") or "",
-                "created_at": alert.get("created_at"),
-                "post_extubation_snapshot": post_extubation_snapshot,
-            }
-        )
+        return name, {
+            "title": name,
+            "severity": alert.get("severity") or "high",
+            "summary": explanation_summary,
+            "suggestion": explanation_suggestion,
+            "evidence": explanation_evidence[:3],
+            "clinical_chain": extra.get("clinical_chain") if isinstance(extra.get("clinical_chain"), dict) else None,
+            "aggregated_groups": extra.get("aggregated_groups")[:3] if isinstance(extra.get("aggregated_groups"), list) else [],
+            "context_snapshot": extra.get("context_snapshot") if isinstance(extra.get("context_snapshot"), dict) else None,
+            "alert_type": alert.get("alert_type") or "",
+            "category": alert.get("category") or "",
+            "rule_id": alert.get("rule_id") or "",
+            "created_at": alert.get("created_at"),
+            "post_extubation_snapshot": post_extubation_snapshot,
+        }
 
-    dedup_alert_notes = []
-    seen_note_keys = set()
-    for item in alert_notes:
-        key = (item.get("title") or "", item.get("summary") or "", item.get("severity") or "")
-        if key in seen_note_keys:
-            continue
-        seen_note_keys.add(key)
-        dedup_alert_notes.append(item)
+    async def load_alerts() -> tuple[list[str], list[dict], dict | None]:
+        since_24h = datetime.now() - timedelta(hours=24)
+        cursor = runtime.db.col("alert_records").find(
+            {"patient_id": pid_str, "is_active": True, "severity": {"$in": ["high", "critical"]}, "created_at": {"$gte": since_24h}},
+            {"name": 1, "rule_id": 1, "severity": 1, "explanation": 1, "explanation_text": 1, "extra": 1, "alert_type": 1, "category": 1, "created_at": 1},
+        ).sort("created_at", -1).limit(5)
+        rows = [row async for row in cursor]
+        notes = []
+        alert_notes = []
+        seen_note_keys = set()
+        for alert in rows:
+            name, card = build_alert_card(alert)
+            notes.append(name)
+            key = (card.get("title") or "", card.get("summary") or "", card.get("severity") or "")
+            if key not in seen_note_keys:
+                seen_note_keys.add(key)
+                alert_notes.append({**card, "evidence": (card.get("evidence") or [])[:2]})
+        return list(dict.fromkeys(notes)), alert_notes, alert_notes[0] if alert_notes else None
+
+    active_devices, active_tubes, metrics, alert_payload = await asyncio.gather(
+        _optional(load_devices(), [], timeout=0.08),
+        _optional(load_tubes(), [], timeout=0.08),
+        _optional(load_metrics(), {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": {}}, timeout=0.08),
+        _optional(load_alerts(), ([], [], None), timeout=0.08),
+    )
+    notes, dedup_alert_notes, alert_summary_card = alert_payload
+    payload = {
+        "identity": identity,
+        "devices": active_devices,
+        "tubes": active_tubes,
+        "metrics": metrics,
+        "notes": notes,
+        "alert_notes": dedup_alert_notes,
+        "alert_summary_card": alert_summary_card,
+    }
+    _bedcard_cache[cache_key] = (datetime.now(), payload)
+    if len(_bedcard_cache) > 1024:
+        for key, (created_at, _) in list(_bedcard_cache.items())[:128]:
+            if (datetime.now() - created_at).total_seconds() >= _BEDCARD_CACHE_TTL_SECONDS:
+                _bedcard_cache.pop(key, None)
 
     return {
         "code": 0,
-        "data": serialize_doc(
-            {
-                "identity": identity,
-                "devices": active_devices,
-                "tubes": active_tubes,
-                "metrics": metrics,
-                "notes": list(dict.fromkeys(notes)),
-                "alert_notes": dedup_alert_notes,
-                "alert_summary_card": alert_summary_card,
-            }
-        ),
+        "data": serialize_doc(payload),
     }
