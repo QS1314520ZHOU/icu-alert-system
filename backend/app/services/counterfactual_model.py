@@ -69,6 +69,35 @@ def _curve(current_value: float | None, delta: float, *, tau_minutes: float, hor
     return rows
 
 
+def _horizon_minutes(payload: dict[str, Any] | None, default: int = 30) -> int:
+    try:
+        raw = int((payload or {}).get("horizon_minutes") or default)
+    except Exception:
+        raw = default
+    return max(1, min(raw, 360))
+
+
+def _bands(curve: list[dict[str, Any]], digits: int = 1) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for point in curve:
+        value = _safe_float(point.get("value"))
+        if value is None:
+            continue
+        minute = int(point.get("minute") or 0)
+        spread = max(abs(value) * 0.015, 1.0) * (1.0 + minute / 360.0)
+        rows.append(
+            {
+                "minute": minute,
+                "p50": _round(value, digits),
+                "p10": _round(value - spread, digits),
+                "p90": _round(value + spread, digits),
+                "p025": _round(value - spread * 1.75, digits),
+                "p975": _round(value + spread * 1.75, digits),
+            }
+        )
+    return rows
+
+
 def _cohort_enabled(patient: dict[str, Any], patient_id: str, rollout_cfg: dict[str, Any]) -> bool:
     cohorts = [str(item).strip() for item in rollout_cfg.get("enabled_cohorts") or [] if str(item).strip()]
     if cohorts:
@@ -199,7 +228,7 @@ class SemiMechanisticCounterfactualModel:
     async def simulate(self, patient_id: str, patient: dict, payload: dict[str, Any]) -> dict[str, Any]:
         intervention_type = str((payload or {}).get("intervention_type") or "vasopressor_up").strip().lower()
         intervention_label = str((payload or {}).get("intervention_label") or intervention_type).strip()
-        horizon_minutes = int((payload or {}).get("horizon_minutes") or 30)
+        horizon_minutes = _horizon_minutes(payload)
         dose_delta_pct = _safe_float((payload or {}).get("dose_delta_pct"))
         fluid_bolus_ml = _safe_float((payload or {}).get("fluid_bolus_ml"))
         fio2_delta = _safe_float((payload or {}).get("fio2_delta"))
@@ -244,7 +273,11 @@ class SemiMechanisticCounterfactualModel:
         rationale_bits: list[str] = []
         equation_hints: list[str] = []
 
-        if intervention_type == "vasopressor_up":
+        if intervention_type == "current_baseline":
+            assumptions.append("当前基线场景假设治疗维持不变，用于与单一干预分支对比。")
+            rationale_bits.append("未施加新增干预，曲线代表当前状态的基线延续。")
+            equation_hints.append("Delta = 0")
+        elif intervention_type == "vasopressor_up":
             change_pct = dose_delta_pct if dose_delta_pct is not None else 20.0
             emax = 14.0 if hypoperfusion else 10.0
             ec50 = max(12.0, 40.0 - (current_vaso or 0.0) * 80.0)
@@ -338,6 +371,12 @@ class SemiMechanisticCounterfactualModel:
                 "spo2": _curve(current_spo2, spo2_delta_30m, tau_minutes=spo2_tau, horizon_minutes=horizon_minutes, digits=0),
                 "lactate": _curve(current_lactate, lactate_delta_30m, tau_minutes=lactate_tau, horizon_minutes=horizon_minutes, digits=1),
             },
+            "confidence_bands": {
+                "map": _bands(_curve(current_map, map_delta_30m, tau_minutes=map_tau, horizon_minutes=horizon_minutes, digits=0), digits=0),
+                "spo2": _bands(_curve(current_spo2, spo2_delta_30m, tau_minutes=spo2_tau, horizon_minutes=horizon_minutes, digits=0), digits=0),
+                "lactate": _bands(_curve(current_lactate, lactate_delta_30m, tau_minutes=lactate_tau, horizon_minutes=horizon_minutes, digits=1), digits=1),
+            },
+            "ood_warning": self._ood_warning(current_map=current_map, current_spo2=current_spo2, current_lactate=current_lactate, current_vaso=current_vaso),
             "assumptions": assumptions[:5],
             "cautions": cautions[:5],
             "state_factors": {
@@ -360,6 +399,18 @@ class SemiMechanisticCounterfactualModel:
                 "note": "采用半机制 Emax/容量反应性/复张-回流耦合模型；如需真正论文级 PK/PD，需要基于本院连续时序数据完成参数辨识与外部验证。",
             },
         }
+
+    def _ood_warning(self, *, current_map: float | None, current_spo2: float | None, current_lactate: float | None, current_vaso: float | None) -> dict[str, Any]:
+        reasons = []
+        if current_map is not None and (current_map < 45 or current_map > 130):
+            reasons.append("MAP 超出常见训练范围")
+        if current_spo2 is not None and current_spo2 < 80:
+            reasons.append("SpO2 极低")
+        if current_lactate is not None and current_lactate > 12:
+            reasons.append("乳酸极高")
+        if current_vaso is not None and current_vaso > 1.0:
+            reasons.append("血管活性药剂量极高")
+        return {"is_ood": bool(reasons), "method": "range_check_v1", "reasons": reasons}
 
 
 class TransformerCounterfactualModel:
@@ -492,13 +543,18 @@ class TransformerCounterfactualModel:
                 "spo2_30m": _round((_safe_float(current.get("spo2")) or 0.0) + deltas["spo2_30m"] if current.get("spo2") is not None else None, 0),
                 "lactate_30m": _round((_safe_float(current.get("lactate")) or 0.0) + deltas["lactate_30m"] if current.get("lactate") is not None else None, 1),
             }
-            horizon = int((payload or {}).get("horizon_minutes") or 30)
+            horizon = _horizon_minutes(payload)
             base["projected_state"] = projected
             base["delta"] = {key: _round(value, 2 if "lactate" in key else 1) for key, value in deltas.items()}
             base["response_curve"] = {
                 "map": _curve(_safe_float(current.get("map")), deltas["map_30m"], tau_minutes=10, horizon_minutes=horizon, digits=0),
                 "spo2": _curve(_safe_float(current.get("spo2")), deltas["spo2_30m"], tau_minutes=10, horizon_minutes=horizon, digits=0),
                 "lactate": _curve(_safe_float(current.get("lactate")), deltas["lactate_30m"], tau_minutes=24, horizon_minutes=horizon, digits=1),
+            }
+            base["confidence_bands"] = {
+                "map": _bands(base["response_curve"]["map"], digits=0),
+                "spo2": _bands(base["response_curve"]["spo2"], digits=0),
+                "lactate": _bands(base["response_curve"]["lactate"], digits=1),
             }
             status = self.status()
             base["model_meta"] = {

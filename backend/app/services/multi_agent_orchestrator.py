@@ -25,6 +25,7 @@ from app.services.mdt_prompts import (
     validate_specialist_output,
 )
 from app.services.patient_digital_twin import PatientDigitalTwinService
+from app.services.patient_narrative_service import PatientNarrativeService
 
 
 @dataclass(frozen=True)
@@ -551,6 +552,12 @@ class ICUMultiAgentOrchestrator:
             recent_alerts=recent_alerts,
             temporal_forecast={},
         )
+        narrative_context = ""
+        try:
+            narrative_service = PatientNarrativeService(db=self.db, config=self.config, alert_engine=self.alert_engine)
+            narrative_context = await narrative_service.latest_context_text(patient_id, days=7, max_chars=6000)
+        except Exception:
+            narrative_context = ""
         return {
             "generated_at": datetime.now(),
             "digital_twin_snapshot": base_twin,
@@ -564,6 +571,7 @@ class ICUMultiAgentOrchestrator:
                 "icu_admission_time": patient_doc.get("icuAdmissionTime"),
             },
             "problem_list": problem_list,
+            "narrative_context": narrative_context,
             "facts": facts,
             "recent_alerts_24h": recent_alerts,
             "recent_scores_24h": recent_scores,

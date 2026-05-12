@@ -6,6 +6,7 @@ from bson import ObjectId
 
 from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.patient_digital_twin import PatientDigitalTwinService
+from app.services.patient_narrative_service import PatientNarrativeService
 
 
 def autonomous_tool_schemas() -> list[dict[str, Any]]:
@@ -33,7 +34,12 @@ class AutonomousAgentTools:
             return {"available": False, "reason": "patient not found"}
         service = PatientDigitalTwinService(db=self.db, config=self.config, alert_engine=self.alert_engine)
         snapshot = await service.get_or_build_snapshot(str(patient.get("_id") or patient_id), patient, hours=24, refresh=False, persist=True)
-        return {"available": True, "summary": snapshot.get("summary"), "problem_list": snapshot.get("problem_list"), "foundation_model_predictions": snapshot.get("foundation_model_predictions")}
+        narrative_context = ""
+        try:
+            narrative_context = await PatientNarrativeService(db=self.db, config=self.config, alert_engine=self.alert_engine).latest_context_text(str(patient.get("_id") or patient_id), days=7, max_chars=4000)
+        except Exception:
+            narrative_context = ""
+        return {"available": True, "summary": snapshot.get("summary"), "problem_list": snapshot.get("problem_list"), "foundation_model_predictions": snapshot.get("foundation_model_predictions"), "narrative_context": narrative_context}
 
     async def run_scanner_summary(self, patient_id: str) -> dict[str, Any]:
         cursor = self.db.col("alert_records").find({"patient_id": str(patient_id), "is_active": True}).sort("created_at", -1).limit(20)

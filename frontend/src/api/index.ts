@@ -336,7 +336,7 @@ export const getAiPatientDigitalTwin = (patientId: string, params?: { refresh?: 
 export const postAiWhatIfSimulation = (
   patientId: string,
   payload: {
-    intervention_type: 'vasopressor_up' | 'fluid_bolus' | 'diuresis' | 'fio2_up' | 'peep_up'
+    intervention_type: 'current_baseline' | 'vasopressor_up' | 'fluid_bolus' | 'diuresis' | 'fio2_up' | 'peep_up' | 'sedation_adjust'
     intervention_label?: string
     horizon_minutes?: number
     dose_delta_pct?: number

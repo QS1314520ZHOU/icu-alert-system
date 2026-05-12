@@ -90,6 +90,38 @@ async def test_counterfactual_peep_simulation_exposes_competing_effects() -> Non
 
 
 @pytest.mark.asyncio
+async def test_counterfactual_current_baseline_is_flat_and_allows_six_hours() -> None:
+    model = SemiMechanisticCounterfactualModel(db=None, alert_engine=_AlertEngine())
+
+    async def _snapshot(patient_id, patient, *, hours=12):
+        del patient_id, patient, hours
+        return {
+            "map": {"current": 70},
+            "hr": {"current": 98},
+            "spo2": {"current": 96},
+            "lactate": {"current": 1.8},
+            "fio2": {"current": 40},
+            "peep": {"current": 6},
+            "urine_ml_kg_h_6h": 0.8,
+            "vasoactive_support": {"current_dose_ug_kg_min": 0.02},
+        }
+
+    model.build_snapshot = _snapshot  # type: ignore[method-assign]
+    original_get_device_id = counterfactual_module.get_device_id
+    counterfactual_module.get_device_id = _fake_get_device_id  # type: ignore[assignment]
+    try:
+        result = await model.simulate("p1", {"_id": "p1", "hisPid": "H1"}, {"intervention_type": "current_baseline", "horizon_minutes": 999})
+    finally:
+        counterfactual_module.get_device_id = original_get_device_id  # type: ignore[assignment]
+
+    assert result["intervention_type"] == "current_baseline"
+    assert result["delta"]["map_30m"] == 0
+    assert result["model_meta"]["horizon_minutes"] == 360
+    assert result["response_curve"]["map"][0]["value"] == result["response_curve"]["map"][-1]["value"]
+    assert result["confidence_bands"]["map"]
+
+
+@pytest.mark.asyncio
 async def test_transformer_counterfactual_fallback_exposes_model_meta(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     cfg = type(
         "Cfg",

@@ -188,19 +188,47 @@
         <div class="action-row"><button class="mini-btn" @click="openMdtBoard">打开 MDT 多智能体会诊页</button></div>
       </section>
 
-      <section class="twin-card twin-card-wide">
-        <div class="card-head"><div><div class="card-title">干预情景模拟</div><div class="card-sub">基于过去 12h 响应曲线，预估干预后 30 分钟内关键指标变化</div></div></div>
-        <div class="chip-row">
-          <button v-for="item in whatIfPresets" :key="item.type" :class="['cause-chip', { active: whatIfSelected === item.type }]" :disabled="whatIfLoading" @click="runWhatIf(item)">{{ item.label }}</button>
-        </div>
-        <div class="summary-panel">{{ whatIfSummary }}</div>
-        <div v-if="whatIfProjectionRows.length" class="curve-list">
-          <div v-for="item in whatIfProjectionRows" :key="item.label" class="curve-row">
-            <div class="curve-top"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
-            <div class="curve-bar"><div class="curve-fill causal-fill" :style="{ width: item.width }"></div></div>
+      <section class="twin-card twin-card-wide whatif-workbench">
+        <div class="card-head">
+          <div>
+            <div class="card-title">WhatIfConsole</div>
+            <div class="card-sub">右侧抽屉对比单干预反事实轨迹；仅模拟，不生成医嘱。</div>
           </div>
+          <button class="mini-btn" @click="whatIfDrawerOpen = !whatIfDrawerOpen">{{ whatIfDrawerOpen ? '收起面板' : '打开面板' }}</button>
         </div>
-        <ul v-if="whatIfCautions.length" class="bullet-list compact"><li v-for="(item, idx) in whatIfCautions" :key="`caution-${idx}`">{{ item }}</li></ul>
+        <div v-if="whatIfBanner" :class="['whatif-banner', { muted: whatIfDegraded }]">{{ whatIfBanner }}</div>
+        <div class="whatif-layout">
+          <div class="whatif-chart">
+            <div class="whatif-axis">
+              <span>过去实际值</span><span>6h baseline / what-if</span>
+            </div>
+            <div v-for="metric in whatIfChartRows" :key="metric.key" class="whatif-metric">
+              <div class="curve-top"><span>{{ metric.label }}</span><strong>{{ metric.delta }}</strong></div>
+              <div class="whatif-track">
+                <i class="actual-line" :style="{ width: metric.actualWidth }"></i>
+                <i class="baseline-line" :style="{ width: metric.baselineWidth }"></i>
+                <i :class="['whatif-line', { degraded: whatIfDegraded }]" :style="{ width: metric.whatIfWidth }"></i>
+                <span class="band band80" :style="{ left: metric.bandLeft, width: metric.band80 }"></span>
+                <span class="band band95" :style="{ left: metric.bandLeft, width: metric.band95 }"></span>
+              </div>
+              <div class="whatif-legend"><span>实线 实际</span><span>虚线 baseline</span><span>点划线 反事实</span></div>
+            </div>
+          </div>
+          <aside v-if="whatIfDrawerOpen" class="whatif-drawer">
+            <div class="card-sub">单干预模板</div>
+            <div class="chip-row">
+              <button v-for="item in whatIfPresets" :key="item.type" :class="['cause-chip', { active: whatIfSelected === item.type }]" :disabled="whatIfLoading" @click="runWhatIf(item)">{{ item.label }}</button>
+            </div>
+            <div class="summary-panel">{{ whatIfSummary }}</div>
+            <div v-if="whatIfProjectionRows.length" class="curve-list">
+              <div v-for="item in whatIfProjectionRows" :key="item.label" class="curve-row">
+                <div class="curve-top"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
+                <div class="curve-bar"><div class="curve-fill causal-fill" :style="{ width: item.width }"></div></div>
+              </div>
+            </div>
+            <ul v-if="whatIfCautions.length" class="bullet-list compact"><li v-for="(item, idx) in whatIfCautions" :key="`caution-${idx}`">{{ item }}</li></ul>
+          </aside>
+        </div>
       </section>
     </div>
 
@@ -240,16 +268,22 @@ const causalAnalysis = ref<any>(null)
 const nursingSignals = ref<any>(null)
 const subphenotypeProfile = ref<any>(null)
 const whatIfResult = ref<any>(null)
+const whatIfBaseline = ref<any>(null)
 const selectedFinding = ref('乳酸升高')
-const whatIfSelected = ref('vasopressor_up')
+const whatIfSelected = ref('fluid_500')
 const whatIfLoading = ref(false)
+const whatIfDrawerOpen = ref(true)
 const savingMap = reactive<Record<string, boolean>>({})
 const causalOptions = ['乳酸升高', '肌酐升高', '低氧', '低血压', '血小板下降', '胆红素升高', '凝血异常']
 const whatIfPresets = [
-  { type: 'vasopressor_up', label: '升压药上调', payload: { intervention_type: 'vasopressor_up', intervention_label: '去甲肾上腺素上调', dose_delta_pct: 20, horizon_minutes: 30 } },
-  { type: 'fluid_bolus', label: '补液 250mL', payload: { intervention_type: 'fluid_bolus', intervention_label: '晶体液补液 250mL', fluid_bolus_ml: 250, horizon_minutes: 30 } },
-  { type: 'peep_up', label: 'PEEP +2', payload: { intervention_type: 'peep_up', intervention_label: 'PEEP 上调 2 cmH2O', peep_delta: 2, horizon_minutes: 30 } },
-  { type: 'fio2_up', label: 'FiO2 +10%', payload: { intervention_type: 'fio2_up', intervention_label: 'FiO2 上调 10%', fio2_delta: 10, horizon_minutes: 30 } },
+  { type: 'fluid_500', label: '液体 500ml', payload: { intervention_type: 'fluid_bolus', intervention_label: '晶体液补液 500mL', fluid_bolus_ml: 500, horizon_minutes: 360 } },
+  { type: 'fluid_1000', label: '液体 1000ml', payload: { intervention_type: 'fluid_bolus', intervention_label: '晶体液补液 1000mL', fluid_bolus_ml: 1000, horizon_minutes: 360 } },
+  { type: 'fluid_2000', label: '液体 2000ml', payload: { intervention_type: 'fluid_bolus', intervention_label: '晶体液补液 2000mL', fluid_bolus_ml: 2000, horizon_minutes: 360 } },
+  { type: 'vaso_005', label: '去甲 +0.05', payload: { intervention_type: 'vasopressor_up', intervention_label: '去甲肾上腺素 +0.05 ug/kg/min', dose_delta_pct: 20, horizon_minutes: 360 } },
+  { type: 'vaso_01', label: '去甲 +0.1', payload: { intervention_type: 'vasopressor_up', intervention_label: '去甲肾上腺素 +0.1 ug/kg/min', dose_delta_pct: 35, horizon_minutes: 360 } },
+  { type: 'diuretic_40', label: '呋塞米 40mg', payload: { intervention_type: 'diuresis', intervention_label: '呋塞米 40mg', diuretic_intensity: 1, horizon_minutes: 360 } },
+  { type: 'peep_2', label: 'PEEP +2', payload: { intervention_type: 'peep_up', intervention_label: 'PEEP 上调 2 cmH2O', peep_delta: 2, horizon_minutes: 360 } },
+  { type: 'fio2_down10', label: 'FiO2 -10%', payload: { intervention_type: 'fio2_up', intervention_label: 'FiO2 下调 10%', fio2_delta: -10, horizon_minutes: 360 } },
 ] as const
 const twinRecord = computed(() => digitalTwin.value?.record || digitalTwin.value || {})
 const twinSnapshot = computed(() => twinRecord.value?.snapshot || {})
@@ -283,6 +317,7 @@ const mdtMetaSummary = computed(() => mdtResult.value?.meta_agent || mdtRecord.v
 const nursingRecord = computed(() => nursingSignals.value?.analysis || nursingSignals.value || {})
 const subphenotypeRecord = computed(() => subphenotypeProfile.value?.profile || subphenotypeProfile.value || {})
 const whatIfRecord = computed(() => whatIfResult.value?.simulation || whatIfResult.value || {})
+const whatIfBaselineRecord = computed(() => whatIfBaseline.value?.simulation || whatIfBaseline.value || {})
 const riskLevel = computed(() => String(planRecord.value?.risk_profile?.risk_level || riskForecast.value?.risk_level || 'medium').toLowerCase())
 const riskLevelText = computed(() => ({ low: '低风险', medium: '中风险', high: '高风险', critical: '危急' } as Record<string, string>)[riskLevel.value] || '中风险')
 const deteriorationProbability = computed(() => pct(planRecord.value?.risk_profile?.deterioration_probability ?? riskForecast.value?.current_probability ?? 0))
@@ -359,7 +394,14 @@ const conflictRows = computed(() => Array.isArray(mdtResult.value?.conflicts) ? 
 const metaActions = computed(() => Array.isArray(mdtMetaSummary.value?.final_actions) ? mdtMetaSummary.value.final_actions.slice(0, 6) : [])
 const primarySubphenotype = computed(() => subphenotypeRecord.value?.primary_profile || null)
 const subphenotypeSummary = computed(() => String(subphenotypeRecord.value?.summary || '等待亚表型识别结果'))
-const whatIfSummary = computed(() => String(whatIfRecord.value?.summary || '选择一个干预，模拟 30 分钟内的关键指标变化。'))
+const whatIfSummary = computed(() => String(whatIfRecord.value?.summary || '选择一个单干预模板，模拟未来 6 小时关键指标变化。'))
+const whatIfDegraded = computed(() => Boolean(whatIfRecord.value?.model_meta?.degraded))
+const whatIfBanner = computed(() => {
+  if (whatIfDegraded.value) return '反事实模型降级为半机制模型，置信度降低，仅供参考。'
+  const ood = whatIfRecord.value?.ood_warning
+  if (ood?.is_ood) return `该患者状态在历史数据中罕见，预测可信度低：${(ood.reasons || []).join('；')}`
+  return ''
+})
 const whatIfProjectionRows = computed(() => {
   const projected = whatIfRecord.value?.projected_state || {}
   const current = whatIfRecord.value?.current_state || {}
@@ -369,6 +411,38 @@ const whatIfProjectionRows = computed(() => {
     { label: '乳酸 30m', current: Number(current.lactate), projected: Number(projected.lactate_30m), scale: 8, unit: 'mmol/L' },
   ]
   return rows.filter((item) => Number.isFinite(item.projected)).map((item) => ({ label: item.label, value: `${Number.isFinite(item.current) ? item.current : '—'} → ${item.projected}${item.unit}`, width: `${Math.max(8, Math.min(100, (item.projected / item.scale) * 100))}%` }))
+})
+const whatIfChartRows = computed(() => {
+  const defs = [
+    { key: 'map', label: 'MAP', scale: 120, currentKey: 'map', projectedKey: 'map_30m' },
+    { key: 'spo2', label: 'SpO2', scale: 100, currentKey: 'spo2', projectedKey: 'spo2_30m' },
+    { key: 'lactate', label: '乳酸', scale: 10, currentKey: 'lactate', projectedKey: 'lactate_30m' },
+  ]
+  return defs.map((def) => {
+    const current = Number(whatIfRecord.value?.current_state?.[def.currentKey] ?? twinSnapshot.value?.[def.key]?.current ?? 0)
+    const baselineCurve = whatIfBaselineRecord.value?.response_curve?.[def.key] || []
+    const branchCurve = whatIfRecord.value?.response_curve?.[def.key] || []
+    const band = whatIfRecord.value?.confidence_bands?.[def.key] || []
+    const baseline = Number(baselineCurve?.[baselineCurve.length - 1]?.value ?? current)
+    const branch = Number(branchCurve?.[branchCurve.length - 1]?.value ?? whatIfRecord.value?.projected_state?.[def.projectedKey] ?? current)
+    const bandLast = band?.[band.length - 1] || {}
+    const p10 = Number(bandLast.p10 ?? branch)
+    const p90 = Number(bandLast.p90 ?? branch)
+    const p025 = Number(bandLast.p025 ?? branch)
+    const p975 = Number(bandLast.p975 ?? branch)
+    const pctWidth = (value: number) => `${Math.max(6, Math.min(100, (Math.abs(value) / def.scale) * 100))}%`
+    return {
+      key: def.key,
+      label: def.label,
+      delta: `${Number.isFinite(baseline) ? baseline.toFixed(def.key === 'lactate' ? 1 : 0) : '—'} → ${Number.isFinite(branch) ? branch.toFixed(def.key === 'lactate' ? 1 : 0) : '—'}`,
+      actualWidth: pctWidth(current),
+      baselineWidth: pctWidth(baseline),
+      whatIfWidth: pctWidth(branch),
+      bandLeft: pctWidth(Math.min(p10, p025)),
+      band80: pctWidth(Math.abs(p90 - p10)),
+      band95: pctWidth(Math.abs(p975 - p025)),
+    }
+  })
 })
 const whatIfCautions = computed(() => {
   const rows = Array.isArray(whatIfRecord.value?.cautions) ? whatIfRecord.value.cautions : []
@@ -523,7 +597,11 @@ async function runWhatIf(preset: any) {
   whatIfSelected.value = String(preset?.type || '')
   whatIfLoading.value = true
   try {
-    const res = await postAiWhatIfSimulation(props.patientId, preset.payload)
+    const [baseRes, res] = await Promise.all([
+      postAiWhatIfSimulation(props.patientId, { intervention_type: 'current_baseline', intervention_label: '当前治疗基线', horizon_minutes: 360 }),
+      postAiWhatIfSimulation(props.patientId, preset.payload),
+    ])
+    whatIfBaseline.value = baseRes.data || null
     whatIfResult.value = res.data || null
   } catch {
     error.value = '干预情景模拟加载失败'
@@ -574,7 +652,7 @@ async function submitFeedback(item: any, payload: { status?: string; adopted?: b
     savingMap[interventionId] = false
   }
 }
-watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.value = null; proactivePlan.value = null; reasoningPlan.value = null; mdtAssessment.value = null; causalAnalysis.value = null; nursingSignals.value = null; subphenotypeProfile.value = null; whatIfResult.value = null; void loadAll(false) }, { immediate: true })
+watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.value = null; proactivePlan.value = null; reasoningPlan.value = null; mdtAssessment.value = null; causalAnalysis.value = null; nursingSignals.value = null; subphenotypeProfile.value = null; whatIfResult.value = null; whatIfBaseline.value = null; void loadAll(false) }, { immediate: true })
 </script>
 
 <style scoped>
@@ -664,9 +742,24 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .effect-box.is-stable { background: rgba(56,189,248,.14); }
 .mdt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .error-panel { background: rgba(127,29,29,.22); border: 1px solid rgba(248,113,113,.26); color: #fecaca; }
+.whatif-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
+.whatif-chart,.whatif-drawer { display: grid; gap: 12px; padding: 12px; border-radius: 14px; background: rgba(7,20,34,.78); border: 1px solid rgba(79,153,191,.12); }
+.whatif-axis,.whatif-legend { display: flex; justify-content: space-between; gap: 10px; color: #8fb4c8; font-size: 11px; }
+.whatif-metric { display: grid; gap: 8px; }
+.whatif-track { position: relative; height: 36px; border-radius: 12px; background: rgba(43,85,108,.26); overflow: hidden; }
+.whatif-track i,.whatif-track .band { position: absolute; left: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.actual-line { height: 3px; border-radius: 999px; background: #e0f2fe; }
+.baseline-line { height: 0; border-top: 2px dashed #38bdf8; }
+.whatif-line { height: 3px; border-radius: 999px; background: repeating-linear-gradient(90deg, #fb7185 0 10px, transparent 10px 14px, #fb7185 14px 17px, transparent 17px 22px); }
+.whatif-line.degraded { border-top-color: #94a3b8; filter: grayscale(1); }
+.band { height: 18px; border-radius: 999px; opacity: .22; }
+.band80 { background: #fb7185; }
+.band95 { background: #f59e0b; opacity: .14; }
+.whatif-banner { padding: 10px 12px; border-radius: 12px; background: rgba(245,158,11,.16); color: #fde68a; border: 1px solid rgba(245,158,11,.24); font-size: 12px; line-height: 1.6; }
+.whatif-banner.muted { background: rgba(100,116,139,.18); color: #cbd5e1; border-color: rgba(148,163,184,.24); }
 @media (max-width: 900px) { .overview-grid,.timeline-item,.twin-overview-split { grid-template-columns: 1fr; } .timeline-rail { justify-items: start; padding-right: 0; padding-bottom: 8px; } .timeline-time { text-align: left; } .timeline-line { left: 5px; right: auto; top: 32px; bottom: -8px; } }
-@media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
-@media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
+@media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid,.whatif-layout { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
+@media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid,.whatif-layout { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
 
 /* Light mode overrides */
 html[data-theme='light'] .twin-sub { color: #6a8098; }

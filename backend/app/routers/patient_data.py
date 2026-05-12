@@ -9,6 +9,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
+from app.config import get_config
+from app.services.patient_narrative_service import PatientNarrativeService
 from app.services.vital_trajectory_forecaster import SUPPORTED_CODES, get_vital_trajectory_forecaster
 from app.alert_engine.acid_base_analyzer import (
     SUPPORTIVE_FALLBACK_FIELDS,
@@ -451,6 +453,43 @@ async def patient_vitals_forecast(
     service = get_vital_trajectory_forecaster(db=runtime.db, config=runtime.config, alert_engine=runtime.alert_engine)
     result = await service.forecast(str(pid), requested, horizon_hours)
     return serialize_doc(result)
+
+
+@router.get("/api/patients/{patient_id}/narrative")
+async def patient_narrative(patient_id: str, days: int = Query(default=7, ge=1, le=30)):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+    try:
+        service = PatientNarrativeService(db=runtime.db, config=get_config(), alert_engine=runtime.alert_engine)
+        narratives = await service.list_recent(str(pid), days=days)
+        latest_context_text = await service.latest_context_text(str(pid), days=days)
+        return {"code": 0, "patient_id": str(pid), "days": days, "narratives": serialize_doc(narratives), "latest_context_text": latest_context_text}
+    except Exception as exc:
+        logger.error("Patient narrative query error: %s", exc)
+        return {"code": 0, "patient_id": str(pid), "days": days, "narratives": [], "latest_context_text": "", "error": str(exc)[:160]}
+
+
+@router.post("/api/patients/{patient_id}/narrative/generate")
+async def generate_patient_narrative(patient_id: str, payload: dict = Body(default={})):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    if not patient:
+        return {"code": 404, "message": "患者不存在"}
+    try:
+        service = PatientNarrativeService(db=runtime.db, config=get_config(), alert_engine=runtime.alert_engine)
+        record = await service.generate_daily(str(pid), patient, narrative_date=(payload or {}).get("narrative_date"), refresh=True)
+        return {"code": 0, "patient_id": str(pid), "narrative": serialize_doc(record)}
+    except Exception as exc:
+        logger.error("Patient narrative generate error: %s", exc)
+        return {"code": 0, "patient_id": str(pid), "narrative": None, "error": str(exc)[:160]}
 
 
 @router.get("/api/patients/{patient_id}/drugs")

@@ -59,6 +59,7 @@ from .icu_aw_mobility import IcuAwMobilityMixin
 from .proactive_management_engine import ProactiveManagementEngineMixin
 from .extended_scenario_engine import ExtendedScenarioMixin
 from .similar_case_review import SimilarCaseReviewMixin
+from .scanner_mesh import ScannerMesh
 from .scanner_registry import build_scanners
 from .scanners import BaseScanner
 from .task_queue import (
@@ -132,6 +133,7 @@ class AlertEngine(
         self.runtime_role = str(runtime_role or "api").strip().lower() or "api"
         self._stop_event = asyncio.Event()
         self._tasks: list[asyncio.Task] = []
+        self.scanner_mesh = ScannerMesh(config=config)
         self.scanners: list[BaseScanner] = build_scanners(self)
         self.queue_settings = load_queue_settings(config)
         max_concurrent = int(self.config.yaml_cfg.get("alert_engine", {}).get("max_concurrent_scans", 4) or 4)

@@ -15,6 +15,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from app import runtime
+from app.services.patient_narrative_service import PatientNarrativeService
 from app.config import get_config
 from app.services.audit_service import normalize_actor, write_ai_generation_log
 from app.services.llm_runtime import LLMRuntimeUnavailableError
@@ -1399,7 +1400,15 @@ async def _build_patient_context(
             f"主要诊断: {patient.get('clinicalDiagnosis') or patient.get('admissionDiagnosis') or '暂无诊断'}",
         ]
 
-        obs, io_text, drug_text, order_text, nursing_tuple, lab_exam_tuple, alert_text = await asyncio.gather(
+        async def _collect_narrative() -> str:
+            try:
+                service = PatientNarrativeService(db=runtime.db, config=get_config(), alert_engine=runtime.alert_engine)
+                return await service.latest_context_text(resolved_patient_id, days=7, max_chars=2600)
+            except Exception:
+                return ""
+
+        narrative_text, obs, io_text, drug_text, order_text, nursing_tuple, lab_exam_tuple, alert_text = await asyncio.gather(
+            _await_with_timeout(_collect_narrative(), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
             _await_with_timeout(_collect_observation_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
             _await_with_timeout(_collect_io_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
             _await_with_timeout(_collect_drug_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
@@ -1409,6 +1418,8 @@ async def _build_patient_context(
             _await_with_timeout(_collect_alert_summary(resolved_patient_id), _AI_CONSULT_CONTEXT_ITEM_TIMEOUT_SECONDS, ""),
         )
 
+        if narrative_text:
+            lines.append("长期病程叙事(优先上下文): " + _clip_text(narrative_text, 2600))
         if obs:
             lines.append("观察项(近24h/最新): " + _clip_text(obs, 800))
         if io_text:

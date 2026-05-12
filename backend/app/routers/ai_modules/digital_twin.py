@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 
 from bson import ObjectId
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
 from app.config import get_config
@@ -26,6 +26,7 @@ from app.routers.ai_modules.common import (
 from app.services.counterfactual_model import simulate_counterfactual
 from app.services.multi_agent_orchestrator import ICUMultiAgentOrchestrator
 from app.services.patient_digital_twin import PatientDigitalTwinService
+from app.services.patient_narrative_service import PatientNarrativeService
 from app.services.subphenotype_clustering import CohortSubphenotypeProfiler
 from app.alert_engine.scanner_sepsis_subphenotype import SepsisSubphenotypeScanner
 from app.utils.patient_data import get_device_id, latest_params_by_device, param_series_by_pid
@@ -236,6 +237,12 @@ async def ai_patient_digital_twin(patient_id: str, refresh: bool = Query(default
     try:
         service = PatientDigitalTwinService(db=runtime.db, config=get_config(), alert_engine=runtime.alert_engine)
         record = await service.get_or_build_snapshot(str(pid), patient, hours=hours, refresh=refresh, persist=True)
+        try:
+            narrative = await PatientNarrativeService(db=runtime.db, config=get_config(), alert_engine=runtime.alert_engine).latest_context_text(str(pid), days=7, max_chars=4000)
+            if narrative:
+                record["narrative_context"] = narrative
+        except Exception:
+            pass
         return {"code": 0, "record": serialize_doc(record)}
     except Exception as exc:
         logger.error("AI patient digital twin error: %s", exc)
@@ -243,7 +250,7 @@ async def ai_patient_digital_twin(patient_id: str, refresh: bool = Query(default
 
 
 @router.post("/api/ai/what-if/{patient_id}")
-async def ai_what_if_simulation(patient_id: str, payload: dict = Body(default={})):
+async def ai_what_if_simulation(patient_id: str, request: Request, payload: dict = Body(default={})):
     try:
         pid = ObjectId(patient_id)
     except Exception:
@@ -254,6 +261,24 @@ async def ai_what_if_simulation(patient_id: str, payload: dict = Body(default={}
     try:
         result = await simulate_counterfactual(db=runtime.db, alert_engine=runtime.alert_engine, config=get_config(), patient_id=str(pid), patient=patient, payload=payload or {})
         record = await _persist_ai_score_record(patient, result, score_type="patient_what_if_simulation")
+        try:
+            actor = str((payload or {}).get("actor") or request.headers.get("x-user-id") or request.headers.get("x-actor-id") or "").strip()
+            await runtime.db.col("whatif_query_log").insert_one(
+                {
+                    "patient_id": str(pid),
+                    "physician_id": actor or None,
+                    "query_time": datetime.now(),
+                    "interventions": [payload or {}],
+                    "predicted_trajectories": (result or {}).get("response_curve") or {},
+                    "model_meta": (result or {}).get("model_meta") or {},
+                    "ood_warning": (result or {}).get("ood_warning") or {},
+                    "actual_decision": None,
+                    "actual_outcome_24h": None,
+                    "created_at": datetime.now(),
+                }
+            )
+        except Exception as log_exc:
+            logger.debug("what-if query log write failed: %s", log_exc)
         return {"code": 0, "simulation": serialize_doc(record)}
     except Exception as exc:
         logger.error("AI what-if simulation error: %s", exc)

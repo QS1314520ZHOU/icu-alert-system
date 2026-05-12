@@ -56,12 +56,19 @@ class BaseScanner(ABC):
     ) -> None:
         try:
             now = datetime.now()
+            mesh_metrics = {}
+            try:
+                mesh = getattr(self.engine, "scanner_mesh", None)
+                mesh_metrics = mesh.telemetry() if mesh is not None and hasattr(mesh, "telemetry") else {}
+            except Exception:
+                mesh_metrics = {}
             await self.engine.db.col("scanner_runs").insert_one(
                 {
                     "scanner_name": self.name,
                     "status": status,
                     "duration_ms": round(float(duration_ms or 0), 2),
                     "error": str(error or "")[:500],
+                    "mesh_metrics": mesh_metrics,
                     "runtime_role": getattr(self.engine, "runtime_role", "api"),
                     "created_at": now,
                     "updated_at": now,
