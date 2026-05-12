@@ -40,7 +40,17 @@ class VitalTrajectoryForecaster:
 
     def _candidate_paths(self) -> list[Path]:
         root = self._model_dir()
-        return [root / name for name in ("model.pt", "chronos.pt", "timesfm.pt", "model.pth", "pytorch_model.bin", "model.safetensors")]
+        return [root / name for name in ("model.safetensors", "pytorch_model.bin", "model.pt", "chronos.pt", "timesfm.pt", "model.pth")]
+
+    def _chronos_torch_dtype(self) -> Any:
+        if self._torch is None:
+            return None
+        try:
+            if self._device != "cpu" and getattr(self._torch, "cuda", None) and self._torch.cuda.is_available():
+                return self._torch.bfloat16
+        except Exception:
+            pass
+        return self._torch.float32
 
     def _load_hf_pipeline(self, root: Path) -> bool:
         if not (root / "config.json").exists():
@@ -48,30 +58,17 @@ class VitalTrajectoryForecaster:
         try:
             from chronos import ChronosPipeline  # type: ignore
 
-            self._model = ChronosPipeline.from_pretrained(str(root), device_map=self._device)
+            self._model = ChronosPipeline.from_pretrained(str(root), device_map=self._device, torch_dtype=self._chronos_torch_dtype())
             self._model_path = root
             self._backend = "chronos"
             self._unavailable_reason = ""
             return True
         except Exception as exc:
-            chronos_error = f"{exc.__class__.__name__}: {str(exc)[:80]}"
             if isinstance(exc, ModuleNotFoundError):
-                self._unavailable_reason = "chronos-forecasting unavailable: install with `pip install chronos-forecasting`"
+                self._unavailable_reason = "chronos-forecasting unavailable: install chronos-forecasting package"
                 return False
-        try:
-            from transformers import pipeline  # type: ignore
-        except Exception as exc:
-            self._unavailable_reason = f"chronos/transformers unavailable for safetensors model: chronos={chronos_error}; transformers={exc.__class__.__name__}"
-            return False
-        try:
-            self._model = pipeline("time-series-forecasting", model=str(root), device=-1)
-            self._model_path = root
-            self._backend = "transformers"
-            self._unavailable_reason = ""
-            return True
-        except Exception as exc:
             self._model = None
-            self._unavailable_reason = f"load failed: chronos={chronos_error}; transformers={exc.__class__.__name__}: {str(exc)[:80]}"
+            self._unavailable_reason = f"load failed: {exc.__class__.__name__}: {str(exc)[:120]}"
             return False
 
     def _ensure_loaded(self) -> None:
@@ -156,26 +153,12 @@ class VitalTrajectoryForecaster:
         if self._model is None or self._torch is None or not values:
             return None
         try:
-            if self._backend == "transformers":
-                context = self._torch.tensor(values[-48:], dtype=self._torch.float32)
-                out = self._model(context, prediction_length=horizon_hours)
-                if isinstance(out, list) and out:
-                    row = out[0]
-                    if isinstance(row, dict):
-                        raw = row.get("mean") or row.get("prediction") or row.get("samples")
-                    else:
-                        raw = row
-                    arr = np.asarray(raw, dtype=float).reshape(-1)
-                    return [float(v) for v in arr[:horizon_hours]]
             if self._backend == "chronos":
-                context = self._torch.tensor(values[-48:], dtype=self._torch.float32)
-                forecast = self._model.predict(context, horizon_hours)
+                context = self._torch.tensor(values[-48:], dtype=self._torch.float32).unsqueeze(0)
+                forecast = self._model.predict(context, horizon_hours, num_samples=10)
                 arr = forecast.detach().cpu().numpy() if hasattr(forecast, "detach") else np.asarray(forecast)
-                if arr.ndim >= 3:
-                    arr = np.quantile(arr[0], 0.5, axis=0)
-                else:
-                    arr = arr.reshape(-1)
-                return [float(v) for v in arr[:horizon_hours]]
+                median = np.quantile(arr[0], 0.5, axis=0)
+                return [float(v) for v in np.asarray(median, dtype=float).reshape(-1)[:horizon_hours]]
             with self._torch.no_grad():
                 tensor = self._torch.tensor(values[-48:], dtype=self._torch.float32).unsqueeze(0)
                 if hasattr(self._model, "forecast"):

@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 from typing import Any
 import builtins
+import types
 
 import pytest
 
@@ -86,4 +87,40 @@ def test_safetensors_missing_chronos_dependency_has_actionable_reason(monkeypatc
     status = service.status()
 
     assert status["available"] is False
-    assert "pip install chronos-forecasting" in status["reason"]
+    assert "install chronos-forecasting package" in status["reason"]
+
+
+def test_chronos_pipeline_load_success_sets_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    model_dir = tmp_path / "chronos"
+    model_dir.mkdir()
+    (model_dir / "config.json").write_text("{}", encoding="utf-8")
+    (model_dir / "model.safetensors").write_bytes(b"placeholder")
+    monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
+
+    class FakeCuda:
+        @staticmethod
+        def is_available() -> bool:
+            return False
+
+    class FakeTorch:
+        float32 = "float32"
+        bfloat16 = "bfloat16"
+        cuda = FakeCuda()
+
+    class FakeChronosPipeline:
+        calls: list[dict[str, Any]] = []
+
+        @classmethod
+        def from_pretrained(cls, path: str, **kwargs):
+            cls.calls.append({"path": path, **kwargs})
+            return object()
+
+    monkeypatch.setitem(sys.modules, "chronos", types.SimpleNamespace(ChronosPipeline=FakeChronosPipeline))
+    service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
+    service._torch = FakeTorch()
+
+    assert service._load_hf_pipeline(model_dir) is True
+    service._loaded = True
+    assert service._backend == "chronos"
+    assert service.status()["available"] is True
+    assert FakeChronosPipeline.calls[0]["torch_dtype"] == "float32"

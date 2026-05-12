@@ -297,6 +297,17 @@ python run_server.py
 python run_scan_worker.py
 ```
 
+**启用轨迹预测的可选依赖：**
+Chronos/TimesFM 轨迹预测属于可选本地模型能力。若需要加载 `model.safetensors` 形式的 Chronos 模型，请安装运行时依赖并配置模型根目录：
+
+```bash
+pip install chronos-forecasting
+export ICU_MODELS_DIR=/opt/icu-models
+# 期望模型目录：/opt/icu-models/chronos/model.safetensors
+```
+
+未安装 `chronos-forecasting` 时，API 会保持可启动并返回 `unavailable` 状态。
+
 **前端：**
 ```bash
 cd frontend
