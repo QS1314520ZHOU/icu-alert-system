@@ -146,7 +146,6 @@ sys.path.insert(0, project_root)
 
 # ========== 子模块 ==========
 app_imports = collect_submodules('app')
-transformer_imports = collect_submodules('transformers')
 chronos_imports = collect_submodules('chronos')
 sentence_transformer_imports = collect_submodules('sentence_transformers')
 tokenizer_imports = collect_submodules('tokenizers')
@@ -251,7 +250,6 @@ print(f"[SPEC] Collected {len(app_imports)} app submodules")
 # ========== hidden imports ==========
 hidden_imports = (
     app_imports
-    + transformer_imports
     + chronos_imports
     + sentence_transformer_imports
     + tokenizer_imports
@@ -272,7 +270,9 @@ hidden_imports = (
     'torch._C', 'torch.nn', 'torch.nn.functional', 'torch.jit',
     'torch.serialization', 'torch.storage', 'torch.types',
     'torchvision', 'torchaudio',
-    'transformers', 'chronos', 'tokenizers', 'sentence_transformers',
+    'transformers', 'transformers.models.auto',
+    'transformers.models.bert', 'transformers.models.t5',
+    'chronos', 'tokenizers', 'sentence_transformers',
     'onnxruntime',
     # 科学计算
     'numpy', 'numpy._core', 'numpy._core._exceptions',
