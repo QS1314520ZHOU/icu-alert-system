@@ -142,6 +142,9 @@ export const postRuntimeModules = (payload: { modules: any[] }) =>
 export const postRuntimeAi = (payload: Record<string, any>) =>
   analyticsApi.post('/api/admin/runtime-config/ai', payload)
 
+export const postRuntimeTrajectoryForecast = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/admin/runtime-config/trajectory-forecast', payload)
+
 export const postRuntimeAlertRule = (ruleId: string, payload: Record<string, any>) =>
   analyticsApi.post(`/api/admin/runtime-config/alert-rules/${ruleId}`, payload)
 

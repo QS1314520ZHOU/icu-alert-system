@@ -90,6 +90,58 @@
     <section class="config-panel">
       <div class="panel-head">
         <div>
+          <span>轨迹预测与前瞻告警</span>
+          <strong>{{ trajectory.enabled === false ? '已关闭' : '预测运行中' }}</strong>
+        </div>
+        <a-button size="small" type="primary" :loading="saving.trajectory" @click="saveTrajectory">保存</a-button>
+      </div>
+      <div class="trajectory-config">
+        <div class="trajectory-switches">
+          <label><span>轨迹预测</span><a-switch v-model:checked="trajectory.enabled" checked-children="启用" un-checked-children="关闭" /></label>
+          <label><span>前瞻告警</span><a-switch v-model:checked="trajectory.alert_enabled" checked-children="启用" un-checked-children="关闭" /></label>
+          <label><span>预测窗口(h)</span><a-input-number v-model:value="trajectory.horizon_hours" :min="1" :max="12" /></label>
+          <label><span>生效范围</span><a-select v-model:value="trajectory.scope" :options="scopeOptions" /></label>
+        </div>
+        <div class="trajectory-pick">
+          <div>
+            <span>默认展示指标</span>
+            <div class="code-grid">
+              <button v-for="item in trajectoryCodeOptions" :key="`default-${item.code}`" type="button" :class="['code-chip', { active: trajectory.default_codes.includes(item.code) }]" @click="toggleCode('default_codes', item.code)">
+                {{ item.label || item.code }}<small>{{ item.series_type === 'discrete_trend' ? '离散' : item.requires_context?.length ? '需设备' : '连续' }}</small>
+              </button>
+            </div>
+          </div>
+          <div>
+            <span>参与前瞻告警</span>
+            <div class="code-grid">
+              <button v-for="item in trajectoryAlertOptions" :key="`alert-${item.code}`" type="button" :class="['code-chip', { active: trajectory.alert_codes.includes(item.code) }]" @click="toggleCode('alert_codes', item.code)">
+                {{ item.label || item.code }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="threshold-table">
+          <div class="threshold-row threshold-head"><span>指标</span><span>方向</span><span>阈值</span><span>窗口</span><span>触发概率</span><span>级别</span><span>操作</span></div>
+          <div v-for="(row, idx) in trajectory.thresholds" :key="`${row.code}-${idx}`" class="threshold-row">
+            <a-select v-model:value="row.code" :options="trajectoryAlertSelectOptions" />
+            <a-select v-model:value="row.operator" :options="thresholdOperatorOptions" />
+            <a-input-number v-model:value="row.threshold" />
+            <a-input-number v-model:value="row.horizon_hours" :min="1" :max="12" />
+            <a-input-number v-model:value="row.probability" :min="0.01" :max="0.99" :step="0.05" />
+            <a-select v-model:value="row.severity" :options="severityOptions" />
+            <a-button size="small" danger ghost @click="removeTrajectoryThreshold(Number(idx))">删除</a-button>
+          </div>
+        </div>
+        <div class="action-row">
+          <a-button size="small" @click="addTrajectoryThreshold">新增阈值</a-button>
+          <span class="config-note">版本 {{ trajectory.version || 1 }} · 告警指标必须先在默认展示指标中启用</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="config-panel">
+      <div class="panel-head">
+        <div>
           <span>预警阈值</span>
           <strong>{{ alertRules.length }}条</strong>
         </div>
@@ -143,7 +195,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Button as AButton, Input as AInput, InputNumber as AInputNumber, Select as ASelect, Switch as ASwitch, message } from 'ant-design-vue'
-import { getRuntimeConfig, postRuntimeAi, postRuntimeAlertRule, postRuntimeFieldMapping, postRuntimeModules } from '../api'
+import { getRuntimeConfig, postRuntimeAi, postRuntimeAlertRule, postRuntimeFieldMapping, postRuntimeModules, postRuntimeTrajectoryForecast } from '../api'
 
 const loading = ref(false)
 const loadError = ref('')
@@ -156,10 +208,21 @@ const ai = reactive<any>({
   routes: {},
   providers: [],
 })
+const trajectory = reactive<any>({
+  enabled: true,
+  default_codes: ['HR', 'MAP', 'SBP', 'DBP', 'SpO2', 'RR', 'Temp', 'EtCO2'],
+  alert_enabled: false,
+  alert_codes: ['MAP', 'SpO2', 'RR', 'Temp', 'EtCO2'],
+  horizon_hours: 6,
+  scope: 'global',
+  version: 1,
+  thresholds: [],
+})
+const trajectoryCodeOptions = ref<any[]>([])
 const alertRules = ref<any[]>([])
 const mappings = ref<any[]>([])
 const ruleKeyword = ref('')
-const saving = reactive<any>({ modules: false, ai: false, mapping: false, rules: {} })
+const saving = reactive<any>({ modules: false, ai: false, trajectory: false, mapping: false, rules: {} })
 const mappingDraft = reactive<any>({ source_name: '', source_code: '', standard_concept: '', unit: '', module: '', enabled: true })
 const operatorOptions = ['>', '>=', '<', '<=', '==', '!='].map((value) => ({ label: value, value }))
 const severityOptions = [
@@ -175,6 +238,12 @@ const purposeOptions = [
   { label: '长上下文', value: 'long_context' },
   { label: '兜底', value: 'fallback' },
 ]
+const scopeOptions = [
+  { label: '全院默认', value: 'global' },
+  { label: '科室覆盖', value: 'unit' },
+  { label: '患者覆盖', value: 'patient' },
+]
+const thresholdOperatorOptions = ['<', '<=', '>', '>='].map((value) => ({ label: value, value }))
 const enabledModuleCount = computed(() => modules.value.filter((item) => item.enabled).length)
 const aiProviders = computed<any[]>({
   get() {
@@ -195,6 +264,8 @@ const filteredRules = computed(() => {
   if (!q) return rows
   return rows.filter((rule) => JSON.stringify(rule).toLowerCase().includes(q))
 })
+const trajectoryAlertOptions = computed(() => trajectoryCodeOptions.value.filter((item) => trajectory.default_codes.includes(item.code) && item.series_type !== 'discrete_trend'))
+const trajectoryAlertSelectOptions = computed(() => trajectoryAlertOptions.value.map((item) => ({ label: `${item.label || item.code} (${item.code})`, value: item.code })))
 
 async function loadConfig() {
   loading.value = true
@@ -205,6 +276,11 @@ async function loadConfig() {
     Object.assign(ai, data.ai || {})
     if (!ai.routes) ai.routes = {}
     if (!Array.isArray(ai.providers)) ai.providers = []
+    Object.assign(trajectory, data.trajectory_forecast || {})
+    if (!Array.isArray(trajectory.default_codes)) trajectory.default_codes = []
+    if (!Array.isArray(trajectory.alert_codes)) trajectory.alert_codes = []
+    if (!Array.isArray(trajectory.thresholds)) trajectory.thresholds = []
+    trajectoryCodeOptions.value = data.trajectory_code_options || []
     alertRules.value = (data.alert_rules || []).map((rule: any) => ({ ...rule, condition: rule.condition || {} }))
     mappings.value = data.field_mappings || []
   } catch (error: any) {
@@ -219,6 +295,49 @@ async function loadConfig() {
     message.error(loadError.value)
   } finally {
     loading.value = false
+  }
+}
+
+function toggleCode(field: 'default_codes' | 'alert_codes', code: string) {
+  const set = new Set(trajectory[field] || [])
+  if (set.has(code)) set.delete(code)
+  else set.add(code)
+  trajectory[field] = Array.from(set)
+  if (field === 'default_codes') {
+    trajectory.alert_codes = (trajectory.alert_codes || []).filter((item: string) => trajectory.default_codes.includes(item))
+    trajectory.thresholds = (trajectory.thresholds || []).filter((item: any) => trajectory.alert_codes.includes(item.code))
+  }
+}
+
+function addTrajectoryThreshold() {
+  const code = trajectory.alert_codes?.[0] || trajectory.default_codes?.find((item: string) => item === 'MAP') || 'MAP'
+  if (!trajectory.alert_codes.includes(code)) trajectory.alert_codes = [...trajectory.alert_codes, code]
+  trajectory.thresholds = [
+    ...(trajectory.thresholds || []),
+    { code, operator: code === 'SpO2' || code === 'MAP' ? '<' : '>', threshold: code === 'MAP' ? 65 : code === 'SpO2' ? 90 : 30, horizon_hours: 4, probability: 0.7, severity: 'warning' },
+  ]
+}
+
+function removeTrajectoryThreshold(index: number) {
+  trajectory.thresholds = trajectory.thresholds.filter((_: any, idx: number) => idx !== index)
+}
+
+async function saveTrajectory() {
+  saving.trajectory = true
+  try {
+    const payload = {
+      ...trajectory,
+      alert_codes: (trajectory.alert_codes || []).filter((code: string) => (trajectory.default_codes || []).includes(code)),
+      thresholds: (trajectory.thresholds || []).filter((row: any) => (trajectory.alert_codes || []).includes(row.code)),
+      expected_version: trajectory.version || 1,
+    }
+    const { data } = await postRuntimeTrajectoryForecast(payload)
+    Object.assign(trajectory, data.trajectory_forecast || trajectory)
+    message.success(`轨迹预测配置已保存，版本 ${data.effective_version || trajectory.version}`)
+  } catch (error: any) {
+    message.error(error?.response?.data?.detail || error?.message || '轨迹预测配置保存失败')
+  } finally {
+    saving.trajectory = false
   }
 }
 
@@ -407,6 +526,20 @@ onMounted(loadConfig)
   text-align: left;
   cursor: pointer;
 }
+.trajectory-config { display: grid; gap: 14px; }
+.trajectory-switches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.trajectory-switches label { display: grid; gap: 6px; color: #8aa4b8; }
+.trajectory-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.trajectory-pick > div { display: grid; gap: 8px; color: #8aa4b8; }
+.code-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.code-chip { min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(125,211,252,.16); background: rgba(2,8,20,.3); color: #dff7ff; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.code-chip small { color: #8aa4b8; font-size: 10px; }
+.code-chip.active { background: rgba(34,211,238,.16); border-color: rgba(103,232,249,.38); color: #ecfeff; }
+.threshold-table { display: grid; gap: 8px; overflow-x: auto; }
+.threshold-row { min-width: 980px; display: grid; grid-template-columns: 1.4fr .8fr 1fr .8fr 1fr 1fr .8fr; gap: 8px; align-items: center; padding: 8px; border-radius: 12px; background: rgba(2,8,20,.22); }
+.threshold-head { color: #67e8f9; font-weight: 900; background: rgba(8,47,73,.42); }
+.action-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.config-note { color: #8aa4b8; font-size: 12px; }
 html[data-theme='light'] .config-hero,
 html[data-theme='light'] .config-panel {
   background:
@@ -439,11 +572,19 @@ html[data-theme='light'] .provider-grid label {
 html[data-theme='light'] .module-row,
 html[data-theme='light'] .provider-card,
 html[data-theme='light'] .rule-row,
-html[data-theme='light'] .mapping-list button {
+html[data-theme='light'] .mapping-list button,
+html[data-theme='light'] .threshold-row,
+html[data-theme='light'] .code-chip {
   background: #f8fbff;
   border: 1px solid rgba(148, 163, 184, 0.22);
 }
+html[data-theme='light'] .code-chip { color: #0f172a; }
+html[data-theme='light'] .code-chip.active { background: #eff6ff; border-color: rgba(37,99,235,.28); color: #1d4ed8; }
 html[data-theme='light'] .rule-head {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+html[data-theme='light'] .threshold-head {
   color: #1d4ed8;
   background: #eff6ff;
 }
@@ -459,7 +600,7 @@ html[data-theme='light'] .config-error strong {
   color: #7c2d12;
 }
 @media (max-width: 1100px) {
-  .config-grid, .ai-form, .route-form, .provider-grid, .mapping-editor { grid-template-columns: 1fr; }
+  .config-grid, .ai-form, .route-form, .provider-grid, .mapping-editor, .trajectory-switches, .trajectory-pick { grid-template-columns: 1fr; }
   .provider-grid .wide { grid-column: span 1; }
   .config-hero { display: grid; }
 }

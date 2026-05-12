@@ -64,6 +64,7 @@
         <span>轨迹预测</span>
         <strong>{{ forecastStatus.available ? 'Chronos 已接入' : '模型未就绪' }}</strong>
         <em>{{ forecastStatus.detail }}</em>
+        <small v-if="forecastStatus.available">预测概率，非诊断</small>
       </div>
 
       <div v-if="activeOverviewFilters.length" class="filter-summary">
@@ -156,7 +157,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority } from '../api'
+import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
@@ -184,6 +185,7 @@ const rescueOnly = ref(false)
 const workflowFilter = ref('all')
 const priorityRows = ref<any[]>([])
 const forecastStatus = ref({ available: false, reason: '', detail: '等待患者预测数据' })
+const trajectoryConfig = ref<any>({ default_codes: ['HR', 'MAP', 'SBP', 'DBP', 'SpO2', 'RR', 'Temp', 'EtCO2'], horizon_hours: 6 })
 let iv: any = null
 let offAlert: any = null
 let bundleRequestToken = 0
@@ -575,12 +577,22 @@ async function hydrateForecastPreview(items: any[]) {
     return
   }
   try {
-    const res = await getPatientVitalsForecast(String(first._id), { codes: 'HR,MAP,SpO2,RR', horizon_hours: 6 })
+    try {
+      const cfgRes = await getRuntimeConfig()
+      trajectoryConfig.value = cfgRes.data?.trajectory_forecast || trajectoryConfig.value
+    } catch {
+      trajectoryConfig.value = trajectoryConfig.value
+    }
+    const codes = Array.isArray(trajectoryConfig.value?.default_codes) && trajectoryConfig.value.default_codes.length ? trajectoryConfig.value.default_codes.join(',') : 'HR,MAP,SBP,DBP,SpO2,RR,Temp,EtCO2'
+    const horizon = Number(trajectoryConfig.value?.horizon_hours || 6)
+    const res = await getPatientVitalsForecast(String(first._id), { codes, horizon_hours: horizon })
     const data = res.data || {}
+    const topRisk = Array.isArray(data.threshold_risks) && data.threshold_risks.length ? data.threshold_risks[0] : null
+    const riskText = topRisk ? ` · 最高风险 ${topRisk.code}${topRisk.operator}${topRisk.threshold} ${Math.round(Number(topRisk.probability || 0) * 100)}%` : ''
     forecastStatus.value = {
       available: !!data.available,
       reason: String(data.reason || ''),
-      detail: data.available ? `${data.codes?.join('/') || 'HR/MAP'} 未来 ${data.horizon_hours || 6}h` : String(data.reason || '缺少本地 Torch 权重'),
+      detail: data.available ? `${data.codes?.join('/') || 'HR/MAP'} 未来 ${data.horizon_hours || horizon}h预测${riskText}` : String(data.reason || '缺少本地 Torch 权重'),
     }
   } catch (error: any) {
     forecastStatus.value = { available: false, reason: error?.message || '接口暂不可用', detail: error?.message || '接口暂不可用' }
@@ -972,6 +984,12 @@ onUnmounted(() => {
   color: #9cc7d8;
   font-size: 12px;
   font-style: normal;
+}
+.forecast-strip small {
+  margin-left: auto;
+  color: #7f9db1;
+  font-size: 11px;
+  white-space: nowrap;
 }
 .command-strip {
   display: grid;
@@ -1369,7 +1387,8 @@ html[data-theme='light'] .forecast-strip {
   background: rgba(255,255,255,.98);
 }
 html[data-theme='light'] .forecast-strip span,
-html[data-theme='light'] .forecast-strip em {
+html[data-theme='light'] .forecast-strip em,
+html[data-theme='light'] .forecast-strip small {
   color: #556b86;
 }
 html[data-theme='light'] .forecast-strip strong {

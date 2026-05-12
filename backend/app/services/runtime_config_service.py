@@ -32,6 +32,38 @@ DEFAULT_AI_CONFIG = {
     "circuit_breaker": {"failure_threshold": 3, "cooldown_seconds": 180},
 }
 
+TRAJECTORY_CODE_OPTIONS = [
+    {"code": "HR", "label": "心率", "unit": "bpm", "series_type": "continuous", "default_visible": True},
+    {"code": "MAP", "label": "平均动脉压", "unit": "mmHg", "series_type": "continuous", "default_visible": True},
+    {"code": "SBP", "label": "收缩压", "unit": "mmHg", "series_type": "continuous", "default_visible": True},
+    {"code": "DBP", "label": "舒张压", "unit": "mmHg", "series_type": "continuous", "default_visible": True},
+    {"code": "SpO2", "label": "血氧饱和度", "unit": "%", "series_type": "continuous", "default_visible": True},
+    {"code": "RR", "label": "呼吸频率", "unit": "/min", "series_type": "continuous", "default_visible": True},
+    {"code": "Temp", "label": "体温", "unit": "℃", "series_type": "continuous", "default_visible": True, "recommended_horizon_hours": 12},
+    {"code": "EtCO2", "label": "呼气末二氧化碳", "unit": "mmHg", "series_type": "continuous", "default_visible": True, "requires_context": ["intubated"]},
+    {"code": "CVP", "label": "中心静脉压", "unit": "cmH2O", "series_type": "continuous", "default_visible": False, "data_quality_gate": True},
+    {"code": "ICP", "label": "颅内压", "unit": "mmHg", "series_type": "continuous", "default_visible": False, "data_quality_gate": True},
+    {"code": "Lactate", "label": "乳酸", "unit": "mmol/L", "series_type": "discrete_trend", "default_visible": False},
+]
+
+DEFAULT_TRAJECTORY_FORECAST_CONFIG = {
+    "enabled": True,
+    "default_codes": ["HR", "MAP", "SBP", "DBP", "SpO2", "RR", "Temp", "EtCO2"],
+    "alert_enabled": False,
+    "alert_codes": ["MAP", "SpO2", "RR", "Temp", "EtCO2"],
+    "horizon_hours": 6,
+    "scope": "global",
+    "version": 1,
+    "calibration_version": "uncalibrated-v1",
+    "thresholds": [
+        {"code": "MAP", "operator": "<", "threshold": 65, "probability": 0.70, "severity": "high", "horizon_hours": 4},
+        {"code": "SpO2", "operator": "<", "threshold": 90, "probability": 0.70, "severity": "high", "horizon_hours": 4},
+        {"code": "RR", "operator": ">", "threshold": 30, "probability": 0.70, "severity": "warning", "horizon_hours": 4},
+        {"code": "Temp", "operator": ">", "threshold": 38.5, "probability": 0.80, "severity": "warning", "horizon_hours": 6},
+        {"code": "EtCO2", "operator": "<", "threshold": 25, "probability": 0.70, "severity": "warning", "horizon_hours": 4},
+    ],
+}
+
 
 class RuntimeConfigService:
     def __init__(self, db) -> None:
@@ -53,11 +85,14 @@ class RuntimeConfigService:
     async def overview(self) -> dict[str, Any]:
         modules_doc = await self._get_config_doc("modules", DEFAULT_MODULES)
         ai_doc = await self._get_config_doc("ai", DEFAULT_AI_CONFIG)
+        trajectory_doc = await self._get_config_doc("trajectory_forecast", DEFAULT_TRAJECTORY_FORECAST_CONFIG)
         rules = [serialize_doc(row) async for row in self.db.col("alert_rules").find({}).sort([("category", 1), ("rule_id", 1)]).limit(300)]
         mappings = [serialize_doc(row) async for row in self.db.col("field_mapping").find({}).sort([("standard_concept", 1), ("source_name", 1)]).limit(500)]
         return {
             "modules": modules_doc.get("value") or [],
             "ai": ai_doc.get("value") or {},
+            "trajectory_forecast": trajectory_doc.get("value") or {},
+            "trajectory_code_options": TRAJECTORY_CODE_OPTIONS,
             "alert_rules": rules,
             "field_mappings": mappings,
             "generated_at": datetime.now(),
@@ -118,6 +153,65 @@ class RuntimeConfigService:
         value["timeout"] = int(value.get("timeout") or 30)
         await self._set_config("ai", value, actor=actor)
         return {"ai": value}
+
+    def normalize_trajectory_forecast(self, payload: dict[str, Any], current: dict[str, Any] | None = None) -> dict[str, Any]:
+        allowed = {item["code"] for item in TRAJECTORY_CODE_OPTIONS}
+        current = current if isinstance(current, dict) else {}
+        value = deepcopy(DEFAULT_TRAJECTORY_FORECAST_CONFIG)
+        value.update(current)
+        value.update({key: payload[key] for key in ("enabled", "alert_enabled", "horizon_hours", "scope", "calibration_version") if key in payload})
+        default_codes = [str(code) for code in payload.get("default_codes", value.get("default_codes") or []) if str(code) in allowed]
+        if not default_codes:
+            default_codes = list(DEFAULT_TRAJECTORY_FORECAST_CONFIG["default_codes"])
+        alert_codes = [str(code) for code in payload.get("alert_codes", value.get("alert_codes") or []) if str(code) in allowed]
+        alert_codes = [code for code in alert_codes if code in set(default_codes)]
+        value["default_codes"] = default_codes
+        value["alert_codes"] = alert_codes
+        value["enabled"] = bool(value.get("enabled", True))
+        value["alert_enabled"] = bool(value.get("alert_enabled", False))
+        value["horizon_hours"] = max(1, min(int(value.get("horizon_hours") or 6), 12))
+        value["scope"] = str(value.get("scope") or "global")
+        value["calibration_version"] = str(value.get("calibration_version") or "uncalibrated-v1")
+
+        thresholds = []
+        for item in payload.get("thresholds", value.get("thresholds") or []):
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("code") or "").strip()
+            if code not in set(alert_codes):
+                continue
+            operator = str(item.get("operator") or "<").strip()
+            if operator not in {"<", "<=", ">", ">="}:
+                operator = "<"
+            try:
+                threshold = float(item.get("threshold"))
+                probability = float(item.get("probability"))
+            except Exception:
+                continue
+            thresholds.append(
+                {
+                    "code": code,
+                    "operator": operator,
+                    "threshold": threshold,
+                    "probability": max(0.01, min(probability, 0.99)),
+                    "severity": str(item.get("severity") or "warning").strip().lower(),
+                    "horizon_hours": max(1, min(int(item.get("horizon_hours") or value["horizon_hours"]), 12)),
+                }
+            )
+        value["thresholds"] = thresholds
+        return value
+
+    async def update_trajectory_forecast(self, payload: dict[str, Any], *, actor: str) -> dict[str, Any]:
+        doc = await self._get_config_doc("trajectory_forecast", DEFAULT_TRAJECTORY_FORECAST_CONFIG)
+        current = doc.get("value") or {}
+        expected_version = payload.get("expected_version")
+        current_version = int((current or {}).get("version") or 1)
+        if expected_version is not None and int(expected_version) != current_version:
+            raise ValueError(f"配置已被更新，请刷新后重试（当前版本 {current_version}）")
+        value = self.normalize_trajectory_forecast(payload, current)
+        value["version"] = current_version + 1
+        await self._set_config("trajectory_forecast", value, actor=actor)
+        return {"trajectory_forecast": value, "effective_version": value["version"], "applied_at": datetime.now()}
 
     async def update_alert_rule(self, rule_id: str, payload: dict[str, Any], *, actor: str) -> dict[str, Any]:
         now = datetime.now()

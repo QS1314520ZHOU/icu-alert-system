@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 import sys
 from typing import Any
@@ -10,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.services.vital_trajectory_forecaster import VitalTrajectoryForecaster
+from app.services.vital_trajectory_forecaster import VitalTrajectoryForecaster, DEFAULT_CONTINUOUS_CODES
 from app.services.local_model_paths import local_model_dir
 
 
@@ -23,8 +24,7 @@ class _Config:
     yaml_cfg = {"ai_service": {"local_models": {"base_dir": "missing-model-root", "chronos_dir": "chronos"}}}
 
 
-@pytest.mark.asyncio
-async def test_trajectory_forecast_unavailable_and_horizon_clamped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_trajectory_forecast_unavailable_and_horizon_clamped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
 
     async def fake_history(self, patient_id: str, code: str) -> list[dict[str, Any]]:
@@ -33,12 +33,67 @@ async def test_trajectory_forecast_unavailable_and_horizon_clamped(monkeypatch: 
     monkeypatch.setattr(VitalTrajectoryForecaster, "_history", fake_history)
     service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
 
-    result = await service.forecast("p1", ["HR", "BAD"], horizon_hours=99)
+    result = asyncio.run(service.forecast("p1", ["HR", "BAD"], horizon_hours=99))
 
     assert result["available"] is False
     assert result["horizon_hours"] == 12
     assert result["codes"] == ["HR"]
     assert len(result["series"]["HR"]["forecast"]) == 12
+
+
+def test_trajectory_forecast_defaults_to_continuous_eight(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
+
+    async def fake_history(self, patient_id: str, code: str) -> list[dict[str, Any]]:
+        return [{"time": None, "value": 70}]
+
+    monkeypatch.setattr(VitalTrajectoryForecaster, "_history", fake_history)
+    service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
+
+    result = asyncio.run(service.forecast("p1", None, horizon_hours=6))
+
+    assert tuple(result["codes"]) == DEFAULT_CONTINUOUS_CODES
+
+
+def test_trajectory_forecast_disabled_by_runtime_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
+    service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
+
+    async def fake_runtime_config() -> dict[str, Any]:
+        return {"enabled": False, "default_codes": ["HR", "MAP"], "version": 7}
+
+    monkeypatch.setattr(service, "_runtime_config", fake_runtime_config)
+
+    result = asyncio.run(service.forecast("p1", None, horizon_hours=6))
+
+    assert result["available"] is False
+    assert result["reason"] == "trajectory forecast disabled by runtime config"
+    assert result["threshold_risks"] == []
+    assert result["model_meta"]["backend"] == "disabled"
+    assert result["model_meta"]["config_version"] == 7
+
+
+def test_trajectory_threshold_risk_probability_detects_map_breach() -> None:
+    service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
+    series = {
+        "MAP": {
+            "forecast": [
+                {"mean": 62, "lower": 58, "upper": 66},
+                {"mean": 60, "lower": 55, "upper": 65},
+            ]
+        }
+    }
+    cfg = {
+        "alert_enabled": True,
+        "alert_codes": ["MAP"],
+        "thresholds": [{"code": "MAP", "operator": "<", "threshold": 65, "probability": 0.7, "severity": "high", "horizon_hours": 4}],
+    }
+
+    risks = service.threshold_risks(series, cfg, model_available=True)
+
+    assert risks
+    assert risks[0]["code"] == "MAP"
+    assert risks[0]["probability"] >= 0.7
 
 
 def test_trajectory_forecast_path_uses_env_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

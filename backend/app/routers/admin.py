@@ -166,6 +166,17 @@ async def update_runtime_ai(payload: dict):
     return {"code": 0, **serialize_doc(result)}
 
 
+@router.post("/runtime-config/trajectory-forecast")
+async def update_runtime_trajectory_forecast(payload: dict):
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    try:
+        result = await RuntimeConfigService(runtime.db).update_trajectory_forecast(payload or {}, actor=_actor())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {"code": 0, **serialize_doc(result)}
+
+
 @router.post("/runtime-config/alert-rules/{rule_id}")
 async def update_runtime_alert_rule(rule_id: str, payload: dict):
     if runtime.db is None:

@@ -441,7 +441,7 @@ async def patient_vitals_trend(
 @router.get("/api/patients/{patient_id}/vitals/forecast")
 async def patient_vitals_forecast(
     patient_id: str,
-    codes: str = Query("HR,MAP,SpO2,RR"),
+    codes: str = Query(""),
     horizon_hours: int = Query(6, ge=1, le=12),
 ):
     try:
@@ -449,7 +449,7 @@ async def patient_vitals_forecast(
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
-    requested = [part.strip() for part in str(codes or "").split(",") if part.strip() in SUPPORTED_CODES]
+    requested = [part.strip() for part in str(codes or "").split(",") if part.strip() in SUPPORTED_CODES] if str(codes or "").strip() else None
     service = get_vital_trajectory_forecaster(db=runtime.db, config=runtime.config, alert_engine=runtime.alert_engine)
     result = await service.forecast(str(pid), requested, horizon_hours)
     return serialize_doc(result)
