@@ -16,6 +16,9 @@ from app.utils.serialization import safe_oid, serialize_doc
 
 logger = logging.getLogger("icu-alert")
 
+NUTRITION_DETAIL_TIMEOUT_SECONDS = 1.8
+NUTRITION_OPTIONAL_TIMEOUT_SECONDS = 0.45
+
 NUTRITION_ORDER_RE = re.compile(
     r"肠内|肠外|营养|脂肪乳|氨基酸|葡萄糖|EN|PN|TPN|百普|瑞素|能全|佳维体|力能|卡文|丙氨酰谷氨酰胺",
     re.I,
@@ -70,6 +73,17 @@ def _dt(value: Any) -> datetime | None:
         except Exception:
             return None
     return None
+
+
+async def _with_timeout(awaitable, default: Any, label: str, seconds: float = NUTRITION_OPTIONAL_TIMEOUT_SECONDS) -> Any:
+    try:
+        return await asyncio.wait_for(awaitable, timeout=seconds)
+    except asyncio.TimeoutError:
+        logger.info("nutrition optional query timeout: %s", label)
+        return default
+    except Exception as exc:
+        logger.debug("nutrition optional query failed: %s: %s", label, exc)
+        return default
 
 
 def _patient_name(patient: dict[str, Any]) -> str:
@@ -885,17 +899,21 @@ def _trend(delivery: dict[str, Any]) -> list[dict[str, Any]]:
 async def build_nutrition_row(patient: dict[str, Any]) -> dict[str, Any]:
     pid = str(patient.get("_id") or "")
     weight = _weight(patient)
-    nrs_doc = await _latest_score(patient, ["nrs2002", "nrs_2002", "NRS2002", "nutrition_risk_screening", "营养风险"])
-    nutric_doc = await _latest_score(patient, ["nutric", "mnutric", "modified_nutric", "NUTRIC"])
-    orders = await _nutrition_orders(patient)
-    labs = await _latest_labs(patient)
-    glucose = await _latest_blood_glucose(patient)
+    nrs_doc, nutric_doc, orders, labs, glucose, glucose_trend, tolerance, tasks, alerts = await asyncio.gather(
+        _with_timeout(_latest_score(patient, ["nrs2002", "nrs_2002", "NRS2002", "nutrition_risk_screening", "营养风险"]), None, "nrs2002"),
+        _with_timeout(_latest_score(patient, ["nutric", "mnutric", "modified_nutric", "NUTRIC"]), None, "nutric"),
+        _with_timeout(_nutrition_orders(patient), [], "orders", 0.75),
+        _with_timeout(_latest_labs(patient), {}, "labs", 0.75),
+        _with_timeout(_latest_blood_glucose(patient), None, "glucose"),
+        _with_timeout(_blood_glucose_series(patient), {"points": [], "level": "unknown"}, "glucose_series"),
+        _with_timeout(_nutrition_tolerance(patient), {"level": "unknown", "events": [], "event_count": 0, "interrupted": False, "route": None}, "tolerance"),
+        _with_timeout(_nutrition_tasks(pid), [], "tasks"),
+        _with_timeout(_recent_nutrition_alerts(pid), [], "alerts"),
+    )
     if glucose:
         labs["glucose"] = glucose
-    glucose_trend = await _blood_glucose_series(patient)
     route = _nutrition_route(orders)
     delivery = _estimate_delivery(orders, weight)
-    tolerance = await _nutrition_tolerance(patient)
     prescription = _nutrition_prescription(delivery, route, tolerance, labs)
     icu_days = _days_since_admit(patient)
     nrs = nrs_doc.get("value") if nrs_doc else None
@@ -903,7 +921,6 @@ async def build_nutrition_row(patient: dict[str, Any]) -> dict[str, Any]:
     tags = _risk_tags(route, delivery, labs, nrs, nutric, icu_days)
     if tolerance.get("interrupted") and "EN不耐受" not in tags:
         tags.insert(0, "EN不耐受")
-    tasks = await _nutrition_tasks(pid)
     row = {
         "patient_id": pid,
         "hisPid": patient_his_pid(patient),
@@ -922,7 +939,7 @@ async def build_nutrition_row(patient: dict[str, Any]) -> dict[str, Any]:
         "nutric_time": nutric_doc.get("time") if nutric_doc else None,
         "labs": labs,
         "orders": orders[:8],
-        "alerts": await _recent_nutrition_alerts(pid),
+        "alerts": alerts,
         "risk_tags": tags,
         "risk_level": _risk_level(nrs, nutric, tags),
         "trend_7d": _delivery_trend(orders, weight),
@@ -1086,7 +1103,15 @@ async def nutrition_patient_detail(patient_id: str) -> dict[str, Any]:
     patient = await runtime.db.col("patient").find_one(query)
     if not patient:
         return {"patient": None, "message": "未找到患者"}
-    return {"patient": await build_nutrition_row(patient)}
+    try:
+        row = await asyncio.wait_for(build_nutrition_row(patient), timeout=NUTRITION_DETAIL_TIMEOUT_SECONDS)
+        return {"patient": row, "meta": {"degraded": False}}
+    except asyncio.TimeoutError:
+        logger.warning("nutrition detail timeout patient_id=%s", patient_id)
+        row = build_nutrition_light_row(patient)
+        row["degraded"] = True
+        row["degraded_reason"] = "nutrition_detail_timeout"
+        return {"patient": row, "meta": {"degraded": True, "reason": "nutrition_detail_timeout"}}
 
 
 def _nutrition_ai_fallback(row: dict[str, Any]) -> dict[str, Any]:
