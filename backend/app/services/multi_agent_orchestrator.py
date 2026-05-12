@@ -12,8 +12,12 @@ from bson import ObjectId
 from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
 from app.services.llm_runtime import call_llm_chat
+from app.services.agent_failure_library import AgentFailureLibrary
 from app.services.mdt_prompts import (
+    DEBATE_SYSTEM,
     MODERATOR_SYSTEM,
+    REFLECTION_SYSTEM,
+    SCHEMA_SELF_HEAL_SYSTEM,
     build_moderator_user_prompt,
     build_specialist_system_prompt,
     build_specialist_user_prompt,
@@ -56,6 +60,7 @@ class ICUMultiAgentOrchestrator:
             alert_engine=alert_engine,
             rag_service=rag_service,
         )
+        self.failure_library = AgentFailureLibrary(db=db, config=config)
         self.agents = {
             "hemodynamic_agent": self._assess_hemodynamic,
             "respiratory_agent": self._assess_respiratory,
@@ -104,6 +109,27 @@ class ICUMultiAgentOrchestrator:
             except Exception:
                 return None
         return None
+
+    async def _schema_self_heal(self, raw_text: str, *, target: str) -> dict[str, Any] | None:
+        parsed = self._parse_json_object(raw_text)
+        if parsed is not None:
+            return parsed
+        if not self._use_llm_agents():
+            return None
+        try:
+            result = await call_llm_chat(
+                cfg=self.config,
+                system_prompt=SCHEMA_SELF_HEAL_SYSTEM,
+                user_prompt=json.dumps({"target": target, "raw": str(raw_text or "")[:6000]}, ensure_ascii=False),
+                model=self.config.llm_fast_model or self.config.llm_model_medical,
+                temperature=0,
+                max_tokens=1600,
+                timeout_seconds=20,
+                response_format={"type": "json_object"},
+            )
+            return self._parse_json_object(str(result.get("text") or ""))
+        except Exception:
+            return None
 
     async def _knowledge_chunks(self, twin: dict[str, Any], agent_name: str | None = None) -> list[dict[str, Any]]:
         if not self.rag_service:
@@ -302,6 +328,8 @@ class ICUMultiAgentOrchestrator:
             "recommendations": result.recommendations,
             "priority": result.priority,
             "evidence": result.evidence,
+            "confidence": 0.62 if result.priority in {"high", "critical"} else 0.55,
+            "dissent_points": [],
             "strategy_tags": [],
             "source": source,
         }
@@ -336,7 +364,7 @@ class ICUMultiAgentOrchestrator:
             timeout_seconds=60,
             response_format={"type": "json_object"},
         )
-        raw = self._parse_json_object(str(result.get("text") or "")) or {}
+        raw = await self._schema_self_heal(str(result.get("text") or ""), target="specialist") or {}
         valid_ids = {str(c.get("chunk_id")) for c in knowledge_chunks if c.get("chunk_id")}
         validated = validate_specialist_output(agent_name, raw, valid_ids)
         validated["summary"] = validated.get("summary") or rule_assessment.get("summary") or ""
@@ -354,6 +382,38 @@ class ICUMultiAgentOrchestrator:
                 "degraded_mode": result.get("degraded_mode"),
             },
         }
+
+    def _detect_disagreement(self, assessments: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+        rows = self.detect_conflicts(assessments)
+        for name, item in assessments.items():
+            for point in item.get("dissent_points") or []:
+                rows.append({"type": "specialist_dissent", "agents": [name], "summary": str(point)[:160], "resolution_focus": "MDT主持人需复核该异议"})
+            disagreement = item.get("rule_disagreement") if isinstance(item.get("rule_disagreement"), dict) else {}
+            if disagreement.get("disagree"):
+                rows.append({"type": "rule_disagreement", "agents": [name], "summary": str(disagreement.get("reason") or "专科判断与规则初筛不一致")[:160], "resolution_focus": "需解释规则与LLM差异"})
+        return rows
+
+    async def _debate_round(self, *, twin: dict[str, Any], assessments: dict[str, dict[str, Any]], conflicts: list[dict[str, Any]], failures: list[dict[str, Any]]) -> dict[str, Any]:
+        if not conflicts:
+            return {"debate_summary": "未发现需要辩论的重大冲突", "revised_focus": [], "unresolved_conflicts": []}
+        if not self._use_llm_agents():
+            return {"debate_summary": "规则辩论：存在跨专科冲突，需MDT主持人裁决。", "revised_focus": [c.get("resolution_focus") for c in conflicts if c.get("resolution_focus")], "unresolved_conflicts": [c.get("summary") for c in conflicts if c.get("summary")]}
+        try:
+            result = await call_llm_chat(cfg=self.config, system_prompt=DEBATE_SYSTEM, user_prompt=json.dumps({"patient": twin.get("patient"), "assessments": assessments, "conflicts": conflicts, "failure_few_shots": failures}, ensure_ascii=False, default=str), model=self.config.llm_reasoning_model or self.config.llm_fast_model, temperature=0.1, max_tokens=1200, timeout_seconds=30, response_format={"type": "json_object"})
+            return await self._schema_self_heal(str(result.get("text") or ""), target="debate") or {}
+        except Exception:
+            return {"debate_summary": "辩论轮降级：LLM不可用，保留规则冲突。", "revised_focus": [], "unresolved_conflicts": [c.get("summary") for c in conflicts]}
+
+    async def _reflect_and_revise(self, *, meta_plan: dict[str, Any], failures: list[dict[str, Any]]) -> dict[str, Any]:
+        if not self._use_llm_agents():
+            meta_plan["reflection"] = {"reflection_summary": "规则反思：已加入失败案例提醒和人工确认边界。", "revisions": [], "confidence_adjustment": "same"}
+            return meta_plan
+        try:
+            result = await call_llm_chat(cfg=self.config, system_prompt=REFLECTION_SYSTEM, user_prompt=json.dumps({"meta_plan": meta_plan, "failure_few_shots": failures}, ensure_ascii=False, default=str), model=self.config.llm_fast_model or self.config.llm_model_medical, temperature=0.1, max_tokens=1000, timeout_seconds=25, response_format={"type": "json_object"})
+            meta_plan["reflection"] = await self._schema_self_heal(str(result.get("text") or ""), target="reflection") or {}
+        except Exception:
+            meta_plan["reflection"] = {"reflection_summary": "反思轮降级：LLM不可用。", "revisions": [], "confidence_adjustment": "same"}
+        return meta_plan
 
     def detect_conflicts(self, assessments: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
         conflicts: list[dict[str, Any]] = []
@@ -423,7 +483,7 @@ class ICUMultiAgentOrchestrator:
             timeout_seconds=90,
             response_format={"type": "json_object"},
         )
-        raw = self._parse_json_object(str(result.get("text") or "")) or {}
+        raw = await self._schema_self_heal(str(result.get("text") or ""), target="moderator") or {}
         valid_ids = {str(c.get("chunk_id")) for c in knowledge_chunks if c.get("chunk_id")}
         validated = validate_moderator_output(raw, valid_ids)
         return {
@@ -541,7 +601,9 @@ class ICUMultiAgentOrchestrator:
             else:
                 assessments[name] = self._specialist_to_payload(rule_result)
 
-        conflicts = self.detect_conflicts(assessments)
+        conflicts = self._detect_disagreement(assessments)
+        failures = await self.failure_library.get_relevant_failures(twin)
+        debate = await self._debate_round(twin=twin, assessments=assessments, conflicts=conflicts, failures=failures)
         if self._use_llm_agents():
             chunks = await self._knowledge_chunks(twin, "moderator")
             try:
@@ -552,6 +614,9 @@ class ICUMultiAgentOrchestrator:
                 meta_plan["llm_error"] = f"{exc.__class__.__name__}: {exc}"
         else:
             meta_plan = await self._meta_synthesize(twin=twin, assessments=assessments, conflicts=conflicts)
+        meta_plan["debate"] = debate
+        meta_plan["failure_few_shots"] = failures
+        meta_plan = await self._reflect_and_revise(meta_plan=meta_plan, failures=failures)
 
         result = {
             "patient_id": patient_id,

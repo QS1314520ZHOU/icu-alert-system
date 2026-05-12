@@ -60,6 +60,12 @@
         </span>
       </div>
 
+      <div v-if="forecastStatus.available || forecastStatus.reason" class="forecast-strip">
+        <span>轨迹预测</span>
+        <strong>{{ forecastStatus.available ? 'Chronos 已接入' : '模型未就绪' }}</strong>
+        <em>{{ forecastStatus.detail }}</em>
+      </div>
+
       <div v-if="activeOverviewFilters.length" class="filter-summary">
         <span class="filter-summary__label">当前筛选</span>
         <span v-for="item in activeOverviewFilters" :key="item.key" class="filter-summary__chip">
@@ -150,7 +156,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getRecentAlerts, getPatientPriority } from '../api'
+import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
@@ -177,6 +183,7 @@ const alertFilter = ref('')
 const rescueOnly = ref(false)
 const workflowFilter = ref('all')
 const priorityRows = ref<any[]>([])
+const forecastStatus = ref({ available: false, reason: '', detail: '等待患者预测数据' })
 let iv: any = null
 let offAlert: any = null
 let bundleRequestToken = 0
@@ -561,6 +568,25 @@ async function hydrateBundleStatuses(items: any[]) {
   }
 }
 
+async function hydrateForecastPreview(items: any[]) {
+  const first = items.find((item: any) => item?._id)
+  if (!first) {
+    forecastStatus.value = { available: false, reason: '', detail: '暂无患者可预测' }
+    return
+  }
+  try {
+    const res = await getPatientVitalsForecast(String(first._id), { codes: 'HR,MAP,SpO2,RR', horizon_hours: 6 })
+    const data = res.data || {}
+    forecastStatus.value = {
+      available: !!data.available,
+      reason: String(data.reason || ''),
+      detail: data.available ? `${data.codes?.join('/') || 'HR/MAP'} 未来 ${data.horizon_hours || 6}h` : String(data.reason || '缺少本地 Torch 权重'),
+    }
+  } catch (error: any) {
+    forecastStatus.value = { available: false, reason: error?.message || '接口暂不可用', detail: error?.message || '接口暂不可用' }
+  }
+}
+
 /* ── fmt ── */
 /* ── 数据加载 ── */
 async function load(options?: { silent?: boolean }) {
@@ -671,6 +697,7 @@ async function load(options?: { silent?: boolean }) {
     patients.value = all
     syncOverviewCacheSnapshot()
     void hydrateBundleStatuses(all)
+    void hydrateForecastPreview(all)
   } catch (e) { console.error(e) }
   finally {
     refreshing.value = false
@@ -922,11 +949,36 @@ onUnmounted(() => {
   border-color: rgba(251, 113, 133, 0.34);
   color: #ffe8ee;
 }
+.forecast-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid rgba(94, 234, 212, 0.16);
+  border-radius: 12px;
+  background: rgba(8, 28, 44, 0.58);
+}
+.forecast-strip span {
+  color: #7fd7eb;
+  font-size: 11px;
+  font-weight: 800;
+}
+.forecast-strip strong {
+  color: #ecfeff;
+  font-size: 13px;
+}
+.forecast-strip em {
+  color: #9cc7d8;
+  font-size: 12px;
+  font-style: normal;
+}
 .command-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
+
 .quick-filter-panel {
   display: flex;
   flex-wrap: wrap;
@@ -1311,6 +1363,17 @@ html[data-theme='light'] .filter-summary__clear {
   border-color: rgba(37, 99, 235, 0.24);
   background: linear-gradient(180deg, rgba(239,246,255,.98) 0%, rgba(219,234,254,.98) 100%);
   color: #2563EB;
+}
+html[data-theme='light'] .forecast-strip {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,.98);
+}
+html[data-theme='light'] .forecast-strip span,
+html[data-theme='light'] .forecast-strip em {
+  color: #556b86;
+}
+html[data-theme='light'] .forecast-strip strong {
+  color: #16324f;
 }
 html[data-theme='light'] .command-pill {
   border-color: rgba(148, 163, 184, 0.18);

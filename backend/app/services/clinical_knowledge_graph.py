@@ -70,6 +70,9 @@ class ClinicalKnowledgeGraph:
         "alp_or_ggt_high": EvidenceSpec("alp_or_ggt_high", "胆汁淤积指标升高", "lab", "ALP/GGT 升高", "未见明显胆汁淤积指标异常"),
         "tpn_running": EvidenceSpec("tpn_running", "TPN/静脉营养暴露", "drug", "近期存在 TPN/脂肪乳等支持", "近期未见明确 TPN 暴露"),
         "coagulopathy_signal": EvidenceSpec("coagulopathy_signal", "凝血功能障碍信号", "lab", "存在 INR/APTT/纤维蛋白原异常", "未见明确凝血功能障碍"),
+        "fm_mortality_high": EvidenceSpec("fm_mortality_high", "基础模型死亡高风险", "foundation_model", "ICU 时序基础模型提示死亡风险升高", "基础模型未提示死亡高风险"),
+        "fm_aki_predicted": EvidenceSpec("fm_aki_predicted", "基础模型预测 AKI", "foundation_model", "ICU 时序基础模型提示 AKI 风险升高", "基础模型未提示 AKI 高风险"),
+        "fm_circulation_failure_predicted": EvidenceSpec("fm_circulation_failure_predicted", "基础模型预测循环衰竭", "foundation_model", "ICU 时序基础模型提示循环衰竭风险升高", "基础模型未提示循环衰竭高风险"),
     }
 
     FINDING_ALIASES: dict[str, str] = {
@@ -120,7 +123,7 @@ class ClinicalKnowledgeGraph:
                 CauseNode("mesenteric_or_occult_ischemia", "组织缺血/隐匿缺血", "重度乳酸升高而感染/失血证据不充分时，需警惕肠系膜或其他组织缺血。", "hemodynamic", 0.07, ["lactate_very_high"], ["shock_signal", "tachycardia"], ["infection_signal"], ["结合腹痛/腹胀/影像复核缺血可能", "必要时升级 CTA/外科会诊"], ["针对隐匿缺血做床旁再评估"], ["ischemia", "lactate"]),
             ],
             "creatinine_rise": [
-                CauseNode("sepsis_aki", "脓毒症相关 AKI", "感染与低灌注背景下肾前性与炎症性损伤常共同推动肌酐升高。", "renal", 0.26, ["cr_high"], ["sepsis_signal", "map_low", "aki_alert"], [], ["复核感染控制、容量状态与血流动力学", "动态追踪肌酐、尿量与乳酸"], ["优先识别可逆性肾灌注因素"], ["aki", "sepsis", "renal"]),
+                CauseNode("sepsis_aki", "脓毒症相关 AKI", "感染与低灌注背景下肾前性与炎症性损伤常共同推动肌酐升高。", "renal", 0.26, ["cr_high"], ["sepsis_signal", "map_low", "aki_alert", "fm_aki_predicted"], [], ["复核感染控制、容量状态与血流动力学", "动态追踪肌酐、尿量与乳酸"], ["优先识别可逆性肾灌注因素"], ["aki", "sepsis", "renal"]),
                 CauseNode("drug_induced_aki", "药物/造影剂相关肾损伤", "肾毒性暴露可直接推动肌酐升高，尤其在高龄、感染或休克背景下。", "renal", 0.18, ["drug_nephrotoxin"], ["cr_high", "aki_alert"], [], ["核对万古霉素/造影剂/NSAIDs 暴露", "尽快完成剂量调整或替代方案评估"], ["停评可疑肾毒性暴露"], ["aki", "contrast", "vancomycin"]),
                 CauseNode("pre_renal_hypoperfusion", "肾前性低灌注", "低血压、休克、容量不足可导致肾前性损伤并快速拉高肌酐。", "renal", 0.2, ["map_low"], ["sbp_low", "tachycardia", "cr_high"], [], ["联合尿量、液体平衡和床旁超声复核容量反应性", "避免持续肾灌注不足"], ["优先恢复肾灌注"], ["renal perfusion", "aki", "shock"]),
                 CauseNode("crrt_or_advanced_renal_failure", "CRRT 依赖/进展性肾衰竭", "已进入 CRRT 场景或伴高钾、严重 AKI 预警时，更提示进展性肾衰竭。", "renal", 0.12, ["crrt_running"], ["aki_alert", "hyperkalemia", "cr_high"], [], ["复核 CRRT 适应证、通路与处方目标", "评估电解质与容量控制是否达标"], ["确认肾脏支持治疗目标"], ["crrt", "aki", "electrolyte"]),
@@ -132,7 +135,7 @@ class ClinicalKnowledgeGraph:
                 CauseNode("bronchospasm_or_airway_obstruction", "支气管痉挛/气道阻力升高", "气道阻力上升或支气管痉挛可导致低氧与呼吸功增加。", "respiratory", 0.09, ["resp_distress"], ["wheeze_or_bronchospasm", "spo2_low"], [], ["复核雾化、支气管舒张剂和痰液清除策略", "评估是否存在气道阻塞或分泌物潴留"], ["先排查可逆气道因素"], ["bronchospasm", "airway obstruction"]),
             ],
             "hypotension": [
-                CauseNode("septic_vasoplegia", "感染性血管扩张/脓毒性休克", "感染背景下低血压伴升压药需求，首先考虑脓毒性血管扩张与灌注不足。", "hemodynamic", 0.25, ["map_low"], ["sepsis_signal", "vasopressor_use", "lactate_high"], [], ["复核感染源控制、补液反应与升压目标", "动态追踪乳酸与末梢灌注"], ["优先按休克路径复评"], ["sepsis", "shock", "hypotension"]),
+                CauseNode("septic_vasoplegia", "感染性血管扩张/脓毒性休克", "感染背景下低血压伴升压药需求，首先考虑脓毒性血管扩张与灌注不足。", "hemodynamic", 0.25, ["map_low"], ["sepsis_signal", "vasopressor_use", "lactate_high", "fm_circulation_failure_predicted", "fm_mortality_high"], [], ["复核感染源控制、补液反应与升压目标", "动态追踪乳酸与末梢灌注"], ["优先按休克路径复评"], ["sepsis", "shock", "hypotension"]),
                 CauseNode("hypovolemia", "容量不足", "容量丢失或第三间隙转移可直接造成低血压和器官灌注下降。", "hemodynamic", 0.18, ["sbp_low"], ["tachycardia", "hb_drop", "perfusion_poor"], [], ["评估液体反应性、尿量、出入量与失血线索", "结合超声复核前负荷"], ["先辨别是否需要补液/止血"], ["hypovolemia", "shock"]),
                 CauseNode("obstructive_or_pe", "阻塞性休克/肺栓塞", "低血压合并呼吸负担或栓塞证据时，应提升阻塞性休克权重。", "hemodynamic", 0.08, ["sbp_low"], ["pe_signal", "ddimer_high", "resp_distress"], [], ["结合超声、D-dimer 与 CTA 指征评估阻塞性病因"], ["尽快完成床旁超声筛查"], ["obstructive shock", "pulmonary embolism"]),
                 CauseNode("drug_related_vasodilation", "药物相关血管扩张/镇静相关低血压", "镇静镇痛或血管活性药调整后可出现药物相关低血压。", "hemodynamic", 0.1, ["sbp_low"], ["vasopressor_use"], ["lactate_very_high"], ["回顾镇静、镇痛和血管活性药调整时间点", "区分药物效应与真实循环恶化"], ["避免把药物性低压误判为纯感染性休克"], ["sedation", "vasodilation", "hypotension"]),
@@ -167,6 +170,82 @@ class ClinicalKnowledgeGraph:
             "bilirubin_rise": "胆红素升高",
             "coagulopathy": "凝血异常",
         }
+
+    def _evidence_spec_from_doc(self, doc: dict[str, Any]) -> EvidenceSpec | None:
+        key = str(doc.get("key") or doc.get("evidence_key") or "").strip()
+        if not key:
+            return None
+        return EvidenceSpec(
+            key=key,
+            label=str(doc.get("label") or key).strip(),
+            category=str(doc.get("category") or "dynamic").strip(),
+            positive_hint=str(doc.get("positive_hint") or "动态知识图谱证据命中").strip(),
+            negative_hint=str(doc.get("negative_hint") or "动态知识图谱证据未命中").strip(),
+        )
+
+    def _cause_node_from_doc(self, doc: dict[str, Any]) -> CauseNode | None:
+        key = str(doc.get("key") or doc.get("cause_key") or "").strip()
+        if not key:
+            return None
+        def text_list(name: str) -> list[str]:
+            value = doc.get(name)
+            if isinstance(value, list):
+                return [str(item).strip() for item in value if str(item).strip()]
+            if isinstance(value, str) and value.strip():
+                return [value.strip()]
+            return []
+
+        return CauseNode(
+            key=key,
+            label=str(doc.get("label") or key).strip(),
+            mechanism=str(doc.get("mechanism") or "").strip(),
+            clinical_domain=str(doc.get("clinical_domain") or "dynamic").strip(),
+            base_rate=max(0.001, min(0.999, float(doc.get("base_rate") or 0.1))),
+            required_evidence=text_list("required_evidence"),
+            supportive_evidence=text_list("supportive_evidence"),
+            contraindicating_evidence=text_list("contraindicating_evidence"),
+            recommended_checks=text_list("recommended_checks"),
+            initial_actions=text_list("initial_actions"),
+            rag_terms=text_list("rag_terms"),
+        )
+
+    async def _dynamic_knowledge(self) -> tuple[dict[str, EvidenceSpec], dict[str, list[CauseNode]]]:
+        evidence: dict[str, EvidenceSpec] = {}
+        causes: dict[str, list[CauseNode]] = {}
+        try:
+            cursor = self.db.col("kg_causal_approvals").find({"approved": True, "enabled": {"$ne": False}}).sort("version", 1)
+            async for doc in cursor:
+                for raw in doc.get("evidence") or []:
+                    if isinstance(raw, dict):
+                        spec = self._evidence_spec_from_doc(raw)
+                        if spec:
+                            evidence[spec.key] = spec
+                finding_key = str(doc.get("finding_key") or "").strip()
+                raw_cause = doc.get("cause_node") if isinstance(doc.get("cause_node"), dict) else doc
+                node = self._cause_node_from_doc(raw_cause)
+                if finding_key and node:
+                    causes.setdefault(finding_key, [])
+                    causes[finding_key] = [item for item in causes[finding_key] if item.key != node.key]
+                    causes[finding_key].append(node)
+        except Exception:
+            return {}, {}
+        return evidence, causes
+
+    async def _merged_evidence_library(self, dynamic_evidence: dict[str, EvidenceSpec] | None = None) -> dict[str, EvidenceSpec]:
+        if dynamic_evidence is None:
+            dynamic_evidence, _ = await self._dynamic_knowledge()
+        return {**self.EVIDENCE_LIBRARY, **dynamic_evidence}
+
+    async def _merged_cause_map(self, dynamic_causes: dict[str, list[CauseNode]] | None = None) -> dict[str, list[CauseNode]]:
+        if dynamic_causes is None:
+            _, dynamic_causes = await self._dynamic_knowledge()
+        merged = {key: list(value) for key, value in self._cause_map().items()}
+        for finding_key, rows in dynamic_causes.items():
+            existing = {item.key: item for item in merged.get(finding_key, [])}
+            for row in rows:
+                existing[row.key] = row
+            merged[finding_key] = list(existing.values())
+        return merged
 
     async def _load_patient(self, patient_id: str) -> dict[str, Any] | None:
         try:
@@ -237,6 +316,10 @@ class ClinicalKnowledgeGraph:
         hb_series = await self.alert_engine._get_lab_series(his_pid, "hb", datetime.now() - timedelta(days=3), limit=60) if his_pid else []
         cr_series = await self.alert_engine._get_lab_series(his_pid, "cr", datetime.now() - timedelta(days=3), limit=60) if his_pid else []
         tbil_series = await self.alert_engine._get_lab_series(his_pid, "tbil", datetime.now() - timedelta(days=5), limit=60) if his_pid else []
+        fm_score = await self.db.col("score").find_one(
+            {"patient_id": patient_id, "score_type": "foundation_model_prediction"},
+            sort=[("calc_time", -1)],
+        )
         return {
             "patient": patient_doc,
             "facts": facts,
@@ -248,6 +331,7 @@ class ClinicalKnowledgeGraph:
             "hb_series": hb_series,
             "cr_series": cr_series,
             "tbil_series": tbil_series,
+            "foundation_model": fm_score.get("predictions") if isinstance(fm_score, dict) and isinstance(fm_score.get("predictions"), dict) else {},
         }
 
     def get_supporting_evidence(self, context: dict[str, Any], cause: CauseNode) -> dict[str, bool]:
@@ -256,6 +340,8 @@ class ClinicalKnowledgeGraph:
         drugs = context.get("drugs") if isinstance(context.get("drugs"), list) else []
         vitals = context.get("vitals") if isinstance(context.get("vitals"), dict) else {}
         patient_doc = context.get("patient") if isinstance(context.get("patient"), dict) else {}
+        fm = context.get("foundation_model") if isinstance(context.get("foundation_model"), dict) else {}
+        fm_tasks = fm.get("tasks") if isinstance(fm.get("tasks"), dict) else {}
         plt_series = context.get("plt_series") if isinstance(context.get("plt_series"), list) else []
         hb_series = context.get("hb_series") if isinstance(context.get("hb_series"), list) else []
         drug_blob = self._drug_blob(drugs)
@@ -315,6 +401,9 @@ class ClinicalKnowledgeGraph:
             "alp_or_ggt_high": (alp is not None and alp >= 180) or (ggt is not None and ggt >= 100),
             "tpn_running": any(token in drug_blob for token in ["tpn", "肠外营养", "脂肪乳", "氨基酸注射液"]),
             "coagulopathy_signal": (inr is not None and inr >= 1.5) or self._has_alert(alerts, ["dic", "coagul"]),
+            "fm_mortality_high": self._safe_float((fm_tasks.get("mortality") or {}).get("probability") if isinstance(fm_tasks.get("mortality"), dict) else None) is not None and float((fm_tasks.get("mortality") or {}).get("probability")) >= 0.75,
+            "fm_aki_predicted": self._safe_float((fm_tasks.get("aki") or {}).get("probability") if isinstance(fm_tasks.get("aki"), dict) else None) is not None and float((fm_tasks.get("aki") or {}).get("probability")) >= 0.7,
+            "fm_circulation_failure_predicted": self._safe_float((fm_tasks.get("circulation_failure") or {}).get("probability") if isinstance(fm_tasks.get("circulation_failure"), dict) else None) is not None and float((fm_tasks.get("circulation_failure") or {}).get("probability")) >= 0.7,
         }
         target_keys = set(cause.required_evidence + cause.supportive_evidence + cause.contraindicating_evidence)
         return {key: bool(evidence.get(key)) for key in target_keys}
@@ -431,7 +520,8 @@ class ClinicalKnowledgeGraph:
             )
         return normalized
 
-    def _evidence_profile(self, cause_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _evidence_profile(self, cause_rows: list[dict[str, Any]], evidence_library: dict[str, EvidenceSpec] | None = None) -> list[dict[str, Any]]:
+        library = evidence_library or self.EVIDENCE_LIBRARY
         keys = []
         for row in cause_rows[:5]:
             keys.extend(row.get("required_evidence") or [])
@@ -440,7 +530,7 @@ class ClinicalKnowledgeGraph:
         unique_keys = list(dict.fromkeys(str(key) for key in keys if str(key)))
         profile: list[dict[str, Any]] = []
         for key in unique_keys:
-            spec = self.EVIDENCE_LIBRARY.get(key)
+            spec = library.get(key)
             present = bool(any(key in (row.get("matched_evidence_keys") or []) for row in cause_rows))
             profile.append(
                 {
@@ -484,7 +574,8 @@ class ClinicalKnowledgeGraph:
             }
         )
 
-    def _rank_causes(self, finding_label: str, context: dict[str, Any], causes: list[CauseNode]) -> list[dict[str, Any]]:
+    def _rank_causes(self, finding_label: str, context: dict[str, Any], causes: list[CauseNode], evidence_library: dict[str, EvidenceSpec] | None = None) -> list[dict[str, Any]]:
+        library = evidence_library or self.EVIDENCE_LIBRARY
         ranked: list[dict[str, Any]] = []
         for cause in causes:
             evidence = self.get_supporting_evidence(context, cause)
@@ -497,8 +588,8 @@ class ClinicalKnowledgeGraph:
             )
             matched_keys = [key for key, value in evidence.items() if value]
             missing_keys = [key for key, value in evidence.items() if not value]
-            matched_labels = [self.EVIDENCE_LIBRARY.get(key).label if self.EVIDENCE_LIBRARY.get(key) else key for key in matched_keys]
-            missing_labels = [self.EVIDENCE_LIBRARY.get(key).label if self.EVIDENCE_LIBRARY.get(key) else key for key in missing_keys]
+            matched_labels = [library.get(key).label if library.get(key) else key for key in matched_keys]
+            missing_labels = [library.get(key).label if library.get(key) else key for key in missing_keys]
             ranked.append(
                 {
                     "cause_key": cause.key,
@@ -525,7 +616,10 @@ class ClinicalKnowledgeGraph:
 
     async def causal_chain_analysis(self, patient_id: str, abnormal_finding: str) -> dict[str, Any] | None:
         finding_key = self._normalize_finding(abnormal_finding)
-        causes = self._cause_map().get(finding_key, [])
+        dynamic_evidence, dynamic_causes = await self._dynamic_knowledge()
+        cause_map = await self._merged_cause_map(dynamic_causes)
+        evidence_library = await self._merged_evidence_library(dynamic_evidence)
+        causes = cause_map.get(finding_key, [])
         if not causes:
             return {
                 "patient_id": patient_id,
@@ -549,7 +643,7 @@ class ClinicalKnowledgeGraph:
             return None
 
         finding_label = self._finding_label(finding_key, abnormal_finding)
-        ranked = self._rank_causes(finding_label, context, causes)
+        ranked = self._rank_causes(finding_label, context, causes, evidence_library)
         top_rows = ranked[:4]
         guideline_evidence = self._search_guidelines(
             finding_label,
@@ -568,12 +662,12 @@ class ClinicalKnowledgeGraph:
             "finding_key": finding_key,
             "finding_label": finding_label,
             "generated_at": datetime.now(),
-            "graph_version": "kg-v2",
+            "graph_version": "kg-v2-dynamic",
             "context_summary": self._context_summary(context, finding_label),
             "candidate_causes": top_rows,
             "top_recommendations": self._recommendation_union(top_rows, "recommended_checks", 8),
             "suggested_next_actions": self._recommendation_union(top_rows, "initial_actions", 6),
-            "evidence_profile": self._evidence_profile(top_rows),
+            "evidence_profile": self._evidence_profile(top_rows, evidence_library),
             "guideline_evidence": guideline_evidence,
         }
         await self._persist_result(patient_id, finding_key, abnormal_finding, result)

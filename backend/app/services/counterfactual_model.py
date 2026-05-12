@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import math
 import re
+import hashlib
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from app.config import get_config
+from app.services.local_model_paths import local_model_dir
 from app.services.patient_digital_twin import PatientDigitalTwinService
 from app.utils.patient_data import get_device_id, param_series_by_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
@@ -64,6 +67,22 @@ def _curve(current_value: float | None, delta: float, *, tau_minutes: float, hor
         gain = 1.0 - math.exp(-minute / tau)
         rows.append({"minute": minute, "value": _round(current_value + delta * gain, digits)})
     return rows
+
+
+def _cohort_enabled(patient: dict[str, Any], patient_id: str, rollout_cfg: dict[str, Any]) -> bool:
+    cohorts = [str(item).strip() for item in rollout_cfg.get("enabled_cohorts") or [] if str(item).strip()]
+    if cohorts:
+        patient_blob = " ".join(str(patient.get(key) or "") for key in ("ward", "dept", "hisDept", "bed", "hisBed", "bedNo")).lower()
+        if any(cohort.lower() in patient_blob for cohort in cohorts):
+            return True
+    try:
+        percentage = max(0, min(100, int(rollout_cfg.get("enabled_percentage") or 0)))
+    except Exception:
+        percentage = 0
+    if percentage <= 0:
+        return not cohorts
+    bucket = int(hashlib.sha256(str(patient_id).encode("utf-8")).hexdigest()[:8], 16) % 100
+    return bucket < percentage
 
 
 class SemiMechanisticCounterfactualModel:
@@ -329,9 +348,217 @@ class SemiMechanisticCounterfactualModel:
             },
             "model_meta": {
                 "kind": "semi_mechanistic_counterfactual_model",
+                "backend": "semi_mechanistic",
+                "requested_backend": "semi_mechanistic",
+                "degraded": False,
+                "fallback_reason": None,
+                "model_version": "semi-mechanistic-v1",
+                "loaded_at": None,
                 "lookback_hours": 12,
                 "horizon_minutes": horizon_minutes,
                 "equations": equation_hints[:4],
                 "note": "采用半机制 Emax/容量反应性/复张-回流耦合模型；如需真正论文级 PK/PD，需要基于本院连续时序数据完成参数辨识与外部验证。",
             },
         }
+
+
+class TransformerCounterfactualModel:
+    """Lazy Torch G-Net/TE-CDE counterfactual runtime with semi-mechanistic fallback."""
+
+    def __init__(self, *, db, alert_engine, config=None, fallback_model: SemiMechanisticCounterfactualModel | None = None, allow_fallback: bool = True) -> None:
+        self.db = db
+        self.alert_engine = alert_engine
+        self.config = config or get_config()
+        self.fallback_model = fallback_model or SemiMechanisticCounterfactualModel(db=db, alert_engine=alert_engine)
+        self.allow_fallback = bool(allow_fallback)
+        self._loaded = False
+        self._torch: Any = None
+        self._model: Any = None
+        self._model_path: Path | None = None
+        self._unavailable_reason = ""
+        self._fallback_reason_code: str | None = None
+        self._loaded_at: datetime | None = None
+        self._device = "cpu"
+
+    def _model_dir(self) -> Path:
+        return local_model_dir(self.config, "counterfactual_dir", "counterfactual")
+
+    def _candidate_paths(self) -> list[Path]:
+        root = self._model_dir()
+        return [root / name for name in ("model.pt", "g_net.pt", "te_cde.pt", "counterfactual.pt", "model.pth")]
+
+    def _set_unavailable(self, code: str, reason: str) -> None:
+        self._fallback_reason_code = code
+        self._unavailable_reason = reason
+
+    def _ensure_loaded(self) -> None:
+        if self._loaded:
+            return
+        self._loaded = True
+        try:
+            import torch  # type: ignore
+        except Exception as exc:
+            self._set_unavailable("torch_unavailable", f"torch unavailable: {exc.__class__.__name__}")
+            return
+        self._torch = torch
+        for path in self._candidate_paths():
+            if not path.exists():
+                continue
+            try:
+                self._model_path = path
+                try:
+                    self._model = torch.jit.load(str(path), map_location=self._device)
+                except Exception:
+                    self._model = torch.load(str(path), map_location=self._device)
+                if hasattr(self._model, "eval"):
+                    self._model.eval()
+                self._unavailable_reason = ""
+                self._fallback_reason_code = None
+                self._loaded_at = datetime.now()
+                return
+            except Exception as exc:
+                self._model = None
+                self._set_unavailable("inference_error", f"load failed: {exc.__class__.__name__}: {str(exc)[:120]}")
+                return
+        self._set_unavailable("weights_missing", f"no torch weight found under {self._model_dir()}")
+
+    def status(self) -> dict[str, Any]:
+        if not self._loaded:
+            self._ensure_loaded()
+        return {
+            "available": bool(self._model is not None),
+            "reason": self._unavailable_reason,
+            "reason_code": self._fallback_reason_code,
+            "backend": "transformer",
+            "model_path": str(self._model_path or ""),
+            "model_version": self._model_path.stem if self._model_path else "",
+            "loaded_at": self._loaded_at,
+        }
+
+    def _feature_vector(self, snapshot: dict[str, Any], payload: dict[str, Any]) -> list[float]:
+        values = [
+            _safe_float((snapshot.get("map") or {}).get("current")) or 0.0,
+            _safe_float((snapshot.get("hr") or {}).get("current")) or 0.0,
+            _safe_float((snapshot.get("spo2") or {}).get("current")) or 0.0,
+            _safe_float((snapshot.get("lactate") or {}).get("current")) or 0.0,
+            _safe_float((snapshot.get("fio2") or {}).get("current")) or 0.0,
+            _safe_float((snapshot.get("peep") or {}).get("current")) or 0.0,
+            _safe_float(snapshot.get("urine_ml_kg_h_6h")) or 0.0,
+            _safe_float((snapshot.get("vasoactive_support") or {}).get("current_dose_ug_kg_min")) or 0.0,
+            _safe_float(payload.get("dose_delta_pct")) or 0.0,
+            _safe_float(payload.get("fluid_bolus_ml")) or 0.0,
+            _safe_float(payload.get("fio2_delta")) or 0.0,
+            _safe_float(payload.get("peep_delta")) or 0.0,
+            _safe_float(payload.get("diuretic_intensity")) or 0.0,
+        ]
+        return values + [0.0] * (32 - len(values))
+
+    def _run_model(self, snapshot: dict[str, Any], payload: dict[str, Any]) -> dict[str, float]:
+        self._ensure_loaded()
+        if self._model is None or self._torch is None:
+            raise RuntimeError(self._fallback_reason_code or self._unavailable_reason or "counterfactual transformer unavailable")
+        features = self._feature_vector(snapshot, payload)
+        try:
+            with self._torch.no_grad():
+                tensor = self._torch.tensor(features, dtype=self._torch.float32).unsqueeze(0)
+                if hasattr(self._model, "simulate"):
+                    output = self._model.simulate(tensor)
+                else:
+                    output = self._model(tensor)
+                arr = output.detach().cpu().numpy().reshape(-1).astype(float)
+        except Exception as exc:
+            raise RuntimeError(f"inference_error: {exc.__class__.__name__}") from exc
+        if arr.size < 4:
+            raise ValueError(f"shape_mismatch: expected >=4 values, got {arr.shape}")
+        return {"map_30m": float(arr[0]), "hr_30m": float(arr[1]), "spo2_30m": float(arr[2]), "lactate_30m": float(arr[3])}
+
+    @staticmethod
+    def _reason_code(exc: Exception) -> str:
+        text = str(exc)
+        for code in ("weights_missing", "torch_unavailable", "shape_mismatch", "inference_error"):
+            if code in text:
+                return code
+        return "inference_error"
+
+    async def simulate(self, patient_id: str, patient: dict, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            snapshot = await self.fallback_model.build_snapshot(patient_id, patient, hours=12)
+            deltas = self._run_model(snapshot, payload or {})
+            base = await self.fallback_model.simulate(patient_id, patient, payload or {})
+            current = base.get("current_state") or {}
+            projected = {
+                "map_30m": _round((_safe_float(current.get("map")) or 0.0) + deltas["map_30m"] if current.get("map") is not None else None, 0),
+                "hr_30m": _round((_safe_float(current.get("hr")) or 0.0) + deltas["hr_30m"] if current.get("hr") is not None else None, 0),
+                "spo2_30m": _round((_safe_float(current.get("spo2")) or 0.0) + deltas["spo2_30m"] if current.get("spo2") is not None else None, 0),
+                "lactate_30m": _round((_safe_float(current.get("lactate")) or 0.0) + deltas["lactate_30m"] if current.get("lactate") is not None else None, 1),
+            }
+            horizon = int((payload or {}).get("horizon_minutes") or 30)
+            base["projected_state"] = projected
+            base["delta"] = {key: _round(value, 2 if "lactate" in key else 1) for key, value in deltas.items()}
+            base["response_curve"] = {
+                "map": _curve(_safe_float(current.get("map")), deltas["map_30m"], tau_minutes=10, horizon_minutes=horizon, digits=0),
+                "spo2": _curve(_safe_float(current.get("spo2")), deltas["spo2_30m"], tau_minutes=10, horizon_minutes=horizon, digits=0),
+                "lactate": _curve(_safe_float(current.get("lactate")), deltas["lactate_30m"], tau_minutes=24, horizon_minutes=horizon, digits=1),
+            }
+            status = self.status()
+            base["model_meta"] = {
+                **(base.get("model_meta") or {}),
+                "kind": "transformer_counterfactual_model",
+                "backend": "transformer",
+                "requested_backend": "transformer",
+                "degraded": False,
+                "fallback_reason": None,
+                "model_version": status.get("model_version") or "counterfactual-transformer",
+                "loaded_at": status.get("loaded_at"),
+                "model_path": status.get("model_path") or "",
+            }
+            return base
+        except Exception as exc:
+            if not self.allow_fallback:
+                raise
+            result = await self.fallback_model.simulate(patient_id, patient, payload or {})
+            result["model_meta"] = {
+                **(result.get("model_meta") or {}),
+                "backend": "semi_mechanistic",
+                "requested_backend": "transformer",
+                "degraded": True,
+                "fallback_reason": self._reason_code(exc),
+                "fallback_detail": str(exc)[:180],
+                "model_version": "semi-mechanistic-v1",
+                "loaded_at": None,
+            }
+            return result
+
+
+def get_counterfactual_model(*, db, alert_engine, config=None):
+    cfg = config or get_config()
+    ai = (getattr(cfg, "yaml_cfg", {}) or {}).get("ai_service", {})
+    counterfactual_cfg = (ai.get("counterfactual") if isinstance(ai, dict) else {}) or {}
+    backend = str(counterfactual_cfg.get("backend") or "auto").strip().lower()
+    allow_fallback = bool(counterfactual_cfg.get("allow_fallback", True))
+    fallback = SemiMechanisticCounterfactualModel(db=db, alert_engine=alert_engine)
+    if backend in {"semi_mechanistic", "semi", "fallback"}:
+        return fallback
+    if backend in {"auto", "transformer"}:
+        return TransformerCounterfactualModel(db=db, alert_engine=alert_engine, config=cfg, fallback_model=fallback, allow_fallback=allow_fallback)
+    return fallback
+
+
+async def simulate_counterfactual(*, db, alert_engine, config=None, patient_id: str, patient: dict, payload: dict[str, Any]) -> dict[str, Any]:
+    cfg = config or get_config()
+    ai = (getattr(cfg, "yaml_cfg", {}) or {}).get("ai_service", {})
+    counterfactual_cfg = (ai.get("counterfactual") if isinstance(ai, dict) else {}) or {}
+    rollout_cfg = counterfactual_cfg.get("transformer_rollout") if isinstance(counterfactual_cfg.get("transformer_rollout"), dict) else {}
+    backend = str(counterfactual_cfg.get("backend") or "auto").strip().lower()
+    if backend in {"auto", "transformer"} and rollout_cfg and not _cohort_enabled(patient, patient_id, rollout_cfg):
+        model = SemiMechanisticCounterfactualModel(db=db, alert_engine=alert_engine)
+        result = await model.simulate(patient_id, patient, payload or {})
+        result["model_meta"] = {
+            **(result.get("model_meta") or {}),
+            "requested_backend": backend,
+            "degraded": False,
+            "fallback_reason": "rollout_not_enabled",
+        }
+        return result
+    model = get_counterfactual_model(db=db, alert_engine=alert_engine, config=cfg)
+    return await model.simulate(patient_id, patient, payload or {})

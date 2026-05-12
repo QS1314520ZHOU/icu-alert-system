@@ -126,6 +126,37 @@ assessments:
 ai_service:
   max_patients: 30
   suppression_seconds: 3600
+  local_models:
+    base_dir: "/opt/icu-models"
+    icarefm_dir: "icarefm"
+    cql_sepsis_dir: "cql-sepsis"
+    chronos_dir: "chronos"
+    counterfactual_dir: "counterfactual"
+    knowledge_pretrain_dir: "knowledge-guided-pretrain"
+  digital_twin:
+    cache_minutes: 15
+    fm_cache_minutes: 60
+  counterfactual:
+    backend: "auto"                 # prod override: "transformer"
+    allow_fallback: true            # prod override: false, or alert on model_meta.degraded=true
+    transformer_rollout:
+      enabled_cohorts: []
+      enabled_percentage: 0
+  foundation_model:
+    enabled: true
+    providers:
+      primary: "icarefm"
+      shadow: ["knowledge_guided"]
+      mode: "primary"               # "primary" | "shadow" | "ab"
+    thresholds:
+      mortality: 0.75
+      aki: 0.70
+      circulation_failure: 0.70
+  treatment_policy:
+    enabled: true
+  trajectory_forecast:
+    enabled: true
+    drift_codes: ["HR", "MAP", "SpO2", "RR"]
   llm:
     timeout: 60
     max_concurrency: 4
@@ -341,6 +372,8 @@ alert_engine:
     fibrinolysis_monitor: 3600
     tbi: 300
     bleeding: 600
+    foundation_model_risk_scanner: 3600
+    trajectory_drift_scanner: 3600
     temporal_risk_scanner: 900
     ventilator: 600
     ventilator_asynchrony: 1800

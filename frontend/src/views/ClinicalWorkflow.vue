@@ -453,6 +453,25 @@
             </div>
             <div v-if="handoffText" class="handoff-text inline">{{ dedupedHandoffText }}</div>
             <div v-else-if="story?.summary" class="story-summary inline">{{ story.summary }}</div>
+            <div class="treatment-card inline">
+              <div class="treatment-card__head">
+                <span>AI 建议剂量</span>
+                <button type="button" :disabled="treatmentLoading || !selectedPatient?.patient_id" @click="loadTreatmentRecommendation(selectedPatient.patient_id)">
+                  {{ treatmentLoading ? '计算中' : '刷新' }}
+                </button>
+              </div>
+              <div v-if="treatmentRecommendation?.available" class="treatment-card__body">
+                <strong>{{ treatmentRecommendation.recommendation?.action || '建议待复核' }}</strong>
+                <div class="treatment-metrics">
+                  <span>补液 {{ treatmentRecommendation.recommendation?.fluid_bolus_ml ?? 0 }}mL</span>
+                  <span>去甲 {{ treatmentRecommendation.recommendation?.norepinephrine_ug_kg_min ?? '--' }} μg/kg/min</span>
+                  <span>Q差 {{ treatmentRecommendation.q_value_delta ?? '--' }}</span>
+                </div>
+              </div>
+              <div v-else class="treatment-card__empty">
+                {{ treatmentRecommendation?.reason || '选择患者后显示 CQL 策略建议。' }}
+              </div>
+            </div>
             <div v-if="storyClusters.length" class="story-list inline">
               <div v-for="cluster in storyClusters" :key="`inline-${cluster.start_time}-${cluster.headline}`" class="story-cluster">
                 <strong>{{ clinicalText(cluster.headline) || '临床事件簇' }}</strong>
@@ -606,7 +625,7 @@ import {
 } from 'ant-design-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { closeClinicalTask, getClinicalPatientHandoff, getClinicalPatientStory, getClinicalRoleHome, postClinicalTask } from '../api'
+import { closeClinicalTask, getClinicalPatientHandoff, getClinicalPatientStory, getClinicalRoleHome, getTreatmentRecommendation, postClinicalTask } from '../api'
 import HumanBodyDiagram from '../components/common/HumanBodyDiagram.vue'
 import OrganRiskRadar from '../components/common/OrganRiskRadar.vue'
 
@@ -622,6 +641,8 @@ const selectedPatient = ref<any>(null)
 const activeStoryMode = ref<'story' | 'handoff'>('story')
 const featureDetail = ref<any>(null)
 const featureTaskId = ref('')
+const treatmentRecommendation = ref<any>(null)
+const treatmentLoading = ref(false)
 const expandedFeatureKeys = ref(new Set<string>())
 const stickySectionRef = ref<HTMLElement | null>(null)
 const activeSignalFilter = ref('')
@@ -1074,6 +1095,21 @@ function findPatientInHome(patientId: string) {
 function selectPatient(patientId: string, mode: 'story' | 'handoff') {
   selectedPatient.value = findPatientInHome(patientId)
   activeStoryMode.value = mode
+  void loadTreatmentRecommendation(patientId)
+}
+
+async function loadTreatmentRecommendation(patientId: string) {
+  const id = String(patientId || '')
+  if (!id) return
+  treatmentLoading.value = true
+  try {
+    const res = await getTreatmentRecommendation(id)
+    treatmentRecommendation.value = res.data || null
+  } catch (error: any) {
+    treatmentRecommendation.value = { available: false, reason: error?.message || 'AI 治疗策略接口暂不可用' }
+  } finally {
+    treatmentLoading.value = false
+  }
 }
 
 function patientSignalText(row: any) {
@@ -2446,6 +2482,58 @@ h1 { margin: 6px 0; color: #ecfeff; font-size: 32px; line-height: 1.1; }
     rgba(8,31,49,.68);
 }
 .feature-detail-panel.inline { margin-top: 10px; }
+.treatment-card {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(94,234,212,.2);
+  background: rgba(8,31,49,.62);
+}
+.treatment-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.treatment-card__head span {
+  color: #99f6e4;
+  font-size: 12px;
+  font-weight: 900;
+}
+.treatment-card__head button {
+  border: 1px solid rgba(125,211,252,.22);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #c7f9ff;
+  background: rgba(14,116,144,.18);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+.treatment-card__body strong {
+  display: block;
+  color: #ecfeff;
+  margin-bottom: 8px;
+}
+.treatment-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.treatment-metrics span,
+.treatment-card__empty {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #a5f3fc;
+  background: rgba(2,6,23,.28);
+  font-size: 12px;
+}
+.treatment-card__empty {
+  border-radius: 12px;
+  line-height: 1.45;
+}
 .feature-detail-head {
   display: flex;
   align-items: center;

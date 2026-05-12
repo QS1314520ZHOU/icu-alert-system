@@ -29,6 +29,10 @@ class _FakeRag:
 
 class _FakeDB:
     class _Col:
+        def find(self, *args, **kwargs):
+            del args, kwargs
+            return _AsyncCursor([])
+
         async def find_one(self, *args, **kwargs):
             return None
 
@@ -37,6 +41,71 @@ class _FakeDB:
 
     def col(self, _name):
         return self._Col()
+
+
+class _AsyncCursor:
+    def __init__(self, rows):
+        self.rows = list(rows)
+
+    def sort(self, *args, **kwargs):
+        return self
+
+    def limit(self, *args, **kwargs):
+        return self
+
+    def __aiter__(self):
+        self._idx = 0
+        return self
+
+    async def __anext__(self):
+        if self._idx >= len(self.rows):
+            raise StopAsyncIteration
+        row = self.rows[self._idx]
+        self._idx += 1
+        return row
+
+
+class _DynamicDB(_FakeDB):
+    def col(self, name):
+        if name == "kg_causal_approvals":
+            return type(
+                "Col",
+                (),
+                {
+                    "find": lambda _self, *args, **kwargs: _AsyncCursor(
+                        [
+                            {
+                                "approved": True,
+                                "enabled": True,
+                                "finding_key": "lactate_rise",
+                                "cause_node": {
+                                    "key": "dynamic_low_flow",
+                                    "label": "动态低流量灌注",
+                                    "mechanism": "动态发现候选边提示低流量灌注与乳酸升高相关。",
+                                    "clinical_domain": "hemodynamic",
+                                    "base_rate": 0.4,
+                                    "required_evidence": ["map_low"],
+                                    "supportive_evidence": ["dynamic_hypoperfusion_pattern"],
+                                    "contraindicating_evidence": [],
+                                    "recommended_checks": ["复核动态因果候选边"],
+                                    "initial_actions": ["专家审核后纳入路径"],
+                                    "rag_terms": ["lactate"],
+                                },
+                                "evidence": [
+                                    {
+                                        "key": "dynamic_hypoperfusion_pattern",
+                                        "label": "动态低灌注模式",
+                                        "category": "causal_discovery",
+                                        "positive_hint": "命中动态低灌注模式",
+                                        "negative_hint": "未命中动态低灌注模式",
+                                    }
+                                ],
+                            }
+                        ]
+                    )
+                },
+            )()
+        return super().col(name)
 
 
 class _TestGraph(ClinicalKnowledgeGraph):
@@ -91,6 +160,13 @@ class ClinicalKnowledgeGraphTest(unittest.TestCase):
         self.assertIn("dic", keys)
         self.assertIn("hit", keys)
         self.assertTrue(result["evidence_profile"])
+
+    def test_dynamic_cause_nodes_merge_after_approval(self):
+        self.service.db = _DynamicDB()
+        result = asyncio.run(self.service.causal_chain_analysis("p1", "乳酸升高"))
+        keys = [item["cause_key"] for item in result["candidate_causes"]]
+        self.assertIn("dynamic_low_flow", keys)
+        self.assertEqual(result["graph_version"], "kg-v2-dynamic")
 
 
 if __name__ == "__main__":

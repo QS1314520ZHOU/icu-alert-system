@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.services.counterfactual_model import SemiMechanisticCounterfactualModel
+from app.services.counterfactual_model import SemiMechanisticCounterfactualModel, TransformerCounterfactualModel, get_counterfactual_model, simulate_counterfactual
 from app.services import counterfactual_model as counterfactual_module
 
 
@@ -52,6 +52,8 @@ async def test_counterfactual_vasopressor_simulation_returns_projected_state() -
     assert result["projected_state"]["map_30m"] > result["current_state"]["map"]
     assert result["delta"]["lactate_30m"] <= 0
     assert result["model_meta"]["kind"] == "semi_mechanistic_counterfactual_model"
+    assert result["model_meta"]["backend"] == "semi_mechanistic"
+    assert result["model_meta"]["degraded"] is False
     assert len(result["response_curve"]["map"]) >= 2
 
 
@@ -85,6 +87,63 @@ async def test_counterfactual_peep_simulation_exposes_competing_effects() -> Non
     assert result["delta"]["spo2_30m"] >= 0
     assert result["delta"]["map_30m"] <= 0
     assert "recruitability" in result["state_factors"]
+
+
+@pytest.mark.asyncio
+async def test_transformer_counterfactual_fallback_exposes_model_meta(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    cfg = type(
+        "Cfg",
+        (),
+        {"yaml_cfg": {"ai_service": {"local_models": {"base_dir": str(tmp_path), "counterfactual_dir": "counterfactual"}}}},
+    )()
+    fallback = SemiMechanisticCounterfactualModel(db=None, alert_engine=_AlertEngine())
+
+    async def _snapshot(patient_id, patient, *, hours=12):
+        del patient_id, patient, hours
+        return {"map": {"current": 60}, "hr": {"current": 110}, "spo2": {"current": 94}, "lactate": {"current": 3.0}}
+
+    fallback.build_snapshot = _snapshot  # type: ignore[method-assign]
+    model = TransformerCounterfactualModel(db=None, alert_engine=_AlertEngine(), config=cfg, fallback_model=fallback, allow_fallback=True)
+    original_get_device_id = counterfactual_module.get_device_id
+    counterfactual_module.get_device_id = _fake_get_device_id  # type: ignore[assignment]
+    try:
+        result = await model.simulate("p1", {"_id": "p1", "hisPid": "H1"}, {"intervention_type": "vasopressor_up"})
+    finally:
+        counterfactual_module.get_device_id = original_get_device_id  # type: ignore[assignment]
+
+    assert result["model_meta"]["backend"] == "semi_mechanistic"
+    assert result["model_meta"]["requested_backend"] == "transformer"
+    assert result["model_meta"]["degraded"] is True
+    assert result["model_meta"]["fallback_reason"] in {"weights_missing", "torch_unavailable", "inference_error"}
+
+
+def test_counterfactual_factory_respects_semi_mechanistic_backend() -> None:
+    cfg = type("Cfg", (), {"yaml_cfg": {"ai_service": {"counterfactual": {"backend": "semi_mechanistic"}}}})()
+    model = get_counterfactual_model(db=None, alert_engine=_AlertEngine(), config=cfg)
+    assert isinstance(model, SemiMechanisticCounterfactualModel)
+
+
+@pytest.mark.asyncio
+async def test_counterfactual_rollout_disabled_uses_semi_mechanistic(monkeypatch: pytest.MonkeyPatch) -> None:
+    cfg = type(
+        "Cfg",
+        (),
+        {"yaml_cfg": {"ai_service": {"counterfactual": {"backend": "transformer", "allow_fallback": False, "transformer_rollout": {"enabled_cohorts": ["test-ward"], "enabled_percentage": 0}}}}},
+    )()
+    original_get_device_id = counterfactual_module.get_device_id
+    counterfactual_module.get_device_id = _fake_get_device_id  # type: ignore[assignment]
+    async def _snapshot(self, patient_id, patient, *, hours=12):
+        del self, patient_id, patient, hours
+        return {"map": {"current": 60}, "hr": {"current": 110}, "spo2": {"current": 94}, "lactate": {"current": 3.0}}
+    monkeypatch.setattr(SemiMechanisticCounterfactualModel, "build_snapshot", _snapshot)
+    try:
+        result = await simulate_counterfactual(db=None, alert_engine=_AlertEngine(), config=cfg, patient_id="p1", patient={"dept": "ICU"}, payload={"intervention_type": "vasopressor_up"})
+    finally:
+        counterfactual_module.get_device_id = original_get_device_id  # type: ignore[assignment]
+
+    assert result["model_meta"]["backend"] == "semi_mechanistic"
+    assert result["model_meta"]["requested_backend"] == "transformer"
+    assert result["model_meta"]["fallback_reason"] == "rollout_not_enabled"
 
 
 async def _fake_get_device_id(patient_id: str, prefer_type: str | None = None, patient_doc: dict | None = None) -> str | None:

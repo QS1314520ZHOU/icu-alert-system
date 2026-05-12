@@ -80,6 +80,9 @@ export const getPatientLabs = (patientId: string) =>
 export const getPatientVitalsTrend = (patientId: string, window = '24h') =>
   api.get(`/api/patients/${patientId}/vitals/trend`, { params: { window } })
 
+export const getPatientVitalsForecast = (patientId: string, params?: { codes?: string; horizon_hours?: number }) =>
+  api.get(`/api/patients/${patientId}/vitals/forecast`, { params })
+
 // 获取用药记录
 export const getPatientDrugs = (patientId: string) =>
   api.get(`/api/patients/${patientId}/drugs`)
@@ -195,6 +198,17 @@ export const postClinicalTask = (payload: Record<string, any>) =>
 
 export const closeClinicalTask = (taskId: string, payload?: Record<string, any>) =>
   analyticsApi.post(`/api/clinical-workflow/tasks/${taskId}/close`, payload || {})
+
+export const getTreatmentRecommendation = (patientId: string) =>
+  aiApi.get(`/api/treatment/recommend/${patientId}`)
+
+export const postTreatmentFeedback = (payload: {
+  patient_id: string
+  recommendation_id: string
+  adopted?: boolean
+  reason?: string
+  actor?: string
+}) => aiApi.post('/api/treatment/feedback', payload)
 
 // 获取最近预警
 export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string; patient_id?: string; bed?: string }) =>

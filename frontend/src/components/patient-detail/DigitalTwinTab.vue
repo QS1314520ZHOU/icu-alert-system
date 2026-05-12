@@ -12,8 +12,13 @@
     <div class="twin-kpis">
       <div class="twin-kpi"><span>患者</span><strong>{{ patient?.name || patient?.hisName || '当前患者' }}</strong></div>
       <div class="twin-kpi"><span>短时恶化风险</span><strong>{{ deteriorationProbability }}</strong></div>
+      <div class="twin-kpi"><span>FM基础模型</span><strong>{{ foundationModelStatus }}</strong></div>
       <div class="twin-kpi"><span>工作台状态</span><strong>{{ workbenchState }}</strong></div>
       <div class="twin-kpi"><span>已追踪干预</span><strong>{{ trackedInterventions }}</strong></div>
+    </div>
+
+    <div v-if="foundationModelChips.length" class="chip-row fm-chip-row">
+      <span v-for="item in foundationModelChips" :key="item.label" class="info-chip">{{ item.label }} {{ item.value }}</span>
     </div>
 
     <div class="loop-grid">
@@ -251,6 +256,19 @@ const twinSnapshot = computed(() => twinRecord.value?.snapshot || {})
 const twinPatient = computed(() => twinRecord.value?.patient || {})
 const twinVitals = computed(() => twinRecord.value?.vitals || {})
 const twinSummary = computed(() => twinRecord.value?.summary || {})
+const foundationModelPredictions = computed(() => twinRecord.value?.foundation_model_predictions || {})
+const foundationModelStatus = computed(() => foundationModelPredictions.value?.available === false ? '未加载' : '已接入')
+const foundationModelChips = computed(() => {
+  const tasks = foundationModelPredictions.value?.tasks || {}
+  if (foundationModelPredictions.value?.available === false) {
+    return [{ label: '模型状态', value: foundationModelPredictions.value?.reason || '本地权重未就绪' }]
+  }
+  const labels: Record<string, string> = { mortality: '死亡风险', aki: 'AKI', circulation_failure: '循环衰竭' }
+  return Object.entries(tasks).map(([key, row]: any) => ({
+    label: labels[key] || key,
+    value: row?.probability == null ? '—' : pct(row.probability),
+  })).slice(0, 3)
+})
 const patientSilhouette = computed<'female' | 'male'>(() => {
   const text = String(patient.value?.gender || patient.value?.genderText || patient.value?.hisSex || '').toLowerCase()
   if (text.includes('female') || text.includes('女')) return 'female'

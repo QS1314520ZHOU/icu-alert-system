@@ -280,7 +280,40 @@ def _append_rag_citations(answer: str, rag_hits: list[dict[str, Any]]) -> str:
     return f"{text}\n\n引用来源：\n" + "\n".join(citations)
 
 
-def _finalize_ai_consult_answer(raw: str | None, rag_hits: list[dict[str, Any]] | None = None) -> str:
+def _patient_context_has(context: str | None, label: str) -> bool:
+    text = str(context or "")
+    return bool(label and label in text)
+
+
+def _build_exam_fallback_from_context(patient_context: str | None) -> str:
+    context = str(patient_context or "")
+    if not context:
+        return "1、当前未绑定患者数据库上下文，建议先确认患者身份后再结合生命体征、检验/检查结果和床旁评估制定检查计划。"
+
+    rows: list[str] = []
+    if _patient_context_has(context, "检验摘要"):
+        rows.append("已参考数据库检验摘要，建议按当前临床问题追踪关键异常指标及其变化趋势。")
+    else:
+        rows.append("当前数据库上下文未检索到近期检验摘要，必要时补齐血气、乳酸、感染/凝血或器官功能相关检验。")
+
+    if _patient_context_has(context, "检查摘要"):
+        rows.append("已参考数据库检查摘要，建议复核最新影像/超声结论是否解释当前风险，并按病情变化决定是否复查。")
+    else:
+        rows.append("当前数据库上下文未检索到近期检查摘要，若诊断仍不清或病情进展，应按疑点选择影像或床旁超声。")
+
+    if _patient_context_has(context, "观察项"):
+        rows.append("已参考数据库生命体征观察项，建议继续动态追踪循环、氧合、呼吸频率和体温趋势，并补充床旁查体。")
+    else:
+        rows.append("当前数据库上下文未检索到近期生命体征观察项，需先核对监护趋势并完成床旁评估。")
+
+    return "\n".join(f"{idx}、{row}" for idx, row in enumerate(rows[:3], start=1))
+
+
+def _finalize_ai_consult_answer(
+    raw: str | None,
+    rag_hits: list[dict[str, Any]] | None = None,
+    patient_context: str | None = None,
+) -> str:
     text = _strip_markdown_for_display(raw)
     if not text:
         text = "暂时没有生成有效回答，请稍后重试。"
@@ -290,7 +323,7 @@ def _finalize_ai_consult_answer(raw: str | None, rag_hits: list[dict[str, Any]] 
         "关键证据": "1、当前可引用证据不足，请核对生命体征、检验、用药、护理评估和预警触发依据。",
         "风险点": "1、原回答未单列风险点，请结合潜在休克、低氧、出血、感染进展等高危问题重点排查。",
         "不确定性": "1、系统无法替代床旁查体；缺失数据、采样时间和患者基础状态需由临床人员确认。",
-        "建议检查": "1、请补充关键化验、影像、生命体征趋势和床旁评估。",
+        "建议检查": _build_exam_fallback_from_context(patient_context),
         "下一步处理建议": "1、请按床旁紧急程度优先处理，并根据新增检查结果及时调整。",
         "安全提示": "1、以上内容仅作为临床辅助，不替代医生判断。高风险处置需由责任医生确认。",
     }
@@ -302,7 +335,7 @@ def _finalize_ai_consult_answer(raw: str | None, rag_hits: list[dict[str, Any]] 
             "关键证据": fallback_sections["关键证据"],
             "风险点": "1、当前原始回答未明确分段，请重点结合生命体征、器官灌注、意识状态和近期治疗反应综合判断。",
             "不确定性": fallback_sections["不确定性"],
-            "建议检查": "1、建议补充最关键的生命体征趋势、化验变化、血气/乳酸及床旁评估信息。",
+            "建议检查": _build_exam_fallback_from_context(patient_context),
             "下一步处理建议": "1、请优先处理当前最紧急问题，并结合补充信息动态调整方案。",
             "安全提示": fallback_sections["安全提示"],
         }
@@ -479,6 +512,44 @@ def _parse_information_gaps(raw: str) -> list[dict[str, Any]]:
     return rows
 
 
+_KNOWN_CONTEXT_SUBJECTS: list[tuple[tuple[str, ...], tuple[str, ...]]] = [
+    (("乳酸", "lactate"), ("乳酸", "lactate")),
+    (("map", "平均动脉压"), ("map", "平均动脉压", "nibp-map", "ibp-map")),
+    (("生命体征", "体征", "监护", "心率", "血压", "氧合", "spo2", "rr"), ("观察项", "hr=", "spo2", "rr", "nibp", "ibp", "体温")),
+    (("化验", "检验", "血气", "肌酐", "crp", "pct", "白细胞", "凝血", "血小板"), ("检验摘要", "血气", "肌酐", "crp", "pct", "白细胞", "凝血", "血小板")),
+    (("影像", "检查", "ct", "cta", "mri", "超声", "b超"), ("检查摘要", "影像", "ct", "cta", "mri", "超声", "b超")),
+    (("医嘱", "治疗", "用药", "升压药", "去甲肾", "抗生素"), ("医嘱摘要", "用药执行", "升压药", "去甲肾", "抗生素")),
+    (("护理", "床旁评估", "意识", "gcs", "rass", "谵妄"), ("护理记录", "护理计划", "gcs", "rass", "谵妄")),
+    (("预警", "报警", "风险"), ("最近预警", "预警")),
+]
+
+
+def _question_targets_known_context(question: str, context: str) -> bool:
+    q = str(question or "").lower()
+    ctx = str(context or "").lower()
+    if not q or not ctx:
+        return False
+
+    if any(token in q for token in ("原文", "图像", "片子", "查体", "主诉", "疼痛部位", "医生判断")):
+        return False
+
+    targeted = 0
+    covered = 0
+    for question_terms, context_terms in _KNOWN_CONTEXT_SUBJECTS:
+        if any(term.lower() in q for term in question_terms):
+            targeted += 1
+            if any(term.lower() in ctx for term in context_terms):
+                covered += 1
+    return targeted > 0 and targeted == covered
+
+
+def _filter_known_information_gaps(gaps: list[dict[str, Any]], context: str) -> list[dict[str, Any]]:
+    filtered = [gap for gap in gaps if not _question_targets_known_context(str(gap.get("question") or ""), context)]
+    for idx, gap in enumerate(filtered, start=1):
+        gap["rank"] = idx
+    return filtered
+
+
 async def propose_information_gaps(patient_context) -> list[dict[str, Any]]:
     context = _clip_text(str(patient_context or ""), 3600)
     if not context or context == "未选择具体患者，本轮按通用 ICU 问答处理。":
@@ -487,6 +558,9 @@ async def propose_information_gaps(patient_context) -> list[dict[str, Any]]:
     system_prompt = (
         "你是 ICU AI Consult 的 AMIE 式主动追问模块。"
         "请评估哪些缺失信息会显著改变临床建议，按信息增益排序。"
+        "【患者上下文】中出现的观察项、检验摘要、检查摘要、医嘱摘要、用药执行、护理记录和最近预警均视为已从数据库读取到的资料。"
+        "不要追问这些上下文中已经出现的信息，也不要要求医生重复提供数据库已有的乳酸、MAP、影像、生命体征或用药资料。"
+        "只追问数据库上下文未覆盖且必须由床旁人工确认的信息，例如现场查体、患者主诉变化、影像原文/图像细节或责任医生临床判断。"
         "只返回 JSON，不要输出解释文本。"
         "若现有信息足够直接给建议，返回 {\"gaps\":[]}。"
         "最多返回 3 个问题，问题必须适合医生快速回答。"
@@ -504,7 +578,7 @@ async def propose_information_gaps(patient_context) -> list[dict[str, Any]]:
             ),
             timeout=25,
         )
-        return _parse_information_gaps(str(raw or ""))
+        return _filter_known_information_gaps(_parse_information_gaps(str(raw or "")), context)
     except Exception as exc:
         logger.warning("AI consult information gap proposal skipped: %s", exc)
         return []
@@ -1417,6 +1491,9 @@ def _build_ai_consult_prompts(
         "安全提示："
         "其中每一部分都要有具体内容，不能省略标题，不能合并标题。"
         "禁止用“-”、“无”、“暂无”、“N/A”等占位符作为任一栏目内容；信息不足时必须说明缺什么信息和如何补充。"
+        "患者上下文中出现的观察项、检验摘要、检查摘要、医嘱摘要、用药执行、护理记录和最近预警均视为数据库已读取资料；回答时优先引用这些资料。"
+        "不要要求用户重复提供数据库上下文已经包含的信息。"
+        "若确实缺失资料，必须表述为“当前数据库上下文未检索到...”，并说明补齐该信息会如何改变判断。"
         "不要编造不存在的生命体征、化验或影像结果；若信息不足必须明确说明。"
         "如使用指南证据，必须在相关句子中写明来源，例如“根据 SSC 2021 指南 1A 推荐...”。"
         "若存在潜在急危重情况，先提示立即线下评估/抢救。"
@@ -1452,6 +1529,8 @@ def _build_ai_free_chat_prompts(
         "也不要为了满足模板而拆分栏目。"
         "请优先按用户当前问题的语气和要求回答；可以简短、可以展开，也可以用自然段或普通列表。"
         "如果用户询问临床问题，仍需保持专业、谨慎，不编造不存在的患者信息；高风险医疗处置要提醒由责任医生确认。"
+        "如果已提供患者上下文，其中观察项、检验摘要、检查摘要、医嘱摘要、用药执行、护理记录和最近预警均视为数据库已读取资料；优先基于这些资料回答，不让用户重复提供。"
+        "若资料缺失，说明“当前数据库上下文未检索到...”而不是泛泛要求补资料。"
         "严禁输出 <think>、</think>、思维链、推理过程、内部分析草稿。"
     )
     user_prompt = (
@@ -1480,6 +1559,8 @@ def _build_ai_consult_preview_prompts(
         "严禁输出 <think>、</think>、思维链或内部推理。"
         "不要使用 markdown，不要列表，不要展开细节，不要超过 90 字。"
         "若信息不足，明确指出最关键缺失信息。"
+        "患者上下文中的观察项、检验摘要、检查摘要、医嘱、用药、护理和预警视为数据库已读取资料；不要要求用户重复提供这些已有信息。"
+        "若缺失，说明“当前数据库上下文未检索到...”。"
         f"{intent['preview_instruction']}"
     )
     user_prompt = (
@@ -1520,6 +1601,9 @@ def _build_ai_consult_retry_prompts(
         "安全提示："
         "每个部分都要有具体内容。"
         "禁止用“-”、“无”、“暂无”、“N/A”等占位符作为任一栏目内容；信息不足时必须说明缺什么信息和如何补充。"
+        "患者上下文中出现的观察项、检验摘要、检查摘要、医嘱摘要、用药执行、护理记录和最近预警均视为数据库已读取资料；回答时优先引用这些资料。"
+        "不要要求用户重复提供数据库上下文已经包含的信息。"
+        "若确实缺失资料，必须表述为“当前数据库上下文未检索到...”。"
         "如使用指南证据，必须在相关句子中写明来源，例如“根据 SSC 2021 指南 1A 推荐...”。"
         "严禁输出 <think>、</think>、思维链、内部推理。"
         "只输出纯文本，不要使用 markdown。"
@@ -1712,7 +1796,7 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
             ),
             timeout=total_timeout_seconds,
         )
-        answer_text = _strip_markdown_for_display(str(answer or "").strip()) if is_free_mode else _finalize_ai_consult_answer(str(answer or "").strip(), rag_hits)
+        answer_text = _strip_markdown_for_display(str(answer or "").strip()) if is_free_mode else _finalize_ai_consult_answer(str(answer or "").strip(), rag_hits, patient_context)
         if not is_free_mode and _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
             retry_system_prompt, retry_user_prompt = _build_ai_consult_retry_prompts(
                 message=message,
@@ -1731,7 +1815,7 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
                 ),
                 timeout=total_timeout_seconds,
             )
-            retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip(), rag_hits)
+            retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip(), rag_hits, patient_context)
             if retry_text:
                 answer_text = retry_text
         response = {
@@ -2070,7 +2154,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
         answer_text = (
             _strip_markdown_for_display("".join(raw_answer_chunks).strip() or visible_answer_text)
             if is_free_mode
-            else _finalize_ai_consult_answer(visible_answer_text or "".join(raw_answer_chunks).strip(), rag_hits)
+            else _finalize_ai_consult_answer(visible_answer_text or "".join(raw_answer_chunks).strip(), rag_hits, patient_context)
         )
         if not is_free_mode and _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
             try:
@@ -2091,7 +2175,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                     ),
                     timeout=total_timeout_seconds,
                 )
-                retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip(), rag_hits)
+                retry_text = _finalize_ai_consult_answer(str(retry_answer or "").strip(), rag_hits, patient_context)
                 if retry_text:
                     answer_text = retry_text
             except Exception as retry_exc:

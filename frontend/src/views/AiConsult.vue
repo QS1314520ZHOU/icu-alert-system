@@ -31,6 +31,9 @@
           <a-button size="small" type="primary" ghost :disabled="sending" @click="toggleChatMode">
             一键切换：{{ chatMode === 'free' ? '回到结构化问诊' : '自由对话' }}
           </a-button>
+          <a-button size="small" :type="autonomousMode ? 'primary' : 'default'" ghost :disabled="sending || selectedPatientIds.length !== 1" @click="autonomousMode = !autonomousMode">
+            自主排查模式：{{ autonomousMode ? '开' : '关' }}
+          </a-button>
           <a-button size="small" :loading="patientsLoading" @click="loadPatients">刷新患者</a-button>
           <a-button size="small" ghost :disabled="selectedPatientIds.length !== 1" @click="openPatientDetail">打开患者详情</a-button>
           <a-button size="small" ghost :disabled="messages.length <= 1" @click="exportConversation">导出问诊</a-button>
@@ -179,6 +182,14 @@
             </div>
           </div>
 
+          <div v-if="autonomousEvents.length" class="autonomous-trace">
+            <div class="autonomous-trace__title">自主排查轨迹</div>
+            <div v-for="(event, idx) in autonomousEvents.slice(-8)" :key="`${event.event}-${idx}`" class="autonomous-trace__row">
+              <strong>{{ event.event }}</strong>
+              <span>{{ event.summary }}</span>
+            </div>
+          </div>
+
           <a-empty v-if="!messages.length && !sending" description="开始一次新的 AI 问诊对话" />
         </div>
 
@@ -237,6 +248,8 @@ const draft = ref('')
 const messages = ref<ChatMessage[]>([])
 const messageListRef = ref<HTMLElement | null>(null)
 const streamAbortController = ref<AbortController | null>(null)
+const autonomousMode = ref(false)
+const autonomousEvents = ref<Array<{ event: string; summary: string }>>([])
 const pendingClarifications = ref<string[]>([])
 const clarificationContext = ref<Array<{ question: string; answer: string; ts: number }>>([])
 let saveTimer: number | null = null
@@ -809,6 +822,48 @@ async function streamConsultReply(
   return donePayload
 }
 
+async function streamAutonomousInvestigation(
+  payload: { patient_id: string; question: string },
+  options: { signal?: AbortSignal; onEvent?: (event: string, data: any) => void } = {},
+): Promise<StreamDonePayload> {
+  const res = await fetch(buildApiUrl('/api/ai/autonomous/investigate'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: options.signal,
+  })
+  if (!res.ok || !res.body) throw new Error(`自主排查请求失败（HTTP ${res.status}）`)
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let finalPayload: any = {}
+  const consumeBlock = (block: string) => {
+    let eventName = 'message'
+    const dataLines: string[] = []
+    for (const rawLine of block.split('\n')) {
+      const line = rawLine.trimEnd()
+      if (line.startsWith('event:')) eventName = line.slice(6).trim() || 'message'
+      else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+    }
+    const parsed = safeJsonParse(dataLines.join('\n').trim()) || {}
+    options.onEvent?.(eventName, parsed)
+    if (eventName === 'final') finalPayload = { code: 0, answer: parsed.answer || '', message_type: 'final' }
+    if (eventName === 'error' && !finalPayload.answer) finalPayload = { code: 0, answer: parsed.message || '自主排查中止', degraded: true }
+  }
+  while (true) {
+    const { done, value } = await reader.read()
+    if (value) {
+      buffer += decoder.decode(value, { stream: !done })
+      const blocks = buffer.split(/\n\n/)
+      buffer = blocks.pop() || ''
+      blocks.forEach(consumeBlock)
+    }
+    if (done) break
+  }
+  if (buffer.trim()) consumeBlock(buffer)
+  return finalPayload
+}
+
 function normalizeMessages(raw: unknown): ChatMessage[] {
   if (!Array.isArray(raw)) return [defaultAssistantGreeting()]
   const rows: ChatMessage[] = raw
@@ -962,7 +1017,30 @@ async function sendMessage() {
 
     let donePayload: StreamDonePayload = {}
     try {
-      donePayload = await streamConsultReply(
+      if (autonomousMode.value && selectedPatientIds.value.length === 1) {
+        autonomousEvents.value = []
+        donePayload = await streamAutonomousInvestigation(
+          { patient_id: String(selectedPatientIds.value[0] || ''), question: content },
+          {
+            signal: aborter.signal,
+            onEvent: (event, data) => {
+              const summary = event === 'step'
+                ? `${data.tool || 'tool'} ${data.status || ''}`.trim()
+                : event === 'tool_result'
+                  ? `${data.tool || 'tool'} 返回证据`
+                  : event === 'final'
+                    ? '形成最终结论'
+                    : String(data.message || event)
+              autonomousEvents.value.push({ event, summary })
+              if (event === 'tool_result') {
+                assistantMessage.content = sanitizeAssistantText(`已调用 ${data.tool || '工具'}，正在整合证据...`)
+              }
+              void scrollToBottom()
+            },
+          },
+        )
+      } else {
+        donePayload = await streamConsultReply(
         {
           message: content,
           patient_id: selectedPatientIds.value[0],
@@ -987,7 +1065,8 @@ async function sendMessage() {
             void scrollToBottom()
           },
         },
-      )
+        )
+      }
     } catch (streamError: any) {
       if (streamRaw.trim()) {
         message.warning('流式连接中断，已保留已生成内容')
@@ -1483,6 +1562,30 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.autonomous-trace {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  border-radius: 14px;
+  background: rgba(8, 47, 73, 0.42);
+}
+.autonomous-trace__title {
+  color: #99f6e4;
+  font-size: 12px;
+  font-weight: 800;
+}
+.autonomous-trace__row {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 8px;
+  color: #c7f9ff;
+  font-size: 12px;
+}
+.autonomous-trace__row strong {
+  color: #67e8f9;
 }
 
 .composer {

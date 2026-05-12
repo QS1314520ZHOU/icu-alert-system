@@ -210,7 +210,76 @@ def test_finalize_ai_consult_answer_replaces_placeholder_sections() -> None:
     assert "建议检查：\n1、N/A" not in result
     assert "下一步处理：\n1、-" not in result
     assert "当前回答未形成有效初步判断" in result
-    assert "请补充关键化验" in result
+    assert "当前未绑定患者数据库上下文" in result
+
+
+def test_finalize_ai_consult_answer_uses_loaded_database_context_for_exam_fallback() -> None:
+    text = "初步判断：\n感染风险高\n\n建议检查：\nN/A"
+    patient_context = (
+        "患者标签: 1床\n"
+        "观察项(近24h/最新): HR=110；NIBP-MAP=68；SpO2=94\n"
+        "检验摘要(近72h): 乳酸=3.2mmol/L@05-12 08:00；PCT=5.1ng/mL\n"
+        "检查摘要(近72h): 胸部CT@05-12 09:00\n"
+    )
+
+    result = chat._finalize_ai_consult_answer(text, patient_context=patient_context)
+
+    assert "建议检查：" in result
+    assert "已参考数据库检验摘要" in result
+    assert "已参考数据库检查摘要" in result
+    assert "已参考数据库生命体征观察项" in result
+    assert "请补充关键化验、影像、生命体征趋势" not in result
+
+
+def test_filter_known_information_gaps_drops_questions_answered_by_context() -> None:
+    context = (
+        "【患者上下文】\n"
+        "观察项(近24h/最新): HR=110；NIBP-MAP=68；SpO2=94\n"
+        "检验摘要(近72h): 乳酸=3.2mmol/L\n"
+        "检查摘要(近72h): 胸部CT提示肺部感染\n"
+    )
+    gaps = [
+        {"rank": 1, "question": "最近 2 小时乳酸和 MAP 趋势如何？", "reason": "会改变复苏策略", "information_gain": 0.9},
+        {"rank": 2, "question": "最新影像检查结果是什么？", "reason": "判断感染灶", "information_gain": 0.8},
+        {"rank": 3, "question": "床旁查体有无皮肤花斑或四肢湿冷？", "reason": "判断灌注", "information_gain": 0.7},
+    ]
+
+    result = chat._filter_known_information_gaps(gaps, context)
+
+    assert [item["question"] for item in result] == ["床旁查体有无皮肤花斑或四肢湿冷？"]
+    assert result[0]["rank"] == 1
+
+
+@pytest.mark.asyncio
+async def test_propose_information_gaps_filters_database_context_questions(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Cfg:
+        llm_fast_model = "fake-fast"
+        llm_model_medical = "fake-medical"
+
+    async def _fake_call_api_llm(*args: Any, **kwargs: Any) -> str:
+        del args, kwargs
+        return json.dumps(
+            {
+                "gaps": [
+                    {"rank": 1, "question": "最近 2 小时乳酸和 MAP 趋势如何？", "reason": "会改变复苏策略", "information_gain": 0.9},
+                    {"rank": 2, "question": "床旁查体有无皮肤花斑或四肢湿冷？", "reason": "判断灌注", "information_gain": 0.8},
+                ]
+            },
+            ensure_ascii=False,
+        )
+
+    monkeypatch.setattr(chat, "get_config", lambda: _Cfg())
+    monkeypatch.setattr(chat, "call_api_llm", _fake_call_api_llm)
+
+    context = (
+        "【本轮问题】请给出下一步处理建议\n"
+        "【患者上下文】\n"
+        "观察项(近24h/最新): HR=110；NIBP-MAP=68\n"
+        "检验摘要(近72h): 乳酸=3.2mmol/L\n"
+    )
+    result = await chat.propose_information_gaps(context)
+
+    assert [item["question"] for item in result] == ["床旁查体有无皮肤花斑或四肢湿冷？"]
 
 
 def test_resolve_ai_consult_limits_supports_patient_or_complex_case() -> None:

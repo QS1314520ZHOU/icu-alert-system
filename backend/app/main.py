@@ -37,6 +37,7 @@ from app.routers.clinical_trials import router as clinical_trials_router
 from app.routers.clinical_workflow import router as clinical_workflow_router
 from app.routers.research_platform import router as research_platform_router
 from app.routers.system import router as system_router
+from app.routers.treatment_policy import router as treatment_policy_router
 from app.routers.waveforms import router as waveforms_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
@@ -238,6 +239,7 @@ app.include_router(nutrition_router)
 app.include_router(research_support_router)
 app.include_router(clinical_trials_router)
 app.include_router(clinical_workflow_router)
+app.include_router(treatment_policy_router)
 app.include_router(ai_router)
 app.include_router(knowledge_router)
 app.include_router(waveforms_router)

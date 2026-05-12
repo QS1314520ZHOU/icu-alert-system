@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+from app.services.icu_foundation_model_service import get_icu_foundation_model_service
 from app.utils.clinical import _detect_trend
 from app.utils.parse import _parse_dt
 
@@ -72,6 +73,25 @@ class PatientDigitalTwinService:
         root = getattr(self.config, "yaml_cfg", {}) if self.config is not None else {}
         cfg = ((root or {}).get("ai_service", {}) or {}).get("patient_digital_twin", {})
         return cfg if isinstance(cfg, dict) else {}
+
+    def _ai_cfg(self) -> dict[str, Any]:
+        root = getattr(self.config, "yaml_cfg", {}) if self.config is not None else {}
+        cfg = (root or {}).get("ai_service", {})
+        return cfg if isinstance(cfg, dict) else {}
+
+    def _digital_twin_cache_minutes(self) -> int:
+        cfg = self._ai_cfg().get("digital_twin", {})
+        return max(1, int((cfg if isinstance(cfg, dict) else {}).get("cache_minutes", 15) or 15))
+
+    def _fm_cache_minutes(self) -> int:
+        cfg = self._ai_cfg().get("digital_twin", {})
+        return max(1, int((cfg if isinstance(cfg, dict) else {}).get("fm_cache_minutes", 60) or 60))
+
+    def _score_col(self):
+        collections = getattr(self.db, "collections", None)
+        if isinstance(collections, dict) and "score_records" in collections and "score" not in collections:
+            return self.db.col("score_records")
+        return self.db.col("score")
 
     def _series_snapshot(self, series: list[dict[str, Any]]) -> dict[str, Any]:
         if not series:
@@ -222,7 +242,7 @@ class PatientDigitalTwinService:
         now = datetime.now()
         since = now - timedelta(hours=max(int(hours or 24), 1))
         rows = [
-            doc async for doc in self.db.col("score").find(
+            doc async for doc in self._score_col().find(
                 {"patient_id": {"$in": [patient_id, patient_doc.get("_id")]}, "calc_time": {"$gte": since}},
                 {"score_type": 1, "score": 1, "risk_level": 1, "summary": 1, "calc_time": 1, "value": 1, "sofa_score": 1},
             ).sort("calc_time", -1).limit(60)
@@ -445,6 +465,49 @@ class PatientDigitalTwinService:
         data["labs"] = labs
         return data
 
+    async def _build_foundation_model_block(self, patient_id: str) -> tuple[list[float] | None, dict[str, Any]]:
+        try:
+            latest = await self._score_col().find_one(
+                {
+                    "patient_id": patient_id,
+                    "score_type": "foundation_model_prediction",
+                    "calc_time": {"$gte": datetime.now() - timedelta(minutes=self._fm_cache_minutes())},
+                },
+                sort=[("calc_time", -1)],
+            )
+            if latest:
+                embedding = latest.get("embedding")
+                predictions = latest.get("predictions") if isinstance(latest.get("predictions"), dict) else {}
+                return (embedding if isinstance(embedding, list) else None), predictions
+        except Exception:
+            pass
+
+        service = get_icu_foundation_model_service(db=self.db, config=self.config, alert_engine=self.alert_engine)
+        try:
+            embedding_arr = await service.encode_patient(patient_id)
+            predictions = await service.zero_shot_predict(patient_id)
+            embedding = [round(float(x), 6) for x in embedding_arr[:768]]
+        except Exception as exc:
+            embedding = None
+            predictions = {"available": False, "reason": f"{exc.__class__.__name__}: {str(exc)[:120]}", "model_meta": {"backend": "torch"}}
+
+        try:
+            now = datetime.now()
+            await self._score_col().insert_one(
+                {
+                    "patient_id": patient_id,
+                    "score_type": "foundation_model_prediction",
+                    "embedding": embedding,
+                    "predictions": predictions,
+                    "summary": "ICU foundation model prediction",
+                    "calc_time": now,
+                    "updated_at": now,
+                }
+            )
+        except Exception:
+            pass
+        return embedding, predictions
+
     async def build_snapshot(self, patient_id: str, patient_doc: dict[str, Any], *, hours: int = 24) -> dict[str, Any]:
         facts = await self.alert_engine._collect_patient_facts(patient_doc, patient_doc.get("_id")) if hasattr(self.alert_engine, "_collect_patient_facts") else {}
         vitals = await self._build_vitals_block(patient_id, patient_doc, hours)
@@ -454,6 +517,7 @@ class PatientDigitalTwinService:
         text_signals = await self._build_text_signal_block(patient_doc, patient_id, hours)
         alerts = await self._build_alert_block(patient_id, patient_doc, hours)
         device_events = await self._build_device_timeline_events(patient_id, min(max(int(hours or 24), 1), 24))
+        fm_embedding, fm_predictions = await self._build_foundation_model_block(patient_id)
         timeline = self._build_event_timeline(
             vitals=vitals,
             labs=labs,
@@ -505,6 +569,8 @@ class PatientDigitalTwinService:
             },
             "facts": facts,
             "snapshot": snapshot,
+            "foundation_model_embedding": fm_embedding,
+            "foundation_model_predictions": fm_predictions,
             "vitals": vitals,
             "labs": labs,
             "medications": medications,
@@ -523,7 +589,7 @@ class PatientDigitalTwinService:
 
     async def latest_snapshot(self, patient_id: str, *, max_age_hours: int = 8) -> dict[str, Any] | None:
         since = datetime.now() - timedelta(hours=max(int(max_age_hours or 8), 1))
-        return await self.db.col("score").find_one(
+        return await self._score_col().find_one(
             {"patient_id": patient_id, "score_type": "digital_twin_snapshot", "calc_time": {"$gte": since}},
             sort=[("calc_time", -1)],
         )
@@ -532,7 +598,7 @@ class PatientDigitalTwinService:
         now = snapshot.get("calc_time") if isinstance(snapshot.get("calc_time"), datetime) else datetime.now()
         patient_id = str(snapshot.get("patient_id") or "").strip()
         stored_snapshot = self._storage_view(snapshot)
-        latest = await self.db.col("score").find_one(
+        latest = await self._score_col().find_one(
             {
                 "patient_id": patient_id,
                 "score_type": "digital_twin_snapshot",
@@ -541,10 +607,10 @@ class PatientDigitalTwinService:
             sort=[("calc_time", -1)],
         )
         if latest:
-            await self.db.col("score").update_one({"_id": latest["_id"]}, {"$set": stored_snapshot})
+            await self._score_col().update_one({"_id": latest["_id"]}, {"$set": stored_snapshot})
             snapshot["_id"] = latest["_id"]
             return snapshot
-        result = await self.db.col("score").insert_one(stored_snapshot)
+        result = await self._score_col().insert_one(stored_snapshot)
         snapshot["_id"] = result.inserted_id
         return snapshot
 
@@ -559,7 +625,15 @@ class PatientDigitalTwinService:
     ) -> dict[str, Any]:
         previous = None
         if not refresh:
-            cached = await self.latest_snapshot(patient_id, max_age_hours=min(max(int(hours or 24), 1), 12))
+            cache_minutes = self._digital_twin_cache_minutes()
+            cached = await self._score_col().find_one(
+                {
+                    "patient_id": patient_id,
+                    "score_type": "digital_twin_snapshot",
+                    "calc_time": {"$gte": datetime.now() - timedelta(minutes=cache_minutes)},
+                },
+                sort=[("calc_time", -1)],
+            )
             if cached:
                 return cached
         previous = await self.latest_snapshot(patient_id, max_age_hours=72)

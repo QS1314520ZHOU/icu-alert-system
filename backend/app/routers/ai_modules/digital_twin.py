@@ -23,7 +23,7 @@ from app.routers.ai_modules.common import (
     _safe_float,
     _serialize_nullable,
 )
-from app.services.counterfactual_model import SemiMechanisticCounterfactualModel
+from app.services.counterfactual_model import simulate_counterfactual
 from app.services.multi_agent_orchestrator import ICUMultiAgentOrchestrator
 from app.services.patient_digital_twin import PatientDigitalTwinService
 from app.services.subphenotype_clustering import CohortSubphenotypeProfiler
@@ -252,8 +252,7 @@ async def ai_what_if_simulation(patient_id: str, payload: dict = Body(default={}
     if not patient:
         return {"code": 404, "message": "患者不存在"}
     try:
-        model = SemiMechanisticCounterfactualModel(db=runtime.db, alert_engine=runtime.alert_engine)
-        result = await model.simulate(str(pid), patient, payload or {})
+        result = await simulate_counterfactual(db=runtime.db, alert_engine=runtime.alert_engine, config=get_config(), patient_id=str(pid), patient=patient, payload=payload or {})
         record = await _persist_ai_score_record(patient, result, score_type="patient_what_if_simulation")
         return {"code": 0, "simulation": serialize_doc(record)}
     except Exception as exc:

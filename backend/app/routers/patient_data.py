@@ -8,6 +8,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
+from app.services.vital_trajectory_forecaster import SUPPORTED_CODES, get_vital_trajectory_forecaster
 from app.alert_engine.acid_base_analyzer import (
     SUPPORTIVE_FALLBACK_FIELDS,
     extract_acid_base_snapshot,
@@ -421,6 +422,23 @@ async def patient_vitals_trend(
     for point in points:
         point["time"] = serialize_doc(point["time"]) if isinstance(point.get("time"), datetime) else (str(point["time"]) if point.get("time") else None)
     return {"code": 0, "points": points}
+
+
+@router.get("/api/patients/{patient_id}/vitals/forecast")
+async def patient_vitals_forecast(
+    patient_id: str,
+    codes: str = Query("HR,MAP,SpO2,RR"),
+    horizon_hours: int = Query(6, ge=1, le=12),
+):
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    requested = [part.strip() for part in str(codes or "").split(",") if part.strip() in SUPPORTED_CODES]
+    service = get_vital_trajectory_forecaster(db=runtime.db, config=runtime.config, alert_engine=runtime.alert_engine)
+    result = await service.forecast(str(pid), requested, horizon_hours)
+    return serialize_doc(result)
 
 
 @router.get("/api/patients/{patient_id}/drugs")

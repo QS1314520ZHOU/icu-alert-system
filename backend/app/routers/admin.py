@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from bson import ObjectId
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app import runtime
@@ -24,6 +27,25 @@ class ScannerTriggerRequest(BaseModel):
 
 def _actor() -> str:
     return "admin"
+
+
+def _admin_role(request: Request, payload: dict[str, Any] | None = None) -> str:
+    body = payload if isinstance(payload, dict) else {}
+    role = str(body.get("role") or request.headers.get("x-user-role") or request.headers.get("x-role") or "").strip().lower()
+    actor = str(body.get("actor") or request.headers.get("x-user-id") or "").strip()
+    if not role or not actor:
+        raise HTTPException(status_code=403, detail="causal discovery review requires authenticated actor and role")
+    if role not in {"admin", "causal_reviewer"}:
+        raise HTTPException(status_code=403, detail="causal discovery review requires admin or causal_reviewer role")
+    return role
+
+
+def _oid_or_text(value: str) -> Any:
+    text = str(value or "").strip()
+    try:
+        return ObjectId(text)
+    except Exception:
+        return text
 
 
 @router.post("/scanner/trigger")
@@ -161,3 +183,80 @@ async def update_runtime_field_mapping(payload: dict):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"code": 0, **serialize_doc(result)}
+
+
+@router.get("/causal-discovery/candidates")
+async def causal_discovery_candidates(
+    request: Request,
+    status: str = Query("pending"),
+    limit: int = Query(100, ge=1, le=500),
+):
+    _admin_role(request)
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    query: dict[str, Any] = {}
+    if status and status != "all":
+        query["status"] = status
+    rows = [
+        serialize_doc(row)
+        async for row in runtime.db.col("kg_causal_candidates").find(query).sort("created_at", -1).limit(limit)
+    ]
+    return {"code": 0, "status": status, "items": rows}
+
+
+@router.post("/causal-discovery/approve")
+async def causal_discovery_approve(request: Request, payload: dict[str, Any] = Body(default={})):
+    role = _admin_role(request, payload)
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    candidate_id = str(payload.get("candidate_id") or "").strip()
+    if not candidate_id:
+        raise HTTPException(status_code=400, detail="candidate_id required")
+    actor = str(payload.get("actor") or request.headers.get("x-user-id") or _actor()).strip()[:120]
+    approved = bool(payload.get("approved"))
+    reason = str(payload.get("reason") or "").strip()[:500]
+    prev_version = int(payload.get("prev_version") or 0)
+    candidate = await runtime.db.col("kg_causal_candidates").find_one({"_id": _oid_or_text(candidate_id)})
+    if not candidate:
+        candidate = await runtime.db.col("kg_causal_candidates").find_one({"candidate_id": candidate_id})
+    if not candidate:
+        raise HTTPException(status_code=404, detail="candidate not found")
+    latest = await runtime.db.col("kg_causal_approvals").find_one({"candidate_id": candidate_id}, sort=[("version", -1)])
+    latest_version = int((latest or {}).get("version") or 0)
+    if prev_version and latest_version and prev_version != latest_version:
+        raise HTTPException(status_code=409, detail=f"candidate version changed: latest={latest_version}")
+    idem = await runtime.db.col("kg_causal_approvals").find_one(
+        {"candidate_id": candidate_id, "actor": actor, "prev_version": prev_version, "approved": approved}
+    )
+    if idem:
+        return {"code": 0, "idempotent": True, "record": serialize_doc(idem)}
+
+    edits = payload.get("edits") if isinstance(payload.get("edits"), dict) else {}
+    cause_node = dict(candidate.get("cause_node") or {})
+    if isinstance(edits.get("cause_node"), dict):
+        cause_node.update(edits["cause_node"])
+    evidence = edits.get("evidence") if isinstance(edits.get("evidence"), list) else candidate.get("evidence") or []
+    now = datetime.now()
+    record = {
+        "candidate_id": candidate_id,
+        "candidate_ref": candidate.get("_id"),
+        "finding_key": str(edits.get("finding_key") or candidate.get("finding_key") or "").strip(),
+        "cause_node": cause_node,
+        "evidence": evidence,
+        "approved": approved,
+        "enabled": approved,
+        "reason": reason,
+        "actor": actor,
+        "role": role,
+        "prev_version": prev_version,
+        "version": latest_version + 1,
+        "created_at": now,
+        "updated_at": now,
+    }
+    inserted = await runtime.db.col("kg_causal_approvals").insert_one(record)
+    await runtime.db.col("kg_causal_candidates").update_one(
+        {"_id": candidate.get("_id")},
+        {"$set": {"status": "approved" if approved else "revoked", "updated_at": now, "reviewed_by": actor}},
+    )
+    record["_id"] = inserted.inserted_id
+    return {"code": 0, "idempotent": False, "record": serialize_doc(record)}

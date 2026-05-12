@@ -14,6 +14,8 @@ from .scanner_dic import DicScanner
 from .scanner_tbi import TbiScanner
 from .scanner_bleeding import BleedingScanner
 from .scanner_temporal_risk import TemporalRiskScanner
+from .scanner_foundation_model_risk import FoundationModelRiskScanner
+from .scanner_trajectory_drift import TrajectoryDriftScanner
 from .scanner_ventilator_weaning import VentilatorWeaningScanner
 from .scanner_diaphragm_protection import DiaphragmProtectionScanner
 from .scanner_drug_safety import DrugSafetyScanner
@@ -82,6 +84,8 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         FibrinolysisMonitorScanner(engine),
         TbiScanner(engine),
         BleedingScanner(engine),
+        FoundationModelRiskScanner(engine),
+        TrajectoryDriftScanner(engine),
         TemporalRiskScanner(engine),
         VentilatorWeaningScanner(engine),
         VentilatorAsynchronyScanner(engine),
