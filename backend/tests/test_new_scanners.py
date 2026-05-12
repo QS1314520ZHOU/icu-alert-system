@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.alert_engine.scanner_beta_blocker_advisor import BetaBlockerAdvisorScanner
 from app.alert_engine.scanner_integrated_risk_reasoning import IntegratedRiskReasoningScanner
 from app.alert_engine.scanner_metabolic_phase_detector import MetabolicPhaseDetectorScanner
+from app.alert_engine.scanner_nutrition_monitor import NutritionMonitorScanner
+from app.alert_engine.nutrition_monitor import NutritionMonitorMixin
 
 
 class _InsertResult:
@@ -350,6 +352,95 @@ class _MetabolicEngine:
         del name, count
 
 
+class _NutritionEngine(NutritionMonitorMixin):
+    def __init__(
+        self,
+        *,
+        patient: dict[str, Any] | None = None,
+        nutrition_events: list[dict[str, Any]] | None = None,
+        lab_docs: list[dict[str, Any]] | None = None,
+        drug_docs: list[dict[str, Any]] | None = None,
+        score_docs: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self.config = SimpleNamespace(
+            yaml_cfg={
+                "alert_engine": {
+                    "nutrition_monitor": {
+                        "start_delay_hours": 48,
+                        "calorie_coverage_threshold": 0.6,
+                        "calorie_under_target_persist_hours": 24,
+                        "protein_coverage_threshold": 0.6,
+                        "protein_under_target_persist_hours": 24,
+                        "refeeding_monitor_hours": 72,
+                        "feeding_intolerance_lookback_hours": 72,
+                    },
+                    "suppression": {"same_rule_same_patient_seconds": 0, "max_alerts_per_patient_per_hour": 20},
+                }
+            }
+        )
+        now = datetime.now()
+        default_patient = {
+            "_id": "p1",
+            "name": "张三",
+            "hisPid": "H1",
+            "weight": 70,
+            "height": 170,
+            "icuAdmissionTime": now - timedelta(days=5),
+        }
+        self.db = _FakeDb(
+            {
+                "patient": [patient or default_patient],
+                "drugExe": drug_docs or [],
+                "bedside": [],
+                "VI_ICU_EXAM_ITEM": lab_docs or [],
+                "score": score_docs or [],
+            }
+        )
+        self.created_alerts: list[dict[str, Any]] = []
+        self._nutrition_events = nutrition_events or []
+
+    def _cfg(self, *path: str, default: Any = None) -> Any:
+        cursor: Any = self.config.yaml_cfg
+        for key in path:
+            if not isinstance(cursor, dict) or key not in cursor:
+                return default
+            cursor = cursor[key]
+        return cursor
+
+    def _get_cfg_list(self, path: tuple[str, ...], default: list[str]) -> list[str]:
+        value = self._cfg(*path, default=None)
+        return value if isinstance(value, list) else default
+
+    def _active_patient_query(self) -> dict[str, Any]:
+        return {}
+
+    def _get_patient_weight(self, patient_doc: dict[str, Any]) -> float | None:
+        for key in ("weight", "bodyWeight", "weight_kg"):
+            if patient_doc.get(key) is not None:
+                return float(patient_doc[key])
+        return None
+
+    async def _get_nutrition_drug_events(self, pid_str: str, since: datetime, cfg: dict[str, Any]) -> list[dict[str, Any]]:
+        del pid_str, since, cfg
+        return list(self._nutrition_events)
+
+    async def _get_lab_series(self, his_pid: str, key: str, since: datetime, end: datetime, limit: int = 600) -> list[dict[str, Any]]:
+        del limit
+        keywords = {"k": ["钾", "k"]}.get(key, [key])
+        return await self._get_lab_series_by_keywords(his_pid, since, end, keywords)
+
+    async def _is_suppressed(self, patient_id: str, rule_id: str | None, same_rule_seconds: int, max_per_hour: int) -> bool:
+        del patient_id, rule_id, same_rule_seconds, max_per_hour
+        return False
+
+    async def _create_alert(self, **kwargs: Any) -> dict[str, Any]:
+        self.created_alerts.append(kwargs)
+        return kwargs
+
+    def _log_info(self, name: str, count: int) -> None:
+        del name, count
+
+
 class _BetaEngine:
     def __init__(self) -> None:
         self.config = SimpleNamespace(
@@ -506,6 +597,110 @@ async def test_metabolic_phase_detector_triggers_transition_alert() -> None:
 
     assert any(alert["alert_type"] == "metabolic_phase_transition" for alert in alerts)
     assert engine.db.col("score").docs[-1]["phase"] == "transition"
+
+
+@pytest.mark.asyncio
+async def test_nutrition_monitor_uses_metabolic_phase_targets_and_checks_protein() -> None:
+    now = datetime.now()
+    engine = _NutritionEngine(
+        nutrition_events=[
+            {"time": now - timedelta(hours=30), "type": "enteral", "kcal": 200, "raw": {"protein": 4}},
+            {"time": now - timedelta(hours=3), "type": "enteral", "kcal": 200, "raw": {"protein": 4}},
+        ],
+        score_docs=[
+            {
+                "patient_id": "p1",
+                "score_type": "metabolic_phase_detector",
+                "phase": "transition",
+                "nutrition_target": {"kcal": [20, 25], "protein": [1.0, 1.3]},
+                "calc_time": now - timedelta(hours=1),
+            }
+        ],
+    )
+
+    await NutritionMonitorScanner(engine).scan()
+
+    calorie_alert = next(alert for alert in engine.created_alerts if alert["alert_type"] == "nutrition_calorie_not_reached")
+    protein_alert = next(alert for alert in engine.created_alerts if alert["alert_type"] == "nutrition_protein_not_reached")
+    assert calorie_alert["extra"]["target_strategy"] == "metabolic_phase_detector"
+    assert calorie_alert["extra"]["target_kcal_per_kg_day_range"] == [20.0, 25.0]
+    assert protein_alert["extra"]["target_protein_g_kg_day_range"] == [1.0, 1.3]
+
+
+@pytest.mark.asyncio
+async def test_nutrition_monitor_obesity_adjusts_calorie_target() -> None:
+    now = datetime.now()
+    engine = _NutritionEngine(
+        patient={
+            "_id": "p1",
+            "name": "张三",
+            "hisPid": "H1",
+            "weight": 120,
+            "height": 170,
+            "bmi": 41.5,
+            "icuAdmissionTime": now - timedelta(days=5),
+        },
+        nutrition_events=[
+            {"time": now - timedelta(hours=30), "type": "enteral", "kcal": 500, "raw": {"protein": 20}},
+            {"time": now - timedelta(hours=3), "type": "enteral", "kcal": 100, "raw": {"protein": 4}},
+        ],
+    )
+
+    await NutritionMonitorScanner(engine).scan()
+
+    calorie_alert = next(alert for alert in engine.created_alerts if alert["alert_type"] == "nutrition_calorie_not_reached")
+    assert calorie_alert["extra"]["obesity_adjusted"] is True
+    assert calorie_alert["extra"]["target_kcal_per_kg_day_range"] == [11.0, 14.0]
+    assert calorie_alert["extra"]["target_weight_kg"] == 120.0
+
+
+@pytest.mark.asyncio
+async def test_nutrition_monitor_refeeding_prevention_and_start_speed() -> None:
+    now = datetime.now()
+    start = now - timedelta(hours=10)
+    labs = [
+        {"hisPid": "H1", "authTime": now - timedelta(hours=8), "itemCnName": "血磷", "result": "0.55", "unit": "mmol/L"},
+        {"hisPid": "H1", "authTime": now - timedelta(hours=8), "itemCnName": "血钾", "result": "3.2", "unit": "mmol/L"},
+        {"hisPid": "H1", "authTime": now - timedelta(hours=8), "itemCnName": "血镁", "result": "0.7", "unit": "mmol/L"},
+    ]
+    engine = _NutritionEngine(
+        patient={
+            "_id": "p1",
+            "name": "张三",
+            "hisPid": "H1",
+            "weight": 50,
+            "height": 170,
+            "bmi": 15.5,
+            "icuAdmissionTime": now - timedelta(days=2),
+        },
+        nutrition_events=[
+            {"time": start, "type": "enteral", "kcal": 800, "raw": {"protein": 20}},
+        ],
+        lab_docs=labs,
+    )
+
+    await NutritionMonitorScanner(engine).scan()
+
+    alert_types = {alert["alert_type"] for alert in engine.created_alerts}
+    assert "nutrition_refeeding_prevention" in alert_types
+    assert "nutrition_refeeding_start_too_fast" in alert_types
+
+
+@pytest.mark.asyncio
+async def test_nutrition_monitor_early_phase_target_is_not_fixed_25() -> None:
+    engine = _NutritionEngine(
+        patient={
+            "_id": "p1",
+            "weight": 70,
+            "height": 170,
+            "icuAdmissionTime": datetime.now() - timedelta(days=2),
+        }
+    )
+    scanner = NutritionMonitorScanner(engine)
+    target = await scanner._dynamic_nutrition_target(engine.db.col("patient").docs[0], "p1", 48, 70, {})
+
+    assert target["phase"] == "acute_early"
+    assert target["target_kcal_per_kg_day_range"] == [10.0, 20.0]
 
 
 @pytest.mark.asyncio
