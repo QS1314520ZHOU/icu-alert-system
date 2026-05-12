@@ -71,17 +71,26 @@ PAYLOAD_DIR="${TMP_DIR}/payload"
 
 make_manifest() {
     local dir="$1"
+    local label="${2:-manifest}"
     (cd "$dir" && \
-        find . -type f \
+        mapfile -t files < <(find . -type f \
             ! -name 'manifest.sha256' \
             ! -path './.env' \
             ! -name '*.pid' \
             ! -name '*.log' \
             ! -path './backups/*' \
             ! -path './.delta-backups/*' \
-            -print | sort | while IFS= read -r file; do
+            -print | sort) && \
+        total="${#files[@]}" && \
+        echo ">>> ${label}: 发现 ${total} 个文件，开始计算 SHA256..." >&2 && \
+        index=0 && \
+        for file in "${files[@]}"; do
+            index=$((index + 1))
+            if [ "${index}" -eq 1 ] || [ $((index % 200)) -eq 0 ] || [ "${index}" -eq "${total}" ]; then
+                echo ">>> ${label}: ${index}/${total} ${file#./}" >&2
+            fi
                 sha256sum "$file" | sed 's#  \./#  #'
-            done)
+        done)
 }
 
 validate_file_list() {
@@ -107,23 +116,27 @@ normalize_manifest() {
 }
 
 if [ -d "${BASE}" ]; then
-    make_manifest "${BASE}" > "${BASE_MANIFEST}.raw"
+    make_manifest "${BASE}" "base manifest" > "${BASE_MANIFEST}.raw"
 elif [ -f "${BASE}" ]; then
+    echo ">>> 使用 base manifest 文件: ${BASE}"
     cp "${BASE}" "${BASE_MANIFEST}.raw"
 else
     echo "错误: base 不存在: ${BASE}" >&2
     exit 1
 fi
 
-make_manifest "${CURRENT_DIR}" > "${CURRENT_MANIFEST}.raw"
+make_manifest "${CURRENT_DIR}" "current manifest" > "${CURRENT_MANIFEST}.raw"
+echo ">>> 规范化 manifest..."
 normalize_manifest "${BASE_MANIFEST}.raw" > "${BASE_MANIFEST}"
 normalize_manifest "${CURRENT_MANIFEST}.raw" > "${CURRENT_MANIFEST}"
 
+echo ">>> 计算变更文件列表..."
 awk -F '\t' '
     NR == FNR { base[$2] = $1; next }
     !($2 in base) || base[$2] != $1 { print $2 }
 ' "${BASE_MANIFEST}" "${CURRENT_MANIFEST}" > "${CHANGED_LIST}"
 
+echo ">>> 计算删除文件列表..."
 awk -F '\t' '
     NR == FNR { cur[$2] = 1; next }
     !($2 in cur) { print $2 }
@@ -151,9 +164,16 @@ fi
 
 mkdir -p "${PAYLOAD_DIR}/files" "${DELTA_ROOT}"
 
+CHANGED_TOTAL=$(wc -l < "${CHANGED_LIST}" | tr -d ' ')
+CHANGED_INDEX=0
+echo ">>> 复制变更文件到增量包: ${CHANGED_TOTAL} 个"
 while IFS= read -r file; do
     [ -n "${file}" ] || continue
     [ -f "${CURRENT_DIR}/${file}" ] || continue
+    CHANGED_INDEX=$((CHANGED_INDEX + 1))
+    if [ "${CHANGED_INDEX}" -eq 1 ] || [ $((CHANGED_INDEX % 100)) -eq 0 ] || [ "${CHANGED_INDEX}" -eq "${CHANGED_TOTAL}" ]; then
+        echo ">>> 复制进度: ${CHANGED_INDEX}/${CHANGED_TOTAL} ${file}"
+    fi
     mkdir -p "${PAYLOAD_DIR}/files/$(dirname "$file")"
     cp -p "${CURRENT_DIR}/${file}" "${PAYLOAD_DIR}/files/${file}"
 done < "${CHANGED_LIST}"
@@ -177,6 +197,7 @@ EOF
 
 ARCHIVE_NAME="${PROJECT_NAME}-gpu-delta-${VERSION}.tar.gz"
 ARCHIVE_PATH="${DELTA_ROOT}/${ARCHIVE_NAME}"
+echo ">>> 压缩增量包: ${ARCHIVE_PATH}"
 tar -czf "${ARCHIVE_PATH}" -C "${PAYLOAD_DIR}" .
 
 echo "============================================"
