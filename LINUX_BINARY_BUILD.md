@@ -98,12 +98,62 @@ Linux / macOS / Git Bash:
 
 ```text
 dist/icu-alert-system-ubuntu2004-gpu/
+dist/icu-alert-system-ubuntu2004-gpu/manifest.sha256
+dist/icu-alert-system-ubuntu2004-gpu.tar.gz
 ```
 
 说明：
 
 - 这是 Ubuntu 20.04 GPU 专用产物
 - 不建议拿它直接跑到 OEL8
+- 完整包会自动生成 `manifest.sha256`，后续可基于它制作纯内网增量包
+
+### 3.1 Ubuntu GPU 增量更新包
+
+首次部署仍使用完整包：
+
+```bash
+scp dist/icu-alert-system-ubuntu2004-gpu.tar.gz user@gpu-server:/opt/
+cd /opt
+tar xzf icu-alert-system-ubuntu2004-gpu.tar.gz
+cd /opt/icu-alert-system-ubuntu2004-gpu
+cp .env.template .env
+./run.sh start-bg
+```
+
+后续更新先正常构建完整产物，再生成只包含变化文件的小包：
+
+```bash
+./build-gpu.sh
+./build-gpu-delta.sh --base previous-manifest.sha256
+```
+
+`--base` 可以传上一次发布保存的 `manifest.sha256`，也可以传上一次完整解压目录：
+
+```bash
+./build-gpu-delta.sh --base /path/to/previous/icu-alert-system-ubuntu2004-gpu
+```
+
+产物：
+
+```text
+dist/delta/icu-alert-system-gpu-delta-<version>.tar.gz
+```
+
+内网服务器应用增量包：
+
+```bash
+mkdir -p /tmp/icu-delta
+tar xzf /tmp/icu-alert-system-gpu-delta-<version>.tar.gz -C /tmp/icu-delta
+/tmp/icu-delta/apply-gpu-delta.sh /opt/icu-alert-system-ubuntu2004-gpu
+```
+
+增量规则：
+
+- `.env`、日志、pid、`.delta-backups/` 不进入 manifest，避免覆盖服务器本机配置
+- `_internal/` 变化超过 300MB 或 200 个文件时，脚本会停止并提示发布完整包
+- 应用增量包前会停止服务，覆盖后校验 manifest，通过后执行 `./run.sh start-bg`
+- 默认保留最近 3 次 `.delta-backups/`，可用 `KEEP_BACKUPS=5` 调整
 
 ## 建议选型
 

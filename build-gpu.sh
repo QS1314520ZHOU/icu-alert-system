@@ -76,6 +76,19 @@ CONTAINER_ID=$(docker create "${IMAGE_NAME}")
 docker cp "${CONTAINER_ID}:/build/output/." "${OUTPUT_DIR}/"
 docker rm "${CONTAINER_ID}"
 
+echo ">>> 生成完整包 manifest..."
+(cd "${OUTPUT_DIR}" && \
+    find . -type f \
+        ! -name 'manifest.sha256' \
+        ! -path './.env' \
+        ! -name '*.pid' \
+        ! -name '*.log' \
+        ! -path './backups/*' \
+        ! -path './.delta-backups/*' \
+        -print | sort | while IFS= read -r file; do
+            sha256sum "$file" | sed 's#  \./#  #'
+        done > manifest.sha256)
+
 # 压缩
 ARCHIVE_NAME="${PROJECT_NAME}-ubuntu2004-gpu.tar.gz"
 ARCHIVE_PATH="dist/${ARCHIVE_NAME}"
