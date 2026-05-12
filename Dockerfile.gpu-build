@@ -297,9 +297,10 @@ RUN cd /build && \
         { echo "=== BUILD FAILED ==="; tail -100 /build/pyinstaller.log; exit 1; } && \
     echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)" && \
     cd /build/dist/icu-alert-system && \
-    LD_LIBRARY_PATH="/build/dist/icu-alert-system/_internal:${LD_LIBRARY_PATH:-}" \
-    ICU_IMPORT_SELF_TEST=1 \
-    ./icu-alert-system
+    env LD_LIBRARY_PATH="/build/dist/icu-alert-system/_internal:${LD_LIBRARY_PATH:-}" \
+        ICU_IMPORT_SELF_TEST=1 \
+        ./icu-alert-system || \
+        { echo "=== PACKAGED BINARY SELFTEST FAILED ==="; tail -120 /build/pyinstaller.log; exit 1; }
 
 # ---- 2.11 .env.template ----
 RUN cat > /build/dist/icu-alert-system/.env.template << 'ENVEOF'
