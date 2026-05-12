@@ -115,6 +115,7 @@ class ChatConsultPayload(BaseModel):
     history: list[ChatTurn] = Field(default_factory=list)
     patient_id: str | None = Field(default=None, max_length=64)
     patient_ids: list[str] = Field(default_factory=list, max_length=8)
+    mode: Literal["clinical", "free"] = "clinical"
 
 
 def _clip_text(value: str | None, limit: int = 1200) -> str:
@@ -1324,6 +1325,33 @@ def _build_ai_consult_prompts(
     return system_prompt, user_prompt
 
 
+def _build_ai_free_chat_prompts(
+    *,
+    message: str,
+    history: list[ChatTurn],
+    match_note: str,
+    patient_context: str,
+    rag_hits: list[dict[str, Any]] | None = None,
+) -> tuple[str, str]:
+    system_prompt = (
+        "你是一个中文 AI 对话助手，可以和医生/护士进行自然对话。"
+        "本模式是自由对话模式：不要强制使用“初步判断/风险点/建议检查/下一步处理”等固定标题，"
+        "也不要为了满足模板而拆分栏目。"
+        "请优先按用户当前问题的语气和要求回答；可以简短、可以展开，也可以用自然段或普通列表。"
+        "如果用户询问临床问题，仍需保持专业、谨慎，不编造不存在的患者信息；高风险医疗处置要提醒由责任医生确认。"
+        "严禁输出 <think>、</think>、思维链、推理过程、内部分析草稿。"
+    )
+    user_prompt = (
+        f"【患者匹配信息】\n{match_note or '无额外匹配提示'}\n\n"
+        f"【患者上下文】\n{patient_context or '未选择具体患者；如果问题不需要患者信息，可按通用对话处理。'}\n\n"
+        f"【可参考证据/RAG】\n{_format_rag_evidence_block(rag_hits or [])}\n\n"
+        f"【历史对话】\n{_format_history(history)}\n\n"
+        f"【用户当前问题】\n{_clip_text(message, 2000)}\n\n"
+        "请按自由对话方式直接回答，不要套用固定问诊模板。"
+    )
+    return system_prompt, user_prompt
+
+
 def _build_ai_consult_preview_prompts(
     *,
     message: str,
@@ -1490,6 +1518,7 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
     message = str(payload.message or "").strip()
     if not message:
         return {"code": 400, "message": "message不能为空"}
+    is_free_mode = payload.mode == "free"
     intent = _detect_ai_consult_intent(message)
 
     patient_id = str(payload.patient_id or "").strip() or None
@@ -1507,7 +1536,8 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
         return {"code": 400, "message": str(exc)}
 
     rag_hits = _search_ai_consult_rag(message, patient_context)
-    system_prompt, user_prompt = _build_ai_consult_prompts(
+    prompt_builder = _build_ai_free_chat_prompts if is_free_mode else _build_ai_consult_prompts
+    system_prompt, user_prompt = prompt_builder(
         message=message,
         history=payload.history,
         match_note=match_note,
@@ -1533,8 +1563,8 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
             ),
             timeout=total_timeout_seconds,
         )
-        answer_text = _finalize_ai_consult_answer(str(answer or "").strip(), rag_hits)
-        if _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
+        answer_text = _strip_markdown_for_display(str(answer or "").strip()) if is_free_mode else _finalize_ai_consult_answer(str(answer or "").strip(), rag_hits)
+        if not is_free_mode and _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
             retry_system_prompt, retry_user_prompt = _build_ai_consult_retry_prompts(
                 message=message,
                 history=payload.history,
@@ -1567,11 +1597,12 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
             "answer_max_tokens": max_tokens,
             "intent_primary": intent["primary"],
             "intent_focus_section": intent["focus_section"],
+            "mode": payload.mode,
             "rag_sources": [
                 {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
                 for item in rag_hits[:6]
             ],
-            **_ai_consult_structured_fields(answer_text, rag_hits),
+            **({} if is_free_mode else _ai_consult_structured_fields(answer_text, rag_hits)),
         }
         await _write_ai_consult_log(request=request, payload=payload, answer=response, success=True, model=model_name, patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits)
         return response
@@ -1627,6 +1658,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
     message = str(payload.message or "").strip()
     if not message:
         return JSONResponse(status_code=400, content={"code": 400, "message": "message不能为空"})
+    is_free_mode = payload.mode == "free"
     intent = _detect_ai_consult_intent(message)
 
     patient_id = str(payload.patient_id or "").strip() or None
@@ -1636,7 +1668,8 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
         return JSONResponse(status_code=400, content={"code": 400, "message": str(exc)})
 
     rag_hits = _search_ai_consult_rag(message, patient_context)
-    system_prompt, user_prompt = _build_ai_consult_prompts(
+    prompt_builder = _build_ai_free_chat_prompts if is_free_mode else _build_ai_consult_prompts
+    system_prompt, user_prompt = prompt_builder(
         message=message,
         history=payload.history,
         match_note=match_note,
@@ -1673,6 +1706,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                 "answer_max_tokens": max_tokens,
                 "intent_primary": intent["primary"],
                 "intent_focus_section": intent["focus_section"],
+                "mode": payload.mode,
                 "rag_sources": [
                     {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
                     for item in rag_hits[:6]
@@ -1685,7 +1719,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
         stream_used = False
         preview_emitted = False
         first_delta_received = False
-        preview_task: asyncio.Task | None = asyncio.create_task(
+        preview_task: asyncio.Task | None = None if is_free_mode else asyncio.create_task(
             call_api_llm(
                 preview_system_prompt,
                 preview_user_prompt,
@@ -1732,6 +1766,16 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                     if preview_task and not preview_task.done():
                         preview_task.cancel()
                     raw_answer_chunks.append(delta)
+                    if is_free_mode:
+                        # 自由对话不要求固定栏目。这里不要在“半截 Markdown”上做全量
+                        # strip + prefix diff：例如模型先吐出 "**标题"、随后补齐 "**" 时，
+                        # 清洗后的全文会改写已发送前缀，导致 delta 计算失败，最终只保留
+                        # 早期可见文本（表现为回答在列表开头处被截断）。自由对话直接把
+                        # 原始增量交给前端累计清洗，最终 done 再基于完整 raw chunks 清洗。
+                        visible_answer_text += delta
+                        yield _sse_pack("delta", {"text": delta})
+                        next_delta_task = asyncio.create_task(anext(stream_iter))
+                        continue
                     new_visible_text = _strip_markdown_for_display("".join(raw_answer_chunks).strip())
                     if new_visible_text:
                         if new_visible_text.startswith(visible_answer_text):
@@ -1764,6 +1808,10 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                 fallback_text = str(fallback_answer or "").strip()
                 if fallback_text:
                     raw_answer_chunks.append(fallback_text)
+                    if is_free_mode:
+                        visible_answer_text += fallback_text
+                        yield _sse_pack("delta", {"text": fallback_text})
+                        fallback_text = ""
                     new_visible_text = _strip_markdown_for_display("".join(raw_answer_chunks).strip())
                     if new_visible_text:
                         if new_visible_text.startswith(visible_answer_text):
@@ -1826,8 +1874,12 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
             yield _sse_pack("error", error_payload)
             return
 
-        answer_text = _finalize_ai_consult_answer(visible_answer_text or "".join(raw_answer_chunks).strip(), rag_hits)
-        if _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
+        answer_text = (
+            _strip_markdown_for_display("".join(raw_answer_chunks).strip() or visible_answer_text)
+            if is_free_mode
+            else _finalize_ai_consult_answer(visible_answer_text or "".join(raw_answer_chunks).strip(), rag_hits)
+        )
+        if not is_free_mode and _should_retry_ai_consult_answer(message=message, history=payload.history, answer_text=answer_text):
             try:
                 retry_system_prompt, retry_user_prompt = _build_ai_consult_retry_prompts(
                     message=message,
@@ -1864,11 +1916,12 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                 "answer_max_tokens": max_tokens,
                 "intent_primary": intent["primary"],
                 "intent_focus_section": intent["focus_section"],
+                "mode": payload.mode,
                 "rag_sources": [
                     {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
                     for item in rag_hits[:6]
                 ],
-                **_ai_consult_structured_fields(answer_text, rag_hits),
+                **({} if is_free_mode else _ai_consult_structured_fields(answer_text, rag_hits)),
             }
         await _write_ai_consult_log(request=request, payload=payload, answer=done_payload, success=True, model=model_name or "", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"stream": True, "stream_used": stream_used})
         yield _sse_pack("done", done_payload)

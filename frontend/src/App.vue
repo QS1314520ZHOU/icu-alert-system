@@ -85,6 +85,8 @@ const themeWrapper = shallowRef<any>('div')
 let t: any
 const THEME_KEY = 'icu_theme_mode'
 let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> | null = null
+let operatorResolveSeq = 0
+const operatorNameCache = new Map<string, string>()
 const navItems = [
   { key: 'doctor-home', lines: ['医生', '首页'] },
   { key: 'nurse-home', lines: ['护士', '首页'] },
@@ -146,10 +148,16 @@ const navKey = computed(() => {
   if (route.path.startsWith('/admin/runtime-config')) return 'runtime-config'
   return 'overview'
 })
-const routeUserName = computed(() => {
-  const value = route.query.userName
-  return String(Array.isArray(value) ? value[0] : value || '').trim()
-})
+function firstRouteQuery(...keys: string[]) {
+  for (const key of keys) {
+    const value = route.query[key]
+    const text = String(Array.isArray(value) ? value[0] : value || '').trim()
+    if (text) return text
+  }
+  return ''
+}
+
+const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'username', 'user_id', 'userId'))
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
   if (!antThemeReady.value || !antTheme.value) return undefined
@@ -216,7 +224,7 @@ function onNav(key: string) {
 }
 
 function navIdentityQuery() {
-  const allowed = ['user_id', 'userId', 'userName', 'username', 'role', 'dept', 'dept_code', 'deptCode', 'department']
+  const allowed = ['user_id', 'userId', 'userName', 'useName', 'username', 'role', 'dept', 'dept_code', 'deptCode', 'department']
   const next: Record<string, any> = {}
   for (const key of allowed) {
     const value = route.query[key]
@@ -274,20 +282,35 @@ function syncOperatorFromRoute() {
 
 async function resolveOperatorDisplayName() {
   const userName = routeUserName.value
+  const deptCode = String(route.query.dept_code || route.query.deptCode || '').trim()
+  const dept = String(route.query.dept || route.query.department || '').trim()
+  const role = String(route.query.role || route.query.userRole || '').trim()
+  const cacheKey = [userName, role, deptCode, dept].join('|')
+  const seq = ++operatorResolveSeq
   if (!userName) {
     operatorDisplayName.value = ''
     return
   }
+
+  // 账号识别先用地址栏工号即时展示，后台姓名查询只做增强，避免卡住首页/工作台渲染。
+  operatorDisplayName.value = operatorNameCache.get(cacheKey) || userName
+  if (operatorNameCache.has(cacheKey)) return
+
   try {
     const { data } = await getClinicalAccount({
       userName,
-      dept_code: String(route.query.dept_code || route.query.deptCode || '').trim() || undefined,
-      dept: String(route.query.dept || route.query.department || '').trim() || undefined,
+      role: role || undefined,
+      dept_code: deptCode || undefined,
+      dept: dept || undefined,
     })
+    if (seq !== operatorResolveSeq) return
     const account = data?.account || {}
-    operatorDisplayName.value = String(account.trueName || account.display_name || userName).trim()
+    const displayName = String(account.trueName || account.display_name || userName).trim()
+    operatorNameCache.set(cacheKey, displayName)
+    operatorDisplayName.value = displayName
   } catch {
-    operatorDisplayName.value = userName
+    // 静默降级：接口慢/超时时继续显示地址栏账号，不再影响页面可用性。
+    if (seq === operatorResolveSeq) operatorDisplayName.value = userName
   }
 }
 
@@ -326,7 +349,7 @@ watch(routeNeedsAntdTheme, (needs) => {
   if (needs) void ensureAntdTheme()
 }, { immediate: true })
 
-watch(() => route.query.userName, () => {
+watch(() => [route.query.userName, route.query.useName, route.query.username, route.query.user_id, route.query.userId, route.query.dept_code, route.query.deptCode, route.query.dept, route.query.department], () => {
   syncOperatorFromRoute()
   void resolveOperatorDisplayName()
 }, { immediate: true })

@@ -85,10 +85,10 @@
               <b>{{ patient.safety_score ?? '—' }}</b>
             </div>
             <div class="vent-meter-row">
-              <span><i>FiO2</i><strong>{{ patient.fio2 ?? '—' }}</strong></span>
-              <span><i>PEEP</i><strong>{{ patient.peep ?? '—' }}</strong></span>
-              <span><i>DP</i><strong>{{ patient.driving_pressure ?? '—' }}</strong></span>
-              <span><i>P/F</i><strong>{{ patient.pf_ratio ?? '—' }}</strong></span>
+              <span><i>FiO2</i><strong>{{ fmtVentParam('fio2', patient.fio2) }}</strong></span>
+              <span><i>PEEP</i><strong>{{ fmtVentParam('peep', patient.peep) }}</strong></span>
+              <span><i>DP</i><strong>{{ fmtVentParam('driving_pressure', patient.driving_pressure) }}</strong></span>
+              <span><i>P/F</i><strong>{{ fmtVentParam('pf_ratio', patient.pf_ratio) }}</strong></span>
             </div>
             <div class="vent-chip-row">
               <span v-for="tag in compactRiskTags(patient)" :key="tag">{{ tag }}</span>
@@ -182,23 +182,23 @@
       <a-descriptions bordered size="small" :column="2" v-if="drawerPatient">
         <a-descriptions-item label="体位">{{ drawerPatient.position ?? '—' }}</a-descriptions-item>
         <a-descriptions-item label="模式">{{ drawerPatient.ventilator_mode }}</a-descriptions-item>
-        <a-descriptions-item label="FiO2">{{ drawerPatient.fio2 ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="PEEP">{{ drawerPatient.peep ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="VT(set)">{{ drawerPatient.vt_set ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="峰流速">{{ drawerPatient.peak_flow ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="驱动压">{{ drawerPatient.driving_pressure ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="气道阻力">{{ drawerPatient.airway_resistance ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="P0.1">{{ drawerPatient.p01 ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="Pplat">{{ drawerPatient.pplat ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="C_STAT">{{ drawerPatient.c_stat ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="静态顺应性">{{ drawerPatient.static_compliance ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="P/F">{{ drawerPatient.pf_ratio ?? '—' }}</a-descriptions-item>
-        <a-descriptions-item label="RASS">{{ drawerPatient.rass ?? '—' }}</a-descriptions-item>
+        <a-descriptions-item label="FiO2">{{ fmtVentParam('fio2', drawerPatient.fio2) }}</a-descriptions-item>
+        <a-descriptions-item label="PEEP">{{ fmtVentParam('peep', drawerPatient.peep) }}</a-descriptions-item>
+        <a-descriptions-item label="VT(set)">{{ fmtVentParam('vt_set', drawerPatient.vt_set) }}</a-descriptions-item>
+        <a-descriptions-item label="峰流速">{{ fmtVentParam('peak_flow', drawerPatient.peak_flow) }}</a-descriptions-item>
+        <a-descriptions-item label="驱动压">{{ fmtVentParam('driving_pressure', drawerPatient.driving_pressure) }}</a-descriptions-item>
+        <a-descriptions-item label="气道阻力">{{ fmtVentParam('airway_resistance', drawerPatient.airway_resistance) }}</a-descriptions-item>
+        <a-descriptions-item label="P0.1">{{ fmtVentParam('p01', drawerPatient.p01) }}</a-descriptions-item>
+        <a-descriptions-item label="Pplat">{{ fmtVentParam('pplat', drawerPatient.pplat) }}</a-descriptions-item>
+        <a-descriptions-item label="C_STAT">{{ fmtVentParam('c_stat', drawerPatient.c_stat) }}</a-descriptions-item>
+        <a-descriptions-item label="静态顺应性">{{ fmtVentParam('static_compliance', drawerPatient.static_compliance) }}</a-descriptions-item>
+        <a-descriptions-item label="P/F">{{ fmtVentParam('pf_ratio', drawerPatient.pf_ratio) }}</a-descriptions-item>
+        <a-descriptions-item label="RASS">{{ fmtVentParam('rass', drawerPatient.rass) }}</a-descriptions-item>
       </a-descriptions>
       <a-divider>参数时间线</a-divider>
       <a-timeline>
         <a-timeline-item v-for="(item, idx) in timeline" :key="idx">
-          {{ fmt(item.time) }} · {{ item.mode || '模式—' }} / FiO2 {{ item.fio2 ?? '—' }} / PEEP {{ item.peep ?? '—' }} / VT(set) {{ item.vt_set ?? '—' }} / Pplat {{ item.pplat ?? '—' }} / C_STAT {{ item.c_stat ?? '—' }} / DP {{ item.driving_pressure ?? '—' }}
+          {{ fmt(item.time) }} · {{ item.mode || '模式—' }} / FiO2 {{ fmtVentParam('fio2', item.fio2) }} / PEEP {{ fmtVentParam('peep', item.peep) }} / VT(set) {{ fmtVentParam('vt_set', item.vt_set) }} / Pplat {{ fmtVentParam('pplat', item.pplat) }} / C_STAT {{ fmtVentParam('c_stat', item.c_stat) }} / DP {{ fmtVentParam('driving_pressure', item.driving_pressure) }}
         </a-timeline-item>
       </a-timeline>
       <a-divider>气道预案</a-divider>
@@ -362,6 +362,31 @@ const airwayPlanView = computed(() => {
 })
 
 function fmt(v: any) { return formatBeijingTime(v, '—') }
+function fmtVentParam(key: string, value: any) {
+  if (value === null || value === undefined || value === '') return '—'
+  const num = Number(value)
+  if (!Number.isFinite(num)) return String(value)
+  if (key === 'fio2') {
+    const fio2 = num > 0 && num <= 1 ? num * 100 : num
+    return `${Math.round(fio2)}`
+  }
+  const decimals: Record<string, number> = {
+    peep: 0,
+    vt_set: 0,
+    peak_flow: 0,
+    driving_pressure: 1,
+    airway_resistance: 1,
+    p01: 1,
+    pplat: 0,
+    c_stat: 0,
+    static_compliance: 0,
+    pf_ratio: 0,
+    rass: 0,
+  }
+  const digits = decimals[key] ?? 1
+  const rounded = Number(num.toFixed(digits))
+  return digits === 0 || Number.isInteger(rounded) ? String(Math.round(rounded)) : rounded.toFixed(digits)
+}
 function compactRiskTags(patient: any) {
   const tags = Array.isArray(patient?.risk_tags) ? patient.risk_tags.filter(Boolean) : []
   if (tags.length) return tags.slice(0, 3)

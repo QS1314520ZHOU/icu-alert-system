@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Body, Query, Request
 
 from app import runtime
@@ -27,6 +29,33 @@ async def role_home(
 ):
     result = await _service().role_home(role=role, dept=dept, dept_code=dept_code or deptCode, user_name=userName)
     return {"code": 0, **serialize_doc(result)}
+
+
+@router.get("/account")
+async def account(
+    role: str | None = Query(None),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+    userName: str | None = Query(None),
+):
+    fallback_dept_code = dept_code or deptCode
+    fallback_role = role or "doctor"
+    fallback_account = {
+        "userName": userName or "",
+        "display_name": userName or "",
+        "role": fallback_role,
+        "found": False,
+    }
+    try:
+        account = await asyncio.wait_for(_service().resolve_account(userName, fallback_role=fallback_role), timeout=0.8)
+    except Exception:
+        account = fallback_account
+    if fallback_dept_code and not account.get("dept_code"):
+        account["dept_code"] = fallback_dept_code
+    if dept and not account.get("dept"):
+        account["dept"] = dept
+    return {"code": 0, "account": serialize_doc(account)}
 
 
 @router.get("/patients/{patient_id}/story")

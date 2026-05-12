@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const createProxyEntry = () => ({
     target: backendTarget,
     changeOrigin: true,
+    ws: true,
     configure: (proxy: any) => {
       proxy.on('error', (err: Error, req: any) => {
         const url = req?.url || '(unknown url)'
@@ -107,10 +108,20 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     server: {
+      host: '::',
       port: 5173,
+      // 允许通过这些域名访问 dev server（Vite 默认会拒绝陌生 Host 头）
+      allowedHosts: ['alert.jylb.fun', '.jylb.fun', 'localhost'],
+      // 通过 NPM/Cloudflare 反代时，告诉浏览器 HMR WebSocket 走 wss + 443
+      hmr: {
+        host: 'alert.jylb.fun',
+        protocol: 'wss',
+        clientPort: 443,
+      },
       proxy: {
         '/api': createProxyEntry(),
         '/health': createProxyEntry(),
+        '/ws': createProxyEntry(), // 后端实时告警 WebSocket
       },
     },
   }

@@ -69,25 +69,6 @@
           清空筛选
         </button>
       </div>
-
-      <div class="command-strip">
-        <div class="command-pill">
-          <span class="command-pill__label">监护范围</span>
-          <strong class="command-pill__value">{{ routeDeptDisplayName || curDept || '全科' }}</strong>
-        </div>
-        <div class="command-pill">
-          <span class="command-pill__label">视图模式</span>
-          <strong class="command-pill__value">{{ rescueOnly ? '抢救期快筛' : '全量监护' }}</strong>
-        </div>
-        <div class="command-pill">
-          <span class="command-pill__label">活跃筛选</span>
-          <strong class="command-pill__value">{{ activeOverviewFilters.length }}</strong>
-        </div>
-        <div class="command-pill">
-          <span class="command-pill__label">刷新节奏</span>
-          <strong class="command-pill__value">60s</strong>
-        </div>
-      </div>
     </header>
 
     <PriorityFocusPanel
@@ -212,12 +193,6 @@ const routeDeptName = computed(() => {
   if (typeof raw === 'string') return raw.trim()
   return ''
 })
-const routeDeptDisplayName = computed(() => {
-  if (routeDeptName.value) return routeDeptName.value
-  if (!routeDeptCode.value) return ''
-  const hit = depts.value.find((item: any) => String(item?.deptCode || '').trim() === routeDeptCode.value)
-  return String(hit?.dept || '').trim()
-})
 const routeAlertLevel = computed(() => {
   const raw = route.query.alert_level || route.query.alertLevel
   if (Array.isArray(raw)) return raw[0]?.trim() ?? ''
@@ -298,8 +273,6 @@ const tagStats = computed(() => {
 const rescueRiskCount = computed(() => byDept.value.filter(p => p.hasRescueRisk).length)
 const activeOverviewFilters = computed(() => {
   const items: Array<{ key: string; label: string }> = []
-  if (routeDeptDisplayName.value) items.push({ key: 'dept', label: `科室 ${routeDeptDisplayName.value}` })
-  else if (routeDeptCode.value) items.push({ key: 'dept', label: '当前科室' })
   if (alertFilter.value === 'critical') items.push({ key: 'alert', label: '危重患者' })
   else if (alertFilter.value === 'warning') items.push({ key: 'alert', label: '警告 / 高危患者' })
   else if (alertFilter.value === 'normal') items.push({ key: 'alert', label: '正常患者' })

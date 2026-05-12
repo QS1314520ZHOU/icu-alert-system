@@ -7,6 +7,9 @@
         <p>一个纯聊天问答的 AI 问诊框。可直接输入病情、化验、治疗方案或临床疑问；也可绑定某位患者，带着患者摘要继续追问。</p>
         <div class="consult-badges">
           <span class="consult-badge">{{ sending ? 'AI 正在回答' : '对话就绪' }}</span>
+          <span :class="['consult-badge', chatMode === 'free' ? 'consult-badge--free' : 'consult-badge--soft']">
+            {{ chatMode === 'free' ? '自由对话' : '结构化问诊' }}
+          </span>
           <span class="consult-badge consult-badge--soft">{{ selectedPatientLabel }}</span>
           <span class="consult-badge consult-badge--warn">仅供临床参考，需结合床旁评估</span>
         </div>
@@ -25,6 +28,9 @@
           class="patient-select"
         />
         <div class="tool-row">
+          <a-button size="small" type="primary" ghost :disabled="sending" @click="toggleChatMode">
+            一键切换：{{ chatMode === 'free' ? '回到结构化问诊' : '自由对话' }}
+          </a-button>
           <a-button size="small" :loading="patientsLoading" @click="loadPatients">刷新患者</a-button>
           <a-button size="small" ghost :disabled="selectedPatientIds.length !== 1" @click="openPatientDetail">打开患者详情</a-button>
           <a-button size="small" ghost :disabled="messages.length <= 1" @click="exportConversation">导出问诊</a-button>
@@ -87,6 +93,9 @@
           <div class="chat-title-row">
             <span>AI 对话问答</span>
             <small>{{ selectedPatientLabel }}</small>
+            <button type="button" class="mode-switch" :disabled="sending" @click="toggleChatMode">
+              {{ chatMode === 'free' ? '自由对话中 · 切回问诊模板' : '结构化问诊中 · 切到自由对话' }}
+            </button>
           </div>
         </template>
 
@@ -120,7 +129,7 @@
                 复制
               </a-button>
             </div>
-            <template v-if="item.role === 'assistant' && parseStructuredSections(item.content).length">
+            <template v-if="chatMode === 'clinical' && item.role === 'assistant' && parseStructuredSections(item.content).length">
               <div class="chat-bubble chat-bubble--structured">
                 <div v-if="highRiskText(item.content)" class="high-risk-warning">
                   该建议涉及高风险医疗决策，请由责任医生确认后执行。
@@ -196,6 +205,7 @@ import { Button as AButton, Card as ACard, Empty as AEmpty, Select as ASelect, S
 import { getPatients, postAiConsultChat } from '../api'
 
 type ChatRole = 'user' | 'assistant'
+type ChatMode = 'clinical' | 'free'
 
 type ChatMessage = {
   id: string
@@ -215,6 +225,7 @@ const router = useRouter()
 const route = useRoute()
 const patientsLoading = ref(false)
 const sending = ref(false)
+const chatMode = ref<ChatMode>('clinical')
 const selectedPatientIds = ref<string[]>([])
 const patients = ref<any[]>([])
 const draft = ref('')
@@ -267,7 +278,7 @@ const latestUserMessage = computed(() => {
 
 const latestAssistantSections = computed(() => parseStructuredSections(latestAssistantMessage.value?.content || ''))
 
-const storageKey = computed(() => `icu-ai-consult:${selectedPatientIds.value.length ? selectedPatientIds.value.join(',') : 'global'}`)
+const storageKey = computed(() => `icu-ai-consult:${chatMode.value}:${selectedPatientIds.value.length ? selectedPatientIds.value.join(',') : 'global'}`)
 
 function pickRouteText(...values: any[]): string {
   for (const value of values) {
@@ -299,7 +310,9 @@ function createMessage(role: ChatRole, content: string, extra: Partial<ChatMessa
 function defaultAssistantGreeting() {
   return createMessage(
     'assistant',
-    selectedPatientIds.value.length
+    chatMode.value === 'free'
+      ? '你好，我是自由对话模式。你可以不按固定问诊模板提问，我会按普通 AI 对话方式回答；如涉及临床决策，仍请以床旁评估和责任医生判断为准。'
+      : selectedPatientIds.value.length
       ? `你好，我是 AI 问诊助手。当前已绑定患者：${selectedPatientLabel.value}。你可以直接追问病情判断、风险点、检查建议或下一步处理。`
       : '你好，我是 AI 问诊助手。你可以直接输入临床问题，我会按“初步判断 / 风险提醒 / 下一步建议”的方式回答。'
   )
@@ -701,6 +714,7 @@ async function streamConsultReply(
     message: string
     patient_id?: string
     patient_ids?: string[]
+    mode?: ChatMode
     history?: Array<{ role: 'user' | 'assistant'; content: string }>
   },
   options: {
@@ -856,6 +870,13 @@ function clearConversation() {
   saveConversation()
 }
 
+function toggleChatMode() {
+  if (sending.value) return
+  chatMode.value = chatMode.value === 'free' ? 'clinical' : 'free'
+  loadConversation()
+  void scrollToBottom()
+}
+
 function onComposerKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
@@ -866,6 +887,7 @@ function onComposerKeydown(event: KeyboardEvent) {
 async function sendMessage() {
   const content = draft.value.trim()
   if (!content || sending.value) return
+  const requestMode = chatMode.value
 
   const history = messages.value.slice(-8).map((item) => ({
     role: item.role,
@@ -894,6 +916,7 @@ async function sendMessage() {
           message: content,
           patient_id: selectedPatientIds.value[0],
           patient_ids: selectedPatientIds.value,
+          mode: requestMode,
           history,
         },
         {
@@ -921,6 +944,7 @@ async function sendMessage() {
           message: content,
           patient_id: selectedPatientIds.value[0],
           patient_ids: selectedPatientIds.value,
+          mode: requestMode,
           history,
         })
         if (Number(fallbackRes.data?.code) !== 0) {
@@ -1040,6 +1064,12 @@ onBeforeUnmount(() => {
   color: #8fd4e6;
 }
 
+.consult-badge--free {
+  color: #d8b4fe;
+  border-color: rgba(192, 132, 252, 0.28);
+  background: rgba(59, 7, 100, 0.28);
+}
+
 .consult-badge--warn {
   color: #fbbf24;
 }
@@ -1117,6 +1147,22 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.mode-switch {
+  min-height: 28px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 28, 44, 0.72);
+  color: #d8b4fe;
+  padding: 0 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mode-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .chat-title-row small {
@@ -1472,6 +1518,13 @@ html[data-theme='light'] .consult-badge {
 
 html[data-theme='light'] .consult-badge--warn {
   color: #b45309;
+}
+
+html[data-theme='light'] .consult-badge--free,
+html[data-theme='light'] .mode-switch {
+  color: #6d28d9;
+  border-color: rgba(168, 85, 247, 0.28);
+  background: rgba(250, 245, 255, 0.98);
 }
 
 html[data-theme='light'] .prompt-chip {

@@ -56,7 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function hydrateFromQuery(query: LocationQuery) {
     const nextUserId = firstQuery(query, ['user_id', 'userId'])
-    const nextUserName = firstQuery(query, ['userName', 'username'])
+    const nextUserName = firstQuery(query, ['userName', 'useName', 'username'])
     const nextRole = firstQuery(query, ['role'])
     const nextDept = firstQuery(query, ['dept'])
     const nextDeptCode = firstQuery(query, ['dept_code', 'deptCode'])
@@ -81,10 +81,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   function cleanIdentityQuery(query: LocationQuery) {
     const next: Record<string, any> = { ...query }
-    delete next.user_id
-    delete next.userId
-    delete next.userName
-    delete next.username
+    // 保留地址栏身份参数，供跨页面导航和刷新后快速识别当前账号。
+    // 仅去掉兼容旧拼写产生的重复项，避免首页进入临床工作台时 userName 丢失。
+    if (next.user_id) delete next.userId
+    if (next.userName) delete next.useName
+    if (next.userName) delete next.username
     return next
   }
 

@@ -626,11 +626,23 @@ const expandedFeatureKeys = ref(new Set<string>())
 const stickySectionRef = ref<HTMLElement | null>(null)
 const activeSignalFilter = ref('')
 const simpleImage = AEmpty.PRESENTED_IMAGE_SIMPLE
+let homeRequestSeq = 0
+const roleHomeCache = new Map<string, any>()
+const roleHomeInflight = new Map<string, Promise<any>>()
 
-const routeUserName = computed(() => String(route.query.userName || '').trim())
-const routeRole = computed(() => String(route.query.role || route.query.userRole || '').trim())
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
-const routeDept = computed(() => String(route.query.dept || route.query.department || '').trim())
+function firstRouteQuery(...keys: string[]) {
+  for (const key of keys) {
+    const value = route.query[key]
+    const text = String(Array.isArray(value) ? value[0] : value || '').trim()
+    if (text) return text
+  }
+  return ''
+}
+
+const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'username', 'user_id', 'userId'))
+const routeRole = computed(() => firstRouteQuery('role', 'userRole'))
+const routeDeptCode = computed(() => firstRouteQuery('dept_code', 'deptCode'))
+const routeDept = computed(() => firstRouteQuery('dept', 'department'))
 const cards = computed(() => home.value?.cards || [])
 const priorityQueue = computed(() => home.value?.priority_queue || [])
 const playbook = computed(() => home.value?.playbook || [])
@@ -1284,20 +1296,82 @@ function lightDetail(row: any, title: string) {
   return bad.length ? `${title}未达标：${bad.join('、')}` : `${title}灯号全部通过，可进入人工确认。`
 }
 
+function normalizeRouteRole(value: string) {
+  const raw = String(value || '').toLowerCase()
+  if (/head|护士长/.test(raw)) return 'head_nurse'
+  if (/nurse|护士/.test(raw)) return 'nurse'
+  if (/director|主任/.test(raw)) return 'director'
+  if (/doctor|医生/.test(raw)) return 'doctor'
+  return raw || 'doctor'
+}
+
+function roleHomeCacheKey() {
+  return [routeUserName.value, normalizeRouteRole(routeRole.value), routeDeptCode.value, routeDept.value].join('|')
+}
+
+function buildFallbackHome() {
+  const userName = routeUserName.value
+  const role = normalizeRouteRole(routeRole.value)
+  const deptCode = routeDeptCode.value
+  const dept = routeDept.value
+  return {
+    code: 0,
+    title: '临床工作台',
+    role,
+    account: {
+      userName,
+      display_name: userName,
+      role,
+      dept_code: deptCode,
+      dept,
+      found: Boolean(userName),
+    },
+    cards: [],
+    priority_queue: [],
+    playbook: [],
+    scanner_review: [],
+    nursing_tasks: [],
+    doctor_gaps: [],
+    quality_actions: [],
+    director_digest: {},
+    icu_day_flow: [],
+    ai_toolbox: [],
+    sticky_features: {},
+    role_distribution: [],
+    open_tasks: { total: 0, items: [] },
+    clinical_visuals: {},
+    degraded: true,
+  }
+}
+
 async function loadHome() {
-  loading.value = true
+  const seq = ++homeRequestSeq
+  const cacheKey = roleHomeCacheKey()
+  const cached = roleHomeCache.get(cacheKey)
+  home.value = cached || buildFallbackHome()
+  loading.value = !cached
   try {
-    const { data } = await getClinicalRoleHome({
-      userName: routeUserName.value || undefined,
-      role: routeRole.value || undefined,
-      dept_code: routeDeptCode.value || undefined,
-      dept: routeDept.value || undefined,
-    })
+    let request = roleHomeInflight.get(cacheKey)
+    if (!request) {
+      request = getClinicalRoleHome({
+        userName: routeUserName.value || undefined,
+        role: routeRole.value || undefined,
+        dept_code: routeDeptCode.value || undefined,
+        dept: routeDept.value || undefined,
+      }).then((res) => res.data).finally(() => roleHomeInflight.delete(cacheKey))
+      roleHomeInflight.set(cacheKey, request)
+    }
+    const data = await request
+    if (seq !== homeRequestSeq) return
     home.value = data
+    roleHomeCache.set(cacheKey, data)
   } catch (error: any) {
-    message.error(error?.message || '临床工作台加载失败')
+    if (seq !== homeRequestSeq) return
+    const isTimeout = String(error?.code || error?.message || '').toLowerCase().includes('timeout') || error?.code === 'ECONNABORTED'
+    if (!cached) home.value = buildFallbackHome()
+    message.warning(isTimeout ? '工作台数据加载较慢，已先按当前账号展示，可稍后刷新。' : '工作台数据暂时加载失败，已先按当前账号展示。')
   } finally {
-    loading.value = false
+    if (seq === homeRequestSeq) loading.value = false
   }
 }
 
@@ -1348,7 +1422,11 @@ async function openHandoff(patientId: string) {
   }
 }
 
-watch(() => [route.query.userName, route.query.role, route.query.userRole, route.query.deptCode, route.query.dept_code, route.query.dept], () => {
+watch(() => [
+  route.query.userName, route.query.useName, route.query.username, route.query.user_id, route.query.userId,
+  route.query.role, route.query.userRole,
+  route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department,
+], () => {
   void loadHome()
 })
 

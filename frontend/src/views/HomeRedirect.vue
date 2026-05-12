@@ -36,12 +36,21 @@ onMounted(async () => {
   auth.hydrateFromQuery(route.query)
   if (!userId.value) return
   try {
-    const { data } = await getClinicalAccount({ userName: userId.value })
+    const deptCode = String(route.query.deptCode || route.query.dept_code || auth.deptCode || '').trim()
+    const dept = String(route.query.dept || route.query.department || auth.dept || '').trim()
+    const role = String(route.query.role || route.query.userRole || auth.role || '').trim()
+    const { data } = await getClinicalAccount({
+      userName: userId.value,
+      deptCode: deptCode || undefined,
+      dept_code: deptCode || undefined,
+      dept: dept || undefined,
+      role: role || undefined,
+    })
     auth.updateAccount(data?.account)
-    const role = String(data?.account?.role || route.query.role || '').toLowerCase()
-    if (['nurse', 'head_nurse', 'charge_nurse'].includes(role)) {
+    const resolvedRole = String(data?.account?.role || role || '').toLowerCase()
+    if (['nurse', 'head_nurse', 'charge_nurse'].includes(resolvedRole)) {
       push('/nurse-home')
-    } else if (['doctor', 'director'].includes(role)) {
+    } else if (['doctor', 'director'].includes(resolvedRole)) {
       push('/doctor-home')
     }
   } catch {

@@ -146,10 +146,10 @@ export const postRuntimeFieldMapping = (payload: Record<string, any>) =>
   analyticsApi.post('/api/admin/runtime-config/field-mapping', payload)
 
 export const getClinicalRoleHome = (params?: { userName?: string; role?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
-  analyticsApi.get('/api/clinical-workflow/role-home', { params })
+  analyticsApi.get('/api/clinical-workflow/role-home', { params, timeout: 8000 })
 
 export const getClinicalAccount = (params?: { userName?: string; role?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
-  analyticsApi.get('/api/clinical-workflow/role-home', { params })
+  api.get('/api/clinical-workflow/account', { params, timeout: 2500 })
 
 export const getClinicalPatientStory = (patientId: string, params?: { hours?: number }) =>
   analyticsApi.get(`/api/clinical-workflow/patients/${patientId}/story`, { params })
@@ -398,6 +398,7 @@ export const postAiConsultChat = (payload: {
   message: string
   patient_id?: string
   patient_ids?: string[]
+  mode?: 'clinical' | 'free'
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
 }) => aiApi.post('/api/ai/chat-consult', payload)
 

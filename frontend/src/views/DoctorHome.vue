@@ -106,7 +106,16 @@ const home = ref<any>(null)
 const clock = ref('')
 let timer: any
 
-const userId = computed(() => String(auth.effectiveUserId || '').trim())
+function firstIdentityQuery(...keys: string[]) {
+  for (const key of keys) {
+    const value = route.query[key]
+    const text = String(Array.isArray(value) ? value[0] : value || '').trim()
+    if (text) return text
+  }
+  return ''
+}
+const routeIdentity = computed(() => firstIdentityQuery('user_id', 'userId', 'userName', 'useName', 'username'))
+const userId = computed(() => String(routeIdentity.value || auth.effectiveUserId || '').trim())
 const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDept = computed(() => String(route.query.dept || route.query.department || auth.dept || '').trim())
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别医生')
@@ -249,7 +258,7 @@ onMounted(() => {
 })
 onUnmounted(() => clearInterval(timer))
 
-watch(() => [route.query.user_id, route.query.userId, route.query.userName, route.query.username, route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
+watch(() => [route.query.user_id, route.query.userId, route.query.userName, route.query.useName, route.query.username, route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
   auth.hydrateFromQuery(route.query)
   void load()
 })

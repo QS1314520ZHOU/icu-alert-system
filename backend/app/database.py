@@ -149,6 +149,19 @@ class DatabaseManager:
             await alert_col.create_index([("viewed_at", 1), ("acknowledged_at", 1)])
             await alert_col.create_index([("actionability_score", -1), ("created_at", -1)])
 
+            patient_col = self.col("patient")
+            await patient_col.create_index([("status", 1), ("deptCode", 1)])
+            await patient_col.create_index([("status", 1), ("departmentCode", 1)])
+            await patient_col.create_index([("status", 1), ("hisDept", 1)])
+            await patient_col.create_index([("status", 1), ("dept", 1)])
+            await patient_col.create_index([("hisPid", 1)])
+
+            account_col = self.col("account")
+            await account_col.create_index([("userName", 1)])
+            await account_col.create_index([("username", 1)])
+            await account_col.create_index([("deptCode", 1)])
+            await account_col.create_index([("departmentCode", 1)])
+
             outcome_col = self.col("alert_outcomes")
             await outcome_col.create_index([("alert_id", 1)], unique=True)
             await outcome_col.create_index([("patient_id", 1), ("fired_at", -1)])
@@ -235,6 +248,7 @@ class DatabaseManager:
             await self.col("airway_plans").create_index([("patient_id", 1), ("updated_at", -1)])
             await self.col("clinical_tasks").create_index([("task_id", 1)], unique=True)
             await self.col("clinical_tasks").create_index([("patient_id", 1), ("status", 1), ("updated_at", -1)])
+            await self.col("clinical_tasks").create_index([("patient_id", 1), ("status", 1), ("priority", -1), ("updated_at", -1)])
             await self.col("clinical_tasks").create_index([("module", 1), ("status", 1), ("updated_at", -1)])
             await self.col("nutrition_tasks").create_index([("task_id", 1)], unique=True)
             await self.col("nutrition_tasks").create_index([("patient_id", 1), ("status", 1), ("updated_at", -1)])
