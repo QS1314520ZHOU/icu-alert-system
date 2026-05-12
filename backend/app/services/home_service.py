@@ -967,26 +967,45 @@ class RoleHomeService:
                     {"$or": [{"pid": {"$in": patient_keys}}, {"patient_id": {"$in": patient_keys}}, {"patientId": {"$in": patient_keys}}, {"hisPid": {"$in": patient_keys}}]},
                 ]
             }
-        cursor = self.db.col("nurseRecords").find(record_query, {"userName": 1, "username": 1, "trueName": 1, "userId": 1, "recordTime": 1, "time": 1}).limit(1200)
-        counts: dict[str, int] = {}
-        hourly: dict[str, dict[str, int]] = {}
-        async for row in cursor:
-            name = self._record_user_name(row) or self._record_user_id(row) or "未识别护士"
-            counts[name] = counts.get(name, 0) + 1
-            when = _dt(row.get("recordTime") or row.get("time"))
-            bucket = _as_api_tz(when).strftime("%H:00") if when else "未识别"
-            hourly.setdefault(name, {})[bucket] = hourly.setdefault(name, {}).get(bucket, 0) + 1
-        heatmap = [
-            {
-                "nurse": nurse,
-                "task_density": count,
-                "tone": "high" if count > 20 else "medium" if count > 8 else "low",
-                "buckets": [{"time": key, "count": value} for key, value in sorted(hourly.get(nurse, {}).items())],
-            }
-            for nurse, count in sorted(counts.items(), key=lambda item: -item[1])
-        ]
-        events: list[dict[str, Any]] = []
-        if patient_ids:
+        quality_keywords = {
+            "falls": ["跌倒", "坠床"],
+            "pressure_ulcers": ["压疮", "压力性损伤"],
+            "line_displacement": ["管路脱出", "非计划拔管", "脱管"],
+            "medication_errors": ["给药差错", "用药错误"],
+        }
+        default_quality = {key: 0 for key in quality_keywords}
+
+        async def build_workload_and_quality() -> tuple[list[dict[str, Any]], dict[str, int]]:
+            counts: dict[str, int] = {}
+            hourly: dict[str, dict[str, int]] = {}
+            quality = dict(default_quality)
+            projection = {"userName": 1, "username": 1, "trueName": 1, "userId": 1, "recordTime": 1, "time": 1, "content": 1, "recordTitle": 1, "title": 1, "careType": 1}
+            cursor = self.db.col("nurseRecords").find(record_query, projection).limit(1200)
+            async for row in cursor:
+                name = self._record_user_name(row) or self._record_user_id(row) or "未识别护士"
+                counts[name] = counts.get(name, 0) + 1
+                when = _dt(row.get("recordTime") or row.get("time"))
+                bucket = _as_api_tz(when).strftime("%H:00") if when else "未识别"
+                hourly.setdefault(name, {})[bucket] = hourly.setdefault(name, {}).get(bucket, 0) + 1
+                text = " ".join(_text(row.get(key)) for key in ("content", "recordTitle", "title", "careType"))
+                for key, keywords in quality_keywords.items():
+                    if _contains_any(text, keywords):
+                        quality[key] += 1
+            heatmap = [
+                {
+                    "nurse": nurse,
+                    "task_density": count,
+                    "tone": "high" if count > 20 else "medium" if count > 8 else "low",
+                    "buckets": [{"time": key, "count": value} for key, value in sorted(hourly.get(nurse, {}).items())],
+                }
+                for nurse, count in sorted(counts.items(), key=lambda item: -item[1])
+            ]
+            return heatmap, quality
+
+        async def build_events() -> list[dict[str, Any]]:
+            events: list[dict[str, Any]] = []
+            if not patient_ids:
+                return events
             alert_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
             cursor_alerts = self.db.col("alert_records").find(
                 {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": shift.start}, "$or": [{"acknowledged_at": {"$exists": False}}, {"acknowledged_at": None}, {"ack_disposition": {"$in": [None, ""]}}]},
@@ -1010,19 +1029,19 @@ class RoleHomeService:
                 )
                 if len(events) >= 12:
                     break
-        quality_keywords = {
-            "falls": ["跌倒", "坠床"],
-            "pressure_ulcers": ["压疮", "压力性损伤"],
-            "line_displacement": ["管路脱出", "非计划拔管", "脱管"],
-            "medication_errors": ["给药差错", "用药错误"],
-        }
-        quality = {key: 0 for key in quality_keywords}
-        cursor_quality = self.db.col("nurseRecords").find(record_query, {"content": 1, "recordTitle": 1, "title": 1, "careType": 1}).limit(1200)
-        async for row in cursor_quality:
-            text = " ".join(_text(row.get(key)) for key in ("content", "recordTitle", "title", "careType"))
-            for key, keywords in quality_keywords.items():
-                if _contains_any(text, keywords):
-                    quality[key] += 1
+            return events
+
+        heatmap: list[dict[str, Any]] = []
+        quality = default_quality
+        events: list[dict[str, Any]] = []
+        try:
+            heatmap, quality = await asyncio.wait_for(build_workload_and_quality(), timeout=0.8)
+        except Exception:
+            pass
+        try:
+            events = await asyncio.wait_for(build_events(), timeout=0.5)
+        except Exception:
+            pass
         return {
             "beds": [{"patient_id": _patient_id(row), "bed": _bed(row), "name": _name(row)} for row in all_patients],
             "workload_heatmap": heatmap,
