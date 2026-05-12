@@ -108,7 +108,71 @@ dist/icu-alert-system-ubuntu2004-gpu.tar.gz
 - 不建议拿它直接跑到 OEL8
 - 完整包会自动生成 `manifest.sha256`，后续可基于它制作纯内网增量包
 
-### 3.1 Ubuntu GPU 增量更新包
+### 3.1 Ubuntu GPU 快速源码增量更新包
+
+> 这是纯内网常规更新推荐方式：不跑 Docker，不跑 PyInstaller，不重新生成几个 G 的完整包。
+
+首次升级到支持源码增量的 GPU 基座包时，仍需完整部署一次：
+
+```bash
+./build-gpu.sh
+```
+
+完整包内会包含稳定运行时、`_internal/` 依赖库，以及外置业务代码目录：
+
+```text
+app/
+static/
+config.yaml
+manifest.sha256
+```
+
+之后普通业务更新只需要：
+
+```bash
+./build-gpu-source-delta.sh --base-manifest old-manifest.sha256 --base-commit <上次发布commit>
+```
+
+如果不清楚上次 commit，也可以只传旧服务器拿出来的 manifest：
+
+```bash
+./build-gpu-source-delta.sh --base-manifest old-manifest.sha256
+```
+
+产物：
+
+```text
+dist/delta/icu-alert-system-source-delta-<version>.tar.gz
+```
+
+脚本只打包这些可源码增量更新的内容：
+
+- `backend/app/**` -> 部署目录 `app/**`
+- `backend/config.yaml` -> `config.yaml`
+- `backend/knowledge_base/**` -> `knowledge_base/**`
+- `backend/static/**` 或 `frontend/dist/**` -> `static/**`
+
+如果指定了 `--base-commit`，脚本发现以下文件变更会拒绝增量并提示完整打包：
+
+- `Dockerfile*`
+- `build-gpu.sh`
+- `entry.py`
+- `backend/requirements*.txt`
+- `frontend/package*.json`
+- `package*.json`
+
+内网服务器应用源码增量包：
+
+```bash
+rm -rf /tmp/icu-delta
+mkdir -p /tmp/icu-delta
+tar xzf /tmp/icu-alert-system-source-delta-<version>.tar.gz -C /tmp/icu-delta
+/tmp/icu-delta/apply-gpu-delta.sh /opt/icu-alert-system-ubuntu2004-gpu
+```
+
+### 3.2 Ubuntu GPU 完整包差异增量
+
+下面这个方式需要先有新的完整产物，适合已经完整打过包后切传输差异，不适合磁盘空间紧张时的常规更新。
 
 首次部署仍使用完整包：
 

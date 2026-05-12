@@ -31,6 +31,23 @@ def resolve_runtime_path(*relative_parts):
     return candidates[0]
 
 
+def setup_external_code_path():
+    """Prefer source files placed next to the packaged launcher.
+
+    The GPU package keeps the heavy Python/torch runtime frozen, but app code is
+    copied to the deployment directory as app/. Putting the deployment root at
+    the front of sys.path lets small source delta packages update backend code
+    without rebuilding the large PyInstaller bundle.
+    """
+    base = get_base_path()
+    external_app_dir = os.environ.get('ICU_EXTERNAL_APP_DIR', '').strip()
+    external_root = os.path.dirname(external_app_dir) if external_app_dir else base
+    external_app = external_app_dir or os.path.join(external_root, 'app')
+    if os.path.isdir(external_app) and external_root not in sys.path:
+        sys.path.insert(0, external_root)
+        print(f"[ICU] 外置后端代码: {external_app}")
+
+
 def load_dotenv_file():
     """加载 .env 文件"""
     base = get_base_path()
@@ -177,6 +194,9 @@ if __name__ == '__main__':
 
     # 设置 CUDA
     setup_cuda_env()
+
+    # 优先加载部署目录中的外置 app/，支持后续小体积源码增量更新。
+    setup_external_code_path()
 
     if os.environ.get('ICU_IMPORT_SELF_TEST', '').lower() in ('1', 'true', 'yes'):
         import_self_test()

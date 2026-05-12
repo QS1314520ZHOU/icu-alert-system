@@ -479,6 +479,7 @@ RUN chmod +x /build/dist/icu-alert-system/run.sh
 # ---- 2.13 整理输出 ----
 RUN mkdir -p /build/output && \
     cp -r /build/dist/icu-alert-system/* /build/output/ && \
+    cp -r /build/backend/app /build/output/app && \
     cp /build/backend/config.yaml /build/output/ 2>/dev/null || true && \
     [ -d /build/backend/knowledge_base ] && cp -r /build/backend/knowledge_base /build/output/ || true && \
     echo "============================================" && \
