@@ -288,10 +288,11 @@ hidden_imports = (
     'httpx', 'jose', 'passlib', 'bcrypt',
     'pydantic', 'pydantic_settings', 'pydantic.deprecated.decorator',
     'yaml', 'dotenv', 'websockets', 'zoneinfo', 'encodings.idna', 'tzdata',
+    'unittest', 'unittest.mock',
     ]
 )
 
-excludes = ['PIL', 'tkinter', 'unittest', 'test', 'setuptools', 'pip']
+excludes = ['PIL', 'tkinter', 'test', 'setuptools', 'pip']
 
 a = Analysis(
     ['entry.py'],
