@@ -35,6 +35,7 @@ from .scanner_pe_risk import PeRiskScanner
 from .scanner_palliative_trigger import PalliativeTriggerScanner
 from .scanner_postop_complications import PostopComplicationsScanner
 from .scanner_nutrition_monitor import NutritionMonitorScanner
+from .scanner_noninvasive_respiratory_support import NoninvasiveRespiratorySupportScanner
 from .scanner_composite_deterioration import CompositeDeteriorationScanner
 from .scanner_cardiac_arrest_risk import CardiacArrestRiskScanner
 from .scanner_liberation_bundle import LiberationBundleScanner
@@ -88,6 +89,7 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         TrajectoryDriftScanner(engine),
         TemporalRiskScanner(engine),
         VentilatorWeaningScanner(engine),
+        NoninvasiveRespiratorySupportScanner(engine),
         VentilatorAsynchronyScanner(engine),
         DiaphragmProtectionScanner(engine),
         DrugSafetyScanner(engine),

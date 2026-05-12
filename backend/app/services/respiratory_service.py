@@ -758,6 +758,13 @@ async def create_airway_record(patient_id: str, payload: dict[str, Any], actor: 
         "cuff_pressure": payload.get("cuff_pressure"),
         "airway_depth": payload.get("airway_depth"),
         "airway_type": payload.get("airway_type"),
+        "intubation_context": payload.get("intubation_context") or payload.get("context") or "unknown",
+        "planned_intubation": bool(payload.get("planned_intubation", False)),
+        "first_pass_success": payload.get("first_pass_success"),
+        "attempt_count": payload.get("attempt_count"),
+        "operator_role": payload.get("operator_role"),
+        "cuff_leak_test": payload.get("cuff_leak_test") or {},
+        "laryngeal_edema_risk": _laryngeal_edema_risk(payload.get("cuff_leak_test") or {}),
         "humidification_status": payload.get("humidification_status"),
         "vap_bundle": payload.get("vap_bundle") or {},
         "note": payload.get("note") or "",
@@ -779,6 +786,19 @@ async def get_airway_plan(patient_id: str) -> dict[str, Any]:
             "patient_id": patient_id,
             "risk_level": "unknown",
             "difficult_airway": False,
+            "difficult_airway_assessment": {
+                "mallampati": None,
+                "arndt_score": None,
+                "mouth_opening_cm": None,
+                "neck_mobility": None,
+                "prior_difficult_intubation": False,
+                "obesity_or_osa": False,
+            },
+            "extubation_readiness": {
+                "cuff_leak_test_required": True,
+                "latest_cuff_leak_test": None,
+                "laryngeal_edema_risk": "unknown",
+            },
             "history": [],
             "backup_equipment": ["视频喉镜", "纤支镜", "环甲膜穿刺包"],
             "contacts": ["麻醉科", "耳鼻喉科"],
@@ -790,13 +810,21 @@ async def get_airway_plan(patient_id: str) -> dict[str, Any]:
 
 async def upsert_airway_plan(patient_id: str, payload: dict[str, Any], actor: str) -> dict[str, Any]:
     now = datetime.now()
+    difficult_assessment = payload.get("difficult_airway_assessment") or {}
+    extubation_readiness = payload.get("extubation_readiness") or {}
+    inferred_risk = _infer_airway_risk(payload, difficult_assessment, extubation_readiness)
     doc = {
         "patient_id": patient_id,
-        "risk_level": payload.get("risk_level") or "medium",
-        "difficult_airway": bool(payload.get("difficult_airway", True)),
+        "risk_level": payload.get("risk_level") or inferred_risk,
+        "difficult_airway": bool(payload.get("difficult_airway", inferred_risk in {"high", "critical"})),
+        "difficult_airway_assessment": difficult_assessment,
+        "extubation_readiness": extubation_readiness,
         "history": payload.get("history") or [],
         "backup_equipment": payload.get("backup_equipment") or [],
         "contacts": payload.get("contacts") or [],
+        "airway_strategy": payload.get("airway_strategy") or "",
+        "failed_airway_plan": payload.get("failed_airway_plan") or "",
+        "intubation_success_metrics": payload.get("intubation_success_metrics") or {},
         "note": payload.get("note") or "",
         "updated_by": actor,
         "updated_at": now,
@@ -811,3 +839,48 @@ async def upsert_airway_plan(patient_id: str, payload: dict[str, Any], actor: st
         await runtime.db.col("airway_plans").insert_one(doc)
     await write_audit_log(runtime.db, action="edit_airway_plan", module="respiratory", actor=actor, target_type="patient", target_id=patient_id, detail={"risk_level": doc["risk_level"], "difficult_airway": doc["difficult_airway"]})
     return {"plan": serialize_doc(doc)}
+
+
+def _laryngeal_edema_risk(cuff_leak_test: dict[str, Any]) -> str:
+    if not isinstance(cuff_leak_test, dict) or not cuff_leak_test:
+        return "unknown"
+    leak_volume = _num(cuff_leak_test.get("leak_volume_ml") or cuff_leak_test.get("volume_ml"))
+    leak_percent = _num(cuff_leak_test.get("leak_percent"))
+    absent = bool(cuff_leak_test.get("absent") or cuff_leak_test.get("no_leak"))
+    stridor = bool(cuff_leak_test.get("stridor") or cuff_leak_test.get("post_extubation_stridor"))
+    if absent or stridor or (leak_volume is not None and leak_volume < 110) or (leak_percent is not None and leak_percent < 10):
+        return "high"
+    if (leak_volume is not None and leak_volume < 150) or (leak_percent is not None and leak_percent < 15):
+        return "watch"
+    return "low"
+
+
+def _infer_airway_risk(payload: dict[str, Any], difficult: dict[str, Any], extubation: dict[str, Any]) -> str:
+    score = 0
+    mallampati = str(difficult.get("mallampati") or "").strip().upper()
+    if mallampati in {"III", "IV", "3", "4"}:
+        score += 2
+    arndt = _num(difficult.get("arndt_score"))
+    if arndt is not None and arndt >= 8:
+        score += 2
+    mouth_opening = _num(difficult.get("mouth_opening_cm"))
+    if mouth_opening is not None and mouth_opening < 3:
+        score += 2
+    if difficult.get("prior_difficult_intubation"):
+        score += 3
+    if difficult.get("limited_neck_mobility") or str(difficult.get("neck_mobility") or "").lower() in {"limited", "差", "受限"}:
+        score += 1
+    if difficult.get("obesity_or_osa"):
+        score += 1
+    cuff_risk = extubation.get("laryngeal_edema_risk") or _laryngeal_edema_risk(extubation.get("latest_cuff_leak_test") or {})
+    if cuff_risk == "high":
+        score += 2
+    if payload.get("difficult_airway"):
+        score += 2
+    if score >= 5:
+        return "critical"
+    if score >= 3:
+        return "high"
+    if score >= 1:
+        return "medium"
+    return "low"

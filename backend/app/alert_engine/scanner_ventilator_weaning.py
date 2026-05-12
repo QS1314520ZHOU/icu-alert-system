@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import re
 from typing import Any
+
+
 def _parse_dt(value: Any) -> datetime | None:
     if value is None:
         return None
@@ -12,6 +14,19 @@ def _parse_dt(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def _to_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).strip())
+    except Exception:
+        return None
+
+
 from .scanners import BaseScanner, ScannerSpec
 
 
@@ -97,8 +112,10 @@ class VentilatorWeaningScanner(BaseScanner):
                 peep = self.engine._vent_param_priority(cap, ["peep_measured", "peep_set"], ["param_vent_measure_peep", "param_vent_peep"])
                 pip = self.engine._vent_param(cap, "pip", "param_vent_pip")
                 pplat = self.engine._vent_param(cap, "pplat", "param_vent_plat_pressure")
+                pc_above_peep = self.engine._vent_param_priority(cap, ["pressure_control", "pressure_support"], ["param_vent_pc", "param_vent_ps"])
                 vte = self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"])
                 rr = self.engine._vent_param_priority(cap, ["rr_measured", "rr_set"], ["param_vent_resp", "param_HuXiPinLv"])
+                mode = self._vent_mode(cap)
 
                 driving_pressure = None
                 approximate = False
@@ -174,10 +191,22 @@ class VentilatorWeaningScanner(BaseScanner):
                             if alert:
                                 triggered += 1
 
-                if rr is not None and vte is not None and pip is not None and peep is not None:
-                    vt_l = vte / 1000.0
-                    mech_power = 0.098 * rr * vt_l * (pip - 0.5 * max(pip - peep, 0))
-                    if mech_power > 17:
+                mp = self._mechanical_power(
+                    mode=mode,
+                    rr=rr,
+                    vte_ml=vte,
+                    peep=peep,
+                    pip=pip,
+                    pplat=pplat,
+                    pc_above_peep=pc_above_peep,
+                    pbw=pbw,
+                )
+                if mp and mp["mechanical_power_j_min"] is not None:
+                    mech_power = float(mp["mechanical_power_j_min"])
+                    mp_per_pbw = _to_float(mp.get("mechanical_power_j_min_kg_pbw"))
+                    mp_threshold = float(post_cfg.get("mechanical_power_threshold_j_min", 17))
+                    mp_kg_threshold = float(post_cfg.get("mechanical_power_pbw_threshold_j_min_kg", 0.25))
+                    if mech_power > mp_threshold or (mp_per_pbw is not None and mp_per_pbw > mp_kg_threshold):
                         rule_id = "VENT_MECHANICAL_POWER"
                         if not await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                             alert = await self.engine._create_alert(
@@ -187,13 +216,13 @@ class VentilatorWeaningScanner(BaseScanner):
                                 alert_type="mechanical_power",
                                 severity="high",
                                 parameter="mechanical_power",
-                                condition={"operator": ">", "threshold": 17},
+                                condition={"operator": ">", "threshold": mp_threshold, "pbw_threshold": mp_kg_threshold},
                                 value=round(mech_power, 2),
                                 patient_id=pid_str,
                                 patient_doc=patient_doc,
                                 device_id=device_id,
                                 source_time=cap.get("time"),
-                                extra={"rr": rr, "vte_ml": vte, "pip": pip, "peep": peep},
+                                extra=mp,
                             )
                             if alert:
                                 triggered += 1
@@ -252,3 +281,112 @@ class VentilatorWeaningScanner(BaseScanner):
 
         if triggered > 0:
             self.engine._log_info("撤机筛查", triggered)
+
+    def _vent_mode(self, cap: dict[str, Any]) -> str:
+        params = cap.get("params") if isinstance(cap.get("params"), dict) else {}
+        text = " ".join(
+            str(value or "")
+            for value in (
+                cap.get("mode"),
+                cap.get("vent_mode"),
+                cap.get("param_vent_mode"),
+                params.get("param_vent_mode"),
+                params.get("vent_mode"),
+            )
+        ).lower()
+        if any(token in text for token in ("psv", "pressure support", "压力支持", "spont")):
+            return "PSV"
+        if any(token in text for token in ("pcv", "pressure control", "压力控制")):
+            return "PCV"
+        if any(token in text for token in ("vcv", "volume control", "容量控制", "assist control", "a/c", "acv")):
+            return "VCV"
+        return "unknown"
+
+    def _mechanical_power(
+        self,
+        *,
+        mode: str,
+        rr: float | None,
+        vte_ml: float | None,
+        peep: float | None,
+        pip: float | None,
+        pplat: float | None,
+        pc_above_peep: float | None,
+        pbw: float | None,
+    ) -> dict[str, Any] | None:
+        if rr is None or vte_ml is None or peep is None or vte_ml <= 0:
+            return None
+        vt_l = float(vte_ml) / 1000.0
+        rr_f = float(rr)
+        peep_f = float(peep)
+        mode_norm = str(mode or "unknown").upper()
+        approximate = False
+        formula = ""
+        elastic_component = None
+        dynamic_component = None
+        peep_component = 0.098 * rr_f * vt_l * peep_f
+
+        if mode_norm == "VCV":
+            pressure_ref = _to_float(pplat) if pplat is not None else _to_float(pip)
+            if pressure_ref is None:
+                return None
+            drive = max(float(pressure_ref) - peep_f, 0.0)
+            dynamic_component = 0.098 * rr_f * vt_l * (0.5 * drive)
+            elastic_component = dynamic_component
+            mechanical_power = peep_component + dynamic_component
+            formula = "VCV: 0.098*RR*VT*(PEEP + 0.5*driving_pressure)"
+            approximate = pplat is None
+        elif mode_norm == "PCV":
+            pressure_control = _to_float(pc_above_peep)
+            if pressure_control is None and pip is not None:
+                pressure_control = max(float(pip) - peep_f, 0.0)
+                approximate = True
+            if pressure_control is None:
+                return None
+            dynamic_component = 0.098 * rr_f * vt_l * float(pressure_control)
+            elastic_component = dynamic_component
+            mechanical_power = peep_component + dynamic_component
+            formula = "PCV: 0.098*RR*VT*(PEEP + pressure_control_above_PEEP)"
+        elif mode_norm == "PSV":
+            pressure_support = _to_float(pc_above_peep)
+            if pressure_support is None and pip is not None:
+                pressure_support = max(float(pip) - peep_f, 0.0)
+                approximate = True
+            if pressure_support is None:
+                return None
+            dynamic_component = 0.098 * rr_f * vt_l * float(pressure_support)
+            elastic_component = dynamic_component
+            mechanical_power = peep_component + dynamic_component
+            formula = "PSV: 0.098*RR*VT*(PEEP + pressure_support_above_PEEP)"
+        else:
+            if pip is None:
+                return None
+            drive = max(float(pip) - peep_f, 0.0)
+            dynamic_component = 0.098 * rr_f * vt_l * (0.5 * drive)
+            elastic_component = dynamic_component
+            mechanical_power = peep_component + dynamic_component
+            formula = "surrogate: mode_unknown, 0.098*RR*VT*(PEEP + 0.5*(PIP-PEEP))"
+            approximate = True
+
+        mp_kg = round(mechanical_power / float(pbw), 4) if pbw and pbw > 0 else None
+        return {
+            "mode": mode_norm,
+            "formula": formula,
+            "approximate": approximate,
+            "rr": rr,
+            "vte_ml": vte_ml,
+            "vt_l": round(vt_l, 3),
+            "pip": pip,
+            "pplat": pplat,
+            "peep": peep,
+            "pressure_control_or_support": pc_above_peep,
+            "predicted_body_weight": pbw,
+            "mechanical_power_j_min": round(mechanical_power, 2),
+            "mechanical_power_j_min_kg_pbw": mp_kg,
+            "components": {
+                "peep_static_j_min": round(peep_component, 2),
+                "driving_or_support_j_min": round(dynamic_component or 0.0, 2),
+                "elastic_dynamic_j_min": round(elastic_component or 0.0, 2),
+            },
+            "clinical_hint": "请结合通气模式解读；PSV/PCV 使用压力支持/压力控制近似，重点看 MP/PBW 与驱动压共同变化。",
+        }

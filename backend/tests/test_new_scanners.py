@@ -13,8 +13,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.alert_engine.scanner_beta_blocker_advisor import BetaBlockerAdvisorScanner
 from app.alert_engine.scanner_integrated_risk_reasoning import IntegratedRiskReasoningScanner
 from app.alert_engine.scanner_metabolic_phase_detector import MetabolicPhaseDetectorScanner
+from app.alert_engine.scanner_noninvasive_respiratory_support import NoninvasiveRespiratorySupportScanner
 from app.alert_engine.scanner_nutrition_monitor import NutritionMonitorScanner
 from app.alert_engine.nutrition_monitor import NutritionMonitorMixin
+from app.alert_engine.scanner_ventilator_weaning import VentilatorWeaningScanner
+from app.services.respiratory_service import _infer_airway_risk, _laryngeal_edema_risk
 
 
 class _InsertResult:
@@ -548,6 +551,69 @@ class _BetaEngine:
         del name, count
 
 
+class _NoninvasiveEngine:
+    def __init__(self) -> None:
+        self.config = SimpleNamespace(
+            yaml_cfg={
+                "alert_engine": {
+                    "noninvasive_respiratory_support": {},
+                    "suppression": {"same_rule_same_patient_seconds": 0, "max_alerts_per_patient_per_hour": 20},
+                }
+            }
+        )
+        self.db = _FakeDb(
+            {
+                "patient": [{"_id": "p1", "name": "张三", "hisPid": "H1", "age": 70}],
+                "deviceBind": [{"pid": "p1", "type": "HFNC 高流量鼻导管", "deviceID": "hfnc1", "bindTime": datetime.now() - timedelta(hours=2), "unBindTime": None}],
+                "bedside": [
+                    {"pid": "p1", "code": "param_spo2", "time": datetime.now(), "fVal": 90},
+                    {"pid": "p1", "code": "param_resp", "time": datetime.now(), "fVal": 32},
+                    {"pid": "p1", "code": "param_FiO2", "time": datetime.now(), "fVal": 80},
+                    {"pid": "p1", "code": "param_hfnc_flow", "time": datetime.now(), "fVal": 50},
+                ],
+                "VI_ICU_EXAM_ITEM": [],
+            }
+        )
+        self.created_alerts: list[dict[str, Any]] = []
+
+    def _cfg(self, *path: str, default: Any = None) -> Any:
+        cursor: Any = self.config.yaml_cfg
+        for key in path:
+            if not isinstance(cursor, dict) or key not in cursor:
+                return default
+            cursor = cursor[key]
+        return cursor
+
+    def _active_patient_query(self) -> dict[str, Any]:
+        return {}
+
+    async def _get_latest_param_snapshot_by_pid(self, patient_id: str, codes: list[str] | None = None, lookback_minutes: int = 120, limit: int = 1000) -> dict[str, Any]:
+        del codes, lookback_minutes, limit
+        params = {}
+        latest = None
+        for row in self.db.col("bedside").docs:
+            if row.get("pid") != patient_id:
+                continue
+            params[row["code"]] = row.get("fVal")
+            latest = row.get("time")
+        return {"params": params, "time": latest}
+
+    async def _get_latest_labs_map(self, his_pid: str, lookback_hours: int = 6) -> dict[str, Any]:
+        del his_pid, lookback_hours
+        return {}
+
+    async def _is_suppressed(self, patient_id: str, rule_id: str | None, same_rule_seconds: int, max_per_hour: int) -> bool:
+        del patient_id, rule_id, same_rule_seconds, max_per_hour
+        return False
+
+    async def _create_alert(self, **kwargs: Any) -> dict[str, Any]:
+        self.created_alerts.append(kwargs)
+        return kwargs
+
+    def _log_info(self, name: str, count: int) -> None:
+        del name, count
+
+
 @pytest.mark.asyncio
 async def test_integrated_risk_reasoning_generates_report_and_broadcast() -> None:
     engine = _IntegratedEngine()
@@ -719,3 +785,53 @@ async def test_beta_blocker_advisor_emits_high_alert_when_all_conditions_met() -
     assert alerts[0]["severity"] == "high"
     assert alerts[0]["alert_type"] == "beta_blocker_advisor"
     assert "艾司洛尔" in alerts[0]["explanation"]["suggestion"]
+
+
+def test_ventilator_mechanical_power_uses_mode_specific_formula() -> None:
+    scanner = VentilatorWeaningScanner(SimpleNamespace())
+    vcv = scanner._mechanical_power(
+        mode="VCV",
+        rr=24,
+        vte_ml=420,
+        peep=10,
+        pip=32,
+        pplat=28,
+        pc_above_peep=None,
+        pbw=60,
+    )
+    psv = scanner._mechanical_power(
+        mode="PSV",
+        rr=24,
+        vte_ml=420,
+        peep=10,
+        pip=22,
+        pplat=None,
+        pc_above_peep=12,
+        pbw=60,
+    )
+
+    assert vcv is not None and vcv["mode"] == "VCV"
+    assert psv is not None and psv["mode"] == "PSV"
+    assert vcv["components"]["peep_static_j_min"] > 0
+    assert psv["mechanical_power_j_min_kg_pbw"] is not None
+    assert "pressure_support" in psv["formula"]
+
+
+@pytest.mark.asyncio
+async def test_noninvasive_support_scanner_triggers_hfnc_rox_alert() -> None:
+    engine = _NoninvasiveEngine()
+    await NoninvasiveRespiratorySupportScanner(engine).scan()
+
+    assert engine.created_alerts
+    assert engine.created_alerts[0]["alert_type"] == "hfnc_failure_risk"
+    assert engine.created_alerts[0]["extra"]["rox_index"] < 4.88
+
+
+def test_airway_risk_helpers_include_cuff_leak_and_difficult_airway() -> None:
+    assert _laryngeal_edema_risk({"leak_volume_ml": 80}) == "high"
+    risk = _infer_airway_risk(
+        {"difficult_airway": True},
+        {"mallampati": "IV", "prior_difficult_intubation": True},
+        {"latest_cuff_leak_test": {"leak_percent": 8}},
+    )
+    assert risk == "critical"
