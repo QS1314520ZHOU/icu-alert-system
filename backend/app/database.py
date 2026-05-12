@@ -185,6 +185,8 @@ class DatabaseManager:
             await mapping_col.create_index([("standard_concept", 1)])
             await self.col("runtime_configs").create_index([("key", 1)], unique=True)
             await self.col("runtime_configs").create_index([("updated_at", -1)])
+            await self.col("runtime_config_versions").create_index([("key", 1), ("version", -1)])
+            await self.col("runtime_config_versions").create_index([("created_at", -1)])
 
             # 评分记录索引
             score_col = self.col("score")

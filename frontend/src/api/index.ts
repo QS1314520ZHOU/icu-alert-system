@@ -151,6 +151,18 @@ export const postRuntimeAlertRule = (ruleId: string, payload: Record<string, any
 export const postRuntimeFieldMapping = (payload: Record<string, any>) =>
   analyticsApi.post('/api/admin/runtime-config/field-mapping', payload)
 
+export const getRuntimeConfigHistory = (params?: { key?: string; limit?: number }) =>
+  analyticsApi.get('/api/admin/runtime-config/history', { params })
+
+export const getRuntimeConfigExport = () =>
+  analyticsApi.get('/api/admin/runtime-config/export')
+
+export const postRuntimeConfigImport = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/admin/runtime-config/import', payload)
+
+export const postRuntimeConfigRollback = (key: string, payload: Record<string, any>) =>
+  analyticsApi.post(`/api/admin/runtime-config/${key}/rollback`, payload)
+
 export const getClinicalRoleHome = (params?: { userName?: string; role?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/clinical-workflow/role-home', { params, timeout: 8000 })
 

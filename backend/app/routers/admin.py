@@ -29,6 +29,20 @@ def _actor() -> str:
     return "admin"
 
 
+def _runtime_actor_role(request: Request, payload: dict[str, Any] | None = None) -> tuple[str, str]:
+    body = payload if isinstance(payload, dict) else {}
+    actor = str(body.get("actor") or request.headers.get("x-user-id") or request.headers.get("x-operator-id") or "admin").strip() or "admin"
+    role = str(body.get("role") or request.headers.get("x-user-role") or request.headers.get("x-role") or "admin").strip().lower() or "admin"
+    return actor, role
+
+
+def _require_runtime_admin(request: Request, payload: dict[str, Any] | None = None) -> tuple[str, str]:
+    actor, role = _runtime_actor_role(request, payload)
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="runtime config requires admin role")
+    return actor, role
+
+
 def _admin_role(request: Request, payload: dict[str, Any] | None = None) -> str:
     body = payload if isinstance(payload, dict) else {}
     role = str(body.get("role") or request.headers.get("x-user-role") or request.headers.get("x-role") or "").strip().lower()
@@ -151,27 +165,30 @@ async def runtime_config_overview():
 
 
 @router.post("/runtime-config/modules")
-async def update_runtime_modules(payload: dict):
+async def update_runtime_modules(request: Request, payload: dict):
     if runtime.db is None:
         raise HTTPException(status_code=503, detail="Database runtime not ready")
-    result = await RuntimeConfigService(runtime.db).update_modules(payload.get("modules") or [], actor=_actor())
+    actor, _role = _require_runtime_admin(request, payload)
+    result = await RuntimeConfigService(runtime.db).update_modules(payload.get("modules") or [], actor=actor)
     return {"code": 0, **serialize_doc(result)}
 
 
 @router.post("/runtime-config/ai")
-async def update_runtime_ai(payload: dict):
+async def update_runtime_ai(request: Request, payload: dict):
     if runtime.db is None:
         raise HTTPException(status_code=503, detail="Database runtime not ready")
-    result = await RuntimeConfigService(runtime.db).update_ai(payload or {}, actor=_actor())
+    actor, _role = _require_runtime_admin(request, payload)
+    result = await RuntimeConfigService(runtime.db).update_ai(payload or {}, actor=actor)
     return {"code": 0, **serialize_doc(result)}
 
 
 @router.post("/runtime-config/trajectory-forecast")
-async def update_runtime_trajectory_forecast(payload: dict):
+async def update_runtime_trajectory_forecast(request: Request, payload: dict):
     if runtime.db is None:
         raise HTTPException(status_code=503, detail="Database runtime not ready")
+    actor, _role = _require_runtime_admin(request, payload)
     try:
-        result = await RuntimeConfigService(runtime.db).update_trajectory_forecast(payload or {}, actor=_actor())
+        result = await RuntimeConfigService(runtime.db).update_trajectory_forecast(payload or {}, actor=actor)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return {"code": 0, **serialize_doc(result)}
@@ -191,6 +208,46 @@ async def update_runtime_field_mapping(payload: dict):
         raise HTTPException(status_code=503, detail="Database runtime not ready")
     try:
         result = await RuntimeConfigService(runtime.db).update_field_mapping(payload or {}, actor=_actor())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"code": 0, **serialize_doc(result)}
+
+
+@router.get("/runtime-config/history")
+async def runtime_config_history(key: str | None = Query(None), limit: int = Query(50, ge=1, le=200)):
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    rows = await RuntimeConfigService(runtime.db).history(key=key, limit=limit)
+    return {"code": 0, "items": serialize_doc(rows)}
+
+
+@router.get("/runtime-config/export")
+async def runtime_config_export():
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    snapshot = await RuntimeConfigService(runtime.db).export_snapshot()
+    return {"code": 0, "snapshot": serialize_doc(snapshot)}
+
+
+@router.post("/runtime-config/import")
+async def runtime_config_import(request: Request, payload: dict = Body(default={})):
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    actor, role = _require_runtime_admin(request, payload)
+    try:
+        result = await RuntimeConfigService(runtime.db).import_snapshot(payload.get("snapshot") or {}, actor=actor, role=role, reason=str(payload.get("reason") or ""))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"code": 0, **serialize_doc(result)}
+
+
+@router.post("/runtime-config/{key}/rollback")
+async def runtime_config_rollback(key: str, request: Request, payload: dict = Body(default={})):
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    actor, role = _require_runtime_admin(request, payload)
+    try:
+        result = await RuntimeConfigService(runtime.db).rollback(key, int(payload.get("version") or 0), actor=actor, role=role, reason=str(payload.get("reason") or ""))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"code": 0, **serialize_doc(result)}

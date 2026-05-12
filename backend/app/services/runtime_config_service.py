@@ -98,6 +98,59 @@ class RuntimeConfigService:
             "generated_at": datetime.now(),
         }
 
+    async def history(self, key: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {}
+        if key and key != "all":
+            query["key"] = str(key)
+        rows = self.db.col("runtime_config_versions").find(query).sort([("created_at", -1)]).limit(max(1, min(int(limit or 50), 200)))
+        return [serialize_doc(row) async for row in rows]
+
+    async def export_snapshot(self) -> dict[str, Any]:
+        modules = await self.get_value("modules", DEFAULT_MODULES)
+        ai = await self.get_value("ai", DEFAULT_AI_CONFIG)
+        trajectory = await self.get_value("trajectory_forecast", DEFAULT_TRAJECTORY_FORECAST_CONFIG)
+        rules = [serialize_doc(row) async for row in self.db.col("alert_rules").find({}).sort([("category", 1), ("rule_id", 1)]).limit(1000)]
+        mappings = [serialize_doc(row) async for row in self.db.col("field_mapping").find({}).sort([("standard_concept", 1), ("source_name", 1)]).limit(2000)]
+        return {
+            "exported_at": datetime.now(),
+            "runtime_configs": {"modules": modules, "ai": ai, "trajectory_forecast": trajectory},
+            "alert_rules": rules,
+            "field_mappings": mappings,
+        }
+
+    async def rollback(self, key: str, version: int, *, actor: str, role: str, reason: str = "") -> dict[str, Any]:
+        key = str(key or "").strip()
+        if key not in {"modules", "ai", "trajectory_forecast"}:
+            raise ValueError("unsupported runtime config key")
+        record = await self.db.col("runtime_config_versions").find_one({"key": key, "version": int(version)})
+        if not record:
+            raise ValueError("version not found")
+        value = deepcopy(record.get("value"))
+        await self._set_config(key, value, actor=actor, role=role, reason=reason or f"rollback to version {version}", action="rollback_runtime_config")
+        doc = await self.db.col("runtime_configs").find_one({"key": key})
+        return {"key": key, "value": serialize_doc((doc or {}).get("value")), "rolled_back_from": int(version)}
+
+    async def import_snapshot(self, snapshot: dict[str, Any], *, actor: str, role: str, reason: str = "") -> dict[str, Any]:
+        if not isinstance(snapshot, dict):
+            raise ValueError("snapshot must be object")
+        runtime_configs = snapshot.get("runtime_configs") if isinstance(snapshot.get("runtime_configs"), dict) else snapshot
+        imported: list[str] = []
+        skipped = {"alert_rules": "v1 import validates only; use single-rule editor to avoid bulk overwrite", "field_mappings": "v1 import validates only; use single-field editor to avoid bulk overwrite"}
+        for key in ("modules", "ai", "trajectory_forecast"):
+            if key not in runtime_configs:
+                continue
+            value = deepcopy(runtime_configs[key])
+            if key == "trajectory_forecast":
+                current = await self.get_value("trajectory_forecast", DEFAULT_TRAJECTORY_FORECAST_CONFIG) or {}
+                value = self.normalize_trajectory_forecast(value if isinstance(value, dict) else {}, current)
+            elif key == "modules" and not isinstance(value, list):
+                raise ValueError("modules must be list")
+            elif key == "ai" and not isinstance(value, dict):
+                raise ValueError("ai must be object")
+            await self._set_config(key, value, actor=actor, role=role, reason=reason or "import runtime config", action="import_runtime_config")
+            imported.append(key)
+        return {"imported": imported, "skipped": skipped}
+
     async def update_modules(self, modules: list[dict[str, Any]], *, actor: str) -> dict[str, Any]:
         normalized = []
         defaults_by_key = {item["key"]: item for item in DEFAULT_MODULES}
@@ -262,11 +315,32 @@ class RuntimeConfigService:
         await write_audit_log(self.db, action="update_field_mapping", module="runtime_config", actor=actor, target_type="field_mapping", target_id=f"{source_name}:{source_code}", detail=payload)
         return {"mapping": serialize_doc(doc)}
 
-    async def _set_config(self, key: str, value: Any, *, actor: str) -> None:
+    async def _next_version(self, key: str) -> int:
+        latest = await self.db.col("runtime_config_versions").find_one({"key": key}, sort=[("version", -1)])
+        return int((latest or {}).get("version") or 0) + 1
+
+    async def _set_config(self, key: str, value: Any, *, actor: str, role: str = "admin", reason: str = "", action: str = "update_runtime_config") -> None:
         now = datetime.now()
+        current = await self.db.col("runtime_configs").find_one({"key": key})
+        previous_value = deepcopy((current or {}).get("value"))
+        version = await self._next_version(key)
         await self.db.col("runtime_configs").update_one(
             {"key": key},
             {"$set": {"value": value, "updated_at": now, "updated_by": actor}, "$setOnInsert": {"created_at": now}},
             upsert=True,
         )
-        await write_audit_log(self.db, action="update_runtime_config", module="runtime_config", actor=actor, target_type="runtime_config", target_id=key, detail={"key": key})
+        await self.db.col("runtime_config_versions").insert_one(
+            {
+                "key": key,
+                "version": version,
+                "value": deepcopy(value),
+                "previous_value": previous_value,
+                "actor": actor,
+                "role": role,
+                "reason": reason,
+                "action": action,
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+        await write_audit_log(self.db, action=action, module="runtime_config", actor=actor, target_type="runtime_config", target_id=key, detail={"key": key, "version": version, "reason": reason})
