@@ -19,6 +19,7 @@ datas = [
 ]
 datas += collect_data_files('sentence_transformers')
 datas += collect_data_files('transformers')
+datas += collect_data_files('chronos')
 datas += collect_data_files('tzdata')
 datas += collect_data_files('numpy')
 
@@ -54,6 +55,7 @@ hidden_imports = app_imports + tzdata_imports + numpy_imports + [
     'torch',
     'transformers',
     'tokenizers',
+    'chronos',
     'numpy',
     'numpy._core',
     'numpy._core._exceptions',

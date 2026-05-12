@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 from typing import Any
+import builtins
 
 import pytest
 
@@ -64,3 +65,25 @@ def test_local_model_dir_env_override_strips_windows_path_on_linux(monkeypatch: 
         yaml_cfg = {"ai_service": {"local_models": {"chronos_dir": "D:\\icu-models\\chronos"}}}
 
     assert local_model_dir(Config(), "chronos_dir", "chronos") == tmp_path / "chronos"
+
+
+def test_safetensors_missing_chronos_dependency_has_actionable_reason(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    model_dir = tmp_path / "chronos"
+    model_dir.mkdir()
+    (model_dir / "config.json").write_text("{}", encoding="utf-8")
+    (model_dir / "model.safetensors").write_bytes(b"placeholder")
+    monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "chronos":
+            raise ModuleNotFoundError("No module named 'chronos'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
+
+    status = service.status()
+
+    assert status["available"] is False
+    assert "pip install chronos-forecasting" in status["reason"]

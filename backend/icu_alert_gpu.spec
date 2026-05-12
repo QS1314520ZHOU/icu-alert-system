@@ -7,6 +7,7 @@ app_imports = collect_submodules('app')
 tzdata_imports = collect_submodules('tzdata')
 torch_imports = collect_submodules('torch')
 transformer_imports = collect_submodules('transformers')
+chronos_imports = collect_submodules('chronos')
 sentence_transformer_imports = collect_submodules('sentence_transformers')
 tokenizer_imports = collect_submodules('tokenizers')
 numpy_imports = collect_submodules('numpy')
@@ -19,6 +20,7 @@ datas = [
 ]
 datas += collect_data_files('sentence_transformers')
 datas += collect_data_files('transformers')
+datas += collect_data_files('chronos')
 datas += collect_data_files('tokenizers')
 datas += collect_data_files('torch')
 datas += collect_data_files('tzdata')
@@ -33,6 +35,7 @@ hidden_imports = (
     + tzdata_imports
     + torch_imports
     + transformer_imports
+    + chronos_imports
     + sentence_transformer_imports
     + tokenizer_imports
     + numpy_imports
@@ -61,6 +64,7 @@ hidden_imports = (
         'torchvision',
         'torchaudio',
         'transformers',
+        'chronos',
         'tokenizers',
         'numpy',
         'numpy._core',

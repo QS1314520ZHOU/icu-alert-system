@@ -55,6 +55,9 @@ class VitalTrajectoryForecaster:
             return True
         except Exception as exc:
             chronos_error = f"{exc.__class__.__name__}: {str(exc)[:80]}"
+            if isinstance(exc, ModuleNotFoundError):
+                self._unavailable_reason = "chronos-forecasting unavailable: install with `pip install chronos-forecasting`"
+                return False
         try:
             from transformers import pipeline  # type: ignore
         except Exception as exc:

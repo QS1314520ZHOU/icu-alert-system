@@ -51,6 +51,7 @@ RUN cd /src/backend && \
         --paths=/src/backend \
         --collect-all sentence_transformers \
         --collect-all transformers \
+        --collect-all chronos \
         --collect-all tokenizers \
         --collect-all onnxruntime \
         --collect-all numpy \
@@ -76,6 +77,7 @@ RUN cd /src/backend && \
         --hidden-import=yaml \
         --hidden-import=dotenv \
         --hidden-import=httpx \
+        --hidden-import=chronos \
         --hidden-import=encodings.idna \
         --hidden-import=numpy._core \
         --hidden-import=numpy._core._exceptions \
