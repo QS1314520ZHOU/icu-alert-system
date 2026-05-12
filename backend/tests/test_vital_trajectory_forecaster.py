@@ -9,6 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.services.vital_trajectory_forecaster import VitalTrajectoryForecaster
+from app.services.local_model_paths import local_model_dir
 
 
 class _Db:
@@ -43,3 +44,23 @@ def test_trajectory_forecast_path_uses_env_override(monkeypatch: pytest.MonkeyPa
     service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
 
     assert str(service._model_dir()).startswith(str(tmp_path))
+
+
+def test_trajectory_forecast_finds_safetensors_weight(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    model_dir = tmp_path / "chronos"
+    model_dir.mkdir()
+    (model_dir / "config.json").write_text("{}", encoding="utf-8")
+    (model_dir / "model.safetensors").write_bytes(b"placeholder")
+    monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
+    service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
+
+    assert model_dir / "model.safetensors" in service._candidate_paths()
+
+
+def test_local_model_dir_env_override_strips_windows_path_on_linux(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
+
+    class Config:
+        yaml_cfg = {"ai_service": {"local_models": {"chronos_dir": "D:\\icu-models\\chronos"}}}
+
+    assert local_model_dir(Config(), "chronos_dir", "chronos") == tmp_path / "chronos"

@@ -33,13 +33,43 @@ class VitalTrajectoryForecaster:
         self._model_path: Path | None = None
         self._unavailable_reason = ""
         self._device = "cpu"
+        self._backend = "torch"
 
     def _model_dir(self) -> Path:
         return local_model_dir(self.config, "chronos_dir", "chronos")
 
     def _candidate_paths(self) -> list[Path]:
         root = self._model_dir()
-        return [root / name for name in ("model.pt", "chronos.pt", "timesfm.pt", "model.pth")]
+        return [root / name for name in ("model.pt", "chronos.pt", "timesfm.pt", "model.pth", "pytorch_model.bin", "model.safetensors")]
+
+    def _load_hf_pipeline(self, root: Path) -> bool:
+        if not (root / "config.json").exists():
+            return False
+        try:
+            from chronos import ChronosPipeline  # type: ignore
+
+            self._model = ChronosPipeline.from_pretrained(str(root), device_map=self._device)
+            self._model_path = root
+            self._backend = "chronos"
+            self._unavailable_reason = ""
+            return True
+        except Exception as exc:
+            chronos_error = f"{exc.__class__.__name__}: {str(exc)[:80]}"
+        try:
+            from transformers import pipeline  # type: ignore
+        except Exception as exc:
+            self._unavailable_reason = f"chronos/transformers unavailable for safetensors model: chronos={chronos_error}; transformers={exc.__class__.__name__}"
+            return False
+        try:
+            self._model = pipeline("time-series-forecasting", model=str(root), device=-1)
+            self._model_path = root
+            self._backend = "transformers"
+            self._unavailable_reason = ""
+            return True
+        except Exception as exc:
+            self._model = None
+            self._unavailable_reason = f"load failed: chronos={chronos_error}; transformers={exc.__class__.__name__}: {str(exc)[:80]}"
+            return False
 
     def _ensure_loaded(self) -> None:
         if self._loaded:
@@ -51,9 +81,14 @@ class VitalTrajectoryForecaster:
             self._unavailable_reason = f"torch unavailable: {exc.__class__.__name__}"
             return
         self._torch = torch
+        root = self._model_dir()
         for path in self._candidate_paths():
             if not path.exists():
                 continue
+            if path.suffix == ".safetensors":
+                if self._load_hf_pipeline(root):
+                    return
+                return
             try:
                 self._model_path = path
                 try:
@@ -68,7 +103,10 @@ class VitalTrajectoryForecaster:
                 self._model = None
                 self._unavailable_reason = f"load failed: {exc.__class__.__name__}: {str(exc)[:120]}"
                 return
-        self._unavailable_reason = f"no torch weight found under {self._model_dir()}"
+        if (root / "config.json").exists():
+            self._load_hf_pipeline(root)
+            return
+        self._unavailable_reason = f"no torch or safetensors weight found under {self._model_dir()}"
 
     def status(self) -> dict[str, Any]:
         if not self._loaded:
@@ -76,7 +114,7 @@ class VitalTrajectoryForecaster:
         return {
             "available": bool(self._model is not None),
             "reason": self._unavailable_reason,
-            "backend": "torch",
+            "backend": self._backend,
             "model_path": str(self._model_path or ""),
             "supported_codes": list(SUPPORTED_CODES),
         }
@@ -115,6 +153,26 @@ class VitalTrajectoryForecaster:
         if self._model is None or self._torch is None or not values:
             return None
         try:
+            if self._backend == "transformers":
+                context = self._torch.tensor(values[-48:], dtype=self._torch.float32)
+                out = self._model(context, prediction_length=horizon_hours)
+                if isinstance(out, list) and out:
+                    row = out[0]
+                    if isinstance(row, dict):
+                        raw = row.get("mean") or row.get("prediction") or row.get("samples")
+                    else:
+                        raw = row
+                    arr = np.asarray(raw, dtype=float).reshape(-1)
+                    return [float(v) for v in arr[:horizon_hours]]
+            if self._backend == "chronos":
+                context = self._torch.tensor(values[-48:], dtype=self._torch.float32)
+                forecast = self._model.predict(context, horizon_hours)
+                arr = forecast.detach().cpu().numpy() if hasattr(forecast, "detach") else np.asarray(forecast)
+                if arr.ndim >= 3:
+                    arr = np.quantile(arr[0], 0.5, axis=0)
+                else:
+                    arr = arr.reshape(-1)
+                return [float(v) for v in arr[:horizon_hours]]
             with self._torch.no_grad():
                 tensor = self._torch.tensor(values[-48:], dtype=self._torch.float32).unsqueeze(0)
                 if hasattr(self._model, "forecast"):
