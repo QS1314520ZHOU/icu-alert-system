@@ -180,6 +180,32 @@ for pkg in ['torch', 'onnxruntime', 'numpy', 'scipy', 'pyarrow']:
     except Exception:
         pass
 
+# PyTorch 的 import 入口依赖 torch/_C*.so 和 torch/lib/*.so。
+# 部分 PyInstaller 版本会把这些扩展库收集到扁平目录，导致运行时目录里有
+# torch 包但 import torch 报 ModuleNotFoundError。这里按 wheel 原始包结构
+# 显式补齐一次。
+torch_structured_bins = []
+try:
+    import torch
+    torch_dir = os.path.dirname(torch.__file__)
+    site_root = os.path.dirname(torch_dir)
+    for pattern in [
+        os.path.join(torch_dir, '*.so'),
+        os.path.join(torch_dir, '*.so.*'),
+        os.path.join(torch_dir, '**', '*.so'),
+        os.path.join(torch_dir, '**', '*.so.*'),
+    ]:
+        for src in glob.glob(pattern, recursive=True):
+            if not os.path.isfile(src):
+                continue
+            rel_dir = os.path.dirname(os.path.relpath(src, site_root))
+            item = (src, rel_dir)
+            if item not in torch_structured_bins:
+                torch_structured_bins.append(item)
+except Exception as exc:
+    print(f"[SPEC] torch structured binary collection skipped: {exc}")
+binaries += torch_structured_bins
+
 # ========== CUDA .so 从 nvidia.* pip 包收集 ==========
 cuda_bins = []
 search_dirs = []
@@ -216,6 +242,7 @@ for d in search_dirs:
                 cuda_bins.append((real, '.'))
 binaries += cuda_bins
 print(f"[SPEC] Collected {len(cuda_bins)} CUDA .so files")
+print(f"[SPEC] Collected {len(torch_structured_bins)} structured torch .so files")
 print(f"[SPEC] Collected {len(app_imports)} app submodules")
 print(f"[SPEC] Collected {len(torch_imports)} torch submodules")
 
@@ -243,6 +270,8 @@ hidden_imports = (
     'redis', 'redis.asyncio',
     # AI/ML (入口模块, PyInstaller 自动追踪子依赖)
     'torch', 'torch.cuda', 'torch.backends', 'torch.backends.cudnn',
+    'torch._C', 'torch._C._nn', 'torch._C._fft', 'torch._C._linalg',
+    'torch._C._nested', 'torch._C._sparse', 'torch._C._special',
     'torchvision', 'torchaudio',
     'transformers', 'chronos', 'tokenizers', 'sentence_transformers',
     'onnxruntime',
