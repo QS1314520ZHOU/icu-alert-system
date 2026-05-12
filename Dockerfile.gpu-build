@@ -10,7 +10,7 @@
 #
 #  GPU 支持:
 #    torch 2.3.1+cu121 (自带 CUDA 12.1 运行库)
-#    onnxruntime-gpu 1.20.1
+#    onnxruntime-gpu 1.18.1 (matches CUDA 12.x + cuDNN 8 used by torch 2.3.1)
 #    nvidia.* pip 包的 .so 全部打包进二进制
 #
 #  构建: DOCKER_BUILDKIT=1 docker build -t icu-builder -f Dockerfile.gpu-build .
@@ -110,8 +110,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install -r requirements.common.txt && \
     pip3 install -r requirements.analytics.txt && \
     pip3 install \
-        onnxruntime-gpu==1.20.1 \
-        'nvidia-cudnn-cu12>=9,<10' \
+        onnxruntime-gpu==1.18.1 \
         tensorboard
 
 # ---- 2.6 打包工具 ----
