@@ -118,6 +118,9 @@
                 <span v-if="item.role === 'assistant' && highRiskText(item.content)" class="chat-intent-badge is-high-risk">
                   高风险建议需确认
                 </span>
+                <span v-if="item.role === 'assistant' && item.messageType === 'clarification'" class="chat-intent-badge is-clarification">
+                  AI 反问
+                </span>
               </div>
               <a-button
                 v-if="item.role === 'assistant' && item.content"
@@ -129,7 +132,7 @@
                 复制
               </a-button>
             </div>
-            <template v-if="chatMode === 'clinical' && item.role === 'assistant' && parseStructuredSections(item.content).length">
+            <template v-if="chatMode === 'clinical' && item.role === 'assistant' && item.messageType !== 'clarification' && parseStructuredSections(item.content).length">
               <div class="chat-bubble chat-bubble--structured">
                 <div v-if="highRiskText(item.content)" class="high-risk-warning">
                   该建议涉及高风险医疗决策，请由责任医生确认后执行。
@@ -158,7 +161,7 @@
                 </div>
               </div>
             </template>
-            <div v-else class="chat-bubble">
+            <div v-else :class="['chat-bubble', item.messageType === 'clarification' ? 'chat-bubble--clarification' : '', item.messageType === 'final' ? 'chat-bubble--final' : '']">
               <template v-for="(paragraph, idx) in splitMessageParagraphs(item.content)" :key="`${item.id}-${idx}`">
                 <div class="chat-bubble__paragraph">{{ paragraph }}</div>
               </template>
@@ -206,6 +209,7 @@ import { getPatients, postAiConsultChat } from '../api'
 
 type ChatRole = 'user' | 'assistant'
 type ChatMode = 'clinical' | 'free'
+type ChatMessageType = 'normal' | 'clarification' | 'final'
 
 type ChatMessage = {
   id: string
@@ -214,6 +218,7 @@ type ChatMessage = {
   ts: number
   intentPrimary?: string
   intentFocusSection?: string
+  messageType?: ChatMessageType
 }
 
 type StructuredSection = {
@@ -232,6 +237,8 @@ const draft = ref('')
 const messages = ref<ChatMessage[]>([])
 const messageListRef = ref<HTMLElement | null>(null)
 const streamAbortController = ref<AbortController | null>(null)
+const pendingClarifications = ref<string[]>([])
+const clarificationContext = ref<Array<{ question: string; answer: string; ts: number }>>([])
 let saveTimer: number | null = null
 
 const quickPrompts = [
@@ -279,6 +286,7 @@ const latestUserMessage = computed(() => {
 const latestAssistantSections = computed(() => parseStructuredSections(latestAssistantMessage.value?.content || ''))
 
 const storageKey = computed(() => `icu-ai-consult:${chatMode.value}:${selectedPatientIds.value.length ? selectedPatientIds.value.join(',') : 'global'}`)
+const sessionContextKey = computed(() => `${storageKey.value}:session-context`)
 
 function pickRouteText(...values: any[]): string {
   for (const value of values) {
@@ -303,6 +311,7 @@ function createMessage(role: ChatRole, content: string, extra: Partial<ChatMessa
     role,
     content,
     ts: Date.now(),
+    messageType: 'normal',
     ...extra,
   }
 }
@@ -707,6 +716,9 @@ type StreamDonePayload = {
   degraded?: boolean
   intent_primary?: string
   intent_focus_section?: string
+  message_type?: ChatMessageType
+  pending_clarifications?: string[]
+  information_gaps?: Array<{ question?: string; reason?: string; information_gain?: number }>
 }
 
 async function streamConsultReply(
@@ -716,6 +728,7 @@ async function streamConsultReply(
     patient_ids?: string[]
     mode?: ChatMode
     history?: Array<{ role: 'user' | 'assistant'; content: string }>
+    pending_clarifications?: string[]
   },
   options: {
     signal?: AbortSignal
@@ -808,6 +821,9 @@ function normalizeMessages(raw: unknown): ChatMessage[] {
       ts: Number(item?.ts || Date.now()),
       intentPrimary: item?.role === 'assistant' ? String(item?.intentPrimary || item?.intent_primary || '').trim() || undefined : undefined,
       intentFocusSection: item?.role === 'assistant' ? String(item?.intentFocusSection || item?.intent_focus_section || '').trim() || undefined : undefined,
+      messageType: ['clarification', 'final'].includes(String(item?.messageType || item?.message_type || ''))
+        ? String(item?.messageType || item?.message_type) as ChatMessageType
+        : 'normal',
     }))
     .filter((item: ChatMessage) => Boolean(item.content))
   return rows.length ? rows : [defaultAssistantGreeting()]
@@ -815,14 +831,30 @@ function normalizeMessages(raw: unknown): ChatMessage[] {
 
 function saveConversation() {
   localStorage.setItem(storageKey.value, JSON.stringify(messages.value))
+  sessionStorage.setItem(sessionContextKey.value, JSON.stringify({
+    pendingClarifications: pendingClarifications.value,
+    clarificationContext: clarificationContext.value,
+  }))
 }
 
 function loadConversation() {
   try {
     const raw = localStorage.getItem(storageKey.value)
     messages.value = normalizeMessages(raw ? JSON.parse(raw) : null)
+    const sessionRaw = sessionStorage.getItem(sessionContextKey.value)
+    const sessionData = sessionRaw ? JSON.parse(sessionRaw) : {}
+    pendingClarifications.value = Array.isArray(sessionData?.pendingClarifications)
+      ? sessionData.pendingClarifications.map((item: any) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+      : []
+    clarificationContext.value = Array.isArray(sessionData?.clarificationContext)
+      ? sessionData.clarificationContext
+          .map((item: any) => ({ question: String(item?.question || ''), answer: String(item?.answer || ''), ts: Number(item?.ts || Date.now()) }))
+          .filter((item: any) => item.question && item.answer)
+      : []
   } catch {
     messages.value = [defaultAssistantGreeting()]
+    pendingClarifications.value = []
+    clarificationContext.value = []
   }
   void scrollToBottom()
 }
@@ -867,6 +899,8 @@ function openPatientDetail() {
 
 function clearConversation() {
   messages.value = [defaultAssistantGreeting()]
+  pendingClarifications.value = []
+  clarificationContext.value = []
   saveConversation()
 }
 
@@ -884,15 +918,32 @@ function onComposerKeydown(event: KeyboardEvent) {
   }
 }
 
+function buildRequestHistory() {
+  const rows = messages.value.slice(-8).map((item) => ({
+    role: item.role,
+    content: String(item.content || '').slice(0, 320),
+  }))
+  const clarifications = clarificationContext.value
+    .slice(-3)
+    .map((item, idx) => `${idx + 1}、${item.question} 医生回答：${item.answer}`)
+    .join('\n')
+  if (clarifications) {
+    rows.push({
+      role: 'assistant',
+      content: `会话临时澄清上下文（不写入患者主档）：\n${clarifications}`.slice(0, 480),
+    })
+  }
+  return rows
+}
+
 async function sendMessage() {
   const content = draft.value.trim()
   if (!content || sending.value) return
   const requestMode = chatMode.value
+  const activePending = [...pendingClarifications.value]
+  const isClarificationAnswer = activePending.length > 0
 
-  const history = messages.value.slice(-8).map((item) => ({
-    role: item.role,
-    content: String(item.content || '').slice(0, 320),
-  }))
+  const history = buildRequestHistory()
   const userMessage = createMessage('user', content)
   messages.value.push(userMessage)
   draft.value = ''
@@ -918,6 +969,7 @@ async function sendMessage() {
           patient_ids: selectedPatientIds.value,
           mode: requestMode,
           history,
+          pending_clarifications: activePending,
         },
         {
           signal: aborter.signal,
@@ -946,6 +998,7 @@ async function sendMessage() {
           patient_ids: selectedPatientIds.value,
           mode: requestMode,
           history,
+          pending_clarifications: activePending,
         })
         if (Number(fallbackRes.data?.code) !== 0) {
           throw new Error(fallbackRes.data?.message || fallbackRes.data?.error || 'AI问诊失败')
@@ -962,6 +1015,19 @@ async function sendMessage() {
     assistantMessage.content = finalAnswer
     assistantMessage.intentPrimary = String(donePayload?.intent_primary || '').trim() || undefined
     assistantMessage.intentFocusSection = String(donePayload?.intent_focus_section || '').trim() || undefined
+    assistantMessage.messageType = donePayload?.message_type === 'clarification'
+      ? 'clarification'
+      : donePayload?.message_type === 'final'
+        ? 'final'
+        : (donePayload?.message_type ? 'normal' : (isClarificationAnswer ? 'final' : 'normal'))
+    if (assistantMessage.messageType === 'clarification') {
+      pendingClarifications.value = Array.isArray(donePayload?.pending_clarifications)
+        ? donePayload.pending_clarifications.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+        : []
+    } else if (isClarificationAnswer) {
+      clarificationContext.value.push(...activePending.map((question) => ({ question, answer: content, ts: Date.now() })))
+      pendingClarifications.value = []
+    }
     saveConversation()
     await scrollToBottom()
   } catch (error: any) {
@@ -1255,6 +1321,11 @@ onBeforeUnmount(() => {
   color: #fecaca;
   background: rgba(69, 10, 10, 0.44);
 }
+.chat-intent-badge.is-clarification {
+  border-color: rgba(45, 212, 191, 0.3);
+  color: #99f6e4;
+  background: rgba(13, 78, 74, 0.36);
+}
 
 .chat-bubble {
   max-width: min(820px, 100%);
@@ -1269,6 +1340,15 @@ onBeforeUnmount(() => {
 
 .chat-bubble__paragraph + .chat-bubble__paragraph {
   margin-top: 10px;
+}
+
+.chat-bubble--clarification {
+  border-color: rgba(45, 212, 191, 0.3);
+  background: rgba(8, 47, 73, 0.78);
+}
+
+.chat-bubble--final {
+  border-color: rgba(34, 197, 94, 0.2);
 }
 
 .chat-copy-btn {
@@ -1496,6 +1576,11 @@ html[data-theme='light'] .chat-intent-badge.is-high-risk {
   border-color: rgba(248, 113, 113, 0.3);
   background: rgba(254, 242, 242, 0.98);
 }
+html[data-theme='light'] .chat-intent-badge.is-clarification {
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.26);
+  background: rgba(240, 253, 250, 0.98);
+}
 
 html[data-theme='light'] .consult-hero h1 {
   color: #16324f;
@@ -1534,6 +1619,10 @@ html[data-theme='light'] .prompt-chip {
 html[data-theme='light'] .chat-bubble {
   color: #223a54;
   background: #ffffff;
+}
+html[data-theme='light'] .chat-bubble--clarification {
+  border-color: rgba(13, 148, 136, 0.22);
+  background: #f0fdfa;
 }
 
 html[data-theme='light'] .consult-section {

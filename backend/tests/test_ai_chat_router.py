@@ -253,3 +253,69 @@ async def test_ai_chat_consult_strips_think_content(monkeypatch: pytest.MonkeyPa
     assert "初步判断" in str(res.get("answer") or "")
     assert "风险点" in str(res.get("answer") or "")
     assert res.get("answer_max_tokens") == 3200
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_consult_returns_clarification_before_final_advice(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_build_patient_context(patient_id: str | None, patient_ids: list[str] | None, message: str):
+        del patient_id, patient_ids, message
+        return "患者标签: 1床\n主要诊断: 脓毒症", "1床 · 张三 · 脓毒症", "p1", ["p1"], "payload", ""
+
+    async def _fake_propose_information_gaps(patient_context: str):
+        assert "患者标签" in patient_context
+        return [{"rank": 1, "question": "最近 2 小时乳酸和 MAP 趋势如何？", "reason": "会改变复苏策略", "information_gain": 0.9}]
+
+    async def _fake_call_api_llm(*args: Any, **kwargs: Any) -> str:
+        del args, kwargs
+        raise AssertionError("final LLM should not be called before clarification is answered")
+
+    async def _fake_write_ai_consult_log(**kwargs: Any) -> None:
+        del kwargs
+
+    monkeypatch.setattr(chat, "_build_patient_context", _fake_build_patient_context)
+    monkeypatch.setattr(chat, "propose_information_gaps", _fake_propose_information_gaps)
+    monkeypatch.setattr(chat, "call_api_llm", _fake_call_api_llm)
+    monkeypatch.setattr(chat, "_write_ai_consult_log", _fake_write_ai_consult_log)
+
+    payload = chat.ChatConsultPayload(message="请给出下一步处理建议", history=[], patient_id="p1")
+    res = await chat.ai_chat_consult(payload, _fake_request())
+
+    assert res.get("code") == 0
+    assert res.get("message_type") == "clarification"
+    assert res.get("pending_clarifications") == ["最近 2 小时乳酸和 MAP 趋势如何？"]
+    assert "为了避免建议偏差" in str(res.get("answer") or "")
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_consult_continues_after_clarification_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_build_patient_context(patient_id: str | None, patient_ids: list[str] | None, message: str):
+        del patient_id, patient_ids, message
+        return "患者标签: 1床\n主要诊断: 脓毒症", "1床 · 张三 · 脓毒症", "p1", ["p1"], "payload", ""
+
+    async def _fake_propose_information_gaps(patient_context: str):
+        del patient_context
+        raise AssertionError("information gaps should not run when pending clarification was answered")
+
+    async def _fake_call_api_llm(*args: Any, **kwargs: Any) -> str:
+        del args, kwargs
+        return "初步判断：\n感染性休克风险高\n\n下一步处理：\n复查乳酸并评估灌注"
+
+    async def _fake_write_ai_consult_log(**kwargs: Any) -> None:
+        del kwargs
+
+    monkeypatch.setattr(chat, "_build_patient_context", _fake_build_patient_context)
+    monkeypatch.setattr(chat, "propose_information_gaps", _fake_propose_information_gaps)
+    monkeypatch.setattr(chat, "call_api_llm", _fake_call_api_llm)
+    monkeypatch.setattr(chat, "_write_ai_consult_log", _fake_write_ai_consult_log)
+
+    payload = chat.ChatConsultPayload(
+        message="乳酸从 2.1 升到 3.5，MAP 需要去甲肾维持。",
+        history=[chat.ChatTurn(role="assistant", content="为了避免建议偏差，我需要先确认：最近 2 小时乳酸和 MAP 趋势如何？")],
+        patient_id="p1",
+        pending_clarifications=["最近 2 小时乳酸和 MAP 趋势如何？"],
+    )
+    res = await chat.ai_chat_consult(payload, _fake_request())
+
+    assert res.get("code") == 0
+    assert res.get("message_type") != "clarification"
+    assert "下一步处理：" in str(res.get("answer") or "")

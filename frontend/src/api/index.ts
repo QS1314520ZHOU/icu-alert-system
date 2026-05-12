@@ -400,6 +400,7 @@ export const postAiConsultChat = (payload: {
   patient_ids?: string[]
   mode?: 'clinical' | 'free'
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
+  pending_clarifications?: string[]
 }) => aiApi.post('/api/ai/chat-consult', payload)
 
 // AI/RAG: 离线知识片段详情

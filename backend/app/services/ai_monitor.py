@@ -77,6 +77,15 @@ class AiMonitor:
         except Exception:
             return
         try:
+            await self.db.col("llm_call_logs").insert_one({
+                **doc,
+                "source": "ai_monitor",
+                "prompt_preview": (prompt or "")[:1200],
+                "output_preview": (output or "")[:1200],
+            })
+        except Exception:
+            pass
+        try:
             await self._maybe_refresh_aggregates(module, now)
         except Exception:
             return

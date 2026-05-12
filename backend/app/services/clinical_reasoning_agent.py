@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from bson import ObjectId
 
 from app.services.ai_monitor import AiMonitor
+from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.llm_runtime import call_llm_chat
 from app.services.patient_digital_twin import PatientDigitalTwinService
 
@@ -20,16 +21,21 @@ API_TZ = ZoneInfo("Asia/Shanghai")
 
 class ClinicalReasoningAgent:
     SYSTEM_PROMPT = """你是一位ICU重症医学专家AI助手。
-基于以下患者的完整诊疗数据，请按照重症医学思维进行分析。
+请按 SPAR 临床推理骨架工作：
+S / Strategy：识别最可能改变处置的 top-3 临床假设。
+P / Plan：为每个假设列出必须验证的信息点。
+A / Action：只使用患者数字孪生、scanner/RAG/knowledge_graph 证据补足信息。
+R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败模式。
 
 要求:
-1) 只能依据输入数据和RAG检索到的指南证据推理，严禁编造未提供的病史、检查结果或治疗经过。
+1) 只能依据输入数据、scanner、RAG、knowledge_graph 证据推理，严禁编造未提供的病史、检查结果或治疗经过。
 2) 明确区分“已知事实”和“推断建议”；缺失信息必须写“未见证据”。
 3) 建议必须个体化、可执行，并尽量给出监测阈值。
 4) 所有治疗建议都要附 evidence_level 与 guideline_refs。
-5) 必须返回严格 JSON，不要输出任何额外文本。
+5) 最终 Reflect 阶段必须返回严格 JSON，不要输出任何额外文本。
+6) SPAR 中间阶段仅输出该阶段要求的 JSON，不要输出思维链。
 
-JSON结构:
+最终 JSON 结构必须完全保持如下 schema:
 {
   "overview": {"summary": "", "core_problems": [""]},
   "dynamic_assessment": {"summary": "", "key_changes_24h": [""]},
@@ -57,6 +63,22 @@ JSON结构:
     {"chunk_id": "", "source": "", "recommendation": "", "quote": ""}
   ]
 }"""
+
+    STRATEGY_PROMPT = """你是 ICU 临床推理 Strategy 阶段。
+基于患者数字孪生，识别最需要优先验证的 top-3 临床假设。
+只返回 JSON:
+{"hypotheses":[{"rank":1,"hypothesis":"","clinical_problem":"","why_it_matters":"","supporting_facts":[""],"missing_or_uncertain":[""],"urgency":"critical|high|medium"}]}"""
+
+    PLAN_PROMPT = """你是 ICU 临床推理 Plan 阶段。
+基于 Strategy 假设和患者数字孪生，为每个假设列出需要验证的信息点。
+只返回 JSON:
+{"verification_plan":[{"hypothesis":"","information_needs":[{"item":"","reason":"","preferred_source":"digital_twin|scanner|rag|knowledge_graph|bedside","would_change_management":true}]}]}"""
+
+    REFLECT_PROMPT = SYSTEM_PROMPT + """
+
+你现在处于 Reflect 阶段。请综合 Strategy、Plan、Action evidence，输出最终 JSON。
+可以在 prognosis_assessment.confidence 中体现总体信心；失败模式预测请融入 prognosis_assessment.summary 或 safety_notes。
+不要新增顶层字段，必须保持最终 JSON schema 完全不变。"""
 
     def __init__(self, *, db, config, alert_engine, rag_service=None, ai_monitor=None, ai_handoff_service=None) -> None:
         self.db = db
@@ -243,6 +265,196 @@ JSON结构:
         except Exception:
             return None
 
+    async def _call_json_stage(
+        self,
+        *,
+        stage: str,
+        system_prompt: str,
+        user_prompt: str,
+        model: str,
+        max_tokens: int,
+    ) -> tuple[dict[str, Any] | None, str, dict[str, Any] | None, dict[str, Any]]:
+        llm_cfg = (self.config.yaml_cfg or {}).get("ai_service", {}).get("llm", {})
+        start_ms = AiMonitor.now_ms() if self.ai_monitor else 0.0
+        raw_text = ""
+        usage = None
+        meta: dict[str, Any] = {"stage": stage}
+        parsed: dict[str, Any] | None = None
+        try:
+            result = await call_llm_chat(
+                cfg=self.config,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                model=model,
+                temperature=float(llm_cfg.get("temperature", 0.1) or 0.1),
+                max_tokens=max_tokens,
+                timeout_seconds=float(llm_cfg.get("timeout", 60) or 60),
+            )
+            raw_text = str(result.get("text") or "")
+            usage = result.get("usage")
+            meta.update(result.get("meta") or {})
+            parsed = self._parse_json(raw_text)
+        except Exception as exc:
+            logger.error("clinical reasoning SPAR %s error: %s", stage, exc)
+            meta["error"] = str(exc)[:200]
+
+        if self.ai_monitor:
+            await self.ai_monitor.log_llm_call(
+                module=f"clinical_reasoning_{stage}",
+                model=model,
+                prompt=user_prompt,
+                output=raw_text,
+                latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
+                success=bool(parsed),
+                meta=meta,
+                usage=usage,
+            )
+        return parsed, raw_text, usage, meta
+
+    def _fallback_strategy(self, twin: dict[str, Any]) -> dict[str, Any]:
+        problems = [str(x) for x in (twin.get("problem_list") or [])[:3] if str(x).strip()]
+        if not problems:
+            problems = ["当前核心临床问题需床旁复核"]
+        return {
+            "hypotheses": [
+                {
+                    "rank": idx,
+                    "hypothesis": problem,
+                    "clinical_problem": problem,
+                    "why_it_matters": "可能改变监测强度、检查优先级或治疗决策",
+                    "supporting_facts": [problem],
+                    "missing_or_uncertain": ["未见完整床旁复核信息"],
+                    "urgency": "high" if idx == 1 else "medium",
+                }
+                for idx, problem in enumerate(problems, start=1)
+            ]
+        }
+
+    def _fallback_verification_plan(self, hypotheses: dict[str, Any]) -> dict[str, Any]:
+        rows = hypotheses.get("hypotheses") if isinstance(hypotheses.get("hypotheses"), list) else []
+        return {
+            "verification_plan": [
+                {
+                    "hypothesis": str(item.get("hypothesis") or item.get("clinical_problem") or "待验证问题"),
+                    "information_needs": [
+                        {"item": "生命体征与趋势", "reason": "判断当前稳定性与恶化速度", "preferred_source": "digital_twin", "would_change_management": True},
+                        {"item": "近期检验/血气/影像", "reason": "验证主要假设并排除替代病因", "preferred_source": "rag", "would_change_management": True},
+                        {"item": "相关规则预警与因果链", "reason": "补充系统已命中的风险证据", "preferred_source": "scanner", "would_change_management": False},
+                    ],
+                }
+                for item in rows[:3] if isinstance(item, dict)
+            ]
+        }
+
+    async def _strategy(self, twin) -> dict:
+        model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
+        prompt = "患者数字孪生上下文:\n" + json.dumps(twin, ensure_ascii=False, default=str)
+        parsed, _, _, _ = await self._call_json_stage(
+            stage="strategy",
+            system_prompt=self.STRATEGY_PROMPT,
+            user_prompt=prompt,
+            model=model,
+            max_tokens=1200,
+        )
+        return parsed if isinstance(parsed, dict) and isinstance(parsed.get("hypotheses"), list) else self._fallback_strategy(twin)
+
+    async def _plan(self, hypotheses, twin) -> dict:
+        model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
+        prompt = "\n\n".join([
+            "Strategy hypotheses:",
+            json.dumps(hypotheses, ensure_ascii=False, default=str),
+            "患者数字孪生上下文:",
+            json.dumps(twin, ensure_ascii=False, default=str),
+        ])
+        parsed, _, _, _ = await self._call_json_stage(
+            stage="plan",
+            system_prompt=self.PLAN_PROMPT,
+            user_prompt=prompt,
+            model=model,
+            max_tokens=1600,
+        )
+        return parsed if isinstance(parsed, dict) and isinstance(parsed.get("verification_plan"), list) else self._fallback_verification_plan(hypotheses)
+
+    async def _action(self, plan, twin) -> dict:
+        facts = twin.get("facts") if isinstance(twin.get("facts"), dict) else {}
+        patient = twin.get("patient") if isinstance(twin.get("patient"), dict) else {}
+        query_parts: list[str] = []
+        for row in plan.get("verification_plan") or []:
+            if not isinstance(row, dict):
+                continue
+            query_parts.append(str(row.get("hypothesis") or ""))
+            for need in row.get("information_needs") or []:
+                if isinstance(need, dict):
+                    query_parts.append(str(need.get("item") or ""))
+        query = "；".join([x for x in query_parts if x.strip()]) or "；".join([str(x) for x in (twin.get("problem_list") or [])[:8]])
+        rag_hits = self._search_guidelines(query, patient_doc={"_id": patient.get("id"), **patient}, facts=facts)
+        scanner_evidence = {
+            "recent_alerts_24h": twin.get("recent_alerts_24h") or [],
+            "recent_scores_24h": twin.get("recent_scores_24h") or [],
+            "temporal_forecast": twin.get("temporal_forecast") or {},
+            "proactive_management": twin.get("proactive_management") or {},
+        }
+        kg_results: list[dict[str, Any]] = []
+        try:
+            kg = ClinicalKnowledgeGraph(db=self.db, config=self.config, alert_engine=self.alert_engine, rag_service=self.rag_service)
+            pid = str(patient.get("id") or "")
+            for problem in (twin.get("problem_list") or [])[:3]:
+                if pid and hasattr(kg, "causal_chain_analysis"):
+                    result = await kg.causal_chain_analysis(pid, str(problem))
+                    if isinstance(result, dict):
+                        kg_results.append(result)
+        except Exception as exc:
+            logger.warning("clinical reasoning knowledge graph action skipped: %s", exc)
+        evidence = {
+            "verification_plan": plan,
+            "digital_twin_evidence": {
+                "problem_list": twin.get("problem_list") or [],
+                "facts": facts,
+                "nursing_context": twin.get("nursing_context") or {},
+                "nursing_note_analysis": twin.get("nursing_note_analysis") or {},
+                "similar_case_review": twin.get("similar_case_review") or {},
+                "handoff_context": twin.get("handoff_context") or {},
+            },
+            "scanner_evidence": scanner_evidence,
+            "rag_hits": rag_hits,
+            "knowledge_graph": kg_results,
+        }
+        if self.ai_monitor:
+            await self.ai_monitor.log_llm_call(
+                module="clinical_reasoning_action",
+                model="scanner_rag_knowledge_graph",
+                prompt=json.dumps(plan, ensure_ascii=False, default=str),
+                output=json.dumps(evidence, ensure_ascii=False, default=str),
+                latency_ms=0.0,
+                success=True,
+                meta={
+                    "stage": "action",
+                    "rag_count": len(rag_hits),
+                    "kg_count": len(kg_results),
+                    "scanner_alert_count": len(scanner_evidence.get("recent_alerts_24h") or []),
+                    "scanner_score_count": len(scanner_evidence.get("recent_scores_24h") or []),
+                },
+            )
+        return evidence
+
+    async def _reflect(self, evidence, twin) -> dict:
+        model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
+        rag_hits = evidence.get("rag_hits") if isinstance(evidence.get("rag_hits"), list) else []
+        prompt = "\n\n".join([
+            self._compose_prompt(twin, rag_hits),
+            "SPAR Action evidence:",
+            json.dumps(evidence, ensure_ascii=False, default=str),
+            "请输出最终 JSON，保持 schema 不变。",
+        ])
+        parsed, _, _, _ = await self._call_json_stage(
+            stage="reflect",
+            system_prompt=self.REFLECT_PROMPT,
+            user_prompt=prompt,
+            model=model,
+            max_tokens=min(3200, int(((self.config.yaml_cfg or {}).get("ai_service", {}).get("llm", {}) or {}).get("max_tokens", 4096) or 4096)),
+        )
+        return self._normalize_plan(parsed, rag_hits) if isinstance(parsed, dict) else self._fallback_plan(twin, rag_hits)
+
     def _fallback_plan(self, twin: dict[str, Any], rag_hits: list[dict[str, Any]]) -> dict[str, Any]:
         problems = list(twin.get("problem_list") or [])
         first_problem = problems[0] if problems else "需结合床旁复核当前核心问题"
@@ -403,38 +615,13 @@ JSON结构:
             return None
 
         twin = await self.build_digital_twin(patient_id, patient_doc)
-        query = "；".join([str(x) for x in (twin.get("problem_list") or [])[:8]])
-        rag_hits = self._search_guidelines(query, patient_doc=patient_doc, facts=twin.get("facts") or {})
-        prompt = self._compose_prompt(twin, rag_hits)
-
         model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
-        llm_cfg = (self.config.yaml_cfg or {}).get("ai_service", {}).get("llm", {})
         start_ms = AiMonitor.now_ms() if self.ai_monitor else 0.0
-        raw_text = ""
-        usage = None
-        meta: dict[str, Any] = {}
-
-        try:
-            result = await call_llm_chat(
-                cfg=self.config,
-                system_prompt=self.SYSTEM_PROMPT,
-                user_prompt=prompt,
-                model=model,
-                temperature=float(llm_cfg.get("temperature", 0.1) or 0.1),
-                max_tokens=min(3200, int(llm_cfg.get("max_tokens", 4096) or 4096)),
-                timeout_seconds=float(llm_cfg.get("timeout", 60) or 60),
-            )
-            raw_text = str(result.get("text") or "")
-            usage = result.get("usage")
-            model = str(result.get("model") or model)
-            meta = result.get("meta") or {}
-            parsed = self._parse_json(raw_text)
-        except Exception as exc:
-            logger.error("clinical reasoning llm error: %s", exc)
-            parsed = None
-            meta = {"error": str(exc)[:200]}
-
-        plan = self._normalize_plan(parsed, rag_hits) if isinstance(parsed, dict) else self._fallback_plan(twin, rag_hits)
+        hypotheses = await self._strategy(twin)
+        verification_plan = await self._plan(hypotheses, twin)
+        evidence = await self._action(verification_plan, twin)
+        rag_hits = evidence.get("rag_hits") if isinstance(evidence.get("rag_hits"), list) else []
+        plan = await self._reflect(evidence, twin)
         generated_at = datetime.now(API_TZ)
         record = await self._persist_plan(
             patient_doc=patient_doc,
@@ -449,11 +636,19 @@ JSON结构:
             await self.ai_monitor.log_llm_call(
                 module="clinical_reasoning",
                 model=model,
-                prompt=prompt,
-                output=raw_text or json.dumps(plan, ensure_ascii=False, default=str),
+                prompt=json.dumps({"strategy": hypotheses, "plan": verification_plan}, ensure_ascii=False, default=str),
+                output=json.dumps(plan, ensure_ascii=False, default=str),
                 latency_ms=max(0.0, AiMonitor.now_ms() - start_ms),
-                success=bool(parsed),
-                meta=meta,
-                usage=usage,
+                success=True,
+                meta={
+                    "spar": True,
+                    "strategy_count": len(hypotheses.get("hypotheses") or []),
+                    "plan_count": len(verification_plan.get("verification_plan") or []),
+                    "rag_count": len(rag_hits),
+                    "kg_count": len(evidence.get("knowledge_graph") or []),
+                },
             )
         return record
+
+    async def analyze(self, patient_id: str) -> dict[str, Any] | None:
+        return await self.generate_individualized_plan(patient_id)

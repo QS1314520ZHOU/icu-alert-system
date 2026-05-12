@@ -116,6 +116,7 @@ class ChatConsultPayload(BaseModel):
     patient_id: str | None = Field(default=None, max_length=64)
     patient_ids: list[str] = Field(default_factory=list, max_length=8)
     mode: Literal["clinical", "free"] = "clinical"
+    pending_clarifications: list[str] = Field(default_factory=list, max_length=3)
 
 
 def _clip_text(value: str | None, limit: int = 1200) -> str:
@@ -317,7 +318,8 @@ def _finalize_ai_consult_answer(raw: str | None, rag_hits: list[dict[str, Any]] 
         normalized_content = _normalize_ai_consult_section_content(content)
         if not normalized_content:
             continue
-        blocks.append(f"{title}：\n{normalized_content}")
+        display_title = "下一步处理" if title == "下一步处理建议" else title
+        blocks.append(f"{display_title}：\n{normalized_content}")
     return _append_rag_citations("\n\n".join(blocks).strip(), rag_hits or [])
 
 
@@ -395,6 +397,84 @@ def _parse_retry_after_seconds(error_text: str) -> float | None:
         return value if value >= 0 else None
     except Exception:
         return None
+
+
+def _looks_like_clarification_answer(message: str, pending_clarifications: list[str] | None) -> bool:
+    pending = [str(item or "").strip() for item in (pending_clarifications or []) if str(item or "").strip()]
+    if not pending:
+        return False
+    text = _safe_text(message)
+    if not text:
+        return False
+    return len(text) >= 1
+
+
+def _parse_information_gaps(raw: str) -> list[dict[str, Any]]:
+    text = str(raw or "").strip()
+    if not text:
+        return []
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text)
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        text = match.group(0)
+    try:
+        data = json.loads(text)
+    except Exception:
+        return []
+    gaps = data.get("gaps") if isinstance(data, dict) else None
+    if not isinstance(gaps, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for idx, item in enumerate(gaps[:3], start=1):
+        if not isinstance(item, dict):
+            continue
+        question = _strip_markdown_for_display(str(item.get("question") or item.get("item") or "")).strip()
+        if not question:
+            continue
+        if not question.endswith(("？", "?")):
+            question = question.rstrip("。；;，,") + "？"
+        rows.append(
+            {
+                "rank": int(item.get("rank") or idx),
+                "question": question,
+                "reason": _clip_text(str(item.get("reason") or "该信息可能显著改变建议。"), 220),
+                "information_gain": max(0.0, min(1.0, float(item.get("information_gain") or (1.0 - (idx - 1) * 0.2)))),
+            }
+        )
+    return rows
+
+
+async def propose_information_gaps(patient_context) -> list[dict[str, Any]]:
+    context = _clip_text(str(patient_context or ""), 3600)
+    if not context or context == "未选择具体患者，本轮按通用 ICU 问答处理。":
+        return []
+    cfg = get_config()
+    system_prompt = (
+        "你是 ICU AI Consult 的 AMIE 式主动追问模块。"
+        "请评估哪些缺失信息会显著改变临床建议，按信息增益排序。"
+        "只返回 JSON，不要输出解释文本。"
+        "若现有信息足够直接给建议，返回 {\"gaps\":[]}。"
+        "最多返回 3 个问题，问题必须适合医生快速回答。"
+        "JSON schema: {\"gaps\":[{\"rank\":1,\"question\":\"\",\"reason\":\"\",\"information_gain\":0.0}]}"
+    )
+    user_prompt = f"【患者与对话上下文】\n{context}\n\n请找出给最终建议前最值得主动追问的信息缺口。"
+    try:
+        raw = await asyncio.wait_for(
+            call_api_llm(
+                system_prompt,
+                user_prompt,
+                cfg.llm_fast_model or cfg.llm_model_medical or None,
+                max_tokens=600,
+                timeout_seconds=min(20, _AI_CONSULT_LLM_TIMEOUT_SECONDS),
+            ),
+            timeout=25,
+        )
+        return _parse_information_gaps(str(raw or ""))
+    except Exception as exc:
+        logger.warning("AI consult information gap proposal skipped: %s", exc)
+        return []
 
 
 async def _write_ai_consult_log(
@@ -1535,7 +1615,43 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
     except ValueError as exc:
         return {"code": 400, "message": str(exc)}
 
+    pending_questions = [str(item or "").strip() for item in (payload.pending_clarifications or []) if str(item or "").strip()]
+    clarification_answered = _looks_like_clarification_answer(message, pending_questions)
     rag_hits = _search_ai_consult_rag(message, patient_context)
+    if not is_free_mode and patient_context and not clarification_answered:
+        gaps = await propose_information_gaps(
+            "\n\n".join([
+                f"【本轮问题】{message}",
+                f"【患者上下文】{patient_context}",
+                f"【历史对话】{_format_history(payload.history)}",
+            ])
+        )
+        if gaps:
+            questions = [item["question"] for item in gaps[:3] if item.get("question")]
+            answer_text = "为了避免建议偏差，我需要先确认：\n" + "\n".join(f"{idx}、{question}" for idx, question in enumerate(questions, start=1))
+            response = {
+                "code": 0,
+                "answer": answer_text,
+                "message_type": "clarification",
+                "pending_clarifications": questions,
+                "information_gaps": gaps,
+                "patient_context_used": bool(patient_context),
+                "patient_label": patient_label,
+                "resolved_patient_id": resolved_patient_id,
+                "resolved_patient_ids": resolved_patient_ids,
+                "patient_match_source": match_source,
+                "patient_match_note": match_note,
+                "intent_primary": intent["primary"],
+                "intent_focus_section": intent["focus_section"],
+                "mode": payload.mode,
+                "rag_sources": [
+                    {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
+                    for item in rag_hits[:6]
+                ],
+            }
+            await _write_ai_consult_log(request=request, payload=payload, answer=response, success=True, model="", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"message_type": "clarification"})
+            return response
+
     prompt_builder = _build_ai_free_chat_prompts if is_free_mode else _build_ai_consult_prompts
     system_prompt, user_prompt = prompt_builder(
         message=message,
@@ -1667,7 +1783,51 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
     except ValueError as exc:
         return JSONResponse(status_code=400, content={"code": 400, "message": str(exc)})
 
+    pending_questions = [str(item or "").strip() for item in (payload.pending_clarifications or []) if str(item or "").strip()]
+    clarification_answered = _looks_like_clarification_answer(message, pending_questions)
     rag_hits = _search_ai_consult_rag(message, patient_context)
+    if not is_free_mode and patient_context and not clarification_answered:
+        gaps = await propose_information_gaps(
+            "\n\n".join([
+                f"【本轮问题】{message}",
+                f"【患者上下文】{patient_context}",
+                f"【历史对话】{_format_history(payload.history)}",
+            ])
+        )
+        if gaps:
+            questions = [item["question"] for item in gaps[:3] if item.get("question")]
+            answer_text = "为了避免建议偏差，我需要先确认：\n" + "\n".join(f"{idx}、{question}" for idx, question in enumerate(questions, start=1))
+            async def _clarification_stream():
+                response = {
+                    "code": 0,
+                    "answer": answer_text,
+                    "message_type": "clarification",
+                    "pending_clarifications": questions,
+                    "information_gaps": gaps,
+                    "patient_context_used": bool(patient_context),
+                    "patient_label": patient_label,
+                    "resolved_patient_id": resolved_patient_id,
+                    "resolved_patient_ids": resolved_patient_ids,
+                    "patient_match_source": match_source,
+                    "patient_match_note": match_note,
+                    "intent_primary": intent["primary"],
+                    "intent_focus_section": intent["focus_section"],
+                    "mode": payload.mode,
+                    "rag_sources": [
+                        {"chunk_id": item.get("chunk_id"), "source": item.get("source"), "recommendation": item.get("recommendation"), "recommendation_grade": item.get("recommendation_grade")}
+                        for item in rag_hits[:6]
+                    ],
+                }
+                yield _sse_pack("delta", {"text": answer_text})
+                await _write_ai_consult_log(request=request, payload=payload, answer=response, success=True, model="", patient_ids=resolved_patient_ids, patient_label=patient_label, match_source=match_source, match_note=match_note, rag_hits=rag_hits, metadata={"stream": True, "message_type": "clarification"})
+                yield _sse_pack("done", response)
+
+            return StreamingResponse(
+                _clarification_stream(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache, no-transform", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+            )
+
     prompt_builder = _build_ai_free_chat_prompts if is_free_mode else _build_ai_consult_prompts
     system_prompt, user_prompt = prompt_builder(
         message=message,
