@@ -109,7 +109,10 @@ COPY backend/requirements*.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install -r requirements.common.txt && \
     pip3 install -r requirements.analytics.txt && \
-    pip3 install onnxruntime-gpu==1.20.1 tensorboard
+    pip3 install \
+        onnxruntime-gpu==1.20.1 \
+        'nvidia-cudnn-cu12>=9,<10' \
+        tensorboard
 
 # ---- 2.6 打包工具 ----
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -173,7 +176,11 @@ for pkg in ['sentence_transformers', 'transformers', 'chronos', 'tokenizers',
 binaries = []
 for pkg in ['torch', 'onnxruntime', 'numpy', 'scipy', 'pyarrow']:
     try:
-        binaries += collect_dynamic_libs(pkg)
+        for src, dest in collect_dynamic_libs(pkg):
+            name = os.path.basename(src)
+            if name in {'libonnxruntime_providers_tensorrt.so', 'libtorchaudio_sox.so'}:
+                continue
+            binaries.append((src, dest))
     except Exception:
         pass
 
