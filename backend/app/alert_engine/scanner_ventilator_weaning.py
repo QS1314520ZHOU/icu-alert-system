@@ -115,7 +115,7 @@ class VentilatorWeaningScanner(BaseScanner):
                 pc_above_peep = self.engine._vent_param_priority(cap, ["pressure_control", "pressure_support"], ["param_vent_pc", "param_vent_ps"])
                 vte = self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"])
                 rr = self.engine._vent_param_priority(cap, ["rr_measured", "rr_set"], ["param_vent_resp", "param_HuXiPinLv"])
-                mode = self._vent_mode(cap)
+                mode = await self._vent_mode(device_id, cap)
 
                 driving_pressure = None
                 approximate = False
@@ -282,7 +282,7 @@ class VentilatorWeaningScanner(BaseScanner):
         if triggered > 0:
             self.engine._log_info("撤机筛查", triggered)
 
-    def _vent_mode(self, cap: dict[str, Any]) -> str:
+    async def _vent_mode(self, device_id: str | None, cap: dict[str, Any]) -> str:
         params = cap.get("params") if isinstance(cap.get("params"), dict) else {}
         text = " ".join(
             str(value or "")
@@ -294,6 +294,33 @@ class VentilatorWeaningScanner(BaseScanner):
                 params.get("vent_mode"),
             )
         ).lower()
+        if not text.strip() and device_id:
+            text = (await self._latest_vent_mode_text(device_id)).lower()
+        return self._classify_vent_mode(text)
+
+    async def _latest_vent_mode_text(self, device_id: str) -> str:
+        codes = []
+        for name, default in (("vent_mode", "param_HuXiMoShi"), ("mode", "param_vent_mode")):
+            try:
+                code = self.engine._vent_code(name, default)
+            except Exception:
+                code = default
+            if code:
+                codes.append(str(code))
+        codes = list(dict.fromkeys([*codes, "param_HuXiMoShi", "param_vent_mode"]))
+        cursor = self.engine.db.col("deviceCap").find(
+            {"deviceID": str(device_id), "code": {"$in": codes}},
+            {"time": 1, "code": 1, "strVal": 1, "value": 1, "fVal": 1, "intVal": 1},
+        ).sort("time", -1).limit(20)
+        async for doc in cursor:
+            for key in ("strVal", "value", "fVal", "intVal"):
+                value = doc.get(key)
+                if value not in (None, ""):
+                    return str(value)
+        return ""
+
+    def _classify_vent_mode(self, text: str) -> str:
+        text = str(text or "").lower()
         if any(token in text for token in ("psv", "pressure support", "压力支持", "spont")):
             return "PSV"
         if any(token in text for token in ("pcv", "pressure control", "压力控制")):

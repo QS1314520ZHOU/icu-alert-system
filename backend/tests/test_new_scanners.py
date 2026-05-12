@@ -817,6 +817,14 @@ def test_ventilator_mechanical_power_uses_mode_specific_formula() -> None:
     assert "pressure_support" in psv["formula"]
 
 
+def test_ventilator_mode_classifier_handles_common_labels() -> None:
+    scanner = VentilatorWeaningScanner(SimpleNamespace())
+
+    assert scanner._classify_vent_mode("PSV 压力支持") == "PSV"
+    assert scanner._classify_vent_mode("PCV 压力控制") == "PCV"
+    assert scanner._classify_vent_mode("AC-VC 容量控制") == "VCV"
+
+
 @pytest.mark.asyncio
 async def test_noninvasive_support_scanner_triggers_hfnc_rox_alert() -> None:
     engine = _NoninvasiveEngine()
