@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
+      args:
+        INCLUDE_LOCAL_MODELS: ${INCLUDE_LOCAL_MODELS:-false}
     container_name: icu_alert_api
     restart: always
     ports:
@@ -30,6 +32,7 @@ services:
       # --- Redis ---
       - REDIS_HOST=${REDIS_HOST:-icu_alert_redis}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - ICU_MODELS_DIR=${ICU_MODELS_DIR:-/opt/icu-models}
     volumes:
       - ./backend:/app
       - ./logs:/app/logs

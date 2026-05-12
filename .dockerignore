@@ -21,6 +21,7 @@ dist
 *.zip
 *.7z
 *.rar
+!docker/icu-models/**
 __pycache__
 backend/__pycache__
 backend/.pytest_cache

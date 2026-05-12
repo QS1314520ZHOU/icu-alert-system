@@ -9,6 +9,9 @@ RUN npm run build
 # Stage 2: Backend Runtime
 FROM python:3.11-slim
 
+ARG INCLUDE_LOCAL_MODELS=false
+ARG LOCAL_MODELS_CONTEXT=docker/icu-models
+
 WORKDIR /app
 
 # Install system dependencies
@@ -23,9 +26,18 @@ COPY backend/ ./
 # Copy frontend build to backend static directory
 COPY --from=frontend-build /frontend/dist ./static
 
+# Optional offline model bundle. Put Chronos weights at:
+#   docker/icu-models/chronos/{config.json,model.safetensors,...}
+# Then build with:
+#   docker build -f backend/Dockerfile --build-arg INCLUDE_LOCAL_MODELS=true -t icu-alert:chronos .
+COPY ${LOCAL_MODELS_CONTEXT}/ /opt/icu-models/
+RUN if [ "${INCLUDE_LOCAL_MODELS}" != "true" ]; then rm -rf /opt/icu-models; fi && \
+    mkdir -p /opt/icu-models
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV APP_CONFIG_FILE=/app/config.yaml
+ENV ICU_MODELS_DIR=/opt/icu-models
 
 EXPOSE 8000
 

@@ -225,7 +225,38 @@
 
 系统采用 Docker 化一键部署，核心服务包括 `api`（FastAPI 服务）和 `redis`（缓存与消息队列）。业务数据依赖 MongoDB。
 
-### 3.1 配置文件 (`docker-compose.yml`) 结构解析
+### 3.1 Docker 离线内置 Chronos 轨迹预测模型
+
+可以把 Chronos Python 依赖和模型权重一起打进 Docker 镜像。Ubuntu / OEL 部署时只需要拉取镜像，不再运行时下载。
+
+1. 在构建机准备模型目录：
+
+```text
+docker/icu-models/chronos/
+  config.json
+  model.safetensors
+```
+
+2. 构建内置模型镜像：
+
+```bash
+docker build -f backend/Dockerfile \
+  --build-arg INCLUDE_LOCAL_MODELS=true \
+  -t icu-alert-system:chronos .
+```
+
+或使用 compose：
+
+```bash
+INCLUDE_LOCAL_MODELS=true docker compose build api
+docker compose up -d
+```
+
+镜像运行时默认设置 `ICU_MODELS_DIR=/opt/icu-models`，后端会从 `/opt/icu-models/chronos` lazy load Chronos。模型缺失时仍按 unavailable 降级，不影响服务启动。
+
+注意：不要把大模型权重提交进 Git；把权重放在构建机本地 `docker/icu-models/chronos/`，构建完成后将镜像推送到院内私有镜像仓库即可。`chronos-forecasting` 已在后端依赖中声明；如果使用自定义基础镜像，请确认镜像内可执行 `python -c "import chronos"`。
+
+### 3.2 配置文件 (`docker-compose.yml`) 结构解析
 
 `docker-compose.yml` 里面通过 `${VARIABLE_NAME}` 读取环境变量。它的关键配置块如下：
 
@@ -243,7 +274,7 @@ services:
       - redis
 ```
 
-### 3.2 动态配置中心与 .env 文件
+### 3.3 动态配置中心与 .env 文件
 
 为了支持高度定制和不停机的动态更新，本系统采用 **双层配置架构**：
 
