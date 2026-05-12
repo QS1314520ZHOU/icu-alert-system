@@ -267,8 +267,15 @@ class DatabaseManager:
                 name="scanner_runs_created_at_ttl_14d",
                 expire_after_seconds=14 * 24 * 3600,
             )
-            await self.col("llm_call_logs").create_index([("created_at", -1)])
-            await self.col("llm_call_logs").create_index([("cache_key", 1), ("created_at", -1)])
+            llm_call_col = self.col("llm_call_logs")
+            await llm_call_col.create_index([("created_at", -1)])
+            await llm_call_col.create_index([("cache_key", 1), ("created_at", -1)])
+            await ensure_ttl_index(
+                llm_call_col,
+                [("created_at", 1)],
+                name="llm_call_logs_created_at_ttl_14d",
+                expire_after_seconds=14 * 24 * 3600,
+            )
 
             logger.info("✅ 预警系统索引创建完成")
             await self._seed_default_rules()

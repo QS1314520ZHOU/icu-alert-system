@@ -406,7 +406,40 @@ def _looks_like_clarification_answer(message: str, pending_clarifications: list[
     text = _safe_text(message)
     if not text:
         return False
-    return len(text) >= 1
+    normalized_text = _normalize_clarification_text(text)
+    if not normalized_text:
+        return False
+    for question in pending:
+        normalized_question = _normalize_clarification_text(question)
+        if not normalized_question:
+            continue
+        overlap = len(set(normalized_text) & set(normalized_question)) / max(1, min(len(set(normalized_text)), len(set(normalized_question))))
+        if overlap >= 0.3:
+            return True
+        for keyword in _clarification_keywords(question):
+            if keyword in normalized_text:
+                return True
+        if SequenceMatcher(None, normalized_text, normalized_question).ratio() >= 0.3:
+            return True
+    return False
+
+
+def _normalize_clarification_text(value: str) -> str:
+    return re.sub(r"[^0-9a-zA-Z\u4e00-\u9fff]+", "", str(value or "").lower())
+
+
+def _clarification_keywords(question: str) -> list[str]:
+    stopwords = {"是否", "有没有", "请问", "目前", "当前", "需要", "确认", "这个", "病人", "患者", "哪些", "什么", "如何", "多少"}
+    tokens = re.findall(r"[a-zA-Z0-9]{2,}|[\u4e00-\u9fff]{2,}", str(question or "").lower())
+    keywords: list[str] = []
+    for token in tokens:
+        if token in stopwords:
+            continue
+        if len(token) > 12:
+            keywords.extend([token[i : i + 4] for i in range(0, len(token), 4) if len(token[i : i + 4]) >= 2])
+        else:
+            keywords.append(token)
+    return keywords[:10]
 
 
 def _parse_information_gaps(raw: str) -> list[dict[str, Any]]:

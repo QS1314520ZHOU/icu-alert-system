@@ -227,6 +227,13 @@ def test_resolve_ai_consult_limits_supports_patient_or_complex_case() -> None:
     assert complex_case[0] >= 4096
 
 
+def test_clarification_answer_requires_overlap_or_keywords() -> None:
+    pending = ["最近 2 小时乳酸和 MAP 趋势如何？"]
+
+    assert chat._looks_like_clarification_answer("乳酸从 2.1 升到 3.5，MAP 需要去甲肾维持。", pending) is True
+    assert chat._looks_like_clarification_answer("好的，继续分析一下。", pending) is False
+
+
 @pytest.mark.asyncio
 async def test_ai_chat_consult_strips_think_content(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake_build_patient_context(patient_id: str | None, patient_ids: list[str] | None, message: str):

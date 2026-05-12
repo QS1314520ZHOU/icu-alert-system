@@ -87,6 +87,7 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
         self.rag_service = rag_service
         self.ai_monitor = ai_monitor
         self.ai_handoff_service = ai_handoff_service
+        self.knowledge_graph = ClinicalKnowledgeGraph(db=self.db, config=self.config, alert_engine=self.alert_engine, rag_service=self.rag_service)
 
     def _cfg(self) -> dict[str, Any]:
         cfg = (self.config.yaml_cfg or {}).get("ai_service", {}).get("clinical_reasoning", {})
@@ -316,6 +317,7 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
         if not problems:
             problems = ["当前核心临床问题需床旁复核"]
         return {
+            "_used_fallback": True,
             "hypotheses": [
                 {
                     "rank": idx,
@@ -396,11 +398,10 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
         }
         kg_results: list[dict[str, Any]] = []
         try:
-            kg = ClinicalKnowledgeGraph(db=self.db, config=self.config, alert_engine=self.alert_engine, rag_service=self.rag_service)
             pid = str(patient.get("id") or "")
             for problem in (twin.get("problem_list") or [])[:3]:
-                if pid and hasattr(kg, "causal_chain_analysis"):
-                    result = await kg.causal_chain_analysis(pid, str(problem))
+                if pid and hasattr(self.knowledge_graph, "causal_chain_analysis"):
+                    result = await self.knowledge_graph.causal_chain_analysis(pid, str(problem))
                     if isinstance(result, dict):
                         kg_results.append(result)
         except Exception as exc:
@@ -419,12 +420,13 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
             "rag_hits": rag_hits,
             "knowledge_graph": kg_results,
         }
+        evidence["reflect_evidence"] = self._compact_action_evidence(evidence)
         if self.ai_monitor:
             await self.ai_monitor.log_llm_call(
                 module="clinical_reasoning_action",
                 model="scanner_rag_knowledge_graph",
                 prompt=json.dumps(plan, ensure_ascii=False, default=str),
-                output=json.dumps(evidence, ensure_ascii=False, default=str),
+                output=json.dumps(evidence["reflect_evidence"], ensure_ascii=False, default=str),
                 latency_ms=0.0,
                 success=True,
                 meta={
@@ -437,13 +439,78 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
             )
         return evidence
 
+    def _compact_action_evidence(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        plan = evidence.get("verification_plan") if isinstance(evidence.get("verification_plan"), dict) else {}
+        verification_rows = plan.get("verification_plan") if isinstance(plan.get("verification_plan"), list) else []
+        rag_hits = evidence.get("rag_hits") if isinstance(evidence.get("rag_hits"), list) else []
+        kg_results = evidence.get("knowledge_graph") if isinstance(evidence.get("knowledge_graph"), list) else []
+        scanner = evidence.get("scanner_evidence") if isinstance(evidence.get("scanner_evidence"), dict) else {}
+        dt = evidence.get("digital_twin_evidence") if isinstance(evidence.get("digital_twin_evidence"), dict) else {}
+
+        compact_rows: list[dict[str, Any]] = []
+        for idx, row in enumerate(verification_rows[:3]):
+            if not isinstance(row, dict):
+                continue
+            compact_rows.append(
+                {
+                    "hypothesis": str(row.get("hypothesis") or ""),
+                    "information_needs": [
+                        {
+                            "item": str(need.get("item") or ""),
+                            "preferred_source": str(need.get("preferred_source") or ""),
+                            "would_change_management": bool(need.get("would_change_management")),
+                        }
+                        for need in (row.get("information_needs") or [])[:4]
+                        if isinstance(need, dict)
+                    ],
+                    "rag_hits": [self._compact_rag_hit(item) for item in rag_hits[idx : idx + 3]],
+                    "knowledge_graph": [self._compact_kg_result(item) for item in kg_results[idx : idx + 3]],
+                }
+            )
+        if not compact_rows:
+            compact_rows = [{"hypothesis": "未生成验证计划", "rag_hits": [self._compact_rag_hit(item) for item in rag_hits[:3]], "knowledge_graph": [self._compact_kg_result(item) for item in kg_results[:3]]}]
+
+        return {
+            "verification_by_hypothesis": compact_rows,
+            "digital_twin_evidence": {
+                "problem_list": (dt.get("problem_list") or [])[:8],
+                "facts": dt.get("facts") or {},
+                "nursing_note_analysis": dt.get("nursing_note_analysis") or {},
+                "similar_case_review": dt.get("similar_case_review") or {},
+            },
+            "scanner_evidence": {
+                "recent_alerts_24h": (scanner.get("recent_alerts_24h") or [])[:6],
+                "recent_scores_24h": (scanner.get("recent_scores_24h") or [])[:6],
+                "temporal_forecast": scanner.get("temporal_forecast") or {},
+                "proactive_management": scanner.get("proactive_management") or {},
+            },
+        }
+
+    @staticmethod
+    def _compact_rag_hit(item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "chunk_id": str(item.get("chunk_id") or ""),
+            "source": str(item.get("source") or ""),
+            "recommendation": str(item.get("recommendation") or "")[:220],
+            "quote": str(item.get("content") or "")[:260],
+        }
+
+    @staticmethod
+    def _compact_kg_result(item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "finding": str(item.get("abnormal_finding") or item.get("finding") or ""),
+            "top_causes": (item.get("top_causes") or item.get("causes") or [])[:3] if isinstance(item.get("top_causes") or item.get("causes"), list) else [],
+            "recommended_actions": (item.get("recommended_actions") or item.get("actions") or [])[:3] if isinstance(item.get("recommended_actions") or item.get("actions"), list) else [],
+        }
+
     async def _reflect(self, evidence, twin) -> dict:
         model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
         rag_hits = evidence.get("rag_hits") if isinstance(evidence.get("rag_hits"), list) else []
+        reflect_evidence = evidence.get("reflect_evidence") if isinstance(evidence.get("reflect_evidence"), dict) else self._compact_action_evidence(evidence)
         prompt = "\n\n".join([
             self._compose_prompt(twin, rag_hits),
             "SPAR Action evidence:",
-            json.dumps(evidence, ensure_ascii=False, default=str),
+            json.dumps(reflect_evidence, ensure_ascii=False, default=str),
             "请输出最终 JSON，保持 schema 不变。",
         ])
         parsed, _, _, _ = await self._call_json_stage(
@@ -618,7 +685,10 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
         model = self.config.llm_reasoning_model or self.config.llm_model_medical or self.config.settings.LLM_MODEL
         start_ms = AiMonitor.now_ms() if self.ai_monitor else 0.0
         hypotheses = await self._strategy(twin)
-        verification_plan = await self._plan(hypotheses, twin)
+        if hypotheses.get("_used_fallback"):
+            verification_plan = self._fallback_verification_plan(hypotheses)
+        else:
+            verification_plan = await self._plan(hypotheses, twin)
         evidence = await self._action(verification_plan, twin)
         rag_hits = evidence.get("rag_hits") if isinstance(evidence.get("rag_hits"), list) else []
         plan = await self._reflect(evidence, twin)
