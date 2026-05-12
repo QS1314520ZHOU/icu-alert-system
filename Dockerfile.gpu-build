@@ -144,9 +144,6 @@ sys.path.insert(0, project_root)
 
 # ========== 子模块 ==========
 app_imports = collect_submodules('app')
-torch_imports = collect_submodules('torch')
-torchvision_imports = collect_submodules('torchvision')
-torchaudio_imports = collect_submodules('torchaudio')
 transformer_imports = collect_submodules('transformers')
 chronos_imports = collect_submodules('chronos')
 sentence_transformer_imports = collect_submodules('sentence_transformers')
@@ -244,14 +241,10 @@ binaries += cuda_bins
 print(f"[SPEC] Collected {len(cuda_bins)} CUDA .so files")
 print(f"[SPEC] Collected {len(torch_structured_bins)} structured torch .so files")
 print(f"[SPEC] Collected {len(app_imports)} app submodules")
-print(f"[SPEC] Collected {len(torch_imports)} torch submodules")
 
 # ========== hidden imports ==========
 hidden_imports = (
     app_imports
-    + torch_imports
-    + torchvision_imports
-    + torchaudio_imports
     + transformer_imports
     + chronos_imports
     + sentence_transformer_imports
@@ -270,8 +263,8 @@ hidden_imports = (
     'redis', 'redis.asyncio',
     # AI/ML (入口模块, PyInstaller 自动追踪子依赖)
     'torch', 'torch.cuda', 'torch.backends', 'torch.backends.cudnn',
-    'torch._C', 'torch._C._nn', 'torch._C._fft', 'torch._C._linalg',
-    'torch._C._nested', 'torch._C._sparse', 'torch._C._special',
+    'torch._C', 'torch.nn', 'torch.nn.functional', 'torch.jit',
+    'torch.serialization', 'torch.storage', 'torch.types',
     'torchvision', 'torchaudio',
     'transformers', 'chronos', 'tokenizers', 'sentence_transformers',
     'onnxruntime',
