@@ -326,7 +326,11 @@ RUN cd /build && \
         { echo "=== BUILD FAILED ==="; tail -100 /build/pyinstaller.log; exit 1; } && \
     echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)" && \
     cd /build/dist/icu-alert-system && \
-    env LD_LIBRARY_PATH="/build/dist/icu-alert-system/_internal:${LD_LIBRARY_PATH:-}" \
+    SELFTEST_LD_PATH="/build/dist/icu-alert-system/_internal:/build/dist/icu-alert-system/_internal/torch/lib:/build/dist/icu-alert-system/_internal/onnxruntime/capi" && \
+    for d in /build/dist/icu-alert-system/_internal/nvidia/*/lib; do \
+        [ -d "$d" ] && SELFTEST_LD_PATH="${SELFTEST_LD_PATH}:$d"; \
+    done && \
+    env LD_LIBRARY_PATH="${SELFTEST_LD_PATH}:${LD_LIBRARY_PATH:-}" \
         ICU_IMPORT_SELF_TEST=1 \
         ./icu-alert-system || \
         { echo "=== PACKAGED BINARY SELFTEST FAILED ==="; tail -120 /build/pyinstaller.log; exit 1; }
@@ -411,7 +415,13 @@ load_env() {
 
 setup_libs() {
     if [ -d "${SCRIPT_DIR}/_internal" ]; then
-        export LD_LIBRARY_PATH="${SCRIPT_DIR}/_internal:${LD_LIBRARY_PATH:-}"
+        LIB_PATHS="${SCRIPT_DIR}/_internal"
+        [ -d "${SCRIPT_DIR}/_internal/torch/lib" ] && LIB_PATHS="${LIB_PATHS}:${SCRIPT_DIR}/_internal/torch/lib"
+        [ -d "${SCRIPT_DIR}/_internal/onnxruntime/capi" ] && LIB_PATHS="${LIB_PATHS}:${SCRIPT_DIR}/_internal/onnxruntime/capi"
+        for d in "${SCRIPT_DIR}"/_internal/nvidia/*/lib; do
+            [ -d "$d" ] && LIB_PATHS="${LIB_PATHS}:$d"
+        done
+        export LD_LIBRARY_PATH="${LIB_PATHS}:${LD_LIBRARY_PATH:-}"
     fi
 }
 

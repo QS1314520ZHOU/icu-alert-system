@@ -80,7 +80,23 @@ def setup_cuda_env():
     internal = os.path.join(base, '_internal') if getattr(sys, 'frozen', False) else None
 
     lib_paths = []
-    for d in [internal, '/usr/local/cuda/lib64', '/usr/local/cuda-12.1/lib64', '/usr/lib/x86_64-linux-gnu']:
+    if internal and os.path.isdir(internal):
+        lib_paths.append(internal)
+        for relative in [
+            os.path.join('torch', 'lib'),
+            os.path.join('onnxruntime', 'capi'),
+        ]:
+            candidate = os.path.join(internal, relative)
+            if os.path.isdir(candidate):
+                lib_paths.append(candidate)
+        nvidia_root = os.path.join(internal, 'nvidia')
+        if os.path.isdir(nvidia_root):
+            for name in os.listdir(nvidia_root):
+                candidate = os.path.join(nvidia_root, name, 'lib')
+                if os.path.isdir(candidate):
+                    lib_paths.append(candidate)
+
+    for d in ['/usr/local/cuda/lib64', '/usr/local/cuda-12.1/lib64', '/usr/lib/x86_64-linux-gnu']:
         if d and os.path.isdir(d):
             lib_paths.append(d)
 
