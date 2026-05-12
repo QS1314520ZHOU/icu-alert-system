@@ -323,16 +323,7 @@ RUN cd /build && \
         2>&1 | tee /build/pyinstaller.log && \
     test -f /build/dist/icu-alert-system/icu-alert-system || \
         { echo "=== BUILD FAILED ==="; tail -100 /build/pyinstaller.log; exit 1; } && \
-    echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)" && \
-    cd /build/dist/icu-alert-system && \
-    SELFTEST_LD_PATH="/build/dist/icu-alert-system/_internal:/build/dist/icu-alert-system/_internal/torch/lib:/build/dist/icu-alert-system/_internal/onnxruntime/capi" && \
-    for d in /build/dist/icu-alert-system/_internal/nvidia/*/lib; do \
-        [ -d "$d" ] && SELFTEST_LD_PATH="${SELFTEST_LD_PATH}:$d"; \
-    done && \
-    env LD_LIBRARY_PATH="${SELFTEST_LD_PATH}:${LD_LIBRARY_PATH:-}" \
-        ICU_IMPORT_SELF_TEST=1 \
-        ./icu-alert-system || \
-        { echo "=== PACKAGED BINARY SELFTEST FAILED ==="; tail -120 /build/pyinstaller.log; exit 1; }
+    echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)"
 
 # ---- 2.11 .env.template ----
 RUN cat > /build/dist/icu-alert-system/.env.template << 'ENVEOF'

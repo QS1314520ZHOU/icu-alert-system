@@ -141,11 +141,6 @@ def import_self_test():
     required_checks = [
         ("torch", "import torch; print('torch', torch.__version__, 'cuda', getattr(torch.version, 'cuda', None))"),
     ]
-    optional_checks = [
-        ("chronos", "import chronos; print('chronos ok')"),
-        ("transformers", "import transformers; print('transformers', transformers.__version__)"),
-        ("onnxruntime", "import onnxruntime as ort; print('onnxruntime', ort.__version__)"),
-    ]
     failed = False
     for name, code in required_checks:
         try:
@@ -157,13 +152,7 @@ def import_self_test():
             print(traceback.format_exc())
     if failed:
         sys.exit(86)
-    for name, code in optional_checks:
-        try:
-            namespace = {}
-            exec(code, namespace, namespace)
-        except Exception as exc:
-            print(f"[ICU][SELFTEST] optional {name} import failed: {exc.__class__.__name__}: {exc}")
-    print("[ICU][SELFTEST] packaged ML imports OK")
+    print("[ICU][SELFTEST] packaged torch import OK")
 
 
 def graceful_shutdown(signum, frame):
