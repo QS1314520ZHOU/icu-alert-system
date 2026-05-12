@@ -64,6 +64,38 @@ DEFAULT_TRAJECTORY_FORECAST_CONFIG = {
     ],
 }
 
+DEFAULT_FIELD_MAPPINGS = [
+    {"source_name": "deviceCap", "source_code": "param_HuXiMoShi", "standard_concept": "vent_mode", "unit": "", "module": "respiratory", "enabled": True, "description": "通气模式"},
+    {"source_name": "deviceCap", "source_code": "param_vent_mode", "standard_concept": "vent_mode", "unit": "", "module": "respiratory", "enabled": True, "description": "通气模式备用字段"},
+    {"source_name": "deviceCap", "source_code": "param_FiO2", "standard_concept": "fio2", "unit": "%", "module": "respiratory", "enabled": True, "description": "吸入氧浓度"},
+    {"source_name": "deviceCap", "source_code": "param_fio2", "standard_concept": "fio2", "unit": "%", "module": "respiratory", "enabled": True, "description": "吸入氧浓度备用字段"},
+    {"source_name": "deviceCap", "source_code": "param_vent_measure_peep", "standard_concept": "peep_measured", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "实测 PEEP"},
+    {"source_name": "deviceCap", "source_code": "param_vent_peep", "standard_concept": "peep_set", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "设置 PEEP"},
+    {"source_name": "deviceCap", "source_code": "param_vent_vt", "standard_concept": "vte", "unit": "mL", "module": "respiratory", "enabled": True, "description": "呼出潮气量"},
+    {"source_name": "deviceCap", "source_code": "param_vent_vti", "standard_concept": "vti", "unit": "mL", "module": "respiratory", "enabled": True, "description": "吸入潮气量"},
+    {"source_name": "deviceCap", "source_code": "param_vent_set_vt", "standard_concept": "vt_set", "unit": "mL", "module": "respiratory", "enabled": True, "description": "设置潮气量"},
+    {"source_name": "deviceCap", "source_code": "param_vent_pip", "standard_concept": "pip", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "气道峰压"},
+    {"source_name": "deviceCap", "source_code": "param_vent_plat_pressure", "standard_concept": "pplat", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "平台压"},
+    {"source_name": "deviceCap", "source_code": "param_vent_resp", "standard_concept": "rr_measured", "unit": "/min", "module": "respiratory", "enabled": True, "description": "呼吸机实测呼吸频率"},
+    {"source_name": "deviceCap", "source_code": "param_HuXiPinLv", "standard_concept": "rr_set", "unit": "/min", "module": "respiratory", "enabled": True, "description": "设置呼吸频率"},
+    {"source_name": "deviceCap", "source_code": "param_vent_pc", "standard_concept": "pressure_control", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "压力控制水平"},
+    {"source_name": "deviceCap", "source_code": "param_vent_ps", "standard_concept": "pressure_support", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "压力支持水平"},
+    {"source_name": "deviceCap", "source_code": "param_vent_set_PeakFlow", "standard_concept": "peak_flow", "unit": "L/min", "module": "respiratory", "enabled": True, "description": "设置峰流速"},
+    {"source_name": "deviceCap", "source_code": "param_vent_P0.1", "standard_concept": "p01", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "P0.1"},
+    {"source_name": "deviceCap", "source_code": "param_vent_C_STAT", "standard_concept": "static_compliance", "unit": "mL/cmH2O", "module": "respiratory", "enabled": True, "description": "静态顺应性"},
+    {"source_name": "deviceCap", "source_code": "param_vent_pause_C_STAT", "standard_concept": "static_compliance", "unit": "mL/cmH2O", "module": "respiratory", "enabled": True, "description": "暂停法静态顺应性"},
+    {"source_name": "deviceCap", "source_code": "param_jingTaiShunYingXing", "standard_concept": "static_compliance", "unit": "mL/cmH2O", "module": "respiratory", "enabled": True, "description": "静态顺应性中文字段"},
+    {"source_name": "deviceCap", "source_code": "param_TiWei", "standard_concept": "position", "unit": "", "module": "respiratory", "enabled": True, "description": "体位"},
+    {"source_name": "deviceCap", "source_code": "param_qiDaoZuLi", "standard_concept": "airway_resistance", "unit": "cmH2O/L/s", "module": "respiratory", "enabled": True, "description": "气道阻力"},
+    {"source_name": "bedside", "source_code": "param_spo2", "standard_concept": "spo2", "unit": "%", "module": "respiratory", "enabled": True, "description": "血氧饱和度"},
+    {"source_name": "bedside", "source_code": "param_resp", "standard_concept": "rr_measured", "unit": "/min", "module": "respiratory", "enabled": True, "description": "床旁呼吸频率"},
+    {"source_name": "bedside", "source_code": "param_hfnc_flow", "standard_concept": "hfnc_flow", "unit": "L/min", "module": "respiratory", "enabled": True, "description": "HFNC 流量"},
+    {"source_name": "bedside", "source_code": "param_oxygen_flow", "standard_concept": "hfnc_flow", "unit": "L/min", "module": "respiratory", "enabled": True, "description": "氧疗流量"},
+    {"source_name": "bedside", "source_code": "param_niv_ipap", "standard_concept": "niv_ipap", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "NIV IPAP"},
+    {"source_name": "bedside", "source_code": "param_niv_epap", "standard_concept": "niv_epap", "unit": "cmH2O", "module": "respiratory", "enabled": True, "description": "NIV EPAP"},
+    {"source_name": "bedside", "source_code": "param_niv_leak", "standard_concept": "niv_leak", "unit": "L/min", "module": "respiratory", "enabled": True, "description": "NIV 漏气量"},
+]
+
 
 class RuntimeConfigService:
     def __init__(self, db) -> None:
@@ -86,6 +118,7 @@ class RuntimeConfigService:
         modules_doc = await self._get_config_doc("modules", DEFAULT_MODULES)
         ai_doc = await self._get_config_doc("ai", DEFAULT_AI_CONFIG)
         trajectory_doc = await self._get_config_doc("trajectory_forecast", DEFAULT_TRAJECTORY_FORECAST_CONFIG)
+        await self.ensure_default_field_mappings()
         rules = [serialize_doc(row) async for row in self.db.col("alert_rules").find({}).sort([("category", 1), ("rule_id", 1)]).limit(300)]
         mappings = [serialize_doc(row) async for row in self.db.col("field_mapping").find({}).sort([("standard_concept", 1), ("source_name", 1)]).limit(500)]
         return {
@@ -93,10 +126,23 @@ class RuntimeConfigService:
             "ai": ai_doc.get("value") or {},
             "trajectory_forecast": trajectory_doc.get("value") or {},
             "trajectory_code_options": TRAJECTORY_CODE_OPTIONS,
+            "field_mapping_defaults": DEFAULT_FIELD_MAPPINGS,
             "alert_rules": rules,
             "field_mappings": mappings,
             "generated_at": datetime.now(),
         }
+
+    async def ensure_default_field_mappings(self) -> None:
+        now = datetime.now()
+        for item in DEFAULT_FIELD_MAPPINGS:
+            await self.db.col("field_mapping").update_one(
+                {"source_code": item["source_code"], "source_name": item["source_name"]},
+                {
+                    "$setOnInsert": {**item, "created_at": now},
+                    "$set": {"default_module": item.get("module"), "default_standard_concept": item.get("standard_concept")},
+                },
+                upsert=True,
+            )
 
     async def history(self, key: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         query: dict[str, Any] = {}

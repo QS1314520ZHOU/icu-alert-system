@@ -30,6 +30,7 @@ class BaseEngine:
         self._param_codes_all = self._collect_param_codes()
         self._temporal_model_runtime: TemporalRiskModelRuntime | None = None
         self._baseline_cache: dict[tuple[str, str, int], dict[str, Any] | None] = {}
+        self._field_mapping_cache: dict[tuple[str, str], tuple[datetime, list[str]]] = {}
 
     def _log_info(self, name: str, count: int) -> None:
         logger.info(f"[{name}] 本轮触发 {count} 条预警")
@@ -296,20 +297,87 @@ class BaseEngine:
         return self._cfg("ventilator", name, "code", default=default)
 
     def _vent_param(self, cap: dict, name: str, default: str | None = None) -> float | None:
-        code = self._vent_code(name, default)
-        if not code:
-            return None
-        return _extract_param(cap, code)
-
-    def _vent_param_priority(self, cap: dict, names: list[str], defaults: list[str]) -> float | None:
-        for i, name in enumerate(names):
-            code = self._vent_code(name, defaults[i] if i < len(defaults) else None)
-            if not code:
-                continue
+        codes = self._vent_mapping_codes_sync(name, [default] if default else [])
+        for code in codes:
             v = _extract_param(cap, code)
             if v is not None:
                 return v
         return None
+
+    def _vent_param_priority(self, cap: dict, names: list[str], defaults: list[str]) -> float | None:
+        for i, name in enumerate(names):
+            for code in self._vent_mapping_codes_sync(name, [defaults[i]] if i < len(defaults) and defaults[i] else []):
+                v = _extract_param(cap, code)
+                if v is not None:
+                    return v
+        return None
+
+    def _vent_mapping_codes_sync(self, concept: str, defaults: list[str] | None = None) -> list[str]:
+        codes: list[str] = []
+        try:
+            cfg_code = self._vent_code(concept, None)
+            if cfg_code:
+                codes.append(str(cfg_code))
+        except Exception:
+            pass
+        codes.extend(str(item) for item in (defaults or []) if item)
+        cache_key = ("respiratory", concept)
+        cached = self._field_mapping_cache.get(cache_key)
+        if cached and (datetime.now() - cached[0]).total_seconds() < 60:
+            codes.extend(cached[1])
+            return list(dict.fromkeys(codes))
+        try:
+            cursor = self.db.col("field_mapping").find(
+                {
+                    "enabled": {"$ne": False},
+                    "module": "respiratory",
+                    "standard_concept": concept,
+                    "source_name": {"$in": ["deviceCap", "bedside"]},
+                },
+                {"source_code": 1},
+            ).limit(100)
+            docs = getattr(cursor, "_docs", None)
+            if isinstance(docs, list):
+                mapped: list[str] = []
+                for row in docs:
+                    code = str(row.get("source_code") or "").strip()
+                    if code:
+                        mapped.append(code)
+                self._field_mapping_cache[cache_key] = (datetime.now(), mapped)
+                codes.extend(mapped)
+        except Exception:
+            pass
+        return list(dict.fromkeys(codes))
+
+    async def _field_mapping_codes(
+        self,
+        *,
+        module: str,
+        concepts: list[str],
+        source_names: list[str] | None = None,
+        defaults: list[str] | None = None,
+    ) -> list[str]:
+        codes = list(defaults or [])
+        try:
+            query: dict[str, Any] = {
+                "enabled": {"$ne": False},
+                "module": module,
+                "standard_concept": {"$in": list(concepts)},
+            }
+            if source_names:
+                query["source_name"] = {"$in": list(source_names)}
+            cursor = self.db.col("field_mapping").find(query, {"source_code": 1}).limit(200)
+            mapped: list[str] = []
+            async for doc in cursor:
+                code = str(doc.get("source_code") or "").strip()
+                if code:
+                    mapped.append(code)
+            for concept in concepts:
+                self._field_mapping_cache[(module, str(concept))] = (datetime.now(), list(mapped))
+            codes.extend(mapped)
+        except Exception:
+            pass
+        return list(dict.fromkeys([code for code in codes if str(code).strip()]))
 
     def _get_map(self, cap: dict) -> float | None:
         keys = self._cfg("vital_signs", "map_priority", default=["param_ibp_m", "param_nibp_m"])

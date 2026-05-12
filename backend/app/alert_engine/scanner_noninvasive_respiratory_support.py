@@ -79,30 +79,21 @@ class NoninvasiveRespiratorySupportScanner(BaseScanner):
         elif self._contains_any(bind_text, cfg.get("niv_keywords", ["niv", "无创", "bipap", "cpap", "noninvasive"])):
             support_type = "NIV"
 
-        codes = list(
-            dict.fromkeys(
-                [
-                    "param_spo2",
-                    "param_resp",
-                    "param_HuXiPinLv",
-                    "param_FiO2",
-                    "param_fio2",
-                    "param_hfnc_flow",
-                    "param_oxygen_flow",
-                    "param_niv_ipap",
-                    "param_niv_epap",
-                    "param_niv_leak",
-                ]
-            )
+        code_map = await self._support_code_map()
+        codes = list(dict.fromkeys([code for values in code_map.values() for code in values]))
+        snapshot = await self.engine._get_latest_param_snapshot_by_pid(
+            patient_id,
+            codes=codes,
+            lookback_minutes=int(cfg.get("lookback_minutes", 120)),
+            limit=1000,
         )
-        snapshot = await self.engine._get_latest_param_snapshot_by_pid(patient_id, codes=codes, lookback_minutes=int(cfg.get("lookback_minutes", 120)), limit=1000)
         params = snapshot.get("params") if isinstance(snapshot, dict) else {}
-        fio2 = self._first(params, ["param_FiO2", "param_fio2"])
-        flow = self._first(params, ["param_hfnc_flow", "param_oxygen_flow"])
+        fio2 = self._first(params, code_map["fio2"])
+        flow = self._first(params, code_map["hfnc_flow"])
         if support_type is None:
             if flow is not None and flow >= float(cfg.get("hfnc_flow_threshold_l_min", 30)):
                 support_type = "HFNC"
-            elif self._first(params, ["param_niv_ipap", "param_niv_epap"]) is not None:
+            elif self._first(params, code_map["niv_ipap"] + code_map["niv_epap"]) is not None:
                 support_type = "NIV"
         if support_type is None:
             return None
@@ -114,9 +105,10 @@ class NoninvasiveRespiratorySupportScanner(BaseScanner):
             "snapshot_time": snapshot.get("time") if isinstance(snapshot, dict) else now,
             "fio2": fio2,
             "flow_l_min": flow,
-            "ipap": self._first(params, ["param_niv_ipap"]),
-            "epap": self._first(params, ["param_niv_epap"]),
-            "leak": self._first(params, ["param_niv_leak"]),
+            "ipap": self._first(params, code_map["niv_ipap"]),
+            "epap": self._first(params, code_map["niv_epap"]),
+            "leak": self._first(params, code_map["niv_leak"]),
+            "code_map": code_map,
         }
 
     async def _latest_support_bind(self, patient_id: str) -> dict[str, Any] | None:
@@ -141,8 +133,9 @@ class NoninvasiveRespiratorySupportScanner(BaseScanner):
     ) -> dict[str, Any] | None:
         patient_id = str(patient_doc.get("_id"))
         params = support.get("params") or {}
-        spo2 = self._first(params, ["param_spo2"])
-        rr = self._first(params, ["param_resp", "param_HuXiPinLv"])
+        code_map = support.get("code_map") or {}
+        spo2 = self._first(params, code_map.get("spo2") or ["param_spo2"])
+        rr = self._first(params, code_map.get("rr_measured") or ["param_resp", "param_HuXiPinLv"])
         fio2_frac = _fio2_fraction(support.get("fio2"))
         if spo2 is None or rr is None or rr <= 0 or fio2_frac is None or fio2_frac <= 0:
             return None
@@ -188,8 +181,9 @@ class NoninvasiveRespiratorySupportScanner(BaseScanner):
     ) -> dict[str, Any] | None:
         patient_id = str(patient_doc.get("_id"))
         params = support.get("params") or {}
-        spo2 = self._first(params, ["param_spo2"])
-        rr = self._first(params, ["param_resp", "param_HuXiPinLv"])
+        code_map = support.get("code_map") or {}
+        spo2 = self._first(params, code_map.get("spo2") or ["param_spo2"])
+        rr = self._first(params, code_map.get("rr_measured") or ["param_resp", "param_HuXiPinLv"])
         fio2_frac = _fio2_fraction(support.get("fio2"))
         labs = await self.engine._get_latest_labs_map(patient_doc.get("hisPid"), lookback_hours=6) if patient_doc.get("hisPid") else {}
         ph = _to_float(((labs.get("ph") or {}).get("value")) if isinstance(labs.get("ph"), dict) else None)
@@ -274,6 +268,29 @@ class NoninvasiveRespiratorySupportScanner(BaseScanner):
             if value is not None:
                 return value
         return None
+
+    async def _support_code_map(self) -> dict[str, list[str]]:
+        defaults = {
+            "spo2": ["param_spo2"],
+            "rr_measured": ["param_resp", "param_HuXiPinLv"],
+            "fio2": ["param_FiO2", "param_fio2"],
+            "hfnc_flow": ["param_hfnc_flow", "param_oxygen_flow"],
+            "niv_ipap": ["param_niv_ipap"],
+            "niv_epap": ["param_niv_epap"],
+            "niv_leak": ["param_niv_leak"],
+        }
+        out: dict[str, list[str]] = {}
+        for concept, fallback in defaults.items():
+            if hasattr(self.engine, "_field_mapping_codes"):
+                out[concept] = await self.engine._field_mapping_codes(
+                    module="respiratory",
+                    concepts=[concept],
+                    source_names=["bedside", "deviceCap"],
+                    defaults=fallback,
+                )
+            else:
+                out[concept] = fallback
+        return out
 
     def _bind_text(self, doc: dict[str, Any]) -> str:
         return " ".join(str(doc.get(key) or "") for key in ("type", "deviceName", "deviceType")).lower()

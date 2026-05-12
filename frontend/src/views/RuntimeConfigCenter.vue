@@ -168,6 +168,7 @@
       </div>
       <div class="filter-bar">
         <a-input v-model:value="mappingKeyword" allow-clear placeholder="搜索来源/标准概念/模块" />
+        <a-select v-model:value="mappingModuleFilter" :options="mappingModuleOptions" />
         <a-input v-model:value="mappingDraft.source_name" placeholder="来源表" />
         <a-input v-model:value="mappingDraft.source_code" placeholder="来源字段" />
         <a-input v-model:value="mappingDraft.standard_concept" placeholder="标准概念" />
@@ -225,6 +226,7 @@ const ruleKeyword = ref('')
 const ruleSeverityFilter = ref('all')
 const ruleEnabledFilter = ref('all')
 const mappingKeyword = ref('')
+const mappingModuleFilter = ref('respiratory')
 const historyKey = ref('all')
 const saving = reactive<any>({ modules: false, ai: false, trajectory: false, mapping: false, rules: {} })
 const mappingDraft = reactive<any>({ source_name: '', source_code: '', standard_concept: '', unit: '', module: '', enabled: true })
@@ -266,8 +268,15 @@ const filteredRules = computed(() => {
 })
 const filteredMappings = computed(() => {
   const q = mappingKeyword.value.trim().toLowerCase()
-  if (!q) return mappings.value
-  return mappings.value.filter((item) => JSON.stringify(item).toLowerCase().includes(q))
+  return mappings.value.filter((item) => {
+    if (mappingModuleFilter.value !== 'all' && item.module !== mappingModuleFilter.value) return false
+    if (q && !JSON.stringify(item).toLowerCase().includes(q)) return false
+    return true
+  })
+})
+const mappingModuleOptions = computed(() => {
+  const modules = Array.from(new Set(mappings.value.map((item) => item.module).filter(Boolean))).sort()
+  return [{ label: '全部模块', value: 'all' }, ...modules.map((item) => ({ label: item === 'respiratory' ? '呼吸/通气参数' : item, value: item }))]
 })
 
 async function loadConfig() {

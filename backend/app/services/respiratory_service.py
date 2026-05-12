@@ -35,6 +35,30 @@ VENT_CODES = [
     "param_jingTaiShunYingXing",
 ]
 
+RESPIRATORY_CONCEPT_DEFAULTS: dict[str, list[str]] = {
+    "vent_mode": ["param_HuXiMoShi", "param_vent_mode"],
+    "fio2": ["param_FiO2", "param_fio2"],
+    "peep_measured": ["param_vent_measure_peep"],
+    "peep_set": ["param_vent_peep"],
+    "vte": ["param_vent_vt", "param_vent_vti"],
+    "vti": ["param_vent_vti"],
+    "vt_set": ["param_vent_set_vt"],
+    "peak_flow": ["param_vent_set_PeakFlow"],
+    "pplat": ["param_vent_plat_pressure"],
+    "pip": ["param_vent_pip"],
+    "rr_measured": ["param_vent_resp", "param_resp"],
+    "rr_set": ["param_HuXiPinLv"],
+    "p01": ["param_vent_P0.1"],
+    "static_compliance": ["param_vent_C_STAT", "param_vent_pause_C_STAT", "param_jingTaiShunYingXing"],
+    "position": ["param_TiWei"],
+    "airway_resistance": ["param_qiDaoZuLi"],
+    "spo2": ["param_spo2"],
+    "hfnc_flow": ["param_hfnc_flow", "param_oxygen_flow"],
+    "niv_ipap": ["param_niv_ipap"],
+    "niv_epap": ["param_niv_epap"],
+    "niv_leak": ["param_niv_leak"],
+}
+
 
 def _num(value: Any) -> float | None:
     if value is None or value == "":
@@ -64,6 +88,33 @@ def _vent_param(params: dict[str, Any], *codes: str) -> Any:
         if params.get(code) not in (None, ""):
             return params.get(code)
     return None
+
+
+async def _respiratory_code_map() -> dict[str, list[str]]:
+    out = {key: list(values) for key, values in RESPIRATORY_CONCEPT_DEFAULTS.items()}
+    try:
+        cursor = runtime.db.col("field_mapping").find(
+            {"enabled": {"$ne": False}, "module": "respiratory", "source_name": {"$in": ["deviceCap", "bedside"]}},
+            {"standard_concept": 1, "source_code": 1},
+        ).limit(500)
+        async for row in cursor:
+            concept = str(row.get("standard_concept") or "").strip()
+            code = str(row.get("source_code") or "").strip()
+            if concept and code:
+                out.setdefault(concept, [])
+                out[concept].append(code)
+    except Exception:
+        pass
+    return {key: list(dict.fromkeys(values)) for key, values in out.items()}
+
+
+def _codes(code_map: dict[str, list[str]], concept: str) -> list[str]:
+    return code_map.get(concept) or RESPIRATORY_CONCEPT_DEFAULTS.get(concept) or []
+
+
+def _all_respiratory_codes(code_map: dict[str, list[str]]) -> list[str]:
+    codes = [code for values in code_map.values() for code in values]
+    return list(dict.fromkeys([*codes, *VENT_CODES]))
 
 
 def _append_department_scope(query: dict[str, Any], *, department: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
@@ -131,7 +182,8 @@ async def _active_ventilator(
     if device_id:
         try:
             if cap is None:
-                cap = await runtime.alert_engine._get_latest_device_cap(device_id, codes=VENT_CODES)
+                code_map = await _respiratory_code_map()
+                cap = await runtime.alert_engine._get_latest_device_cap(device_id, codes=_all_respiratory_codes(code_map))
         except Exception:
             cap = cap_hint
     return bind, cap
@@ -177,10 +229,14 @@ async def _latest_spo2_rr(patient: dict[str, Any]) -> tuple[float | None, float 
     spo2 = vitals.get("spo2")
     if spo2 is None:
         try:
-            cap = await runtime.alert_engine._get_latest_param_snapshot_by_pid(patient.get("_id"), codes=["param_spo2", "param_resp"])
+            code_map = await _respiratory_code_map()
+            cap = await runtime.alert_engine._get_latest_param_snapshot_by_pid(
+                patient.get("_id"),
+                codes=_codes(code_map, "spo2") + _codes(code_map, "rr_measured"),
+            )
             params = cap.get("params") if cap else {}
-            spo2 = params.get("param_spo2")
-            rr = params.get("param_resp")
+            spo2 = _vent_param(params, *_codes(code_map, "spo2"))
+            rr = _vent_param(params, *_codes(code_map, "rr_measured"))
             return _num(spo2), _num(rr)
         except Exception:
             return None, _num(vitals.get("rr"))
@@ -335,14 +391,15 @@ async def build_ventilated_patient_row(
     bind, cap = await _active_ventilator(patient, bind_hint=bind_hint, cap_hint=cap_hint)
     if not bind and not cap:
         return None
+    code_map = await _respiratory_code_map()
     params = (cap or {}).get("params") or {}
-    fio2 = _vent_param(params, "param_FiO2", "param_fio2")
-    peep = _vent_param(params, "param_vent_measure_peep", "param_vent_peep")
-    pplat = _vent_param(params, "param_vent_plat_pressure")
-    pip = _vent_param(params, "param_vent_pip")
-    vt = _vent_param(params, "param_vent_vt", "param_vent_vti")
-    vt_set = _vent_param(params, "param_vent_set_vt")
-    rr_vent = _vent_param(params, "param_vent_resp", "param_HuXiPinLv")
+    fio2 = _vent_param(params, *_codes(code_map, "fio2"))
+    peep = _vent_param(params, *(_codes(code_map, "peep_measured") + _codes(code_map, "peep_set")))
+    pplat = _vent_param(params, *_codes(code_map, "pplat"))
+    pip = _vent_param(params, *_codes(code_map, "pip"))
+    vt = _vent_param(params, *(_codes(code_map, "vte") + _codes(code_map, "vti")))
+    vt_set = _vent_param(params, *_codes(code_map, "vt_set"))
+    rr_vent = _vent_param(params, *(_codes(code_map, "rr_measured") + _codes(code_map, "rr_set")))
     driving_pressure = None
     approximate = False
     if _num(pplat) is not None and _num(peep) is not None:
@@ -363,19 +420,19 @@ async def build_ventilated_patient_row(
         "name": _patient_name(patient),
         "age": patient.get("age") or calculate_age(patient.get("birthday")) or patient.get("hisAge") or "",
         "diagnosis": patient.get("clinicalDiagnosis") or patient.get("admissionDiagnosis") or "",
-        "position": _vent_param(params, "param_TiWei"),
-        "ventilator_mode": _vent_param(params, "param_HuXiMoShi", "param_vent_mode") or "未知",
+        "position": _vent_param(params, *_codes(code_map, "position")),
+        "ventilator_mode": _vent_param(params, *_codes(code_map, "vent_mode")) or "未知",
         "fio2": fio2,
         "peep": peep,
         "vt": vt,
         "vt_set": vt_set,
-        "peak_flow": _vent_param(params, "param_vent_set_PeakFlow"),
+        "peak_flow": _vent_param(params, *_codes(code_map, "peak_flow")),
         "pplat": pplat,
         "pip": pip,
-        "airway_resistance": _vent_param(params, "param_qiDaoZuLi"),
-        "p01": _vent_param(params, "param_vent_P0.1"),
-        "c_stat": _vent_param(params, "param_vent_C_STAT", "param_vent_pause_C_STAT", "param_jingTaiShunYingXing"),
-        "static_compliance": _vent_param(params, "param_jingTaiShunYingXing", "param_vent_C_STAT", "param_vent_pause_C_STAT"),
+        "airway_resistance": _vent_param(params, *_codes(code_map, "airway_resistance")),
+        "p01": _vent_param(params, *_codes(code_map, "p01")),
+        "c_stat": _vent_param(params, *_codes(code_map, "static_compliance")),
+        "static_compliance": _vent_param(params, *_codes(code_map, "static_compliance")),
         "driving_pressure": driving_pressure,
         "driving_pressure_approximate": approximate,
         "rr": rr_vent if rr_vent is not None else rr_vital,
@@ -404,12 +461,14 @@ async def _bulk_latest_vent_caps(device_ids: list[str]) -> dict[str, dict[str, A
     ids = [str(item) for item in device_ids if item]
     if not ids:
         return {}
+    code_map = await _respiratory_code_map()
+    vent_codes = _all_respiratory_codes(code_map)
     cursor = runtime.db.col("deviceCap").find(
-        {"deviceID": {"$in": ids}, "code": {"$in": VENT_CODES}},
+        {"deviceID": {"$in": ids}, "code": {"$in": vent_codes}},
         {"deviceID": 1, "code": 1, "time": 1, "strVal": 1, "intVal": 1, "fVal": 1, "value": 1},
-    ).sort("time", -1).limit(max(5000, len(ids) * len(VENT_CODES) * 8))
+    ).sort("time", -1).limit(max(5000, len(ids) * len(vent_codes) * 8))
     snapshots: dict[str, dict[str, Any]] = {}
-    expected = len(ids) * len(VENT_CODES)
+    expected = len(ids) * len(vent_codes)
     seen = 0
     async for doc in cursor:
         device_id = str(doc.get("deviceID") or "")
@@ -698,8 +757,9 @@ async def ventilator_timeline(patient_id: str, hours: int = 72) -> dict[str, Any
     since = datetime.now() - timedelta(hours=hours)
     rows: list[dict[str, Any]] = []
     if device_id:
+        code_map = await _respiratory_code_map()
         cursor = runtime.db.col("deviceCap").find(
-            {"deviceID": device_id, "code": {"$in": VENT_CODES}, "time": {"$gte": since}},
+            {"deviceID": device_id, "code": {"$in": _all_respiratory_codes(code_map)}, "time": {"$gte": since}},
             {"time": 1, "code": 1, "strVal": 1, "intVal": 1, "fVal": 1, "value": 1},
         ).sort("time", 1).limit(5000)
         buckets: dict[str, dict[str, Any]] = {}
@@ -710,26 +770,26 @@ async def ventilator_timeline(patient_id: str, hours: int = 72) -> dict[str, Any
             value = doc.get("fVal") if doc.get("fVal") is not None else doc.get("intVal") if doc.get("intVal") is not None else doc.get("strVal") or doc.get("value")
             bucket[doc.get("code")] = value
         for item in buckets.values():
-            peep = _vent_param(item, "param_vent_measure_peep", "param_vent_peep")
-            pplat = _vent_param(item, "param_vent_plat_pressure")
+            peep = _vent_param(item, *(_codes(code_map, "peep_measured") + _codes(code_map, "peep_set")))
+            pplat = _vent_param(item, *_codes(code_map, "pplat"))
             rows.append(
                 serialize_doc(
                     {
                         "time": item.get("time"),
-                        "position": _vent_param(item, "param_TiWei"),
-                        "mode": _vent_param(item, "param_HuXiMoShi", "param_vent_mode"),
-                        "fio2": _vent_param(item, "param_FiO2", "param_fio2"),
+                        "position": _vent_param(item, *_codes(code_map, "position")),
+                        "mode": _vent_param(item, *_codes(code_map, "vent_mode")),
+                        "fio2": _vent_param(item, *_codes(code_map, "fio2")),
                         "peep": peep,
-                        "vt": _vent_param(item, "param_vent_vt", "param_vent_vti"),
-                        "vt_set": _vent_param(item, "param_vent_set_vt"),
-                        "peak_flow": _vent_param(item, "param_vent_set_PeakFlow"),
+                        "vt": _vent_param(item, *(_codes(code_map, "vte") + _codes(code_map, "vti"))),
+                        "vt_set": _vent_param(item, *_codes(code_map, "vt_set")),
+                        "peak_flow": _vent_param(item, *_codes(code_map, "peak_flow")),
                         "pplat": pplat,
-                        "airway_resistance": _vent_param(item, "param_qiDaoZuLi"),
-                        "p01": _vent_param(item, "param_vent_P0.1"),
-                        "c_stat": _vent_param(item, "param_vent_C_STAT", "param_vent_pause_C_STAT", "param_jingTaiShunYingXing"),
-                        "static_compliance": _vent_param(item, "param_jingTaiShunYingXing", "param_vent_C_STAT", "param_vent_pause_C_STAT"),
+                        "airway_resistance": _vent_param(item, *_codes(code_map, "airway_resistance")),
+                        "p01": _vent_param(item, *_codes(code_map, "p01")),
+                        "c_stat": _vent_param(item, *_codes(code_map, "static_compliance")),
+                        "static_compliance": _vent_param(item, *_codes(code_map, "static_compliance")),
                         "driving_pressure": round(float(pplat) - float(peep), 1) if _num(pplat) is not None and _num(peep) is not None else None,
-                        "rr": _vent_param(item, "param_vent_resp", "param_HuXiPinLv"),
+                        "rr": _vent_param(item, *(_codes(code_map, "rr_measured") + _codes(code_map, "rr_set"))),
                     }
                 )
             )

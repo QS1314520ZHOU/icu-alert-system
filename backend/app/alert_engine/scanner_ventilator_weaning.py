@@ -108,13 +108,21 @@ class VentilatorWeaningScanner(BaseScanner):
                         if alert:
                             triggered += 1
 
-                fio2 = self.engine._vent_param(cap, "fio2", "param_FiO2")
-                peep = self.engine._vent_param_priority(cap, ["peep_measured", "peep_set"], ["param_vent_measure_peep", "param_vent_peep"])
-                pip = self.engine._vent_param(cap, "pip", "param_vent_pip")
-                pplat = self.engine._vent_param(cap, "pplat", "param_vent_plat_pressure")
-                pc_above_peep = self.engine._vent_param_priority(cap, ["pressure_control", "pressure_support"], ["param_vent_pc", "param_vent_ps"])
-                vte = self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"])
-                rr = self.engine._vent_param_priority(cap, ["rr_measured", "rr_set"], ["param_vent_resp", "param_HuXiPinLv"])
+                fio2_codes = await self._vent_concept_codes("fio2", ["param_FiO2"])
+                peep_codes = await self._vent_concept_codes("peep_measured", ["param_vent_measure_peep"]) + await self._vent_concept_codes("peep_set", ["param_vent_peep"])
+                pip_codes = await self._vent_concept_codes("pip", ["param_vent_pip"])
+                pplat_codes = await self._vent_concept_codes("pplat", ["param_vent_plat_pressure"])
+                fio2 = self._snapshot_first(cap, fio2_codes)
+                peep = self._snapshot_first(cap, peep_codes)
+                pip = self._snapshot_first(cap, pip_codes)
+                pplat = self._snapshot_first(cap, pplat_codes)
+                pc_codes = await self._vent_concept_codes("pressure_control", ["param_vent_pc"])
+                ps_codes = await self._vent_concept_codes("pressure_support", ["param_vent_ps"])
+                pc_above_peep = self._snapshot_first(cap, pc_codes + ps_codes)
+                vte_codes = await self._vent_concept_codes("vte", ["param_vent_vt"]) + await self._vent_concept_codes("vt_set", ["param_vent_set_vt"])
+                rr_codes = await self._vent_concept_codes("rr_measured", ["param_vent_resp"]) + await self._vent_concept_codes("rr_set", ["param_HuXiPinLv"])
+                vte = self._snapshot_first(cap, vte_codes)
+                rr = self._snapshot_first(cap, rr_codes)
                 mode = await self._vent_mode(device_id, cap)
 
                 driving_pressure = None
@@ -299,15 +307,7 @@ class VentilatorWeaningScanner(BaseScanner):
         return self._classify_vent_mode(text)
 
     async def _latest_vent_mode_text(self, device_id: str) -> str:
-        codes = []
-        for name, default in (("vent_mode", "param_HuXiMoShi"), ("mode", "param_vent_mode")):
-            try:
-                code = self.engine._vent_code(name, default)
-            except Exception:
-                code = default
-            if code:
-                codes.append(str(code))
-        codes = list(dict.fromkeys([*codes, "param_HuXiMoShi", "param_vent_mode"]))
+        codes = await self._vent_concept_codes("vent_mode", ["param_HuXiMoShi", "param_vent_mode"])
         cursor = self.engine.db.col("deviceCap").find(
             {"deviceID": str(device_id), "code": {"$in": codes}},
             {"time": 1, "code": 1, "strVal": 1, "value": 1, "fVal": 1, "intVal": 1},
@@ -318,6 +318,43 @@ class VentilatorWeaningScanner(BaseScanner):
                 if value not in (None, ""):
                     return str(value)
         return ""
+
+    async def _vent_concept_codes(self, concept: str, defaults: list[str]) -> list[str]:
+        names = [concept]
+        yaml_defaults = []
+        if concept == "vent_mode":
+            names.extend(["mode"])
+            yaml_keys = [("vent_mode", "param_HuXiMoShi"), ("mode", "param_vent_mode")]
+        elif concept == "pressure_control":
+            yaml_keys = [("pressure_control", "param_vent_pc")]
+        elif concept == "pressure_support":
+            yaml_keys = [("pressure_support", "param_vent_ps")]
+        else:
+            yaml_keys = []
+        for name, default in yaml_keys:
+            try:
+                code = self.engine._vent_code(name, default)
+            except Exception:
+                code = default
+            if code:
+                yaml_defaults.append(str(code))
+        fallback = list(dict.fromkeys([*yaml_defaults, *defaults]))
+        if hasattr(self.engine, "_field_mapping_codes"):
+            return await self.engine._field_mapping_codes(
+                module="respiratory",
+                concepts=names,
+                source_names=["deviceCap"],
+                defaults=fallback,
+            )
+        return fallback
+
+    def _snapshot_first(self, cap: dict[str, Any], codes: list[str]) -> float | None:
+        params = cap.get("params") if isinstance(cap.get("params"), dict) else cap
+        for code in codes:
+            value = _to_float(params.get(code))
+            if value is not None:
+                return value
+        return None
 
     def _classify_vent_mode(self, text: str) -> str:
         text = str(text or "").lower()
