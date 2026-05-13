@@ -146,9 +146,12 @@ sys.path.insert(0, project_root)
 
 # ========== 子模块 ==========
 app_imports = collect_submodules('app')
+transformer_imports = collect_submodules('transformers')
 chronos_imports = collect_submodules('chronos')
 sentence_transformer_imports = collect_submodules('sentence_transformers')
 tokenizer_imports = collect_submodules('tokenizers')
+safetensors_imports = collect_submodules('safetensors')
+huggingface_hub_imports = collect_submodules('huggingface_hub')
 
 # ========== 数据文件 ==========
 datas = [
@@ -162,13 +165,22 @@ elif os.path.isfile('backend/.env.example'):
 if os.path.isdir('backend/knowledge_base'):
     datas.append(('backend/knowledge_base', 'knowledge_base'))
 
-# 只对这些包收集 data_files (模型配置、tokenizer json 等)
-for pkg in ['sentence_transformers', 'transformers', 'chronos', 'tokenizers',
-            'torch', 'tzdata', 'onnxruntime']:
+def collect_pkg_datas(pkg_name, *, include_py_files=False):
     try:
-        datas += collect_data_files(pkg)
+        return collect_data_files(pkg_name, include_py_files=include_py_files)
+    except TypeError:
+        return collect_data_files(pkg_name)
     except Exception:
-        pass
+        return []
+
+# transformers/chronos/sentence_transformers 运行时会按文件路径读取包内 .py，
+# 必须让这些 .py 真实落到 _internal，而不是只进 PYZ。
+for pkg in ['sentence_transformers', 'transformers', 'chronos', 'tokenizers']:
+    datas += collect_pkg_datas(pkg, include_py_files=True)
+
+# 这些包只需要普通资源文件和二进制库。
+for pkg in ['safetensors', 'huggingface_hub', 'torch', 'tzdata', 'onnxruntime']:
+    datas += collect_pkg_datas(pkg)
 
 # 按目录结构补齐源码 / 配置文件 (.py/.json 等)。
 # transformers / sentence_transformers / tokenizers / chronos 在运行时
@@ -277,9 +289,12 @@ print(f"[SPEC] Collected {len(app_imports)} app submodules")
 # ========== hidden imports ==========
 hidden_imports = (
     app_imports
+    + transformer_imports
     + chronos_imports
     + sentence_transformer_imports
     + tokenizer_imports
+    + safetensors_imports
+    + huggingface_hub_imports
     + [
     # uvicorn 完整链
     'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
@@ -353,6 +368,10 @@ RUN cd /build && \
         { echo "=== BUILD FAILED ==="; tail -100 /build/pyinstaller.log; exit 1; } && \
     test -f /build/dist/icu-alert-system/_internal/transformers/models/__init__.py || \
         { echo "=== BUILD FAILED: missing transformers/models/__init__.py ==="; exit 1; } && \
+    test -f /build/dist/icu-alert-system/_internal/transformers/models/auto/__init__.py || \
+        { echo "=== BUILD FAILED: missing transformers/models/auto/__init__.py ==="; exit 1; } && \
+    test -f /build/dist/icu-alert-system/_internal/transformers/models/t5/__init__.py || \
+        { echo "=== BUILD FAILED: missing transformers/models/t5/__init__.py ==="; exit 1; } && \
     test -f /build/dist/icu-alert-system/_internal/sentence_transformers/__init__.py || \
         { echo "=== BUILD FAILED: missing sentence_transformers/__init__.py ==="; exit 1; } && \
     test -f /build/dist/icu-alert-system/_internal/tokenizers/__init__.py || \

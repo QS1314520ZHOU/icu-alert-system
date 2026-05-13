@@ -10,6 +10,12 @@ app_imports = collect_submodules('app')
 tzdata_imports = collect_submodules('tzdata')
 numpy_imports = collect_submodules('numpy')
 
+def collect_pkg_datas(pkg_name, *, include_py_files=False):
+    try:
+        return collect_data_files(pkg_name, include_py_files=include_py_files)
+    except TypeError:
+        return collect_data_files(pkg_name)
+
 # ============ 数据文件 ============
 datas = [
     ('static', 'static'),
@@ -18,8 +24,8 @@ datas = [
     ('knowledge_base', 'knowledge_base'),
 ]
 datas += collect_data_files('sentence_transformers')
-datas += collect_data_files('transformers')
-datas += collect_data_files('chronos')
+datas += collect_pkg_datas('transformers', include_py_files=True)
+datas += collect_pkg_datas('chronos', include_py_files=True)
 datas += collect_data_files('tzdata')
 datas += collect_data_files('numpy')
 

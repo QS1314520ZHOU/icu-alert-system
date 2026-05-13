@@ -89,6 +89,8 @@
               <span><i>PEEP</i><strong>{{ fmtVentParam('peep', patient.peep) }}</strong></span>
               <span><i>DP</i><strong>{{ fmtVentParam('driving_pressure', patient.driving_pressure) }}</strong></span>
               <span><i>P/F</i><strong>{{ fmtVentParam('pf_ratio', patient.pf_ratio) }}</strong></span>
+              <span><i>EtCO2</i><strong>{{ fmtVentParam('etco2', patient.etco2) }}</strong></span>
+              <span><i>EE</i><strong>{{ fmtVentParam('energy_expenditure', patient.energy_expenditure) }}</strong></span>
             </div>
             <div class="vent-chip-row">
               <span v-for="tag in compactRiskTags(patient)" :key="tag">{{ tag }}</span>
@@ -193,12 +195,14 @@
         <a-descriptions-item label="C_STAT">{{ fmtVentParam('c_stat', drawerPatient.c_stat) }}</a-descriptions-item>
         <a-descriptions-item label="静态顺应性">{{ fmtVentParam('static_compliance', drawerPatient.static_compliance) }}</a-descriptions-item>
         <a-descriptions-item label="P/F">{{ fmtVentParam('pf_ratio', drawerPatient.pf_ratio) }}</a-descriptions-item>
+        <a-descriptions-item label="EtCO2">{{ fmtVentParam('etco2', drawerPatient.etco2) }}</a-descriptions-item>
+        <a-descriptions-item label="间接测热 EE">{{ fmtVentParam('energy_expenditure', drawerPatient.energy_expenditure) }}</a-descriptions-item>
         <a-descriptions-item label="RASS">{{ fmtVentParam('rass', drawerPatient.rass) }}</a-descriptions-item>
       </a-descriptions>
       <a-divider>参数时间线</a-divider>
       <a-timeline>
         <a-timeline-item v-for="(item, idx) in timeline" :key="idx">
-          {{ fmt(item.time) }} · {{ item.mode || '模式—' }} / FiO2 {{ fmtVentParam('fio2', item.fio2) }} / PEEP {{ fmtVentParam('peep', item.peep) }} / VT(set) {{ fmtVentParam('vt_set', item.vt_set) }} / Pplat {{ fmtVentParam('pplat', item.pplat) }} / C_STAT {{ fmtVentParam('c_stat', item.c_stat) }} / DP {{ fmtVentParam('driving_pressure', item.driving_pressure) }}
+          {{ fmt(item.time) }} · {{ item.mode || '模式—' }} / FiO2 {{ fmtVentParam('fio2', item.fio2) }} / PEEP {{ fmtVentParam('peep', item.peep) }} / VT(set) {{ fmtVentParam('vt_set', item.vt_set) }} / Pplat {{ fmtVentParam('pplat', item.pplat) }} / C_STAT {{ fmtVentParam('c_stat', item.c_stat) }} / DP {{ fmtVentParam('driving_pressure', item.driving_pressure) }} / EtCO2 {{ fmtVentParam('etco2', item.etco2) }} / EE {{ fmtVentParam('energy_expenditure', item.energy_expenditure) }}
         </a-timeline-item>
       </a-timeline>
       <a-divider>气道预案</a-divider>
@@ -381,6 +385,8 @@ function fmtVentParam(key: string, value: any) {
     c_stat: 0,
     static_compliance: 0,
     pf_ratio: 0,
+    etco2: 0,
+    energy_expenditure: 0,
     rass: 0,
   }
   const digits = decimals[key] ?? 1
@@ -754,7 +760,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
 }
 .vent-meter-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 7px;
 }
 .vent-meter-row span {

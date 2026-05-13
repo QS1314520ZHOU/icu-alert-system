@@ -10,7 +10,15 @@ transformer_imports = collect_submodules('transformers')
 chronos_imports = collect_submodules('chronos')
 sentence_transformer_imports = collect_submodules('sentence_transformers')
 tokenizer_imports = collect_submodules('tokenizers')
+safetensors_imports = collect_submodules('safetensors')
+huggingface_hub_imports = collect_submodules('huggingface_hub')
 numpy_imports = collect_submodules('numpy')
+
+def collect_pkg_datas(pkg_name, *, include_py_files=False):
+    try:
+        return collect_data_files(pkg_name, include_py_files=include_py_files)
+    except TypeError:
+        return collect_data_files(pkg_name)
 
 datas = [
     ('static', 'static'),
@@ -18,10 +26,12 @@ datas = [
     ('.env', '.'),
     ('knowledge_base', 'knowledge_base'),
 ]
-datas += collect_data_files('sentence_transformers')
-datas += collect_data_files('transformers')
-datas += collect_data_files('chronos')
-datas += collect_data_files('tokenizers')
+datas += collect_pkg_datas('sentence_transformers', include_py_files=True)
+datas += collect_pkg_datas('transformers', include_py_files=True)
+datas += collect_pkg_datas('chronos', include_py_files=True)
+datas += collect_pkg_datas('tokenizers', include_py_files=True)
+datas += collect_pkg_datas('safetensors')
+datas += collect_pkg_datas('huggingface_hub')
 datas += collect_data_files('torch')
 datas += collect_data_files('tzdata')
 datas += collect_data_files('numpy')
@@ -38,6 +48,8 @@ hidden_imports = (
     + chronos_imports
     + sentence_transformer_imports
     + tokenizer_imports
+    + safetensors_imports
+    + huggingface_hub_imports
     + numpy_imports
     + [
         'uvicorn.logging',

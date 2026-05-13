@@ -150,6 +150,7 @@ class DatabaseManager:
             await alert_col.create_index([("actionability_score", -1), ("created_at", -1)])
 
             patient_col = self.col("patient")
+            await self.col("bGATemp").create_index([("mrn", 1), ("inputTime", -1)])
             await patient_col.create_index([("status", 1), ("deptCode", 1)])
             await patient_col.create_index([("status", 1), ("departmentCode", 1)])
             await patient_col.create_index([("status", 1), ("hisDept", 1)])
@@ -187,7 +188,6 @@ class DatabaseManager:
             await self.col("runtime_configs").create_index([("updated_at", -1)])
             await self.col("runtime_config_versions").create_index([("key", 1), ("version", -1)])
             await self.col("runtime_config_versions").create_index([("created_at", -1)])
-
             # 评分记录索引
             score_col = self.col("score")
             await score_col.create_index(

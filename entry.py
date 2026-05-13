@@ -155,6 +155,22 @@ def check_gpu():
 
 def import_self_test():
     """Fail the packaged binary early if bundled ML imports are broken."""
+    if getattr(sys, 'frozen', False):
+        internal = getattr(sys, '_MEIPASS', os.path.join(get_base_path(), '_internal'))
+        required_files = [
+            os.path.join(internal, 'transformers', 'models', '__init__.py'),
+            os.path.join(internal, 'transformers', 'models', 'auto', '__init__.py'),
+            os.path.join(internal, 'transformers', 'models', 't5', '__init__.py'),
+            os.path.join(internal, 'sentence_transformers', '__init__.py'),
+            os.path.join(internal, 'tokenizers', '__init__.py'),
+            os.path.join(internal, 'chronos', '__init__.py'),
+        ]
+        missing = [path for path in required_files if not os.path.isfile(path)]
+        if missing:
+            print("[ICU][SELFTEST] packaged source files missing:")
+            for path in missing:
+                print(f"[ICU][SELFTEST]   {path}")
+            sys.exit(86)
     required_checks = [
         ("torch", "import torch; print('torch', torch.__version__, 'cuda', getattr(torch.version, 'cuda', None))"),
         ("transformers", "import transformers; print('transformers', transformers.__version__, transformers.__file__)"),

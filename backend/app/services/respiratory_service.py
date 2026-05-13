@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app import runtime
+from app.alert_engine.acid_base_analyzer import extract_bga_temp_items
 from app.services.audit_service import write_audit_log
 from app.utils.patient_helpers import calculate_age, patient_his_pid, research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
@@ -16,8 +17,17 @@ VENT_CODES = [
     "param_TiWei",
     "param_HuXiMoShi",
     "param_vent_mode",
+    "param_bg_P/Fratio",
+    "param_PF",
+    "param_p_f_ratio",
+    "param_PaO2",
+    "param_pao2",
     "param_FiO2",
     "param_fio2",
+    "param_ETCO2",
+    "param_etco2",
+    "param_EE",
+    "param_indirect_calorimetry_ee",
     "param_vent_peep",
     "param_vent_measure_peep",
     "param_vent_vt",
@@ -37,7 +47,11 @@ VENT_CODES = [
 
 RESPIRATORY_CONCEPT_DEFAULTS: dict[str, list[str]] = {
     "vent_mode": ["param_HuXiMoShi", "param_vent_mode"],
+    "pf_ratio": ["param_bg_P/Fratio", "param_PF", "param_p_f_ratio"],
+    "pao2": ["param_bg_po2", "param_bg_po2_T", "param_PaO2", "param_pao2"],
     "fio2": ["param_FiO2", "param_fio2"],
+    "etco2": ["param_ETCO2", "param_etco2"],
+    "energy_expenditure": ["param_EE", "param_indirect_calorimetry_ee"],
     "peep_measured": ["param_vent_measure_peep"],
     "peep_set": ["param_vent_peep"],
     "vte": ["param_vent_vt", "param_vent_vti"],
@@ -76,6 +90,123 @@ def _fio2_fraction(value: Any) -> float | None:
     return round(val / 100.0, 3) if val > 1 else round(val, 3)
 
 
+def _normalize_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _bga_patient_keys(patient: dict[str, Any] | None) -> list[str]:
+    if not patient:
+        return []
+    keys: list[str] = []
+    for key in ("mrn",):
+        text = _normalize_text(patient.get(key))
+        if text and text not in keys:
+            keys.append(text)
+    return keys
+
+
+def _bga_query_for_keys(keys: list[str]) -> dict[str, Any]:
+    return {"mrn": {"$in": keys}}
+
+
+def _bga_numeric(doc: dict[str, Any], concept: str, aliases: list[str] | None = None) -> float | None:
+    direct_aliases = {
+        "pf_ratio": ["param_bg_P/Fratio", "param_bg_PF", "pfratio", "pf_ratio", "p_f_ratio"],
+        "pao2": ["param_bg_po2", "param_bg_po2_T", "pao2", "po2"],
+    }.get(concept, [])
+    if aliases:
+        direct_aliases = list(dict.fromkeys([*aliases, *direct_aliases]))
+    normalized_aliases = {alias.lower().replace("_", "").replace("/", "") for alias in direct_aliases}
+    for row in doc.get("bedsides") or []:
+        if not isinstance(row, dict):
+            continue
+        code = str(row.get("code") or "")
+        name = str(row.get("name") or "")
+        normalized_code = code.lower().replace("_", "").replace("/", "")
+        value = _num(row.get("fVal") if row.get("fVal") is not None else row.get("value") if row.get("value") is not None else row.get("strVal"))
+        if value is None:
+            continue
+        if concept == "pf_ratio" and (normalized_code in normalized_aliases or normalized_code in {"parambgpfratio", "pfratio", "pfr"} or "p/f" in name.lower() or "氧合指数" in name):
+            return value
+        if concept == "pao2" and (normalized_code in normalized_aliases or normalized_code in {"parambgpo2", "parambgpo2t", "pao2", "po2"} or "po2" in name.lower() or "氧分压" in name):
+            return value
+    flat: dict[str, Any] = {}
+    for key, value in doc.items():
+        flat[str(key).strip().lower()] = value
+    for alias in direct_aliases:
+        value = _num(flat.get(alias.lower()))
+        if value is not None:
+            return value
+    for item in extract_bga_temp_items(doc):
+        code = str(item.get("itemCode") or "").lower()
+        name = f"{item.get('itemName') or ''} {item.get('itemCnName') or ''}".lower()
+        value = _num(item.get("result") or item.get("resultValue") or item.get("value"))
+        if value is None:
+            continue
+        if concept == "pao2" and ("pao2" in code or "po2" in code or "氧分压" in name or "动脉氧" in name):
+            return value
+        if concept == "pf_ratio" and ("pfratio" in code.replace("_", "") or "p/f" in name or "氧合指数" in name):
+            return value
+    return None
+
+
+async def _latest_bga_values(patient: dict[str, Any], code_map: dict[str, list[str]], hours: int = 168) -> dict[str, float]:
+    keys = _bga_patient_keys(patient)
+    if not keys:
+        return {}
+    since = datetime.now() - timedelta(hours=hours)
+    best: dict[str, float] = {}
+    try:
+        for query in ({"$and": [_bga_query_for_keys(keys), {"inputTime": {"$gte": since}}]}, _bga_query_for_keys(keys)):
+            cursor = runtime.db.col("bGATemp").find(query, {"mrn": 1, "inputTime": 1, "bedsides": 1}).sort("inputTime", -1).limit(20)
+            async for doc in cursor:
+                for concept in ("pf_ratio", "pao2"):
+                    if concept in best:
+                        continue
+                    value = _bga_numeric(doc, concept, _codes(code_map, concept))
+                    if value is not None:
+                        best[concept] = value
+                if "pf_ratio" in best and "pao2" in best:
+                    return best
+    except Exception:
+        return best
+    return best
+
+
+async def _bulk_latest_bga_values(patients: list[dict[str, Any]], code_map: dict[str, list[str]], hours: int = 168) -> dict[str, dict[str, float]]:
+    mrn_to_patient: dict[str, str] = {}
+    for patient in patients:
+        for mrn in _bga_patient_keys(patient):
+            mrn_to_patient[mrn] = str(patient.get("_id"))
+    if not mrn_to_patient:
+        return {}
+    since = datetime.now() - timedelta(hours=hours)
+    out: dict[str, dict[str, float]] = {}
+    async def consume(query: dict[str, Any], limit: int) -> None:
+        cursor = runtime.db.col("bGATemp").find(query, {"mrn": 1, "inputTime": 1, "bedsides": 1}).sort("inputTime", -1).limit(limit)
+        async for doc in cursor:
+            patient_id = mrn_to_patient.get(str(doc.get("mrn") or "").strip())
+            if not patient_id:
+                continue
+            row = out.setdefault(patient_id, {})
+            for concept in ("pf_ratio", "pao2"):
+                if concept in row:
+                    continue
+                value = _bga_numeric(doc, concept, _codes(code_map, concept))
+                if value is not None:
+                    row[concept] = value
+
+    try:
+        recent_query = {"$and": [_bga_query_for_keys(list(mrn_to_patient.keys())), {"inputTime": {"$gte": since}}]}
+        await consume(recent_query, max(200, len(mrn_to_patient) * 5))
+        missing_mrns = [mrn for mrn, patient_id in mrn_to_patient.items() if "pf_ratio" not in out.get(patient_id, {})]
+        if missing_mrns:
+            await consume(_bga_query_for_keys(missing_mrns), max(200, len(missing_mrns) * 5))
+    except Exception:
+        return out
+    return out
+
+
 def _patient_name(patient: dict[str, Any]) -> str:
     name = str(patient.get("name") or patient.get("hisName") or "").strip()
     if not name:
@@ -94,7 +225,7 @@ async def _respiratory_code_map() -> dict[str, list[str]]:
     out = {key: list(values) for key, values in RESPIRATORY_CONCEPT_DEFAULTS.items()}
     try:
         cursor = runtime.db.col("field_mapping").find(
-            {"enabled": {"$ne": False}, "module": "respiratory", "source_name": {"$in": ["deviceCap", "bedside"]}},
+            {"enabled": {"$ne": False}, "module": "respiratory", "source_name": {"$in": ["deviceCap", "bedside", "bGATemp"]}},
             {"standard_concept": 1, "source_code": 1},
         ).limit(500)
         async for row in cursor:
@@ -376,6 +507,8 @@ def _respiratory_field_label(key: str) -> str:
         "driving_pressure": "驱动压",
         "spo2": "SpO2",
         "pf_ratio": "P/F",
+        "etco2": "EtCO2",
+        "energy_expenditure": "EE",
         "rass": "RASS",
     }
     return labels.get(key, key)
@@ -385,6 +518,7 @@ async def build_ventilated_patient_row(
     patient: dict[str, Any],
     bind_hint: dict[str, Any] | None = None,
     cap_hint: dict[str, Any] | None = None,
+    bga_hint: dict[str, float] | None = None,
     *,
     fast: bool = False,
 ) -> dict[str, Any] | None:
@@ -400,6 +534,9 @@ async def build_ventilated_patient_row(
     vt = _vent_param(params, *(_codes(code_map, "vte") + _codes(code_map, "vti")))
     vt_set = _vent_param(params, *_codes(code_map, "vt_set"))
     rr_vent = _vent_param(params, *(_codes(code_map, "rr_measured") + _codes(code_map, "rr_set")))
+    direct_pf_ratio = _num(_vent_param(params, *_codes(code_map, "pf_ratio")))
+    direct_pao2 = _num(_vent_param(params, *_codes(code_map, "pao2")))
+    bga_values = bga_hint or ({} if fast else await _latest_bga_values(patient, code_map))
     driving_pressure = None
     approximate = False
     if _num(pplat) is not None and _num(peep) is not None:
@@ -407,9 +544,17 @@ async def build_ventilated_patient_row(
     elif _num(pip) is not None and _num(peep) is not None:
         driving_pressure = round(float(pip) - float(peep), 1)
         approximate = True
-    pao2 = None if fast else await _latest_pao2(patient)
+    pao2 = direct_pao2
+    if pao2 is None:
+        pao2 = bga_values.get("pao2")
+    if pao2 is None and not fast:
+        pao2 = await _latest_pao2(patient)
     fio2_frac = _fio2_fraction(fio2)
-    pf_ratio = round(float(pao2) / fio2_frac, 1) if pao2 is not None and fio2_frac else None
+    pf_ratio = direct_pf_ratio
+    if pf_ratio is None:
+        pf_ratio = bga_values.get("pf_ratio")
+    if pf_ratio is None and pao2 is not None and fio2_frac:
+        pf_ratio = round(float(pao2) / fio2_frac, 1)
     spo2, rr_vital = (None, None) if fast else await _latest_spo2_rr(patient)
     rass = None if fast else await _latest_rass(patient)
     airway_plan = {"plan": {}} if fast else await get_airway_plan(str(patient.get("_id")))
@@ -433,6 +578,8 @@ async def build_ventilated_patient_row(
         "p01": _vent_param(params, *_codes(code_map, "p01")),
         "c_stat": _vent_param(params, *_codes(code_map, "static_compliance")),
         "static_compliance": _vent_param(params, *_codes(code_map, "static_compliance")),
+        "etco2": _vent_param(params, *_codes(code_map, "etco2")),
+        "energy_expenditure": _vent_param(params, *_codes(code_map, "energy_expenditure")),
         "driving_pressure": driving_pressure,
         "driving_pressure_approximate": approximate,
         "rr": rr_vent if rr_vent is not None else rr_vital,
@@ -644,6 +791,8 @@ async def list_ventilated_patients(*, department: str | None = None, dept_code: 
         patient_cursor = runtime.db.col("patient").find({"_id": {"$in": oid_values}})
         async for patient in patient_cursor:
             patient_by_pid[str(patient.get("_id"))] = patient
+    code_map = await _respiratory_code_map()
+    bga_by_patient = await _bulk_latest_bga_values(list(patient_by_pid.values()), code_map)
     for bind in binds:
         pid = str(bind.get("pid") or "").strip()
         if not pid or pid in seen:
@@ -658,7 +807,7 @@ async def list_ventilated_patients(*, department: str | None = None, dept_code: 
         if not _patient_matches_department(patient, department=department, dept_code=dept_code):
             continue
         cap_hint = cap_by_device.get(str(bind.get("deviceID") or ""))
-        row = await build_ventilated_patient_row(patient, bind_hint=bind, cap_hint=cap_hint, fast=True)
+        row = await build_ventilated_patient_row(patient, bind_hint=bind, cap_hint=cap_hint, bga_hint=bga_by_patient.get(str(patient.get("_id"))), fast=True)
         if row:
             row["patient_status"] = patient.get("status")
             rows.append(row)
@@ -788,6 +937,8 @@ async def ventilator_timeline(patient_id: str, hours: int = 72) -> dict[str, Any
                         "p01": _vent_param(item, *_codes(code_map, "p01")),
                         "c_stat": _vent_param(item, *_codes(code_map, "static_compliance")),
                         "static_compliance": _vent_param(item, *_codes(code_map, "static_compliance")),
+                        "etco2": _vent_param(item, *_codes(code_map, "etco2")),
+                        "energy_expenditure": _vent_param(item, *_codes(code_map, "energy_expenditure")),
                         "driving_pressure": round(float(pplat) - float(peep), 1) if _num(pplat) is not None and _num(peep) is not None else None,
                         "rr": _vent_param(item, *(_codes(code_map, "rr_measured") + _codes(code_map, "rr_set"))),
                     }
