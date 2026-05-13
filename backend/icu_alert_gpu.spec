@@ -107,6 +107,16 @@ excludes = [
     'pip',
 ]
 
+module_collection_mode = {
+    'transformers': 'py',
+    'transformers.models': 'py',
+    'sentence_transformers': 'py',
+    'tokenizers': 'py',
+    'chronos': 'py',
+    'safetensors': 'py',
+    'huggingface_hub': 'py',
+}
+
 a = Analysis(
     ['run_server.py'],
     pathex=['.'],
@@ -117,6 +127,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=excludes,
+    module_collection_mode=module_collection_mode,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

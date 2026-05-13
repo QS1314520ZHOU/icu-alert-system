@@ -174,7 +174,7 @@ def import_self_test():
     required_checks = [
         ("torch", "import torch; print('torch', torch.__version__, 'cuda', getattr(torch.version, 'cuda', None))"),
         ("transformers", "import transformers; print('transformers', transformers.__version__, transformers.__file__)"),
-        ("transformers.models", "import transformers.models as models; print('transformers.models', models.__file__)"),
+        ("transformers.models", "import transformers.models as models; print('transformers.models', models.__file__); assert not str(models.__file__).endswith('.pyc'), models.__file__"),
         ("sentence_transformers", "import sentence_transformers; print('sentence_transformers', sentence_transformers.__version__, sentence_transformers.__file__)"),
         ("tokenizers", "import tokenizers; print('tokenizers', tokenizers.__version__, tokenizers.__file__)"),
         ("chronos", "import chronos; print('chronos', getattr(chronos, '__file__', ''))"),

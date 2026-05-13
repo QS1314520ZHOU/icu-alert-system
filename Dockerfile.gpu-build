@@ -336,6 +336,19 @@ hidden_imports = (
 
 excludes = ['PIL', 'tkinter', 'test', 'setuptools', 'pip']
 
+# transformers/chronos/sentence_transformers 的 lazy loader 会读取 __file__
+# 所在目录；如果从 PYZ 中的 .pyc 加载，__file__ 会指向不存在的
+# _internal/.../__init__.pyc 目录路径，导致 FileNotFoundError。
+module_collection_mode = {
+    'transformers': 'py',
+    'transformers.models': 'py',
+    'sentence_transformers': 'py',
+    'tokenizers': 'py',
+    'chronos': 'py',
+    'safetensors': 'py',
+    'huggingface_hub': 'py',
+}
+
 a = Analysis(
     ['entry.py'],
     pathex=['.', './backend'],
@@ -343,6 +356,7 @@ a = Analysis(
     hiddenimports=hidden_imports,
     hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=excludes,
+    module_collection_mode=module_collection_mode,
     win_no_prefer_redirects=False, win_private_assemblies=False,
     cipher=block_cipher, noarchive=False,
 )
