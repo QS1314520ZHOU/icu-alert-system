@@ -365,6 +365,16 @@ RUN cd /build && \
         { echo "=== BUILD FAILED: missing torch/lib/libtorch* ==="; exit 1; } && \
     test -d /build/dist/icu-alert-system/_internal/onnxruntime/capi || \
         { echo "=== BUILD FAILED: missing onnxruntime/capi ==="; exit 1; } && \
+    cd /build/dist/icu-alert-system && \
+    SELFTEST_LD_PATH="/build/dist/icu-alert-system/_internal:/build/dist/icu-alert-system/_internal/torch/lib:/build/dist/icu-alert-system/_internal/onnxruntime/capi" && \
+    for d in /build/dist/icu-alert-system/_internal/nvidia/*/lib; do \
+        [ -d "$d" ] && SELFTEST_LD_PATH="${SELFTEST_LD_PATH}:$d"; \
+    done && \
+    env LD_LIBRARY_PATH="${SELFTEST_LD_PATH}:${LD_LIBRARY_PATH:-}" \
+        ICU_IMPORT_SELF_TEST=1 \
+        ./icu-alert-system > /build/package-selftest.log 2>&1 || \
+        { echo "=== BUILD FAILED: packaged import selftest failed ==="; cat /build/package-selftest.log; exit 1; } && \
+    cat /build/package-selftest.log && \
     echo ">>> Binary OK: $(ls -lh /build/dist/icu-alert-system/icu-alert-system)"
 
 # ---- 2.11 .env.template ----

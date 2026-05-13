@@ -157,6 +157,12 @@ def import_self_test():
     """Fail the packaged binary early if bundled ML imports are broken."""
     required_checks = [
         ("torch", "import torch; print('torch', torch.__version__, 'cuda', getattr(torch.version, 'cuda', None))"),
+        ("transformers", "import transformers; print('transformers', transformers.__version__, transformers.__file__)"),
+        ("transformers.models", "import transformers.models as models; print('transformers.models', models.__file__)"),
+        ("sentence_transformers", "import sentence_transformers; print('sentence_transformers', sentence_transformers.__version__, sentence_transformers.__file__)"),
+        ("tokenizers", "import tokenizers; print('tokenizers', tokenizers.__version__, tokenizers.__file__)"),
+        ("chronos", "import chronos; print('chronos', getattr(chronos, '__file__', ''))"),
+        ("onnxruntime", "import onnxruntime as ort; print('onnxruntime', ort.__version__, ort.get_available_providers())"),
     ]
     failed = False
     for name, code in required_checks:
