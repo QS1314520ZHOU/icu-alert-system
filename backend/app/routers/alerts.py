@@ -39,46 +39,46 @@ async def recent_alerts(
     patient_id: Optional[str] = Query(None, description="患者ID"),
     bed: Optional[str] = Query(None, description="床号"),
     role: Optional[str] = Query(None, description="角色过滤: nurse/doctor/pharmacist"),
+    fast: bool = Query(False, description="轻量快速查询，优先使用告警记录科室字段"),
+    pending: bool = Query(False, description="Only unacknowledged alerts"),
 ):
     col = runtime.db.col("alert_records")
-    query: dict = {"is_active": True}
+    query: dict = {"$and": [{"$or": [{"is_active": True}, {"is_active": {"$exists": False}}]}]}
     if patient_id or bed:
         scoped_or = []
         if patient_id:
             scoped_or.append({"patient_id": patient_id})
         if bed:
             scoped_or.append({"bed": bed})
-        query["$or"] = scoped_or
+        query["$and"].append({"$or": scoped_or})
     if dept:
-        query.setdefault("$and", []).append({"dept": dept})
+        query["$and"].append({"dept": dept})
     elif dept_code:
         patient_ids = []
         patient_query = {"$and": [admitted_patient_query(), {"deptCode": dept_code}]}
         cursor_p = runtime.db.col("patient").find(patient_query, {"_id": 1})
         async for patient in cursor_p:
             patient_ids.append(str(patient.get("_id")))
+        dept_or = [
+            {"deptCode": dept_code},
+            {"dept_code": dept_code},
+            {"extra.deptCode": dept_code},
+            {"extra.dept_code": dept_code},
+        ]
         if patient_ids:
-            dept_or = [
-                {"patient_id": {"$in": patient_ids}},
-                {
-                    "$and": [
-                        {"deptCode": dept_code},
-                        {"$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}]},
-                    ]
-                },
-            ]
-        else:
-            dept_or = [
+            dept_or.append({"patient_id": {"$in": patient_ids}})
+        elif not fast:
+            dept_or.append(
                 {
                     "$and": [
                         {"deptCode": dept_code},
                         {"$or": [{"patient_id": {"$exists": False}}, {"patient_id": None}, {"patient_id": ""}]},
                     ]
                 }
-            ]
-        query.setdefault("$and", []).append({"$or": dept_or})
+            )
+        query["$and"].append({"$or": dept_or})
     if role:
-        query.setdefault("$and", []).append(
+        query["$and"].append(
             {
                 "$or": [
                     {"route_targets": str(role).lower()},
@@ -87,9 +87,21 @@ async def recent_alerts(
             }
         )
 
+    if pending:
+        query["$and"].append(
+            {
+                "$and": [
+                    {"$or": [{"acknowledged_at": None}, {"acknowledged_at": {"$exists": False}}]},
+                    {"$or": [{"ack_disposition": None}, {"ack_disposition": ""}, {"ack_disposition": {"$exists": False}}]},
+                    {"$or": [{"action_taken": None}, {"action_taken": ""}, {"action_taken": {"$exists": False}}]},
+                ]
+            }
+        )
+
+    total_count = await col.count_documents(query)
     cursor = col.find(query).sort([("actionability_score", -1), ("created_at", -1)]).limit(limit)
     records = [serialize_doc(doc) async for doc in cursor]
-    return {"code": 0, "records": records}
+    return {"code": 0, "records": records, "total": total_count, "pending_count": total_count if pending else None}
 
 
 @router.post("/api/alerts/{alert_id}/acknowledge")

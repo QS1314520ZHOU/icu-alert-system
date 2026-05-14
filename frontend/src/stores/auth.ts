@@ -60,6 +60,13 @@ export const useAuthStore = defineStore('auth', () => {
     const nextRole = firstQuery(query, ['role'])
     const nextDept = firstQuery(query, ['dept'])
     const nextDeptCode = firstQuery(query, ['dept_code', 'deptCode'])
+    const incomingUser = nextUserId || nextUserName
+    const currentUser = userId.value || userName.value
+    if (incomingUser && incomingUser !== currentUser) {
+      role.value = ''
+      dept.value = ''
+      deptCode.value = ''
+    }
     if (nextUserId) userId.value = nextUserId
     if (nextUserName) userName.value = nextUserName
     if (!nextUserId && nextUserName) userId.value = nextUserName
@@ -71,11 +78,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   function updateAccount(account: any) {
     if (!account || typeof account !== 'object') return
+    const has = (key: string) => Object.prototype.hasOwnProperty.call(account, key)
     userId.value = String(account.user_id || account.userId || userId.value || '').trim()
     userName.value = String(account.userName || account.username || userName.value || '').trim()
     role.value = String(account.role || role.value || '').trim()
-    dept.value = String(account.dept || dept.value || '').trim()
-    deptCode.value = String(account.dept_code || account.deptCode || deptCode.value || '').trim()
+    if (has('dept')) dept.value = String(account.dept || '').trim()
+    if (has('dept_code') || has('deptCode')) deptCode.value = String(account.dept_code || account.deptCode || '').trim()
     persist()
   }
 

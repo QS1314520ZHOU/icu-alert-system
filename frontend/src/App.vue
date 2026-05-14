@@ -1,6 +1,10 @@
 <template>
   <component :is="themeWrapperComponent" v-bind="themeWrapperProps">
-    <div class="root" :class="`theme-${themeMode}`">
+    <div class="root" :class="[isMobileRoute ? 'theme-light' : `theme-${themeMode}`, { 'root--mobile': isMobileRoute }]">
+      <template v-if="isMobileRoute">
+        <router-view />
+      </template>
+      <template v-else>
       <header class="hdr">
         <div class="hdr-top">
           <div class="hdr-l">
@@ -60,6 +64,7 @@
       </header>
       <main class="body"><router-view /></main>
       <AiPulseFloater />
+      </template>
     </div>
   </component>
 </template>
@@ -158,6 +163,8 @@ function firstRouteQuery(...keys: string[]) {
 }
 
 const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'username', 'user_id', 'userId'))
+const isBootMobilePath = typeof window !== 'undefined' && window.location.pathname.startsWith('/m')
+const isMobileRoute = computed(() => route.path.startsWith('/m') || (route.path === '/' && isBootMobilePath))
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
   if (!antThemeReady.value || !antTheme.value) return undefined

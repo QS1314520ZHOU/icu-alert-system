@@ -42,7 +42,7 @@ def _fallback_account(user_name: str | None, role: str | None, dept: str | None,
     return account
 
 
-async def _resolve_account_fast(user_name: str | None, role: str | None, dept: str | None, dept_code: str | None) -> dict[str, Any]:
+async def _resolve_account_fast(user_name: str | None, role: str | None, dept: str | None, dept_code: str | None, timeout: float = 0.12) -> dict[str, Any]:
     key = _account_cache_key(user_name, role, dept, dept_code)
     cached = _ACCOUNT_CACHE.get(key)
     now = datetime.now()
@@ -52,7 +52,7 @@ async def _resolve_account_fast(user_name: str | None, role: str | None, dept: s
     if runtime.db is None or not user_name:
         return fallback
     try:
-        account = await asyncio.wait_for(_service().resolve_account(user_name, fallback_role=role or "doctor"), timeout=0.12)
+        account = await asyncio.wait_for(_service().resolve_account(user_name, fallback_role=role or "doctor"), timeout=timeout)
     except Exception:
         return fallback
     if dept_code and not account.get("dept_code"):
@@ -85,7 +85,7 @@ async def account(
     userName: str | None = Query(None),
 ):
     fallback_dept_code = dept_code or deptCode
-    account = await _resolve_account_fast(userName, role or "doctor", dept, fallback_dept_code)
+    account = await _resolve_account_fast(userName, role or "doctor", dept, fallback_dept_code, timeout=1.2)
     return {"code": 0, "account": serialize_doc(account)}
 
 

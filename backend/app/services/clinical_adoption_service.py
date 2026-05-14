@@ -207,6 +207,27 @@ class ClinicalAdoptionService:
             pass
         return "、".join(names_by_code.get(code, code) for code in codes)
 
+    async def _department_options(self, dept_code: Any, dept_name: Any = None) -> list[dict[str, str]]:
+        codes = self._dept_code_tokens(dept_code)
+        names = [item.strip() for item in _text(dept_name).replace("、", ",").split(",") if item.strip()]
+        names_by_code: dict[str, str] = {}
+        if codes:
+            try:
+                cursor = self.db.col("department").find({"code": {"$in": codes}}, {"code": 1, "name": 1, "dept": 1})
+                async for row in cursor:
+                    code = _text(row.get("code"))
+                    name = _text(row.get("name") or row.get("dept"))
+                    if code and name and name != code:
+                        names_by_code[code] = name
+            except Exception:
+                pass
+        options: list[dict[str, str]] = []
+        for index, code in enumerate(codes):
+            options.append({"deptCode": code, "dept": names_by_code.get(code) or (names[index] if index < len(names) else code)})
+        if not options and names:
+            options = [{"deptCode": "", "dept": name} for name in names]
+        return options
+
     async def resolve_account(self, user_name: str | None, *, fallback_role: str | None = "doctor") -> dict[str, Any]:
         user_name = _text(user_name)
         if not user_name:
@@ -237,6 +258,7 @@ class ClinicalAdoptionService:
             "deptCode": 1,
             "departmentCode": 1,
             "deptName": 1,
+            "departmentName": 1,
             "dept": 1,
         }
         account = await self.db.col("account").find_one(query, projection)
@@ -245,6 +267,7 @@ class ClinicalAdoptionService:
             return {"userName": user_name, "role": role, "found": False}
         dept_code = account.get("deptCode") or account.get("departmentCode")
         dept_name = account.get("deptName") or account.get("departmentName") or account.get("dept") or await self._department_names(dept_code)
+        dept_options = await self._department_options(dept_code, dept_name)
         return {
             "userName": account.get("userName") or account.get("username") or user_name,
             "trueName": account.get("trueName"),
@@ -252,6 +275,7 @@ class ClinicalAdoptionService:
             "role": role,
             "dept_code": dept_code,
             "dept": dept_name,
+            "departments": dept_options,
             "found": True,
             "raw_role": account.get("profession") or account.get("roleName") or account.get("role") or account.get("jobTitle") or account.get("title") or account.get("position") or account.get("userType"),
         }

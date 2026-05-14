@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import 'ant-design-vue/dist/reset.css'
 import { registerSW } from 'virtual:pwa-register'
 import './style.css'
+import './mobile/mobile.css'
 
 function syncDisplayQualityClass() {
   const dpr = window.devicePixelRatio || 1
@@ -13,6 +14,7 @@ function syncDisplayQualityClass() {
 
 async function bootstrap() {
   syncDisplayQualityClass()
+  document.documentElement.classList.toggle('boot-mobile', window.location.pathname.startsWith('/m'))
   window.addEventListener('resize', syncDisplayQualityClass, { passive: true })
 
   const [{ createPinia }, { default: App }, { default: router }] = await Promise.all([
@@ -24,7 +26,9 @@ async function bootstrap() {
   const app = createApp(App)
   app.use(createPinia())
   app.use(router)
+  await router.isReady()
   app.mount('#app')
+  document.documentElement.classList.remove('boot-mobile')
 }
 
 bootstrap()

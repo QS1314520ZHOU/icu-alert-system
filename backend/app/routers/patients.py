@@ -19,6 +19,24 @@ router = APIRouter()
 logger = logging.getLogger("icu-alert")
 
 
+def _patient_diagnosis(doc: dict) -> str:
+    for key in (
+        "clinicalDiagnosis",
+        "admissionDiagnosis",
+        "diagnosis",
+        "hisDiagnosis",
+        "hisDiagnose",
+        "mainDiagnosis",
+        "primaryDiagnosis",
+        "allDiagnosis",
+        "dischargedDiagnosis",
+    ):
+        value = str(doc.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 @router.get("/api/departments")
 async def get_departments():
     """获取所有科室及在院患者数量"""
@@ -60,14 +78,15 @@ async def get_patients(
     """获取患者列表，可按科室与科研范围筛选"""
     query: dict = research_patient_scope_query(patient_scope)
     if dept:
-        query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}]}]}
+        query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}, {"deptName": dept}, {"department": dept}, {"departmentName": dept}]}]}
     elif dept_code:
-        query = {"$and": [query, {"deptCode": dept_code}]}
+        query = {"$and": [query, {"$or": [{"deptCode": dept_code}, {"dept_code": dept_code}, {"departmentCode": dept_code}]}]}
 
     cursor = runtime.db.col("patient").find(query).sort("hisBed", 1)
     patients = []
     async for doc in cursor:
         row = serialize_doc(doc)
+        row["diagnosis"] = row.get("diagnosis") or _patient_diagnosis(doc)
         if not row.get("age"):
             row["age"] = calculate_age(doc.get("birthday"))
         row["clinicalTags"] = infer_clinical_tags(doc)
@@ -98,6 +117,7 @@ async def get_patient(patient_id: str):
     if not doc:
         return {"code": 404, "message": "患者不存在"}
     row = serialize_doc(doc)
+    row["diagnosis"] = row.get("diagnosis") or _patient_diagnosis(doc)
     if not row.get("age"):
         row["age"] = calculate_age(doc.get("birthday"))
     return {"code": 0, "patient": row}

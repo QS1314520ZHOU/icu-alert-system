@@ -1,5 +1,12 @@
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html.boot-mobile,
+html.boot-mobile body,
+html.boot-mobile #app {
+  min-height: 100vh;
+  background: #f3f6f8;
+}
+
 :root {
   /* Dark Mode - Clinical Monitor */
   --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;

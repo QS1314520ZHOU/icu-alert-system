@@ -22,6 +22,14 @@ const routeComponents = {
   researchWorkbench: () => import('../views/ResearchWorkbench.vue'),
   mdtBoard: () => import('../views/MdtBoard.vue'),
   bedside: () => import('../views/BedSideScreen.vue'),
+  mobileLayout: () => import('../mobile/MobileLayout.vue'),
+  mobileHome: () => import('../mobile/MobileHome.vue'),
+  mobilePatientList: () => import('../mobile/MobilePatientList.vue'),
+  mobilePatientDetail: () => import('../mobile/MobilePatientDetail.vue'),
+  mobileAlerts: () => import('../mobile/MobileAlerts.vue'),
+  mobileTasks: () => import('../mobile/MobileTasks.vue'),
+  mobileConsult: () => import('../mobile/MobileConsult.vue'),
+  mobileMe: () => import('../mobile/MobileMe.vue'),
 } as const
 
 export function preloadRouteComponent(key: keyof typeof routeComponents) {
@@ -169,6 +177,61 @@ const router = createRouter({
       name: 'bedside',
       component: routeComponents.bedside,
       meta: { title: '床旁大屏' }
+    },
+    {
+      path: '/m',
+      component: routeComponents.mobileLayout,
+      meta: { title: 'ICU移动工作台', useAntdTheme: true, mobile: true },
+      children: [
+        {
+          path: '',
+          name: 'mobile-home',
+          component: routeComponents.mobileHome,
+          meta: { title: '移动首页', useAntdTheme: true, mobile: true }
+        },
+        {
+          path: 'clinical-workflow',
+          name: 'mobile-clinical-workflow',
+          component: routeComponents.mobileHome,
+          meta: { title: '移动临床工作台', useAntdTheme: true, mobile: true }
+        },
+        {
+          path: 'patients',
+          name: 'mobile-patients',
+          component: routeComponents.mobilePatientList,
+          meta: { title: '移动患者', useAntdTheme: true, mobile: true }
+        },
+        {
+          path: 'patient/:id',
+          name: 'mobile-patient-detail',
+          component: routeComponents.mobilePatientDetail,
+          meta: { title: '移动患者详情', useAntdTheme: true, mobile: true }
+        },
+        {
+          path: 'alerts',
+          name: 'mobile-alerts',
+          component: routeComponents.mobileAlerts,
+          meta: { title: '移动告警', useAntdTheme: true, mobile: true }
+        },
+        {
+          path: 'tasks',
+          name: 'mobile-tasks',
+          component: routeComponents.mobileTasks,
+          meta: { title: '移动任务', useAntdTheme: true, mobile: true }
+        },
+        {
+          path: 'consult',
+          name: 'mobile-consult',
+          component: routeComponents.mobileConsult,
+          meta: { title: '移动AI问诊', useAntdTheme: true, mobile: true }
+        },
+        {
+          path: 'me',
+          name: 'mobile-me',
+          component: routeComponents.mobileMe,
+          meta: { title: '我的', useAntdTheme: true, mobile: true }
+        }
+      ]
     }
   ] satisfies RouteRecordRaw[]
 })

@@ -229,7 +229,7 @@ export const postTreatmentFeedback = (payload: {
 }) => aiApi.post('/api/treatment/feedback', payload)
 
 // 获取最近预警
-export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string; patient_id?: string; bed?: string }) =>
+export const getRecentAlerts = (limit = 50, params?: { dept?: string; dept_code?: string; patient_id?: string; bed?: string; fast?: boolean; pending?: boolean }) =>
   analyticsApi.get('/api/alerts/recent', { params: { limit, ...(params || {}) } })
 
 // 获取预警统计
