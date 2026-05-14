@@ -10,9 +10,14 @@ export type HumanBodyAlarmPayload = {
   patientId?: string
   patientName?: string
   bed?: string
+  source?: string
 }
 
 export type HumanBodyAlarmRecord = HumanBodyAlarmPayload & {
   organ: OrganBusinessName
   timestamp: number
+}
+
+export type HumanBodyAlarmInput = Omit<HumanBodyAlarmPayload, 'level'> & {
+  level?: HumanBodyAlarmLevel | string
 }

@@ -1,9 +1,9 @@
-type AlertMessage = {
+export type AlertSocketMessage = {
   type: string
   data: any
 }
 
-type Listener = (msg: AlertMessage) => void
+export type AlertSocketListener = (msg: AlertSocketMessage) => void
 
 const SEVERITY_TEXT: Record<string, string> = {
   critical: '危急',
@@ -14,7 +14,8 @@ const SEVERITY_TEXT: Record<string, string> = {
   normal: '正常',
 }
 
-const listeners = new Set<Listener>()
+const listeners = new Set<AlertSocketListener>()
+const typedListeners = new Map<string, Set<AlertSocketListener>>()
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 const NOTIFY_KEY = 'icu_alert_notify_enabled'
@@ -50,7 +51,7 @@ export async function requestAlertNotificationPermission() {
   return permission
 }
 
-function notifyAlert(msg: AlertMessage) {
+function notifyAlert(msg: AlertSocketMessage) {
   if (!canUseNotification()) return
   if (!getAlertNotifyEnabled()) return
   if (Notification.permission !== 'granted') return
@@ -83,9 +84,11 @@ function connect() {
 
   socket.onmessage = evt => {
     try {
-      const data = JSON.parse(evt.data)
+      const data = JSON.parse(evt.data) as AlertSocketMessage
       notifyAlert(data)
       listeners.forEach(fn => fn(data))
+      const typed = typedListeners.get(data?.type)
+      typed?.forEach(fn => fn(data))
     } catch {
       // ignore parse errors
     }
@@ -106,7 +109,7 @@ function scheduleReconnect() {
   if (reconnectTimer) return
   reconnectTimer = window.setTimeout(() => {
     reconnectTimer = null
-    if (listeners.size > 0) connect()
+    if (listeners.size > 0 || typedListeners.size > 0) connect()
   }, 3000)
 }
 
@@ -125,7 +128,7 @@ export function setAlertSpeechEnabled(enabled: boolean) {
  * 对 critical 级别预警执行语音播报。
  * 供护士站大屏等全局视图注册，内网音箱/广播通过浏览器 Web Speech API 输出。
  */
-export function speakCriticalAlert(msg: AlertMessage) {
+export function speakCriticalAlert(msg: AlertSocketMessage) {
   if (msg?.type !== 'alert') return
   const alert = msg?.data || {}
   if (String(alert.severity || '').toLowerCase() !== 'critical') return
@@ -145,15 +148,35 @@ export function speakCriticalAlert(msg: AlertMessage) {
   window.speechSynthesis.speak(utter)
 }
 
-export function onAlertMessage(listener: Listener) {
+function closeSocketIfIdle() {
+  if (listeners.size === 0 && typedListeners.size === 0 && socket) {
+    socket.close()
+    socket = null
+  }
+}
+
+export function onAlertMessage(listener: AlertSocketListener) {
   listeners.add(listener)
   connect()
   return () => {
     listeners.delete(listener)
-    if (listeners.size === 0 && socket) {
-      socket.close()
-      socket = null
-    }
+    closeSocketIfIdle()
+  }
+}
+
+export function subscribeAlertSocket(type: string, listener: AlertSocketListener) {
+  const key = String(type || '').trim()
+  if (!key) return () => {}
+  const bucket = typedListeners.get(key) || new Set<AlertSocketListener>()
+  bucket.add(listener)
+  typedListeners.set(key, bucket)
+  connect()
+  return () => {
+    const current = typedListeners.get(key)
+    if (!current) return
+    current.delete(listener)
+    if (current.size === 0) typedListeners.delete(key)
+    closeSocketIfIdle()
   }
 }
 
