@@ -152,15 +152,6 @@
                 @organ-click="handleBodyOrganClick"
                 @open-alerts="openRescueAlerts"
               />
-              <div class="hero-human-body">
-                <HumanBody
-                  :patient-id="String(route.params.id || '')"
-                  force-tier="2d"
-                  :auto-focus="false"
-                  :show-labels="false"
-                  @organ-click="handleHumanBodyOrganClick"
-                />
-              </div>
             </div>
           </section>
 
@@ -701,7 +692,6 @@ const PatientMobilityTab = defineAsyncComponent(() => import('../components/pati
 const PatientPeRiskTab = defineAsyncComponent(() => import('../components/patient-detail/PeRiskTab.vue'))
 const PatientEvidenceModal = defineAsyncComponent(() => import('../components/patient-detail/EvidenceModal.vue'))
 const PatientBodyMapPanel = defineAsyncComponent(() => import('../components/patient-detail/BodyMapPanel.vue'))
-const HumanBody = defineAsyncComponent(() => import('../components/HumanBody/index.vue'))
 const PatientDeviceBodyMap = defineAsyncComponent(() => import('../components/patient-detail/DeviceBodyMap.vue'))
 const PatientDeviceHaiBundlePanel = defineAsyncComponent(() => import('../components/patient-detail/DeviceHaiBundlePanel.vue'))
 const ClinicalSummaryPanel = defineAsyncComponent(() => import('../components/patient-detail/ClinicalSummaryPanel.vue'))
@@ -1187,10 +1177,6 @@ async function handleBodyOrganClick(key: string) {
   }
   selectedBodyOrgan.value = nextKey
   await openRescueAlerts()
-}
-
-async function handleHumanBodyOrganClick(key: string) {
-  await handleBodyOrganClick(key)
 }
 
 async function handleDeviceHaiAlertFocus(types: string[], organKey?: string) {
@@ -4409,14 +4395,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-}
-.hero-human-body {
-  height: 220px;
-  margin-top: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(80,199,255,.12);
-  border-radius: 10px;
-  background: rgba(5, 12, 20, 0.62);
 }
 .hero-tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2px; }
 .hero-tag {

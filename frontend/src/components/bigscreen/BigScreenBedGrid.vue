@@ -4,11 +4,6 @@
       v-for="patient in patients"
       :key="patient._id"
       :class="['bed-card', `bed-${patient.alertLevel || 'none'}`, { flash: patient.alertFlash }]"
-      role="button"
-      tabindex="0"
-      @click="emit('bed-click', patient)"
-      @keydown.enter.prevent="emit('bed-click', patient)"
-      @keydown.space.prevent="emit('bed-click', patient)"
     >
       <div class="bed-head">
         <div class="bed-head-main">
@@ -116,10 +111,6 @@ import { formatSeverityLabel } from '../../utils/displayLabels'
 
 defineProps<{
   patients: any[]
-}>()
-
-const emit = defineEmits<{
-  'bed-click': [patient: any]
 }>()
 
 function genderText(v: any) {

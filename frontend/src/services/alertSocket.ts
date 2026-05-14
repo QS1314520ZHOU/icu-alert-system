@@ -15,7 +15,6 @@ const SEVERITY_TEXT: Record<string, string> = {
 }
 
 const listeners = new Set<AlertSocketListener>()
-const typedListeners = new Map<string, Set<AlertSocketListener>>()
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 const NOTIFY_KEY = 'icu_alert_notify_enabled'
@@ -87,8 +86,6 @@ function connect() {
       const data = JSON.parse(evt.data) as AlertSocketMessage
       notifyAlert(data)
       listeners.forEach(fn => fn(data))
-      const typed = typedListeners.get(data?.type)
-      typed?.forEach(fn => fn(data))
     } catch {
       // ignore parse errors
     }
@@ -109,7 +106,7 @@ function scheduleReconnect() {
   if (reconnectTimer) return
   reconnectTimer = window.setTimeout(() => {
     reconnectTimer = null
-    if (listeners.size > 0 || typedListeners.size > 0) connect()
+    if (listeners.size > 0) connect()
   }, 3000)
 }
 
@@ -149,7 +146,7 @@ export function speakCriticalAlert(msg: AlertSocketMessage) {
 }
 
 function closeSocketIfIdle() {
-  if (listeners.size === 0 && typedListeners.size === 0 && socket) {
+  if (listeners.size === 0 && socket) {
     socket.close()
     socket = null
   }
@@ -160,22 +157,6 @@ export function onAlertMessage(listener: AlertSocketListener) {
   connect()
   return () => {
     listeners.delete(listener)
-    closeSocketIfIdle()
-  }
-}
-
-export function subscribeAlertSocket(type: string, listener: AlertSocketListener) {
-  const key = String(type || '').trim()
-  if (!key) return () => {}
-  const bucket = typedListeners.get(key) || new Set<AlertSocketListener>()
-  bucket.add(listener)
-  typedListeners.set(key, bucket)
-  connect()
-  return () => {
-    const current = typedListeners.get(key)
-    if (!current) return
-    current.delete(listener)
-    if (current.size === 0) typedListeners.delete(key)
     closeSocketIfIdle()
   }
 }

@@ -22,7 +22,6 @@ const routeComponents = {
   researchWorkbench: () => import('../views/ResearchWorkbench.vue'),
   mdtBoard: () => import('../views/MdtBoard.vue'),
   bedside: () => import('../views/BedSideScreen.vue'),
-  humanBodyDemo: () => import('../views/HumanBodyDemo.vue'),
   mobileLayout: () => import('../mobile/MobileLayout.vue'),
   mobileHome: () => import('../mobile/MobileHome.vue'),
   mobilePatientList: () => import('../mobile/MobilePatientList.vue'),
@@ -178,12 +177,6 @@ const router = createRouter({
       name: 'bedside',
       component: routeComponents.bedside,
       meta: { title: '床旁大屏' }
-    },
-    {
-      path: '/demo/human-body',
-      name: 'human-body-demo',
-      component: routeComponents.humanBodyDemo,
-      meta: { title: '人体器官报警演示' }
     },
     {
       path: '/m',
