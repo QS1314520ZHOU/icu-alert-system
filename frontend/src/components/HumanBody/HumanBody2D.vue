@@ -1,5 +1,5 @@
 <template>
-  <div class="human-body-2d">
+  <div ref="rootRef" class="human-body-2d">
     <svg class="human-body-2d__svg" viewBox="0 0 320 620" role="img" aria-label="ICU organ alarm body map">
       <path class="body-outline" d="M160 24c-38 0-68 30-68 68 0 23 11 44 29 56v38c-52 16-82 62-82 122v126c0 35 23 62 58 69l18 4v72h90v-72l18-4c35-7 58-34 58-69V308c0-60-30-106-82-122v-38c18-12 29-33 29-56 0-38-30-68-68-68Z" />
 
@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useHumanBodyAlarmStore } from '../../stores/humanBodyAlarmStore'
 import { connectHumanBodyAlarmAdapter } from '../../services/humanBodyAlarmAdapter'
 import { ORGAN_MAP } from './constants/organMap'
@@ -55,6 +55,7 @@ const emit = defineEmits<{
   'organ-click': [businessName: OrganBusinessName, patientId?: string]
 }>()
 
+const rootRef = ref<HTMLElement | null>(null)
 const store = useHumanBodyAlarmStore()
 const visibleAlarms = computed(() => {
   return props.patientId ? store.getAlarmsByPatient(props.patientId) : store.getAggregatedAlarms()
@@ -63,7 +64,7 @@ let offAlarmAdapter: (() => void) | null = null
 
 function resetClasses() {
   Object.values(ORGAN_MAP).forEach((entry) => {
-    const node = document.querySelector(entry.svg)
+    const node = rootRef.value?.querySelector(entry.svg)
     node?.classList.remove('alarm-critical', 'alarm-warning', 'alarm-info', 'organ-selected')
   })
 }
@@ -72,14 +73,14 @@ function applyAlarms(records: HumanBodyAlarmRecord[]) {
   resetClasses()
   records.forEach((record) => {
     const selector = ORGAN_MAP[record.organ].svg
-    document.querySelector(selector)?.classList.add(`alarm-${record.level}`)
+    rootRef.value?.querySelector(selector)?.classList.add(`alarm-${record.level}`)
   })
 }
 
 function handleClick(businessName: OrganBusinessName) {
   resetClasses()
   applyAlarms(visibleAlarms.value)
-  document.querySelector(ORGAN_MAP[businessName].svg)?.classList.add('organ-selected')
+  rootRef.value?.querySelector(ORGAN_MAP[businessName].svg)?.classList.add('organ-selected')
   emit('organ-click', businessName, props.patientId)
 }
 

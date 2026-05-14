@@ -108,7 +108,13 @@ import type { HumanBodyAlarmLevel } from '../types/alarm'
 import type { HumanBodyForceTier, OrganBusinessName } from '../types/organ'
 
 const store = useHumanBodyAlarmStore()
-const forceTier = ref<HumanBodyForceTier>('2d')
+function initialForceTier(): HumanBodyForceTier {
+  if (typeof window === 'undefined') return '2d'
+  const raw = new URLSearchParams(window.location.search).get('force')
+  return raw === 'high' || raw === 'low' || raw === '2d' ? raw : '2d'
+}
+
+const forceTier = ref<HumanBodyForceTier>(initialForceTier())
 const patientMode = ref(false)
 const selectedPatientId = ref('demo-patient-001')
 const selectedLevel = ref<HumanBodyAlarmLevel>('critical')
