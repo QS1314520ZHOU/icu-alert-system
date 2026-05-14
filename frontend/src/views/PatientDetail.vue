@@ -66,7 +66,7 @@
               </div>
               <div class="hero-diagnosis">{{ displayDiagnosis }}</div>
               <div class="hero-meta-row">
-                <div class="hero-meta">入院：{{ displayAdmissionTime }}</div>
+                <div class="hero-meta">入科：{{ displayAdmissionTime }}</div>
                 <div class="hero-meta">更新：{{ heroMonitorUpdatedAt }}</div>
               </div>
               <div class="hero-fact-grid">
@@ -158,7 +158,7 @@
           <div v-if="!isCompactDetail" class="detail-content detail-content--rail">
             <a-card title="基本信息" :bordered="false" class="info-card">
               <p>诊断: {{ displayDiagnosis }}</p>
-              <p>入院时间: {{ displayAdmissionTime }}</p>
+              <p>入科时间: {{ displayAdmissionTime }}</p>
               <p>HIS编号: {{ displayHisPid }}</p>
             </a-card>
             <a-card title="生命体征" :bordered="false" class="info-card vitals-card">
@@ -350,7 +350,11 @@
             v-model:trend-window="trendWindow"
             :trend-points="trendPoints"
             :trend-option="trendOption"
+            :forecast-meta="forecastMeta"
+            :forecast-enabled="trajectoryPublicConfig.enabled"
+            :forecast-horizon="trajectoryPublicConfig.horizon_hours"
             :on-refresh="loadTrend"
+            @legend-select-changed="saveTrendLegendSelection"
           />
           </a-tab-pane>
 
@@ -656,13 +660,14 @@ import {
 } from '../api'
 import { getPatientTrialMatches } from '../api/clinicalTrials'
 import {
-  icuCategoryAxis,
   icuGrid,
   icuLegend,
   icuTooltip,
   icuValueAxis,
 } from '../charts/icuTheme'
 import { getOperatorIdentity } from '../utils/operatorIdentity'
+import { useRuntimePublicConfigStore } from '../stores/runtimePublicConfig'
+import { useVitalForecast } from '../composables/useVitalForecast'
 import { onAlertMessage } from '../services/alertSocket'
 import AiWatchingBar from '../components/AiWatchingBar.vue'
 import {
@@ -693,6 +698,8 @@ const ClinicalSummaryPanel = defineAsyncComponent(() => import('../components/pa
 
 const route = useRoute()
 const router = useRouter()
+const runtimePublicConfig = useRuntimePublicConfigStore()
+const vitalForecast = useVitalForecast()
 const detailTabOrder = ['ecash', 'mobility', 'pe', 'trend', 'waveform', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'followup', 'twin', 'ai'] as const
 type DetailTabKey = typeof detailTabOrder[number]
 type DetailDensityMode = 'compact' | 'full'
@@ -744,6 +751,19 @@ const focusedAlertTypes = ref<string[]>([])
 
 const trendWindow = ref('24h')
 const trendPoints = ref<any[]>([])
+const trendLoaded = ref(false)
+const forecastCodes = ['HR', 'MAP', 'SpO2', 'RR', 'Temp']
+const trajectoryPublicConfig = computed(() => {
+  const cfg = runtimePublicConfig.trajectory || {}
+  return {
+    enabled: cfg.enabled !== false,
+    horizon_hours: Number(cfg.horizon_hours || 6),
+    default_codes: Array.isArray(cfg.default_codes) && cfg.default_codes.length ? cfg.default_codes : forecastCodes,
+  }
+})
+const forecastMeta = computed(() => vitalForecast.meta.value)
+const trendLegendStorageKey = computed(() => `icu_forecast_legend_${getOperatorIdentity() || 'anonymous'}`)
+const trendLegendSelected = ref<Record<string, boolean>>({})
 const waveformHours = ref(6)
 const waveformSelectedChannel = ref('')
 const waveformChannels = ref<any[]>([])
@@ -754,6 +774,9 @@ const waveformLoading = ref(false)
 const labs = ref<any[]>([])
 const drugs = ref<any[]>([])
 const assessments = ref<any[]>([])
+const labsLoaded = ref(false)
+const drugsLoaded = ref(false)
+const assessmentsLoaded = ref(false)
 const alerts = ref<any[]>([])
 const clinicalSummary = ref<any>(null)
 const clinicalSummaryLoading = ref(false)
@@ -870,11 +893,10 @@ const displayDiagnosis = computed(() =>
   patient.value?.hisDiagnose ||
   '暂无'
 )
-const displayAdmissionTime = computed(() =>
-  patient.value?.icuAdmissionTime ||
-  patient.value?.admissionTime ||
-  '未知'
-)
+const displayAdmissionTime = computed(() => {
+  const raw = patient.value?.icuAdmissionTime || patient.value?.admissionTime
+  return fmtTime(raw) || '未知'
+})
 const displayHisPid = computed(() =>
   patient.value?.hisPid || patient.value?.hisPID || '无'
 )
@@ -1504,30 +1526,175 @@ const compositeRadarOption = computed(() => {
   }
 })
 
+const trendMetricDefs = [
+  { key: 'hr', code: 'HR', name: 'HR', forecastName: 'HR · 预测', color: '#38bdf8', threshold: 12, get: (p: any) => numberOrNull(p.hr) },
+  { key: 'map', code: 'MAP', name: 'MAP', forecastName: 'MAP · 预测', color: '#34d399', threshold: 8, get: (p: any) => numberOrNull(p.ibp_map ?? p.nibp_map) },
+  { key: 'spo2', code: 'SpO2', name: 'SpO2', forecastName: 'SpO2 · 预测', color: '#a78bfa', threshold: 3, get: (p: any) => numberOrNull(p.spo2) },
+  { key: 'rr', code: 'RR', name: 'RR', forecastName: 'RR · 预测', color: '#f59e0b', threshold: 5, get: (p: any) => numberOrNull(p.rr) },
+  { key: 'temp', code: 'Temp', name: '体温', forecastName: '体温 · 预测', color: '#fb7185', threshold: 0.8, get: (p: any) => numberOrNull(p.temp) },
+]
+
+function alphaColor(hex: string, alpha: number) {
+  const clean = hex.replace('#', '')
+  const r = parseInt(clean.slice(0, 2), 16)
+  const g = parseInt(clean.slice(2, 4), 16)
+  const b = parseInt(clean.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+const forecastHistoryLastTs = computed(() => {
+  const rows = trendPoints.value || []
+  return String(rows[rows.length - 1]?.time || '')
+})
+
 const trendOption = computed(() => {
-  const xs = trendPoints.value.map(p => fmtTimeShort(p.time))
-  const mapVals = trendPoints.value.map(p => p.ibp_map ?? p.nibp_map ?? null)
+  const forecast = vitalForecast.state.data || {}
+  const forecastSeries = forecast?.series || {}
+  const meta = vitalForecast.meta.value
+  const lowQuality = meta.qualityLevel === 'low'
+  const lastHistoryTs = forecastHistoryLastTs.value
+  const tooltipLookup = new Map<string, any>()
+  const series: any[] = []
+
+  trendMetricDefs.forEach((metric) => {
+    const historyData = trendPoints.value
+      .map((p) => {
+        const value = metric.get(p)
+        return p?.time && value != null ? [p.time, value] : null
+      })
+      .filter(Boolean) as any[]
+    const lastHistory = [...historyData].reverse().find((row) => row?.[1] != null)
+
+    series.push({
+      id: `${metric.key}_hist`,
+      name: metric.name,
+      type: 'line',
+      smooth: true,
+      showSymbol: false,
+      connectNulls: true,
+      data: historyData,
+      lineStyle: { width: 2, color: metric.color },
+      itemStyle: { color: metric.color },
+    })
+
+    const rows = Array.isArray(forecastSeries?.[metric.code]?.forecast) ? forecastSeries[metric.code].forecast : []
+    if (!rows.length || !lastHistoryTs || !lastHistory) return
+
+    const meanRows = rows
+      .map((row: any) => {
+        const ts = row?.timestamp || row?.time
+        const mean = numberOrNull(row?.mean ?? row?.value)
+        const lower = numberOrNull(row?.lower)
+        const upper = numberOrNull(row?.upper)
+        return ts && mean != null ? { ts, mean, lower, upper } : null
+      })
+      .filter(Boolean) as Array<{ ts: string; mean: number; lower: number | null; upper: number | null }>
+    if (!meanRows.length) return
+
+    const first = meanRows[0]
+    if (!first) return
+    const visualSeamValue = Math.abs(first.mean - Number(lastHistory[1])) > metric.threshold ? Number(lastHistory[1]) : first.mean
+    const forecastData: any[] = [[lastHistoryTs, visualSeamValue], ...meanRows.map((row) => [row.ts, row.mean])]
+    forecastData.forEach((row) => {
+      tooltipLookup.set(`${metric.forecastName}|${row[0]}`, {
+        metric: metric.name,
+        mean: row[1],
+        lower: row[0] === lastHistoryTs ? null : meanRows.find((item) => item.ts === row[0])?.lower ?? null,
+        upper: row[0] === lastHistoryTs ? null : meanRows.find((item) => item.ts === row[0])?.upper ?? null,
+      })
+    })
+
+    series.push({
+      id: `${metric.key}_forecast`,
+      name: metric.forecastName,
+      type: 'line',
+      smooth: true,
+      showSymbol: false,
+      connectNulls: true,
+      data: forecastData,
+      lineStyle: { type: 'dashed', width: 1.5, color: alphaColor(metric.color, 0.72) },
+      itemStyle: { color: alphaColor(metric.color, 0.72) },
+    })
+
+    if (lowQuality) return
+    const bandRows = meanRows.filter((row) => row.lower != null && row.upper != null)
+    if (!bandRows.length) return
+    const lowerData = [[lastHistoryTs, null], ...bandRows.map((row) => [row.ts, row.lower])]
+    const deltaData = [[lastHistoryTs, null], ...bandRows.map((row) => [row.ts, Math.max(0, Number(row.upper) - Number(row.lower))])]
+    series.push({
+      id: `${metric.key}_band_lower`,
+      name: `${metric.forecastName} 下界`,
+      type: 'line',
+      legendHoverLink: false,
+      stack: `${metric.key}_band`,
+      data: lowerData,
+      showSymbol: false,
+      lineStyle: { opacity: 0 },
+      itemStyle: { opacity: 0 },
+      tooltip: { show: false },
+      silent: true,
+    })
+    series.push({
+      id: `${metric.key}_band_upper`,
+      name: `${metric.forecastName} 区间`,
+      type: 'line',
+      legendHoverLink: false,
+      stack: `${metric.key}_band`,
+      data: deltaData,
+      showSymbol: false,
+      lineStyle: { opacity: 0 },
+      itemStyle: { opacity: 0 },
+      areaStyle: { color: metric.color, opacity: 0.08 },
+      tooltip: { show: false },
+      silent: true,
+    })
+  })
+
+  const legendData = trendMetricDefs.flatMap((metric) => [metric.name, metric.forecastName])
+  const selected = { ...trendLegendSelected.value }
+  trendMetricDefs.forEach((metric) => {
+    if (selected[metric.forecastName] == null) selected[metric.forecastName] = true
+  })
+
   return {
     backgroundColor: 'transparent',
-    tooltip: icuTooltip({ trigger: 'axis' }),
-    legend: icuLegend({ textStyle: { color: '#9aa4b2', fontSize: 10 } }),
-    grid: icuGrid({ left: 40, right: 20, top: 30, bottom: 30 }),
-    xAxis: icuCategoryAxis(xs, {
-      axisLine: { lineStyle: { color: '#1e2a3a' } },
-      axisLabel: { color: '#6b7280', fontSize: 10 },
+    tooltip: icuTooltip({
+      trigger: 'axis',
+      formatter(params: any) {
+        const rows = Array.isArray(params) ? params : [params]
+        const visible = rows.filter((item: any) => item?.seriesName && !String(item.seriesName).includes('区间') && !String(item.seriesName).includes('下界'))
+        const time = visible[0]?.axisValue || visible[0]?.value?.[0]
+        const lines = [`${fmtTime(time)}`]
+        visible.forEach((item: any) => {
+          const value = Array.isArray(item.value) ? item.value[1] : item.value
+          if (value == null || value === '-') return
+          const lookup = tooltipLookup.get(`${item.seriesName}|${Array.isArray(item.value) ? item.value[0] : time}`)
+          if (lookup) {
+            const range = lookup.lower != null && lookup.upper != null ? `，80%区间 ${Number(lookup.lower).toFixed(1)} ~ ${Number(lookup.upper).toFixed(1)}` : ''
+            const source = meta.source === 'chronos' ? 'Chronos' : '线性外推'
+            lines.push(`${item.marker}${lookup.metric} 预测均值 ${Number(value).toFixed(1)}${range}，来源 ${source}，${fmtTime(meta.generatedAt)} 生成`)
+          } else {
+            const mapNote = item.seriesName === 'MAP' ? '，来源 IBP/NIBP 合并' : ''
+            lines.push(`${item.marker}${item.seriesName} 实测值 ${Number(value).toFixed(1)}${mapNote}`)
+          }
+        })
+        return lines.join('<br/>')
+      },
     }),
+    legend: icuLegend({ data: legendData, selected, textStyle: { color: '#9aa4b2', fontSize: 10 } }),
+    grid: icuGrid({ left: 40, right: 20, top: 30, bottom: 30 }),
+    xAxis: {
+      type: 'time',
+      axisLine: { lineStyle: { color: '#1e2a3a' } },
+      axisLabel: { color: '#6b7280', fontSize: 10, formatter: (value: any) => fmtTimeShort(value) },
+      splitLine: { show: false },
+    },
     yAxis: icuValueAxis({
       axisLine: { show: true, lineStyle: { color: '#1e2a3a' } },
       axisLabel: { color: '#6b7280', fontSize: 10 },
       splitLine: { lineStyle: { color: '#132237' } },
     }),
-    series: [
-      { name: 'HR', type: 'line', smooth: true, data: trendPoints.value.map(p => p.hr ?? null) },
-      { name: 'SpO₂', type: 'line', smooth: true, data: trendPoints.value.map(p => p.spo2 ?? null) },
-      { name: 'RR', type: 'line', smooth: true, data: trendPoints.value.map(p => p.rr ?? null) },
-      { name: 'MAP', type: 'line', smooth: true, data: mapVals },
-      { name: 'T', type: 'line', smooth: true, data: trendPoints.value.map(p => p.temp ?? null) },
-    ],
+    series,
   }
 })
 
@@ -1658,6 +1825,29 @@ function fmtTime(t: any) {
 function fmtTimeShort(t: any) {
   if (!t) return ''
   try { return dayjs(t).format('MM-DD HH:mm') } catch { return '' }
+}
+
+function readTrendLegendSelection() {
+  try {
+    const raw = localStorage.getItem(trendLegendStorageKey.value)
+    trendLegendSelected.value = raw ? JSON.parse(raw) : {}
+  } catch {
+    trendLegendSelected.value = {}
+  }
+}
+
+function saveTrendLegendSelection(selected: Record<string, boolean>) {
+  trendLegendSelected.value = selected || {}
+  try {
+    localStorage.setItem(trendLegendStorageKey.value, JSON.stringify(trendLegendSelected.value))
+  } catch {
+    // localStorage may be disabled in some embedded displays.
+  }
+}
+
+function numberOrNull(value: any) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
 }
 
 function knowledgeScopeText(scope: any) {
@@ -3127,47 +3317,83 @@ function backToList() {
   router.push({ path: '/', query: route.query })
 }
 
+async function ensureForecast() {
+  if (activeTab.value !== 'trend') return
+  const patientId = route.params.id as string
+  if (!patientId) return
+  const trendWindowSnapshot = trendWindow.value
+  const historyLastTsSnapshot = forecastHistoryLastTs.value
+  await runtimePublicConfig.loadTrajectoryConfig()
+  if (activeTab.value !== 'trend' || String(route.params.id || '') !== patientId || trendWindow.value !== trendWindowSnapshot) return
+  const cfg = trajectoryPublicConfig.value
+  if (cfg.enabled === false) {
+    vitalForecast.abort('disabled')
+    vitalForecast.state.data = null
+    vitalForecast.state.status = 'idle'
+    vitalForecast.state.source = ''
+    vitalForecast.state.error = ''
+    return
+  }
+  const horizon = Number(cfg.horizon_hours || 6)
+  const codes = Array.isArray(cfg.default_codes) && cfg.default_codes.length ? cfg.default_codes : forecastCodes
+  await vitalForecast.load({
+    patientId,
+    trendWindow: trendWindowSnapshot,
+    horizon,
+    codes,
+    historyLastTs: historyLastTsSnapshot,
+  })
+}
+
 async function loadTrend() {
   const patientId = route.params.id as string
   if (!patientId) return
   try {
     const res = await getPatientVitalsTrend(patientId, trendWindow.value)
     trendPoints.value = res.data.points || []
+    trendLoaded.value = true
+    void ensureForecast()
   } catch (e) {
-    console.error('加载趋势失败', e)
+    console.warn('趋势数据加载较慢，已保留当前页面可用状态', e)
   }
 }
 
 async function loadLabs() {
   const patientId = route.params.id as string
   if (!patientId) return
+  if (labsLoaded.value) return
   try {
     const res = await getPatientLabs(patientId)
     labs.value = res.data.exams || []
+    labsLoaded.value = true
   } catch (e) {
-    console.error('加载检验失败', e)
+    console.warn('检验数据加载较慢，已保留当前页面可用状态', e)
   }
 }
 
 async function loadDrugs() {
   const patientId = route.params.id as string
   if (!patientId) return
+  if (drugsLoaded.value) return
   try {
     const res = await getPatientDrugs(patientId)
     drugs.value = res.data.records || []
+    drugsLoaded.value = true
   } catch (e) {
-    console.error('加载用药失败', e)
+    console.warn('用药数据加载较慢，已保留当前页面可用状态', e)
   }
 }
 
 async function loadAssessments() {
   const patientId = route.params.id as string
   if (!patientId) return
+  if (assessmentsLoaded.value) return
   try {
     const res = await getPatientAssessments(patientId)
     assessments.value = res.data.records || []
+    assessmentsLoaded.value = true
   } catch (e) {
-    console.error('加载评估失败', e)
+    console.warn('评估数据加载较慢，已保留当前页面可用状态', e)
   }
 }
 
@@ -3299,8 +3525,8 @@ async function loadPersonalizedThresholds(force = false) {
     personalizedThresholdApprovedRecord.value =
       personalizedThresholdHistory.value.find((row: any) => String(row?.status || '').toLowerCase() === 'approved') || null
   } catch (e: any) {
-    console.error('加载个性化阈值建议失败', e)
-    personalizedThresholdError.value = e?.response?.data?.message || '个性化阈值建议加载失败'
+    console.warn('个性化阈值建议加载较慢，已保留当前页面可用状态', e)
+    personalizedThresholdError.value = ''
     personalizedThresholdRecord.value = null
     personalizedThresholdHistory.value = []
     personalizedThresholdApprovedRecord.value = null
@@ -3629,12 +3855,14 @@ async function loadAiAll() {
 }
 
 function resetDetailState() {
+  vitalForecast.abort('patient_switch')
   patient.value = null
   bedcard.value = null
   vitals.value = null
   selectedBodyOrgan.value = 'respiratory'
   focusedAlertTypes.value = []
   trendPoints.value = []
+  trendLoaded.value = false
   waveformSelectedChannel.value = ''
   waveformChannels.value = []
   waveformPoints.value = []
@@ -3644,6 +3872,9 @@ function resetDetailState() {
   labs.value = []
   drugs.value = []
   assessments.value = []
+  labsLoaded.value = false
+  drugsLoaded.value = false
+  assessmentsLoaded.value = false
   alerts.value = []
   trialMatches.value = []
   trialMatchLoading.value = false
@@ -3765,17 +3996,7 @@ async function loadDetailPage() {
     loadClinicalTrialMatches(),
   ])
 
-  // 二阶段加载：将非首屏请求后置，避免与核心数据并发抢占导致“点开患者很慢”。
-  setTimeout(() => {
-    void Promise.allSettled([
-      loadTrend(),
-      loadLabs(),
-      loadDrugs(),
-      loadAssessments(),
-      loadPersonalizedThresholds(),
-    ])
-  }, 0)
-
+  void ensureActiveTabData(activeTab.value)
   if (activeTab.value === 'similar' || !similarCaseLoaded.value) {
     void loadSimilarCaseReview()
   }
@@ -3789,8 +4010,21 @@ async function loadDetailPage() {
 }
 
 watch(trendWindow, () => {
-  if (activeTab.value === 'trend') loadTrend()
+  trendLoaded.value = false
+  vitalForecast.abort('refresh')
+  if (activeTab.value === 'trend') void loadTrend()
 })
+
+function ensureActiveTabData(tab: string) {
+  if (tab === 'trend') {
+    if (!trendLoaded.value) void loadTrend()
+    else void ensureForecast()
+  }
+  if (tab === 'labs') void loadLabs()
+  if (tab === 'drugs') void loadDrugs()
+  if (tab === 'assess') void loadAssessments()
+  if (tab === 'alerts') void loadPersonalizedThresholds()
+}
 
 watch(patientBodyMapStates, (next) => {
   const entries = Object.entries(next || {})
@@ -3821,6 +4055,7 @@ watch(visibleDetailTabs, (tabs) => {
 
 watch(activeTab, (tab) => {
   ensureTabVisible(tab)
+  ensureActiveTabData(tab)
   if (String(route.query.tab || '') !== tab) {
     router.replace({ query: { ...route.query, tab } })
   }
@@ -3857,6 +4092,7 @@ watch(
 )
 
 onMounted(() => {
+  readTrendLegendSelection()
   startSepsisBundleClock()
   bindIntegratedRiskSocket()
   void loadDetailPage()
@@ -3867,6 +4103,7 @@ onBeforeUnmount(() => {
   sepsisBundleTimer = null
   if (offIntegratedRiskWs) offIntegratedRiskWs()
   offIntegratedRiskWs = null
+  vitalForecast.abort('unmount')
 })
 </script>
 

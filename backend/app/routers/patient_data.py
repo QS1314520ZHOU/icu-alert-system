@@ -421,8 +421,14 @@ async def patient_vitals_trend(
     ]
 
     points_map: dict[str, dict] = {}
-    for code, field in code_field_pairs:
-        series = await param_series_by_pid(str(pid), code, since)
+    series_results = await asyncio.gather(
+        *(param_series_by_pid(str(pid), code, since) for code, _field in code_field_pairs),
+        return_exceptions=True,
+    )
+    for (_code, field), series in zip(code_field_pairs, series_results):
+        if isinstance(series, Exception):
+            logger.warning("vitals trend series query failed patient_id=%s field=%s error=%s", patient_id, field, series)
+            continue
         for item in series:
             point_time = item.get("time")
             if not point_time:
@@ -451,7 +457,22 @@ async def patient_vitals_forecast(
 
     requested = [part.strip() for part in str(codes or "").split(",") if part.strip() in SUPPORTED_CODES] if str(codes or "").strip() else None
     service = get_vital_trajectory_forecaster(db=runtime.db, config=runtime.config, alert_engine=runtime.alert_engine)
-    result = await service.forecast(str(pid), requested, horizon_hours)
+    try:
+        result = await asyncio.wait_for(service.forecast(str(pid), requested, horizon_hours), timeout=7.5)
+    except asyncio.TimeoutError:
+        logger.warning("vitals forecast timeout patient_id=%s codes=%s horizon=%s", patient_id, codes, horizon_hours)
+        return {
+            "available": False,
+            "reason": "forecast_timeout",
+            "source": "",
+            "fallback_reason": "forecast_timeout",
+            "horizon_hours": horizon_hours,
+            "codes": requested or [],
+            "series": {},
+            "threshold_risks": [],
+            "generated_at": serialize_doc(datetime.now()),
+            "model_meta": {"available": False, "reason": "forecast_timeout", "backend": "timeout"},
+        }
     return serialize_doc(result)
 
 

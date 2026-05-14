@@ -28,7 +28,8 @@
               :class="['rescue-toggle', { active: rescueOnly }]"
               @click="rescueOnly = !rescueOnly"
             >
-              🚨 抢救期风险快筛
+              <i class="rescue-toggle__mark">急</i>
+              抢救期风险快筛
             </button>
           </a-space>
         </div>
@@ -2320,6 +2321,7 @@ onMounted(() => {
 .rescue-toggle {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
@@ -2330,6 +2332,20 @@ onMounted(() => {
   font-weight: 700;
   cursor: pointer;
   transition: all .18s ease;
+}
+.rescue-toggle__mark {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
 }
 .rescue-toggle:hover,
 .rescue-toggle.active {

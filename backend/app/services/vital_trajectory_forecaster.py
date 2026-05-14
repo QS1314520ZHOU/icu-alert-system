@@ -1,6 +1,8 @@
 """Lazy local trajectory forecaster for ICU vitals."""
 from __future__ import annotations
 
+import asyncio
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -49,6 +51,7 @@ class VitalTrajectoryForecaster:
         self._unavailable_reason = ""
         self._device = "cpu"
         self._backend = "torch"
+        self._infer_thread_lock = threading.Lock()
 
     def _model_dir(self) -> Path:
         return local_model_dir(self.config, "chronos_dir", "chronos")
@@ -306,6 +309,17 @@ class VitalTrajectoryForecaster:
         except Exception:
             return None
 
+    def _model_forecast_locked(self, values: list[float], horizon_hours: int) -> list[float] | None:
+        with self._infer_thread_lock:
+            return self._model_forecast(values, horizon_hours)
+
+    def _fallback_reason(self, *, status_available: bool, values: list[float], quality: dict[str, Any]) -> str:
+        if not status_available:
+            return "model_not_loaded"
+        if not values or quality.get("ok") is False:
+            return "insufficient_history"
+        return "model_inference_error"
+
     async def forecast(self, patient_id: str, codes: list[str] | None = None, horizon_hours: int = 6) -> dict[str, Any]:
         cfg = await self._runtime_config()
         horizon = max(1, min(int(horizon_hours or cfg.get("horizon_hours") or 6), 12))
@@ -336,30 +350,39 @@ class VitalTrajectoryForecaster:
         if not requested:
             requested = list(DEFAULT_CONTINUOUS_CODES)
         series: dict[str, Any] = {}
-        for code in requested:
+
+        async def forecast_one(code: str) -> tuple[str, dict[str, Any]]:
             history = await self._history(patient_id, code)
             quality = self._data_quality(code, history)
             if not quality.get("ok") and code in {"CVP", "ICP"}:
-                series[code] = {"history": serialize_doc(history[-24:]), "forecast": [], "available": False, "reason": quality.get("reason"), "series_type": CODE_META.get(code, {}).get("series_type")}
-                continue
+                return code, {"history": serialize_doc(history[-24:]), "forecast": [], "available": False, "reason": quality.get("reason"), "series_type": CODE_META.get(code, {}).get("series_type")}
             values = [float(row.get("value")) for row in history if row.get("value") is not None]
-            forecast_rows = None
-            model_values = self._model_forecast(values, horizon) if status["available"] else None
+            fallback_reason = ""
+            model_values = None
+            if status["available"]:
+                model_values = await asyncio.to_thread(self._model_forecast_locked, values, horizon)
             if model_values:
-                base = self._fallback_forecast(history, horizon)
+                forecast_rows = self._fallback_forecast(history, horizon)
                 for idx, value in enumerate(model_values):
                     width = max(abs(value) * 0.04, 1.0)
-                    base[idx] = {"time": base[idx]["time"], "mean": round(value, 3), "lower": round(value - width, 3), "upper": round(value + width, 3)}
-                forecast_rows = base
+                    forecast_rows[idx] = {"time": forecast_rows[idx]["time"], "mean": round(value, 3), "lower": round(value - width, 3), "upper": round(value + width, 3)}
             else:
+                fallback_reason = self._fallback_reason(status_available=bool(status["available"]), values=values, quality=quality)
                 forecast_rows = self._fallback_forecast(history, horizon)
-            series[code] = {"history": serialize_doc(history[-24:]), "forecast": forecast_rows, "available": True, "series_type": CODE_META.get(code, {}).get("series_type"), "data_quality": quality}
+            return code, {"history": serialize_doc(history[-24:]), "forecast": forecast_rows, "available": True, "source": "chronos" if model_values else "heuristic", "fallback_reason": fallback_reason, "series_type": CODE_META.get(code, {}).get("series_type"), "data_quality": quality}
+
+        rows = await asyncio.gather(*(forecast_one(code) for code in requested))
+        series = {code: row for code, row in rows}
         threshold_risks = self.threshold_risks(series, cfg, model_available=bool(status["available"]))
         generated_at = datetime.now()
         status = {**status, "calibration_version": str(cfg.get("calibration_version") or "uncalibrated-v1"), "config_version": cfg.get("version")}
+        source = "chronos" if any((row or {}).get("source") == "chronos" for row in series.values()) else "heuristic"
+        fallback_reasons = sorted({str((row or {}).get("fallback_reason") or "") for row in series.values() if (row or {}).get("fallback_reason")})
         return {
             "available": bool(status["available"]),
             "reason": "" if status["available"] else status["reason"],
+            "source": source,
+            "fallback_reason": fallback_reasons[0] if fallback_reasons else "",
             "horizon_hours": horizon,
             "codes": requested,
             "series": series,

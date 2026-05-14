@@ -4,7 +4,7 @@
       <header class="hdr">
         <div class="hdr-top">
           <div class="hdr-l">
-            <span class="hdr-icon">✚</span>
+            <span class="hdr-icon" aria-hidden="true"></span>
             <div>
               <div class="hdr-title">ICU智能协同工作台</div>
               <div class="hdr-sub">重症监护预警、交班、查房与质控协同平台</div>
@@ -398,6 +398,7 @@ onUnmounted(() => clearInterval(t))
 .hdr-l { display: flex; align-items: center; gap: 12px; min-width: 270px; }
 .hdr-l > div { display: flex; flex-direction: column; justify-content: center; }
 .hdr-icon {
+  position: relative;
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -409,6 +410,22 @@ onUnmounted(() => clearInterval(t))
   background: var(--hdr-icon-bg);
   border: 1px solid var(--hdr-icon-border);
   box-shadow: var(--hdr-icon-shadow);
+}
+.hdr-icon::before,
+.hdr-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 17px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+.hdr-icon::after {
+  width: 4px;
+  height: 17px;
 }
 .hdr-title { font-size: 18px; font-weight: 800; color: var(--hdr-title); letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
 .hdr-sub { font-size: 11px; color: var(--hdr-sub); letter-spacing: 0.06em; line-height: 1.2; margin-top: 2px; }

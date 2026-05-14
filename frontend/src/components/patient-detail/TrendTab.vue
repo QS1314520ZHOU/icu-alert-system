@@ -9,7 +9,10 @@
         </a-radio-group>
         <span class="toolbar-hint">按窗口复盘生命体征波动与灌注/氧合变化。</span>
       </div>
-      <a-button size="small" @click="onRefresh">刷新</a-button>
+      <div class="toolbar-right">
+        <ForecastStatusChip :meta="forecastMeta" :enabled="forecastEnabled" :horizon="forecastHorizon" />
+        <a-button size="small" @click="onRefresh">刷新</a-button>
+      </div>
     </div>
 
     <section v-if="summaryCards.length" class="summary-grid">
@@ -22,7 +25,12 @@
 
     <div v-if="trendPoints?.length" class="chart-panel">
       <div class="chart-wrap">
-        <DetailChart :option="trendOption" :init-options="chartInitOptions" autoresize />
+        <DetailChart
+          :option="trendOption"
+          :init-options="chartInitOptions"
+          autoresize
+          @legendselectchanged="(event: any) => emit('legendSelectChanged', event?.selected || {})"
+        />
       </div>
     </div>
     <div v-else class="tab-empty">暂无趋势数据</div>
@@ -33,16 +41,22 @@
 import { computed, defineAsyncComponent } from 'vue'
 import { Button as AButton, RadioButton as ARadioButton, RadioGroup as ARadioGroup } from 'ant-design-vue'
 import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
+import ForecastStatusChip from './ForecastStatusChip.vue'
+import type { ForecastMeta } from '../../composables/useVitalForecast'
 
 const props = defineProps<{
   trendWindow: string
   trendPoints: any[]
   trendOption: any
   onRefresh: () => void
+  forecastMeta: ForecastMeta
+  forecastEnabled: boolean
+  forecastHorizon: number
 }>()
 
 const emit = defineEmits<{
   (e: 'update:trendWindow', value: string): void
+  (e: 'legendSelectChanged', value: Record<string, boolean>): void
 }>()
 
 const DetailChart = defineAsyncComponent(async () => {
@@ -114,6 +128,12 @@ const summaryCards = computed(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+.toolbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .toolbar-hint {

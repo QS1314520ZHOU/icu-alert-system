@@ -48,14 +48,16 @@
           :class="['chip', 'chip--rescue', { chosen: rescueOnly }]"
           @click="rescueOnly = !rescueOnly"
         >
-          🚨 抢救期风险
+          <i class="chip-symbol chip-symbol--rescue">急</i>
+          抢救期风险
           <b>{{ rescueRiskCount }}</b>
         </span>
         <span v-for="ts in tagStats" :key="ts.tag"
               :class="['chip', { chosen: tagFilter === ts.tag }]"
               :style="tagFilter === ts.tag ? { background: ts.color + '33', color: ts.color } : {}"
               @click="tagFilter = tagFilter === ts.tag ? '' : ts.tag">
-          {{ ts.icon }} {{ ts.label }}
+          <i class="chip-symbol" :style="{ background: ts.color || '#38bdf8' }">{{ tagSymbol(ts) }}</i>
+          {{ ts.label }}
           <b>{{ ts.count }}</b>
         </span>
       </div>
@@ -189,6 +191,8 @@ const trajectoryConfig = ref<any>({ default_codes: ['HR', 'MAP', 'SBP', 'DBP', '
 let iv: any = null
 let offAlert: any = null
 let bundleRequestToken = 0
+let vitalsRequestToken = 0
+let signalRequestToken = 0
 
 const routeDeptCode = computed(() => {
   const raw = route.query.dept_code || route.query.deptCode
@@ -278,6 +282,21 @@ const tagStats = computed(() => {
   )
   return Object.values(m).sort((a: any, b: any) => b.count - a.count)
 })
+
+function tagSymbol(item: any) {
+  const key = String(item?.tag || '').toLowerCase()
+  const map: Record<string, string> = {
+    ventilator: '呼',
+    crrt: '滤',
+    pressure_ulcer: '压',
+    infection: '感',
+    bleeding: '血',
+    consciousness: '神',
+    special_care: '护',
+    mods: '衰',
+  }
+  return map[key] || String(item?.label || '?').trim().slice(0, 1) || '?'
+}
 
 const rescueRiskCount = computed(() => byDept.value.filter(p => p.hasRescueRisk).length)
 const activeOverviewFilters = computed(() => {
@@ -570,6 +589,28 @@ async function hydrateBundleStatuses(items: any[]) {
   }
 }
 
+async function hydrateVitals(items: any[]) {
+  const token = ++vitalsRequestToken
+  const targetItems = items
+    .filter((item: any) => item && item._id)
+    .slice(0, 48)
+
+  for (const batch of chunkItems(targetItems, 8)) {
+    if (token !== vitalsRequestToken) return
+    await Promise.allSettled(batch.map(async (item: any) => {
+      try {
+        const res = await getPatientVitals(item._id)
+        if (token !== vitalsRequestToken) return
+        item.vitals = res.data?.vitals || {}
+        item.alertLevel = mergeAlertLevel(item, calcLevel(item.vitals))
+      } catch {
+        item.vitals = item.vitals || {}
+      }
+    }))
+    syncOverviewCacheSnapshot()
+  }
+}
+
 async function hydrateForecastPreview(items: any[]) {
   const first = items.find((item: any) => item?._id)
   if (!first) {
@@ -596,6 +637,60 @@ async function hydrateForecastPreview(items: any[]) {
     }
   } catch (error: any) {
     forecastStatus.value = { available: false, reason: error?.message || '接口暂不可用', detail: error?.message || '接口暂不可用' }
+  }
+}
+
+async function hydrateOverviewSignals(items: any[], params: any) {
+  const token = ++signalRequestToken
+  refreshing.value = true
+  try {
+    const [recentAlertRes, priorityRes] = await Promise.all([
+      getRecentAlerts(200, params).catch(() => ({ data: { records: [] } })),
+      getPatientPriority({ ...params, limit: 160 }).catch(() => ({ data: { data: [] } })),
+    ])
+    if (token !== signalRequestToken) return
+    const recentAlerts = recentAlertRes.data?.records || []
+    priorityRows.value = Array.isArray(priorityRes.data?.data) ? priorityRes.data.data : []
+    const organMapByPatient = buildOrganStateMapByPatient(recentAlerts)
+    const rescueSeverityMap = new Map<string, string>()
+    const rescuePidSet = new Set(
+      recentAlerts
+        .filter((alert: any) => isRescueRiskAlert(alert))
+        .map((alert: any) => {
+          const pid = String(alert?.patient_id || '')
+          const sev = String(alert?.severity || 'warning').toLowerCase()
+          if (pid && severityPriority(sev) > severityPriority(rescueSeverityMap.get(pid) || 'none')) {
+            rescueSeverityMap.set(pid, sev)
+          }
+          return pid
+        })
+        .filter(Boolean)
+    )
+
+    for (const item of items) {
+      const pid = String(item?._id || '')
+      const rescueSeverity = rescueSeverityMap.get(pid) || 'none'
+      if (severityPriority(rescueSeverity) > severityPriority(item.alertLevel || 'none')) {
+        item.alertLevel = rescueSeverity
+      }
+      item.hasRescueRisk = rescuePidSet.has(pid)
+      item.rescueRiskSeverity = rescueSeverity
+      item.organMap = organMapByPatient.get(pid) || undefined
+      item.workflowPriority = priorityByPatient.value.get(pid) || null
+    }
+
+    const ord: Record<string, number> = { critical: 0, high: 1, warning: 2, none: 3, normal: 4 }
+    patients.value = [...items].sort((a, b) => {
+      const pa = Number(priorityByPatient.value.get(String(a?._id || ''))?.priority_score || 0)
+      const pb = Number(priorityByPatient.value.get(String(b?._id || ''))?.priority_score || 0)
+      const d0 = pb - pa
+      if (d0) return d0
+      const d = (ord[a.alertLevel] ?? 9) - (ord[b.alertLevel] ?? 9)
+      return d || String(a.hisBed).localeCompare(String(b.hisBed), undefined, { numeric: true })
+    })
+    syncOverviewCacheSnapshot()
+  } finally {
+    if (token === signalRequestToken) refreshing.value = false
   }
 }
 
@@ -626,37 +721,19 @@ async function load(options?: { silent?: boolean }) {
         ? { dept: deptName, patient_scope: 'in_dept' as const }
         : { patient_scope: 'in_dept' as const }
 
-    const [dr, pr, recentAlertRes, priorityRes] = await Promise.all([
-      getDepartments(),
+    const [dr, pr] = await Promise.all([
+      deptCode ? Promise.resolve({ data: { departments: [] } }) : getDepartments(),
       getPatients(params),
-      getRecentAlerts(200, params).catch(() => ({ data: { records: [] } })),
-      getPatientPriority({ ...params, limit: 160 }).catch(() => ({ data: { data: [] } })),
     ])
     const allDepts = dr.data.departments || []
     const ls = pr.data.patients || []
-    const recentAlerts = recentAlertRes.data?.records || []
-    priorityRows.value = Array.isArray(priorityRes.data?.data) ? priorityRes.data.data : []
-    const organMapByPatient = buildOrganStateMapByPatient(recentAlerts)
-    const rescueSeverityMap = new Map<string, string>()
-    const rescuePidSet = new Set(
-      recentAlerts
-        .filter((alert: any) => isRescueRiskAlert(alert))
-        .map((alert: any) => {
-          const pid = String(alert?.patient_id || '')
-          const sev = String(alert?.severity || 'warning').toLowerCase()
-          if (pid && severityPriority(sev) > severityPriority(rescueSeverityMap.get(pid) || 'none')) {
-            rescueSeverityMap.set(pid, sev)
-          }
-          return pid
-        })
-        .filter(Boolean)
-    )
 
     if (deptCode) {
-      depts.value = allDepts.filter((d: any) => d.deptCode === deptCode)
-      if (depts.value.length) curDept.value = depts.value[0].dept
-      else if (ls.length) curDept.value = ls[0].dept
-      else curDept.value = '全部'
+      const deptNameFromPatients = String(ls.find((item: any) => item?.dept || item?.hisDept)?.dept || ls.find((item: any) => item?.dept || item?.hisDept)?.hisDept || '').trim()
+      depts.value = deptNameFromPatients
+        ? [{ dept: deptNameFromPatients, deptCode, patientCount: ls.length }]
+        : []
+      curDept.value = deptNameFromPatients || '全部'
     } else if (deptName) {
       depts.value = allDepts.filter((d: any) => d.dept === deptName)
       if (depts.value.length) curDept.value = deptName
@@ -669,45 +746,21 @@ async function load(options?: { silent?: boolean }) {
       }
     }
 
-    const head = ls.slice(0, 100)
-    const tail = ls.slice(100).map((p: any) => ({
+    const all = ls.map((p: any) => ({
       ...p,
       vitals: {},
-      alertLevel: rescueSeverityMap.get(String(p._id)) || 'none',
-      hasRescueRisk: rescuePidSet.has(String(p._id)),
-      rescueRiskSeverity: rescueSeverityMap.get(String(p._id)) || 'none',
-      organMap: organMapByPatient.get(String(p._id)) || undefined,
+      alertLevel: p.alertLevel || 'none',
+      hasRescueRisk: false,
+      rescueRiskSeverity: 'none',
+      organMap: undefined,
+      workflowPriority: null,
+      bundleStatus: p.bundleStatus || { lights: {} },
     }))
-
-    const done = await Promise.all(head.map(async (p: any) => {
-      try { p.vitals = (await getPatientVitals(p._id)).data.vitals || {} }
-      catch { p.vitals = {} }
-      p.alertLevel = mergeAlertLevel(p, calcLevel(p.vitals))
-      const rescueSeverity = rescueSeverityMap.get(String(p._id)) || 'none'
-      if (severityPriority(rescueSeverity) > severityPriority(p.alertLevel || 'none')) {
-        p.alertLevel = rescueSeverity
-      }
-      p.hasRescueRisk = rescuePidSet.has(String(p._id))
-      p.rescueRiskSeverity = rescueSeverity
-      p.organMap = organMapByPatient.get(String(p._id)) || undefined
-      p.workflowPriority = priorityByPatient.value.get(String(p._id)) || null
-      return p
-    }))
-
-    const ord: Record<string, number> = { critical: 0, high: 1, warning: 2, none: 3, normal: 4 }
-    const all = [...done, ...tail].sort((a, b) => {
-      const pa = Number(priorityByPatient.value.get(String(a?._id || ''))?.priority_score || 0)
-      const pb = Number(priorityByPatient.value.get(String(b?._id || ''))?.priority_score || 0)
-      const d0 = pb - pa
-      if (d0) return d0
-      const d = (ord[a.alertLevel] ?? 9) - (ord[b.alertLevel] ?? 9)
-      return d || String(a.hisBed).localeCompare(String(b.hisBed), undefined, { numeric: true })
-    })
-    for (const item of all) {
-      item.bundleStatus = item.bundleStatus || { lights: {} }
-    }
     patients.value = all
+    loading.value = false
     syncOverviewCacheSnapshot()
+    void hydrateOverviewSignals(all, params)
+    void hydrateVitals(all)
     void hydrateBundleStatuses(all)
     void hydrateForecastPreview(all)
   } catch (e) { console.error(e) }
@@ -888,6 +941,9 @@ onUnmounted(() => {
 
 .tag-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px; padding: 6px 10px; border-radius: 10px;
   background: rgba(9, 24, 39, 0.82);
   color: #8dcde0;
@@ -896,6 +952,22 @@ onUnmounted(() => {
   transition: all 0.15s;
   white-space: nowrap;
   font-weight: 600;
+}
+.chip-symbol {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+}
+.chip-symbol--rescue {
+  background: #ef4444;
 }
 .chip:hover { background: rgba(11, 36, 56, 0.94); border-color: rgba(86, 229, 255, 0.24); }
 .chip.chosen {

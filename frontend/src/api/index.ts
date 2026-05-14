@@ -80,8 +80,11 @@ export const getPatientLabs = (patientId: string) =>
 export const getPatientVitalsTrend = (patientId: string, window = '24h') =>
   api.get(`/api/patients/${patientId}/vitals/trend`, { params: { window } })
 
-export const getPatientVitalsForecast = (patientId: string, params?: { codes?: string; horizon_hours?: number }) =>
-  api.get(`/api/patients/${patientId}/vitals/forecast`, { params })
+export const getPatientVitalsForecast = (patientId: string, params?: { codes?: string; horizon_hours?: number }, signal?: AbortSignal) =>
+  api.get(`/api/patients/${patientId}/vitals/forecast`, { params, signal, timeout: 8000 })
+
+export const getTrajectoryPublicConfig = () =>
+  api.get('/api/runtime/public-config/trajectory')
 
 // 获取用药记录
 export const getPatientDrugs = (patientId: string) =>

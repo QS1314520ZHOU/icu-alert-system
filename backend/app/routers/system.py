@@ -8,9 +8,33 @@ from typing import Any
 from fastapi import APIRouter
 
 from app import runtime
+from app.services.runtime_config_service import DEFAULT_TRAJECTORY_FORECAST_CONFIG
+from app.utils.serialization import serialize_doc
 
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
+_trajectory_public_cache: tuple[float, dict[str, Any]] | None = None
+
+
+def _clamp_horizon(value: Any, default: int = 6) -> int:
+    try:
+        horizon = int(value or default)
+    except Exception:
+        horizon = default
+    return max(1, min(horizon, 12))
+
+
+def _public_bool(value: Any, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if text in {"false", "0", "no", "off", "disabled"}:
+        return False
+    if text in {"true", "1", "yes", "on", "enabled"}:
+        return True
+    return default
 
 
 async def _check_mongo() -> dict[str, Any]:
@@ -93,3 +117,29 @@ async def health_check():
         },
         "scanners_running": scanners_running,
     }
+
+
+@router.get("/api/runtime/public-config/trajectory")
+async def trajectory_public_config():
+    global _trajectory_public_cache
+    now = time.monotonic()
+    if _trajectory_public_cache and now - _trajectory_public_cache[0] < 300:
+        return serialize_doc(_trajectory_public_cache[1])
+
+    cfg = dict(DEFAULT_TRAJECTORY_FORECAST_CONFIG)
+    try:
+        doc = await runtime.db.col("runtime_configs").find_one({"key": "trajectory_forecast"})
+        if doc and isinstance(doc.get("value"), dict):
+            cfg.update(doc["value"])
+    except Exception as exc:
+        logger.warning("load public trajectory config fallback to defaults: %s", exc)
+
+    payload = {
+        "code": 0,
+        "enabled": _public_bool(cfg.get("enabled"), True),
+        "horizon_hours": _clamp_horizon(cfg.get("horizon_hours")),
+        "default_codes": [str(code) for code in (cfg.get("default_codes") or [])],
+        "cached_seconds": 300,
+    }
+    _trajectory_public_cache = (now, payload)
+    return serialize_doc(payload)

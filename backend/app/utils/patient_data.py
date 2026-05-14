@@ -8,6 +8,9 @@ from app.alert_engine.acid_base_analyzer import extract_bga_temp_items
 from app.utils.patient_helpers import bed_match, normalize_bed, patient_his_pid
 from app.utils.serialization import safe_oid
 
+_DOC_MAP_CACHE_TTL_SECONDS = 300
+_doc_map_cache: dict[tuple[str, str, tuple[str, ...], str], tuple[datetime, dict]] = {}
+
 
 def cap_time(doc: dict) -> datetime | None:
     if not doc:
@@ -212,6 +215,10 @@ def extract_assessment_from_bedside_doc(kind: str, doc: dict):
 
 
 async def load_dc_doc_map(col_name: str, key_field: str, fields: list[str]) -> dict:
+    cache_key = ("dc", col_name, key_field, tuple(fields))
+    cached = _doc_map_cache.get(cache_key)
+    if cached and (datetime.now() - cached[0]).total_seconds() < _DOC_MAP_CACHE_TTL_SECONDS:
+        return cached[1]
     mapping = {}
     projection = {key_field: 1}
     for field in fields:
@@ -222,10 +229,15 @@ async def load_dc_doc_map(col_name: str, key_field: str, fields: list[str]) -> d
         if key is None:
             continue
         mapping[str(key)] = {field: doc.get(field) for field in fields}
+    _doc_map_cache[cache_key] = (datetime.now(), mapping)
     return mapping
 
 
 async def load_sc_doc_map(col_name: str, key_field: str, fields: list[str]) -> dict:
+    cache_key = ("sc", col_name, key_field, tuple(fields))
+    cached = _doc_map_cache.get(cache_key)
+    if cached and (datetime.now() - cached[0]).total_seconds() < _DOC_MAP_CACHE_TTL_SECONDS:
+        return cached[1]
     mapping = {}
     projection = {key_field: 1}
     for field in fields:
@@ -236,6 +248,7 @@ async def load_sc_doc_map(col_name: str, key_field: str, fields: list[str]) -> d
         if key is None:
             continue
         mapping[str(key)] = {field: doc.get(field) for field in fields}
+    _doc_map_cache[cache_key] = (datetime.now(), mapping)
     return mapping
 
 
