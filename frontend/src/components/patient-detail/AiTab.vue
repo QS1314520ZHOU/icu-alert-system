@@ -47,8 +47,9 @@
           <div v-if="integratedRiskActions.length" class="ai-workbench-section">
             <div class="ai-workbench-title">Top 3 行动</div>
             <ul class="workbench-list">
-              <li v-for="(item, idx) in integratedRiskActions" :key="`ir-action-${idx}`">
-                #{{ integratedRiskPriority(item, idx) }} · {{ item.action }} · {{ item.rationale || '—' }} · {{ item.urgency }} min
+              <li v-for="(item, idx) in integratedRiskActions" :key="`ir-action-${idx}`" class="action-item">
+                <span class="action-rank">{{ Number(idx) + 1 }}</span>
+                <span class="action-text">{{ actionText(item) }}</span>
               </li>
             </ul>
           </div>
@@ -474,7 +475,7 @@
           </div>
           <div class="isbar-grid">
             <div
-              v-for="section in handoffIsbarSections"
+              v-for="section in standardHandoffIsbarSections"
               :key="section.key"
               class="ai-workbench-section isbar-section"
             >
@@ -569,6 +570,7 @@ import {
   Table as ATable,
 } from 'ant-design-vue'
 import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
+import { buildIsbarSections } from '../../utils/clinicalHandoffTemplates'
 import { icuCategoryAxis, icuGrid, icuTooltip, icuValueAxis } from '../../charts/icuTheme'
 import { formatStatusLabel } from '../../utils/displayLabels'
 
@@ -640,6 +642,11 @@ const props = defineProps<{
   knowledgeScopeText: (v: any) => string
   knowledgeError: string
 }>()
+
+const standardHandoffIsbarSections = computed(() => buildIsbarSections(props.patient || {}, props.aiHandoff || {}, {
+  handoffActor: 'AI工作台',
+  alerts: props.normalizeList(props.aiHandoff?.alerts_12h || props.aiHandoff?.alerts),
+}))
 
 const AiRiskChart = defineAsyncComponent(async () => {
   await import('../../charts/patient-detail')
@@ -897,6 +904,7 @@ const handoffIsbarSections = computed(() => {
     },
   ]
 })
+void handoffIsbarSections
 
 const forecastSummaryBlock = computed(() => {
   const level = String(props.aiRiskForecast?.risk_level || 'low')
@@ -1109,8 +1117,11 @@ const integratedRiskDiffs = computed(() =>
   Array.isArray(props.integratedRiskReport?.differential_diagnosis) ? props.integratedRiskReport.differential_diagnosis.slice(0, 6) : []
 )
 
-function integratedRiskPriority(item: any, idx: any) {
-  return Number(item?.priority ?? (Number(idx) + 1))
+function actionText(item: any) {
+  const action = String(item?.action || '').replace(/^#?\s*\d+\s*[.、:：-]?\s*/, '').trim()
+  const rationale = String(item?.rationale || '').trim()
+  const urgency = Number(item?.urgency || 0)
+  return [action, rationale, urgency ? `${urgency} min` : ''].filter(Boolean).join(' · ')
 }
 
 const metabolicPhaseScoreChips = computed(() => {
@@ -1586,6 +1597,32 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   color: #c3d3ec;
   font-size: 12px;
   line-height: 1.65;
+}
+.workbench-list:has(.action-item) {
+  padding-left: 0;
+  list-style: none;
+  gap: 8px;
+}
+.action-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.action-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.34);
+  color: #67e8f9;
+  font-weight: 800;
+}
+.action-text {
+  min-width: 0;
 }
 .isbar-grid {
   display: grid;

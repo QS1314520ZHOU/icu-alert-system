@@ -2,50 +2,44 @@
   <div class="mobile-page">
     <section class="mobile-hero">
       <span>{{ roleLabel }}工作台</span>
-      <h1>{{ greeting }}</h1>
-      <p>{{ summaryText }}</p>
+      <h1>{{ shell.deptLabel.value }}</h1>
+      <p>床旁查看、告警处置、任务闭环</p>
     </section>
 
     <section class="mobile-grid two">
       <button class="mobile-stat" type="button" @click="go('/m/patients')">
-        <span>重点患者</span>
-        <strong>{{ priorityPatients.length || patientCount }}</strong>
+        <span>在科患者</span>
+        <strong>{{ patientCount }}</strong>
       </button>
       <button class="mobile-stat tone-warning" type="button" @click="go('/m/alerts')">
         <span>待看告警</span>
-        <strong :class="{ pending: !alertsLoaded }">{{ alertCountText }}</strong>
+        <strong>{{ alertCountText }}</strong>
       </button>
     </section>
 
     <section class="mobile-card">
       <div class="mobile-section-head">
         <h2>今日重点</h2>
-        <button type="button" @click="loadAll">刷新</button>
+        <button type="button" @click="manualRefresh">刷新</button>
       </div>
-      <template>
-        <article v-for="item in focusItems" :key="item.id" class="mobile-list-row" @click="openPatient(item.patientId)">
-          <i :class="`tone-${item.tone}`"></i>
-          <div>
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.desc }}</p>
-          </div>
-          <span>{{ item.meta }}</span>
-        </article>
-        <div v-if="loading && !focusItems.length" class="mobile-skeleton-list">
-          <i></i><i></i><i></i>
+      <article v-for="item in focusItems" :key="item.id" class="mobile-list-row" @click="openPatient(item.patientId)">
+        <i :class="`tone-${item.tone}`"></i>
+        <div>
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.desc }}</p>
         </div>
-        <div v-else-if="!focusItems.length" class="mobile-empty">暂无重点事项</div>
-      </template>
+        <span>{{ item.meta }}</span>
+      </article>
+      <div v-if="loading && !focusItems.length" class="mobile-skeleton-list"><i></i><i></i><i></i></div>
+      <div v-else-if="!focusItems.length" class="mobile-empty">暂无重点事项</div>
     </section>
 
     <section class="mobile-card">
-      <div class="mobile-section-head">
-        <h2>快速入口</h2>
-      </div>
+      <div class="mobile-section-head"><h2>快速入口</h2></div>
       <div class="mobile-action-grid">
-        <button type="button" @click="go('/m/patients')">患者总览</button>
-        <button type="button" @click="go('/m/alerts')">告警处置</button>
-        <button type="button" @click="go('/m/tasks')">任务闭环</button>
+        <button type="button" @click="go('/m/patients')">患者</button>
+        <button type="button" @click="go('/m/alerts')">告警</button>
+        <button type="button" @click="go('/m/tasks')">任务</button>
         <button type="button" @click="go('/m/consult')">AI问诊</button>
       </div>
     </section>
@@ -55,7 +49,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getClinicalRoleHome, getDoctorHome, getNurseHome, getPatientPriority, getPatients, getRecentAlerts } from '../api'
+import { getClinicalRoleHome, getDoctorHome, getMobileHomeLite, getNurseHome, getPatientPriority } from '../api'
 import { useMobileShell } from '../composables/useMobileShell'
 import { onAlertMessage } from '../services/alertSocket'
 import { mobileAlertCacheKey, mobileScopeKey, readMobileCache, writeMobileCache } from './mobileCache'
@@ -65,12 +59,11 @@ import { alertBelongsToMobileScope, mergeMobileAlert } from './mobileRealtime'
 const router = useRouter()
 const shell = useMobileShell()
 const loading = ref(false)
-const roleHome = ref<any>({})
 const patients = ref<any[]>([])
+const patientTotal = ref<number | null>(null)
 const priorityPatients = ref<any[]>([])
 const alerts = ref<any[]>([])
 const alertsLoaded = ref(false)
-const pendingAlertTotal = ref<number | null>(null)
 let offAlert: (() => void) | null = null
 
 const roleLabelMap: Record<string, string> = {
@@ -84,14 +77,11 @@ const roleLabelMap: Record<string, string> = {
   unknown: '临床',
 }
 const roleLabel = computed(() => roleLabelMap[shell.role.value] || '临床')
-const greeting = computed(() => `${roleLabel.value}移动工作台`)
-const patientCount = computed(() => patients.value.length)
-const summaryText = computed(() => shell.deptLabel.value)
-const alertCountText = computed(() => {
-  if (!alertsLoaded.value) return '加载中'
-  return String(pendingAlertTotal.value ?? alerts.value.length)
-})
-const alertsCacheKey = computed(() => mobileAlertCacheKey(mobileScopeKey(shell.deptCode.value, shell.deptLabel.value)))
+const patientCount = computed(() => patientTotal.value ?? (patients.value.length ? patients.value.length : '...'))
+const alertCountText = computed(() => (alertsLoaded.value ? String(alerts.value.length) : '...'))
+const scopeKey = computed(() => mobileScopeKey(shell.deptCode.value, shell.deptLabel.value))
+const alertsCacheKey = computed(() => mobileAlertCacheKey(scopeKey.value))
+const patientsCacheKey = computed(() => `mobile_home_patients:${scopeKey.value}`)
 
 const focusItems = computed(() => {
   const rows: Array<{ id: string; patientId: string; title: string; desc: string; meta: string; tone: string }> = []
@@ -125,61 +115,94 @@ function params() {
   return value
 }
 
-async function loadAll() {
-  loading.value = true
-  try {
-    const user = shell.actor.value
-    const scope = params()
-    restoreCachedAlerts()
-    void loadAlertsFast(scope)
-    const patientRes = await Promise.race([
-      getPatients({ ...scope, patient_scope: 'in_dept' }),
-      new Promise<any>((resolve) => setTimeout(() => resolve(null), 1500)),
-    ])
-    if (patientRes?.data) patients.value = arrayFromResponse(patientRes.data, ['patients'])
-    loading.value = false
+async function loadAll(options: { showLoading?: boolean } = {}) {
+  if (options.showLoading) loading.value = true
+  const user = shell.actor.value
+  const scope = params()
+  restoreCachedPatients()
+  restoreCachedAlerts()
+  await loadHomeLite(scope)
+  void loadPriorityInBackground(scope, user)
+  loading.value = false
+}
 
+async function loadPriorityInBackground(scope = params(), user = shell.actor.value) {
+  try {
     const requests: Array<Promise<any>> = [
       getPatientPriority({ ...scope, limit: 20 }),
       getClinicalRoleHome({ userName: user, role: shell.role.value, ...scope }),
     ]
     if (shell.role.value === 'doctor' || shell.role.value === 'director') requests.push(getDoctorHome({ user_id: user, ...scope }))
     if (shell.role.value === 'nurse' || shell.role.value === 'head_nurse') requests.push(getNurseHome({ user_id: user, ...scope }))
-    const [priorityRes, roleRes] = await Promise.allSettled(requests)
+    const [priorityRes] = await Promise.allSettled(requests)
     if (priorityRes?.status === 'fulfilled') priorityPatients.value = arrayFromResponse(priorityRes.value.data, ['patients', 'priority', 'data'])
-    if (roleRes?.status === 'fulfilled') roleHome.value = roleRes.value.data || {}
-  } finally {
-    loading.value = false
+  } catch {
+    // Role-specific summaries are secondary; keep the home page responsive.
   }
+}
+
+function restoreCachedPatients() {
+  const rows = readMobileCache<any[]>(patientsCacheKey.value, [])
+  if (Array.isArray(rows) && rows.length && !patients.value.length) patients.value = rows
+}
+
+async function loadPatientsFast(scope = params()) {
+  try {
+    const patientRes = await getMobileHomeLite({ ...scope, actor: shell.actor.value, userName: shell.actor.value })
+    if (patientRes?.data) {
+      const rows = arrayFromResponse(patientRes.data, ['patients_preview', 'patients'])
+      if (rows.length || !patients.value.length) {
+        patients.value = rows
+        if (rows.length) writeMobileCache(patientsCacheKey.value, rows.slice(0, 80))
+      }
+      const count = Number(patientRes.data.patient_count ?? patientRes.data.count)
+      if (Number.isFinite(count)) patientTotal.value = count
+    }
+  } catch {
+    // Keep the last valid cached count; never clear to 0 on request failure.
+  }
+}
+
+async function loadHomeLite(scope = params()) {
+  const fallbackTimer = window.setTimeout(() => {
+    alertsLoaded.value = true
+  }, 1000)
+  try {
+    const res = await getMobileHomeLite({ ...scope, actor: shell.actor.value, userName: shell.actor.value })
+    const rows = arrayFromResponse(res.data, ['patients_preview', 'patients'])
+    const count = Number(res.data?.patient_count ?? res.data?.count)
+    if (rows.length || !patients.value.length) patients.value = rows
+    if (Number.isFinite(count)) patientTotal.value = count
+    if (rows.length) writeMobileCache(patientsCacheKey.value, rows.slice(0, 80))
+    syncResolvedDepartment(res.data)
+    const nextAlerts = arrayFromResponse(res.data, ['alerts', 'records'])
+    alerts.value = nextAlerts
+    alertsLoaded.value = true
+    writeMobileCache(alertsCacheKey.value, nextAlerts.slice(0, 80))
+  } catch {
+    void loadPatientsFast(scope)
+  } finally {
+    window.clearTimeout(fallbackTimer)
+    alertsLoaded.value = true
+  }
+}
+
+function syncResolvedDepartment(data: any) {
+  const code = firstText(data, ['dept_code', 'deptCode'])
+  const dept = firstText(data, ['dept'])
+  if (!code && !dept) return
+  if (code === shell.deptCode.value && (!dept || dept === shell.deptLabel.value)) return
+  shell.setDepartment({ deptCode: code || shell.deptCode.value, dept: dept || shell.deptLabel.value })
 }
 
 function restoreCachedAlerts() {
-      const rows = readMobileCache<any[]>(alertsCacheKey.value, [])
-      if (Array.isArray(rows) && rows.length) {
-        alerts.value = rows
-        pendingAlertTotal.value = rows.length
-        alertsLoaded.value = true
-      }
+  const rows = readMobileCache<any[]>(alertsCacheKey.value, [])
+  if (Array.isArray(rows) && rows.length && !alerts.value.length) alerts.value = rows
+  alertsLoaded.value = true
 }
 
-async function loadAlertsFast(scope = params()) {
-  try {
-    const res = await Promise.race([
-      getRecentAlerts(8, { ...scope, fast: true, pending: true }),
-      new Promise<any>((resolve) => setTimeout(() => resolve(null), 2500)),
-    ])
-    if (res?.data) {
-      const rows = arrayFromResponse(res.data, ['records', 'alerts'])
-      alerts.value = rows
-      pendingAlertTotal.value = Number.isFinite(Number(res.data.pending_count ?? res.data.total))
-        ? Number(res.data.pending_count ?? res.data.total)
-        : rows.length
-      alertsLoaded.value = true
-      writeMobileCache(alertsCacheKey.value, rows.slice(0, 80))
-    }
-  } finally {
-    if (alerts.value.length || pendingAlertTotal.value !== null) alertsLoaded.value = true
-  }
+function manualRefresh() {
+  void loadAll({ showLoading: true })
 }
 
 function go(path: string) {
@@ -192,29 +215,28 @@ function openPatient(id: string) {
 }
 
 function refreshFromShell() {
-  void loadAll()
+  void loadAll({ showLoading: true })
 }
 
 function applyRealtimeAlert(message: any) {
   if (message?.type !== 'alert' || !message.data) return
   if (!alertBelongsToMobileScope(message.data, shell.deptCode.value, shell.deptLabel.value)) return
   alerts.value = mergeMobileAlert(alerts.value, message.data, 80)
-  pendingAlertTotal.value = (pendingAlertTotal.value ?? alerts.value.length - 1) + 1
   alertsLoaded.value = true
   writeMobileCache(alertsCacheKey.value, alerts.value.slice(0, 80))
 }
 
 watch(() => [shell.deptCode.value, shell.deptLabel.value], () => {
   patients.value = []
+  patientTotal.value = null
   priorityPatients.value = []
   alerts.value = []
-  pendingAlertTotal.value = null
   alertsLoaded.value = false
-  void loadAll()
+  void loadAll({ showLoading: true })
 })
 
 onMounted(() => {
-  void shell.resolveIdentity().finally(() => loadAll())
+  void shell.resolveIdentity().finally(() => loadAll({ showLoading: true }))
   offAlert = onAlertMessage(applyRealtimeAlert)
   window.addEventListener('mobile:refresh', refreshFromShell)
 })

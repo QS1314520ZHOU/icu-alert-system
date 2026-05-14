@@ -35,6 +35,7 @@ from app.routers.nutrition import router as nutrition_router
 from app.routers.research_support import router as research_support_router
 from app.routers.clinical_trials import router as clinical_trials_router
 from app.routers.clinical_workflow import router as clinical_workflow_router
+from app.routers.mobile import router as mobile_router
 from app.routers.research_platform import router as research_platform_router
 from app.routers.system import router as system_router
 from app.routers.treatment_policy import router as treatment_policy_router
@@ -239,6 +240,7 @@ app.include_router(nutrition_router)
 app.include_router(research_support_router)
 app.include_router(clinical_trials_router)
 app.include_router(clinical_workflow_router)
+app.include_router(mobile_router)
 app.include_router(treatment_policy_router)
 app.include_router(ai_router)
 app.include_router(knowledge_router)

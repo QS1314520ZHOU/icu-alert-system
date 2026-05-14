@@ -36,15 +36,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { completeMobileReviewReminder, postAlertAcknowledge, postMobileAlertSbar, postMobileOrderStubs, postMobileReviewReminder } from '../api'
 import { useMobileShell } from '../composables/useMobileShell'
+import { createMobileQueueReplayer, registerMobileNotifications } from './mobileOfflineQueue'
 import { visibleMobileNavItems, type MobileNavItem } from './mobileNav'
 import type { MobileNavKey } from './types'
 
 const route = useRoute()
 const router = useRouter()
 const shell = useMobileShell()
+let stopReplay: (() => void) | null = null
 
 const title = computed(() => String(route.meta?.title || 'ICU移动工作台'))
 const navItems = computed<MobileNavItem[]>(() => visibleMobileNavItems(shell.role.value))
@@ -91,4 +94,23 @@ function onDeptChange(event: Event) {
   if (!hit) return
   router.replace({ path: route.path, query: shell.setDepartment(hit) })
 }
+
+async function replayQueuedAction(item: any) {
+  const payload = item.payload || {}
+  const alertId = payload.alertId || payload.alert_id
+  if (item.type === 'alert_ack' && alertId) await postAlertAcknowledge(alertId, payload.body || payload)
+  else if (item.type === 'mobile_sbar' && alertId) await postMobileAlertSbar(alertId, payload.body || payload)
+  else if (item.type === 'order_stub' && alertId) await postMobileOrderStubs(alertId, payload.body || payload)
+  else if (item.type === 'review_reminder' && alertId) await postMobileReviewReminder(alertId, payload.body || payload)
+  else if (item.type === 'review_complete' && payload.id) await completeMobileReviewReminder(payload.id, payload.body || payload)
+}
+
+onMounted(() => {
+  registerMobileNotifications()
+  stopReplay = createMobileQueueReplayer(replayQueuedAction)
+})
+
+onUnmounted(() => {
+  stopReplay?.()
+})
 </script>

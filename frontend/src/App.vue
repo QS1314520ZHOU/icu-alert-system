@@ -168,7 +168,7 @@ const isMobileRoute = computed(() => route.path.startsWith('/m') || (route.path 
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
   if (!antThemeReady.value || !antTheme.value) return undefined
-  const dark = themeMode.value === 'dark'
+  const dark = !isMobileRoute.value && themeMode.value === 'dark'
   return {
     algorithm: dark
       ? antTheme.value.darkAlgorithm

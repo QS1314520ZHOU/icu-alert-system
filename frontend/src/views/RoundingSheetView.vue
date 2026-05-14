@@ -299,6 +299,7 @@ import {
   postRoundingVersionConfirm,
 } from '../api/rounding'
 import { BODY_MAP_ORGAN_LABELS, bodyMapSeverityText, type BodyMapOrganKey, type BodyMapSeverity } from '../utils/bodyMap'
+import { buildIcuRoundingSections } from '../utils/clinicalHandoffTemplates'
 import { formatBeijingTime } from '../utils/time'
 import { formatRiskLevelLabel } from '../utils/displayLabels'
 
@@ -624,6 +625,15 @@ async function loadAi() {
 
 function buildEditableDraft() {
   if (!summary.value) return
+  const icuRows: string[] = []
+  icuRows.push(`ICU医生查房记录：${activePatient.value?.bed_no || '--'}床 ${activePatient.value?.name || ''}`)
+  buildIcuRoundingSections(activePatient.value || {}, summary.value || {}).forEach((section) => {
+    icuRows.push(`\n【${section.title}】`)
+    icuRows.push(section.text)
+  })
+  editableDraft.value = icuRows.join('\n')
+  versionHistory.value = [{ id: 'icu-template', label: `版本1：ICU系统初稿 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` }]
+  return
   const rows: string[] = []
   rows.push(`查房患者：${activePatient.value?.bed_no || '--'}床 ${activePatient.value?.name || ''}`)
   rows.push(`夜间/近${hours.value}小时事件：`)

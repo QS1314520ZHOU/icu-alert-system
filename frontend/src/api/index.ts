@@ -217,6 +217,51 @@ export const postClinicalTask = (payload: Record<string, any>) =>
 export const closeClinicalTask = (taskId: string, payload?: Record<string, any>) =>
   analyticsApi.post(`/api/clinical-workflow/tasks/${taskId}/close`, payload || {})
 
+export const postMobileAlertSbar = (alertId: string, payload?: Record<string, any>) =>
+  analyticsApi.post(`/api/mobile/alerts/${alertId}/sbar`, payload || {})
+
+export const getMobileOrderStubDefaults = (alertId: string) =>
+  analyticsApi.get(`/api/mobile/alerts/${alertId}/order-stubs/defaults`)
+
+export const postMobileOrderStubs = (alertId: string, payload?: Record<string, any>) =>
+  analyticsApi.post(`/api/mobile/alerts/${alertId}/order-stubs`, payload || {})
+
+export const getMobileHomeLite = (params?: { actor?: string; userName?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
+  api.get('/api/mobile/home-lite', { params, timeout: 1000 })
+
+export const getMobileBundles = (params?: { dept?: string; dept_code?: string; patient_id?: string }) =>
+  analyticsApi.get('/api/mobile/bundles', { params })
+
+export const getMobileTasks = (params?: { actor?: string; dept?: string; dept_code?: string; status?: string; limit?: number }) =>
+  api.get('/api/mobile/tasks', { params, timeout: 2000 })
+
+export const getMobilePatients = (params?: { dept?: string; dept_code?: string; patient_scope?: string }) =>
+  api.get('/api/mobile/patients', { params, timeout: 3000 })
+
+export const resolveMobilePatient = (q: string) =>
+  api.get('/api/mobile/patients/resolve', { params: { q }, timeout: 1500 })
+
+export const getMobilePatientBedcard = (patientId: string) =>
+  api.get(`/api/mobile/patients/${patientId}/bedcard`, { timeout: 2000 })
+
+export const postMobilePatientInterpret = (patientId: string, payload?: Record<string, any>) =>
+  analyticsApi.post(`/api/mobile/patients/${patientId}/interpret`, payload || {}, { timeout: 8000 })
+
+export const postMobileRoundingNote = (patientId: string, payload?: Record<string, any>) =>
+  analyticsApi.post(`/api/mobile/patients/${patientId}/rounding-note`, payload || {}, { timeout: 8000 })
+
+export const postMobileBundleCheck = (payload: Record<string, any>) =>
+  analyticsApi.post('/api/mobile/bundles/check', payload)
+
+export const postMobileReviewReminder = (alertId: string, payload?: Record<string, any>) =>
+  analyticsApi.post(`/api/mobile/alerts/${alertId}/review-reminder`, payload || {})
+
+export const getMobileReviewReminders = (params?: { actor?: string; dept?: string; dept_code?: string; status?: string }) =>
+  analyticsApi.get('/api/mobile/review-reminders', { params })
+
+export const completeMobileReviewReminder = (id: string, payload?: Record<string, any>) =>
+  analyticsApi.post(`/api/mobile/review-reminders/${id}/complete`, payload || {})
+
 export const getTreatmentRecommendation = (patientId: string) =>
   aiApi.get(`/api/treatment/recommend/${patientId}`)
 

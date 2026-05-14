@@ -12,10 +12,13 @@
 
     <section ref="listRef" class="mobile-chat-list">
       <article v-for="msg in messages" :key="msg.id" :class="['mobile-chat-msg', msg.role]">
-        <strong>{{ msg.role === 'assistant' ? 'AI' : '我' }}</strong>
-        <p>{{ msg.content }}</p>
-        <div v-if="msg.pending" class="mobile-typing" aria-label="AI正在生成">
-          <i></i><i></i><i></i>
+        <div class="mobile-chat-avatar">{{ msg.role === 'assistant' ? 'AI' : '我' }}</div>
+        <div class="mobile-chat-bubble">
+          <div class="mobile-chat-role">{{ msg.role === 'assistant' ? '智能助手' : '我' }}</div>
+          <p>{{ msg.content }}</p>
+          <div v-if="msg.pending" class="mobile-typing" aria-label="AI正在生成">
+            <i></i><i></i><i></i>
+          </div>
         </div>
       </article>
     </section>
