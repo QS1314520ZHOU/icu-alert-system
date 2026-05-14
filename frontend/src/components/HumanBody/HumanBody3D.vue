@@ -35,6 +35,7 @@ const emit = defineEmits<{
   ready: [organs: OrganBusinessName[]]
   'load-failed': [reason: string]
   'organ-click': [businessName: OrganBusinessName]
+  'performance-degraded': [fps: number]
 }>()
 
 type SceneHandle = ReturnType<typeof useThreeScene>
@@ -55,6 +56,9 @@ let offAlarmAdapter: (() => void) | null = null
 let animationFrame = 0
 let disposed = false
 let lastFocusedKey = ''
+let frameCount = 0
+let sampleStart = 0
+let performanceReported = false
 
 function modelPath() {
   return props.model === 'low' ? '/models/human_low.glb' : '/models/human_high.glb'
@@ -216,8 +220,21 @@ async function loadBodyModel() {
 
 function animate() {
   if (!sceneHandle || disposed) return
+  const now = performance.now()
+  if (!sampleStart) sampleStart = now
+  frameCount += 1
+  const elapsed = now - sampleStart
+  if (!performanceReported && elapsed >= 5000) {
+    const fps = frameCount / (elapsed / 1000)
+    if (fps < 25) {
+      performanceReported = true
+      emit('performance-degraded', fps)
+    }
+    sampleStart = now
+    frameCount = 0
+  }
   sceneHandle.controls.update()
-  highlighter?.update(performance.now() / 1000)
+  highlighter?.update(now / 1000)
   sceneHandle.renderer.render(sceneHandle.scene, sceneHandle.camera)
   animationFrame = window.requestAnimationFrame(animate)
 }

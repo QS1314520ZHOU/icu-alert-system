@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 620" role="img" aria-label="ICU organ alarm body map placeholder">
+  <style>
+    .outline{fill:#132436;stroke:#77d7ff;stroke-width:2;opacity:.85}
+    .organ{fill:#5e9fbd;stroke:#d7f4ff;stroke-width:2}
+    .heart{fill:#ff6b7a}.lung{fill:#7fd5ff}.liver{fill:#c58b4a}.stomach{fill:#e6a1c6}.kidney{fill:#d36b4b}
+  </style>
+  <path class="outline" d="M160 24c-38 0-68 30-68 68 0 23 11 44 29 56v38c-52 16-82 62-82 122v126c0 35 23 62 58 69l18 4v72h90v-72l18-4c35-7 58-34 58-69V308c0-60-30-106-82-122v-38c18-12 29-33 29-56 0-38-30-68-68-68Z"/>
+  <ellipse id="svg-brain" class="organ" cx="160" cy="83" rx="42" ry="30"/>
+  <path id="svg-l-lung" class="organ lung" d="M108 188c-24 19-37 56-30 98 5 32 22 52 44 50 18-2 27-18 27-42V181c-14 0-28 2-41 7Z"/>
+  <path id="svg-r-lung" class="organ lung" d="M212 188c24 19 37 56 30 98-5 32-22 52-44 50-18-2-27-18-27-42V181c14 0 28 2 41 7Z"/>
+  <path id="svg-heart" class="organ heart" d="M160 267c-34-24-51-43-51-66 0-18 13-31 31-31 9 0 16 4 20 11 4-7 11-11 20-11 18 0 31 13 31 31 0 23-17 42-51 66Z"/>
+  <path id="svg-liver" class="organ liver" d="M162 318c25-28 67-40 101-27 4 31-15 58-55 66-28 5-54-5-73-23 7-5 16-11 27-16Z"/>
+  <ellipse id="svg-stomach" class="organ stomach" cx="116" cy="329" rx="35" ry="48" transform="rotate(-15 116 329)"/>
+  <ellipse id="svg-spleen" class="organ" cx="73" cy="338" rx="17" ry="38" transform="rotate(-10 73 338)"/>
+  <path id="svg-pancreas" class="organ" d="M97 385c43-22 82-21 126 1-10 20-36 25-63 24-27-1-51-7-63-25Z"/>
+  <ellipse id="svg-l-kidney" class="organ kidney" cx="106" cy="420" rx="22" ry="38" transform="rotate(18 106 420)"/>
+  <ellipse id="svg-r-kidney" class="organ kidney" cx="214" cy="420" rx="22" ry="38" transform="rotate(-18 214 420)"/>
+  <path id="svg-intestine" class="organ" d="M105 461c16-16 94-16 110 0 16 16 10 64-6 78-19 17-79 17-98 0-16-14-22-62-6-78Zm26 25c-9 14-5 30 12 33 18 4 38 4 56 0 17-3 21-19 12-33-23 8-57 8-80 0Z"/>
+  <ellipse id="svg-bladder" class="organ" cx="160" cy="555" rx="26" ry="22"/>
+</svg>
