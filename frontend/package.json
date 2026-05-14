@@ -29,6 +29,7 @@
     "@pinia/testing": "^0.1.7",
     "@types/node": "^24.10.1",
     "@types/stats.js": "^0.17.4",
+    "@types/three": "^0.184.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vitest/coverage-v8": "^4.1.6",
     "@vue/test-utils": "^2.4.10",
