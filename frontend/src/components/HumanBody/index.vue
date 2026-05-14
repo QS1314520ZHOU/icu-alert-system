@@ -21,11 +21,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import HumanBody3D from './HumanBody3D.vue'
-import HumanBody2D from './HumanBody2D.vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { detectDeviceTier } from './composables/useDeviceTier'
 import type { HumanBodyForceTier, HumanBodyTier, OrganBusinessName } from '../../types/organ'
+
+const HumanBody3D = defineAsyncComponent(() => import('./HumanBody3D.vue'))
+const HumanBody2D = defineAsyncComponent(() => import('./HumanBody2D.vue'))
 
 const props = withDefaults(defineProps<{
   patientId?: string
