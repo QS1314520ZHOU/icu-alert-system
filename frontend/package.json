@@ -7,25 +7,37 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "postbuild": "node ./scripts/sync-to-backend-static.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
     "axios": "^1.13.6",
     "dayjs": "^1.11.20",
     "echarts": "^5.6.0",
+    "gsap": "^3.15.0",
     "pinia": "^2.3.1",
+    "stats.js": "^0.17.0",
+    "three": "^0.184.0",
     "vue": "^3.5.25",
     "vue-echarts": "^7.0.3",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@pinia/testing": "^0.1.7",
     "@types/node": "^24.10.1",
+    "@types/stats.js": "^0.17.4",
     "@vitejs/plugin-vue": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.6",
+    "@vue/test-utils": "^2.4.10",
     "@vue/tsconfig": "^0.8.1",
+    "jsdom": "^29.1.1",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.1.6",
     "vue-tsc": "^3.1.5"
   }
 }

@@ -20,6 +20,17 @@ export default defineConfig(({ mode }) => {
   console.info(`[vite] proxying /api and /health to ${backendTarget}`)
 
   return {
+    assetsInclude: ['**/*.glb', '**/*.gltf', '**/*.svg'],
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./tests/setup.ts'],
+      coverage: {
+        reporter: ['text', 'html'],
+        include: ['src/components/HumanBody/**/*.{ts,vue}', 'src/stores/humanBodyAlarmStore.ts'],
+        exclude: ['src/components/HumanBody/composables/useThreeScene.ts', 'src/components/HumanBody/composables/useOrganPicker.ts', 'src/components/HumanBody/composables/useAlarmHighlight.ts', 'src/components/HumanBody/composables/useCameraFocus.ts'],
+      },
+    },
     resolve: {
       // In restricted Windows environments, Vite's safe realpath optimization may attempt
       // to spawn `net use` and fail with EPERM. Preserving symlinks avoids that path.
