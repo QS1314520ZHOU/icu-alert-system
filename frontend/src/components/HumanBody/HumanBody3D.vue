@@ -6,16 +6,23 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { ORGAN_MAP, meshToBusinessName } from './constants/organMap'
 import { useThreeScene } from './composables/useThreeScene'
+import { useOrganPicker } from './composables/useOrganPicker'
+import { useAlarmHighlight } from './composables/useAlarmHighlight'
+import { useCameraFocus } from './composables/useCameraFocus'
+import { useHumanBodyAlarmStore } from '../../stores/humanBodyAlarmStore'
+import { connectHumanBodyAlarmAdapter } from '../../services/humanBodyAlarmAdapter'
+import type { HumanBodyAlarmRecord } from '../../types/alarm'
 import type { OrganBusinessName } from '../../types/organ'
 
 const props = withDefaults(defineProps<{
   model?: 'high' | 'low'
+  patientId?: string
   autoFocus?: boolean
   showLabels?: boolean
 }>(), {
@@ -36,9 +43,18 @@ const containerRef = ref<HTMLElement | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
 const organMeshes = new Map<OrganBusinessName, THREE.Mesh>()
+const store = useHumanBodyAlarmStore()
+const visibleAlarms = computed(() => {
+  return props.patientId ? store.getAlarmsByPatient(props.patientId) : store.getAggregatedAlarms()
+})
 let sceneHandle: SceneHandle | null = null
+let picker: ReturnType<typeof useOrganPicker> | null = null
+let highlighter: ReturnType<typeof useAlarmHighlight> | null = null
+let cameraFocus: ReturnType<typeof useCameraFocus> | null = null
+let offAlarmAdapter: (() => void) | null = null
 let animationFrame = 0
 let disposed = false
+let lastFocusedKey = ''
 
 function modelPath() {
   return props.model === 'low' ? '/models/human_low.glb' : '/models/human_high.glb'
@@ -75,6 +91,48 @@ function createPlaceholderOrgan(
   return mesh
 }
 
+function initializeInteraction() {
+  if (!sceneHandle || !containerRef.value || highlighter) return
+  highlighter = useAlarmHighlight(organ => organMeshes.get(organ))
+  cameraFocus = useCameraFocus({
+    camera: sceneHandle.camera,
+    controls: sceneHandle.controls,
+  })
+  picker = useOrganPicker({
+    container: containerRef.value,
+    camera: sceneHandle.camera,
+    meshes: () => [...organMeshes.values()],
+    onPick: (businessName, mesh) => {
+      emit('organ-click', businessName)
+      highlighter?.setHighlight(businessName, 'selected')
+      cameraFocus?.focusOn(mesh)
+      window.setTimeout(() => {
+        const alarmLevel = visibleAlarms.value.find(item => item.organ === businessName)?.level || null
+        highlighter?.setHighlight(businessName, alarmLevel)
+      }, 1200)
+    },
+  })
+  syncAlarmHighlights(visibleAlarms.value)
+}
+
+function syncAlarmHighlights(records: HumanBodyAlarmRecord[]) {
+  if (!highlighter) return
+  const activeOrgans = new Set(records.map(item => item.organ))
+  organMeshes.forEach((_, organ) => {
+    const alarm = records.find(item => item.organ === organ)
+    highlighter?.setHighlight(organ, alarm?.level || null)
+  })
+  const highest = records[0]
+  const focusKey = highest ? `${highest.organ}:${highest.level}:${highest.timestamp}` : ''
+  if (props.autoFocus && highest && activeOrgans.has(highest.organ) && focusKey !== lastFocusedKey) {
+    const mesh = organMeshes.get(highest.organ)
+    if (mesh) {
+      cameraFocus?.focusOn(mesh)
+      lastFocusedKey = focusKey
+    }
+  }
+}
+
 function createPlaceholderBody() {
   if (!sceneHandle) return
   const group = new THREE.Group()
@@ -100,6 +158,7 @@ function createPlaceholderBody() {
 
   sceneHandle.scene.add(group)
   loading.value = false
+  initializeInteraction()
   emit('ready', [...organMeshes.keys()])
 }
 
@@ -144,6 +203,7 @@ async function loadBodyModel() {
       console.info(`[human-body] recognized organs: ${[...organMeshes.keys()].join(', ')}`)
     }
     loading.value = false
+    initializeInteraction()
     emit('ready', [...organMeshes.keys()])
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'GLB load failed'
@@ -157,6 +217,7 @@ async function loadBodyModel() {
 function animate() {
   if (!sceneHandle || disposed) return
   sceneHandle.controls.update()
+  highlighter?.update(performance.now() / 1000)
   sceneHandle.renderer.render(sceneHandle.scene, sceneHandle.camera)
   animationFrame = window.requestAnimationFrame(animate)
 }
@@ -164,13 +225,20 @@ function animate() {
 onMounted(() => {
   if (!containerRef.value) return
   sceneHandle = useThreeScene(containerRef.value)
+  offAlarmAdapter = connectHumanBodyAlarmAdapter()
   void loadBodyModel()
   animate()
 })
 
+watch(visibleAlarms, records => syncAlarmHighlights(records), { deep: true })
+
 onBeforeUnmount(() => {
   disposed = true
   if (animationFrame) window.cancelAnimationFrame(animationFrame)
+  offAlarmAdapter?.()
+  picker?.dispose()
+  highlighter?.dispose()
+  cameraFocus?.dispose()
   organMeshes.clear()
   sceneHandle?.dispose()
   sceneHandle = null
