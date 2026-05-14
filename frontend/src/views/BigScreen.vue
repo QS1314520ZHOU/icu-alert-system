@@ -88,40 +88,47 @@
     </section>
 
     <section class="screen-body">
-      <aside class="panel panel-left">
-        <div class="panel-head">
-          <div class="panel-title">{{ rescueOnly ? '抢救期预警' : '实时预警' }}</div>
-          <div class="panel-meta">滚动展示 {{ showAlerts.length }} 条重点事件</div>
-        </div>
-        <BigScreenAlertFeed :alerts="showAlerts" />
-      </aside>
+      <section class="organ-command-grid">
+        <BigScreenOrganFocusCard :top-alarm="topOrganAlarm" :pulse="criticalPulse" />
 
-      <main class="panel panel-center">
-        <div class="panel-head">
-          <div class="panel-title">{{ rescueOnly ? '抢救期床位监控' : '床位监控' }}</div>
-          <div class="panel-meta">当前纳管 {{ filteredPatients.length }} 床</div>
-        </div>
-        <section class="human-body-panel">
+        <main class="panel panel-human">
           <div class="human-body-panel__head">
             <div>
               <span>器官报警聚合</span>
               <strong>{{ selectedOrganLabel }}</strong>
             </div>
-            <span class="human-body-panel__meta">点击器官定位相关报警</span>
+            <div class="human-body-panel__actions">
+              <span v-if="focusedPatientId" class="human-body-panel__meta">单患者 {{ focusedPatientLabel }}</span>
+              <button v-if="selectedOrgan || focusedPatientId" type="button" @click="resetHumanBodyScope">回到聚合</button>
+            </div>
           </div>
-          <HumanBody class="human-body-panel__stage" @organ-click="handleHumanBodyOrganClick" />
-        </section>
-        <section class="bed-grid-panel">
-          <BigScreenBedGrid :patients="filteredPatients" />
-        </section>
-      </main>
+          <HumanBody
+            class="human-body-panel__stage"
+            :patient-id="focusedPatientId || undefined"
+            @organ-click="handleHumanBodyOrganClick"
+          />
+        </main>
 
-      <BigScreenStatsPanel
-        :dept-option="deptOption"
-        :bundle-option="bundleOption"
-        :alert-trend-option="alertTrendOption"
-        :device-heatmap-option="deviceHeatmapOption"
-      />
+        <BigScreenOrganStats :alarms="visibleOrganAlarms" :dept-rows="deptDistributionRows" />
+      </section>
+
+      <section class="operations-grid">
+        <main class="panel panel-beds">
+          <div class="panel-head">
+            <div class="panel-title">{{ rescueOnly ? '抢救期床位监控' : '床位监控' }}</div>
+            <div class="panel-meta">点击床位后人体视图聚焦 10 秒 · 当前 {{ filteredPatients.length }} 床</div>
+          </div>
+          <BigScreenBedGrid :patients="filteredPatients" @bed-click="handleBedClick" />
+        </main>
+
+        <aside class="panel panel-alerts">
+          <div class="panel-head">
+            <div class="panel-title">{{ selectedOrgan ? `${selectedOrganLabel}事件流` : (rescueOnly ? '抢救期预警' : '实时预警') }}</div>
+            <div class="panel-meta">最新在顶 · {{ showAlerts.length }} 条重点事件</div>
+          </div>
+          <BigScreenAlertFeed :alerts="showAlerts" />
+        </aside>
+      </section>
     </section>
   </div>
 </template>
@@ -144,24 +151,15 @@ import { onAlertMessage, speakCriticalAlert } from '../services/alertSocket'
 import { groupAlerts } from '../utils/groupAlerts'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
-import {
-  icuCategoryAxis,
-  icuChartTokens,
-  icuGrid,
-  icuLegend,
-  icuTooltip,
-  icuValueAxis,
-} from '../charts/icuTheme'
-import { useThemeMode } from '../composables/themeMode'
+import { useHumanBodyAlarmStore } from '../stores/humanBodyAlarmStore'
+import { organLabel } from '../components/HumanBody/constants/organMap'
 
 const BigScreenAlertFeed = defineAsyncComponent(() => import('../components/bigscreen/BigScreenAlertFeed.vue'))
 const BigScreenBedGrid = defineAsyncComponent(() => import('../components/bigscreen/BigScreenBedGrid.vue'))
-const BigScreenStatsPanel = defineAsyncComponent(() => import('../components/bigscreen/BigScreenStatsPanel.vue'))
+const BigScreenOrganFocusCard = defineAsyncComponent(() => import('../components/bigscreen/BigScreenOrganFocusCard.vue'))
+const BigScreenOrganStats = defineAsyncComponent(() => import('../components/bigscreen/BigScreenOrganStats.vue'))
 const HumanBody = defineAsyncComponent(() => import('../components/HumanBody/index.vue'))
-const chartColors = ['#2E5BFF', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280']
-const themeMode = useThemeMode()
-const isLightTheme = computed(() => themeMode.value === 'light')
-const chartTokens = computed(() => icuChartTokens())
+const humanBodyAlarmStore = useHumanBodyAlarmStore()
 
 const route = useRoute()
 const currentTime = ref(dayjs().format('YYYY-MM-DD HH:mm:ss'))
@@ -174,10 +172,15 @@ const bundleCounts = ref<any>({ green: 0, yellow: 0, red: 0 })
 const deviceHeatRows = ref<any[]>([])
 const rescueOnly = ref(false)
 const selectedOrgan = ref('')
+const focusedPatientId = ref('')
+const focusedPatientLabel = ref('')
+const criticalPulse = ref(false)
 
 let timer: number
 let refreshTimer: number
 let alertTimer: number
+let focusTimer: number | null = null
+let pulseTimer: number | null = null
 let offAlert: any = null
 
 const rescuePatientCount = computed(() =>
@@ -192,7 +195,13 @@ const filteredAlerts = computed(() => {
   const scoped = rescueOnly.value ? alerts.value.filter((a: any) => isRescueRiskAlert(a)) : alerts.value
   return selectedOrgan.value ? scoped.filter((a: any) => alertMatchesOrgan(a, selectedOrgan.value)) : scoped
 })
-const selectedOrganLabel = computed(() => selectedOrgan.value || '全部器官')
+const selectedOrganLabel = computed(() => selectedOrgan.value ? organLabel(selectedOrgan.value) : '全部器官')
+const visibleOrganAlarms = computed(() =>
+  focusedPatientId.value
+    ? humanBodyAlarmStore.getAlarmsByPatient(focusedPatientId.value)
+    : humanBodyAlarmStore.getAggregatedAlarms()
+)
+const topOrganAlarm = computed(() => visibleOrganAlarms.value[0] || null)
 
 const filteredCriticalPatientCount = computed(() =>
   filteredPatients.value.filter((p: any) => p.alertLevel === 'critical').length
@@ -333,181 +342,6 @@ const showAlerts = computed(() => {
   return [...list.slice(start, start + n), ...list.slice(0, Math.max(0, n - (list.length - start)))]
 })
 
-const deptOption = computed(() => {
-  const tokens = chartTokens.value
-  const light = isLightTheme.value
-  const source = deptDistributionRows.value
-  const data = source.map((d, idx) => ({
-    name: d.dept || '未知科室',
-    value: d.patientCount,
-    itemStyle: {
-      color: chartColors[idx % chartColors.length],
-    },
-  }))
-  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
-  const hasData = total > 0
-  return {
-    backgroundColor: 'transparent',
-    tooltip: icuTooltip({
-      trigger: 'item',
-      formatter: (params: any) => `${params.name}<br/>当前床位 <b>${params.value || 0}</b> 床`,
-    }),
-    graphic: hasData ? [
-      {
-        type: 'group',
-        left: 'center',
-        top: '40%',
-        children: [
-          {
-            type: 'text',
-            left: 'center',
-            top: 0,
-            style: {
-              text: String(total),
-              fill: tokens.labelStrong,
-              fontSize: 22,
-              fontWeight: 700,
-              textAlign: 'center',
-            },
-          },
-          {
-            type: 'text',
-            left: 'center',
-            top: 26,
-            style: {
-              text: '在院床位',
-              fill: tokens.axisLabelStrong,
-              fontSize: 10,
-              textAlign: 'center',
-            },
-          },
-        ],
-      },
-    ] : [
-      {
-        type: 'text',
-        left: 'center',
-        top: 'middle',
-        style: {
-          text: '暂无科室数据',
-          fill: tokens.axisLabelStrong,
-          fontSize: 11,
-        },
-      },
-    ],
-    series: hasData ? [
-      {
-        type: 'pie',
-        radius: ['48%', '72%'],
-        center: ['50%', '46%'],
-        data,
-        label: {
-          color: tokens.labelStrong,
-          fontSize: 10,
-          formatter: '{b}\n{c}床',
-        },
-        labelLine: { lineStyle: { color: light ? 'rgba(148, 163, 184, 0.9)' : 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
-        itemStyle: { borderColor: light ? '#FFFFFF' : '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
-      }
-    ] : [],
-  }
-})
-const alertTrendOption = computed(() => {
-  const tokens = chartTokens.value
-  const xs = trendSeries.value.map(s => s.time)
-  return {
-    backgroundColor: 'transparent',
-    tooltip: icuTooltip({
-      trigger: 'axis',
-      formatter: (params: any[]) => {
-        const lines = (params || []).map((item) => `${item.marker}${item.seriesName} <b>${item.value || 0}</b> 次`)
-        return [`<div style="margin-bottom:4px;color:${tokens.legendText};">${params?.[0]?.axisValue || '--'}</div>`, ...lines].join('<br/>')
-      },
-    }),
-    legend: icuLegend({ top: 2 }),
-    grid: icuGrid({ left: 36, right: 12, top: 36, bottom: 30 }),
-    xAxis: icuCategoryAxis(xs),
-    yAxis: icuValueAxis(),
-    series: [
-      { name: '预警', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, areaStyle: { color: 'rgba(251,191,36,.12)' }, itemStyle: { color: '#fbbf24' }, data: trendSeries.value.map(s => s.warning || 0) },
-      { name: '高危', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, areaStyle: { color: 'rgba(251,146,60,.1)' }, itemStyle: { color: '#fb923c' }, data: trendSeries.value.map(s => s.high || 0) },
-      { name: '危急', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb5a7a' }, areaStyle: { color: 'rgba(251,90,122,.1)' }, itemStyle: { color: '#fb5a7a' }, data: trendSeries.value.map(s => s.critical || 0) },
-    ],
-  }
-})
-
-const bundleOption = computed(() => {
-  const tokens = chartTokens.value
-  const light = isLightTheme.value
-  return {
-    backgroundColor: 'transparent',
-    tooltip: icuTooltip({
-      trigger: 'item',
-      formatter: (params: any) => `${params.name}状态<br/>当前占比 <b>${params.value || 0}</b>`,
-    }),
-    series: [
-      {
-        type: 'pie',
-        radius: ['46%', '70%'],
-        center: ['50%', '46%'],
-        data: [
-          { name: '达标', value: bundleCounts.value.green || 0, itemStyle: { color: '#22c55e' } },
-          { name: '待跟进', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#f59e0b' } },
-          { name: '高风险', value: bundleCounts.value.red || 0, itemStyle: { color: '#ef4444' } },
-        ],
-        label: { color: tokens.labelStrong, fontSize: 10, formatter: '{b}\n{c}' },
-        labelLine: { lineStyle: { color: light ? 'rgba(148, 163, 184, 0.9)' : 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
-        itemStyle: { borderColor: light ? '#FFFFFF' : '#04111b', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.18)' },
-      },
-    ],
-  }
-})
-
-const deviceHeatmapOption = computed(() => {
-  const tokens = chartTokens.value
-  const beds = Array.from(new Set(deviceHeatRows.value.map((x: any) => String(x.bed || '--'))))
-  const devices = ['中心静脉导管', '导尿管', '气管导管']
-  const deviceKeyMap: Record<string, string> = {
-    cvc: '中心静脉导管',
-    foley: '导尿管',
-    ett: '气管导管',
-  }
-  const data = deviceHeatRows.value.map((row: any) => [
-    devices.indexOf(deviceKeyMap[String(row.device_type || '')] || ''),
-    beds.indexOf(String(row.bed || '--')),
-    row.risk_score || 0,
-  ]).filter((x: any) => x[0] >= 0 && x[1] >= 0)
-
-  return {
-    tooltip: icuTooltip({
-      position: 'top',
-      formatter: (params: any) => {
-        const row = deviceHeatRows.value.find((x: any) =>
-          devices.indexOf(deviceKeyMap[String(x.device_type || '')] || '') === params.data?.[0] &&
-          beds.indexOf(String(x.bed || '--')) === params.data?.[1]
-        )
-        if (!row) return ''
-        const deviceLabel = deviceKeyMap[String(row.device_type || '')] || String(row.device_type || '装置')
-        return `<div style="margin-bottom:4px;color:${tokens.legendText};">${row.bed}床 · ${deviceLabel}</div>风险等级 <b>${row.risk}</b><br/>在位天数 <b>${row.line_days || 0}</b> 天`
-      },
-    }),
-    grid: icuGrid({ left: 54, right: 14, top: 20, bottom: 42 }),
-    xAxis: icuCategoryAxis(devices, { axisLabel: { color: tokens.axisLabelStrong, fontSize: 10 } }),
-    yAxis: icuCategoryAxis(beds, { axisLabel: { color: tokens.axisLabelStrong, fontSize: 10 } }),
-    visualMap: {
-      min: 0,
-      max: 3,
-      orient: 'horizontal',
-      left: 'center',
-      bottom: 0,
-      calculable: false,
-      text: ['高风险', '低风险'],
-      inRange: { color: isLightTheme.value ? ['#eff6ff', '#bfdbfe', '#34d399', '#f59e0b', '#ef4444'] : ['#0b2538', '#0e7490', '#34d399', '#f59e0b', '#fb5a7a'] },
-      textStyle: { color: tokens.heatmapText, fontSize: 10 },
-    },
-    series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 8, borderColor: tokens.axisLine, borderWidth: 1 } }],
-  }
-})
 
 const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || ''))
@@ -611,6 +445,36 @@ function alertMatchesOrgan(alert: any, organ: string) {
 function handleHumanBodyOrganClick(organ: string) {
   selectedOrgan.value = organ
   alertIndex.value = 0
+}
+
+function resetHumanBodyScope() {
+  selectedOrgan.value = ''
+  focusedPatientId.value = ''
+  focusedPatientLabel.value = ''
+  if (focusTimer) {
+    clearTimeout(focusTimer)
+    focusTimer = null
+  }
+}
+
+function handleBedClick(patient: any) {
+  focusedPatientId.value = String(patient?._id || '')
+  focusedPatientLabel.value = `${patient?.hisBed || '--'}床 ${patient?.name || '未知患者'}`
+  if (focusTimer) clearTimeout(focusTimer)
+  focusTimer = window.setTimeout(() => {
+    focusedPatientId.value = ''
+    focusedPatientLabel.value = ''
+    focusTimer = null
+  }, 10000)
+}
+
+function triggerCriticalPulse() {
+  criticalPulse.value = true
+  if (pulseTimer) clearTimeout(pulseTimer)
+  pulseTimer = window.setTimeout(() => {
+    criticalPulse.value = false
+    pulseTimer = null
+  }, 2000)
 }
 
 async function loadAlerts() {
@@ -729,6 +593,7 @@ onMounted(() => {
   offAlert = onAlertMessage(msg => {
     if (msg?.type === 'alert') {
       applyAlert(msg.data)
+      if (String(msg.data?.severity || '').toLowerCase() === 'critical') triggerCriticalPulse()
       speakCriticalAlert(msg) // critical 级别自动语音播报
     }
   })
@@ -738,6 +603,8 @@ onUnmounted(() => {
   clearInterval(timer)
   clearInterval(refreshTimer)
   clearInterval(alertTimer)
+  if (focusTimer) clearTimeout(focusTimer)
+  if (pulseTimer) clearTimeout(pulseTimer)
   if (offAlert) offAlert()
 })
 
@@ -1005,11 +872,24 @@ watch(() => route.query, () => {
 }
 .screen-body {
   display: grid;
-  grid-template-columns: 1.45fr 2.85fr 1.25fr;
+  grid-template-rows: minmax(380px, 60vh) minmax(320px, 40vh);
   gap: 16px;
   padding: 16px;
   position: relative;
   z-index: 1;
+}
+.organ-command-grid,
+.operations-grid {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  gap: 16px;
+}
+.organ-command-grid {
+  grid-template-columns: 3fr 6fr 3fr;
+}
+.operations-grid {
+  grid-template-columns: 8fr 4fr;
 }
 .panel {
   background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
@@ -1038,35 +918,39 @@ watch(() => route.query, () => {
   font-size: 10px;
   letter-spacing: .08em;
 }
-.panel-left,
-.panel-center {
-  min-width: 0;
-}
-.panel-center {
-  display: grid;
-  grid-template-rows: minmax(320px, 0.95fr) minmax(280px, 1.05fr);
-  gap: 12px;
-}
-.human-body-panel,
-.bed-grid-panel {
+.panel-human,
+.panel-beds,
+.panel-alerts {
   min-height: 0;
   min-width: 0;
 }
-.human-body-panel {
+.panel-human {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid rgba(80,199,255,.1);
-  border-radius: 12px;
-  background: rgba(3, 12, 22, 0.62);
+  padding: 0;
+}
+.panel-beds,
+.panel-alerts {
+  overflow: auto;
+}
+.panel-beds :deep(.bed-card) {
+  cursor: pointer;
 }
 .human-body-panel__head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid rgba(80,199,255,.08);
+}
+.human-body-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .human-body-panel__head span {
   display: block;
@@ -1083,19 +967,17 @@ watch(() => route.query, () => {
 .human-body-panel__meta {
   color: #8fb8ca !important;
 }
+.human-body-panel__actions button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(103,232,249,.25);
+  border-radius: 999px;
+  color: #9ae8f7;
+  background: rgba(8,28,44,.8);
+  cursor: pointer;
+}
 .human-body-panel__stage {
   min-height: 0;
-}
-.bed-grid-panel {
-  overflow: hidden;
-}
-
-.chart-wrap {
-  height: 240px;
-  margin-bottom: 12px;
-}
-.chart-wrap-heatmap {
-  height: 300px;
 }
 
 @keyframes flash-border {
@@ -1211,7 +1093,7 @@ html[data-theme='light'] .ops-item {
 html[data-theme='light'] .ops-item {
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
-html[data-theme='light'] .human-body-panel {
+html[data-theme='light'] .panel-human {
   border-color: rgba(187, 204, 220, 0.72);
   background: #FFFFFF;
 }
@@ -1246,8 +1128,11 @@ html[data-theme='light'] .panel-head {
   .ops-lane__list {
     grid-template-columns: 1fr;
   }
-  .screen-body {
+  .screen-body,
+  .organ-command-grid,
+  .operations-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
   }
   .header-filters {
     margin-top: 6px;

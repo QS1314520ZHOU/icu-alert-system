@@ -25,8 +25,8 @@ import { computed, defineAsyncComponent, ref } from 'vue'
 import { detectDeviceTier } from './composables/useDeviceTier'
 import type { HumanBodyForceTier, HumanBodyTier, OrganBusinessName } from '../../types/organ'
 
-const HumanBody3D = defineAsyncComponent(() => import('./HumanBody3D.vue'))
-const HumanBody2D = defineAsyncComponent(() => import('./HumanBody2D.vue'))
+const HumanBody3D = defineAsyncComponent(async () => (await import('./HumanBody3D.vue')).default)
+const HumanBody2D = defineAsyncComponent(async () => (await import('./HumanBody2D.vue')).default)
 
 const props = withDefaults(defineProps<{
   patientId?: string

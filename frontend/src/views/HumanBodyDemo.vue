@@ -18,8 +18,22 @@
       </div>
     </header>
 
-    <main class="human-demo__grid">
-      <section class="human-demo__stage">
+    <main class="human-demo__layout">
+      <section class="human-demo__top">
+        <section class="human-demo__focus human-demo__panel">
+          <div class="human-demo__panel-head">
+            <strong>最高优先级</strong>
+            <span>{{ topAlarm ? levelText(topAlarm.level) : '监测中' }}</span>
+          </div>
+          <div v-if="topAlarm" class="human-demo__focus-main">
+            <b>{{ organLabel(topAlarm.organ) }}</b>
+            <span>{{ topAlarm.bed || '--' }}床 {{ topAlarm.patientName || topAlarm.patientId || '聚合视图' }}</span>
+            <strong>{{ topAlarm.metric || '指标' }} {{ topAlarm.value ?? '--' }}</strong>
+          </div>
+          <div v-else class="human-demo__empty">触发报警后显示最高优先级器官。</div>
+        </section>
+
+        <section class="human-demo__stage">
         <HumanBody
           :key="forceTier"
           :force-tier="forceTier"
@@ -33,7 +47,26 @@
         />
       </section>
 
-      <aside class="human-demo__side">
+        <section class="human-demo__stats human-demo__panel">
+          <div class="human-demo__panel-head">
+            <strong>等级统计</strong>
+            <span>{{ visibleAlarms.length }}</span>
+          </div>
+          <div class="human-demo__stat-row" v-for="row in levelRows" :key="row.label">
+            <span :class="['human-demo__dot', row.level]" />
+            <span>{{ row.label }}</span>
+            <b>{{ row.count }}</b>
+          </div>
+          <div class="human-demo__dept-list">
+            <div v-for="row in demoDeptRows" :key="row.dept" class="human-demo__dept">
+              <span>{{ row.dept }}</span>
+              <b>{{ row.patientCount }}床</b>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="human-demo__bottom">
         <section class="human-demo__panel">
           <div class="human-demo__panel-head">
             <strong>手动触发</strong>
@@ -94,7 +127,7 @@
         <section class="human-demo__panel human-demo__event">
           {{ lastEvent || (ready ? '人体视图已就绪' : '正在初始化人体视图') }}
         </section>
-      </aside>
+      </section>
     </main>
   </div>
 </template>
@@ -134,6 +167,17 @@ const levels: Array<{ value: HumanBodyAlarmLevel; label: string }> = [
   { value: 'info', label: '关注' },
 ]
 const visibleAlarms = computed(() => patientMode.value ? store.getAlarmsByPatient(selectedPatientId.value) : store.getAggregatedAlarms())
+const topAlarm = computed(() => visibleAlarms.value[0] || null)
+const levelRows = computed(() => [
+  { level: 'critical', label: '危急', count: visibleAlarms.value.filter(alarm => alarm.level === 'critical').length },
+  { level: 'warning', label: '预警', count: visibleAlarms.value.filter(alarm => alarm.level === 'warning').length },
+  { level: 'info', label: '关注', count: visibleAlarms.value.filter(alarm => alarm.level === 'info').length },
+])
+const demoDeptRows = [
+  { dept: '综合 ICU', patientCount: 12 },
+  { dept: '急诊 ICU', patientCount: 8 },
+  { dept: '神外 ICU', patientCount: 6 },
+]
 
 function levelText(level: HumanBodyAlarmLevel) {
   return level === 'critical' ? '危急' : level === 'warning' ? '预警' : '关注'
@@ -165,7 +209,6 @@ function handleOrganClick(organ: OrganBusinessName, patientId?: string) {
 }
 
 .human-demo__header,
-.human-demo__grid,
 .human-demo__panel,
 .human-demo__alarm {
   border: 1px solid rgba(128, 213, 255, 0.16);
@@ -194,22 +237,39 @@ function handleOrganClick(organ: OrganBusinessName, patientId?: string) {
   font-size: 24px;
 }
 
-.human-demo__grid {
+.human-demo__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 14px;
   margin-top: 14px;
   padding: 14px;
   border-radius: 8px;
+  border: 1px solid rgba(128, 213, 255, 0.16);
+  background: rgba(8, 22, 38, 0.62);
+}
+
+.human-demo__top,
+.human-demo__bottom {
+  display: grid;
+  gap: 14px;
+}
+
+.human-demo__top {
+  grid-template-columns: 3fr 6fr 3fr;
+  min-height: 58vh;
+}
+
+.human-demo__bottom {
+  grid-template-columns: 360px minmax(0, 1fr) 280px;
 }
 
 .human-demo__stage {
-  min-height: calc(100vh - 140px);
+  min-height: 420px;
   overflow: hidden;
   border-radius: 8px;
+  border: 1px solid rgba(128, 213, 255, 0.16);
+  background: rgba(8, 22, 38, 0.86);
 }
 
-.human-demo__side,
 .human-demo__panel {
   display: grid;
   gap: 12px;
@@ -277,6 +337,47 @@ function handleOrganClick(organ: OrganBusinessName, patientId?: string) {
   width: 100%;
 }
 
+.human-demo__focus-main {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(17, 42, 68, 0.9);
+}
+
+.human-demo__focus-main b {
+  color: #67e8f9;
+  font-size: 28px;
+}
+
+.human-demo__focus-main strong {
+  color: #fff;
+  font-size: 22px;
+}
+
+.human-demo__stat-row,
+.human-demo__dept {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(17, 42, 68, 0.72);
+}
+
+.human-demo__dept {
+  grid-template-columns: 1fr auto;
+  color: #9ccce0;
+}
+
+.human-demo__dept-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .human-demo__alarm {
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr);
@@ -308,7 +409,8 @@ function handleOrganClick(organ: OrganBusinessName, patientId?: string) {
 }
 
 @media (max-width: 980px) {
-  .human-demo__grid {
+  .human-demo__top,
+  .human-demo__bottom {
     grid-template-columns: 1fr;
   }
 }
