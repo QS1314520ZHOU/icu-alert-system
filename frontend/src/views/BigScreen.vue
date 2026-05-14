@@ -101,7 +101,19 @@
           <div class="panel-title">{{ rescueOnly ? '抢救期床位监控' : '床位监控' }}</div>
           <div class="panel-meta">当前纳管 {{ filteredPatients.length }} 床</div>
         </div>
-        <BigScreenBedGrid :patients="filteredPatients" />
+        <section class="human-body-panel">
+          <div class="human-body-panel__head">
+            <div>
+              <span>器官报警聚合</span>
+              <strong>{{ selectedOrganLabel }}</strong>
+            </div>
+            <span class="human-body-panel__meta">点击器官定位相关报警</span>
+          </div>
+          <HumanBody class="human-body-panel__stage" @organ-click="handleHumanBodyOrganClick" />
+        </section>
+        <section class="bed-grid-panel">
+          <BigScreenBedGrid :patients="filteredPatients" />
+        </section>
       </main>
 
       <BigScreenStatsPanel
@@ -145,6 +157,7 @@ import { useThemeMode } from '../composables/themeMode'
 const BigScreenAlertFeed = defineAsyncComponent(() => import('../components/bigscreen/BigScreenAlertFeed.vue'))
 const BigScreenBedGrid = defineAsyncComponent(() => import('../components/bigscreen/BigScreenBedGrid.vue'))
 const BigScreenStatsPanel = defineAsyncComponent(() => import('../components/bigscreen/BigScreenStatsPanel.vue'))
+const HumanBody = defineAsyncComponent(() => import('../components/HumanBody/index.vue'))
 const chartColors = ['#2E5BFF', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280']
 const themeMode = useThemeMode()
 const isLightTheme = computed(() => themeMode.value === 'light')
@@ -160,6 +173,7 @@ const trendSeries = ref<any[]>([])
 const bundleCounts = ref<any>({ green: 0, yellow: 0, red: 0 })
 const deviceHeatRows = ref<any[]>([])
 const rescueOnly = ref(false)
+const selectedOrgan = ref('')
 
 let timer: number
 let refreshTimer: number
@@ -174,9 +188,11 @@ const filteredPatients = computed(() =>
   rescueOnly.value ? patients.value.filter((p: any) => hasPatientRescueRisk(p)) : patients.value
 )
 
-const filteredAlerts = computed(() =>
-  rescueOnly.value ? alerts.value.filter((a: any) => isRescueRiskAlert(a)) : alerts.value
-)
+const filteredAlerts = computed(() => {
+  const scoped = rescueOnly.value ? alerts.value.filter((a: any) => isRescueRiskAlert(a)) : alerts.value
+  return selectedOrgan.value ? scoped.filter((a: any) => alertMatchesOrgan(a, selectedOrgan.value)) : scoped
+})
+const selectedOrganLabel = computed(() => selectedOrgan.value || '全部器官')
 
 const filteredCriticalPatientCount = computed(() =>
   filteredPatients.value.filter((p: any) => p.alertLevel === 'critical').length
@@ -571,6 +587,30 @@ function applyAlert(alert: any) {
     target.alertFlash = true
     window.setTimeout(() => { target.alertFlash = false }, 15000)
   }
+}
+
+function alertMatchesOrgan(alert: any, organ: string) {
+  const target = String(organ || '').toLowerCase()
+  if (!target) return true
+  const extra = alert?.extra && typeof alert.extra === 'object' ? alert.extra : {}
+  const fields = [
+    alert?.organ,
+    alert?.organ_name,
+    alert?.organName,
+    alert?.alert_type,
+    alert?.rule_id,
+    alert?.name,
+    extra?.organ,
+    extra?.organ_name,
+    extra?.system,
+  ].map(value => String(value || '').toLowerCase())
+  const groups = Array.isArray(extra?.aggregated_groups) ? extra.aggregated_groups : []
+  return fields.some(value => value.includes(target)) || groups.some((row: any) => JSON.stringify(row || {}).toLowerCase().includes(target))
+}
+
+function handleHumanBodyOrganClick(organ: string) {
+  selectedOrgan.value = organ
+  alertIndex.value = 0
 }
 
 async function loadAlerts() {
@@ -1002,6 +1042,53 @@ watch(() => route.query, () => {
 .panel-center {
   min-width: 0;
 }
+.panel-center {
+  display: grid;
+  grid-template-rows: minmax(320px, 0.95fr) minmax(280px, 1.05fr);
+  gap: 12px;
+}
+.human-body-panel,
+.bed-grid-panel {
+  min-height: 0;
+  min-width: 0;
+}
+.human-body-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(80,199,255,.1);
+  border-radius: 12px;
+  background: rgba(3, 12, 22, 0.62);
+}
+.human-body-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(80,199,255,.08);
+}
+.human-body-panel__head span {
+  display: block;
+  color: #7ecce1;
+  font-size: 10px;
+  letter-spacing: .1em;
+}
+.human-body-panel__head strong {
+  display: block;
+  margin-top: 2px;
+  color: #effcff;
+  font-size: 16px;
+}
+.human-body-panel__meta {
+  color: #8fb8ca !important;
+}
+.human-body-panel__stage {
+  min-height: 0;
+}
+.bed-grid-panel {
+  overflow: hidden;
+}
 
 .chart-wrap {
   height: 240px;
@@ -1123,6 +1210,16 @@ html[data-theme='light'] .ops-item {
 }
 html[data-theme='light'] .ops-item {
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+html[data-theme='light'] .human-body-panel {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: #FFFFFF;
+}
+html[data-theme='light'] .human-body-panel__head {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+html[data-theme='light'] .human-body-panel__head strong {
+  color: #16324f;
 }
 html[data-theme='light'] .ops-item:hover {
   background: #FAFBFD;
