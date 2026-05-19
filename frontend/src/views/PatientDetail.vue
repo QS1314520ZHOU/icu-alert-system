@@ -306,7 +306,7 @@
             </div>
             <div class="tab-shortcuts">
               <button
-                v-for="shortcut in detailTabShortcuts"
+                v-for="shortcut in visibleTabShortcuts"
                 :key="shortcut.key"
                 :class="['tab-shortcut-btn', { 'is-active': activeTab === shortcut.key }]"
                 type="button"
@@ -317,7 +317,7 @@
             </div>
           </div>
         </div>
-        <a-tabs v-model:activeKey="activeTab">
+        <a-tabs v-model:activeKey="activeTab" class="single-nav-tabs">
           <a-tab-pane v-if="isTabVisible('ecash')" key="ecash" tab="eCASH">
           <PatientEcashBundleTab
             v-if="activeTab === 'ecash'"
@@ -353,6 +353,7 @@
             :forecast-meta="forecastMeta"
             :forecast-enabled="trajectoryPublicConfig.enabled"
             :forecast-horizon="trajectoryPublicConfig.horizon_hours"
+            :forecast-data="vitalForecast.state.data"
             :on-refresh="loadTrend"
             @legend-select-changed="saveTrendLegendSelection"
           />
@@ -723,6 +724,22 @@ const detailTabShortcuts: Array<{ key: DetailTabKey; label: string }> = [
   { key: 'waveform', label: '波形' },
   { key: 'ai', label: 'AI' },
 ]
+const detailTabLabelMap: Record<DetailTabKey, string> = {
+  ecash: 'eCASH',
+  mobility: '早期活动',
+  pe: '肺栓塞',
+  trend: '趋势',
+  waveform: '波形',
+  labs: '检验',
+  drugs: '用药',
+  assess: '护理',
+  sbt: 'SBT',
+  alerts: '预警',
+  similar: '相似病例',
+  followup: '随访',
+  twin: '数字孪生',
+  ai: 'AI',
+}
 const detailTabGroups: Array<{ key: DetailTabGroup; label: string }> = [
   { key: 'focus', label: '重点' },
   { key: 'monitor', label: '监护' },
@@ -744,6 +761,20 @@ const visibleDetailTabs = computed<DetailTabKey[]>(() => {
     return [...detailTabOrder]
   }
   return detailTabGroupMap[detailTabGroup.value]
+})
+const visibleTabShortcuts = computed(() => {
+  const tabs = new Set(visibleDetailTabs.value)
+  const selected = detailTabGroup.value === 'all'
+    ? detailTabShortcuts
+    : detailTabOrder
+        .filter((key) => tabs.has(key))
+        .map((key) => detailTabShortcuts.find((item) => item.key === key) || ({ key, label: detailTabLabelMap[key] || key }))
+  const seen = new Set<string>()
+  return selected.filter((item) => {
+    if (seen.has(item.key)) return false
+    seen.add(item.key)
+    return true
+  })
 })
 const tabsAnchor = ref<HTMLElement | null>(null)
 const selectedBodyOrgan = ref('respiratory')
@@ -5008,6 +5039,9 @@ onBeforeUnmount(() => {
 .tabs-card :deep(.ant-tabs-nav) {
   margin-bottom: 14px;
 }
+.tabs-card :deep(.single-nav-tabs > .ant-tabs-nav) {
+  display: none;
+}
 .tabs-card :deep(.ant-tabs-nav-list) {
   flex-wrap: wrap;
   gap: 4px;
@@ -5021,7 +5055,9 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(80,199,255,.12);
 }
 .tab-toolbar-copy {
   display: flex;
@@ -5033,7 +5069,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px 12px;
+  gap: 8px;
 }
 .tab-toolbar-kicker {
   color: #79cfe1;
@@ -5049,7 +5085,7 @@ onBeforeUnmount(() => {
 .tab-shortcuts {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .tab-group-bar {
   justify-content: flex-end;
@@ -5068,6 +5104,31 @@ onBeforeUnmount(() => {
   font-weight: 600;
   cursor: pointer;
   transition: all .18s ease;
+}
+.tab-shortcut-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(80,199,255,.14);
+  background: rgba(4,16,28,.68);
+  color: #9bdcf1;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.tab-shortcut-btn:hover {
+  border-color: rgba(110,231,249,.3);
+  color: #effcff;
+}
+.tab-shortcut-btn.is-active {
+  border-color: rgba(34,211,238,.38);
+  background: rgba(8,96,120,.74);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(103,232,249,.08);
 }
 .tab-group-btn:hover {
   border-color: rgba(110,231,249,.24);
@@ -6060,7 +6121,7 @@ html[data-theme='light'] .ai-error { color: #dc2626; }
     font-size: 22px;
   }
   .tabs-card :deep(.ant-tabs-nav) {
-    overflow-x: auto;
+    display: none;
   }
   .tabs-card :deep(.ant-tabs-nav-list) {
     flex-wrap: nowrap;

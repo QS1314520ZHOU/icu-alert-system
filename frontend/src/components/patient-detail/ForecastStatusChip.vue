@@ -4,11 +4,20 @@
       <div class="forecast-popover">
         <div><strong>来源</strong><span>{{ sourceText }}</span></div>
         <div><strong>预测窗口</strong><span>{{ meta.horizon || horizon }}h</span></div>
+        <div><strong>历史回看</strong><span>{{ historyWindowText }}</span></div>
         <div><strong>生成时间</strong><span>{{ generatedText }}</span></div>
         <div><strong>数据点</strong><span>{{ meta.dataPoints || 0 }}</span></div>
         <div v-if="meta.modelVersion"><strong>版本</strong><span>{{ meta.modelVersion }}</span></div>
         <div v-if="meta.fallbackReason"><strong>降级原因</strong><span>{{ fallbackText }}</span></div>
         <div v-if="meta.error"><strong>错误</strong><span>{{ meta.error }}</span></div>
+        <template v-if="indicatorDetails.length">
+          <div class="forecast-popover-divider"></div>
+          <div class="forecast-popover-section-title">各指标数据点</div>
+          <div v-for="item in indicatorDetails" :key="item.code" class="forecast-indicator-row">
+            <span class="forecast-indicator-code">{{ item.code }}</span>
+            <span :class="['forecast-indicator-count', item.insufficient ? 'forecast-indicator-warn' : '']">{{ item.points }}点{{ item.insufficient ? ' ⚠' : '' }}</span>
+          </div>
+        </template>
       </div>
     </template>
     <button type="button" :class="['forecast-chip', `forecast-chip--${tone}`]">
@@ -29,6 +38,7 @@ const props = defineProps<{
   meta: ForecastMeta
   enabled: boolean
   horizon: number
+  forecastData?: any
 }>()
 
 const visible = computed(() => props.enabled && props.meta.status !== 'idle')
@@ -54,6 +64,25 @@ const chipText = computed(() => {
   const horizon = props.meta.horizon || props.horizon
   if (props.meta.source === 'heuristic') return `线性外推 · ${horizon}h预测 · 模型未加载`
   return `Chronos · ${horizon}h预测 · ${generatedText.value} 生成`
+})
+
+const historyWindowText = computed(() => {
+  const series = props.forecastData?.series || {}
+  const first = Object.values(series)[0] as any
+  const hours = first?.history_window_hours
+  if (!hours) return '24h'
+  return hours >= 24 && hours % 24 === 0 ? `${hours / 24}d (${hours}h)` : `${hours}h`
+})
+
+const indicatorDetails = computed(() => {
+  const series = props.forecastData?.series || {}
+  return Object.entries(series).map(([code, row]: [string, any]) => {
+    const history = Array.isArray(row?.history) ? row.history : []
+    const points = row?.fetched_points ?? history.length
+    const qualityOk = row?.data_quality?.ok !== false
+    const insufficient = !qualityOk || history.length < 3
+    return { code, points, insufficient }
+  })
 })
 </script>
 
@@ -103,5 +132,33 @@ const chipText = computed(() => {
 }
 .forecast-popover strong {
   color: #1f2937;
+}
+.forecast-popover-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 0;
+}
+.forecast-popover-section-title {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 600;
+  display: block !important;
+}
+.forecast-indicator-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  gap: 12px;
+}
+.forecast-indicator-code {
+  color: #374151;
+  font-weight: 500;
+}
+.forecast-indicator-count {
+  color: #6b7280;
+}
+.forecast-indicator-warn {
+  color: #d97706;
+  font-weight: 600;
 }
 </style>

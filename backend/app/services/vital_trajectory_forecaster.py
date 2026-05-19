@@ -180,10 +180,11 @@ class VitalTrajectoryForecaster:
             "calibration_version": "",
         }
 
-    async def _history(self, patient_id: str, code: str) -> list[dict[str, Any]]:
+    async def _history(self, patient_id: str, code: str, history_hours: int | None = None) -> list[dict[str, Any]]:
         from app.utils.patient_data import param_series_by_pid
 
-        since = datetime.now() - timedelta(hours=24)
+        effective_hours = history_hours if history_hours is not None else 24
+        since = datetime.now() - timedelta(hours=effective_hours)
         points: list[dict[str, Any]] = []
         for param in self._param_codes(code):
             if code == "Lactate":
@@ -320,7 +321,7 @@ class VitalTrajectoryForecaster:
             return "insufficient_history"
         return "model_inference_error"
 
-    async def forecast(self, patient_id: str, codes: list[str] | None = None, horizon_hours: int = 6) -> dict[str, Any]:
+    async def forecast(self, patient_id: str, codes: list[str] | None = None, horizon_hours: int = 6, *, history_hours: int | None = None) -> dict[str, Any]:
         cfg = await self._runtime_config()
         horizon = max(1, min(int(horizon_hours or cfg.get("horizon_hours") or 6), 12))
         default_codes = cfg.get("default_codes") if isinstance(cfg.get("default_codes"), list) else list(DEFAULT_CONTINUOUS_CODES)
@@ -351,11 +352,14 @@ class VitalTrajectoryForecaster:
             requested = list(DEFAULT_CONTINUOUS_CODES)
         series: dict[str, Any] = {}
 
+        effective_history_hours = history_hours if history_hours is not None else 24
+
         async def forecast_one(code: str) -> tuple[str, dict[str, Any]]:
-            history = await self._history(patient_id, code)
+            history = await self._history(patient_id, code, history_hours=history_hours)
+            fetched_points = len(history)
             quality = self._data_quality(code, history)
             if not quality.get("ok") and code in {"CVP", "ICP"}:
-                return code, {"history": serialize_doc(history[-24:]), "forecast": [], "available": False, "reason": quality.get("reason"), "series_type": CODE_META.get(code, {}).get("series_type")}
+                return code, {"history": serialize_doc(history[-24:]), "forecast": [], "available": False, "reason": quality.get("reason"), "series_type": CODE_META.get(code, {}).get("series_type"), "history_window_hours": effective_history_hours, "fetched_points": fetched_points}
             values = [float(row.get("value")) for row in history if row.get("value") is not None]
             fallback_reason = ""
             model_values = None
@@ -369,7 +373,7 @@ class VitalTrajectoryForecaster:
             else:
                 fallback_reason = self._fallback_reason(status_available=bool(status["available"]), values=values, quality=quality)
                 forecast_rows = self._fallback_forecast(history, horizon)
-            return code, {"history": serialize_doc(history[-24:]), "forecast": forecast_rows, "available": True, "source": "chronos" if model_values else "heuristic", "fallback_reason": fallback_reason, "series_type": CODE_META.get(code, {}).get("series_type"), "data_quality": quality}
+            return code, {"history": serialize_doc(history[-24:]), "forecast": forecast_rows, "available": True, "source": "chronos" if model_values else "heuristic", "fallback_reason": fallback_reason, "series_type": CODE_META.get(code, {}).get("series_type"), "data_quality": quality, "history_window_hours": effective_history_hours, "fetched_points": fetched_points}
 
         rows = await asyncio.gather(*(forecast_one(code) for code in requested))
         series = {code: row for code, row in rows}

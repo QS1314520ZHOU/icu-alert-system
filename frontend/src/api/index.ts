@@ -80,7 +80,7 @@ export const getPatientLabs = (patientId: string) =>
 export const getPatientVitalsTrend = (patientId: string, window = '24h') =>
   api.get(`/api/patients/${patientId}/vitals/trend`, { params: { window } })
 
-export const getPatientVitalsForecast = (patientId: string, params?: { codes?: string; horizon_hours?: number }, signal?: AbortSignal) =>
+export const getPatientVitalsForecast = (patientId: string, params?: { codes?: string; horizon_hours?: number; hours?: number }, signal?: AbortSignal) =>
   api.get(`/api/patients/${patientId}/vitals/forecast`, { params, signal, timeout: 8000 })
 
 export const getTrajectoryPublicConfig = () =>
@@ -229,13 +229,13 @@ export const postMobileOrderStubs = (alertId: string, payload?: Record<string, a
 export const getMobileHomeLite = (params?: { actor?: string; userName?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   api.get('/api/mobile/home-lite', { params, timeout: 1000 })
 
-export const getMobileBundles = (params?: { dept?: string; dept_code?: string; patient_id?: string }) =>
+export const getMobileBundles = (params?: { actor?: string; userName?: string; dept?: string; dept_code?: string; deptCode?: string; patient_id?: string }) =>
   analyticsApi.get('/api/mobile/bundles', { params })
 
-export const getMobileTasks = (params?: { actor?: string; dept?: string; dept_code?: string; status?: string; limit?: number }) =>
+export const getMobileTasks = (params?: { actor?: string; userName?: string; dept?: string; dept_code?: string; deptCode?: string; status?: string; limit?: number }) =>
   api.get('/api/mobile/tasks', { params, timeout: 2000 })
 
-export const getMobilePatients = (params?: { dept?: string; dept_code?: string; patient_scope?: string }) =>
+export const getMobilePatients = (params?: { actor?: string; userName?: string; dept?: string; dept_code?: string; deptCode?: string; patient_scope?: string }) =>
   api.get('/api/mobile/patients', { params, timeout: 3000 })
 
 export const resolveMobilePatient = (q: string) =>
@@ -256,7 +256,7 @@ export const postMobileBundleCheck = (payload: Record<string, any>) =>
 export const postMobileReviewReminder = (alertId: string, payload?: Record<string, any>) =>
   analyticsApi.post(`/api/mobile/alerts/${alertId}/review-reminder`, payload || {})
 
-export const getMobileReviewReminders = (params?: { actor?: string; dept?: string; dept_code?: string; status?: string }) =>
+export const getMobileReviewReminders = (params?: { actor?: string; userName?: string; dept?: string; dept_code?: string; deptCode?: string; status?: string }) =>
   analyticsApi.get('/api/mobile/review-reminders', { params })
 
 export const completeMobileReviewReminder = (id: string, payload?: Record<string, any>) =>

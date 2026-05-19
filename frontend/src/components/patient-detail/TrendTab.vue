@@ -10,7 +10,7 @@
         <span class="toolbar-hint">按窗口复盘生命体征波动与灌注/氧合变化。</span>
       </div>
       <div class="toolbar-right">
-        <ForecastStatusChip :meta="forecastMeta" :enabled="forecastEnabled" :horizon="forecastHorizon" />
+        <ForecastStatusChip :meta="forecastMeta" :enabled="forecastEnabled" :horizon="forecastHorizon" :forecast-data="forecastData" />
         <a-button size="small" @click="onRefresh">刷新</a-button>
       </div>
     </div>
@@ -52,6 +52,7 @@ const props = defineProps<{
   forecastMeta: ForecastMeta
   forecastEnabled: boolean
   forecastHorizon: number
+  forecastData?: any
 }>()
 
 const emit = defineEmits<{

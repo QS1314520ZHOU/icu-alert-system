@@ -38,6 +38,15 @@ function trackForecast(event: string, payload: Record<string, any> = {}) {
   }
 }
 
+function parseTrendWindowHours(tw: string | undefined | null): number | null {
+  if (!tw) return null
+  const match = tw.match(/^(\d+)(h|d)$/i)
+  if (!match) return null
+  const value = parseInt(match[1], 10)
+  if (isNaN(value) || value <= 0) return null
+  return match[2].toLowerCase() === 'd' ? value * 24 : value
+}
+
 function cacheKey(args: LoadArgs) {
   return JSON.stringify({
     patientId: args.patientId,
@@ -61,12 +70,15 @@ function qualityLevel(data: any): 'normal' | 'low' | '' {
   const series = data?.series || {}
   const rows = Object.values(series) as any[]
   if (!rows.length) return ''
-  const low = rows.some((row: any) => {
+  // Strong signal: any single indicator explicitly marked level='low' → overall low
+  const strongLow = rows.some((row: any) => row?.data_quality?.level === 'low')
+  if (strongLow) return 'low'
+  // Majority voting: >=50% of indicators insufficient → overall low
+  const insufficient = rows.filter((row: any) => {
     const history = Array.isArray(row?.history) ? row.history : []
-    const quality = row?.data_quality || {}
-    return quality?.level === 'low' || quality?.ok === false || history.length < 3
-  })
-  return low ? 'low' : 'normal'
+    return row?.data_quality?.ok === false || history.length < 3
+  }).length
+  return insufficient / rows.length >= 0.5 ? 'low' : 'normal'
 }
 
 function dataPointCount(data: any) {
@@ -145,7 +157,8 @@ export function useVitalForecast() {
     state.error = ''
     trackForecast('request', { patientId: args.patientId, horizon: args.horizon })
     try {
-      const res = await getPatientVitalsForecast(args.patientId, { codes: args.codes.join(','), horizon_hours: args.horizon }, controller.signal)
+      const hours = parseTrendWindowHours(args.trendWindow)
+      const res = await getPatientVitalsForecast(args.patientId, { codes: args.codes.join(','), horizon_hours: args.horizon, ...(hours != null ? { hours } : {}) }, controller.signal)
       if (controller.signal.aborted || currentSeq !== seq.value) return
       const latencyMs = Math.round(performance.now() - started)
       state.data = res.data || {}

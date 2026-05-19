@@ -449,6 +449,7 @@ async def patient_vitals_forecast(
     patient_id: str,
     codes: str = Query(""),
     horizon_hours: int = Query(6, ge=1, le=12),
+    hours: int | None = Query(default=None, ge=1, le=240),
 ):
     try:
         pid = ObjectId(patient_id)
@@ -458,7 +459,7 @@ async def patient_vitals_forecast(
     requested = [part.strip() for part in str(codes or "").split(",") if part.strip() in SUPPORTED_CODES] if str(codes or "").strip() else None
     service = get_vital_trajectory_forecaster(db=runtime.db, config=runtime.config, alert_engine=runtime.alert_engine)
     try:
-        result = await asyncio.wait_for(service.forecast(str(pid), requested, horizon_hours), timeout=7.5)
+        result = await asyncio.wait_for(service.forecast(str(pid), requested, horizon_hours, history_hours=hours), timeout=7.5)
     except asyncio.TimeoutError:
         logger.warning("vitals forecast timeout patient_id=%s codes=%s horizon=%s", patient_id, codes, horizon_hours)
         return {

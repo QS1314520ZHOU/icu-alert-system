@@ -27,7 +27,7 @@ class _Config:
 def test_trajectory_forecast_unavailable_and_horizon_clamped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
 
-    async def fake_history(self, patient_id: str, code: str) -> list[dict[str, Any]]:
+    async def fake_history(self, patient_id: str, code: str, history_hours: int | None = None) -> list[dict[str, Any]]:
         return []
 
     monkeypatch.setattr(VitalTrajectoryForecaster, "_history", fake_history)
@@ -44,7 +44,7 @@ def test_trajectory_forecast_unavailable_and_horizon_clamped(monkeypatch: pytest
 def test_trajectory_forecast_defaults_to_continuous_eight(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
 
-    async def fake_history(self, patient_id: str, code: str) -> list[dict[str, Any]]:
+    async def fake_history(self, patient_id: str, code: str, history_hours: int | None = None) -> list[dict[str, Any]]:
         return [{"time": None, "value": 70}]
 
     monkeypatch.setattr(VitalTrajectoryForecaster, "_history", fake_history)
@@ -179,3 +179,32 @@ def test_chronos_pipeline_load_success_sets_available(monkeypatch: pytest.Monkey
     assert service._backend == "chronos"
     assert service.status()["available"] is True
     assert FakeChronosPipeline.calls[0]["torch_dtype"] == "float32"
+
+
+def test_trajectory_forecast_history_hours_168_passes_through(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """history_hours=168 (7d window) should reach _history and appear in series output."""
+    monkeypatch.setenv("ICU_MODELS_DIR", str(tmp_path))
+
+    captured_hours: list[int | None] = []
+
+    async def fake_history(self, patient_id: str, code: str, history_hours: int | None = None) -> list[dict[str, Any]]:
+        captured_hours.append(history_hours)
+        return [{"time": None, "value": 70 + i} for i in range(10)]
+
+    monkeypatch.setattr(VitalTrajectoryForecaster, "_history", fake_history)
+    service = VitalTrajectoryForecaster(db=_Db(), config=_Config(), alert_engine=None)
+
+    result = asyncio.run(service.forecast("p1", ["HR", "MAP"], horizon_hours=6, history_hours=168))
+
+    # history_hours=168 should have been forwarded to every _history call
+    assert all(h == 168 for h in captured_hours), f"Expected all 168, got {captured_hours}"
+    # series entries should carry the history_window_hours metadata
+    for code in ("HR", "MAP"):
+        entry = result["series"][code]
+        assert entry["history_window_hours"] == 168
+        assert entry["fetched_points"] == 10
+    # Default behaviour: omitting history_hours defaults to 24
+    captured_hours.clear()
+    result_default = asyncio.run(service.forecast("p1", ["HR"], horizon_hours=6))
+    assert all(h is None for h in captured_hours)
+    assert result_default["series"]["HR"]["history_window_hours"] == 24
