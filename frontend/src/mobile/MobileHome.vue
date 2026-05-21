@@ -110,7 +110,10 @@ const focusItems = computed(() => {
 
 function params() {
   const value: Record<string, any> = {}
-  if (shell.deptCode.value) value.dept_code = shell.deptCode.value
+  if (shell.deptCode.value) {
+    value.dept_code = shell.deptCode.value
+    value.deptCode = shell.deptCode.value
+  }
   else if (shell.deptLabel.value && shell.deptLabel.value !== '全院') value.dept = shell.deptLabel.value
   return value
 }

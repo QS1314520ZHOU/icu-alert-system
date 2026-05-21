@@ -119,7 +119,12 @@ const todoCount = computed(() => tasks.value.filter((task) => !isDone(task)).len
 
 function scopeParams() {
   const params: Record<string, any> = {}
-  if (shell.deptCode.value) params.dept_code = shell.deptCode.value
+  params.actor = shell.actor.value
+  params.userName = shell.actor.value
+  if (shell.deptCode.value) {
+    params.dept_code = shell.deptCode.value
+    params.deptCode = shell.deptCode.value
+  }
   else if (shell.deptLabel.value && shell.deptLabel.value !== '全院') params.dept = shell.deptLabel.value
   return params
 }
@@ -203,7 +208,7 @@ async function loadBundles() {
   loading.value = true
   try {
     const scope = scopeParams()
-    const res = await getMobileBundles({ dept: scope.dept, dept_code: scope.dept_code })
+    const res = await getMobileBundles(scope)
     bundles.value = arrayFromResponse(res.data, ['bundles'])
   } finally {
     loading.value = false

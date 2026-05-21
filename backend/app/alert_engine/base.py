@@ -672,17 +672,60 @@ class BaseEngine:
                 return doc["value"]
         return None
 
+    def _is_unassessable_text_result(self, value: Any) -> bool:
+        text = str(value or "").strip().lower()
+        if not text:
+            return False
+        return any(
+            k in text
+            for k in [
+                "无法评估",
+                "无法评价",
+                "不能评估",
+                "不可评估",
+                "未评估",
+                "未评价",
+                "未完成",
+                "未做",
+                "不适用",
+                "不满足",
+                "不符合",
+                "rass<-3",
+                "rass < -3",
+                "rass小于-3",
+                "rass低于-3",
+            ]
+        )
+
     def _is_positive_text_result(self, value: Any) -> bool | None:
         if value is None:
+            return None
+        text = str(value).strip().lower()
+        if not text:
+            return None
+        if self._is_unassessable_text_result(value):
             return None
         num = _parse_number(value)
         if num is not None:
             return num > 0
-        text = str(value).strip().lower()
-        if not text:
-            return None
-        positive_keywords = ["阳性", "positive", "pos", "yes", "是", "谵妄", "存在", "异常"]
-        negative_keywords = ["阴性", "negative", "neg", "no", "否", "未见", "正常", "无"]
+        if text in {"是", "有", "yes", "y", "true"}:
+            return True
+        if text in {"否", "无", "no", "n", "false"}:
+            return False
+        positive_keywords = [
+            "阳性",
+            "positive",
+            "pos",
+            "yes",
+            "cam-icu+",
+            "cam_icu+",
+            "谵妄已发生",
+            "谵妄发生",
+            "存在谵妄",
+            "有谵妄",
+            "异常",
+        ]
+        negative_keywords = ["阴性", "negative", "neg", "no", "否", "未见", "正常", "无", "不存在谵妄", "无谵妄"]
         if any(k in text for k in negative_keywords):
             return False
         if any(k in text for k in positive_keywords):
@@ -710,6 +753,8 @@ class BaseEngine:
             positive = self._is_positive_text_result(raw)
             if positive is not None:
                 return {"positive": positive, "time": _parse_dt(doc.get("calc_time")), "source": "score", "raw": raw}
+            if self._is_unassessable_text_result(raw):
+                return {"positive": None, "assessable": False, "time": _parse_dt(doc.get("calc_time")), "source": "score", "raw": raw}
 
         # 2) score
         doc = await self.db.col("score").find_one(
@@ -725,6 +770,8 @@ class BaseEngine:
             positive = self._is_positive_text_result(raw)
             if positive is not None:
                 return {"positive": positive, "time": _parse_dt(doc.get("time")), "source": "score", "raw": raw}
+            if self._is_unassessable_text_result(raw):
+                return {"positive": None, "assessable": False, "time": _parse_dt(doc.get("time")), "source": "score", "raw": raw}
 
         # 3) bedside: 先精确 code，再关键词兜底
         exact_doc = await self.db.col("bedside").find_one(
@@ -749,6 +796,8 @@ class BaseEngine:
             positive = self._is_positive_text_result(raw)
             if positive is not None:
                 return {"positive": positive, "time": _cap_time(doc), "source": "bedside", "raw": raw}
+            if self._is_unassessable_text_result(raw):
+                return {"positive": None, "assessable": False, "time": _cap_time(doc), "source": "bedside", "raw": raw}
         return None
 
     async def _get_gcs_drop(self, pid) -> dict | None:

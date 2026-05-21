@@ -67,7 +67,10 @@ const progressTexts = [
 
 async function loadPatients() {
   const params: Record<string, any> = { patient_scope: 'in_dept' }
-  if (shell.deptCode.value) params.dept_code = shell.deptCode.value
+  if (shell.deptCode.value) {
+    params.dept_code = shell.deptCode.value
+    params.deptCode = shell.deptCode.value
+  }
   const res = await getPatients(params)
   patients.value = arrayFromResponse(res.data, ['patients'])
 }

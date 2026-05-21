@@ -41,6 +41,7 @@ logs/
 .claude/
 tmp_test_write.txt
 tmp/
+.tmp/
 tmp_investigation_step*.py
 diff_output.txt
 investigation_step*.log

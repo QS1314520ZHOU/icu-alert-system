@@ -23,19 +23,17 @@
         <div class="topic-card-head">
           <div>
             <div class="topic-card-title">{{ topic.title }}</div>
-            <div class="topic-card-sub">{{ topic.subtitle }}</div>
           </div>
           <span class="topic-card-count">{{ topic.countText || '专题' }}</span>
         </div>
         <div class="topic-card-main">{{ topic.status }}</div>
-        <div class="topic-card-meta">{{ topic.meta }}</div>
         <div v-if="topic.items?.length" class="topic-chip-row">
-          <span v-for="(item, idx) in topic.items" :key="`${topic.key}-${idx}`" class="topic-chip">{{ item }}</span>
+          <span v-for="(item, idx) in topic.items.slice(0, 2)" :key="`${topic.key}-${idx}`" class="topic-chip">{{ item }}</span>
         </div>
       </button>
     </div>
 
-    <div class="ops-grid">
+    <div v-if="showOpsCards" class="ops-grid">
       <article class="ops-card ops-card--runtime">
         <div class="ops-title-row">
           <span class="ops-kicker">智能运行态</span>
@@ -84,22 +82,24 @@ defineProps<{
   threshold: any
   onOpen: (tabKey: string) => void
 }>()
+
+const showOpsCards = false
 </script>
 
 <style scoped>
-.workbench-shell { display: grid; gap: 14px; padding: 18px; border-radius: 22px; border: 1px solid rgba(71, 145, 191, 0.18); background: radial-gradient(circle at top right, rgba(32, 86, 129, 0.24), transparent 36%), linear-gradient(160deg, rgba(8, 24, 39, 0.98) 0%, rgba(6, 17, 30, 0.98) 58%, rgba(4, 12, 24, 0.99) 100%); box-shadow: inset 0 1px 0 rgba(194, 236, 255, 0.05); }
+.workbench-shell { display: grid; gap: 12px; padding: 14px; border-radius: 18px; border: 1px solid rgba(71, 145, 191, 0.18); background: radial-gradient(circle at top right, rgba(32, 86, 129, 0.18), transparent 36%), linear-gradient(160deg, rgba(8, 24, 39, 0.98) 0%, rgba(6, 17, 30, 0.98) 58%, rgba(4, 12, 24, 0.99) 100%); box-shadow: inset 0 1px 0 rgba(194, 236, 255, 0.05); }
 .workbench-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .workbench-kicker,.ops-kicker { color: #6ee7f9; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; }
-.workbench-title { margin: 6px 0 0; color: #effcff; font-size: 22px; font-weight: 800; }
-.workbench-sub { margin: 8px 0 0; color: #8ab5ca; font-size: 13px; max-width: 720px; }
+.workbench-title { margin: 4px 0 0; color: #effcff; font-size: 18px; font-weight: 800; }
+.workbench-sub { display: none; }
 .runtime-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(93, 226, 231, 0.2); color: #dffcff; background: rgba(7, 42, 58, 0.54); }
 .runtime-pill-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: 0 0 16px currentColor; }
 .runtime-pill--green { color: #34d399; }
 .runtime-pill--yellow { color: #fbbf24; }
 .runtime-pill--red { color: #fb7185; }
 .runtime-pill--cyan { color: #67e8f9; }
-.workbench-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.topic-card { padding: 16px; border-radius: 18px; border: 1px solid rgba(110, 231, 249, 0.12); background: linear-gradient(180deg, rgba(10, 31, 50, 0.92), rgba(8, 21, 36, 0.98)); text-align: left; color: inherit; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.workbench-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.topic-card { padding: 12px; border-radius: 14px; border: 1px solid rgba(110, 231, 249, 0.12); background: linear-gradient(180deg, rgba(10, 31, 50, 0.92), rgba(8, 21, 36, 0.98)); text-align: left; color: inherit; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .topic-card:hover { transform: translateY(-2px); border-color: rgba(125, 211, 252, 0.34); box-shadow: 0 10px 24px rgba(3, 10, 20, 0.22); }
 .topic-card--emerald { border-color: rgba(52, 211, 153, 0.2); }
 .topic-card--amber { border-color: rgba(251, 191, 36, 0.2); }
@@ -108,12 +108,12 @@ defineProps<{
 .topic-card--violet { border-color: rgba(167, 139, 250, 0.22); }
 .topic-card--neutral { border-color: rgba(148, 163, 184, 0.18); }
 .topic-card-head,.ops-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.topic-card-title { color: #effcff; font-size: 16px; font-weight: 800; }
+.topic-card-title { color: #effcff; font-size: 14px; font-weight: 800; }
 .topic-card-sub,.topic-card-meta,.ops-foot { color: #86aabd; font-size: 12px; }
-.topic-card-main,.ops-main { margin-top: 10px; color: #e8fbff; font-size: 14px; line-height: 1.75; }
+.topic-card-main,.ops-main { margin-top: 8px; color: #e8fbff; font-size: 12px; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .topic-card-count { padding: 4px 8px; border-radius: 999px; background: rgba(10, 61, 87, 0.54); color: #9be7ff; font-size: 11px; white-space: nowrap; }
-.topic-chip-row,.ops-chip-row,.ops-bullet-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.topic-chip,.ops-chip,.ops-bullet { min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(125, 211, 252, 0.14); color: #d8f5ff; background: rgba(13, 35, 54, 0.92); font-size: 12px; line-height: 1.4; display: inline-flex; align-items: center; }
+.topic-chip-row,.ops-chip-row,.ops-bullet-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.topic-chip,.ops-chip,.ops-bullet { min-height: 24px; max-width: 100%; padding: 0 9px; border-radius: 999px; border: 1px solid rgba(125, 211, 252, 0.14); color: #d8f5ff; background: rgba(13, 35, 54, 0.92); font-size: 11px; line-height: 1.3; display: inline-flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ops-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .ops-card { padding: 16px; border-radius: 18px; border: 1px solid rgba(93, 226, 231, 0.12); background: linear-gradient(180deg, rgba(8, 28, 43, 0.94), rgba(5, 19, 32, 0.98)); }
 .ops-card strong { color: #effcff; font-size: 15px; }
@@ -156,6 +156,7 @@ html[data-theme='light'] .topic-card:hover {
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
 }
 html[data-theme='light'] .ops-link { color: #1d4ed8; }
+@media (max-width: 1300px) { .workbench-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 720px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr; } .workbench-shell { padding: 14px; } }
 </style>

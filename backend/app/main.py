@@ -40,6 +40,7 @@ from app.routers.research_platform import router as research_platform_router
 from app.routers.system import router as system_router
 from app.routers.treatment_policy import router as treatment_policy_router
 from app.routers.waveforms import router as waveforms_router
+from app.routers.clinical_documents import router as clinical_documents_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
@@ -244,6 +245,7 @@ app.include_router(mobile_router)
 app.include_router(treatment_policy_router)
 app.include_router(ai_router)
 app.include_router(knowledge_router)
+app.include_router(clinical_documents_router)
 app.include_router(waveforms_router)
 app.include_router(ws_router)
 

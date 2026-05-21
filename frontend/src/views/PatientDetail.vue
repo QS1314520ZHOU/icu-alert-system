@@ -559,6 +559,13 @@
             :knowledge-error="knowledgeError"
           />
         </a-tab-pane>
+
+        <a-tab-pane v-if="isTabVisible('documents')" key="documents" tab="病历文书">
+          <DocumentWorkbench
+            v-if="activeTab === 'documents'"
+            :patient-id="String(route.params.id || '')"
+          />
+        </a-tab-pane>
         </a-tabs>
       </a-card>
         </div>
@@ -696,12 +703,13 @@ const PatientBodyMapPanel = defineAsyncComponent(() => import('../components/pat
 const PatientDeviceBodyMap = defineAsyncComponent(() => import('../components/patient-detail/DeviceBodyMap.vue'))
 const PatientDeviceHaiBundlePanel = defineAsyncComponent(() => import('../components/patient-detail/DeviceHaiBundlePanel.vue'))
 const ClinicalSummaryPanel = defineAsyncComponent(() => import('../components/patient-detail/ClinicalSummaryPanel.vue'))
+const DocumentWorkbench = defineAsyncComponent(() => import('../components/clinical-documents/DocumentWorkbench.vue'))
 
 const route = useRoute()
 const router = useRouter()
 const runtimePublicConfig = useRuntimePublicConfigStore()
 const vitalForecast = useVitalForecast()
-const detailTabOrder = ['ecash', 'mobility', 'pe', 'trend', 'waveform', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'followup', 'twin', 'ai'] as const
+const detailTabOrder = ['ecash', 'mobility', 'pe', 'trend', 'waveform', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'followup', 'twin', 'ai', 'documents'] as const
 type DetailTabKey = typeof detailTabOrder[number]
 type DetailDensityMode = 'compact' | 'full'
 type DetailTabGroup = 'focus' | 'monitor' | 'therapy' | 'history' | 'ai' | 'all'
@@ -739,6 +747,7 @@ const detailTabLabelMap: Record<DetailTabKey, string> = {
   followup: '随访',
   twin: '数字孪生',
   ai: 'AI',
+  documents: '病历文书',
 }
 const detailTabGroups: Array<{ key: DetailTabGroup; label: string }> = [
   { key: 'focus', label: '重点' },
@@ -749,11 +758,11 @@ const detailTabGroups: Array<{ key: DetailTabGroup; label: string }> = [
   { key: 'all', label: '全部' },
 ]
 const detailTabGroupMap: Record<DetailTabGroup, DetailTabKey[]> = {
-  focus: ['alerts', 'trend', 'labs', 'waveform', 'ai'],
+  focus: ['alerts', 'trend', 'labs', 'waveform', 'ai', 'documents'],
   monitor: ['trend', 'waveform', 'labs', 'alerts'],
-  therapy: ['ecash', 'mobility', 'pe', 'drugs', 'assess', 'sbt'],
+  therapy: ['ecash', 'mobility', 'pe', 'drugs', 'assess', 'sbt', 'documents'],
   history: ['similar', 'followup', 'twin'],
-  ai: ['ai'],
+  ai: ['ai', 'documents'],
   all: [...detailTabOrder],
 }
 const visibleDetailTabs = computed<DetailTabKey[]>(() => {
@@ -3366,12 +3375,14 @@ async function ensureForecast() {
     return
   }
   const horizon = Number(cfg.horizon_hours || 6)
-  const codes = Array.isArray(cfg.default_codes) && cfg.default_codes.length ? cfg.default_codes : forecastCodes
+  const visibleCodes = new Set(trendMetricDefs.map((item) => item.code))
+  const configuredCodes = Array.isArray(cfg.default_codes) && cfg.default_codes.length ? cfg.default_codes : forecastCodes
+  const codes = configuredCodes.filter((code: string) => visibleCodes.has(code))
   await vitalForecast.load({
     patientId,
     trendWindow: trendWindowSnapshot,
     horizon,
-    codes,
+    codes: codes.length ? codes : forecastCodes,
     historyLastTs: historyLastTsSnapshot,
   })
 }

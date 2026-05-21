@@ -192,7 +192,12 @@ class PicsRiskScanner(BaseScanner):
     async def _cognitive_dimension(self, *, patient_doc: dict[str, Any], patient_id: Any, now: datetime) -> dict[str, Any]:
         pid_str = str(patient_id)
         cam_positive = await self.engine.db.col("alert_records").find_one(
-            {"patient_id": pid_str, "alert_type": {"$in": ["cam_icu_positive", "delirium_risk", "sedation_delirium_conversion"]}, "created_at": {"$gte": now - timedelta(days=7)}},
+            {
+                "patient_id": pid_str,
+                "alert_type": {"$in": ["cam_icu_positive", "delirium_risk", "sedation_delirium_conversion"]},
+                "is_active": True,
+                "created_at": {"$gte": now - timedelta(days=7)},
+            },
             sort=[("created_at", -1)],
         )
         gcs = await self.engine._get_latest_assessment(patient_id, "gcs")

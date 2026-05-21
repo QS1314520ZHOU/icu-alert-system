@@ -281,6 +281,13 @@ class DatabaseManager:
                 expire_after_seconds=14 * 24 * 3600,
             )
 
+            # 临床文书索引
+            draft_col = self.col("clinical_document_drafts")
+            await draft_col.create_index([("patient_id", 1), ("created_at", -1)])
+            await draft_col.create_index([("status", 1), ("created_at", -1)])
+            version_col = self.col("clinical_document_versions")
+            await version_col.create_index([("draft_id", 1), ("version_no", -1)])
+
             logger.info("✅ 预警系统索引创建完成")
             await self._seed_default_rules()
         except Exception as e:

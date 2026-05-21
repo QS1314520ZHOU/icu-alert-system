@@ -80,7 +80,7 @@ const indicatorDetails = computed(() => {
     const history = Array.isArray(row?.history) ? row.history : []
     const points = row?.fetched_points ?? history.length
     const qualityOk = row?.data_quality?.ok !== false
-    const insufficient = !qualityOk || history.length < 3
+    const insufficient = !qualityOk || Number(points) < 3
     return { code, points, insufficient }
   })
 })

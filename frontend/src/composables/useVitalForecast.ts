@@ -42,9 +42,10 @@ function parseTrendWindowHours(tw: string | undefined | null): number | null {
   if (!tw) return null
   const match = tw.match(/^(\d+)(h|d)$/i)
   if (!match) return null
-  const value = parseInt(match[1], 10)
+  const value = parseInt(match[1] || '', 10)
   if (isNaN(value) || value <= 0) return null
-  return match[2].toLowerCase() === 'd' ? value * 24 : value
+  const unit = match[2] || 'h'
+  return unit.toLowerCase() === 'd' ? value * 24 : value
 }
 
 function cacheKey(args: LoadArgs) {
@@ -76,7 +77,8 @@ function qualityLevel(data: any): 'normal' | 'low' | '' {
   // Majority voting: >=50% of indicators insufficient → overall low
   const insufficient = rows.filter((row: any) => {
     const history = Array.isArray(row?.history) ? row.history : []
-    return row?.data_quality?.ok === false || history.length < 3
+    const points = Number(row?.fetched_points ?? history.length)
+    return row?.data_quality?.ok === false || points < 3
   }).length
   return insufficient / rows.length >= 0.5 ? 'low' : 'normal'
 }

@@ -6,7 +6,8 @@
           :value="selectedChannel"
           :options="channelOptions"
           style="width: 220px"
-          placeholder="选择通道"
+          :disabled="!channelOptions.length"
+          :placeholder="channelOptions.length ? '选择通道' : '暂无可用波形通道'"
           @update:value="(v: any) => emit('update:selectedChannel', String(v || ''))"
         />
         <a-radio-group :value="hours" size="small" @update:value="(v: any) => emit('update:hours', Number(v || 6))">
@@ -19,10 +20,10 @@
     </div>
     <div class="waveform-grid">
       <div class="chart-panel">
-        <div v-if="points?.length" class="chart-wrap">
+        <div v-if="channelOptions.length && points?.length" class="chart-wrap">
           <DetailChart :option="chartOption" autoresize />
         </div>
-        <div v-else class="tab-empty">暂无波形/时序数据</div>
+        <div v-else class="tab-empty">{{ emptyText }}</div>
       </div>
       <div class="side-panel">
         <div class="side-block">
@@ -92,6 +93,11 @@ const chartOption = computed(() => {
 })
 
 const qcIssues = computed(() => Array.isArray(props.qc?.issues) ? props.qc.issues : [])
+const emptyText = computed(() => {
+  if (!props.channelOptions?.length) return '近 24 小时暂无可用波形通道'
+  if (!props.selectedChannel) return '请选择波形通道'
+  return '当前通道暂无波形/时序数据'
+})
 </script>
 
 <style scoped>

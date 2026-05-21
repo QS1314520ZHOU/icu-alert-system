@@ -48,7 +48,7 @@ TRAJECTORY_CODE_OPTIONS = [
 
 DEFAULT_TRAJECTORY_FORECAST_CONFIG = {
     "enabled": True,
-    "default_codes": ["HR", "MAP", "SBP", "DBP", "SpO2", "RR", "Temp", "EtCO2"],
+    "default_codes": ["HR", "MAP", "SpO2", "RR", "Temp"],
     "alert_enabled": False,
     "alert_codes": ["MAP", "SpO2", "RR", "Temp", "EtCO2"],
     "horizon_hours": 6,

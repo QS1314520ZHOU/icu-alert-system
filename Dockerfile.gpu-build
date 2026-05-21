@@ -152,6 +152,10 @@ sentence_transformer_imports = collect_submodules('sentence_transformers')
 tokenizer_imports = collect_submodules('tokenizers')
 safetensors_imports = collect_submodules('safetensors')
 huggingface_hub_imports = collect_submodules('huggingface_hub')
+# 新增: scipy / PIL 必须全量收集, 否则 .so 扩展或 PIL._imaging 会找不到
+scipy_imports = collect_submodules('scipy')
+pil_imports = collect_submodules('PIL')
+sklearn_imports = collect_submodules('sklearn')
 
 # ========== 数据文件 ==========
 datas = [
@@ -173,25 +177,27 @@ def collect_pkg_datas(pkg_name, *, include_py_files=False):
     except Exception:
         return []
 
-# transformers/chronos/sentence_transformers 运行时会按文件路径读取包内 .py，
-# 必须让这些 .py 真实落到 _internal，而不是只进 PYZ。
+# transformers/chronos/sentence_transformers 运行时会按文件路径读取包内 .py,
+# 必须让这些 .py 真实落到 _internal, 而不是只进 PYZ.
 for pkg in ['sentence_transformers', 'transformers', 'chronos', 'tokenizers']:
     datas += collect_pkg_datas(pkg, include_py_files=True)
 
-# 这些包只需要普通资源文件和二进制库。
-for pkg in ['safetensors', 'huggingface_hub', 'torch', 'tzdata', 'onnxruntime']:
+# 这些包只需要普通资源文件和二进制库.
+for pkg in ['safetensors', 'huggingface_hub', 'torch', 'tzdata',
+            'onnxruntime', 'scipy', 'PIL', 'sklearn']:
     datas += collect_pkg_datas(pkg)
 
-# 按目录结构补齐源码 / 配置文件 (.py/.json 等)。
+# 按目录结构补齐源码 / 配置文件 (.py/.json 等).
 # transformers / sentence_transformers / tokenizers / chronos 在运行时
-# 都可能按文件路径读取自己包内的资源，光靠 PYZ 字节码不够。
+# 都可能按文件路径读取自己包内的资源, 光靠 PYZ 字节码不够.
 structured_datas = []
 for pkg_name in ['transformers', 'sentence_transformers', 'tokenizers', 'chronos']:
     try:
         pkg = __import__(pkg_name)
         pkg_dir = os.path.dirname(pkg.__file__)
         site_root = os.path.dirname(pkg_dir)
-        allowed_exts = {'.py', '.json', '.txt', '.md', '.jinja', '.tiktoken', '.model', '.so'}
+        # 注意: 这里不再包含 .so, .so 由 collect_dynamic_libs 单独处理避免重复
+        allowed_exts = {'.py', '.json', '.txt', '.md', '.jinja', '.tiktoken', '.model'}
         skip_parts = {'__pycache__', 'tests', 'testing_utils'}
         count_before = len(structured_datas)
         for root, dirs, files in os.walk(pkg_dir):
@@ -210,20 +216,18 @@ datas += structured_datas
 
 # ========== 动态库 ==========
 binaries = []
-for pkg in ['torch', 'onnxruntime', 'numpy', 'scipy', 'pyarrow']:
+# 加入 PIL 收集其 _imaging.so / _imagingft.so 等扩展
+for pkg in ['torch', 'onnxruntime', 'numpy', 'scipy', 'pyarrow', 'PIL', 'sklearn']:
     try:
         for src, dest in collect_dynamic_libs(pkg):
             name = os.path.basename(src)
             if name in {'libonnxruntime_providers_tensorrt.so', 'libtorchaudio_sox.so'}:
                 continue
             binaries.append((src, dest))
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[SPEC] dynamic libs collection skipped for {pkg}: {exc}")
 
-# PyTorch 的 import 入口依赖 torch/_C*.so 和 torch/lib/*.so。
-# 部分 PyInstaller 版本会把这些扩展库收集到扁平目录，导致运行时目录里有
-# torch 包但 import torch 报 ModuleNotFoundError。这里按 wheel 原始包结构
-# 显式补齐一次。
+# PyTorch 的 import 入口依赖 torch/_C*.so 和 torch/lib/*.so.
 torch_structured_bins = []
 try:
     import torch
@@ -245,6 +249,40 @@ try:
 except Exception as exc:
     print(f"[SPEC] torch structured binary collection skipped: {exc}")
 binaries += torch_structured_bins
+
+# scipy 的 Cython 扩展 .so 也按 wheel 原始结构补一次, 防止扁平化导致 _cyutility 找不到
+scipy_structured_bins = []
+try:
+    import scipy
+    scipy_dir = os.path.dirname(scipy.__file__)
+    site_root = os.path.dirname(scipy_dir)
+    for src in glob.glob(os.path.join(scipy_dir, '**', '*.so'), recursive=True):
+        if not os.path.isfile(src):
+            continue
+        rel_dir = os.path.dirname(os.path.relpath(src, site_root))
+        item = (src, rel_dir)
+        if item not in scipy_structured_bins:
+            scipy_structured_bins.append(item)
+except Exception as exc:
+    print(f"[SPEC] scipy structured binary collection skipped: {exc}")
+binaries += scipy_structured_bins
+
+# PIL 的 C 扩展 (_imaging.so 等) 也按 wheel 结构补齐
+pil_structured_bins = []
+try:
+    import PIL
+    pil_dir = os.path.dirname(PIL.__file__)
+    site_root = os.path.dirname(pil_dir)
+    for src in glob.glob(os.path.join(pil_dir, '**', '*.so'), recursive=True):
+        if not os.path.isfile(src):
+            continue
+        rel_dir = os.path.dirname(os.path.relpath(src, site_root))
+        item = (src, rel_dir)
+        if item not in pil_structured_bins:
+            pil_structured_bins.append(item)
+except Exception as exc:
+    print(f"[SPEC] PIL structured binary collection skipped: {exc}")
+binaries += pil_structured_bins
 
 # ========== CUDA .so 从 nvidia.* pip 包收集 ==========
 cuda_bins = []
@@ -283,6 +321,8 @@ for d in search_dirs:
 binaries += cuda_bins
 print(f"[SPEC] Collected {len(cuda_bins)} CUDA .so files")
 print(f"[SPEC] Collected {len(torch_structured_bins)} structured torch .so files")
+print(f"[SPEC] Collected {len(scipy_structured_bins)} structured scipy .so files")
+print(f"[SPEC] Collected {len(pil_structured_bins)} structured PIL .so files")
 print(f"[SPEC] Collected {len(structured_datas)} structured source files total")
 print(f"[SPEC] Collected {len(app_imports)} app submodules")
 
@@ -295,6 +335,9 @@ hidden_imports = (
     + tokenizer_imports
     + safetensors_imports
     + huggingface_hub_imports
+    + scipy_imports
+    + pil_imports
+    + sklearn_imports
     + [
     # uvicorn 完整链
     'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
@@ -317,9 +360,25 @@ hidden_imports = (
     'chronos', 'tokenizers', 'sentence_transformers',
     'onnxruntime',
     # 科学计算
-    'numpy', 'numpy._core', 'numpy._core._exceptions',
-    'numpy._core._multiarray_umath', 'numpy.linalg',
-    'pandas', 'pyarrow', 'scipy',
+    'numpy', 'numpy.core', 'numpy.core._exceptions',
+    'numpy.core._multiarray_umath', 'numpy.linalg',
+    'numpy._core', 'numpy._core._exceptions',
+    'numpy._core._multiarray_umath',
+    'pandas', 'pyarrow',
+    # scipy Cython 扩展 (1.14+ 引入了 _cyutility, 必须显式列出)
+    'scipy', 'scipy._lib', 'scipy._lib._ccallback_c',
+    'scipy._cyutility',
+    'scipy.special', 'scipy.special._ufuncs_cxx', 'scipy.special._cdflib',
+    'scipy.sparse', 'scipy.sparse.csgraph', 'scipy.sparse.linalg',
+    'scipy.linalg', 'scipy.linalg.cython_lapack', 'scipy.linalg.cython_blas',
+    'scipy.stats', 'scipy.optimize', 'scipy.integrate',
+    'scipy.interpolate', 'scipy.spatial', 'scipy.spatial.distance',
+    'scipy.ndimage', 'scipy.signal',
+    # PIL (Pillow) - torchvision 强依赖, 不能 exclude
+    'PIL', 'PIL.Image', 'PIL.ImageOps', 'PIL.ImageFile',
+    'PIL._imaging', 'PIL._imagingft', 'PIL._imagingmath',
+    'PIL.JpegImagePlugin', 'PIL.PngImagePlugin', 'PIL.BmpImagePlugin',
+    # 其他科学计算
     'statsmodels', 'lifelines', 'sklearn',
     'matplotlib', 'matplotlib.pyplot', 'seaborn', 'docx',
     # nvidia CUDA 子包
@@ -334,20 +393,8 @@ hidden_imports = (
     ]
 )
 
-excludes = ['PIL', 'tkinter', 'test', 'setuptools', 'pip']
-
-# transformers/chronos/sentence_transformers 的 lazy loader 会读取 __file__
-# 所在目录；如果从 PYZ 中的 .pyc 加载，__file__ 会指向不存在的
-# _internal/.../__init__.pyc 目录路径，导致 FileNotFoundError。
-module_collection_mode = {
-    'transformers': 'py',
-    'transformers.models': 'py',
-    'sentence_transformers': 'py',
-    'tokenizers': 'py',
-    'chronos': 'py',
-    'safetensors': 'py',
-    'huggingface_hub': 'py',
-}
+# 注意: 去掉了 PIL, 它是 torchvision 必需依赖, 不能排除
+excludes = ['tkinter', 'test', 'setuptools', 'pip']
 
 a = Analysis(
     ['entry.py'],
@@ -356,7 +403,6 @@ a = Analysis(
     hiddenimports=hidden_imports,
     hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=excludes,
-    module_collection_mode=module_collection_mode,
     win_no_prefer_redirects=False, win_private_assemblies=False,
     cipher=block_cipher, noarchive=False,
 )
@@ -370,6 +416,7 @@ coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas,
     strip=False, upx=False, upx_exclude=[], name='icu-alert-system',
 )
 SPECEOF
+
 
 # ---- 2.10 执行 PyInstaller ----
 RUN cd /build && \
@@ -448,6 +495,7 @@ LLM_API_KEY=ollama
 LLM_MODEL=baichuan-m2-32b
 LLM_MODEL_MEDICAL=
 LLM_FALLBACK_MODEL=
+LLM_REASONING_MODEL=
 
 # ---- Embedding ----
 EMBEDDING_MODE=local

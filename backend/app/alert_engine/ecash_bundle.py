@@ -624,13 +624,16 @@ class EcashBundleMixin:
         # Delirium
         cam_status = await self._get_latest_cam_icu_status(pid, lookback_hours=48)
         cam_positive = cam_status.get("positive") if cam_status else None
-        cam_hours = self._hours_ago(cam_status.get("time"), now) if cam_status else None
+        cam_unassessable = bool(cam_status and cam_status.get("assessable") is False)
+        cam_hours = self._hours_ago(cam_status.get("time"), now) if cam_status and not cam_unassessable else None
         delirium_risk_score = await self._calc_delirium_risk_score(patient_doc, pid)
         delirium_cfg = self.config.yaml_cfg.get("alert_engine", {}).get("delirium_risk", {})
         warning_score = float(delirium_cfg.get("warning_score", 4))
 
-        if cam_positive is True or cam_hours is None or cam_hours > 24:
+        if cam_positive is True or (not cam_unassessable and (cam_hours is None or cam_hours > 24)):
             delirium_status = "red"
+        elif cam_unassessable:
+            delirium_status = "yellow"
         elif (cam_hours is not None and 12 < cam_hours <= 24) or (delirium_risk_score is not None and delirium_risk_score >= warning_score):
             delirium_status = "yellow"
         else:
@@ -639,6 +642,8 @@ class EcashBundleMixin:
         delirium_suggestion = None
         if cam_positive is True:
             delirium_suggestion = "CAM-ICU阳性，建议启动非药物谵妄干预并复评诱因。"
+        elif cam_unassessable:
+            delirium_suggestion = "CAM-ICU当前无法评估，建议先复核RASS/镇静深度，满足条件后再评估。"
         elif cam_hours is None or cam_hours > 24:
             delirium_suggestion = "建议尽快完成 CAM-ICU 评估。"
         elif delirium_risk_score is not None and delirium_risk_score >= warning_score:
@@ -647,6 +652,7 @@ class EcashBundleMixin:
         delirium = {
             "status": delirium_status,
             "cam_icu_positive": cam_positive,
+            "cam_icu_assessable": None if not cam_status else not cam_unassessable,
             "cam_icu_last_assessed_hours_ago": cam_hours,
             "risk_score": delirium_risk_score,
             "suggestion": delirium_suggestion,

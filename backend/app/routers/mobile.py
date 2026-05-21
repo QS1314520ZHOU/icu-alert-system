@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta
+import re
 from typing import Any
 
 from bson import ObjectId
@@ -52,12 +53,26 @@ def _admitted_scope_query(dept: str | None = None, dept_code: str | None = None)
             {"dept_code": {"$in": code_values}},
         ])
     if dept_text:
+        dept_regex = {"$regex": re.escape(dept_text), "$options": "i"}
+        dept_aliases = [dept_text]
+        # SmartCare patient.dept often appends a ward suffix, while the H5
+        # selector may only preserve the visible department name.
+        for suffix in ("\u75c5\u533a", "\u9435\u5445\u5c2f"):
+            if dept_text.endswith(suffix):
+                dept_aliases.append(dept_text[: -len(suffix)])
+            else:
+                dept_aliases.append(f"{dept_text}{suffix}")
         clauses.extend([
-            {"hisDept": dept_text},
-            {"dept": dept_text},
-            {"deptName": dept_text},
-            {"department": dept_text},
-            {"departmentName": dept_text},
+            {"hisDept": {"$in": dept_aliases}},
+            {"dept": {"$in": dept_aliases}},
+            {"deptName": {"$in": dept_aliases}},
+            {"department": {"$in": dept_aliases}},
+            {"departmentName": {"$in": dept_aliases}},
+            {"hisDept": dept_regex},
+            {"dept": dept_regex},
+            {"deptName": dept_regex},
+            {"department": dept_regex},
+            {"departmentName": dept_regex},
         ])
     if clauses:
         return {"$and": [query, {"$or": clauses}]}
@@ -73,7 +88,7 @@ async def _resolve_mobile_account(user_name: str | None, dept_code: str | None =
     if not user:
         return {}
     account = await runtime.db.col("account").find_one(
-        {"$or": [{"userName": user}, {"username": user}, {"account": user}, {"loginName": user}, {"宸ュ彿": user}]},
+        {"$or": [{"userName": user}, {"username": user}, {"account": user}, {"loginName": user}, {"jobNo": user}, {"employeeNo": user}, {"\u5de5\u53f7": user}]},
         {"deptCode": 1, "departmentCode": 1, "dept_code": 1, "dept": 1, "deptName": 1, "departmentName": 1, "department": 1},
     )
     if not account:
@@ -269,17 +284,13 @@ def _bundle_templates() -> list[dict[str, Any]]:
 
 
 async def _scoped_patients(dept: str | None, dept_code: str | None, patient_id: str | None) -> list[dict[str, Any]]:
-    query: dict[str, Any] = admitted_patient_query()
+    query: dict[str, Any] = _admitted_scope_query(dept, dept_code)
     if patient_id:
         oid = _oid(patient_id)
         if oid:
-            query = {"$and": [query, {"_id": oid}]}
+            query = {"$and": [admitted_patient_query(), {"_id": oid}]}
         else:
-            query = {"$and": [query, {"$or": [{"hisPid": patient_id}, {"patient_id": patient_id}]}]}
-    elif dept_code:
-        query = {"$and": [query, {"deptCode": dept_code}]}
-    elif dept:
-        query = {"$and": [query, {"hisDept": dept}]}
+            query = {"$and": [admitted_patient_query(), {"$or": [{"hisPid": patient_id}, {"patient_id": patient_id}]}]}
     cursor = runtime.db.col("patient").find(query, {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "deptCode": 1, "hisDept": 1}).sort("hisBed", 1).limit(120)
     return [doc async for doc in cursor]
 
@@ -390,9 +401,13 @@ async def create_order_stubs(alert_id: str, request: Request, payload: dict = Bo
 async def mobile_bundles(
     dept: str | None = Query(None),
     dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+    actor: str | None = Query(None),
+    userName: str | None = Query(None),
     patient_id: str | None = Query(None),
 ):
-    patients = await _scoped_patients(dept, dept_code, patient_id)
+    account = await _resolve_mobile_account(actor or userName, dept_code or deptCode, dept)
+    patients = await _scoped_patients(_text(dept or account.get("dept")), _text(dept_code or deptCode or account.get("dept_code")), patient_id)
     patient_ids = [str(item.get("_id")) for item in patients]
     checks = {}
     if patient_ids:
@@ -430,11 +445,14 @@ async def mobile_bundles(
 async def mobile_tasks(
     dept: str | None = Query(None),
     dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
     actor: str | None = Query(None),
+    userName: str | None = Query(None),
     status: str | None = Query(None),
     limit: int = Query(120, ge=1, le=300),
 ):
-    patients = await _scoped_patients(dept, dept_code, None)
+    account = await _resolve_mobile_account(actor or userName, dept_code or deptCode, dept)
+    patients = await _scoped_patients(_text(dept or account.get("dept")), _text(dept_code or deptCode or account.get("dept_code")), None)
     patient_ids = [str(item.get("_id")) for item in patients]
     patient_map = {str(item.get("_id")): item for item in patients}
     task_query: dict[str, Any] = {}
@@ -538,8 +556,7 @@ async def _mobile_patient_rows(dept: str | None, dept_code: str | None, limit: i
 async def _attach_latest_alerts(rows: list[dict[str, Any]], alert_limit: int = 600) -> list[dict[str, Any]]:
     patient_ids = [str(row.get("_id") or row.get("patient_id") or "") for row in rows if row.get("_id") or row.get("patient_id")]
     his_pids = [str(row.get("hisPid") or "").strip() for row in rows if row.get("hisPid")]
-    beds = [str(row.get("hisBed") or row.get("bed") or "").strip() for row in rows if row.get("hisBed") or row.get("bed")]
-    if not (patient_ids or his_pids or beds):
+    if not (patient_ids or his_pids):
         return rows
     alert_query: dict[str, Any] = {"$or": []}
     if patient_ids:
@@ -554,14 +571,6 @@ async def _attach_latest_alerts(rows: list[dict[str, Any]], alert_limit: int = 6
             {"hisPid": {"$in": his_pids}},
             {"payload.hisPid": {"$in": his_pids}},
             {"extra.hisPid": {"$in": his_pids}},
-        ])
-    if beds:
-        alert_query["$or"].extend([
-            {"bed": {"$in": beds}},
-            {"hisBed": {"$in": beds}},
-            {"bed_no": {"$in": beds}},
-            {"payload.bed": {"$in": beds}},
-            {"extra.bed": {"$in": beds}},
         ])
     latest: dict[str, dict[str, Any]] = {}
     cursor_alerts = runtime.db.col("alert_records").find(
@@ -596,15 +605,10 @@ async def _attach_latest_alerts(rows: list[dict[str, Any]], alert_limit: int = 6
             _text(alert_doc.get("patient_id")),
             _text(alert_doc.get("patientId")),
             _text(alert_doc.get("hisPid")),
-            _text(alert_doc.get("bed")),
-            _text(alert_doc.get("hisBed")),
-            _text(alert_doc.get("bed_no")),
             _text(payload.get("patient_id")),
             _text(payload.get("hisPid")),
-            _text(payload.get("bed")),
             _text(extra.get("patient_id")),
             _text(extra.get("hisPid")),
-            _text(extra.get("bed")),
         ]
         for key in keys:
             if key and key not in latest:
@@ -614,7 +618,6 @@ async def _attach_latest_alerts(rows: list[dict[str, Any]], alert_limit: int = 6
             _text(row.get("_id")),
             _text(row.get("patient_id")),
             _text(row.get("hisPid")),
-            _text(row.get("hisBed") or row.get("bed")),
         ]
         hit = next((latest[key] for key in keys if key in latest), None)
         if hit:
@@ -624,8 +627,15 @@ async def _attach_latest_alerts(rows: list[dict[str, Any]], alert_limit: int = 6
     return rows
 
 
-async def _recent_mobile_alerts(dept: str | None, dept_code: str | None, patient_query: dict[str, Any], limit: int = 8) -> list[dict[str, Any]]:
-    patient_ids = [str(doc.get("_id")) async for doc in runtime.db.col("patient").find(patient_query, {"_id": 1}).limit(300)]
+async def _recent_mobile_alerts(
+    dept: str | None,
+    dept_code: str | None,
+    patient_query: dict[str, Any],
+    limit: int = 8,
+    patient_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    if patient_ids is None:
+        patient_ids = [str(doc.get("_id")) async for doc in runtime.db.col("patient").find(patient_query, {"_id": 1}).limit(120)]
     query: dict[str, Any] = {"$or": []}
     if patient_ids:
         query["$or"].append({"patient_id": {"$in": patient_ids}})
@@ -640,7 +650,7 @@ async def _recent_mobile_alerts(dept: str | None, dept_code: str | None, patient
     cursor = runtime.db.col("alert_records").find(
         query,
         {"name": 1, "title": 1, "alert_type": 1, "severity": 1, "level": 1, "message": 1, "summary": 1, "patient_id": 1, "bed": 1, "created_at": 1},
-    ).sort("created_at", -1).limit(limit)
+    ).sort("created_at", -1).limit(max(1, min(limit, 20)))
     return [serialize_doc(doc) async for doc in cursor]
 
 
@@ -656,8 +666,15 @@ async def mobile_home_lite(
     resolved_dept_code = _text(dept_code or deptCode or account.get("dept_code"))
     resolved_dept = _text(dept or account.get("dept"))
     rows, total, patient_query = await _mobile_patient_rows(resolved_dept, resolved_dept_code, limit=12)
-    rows = await _attach_latest_alerts(rows, alert_limit=160)
-    alerts = await _recent_mobile_alerts(resolved_dept, resolved_dept_code, patient_query, limit=8)
+    rows = await _attach_latest_alerts(rows, alert_limit=80)
+    alerts = [
+        row.get("latest_alert")
+        for row in rows
+        if isinstance(row.get("latest_alert"), dict)
+    ][:8]
+    if not alerts:
+        alert_patient_ids = [str(row.get("_id")) for row in rows if row.get("_id")]
+        alerts = await _recent_mobile_alerts(resolved_dept, resolved_dept_code, patient_query, limit=8, patient_ids=alert_patient_ids)
     return {
         "code": 0,
         "patient_count": total,
@@ -675,10 +692,15 @@ async def mobile_patients(
     dept: str | None = Query(None),
     dept_code: str | None = Query(None),
     deptCode: str | None = Query(None),
+    actor: str | None = Query(None),
+    userName: str | None = Query(None),
     patient_scope: str = Query("in_dept"),
 ):
-    rows, total, _ = await _mobile_patient_rows(dept, dept_code or deptCode, limit=80 if patient_scope == "in_dept" else 120)
-    rows = await _attach_latest_alerts(rows)
+    account = await _resolve_mobile_account(actor or userName, dept_code or deptCode, dept)
+    resolved_dept_code = _text(dept_code or deptCode or account.get("dept_code"))
+    resolved_dept = _text(dept or account.get("dept"))
+    rows, total, _ = await _mobile_patient_rows(resolved_dept, resolved_dept_code, limit=80 if patient_scope == "in_dept" else 120)
+    rows = await _attach_latest_alerts(rows, alert_limit=120)
     return {"code": 0, "patients": rows, "count": total, "scope": "admitted"}
 
 
@@ -897,14 +919,19 @@ async def review_reminders(
     actor: str | None = Query(None),
     dept: str | None = Query(None),
     dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+    userName: str | None = Query(None),
     status: str = Query("pending"),
 ):
     query: dict[str, Any] = {"status": status}
     if actor:
         query["actor"] = actor
     patient_ids = []
-    if dept or dept_code:
-        patients = await _scoped_patients(dept, dept_code, None)
+    account = await _resolve_mobile_account(actor or userName, dept_code or deptCode, dept)
+    resolved_dept_code = _text(dept_code or deptCode or account.get("dept_code"))
+    resolved_dept = _text(dept or account.get("dept"))
+    if resolved_dept or resolved_dept_code:
+        patients = await _scoped_patients(resolved_dept, resolved_dept_code, None)
         patient_ids = [str(item.get("_id")) for item in patients]
         query["patient_id"] = {"$in": patient_ids}
     cursor = runtime.db.col("mobile_review_reminders").find(query).sort("due_at", 1).limit(100)

@@ -120,6 +120,17 @@ class DeliriumRiskScanner(BaseScanner):
                     if alert:
                         triggered_risk += 1
                 continue
+            if cam_status and cam_status.get("positive") is not True:
+                await self.engine.db.col("alert_records").update_many(
+                    {"patient_id": pid_str, "alert_type": "cam_icu_positive", "is_active": True},
+                    {
+                        "$set": {
+                            "is_active": False,
+                            "resolved_at": now,
+                            "resolve_reason": "CAM-ICU最新结果不是阳性",
+                        }
+                    },
+                )
 
             age_years = self.engine._parse_age_years(patient_doc)
             has_age_risk = age_years is not None and age_years > 65

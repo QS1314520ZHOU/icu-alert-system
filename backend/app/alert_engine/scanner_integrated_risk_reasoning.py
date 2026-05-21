@@ -479,13 +479,20 @@ class IntegratedRiskReasoningScanner(BaseScanner):
                     continue
                 normalized_actions.append(
                     {
-                        "priority": int(item.get("priority") or idx),
+                        "priority": len(normalized_actions) + 1,
                         "action": str(item.get("action") or "").strip(),
                         "rationale": str(item.get("rationale") or "").strip(),
                         "urgency": int(_to_float(item.get("urgency")) or 180),
                     }
                 )
             if normalized_actions:
+                for fallback in self._fallback_actions(grouped_alerts, density, facts):
+                    if len(normalized_actions) >= 3:
+                        break
+                    action_text = str(fallback.get("action") or "").strip()
+                    if not action_text or any(str(item.get("action") or "").strip() == action_text for item in normalized_actions):
+                        continue
+                    normalized_actions.append({**fallback, "priority": len(normalized_actions) + 1})
                 return {
                     "summary": str(llm_output.get("summary") or "").strip(),
                     "causal_chain": str(llm_output.get("causal_chain") or "").strip(),
