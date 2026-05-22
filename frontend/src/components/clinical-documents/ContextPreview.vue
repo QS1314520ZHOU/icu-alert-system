@@ -21,7 +21,7 @@
         <div class="cp-vital-grid">
           <div v-for="(stat, key) in vitalItems" :key="key" class="cp-vital-item">
             <span class="cp-vital-label">{{ key }}</span>
-            <span class="cp-vital-value">{{ stat.min }}~{{ stat.max }}</span>
+            <span class="cp-vital-value">{{ stat.min == null || stat.max == null ? '—' : `${stat.min}~${stat.max}` }}</span>
             <span :class="['cp-vital-trend', `is-${trendTone(stat.trend)}`]">{{ stat.trend }}</span>
           </div>
         </div>
@@ -103,6 +103,7 @@ const vitalItems = computed(() => {
 function trendTone(trend: string) {
   if (trend === '上升' || trend === '下降') return 'warn'
   if (trend === '波动') return 'danger'
+  if (trend === '无数据' || trend === '数据不足') return 'muted'
   return 'ok'
 }
 
@@ -183,6 +184,7 @@ function flagClass(flag: string) {
 .cp-vital-trend.is-ok { background: #f6ffed; color: #52c41a; }
 .cp-vital-trend.is-warn { background: #fff7e6; color: #fa8c16; }
 .cp-vital-trend.is-danger { background: #fff1f0; color: #ff4d4f; }
+.cp-vital-trend.is-muted { background: #f5f5f5; color: #8c8c8c; }
 .cp-events {
   margin-top: 6px;
   display: flex;
@@ -252,6 +254,7 @@ function flagClass(flag: string) {
 :global(.theme-dark) .cp-vital-trend.is-ok { background: rgba(52, 211, 153, 0.15); color: #34d399; }
 :global(.theme-dark) .cp-vital-trend.is-warn { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 :global(.theme-dark) .cp-vital-trend.is-danger { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+:global(.theme-dark) .cp-vital-trend.is-muted { background: rgba(125, 167, 214, 0.1); color: #586b82; }
 :global(.theme-dark) .cp-event-chip {
   background: rgba(239, 68, 68, 0.18);
   color: #fca5a5;

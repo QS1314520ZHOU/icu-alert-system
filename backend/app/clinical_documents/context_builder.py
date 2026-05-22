@@ -51,8 +51,8 @@ def _hm(dt: datetime | str | None) -> str:
 
 def _compute_trend(values: list[float]) -> str:
     """Determine trend from a time-ordered list of numeric readings."""
-    if len(values) < 2:
-        return "平稳"
+    if len(values) < 3:
+        return "数据不足"
     first_half = values[: len(values) // 2]
     second_half = values[len(values) // 2 :]
     avg1 = sum(first_half) / len(first_half) if first_half else 0
@@ -236,7 +236,13 @@ class ProgressNoteContextBuilder:
 
         def _stat(values: list[float]) -> VitalStat:
             if not values:
-                return VitalStat(min=0, max=0, trend="平稳")
+                return VitalStat(min=None, max=None, trend="无数据")
+            if len(values) < 3:
+                return VitalStat(
+                    min=round(min(values), 1),
+                    max=round(max(values), 1),
+                    trend="数据不足",
+                )
             return VitalStat(
                 min=round(min(values), 1),
                 max=round(max(values), 1),

@@ -8,9 +8,9 @@ from typing import Optional, Literal
 
 
 class VitalStat(BaseModel):
-    min: float
-    max: float
-    trend: Literal["上升", "下降", "平稳", "波动"]
+    min: Optional[float] = None
+    max: Optional[float] = None
+    trend: Literal["上升", "下降", "平稳", "波动", "无数据", "数据不足"]
 
 
 class VitalEvent(BaseModel):

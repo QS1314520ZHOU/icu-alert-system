@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import 'ant-design-vue/dist/reset.css'
 import { registerSW } from 'virtual:pwa-register'
 import './style.css'
+import './styles/clinical-documents-dark.css'
 import './mobile/mobile.css'
 
 function syncDisplayQualityClass() {
