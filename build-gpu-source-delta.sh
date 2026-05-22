@@ -66,7 +66,7 @@ normalize_manifest() {
     awk '{
         hash=$1
         $1=""
-        sub(/^  /, "")
+        sub(/^[[:space:]]+/, "")
         sub(/^\.\//, "")
         if (hash != "" && $0 != "") print hash "\t" $0
     }' "$1" | sort -k2,2
@@ -82,6 +82,17 @@ validate_file_list() {
         }
         END { exit bad ? 1 : 0 }
     ' "$list"
+}
+
+trim_file_list() {
+    local list="$1"
+    local tmp="${list}.trimmed"
+    awk '{
+        sub(/^[[:space:]]+/, "")
+        sub(/[[:space:]]+$/, "")
+        if ($0 != "") print
+    }' "$list" > "$tmp"
+    mv "$tmp" "$list"
 }
 
 add_managed_file() {
@@ -157,6 +168,7 @@ awk -F '\t' '
     NR == FNR { base[$2] = $1; next }
     !($2 in base) || base[$2] != $1 { print $2 }
 ' "${BASE_NORM}" "${CURRENT_MANAGED}" > "${CHANGED_LIST}"
+trim_file_list "${CHANGED_LIST}"
 
 awk -F '\t' '
     NR == FNR { cur[$2] = 1; next }
@@ -172,6 +184,7 @@ awk -F '\t' '
         if (managed && !($2 in cur)) print $2
     }
 ' "${CURRENT_MANAGED}" "${MANAGED_PREFIXES}" "${BASE_NORM}" > "${REMOVED_LIST}"
+trim_file_list "${REMOVED_LIST}"
 
 validate_file_list "${CHANGED_LIST}"
 validate_file_list "${REMOVED_LIST}"
@@ -199,6 +212,12 @@ while IFS= read -r target; do
     mkdir -p "${PAYLOAD_DIR}/files/$(dirname "${target}")"
     cp -p "${src}" "${PAYLOAD_DIR}/files/${target}"
 done < "${CHANGED_LIST}"
+
+COPIED_TOTAL=$(find "${PAYLOAD_DIR}/files" -type f | wc -l | tr -d ' ')
+if [ "${CHANGED_TOTAL}" -gt 0 ] && [ "${COPIED_TOTAL}" -eq 0 ]; then
+    echo "错误: 变更文件数为 ${CHANGED_TOTAL}，但 files/ 未复制任何文件" >&2
+    exit 1
+fi
 
 awk -F '\t' '
     NR == FNR { cur[$2] = $1; next }

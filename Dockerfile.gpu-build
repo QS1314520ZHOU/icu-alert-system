@@ -10,8 +10,14 @@
 #
 #  GPU 支持:
 #    torch 2.5.1+cu121 (自带 CUDA 12.1 运行库)
-#    onnxruntime-gpu 1.19.2 (CUDA 12.x + cuDNN 9, matches torch 2.5.1)
+#    onnxruntime-gpu 1.19.2 (CUDA 12 兼容)
 #    nvidia.* pip 包的 .so 全部打包进二进制
+#
+#  本次修复:
+#    - scipy/sklearn/numpy 用 collect_submodules 全量收集
+#      (解决 scipy._cyutility 缺失)
+#    - 装 Pillow 并从 excludes 移除 PIL
+#      (解决 chronos→transformers→torchvision→PIL 懒导入链报错)
 #
 #  构建: DOCKER_BUILDKIT=1 docker build -t icu-builder -f Dockerfile.gpu-build .
 # ============================================================
@@ -41,32 +47,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 
 # ---- 2.1 系统依赖 ----
-# 这一层几乎不会变, 永久缓存
 RUN sed -i 's|http://archive.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/sources.list && \
     sed -i 's|http://security.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/sources.list && \
     apt-get update && apt-get install -y --no-install-recommends \
-        # Python 编译依赖
         gcc g++ make \
         libssl-dev libffi-dev zlib1g-dev \
         libbz2-dev libreadline-dev libsqlite3-dev \
         liblzma-dev libncurses5-dev libncursesw5-dev \
         libgdbm-dev libdb-dev uuid-dev tk-dev \
-        # PyInstaller 需要
         binutils patchelf \
-        # 工具
         ca-certificates curl wget xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# ---- 2.2 编译安装 Python 3.11 (使用华为镜像加速) ----
-#
-# 为什么不从 python:3.11-slim COPY?
-#   bullseye glibc=2.31, ubuntu:20.04 glibc=2.31, 版本一致可以 COPY。
-#   但 slim 镜像编译时的 configure flags 不一定带 --enable-shared,
-#   PyInstaller 需要 libpython3.11.so, 源码编译更可控。
-#
-# 优化: 去掉 --enable-optimizations (PGO), 编译时间从 8 分钟降到 2 分钟
-#   PGO 对你的场景 (FastAPI web 服务) 性能提升 < 5%, 不值得等
-# ---- ---- ---- ----
+# ---- 2.2 编译安装 Python 3.11 ----
 ENV PYTHON_VERSION=3.11.9
 RUN cd /tmp && \
     wget -q https://mirrors.huaweicloud.com/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz && \
@@ -94,8 +87,7 @@ RUN mkdir -p /root/.pip && \
 
 WORKDIR /build
 
-# ---- 2.4 安装 PyTorch GPU (约 2.4GB, 单独一层最大化缓存命中) ----
-# 只要不改 torch 版本号, 这一层永远走缓存
+# ---- 2.4 安装 PyTorch GPU ----
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install \
         torch==2.5.1+cu121 \
@@ -103,21 +95,23 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         torchaudio==2.5.1+cu121 \
         --index-url https://download.pytorch.org/whl/cu121
 
-# ---- 2.5 安装项目依赖 (分层: 先 COPY requirements, 后 COPY 源码) ----
-# 只要 requirements 文件不变, 这一层也走缓存
+# ---- 2.5 安装项目依赖 ----
+# 注意: 新增 Pillow, 因为 transformers 4.46 的 image_transforms.py
+# 会懒导入 torchvision, torchvision 又需要 PIL.
 COPY backend/requirements*.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install -r requirements.common.txt && \
     pip3 install -r requirements.analytics.txt && \
     pip3 install \
         onnxruntime-gpu==1.19.2 \
-        tensorboard
+        tensorboard \
+        Pillow
 
 # ---- 2.6 打包工具 ----
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install pyinstaller python-dotenv
 
-# ---- 2.7 复制源码 (最常变化的放最后, 前面全部走缓存) ----
+# ---- 2.7 复制源码 ----
 COPY backend/ ./backend/
 COPY --from=frontend-builder /src/frontend/dist ./backend/static/
 COPY entry.py ./entry.py
@@ -126,7 +120,7 @@ COPY entry.py ./entry.py
 RUN python3 -c "\
 import torch; print(f'PyTorch {torch.__version__}, CUDA={torch.version.cuda}'); \
 import onnxruntime as ort; print(f'ORT {ort.__version__}, providers={ort.get_available_providers()}'); \
-import fastapi, motor, pandas, scipy, lifelines, sklearn; \
+import fastapi, motor, pandas, scipy, lifelines, sklearn, PIL; \
 print('>>> All imports OK')"
 
 # ---- 2.9 PyInstaller spec ----
@@ -152,10 +146,11 @@ sentence_transformer_imports = collect_submodules('sentence_transformers')
 tokenizer_imports = collect_submodules('tokenizers')
 safetensors_imports = collect_submodules('safetensors')
 huggingface_hub_imports = collect_submodules('huggingface_hub')
-# 新增: scipy / PIL 必须全量收集, 否则 .so 扩展或 PIL._imaging 会找不到
+# 新增: scipy/sklearn/numpy 必须 collect_submodules,
+# 否则 scipy._cyutility 等 Cython .so 不会被打包.
 scipy_imports = collect_submodules('scipy')
-pil_imports = collect_submodules('PIL')
 sklearn_imports = collect_submodules('sklearn')
+numpy_imports = collect_submodules('numpy')
 
 # ========== 数据文件 ==========
 datas = [
@@ -183,21 +178,17 @@ for pkg in ['sentence_transformers', 'transformers', 'chronos', 'tokenizers']:
     datas += collect_pkg_datas(pkg, include_py_files=True)
 
 # 这些包只需要普通资源文件和二进制库.
-for pkg in ['safetensors', 'huggingface_hub', 'torch', 'tzdata',
-            'onnxruntime', 'scipy', 'PIL', 'sklearn']:
+for pkg in ['safetensors', 'huggingface_hub', 'torch', 'tzdata', 'onnxruntime']:
     datas += collect_pkg_datas(pkg)
 
 # 按目录结构补齐源码 / 配置文件 (.py/.json 等).
-# transformers / sentence_transformers / tokenizers / chronos 在运行时
-# 都可能按文件路径读取自己包内的资源, 光靠 PYZ 字节码不够.
 structured_datas = []
 for pkg_name in ['transformers', 'sentence_transformers', 'tokenizers', 'chronos']:
     try:
         pkg = __import__(pkg_name)
         pkg_dir = os.path.dirname(pkg.__file__)
         site_root = os.path.dirname(pkg_dir)
-        # 注意: 这里不再包含 .so, .so 由 collect_dynamic_libs 单独处理避免重复
-        allowed_exts = {'.py', '.json', '.txt', '.md', '.jinja', '.tiktoken', '.model'}
+        allowed_exts = {'.py', '.json', '.txt', '.md', '.jinja', '.tiktoken', '.model', '.so'}
         skip_parts = {'__pycache__', 'tests', 'testing_utils'}
         count_before = len(structured_datas)
         for root, dirs, files in os.walk(pkg_dir):
@@ -216,18 +207,17 @@ datas += structured_datas
 
 # ========== 动态库 ==========
 binaries = []
-# 加入 PIL 收集其 _imaging.so / _imagingft.so 等扩展
-for pkg in ['torch', 'onnxruntime', 'numpy', 'scipy', 'pyarrow', 'PIL', 'sklearn']:
+for pkg in ['torch', 'onnxruntime', 'numpy', 'scipy', 'pyarrow']:
     try:
         for src, dest in collect_dynamic_libs(pkg):
             name = os.path.basename(src)
             if name in {'libonnxruntime_providers_tensorrt.so', 'libtorchaudio_sox.so'}:
                 continue
             binaries.append((src, dest))
-    except Exception as exc:
-        print(f"[SPEC] dynamic libs collection skipped for {pkg}: {exc}")
+    except Exception:
+        pass
 
-# PyTorch 的 import 入口依赖 torch/_C*.so 和 torch/lib/*.so.
+# PyTorch 扩展 .so 按 wheel 原始包结构补齐.
 torch_structured_bins = []
 try:
     import torch
@@ -249,40 +239,6 @@ try:
 except Exception as exc:
     print(f"[SPEC] torch structured binary collection skipped: {exc}")
 binaries += torch_structured_bins
-
-# scipy 的 Cython 扩展 .so 也按 wheel 原始结构补一次, 防止扁平化导致 _cyutility 找不到
-scipy_structured_bins = []
-try:
-    import scipy
-    scipy_dir = os.path.dirname(scipy.__file__)
-    site_root = os.path.dirname(scipy_dir)
-    for src in glob.glob(os.path.join(scipy_dir, '**', '*.so'), recursive=True):
-        if not os.path.isfile(src):
-            continue
-        rel_dir = os.path.dirname(os.path.relpath(src, site_root))
-        item = (src, rel_dir)
-        if item not in scipy_structured_bins:
-            scipy_structured_bins.append(item)
-except Exception as exc:
-    print(f"[SPEC] scipy structured binary collection skipped: {exc}")
-binaries += scipy_structured_bins
-
-# PIL 的 C 扩展 (_imaging.so 等) 也按 wheel 结构补齐
-pil_structured_bins = []
-try:
-    import PIL
-    pil_dir = os.path.dirname(PIL.__file__)
-    site_root = os.path.dirname(pil_dir)
-    for src in glob.glob(os.path.join(pil_dir, '**', '*.so'), recursive=True):
-        if not os.path.isfile(src):
-            continue
-        rel_dir = os.path.dirname(os.path.relpath(src, site_root))
-        item = (src, rel_dir)
-        if item not in pil_structured_bins:
-            pil_structured_bins.append(item)
-except Exception as exc:
-    print(f"[SPEC] PIL structured binary collection skipped: {exc}")
-binaries += pil_structured_bins
 
 # ========== CUDA .so 从 nvidia.* pip 包收集 ==========
 cuda_bins = []
@@ -321,10 +277,11 @@ for d in search_dirs:
 binaries += cuda_bins
 print(f"[SPEC] Collected {len(cuda_bins)} CUDA .so files")
 print(f"[SPEC] Collected {len(torch_structured_bins)} structured torch .so files")
-print(f"[SPEC] Collected {len(scipy_structured_bins)} structured scipy .so files")
-print(f"[SPEC] Collected {len(pil_structured_bins)} structured PIL .so files")
 print(f"[SPEC] Collected {len(structured_datas)} structured source files total")
 print(f"[SPEC] Collected {len(app_imports)} app submodules")
+print(f"[SPEC] scipy submodules: {len(scipy_imports)}, "
+      f"sklearn submodules: {len(sklearn_imports)}, "
+      f"numpy submodules: {len(numpy_imports)}")
 
 # ========== hidden imports ==========
 hidden_imports = (
@@ -336,8 +293,8 @@ hidden_imports = (
     + safetensors_imports
     + huggingface_hub_imports
     + scipy_imports
-    + pil_imports
     + sklearn_imports
+    + numpy_imports
     + [
     # uvicorn 完整链
     'uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
@@ -350,7 +307,7 @@ hidden_imports = (
     # 数据库
     'pymongo', 'motor', 'motor.motor_asyncio',
     'redis', 'redis.asyncio',
-    # AI/ML (入口模块, PyInstaller 自动追踪子依赖)
+    # AI/ML
     'torch', 'torch.cuda', 'torch.backends', 'torch.backends.cudnn',
     'torch._C', 'torch.nn', 'torch.nn.functional', 'torch.jit',
     'torch.serialization', 'torch.storage', 'torch.types',
@@ -360,27 +317,13 @@ hidden_imports = (
     'chronos', 'tokenizers', 'sentence_transformers',
     'onnxruntime',
     # 科学计算
-    'numpy', 'numpy.core', 'numpy.core._exceptions',
-    'numpy.core._multiarray_umath', 'numpy.linalg',
-    'numpy._core', 'numpy._core._exceptions',
-    'numpy._core._multiarray_umath',
-    'pandas', 'pyarrow',
-    # scipy Cython 扩展 (1.14+ 引入了 _cyutility, 必须显式列出)
-    'scipy', 'scipy._lib', 'scipy._lib._ccallback_c',
-    'scipy._cyutility',
-    'scipy.special', 'scipy.special._ufuncs_cxx', 'scipy.special._cdflib',
-    'scipy.sparse', 'scipy.sparse.csgraph', 'scipy.sparse.linalg',
-    'scipy.linalg', 'scipy.linalg.cython_lapack', 'scipy.linalg.cython_blas',
-    'scipy.stats', 'scipy.optimize', 'scipy.integrate',
-    'scipy.interpolate', 'scipy.spatial', 'scipy.spatial.distance',
-    'scipy.ndimage', 'scipy.signal',
-    # PIL (Pillow) - torchvision 强依赖, 不能 exclude
-    'PIL', 'PIL.Image', 'PIL.ImageOps', 'PIL.ImageFile',
-    'PIL._imaging', 'PIL._imagingft', 'PIL._imagingmath',
-    'PIL.JpegImagePlugin', 'PIL.PngImagePlugin', 'PIL.BmpImagePlugin',
-    # 其他科学计算
+    'numpy', 'numpy._core', 'numpy._core._exceptions',
+    'numpy._core._multiarray_umath', 'numpy.linalg',
+    'pandas', 'pyarrow', 'scipy',
     'statsmodels', 'lifelines', 'sklearn',
     'matplotlib', 'matplotlib.pyplot', 'seaborn', 'docx',
+    # PIL (torchvision 依赖)
+    'PIL', 'PIL.Image',
     # nvidia CUDA 子包
     'nvidia', 'nvidia.cublas', 'nvidia.cuda_runtime', 'nvidia.cudnn',
     'nvidia.cufft', 'nvidia.curand', 'nvidia.cusolver', 'nvidia.cusparse',
@@ -393,8 +336,20 @@ hidden_imports = (
     ]
 )
 
-# 注意: 去掉了 PIL, 它是 torchvision 必需依赖, 不能排除
+# 注意: 不再 exclude 'PIL', 因为 torchvision 依赖它.
 excludes = ['tkinter', 'test', 'setuptools', 'pip']
+
+# transformers/chronos/sentence_transformers 的 lazy loader 会读取 __file__
+# 所在目录; 强制 'py' 模式确保源码以 .py 真实落地.
+module_collection_mode = {
+    'transformers': 'py',
+    'transformers.models': 'py',
+    'sentence_transformers': 'py',
+    'tokenizers': 'py',
+    'chronos': 'py',
+    'safetensors': 'py',
+    'huggingface_hub': 'py',
+}
 
 a = Analysis(
     ['entry.py'],
@@ -403,6 +358,7 @@ a = Analysis(
     hiddenimports=hidden_imports,
     hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=excludes,
+    module_collection_mode=module_collection_mode,
     win_no_prefer_redirects=False, win_private_assemblies=False,
     cipher=block_cipher, noarchive=False,
 )
@@ -417,8 +373,7 @@ coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas,
 )
 SPECEOF
 
-
-# ---- 2.10 执行 PyInstaller ----
+# ---- 2.10 执行 PyInstaller + 打包后自检 ----
 RUN cd /build && \
     python3 -c "import sys; sys.path.insert(0,'/build/backend'); import app.main; print('>>> app.main import OK')" && \
     python3 -m PyInstaller \
@@ -495,7 +450,6 @@ LLM_API_KEY=ollama
 LLM_MODEL=baichuan-m2-32b
 LLM_MODEL_MEDICAL=
 LLM_FALLBACK_MODEL=
-LLM_REASONING_MODEL=
 
 # ---- Embedding ----
 EMBEDDING_MODE=local

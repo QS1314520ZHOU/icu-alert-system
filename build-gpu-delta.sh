@@ -105,11 +105,22 @@ validate_file_list() {
     ' "$list"
 }
 
+trim_file_list() {
+    local list="$1"
+    local tmp="${list}.trimmed"
+    awk '{
+        sub(/^[[:space:]]+/, "")
+        sub(/[[:space:]]+$/, "")
+        if ($0 != "") print
+    }' "$list" > "$tmp"
+    mv "$tmp" "$list"
+}
+
 normalize_manifest() {
     awk '{
         hash=$1
         $1=""
-        sub(/^  /, "")
+        sub(/^[[:space:]]+/, "")
         sub(/^\.\//, "")
         if (hash != "" && $0 != "") print hash "\t" $0
     }' "$1" | sort -k2,2
@@ -135,12 +146,14 @@ awk -F '\t' '
     NR == FNR { base[$2] = $1; next }
     !($2 in base) || base[$2] != $1 { print $2 }
 ' "${BASE_MANIFEST}" "${CURRENT_MANIFEST}" > "${CHANGED_LIST}"
+trim_file_list "${CHANGED_LIST}"
 
 echo ">>> 计算删除文件列表..."
 awk -F '\t' '
     NR == FNR { cur[$2] = 1; next }
     !($2 in cur) { print $2 }
 ' "${CURRENT_MANIFEST}" "${BASE_MANIFEST}" > "${REMOVED_LIST}"
+trim_file_list "${REMOVED_LIST}"
 
 validate_file_list "${CHANGED_LIST}"
 validate_file_list "${REMOVED_LIST}"
@@ -169,7 +182,7 @@ CHANGED_INDEX=0
 echo ">>> 复制变更文件到增量包: ${CHANGED_TOTAL} 个"
 while IFS= read -r file; do
     [ -n "${file}" ] || continue
-    [ -f "${CURRENT_DIR}/${file}" ] || continue
+    [ -f "${CURRENT_DIR}/${file}" ] || { echo "错误: 找不到变更文件 ${CURRENT_DIR}/${file}" >&2; exit 1; }
     CHANGED_INDEX=$((CHANGED_INDEX + 1))
     if [ "${CHANGED_INDEX}" -eq 1 ] || [ $((CHANGED_INDEX % 100)) -eq 0 ] || [ "${CHANGED_INDEX}" -eq "${CHANGED_TOTAL}" ]; then
         echo ">>> 复制进度: ${CHANGED_INDEX}/${CHANGED_TOTAL} ${file}"
@@ -177,6 +190,12 @@ while IFS= read -r file; do
     mkdir -p "${PAYLOAD_DIR}/files/$(dirname "$file")"
     cp -p "${CURRENT_DIR}/${file}" "${PAYLOAD_DIR}/files/${file}"
 done < "${CHANGED_LIST}"
+
+COPIED_TOTAL=$(find "${PAYLOAD_DIR}/files" -type f | wc -l | tr -d ' ')
+if [ "${CHANGED_TOTAL}" -gt 0 ] && [ "${COPIED_TOTAL}" -eq 0 ]; then
+    echo "错误: 变更文件数为 ${CHANGED_TOTAL}，但 files/ 未复制任何文件" >&2
+    exit 1
+fi
 
 cp "${CURRENT_MANIFEST}.raw" "${PAYLOAD_DIR}/manifest.sha256"
 cp "${CHANGED_LIST}" "${PAYLOAD_DIR}/changed-files.txt"
