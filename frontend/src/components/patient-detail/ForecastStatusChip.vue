@@ -9,7 +9,7 @@
         <div><strong>数据点</strong><span>{{ meta.dataPoints || 0 }}</span></div>
         <div v-if="meta.modelVersion"><strong>版本</strong><span>{{ meta.modelVersion }}</span></div>
         <div v-if="meta.fallbackReason"><strong>降级原因</strong><span>{{ fallbackText }}</span></div>
-        <div v-if="meta.error"><strong>错误</strong><span>{{ meta.error }}</span></div>
+        <div v-if="meta.error"><strong>错误</strong><span>{{ errorText }}</span></div>
         <template v-if="indicatorDetails.length">
           <div class="forecast-popover-divider"></div>
           <div class="forecast-popover-section-title">各指标数据点</div>
@@ -32,7 +32,7 @@
 import { computed } from 'vue'
 import { Popover as APopover } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import type { ForecastMeta } from '../../composables/useVitalForecast'
+import { forecastErrorText, type ForecastMeta } from '../../composables/useVitalForecast'
 
 const props = defineProps<{
   meta: ForecastMeta
@@ -48,30 +48,39 @@ const tone = computed(() => {
   if (props.meta.source === 'heuristic') return 'fallback'
   return 'ready'
 })
-const sourceText = computed(() => props.meta.source === 'chronos' ? 'Chronos' : props.meta.source === 'heuristic' ? '线性外推' : '预测暂不可用')
+const sourceText = computed(() => props.meta.source === 'chronos' ? '时序预测模型' : props.meta.source === 'heuristic' ? '规则外推' : '预测暂不可用')
 const fallbackText = computed(() => {
   const map: Record<string, string> = {
-    model_not_loaded: 'Chronos 模型未加载',
+    model_not_loaded: '模型未就绪，已暂不可用',
+    model_not_ready: '模型未就绪，已暂不可用',
     insufficient_history: '历史数据不足',
     model_inference_error: '模型推理失败',
+    forecast_timeout: '预测计算超时，请稍后重试',
+    forecast_unavailable: '预测暂不可用',
+    forecast_threshold_breach: '预测达到预警阈值',
   }
-  return map[props.meta.fallbackReason] || props.meta.fallbackReason
+  return map[props.meta.fallbackReason] || forecastErrorText(props.meta.fallbackReason)
+})
+const errorText = computed(() => {
+  const raw = String(props.meta.error || '').trim()
+  if (!raw) return ''
+  return forecastErrorText(raw)
 })
 const chipText = computed(() => {
   if (props.meta.status === 'loading') return '预测生成中'
   if (props.meta.status === 'refreshing') return '预测刷新中'
   if (props.meta.status === 'error') return '预测暂不可用'
   const horizon = props.meta.horizon || props.horizon
-  if (props.meta.source === 'heuristic') return `线性外推 · ${horizon}h预测 · 模型未加载`
-  return `Chronos · ${horizon}h预测 · ${generatedText.value} 生成`
+  if (props.meta.source === 'heuristic') return `规则外推 · ${horizon}小时预测 · 模型未就绪`
+  return `时序模型 · ${horizon}小时预测 · ${generatedText.value} 生成`
 })
 
 const historyWindowText = computed(() => {
   const series = props.forecastData?.series || {}
   const first = Object.values(series)[0] as any
   const hours = first?.history_window_hours
-  if (!hours) return '24h'
-  return hours >= 24 && hours % 24 === 0 ? `${hours / 24}d (${hours}h)` : `${hours}h`
+  if (!hours) return '24小时'
+  return hours >= 24 && hours % 24 === 0 ? `${hours / 24}天（${hours}小时）` : `${hours}小时`
 })
 
 const indicatorDetails = computed(() => {

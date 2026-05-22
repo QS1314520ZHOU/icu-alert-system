@@ -64,7 +64,7 @@
 
       <div v-if="forecastStatus.available || forecastStatus.reason" class="forecast-strip">
         <span>轨迹预测</span>
-        <strong>{{ forecastStatus.available ? 'Chronos 已接入' : '模型未就绪' }}</strong>
+        <strong>{{ forecastStatus.available ? '时序预测已接入' : '模型未就绪' }}</strong>
         <em>{{ forecastStatus.detail }}</em>
         <small v-if="forecastStatus.available">预测概率，非诊断</small>
       </div>
@@ -159,7 +159,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig } from '../api'
+import { getDepartments, getPatients, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
@@ -191,7 +191,6 @@ const trajectoryConfig = ref<any>({ default_codes: ['HR', 'MAP', 'SBP', 'DBP', '
 let iv: any = null
 let offAlert: any = null
 let bundleRequestToken = 0
-let vitalsRequestToken = 0
 let signalRequestToken = 0
 
 const routeDeptCode = computed(() => {
@@ -448,7 +447,12 @@ function selectDept(dept: string) {
 }
 
 function goDetail(id: string) {
-  router.push({ path: `/patient/${id}`, query: route.query })
+  const query: Record<string, any> = { ...route.query }
+  if (String(query.next || '') === 'documents') {
+    query.tab = 'documents'
+    delete query.next
+  }
+  router.push({ path: `/patient/${id}`, query })
 }
 
 function clearOverviewFilters() {
@@ -589,28 +593,6 @@ async function hydrateBundleStatuses(items: any[]) {
   }
 }
 
-async function hydrateVitals(items: any[]) {
-  const token = ++vitalsRequestToken
-  const targetItems = items
-    .filter((item: any) => item && item._id)
-    .slice(0, 48)
-
-  for (const batch of chunkItems(targetItems, 8)) {
-    if (token !== vitalsRequestToken) return
-    await Promise.allSettled(batch.map(async (item: any) => {
-      try {
-        const res = await getPatientVitals(item._id)
-        if (token !== vitalsRequestToken) return
-        item.vitals = res.data?.vitals || {}
-        item.alertLevel = mergeAlertLevel(item, calcLevel(item.vitals))
-      } catch {
-        item.vitals = item.vitals || {}
-      }
-    }))
-    syncOverviewCacheSnapshot()
-  }
-}
-
 async function hydrateForecastPreview(items: any[]) {
   const first = items.find((item: any) => item?._id)
   if (!first) {
@@ -626,7 +608,7 @@ async function hydrateForecastPreview(items: any[]) {
     }
     const codes = Array.isArray(trajectoryConfig.value?.default_codes) && trajectoryConfig.value.default_codes.length ? trajectoryConfig.value.default_codes.join(',') : 'HR,MAP,SBP,DBP,SpO2,RR,Temp,EtCO2'
     const horizon = Number(trajectoryConfig.value?.horizon_hours || 6)
-    const res = await getPatientVitalsForecast(String(first._id), { codes, horizon_hours: horizon })
+    const res = await getPatientVitalsForecast(String(first._id), { codes, horizon_hours: horizon }, undefined, 5000)
     const data = res.data || {}
     const topRisk = Array.isArray(data.threshold_risks) && data.threshold_risks.length ? data.threshold_risks[0] : null
     const riskText = topRisk ? ` · 最高风险 ${topRisk.code}${topRisk.operator}${topRisk.threshold} ${Math.round(Number(topRisk.probability || 0) * 100)}%` : ''
@@ -748,8 +730,8 @@ async function load(options?: { silent?: boolean }) {
 
     const all = ls.map((p: any) => ({
       ...p,
-      vitals: {},
-      alertLevel: p.alertLevel || 'none',
+      vitals: p.vitals || p.latestVitals || {},
+      alertLevel: mergeAlertLevel(p, calcLevel(p.vitals || p.latestVitals || {})),
       hasRescueRisk: false,
       rescueRiskSeverity: 'none',
       organMap: undefined,
@@ -760,7 +742,6 @@ async function load(options?: { silent?: boolean }) {
     loading.value = false
     syncOverviewCacheSnapshot()
     void hydrateOverviewSignals(all, params)
-    void hydrateVitals(all)
     void hydrateBundleStatuses(all)
     void hydrateForecastPreview(all)
   } catch (e) { console.error(e) }

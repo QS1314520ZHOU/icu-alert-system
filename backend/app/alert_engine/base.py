@@ -2782,7 +2782,10 @@ class BaseEngine:
                 evidence.append(f"持续卧床 {extra.get('immobility_hours')} h")
             readiness = extra.get("mobility_readiness") if isinstance(extra.get("mobility_readiness"), dict) else {}
             if readiness.get("fio2_fraction") is not None or readiness.get("peep") is not None:
-                evidence.append(f"FiO₂/PEEP {readiness.get('fio2_fraction')} / {readiness.get('peep')}")
+                evidence.append(
+                    f"FiO₂/PEEP {self._format_alert_number(readiness.get('fio2_fraction'), 2)} / "
+                    f"{self._format_alert_number(readiness.get('peep'), 1)}"
+                )
 
         elif alert_type == "fluid_responsiveness_lost":
             map_info = extra.get("map") if isinstance(extra.get("map"), dict) else {}

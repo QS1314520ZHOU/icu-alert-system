@@ -51,8 +51,8 @@ export const getPatientPriority = (params?: PatientPriorityFilter) =>
   analyticsApi.get('/api/patients/priority', { params })
 
 // 获取患者生命体征
-export const getPatientVitals = (patientId: string) =>
-  api.get(`/api/patients/${patientId}/vitals`)
+export const getPatientVitals = (patientId: string, timeout = 10000) =>
+  api.get(`/api/patients/${patientId}/vitals`, { timeout })
 
 // 获取患者详情
 export const getPatientDetail = (patientId: string) =>
@@ -65,8 +65,8 @@ export const getAiWatching = (patientId: string, hours = 1) =>
   api.get(`/api/patients/${patientId}/ai-watching`, { params: { hours } })
 
 // 获取患者床旁概览卡片数据 (增强型)
-export const getPatientBedcard = (patientId: string) =>
-  api.get(`/api/patients/${patientId}/bedcard`)
+export const getPatientBedcard = (patientId: string, timeout = 8000) =>
+  api.get(`/api/patients/${patientId}/bedcard`, { timeout })
 
 // 批量获取患者 Bundle 灯状态
 export const getPatientBundleStatuses = (patientIds: string[]) =>
@@ -80,8 +80,8 @@ export const getPatientLabs = (patientId: string) =>
 export const getPatientVitalsTrend = (patientId: string, window = '24h') =>
   api.get(`/api/patients/${patientId}/vitals/trend`, { params: { window } })
 
-export const getPatientVitalsForecast = (patientId: string, params?: { codes?: string; horizon_hours?: number; hours?: number }, signal?: AbortSignal) =>
-  api.get(`/api/patients/${patientId}/vitals/forecast`, { params, signal, timeout: 8000 })
+export const getPatientVitalsForecast = (patientId: string, params?: { codes?: string; horizon_hours?: number; hours?: number }, signal?: AbortSignal, timeout = 8000) =>
+  api.get(`/api/patients/${patientId}/vitals/forecast`, { params, signal, timeout })
 
 export const getTrajectoryPublicConfig = () =>
   api.get('/api/runtime/public-config/trajectory')
@@ -506,11 +506,11 @@ export const getPatientDischargeReadiness = (patientId: string) =>
 
 // Sepsis 1h Bundle 患者状态
 export const getPatientSepsisBundleStatus = (patientId: string) =>
-  api.get(`/api/patients/${patientId}/sepsis-bundle-status`)
+  bundleApi.get(`/api/patients/${patientId}/sepsis-bundle-status`)
 
 // 脱机评估 / SBT 状态
 export const getPatientWeaningStatus = (patientId: string) =>
-  api.get(`/api/patients/${patientId}/weaning-status`)
+  bundleApi.get(`/api/patients/${patientId}/weaning-status`)
 
 // SBT 结构化记录时间线
 export const getPatientSbtRecords = (patientId: string, limit = 20) =>

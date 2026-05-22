@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { onAlertMessage, sendAlertSocketMessage } from '../services/alertSocket'
+import { formatClinicalText } from '../utils/displayLabels'
 
 export type PulseNarration = {
   candidate_id: string
@@ -22,6 +23,14 @@ function normalizeDeptCode(value: unknown): string {
 
 function pulseDeptCode(payload: PulseNarration | null | undefined): string {
   return normalizeDeptCode(payload?.dept_code || payload?.deptCode)
+}
+
+function localizePulse(payload: PulseNarration): PulseNarration {
+  return {
+    ...payload,
+    headline: formatClinicalText(payload.headline, '发现新的高风险事件'),
+    action_hint: formatClinicalText(payload.action_hint, '请查看详情并结合床旁情况处理'),
+  }
 }
 
 export const usePulseStore = defineStore('pulse', {
@@ -65,6 +74,7 @@ export const usePulseStore = defineStore('pulse', {
     },
     receivePulse(payload: PulseNarration) {
       if (!payload?.candidate_id) return
+      payload = localizePulse(payload)
       const deptCode = pulseDeptCode(payload)
       if (this.currentDeptCode && deptCode && deptCode !== this.currentDeptCode) return
       const cutoff = Date.now() - 24 * 60 * 60 * 1000

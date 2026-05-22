@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import math
 import re
 from typing import Any
 
@@ -32,6 +33,15 @@ def _to_float(value: Any) -> float | None:
 
 
 class VentilatorMixin:
+    def _vent_display_number(self, value: Any, digits: int = 1) -> str:
+        num = _to_float(value)
+        if num is None or not math.isfinite(num):
+            return "-"
+        rounded = round(float(num), digits)
+        if digits <= 0 or abs(rounded - round(rounded)) < 1e-9:
+            return str(int(round(rounded)))
+        return f"{rounded:.{digits}f}".rstrip("0").rstrip(".")
+
     def _is_sbt_code(self, code: Any) -> bool:
         text = str(code or "").strip().lower()
         if not text:
@@ -564,24 +574,26 @@ class VentilatorMixin:
             if suggestion:
                 suggestions.append(suggestion)
 
-        add_factor("vent_days_ge_5", vent_days >= float(cfg.get("vent_days_warning", 5)), f"机械通气 {vent_days} 天", 1, None)
-        add_factor("vent_days_ge_7", vent_days >= float(cfg.get("vent_days_high", 7)), f"长程机械通气 {vent_days} 天", 2, None)
+        add_factor("vent_days_ge_5", vent_days >= float(cfg.get("vent_days_warning", 5)), f"机械通气 {self._vent_display_number(vent_days, 1)} 天", 1, None)
+        add_factor("vent_days_ge_7", vent_days >= float(cfg.get("vent_days_high", 7)), f"长程机械通气 {self._vent_display_number(vent_days, 1)} 天", 2, None)
 
         pf_ratio = pf.get("pf_ratio")
-        add_factor("pf_lt_200", pf_ratio is not None and pf_ratio < float(cfg.get("pf_warning", 200)), f"P/F {pf_ratio}", 2, "先优化氧合/肺水肿后再试 SBT")
-        add_factor("pf_lt_150", pf_ratio is not None and pf_ratio < float(cfg.get("pf_high", 150)), f"重度氧合受损 P/F {pf_ratio}", 3, "当前不宜脱机，先处理氧合问题")
-        add_factor("pf_worsening", pf.get("trend") == "worsening", f"P/F 趋势下降 {pf.get('baseline_pf_ratio')}→{pf_ratio}", 1, "请先复查肺部影像、分泌物与液体负荷")
+        pf_text = self._vent_display_number(pf_ratio, 1)
+        baseline_pf_text = self._vent_display_number(pf.get("baseline_pf_ratio"), 1)
+        add_factor("pf_lt_200", pf_ratio is not None and pf_ratio < float(cfg.get("pf_warning", 200)), f"P/F {pf_text}", 2, "先优化氧合/肺水肿后再试 SBT")
+        add_factor("pf_lt_150", pf_ratio is not None and pf_ratio < float(cfg.get("pf_high", 150)), f"重度氧合受损 P/F {pf_text}", 3, "当前不宜脱机，先处理氧合问题")
+        add_factor("pf_worsening", pf.get("trend") == "worsening", f"P/F 趋势下降 {baseline_pf_text}→{pf_text}", 1, "请先复查肺部影像、分泌物与液体负荷")
 
-        add_factor("rsbi_ge_80", rsbi is not None and rsbi >= float(cfg.get("rsbi_warning", 80)), f"RSBI {rsbi}", 2, "建议先降低呼吸负荷/优化肌力后再试 SBT")
-        add_factor("rsbi_ge_105", rsbi is not None and rsbi >= float(cfg.get("rsbi_high", 105)), f"高 RSBI {rsbi}", 3, "当前脱机失败风险高，暂不建议拔管")
+        add_factor("rsbi_ge_80", rsbi is not None and rsbi >= float(cfg.get("rsbi_warning", 80)), f"RSBI {self._vent_display_number(rsbi, 1)}", 2, "建议先降低呼吸负荷/优化肌力后再试 SBT")
+        add_factor("rsbi_ge_105", rsbi is not None and rsbi >= float(cfg.get("rsbi_high", 105)), f"高 RSBI {self._vent_display_number(rsbi, 1)}", 3, "当前脱机失败风险高，暂不建议拔管")
 
-        add_factor("rass_outside_target", latest_rass is not None and not (float(cfg.get("rass_min", -2)) <= float(latest_rass) <= float(cfg.get("rass_max", 1))), f"RASS {latest_rass}", 2, "请先调整镇静，使 RASS 达 -2~+1")
-        add_factor("deep_sedation", latest_rass is not None and latest_rass < float(cfg.get("rass_min", -2)), f"镇静偏深 RASS {latest_rass}", 2, "建议先减轻镇静并评估咳嗽/保护气道能力")
+        add_factor("rass_outside_target", latest_rass is not None and not (float(cfg.get("rass_min", -2)) <= float(latest_rass) <= float(cfg.get("rass_max", 1))), f"RASS {self._vent_display_number(latest_rass, 1)}", 2, "请先调整镇静，使 RASS 达 -2~+1")
+        add_factor("deep_sedation", latest_rass is not None and latest_rass < float(cfg.get("rass_min", -2)), f"镇静偏深 RASS {self._vent_display_number(latest_rass, 1)}", 2, "建议先减轻镇静并评估咳嗽/保护气道能力")
 
-        add_factor("fluid_overload_gt_5", fluid_pct is not None and fluid_pct > float(cfg.get("fluid_overload_warning_pct", 5)), f"%FO {fluid_pct}%", 2, "建议先利尿/负平衡，减轻肺水肿后再试 SBT")
-        add_factor("fluid_overload_gt_10", fluid_pct is not None and fluid_pct > float(cfg.get("fluid_overload_high_pct", 10)), f"明显液体过负荷 %FO {fluid_pct}%", 3, "液体负荷偏重，当前不宜脱机")
+        add_factor("fluid_overload_gt_5", fluid_pct is not None and fluid_pct > float(cfg.get("fluid_overload_warning_pct", 5)), f"%FO {self._vent_display_number(fluid_pct, 1)}%", 2, "建议先利尿/负平衡，减轻肺水肿后再试 SBT")
+        add_factor("fluid_overload_gt_10", fluid_pct is not None and fluid_pct > float(cfg.get("fluid_overload_high_pct", 10)), f"明显液体过负荷 %FO {self._vent_display_number(fluid_pct, 1)}%", 3, "液体负荷偏重，当前不宜脱机")
 
-        add_factor("bnp_surge", (bnp.get("ratio") or 0) >= float(cfg.get("bnp_surge_ratio", 1.5)), f"BNP {bnp.get('baseline')}→{bnp.get('latest')} (x{bnp.get('ratio')})", 2, "请先评估心功能/容量状态，必要时先利尿")
+        add_factor("bnp_surge", (bnp.get("ratio") or 0) >= float(cfg.get("bnp_surge_ratio", 1.5)), f"BNP {self._vent_display_number(bnp.get('baseline'), 0)}→{self._vent_display_number(bnp.get('latest'), 0)} (x{self._vent_display_number(bnp.get('ratio'), 1)})", 2, "请先评估心功能/容量状态，必要时先利尿")
         sbt_objective_failure = isinstance(sbt_result, dict) and (
             (sbt_result.get("rr") is not None and float(sbt_result.get("rr") or 0) >= 35)
             or (sbt_result.get("rsbi") is not None and float(sbt_result.get("rsbi") or 0) >= float(cfg.get("rsbi_high", 105)))
@@ -594,8 +606,8 @@ class VentilatorMixin:
             "请针对上次 SBT 失败原因先处理后再尝试",
         )
         add_factor("vasopressor_support", bool(on_vaso), "仍需血管活性药支持", 2, "请先稳定循环再考虑脱机")
-        add_factor("gcs_low", gcs is not None and gcs < float(cfg.get("gcs_min", 9)), f"GCS {gcs}", 1, "请先确认意识/保护气道能力")
-        add_factor("map_low", map_value is not None and map_value < float(cfg.get("map_min", 65)), f"MAP {map_value}", 1, "请先稳定循环后再试 SBT")
+        add_factor("gcs_low", gcs is not None and gcs < float(cfg.get("gcs_min", 9)), f"GCS {self._vent_display_number(gcs, 0)}", 1, "请先确认意识/保护气道能力")
+        add_factor("map_low", map_value is not None and map_value < float(cfg.get("map_min", 65)), f"MAP {self._vent_display_number(map_value, 0)}", 1, "请先稳定循环后再试 SBT")
         add_factor(
             "ventilator_asynchrony",
             recent_asynchrony is not None and (

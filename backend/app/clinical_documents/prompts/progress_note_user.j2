@@ -1,43 +1,66 @@
-患者：{{ basics.bed }}床 {{ basics.age }}{{ basics.sex }} 入科{{ basics.day }}天
+患者：{{ basics.bed }}床 {{ basics.age }}{{ basics.sex }} ICU第{{ basics.day }}天
 诊断：{{ basics.diagnosis }}
 窗口：{{ window_start }} 至 {{ window_end }}
 
-【生命体征】(min~max 趋势)
-HR {{ v.hr.min }}~{{ v.hr.max }} {{ v.hr.trend }}[V]
-MAP {{ v.map.min }}~{{ v.map.max }} {{ v.map.trend }}[V]
-SpO2 {{ v.spo2.min }}~{{ v.spo2.max }} {{ v.spo2.trend }}[V]
-T {{ v.temp.min }}~{{ v.temp.max }}[V]
-RR {{ v.rr.min }}~{{ v.rr.max }}[V]
-{% if v.events %}异常事件：{% for e in v.events %}{{ e.time_hm }} {{ e.type }}({{ e.value }}){% if not loop.last %}; {% endif %}{% endfor %}[V]{% endif %}
+可用引用：
+{{ citations }}
 
-【化验变化】(前→今 单位 标记)
+规则生成的基础工作台草稿：
+{{ base_draft }}
+
+原始上下文摘要：
+生命体征：
+- HR {{ v.hr.min }}~{{ v.hr.max }} 趋势 {{ v.hr.trend }} [V1]
+- MAP {{ v.map.min }}~{{ v.map.max }} 趋势 {{ v.map.trend }} [V1]
+- SpO2 {{ v.spo2.min }}~{{ v.spo2.max }} 趋势 {{ v.spo2.trend }} [V1]
+- T {{ v.temp.min }}~{{ v.temp.max }} [V1]
+- RR {{ v.rr.min }}~{{ v.rr.max }} [V1]
+{% if v.events %}
+生命体征异常事件：
+{% for e in v.events -%}
+- {{ e.time_hm }} {{ e.type }} {{ e.value }} [V1]
+{% endfor -%}
+{% endif %}
+
+化验变化：
 {% for l in labs -%}
-[L{{ l.id }}] {{ l.name }}: {{ l.prev }}→{{ l.curr }}{{ l.unit }} {{ l.flag }}
+- [L{{ l.id }}] {{ l.name }}: {{ l.prev }} -> {{ l.curr }}{{ l.unit }} {{ l.flag }}
 {% endfor -%}
-{% if not labs %}无化验更新{% endif %}
+{% if not labs %}- 未提供{% endif %}
 
-【用药事件】
+用药事件：
 {% for d in drugs -%}
-[D{{ d.id }}] {{ d.time_hm }} {{ d.action }} {{ d.name }}{% if d.dose_after %} {{ d.dose_after }}{% endif %}
+- [D{{ d.id }}] {{ d.time_hm }} {{ d.action }} {{ d.name }}{% if d.dose_after %} {{ d.dose_after }}{% endif %}
 {% endfor -%}
-{% if not drugs %}无医嘱变更{% endif %}
+{% if not drugs %}- 未提供{% endif %}
 
 {% if vent -%}
-【呼吸机】
-[VT0] 当前 {{ vent.mode }} FiO2 {{ vent.fio2 }} PEEP {{ vent.peep }} VT {{ vent.vt }} Pplat {{ vent.pplat }} P/F {{ vent.pf_ratio }}
-{% if vent.changes %}{% for c in vent.changes %}[VT{{ c.id }}] {{ c.time_hm }} {{ c.detail }}
-{% endfor %}{% endif %}
-{%- endif %}
+呼吸机：[VT0] {{ vent.mode }} FiO2 {{ vent.fio2 }} PEEP {{ vent.peep }} VT {{ vent.vt }} Pplat {{ vent.pplat }}{% if vent.pf_ratio is not none %} P/F {{ vent.pf_ratio }}{% endif %}
+{% else -%}
+呼吸机：未提供
+{% endif %}
 
 {% if alerts -%}
-【告警】
+预警：
 {% for a in alerts -%}
-[A{{ a.id }}] {{ a.type }} {{ a.severity }} ×{{ a.count }} {% if a.active %}持续{% else %}已缓解{% endif %}
-{% endfor %}
-{%- endif %}
+- [A{{ a.id }}] {{ a.type }} {{ a.severity }} x{{ a.count }} {% if a.active %}持续{% else %}已缓解{% endif %}
+{% endfor -%}
+{% else -%}
+预警：未提供
+{% endif %}
 
 {% if scores -%}
-【评分】[AS1] GCS {{ scores.gcs }} SOFA {{ scores.sofa }} APACHE {{ scores.apache }}
-{%- endif %}
+评分：[AS1] GCS {{ scores.gcs }} SOFA {{ scores.sofa }} APACHE {{ scores.apache }}
+{% else -%}
+评分：未提供
+{% endif %}
 
-按system规则输出JSON。
+请只输出可以覆盖基础草稿中以下字段的 JSON patch：
+{
+  "system_ap": [],
+  "daily_goals": [],
+  "risk_tasks": [],
+  "raw_ai_tags": []
+}
+
+字段结构必须与基础工作台草稿一致。不要输出 patient_banner、organ_support、timeline、note_preview、quality_checks。

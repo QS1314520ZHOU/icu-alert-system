@@ -17,11 +17,17 @@ from .schemas import (
     AlertItem,
     Basics,
     DrugEvent,
+    FluidBalance,
+    InfectionEvidence,
+    InfectionLabItem,
     LabDelta,
+    LineDevices,
+    NeuroAssessment,
     ProgressNoteContext,
     Scores,
     VentChange,
     Ventilator,
+    TubeDevice,
     VitalEvent,
     VitalStat,
     Vitals,
@@ -37,6 +43,95 @@ def _safe_float(val: Any, default: float = 0.0) -> float:
         return default
 
 
+def _safe_float_or_none(val: Any) -> float | None:
+    try:
+        if val is None or val == "":
+            return None
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _first_value(row: dict) -> Any:
+    for key in ("fVal", "intVal", "strVal", "value"):
+        value = row.get(key)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _bedside_value(doc: dict, *codes: str) -> Any:
+    code_set = {str(code) for code in codes if code}
+    for item in doc.get("bedsides") or []:
+        if not isinstance(item, dict) or str(item.get("code") or "") not in code_set:
+            continue
+        for key in ("fVal", "intVal", "strVal", "value"):
+            value = item.get(key)
+            if value is not None and value != "":
+                return value
+    return None
+
+
+def _is_noninvasive_or_oxygen_mode(mode: Any) -> bool:
+    text = str(mode or "").strip().lower()
+    return bool(text) and any(
+        token in text
+        for token in [
+            "hf",
+            "hfnc",
+            "oxygen",
+            "氧",
+            "吸氧",
+            "高流量",
+            "鼻导管",
+            "面罩",
+        ]
+    )
+
+
+def _is_active_tube(row: dict) -> bool:
+    end_value = row.get("endTime") or row.get("stopTime") or row.get("removeTime") or row.get("drawingTime")
+    if end_value:
+        return False
+    status = str(row.get("status") or row.get("tubeStatus") or "").strip().lower()
+    return status not in {"stopped", "stop", "removed", "拔管", "已拔管", "结束"}
+
+
+def _tube_category(row: dict) -> str:
+    text = f"{row.get('name') or ''} {row.get('type') or ''}".lower()
+    if any(key in text for key in ["气管", "插管", "气切", "ett", "tracheo"]):
+        return "airway"
+    if any(key in text for key in ["cvc", "picc", "动脉", "静脉", "导管", "穿刺", "swan", "留置针", "ecmo"]):
+        return "vascular"
+    if any(key in text for key in ["胃管", "鼻肠", "鼻胃", "空肠管"]):
+        return "enteral"
+    if any(key in text for key in ["引流", "胸管", "t管", "造瘘"]):
+        return "drain"
+    if any(key in text for key in ["导尿", "尿管", "foley"]):
+        return "urinary"
+    return "other"
+
+
+def _tube_category_label(category: str) -> str:
+    return {
+        "airway": "人工气道",
+        "vascular": "血管通路",
+        "drain": "引流管",
+        "enteral": "胃肠/营养管",
+        "urinary": "尿管",
+        "other": "其他管路",
+    }.get(category, "其他管路")
+
+
+def _lab_time(doc: dict) -> datetime | None:
+    return (
+        _parse_datetime(doc.get("authTime"))
+        or _parse_datetime(doc.get("reportTime"))
+        or _parse_datetime(doc.get("collectTime"))
+        or _parse_datetime(doc.get("time"))
+    )
+
+
 def _hm(dt: datetime | str | None) -> str:
     """Format datetime or ISO string to HH:MM."""
     if dt is None:
@@ -47,6 +142,63 @@ def _hm(dt: datetime | str | None) -> str:
         except Exception:
             return dt[:5] if len(dt) >= 5 else dt
     return dt.strftime("%H:%M")
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"):
+        try:
+            return datetime.strptime(text[: len(fmt)], fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _calculate_age(p: dict, now: datetime) -> int:
+    raw_age = p.get("age") or p.get("hisAge")
+    try:
+        age = int(float(str(raw_age).replace("岁", "").strip()))
+    except (TypeError, ValueError):
+        age = 0
+    if age > 0:
+        return age
+    for field in (
+        "birthDate",
+        "birthday",
+        "dateOfBirth",
+        "dob",
+        "hisBirthDate",
+        "birth",
+        "birthDay",
+        "birthdayDate",
+        "出生日期",
+    ):
+        birth_dt = _parse_datetime(p.get(field))
+        if birth_dt:
+            years = now.year - birth_dt.year
+            if (now.month, now.day) < (birth_dt.month, birth_dt.day):
+                years -= 1
+            return max(years, 0)
+    return 0
+
+
+def _normalize_sex(value: Any) -> str:
+    text = str(value or "").strip()
+    lowered = text.lower()
+    if lowered in {"male", "m", "man", "1"} or text == "男":
+        return "男"
+    if lowered in {"female", "f", "woman", "2"} or text == "女":
+        return "女"
+    return text or "未知"
 
 
 def _compute_trend(values: list[float]) -> str:
@@ -92,13 +244,18 @@ class ProgressNoteContextBuilder:
         p_oid = str(p.get("_id"))
         if p_oid not in p_ids:
             p_ids.append(p_oid)
+        bedside_pids = list(dict.fromkeys([p_oid, *p_ids]))
 
-        vitals = await self._build_vitals(p_ids, start, end)
+        vitals = await self._build_vitals(bedside_pids, start, end)
         labs = await self._build_labs(p_ids, start, end)
         drugs = await self._build_drugs(p, start, end, p_ids)
-        vent = await self._build_vent(p_ids, start, end)
+        vent = await self._build_vent(bedside_pids, start, end)
+        neuro = await self._build_neuro_assessment(bedside_pids, start, end)
         alerts = await self._build_alerts(p_oid, start, end)
         scores = await self._build_scores(p_ids)
+        fluid_balance = await self._build_fluid_balance(bedside_pids, start, end)
+        line_devices = await self._build_line_devices(bedside_pids, start, end)
+        infection_evidence = await self._build_infection_evidence(p_ids, start - timedelta(hours=48), end)
 
         return ProgressNoteContext(
             patient_id=patient_id,
@@ -109,8 +266,12 @@ class ProgressNoteContextBuilder:
             labs=labs,
             drugs=drugs,
             vent=vent,
+            neuro=neuro,
             alerts=alerts,
             scores=scores,
+            fluid_balance=fluid_balance,
+            line_devices=line_devices,
+            infection_evidence=infection_evidence,
         )
 
     # ── Patient basics ───────────────────────────────────────────────
@@ -130,19 +291,18 @@ class ProgressNoteContextBuilder:
     def _extract_basics(self, p: dict, now: datetime) -> Basics:
         name = str(p.get("name") or p.get("hisName") or "未知患者")
         bed = str(p.get("bedNo") or p.get("bed") or p.get("bedLabel") or p.get("hisBed") or "?")
-        age = int(p.get("age") or 0)
-        sex = str(p.get("sex") or p.get("gender") or "未知")
-        diagnosis = str(p.get("diagnosis") or p.get("admitDiagnosis") or "未提供")
+        age = _calculate_age(p, now)
+        sex = _normalize_sex(p.get("sex") or p.get("gender") or p.get("hisSex"))
+        diagnosis = str(
+            p.get("diagnosis")
+            or p.get("clinicalDiagnosis")
+            or p.get("admissionDiagnosis")
+            or p.get("admitDiagnosis")
+            or "未提供"
+        )
         admit_raw = p.get("admissionTime") or p.get("inTime") or p.get("inDeptTime")
-        if isinstance(admit_raw, datetime):
-            day = (now.date() - admit_raw.date()).days
-        elif isinstance(admit_raw, str):
-            try:
-                day = (now.date() - datetime.fromisoformat(admit_raw).date()).days
-            except Exception:
-                day = 0
-        else:
-            day = 0
+        admit_dt = _parse_datetime(admit_raw)
+        day = (now.date() - admit_dt.date()).days if admit_dt else 0
         return Basics(
             name=name,
             bed=bed,
@@ -317,6 +477,78 @@ class ProgressNoteContextBuilder:
                 break
         return results
 
+    async def _build_infection_evidence(self, p_ids: list[str], start: datetime, end: datetime) -> InfectionEvidence | None:
+        col = self.db.dc_col("VI_ICU_EXAM_ITEM")
+        cursor = col.find(
+            {
+                "hisPid": {"$in": p_ids},
+                "$or": [
+                    {"authTime": {"$gte": start, "$lte": end}},
+                    {"reportTime": {"$gte": start, "$lte": end}},
+                    {"collectTime": {"$gte": start, "$lte": end}},
+                ],
+            },
+            {
+                "itemCnName": 1,
+                "itemName": 1,
+                "name": 1,
+                "result": 1,
+                "resultValue": 1,
+                "value": 1,
+                "unit": 1,
+                "resultFlag": 1,
+                "seriousFlag": 1,
+                "authTime": 1,
+                "reportTime": 1,
+                "collectTime": 1,
+                "time": 1,
+            },
+        ).sort("authTime", -1).limit(1200)
+        docs = await cursor.to_list(length=1200)
+
+        marker_keywords = ["白细胞", "wbc", "pct", "降钙素原", "crp", "c反应蛋白", "超敏c反应蛋白", "il-6", "白介素"]
+        culture_keywords = ["培养", "culture", "菌", "药敏", "涂片", "mngs", "病原", "血培养", "痰培养", "尿培养"]
+
+        def make_item(doc: dict) -> InfectionLabItem | None:
+            name = str(doc.get("itemCnName") or doc.get("itemName") or doc.get("name") or "").strip()
+            value = str(doc.get("result") or doc.get("resultValue") or doc.get("value") or "").strip()
+            if not name or not value:
+                return None
+            t = _lab_time(doc)
+            flag = str(doc.get("resultFlag") or doc.get("seriousFlag") or "").strip()
+            if flag in {"0", "正常", "normal", "NORMAL"}:
+                flag = ""
+            return InfectionLabItem(
+                name=name,
+                value=value,
+                unit=str(doc.get("unit") or ""),
+                observed_at=t.strftime("%Y-%m-%d %H:%M") if t else None,
+                flag=flag,
+            )
+
+        markers: list[InfectionLabItem] = []
+        cultures: list[InfectionLabItem] = []
+        seen_marker_names: set[str] = set()
+        seen_culture_names: set[str] = set()
+        for doc in docs:
+            name = str(doc.get("itemCnName") or doc.get("itemName") or doc.get("name") or "")
+            lowered = name.lower()
+            item = make_item(doc)
+            if not item:
+                continue
+            if any(token in lowered for token in marker_keywords) and item.name not in seen_marker_names:
+                markers.append(item)
+                seen_marker_names.add(item.name)
+            if any(token in lowered for token in culture_keywords) and item.name not in seen_culture_names:
+                cultures.append(item)
+                seen_culture_names.add(item.name)
+            if len(markers) >= 8 and len(cultures) >= 8:
+                break
+
+        if not markers and not cultures:
+            return None
+        return InfectionEvidence(inflammatory_markers=markers[:8], culture_results=cultures[:8])
+
     # ── Drugs ─────────────────────────────────────────────────────────
     async def _build_drugs(self, p: dict, start: datetime, end: datetime, p_ids: list[str]) -> list[DrugEvent]:
         # Try drugExe first (primary logs)
@@ -407,19 +639,52 @@ class ProgressNoteContextBuilder:
             {"mrn": {"$in": p_ids}, "inputTime": {"$gte": start, "$lte": end}},
             sort=[("inputTime", -1)],
         )
-        if not latest:
+        bedside_snapshot = await self._build_bedside_vent_snapshot(p_ids, start, end)
+        if not latest and not bedside_snapshot:
             return None
+        latest = latest or {}
 
-        mode = latest.get("ventMode") or latest.get("param_ventMode")
+        mode = (
+            latest.get("ventMode")
+            or latest.get("param_ventMode")
+            or _bedside_value(latest, "param_HuXiMoShi", "param_vent_mode")
+            or bedside_snapshot.get("mode")
+        )
         if not mode:
             return None
 
-        fio2 = _safe_float(latest.get("param_fio2") or latest.get("FiO2"), 0)
-        peep = _safe_float(latest.get("param_peep") or latest.get("PEEP"), 0)
-        vt = int(_safe_float(latest.get("param_vt") or latest.get("VT"), 0))
-        pplat = _safe_float(latest.get("param_pplat") or latest.get("Pplat"), 0)
-        spo2_val = _safe_float(latest.get("param_spo2") or latest.get("SpO2"), 0)
-        pf_ratio = round(spo2_val / fio2 * 100, 1) if fio2 > 0 and spo2_val > 0 else 0
+        fio2 = _safe_float(
+            latest.get("param_fio2")
+            or latest.get("FiO2")
+            or _bedside_value(latest, "param_FiO2", "param_bg_FiO2", "param_lis_xueQi_FiO2")
+            or bedside_snapshot.get("fio2"),
+            0,
+        )
+        peep = _safe_float(
+            latest.get("param_peep")
+            or latest.get("PEEP")
+            or _bedside_value(latest, "param_vent_measure_peep", "param_vent_peep")
+            or bedside_snapshot.get("peep"),
+            0,
+        )
+        vt = int(_safe_float(latest.get("param_vt") or latest.get("VT") or _bedside_value(latest, "param_vent_vt") or bedside_snapshot.get("vt"), 0))
+        pplat = _safe_float(
+            latest.get("param_pplat")
+            or latest.get("Pplat")
+            or _bedside_value(latest, "param_vent_plat_pressure")
+            or bedside_snapshot.get("pplat"),
+            0,
+        )
+        # P/F ratio 必须使用动脉血气直接给出的值，不可用 SpO2 推算
+        pf_raw = latest.get("param_bg_P/Fratio")
+        if pf_raw is None:
+            pf_raw = latest.get("param_bg_PFratio")  # 兼容可能的命名变体
+        if pf_raw is None:
+            pf_raw = _bedside_value(latest, "param_bg_P/Fratio", "param_bg_PFratio", "param_bg_OI")
+        if pf_raw is None:
+            pf_raw = bedside_snapshot.get("pf_ratio")
+        pf_ratio = _safe_float(pf_raw, 0)
+        pf_ratio = round(pf_ratio, 1) if pf_ratio > 0 else None
 
         return Ventilator(
             mode=str(mode),
@@ -430,6 +695,73 @@ class ProgressNoteContextBuilder:
             pf_ratio=pf_ratio,
             changes=[],
         )
+
+    async def _build_bedside_vent_snapshot(self, p_ids: list[str], start: datetime, end: datetime) -> dict[str, Any]:
+        codes = {
+            "mode": {"param_HuXiMoShi", "param_vent_mode"},
+            "fio2": {"param_FiO2", "param_bg_FiO2", "param_lis_xueQi_FiO2", "param_XiYangNongdu"},
+            "peep": {"param_vent_measure_peep", "param_vent_peep"},
+            "vt": {"param_vent_vt"},
+            "pplat": {"param_vent_plat_pressure"},
+            "pf_ratio": {"param_bg_P/Fratio", "param_bg_PFratio", "param_bg_OI"},
+        }
+        all_codes = {code for group in codes.values() for code in group}
+        cursor = self.db.col("bedside").find(
+            {
+                "pid": {"$in": p_ids},
+                "code": {"$in": list(all_codes)},
+                "time": {"$gte": start, "$lte": end},
+            },
+            {"code": 1, "time": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
+        ).sort("time", -1).limit(200)
+        snapshot: dict[str, Any] = {}
+        async for row in cursor:
+            code = str(row.get("code") or "")
+            value = _first_value(row)
+            if value is None:
+                continue
+            for key, group in codes.items():
+                if key not in snapshot and code in group:
+                    snapshot[key] = value
+                    break
+            if all(key in snapshot for key in codes):
+                break
+        return snapshot
+
+    async def _build_neuro_assessment(self, p_ids: list[str], start: datetime, end: datetime) -> NeuroAssessment | None:
+        codes = {
+            "rass": {"param_score_rass_obs", "param_score_rass_obs_Q4H"},
+            "cam_icu": {"param_score_cam_icu", "param_cam_icu", "param_CAM_ICU"},
+        }
+        all_codes = {code for group in codes.values() for code in group}
+        cursor = self.db.col("bedside").find(
+            {
+                "pid": {"$in": p_ids},
+                "code": {"$in": list(all_codes)},
+                "time": {"$gte": start, "$lte": end},
+            },
+            {"code": 1, "time": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
+        ).sort("time", -1).limit(50)
+        rass = None
+        cam_icu = None
+        observed_at = None
+        refs: list[str] = []
+        async for row in cursor:
+            code = str(row.get("code") or "")
+            value = _first_value(row)
+            if observed_at is None:
+                observed_at = str(row.get("time") or "")
+            if code in codes["rass"] and rass is None:
+                rass = _safe_float_or_none(value)
+                refs.append(code)
+            elif code in codes["cam_icu"] and cam_icu is None:
+                cam_icu = str(value)
+                refs.append(code)
+            if rass is not None and cam_icu is not None:
+                break
+        if rass is None and cam_icu is None:
+            return None
+        return NeuroAssessment(rass=rass, cam_icu=cam_icu, observed_at=observed_at, evidence_refs=refs)
 
     # ── Alerts ────────────────────────────────────────────────────────
     async def _build_alerts(self, p_oid: str, start: datetime, end: datetime) -> list[AlertItem]:
@@ -488,3 +820,230 @@ class ProgressNoteContextBuilder:
             sofa=int(_safe_float(sofa_doc.get("score") or sofa_doc.get("total_score"), 0)) if sofa_doc else 0,
             apache=int(_safe_float(apache_doc.get("score") or apache_doc.get("total_score"), 0)) if apache_doc else 0,
         )
+
+    async def _build_fluid_balance(self, bedside_pids: list[str], start: datetime, end: datetime) -> FluidBalance | None:
+        code_sets = await self._fluid_config_codes()
+
+        async def latest_value(codes: set[str]) -> tuple[float | None, str | None]:
+            if not codes:
+                return None, None
+            row = await self.db.col("bedside").find_one(
+                {
+                    "pid": {"$in": bedside_pids},
+                    "code": {"$in": list(codes)},
+                    "time": {"$gte": start, "$lte": end},
+                },
+                sort=[("time", -1)],
+            )
+            if not row:
+                return None, None
+            value = _safe_float_or_none(_first_value(row))
+            return value, str(row.get("code") or "")
+
+        async def sum_values(codes: set[str], source_label: str) -> tuple[float | None, str | None]:
+            if not codes:
+                return None, None
+            rows = await self.db.col("bedside").find(
+                {
+                    "pid": {"$in": bedside_pids},
+                    "code": {"$in": list(codes)},
+                    "time": {"$gte": start, "$lte": end},
+                },
+                {"fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
+            ).to_list(length=5000)
+            values = [_safe_float_or_none(_first_value(row)) for row in rows]
+            values = [value for value in values if value is not None and value > 0]
+            if not values:
+                return None, None
+            return round(sum(values), 1), source_label
+
+        intake, intake_code = await latest_value(code_sets["intake_total"])
+        output, output_code = await latest_value(code_sets["output_total"])
+        if intake is None:
+            intake, intake_code = await sum_values(code_sets["intake_detail"], "入量明细汇总")
+        if output is None:
+            output, output_code = await sum_values(code_sets["output_detail"], "出量明细汇总")
+        urine, urine_code = await latest_value(code_sets["urine"])
+
+        if urine is None:
+            rows = await self.db.col("bedside").find(
+                {
+                    "pid": {"$in": bedside_pids},
+                    "code": {"$in": list(code_sets["urine_hourly"])},
+                    "time": {"$gte": start, "$lte": end},
+                },
+                {"fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
+            ).to_list(length=2000)
+            values = [_safe_float_or_none(_first_value(row)) for row in rows]
+            values = [value for value in values if value is not None and value > 0]
+            if values:
+                urine = round(sum(values), 1)
+                urine_code = "尿量小时记录汇总"
+
+        if intake is None and output is None and urine is None:
+            return None
+
+        net = round((intake or 0) - (output or 0), 1) if intake is not None and output is not None else None
+        refs = [code for code in [intake_code, output_code, urine_code] if code]
+        return FluidBalance(
+            intake_24h_ml=round(intake, 1) if intake is not None else None,
+            output_24h_ml=round(output, 1) if output is not None else None,
+            urine_24h_ml=round(urine, 1) if urine is not None else None,
+            net_24h_ml=net,
+            evidence_refs=refs,
+        )
+
+    async def _fluid_config_codes(self) -> dict[str, set[str]]:
+        defaults = {
+            "intake_total": {"param_in_hour_sum"},
+            "output_total": {"param_out_hour_sum"},
+            "intake_detail": set(),
+            "output_detail": set(),
+            "urine": {"param_udd_urine_24h", "param_udd_urine_total"},
+            "urine_hourly": {
+                "param_niaoLiang",
+                "param_niaoLiang_pure",
+                "param_udd_urine_cur",
+                "param_udd_urine_1h",
+            },
+        }
+        try:
+            rows = await self.db.col("configParam").find(
+                {
+                    "$or": [
+                        {"calculation": {"$in": ["in", "out"]}},
+                        {"code": {"$regex": "urine|niao|udd_urine|in_hour_sum|out_hour_sum", "$options": "i"}},
+                    ],
+                    "valid": {"$ne": False},
+                },
+                {"code": 1, "calculation": 1},
+            ).to_list(length=500)
+        except Exception:
+            rows = []
+
+        codes = {key: set(value) for key, value in defaults.items()}
+        for row in rows:
+            code = str(row.get("code") or "").strip()
+            if not code:
+                continue
+            calc = str(row.get("calculation") or "").strip().lower()
+            lowered = code.lower()
+            if calc == "in":
+                if "sum" in lowered or "total" in lowered or "24" in lowered:
+                    codes["intake_total"].add(code)
+                else:
+                    codes["intake_detail"].add(code)
+            if calc == "out":
+                if "sum" in lowered or "total" in lowered or "24" in lowered:
+                    codes["output_total"].add(code)
+                else:
+                    codes["output_detail"].add(code)
+            if any(token in lowered for token in ["urine", "niao", "udd_urine"]):
+                if any(token in lowered for token in ["24h", "24", "total"]):
+                    codes["urine"].add(code)
+                else:
+                    codes["urine_hourly"].add(code)
+        return codes
+
+    async def _build_line_devices(self, bedside_pids: list[str], start: datetime, end: datetime) -> LineDevices | None:
+        tube_rows = await self.db.col("tubeExe").find(
+            {"pid": {"$in": bedside_pids}},
+            {
+                "name": 1,
+                "type": 1,
+                "body": 1,
+                "startTime": 1,
+                "endTime": 1,
+                "stopTime": 1,
+                "removeTime": 1,
+                "drawingTime": 1,
+                "status": 1,
+                "tubeStatus": 1,
+                "tubeRecordList": 1,
+            },
+        ).sort("startTime", 1).limit(100).to_list(length=100)
+
+        now = end
+        active_tubes: list[TubeDevice] = []
+        for row in tube_rows:
+            if not _is_active_tube(row):
+                continue
+            start_dt = _parse_datetime(row.get("startTime"))
+            latest_record_time = None
+            latest_status = ""
+            records = row.get("tubeRecordList") if isinstance(row.get("tubeRecordList"), list) else []
+            valid_records = [record for record in records if isinstance(record, dict) and record.get("valid") is not False]
+            if valid_records:
+                latest = max(valid_records, key=lambda item: _parse_datetime(item.get("time")) or datetime.min)
+                latest_record_time = str(latest.get("time") or "")
+                status_parts = [
+                    str(latest.get(key) or "").strip()
+                    for key in ("unobstructed", "piercingHole", "positionSituation", "location", "changeDressing")
+                    if latest.get(key)
+                ]
+                latest_status = "，".join(dict.fromkeys(status_parts))
+            category = _tube_category(row)
+            active_tubes.append(
+                TubeDevice(
+                    name=str(row.get("name") or row.get("type") or _tube_category_label(category)),
+                    category=category,
+                    site=str(row.get("body") or ""),
+                    dwell_days=max(0, (now - start_dt).days) if start_dt else None,
+                    start_time=str(row.get("startTime") or ""),
+                    latest_record_time=latest_record_time,
+                    latest_status=latest_status,
+                )
+            )
+
+        drainage_codes = await self._drainage_config_codes()
+        drainage_24h_ml = None
+        used_drainage_codes: list[str] = []
+        if drainage_codes:
+            rows = await self.db.col("bedside").find(
+                {
+                    "pid": {"$in": bedside_pids},
+                    "code": {"$in": list(drainage_codes)},
+                    "time": {"$gte": start, "$lte": end},
+                },
+                {"code": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
+            ).to_list(length=2000)
+            values = []
+            for row in rows:
+                value = _safe_float_or_none(_first_value(row))
+                if value is not None and value > 0:
+                    values.append(value)
+                    used_drainage_codes.append(str(row.get("code") or ""))
+            if values:
+                drainage_24h_ml = round(sum(values), 1)
+
+        if not active_tubes and drainage_24h_ml is None:
+            return None
+        return LineDevices(
+            active_tubes=active_tubes,
+            drainage_24h_ml=drainage_24h_ml,
+            drainage_codes=sorted(set(used_drainage_codes)),
+        )
+
+    async def _drainage_config_codes(self) -> set[str]:
+        try:
+            rows = await self.db.col("configParam").find(
+                {
+                    "$or": [
+                        {"code": {"$regex": "drain|引流|胸管|腹腔", "$options": "i"}},
+                        {"name": {"$regex": "drain|引流|胸管|腹腔", "$options": "i"}},
+                    ],
+                    "valid": {"$ne": False},
+                },
+                {"code": 1, "calculation": 1},
+            ).to_list(length=500)
+        except Exception:
+            rows = []
+        codes: set[str] = set()
+        for row in rows:
+            code = str(row.get("code") or "").strip()
+            if not code:
+                continue
+            lowered = code.lower()
+            if str(row.get("calculation") or "").lower() == "out" or lowered.startswith("param_tube_"):
+                codes.add(code)
+        return codes

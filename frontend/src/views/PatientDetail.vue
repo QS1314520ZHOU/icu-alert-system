@@ -40,6 +40,10 @@
     </section>
 
     <section class="patient-action-rail">
+      <div class="patient-action-title">
+        <span>下一步操作</span>
+        <strong>先复核风险，再查看趋势，最后完成查房和病历文书</strong>
+      </div>
       <button
         v-for="item in patientActionRail"
         :key="item.key"
@@ -731,6 +735,7 @@ const detailTabShortcuts: Array<{ key: DetailTabKey; label: string }> = [
   { key: 'labs', label: '检验' },
   { key: 'waveform', label: '波形' },
   { key: 'ai', label: 'AI' },
+  { key: 'documents', label: '病历文书' },
 ]
 const detailTabLabelMap: Record<DetailTabKey, string> = {
   ecash: 'eCASH',
@@ -1188,6 +1193,20 @@ function formatHeroMetric(value: any) {
   return Math.abs(num - Math.round(num)) < 0.05 ? String(Math.round(num)) : num.toFixed(1)
 }
 
+function formatClinicalNumber(value: any, digits = 1) {
+  if (value == null || value === '') return '—'
+  const num = Number(value)
+  if (!Number.isFinite(num)) return String(value)
+  const rounded = Number(num.toFixed(digits))
+  if (digits <= 0 || Math.abs(rounded - Math.round(rounded)) < 1e-9) return String(Math.round(rounded))
+  return rounded.toFixed(digits).replace(/\.?0+$/, '')
+}
+
+function formatClinicalMeasure(value: any, unit = '', digits = 1) {
+  const text = formatClinicalNumber(value, digits)
+  return text === '—' ? text : `${text}${unit}`
+}
+
 function formatHeroPercent(value: any) {
   const text = formatHeroMetric(value)
   return text === '—' ? text : `${text}%`
@@ -1346,14 +1365,13 @@ const patientActionRail = computed(() => {
     const flag = String(row?.flag || row?.abnormalFlag || row?.resultFlag || '').toLowerCase()
     return flag && !['n', 'normal', '正常'].includes(flag)
   }).length
-  const sbtLabel = sbtAssessment.value?.label || (weaningAssessment.value?.has_assessment ? '已评估' : '待评估')
-  const aiState = aiRuntimeSummary.value.level === 'red' ? '异常' : '正常'
+  const aiState = aiRuntimeSummary.value.level === 'red' ? '需复核' : '可查看'
   return [
-    { key: 'alert', label: '高危预警', value: highAlerts, hint: latestCompositeInvolvedText.value.replace('涉及系统: ', '') || '看预警', tab: 'alerts', tone: highAlerts ? 'danger' : 'stable' },
-    { key: 'sbt', label: '撤机/SBT', value: sbtLabel, hint: `P/F ${weaningAssessment.value?.pf_ratio ?? '—'}`, tab: 'sbt', tone: weaningAssessment.value?.risk_level === 'high' ? 'danger' : 'info' },
-    { key: 'lab', label: '异常检验', value: abnormalLabs, hint: '看趋势和检验', tab: 'labs', tone: abnormalLabs ? 'warning' : 'stable' },
-    { key: 'ai', label: 'AI辅助', value: aiState, hint: latestAiRiskAlert.value?.name || '解释与建议', tab: 'ai', tone: aiRuntimeSummary.value.level === 'red' ? 'danger' : 'info' },
-    { key: 'drug', label: '用药', value: drugTableRows.value.length, hint: '医嘱/执行', tab: 'drugs', tone: 'stable' },
+    { key: 'risk', label: '风险复核', value: highAlerts ? `${highAlerts}条高危` : '暂无高危', hint: latestCompositeInvolvedText.value.replace('涉及系统: ', '') || '查看预警证据', tab: 'alerts', tone: highAlerts ? 'danger' : 'stable' },
+    { key: 'trend', label: '查看趋势', value: abnormalLabs ? `${abnormalLabs}项异常` : '趋势稳定', hint: '生命体征和检验走势', tab: 'trend', tone: abnormalLabs ? 'warning' : 'info' },
+    { key: 'rounding', label: '查房摘要', value: aiState, hint: latestAiRiskAlert.value?.name || 'AI解释与建议', tab: 'ai', tone: aiRuntimeSummary.value.level === 'red' ? 'danger' : 'info' },
+    { key: 'documents', label: '病历文书', value: '生成/编辑', hint: '病程记录和引用核对', tab: 'documents', tone: 'info' },
+    { key: 'consult', label: '进入AI问诊', value: '带入患者', hint: '围绕当前患者提问', tab: 'ai', tone: 'stable' },
   ]
 })
 
@@ -1711,7 +1729,7 @@ const trendOption = computed(() => {
           const lookup = tooltipLookup.get(`${item.seriesName}|${Array.isArray(item.value) ? item.value[0] : time}`)
           if (lookup) {
             const range = lookup.lower != null && lookup.upper != null ? `，80%区间 ${Number(lookup.lower).toFixed(1)} ~ ${Number(lookup.upper).toFixed(1)}` : ''
-            const source = meta.source === 'chronos' ? 'Chronos' : '线性外推'
+            const source = meta.source === 'chronos' ? '时序预测模型' : '规则外推'
             lines.push(`${item.marker}${lookup.metric} 预测均值 ${Number(value).toFixed(1)}${range}，来源 ${source}，${fmtTime(meta.generatedAt)} 生成`)
           } else {
             const mapNote = item.seriesName === 'MAP' ? '，来源 IBP/NIBP 合并' : ''
@@ -2528,10 +2546,10 @@ function alertDetailFields(item: any) {
 
   if (t === 'ards') {
     fields.push(
-      { label: 'P/F', value: item?.value ?? item?.condition?.pf_ratio },
-      { label: 'PaO₂', value: extra?.pao2 },
-      { label: 'FiO₂', value: extra?.fio2 },
-      { label: 'PEEP', value: extra?.peep },
+      { label: 'P/F', value: formatClinicalNumber(item?.value ?? item?.condition?.pf_ratio, 1) },
+      { label: 'PaO₂', value: formatClinicalNumber(extra?.pao2, 0) },
+      { label: 'FiO₂', value: formatClinicalNumber(extra?.fio2, Number(extra?.fio2) > 1 ? 0 : 2) },
+      { label: 'PEEP', value: formatClinicalNumber(extra?.peep, 1) },
     )
     appendAlertLifecycleFields(fields, item)
     return fields
@@ -2630,23 +2648,23 @@ function alertDetailFields(item: any) {
 
   if (t === 'weaning') {
     fields.push(
-      { label: '风险评分', value: extra?.risk_score ?? item?.value },
+      { label: '风险评分', value: formatClinicalNumber(extra?.risk_score ?? item?.value, 1) },
       { label: '风险分层', value: extra?.risk_level || '—' },
       { label: '建议', value: extra?.recommendation || '—' },
-      { label: 'FiO₂', value: extra?.fio2 },
-      { label: 'PEEP', value: extra?.peep },
-      { label: 'RSBI', value: extra?.rsbi },
-      { label: 'MAP', value: extra?.map },
-      { label: 'GCS', value: extra?.gcs },
+      { label: 'FiO₂', value: formatClinicalNumber(extra?.fio2, Number(extra?.fio2) > 1 ? 0 : 2) },
+      { label: 'PEEP', value: formatClinicalNumber(extra?.peep, 1) },
+      { label: 'RSBI', value: formatClinicalNumber(extra?.rsbi, 1) },
+      { label: 'MAP', value: formatClinicalNumber(extra?.map, 0) },
+      { label: 'GCS', value: formatClinicalNumber(extra?.gcs, 0) },
     )
     return fields
   }
 
   if (t === 'post_extubation_failure_risk') {
     fields.push(
-      { label: 'RR', value: extra?.rr != null ? `${extra.rr} 次/分` : '—' },
-      { label: 'SpO₂', value: extra?.spo2 != null ? `${extra.spo2}%` : '—' },
-      { label: '拔管后时长', value: extra?.hours_since_extubation != null ? `${extra.hours_since_extubation} h` : '—' },
+      { label: 'RR', value: formatClinicalMeasure(extra?.rr, ' 次/分', 0) },
+      { label: 'SpO₂', value: formatClinicalMeasure(extra?.spo2, '%', 0) },
+      { label: '拔管后时长', value: formatClinicalMeasure(extra?.hours_since_extubation, ' h', 1) },
       { label: '辅助呼吸肌', value: extra?.accessory_muscle_use ? '有' : '无' },
     )
     return fields
@@ -2672,8 +2690,8 @@ function alertDetailFields(item: any) {
 
   if (t === 'af_afl_new_onset') {
     fields.push(
-      { label: '峰值HR', value: extra?.hr_peak_in_segment != null ? `${extra.hr_peak_in_segment} bpm` : item?.value },
-      { label: '不规则时长', value: extra?.irregular_duration_seconds != null ? `${extra.irregular_duration_seconds}s` : '—' },
+      { label: '峰值HR', value: extra?.hr_peak_in_segment != null ? formatClinicalMeasure(extra.hr_peak_in_segment, ' bpm', 0) : formatClinicalNumber(item?.value, 0) },
+      { label: '不规则时长', value: formatClinicalMeasure(extra?.irregular_duration_seconds, 's', 0) },
       { label: 'AF标签', value: extra?.has_af_tag ? '是' : '否' },
       { label: 'AFL标签', value: extra?.has_afl_tag ? '是' : '否' },
     )
@@ -2682,18 +2700,18 @@ function alertDetailFields(item: any) {
 
   if (t === 'brady_hypotension') {
     fields.push(
-      { label: 'HR', value: extra?.latest_hr != null ? `${extra.latest_hr} bpm` : item?.value },
-      { label: '当前SBP', value: extra?.latest_sbp != null ? `${extra.latest_sbp} mmHg` : '—' },
-      { label: '基线SBP', value: extra?.baseline_sbp != null ? `${extra.baseline_sbp} mmHg` : '—' },
-      { label: 'SBP下降', value: extra?.drop_sbp != null ? `${extra.drop_sbp} mmHg` : '—' },
+      { label: 'HR', value: extra?.latest_hr != null ? formatClinicalMeasure(extra.latest_hr, ' bpm', 0) : formatClinicalNumber(item?.value, 0) },
+      { label: '当前SBP', value: formatClinicalMeasure(extra?.latest_sbp, ' mmHg', 0) },
+      { label: '基线SBP', value: formatClinicalMeasure(extra?.baseline_sbp, ' mmHg', 0) },
+      { label: 'SBP下降', value: formatClinicalMeasure(extra?.drop_sbp, ' mmHg', 0) },
     )
     return fields
   }
 
   if (t === 'qtc_prolonged') {
     fields.push(
-      { label: 'QTc', value: extra?.qtc_ms != null ? `${extra.qtc_ms} ms` : (item?.value != null ? `${item.value} ms` : '—') },
-      { label: '阈值', value: extra?.qtc_threshold_ms != null ? `${extra.qtc_threshold_ms} ms` : '—' },
+      { label: 'QTc', value: extra?.qtc_ms != null ? formatClinicalMeasure(extra.qtc_ms, ' ms', 0) : formatClinicalMeasure(item?.value, ' ms', 0) },
+      { label: '阈值', value: formatClinicalMeasure(extra?.qtc_threshold_ms, ' ms', 0) },
       { label: '来源', value: extra?.source_code || '—' },
     )
     return fields
@@ -2701,26 +2719,26 @@ function alertDetailFields(item: any) {
 
   if (t === 'opioid_high_dose_resp_risk') {
     fields.push(
-      { label: '24h吗啡当量', value: extra?.opioid_med_24h_mg != null ? `${extra.opioid_med_24h_mg} mg` : item?.value },
-      { label: '阈值', value: extra?.threshold_mg_per_day != null ? `${extra.threshold_mg_per_day} mg/d` : '—' },
+      { label: '24h吗啡当量', value: extra?.opioid_med_24h_mg != null ? formatClinicalMeasure(extra.opioid_med_24h_mg, ' mg', 1) : formatClinicalNumber(item?.value, 1) },
+      { label: '阈值', value: formatClinicalMeasure(extra?.threshold_mg_per_day, ' mg/d', 1) },
     )
     return fields
   }
 
   if (t === 'opioid_respiratory_depression') {
     fields.push(
-      { label: 'RR', value: extra?.rr != null ? `${extra.rr} 次/分` : '—' },
-      { label: 'SpO₂', value: extra?.latest_spo2 != null ? `${extra.latest_spo2}%` : '—' },
-      { label: 'SpO₂下降', value: extra?.spo2_drop != null ? `${extra.spo2_drop}%` : '—' },
-      { label: '24h吗啡当量', value: extra?.opioid_med_24h_mg != null ? `${extra.opioid_med_24h_mg} mg` : '—' },
+      { label: 'RR', value: formatClinicalMeasure(extra?.rr, ' 次/分', 0) },
+      { label: 'SpO₂', value: formatClinicalMeasure(extra?.latest_spo2, '%', 0) },
+      { label: 'SpO₂下降', value: formatClinicalMeasure(extra?.spo2_drop, '%', 0) },
+      { label: '24h吗啡当量', value: formatClinicalMeasure(extra?.opioid_med_24h_mg, ' mg', 1) },
     )
     return fields
   }
 
   if (t === 'opioid_withdrawal_risk') {
     fields.push(
-      { label: '持续用药时长', value: extra?.course_duration_hours != null ? `${extra.course_duration_hours} h` : '—' },
-      { label: '停药时长', value: extra?.since_last_opioid_hours != null ? `${extra.since_last_opioid_hours} h` : (item?.value != null ? `${item.value} h` : '—') },
+      { label: '持续用药时长', value: formatClinicalMeasure(extra?.course_duration_hours, ' h', 1) },
+      { label: '停药时长', value: extra?.since_last_opioid_hours != null ? formatClinicalMeasure(extra.since_last_opioid_hours, ' h', 1) : formatClinicalMeasure(item?.value, ' h', 1) },
       { label: '末次用药', value: fmtTime(extra?.course_last) || '—' },
     )
     return fields
@@ -3276,7 +3294,7 @@ function alertTypeText(raw: any) {
     glucose_drop_fast: '血糖快速下降',
     glucose_recheck_reminder: '血糖复查提醒',
     hyperglycemia_no_insulin: '高血糖未启胰岛素',
-    abx_timeout: '抗生素time-out',
+    abx_timeout: '抗菌药复核超时',
     abx_stop_recommendation: 'PCT停药评估',
     abx_tdm_reminder: '抗生素TDM提醒',
     abx_duration_exceeded: '抗生素疗程超限',
@@ -4017,7 +4035,7 @@ async function loadDetailPage() {
     })(),
     (async () => {
       try {
-        const vRes = await getPatientVitals(patientId)
+        const vRes = await getPatientVitals(patientId, 6000)
         vitals.value = vRes.data.vitals || null
       } catch (e) {
         console.error('加载生命体征失败', e)
@@ -4025,7 +4043,7 @@ async function loadDetailPage() {
     })(),
     (async () => {
       try {
-        const res = await getPatientBedcard(patientId)
+        const res = await getPatientBedcard(patientId, 8000)
         bedcard.value = res.data?.data || null
       } catch (e) {
         console.error('加载床旁概览卡失败', e)
@@ -4091,7 +4109,10 @@ watch(waveformSelectedChannel, () => {
 
 watch(visibleDetailTabs, (tabs) => {
   if (tabs.length && !tabs.includes(activeTab.value as DetailTabKey)) {
-    activeTab.value = tabs[0] as DetailTabKey
+    ensureTabVisible(activeTab.value)
+    if (!visibleDetailTabs.value.includes(activeTab.value as DetailTabKey)) {
+      activeTab.value = visibleDetailTabs.value[0] as DetailTabKey
+    }
   }
 })
 
@@ -4275,9 +4296,28 @@ onBeforeUnmount(() => {
 }
 .patient-action-rail {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: 1.25fr repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin: 0 0 14px;
+}
+.patient-action-title {
+  min-height: 94px;
+  padding: 13px 14px;
+  border: 1px solid rgba(125, 211, 252, .16);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(9, 31, 48, .94), rgba(7, 20, 34, .98));
+}
+.patient-action-title span {
+  display: block;
+  color: #8aa4b8;
+  font-size: 12px;
+}
+.patient-action-title strong {
+  display: block;
+  margin-top: 6px;
+  color: #f0fbff;
+  font-size: 18px;
+  line-height: 1.35;
 }
 .patient-action-tile {
   min-height: 94px;
@@ -5733,6 +5773,29 @@ html[data-theme='light'] .detail-density-kicker {
   border-color: rgba(59, 130, 246, 0.18);
   color: #1d4ed8;
 }
+html[data-theme='light'] .patient-action-title,
+html[data-theme='light'] .patient-action-tile {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .98), rgba(241, 246, 251, .98));
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+}
+html[data-theme='light'] .patient-action-title span,
+html[data-theme='light'] .patient-action-tile span,
+html[data-theme='light'] .patient-action-tile em {
+  color: #47627e;
+}
+html[data-theme='light'] .patient-action-title strong,
+html[data-theme='light'] .patient-action-tile strong {
+  color: #16324f;
+}
+html[data-theme='light'] .patient-action-tile.tone-danger {
+  border-color: rgba(220, 38, 38, .28);
+  background: linear-gradient(145deg, rgba(254, 242, 242, .98), rgba(255, 255, 255, .98));
+}
+html[data-theme='light'] .patient-action-tile.tone-warning {
+  border-color: rgba(217, 119, 6, .28);
+  background: linear-gradient(145deg, rgba(255, 251, 235, .98), rgba(255, 255, 255, .98));
+}
 html[data-theme='light'] .monitor-hero,
 html[data-theme='light'] .weaning-card,
 html[data-theme='light'] .info-card,
@@ -6072,6 +6135,12 @@ html[data-theme='light'] .ai-error { color: #dc2626; }
   .hero-vitals {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .patient-action-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .patient-action-title {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 980px) {
@@ -6127,6 +6196,13 @@ html[data-theme='light'] .ai-error { color: #dc2626; }
   .hero-fact-grid,
   .hero-vitals {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .patient-action-rail {
+    grid-template-columns: 1fr;
+  }
+  .patient-action-title,
+  .patient-action-tile {
+    min-height: 0;
   }
   .hero-vital strong {
     font-size: 22px;

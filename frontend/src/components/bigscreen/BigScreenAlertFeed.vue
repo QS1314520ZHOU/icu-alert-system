@@ -481,7 +481,7 @@ function labelType(v: any) {
     glucose_drop_fast: '血糖快速下降',
     glucose_recheck_reminder: '血糖复查提醒',
     hyperglycemia_no_insulin: '高血糖未启胰岛素',
-    abx_timeout: '抗生素time-out',
+    abx_timeout: '抗菌药复核超时',
     abx_stop_recommendation: 'PCT停药评估',
     abx_tdm_reminder: '抗生素TDM提醒',
     abx_duration_exceeded: '抗生素疗程超限',

@@ -89,6 +89,31 @@ function dataPointCount(data: any) {
   }, 0)
 }
 
+export function forecastErrorText(value: any) {
+  const raw = String(value || '').trim()
+  if (!raw) return '预测暂不可用'
+  const lower = raw.toLowerCase()
+  if (lower.includes('timeout') || lower.includes('exceeded') || lower.includes('econnaborted')) return '请求超时，请稍后重试'
+  if (lower.includes('model') && (lower.includes('not ready') || lower.includes('not loaded') || lower.includes('unavailable'))) return '模型未就绪，已暂不可用'
+  if (lower.includes('service unavailable')) return '服务暂不可用，请稍后重试'
+  const map: Record<string, string> = {
+    forecast_timeout: '预测计算超时，请稍后重试',
+    forecast_unavailable: '预测暂不可用',
+    forecast_threshold_breach: '预测达到预警阈值',
+    trajectory_forecast: '轨迹预测',
+    temporal_risk_forecast: '时序风险预测',
+    model_not_loaded: '模型未就绪，已暂不可用',
+    model_not_ready: '模型未就绪，已暂不可用',
+    model_inference_error: '模型推理失败',
+    insufficient_history: '历史数据不足',
+    invalid_horizon: '预测窗口不合法',
+    disabled: '预测已关闭',
+    unavailable: '暂不可用',
+    'trajectory forecast disabled by runtime config': '轨迹预测已关闭',
+  }
+  return map[raw] || map[lower] || raw
+}
+
 function metaFromData(data: any, status: ForecastStatus, latencyMs = 0, error = ''): ForecastMeta {
   const model = data?.model_meta || {}
   const disabledOrError = data?.available === false && !data?.source
@@ -98,8 +123,8 @@ function metaFromData(data: any, status: ForecastStatus, latencyMs = 0, error = 
     horizon: Number(data?.horizon_hours || 0),
     generatedAt: String(data?.generated_at || ''),
     qualityLevel: qualityLevel(data),
-    fallbackReason: String(data?.fallback_reason || data?.reason || ''),
-    error,
+    fallbackReason: forecastErrorText(data?.fallback_reason || data?.reason || ''),
+    error: forecastErrorText(error),
     dataPoints: dataPointCount(data),
     modelVersion: String(model?.calibration_version || model?.config_version || ''),
     latencyMs,
@@ -135,7 +160,7 @@ export function useVitalForecast() {
     if (!args.patientId || !args.codes.length) return
     if (args.horizon < 1 || args.horizon > 12) {
       state.status = 'error'
-      state.error = 'invalid_horizon'
+      state.error = forecastErrorText('invalid_horizon')
       trackForecast('invalid_horizon', { patientId: args.patientId, horizon: args.horizon })
       return
     }
@@ -167,7 +192,7 @@ export function useVitalForecast() {
       state.status = state.data?.available === false && !state.data?.source ? 'error' : 'ready'
       state.source = state.data?.source === 'chronos' ? 'chronos' : state.data?.source === 'heuristic' ? 'heuristic' : ''
       state.latencyMs = latencyMs
-      state.error = state.status === 'error' ? String(state.data?.fallback_reason || state.data?.reason || 'forecast_unavailable') : ''
+      state.error = state.status === 'error' ? forecastErrorText(state.data?.fallback_reason || state.data?.reason || 'forecast_unavailable') : ''
       setCache(key, state.data)
       if (state.status === 'error') {
         trackForecast('error', { patientId: args.patientId, horizon: args.horizon, latency_ms: latencyMs, error: state.error })
@@ -185,7 +210,7 @@ export function useVitalForecast() {
         return
       }
       state.status = 'error'
-      state.error = error?.message || 'forecast_unavailable'
+      state.error = forecastErrorText(error?.message || 'forecast_unavailable')
       state.data = null
       state.source = ''
       state.latencyMs = latencyMs

@@ -1,21 +1,24 @@
 <template>
-  <a-alert
+  <AAlert
     type="warning"
     show-icon
     class="hallucination-warning"
   >
     <template #message>
-      <span class="hw-title">⚠️ 检测到 {{ warnings.length }} 处可疑引用，请重点核对</span>
+      <span class="hw-title">检测到 {{ warnings.length }} 处需要核对的引用，请重点复核</span>
     </template>
     <template #description>
       <ul class="hw-list">
-        <li v-for="(w, i) in warnings" :key="i" class="hw-item">{{ w }}</li>
+        <li v-for="(w, i) in warnings" :key="i" class="hw-item">{{ formatClinicalText(w, '请复核引用依据') }}</li>
       </ul>
     </template>
-  </a-alert>
+  </AAlert>
 </template>
 
 <script setup lang="ts">
+import { Alert as AAlert } from 'ant-design-vue'
+import { formatClinicalText } from '../../utils/displayLabels'
+
 defineProps<{ warnings: string[] }>()
 </script>
 
@@ -39,7 +42,8 @@ defineProps<{ warnings: string[] }>()
 }
 
 /* ================= Dark Theme Overrides ================= */
-:global(.theme-dark) .hw-item {
+:global(html[data-theme='dark']) .hw-item {
   color: #fbbf24;
 }
 </style>
+

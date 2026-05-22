@@ -327,8 +327,8 @@ import {
 } from '../../utils/bodyMap'
 
 const BEDCARD_CACHE_TTL_MS = 60 * 1000
-const BEDCARD_FAIL_COOLDOWN_MS = 20 * 1000
-const BEDCARD_MAX_CONCURRENT = 4
+const BEDCARD_FAIL_COOLDOWN_MS = 45 * 1000
+const BEDCARD_MAX_CONCURRENT = 2
 const bedcardCache = new Map<string, { data: any; expiresAt: number }>()
 const bedcardInFlight = new Map<string, Promise<any>>()
 const bedcardFailCooldown = new Map<string, number>()
@@ -375,13 +375,16 @@ const mergedVitals = computed(() => {
 
 const vitalsData = computed(() => {
   const v = mergedVitals.value || {}
-  const sbp = v.sbp ?? v.nibp_sys ?? v.ibp_sys
-  const dbp = v.dbp ?? v.nibp_dia ?? v.ibp_dia
+  const sbp = pickVital(v.sbp, v.ibp_sys, v.nibp_sys)
+  const dbp = pickVital(v.dbp, v.ibp_dia, v.nibp_dia)
+  const hr = pickVital(v.hr)
+  const spo2 = pickVital(v.spo2)
+  const temperature = pickVital(v.t, v.temp)
   return [
-    { key: 'hr', label: 'HR', value: v.hr ?? '--', colorClass: vitalClass('hr', v.hr) },
-    { key: 'bp', label: 'BP', value: sbp != null ? `${sbp}/${dbp ?? '--'}` : '--', colorClass: vitalClass('bp', sbp) },
-    { key: 'spo2', label: 'SpO₂', value: v.spo2 ?? '--', unit: '%', colorClass: vitalClass('spo2', v.spo2) },
-    { key: 'temp', label: 'T', value: temp(v.t ?? v.temp), unit: '℃', colorClass: vitalClass('t', v.t ?? v.temp) }
+    { key: 'hr', label: 'HR', value: formatVitalNumber(hr, 0), colorClass: vitalClass('hr', hr) },
+    { key: 'bp', label: 'BP', value: sbp != null ? `${formatVitalNumber(sbp, 0)}/${dbp != null ? formatVitalNumber(dbp, 0) : '--'}` : '--', colorClass: vitalClass('bp', sbp) },
+    { key: 'spo2', label: 'SpO₂', value: formatVitalNumber(spo2, 0), unit: '%', colorClass: vitalClass('spo2', spo2) },
+    { key: 'temp', label: 'T', value: temp(temperature), unit: '℃', colorClass: vitalClass('t', temperature) }
   ]
 })
 
@@ -425,6 +428,7 @@ const monitorSourceText = computed(() => {
   if (source === 'monitor') return '监护仪'
   if (source === 'nurse_manual') return '护士录入'
   if (source === 'alert_snapshot') return '告警快照'
+  if (source === 'bedside') return '床旁记录'
   if (source === 'bedside_text') return '床旁记录'
   if (source) return humanizeClinicalText(source)
   return '监护来源未标注'
@@ -503,7 +507,7 @@ async function loadBedcard() {
     return
   }
   const request = runBedcardRequest(async () => {
-    const res = await getPatientBedcard(props.patient._id)
+    const res = await getPatientBedcard(props.patient._id, 5000)
     if (res.data?.code === 0) {
       const data = res.data.data || null
       primeBedcardCache(cacheKey, data)
@@ -516,9 +520,8 @@ async function loadBedcard() {
   try {
     const data = await request
     bedcard.value = data
-  } catch (err) {
+  } catch {
     bedcardFailCooldown.set(cacheKey, now + BEDCARD_FAIL_COOLDOWN_MS)
-    console.error('Failed to load bedcard:', err)
   } finally {
     bedcardInFlight.delete(cacheKey)
   }
@@ -612,6 +615,7 @@ function humanizeCodeToken(value: any) {
     monitor: '监护仪',
     nurse_manual: '护士录入',
     alert_snapshot: '告警快照',
+    bedside: '床旁记录',
     bedside_text: '床旁记录',
     score: '评分记录',
   }
@@ -785,6 +789,21 @@ function severityLabel(raw: any) {
 }
 
 
+function pickVital(...values: any[]) {
+  for (const value of values) {
+    if (value !== null && value !== undefined && value !== '') return value
+  }
+  return null
+}
+
+function formatVitalNumber(value: any, digits = 0) {
+  if (value === null || value === undefined || value === '') return '--'
+  const n = Number(value)
+  if (!Number.isFinite(n)) return String(value)
+  const rounded = Number(n.toFixed(digits))
+  if (digits <= 0 || Number.isInteger(rounded)) return String(Math.round(rounded))
+  return rounded.toFixed(digits).replace(/\.?0+$/, '')
+}
 
 function temp(v: any) {
   if (v == null) return '--'

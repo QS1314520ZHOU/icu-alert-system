@@ -24,6 +24,29 @@ COLLECTION_DRAFTS = "clinical_document_drafts"
 COLLECTION_VERSIONS = "clinical_document_versions"
 
 
+def _clean_workbench_content(content: dict | None, context_snapshot: dict | None) -> dict | None:
+    """Apply current display/data-source rules to older saved workbench drafts."""
+    if not isinstance(content, dict):
+        return content
+    if content.get("content_type") != "rounding_workbench":
+        return content
+    if not isinstance(context_snapshot, dict):
+        return content
+    try:
+        from app.clinical_documents.document_generator import ProgressNoteGenerator, render_note_preview
+        from app.clinical_documents.schemas import ProgressNoteContext
+
+        ctx = ProgressNoteContext(**context_snapshot)
+        generator = ProgressNoteGenerator(cfg=None)
+        cleaned = generator._suppress_resolved_missing_data(dict(content), ctx)
+        cleaned["quality_checks"] = generator._run_quality_checks(cleaned, ctx)
+        cleaned["note_preview"] = render_note_preview(cleaned)
+        return cleaned
+    except Exception as exc:
+        logger.warning("清理历史文书草稿失败: %s", exc)
+        return content
+
+
 # ── Request / Response models ────────────────────────────────────────
 
 class GenerateRequest(BaseModel):
@@ -109,12 +132,16 @@ async def get_draft(draft_id: str, db: DbDep):
     if not doc:
         raise HTTPException(status_code=404, detail="草稿不存在")
     doc.pop("_id", None)
-    return {"draft_id": draft_id, "draft": doc.get("current_content"), **doc}
+    content = _clean_workbench_content(doc.get("current_content"), doc.get("context_snapshot"))
+    doc["current_content"] = content
+    return {"draft_id": draft_id, "draft": content, **doc}
 
 
 @router.put("/{draft_id}")
 async def update_draft(draft_id: str, req: UpdateDraftRequest, db: DbDep):
     """Update a draft's content and save a version snapshot."""
+    from app.clinical_documents.document_generator import render_note_preview
+
     col = db.col(COLLECTION_DRAFTS)
     existing = await col.find_one({"_id": draft_id})
     if not existing:
@@ -132,10 +159,15 @@ async def update_draft(draft_id: str, req: UpdateDraftRequest, db: DbDep):
         "modified_at": datetime.now(),
     })
 
+    content = req.content
+    if content.get("content_type") == "rounding_workbench":
+        content = dict(content)
+        content["note_preview"] = render_note_preview(content)
+
     # Update current
     await col.update_one(
         {"_id": draft_id},
-        {"$set": {"current_content": req.content, "updated_at": datetime.now()}},
+        {"$set": {"current_content": content, "updated_at": datetime.now()}},
     )
     return {"ok": True, "version": version_count + 1, "updated_at": datetime.now().isoformat()}
 
@@ -182,11 +214,13 @@ async def list_for_patient(patient_id: str, db: DbDep, limit: int = 20):
     """List drafts for a given patient."""
     cursor = db.col(COLLECTION_DRAFTS).find(
         {"patient_id": patient_id},
-        {"context_snapshot": 0, "ai_original": 0},
+        {"ai_original": 0},
     ).sort("created_at", -1).limit(limit)
     docs = await cursor.to_list(length=limit)
     for doc in docs:
         doc["draft_id"] = doc.pop("_id", "")
+        doc["current_content"] = _clean_workbench_content(doc.get("current_content"), doc.get("context_snapshot"))
+        doc.pop("context_snapshot", None)
     return {"items": docs}
 
 

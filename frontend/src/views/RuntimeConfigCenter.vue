@@ -235,7 +235,7 @@ const tabs = [
   { key: 'overview', label: '总览', hint: '健康度' },
   { key: 'modules', label: '模块', hint: '功能开关' },
   { key: 'ai', label: 'AI模型', hint: '路由与供应商' },
-  { key: 'trajectory', label: '轨迹预测', hint: 'Chronos告警' },
+  { key: 'trajectory', label: '轨迹预测', hint: '模型告警' },
   { key: 'rules', label: '预警规则', hint: '阈值' },
   { key: 'mapping', label: '字段映射', hint: '标准化' },
   { key: 'history', label: '历史审计', hint: '回滚' },

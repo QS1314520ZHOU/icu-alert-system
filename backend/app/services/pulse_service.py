@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -14,6 +15,86 @@ from app.utils.parse import _parse_dt
 from app.utils.serialization import serialize_doc
 
 logger = logging.getLogger("icu-alert")
+
+
+TERM_LABELS: dict[str, str] = {
+    "mechanical_ventilation": "机械通气",
+    "mechanical_ventilation_ge_3d": "机械通气超过3天",
+    "mechanical_ventilation_ge_7d": "机械通气超过7天",
+    "metabolic_acidosis": "代谢性酸中毒",
+    "sepsis_active": "存在脓毒症相关预警",
+    "risk_score": "风险评分",
+    "risk score": "风险评分",
+    "score": "评分",
+    "factor": "因素",
+    "factors": "因素",
+    "current": "当前",
+    "pending": "待处理",
+    "open": "待处理",
+    "active": "进行中",
+    "resolved": "已处理",
+    "critical": "危急",
+    "high": "高危",
+    "medium": "中危",
+    "low": "低危",
+    "warning": "预警",
+    "normal": "正常",
+    "metabolic": "代谢",
+    "acidosis": "酸中毒",
+    "mechanical": "机械",
+    "ventilation": "通气",
+    "respiratory": "呼吸",
+    "renal": "肾脏",
+    "infection": "感染",
+    "delirium": "谵妄",
+    "sedation": "镇静",
+    "nutrition": "营养",
+}
+
+
+def _humanize_identifier(value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    key = raw.lower().replace("-", "_").replace(" ", "_")
+    if key in TERM_LABELS:
+        return TERM_LABELS[key]
+    parts = [part for part in key.split("_") if part]
+    labels = [TERM_LABELS.get(part, "") for part in parts]
+    if labels and all(labels):
+        return "".join(dict.fromkeys(labels))
+    return raw
+
+
+def _localize_clinical_text(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    phrase_map = {
+        "risk score": "风险评分",
+        "Risk score": "风险评分",
+        "mechanical ventilation": "机械通气",
+        "Mechanical ventilation": "机械通气",
+        "metabolic acidosis": "代谢性酸中毒",
+        "Metabolic acidosis": "代谢性酸中毒",
+    }
+    for source, target in phrase_map.items():
+        text = text.replace(source, target)
+
+    def repl(match):
+        raw = match.group(0)
+        translated = _humanize_identifier(raw)
+        return translated if translated != raw else raw
+
+    text = re.sub(r"\b[a-zA-Z][a-zA-Z0-9]*(?:[_-][a-zA-Z0-9]+)+\b", repl, text)
+    text = re.sub(
+        r"\b(?:critical|high|warning|medium|low|normal|pending|open|active|resolved|mechanical|ventilation|metabolic|acidosis|score|factor|factors)\b",
+        repl,
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text
 
 
 @dataclass
@@ -128,6 +209,8 @@ class PulseService:
             headline = str(generated.get("headline") or headline or f"{candidate.patient_label}出现新的AI关注事件").strip()
             action_hint = str(generated.get("action_hint") or action_hint or "请查看详情并结合床旁情况处理").strip()
             tone = str(generated.get("tone") or tone).strip() or tone
+        headline = _localize_clinical_text(headline)
+        action_hint = _localize_clinical_text(action_hint)
         if candidate.patient_label and candidate.patient_label not in headline:
             headline = f"{candidate.patient_label}{headline}"[:60]
         headline = self._trim_cn(headline, 56)
@@ -400,7 +483,7 @@ class PulseService:
         extra = raw.get("extra") if isinstance(raw.get("extra"), dict) else {}
         condition = raw.get("condition") if isinstance(raw.get("condition"), dict) else {}
         alert_type = str(raw.get("alert_type") or "").lower()
-        name = str(raw.get("name") or "")
+        name = _localize_clinical_text(raw.get("name") or "")
         label = candidate.patient_label
 
         if alert_type == "sofa" or "SOFA" in name.upper() or "脓毒症" in name:
@@ -413,7 +496,7 @@ class PulseService:
             }
 
         if alert_type in {"coverage_mismatch", "mdro_detected"} or "药敏" in name or "覆盖不足" in name:
-            organism = str(extra.get("organism") or extra.get("mdro_type") or "").strip()
+            organism = _localize_clinical_text(extra.get("organism") or extra.get("mdro_type") or "")
             suffix = f"{organism} " if organism else ""
             return {
                 "headline": f"{label}{suffix}药敏与当前抗菌方案需复核",
@@ -432,6 +515,22 @@ class PulseService:
             return {
                 "headline": f"{label}{name or '呼吸风险'}，建议床旁复评",
                 "action_hint": "复查血气 / 评估氧疗升级",
+            }
+
+        if alert_type in {"delirium_risk", "delirium_risk_critical"}:
+            factors = extra.get("factors") if isinstance(extra.get("factors"), list) else []
+            factor_names = []
+            for factor in factors[:3]:
+                if isinstance(factor, dict):
+                    factor_names.append(_localize_clinical_text(factor.get("factor") or factor.get("name") or ""))
+                else:
+                    factor_names.append(_localize_clinical_text(factor))
+            factor_text = "、".join([item for item in factor_names if item])
+            value = raw.get("value") or condition.get("score") or extra.get("score")
+            suffix = f"，主要因素包括{factor_text}" if factor_text else ""
+            return {
+                "headline": f"{label}谵妄风险评分 {value if value not in (None, '') else '升高'}{suffix}",
+                "action_hint": "复核镇静深度 / 睡眠节律 / CAM-ICU",
             }
 
         return {}

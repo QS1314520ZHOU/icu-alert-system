@@ -47,18 +47,23 @@
           </div>
         </div>
         <div class="hdr-nav-shell">
-          <nav class="hdr-menu">
-            <button
-              v-for="item in navItems"
-              :key="item.key"
-              type="button"
-              :class="['nav-btn', { active: navKey === item.key }]"
-              @mouseenter="preloadNav(item.key)"
-              @focus="preloadNav(item.key)"
-              @click="onNav(item.key)"
-            >
-              <span v-for="line in item.lines" :key="line">{{ line }}</span>
-            </button>
+          <nav class="hdr-menu" aria-label="主导航">
+            <div v-for="group in navGroups" :key="group.key" class="nav-group">
+              <span class="nav-group-label">{{ group.label }}</span>
+              <div class="nav-group-items">
+                <button
+                  v-for="item in group.items"
+                  :key="item.key"
+                  type="button"
+                  :class="['nav-btn', { active: navKey === item.key }]"
+                  @mouseenter="preloadNav(item.key)"
+                  @focus="preloadNav(item.key)"
+                  @click="onNav(item.key)"
+                >
+                  <span v-for="line in item.lines" :key="line">{{ line }}</span>
+                </button>
+              </div>
+            </div>
           </nav>
         </div>
       </header>
@@ -77,6 +82,7 @@ import { preloadCoreRouteComponents, preloadRouteComponent } from './router'
 import AiPulseFloater from './components/AiPulseFloater.vue'
 import { getOperatorIdentity, setOperatorIdentity } from './utils/operatorIdentity'
 import { setThemeMode } from './composables/themeMode'
+import { navGroups, navItems, type NavItemKey } from './config/roleHomeConfig'
 const route = useRoute()
 const router = useRouter()
 const now = ref('')
@@ -92,26 +98,6 @@ const THEME_KEY = 'icu_theme_mode'
 let alertSocketModulePromise: Promise<typeof import('./services/alertSocket')> | null = null
 let operatorResolveSeq = 0
 const operatorNameCache = new Map<string, string>()
-const navItems = [
-  { key: 'doctor-home', lines: ['医生', '首页'] },
-  { key: 'nurse-home', lines: ['护士', '首页'] },
-  { key: 'clinical-workflow', lines: ['临床', '工作台'] },
-  { key: 'overview', lines: ['患者', '总览'] },
-  { key: 'analytics', lines: ['质控', '分析'] },
-  { key: 'rounding-sheet', lines: ['查房', '报告'] },
-  { key: 'respiratory-dashboard', lines: ['呼吸', '治疗'] },
-  { key: 'nutrition-support', lines: ['营养', '支持'] },
-  { key: 'research-export', lines: ['科研', '导出'] },
-  { key: 'research-workbench', lines: ['科研', '分析'] },
-  { key: 'academic-research', lines: ['学术', '科研'] },
-  { key: 'clinical-trials', lines: ['临床', '试验'] },
-  { key: 'mdt', lines: ['MDT', '会诊'] },
-  { key: 'bigscreen', lines: ['护士站', '大屏'] },
-  { key: 'ai-consult', lines: ['AI', '问诊'] },
-  { key: 'ai-ops', lines: ['AI', '运营'] },
-  { key: 'scanner-health', lines: ['规则', '健康'] },
-  { key: 'runtime-config', lines: ['配置', '中心'] },
-]
 const navComponentMap: Record<string, Parameters<typeof preloadRouteComponent>[0]> = {
   'doctor-home': 'doctorHome',
   'nurse-home': 'nurseHome',
@@ -131,6 +117,7 @@ const navComponentMap: Record<string, Parameters<typeof preloadRouteComponent>[0
   'scanner-health': 'scannerHealth',
   'runtime-config': 'runtimeConfig',
   bigscreen: 'bigScreen',
+  'patient-documents': 'overview',
 }
 
 const navKey = computed(() => {
@@ -151,6 +138,7 @@ const navKey = computed(() => {
   if (route.path.startsWith('/ai-ops')) return 'ai-ops'
   if (route.path.startsWith('/admin/scanner-health')) return 'scanner-health'
   if (route.path.startsWith('/admin/runtime-config')) return 'runtime-config'
+  if (route.path.startsWith('/patient/') && route.query.tab === 'documents') return 'patient-documents'
   return 'overview'
 })
 function firstRouteQuery(...keys: string[]) {
@@ -205,29 +193,18 @@ const themeWrapperProps = computed(() =>
     : {}
 )
 
-function onNav(key: string) {
-  const pathMap: Record<string, string> = {
-    'doctor-home': '/doctor-home',
-    'nurse-home': '/nurse-home',
-    'clinical-workflow': '/clinical-workflow',
-    overview: '/patients',
-    analytics: '/analytics',
-    'rounding-sheet': '/rounding-sheet',
-    'respiratory-dashboard': '/respiratory-dashboard',
-    'nutrition-support': '/nutrition-support',
-    'research-export': '/research-export',
-    'research-workbench': '/research-workbench',
-    'academic-research': '/academic-research',
-    'clinical-trials': '/clinical-trials',
-    mdt: '/mdt',
-    'ai-consult': '/ai-consult',
-    'ai-ops': '/ai-ops',
-    'scanner-health': '/admin/scanner-health',
-    'runtime-config': '/admin/runtime-config',
-    bigscreen: '/bigscreen',
+function onNav(key: NavItemKey) {
+  const item = navItems.find((row) => row.key === key)
+  const path = item?.path || '/'
+  const query = navIdentityQuery()
+  if (key === 'patient-documents') {
+    if (route.path.startsWith('/patient/')) {
+      router.push({ path: route.path, query: { ...query, tab: 'documents' } })
+      return
+    }
+    query.next = 'documents'
   }
-  const path = pathMap[key] || '/'
-  router.push({ path, query: navIdentityQuery() })
+  router.push({ path, query })
 }
 
 function navIdentityQuery() {
@@ -453,11 +430,11 @@ onUnmounted(() => clearInterval(t))
 .hdr-menu {
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
   flex-wrap: nowrap;
-  gap: 4px;
-  min-height: 40px;
+  gap: 10px;
+  min-height: 66px;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 12px 2px 0;
@@ -472,22 +449,46 @@ onUnmounted(() => clearInterval(t))
   background: rgba(125, 211, 252, 0.28);
   border-radius: 999px;
 }
+.nav-group {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  padding: 0 14px 8px 0;
+  border-right: 1px solid rgba(125, 211, 252, 0.12);
+}
+.nav-group:last-child {
+  border-right: 0;
+}
+.nav-group-label {
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  padding-left: 2px;
+}
+.nav-group-items {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 .nav-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
   min-width: 0;
-  min-height: 36px;
+  min-height: 42px;
   white-space: nowrap;
   user-select: none;
   border: 1px solid var(--nav-btn-border);
   background: rgba(8, 31, 49, 0.76);
   color: var(--nav-btn-text);
-  border-radius: 12px;
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 750;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 850;
   letter-spacing: 0;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -503,10 +504,10 @@ onUnmounted(() => clearInterval(t))
 }
 .nav-btn:hover { color: var(--nav-btn-hover-text); background: var(--nav-btn-hover-bg); border-color: var(--nav-btn-hover-border); }
 .nav-btn.active {
-  color: var(--nav-btn-active-text);
-  background: var(--nav-btn-active-bg);
-  border-color: var(--nav-btn-active-border);
-  box-shadow: var(--nav-btn-active-shadow);
+  color: #ecfeff;
+  background: linear-gradient(180deg, rgba(8, 145, 178, 0.9), rgba(14, 116, 144, 0.72));
+  border-color: rgba(34, 211, 238, 0.82);
+  box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.18), 0 10px 24px rgba(8, 145, 178, 0.26);
   transform: translateY(-1px);
 }
 .hdr-tools {
@@ -738,6 +739,8 @@ onUnmounted(() => clearInterval(t))
   .hdr-nav-shell::before { left: 14px; right: 14px; }
   .hdr-sub { display: none; }
   .nav-btn { min-height: 32px; font-size: 12px; padding: 0 10px; }
+  .nav-group-label { display: none; }
+  .hdr-menu { min-height: 42px; gap: 6px; }
   .operator-pill__label,
   .toggle-text {
     display: none;

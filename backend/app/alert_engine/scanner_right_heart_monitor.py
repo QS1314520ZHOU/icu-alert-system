@@ -4,6 +4,17 @@ from datetime import datetime, timedelta
 from .scanners import BaseScanner, ScannerSpec
 
 
+def _fmt_num(value: object, digits: int = 1) -> str:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    rounded = round(num, digits)
+    if digits <= 0 or abs(rounded - round(rounded)) < 1e-9:
+        return str(int(round(rounded)))
+    return f"{rounded:.{digits}f}".rstrip("0").rstrip(".")
+
+
 class RightHeartMonitorScanner(BaseScanner):
     def __init__(self, engine) -> None:
         super().__init__(
@@ -46,18 +57,18 @@ class RightHeartMonitorScanner(BaseScanner):
 
             factors: list[str] = []
             if cvp.get("delta") is not None and float(cvp["delta"]) >= float(cfg.get("cvp_rise_threshold", 3)):
-                factors.append(f"CVP {cvp.get('baseline')}→{cvp.get('latest')} cmH2O")
+                factors.append(f"CVP {_fmt_num(cvp.get('baseline'), 1)}→{_fmt_num(cvp.get('latest'), 1)} cmH2O")
             if (bnp.get("ratio") or 0) >= float(cfg.get("bnp_ratio_threshold", 2.0)):
-                factors.append(f"BNP {bnp.get('baseline')}→{bnp.get('latest')} (x{bnp.get('ratio')})")
+                factors.append(f"BNP {_fmt_num(bnp.get('baseline'), 0)}→{_fmt_num(bnp.get('latest'), 0)} (x{_fmt_num(bnp.get('ratio'), 1)})")
             if peep is not None and float(peep) >= float(cfg.get("peep_threshold", 10)):
-                factors.append(f"PEEP {peep} cmH2O")
+                factors.append(f"PEEP {_fmt_num(peep, 1)} cmH2O")
             if pe_alert:
                 factors.append("近72h 存在 PE/右心负荷风险报警")
             if organ.get("worsening"):
                 if organ.get("aki_stage") is not None and organ.get("aki_stage") >= 2:
                     factors.append(f"AKI stage {organ.get('aki_stage')}")
                 if organ.get("bilirubin_ratio") is not None and organ.get("bilirubin_ratio") >= 1.5:
-                    factors.append(f"胆红素倍增 x{organ.get('bilirubin_ratio')}")
+                    factors.append(f"胆红素倍增 x{_fmt_num(organ.get('bilirubin_ratio'), 1)}")
 
             if len(factors) < int(cfg.get("min_factor_count", 2)):
                 continue

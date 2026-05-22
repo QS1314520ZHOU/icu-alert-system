@@ -199,7 +199,26 @@ async def patient_similar_case_outcomes(
     if not patient:
         return {"code": 404, "message": "患者不存在"}
     try:
-        result = await runtime.alert_engine.get_similar_case_outcomes(patient, limit=limit)
+        result = await asyncio.wait_for(
+            runtime.alert_engine.get_similar_case_outcomes(patient, limit=limit),
+            timeout=8.0,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("similar-case-outcomes api timeout fallback patient_id=%s", patient_id)
+        fallback_builder = getattr(runtime.alert_engine, "_degraded_similar_case_result", None)
+        if callable(fallback_builder):
+            result = fallback_builder(patient, error="timeout", limit=limit)
+        else:
+            result = {
+                "current_profile": {"patient_id": patient_id},
+                "summary": {
+                    "matched_cases": 0,
+                    "displayed_cases": 0,
+                    "degraded": True,
+                    "fallback_message": "相似病例分析超时，已降级为基础模式。",
+                },
+                "cases": [],
+            }
     except Exception as exc:
         logger.warning("similar-case-outcomes api fallback patient_id=%s error=%s", patient_id, exc)
         fallback_builder = getattr(runtime.alert_engine, "_degraded_similar_case_result", None)

@@ -16,6 +16,14 @@
     <div v-else-if="error" class="empty danger">{{ error }}</div>
 
     <template v-else>
+      <section class="start-guide">
+        <div>
+          <span>{{ isHeadMode ? '护士长看板' : '今天从这里开始' }}</span>
+          <strong>{{ isHeadMode ? '先看全科床位，再看工作负荷，最后追踪未闭环护理事件。' : '先看我的床位，再处理本班提醒，下班前生成交班单。' }}</strong>
+        </div>
+        <button type="button" @click="showOnboarding = true">查看3步引导</button>
+      </section>
+
       <section class="nurse-summary">
         <article v-for="item in nurseSummary" :key="item.key" :class="['summary-card', `is-${item.tone}`]">
           <span>{{ item.label }}</span>
@@ -73,7 +81,7 @@
             <span>{{ sortedBeds.length }} 床</span>
           </div>
           <div class="bed-board">
-            <article v-for="bed in sortedBeds" :key="bed.patient_id" class="bed-card">
+            <article v-for="bed in sortedBeds" :key="bed.patient_id" class="bed-card" @click="goPatient(bed.patient_id)">
               <div class="bed-card__main">
                 <strong>{{ displayBed(bed.bed) }}</strong>
                 <span>{{ bed.name || '未知患者' }}</span>
@@ -86,7 +94,7 @@
                 v-if="tasksByBed(bed.patient_id).length"
                 type="button"
                 class="bed-risk-button"
-                @click="selectTask(tasksByBed(bed.patient_id)[0])"
+                @click.stop="selectTask(tasksByBed(bed.patient_id)[0])"
               >
                 {{ tasksByBed(bed.patient_id).length }} 条风险提醒
               </button>
@@ -168,6 +176,25 @@
           </div>
         </div>
       </div>
+
+      <div v-if="showOnboarding" class="onboarding-mask" @click.self="dismissOnboarding">
+        <div class="onboarding-card">
+          <div class="panel-head">
+            <strong>{{ isHeadMode ? '护士长看板3步用法' : '护士首页3步用法' }}</strong>
+            <button type="button" @click="dismissOnboarding">知道了</button>
+          </div>
+          <ol v-if="isHeadMode">
+            <li><b>先看全科床位</b><span>确认在科患者和床位分布。</span></li>
+            <li><b>查看工作负荷</b><span>发现护理记录密度和人力压力。</span></li>
+            <li><b>追踪未闭环事件</b><span>重点处理异常事件和护理质控命中。</span></li>
+          </ol>
+          <ol v-else>
+            <li><b>先看我的床位</b><span>点击床位进入患者详情。</span></li>
+            <li><b>处理本班提醒</b><span>对风险提醒执行、推迟、转交或标记不适用。</span></li>
+            <li><b>下班前交班</b><span>一键生成本班 ISBAR 交班单。</span></li>
+          </ol>
+        </div>
+      </div>
     </template>
   </section>
 </template>
@@ -178,6 +205,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, postNurseTaskExecute } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
+import { roleHomeConfig } from '../config/roleHomeConfig'
 
 const NURSE_HOME_CACHE_TTL_MS = 2 * 60 * 1000
 const nurseHomeCache = new Map<string, { ts: number; data: any }>()
@@ -189,6 +217,7 @@ const loading = ref(false)
 const error = ref('')
 const home = ref<any>(null)
 const selectedTask = ref<any>(null)
+const showOnboarding = ref(false)
 const handoffLoading = ref(false)
 const handoffError = ref('')
 const handoffMode = ref<'isbar' | 'ipass'>('isbar')
@@ -337,6 +366,9 @@ function cleanEmptyText(value: any, fallback: string) {
 function selectTask(task: any) {
   selectedTask.value = task
 }
+function goPatient(id: string) {
+  if (id) router.push({ path: `/patient/${id}`, query: route.query })
+}
 async function executeTask(action: string) {
   if (!selectedTask.value) return
   await postNurseTaskExecute(selectedTask.value.task_id, {
@@ -449,6 +481,10 @@ onMounted(() => {
   auth.hydrateFromQuery(route.query)
   cleanDuplicateIdentityQuery()
   void load()
+  if (typeof window !== 'undefined') {
+    const key = isHeadMode.value ? roleHomeConfig.headNurse.onboardingKey : roleHomeConfig.nurse.onboardingKey
+    if (!window.localStorage.getItem(key)) showOnboarding.value = true
+  }
 })
 
 watch(() => [route.query.user_id, route.query.userId, route.query.userName, route.query.useName, route.query.username, route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department, route.query.view], () => {
@@ -460,10 +496,21 @@ function cleanDuplicateIdentityQuery() {
   const query = auth.cleanIdentityQuery(route.query)
   if (JSON.stringify(query) !== JSON.stringify(route.query)) router.replace({ path: route.path, query })
 }
+function dismissOnboarding() {
+  showOnboarding.value = false
+  if (typeof window !== 'undefined') {
+    const key = isHeadMode.value ? roleHomeConfig.headNurse.onboardingKey : roleHomeConfig.nurse.onboardingKey
+    window.localStorage.setItem(key, '1')
+  }
+}
 </script>
 
 <style scoped>
 .nurse-home { padding: 12px; display: grid; gap: 12px; }
+.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: 8px; background: linear-gradient(135deg, rgba(8,82,112,.62), rgba(6,18,31,.74)); }
+.start-guide div { display: grid; gap: 4px; }
+.start-guide span { color: #8fd3e8; font-size: 12px; }
+.start-guide strong { color: #f8fbff; font-size: 15px; }
 .nurse-top { min-height: 80px; display: grid; grid-template-columns: minmax(0,1fr) 320px auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(7,20,34,.82); }
 .nurse-top strong { color: #f8fbff; font-size: 20px; }
 .nurse-top span, .panel-head span, .empty, .bundle span, .task-modal p, .summary-card span, .summary-card em { color: #91adbd; font-size: 12px; }
@@ -594,6 +641,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(10, 32, 50, .92), rgba(7, 22, 36, .86));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  cursor: pointer;
 }
 .bed-card__main {
   display: flex;
@@ -683,6 +731,12 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .notice-card.is-done {
   opacity: .72;
 }
+.onboarding-mask { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: rgba(0,0,0,.48); padding: 16px; }
+.onboarding-card { width: min(560px, 100%); display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(125,211,252,.24); border-radius: 8px; background: #081827; box-shadow: 0 20px 50px rgba(0,0,0,.32); }
+.onboarding-card ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.onboarding-card li { color: #eafcff; }
+.onboarding-card li b { display: block; }
+.onboarding-card li span { display: block; color: #91adbd; font-size: 12px; margin-top: 4px; }
 @media (max-width: 1024px) { .nurse-top, .nurse-summary, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 760px) { .side, .handoff-bar, .head-event-grid { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; } }
 
@@ -692,6 +746,7 @@ html[data-theme='light'] .nurse-home {
     radial-gradient(circle at 88% 12%, rgba(16, 185, 129, 0.07), transparent 30%);
 }
 html[data-theme='light'] .nurse-top,
+html[data-theme='light'] .start-guide,
 html[data-theme='light'] .panel,
 html[data-theme='light'] .handoff-bar,
 html[data-theme='light'] .task-modal,
@@ -701,6 +756,7 @@ html[data-theme='light'] .summary-card {
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 html[data-theme='light'] .nurse-top strong,
+html[data-theme='light'] .start-guide strong,
 html[data-theme='light'] .panel-head strong,
 html[data-theme='light'] .bed-line > strong,
 html[data-theme='light'] .bundle strong,
@@ -720,6 +776,7 @@ html[data-theme='light'] .bed-cloud span em {
   color: #64748b;
 }
 html[data-theme='light'] .nurse-top span,
+html[data-theme='light'] .start-guide span,
 html[data-theme='light'] .panel-head span,
 html[data-theme='light'] .empty,
 html[data-theme='light'] .bundle span,
@@ -801,6 +858,16 @@ html[data-theme='light'] .handoff-item textarea {
 }
 html[data-theme='light'] .workload i {
   background: #e2e8f0;
+}
+html[data-theme='light'] .onboarding-card {
+  background: #ffffff;
+  border-color: rgba(145, 176, 199, 0.32);
+}
+html[data-theme='light'] .onboarding-card li {
+  color: #0f172a;
+}
+html[data-theme='light'] .onboarding-card li span {
+  color: #64748b;
 }
 html[data-theme='light'] .danger,
 html[data-theme='light'] .is-overdue {

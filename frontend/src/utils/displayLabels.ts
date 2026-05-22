@@ -37,6 +37,8 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   opioid_withdrawal_risk: '阿片戒断风险',
   nurse_reminder: '护理提醒',
   lab_threshold: '检验阈值',
+  trajectory_drift: '病情轨迹漂移',
+  ventilator_asynchrony: '人机不同步',
   threshold: '阈值提醒',
   trend_analysis: '趋势分析',
   ai_risk: 'AI 风险',
@@ -48,7 +50,7 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   glucose_drop_fast: '血糖快速下降',
   glucose_recheck_reminder: '血糖复查提醒',
   hyperglycemia_no_insulin: '高血糖未启胰岛素',
-  abx_timeout: '抗生素 time-out',
+  abx_timeout: '抗菌药复核超时',
   abx_stop_recommendation: 'PCT 停药评估',
   abx_tdm_reminder: '抗生素 TDM 提醒',
   abx_duration_exceeded: '抗生素疗程超限',
@@ -120,25 +122,23 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   pulse: '主动提醒',
   proactive: '主动干预',
   metabolic: '代谢评估',
+  forecast_threshold_breach: '预测达到预警阈值',
+  pics_risk: 'ICU后综合征风险',
 }
 
 export function formatAlertTypeLabel(value: any) {
   const raw = String(value || '').trim()
   const key = raw.toLowerCase().replace(/[\s-]+/g, '_')
   if (!key) return '未命名规则'
-  return ALERT_TYPE_LABELS[key] || raw
-    .replace(/_/g, ' ')
-    .replace(/\bSOFA\b/i, 'SOFA')
-    .replace(/\bQSOFA\b/i, 'qSOFA')
-    .replace(/\bVAP\b/i, 'VAP')
-    .replace(/\bHAI\b/i, '院感')
-    .replace(/\bBUNDLE\b/i, '清单')
-    .replace(/\bNUTRITION\b/i, '营养')
-    .replace(/\bLIBERATION\b/i, '撤机')
-    .replace(/\bOVERDUE\b/i, '逾期')
-    .replace(/\bSTART\b/i, '启动')
-    .replace(/\bDELAY\b/i, '延迟')
-    .replace(/\bSEPSIS\b/i, '脓毒症')
+  if (ALERT_TYPE_LABELS[key]) return ALERT_TYPE_LABELS[key]
+  if (/[_-]/.test(key)) {
+    const translated = key.split('_')
+      .map((part) => ALERT_TYPE_LABELS[part] || CLINICAL_TERM_LABELS[part] || '')
+      .filter(Boolean)
+    if (translated.length) return Array.from(new Set(translated)).join('')
+    return '未命名规则'
+  }
+  return raw
 }
 
 const COMPOSITE_GROUP_LABELS: Record<string, string> = {
@@ -272,6 +272,44 @@ const CLINICAL_TERM_LABELS: Record<string, string> = {
   integrated_risk: '综合风险',
   integrated_risk_reasoning: '综合风险推理',
   risk_level: '风险等级',
+  risk_score: '风险评分',
+  score: '评分',
+  factor: '因素',
+  factors: '因素',
+  mechanical_ventilation: '机械通气',
+  metabolic_acidosis: '代谢性酸中毒',
+  mechanical_ventilation_ge_3d: '机械通气超过3天',
+  mechanical_ventilation_ge_7d: '机械通气超过7天',
+  sepsis_active: '存在脓毒症相关预警',
+  ventilation_days: '机械通气天数',
+  forecast_timeout: '预测计算超时',
+  forecast_unavailable: '预测暂不可用',
+  forecast_threshold_breach: '预测达到预警阈值',
+  trajectory_forecast: '轨迹预测',
+  temporal_risk_forecast: '时序风险预测',
+  model_not_loaded: '模型未就绪',
+  model_not_ready: '模型未就绪',
+  model_inference_error: '模型推理失败',
+  insufficient_history: '历史数据不足',
+  nurse_reminder: '护理提醒',
+  nutrition_start_delay: '营养启动延迟',
+  delirium_risk: '谵妄风险',
+  pe_wells_high: 'Wells 高风险',
+  weaning: '撤机筛查',
+  pics_risk: 'ICU后综合征风险',
+  neuro: '神经',
+  resp: '呼吸',
+  cv: '循环',
+  heme: '血液',
+  endo: '内分泌',
+  hfnc: '高流量氧疗',
+  hf: '高流量氧疗',
+  niv: '无创通气',
+  vap_bundle_missing: 'VAP 预防清单缺项',
+  bedside: '床旁记录',
+  bedside_text: '床旁记录',
+  devicecap: '监护设备',
+  tubeexe: '管路执行记录',
   severity: '严重程度',
   status: '状态',
   evidence: '依据',
@@ -290,6 +328,8 @@ const CLINICAL_TERM_LABELS: Record<string, string> = {
   cam_icu: '谵妄评估',
   sofa: '序贯器官衰竭评分',
   qsofa: '快速序贯器官衰竭评分',
+  trajectory_drift: '病情轨迹漂移',
+  ventilator_asynchrony: '人机不同步',
   apache: '急性生理与慢性健康评分',
   ards: '急性呼吸窘迫综合征',
   aki: '急性肾损伤',
@@ -349,6 +389,8 @@ const CLINICAL_TERM_LABELS: Record<string, string> = {
   vasopressor: '升压药',
   ventilator: '呼吸机',
   ventilation: '通气',
+  mechanical: '机械',
+  acidosis: '酸中毒',
   oxygenation: '氧合',
   sedation: '镇静',
   delirium: '谵妄',
@@ -409,6 +451,7 @@ export function formatClinicalTermLabel(value: any, fallback = '临床指标') {
     if (translated.length) return Array.from(new Set(translated)).join('')
     return fallback
   }
+  if (/^[A-Z]{2,}$/i.test(raw)) return raw
   if (/^[a-z]{2,}$/i.test(raw)) return fallback
   return raw
 }
@@ -422,8 +465,25 @@ export function formatClinicalText(value: any, fallback = '暂无') {
     protectedTerms.set(token, match)
     return token
   })
+  text = text
+    .replace(/timeout of \d+ms exceeded/gi, '请求超时，请稍后重试')
+    .replace(/\bECONNABORTED\b/gi, '请求超时')
+    .replace(/model (?:not ready|not loaded)/gi, '模型未就绪')
+    .replace(/model unavailable/gi, '模型暂不可用')
+    .replace(/service unavailable/gi, '服务暂不可用')
+    .replace(/\btime-out\b/gi, '复核超时')
+    .replace(/\bNeuro\s+(神经)/gi, '$1')
+    .replace(/\bResp\s+(呼吸)/gi, '$1')
+    .replace(/\bCV\s+(循环)/gi, '$1')
+    .replace(/\bRenal\/Fluid\s+(肾脏)/gi, '$1')
+    .replace(/\bGI\/Nutrition\s+(消化)/gi, '$1')
+    .replace(/\bID\s+(感染)/gi, '$1')
+    .replace(/\bHeme\s+(?:凝血|血液)/gi, '血液')
+    .replace(/\bEndo\s+(内分泌)/gi, '$1')
+    .replace(/\bLines\/Devices\s+(管路)/gi, '$1')
+    .replace(/\bGoals\s+(今日目标)/gi, '$1')
   text = text.replace(
-    /\b[a-zA-Z][a-zA-Z0-9]*(?:[_-][a-zA-Z0-9]+)+\b|\b(?:critical|high|warning|warn|medium|low|normal|pending|active|resolved|open|closed|completed|failed|success|impaired|failure|blocked|modi|gcs|sofa|qsofa|rass|plt|map|spo2|sbp|dbp|hr|rr|temp|lac|cr|wbc|pct|inr)\b/gi,
+    /\b[a-zA-Z][a-zA-Z0-9]*(?:[_-][a-zA-Z0-9]+)+\b|\b(?:critical|high|warning|warn|medium|low|normal|pending|active|resolved|open|closed|completed|failed|success|impaired|failure|blocked|modi|gcs|sofa|qsofa|rass|plt|map|spo2|sbp|dbp|hr|rr|temp|lac|cr|wbc|pct|inr|neuro|resp|cv|heme|endo|hfnc|hf|niv)\b/gi,
     (match) => formatClinicalTermLabel(match, match),
   )
   protectedTerms.forEach((value, token) => {

@@ -91,6 +91,16 @@ def _vital_codes() -> dict[str, list[str]]:
                 return cleaned
         return default
 
+    def _ordered_unique(*groups: list[str] | str) -> list[str]:
+        values: list[str] = []
+        for group in groups:
+            rows = group if isinstance(group, list) else [group]
+            for item in rows:
+                value = str(item or "").strip()
+                if value and value not in values:
+                    values.append(value)
+        return values
+
     hr_codes = []
     for code in [
         _single("heart_rate", "param_HR"),
@@ -100,13 +110,14 @@ def _vital_codes() -> dict[str, list[str]]:
             hr_codes.append(code)
 
     return {
-        "hr": hr_codes,
-        "spo2": [_single("spo2", "param_spo2")],
-        "rr": [_single("resp_rate", "param_resp")],
-        "temp": [_single("temperature", "param_T")],
-        "sbp": _multi("sbp_priority", ["param_ibp_s", "param_nibp_s"]),
-        "dbp": _multi("dbp_priority", ["param_ibp_d", "param_nibp_d"]),
-        "map": _multi("map_priority", ["param_ibp_m", "param_nibp_m"]),
+        # 2026-05-22 实库核对：bedside/deviceCap 生命体征使用以下 code。
+        "hr": _ordered_unique(hr_codes, ["param_HR", "param_PR"]),
+        "spo2": _ordered_unique(_single("spo2", "param_spo2"), "param_spo2"),
+        "rr": _ordered_unique(_single("resp_rate", "param_resp"), "param_resp"),
+        "temp": _ordered_unique(_single("temperature", "param_T"), "param_T"),
+        "sbp": _ordered_unique(_multi("sbp_priority", ["param_ibp_s", "param_nibp_s"]), ["param_ibp_s", "param_nibp_s"]),
+        "dbp": _ordered_unique(_multi("dbp_priority", ["param_ibp_d", "param_nibp_d"]), ["param_ibp_d", "param_nibp_d"]),
+        "map": _ordered_unique(_multi("map_priority", ["param_ibp_m", "param_nibp_m"]), ["param_ibp_m", "param_nibp_m"]),
     }
 
 
@@ -136,15 +147,50 @@ def _snapshot_to_vitals(snapshot: dict | None, source: str | None) -> dict:
         "spo2": _pick_param(params, codes["spo2"]),
         "rr": _pick_param(params, codes["rr"]),
         "temp": _pick_param(params, codes["temp"]),
-        "nibp_sys": _pick_param(params, codes["sbp"]),
-        "nibp_dia": _pick_param(params, codes["dbp"]),
-        "nibp_map": _pick_param(params, codes["map"]),
+        "sbp": _pick_param(params, codes["sbp"]),
+        "dbp": _pick_param(params, codes["dbp"]),
+        "map": _pick_param(params, codes["map"]),
+        "nibp_sys": params.get("param_nibp_s"),
+        "nibp_dia": params.get("param_nibp_d"),
+        "nibp_map": params.get("param_nibp_m"),
         "ibp_sys": params.get("param_ibp_s"),
         "ibp_dia": params.get("param_ibp_d"),
         "ibp_map": params.get("param_ibp_m"),
         "cvp": params.get("param_cvp"),
         "etco2": params.get("param_ETCO2"),
     }
+
+
+async def _latest_bedside_vitals(pid_str: str, codes: list[str]) -> dict | None:
+    """Read the most recent bedside charted vital rows directly by patient id."""
+    if not pid_str or not codes:
+        return None
+    cursor = runtime.db.col("bedside").find(
+        {"pid": pid_str, "code": {"$in": codes}, "valid": {"$ne": False}},
+        {"code": 1, "time": 1, "strVal": 1, "intVal": 1, "fVal": 1},
+    ).sort("time", -1).limit(1200)
+    params: dict = {}
+    latest_time = None
+    async for row in cursor:
+        code = row.get("code")
+        if not code or code in params:
+            continue
+        value = row.get("fVal")
+        if value is None or value == "":
+            value = row.get("intVal")
+        if value is None or value == "":
+            value = row.get("strVal")
+        if value is None or value == "":
+            continue
+        params[code] = value
+        row_time = row.get("time")
+        if isinstance(row_time, datetime) and (latest_time is None or row_time > latest_time):
+            latest_time = row_time
+        if len(params) >= len(codes):
+            break
+    if not params:
+        return None
+    return {"params": params, "time": latest_time}
 
 
 async def _fallback_vitals_from_alert_snapshot(pid_str: str) -> dict | None:
@@ -255,6 +301,15 @@ async def patient_vitals(patient_id: str):
 
     if snapshot:
         vitals = _snapshot_to_vitals(snapshot, source)
+    bedside_snapshot = await _latest_bedside_vitals(pid_str, codes)
+    if bedside_snapshot:
+        bedside_vitals = _snapshot_to_vitals(bedside_snapshot, "nurse_manual")
+        if not vitals:
+            vitals = bedside_vitals
+        else:
+            for key, value in bedside_vitals.items():
+                if vitals.get(key) in (None, "") and value not in (None, ""):
+                    vitals[key] = value
     fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
     if fallback_vitals:
         if not vitals:
@@ -830,7 +885,17 @@ async def patient_bedcard(patient_id: str):
     async def load_tubes() -> list[dict]:
         active_tubes = []
         now = datetime.now()
-        tubes_cursor = runtime.db.col("tubeExe").find({"pid": pid_str, "stopTime": None}, {"name": 1, "type": 1, "body": 1, "startTime": 1}).sort("startTime", 1).limit(24)
+        tubes_cursor = runtime.db.col("tubeExe").find(
+            {
+                "pid": pid_str,
+                "$and": [
+                    {"$or": [{"stopTime": None}, {"stopTime": {"$exists": False}}]},
+                    {"$or": [{"endTime": None}, {"endTime": {"$exists": False}}]},
+                    {"$or": [{"removeTime": None}, {"removeTime": {"$exists": False}}]},
+                ],
+            },
+            {"name": 1, "type": 1, "body": 1, "startTime": 1},
+        ).sort("startTime", 1).limit(24)
         async for tube in tubes_cursor:
             start_time = tube.get("startTime")
             dwell_days = 0
@@ -857,28 +922,75 @@ async def patient_bedcard(patient_id: str):
             active_tubes.append({"name": tube.get("name") or tube.get("type") or "未知管路", "category": category, "site": tube.get("body") or "", "dwellDays": dwell_days, "startTime": start_time})
         return active_tubes
 
+    def _overview_vitals(vitals: dict | None) -> dict:
+        if not isinstance(vitals, dict) or not vitals:
+            return {}
+        return {
+            "hr": vitals.get("hr"),
+            "rr": vitals.get("rr"),
+            "sbp": vitals.get("sbp") or vitals.get("ibp_sys") or vitals.get("nibp_sys"),
+            "dbp": vitals.get("dbp") or vitals.get("ibp_dia") or vitals.get("nibp_dia"),
+            "map": vitals.get("map") or vitals.get("ibp_map") or vitals.get("nibp_map"),
+            "spo2": vitals.get("spo2"),
+            "t": vitals.get("temp") or vitals.get("t"),
+            "temp": vitals.get("temp") or vitals.get("t"),
+            "time": vitals.get("time"),
+            "source": vitals.get("source"),
+        }
+
+    async def load_latest_vitals() -> dict:
+        query_pids = [pid_str]
+        his_pid = patient_his_pid(patient)
+        if his_pid:
+            query_pids.append(his_pid)
+        code_map = _vital_codes()
+        codes = [
+            *code_map["hr"],
+            *code_map["spo2"],
+            *code_map["rr"],
+            *code_map["temp"],
+            *code_map["sbp"],
+            *code_map["dbp"],
+            *code_map["map"],
+            "param_cvp",
+            "param_ETCO2",
+        ]
+        snapshot = await latest_params_by_pid(query_pids, codes)
+        source = "bedside"
+        if not snapshot:
+            device_id = await get_device_id(pid_str, "monitor", patient_doc=patient)
+            if not device_id:
+                device_id = await get_device_id(pid_str, None, patient_doc=patient)
+            if device_id:
+                snapshot = await latest_params_by_device(device_id, codes)
+                source = "device"
+        vitals = _snapshot_to_vitals(snapshot, source) if snapshot else {}
+        bedside_snapshot = await _latest_bedside_vitals(pid_str, codes)
+        if bedside_snapshot:
+            bedside_vitals = _snapshot_to_vitals(bedside_snapshot, "bedside")
+            for key, value in bedside_vitals.items():
+                if vitals.get(key) in (None, "") and value not in (None, ""):
+                    vitals[key] = value
+        fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
+        if fallback_vitals:
+            for key, value in fallback_vitals.items():
+                if vitals.get(key) in (None, "") and value not in (None, ""):
+                    vitals[key] = value
+        return _overview_vitals(vitals)
+
     async def load_metrics() -> dict:
         metrics = {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": {}}
-        sofa_doc, fluid_alert, fallback_vitals = await asyncio.gather(
+        sofa_doc, fluid_alert, latest_vitals = await asyncio.gather(
             _optional(runtime.db.col("score").find_one({"patient_id": pid_str, "score_type": "sofa"}, {"score": 1}, sort=[("calc_time", -1)]), None, timeout=0.04),
             _optional(runtime.db.col("alert_records").find_one({"patient_id": pid_str, "alert_type": "fluid_balance"}, {"extra.windows.24h.net_ml": 1}, sort=[("created_at", -1)]), None, timeout=0.04),
-            _optional(_fallback_vitals_from_alert_snapshot(pid_str), None, timeout=0.04),
+            _optional(load_latest_vitals(), {}, timeout=0.35),
         )
         if sofa_doc:
             metrics["sofa"] = sofa_doc.get("score")
         if fluid_alert and fluid_alert.get("extra"):
             metrics["netFluid24h"] = ((fluid_alert["extra"].get("windows") or {}).get("24h") or {}).get("net_ml")
-        if fallback_vitals:
-            metrics["vitals"] = {
-                "hr": fallback_vitals.get("hr"),
-                "sbp": fallback_vitals.get("ibp_sys") or fallback_vitals.get("nibp_sys"),
-                "dbp": fallback_vitals.get("ibp_dia") or fallback_vitals.get("nibp_dia"),
-                "spo2": fallback_vitals.get("spo2"),
-                "t": fallback_vitals.get("temp"),
-                "map": fallback_vitals.get("ibp_map") or fallback_vitals.get("nibp_map"),
-                "time": fallback_vitals.get("time"),
-                "source": fallback_vitals.get("source"),
-            }
+        if latest_vitals:
+            metrics["vitals"] = latest_vitals
         return metrics
 
     def build_alert_card(alert: dict) -> tuple[str, dict]:
@@ -945,7 +1057,7 @@ async def patient_bedcard(patient_id: str):
     active_devices, active_tubes, metrics, alert_payload = await asyncio.gather(
         _optional(load_devices(), [], timeout=0.08),
         _optional(load_tubes(), [], timeout=0.08),
-        _optional(load_metrics(), {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": {}}, timeout=0.08),
+        _optional(load_metrics(), {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": {}}, timeout=0.5),
         _optional(load_alerts(), ([], [], None), timeout=0.08),
     )
     notes, dedup_alert_notes, alert_summary_card = alert_payload

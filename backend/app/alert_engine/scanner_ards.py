@@ -1,8 +1,39 @@
 from __future__ import annotations
 
+import math
 from datetime import datetime
 
 from .scanners import BaseScanner, ScannerSpec
+
+
+def _format_number(value: object, digits: int = 1) -> str:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    if not math.isfinite(num):
+        return "-"
+    rounded = round(num, digits)
+    if digits <= 0 or abs(rounded - round(rounded)) < 1e-9:
+        return str(int(round(rounded)))
+    return f"{rounded:.{digits}f}".rstrip("0").rstrip(".")
+
+
+def _round_number(value: object, digits: int = 1) -> float | int | None:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(num):
+        return None
+    rounded = round(num, digits)
+    if digits <= 0 or abs(rounded - round(rounded)) < 1e-9:
+        return int(round(rounded))
+    return rounded
+
+
+def _ratio_label(ratio_type: str | None) -> str:
+    return "P/F" if ratio_type == "pf_ratio" else "S/F"
 
 
 class ArdsScanner(BaseScanner):
@@ -99,17 +130,34 @@ class ArdsScanner(BaseScanner):
             if ratio_value is None or severity is None or not name:
                 continue
 
+            ratio_display = _format_number(ratio_value, 1)
+            peep_display = _format_number(peep, 1)
+            fio2_display = _format_number(fio2, 0 if fio2 > 1 else 2)
+            pao2_display = _format_number(pao2, 0) if pao2 is not None else None
+            spo2_display = _format_number(spo2, 0) if spo2 is not None else None
+            ratio_label = _ratio_label(ratio_type)
+            rounded_condition = {
+                ratio_type: _round_number(ratio_value, 1),
+                "peep": _round_number(peep, 1),
+                "fio2": _round_number(fio2, 0 if fio2 > 1 else 2),
+            }
+            rounded_extra = {
+                "pao2": _round_number(pao2, 0) if pao2 is not None else None,
+                "spo2": _round_number(spo2, 0) if spo2 is not None else None,
+                "fio2": rounded_condition["fio2"],
+                "peep": rounded_condition["peep"],
+            }
             bnp_trend = await self.engine._get_bnp_trend(his_pid, datetime.now(), hours=72) if hasattr(self.engine, "_get_bnp_trend") else {}
             cardiogenic_flag = (bnp_trend.get("ratio") or 0) >= 1.5 or (bnp_trend.get("latest") or 0) >= 1000
             imaging_lines = self.engine._format_imaging_evidence_lines(imaging_signals, max_items=2)
             summary_suffix = f"；{self.engine._build_imaging_summary(imaging_signals)}" if imaging_signals else ""
             explanation = await self.engine._polish_structured_alert_explanation(
                 {
-                    "summary": f"{name} 风险，当前依据为 {ratio_type.upper()} {round(ratio_value, 1)}、PEEP {peep} cmH2O{summary_suffix}。",
+                    "summary": f"{name} 风险，当前依据为 {ratio_label} {ratio_display}、PEEP {peep_display} cmH2O{summary_suffix}。",
                     "evidence": [
-                        f"FiO2 {fio2}",
-                        f"PEEP {peep}",
-                        f"PaO2 {pao2}" if pao2 is not None else f"SpO2 {spo2}",
+                        f"FiO2 {fio2_display}",
+                        f"PEEP {peep_display}",
+                        f"PaO2 {pao2_display}" if pao2 is not None else f"SpO2 {spo2_display}",
                         "BNP/容量状态提示需排除心源性肺水肿" if cardiogenic_flag else "请临床结合影像和容量状态排除心源性肺水肿",
                         *imaging_lines,
                     ],
@@ -130,8 +178,8 @@ class ArdsScanner(BaseScanner):
             pbw = self.engine._predicted_body_weight(patient_doc) if hasattr(self.engine, "_predicted_body_weight") else None
             vt_ml_kg = (float(self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"])) / float(pbw)) if pbw and self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"]) is not None else None
             if asynchrony_type == "double_triggering" and vt_ml_kg is not None and vt_ml_kg > 8:
-                explanation["evidence"].append(f"近期双触发 AI {asynchrony_ai}%")
-                explanation["evidence"].append(f"VTe/PBW {round(vt_ml_kg, 2)} mL/kg")
+                explanation["evidence"].append(f"近期双触发 AI {_format_number(asynchrony_ai, 1)}%")
+                explanation["evidence"].append(f"VTe/PBW {_format_number(vt_ml_kg, 2)} mL/kg")
                 explanation["suggestion"] = (
                     str(explanation.get("suggestion") or "").rstrip("。")
                     + "；同时存在双触发叠加高 VT，建议强化肺保护通气并优先控制人机不同步。"
@@ -153,23 +201,23 @@ class ArdsScanner(BaseScanner):
                 alert_type="ards",
                 severity=effective_severity,
                 parameter=ratio_type,
-                condition={ratio_type: round(ratio_value, 1), "peep": peep, "fio2": fio2},
-                value=round(ratio_value, 1),
+                condition=rounded_condition,
+                value=rounded_condition[ratio_type],
                 patient_id=pid_str,
                 patient_doc=patient_doc,
                 device_id=device_id,
                 source_time=labs.get("pao2", {}).get("time") if pao2 is not None and labs else datetime.now(),
                 explanation=explanation,
                 extra={
-                    "pao2": pao2,
-                    "spo2": spo2,
-                    "fio2": fio2,
-                    "peep": peep,
+                    "pao2": rounded_extra["pao2"],
+                    "spo2": rounded_extra["spo2"],
+                    "fio2": rounded_extra["fio2"],
+                    "peep": rounded_extra["peep"],
                     "ratio_type": ratio_type,
                     "cardiogenic_overlap_risk": cardiogenic_flag,
                     "bnp_trend": bnp_trend,
                     "recent_asynchrony": recent_asynchrony,
-                    "vt_ml_kg_pbw": round(vt_ml_kg, 2) if vt_ml_kg is not None else None,
+                    "vt_ml_kg_pbw": _round_number(vt_ml_kg, 2) if vt_ml_kg is not None else None,
                     "imaging_findings": {
                         "summary": self.engine._build_imaging_summary(imaging_signals),
                         "matched_signals": imaging_signals,

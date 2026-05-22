@@ -204,11 +204,11 @@ class PronePositionMonitorScanner(BaseScanner):
         complications = await self._prone_complications(patient_id, now) if current_session or prone_hours_24h > 0 else []
         evidence = []
         if pf_ratio is not None:
-            evidence.append(f"P/F {pf_ratio}")
-        evidence.append(f"FiO2 {round(fio2_frac, 2)}")
-        evidence.append(f"PEEP {peep}")
+            evidence.append(f"P/F {round(float(pf_ratio), 1):g}")
+        evidence.append(f"FiO2 {round(float(fio2_frac), 2):g}")
+        evidence.append(f"PEEP {round(float(peep), 1):g}")
         if prone_hours_24h > 0:
-            evidence.append(f"24h俯卧位 {prone_hours_24h}h")
+            evidence.append(f"24h俯卧位 {round(float(prone_hours_24h), 1):g}h")
         if sessions:
             evidence.append(f"体位来源 {sessions[-1].get('source')}")
         return {
