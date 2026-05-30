@@ -303,7 +303,7 @@
                 :key="group.key"
                 :class="['tab-group-btn', { 'is-active': detailTabGroup === group.key }]"
                 type="button"
-                @click="detailTabGroup = group.key"
+                @click="switchTabGroup(group.key)"
               >
                 {{ group.label }}
               </button>
@@ -321,7 +321,7 @@
             </div>
           </div>
         </div>
-        <a-tabs v-model:activeKey="activeTab" class="single-nav-tabs">
+        <a-tabs v-model:activeKey="activeTab" :key="detailDensity" class="single-nav-tabs">
           <a-tab-pane v-if="isTabVisible('ecash')" key="ecash" tab="eCASH">
           <PatientEcashBundleTab
             v-if="activeTab === 'ecash'"
@@ -1268,6 +1268,9 @@ async function openTopicTab(tab: string) {
 function setDetailDensity(mode: DetailDensityMode) {
   detailDensity.value = mode
   detailTabGroup.value = mode === 'compact' ? 'focus' : 'all'
+  if (mode === 'full' && !detailTabOrder.includes(activeTab.value as DetailTabKey)) {
+    activeTab.value = 'trend'
+  }
   ensureTabVisible(activeTab.value)
 }
 
@@ -1286,6 +1289,14 @@ function ensureTabVisible(tab: string) {
 }
 
 ensureTabVisible(activeTab.value)
+
+function switchTabGroup(groupKey: DetailTabGroup) {
+  detailTabGroup.value = groupKey
+  const groupTabs = detailTabGroupMap[groupKey]
+  if (groupTabs.length && !groupTabs.includes(activeTab.value as DetailTabKey)) {
+    activeTab.value = groupTabs[0] as DetailTabKey
+  }
+}
 
 function sortAlertsDesc(rows: any[]) {
   return [...rows].sort((a: any, b: any) => dayjs(b?.created_at).valueOf() - dayjs(a?.created_at).valueOf())
@@ -3728,8 +3739,9 @@ async function loadIntegratedRisk(refresh = false) {
     const res = await getAiIntegratedRiskReport(patientId, { refresh })
     integratedRiskReport.value = res.data.report || null
     integratedRiskError.value = formatAiError(res.data.error || '')
-  } catch (e) {
-    integratedRiskError.value = '综合风险服务不可用'
+  } catch (e: any) {
+    const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || ''
+    integratedRiskError.value = msg ? formatAiError(msg) : '综合风险服务暂时不可用，请稍后重试'
   } finally {
     integratedRiskLoading.value = false
   }
@@ -4035,7 +4047,7 @@ async function loadDetailPage() {
     })(),
     (async () => {
       try {
-        const vRes = await getPatientVitals(patientId, 6000)
+        const vRes = await getPatientVitals(patientId, 3000)
         vitals.value = vRes.data.vitals || null
       } catch (e) {
         console.error('加载生命体征失败', e)
@@ -4043,7 +4055,7 @@ async function loadDetailPage() {
     })(),
     (async () => {
       try {
-        const res = await getPatientBedcard(patientId, 8000)
+        const res = await getPatientBedcard(patientId, 4000)
         bedcard.value = res.data?.data || null
       } catch (e) {
         console.error('加载床旁概览卡失败', e)

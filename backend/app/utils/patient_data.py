@@ -507,3 +507,40 @@ async def param_series_by_pid(pid_str: str, code: str, since: datetime) -> list[
         if point_time:
             points.append({"time": point_time, "value": value})
     return points
+
+
+async def param_series_by_pids(pids: list[str], code: str, since: datetime) -> list[dict]:
+    """与 param_series_by_pid 相同，但接受已解析的 pids 列表，避免重复查 patient。"""
+    if not pids or not code:
+        return []
+    cursor = runtime.db.col("bedside").find(
+        {"pid": {"$in": pids}, "code": code, "time": {"$gte": since}},
+        {"time": 1, "strVal": 1, "intVal": 1, "fVal": 1},
+    ).sort("time", 1).limit(2000)
+    points = []
+    async for doc in cursor:
+        value = cap_value(doc)
+        if value is None:
+            continue
+        point_time = cap_time(doc)
+        if point_time:
+            points.append({"time": point_time, "value": value})
+    if points:
+        return points
+
+    device_id = await get_device_id(pids[0], "monitor")
+    if not device_id:
+        return []
+
+    cursor = runtime.db.col("deviceCap").find(
+        {"deviceID": device_id, "code": code, "time": {"$gte": since}},
+        {"time": 1, "strVal": 1, "intVal": 1, "fVal": 1},
+    ).sort("time", 1).limit(2000)
+    async for doc in cursor:
+        value = cap_value(doc)
+        if value is None:
+            continue
+        point_time = cap_time(doc)
+        if point_time:
+            points.append({"time": point_time, "value": value})
+    return points

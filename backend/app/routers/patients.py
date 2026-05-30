@@ -82,7 +82,7 @@ async def get_patients(
     elif dept_code:
         query = {"$and": [query, {"$or": [{"deptCode": dept_code}, {"dept_code": dept_code}, {"departmentCode": dept_code}]}]}
 
-    cursor = runtime.db.col("patient").find(query).sort("hisBed", 1)
+    cursor = runtime.db.col("patient").find(query).sort("hisBed", 1).limit(200)
     patients = []
     async for doc in cursor:
         row = serialize_doc(doc)
@@ -181,6 +181,8 @@ async def patient_discharge_readiness(patient_id: str):
     patient = await runtime.db.col("patient").find_one({"_id": pid})
     if not patient:
         return {"code": 404, "message": "患者不存在"}
+    if not runtime.alert_engine:
+        return {"code": 0, "assessment": None, "error": "预警引擎未就绪"}
     result = await runtime.alert_engine.evaluate_discharge_readiness(patient)
     return {"code": 0, "assessment": serialize_doc(result)}
 
@@ -396,7 +398,8 @@ async def patient_ecash_status(patient_id: str):
     patient = await runtime.db.col("patient").find_one({"_id": pid})
     if not patient:
         return {"code": 404, "message": "患者不存在"}
-
+    if not runtime.alert_engine:
+        return {"code": 0, "status": None, "error": "预警引擎未就绪"}
     status = await runtime.alert_engine.get_ecash_status(patient)
     return {"code": 0, "status": serialize_doc(status)}
 
@@ -696,7 +699,12 @@ async def patient_weaning_timeline(patient_id: str, limit: int = Query(default=4
                 }
             )
 
-    sat_events = await runtime.alert_engine._get_recent_text_events(pid, ["sat", "唤醒试验", "停镇静"], hours=168, limit=20)
+    sat_events = []
+    if runtime.alert_engine:
+        try:
+            sat_events = await runtime.alert_engine._get_recent_text_events(pid, ["sat", "唤醒试验", "停镇静"], hours=168, limit=20)
+        except Exception:
+            pass
     for event in sat_events:
         timeline.append(
             {
@@ -713,7 +721,12 @@ async def patient_weaning_timeline(patient_id: str, limit: int = Query(default=4
             }
         )
 
-    liberation_bundle = await runtime.alert_engine.get_liberation_bundle_status(patient)
+    liberation_bundle = {}
+    if runtime.alert_engine:
+        try:
+            liberation_bundle = await runtime.alert_engine.get_liberation_bundle_status(patient)
+        except Exception:
+            pass
     latest_weaning_doc = await runtime.db.col("score").find_one(
         {"patient_id": pid_str, "score_type": "weaning_assessment"},
         sort=[("calc_time", -1)],

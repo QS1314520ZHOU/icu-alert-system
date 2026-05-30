@@ -1,9 +1,12 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const routeComponents = {
   home: () => import('../views/HomeRedirect.vue'),
   doctorHome: () => import('../views/DoctorHome.vue'),
   nurseHome: () => import('../views/NurseHome.vue'),
+  headNurseHome: () => import('../views/HeadNurseHome.vue'),
+  directorHome: () => import('../views/DirectorHome.vue'),
   overview: () => import('../views/PatientOverview.vue'),
   patientDetail: () => import('../views/PatientDetail.vue'),
   bigScreen: () => import('../views/BigScreen.vue'),
@@ -69,6 +72,18 @@ const router = createRouter({
       name: 'nurse-home',
       component: routeComponents.nurseHome,
       meta: { title: '护士首页' }
+    },
+    {
+      path: '/head-nurse-home',
+      name: 'head-nurse-home',
+      component: routeComponents.headNurseHome,
+      meta: { title: '护士长首页', roles: ['head_nurse', 'charge_nurse'] }
+    },
+    {
+      path: '/director-home',
+      name: 'director-home',
+      component: routeComponents.directorHome,
+      meta: { title: '主任首页', roles: ['director'] }
     },
     {
       path: '/patients',
@@ -234,6 +249,21 @@ const router = createRouter({
       ]
     }
   ] satisfies RouteRecordRaw[]
+})
+
+// 角色守卫：检查路由 meta.roles 配置
+router.beforeEach((to, _from, next) => {
+  const requiredRoles = to.meta?.roles as string[] | undefined
+  if (requiredRoles && requiredRoles.length > 0) {
+    const auth = useAuthStore()
+    const userRole = String(auth.role || '').toLowerCase()
+    if (!requiredRoles.includes(userRole)) {
+      // 角色不匹配，重定向到角色首页
+      next({ path: '/', query: to.query })
+      return
+    }
+  }
+  next()
 })
 
 export default router

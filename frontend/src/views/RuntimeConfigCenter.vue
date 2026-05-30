@@ -331,7 +331,7 @@ async function downloadSnapshot() { try { const { data } = await getRuntimeConfi
 function rollbackConfig(row: any) { Modal.confirm({ title: `回滚 ${row.key} 到 v${row.version}?`, content: '回滚会生成新的配置版本，并立即影响后续运行时读取。', okText: '确认回滚', okType: 'danger', cancelText: '取消', async onOk() { await postRuntimeConfigRollback(row.key, { version: row.version, reason: `UI rollback to v${row.version}`, ...adminPayload.value }); message.success('已回滚'); await loadConfig(); await loadHistory() } }) }
 function formatTime(value: any) { return value ? new Date(value).toLocaleString() : '-' }
 
-onMounted(async () => { await loadConfig(); await loadHistory() })
+onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 </script>
 
 <style scoped>

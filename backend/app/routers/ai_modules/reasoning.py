@@ -242,6 +242,9 @@ async def ai_integrated_risk_report(patient_id: str, refresh: bool = Query(defau
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
+    if runtime.db is None:
+        return {"code": 0, "report": None, "error": "数据库服务未就绪"}
+
     patient = await runtime.db.col("patient").find_one({"_id": pid})
     if not patient:
         return {"code": 404, "message": "患者不存在"}
@@ -254,6 +257,8 @@ async def ai_integrated_risk_report(patient_id: str, refresh: bool = Query(defau
                 sort=[("created_at", -1)],
             )
         if not record:
+            if runtime.alert_engine is None:
+                return {"code": 0, "report": None, "error": "预警引擎未就绪，无法生成综合风险报告"}
             scanner = IntegratedRiskReasoningScanner(runtime.alert_engine)
             reports = await scanner.scan(str(pid))
             record = reports[0] if reports else await runtime.db.col("integrated_risk_reports").find_one(

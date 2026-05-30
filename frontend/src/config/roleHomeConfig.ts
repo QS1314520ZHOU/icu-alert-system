@@ -1,6 +1,8 @@
 export type NavItemKey =
   | 'doctor-home'
   | 'nurse-home'
+  | 'head-nurse-home'
+  | 'director-home'
   | 'overview'
   | 'clinical-workflow'
   | 'ai-consult'
@@ -36,6 +38,8 @@ export const navGroups: NavGroup[] = [
     items: [
       { key: 'doctor-home', lines: ['医生', '首页'], path: '/doctor-home' },
       { key: 'nurse-home', lines: ['护士', '首页'], path: '/nurse-home' },
+      { key: 'head-nurse-home', lines: ['护士长', '首页'], path: '/head-nurse-home' },
+      { key: 'director-home', lines: ['主任', '首页'], path: '/director-home' },
       { key: 'overview', lines: ['患者', '总览'], path: '/patients' },
       { key: 'clinical-workflow', lines: ['临床', '工作台'], path: '/clinical-workflow' },
     ],
@@ -95,5 +99,11 @@ export const roleHomeConfig = {
     startHint: '今天从这里开始：先看全科床位，再看工作负荷，最后追踪未闭环护理事件。',
     onboardingKey: 'icu_onboarding_seen_head_nurse',
     onboardingSteps: ['先看全科床位', '查看工作负荷和异常事件', '追踪未闭环护理问题'],
+  },
+  director: {
+    title: '主任看板',
+    startHint: '今天从这里开始：先看科室概览，再看质控大屏，最后追踪KPI和科研动态。',
+    onboardingKey: 'icu_onboarding_seen_director',
+    onboardingSteps: ['先看科室概览', '查看质控大屏', '追踪KPI和科研动态'],
   },
 }

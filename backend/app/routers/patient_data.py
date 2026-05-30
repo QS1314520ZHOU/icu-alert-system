@@ -34,11 +34,35 @@ from app.utils.patient_data import (
     load_sc_doc_map,
     merge_assessment_records,
     param_series_by_pid,
+    param_series_by_pids,
 )
 from app.utils.patient_helpers import calculate_age, patient_his_pid, patient_his_pid_candidates
 from app.utils.serialization import safe_oid, serialize_doc
 
 router = APIRouter()
+
+
+class _AsyncListCursor:
+    """将 list 包装为 async cursor，兼容 `async for row in cursor` 模式。"""
+    def __init__(self, rows: list):
+        self._rows = rows
+        self._idx = 0
+
+    def sort(self, *_a, **_kw):
+        return self
+
+    def limit(self, _n):
+        return self
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._idx >= len(self._rows):
+            raise StopAsyncIteration
+        row = self._rows[self._idx]
+        self._idx += 1
+        return row
 
 
 def resolve_actor_identity(payload: dict | None, request: Request) -> str:
@@ -262,14 +286,13 @@ async def patient_vitals(patient_id: str):
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
-    vitals: dict = {}
     pid_str = str(pid)
-    query_pids = [pid_str]
     patient = await runtime.db.col("patient").find_one(
         {"_id": pid},
         {"hisPid": 1, "hisPID": 1, "hisBed": 1, "bed": 1, "deptCode": 1},
     )
     his_pid = patient_his_pid(patient)
+    query_pids = [pid_str]
     if his_pid:
         query_pids.append(his_pid)
 
@@ -286,31 +309,49 @@ async def patient_vitals(patient_id: str):
         "param_ETCO2",
     ]
 
-    snapshot = await latest_params_by_pid(query_pids, codes)
+    # 并行查询三个数据源
+    async def _fetch_monitor():
+        return await latest_params_by_pid(query_pids, codes)
+
+    async def _fetch_bedside():
+        return await _latest_bedside_vitals(pid_str, codes)
+
+    async def _fetch_alert_fallback():
+        return await _fallback_vitals_from_alert_snapshot(pid_str)
+
+    monitor_snap, bedside_snap, fallback_vitals = await asyncio.gather(
+        _fetch_monitor(), _fetch_bedside(), _fetch_alert_fallback(),
+        return_exceptions=True,
+    )
+    monitor_snap = monitor_snap if not isinstance(monitor_snap, Exception) else None
+    bedside_snap = bedside_snap if not isinstance(bedside_snap, Exception) else None
+    fallback_vitals = fallback_vitals if not isinstance(fallback_vitals, Exception) else None
+
+    # 合并结果：monitor 优先，bedside 补充，alert 兜底
+    vitals: dict = {}
     source = None
-    if snapshot:
+    if monitor_snap:
+        vitals = _snapshot_to_vitals(monitor_snap, "monitor")
         source = "monitor"
-    else:
+    elif not isinstance(monitor_snap, Exception):
+        # monitor 无数据，尝试设备
         device_id = await get_device_id(pid_str, "monitor", patient_doc=patient)
         if not device_id:
             device_id = await get_device_id(pid_str, None, patient_doc=patient)
         if device_id:
-            snapshot = await latest_params_by_device(device_id, codes)
-            if snapshot:
+            device_snap = await latest_params_by_device(device_id, codes)
+            if device_snap:
+                vitals = _snapshot_to_vitals(device_snap, "device")
                 source = "device"
 
-    if snapshot:
-        vitals = _snapshot_to_vitals(snapshot, source)
-    bedside_snapshot = await _latest_bedside_vitals(pid_str, codes)
-    if bedside_snapshot:
-        bedside_vitals = _snapshot_to_vitals(bedside_snapshot, "nurse_manual")
+    if bedside_snap:
+        bedside_vitals = _snapshot_to_vitals(bedside_snap, "nurse_manual")
         if not vitals:
             vitals = bedside_vitals
         else:
             for key, value in bedside_vitals.items():
                 if vitals.get(key) in (None, "") and value not in (None, ""):
                     vitals[key] = value
-    fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
     if fallback_vitals:
         if not vitals:
             vitals = fallback_vitals
@@ -336,18 +377,33 @@ async def patient_labs(patient_id: str):
     patient_ids = patient_his_pid_candidates(patient)
     exams = []
     if patient_ids:
-        bga_item_docs = await fetch_smartcare_bga_items_by_his_pid(patient_ids, limit_docs=80)
         his_pid_query = {"hisPid": patient_ids[0]} if len(patient_ids) == 1 else {"hisPid": {"$in": patient_ids}}
 
-        exam_docs = []
-        for col_name in ("VI_ICU_EXAM", "VI_ICU_EXAM_admitted"):
-            cursor = runtime.db.dc_col(col_name).find(his_pid_query).sort("authTime", -1).limit(80)
-            exam_docs.extend([doc async for doc in cursor])
-        if exam_docs:
-            exam_docs = sorted(exam_docs, key=lambda item: lab_time(item) or datetime.min, reverse=True)[:80]
+        # 并行查询 BGA、exam、item
+        async def _fetch_bga():
+            return await fetch_smartcare_bga_items_by_his_pid(patient_ids, limit_docs=80)
 
-        cursor = runtime.db.dc_col("VI_ICU_EXAM_ITEM").find(his_pid_query).sort("authTime", -1).limit(1800)
-        item_docs = [doc async for doc in cursor]
+        async def _fetch_exams():
+            docs = []
+            for col_name in ("VI_ICU_EXAM", "VI_ICU_EXAM_admitted"):
+                cursor = runtime.db.dc_col(col_name).find(his_pid_query).sort("authTime", -1).limit(80)
+                docs.extend([doc async for doc in cursor])
+            if docs:
+                docs = sorted(docs, key=lambda item: lab_time(item) or datetime.min, reverse=True)[:80]
+            return docs
+
+        async def _fetch_items():
+            cursor = runtime.db.dc_col("VI_ICU_EXAM_ITEM").find(his_pid_query).sort("authTime", -1).limit(1800)
+            return [doc async for doc in cursor]
+
+        bga_item_docs, exam_docs, item_docs = await asyncio.gather(
+            _fetch_bga(), _fetch_exams(), _fetch_items(),
+            return_exceptions=True,
+        )
+        bga_item_docs = bga_item_docs if not isinstance(bga_item_docs, Exception) else []
+        exam_docs = exam_docs if not isinstance(exam_docs, Exception) else []
+        item_docs = item_docs if not isinstance(item_docs, Exception) else []
+
         if not item_docs:
             exam_docs, item_docs = await fetch_dc_exam_items_by_his_pid(patient_ids, limit_exams=60, limit_items=1800)
 
@@ -462,6 +518,14 @@ async def patient_vitals_trend(
     hours_map = {"6h": 6, "12h": 12, "24h": 24, "48h": 48, "7d": 168}
     since = datetime.now() - timedelta(hours=hours_map.get(window, 24))
 
+    # 预解析 hisPid，避免 10 次重复查询
+    pid_str = str(pid)
+    patient_doc = await runtime.db.col("patient").find_one({"_id": pid}, {"hisPid": 1, "hisPID": 1})
+    query_pids = [pid_str]
+    his_pid = patient_his_pid(patient_doc)
+    if his_pid and his_pid not in query_pids:
+        query_pids.append(his_pid)
+
     code_field_pairs = [
         ("param_HR", "hr"),
         ("param_spo2", "spo2"),
@@ -477,7 +541,7 @@ async def patient_vitals_trend(
 
     points_map: dict[str, dict] = {}
     series_results = await asyncio.gather(
-        *(param_series_by_pid(str(pid), code, since) for code, _field in code_field_pairs),
+        *(param_series_by_pids(query_pids, code, since) for code, _field in code_field_pairs),
         return_exceptions=True,
     )
     for (_code, field), series in zip(code_field_pairs, series_results):
@@ -576,7 +640,8 @@ async def patient_drugs(patient_id: str):
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
-    cursor = runtime.db.col("drugExe").find(
+    # 并行获取药物记录和映射表
+    cursor_task = runtime.db.col("drugExe").find(
         {"pid": str(pid)},
         {
             "drugName": 1,
@@ -592,12 +657,24 @@ async def patient_drugs(patient_id: str):
             "startTime": 1,
             "orderTime": 1,
         },
-    ).sort("executeTime", -1).limit(50)
+    ).sort("executeTime", -1).limit(50).to_list(50)
 
-    route_map_dc = await load_dc_doc_map("VI_ICU_YWYF", "code", ["name", "desc"])
-    freq_map_dc = await load_dc_doc_map("VI_ICU_YYPC", "code", ["freqName", "desc"])
-    route_map_sc = await load_sc_doc_map("configDrugMethod", "code", ["name"])
-    freq_map_sc = await load_sc_doc_map("configOrderFreq", "freqCode", ["freqName", "perDay", "freqFixHourMinList"])
+    route_dc_task = load_dc_doc_map("VI_ICU_YWYF", "code", ["name", "desc"])
+    freq_dc_task = load_dc_doc_map("VI_ICU_YYPC", "code", ["freqName", "desc"])
+    route_sc_task = load_sc_doc_map("configDrugMethod", "code", ["name"])
+    freq_sc_task = load_sc_doc_map("configOrderFreq", "freqCode", ["freqName", "perDay", "freqFixHourMinList"])
+
+    drug_rows, route_map_dc, freq_map_dc, route_map_sc, freq_map_sc = await asyncio.gather(
+        cursor_task, route_dc_task, freq_dc_task, route_sc_task, freq_sc_task,
+        return_exceptions=True,
+    )
+    drug_rows = drug_rows if not isinstance(drug_rows, Exception) else []
+    route_map_dc = route_map_dc if not isinstance(route_map_dc, Exception) else {}
+    freq_map_dc = freq_map_dc if not isinstance(freq_map_dc, Exception) else {}
+    route_map_sc = route_map_sc if not isinstance(route_map_sc, Exception) else {}
+    freq_map_sc = freq_map_sc if not isinstance(freq_map_sc, Exception) else {}
+
+    cursor = _AsyncListCursor(drug_rows)
 
     def map_route(code):
         if code is None or code == "":
@@ -758,16 +835,23 @@ async def patient_assessments(patient_id: str):
         "delirium": ["param_delirium_score"],
         "braden": ["param_score_braden", "param_score_braden_Q24H"],
     }
+    # 合并所有 codes 为一次查询
+    all_codes = [code for codes in code_map.values() for code in codes]
+    code_to_kind: dict[str, str] = {}
     for kind, codes in code_map.items():
-        cursor3 = runtime.db.col("bedside").find(
-            {
-                "pid": pid_str,
-                "code": {"$in": codes},
-                "$or": [{"valid": {"$exists": False}}, {"valid": True}],
-            },
-            {"time": 1, "code": 1, "strVal": 1, "intVal": 1, "fVal": 1, "value": 1},
-        ).sort("time", -1).limit(160)
-        async for doc in cursor3:
+        for code in codes:
+            code_to_kind[code] = kind
+    cursor3 = runtime.db.col("bedside").find(
+        {
+            "pid": pid_str,
+            "code": {"$in": all_codes},
+            "$or": [{"valid": {"$exists": False}}, {"valid": True}],
+        },
+        {"time": 1, "code": 1, "strVal": 1, "intVal": 1, "fVal": 1, "value": 1},
+    ).sort("time", -1).limit(500)
+    async for doc in cursor3:
+        kind = code_to_kind.get(doc.get("code"))
+        if kind:
             value = extract_assessment_from_bedside_doc(kind, doc)
             if value is not None:
                 records.append(serialize_doc({"time": doc.get("time"), kind: value}))

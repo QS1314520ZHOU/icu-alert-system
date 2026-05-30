@@ -202,6 +202,37 @@ class DatabaseManager:
             await reminder_col.create_index(
                 [("patient_id", 1), ("score_type", 1), ("is_active", 1)]
             )
+            await reminder_col.create_index(
+                [("patient_id", 1), ("is_active", 1), ("due_at", 1)]
+            )
+
+            # 床旁数据索引（高频查询）
+            bedside_col = self.col("bedside")
+            await bedside_col.create_index([("pid", 1), ("code", 1), ("time", -1)])
+            await bedside_col.create_index([("pid", 1), ("time", -1)])
+
+            # 设备数据索引
+            device_cap_col = self.col("deviceCap")
+            await device_cap_col.create_index([("deviceID", 1), ("code", 1), ("time", -1)])
+            device_bind_col = self.col("deviceBind")
+            await device_bind_col.create_index([("pid", 1), ("unBindTime", -1)])
+
+            # 用药执行索引
+            drug_col = self.col("drugExe")
+            await drug_col.create_index([("pid", 1), ("executeTime", -1)])
+            await drug_col.create_index([("pid", 1), ("drugName", 1)])
+
+            # 护理记录索引
+            nurse_col = self.col("nurseRecords")
+            await nurse_col.create_index([("pid", 1), ("recordTime", -1)])
+            await nurse_col.create_index([("pid", 1), ("created_at", -1)])
+
+            # 告警记录补充索引
+            await alert_col.create_index([("rule_id", 1), ("patient_id", 1), ("created_at", -1)])
+
+            # Bundle 合规每日汇总索引
+            bundle_daily_col = self.col("bundle_compliance_daily")
+            await bundle_daily_col.create_index([("date", 1), ("dept", 1), ("deptCode", 1)], unique=True)
 
             # AI 监控索引
             ai_log_col = self.col("ai_monitor_logs")

@@ -694,9 +694,8 @@ watch(() => [route.query.deptCode, route.query.dept_code, route.query.dept, rout
   loadPatients()
 })
 
-onMounted(async () => {
-  await loadDepartments()
-  await loadPatients()
+onMounted(() => {
+  Promise.all([loadDepartments(), loadPatients()])
 })
 </script>
 

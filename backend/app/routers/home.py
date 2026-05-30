@@ -127,6 +127,41 @@ async def generate_nurse_handoff(request: Request, payload: dict = Body(default=
     return {"code": 0, "data": serialize_doc(result)}
 
 
+@router.get("/api/home/head-nurse")
+async def head_nurse_home(
+    user_id: str = Query(...),
+    shift_code: str = Query("auto"),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
+    result = await _service().head_nurse_home(user_id, shift_code=shift_code, dept=dept, dept_code=dept_code or deptCode)
+    return {"code": 0, "data": serialize_doc(_public_payload(result))}
+
+
+@router.get("/api/home/head-nurse/compliance-dashboard")
+async def compliance_dashboard(
+    user_id: str = Query(...),
+    shift_code: str = Query("auto"),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
+    result = await _service().compliance_dashboard(user_id, shift_code=shift_code, dept=dept, dept_code=dept_code or deptCode)
+    return {"code": 0, "data": serialize_doc(_public_payload(result))}
+
+
+@router.get("/api/home/director")
+async def director_home(
+    user_id: str = Query(...),
+    dept: str | None = Query(None),
+    dept_code: str | None = Query(None),
+    deptCode: str | None = Query(None),
+):
+    result = await _service().director_home(user_id, dept=dept, dept_code=dept_code or deptCode)
+    return {"code": 0, "data": serialize_doc(_public_payload(result))}
+
+
 @router.get("/api/shift/current")
 async def current_shift(now: str | None = Query(None)):
     parsed_now = None

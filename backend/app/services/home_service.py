@@ -44,6 +44,12 @@ def _contains_any(value: Any, keywords: Iterable[str]) -> bool:
     return bool(text) and any(_text(keyword).lower() in text for keyword in keywords if _text(keyword))
 
 
+async def _empty_async_cursor():
+    """Yield nothing — used as a safe fallback when a collection query fails."""
+    return
+    yield  # pragma: no cover
+
+
 def _patient_id(patient: dict[str, Any]) -> str:
     return str(patient.get("_id") or patient.get("patientId") or patient.get("pid") or "")
 
@@ -163,18 +169,46 @@ class RoleHomeService:
         ).limit(120)
         return [row async for row in cursor]
 
-    async def _latest_integrated_risk(self, patients: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        result: dict[str, dict[str, Any]] = {}
+    async def _fetch_alerts_for_patients(self, patients: list[dict[str, Any]], hours: int = 12) -> list[dict[str, Any]]:
+        """批量获取患者告警记录。"""
+        if not patients:
+            return []
+        patient_keys: list[Any] = []
         for patient in patients:
-            keys = self._patient_alert_keys(patient)
-            if not keys:
-                continue
-            row = await self.db.col("alert_records").find_one(
-                {"patient_id": {"$in": keys}, "rule_id": "INTEGRATED_RISK_REASONING"},
-                sort=[("created_at", -1)],
-            )
-            if row:
-                result[_patient_id(patient)] = row
+            patient_keys.extend(self._patient_alert_keys(patient))
+        if not patient_keys:
+            return []
+        since = datetime.now(API_TZ) - timedelta(hours=hours)
+        cursor = self.db.col("alert_records").find(
+            {"patient_id": {"$in": patient_keys}, "created_at": {"$gte": since}},
+            {"patient_id": 1, "rule_id": 1, "severity": 1, "created_at": 1, "acknowledged_at": 1, "ack_disposition": 1, "suppressed": 1, "auto_suppressed": 1, "pushed_at": 1, "clicked_at": 1, "adopted": 1},
+        ).sort("created_at", -1).limit(1000)
+        return [row async for row in cursor]
+
+    async def _latest_integrated_risk(self, patients: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """批量查询综合风险推理（单次查询替代 N 次）。"""
+        if not patients:
+            return {}
+        all_keys: list[Any] = []
+        key_to_pid: dict[str, str] = {}
+        for patient in patients:
+            pid = _patient_id(patient)
+            for key in self._patient_alert_keys(patient):
+                if _text(key):
+                    all_keys.append(key)
+                    key_to_pid[str(key)] = pid
+        if not all_keys:
+            return {}
+        # 批量查询所有患者的 INTEGRATED_RISK_REASONING
+        cursor = self.db.col("alert_records").find(
+            {"patient_id": {"$in": all_keys}, "rule_id": "INTEGRATED_RISK_REASONING"},
+            {"patient_id": 1, "rule_id": 1, "severity": 1, "created_at": 1, "extra": 1, "name": 1},
+        ).sort("created_at", -1).limit(len(patients) * 2)
+        result: dict[str, dict[str, Any]] = {}
+        async for row in cursor:
+            pid = key_to_pid.get(str(row.get("patient_id")), "")
+            if pid and pid not in result:
+                result[pid] = row
         return result
 
     def _patient_by_id(self, patients: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -254,7 +288,27 @@ class RoleHomeService:
         dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
         doctor_user_id = self._account_patient_user_id(account, user_id)
         patients = await self._doctor_patients(doctor_user_id, dept=dept, dept_code=dept_code)
-        risk_by_patient = await self._latest_integrated_risk(patients)
+
+        # 并行获取风险、告警、任务、质控
+        patient_ids = [_patient_id(patient) for patient in patients]
+        risk_task = self._latest_integrated_risk(patients)
+        alerts_task = self._fetch_alerts_for_patients(patients, hours=12)
+        tasks_task = self._open_tasks_for_patients(patient_ids)
+        quality_task = self.adoption.quality_summary(days=7, dept=dept or account.get("dept"), dept_code=dept_code)
+
+        risk_by_patient, alerts, open_tasks, quality = await asyncio.gather(
+            risk_task, alerts_task, tasks_task, quality_task,
+            return_exceptions=True,
+        )
+        if isinstance(risk_by_patient, Exception):
+            risk_by_patient = {}
+        if isinstance(alerts, Exception):
+            alerts = []
+        if isinstance(open_tasks, Exception):
+            open_tasks = []
+        if isinstance(quality, Exception):
+            quality = {}
+
         focus = []
         for patient in patients:
             pid = _patient_id(patient)
@@ -271,17 +325,6 @@ class RoleHomeService:
             )
         focus.sort(key=lambda row: (-int(row.get("risk_score") or 0), _text(row.get("bed"))))
 
-        patient_keys: list[Any] = []
-        for patient in patients:
-            patient_keys.extend(self._patient_alert_keys(patient))
-        since = datetime.now(API_TZ) - timedelta(hours=12)
-        alerts = []
-        if patient_keys:
-            cursor = self.db.col("alert_records").find(
-                {"patient_id": {"$in": patient_keys}, "created_at": {"$gte": since}},
-                {"patient_id": 1, "rule_id": 1, "severity": 1, "created_at": 1, "acknowledged_at": 1, "ack_disposition": 1, "suppressed": 1, "auto_suppressed": 1, "pushed_at": 1, "clicked_at": 1, "adopted": 1},
-            ).sort("created_at", -1).limit(1000)
-            alerts = [row async for row in cursor]
         ai_watch = {
             "total_alerts": len(alerts),
             "auto_suppressed": sum(1 for row in alerts if row.get("suppressed") or row.get("auto_suppressed")),
@@ -293,8 +336,6 @@ class RoleHomeService:
             "pulse_pushes": sum(1 for row in alerts if row.get("pushed_at")),
             "pulse_clicks": sum(1 for row in alerts if row.get("clicked_at")),
         }
-        open_tasks = await self._open_tasks_for_patients([_patient_id(patient) for patient in patients])
-        quality = await self.adoption.quality_summary(days=7, dept=dept or account.get("dept"), dept_code=dept_code)
         data_state = {
             "account_found": bool(account.get("found")),
             "doctor_user_id": doctor_user_id,
@@ -525,7 +566,85 @@ class RoleHomeService:
         return "overdue"
 
     def _nursing_task_catalog(self) -> list[dict[str, Any]]:
-        return []
+        cfg_obj = self.config
+        if cfg_obj is None:
+            return []
+        yaml_cfg = getattr(cfg_obj, "yaml_cfg", None) or {}
+        reminders_cfg = yaml_cfg.get("nurse_reminders", {})
+        if not isinstance(reminders_cfg, dict) or not reminders_cfg:
+            return []
+        default_titles = {
+            "gcs": "GCS评估",
+            "rass": "RASS评估",
+            "pain": "疼痛评估",
+            "cpot": "CPOT评估",
+            "bps": "BPS评估",
+            "delirium": "谵妄评估",
+            "braden": "Braden压疮评估",
+            "cam_icu": "CAM-ICU评估",
+            "turning": "翻身",
+            "early_mobility": "早期活动",
+        }
+        catalog: list[dict[str, Any]] = []
+        for score_type, score_cfg in reminders_cfg.items():
+            if not isinstance(score_cfg, dict):
+                continue
+            interval_h = float(score_cfg.get("interval_hours", 4))
+            title = score_cfg.get("name") or default_titles.get(score_type, f"{score_type.upper()}评估")
+            code = score_cfg.get("code", "")
+            keywords = [_text(score_type), _text(code)]
+            if score_type == "turning":
+                keywords.extend(score_cfg.get("turning_keywords", []))
+            elif score_type == "early_mobility":
+                keywords.extend(score_cfg.get("activity_keywords", []))
+            catalog.append({
+                "key": score_type,
+                "title": title,
+                "code": code,
+                "keywords": [k for k in keywords if _text(k)],
+                "period": timedelta(hours=interval_h),
+                "rule_id": score_cfg.get("rule_id", f"NURSE_{score_type.upper()}"),
+            })
+        return catalog
+
+    async def _nursing_reminder_matrix(
+        self,
+        patient_ids: list[str],
+        patients_by_id: dict[str, dict[str, Any]],
+        shift: ShiftInfo,
+        catalog: list[dict[str, Any]],
+    ) -> dict[tuple[str, str], dict[str, Any]]:
+        if not patient_ids or not catalog:
+            return {}
+        score_types = [spec["key"] for spec in catalog]
+        try:
+            active_cursor = self.db.col("nurse_reminders").find(
+                {"patient_id": {"$in": patient_ids}, "score_type": {"$in": score_types}, "is_active": True},
+                {"patient_id": 1, "score_type": 1, "due_at": 1, "last_score_time": 1, "severity": 1, "name": 1, "_id": 1, "code": 1},
+            ).limit(500)
+        except Exception:
+            active_cursor = _empty_async_cursor()
+        since = shift.start - timedelta(hours=48)
+        try:
+            resolved_cursor = self.db.col("nurse_reminders").find(
+                {"patient_id": {"$in": patient_ids}, "score_type": {"$in": score_types}, "is_active": False, "resolved_at": {"$gte": since}},
+                {"patient_id": 1, "score_type": 1, "due_at": 1, "last_score_time": 1, "resolved_at": 1, "severity": 1, "name": 1, "_id": 1, "code": 1},
+            ).sort("resolved_at", -1).limit(500)
+        except Exception:
+            resolved_cursor = _empty_async_cursor()
+        matrix: dict[tuple[str, str], dict[str, Any]] = {}
+        async for row in active_cursor:
+            pid = _text(row.get("patient_id"))
+            st = _text(row.get("score_type"))
+            if pid and st:
+                matrix[(pid, st)] = row
+        async for row in resolved_cursor:
+            pid = _text(row.get("patient_id"))
+            st = _text(row.get("score_type"))
+            key = (pid, st)
+            if pid and st and key not in matrix:
+                matrix[key] = row
+        return matrix
 
     def _record_patient_query(self, patient: dict[str, Any] | None, pid: str) -> dict[str, Any]:
         keys = self._patient_alert_keys(patient) if patient else [pid]
@@ -567,102 +686,133 @@ class RoleHomeService:
             due_at += period
         return due_at
 
-    async def _latest_record_by_keywords(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], keywords: list[str], hours: int) -> tuple[bool, str, datetime | None]:
-        since = datetime.now(API_TZ) - timedelta(hours=max(1, hours))
-        latest: datetime | None = None
+    def _all_patient_keys(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]]) -> list[Any]:
+        """收集所有患者的 alert keys，用于批量查询。"""
+        keys: list[Any] = []
+        seen: set[str] = set()
         for pid in patient_ids:
-            row = await self._latest_nursing_task_record(patients_by_id.get(pid), pid, keywords)
-            if not row:
+            patient = patients_by_id.get(pid)
+            for key in (self._patient_alert_keys(patient) if patient else [pid]):
+                marker = f"{type(key).__name__}:{key}"
+                if _text(key) and marker not in seen:
+                    seen.add(marker)
+                    keys.append(key)
+        return keys
+
+    async def _latest_record_by_keywords(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], keywords: list[str], hours: int) -> tuple[bool, str, datetime | None]:
+        """批量查询 nurseRecords 关键词匹配（单次查询替代 N 次）。"""
+        since = datetime.now(API_TZ) - timedelta(hours=max(1, hours))
+        regex = "|".join(re.escape(k) for k in keywords if _text(k))
+        if not regex or not patient_ids:
+            return False, "", None
+        keys = self._all_patient_keys(patient_ids, patients_by_id)
+        if not keys:
+            return False, "", None
+        text_cond = {"$or": [
+            {"content": {"$regex": regex, "$options": "i"}},
+            {"recordTitle": {"$regex": regex, "$options": "i"}},
+            {"title": {"$regex": regex, "$options": "i"}},
+            {"careType": {"$regex": regex, "$options": "i"}},
+            {"name": {"$regex": regex, "$options": "i"}},
+        ]}
+        query = {"$and": [
+            {"$or": [{"pid": {"$in": keys}}, {"patient_id": {"$in": keys}}]},
+            {"time": {"$gte": since}},
+            text_cond,
+        ]}
+        latest: datetime | None = None
+        for col_name in ("nurseRecords", "nursing_record"):
+            try:
+                row = await self.db.col(col_name).find_one(query, {"recordTime": 1, "time": 1, "created_at": 1, "createTime": 1}, sort=[("time", -1)])
+                if row:
+                    when = _dt(row.get("recordTime") or row.get("time") or row.get("created_at") or row.get("createTime"))
+                    if when and (latest is None or _as_api_tz(when) > latest):
+                        latest = _as_api_tz(when)
+            except Exception:
                 continue
-            when = _dt(row.get("recordTime") or row.get("time") or row.get("created_at") or row.get("createTime"))
-            if when and _as_api_tz(when) >= since and (latest is None or _as_api_tz(when) > latest):
-                latest = _as_api_tz(when)
         return bool(latest), "nurseRecords" if latest else "", latest
 
     async def _latest_bedside_by_keywords(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], keywords: list[str], hours: int) -> tuple[bool, str, datetime | None]:
+        """批量查询 bedside 关键词匹配（单次查询替代 N 次）。"""
         since = datetime.now(API_TZ) - timedelta(hours=max(1, hours))
-        regex = "|".join(re.escape(keyword) for keyword in keywords if _text(keyword))
-        latest: datetime | None = None
-        for pid in patient_ids:
-            patient = patients_by_id.get(pid)
-            keys = self._patient_alert_keys(patient) if patient else [pid]
-            query = {
-                "$and": [
-                    {"pid": {"$in": keys}},
-                    {"time": {"$gte": since}},
-                    {"$or": [
-                        {"code": {"$regex": regex, "$options": "i"}},
-                        {"name": {"$regex": regex, "$options": "i"}},
-                        {"paramName": {"$regex": regex, "$options": "i"}},
-                        {"strVal": {"$regex": regex, "$options": "i"}},
-                        {"value": {"$regex": regex, "$options": "i"}},
-                    ]},
-                ]
-            }
-            try:
-                row = await self.db.col("bedside").find_one(query, {"time": 1}, sort=[("time", -1)])
-            except Exception:
-                row = None
-            when = _dt((row or {}).get("time"))
-            if when and (latest is None or _as_api_tz(when) > latest):
-                latest = _as_api_tz(when)
+        regex = "|".join(re.escape(k) for k in keywords if _text(k))
+        if not regex or not patient_ids:
+            return False, "", None
+        keys = self._all_patient_keys(patient_ids, patients_by_id)
+        if not keys:
+            return False, "", None
+        query = {"$and": [
+            {"pid": {"$in": keys}},
+            {"time": {"$gte": since}},
+            {"$or": [
+                {"code": {"$regex": regex, "$options": "i"}},
+                {"name": {"$regex": regex, "$options": "i"}},
+                {"paramName": {"$regex": regex, "$options": "i"}},
+                {"strVal": {"$regex": regex, "$options": "i"}},
+                {"value": {"$regex": regex, "$options": "i"}},
+            ]},
+        ]}
+        try:
+            row = await self.db.col("bedside").find_one(query, {"time": 1}, sort=[("time", -1)])
+        except Exception:
+            row = None
+        when = _dt((row or {}).get("time"))
+        latest = _as_api_tz(when) if when else None
         return bool(latest), "bedside" if latest else "", latest
 
     async def _latest_bed_angle_done(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]]) -> tuple[bool, str, datetime | None]:
+        """批量查询床头抬高（单次查询替代 N 次）。"""
         since = datetime.now(API_TZ) - timedelta(hours=4)
+        keys = self._all_patient_keys(patient_ids, patients_by_id)
+        if not keys:
+            return False, "", None
+        query = {"$and": [
+            {"pid": {"$in": keys}},
+            {"time": {"$gte": since}},
+            {"$or": [{"code": "param_bed_angle"}, {"paramCode": "param_bed_angle"}, {"name": {"$regex": "床头|床角度|bed_angle", "$options": "i"}}]},
+        ]}
+        try:
+            cursor = self.db.col("bedside").find(query, {"time": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1}).sort("time", -1).limit(50)
+            rows = [row async for row in cursor]
+        except Exception:
+            rows = []
         latest: datetime | None = None
-        for pid in patient_ids:
-            patient = patients_by_id.get(pid)
-            keys = self._patient_alert_keys(patient) if patient else [pid]
-            query = {
-                "$and": [
-                    {"pid": {"$in": keys}},
-                    {"time": {"$gte": since}},
-                    {"$or": [{"code": "param_bed_angle"}, {"paramCode": "param_bed_angle"}, {"name": {"$regex": "床头|床角度|bed_angle", "$options": "i"}}]},
-                ]
-            }
-            try:
-                cursor = self.db.col("bedside").find(query, {"time": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1}).sort("time", -1).limit(20)
-                rows = [row async for row in cursor]
-            except Exception:
-                rows = []
-            for row in rows:
-                value = None
-                for field in ("fVal", "intVal", "strVal", "value"):
-                    try:
-                        value = float(str(row.get(field)).replace("°", ""))
-                        break
-                    except Exception:
-                        pass
-                if value is not None and value >= 30:
-                    when = _as_api_tz(_dt(row.get("time")) or datetime.now(API_TZ))
-                    if latest is None or when > latest:
-                        latest = when
+        for row in rows:
+            value = None
+            for field in ("fVal", "intVal", "strVal", "value"):
+                try:
+                    value = float(str(row.get(field)).replace("°", ""))
+                    break
+                except Exception:
+                    pass
+            if value is not None and value >= 30:
+                when = _as_api_tz(_dt(row.get("time")) or datetime.now(API_TZ))
+                if latest is None or when > latest:
+                    latest = when
         if latest:
             return True, "bedside:param_bed_angle", latest
         return await self._latest_bedside_by_keywords(patient_ids, patients_by_id, ["床头抬高", "抬高床头", "半卧位", "30°", "30度"], 24)
 
     async def _latest_drug_or_order_by_keywords(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], keywords: list[str], hours: int) -> tuple[bool, str, datetime | None]:
+        """批量查询 drugExe 关键词匹配（单次查询替代 N 次）。"""
         since = datetime.now(API_TZ) - timedelta(hours=max(1, hours))
-        regex = "|".join(re.escape(keyword) for keyword in keywords if _text(keyword))
-        latest: datetime | None = None
-        for pid in patient_ids:
-            patient = patients_by_id.get(pid)
-            keys = self._patient_alert_keys(patient) if patient else [pid]
-            query = {
-                "$and": [
-                    {"pid": {"$in": keys}},
-                    {"$or": [{"exeTime": {"$gte": since}}, {"executeTime": {"$gte": since}}, {"time": {"$gte": since}}, {"startTime": {"$gte": since}}, {"orderTime": {"$gte": since}}]},
-                    {"$or": [{"drugName": {"$regex": regex, "$options": "i"}}, {"orderName": {"$regex": regex, "$options": "i"}}, {"name": {"$regex": regex, "$options": "i"}}]},
-                ]
-            }
-            try:
-                row = await self.db.col("drugExe").find_one(query, {"exeTime": 1, "executeTime": 1, "time": 1, "startTime": 1, "orderTime": 1}, sort=[("exeTime", -1), ("executeTime", -1), ("time", -1), ("startTime", -1), ("orderTime", -1)])
-            except Exception:
-                row = None
-            when = _dt((row or {}).get("exeTime") or (row or {}).get("executeTime") or (row or {}).get("time") or (row or {}).get("startTime") or (row or {}).get("orderTime"))
-            if when and (latest is None or _as_api_tz(when) > latest):
-                latest = _as_api_tz(when)
+        regex = "|".join(re.escape(k) for k in keywords if _text(k))
+        if not regex or not patient_ids:
+            return False, "", None
+        keys = self._all_patient_keys(patient_ids, patients_by_id)
+        if not keys:
+            return False, "", None
+        query = {"$and": [
+            {"pid": {"$in": keys}},
+            {"$or": [{"exeTime": {"$gte": since}}, {"executeTime": {"$gte": since}}, {"time": {"$gte": since}}, {"startTime": {"$gte": since}}, {"orderTime": {"$gte": since}}]},
+            {"$or": [{"drugName": {"$regex": regex, "$options": "i"}}, {"orderName": {"$regex": regex, "$options": "i"}}, {"name": {"$regex": regex, "$options": "i"}}]},
+        ]}
+        try:
+            row = await self.db.col("drugExe").find_one(query, {"exeTime": 1, "executeTime": 1, "time": 1, "startTime": 1, "orderTime": 1}, sort=[("exeTime", -1), ("executeTime", -1), ("time", -1)])
+        except Exception:
+            row = None
+        when = _dt((row or {}).get("exeTime") or (row or {}).get("executeTime") or (row or {}).get("time") or (row or {}).get("startTime") or (row or {}).get("orderTime"))
+        latest = _as_api_tz(when) if when else None
         return bool(latest), "drugExe" if latest else "", latest
 
     async def _bundle_hob_done(self, patient_ids, patients_by_id, label):
@@ -715,43 +865,49 @@ class RoleHomeService:
         grouped = await self._latest_scores_by_patient([row["patient_id"] for row in beds], scanner_names, patients_by_id)
         tasks: list[dict[str, Any]] = []
         catalog = self._nursing_task_catalog()
-        latest_task_records = await self._latest_nursing_task_records_by_patient(
-            [row["patient_id"] for row in beds],
-            patients_by_id,
-            catalog,
-            shift,
-        )
+        reminder_matrix: dict[tuple[str, str], dict[str, Any]] = {}
+        if catalog:
+            reminder_matrix = await self._nursing_reminder_matrix(
+                [row["patient_id"] for row in beds],
+                patients_by_id,
+                shift,
+                catalog,
+            )
         for bed in beds:
             pid = bed["patient_id"]
             rows = grouped.get(pid, [])
             for idx, spec in enumerate(catalog):
-                row = next(
-                    (
-                        item for item in rows
-                        if any(_contains_any(item.get(field), spec["keywords"]) for field in ("name", "alert_type", "rule_id", "scanner_name"))
-                    ),
-                    {},
-                )
-                latest_record = latest_task_records.get((pid, spec["key"]))
-                last_done_at = None
-                if latest_record:
-                    last_done_at = self._record_time_value(latest_record)
-                due_at = self._due_from_last_done(last_done_at, spec.get("period"), shift)
-                done = bool(last_done_at and shift.start <= _as_api_tz(last_done_at) < shift.end and due_at >= shift.end)
+                reminder = reminder_matrix.get((pid, spec["key"]))
+                if not reminder:
+                    continue
+                is_active = reminder.get("is_active", False)
+                last_score_time = _dt(reminder.get("last_score_time"))
+                if is_active:
+                    due_at = _as_api_tz(_dt(reminder.get("due_at")) or datetime.now(API_TZ))
+                    last_done_at = _as_api_tz(last_score_time) if last_score_time else None
+                    done = False
+                else:
+                    last_done_at = _as_api_tz(last_score_time) if last_score_time else None
+                    if last_done_at and spec.get("period"):
+                        due_at = self._due_from_last_done(last_done_at, spec["period"], shift)
+                    else:
+                        due_at = _as_api_tz(_dt(reminder.get("due_at")) or datetime.now(API_TZ))
+                    done = bool(last_done_at and shift.start <= last_done_at < shift.end and due_at >= shift.end)
+                reminder_id = _text(reminder.get("_id"))
                 tasks.append(
                     {
-                        "task_id": _text(row.get("_id")) or f"{pid}-{spec['key']}",
-                        "alert_id": _text(row.get("_id")) if row.get("_id") else "",
+                        "task_id": reminder_id or f"{pid}-{spec['key']}",
+                        "alert_id": reminder_id,
                         "patient_id": pid,
                         "bed": bed["bed"],
                         "patient_name": bed["name"],
                         "title": spec["title"],
-                        "source": _text(row.get("rule_id") or row.get("scanner_name") or row.get("alert_type")) or "nurseRecords",
+                        "source": f"nurse_reminders:{spec['key']}",
                         "due_at": due_at,
                         "status": self._task_status(due_at, done),
                         "last_done_at": last_done_at,
                         "period_minutes": int(spec["period"].total_seconds() / 60) if spec.get("period") else None,
-                        "detail": _text(((row.get("extra") or {}) if isinstance(row.get("extra"), dict) else {}).get("suggestion") or (latest_record or {}).get("content") or spec["title"]),
+                        "detail": _text(reminder.get("name") or spec["title"]),
                     }
                 )
             for row in rows[:4]:
@@ -940,15 +1096,31 @@ class RoleHomeService:
         }
 
     async def _patients_by_ids(self, patient_ids: list[str], *, dept: str | None = None, dept_code: str | None = None) -> dict[str, dict[str, Any]]:
+        if not patient_ids:
+            return {}
         result: dict[str, dict[str, Any]] = {}
         dept_scope = self._department_scope_query(dept=dept, dept_code=dept_code)
-        for pid in patient_ids:
-            query = {"_id": ObjectId(pid)} if ObjectId.is_valid(pid) else {"$or": [{"_id": pid}, {"pid": pid}, {"hisPid": pid}, {"patientId": pid}]}
-            if dept_scope:
-                query = {"$and": [query, dept_scope]}
-            patient = await self.db.col("patient").find_one(query)
-            if patient:
-                result[_patient_id(patient)] = patient
+        # 分离 ObjectId 和字符串 ID
+        oid_ids = [pid for pid in patient_ids if ObjectId.is_valid(pid)]
+        str_ids = [pid for pid in patient_ids if not ObjectId.is_valid(pid)]
+        or_clauses: list[dict[str, Any]] = []
+        if oid_ids:
+            or_clauses.append({"_id": {"$in": [ObjectId(pid) for pid in oid_ids]}})
+        if str_ids:
+            or_clauses.extend([
+                {"_id": {"$in": str_ids}},
+                {"pid": {"$in": str_ids}},
+                {"hisPid": {"$in": str_ids}},
+                {"patientId": {"$in": str_ids}},
+            ])
+        if not or_clauses:
+            return {}
+        query: dict[str, Any] = {"$or": or_clauses}
+        if dept_scope:
+            query = {"$and": [query, dept_scope]}
+        cursor = self.db.col("patient").find(query).limit(len(patient_ids) + 10)
+        async for row in cursor:
+            result[_patient_id(row)] = row
         return result
 
     async def _head_nurse_view(self, shift: ShiftInfo, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
@@ -1124,3 +1296,746 @@ class RoleHomeService:
         doc = {"handoff_id": str(uuid.uuid4()), "user_id": _text(user_id), "userName": account.get("userName"), "dept": dept, "dept_code": dept_code, "shift": shift.to_dict() if shift else None, "items": rows, "created_at": datetime.now(API_TZ)}
         await self.db.col("handoff_record").insert_one(doc)
         return doc
+
+    async def head_nurse_home(self, user_id: str, shift_code: str | None = "auto", *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+        account = await self._account_by_user_id(user_id)
+        dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
+        shift = await self.shift_service.resolve_shift(shift_code)
+        if not shift:
+            return {"account": account, "shift": None, "beds": [], "degraded": "未配置 banCiInfoList，无法识别当前班次。"}
+
+        # 复用 _head_nurse_view 获取全科床位、热力图、质控事件
+        head_view_task = self._head_nurse_view(shift, dept=dept, dept_code=dept_code)
+        # 获取全科患者用于后续聚合
+        query = self._with_department_scope(admitted_patient_query(), dept=dept, dept_code=dept_code)
+        all_patients = [row async for row in self.db.col("patient").find(query, {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "pid": 1, "dept": 1, "hisDept": 1, "deptCode": 1}).limit(160)]
+        patients_by_id = {_patient_id(row): row for row in all_patients if _patient_id(row)}
+        patient_ids = list(patients_by_id.keys())
+
+        # 并行获取所有数据
+        workload_task = self._nursing_workload(patient_ids, patients_by_id)
+        compliance_task = self._assessment_compliance_stats(patient_ids, shift)
+        alert_task = self._alert_handling_stats(patient_ids, patients_by_id, shift)
+        scanner_task = self.outcomes.scanner_health(days=7, dept=dept, dept_code=dept_code)
+
+        head_view, workload, assessment_compliance, alert_stats, scanner_health = await asyncio.gather(
+            head_view_task, workload_task, compliance_task, alert_task, scanner_task,
+            return_exceptions=True,
+        )
+        # 降级处理
+        if isinstance(head_view, Exception):
+            head_view = {"beds": [], "workload_heatmap": [], "events": [], "quality": {}}
+        if isinstance(workload, Exception):
+            workload = {"used_minutes": 0, "estimated_minutes": 0, "percent": 0}
+        if isinstance(assessment_compliance, Exception):
+            assessment_compliance = {"total_reminders": 0, "active_overdue": 0, "resolved_ontime": 0, "compliance_rate": 0.0, "by_type": []}
+        if isinstance(alert_stats, Exception):
+            alert_stats = {"total_alerts": 0, "handled": 0, "pending": 0, "handle_rate": 0.0, "avg_response_minutes": 0.0}
+        if isinstance(scanner_health, Exception):
+            scanner_health = {"rows": []}
+
+        data_state = {
+            "account_found": bool(account.get("found")),
+            "dept": dept,
+            "dept_code": dept_code,
+            "total_beds": len(all_patients),
+            "empty_reason": "" if all_patients else "当前科室暂无在科患者。",
+        }
+
+        return {
+            "account": account,
+            "shift": shift.to_dict(),
+            "data_state": data_state,
+            "beds": head_view.get("beds", []),
+            "pending_handover": [{"patient_id": pid, "bed": _bed(patients_by_id.get(pid, {})), "name": _name(patients_by_id.get(pid, {}))} for pid in patient_ids if pid not in {b.get("patient_id") for b in head_view.get("beds", [])}],
+            "workload": {
+                **workload,
+                "heatmap": head_view.get("workload_heatmap", []),
+            },
+            "assessment_compliance": assessment_compliance,
+            "alert_stats": alert_stats,
+            "quality_events": head_view.get("events", []),
+            "quality_summary": head_view.get("quality", {}),
+            "scanner_health": scanner_health,
+            "generated_at": datetime.now(API_TZ),
+        }
+
+    async def _assessment_compliance_stats(self, patient_ids: list[str], shift: ShiftInfo) -> dict[str, Any]:
+        """统计评估依从率"""
+        if not patient_ids:
+            return {"total_reminders": 0, "active_overdue": 0, "resolved_ontime": 0, "compliance_rate": 0.0, "by_type": []}
+
+        # 查询本班次的提醒
+        cursor = self.db.col("nurse_reminders").find(
+            {"patient_id": {"$in": patient_ids}},
+            {"patient_id": 1, "score_type": 1, "is_active": 1, "due_at": 1, "resolved_at": 1, "name": 1}
+        ).limit(500)
+
+        reminders = [row async for row in cursor]
+        if not reminders:
+            return {"total_reminders": 0, "active_overdue": 0, "resolved_ontime": 0, "compliance_rate": 0.0, "by_type": []}
+
+        # 按 score_type 分组统计
+        by_type: dict[str, dict[str, Any]] = {}
+        total = len(reminders)
+        active_overdue = 0
+        resolved_ontime = 0
+
+        for row in reminders:
+            score_type = _text(row.get("score_type"))
+            if not score_type:
+                continue
+            if score_type not in by_type:
+                by_type[score_type] = {"score_type": score_type, "title": _text(row.get("name")) or score_type, "total": 0, "overdue": 0}
+            by_type[score_type]["total"] += 1
+
+            if row.get("is_active"):
+                active_overdue += 1
+                by_type[score_type]["overdue"] += 1
+            else:
+                resolved_ontime += 1
+
+        # 计算每个类型的依从率
+        for item in by_type.values():
+            item["compliance_rate"] = round((1 - item["overdue"] / item["total"]) * 100, 1) if item["total"] > 0 else 0.0
+
+        compliance_rate = round(resolved_ontime / total * 100, 1) if total > 0 else 0.0
+
+        return {
+            "total_reminders": total,
+            "active_overdue": active_overdue,
+            "resolved_ontime": resolved_ontime,
+            "compliance_rate": compliance_rate,
+            "by_type": sorted(by_type.values(), key=lambda x: -x.get("overdue", 0)),
+        }
+
+    async def _alert_handling_stats(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], shift: ShiftInfo) -> dict[str, Any]:
+        """统计告警处置率和响应时长"""
+        if not patient_ids:
+            return {"total_alerts": 0, "handled": 0, "pending": 0, "handle_rate": 0.0, "avg_response_minutes": 0.0}
+
+        alert_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
+        since = shift.start - timedelta(hours=12)
+
+        cursor = self.db.col("alert_records").find(
+            {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": since}},
+            {"created_at": 1, "acknowledged_at": 1, "ack_disposition": 1}
+        ).sort("created_at", -1).limit(1000)
+
+        alerts = [row async for row in cursor]
+        if not alerts:
+            return {"total_alerts": 0, "handled": 0, "pending": 0, "handle_rate": 0.0, "avg_response_minutes": 0.0}
+
+        total = len(alerts)
+        handled = 0
+        response_times = []
+
+        for row in alerts:
+            if row.get("acknowledged_at") or row.get("ack_disposition"):
+                handled += 1
+                # 计算响应时长
+                created = _dt(row.get("created_at"))
+                acked = _dt(row.get("acknowledged_at"))
+                if created and acked:
+                    diff_minutes = (acked - created).total_seconds() / 60
+                    if diff_minutes >= 0:
+                        response_times.append(diff_minutes)
+
+        pending = total - handled
+        handle_rate = round(handled / total * 100, 1) if total > 0 else 0.0
+        avg_response = round(sum(response_times) / len(response_times), 1) if response_times else 0.0
+
+        return {
+            "total_alerts": total,
+            "handled": handled,
+            "pending": pending,
+            "handle_rate": handle_rate,
+            "avg_response_minutes": avg_response,
+        }
+
+    async def director_home(self, user_id: str, *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+        account = await self._account_by_user_id(user_id)
+        dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
+        shift = await self.shift_service.get_current_shift()
+
+        # 获取全科患者
+        query = self._with_department_scope(admitted_patient_query(), dept=dept, dept_code=dept_code)
+        all_patients = [row async for row in self.db.col("patient").find(query, {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "pid": 1, "dept": 1, "hisDept": 1, "deptCode": 1, "bedDoctorId": 1}).limit(200)]
+        patients_by_id = {_patient_id(row): row for row in all_patients if _patient_id(row)}
+        patient_ids = list(patients_by_id.keys())
+
+        # 并行获取所有数据
+        overview_task = self._department_overview(all_patients, dept, dept_code)
+        quality_task = self._quality_dashboard(patient_ids, patients_by_id, dept, dept_code)
+        kpi_task = self._kpi_summary(patient_ids, patients_by_id)
+        research_task = self._research_summary(user_id)
+        role_task = self._role_distribution(dept, dept_code)
+
+        department_overview, quality_dashboard, kpi_summary, research_summary, role_distribution = await asyncio.gather(
+            overview_task, quality_task, kpi_task, research_task, role_task,
+            return_exceptions=True,
+        )
+        # 降级处理
+        if isinstance(department_overview, Exception):
+            department_overview = {"total_beds": 0, "occupied_beds": 0, "occupancy_rate": 0, "doctors": [], "nurses": []}
+        if isinstance(quality_dashboard, Exception):
+            quality_dashboard = {"period_days": 7, "scanner_health": {"rows": []}, "adoption_summary": {}, "quality_events": {}}
+        if isinstance(kpi_summary, Exception):
+            kpi_summary = {"alert_stats": {}, "ai_stats": {}, "workload_stats": {}}
+        if isinstance(research_summary, Exception):
+            research_summary = {"total": 0, "pending": 0, "completed": 0, "recent_exports": []}
+        if isinstance(role_distribution, Exception):
+            role_distribution = {"doctors": 0, "nurses": 0, "pharmacists": 0, "head_nurses": 0}
+
+        data_state = {
+            "account_found": bool(account.get("found")),
+            "dept": dept,
+            "dept_code": dept_code,
+            "total_beds": len(all_patients),
+            "empty_reason": "" if all_patients else "当前科室暂无在科患者。",
+        }
+
+        return {
+            "account": account,
+            "shift": shift.to_dict() if shift else None,
+            "data_state": data_state,
+            "department_overview": department_overview,
+            "quality_dashboard": quality_dashboard,
+            "kpi_summary": kpi_summary,
+            "research_summary": research_summary,
+            "role_distribution": role_distribution,
+            "generated_at": datetime.now(API_TZ),
+        }
+
+    async def _department_overview(self, all_patients: list[dict[str, Any]], dept: str | None, dept_code: str | None) -> dict[str, Any]:
+        """科室概览：床位使用率、医生/护士分布"""
+        total_beds = len(all_patients)
+        occupied_beds = total_beds  # admitted_patient_query 已过滤在科患者
+
+        # 统计医生分管床位
+        doctor_beds: dict[str, list[str]] = {}
+        for patient in all_patients:
+            doctor_id = _text(patient.get("bedDoctorId"))
+            if doctor_id:
+                doctor_beds.setdefault(doctor_id, []).append(_bed(patient))
+
+        # 批量获取医生信息（避免 N+1）
+        doctors = []
+        if doctor_beds:
+            doctor_ids = list(doctor_beds.keys())
+            or_clauses: list[dict[str, Any]] = [
+                {"userId": {"$in": doctor_ids}},
+                {"userName": {"$in": doctor_ids}},
+                {"username": {"$in": doctor_ids}},
+                {"trueName": {"$in": doctor_ids}},
+            ]
+            # 也尝试 ObjectId 匹配
+            oid_ids = [did for did in doctor_ids if ObjectId.is_valid(did)]
+            if oid_ids:
+                or_clauses.append({"_id": {"$in": [ObjectId(did) for did in oid_ids]}})
+            account_map: dict[str, dict[str, Any]] = {}
+            try:
+                cursor = self.db.col("account").find({"$or": or_clauses}).limit(len(doctor_ids) + 5)
+                async for row in cursor:
+                    for key in ("userId", "userName", "username", "trueName", "_id"):
+                        val = _text(row.get(key))
+                        if val and val in doctor_beds:
+                            account_map[val] = row
+            except Exception:
+                pass
+            for doctor_id, beds in doctor_beds.items():
+                account = account_map.get(doctor_id, {})
+                doctors.append({
+                    "user_id": doctor_id,
+                    "name": _text(account.get("trueName") or account.get("userName") or account.get("name")) or doctor_id,
+                    "managed_beds": len(beds),
+                })
+
+        # 统计护士（从护理记录推断）
+        nurse_beds: dict[str, int] = {}
+        since = datetime.now(API_TZ) - timedelta(hours=8)
+        try:
+            cursor = self.db.col("nurseRecords").find(
+                {"created_at": {"$gte": since}},
+                {"userId": 1, "userName": 1, "trueName": 1, "pid": 1}
+            ).limit(2000)
+            async for row in cursor:
+                nurse_id = _text(row.get("userId") or row.get("userName") or row.get("trueName"))
+                if nurse_id:
+                    nurse_beds[nurse_id] = nurse_beds.get(nurse_id, 0) + 1
+        except Exception:
+            pass
+
+        nurses = [{"user_id": nid, "name": nid, "assigned_beds": count} for nid, count in sorted(nurse_beds.items(), key=lambda x: -x[1])[:20]]
+
+        return {
+            "total_beds": total_beds,
+            "occupied_beds": occupied_beds,
+            "occupancy_rate": round(occupied_beds / total_beds * 100, 1) if total_beds > 0 else 0.0,
+            "doctors": sorted(doctors, key=lambda x: -x.get("managed_beds", 0)),
+            "nurses": nurses,
+        }
+
+    async def _quality_dashboard(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], dept: str | None, dept_code: str | None) -> dict[str, Any]:
+        """质控大屏：scanner_health + adoption_summary + quality_events"""
+        # scanner_health
+        scanner_health = await self.outcomes.scanner_health(days=7, dept=dept, dept_code=dept_code)
+
+        # adoption_summary (从 quality_summary 提取)
+        quality_summary = await self.adoption.quality_summary(days=7, dept=dept, dept_code=dept_code)
+
+        # quality_events (从 _head_nurse_view 的 quality 提取)
+        quality_events = {"falls": 0, "pressure_ulcers": 0, "line_displacement": 0, "medication_errors": 0}
+        if patient_ids:
+            try:
+                head_view = await asyncio.wait_for(self._head_nurse_view(await self.shift_service.get_current_shift(), dept=dept, dept_code=dept_code), timeout=1.0)
+                quality_events = head_view.get("quality", quality_events)
+            except Exception:
+                pass
+
+        return {
+            "period_days": 7,
+            "scanner_health": scanner_health,
+            "adoption_summary": quality_summary,
+            "quality_events": quality_events,
+        }
+
+    async def _kpi_summary(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        """KPI 摘要：告警统计、AI采纳、护理负荷"""
+        if not patient_ids:
+            return {"alert_stats": {}, "ai_stats": {}, "workload_stats": {}}
+
+        alert_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
+        since_24h = datetime.now(API_TZ) - timedelta(hours=24)
+
+        # 告警统计
+        cursor = self.db.col("alert_records").find(
+            {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": since_24h}},
+            {"acknowledged_at": 1, "ack_disposition": 1, "rule_id": 1, "adopted": 1}
+        ).limit(2000)
+
+        total_24h = 0
+        handled_24h = 0
+        integrated_reasoning = 0
+        integrated_adopted = 0
+
+        async for row in cursor:
+            total_24h += 1
+            if row.get("acknowledged_at") or row.get("ack_disposition"):
+                handled_24h += 1
+            if _text(row.get("rule_id")) == "INTEGRATED_RISK_REASONING":
+                integrated_reasoning += 1
+                if row.get("adopted"):
+                    integrated_adopted += 1
+
+        pending_24h = total_24h - handled_24h
+        handle_rate = round(handled_24h / total_24h * 100, 1) if total_24h > 0 else 0.0
+        adoption_rate = round(integrated_adopted / integrated_reasoning * 100, 1) if integrated_reasoning > 0 else 0.0
+
+        # 护理负荷
+        workload = await self._nursing_workload(patient_ids, patients_by_id)
+
+        return {
+            "alert_stats": {
+                "total_24h": total_24h,
+                "handled_24h": handled_24h,
+                "pending_24h": pending_24h,
+                "handle_rate": handle_rate,
+            },
+            "ai_stats": {
+                "integrated_reasoning": integrated_reasoning,
+                "integrated_adopted": integrated_adopted,
+                "adoption_rate": adoption_rate,
+            },
+            "workload_stats": {
+                "avg_nursing_workload_percent": workload.get("percent", 0),
+                "high_workload_beds": len([p for p in patient_ids if workload.get("percent", 0) > 80]),
+            },
+        }
+
+    async def _research_summary(self, user_id: str) -> dict[str, Any]:
+        """科研动态：从 research_platform_service 获取"""
+        try:
+            from app.services.research_platform_service import job_summary
+            return await job_summary(db=self.db, user_id=user_id)
+        except Exception:
+            return {"total": 0, "pending": 0, "completed": 0, "recent_exports": []}
+
+    async def _role_distribution(self, dept: str | None, dept_code: str | None) -> dict[str, Any]:
+        """角色分布：从 account 集合统计"""
+        try:
+            query: dict[str, Any] = {}
+            if dept_code:
+                query["deptCode"] = dept_code
+            elif dept:
+                query["$or"] = [{"dept": dept}, {"deptName": dept}]
+
+            cursor = self.db.col("account").find(query, {"role": 1}).limit(500)
+            roles: dict[str, int] = {}
+            async for row in cursor:
+                role = _text(row.get("role")) or "unknown"
+                roles[role] = roles.get(role, 0) + 1
+
+            return {
+                "doctors": roles.get("doctor", 0),
+                "nurses": roles.get("nurse", 0) + roles.get("head_nurse", 0) + roles.get("charge_nurse", 0),
+                "pharmacists": roles.get("pharmacist", 0),
+                "head_nurses": roles.get("head_nurse", 0) + roles.get("charge_nurse", 0),
+            }
+        except Exception:
+            return {"doctors": 0, "nurses": 0, "pharmacists": 0, "head_nurses": 0}
+
+    async def compliance_dashboard(self, user_id: str, shift_code: str | None = "auto", *, dept: str | None = None, dept_code: str | None = None) -> dict[str, Any]:
+        """护理依从性看板：时间线热力图 + 逾期TOP床位 + 班次对比"""
+        account = await self._account_by_user_id(user_id)
+        dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
+        shift = await self.shift_service.resolve_shift(shift_code)
+        if not shift:
+            return {"account": account, "shift": None, "degraded": "未配置 banCiInfoList，无法识别当前班次。"}
+
+        # 获取全科患者
+        query = self._with_department_scope(admitted_patient_query(), dept=dept, dept_code=dept_code)
+        all_patients = [row async for row in self.db.col("patient").find(query, {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "hisPid": 1, "pid": 1}).limit(160)]
+        patients_by_id = {_patient_id(row): row for row in all_patients if _patient_id(row)}
+        patient_ids = list(patients_by_id.keys())
+
+        if not patient_ids:
+            return {
+                "account": account,
+                "shift": shift.to_dict(),
+                "compliance_overview": self._empty_compliance_overview(),
+                "heatmap": [],
+                "overdue_top_beds": [],
+                "by_type_comparison": [],
+                "generated_at": datetime.now(API_TZ),
+            }
+
+        # 获取上班次信息
+        prev_shift = await self._get_previous_shift(shift)
+
+        # 并行查询数据
+        current_reminders_task = self._query_shift_reminders(patient_ids, shift)
+        prev_reminders_task = self._query_shift_reminders(patient_ids, prev_shift) if prev_shift else asyncio.sleep(0, result=[])
+        heatmap_task = self._query_heatmap_data(patient_ids, shift)
+
+        current_reminders, prev_reminders, heatmap_data = await asyncio.gather(
+            current_reminders_task, prev_reminders_task, heatmap_task
+        )
+
+        # 计算当前班次统计
+        current_stats = self._calculate_shift_stats(current_reminders, shift)
+        prev_stats = self._calculate_shift_stats(prev_reminders, prev_shift) if prev_shift else self._empty_shift_stats()
+
+        # 计算趋势
+        trend = round(current_stats["compliance_rate"] - prev_stats["compliance_rate"], 1)
+        trend_text = f"+{trend}%" if trend >= 0 else f"{trend}%"
+
+        # 逾期TOP床位
+        overdue_top_beds = await self._get_overdue_top_beds(patient_ids, patients_by_id)
+
+        # 按类型对比
+        by_type_comparison = self._calculate_by_type_comparison(current_reminders, prev_reminders, shift, prev_shift)
+
+        return {
+            "account": account,
+            "shift": shift.to_dict(),
+            "compliance_overview": {
+                "current_shift": current_stats,
+                "previous_shift": prev_stats,
+                "trend": trend_text,
+            },
+            "heatmap": heatmap_data,
+            "overdue_top_beds": overdue_top_beds,
+            "by_type_comparison": by_type_comparison,
+            "generated_at": datetime.now(API_TZ),
+        }
+
+    def _empty_compliance_overview(self) -> dict[str, Any]:
+        """空的依从率概览"""
+        return {
+            "current_shift": self._empty_shift_stats(),
+            "previous_shift": self._empty_shift_stats(),
+            "trend": "0%",
+        }
+
+    def _empty_shift_stats(self) -> dict[str, Any]:
+        """空的班次统计"""
+        return {
+            "total_expected": 0,
+            "total_completed": 0,
+            "total_overdue": 0,
+            "compliance_rate": 0.0,
+            "overdue_rate": 0.0,
+            "avg_response_minutes": 0.0,
+        }
+
+    async def _get_previous_shift(self, current_shift: ShiftInfo) -> ShiftInfo | None:
+        """获取上班次信息"""
+        try:
+            # 尝试获取上班次（通过 shift_service 的 shifts 列表）
+            shifts = await self.shift_service.list_shifts()
+            if not shifts or len(shifts) < 2:
+                return None
+
+            # 找到当前班次的索引
+            current_idx = -1
+            for i, s in enumerate(shifts):
+                if s.get("code") == current_shift.code:
+                    current_idx = i
+                    break
+
+            if current_idx <= 0:
+                # 如果是第一个班次，取最后一个作为上班次
+                prev_shift_data = shifts[-1]
+            else:
+                prev_shift_data = shifts[current_idx - 1]
+
+            # 构建 ShiftInfo（简化版，仅用于查询）
+            return ShiftInfo(
+                code=prev_shift_data.get("code", ""),
+                name=prev_shift_data.get("name", ""),
+                start_time=prev_shift_data.get("start_time", ""),
+                end_time=prev_shift_data.get("end_time", ""),
+                start=current_shift.start - timedelta(hours=12),  # 简化：向前推12小时
+                end=current_shift.start,
+            )
+        except Exception:
+            return None
+
+    async def _query_shift_reminders(self, patient_ids: list[str], shift: ShiftInfo | None) -> list[dict[str, Any]]:
+        """查询班次内的提醒数据"""
+        if not shift or not patient_ids:
+            return []
+
+        try:
+            cursor = self.db.col("nurse_reminders").find(
+                {
+                    "patient_id": {"$in": patient_ids},
+                    "$or": [
+                        {"created_at": {"$gte": shift.start, "$lt": shift.end}},
+                        {"resolved_at": {"$gte": shift.start, "$lt": shift.end}},
+                        {"is_active": True, "due_at": {"$lt": datetime.now(API_TZ)}},
+                    ],
+                },
+                {
+                    "patient_id": 1,
+                    "patient_name": 1,
+                    "bed": 1,
+                    "score_type": 1,
+                    "is_active": 1,
+                    "due_at": 1,
+                    "resolved_at": 1,
+                    "last_score_time": 1,
+                    "severity": 1,
+                    "created_at": 1,
+                },
+            ).limit(1000)
+            return [row async for row in cursor]
+        except Exception:
+            return []
+
+    def _calculate_shift_stats(self, reminders: list[dict[str, Any]], shift: ShiftInfo | None) -> dict[str, Any]:
+        """计算班次统计数据"""
+        if not reminders:
+            return self._empty_shift_stats()
+
+        total = len(reminders)
+        completed = sum(1 for r in reminders if not r.get("is_active"))
+        overdue = sum(1 for r in reminders if r.get("is_active") and r.get("due_at") and r["due_at"] < datetime.now(API_TZ))
+
+        # 计算响应时长
+        response_times = []
+        for r in reminders:
+            if not r.get("is_active") and r.get("resolved_at") and r.get("due_at"):
+                diff = (r["resolved_at"] - r["due_at"]).total_seconds() / 60
+                if diff > 0:
+                    response_times.append(diff)
+
+        avg_response = round(sum(response_times) / len(response_times), 1) if response_times else 0.0
+        compliance_rate = round(completed / total * 100, 1) if total > 0 else 0.0
+        overdue_rate = round(overdue / total * 100, 1) if total > 0 else 0.0
+
+        return {
+            "total_expected": total,
+            "total_completed": completed,
+            "total_overdue": overdue,
+            "compliance_rate": compliance_rate,
+            "overdue_rate": overdue_rate,
+            "avg_response_minutes": avg_response,
+        }
+
+    async def _query_heatmap_data(self, patient_ids: list[str], shift: ShiftInfo) -> list[dict[str, Any]]:
+        """查询热力图数据（按小时聚合）"""
+        if not patient_ids:
+            return []
+
+        try:
+            # 按小时聚合查询
+            pipeline = [
+                {"$match": {
+                    "patient_id": {"$in": patient_ids},
+                    "created_at": {"$gte": shift.start, "$lt": shift.end},
+                }},
+                {"$addFields": {
+                    "hour": {"$dateToString": {"format": "%H:00", "date": "$created_at"}},
+                }},
+                {"$group": {
+                    "_id": {"hour": "$hour", "score_type": "$score_type"},
+                    "total": {"$sum": 1},
+                    "overdue": {"$sum": {"$cond": ["$is_active", 1, 0]}},
+                    "completed": {"$sum": {"$cond": ["$is_active", 0, 1]}},
+                }},
+                {"$sort": {"_id.hour": 1, "_id.score_type": 1}},
+            ]
+
+            cursor = self.db.col("nurse_reminders").aggregate(pipeline)
+            results = [row async for row in cursor]
+
+            # 转换为前端需要的格式
+            heatmap: dict[str, list[dict[str, Any]]] = {}
+            for row in results:
+                hour = row["_id"]["hour"]
+                score_type = row["_id"]["score_type"]
+                if hour not in heatmap:
+                    heatmap[hour] = []
+
+                total = row["total"]
+                completed = row["completed"]
+                overdue = row["overdue"]
+                compliance_rate = round(completed / total * 100, 1) if total > 0 else 0.0
+
+                heatmap[hour].append({
+                    "score_type": score_type,
+                    "label": self._score_type_label(score_type),
+                    "total": total,
+                    "completed": completed,
+                    "overdue": overdue,
+                    "compliance_rate": compliance_rate,
+                })
+
+            # 转换为数组格式
+            return [{"hour": hour, "by_type": types} for hour, types in sorted(heatmap.items())]
+        except Exception:
+            return []
+
+    def _score_type_label(self, score_type: str) -> str:
+        """score_type 到中文标签的映射"""
+        labels = {
+            "gcs": "GCS评估",
+            "rass": "RASS评估",
+            "pain": "疼痛评估",
+            "cpot": "CPOT评估",
+            "bps": "BPS评估",
+            "delirium": "谵妄评估",
+            "braden": "Braden评估",
+            "cam_icu": "CAM-ICU",
+            "turning": "翻身",
+            "early_mobility": "早期活动",
+        }
+        return labels.get(score_type, score_type)
+
+    async def _get_overdue_top_beds(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+        """获取逾期TOP床位"""
+        if not patient_ids:
+            return []
+
+        try:
+            now = datetime.now(API_TZ)
+            pipeline = [
+                {"$match": {
+                    "patient_id": {"$in": patient_ids},
+                    "is_active": True,
+                    "due_at": {"$lt": now},
+                }},
+                {"$group": {
+                    "_id": "$patient_id",
+                    "bed": {"$first": "$bed"},
+                    "name": {"$first": "$patient_name"},
+                    "overdue_count": {"$sum": 1},
+                    "overdue_types": {"$addToSet": "$score_type"},
+                    "worst_severity": {"$max": "$severity"},
+                    "latest_due_at": {"$min": "$due_at"},
+                }},
+                {"$sort": {"overdue_count": -1}},
+                {"$limit": 10},
+            ]
+
+            cursor = self.db.col("nurse_reminders").aggregate(pipeline)
+            results = [row async for row in cursor]
+
+            top_beds = []
+            for row in results:
+                patient_id = row["_id"]
+                patient = patients_by_id.get(patient_id, {})
+                top_beds.append({
+                    "patient_id": patient_id,
+                    "bed": _text(row.get("bed") or patient.get("bed") or patient.get("hisBed")),
+                    "name": _text(row.get("name") or patient.get("name") or patient.get("hisName")),
+                    "overdue_count": row.get("overdue_count", 0),
+                    "overdue_types": row.get("overdue_types", []),
+                    "worst_severity": _text(row.get("worst_severity", "warning")),
+                    "latest_due_at": row.get("latest_due_at"),
+                })
+
+            return top_beds
+        except Exception:
+            return []
+
+    def _calculate_by_type_comparison(
+        self,
+        current_reminders: list[dict[str, Any]],
+        prev_reminders: list[dict[str, Any]],
+        current_shift: ShiftInfo | None,
+        prev_shift: ShiftInfo | None,
+    ) -> list[dict[str, Any]]:
+        """计算按类型对比数据"""
+        # 定义所有需要对比的类型
+        score_types = ["assessment", "turning", "cam_icu", "early_mobility"]
+        type_mapping = {
+            "assessment": ["gcs", "rass", "pain", "cpot", "bps", "delirium", "braden"],
+            "turning": ["turning"],
+            "cam_icu": ["cam_icu"],
+            "early_mobility": ["early_mobility"],
+        }
+
+        def calc_type_stats(reminders: list[dict[str, Any]], types: list[str]) -> dict[str, Any]:
+            filtered = [r for r in reminders if r.get("score_type") in types]
+            total = len(filtered)
+            completed = sum(1 for r in filtered if not r.get("is_active"))
+            overdue = sum(1 for r in filtered if r.get("is_active") and r.get("due_at") and r["due_at"] < datetime.now(API_TZ))
+            compliance_rate = round(completed / total * 100, 1) if total > 0 else 0.0
+            return {
+                "expected": total,
+                "completed": completed,
+                "overdue": overdue,
+                "compliance_rate": compliance_rate,
+            }
+
+        comparison = []
+        for score_type in score_types:
+            types = type_mapping[score_type]
+            current = calc_type_stats(current_reminders, types)
+            prev = calc_type_stats(prev_reminders, types)
+            trend = round(current["compliance_rate"] - prev["compliance_rate"], 1)
+            trend_text = f"+{trend}%" if trend >= 0 else f"{trend}%"
+
+            comparison.append({
+                "score_type": score_type,
+                "label": self._score_type_label(score_type),
+                "interval_hours": self._get_interval_hours(score_type),
+                "current": current,
+                "previous": prev,
+                "trend": trend_text,
+            })
+
+        return comparison
+
+    def _get_interval_hours(self, score_type: str) -> int:
+        """获取评估间隔小时数"""
+        intervals = {
+            "assessment": 4,
+            "turning": 2,
+            "cam_icu": 8,
+            "early_mobility": 8,
+        }
+        return intervals.get(score_type, 4)

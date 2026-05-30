@@ -1933,6 +1933,18 @@ class ClinicalAdoptionService:
             scanner_health=scanner_health,
             clinical_visuals=clinical_visuals,
         )
+        # Bundle 合规评分
+        bundle_compliance: dict[str, Any] = {}
+        try:
+            from app.services.bundle_compliance_service import BundleComplianceService
+            bcs = BundleComplianceService(self.db)
+            bundle_compliance = await asyncio.wait_for(
+                bcs.daily_summary(dept=dept, dept_code=dept_code),
+                timeout=8.0,
+            )
+        except Exception:
+            bundle_compliance = {"bundles": {}, "overall_score": 0, "overall_tone": "red", "error": "bundle_compliance_timeout"}
+
         return {
             "days": days,
             "scanner_count": len(rows),
@@ -1941,6 +1953,7 @@ class ClinicalAdoptionService:
             "avg_ppv": round(sum(float(row.get("ppv") or 0) for row in rows) / len(rows), 3) if rows else 0,
             "scanner_health": rows[:20],
             "module_completion": module_completion,
+            "bundle_compliance": bundle_compliance,
             "generated_at": datetime.now(),
         }
 

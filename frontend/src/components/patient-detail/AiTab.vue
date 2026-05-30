@@ -9,7 +9,7 @@
     <a-card title="综合风险态势" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">多告警聚合 + RAG + LLM 推理</span>
-        <a-button size="small" type="link" :loading="integratedRiskLoading" @click="loadIntegratedRisk">重新生成</a-button>
+        <a-button size="small" type="link" :loading="integratedRiskLoading" @click="() => loadIntegratedRisk(true)">重新生成</a-button>
       </div>
       <a-spin :spinning="integratedRiskLoading">
         <div v-if="integratedRiskReport" class="ai-risk-card">
@@ -68,7 +68,7 @@
     <a-card title="代谢阶段 / 营养时机" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">代谢阶段评分 + 当前热卡/蛋白匹配</span>
-        <a-button size="small" type="link" :loading="metabolicPhaseLoading" @click="loadMetabolicPhase">重新生成</a-button>
+        <a-button size="small" type="link" :loading="metabolicPhaseLoading" @click="() => loadMetabolicPhase(true)">重新生成</a-button>
       </div>
       <a-spin :spinning="metabolicPhaseLoading">
         <div v-if="metabolicPhaseRecord" class="ai-risk-card">
@@ -108,7 +108,7 @@
     <a-card title="β受体阻滞剂辅助决策" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">脓毒症心肌损伤 + 持续心动过速筛查</span>
-        <a-button size="small" type="link" :loading="betaBlockerLoading" @click="loadBetaBlockerAdvisor">重新生成</a-button>
+        <a-button size="small" type="link" :loading="betaBlockerLoading" @click="() => loadBetaBlockerAdvisor(true)">重新生成</a-button>
       </div>
       <a-spin :spinning="betaBlockerLoading">
         <div v-if="betaBlockerAssessment" class="ai-risk-card">
@@ -149,7 +149,7 @@
     <a-card title="纤溶功能监测" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">高纤溶 / 纤溶关闭识别</span>
-        <a-button size="small" type="link" :loading="fibrinolysisLoading" @click="loadFibrinolysis">重新生成</a-button>
+        <a-button size="small" type="link" :loading="fibrinolysisLoading" @click="() => loadFibrinolysis(true)">重新生成</a-button>
       </div>
       <a-spin :spinning="fibrinolysisLoading">
         <div v-if="fibrinolysisAssessment" class="ai-risk-card">
@@ -189,7 +189,7 @@
     <a-card title="俯卧位治疗监测" :bordered="false" class="ai-card">
       <div class="ai-card-head">
         <span class="ai-card-note">ARDS 俯卧位适应证 / 时长 / 并发症</span>
-        <a-button size="small" type="link" :loading="pronePositionLoading" @click="loadPronePosition">重新生成</a-button>
+        <a-button size="small" type="link" :loading="pronePositionLoading" @click="() => loadPronePosition(true)">重新生成</a-button>
       </div>
       <a-spin :spinning="pronePositionLoading">
         <div v-if="pronePositionAssessment" class="ai-risk-card">
@@ -232,7 +232,7 @@
         <span class="ai-card-note">身体 / 认知 / 心理三维度整合</span>
         <div class="ai-card-head-actions">
           <a-button v-if="openFollowupTab" size="small" type="link" @click="openFollowupTab">转长期随访</a-button>
-          <a-button size="small" type="link" :loading="picsRiskLoading" @click="loadPicsRisk">重新生成</a-button>
+          <a-button size="small" type="link" :loading="picsRiskLoading" @click="() => loadPicsRisk(true)">重新生成</a-button>
         </div>
       </div>
       <a-spin :spinning="picsRiskLoading">
@@ -600,27 +600,27 @@ const props = defineProps<{
   aiRiskText: string
   aiRiskError: string
   integratedRiskLoading: boolean
-  loadIntegratedRisk: () => void
+  loadIntegratedRisk: (refresh?: boolean) => void
   integratedRiskReport: any
   integratedRiskError: string
   metabolicPhaseLoading: boolean
-  loadMetabolicPhase: () => void
+  loadMetabolicPhase: (refresh?: boolean) => void
   metabolicPhaseRecord: any
   metabolicPhaseError: string
   betaBlockerLoading: boolean
-  loadBetaBlockerAdvisor: () => void
+  loadBetaBlockerAdvisor: (refresh?: boolean) => void
   betaBlockerAdvisorRecord: any
   betaBlockerAdvisorError: string
   fibrinolysisLoading: boolean
-  loadFibrinolysis: () => void
+  loadFibrinolysis: (refresh?: boolean) => void
   fibrinolysisRecord: any
   fibrinolysisError: string
   pronePositionLoading: boolean
-  loadPronePosition: () => void
+  loadPronePosition: (refresh?: boolean) => void
   pronePositionRecord: any
   pronePositionError: string
   picsRiskLoading: boolean
-  loadPicsRisk: () => void
+  loadPicsRisk: (refresh?: boolean) => void
   picsRiskRecord: any
   picsRiskError: string
   openFollowupTab?: () => void

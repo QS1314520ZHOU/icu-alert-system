@@ -187,6 +187,21 @@ export const getDoctorHome = (params: { user_id: string; dept?: string; dept_cod
 export const getNurseHome = (params: { user_id: string; shift_code?: string; view?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/home/nurse', { params })
 
+export const getHeadNurseHome = (params: { user_id: string; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
+  analyticsApi.get('/api/home/head-nurse', { params })
+
+export const getComplianceDashboard = (params: { user_id: string; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
+  analyticsApi.get('/api/home/head-nurse/compliance-dashboard', { params })
+
+export const getDirectorHome = (params: { user_id: string; dept?: string; dept_code?: string; deptCode?: string }) =>
+  analyticsApi.get('/api/home/director', { params })
+
+export const getBundleCompliance = (params?: { dept?: string; dept_code?: string; deptCode?: string }) =>
+  api.get('/api/quality/bundle-compliance', { params })
+
+export const getPatientBundleCompliance = (patientId: string) =>
+  api.get(`/api/quality/bundle-compliance/patient/${patientId}`)
+
 export const getNurseTimeline = (params: { user_id: string; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/home/nurse/timeline', { params })
 

@@ -668,23 +668,27 @@ onMounted(() => {
     currentTime.value = dayjs().format('YYYY-MM-DD HH:mm:ss')
   }, 1000)
   refreshTimer = window.setInterval(() => {
-    loadAlerts()
-    loadPatients()
-    loadTrend()
-    loadDepts()
-    loadBundle()
-    loadDeviceHeatmap()
+    Promise.all([
+      loadAlerts().catch(() => {}),
+      loadPatients().catch(() => {}),
+      loadTrend().catch(() => {}),
+      loadDepts().catch(() => {}),
+      loadBundle().catch(() => {}),
+      loadDeviceHeatmap().catch(() => {}),
+    ])
   }, 60000)
   alertTimer = window.setInterval(() => {
     alertIndex.value += 1
   }, 3000)
 
-  loadAlerts()
-  loadPatients()
-  loadDepts()
-  loadTrend()
-  loadBundle()
-  loadDeviceHeatmap()
+  Promise.all([
+    loadAlerts().catch(() => {}),
+    loadPatients().catch(() => {}),
+    loadDepts().catch(() => {}),
+    loadTrend().catch(() => {}),
+    loadBundle().catch(() => {}),
+    loadDeviceHeatmap().catch(() => {}),
+  ])
 
   offAlert = onAlertMessage(msg => {
     if (msg?.type === 'alert') {
@@ -702,12 +706,14 @@ onUnmounted(() => {
 })
 
 watch(() => route.query, () => {
-  loadPatients()
-  loadDepts()
-  loadAlerts()
-  loadTrend()
-  loadBundle()
-  loadDeviceHeatmap()
+  Promise.all([
+    loadPatients().catch(() => {}),
+    loadDepts().catch(() => {}),
+    loadAlerts().catch(() => {}),
+    loadTrend().catch(() => {}),
+    loadBundle().catch(() => {}),
+    loadDeviceHeatmap().catch(() => {}),
+  ])
 }, { deep: true })
 </script>
 

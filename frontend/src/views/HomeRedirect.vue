@@ -70,8 +70,10 @@ onMounted(async () => {
     })
     auth.updateAccount(data?.account)
     const resolvedRole = String(data?.account?.role || role || '').toLowerCase()
-    if (['nurse', 'head_nurse', 'charge_nurse'].includes(resolvedRole)) push('/nurse-home')
-    else if (['doctor', 'director'].includes(resolvedRole)) push('/doctor-home')
+    if (['head_nurse', 'charge_nurse'].includes(resolvedRole)) push('/head-nurse-home')
+    else if (resolvedRole === 'director') push('/director-home')
+    else if (resolvedRole === 'nurse') push('/nurse-home')
+    else if (resolvedRole === 'doctor') push('/doctor-home')
   } catch {
     // Keep quick-start choices visible.
   } finally {
