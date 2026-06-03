@@ -99,6 +99,8 @@ async def batch_vitals(
     dept: Optional[str] = Query(None),
     dept_code: Optional[str] = Query(None),
     patient_scope: Optional[str] = Query("in_dept"),
+    debug_patient: Optional[str] = Query(None, description="调试：指定患者 _id，返回详细链路"),
+    debug_name: Optional[str] = Query(None, description="调试：按姓名查找患者，返回详细链路"),
 ):
     """批量获取在科患者最新生命体征。deviceCap 优先，bedside 兜底，alert_snapshot 兜底。"""
     from app.routers.patient_data import _vital_codes, _fallback_vitals_from_alert_snapshot
@@ -115,8 +117,9 @@ async def batch_vitals(
     all_pids: list[str] = []
     patient_docs: dict[str, dict] = {}  # patient_id → patient doc (for bed fallback)
     device_ids: dict[str, str] = {}  # pid → deviceID
+    debug_info: dict = {} if debug_patient else None
     cursor = runtime.db.col("patient").find(
-        query, {"_id": 1, "hisPid": 1, "hisPID": 1, "hisBed": 1, "bed": 1, "deptCode": 1}
+        query, {"_id": 1, "hisPid": 1, "hisPID": 1, "hisBed": 1, "bed": 1, "deptCode": 1, "name": 1, "hisName": 1}
     ).limit(200)
     async for doc in cursor:
         patient_id = str(doc.get("_id"))
@@ -133,6 +136,15 @@ async def batch_vitals(
         return {"code": 0, "vitals": {}}
 
     logger.info("vitals-batch: found %d patients, sample ids: %s", len(pid_map), list(pid_map.keys())[:5])
+
+    # 调试：按姓名解析 patient_id
+    if debug_name and not debug_patient:
+        for pid, doc in patient_docs.items():
+            name = str(doc.get("name") or doc.get("hisName") or "")
+            if debug_name in name:
+                debug_patient = pid
+                logger.info("vitals-batch: debug resolved name '%s' → pid=%s", debug_name, pid)
+                break
 
     # 查 deviceBind 获取 deviceID（用 _id 和 hisPid 两个 pid 匹配）
     bind_cursor = runtime.db.col("deviceBind").find(
@@ -330,6 +342,49 @@ async def batch_vitals(
         logger.info("vitals-batch: after alert_snapshot fallback, covered %d/%d patients", len(result), len(pid_map))
 
     logger.info("vitals-batch: FINAL returning vitals for %d/%d patients", len(result), len(patient_docs))
+
+    # 调试模式：返回指定患者的完整链路
+    if debug_patient:
+        dpid = debug_patient.strip()
+        doc = patient_docs.get(dpid, {})
+        dinfo = {
+            "patient_id": dpid,
+            "name": doc.get("name") or doc.get("hisName"),
+            "hisBed": doc.get("hisBed") or doc.get("bed"),
+            "hisPid": doc.get("hisPid") or doc.get("hisPID"),
+            "in_pid_map": dpid in pid_map,
+            "in_device_ids": dpid in device_ids,
+            "deviceID": device_ids.get(dpid),
+            "in_result": dpid in result,
+            "result_vitals": serialize_doc(result.get(dpid, {})),
+            "device_bind_pids_sample": list(device_ids.keys())[:10],
+            "total_patients": len(patient_docs),
+            "total_result": len(result),
+        }
+        # 查 bedside 原始数据
+        bedside_raw = []
+        bcursor = runtime.db.col("bedside").find(
+            {"pid": {"$in": [dpid, str(doc.get("hisPid") or ""), str(doc.get("hisPID") or "")]}, "time": {"$gte": datetime.now() - timedelta(hours=24)}},
+            {"pid": 1, "code": 1, "fVal": 1, "intVal": 1, "strVal": 1, "time": 1},
+        ).sort("time", -1).limit(20)
+        async for bdoc in bcursor:
+            bedside_raw.append({
+                "pid": bdoc.get("pid"),
+                "code": bdoc.get("code"),
+                "fVal": bdoc.get("fVal"),
+                "intVal": bdoc.get("intVal"),
+                "strVal": bdoc.get("strVal"),
+                "time": str(bdoc.get("time")),
+            })
+        dinfo["bedside_raw_count"] = len(bedside_raw)
+        dinfo["bedside_raw_sample"] = bedside_raw[:10]
+
+        # 查 alert_snapshot
+        snap = await _fallback_vitals_from_alert_snapshot(dpid)
+        dinfo["alert_snapshot"] = serialize_doc(snap) if snap else None
+
+        return {"code": 0, "vitals": {pid: serialize_doc(v) for pid, v in result.items()}, "debug": dinfo}
+
     return {"code": 0, "vitals": {pid: serialize_doc(v) for pid, v in result.items()}}
 
 
