@@ -275,7 +275,7 @@ async def batch_vitals(
         async for doc in await runtime.db.col("bedside").aggregate(aggregation_pipeline, allowDiskUse=True):
             pid_key = str((doc.get("_id") or {}).get("pid") or "")
             patient_id = pid_map.get(pid_key)
-            if not patient_id or patient_id in result:
+            if not patient_id:
                 continue
             code = str((doc.get("_id") or {}).get("code") or "")
             vital = code_to_vital.get(code)
