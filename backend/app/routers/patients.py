@@ -290,15 +290,37 @@ async def batch_vitals(
     still_missing = [pid for pid in patient_docs if pid not in result]
     logger.info("vitals-batch: before alert_snapshot, %d patients still missing: %s", len(still_missing), still_missing[:5])
     if still_missing:
+        # 快照字段名 → 统一内部 vital key（与 deviceCap/bedside 主路径对齐）
+        _SNAPSHOT_KEY_MAP = {
+            "hr": "hr",
+            "spo2": "spo2",
+            "rr": "rr",
+            "temp": "temp",
+            "t": "temp",
+            "nibp_sys": "sbp",
+            "ibp_sys": "sbp",
+            "sbp": "sbp",
+            "nibp_dia": "dbp",
+            "ibp_dia": "dbp",
+            "dbp": "dbp",
+            "nibp_map": "map",
+            "ibp_map": "map",
+            "map": "map",
+        }
         for pid in still_missing:
             try:
                 snapshot_vitals = await _fallback_vitals_from_alert_snapshot(pid)
                 if snapshot_vitals:
                     row: dict = {}
-                    for key in ("hr", "spo2", "rr", "temp", "nibp_sys", "nibp_dia", "nibp_map"):
-                        val = snapshot_vitals.get(key)
+                    for raw_key, vital in _SNAPSHOT_KEY_MAP.items():
+                        if vital in row:
+                            continue
+                        val = snapshot_vitals.get(raw_key)
                         if val is not None:
-                            row[key] = round(float(val), 1)
+                            try:
+                                row[vital] = round(float(val), 1)
+                            except (TypeError, ValueError):
+                                continue
                     if row:
                         row["time"] = snapshot_vitals.get("time")
                         row["source"] = "alert_snapshot"

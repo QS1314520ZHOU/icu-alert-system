@@ -405,7 +405,7 @@ const criticalCount = computed(() => byDept.value.filter(p => p.alertLevel === '
 const warningCount = computed(() => byDept.value.filter(p => ['warning', 'high'].includes(p.alertLevel)).length)
 // 没有预警的也算“正常”，避免全部为0
 const normalCount = computed(() =>
-  byDept.value.filter(p => !['warning', 'high', 'critical'].includes(p.alertLevel)).length
+  byDept.value.filter(p => p.alertLevel === 'normal').length
 )
 
 /* ── toggle ── */
@@ -488,15 +488,40 @@ function vc(k: string, v: any): string {
   return 'ok'
 }
 
+// 容错取值：把所有别名都兜进来
+function pickV(v: any, ...keys: string[]): any {
+  for (const k of keys) {
+    if (v[k] !== null && v[k] !== undefined && v[k] !== '') return v[k]
+  }
+  return undefined
+}
+
 function calcLevel(v: any): string {
   if (!v || typeof v !== 'object') return 'none'
-  const hasAnyVital = [v.hr, v.spo2, v.sbp, v.sys, v.nibp_sys, v.temp, v.t, v.rr].some(hasVitalValue)
-  if (!hasAnyVital) return 'none'
-  const cs = ['hr', 'spo2', 'sys', 'temp', 'rr'].map(k =>
-    vc(k, k === 'sys' ? (v.nibp_sys || v.sbp) : v[k])
-  )
+
+  const hr   = pickV(v, 'hr')
+  const spo2 = pickV(v, 'spo2')
+  const sys  = pickV(v, 'sbp', 'nibp_sys', 'ibp_sys', 'sys')
+  const temp = pickV(v, 'temp', 't')
+  const rr   = pickV(v, 'rr')
+
+  // 核心体征：HR / SpO2 / 收缩压。一个都没有 → 待评估，绝不洗成稳定
+  const coreVitals = [hr, spo2, sys]
+  if (!coreVitals.some(hasVitalValue)) return 'none'
+
+  const cs = [
+    vc('hr', hr),
+    vc('spo2', spo2),
+    vc('sys', sys),
+    vc('temp', temp),
+    vc('rr', rr),
+  ]
   if (cs.includes('crit')) return 'critical'
   if (cs.includes('warn')) return 'warning'
+
+  // 核心体征不全（缺了 HR/SpO2/收缩压任一）→ 不判稳定，标待评估
+  if (![hr, spo2, sys].every(hasVitalValue)) return 'none'
+
   return 'normal'
 }
 
