@@ -352,7 +352,8 @@ const severitySections = computed(() => {
   const rows = showList.value
   const criticalRows = rows.filter((p: any) => p.alertLevel === 'critical')
   const warningRows = rows.filter((p: any) => ['warning', 'high'].includes(String(p.alertLevel || '')))
-  const normalRows = rows.filter((p: any) => !['warning', 'high', 'critical'].includes(String(p.alertLevel || '')))
+  const normalRows = rows.filter((p: any) => String(p.alertLevel || '') === 'normal')
+  const pendingRows = rows.filter((p: any) => !p.alertLevel || String(p.alertLevel) === 'none')
   const focusRows = (items: any[]) => items
     .slice(0, 3)
     .map((row: any) => ({
@@ -397,15 +398,26 @@ const severitySections = computed(() => {
       featuredRows: focusRows(normalRows),
       rows: normalRows,
     },
+    {
+      key: 'pending',
+      tone: 'normal',
+      title: '待评估区',
+      meta: '体征数据尚未就绪或不完整，需人工确认后再分级。',
+      stats: [`待评估 ${pendingRows.length} 床`],
+      featuredRows: focusRows(pendingRows),
+      rows: pendingRows,
+    },
   ].filter((section) => section.rows.length > 0)
 })
 
 /* ── 统计 ── */
 const criticalCount = computed(() => byDept.value.filter(p => p.alertLevel === 'critical').length)
 const warningCount = computed(() => byDept.value.filter(p => ['warning', 'high'].includes(p.alertLevel)).length)
-// 没有预警的也算“正常”，避免全部为0
 const normalCount = computed(() =>
   byDept.value.filter(p => p.alertLevel === 'normal').length
+)
+const pendingCount = computed(() =>
+  byDept.value.filter(p => !p.alertLevel || p.alertLevel === 'none').length
 )
 
 /* ── toggle ── */
