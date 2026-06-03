@@ -8,6 +8,7 @@ from app.services.respiratory_service import (
     get_airway_plan,
     list_airway_records,
     list_sbt_candidates,
+    respiratory_dashboard,
     respiratory_worklist,
     list_ventilated_patients,
     update_sbt_status,
@@ -20,6 +21,15 @@ router = APIRouter(prefix="/api/respiratory", tags=["respiratory"])
 
 def _actor(request: Request) -> str:
     return request.headers.get("X-User-Id") or request.headers.get("x-operator-id") or "anonymous"
+
+
+@router.get("/dashboard")
+async def dashboard(
+    dept: str | None = Query(None, description="科室名称"),
+    dept_code: str | None = Query(None, description="科室代码"),
+    patient_scope: str = Query("in_dept", description="患者范围"),
+):
+    return {"code": 0, **await respiratory_dashboard(department=dept, dept_code=dept_code, patient_scope=patient_scope)}
 
 
 @router.get("/ventilated-patients")

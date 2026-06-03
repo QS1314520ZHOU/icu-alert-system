@@ -741,25 +741,11 @@ class RagService:
         """Lazy-load the sentence-transformers model."""
         if self._embed_model is not None:
             return self._embed_model
-        try:
-            from sentence_transformers import SentenceTransformer
-            logger.info(f"Loading embedding model: {self._embedding_model_name}")
-            self._embed_model = SentenceTransformer(
-                self._embedding_model_name,
-                **sentence_transformer_kwargs(),
-            )
-            logger.info("Embedding model loaded successfully")
-        except ImportError:
-            logger.warning(
-                "sentence-transformers not installed; falling back to tfidf. "
-                "Install with: pip install sentence-transformers"
-            )
+        # 内网环境无模型缓存，直接走 tfidf
+        if self._backend == "embedding":
+            logger.info("Embedding model not available in offline mode; using tfidf backend")
             self._backend = "tfidf"
-            self._embed_model = None
-        except Exception as e:
-            logger.warning(f"Failed to load embedding model: {e}; falling back to tfidf")
-            self._backend = "tfidf"
-            self._embed_model = None
+        self._embed_model = None
         return self._embed_model
 
     def _build_embedding_index(self) -> None:

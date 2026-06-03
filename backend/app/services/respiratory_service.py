@@ -221,7 +221,16 @@ def _vent_param(params: dict[str, Any], *codes: str) -> Any:
     return None
 
 
+_CODE_MAP_CACHE: tuple[float, dict[str, list[str]]] | None = None
+_CODE_MAP_TTL = 300.0  # 5 分钟
+
+
 async def _respiratory_code_map() -> dict[str, list[str]]:
+    global _CODE_MAP_CACHE
+    import time as _time
+    now = _time.monotonic()
+    if _CODE_MAP_CACHE and (now - _CODE_MAP_CACHE[0]) < _CODE_MAP_TTL:
+        return _CODE_MAP_CACHE[1]
     out = {key: list(values) for key, values in RESPIRATORY_CONCEPT_DEFAULTS.items()}
     try:
         cursor = runtime.db.col("field_mapping").find(
@@ -236,7 +245,9 @@ async def _respiratory_code_map() -> dict[str, list[str]]:
                 out[concept].append(code)
     except Exception:
         pass
-    return {key: list(dict.fromkeys(values)) for key, values in out.items()}
+    result = {key: list(dict.fromkeys(values)) for key, values in out.items()}
+    _CODE_MAP_CACHE = (now, result)
+    return result
 
 
 def _codes(code_map: dict[str, list[str]], concept: str) -> list[str]:
@@ -752,6 +763,67 @@ async def respiratory_worklist(*, department: str | None = None, dept_code: str 
             "generated_at": serialize_doc(datetime.now()),
         },
     }
+
+
+async def respiratory_dashboard(*, department: str | None = None, dept_code: str | None = None, patient_scope: str = "in_dept") -> dict[str, Any]:
+    """合并接口：一次 list_ventilated_patients 调用，派生 ventilated + worklist + sbt-candidates。"""
+    dashboard = await list_ventilated_patients(department=department, dept_code=dept_code, patient_scope=patient_scope)
+    rows = dashboard.get("patients") or []
+
+    # worklist
+    tasks: list[dict[str, Any]] = []
+    for row in rows:
+        sbt = row.get("sbt_candidate_status") or {}
+        if sbt.get("status") == "candidate":
+            tasks.append({
+                "task_id": f"sbt:{row.get('patient_id')}", "patient_id": row.get("patient_id"),
+                "bed_no": row.get("bed_no"), "name": row.get("name"),
+                "title": f"评估 {row.get('bed_no') or '--'}床 SBT 候选",
+                "reason": sbt.get("recommendation") or "建议评估 SBT",
+                "priority": "medium", "category": "sbt", "score": sbt.get("score"),
+                "status": "open", "created_at": datetime.now(),
+            })
+        for action in row.get("worklist_actions") or []:
+            task_key = str(action.get("title") or "resp_task").replace(" ", "_")
+            tasks.append({
+                "task_id": f"{task_key}:{row.get('patient_id')}", "patient_id": row.get("patient_id"),
+                "bed_no": row.get("bed_no"), "name": row.get("name"),
+                "title": f"{row.get('bed_no') or '--'}床 {action.get('title')}",
+                "reason": action.get("detail") or "", "priority": action.get("priority") or "medium",
+                "category": "ventilation", "score": row.get("safety_score"),
+                "status": "open", "created_at": datetime.now(),
+            })
+    priority_order = {"high": 0, "critical": 0, "medium": 1, "warning": 1, "low": 2}
+    tasks.sort(key=lambda item: (priority_order.get(str(item.get("priority") or "medium"), 2), str(item.get("bed_no") or "")))
+    worklist = {
+        "tasks": serialize_doc(tasks[:50]),
+        "summary": {
+            "total": len(tasks),
+            "high": sum(1 for item in tasks if str(item.get("priority")) in {"high", "critical"}),
+            "sbt": sum(1 for item in tasks if item.get("category") == "sbt"),
+            "generated_at": serialize_doc(datetime.now()),
+        },
+    }
+
+    # sbt-candidates
+    completed_cursor = runtime.db.col("score").find({"score_type": "sbt_assessment"}).sort("trial_time", -1).limit(200)
+    completed_by_patient: dict[str, dict[str, Any]] = {}
+    async for doc in completed_cursor:
+        completed_by_patient.setdefault(str(doc.get("patient_id")), serialize_doc(doc))
+    sbt_todo, sbt_not_suitable, sbt_completed, sbt_failed = [], [], [], []
+    for row in rows:
+        latest = completed_by_patient.get(str(row.get("patient_id")))
+        if latest and latest.get("result") == "passed":
+            sbt_completed.append({"patient": row, "record": latest})
+        elif latest and latest.get("result") == "failed":
+            sbt_failed.append({"patient": row, "record": latest, "reason": latest.get("raw_text")})
+        elif (row.get("sbt_candidate_status") or {}).get("status") == "candidate":
+            sbt_todo.append(row)
+        else:
+            sbt_not_suitable.append({"patient": row, "reasons": (row.get("sbt_candidate_status") or {}).get("reasons") or []})
+    sbt = {"todo": sbt_todo, "not_suitable": sbt_not_suitable, "completed": sbt_completed, "failed": sbt_failed, "generated_at": serialize_doc(datetime.now())}
+
+    return {"dashboard": dashboard, "worklist": worklist, "sbt": sbt}
 
 
 async def close_respiratory_task(task_id: str, payload: dict[str, Any], actor: str) -> dict[str, Any]:

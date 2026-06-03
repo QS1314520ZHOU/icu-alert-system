@@ -210,25 +210,34 @@ class DatabaseManager:
             bedside_col = self.col("bedside")
             await bedside_col.create_index([("pid", 1), ("code", 1), ("time", -1)])
             await bedside_col.create_index([("pid", 1), ("time", -1)])
+            await bedside_col.create_index([("pid", 1), ("time", -1), ("kw", 1)])  # bundle 合规 kw 匹配
 
             # 设备数据索引
             device_cap_col = self.col("deviceCap")
             await device_cap_col.create_index([("deviceID", 1), ("code", 1), ("time", -1)])
             device_bind_col = self.col("deviceBind")
             await device_bind_col.create_index([("pid", 1), ("unBindTime", -1)])
+            await device_bind_col.create_index([("type", 1), ("unBindTime", 1)])  # 呼吸机绑定查询
+
+            # 管路/置管索引（bedcard 加速）
+            tube_col = self.col("tubeExe")
+            await tube_col.create_index([("pid", 1), ("stopTime", 1), ("endTime", 1), ("removeTime", 1)])
 
             # 用药执行索引
             drug_col = self.col("drugExe")
             await drug_col.create_index([("pid", 1), ("executeTime", -1)])
             await drug_col.create_index([("pid", 1), ("drugName", 1)])
+            await drug_col.create_index([("pid", 1), ("exeTime", -1), ("kw", 1)])  # bundle 合规 kw 匹配
 
             # 护理记录索引
             nurse_col = self.col("nurseRecords")
             await nurse_col.create_index([("pid", 1), ("recordTime", -1)])
             await nurse_col.create_index([("pid", 1), ("created_at", -1)])
+            await nurse_col.create_index([("pid", 1), ("time", -1), ("kw", 1)])  # bundle 合规 kw 匹配
 
             # 告警记录补充索引
             await alert_col.create_index([("rule_id", 1), ("patient_id", 1), ("created_at", -1)])
+            await alert_col.create_index([("patient_id", 1), ("created_at", -1), ("kw", 1)])  # bundle 合规 kw 匹配
 
             # Bundle 合规每日汇总索引
             bundle_daily_col = self.col("bundle_compliance_daily")

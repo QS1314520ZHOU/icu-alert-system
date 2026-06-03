@@ -143,6 +143,7 @@
           >
             <PatientOverviewCard
               :patient="p"
+              :initial-bedcard="bedcardDataMap[p._id] || null"
               @select="goDetail"
             />
           </div>
@@ -159,7 +160,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig } from '../api'
+import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig, getBatchVitals, getPatientBedcardBatch } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
@@ -191,7 +192,9 @@ const trajectoryConfig = ref<any>({ default_codes: ['HR', 'MAP', 'SBP', 'DBP', '
 let iv: any = null
 let offAlert: any = null
 let bundleRequestToken = 0
+let vitalsRequestToken = 0
 let signalRequestToken = 0
+const bedcardDataMap = ref<Record<string, any>>({})
 
 const routeDeptCode = computed(() => {
   const raw = route.query.dept_code || route.query.deptCode
@@ -486,13 +489,35 @@ function vc(k: string, v: any): string {
 }
 
 function calcLevel(v: any): string {
-  if (!v?.source) return 'none'
+  if (!v || typeof v !== 'object') return 'none'
+  const hasAnyVital = [v.hr, v.spo2, v.sbp, v.sys, v.nibp_sys, v.temp, v.t, v.rr].some(hasVitalValue)
+  if (!hasAnyVital) return 'none'
   const cs = ['hr', 'spo2', 'sys', 'temp', 'rr'].map(k =>
-    vc(k, k === 'sys' ? v.nibp_sys : v[k])
+    vc(k, k === 'sys' ? (v.nibp_sys || v.sbp) : v[k])
   )
   if (cs.includes('crit')) return 'critical'
   if (cs.includes('warn')) return 'warning'
   return 'normal'
+}
+
+function hasVitalValue(value: any): boolean {
+  return value !== null && value !== undefined && value !== ''
+}
+
+function hasUsableVitals(vitals: any): boolean {
+  if (!vitals || typeof vitals !== 'object') return false
+  return [vitals.hr, vitals.spo2, vitals.rr, vitals.sbp, vitals.sys, vitals.nibp_sys, vitals.ibp_sys, vitals.temp, vitals.t].some(hasVitalValue)
+}
+
+function mergeVitals(base: any, preferred: any) {
+  const merged: Record<string, any> = {}
+  for (const source of [base, preferred]) {
+    if (!source || typeof source !== 'object') continue
+    for (const [key, value] of Object.entries(source)) {
+      if (hasVitalValue(value)) merged[key] = value
+    }
+  }
+  return merged
 }
 
 function severityPriority(level: string) {
@@ -565,6 +590,43 @@ function syncOverviewCacheSnapshot() {
   })
 }
 
+async function hydrateVitals(items: any[], onlyMissing = true) {
+  const token = ++vitalsRequestToken
+  const targetItems = items
+    .filter((item: any) => item && item._id)
+    .filter((item: any) => !onlyMissing || !hasUsableVitals(item.vitals))
+    .slice(0, 120)
+
+  for (const batch of chunkItems(targetItems, 8)) {
+    if (token !== vitalsRequestToken) return
+    await Promise.allSettled(batch.map(async (item: any) => {
+      try {
+        const res = await getPatientVitals(item._id, 15000)
+        if (token !== vitalsRequestToken) return
+        const apiVitals = res.data?.vitals || {}
+        const merged = mergeVitals(item.vitals || {}, apiVitals)
+        item.vitals = merged
+        item.alertLevel = mergeAlertLevel(item, calcLevel(merged))
+      } catch {
+        item.vitals = item.vitals || {}
+      }
+    }))
+    syncOverviewCacheSnapshot()
+  }
+}
+
+async function hydrateBedcards(items: any[]) {
+  const ids = items.map((item: any) => item?._id).filter(Boolean)
+  if (!ids.length) return
+  try {
+    const res = await getPatientBedcardBatch(ids, 30000)
+    const data = res.data?.data || {}
+    bedcardDataMap.value = data
+  } catch {
+    // 静默失败，卡片会自行加载
+  }
+}
+
 async function hydrateBundleStatuses(items: any[]) {
   const token = ++bundleRequestToken
   const targetItems = items
@@ -608,7 +670,7 @@ async function hydrateForecastPreview(items: any[]) {
     }
     const codes = Array.isArray(trajectoryConfig.value?.default_codes) && trajectoryConfig.value.default_codes.length ? trajectoryConfig.value.default_codes.join(',') : 'HR,MAP,SBP,DBP,SpO2,RR,Temp,EtCO2'
     const horizon = Number(trajectoryConfig.value?.horizon_hours || 6)
-    const res = await getPatientVitalsForecast(String(first._id), { codes, horizon_hours: horizon }, undefined, 5000)
+    const res = await getPatientVitalsForecast(String(first._id), { codes, horizon_hours: horizon }, undefined, 15000)
     const data = res.data || {}
     const topRisk = Array.isArray(data.threshold_risks) && data.threshold_risks.length ? data.threshold_risks[0] : null
     const riskText = topRisk ? ` · 最高风险 ${topRisk.code}${topRisk.operator}${topRisk.threshold} ${Math.round(Number(topRisk.probability || 0) * 100)}%` : ''
@@ -632,8 +694,10 @@ async function hydrateOverviewSignals(items: any[], params: any) {
     ])
     if (token !== signalRequestToken) return
     const recentAlerts = recentAlertRes.data?.records || []
+    console.log('[signals] recentAlerts:', recentAlerts.length, 'types:', [...new Set(recentAlerts.map((a: any) => a.alert_type))].slice(0, 10))
     priorityRows.value = Array.isArray(priorityRes.data?.data) ? priorityRes.data.data : []
     const organMapByPatient = buildOrganStateMapByPatient(recentAlerts)
+    console.log('[signals] organMapByPatient size:', organMapByPatient.size, 'sample:', organMapByPatient.size > 0 ? Object.fromEntries(organMapByPatient.entries().next().value) : 'none')
     const rescueSeverityMap = new Map<string, string>()
     const rescuePidSet = new Set(
       recentAlerts
@@ -709,6 +773,8 @@ async function load(options?: { silent?: boolean }) {
     ])
     const allDepts = dr.data.departments || []
     const ls = pr.data.patients || []
+    // 批量生命体征异步加载，不阻塞页面渲染
+    const bvPromise = getBatchVitals(params).catch(() => ({ data: { vitals: {} } }))
 
     if (deptCode) {
       const deptNameFromPatients = String(ls.find((item: any) => item?.dept || item?.hisDept)?.dept || ls.find((item: any) => item?.dept || item?.hisDept)?.hisDept || '').trim()
@@ -728,22 +794,46 @@ async function load(options?: { silent?: boolean }) {
       }
     }
 
-    const all = ls.map((p: any) => ({
-      ...p,
-      vitals: p.vitals || p.latestVitals || {},
-      alertLevel: mergeAlertLevel(p, calcLevel(p.vitals || p.latestVitals || {})),
-      hasRescueRisk: false,
-      rescueRiskSeverity: 'none',
-      organMap: undefined,
-      workflowPriority: null,
-      bundleStatus: p.bundleStatus || { lights: {} },
-    }))
+    const all = ls.map((p: any) => {
+      const mergedVitals = mergeVitals(p.vitals || p.latestVitals || {}, {})
+      return {
+        ...p,
+        vitals: mergedVitals,
+        alertLevel: mergeAlertLevel(p, calcLevel(mergedVitals)),
+        hasRescueRisk: false,
+        rescueRiskSeverity: 'none',
+        organMap: undefined,
+        workflowPriority: null,
+        bundleStatus: p.bundleStatus || { lights: {} },
+      }
+    })
     patients.value = all
     loading.value = false
     syncOverviewCacheSnapshot()
     void hydrateOverviewSignals(all, params)
     void hydrateBundleStatuses(all)
     void hydrateForecastPreview(all)
+    void hydrateBedcards(all)
+    // 等待批量生命体征返回后更新患者数据
+    bvPromise.then((bvRes: any) => {
+      const bvData = bvRes?.data?.vitals || {}
+      const bvKeys = Object.keys(bvData)
+      console.log('[vitals-batch] response keys:', bvKeys.length, 'sample:', bvKeys.slice(0, 3).map(k => ({ id: k, vitals: bvData[k] })))
+      if (!bvKeys.length) return
+      let updated = 0
+      for (const p of patients.value) {
+        const bv = bvData[p._id] || {}
+        if (!Object.keys(bv).length) continue
+        const merged = mergeVitals(p.vitals || {}, bv)
+        p.vitals = merged
+        const level = calcLevel(merged)
+        p.alertLevel = mergeAlertLevel(p, level)
+        if (updated < 3) console.log('[vitals-batch] patient', p._id, 'merged keys:', Object.keys(merged), 'level:', level, 'merged sample:', { hr: merged.hr, spo2: merged.spo2, sbp: merged.sbp, rr: merged.rr, temp: merged.temp })
+        updated++
+      }
+      console.log('[vitals-batch] updated', updated, '/', patients.value.length, 'patients')
+      syncOverviewCacheSnapshot()
+    }).catch((err: any) => { console.warn('[vitals-batch] failed:', err) })
   } catch (e) { console.error(e) }
   finally {
     refreshing.value = false

@@ -259,6 +259,7 @@ import {
 import {
   closeRespiratoryWorklistTask,
   getAirwayPlan,
+  getRespiratoryDashboard,
   getRespiratoryWorklist,
   getSbtCandidates,
   getVentilatedPatients,
@@ -432,12 +433,13 @@ function requestParams(): RespiratoryScopeParams {
 async function loadAll() {
   loading.value = true
   try {
-    const [p, s, w] = await Promise.all([getVentilatedPatients(requestParams()), getSbtCandidates(requestParams()), getRespiratoryWorklist(requestParams())])
-    patients.value = p.data?.patients || []
-    stats.value = p.data?.stats || {}
-    completion.value = p.data?.completion || {}
-    sbt.value = s.data || {}
-    worklist.value = w.data || { tasks: [], summary: {} }
+    const res = await getRespiratoryDashboard(requestParams())
+    const d = res.data || {}
+    patients.value = d.dashboard?.patients || []
+    stats.value = d.dashboard?.stats || {}
+    completion.value = d.dashboard?.completion || {}
+    sbt.value = d.sbt || {}
+    worklist.value = d.worklist || { tasks: [], summary: {} }
   } finally {
     loading.value = false
   }

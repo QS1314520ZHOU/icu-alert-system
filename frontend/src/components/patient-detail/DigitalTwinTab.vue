@@ -394,15 +394,27 @@ const conflictRows = computed(() => Array.isArray(mdtResult.value?.conflicts) ? 
 const metaActions = computed(() => Array.isArray(mdtMetaSummary.value?.final_actions) ? mdtMetaSummary.value.final_actions.slice(0, 6) : [])
 const primarySubphenotype = computed(() => subphenotypeRecord.value?.primary_profile || null)
 const subphenotypeSummary = computed(() => String(subphenotypeRecord.value?.summary || '等待亚表型识别结果'))
-const whatIfSummary = computed(() => String(whatIfRecord.value?.summary || '选择一个单干预模板，模拟未来 6 小时关键指标变化。'))
+const whatIfNoData = computed(() => {
+  const cs = whatIfRecord.value?.current_state
+  if (!cs) return true
+  return [cs.map, cs.spo2, cs.lactate].every((v) => v == null || !Number.isFinite(Number(v)))
+})
+const whatIfSummary = computed(() => {
+  if (whatIfRecord.value?.data_available === false) return '当前患者暂无可用生命体征数据（MAP/SpO2/乳酸），无法执行反事实模拟。请确认监护仪数据已接入。'
+  if (whatIfRecord.value?.summary && whatIfRecord.value.summary !== '模拟已生成') return String(whatIfRecord.value.summary)
+  if (whatIfNoData.value) return '当前患者暂无可用生命体征数据（MAP/SpO2/乳酸），无法执行反事实模拟。请确认监护仪数据已接入。'
+  return '选择一个单干预模板，模拟未来 6 小时关键指标变化。'
+})
 const whatIfDegraded = computed(() => Boolean(whatIfRecord.value?.model_meta?.degraded))
 const whatIfBanner = computed(() => {
+  if (whatIfRecord.value?.data_available === false) return '⚠️ 当前患者暂无生命体征数据，反事实模拟无法执行。请确认监护仪数据已接入。'
   if (whatIfDegraded.value) return '反事实模型降级为半机制模型，置信度降低，仅供参考。'
   const ood = whatIfRecord.value?.ood_warning
   if (ood?.is_ood) return `该患者状态在历史数据中罕见，预测可信度低：${(ood.reasons || []).join('；')}`
   return ''
 })
 const whatIfProjectionRows = computed(() => {
+  if (whatIfNoData.value) return []
   const projected = whatIfRecord.value?.projected_state || {}
   const current = whatIfRecord.value?.current_state || {}
   const rows = [
@@ -413,36 +425,42 @@ const whatIfProjectionRows = computed(() => {
   return rows.filter((item) => Number.isFinite(item.projected)).map((item) => ({ label: item.label, value: `${Number.isFinite(item.current) ? item.current : '—'} → ${item.projected}${item.unit}`, width: `${Math.max(8, Math.min(100, (item.projected / item.scale) * 100))}%` }))
 })
 const whatIfChartRows = computed(() => {
+  if (whatIfNoData.value && !whatIfBaselineRecord.value?.response_curve) return []
   const defs = [
     { key: 'map', label: 'MAP', scale: 120, currentKey: 'map', projectedKey: 'map_30m' },
     { key: 'spo2', label: 'SpO2', scale: 100, currentKey: 'spo2', projectedKey: 'spo2_30m' },
     { key: 'lactate', label: '乳酸', scale: 10, currentKey: 'lactate', projectedKey: 'lactate_30m' },
   ]
-  return defs.map((def) => {
-    const current = Number(whatIfRecord.value?.current_state?.[def.currentKey] ?? twinSnapshot.value?.[def.key]?.current ?? 0)
-    const baselineCurve = whatIfBaselineRecord.value?.response_curve?.[def.key] || []
-    const branchCurve = whatIfRecord.value?.response_curve?.[def.key] || []
-    const band = whatIfRecord.value?.confidence_bands?.[def.key] || []
-    const baseline = Number(baselineCurve?.[baselineCurve.length - 1]?.value ?? current)
-    const branch = Number(branchCurve?.[branchCurve.length - 1]?.value ?? whatIfRecord.value?.projected_state?.[def.projectedKey] ?? current)
-    const bandLast = band?.[band.length - 1] || {}
-    const p10 = Number(bandLast.p10 ?? branch)
-    const p90 = Number(bandLast.p90 ?? branch)
-    const p025 = Number(bandLast.p025 ?? branch)
-    const p975 = Number(bandLast.p975 ?? branch)
-    const pctWidth = (value: number) => `${Math.max(6, Math.min(100, (Math.abs(value) / def.scale) * 100))}%`
-    return {
-      key: def.key,
-      label: def.label,
-      delta: `${Number.isFinite(baseline) ? baseline.toFixed(def.key === 'lactate' ? 1 : 0) : '—'} → ${Number.isFinite(branch) ? branch.toFixed(def.key === 'lactate' ? 1 : 0) : '—'}`,
-      actualWidth: pctWidth(current),
-      baselineWidth: pctWidth(baseline),
-      whatIfWidth: pctWidth(branch),
-      bandLeft: pctWidth(Math.min(p10, p025)),
-      band80: pctWidth(Math.abs(p90 - p10)),
-      band95: pctWidth(Math.abs(p975 - p025)),
-    }
-  })
+  return defs
+    .map((def) => {
+      const rawCurrent = whatIfRecord.value?.current_state?.[def.currentKey]
+      const current = Number(rawCurrent ?? twinSnapshot.value?.[def.key]?.current ?? NaN)
+      const baselineCurve = whatIfBaselineRecord.value?.response_curve?.[def.key] || []
+      const branchCurve = whatIfRecord.value?.response_curve?.[def.key] || []
+      const band = whatIfRecord.value?.confidence_bands?.[def.key] || []
+      const baseline = Number(baselineCurve.length ? baselineCurve[baselineCurve.length - 1]?.value : current)
+      const branch = Number(branchCurve.length ? branchCurve[branchCurve.length - 1]?.value : (whatIfRecord.value?.projected_state?.[def.projectedKey] ?? current))
+      // 如果 current、baseline、branch 全部无效，跳过该行
+      if (!Number.isFinite(current) && !Number.isFinite(baseline) && !Number.isFinite(branch)) return null
+      const bandLast = band?.[band.length - 1] || {}
+      const p10 = Number(bandLast.p10 ?? branch)
+      const p90 = Number(bandLast.p90 ?? branch)
+      const p025 = Number(bandLast.p025 ?? branch)
+      const p975 = Number(bandLast.p975 ?? branch)
+      const pctWidth = (value: number) => `${Math.max(6, Math.min(100, (Math.abs(value) / def.scale) * 100))}%`
+      return {
+        key: def.key,
+        label: def.label,
+        delta: `${Number.isFinite(baseline) ? baseline.toFixed(def.key === 'lactate' ? 1 : 0) : '—'} → ${Number.isFinite(branch) ? branch.toFixed(def.key === 'lactate' ? 1 : 0) : '—'}`,
+        actualWidth: pctWidth(current),
+        baselineWidth: pctWidth(baseline),
+        whatIfWidth: pctWidth(branch),
+        bandLeft: pctWidth(Math.min(p10, p025)),
+        band80: pctWidth(Math.abs(p90 - p10)),
+        band95: pctWidth(Math.abs(p975 - p025)),
+      }
+    })
+    .filter(Boolean)
 })
 const whatIfCautions = computed(() => {
   const rows = Array.isArray(whatIfRecord.value?.cautions) ? whatIfRecord.value.cautions : []
@@ -614,7 +632,7 @@ async function loadAll(refresh = false) {
   loading.value = true
   error.value = ''
   try {
-    const [twinRes, riskRes, proactiveRes, reasoningRes, mdtRes, nursingRes, subtypeRes] = await Promise.all([
+    const results = await Promise.allSettled([
       getAiPatientDigitalTwin(props.patientId, { refresh, hours: 24 }),
       getAiRiskForecast(props.patientId),
       getAiProactiveManagement(props.patientId, { refresh }),
@@ -623,15 +641,24 @@ async function loadAll(refresh = false) {
       getAiNursingNoteSignals(props.patientId, { refresh }),
       getAiSubphenotype(props.patientId, { refresh }),
     ])
-    digitalTwin.value = twinRes.data || null
-    riskForecast.value = riskRes.data || null
-    proactivePlan.value = proactiveRes.data || null
-    reasoningPlan.value = reasoningRes.data || null
-    mdtAssessment.value = mdtRes.data || null
-    nursingSignals.value = nursingRes.data || null
-    subphenotypeProfile.value = subtypeRes.data || null
-    await loadCausal(selectedFinding.value)
-    await runWhatIf(whatIfPresets.find((item) => item.type === whatIfSelected.value) || whatIfPresets[0])
+    const labels = ['数字孪生快照', '风险预测', '主动管理', '临床推理', 'MDT多智能体', '护理文本分析', '亚表型分析']
+    const settled = (i: number) => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value : null
+    digitalTwin.value = settled(0)?.data || null
+    riskForecast.value = settled(1)?.data || null
+    proactivePlan.value = settled(2)?.data || null
+    reasoningPlan.value = settled(3)?.data || null
+    mdtAssessment.value = settled(4)?.data || null
+    nursingSignals.value = settled(5)?.data || null
+    subphenotypeProfile.value = settled(6)?.data || null
+    const failedNames = results.map((r, i) => r.status === 'rejected' ? labels[i] : null).filter(Boolean)
+    if (failedNames.length === labels.length) {
+      error.value = '数字孪生工作台加载失败，请检查后端智能接口。'
+    } else if (failedNames.length > 0) {
+      error.value = `部分模块加载失败：${failedNames.join('、')}，其余数据已正常显示。`
+    }
+    // 后置任务：因果链 + 干预模拟，失败不影响主面板
+    try { await loadCausal(selectedFinding.value) } catch { /* already handled inside loadCausal */ }
+    try { await runWhatIf(whatIfPresets.find((item) => item.type === whatIfSelected.value) || whatIfPresets[0]) } catch { /* already handled inside runWhatIf */ }
   } catch {
     error.value = '数字孪生工作台加载失败，请检查后端智能接口。'
   } finally {

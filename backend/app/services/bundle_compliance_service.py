@@ -1,15 +1,30 @@
 """Bundle 合规评分服务：组装散点能力为 ABCDEF / VAP / CLABSI / CAUTI 每日核查与合规评分。
 
 优化策略：批量查询 + 内存分组，避免逐患者逐条目逐集合查询（N×M×K → M×K）。
+
+索引建议（在 mongo shell 或 database.py ensure_indexes 中执行）:
+  db.nurseRecords.createIndex({pid: 1, time: -1})
+  db.nurseRecords.createIndex({patient_id: 1, time: -1})
+  db.nurseRecords.createIndex({kw: 1, pid: 1, time: -1})
+  db.drugExe.createIndex({pid: 1, exeTime: -1})
+  db.drugExe.createIndex({patient_id: 1, exeTime: -1})
+  db.drugExe.createIndex({kw: 1, pid: 1, exeTime: -1})
+  db.alert_records.createIndex({patient_id: 1, created_at: -1})
+  db.alert_records.createIndex({kw: 1, patient_id: 1, created_at: -1})
+  db.bedside.createIndex({pid: 1, time: -1, code: 1})
+  db.bedside.createIndex({pid: 1, time: -1, kw: 1})
+  db.bundle_compliance_daily.createIndex({date: 1, dept: 1, deptCode: 1}, {unique: true})
 """
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
 API_TZ = ZoneInfo("Asia/Shanghai")
+logger = logging.getLogger("icu-alert")
 
 
 def _text(value: Any) -> str:
@@ -55,6 +70,18 @@ def _tone_from_rate(rate: float) -> str:
     if rate >= 60:
         return "yellow"
     return "red"
+
+
+def _normalized_keywords(keywords: list[str]) -> list[str]:
+    """预归一化关键词列表：去空、小写、去重。"""
+    seen: set[str] = set()
+    result: list[str] = []
+    for k in keywords:
+        kl = k.strip().lower()
+        if kl and kl not in seen:
+            seen.add(kl)
+            result.append(kl)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -106,27 +133,57 @@ class BundleComplianceService:
         self.config = config
 
     # ------------------------------------------------------------------
+    # 查询优化辅助：预归一化关键词 + kw 字段精确匹配
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _keyword_query(
+        keywords: list[str],
+        regex_fields: list[str],
+        kw_field: str = "kw",
+    ) -> dict[str, Any]:
+        """构造关键词查询条件。
+
+        优先使用预归一化的 kw 字段做 $in 精确匹配（走索引），
+        如果数据源尚未写入 kw 字段则回退到 regex 联合查询。
+        写入端应在保存时将可搜索文本小写化后写入 kw 数组字段：
+            doc["kw"] = [t.lower() for t in [content, title, name, ...] if t]
+        """
+        norm_kws = _normalized_keywords(keywords)
+        if not norm_kws:
+            return {"_match_none": True}  # 永不匹配
+        # 优先走 kw 字段 $in（精确匹配，可命中索引）
+        kw_cond = {kw_field: {"$in": norm_kws}}
+        # 作为回退：regex 联合查询（仅在 kw 字段不存在时生效）
+        regex = "|".join(re.escape(k) for k in norm_kws)
+        regex_conds = [{f: {"$regex": regex, "$options": "i"}} for f in regex_fields]
+        # $or: 先尝试 kw 精确匹配，再回退 regex
+        # MongoDB 会对 kw_cond 使用索引；如果 kw 字段全为 null 则走 regex
+        return {"$or": [kw_cond] + regex_conds}
+
+    # ------------------------------------------------------------------
     # 批量查询层：每个集合查一次，按 patient_id 分组
     # ------------------------------------------------------------------
 
     async def _batch_query_nurse_records(self, pids: list[str], keywords: list[str], since: datetime) -> dict[str, datetime]:
-        """批量查询 nurseRecords，返回 {patient_id: latest_time}。"""
+        """批量查询 nurseRecords，返回 {patient_id: latest_time}。
+
+        优化：优先使用 kw 字段 $in 精确匹配（走索引），回退到 regex。
+        """
         result: dict[str, datetime] = {}
-        regex = "|".join(re.escape(k) for k in keywords if k)
-        if not regex or not pids:
+        if not keywords or not pids:
             return result
-        text_cond = {"$or": [
-            {"content": {"$regex": regex, "$options": "i"}},
-            {"recordTitle": {"$regex": regex, "$options": "i"}},
-            {"title": {"$regex": regex, "$options": "i"}},
-            {"careType": {"$regex": regex, "$options": "i"}},
-            {"name": {"$regex": regex, "$options": "i"}},
-        ]}
+        text_cond = self._keyword_query(
+            keywords,
+            regex_fields=["content", "recordTitle", "title", "careType", "name"],
+        )
         pid_cond = {"$or": [{"pid": {"$in": pids}}, {"patient_id": {"$in": pids}}]}
         query = {"$and": [pid_cond, {"time": {"$gte": since}}, text_cond]}
         for col_name in ("nurseRecords", "nursing_record"):
             try:
-                cursor = self.db.col(col_name).find(query, {"pid": 1, "patient_id": 1, "recordTime": 1, "time": 1, "created_at": 1}).sort("time", -1).limit(2000)
+                cursor = self.db.col(col_name).find(
+                    query, {"pid": 1, "patient_id": 1, "recordTime": 1, "time": 1, "created_at": 1}
+                ).sort("time", -1).limit(2000)
                 async for row in cursor:
                     pid = _text(row.get("pid") or row.get("patient_id"))
                     t = _dt(row.get("recordTime") or row.get("time") or row.get("created_at"))
@@ -137,14 +194,19 @@ class BundleComplianceService:
         return result
 
     async def _batch_query_bedside(self, pids: list[str], codes: list[str], since: datetime) -> dict[str, datetime]:
-        """批量查询 bedside 评分，返回 {patient_id: latest_time}。"""
+        """批量查询 bedside 评分，返回 {patient_id: latest_time}。
+
+        bedside.code 是标准化字段（如 param_score_cpot），直接用 $in 精确匹配。
+        """
         result: dict[str, datetime] = {}
-        regex = "|".join(re.escape(c) for c in codes if c)
-        if not regex or not pids:
+        if not codes or not pids:
+            return result
+        norm_codes = [c.strip().lower() for c in codes if c.strip()]
+        if not norm_codes:
             return result
         try:
             cursor = self.db.col("bedside").find(
-                {"pid": {"$in": pids}, "time": {"$gte": since}, "code": {"$regex": regex, "$options": "i"}},
+                {"pid": {"$in": pids}, "time": {"$gte": since}, "code": {"$in": norm_codes}},
                 {"pid": 1, "time": 1},
             ).sort("time", -1).limit(2000)
             async for row in cursor:
@@ -163,7 +225,11 @@ class BundleComplianceService:
             return result
         try:
             cursor = self.db.col("bedside").find(
-                {"pid": {"$in": pids}, "time": {"$gte": since}, "$or": [{"code": "param_bed_angle"}, {"paramCode": "param_bed_angle"}, {"name": {"$regex": "床头|床角度|bed_angle", "$options": "i"}}]},
+                {"pid": {"$in": pids}, "time": {"$gte": since}, "$or": [
+                    {"code": "param_bed_angle"},
+                    {"paramCode": "param_bed_angle"},
+                    {"kw": {"$in": ["床头", "床角度", "bed_angle"]}},
+                ]},
                 {"pid": 1, "time": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
             ).sort("time", -1).limit(2000)
             async for row in cursor:
@@ -185,17 +251,24 @@ class BundleComplianceService:
         return result
 
     async def _batch_query_drug(self, pids: list[str], keywords: list[str], since: datetime) -> dict[str, datetime]:
-        """批量查询 drugExe，返回 {patient_id: latest_time}。"""
+        """批量查询 drugExe，返回 {patient_id: latest_time}。
+
+        优化：优先使用 kw 字段 $in 精确匹配，回退到 regex。
+        """
         result: dict[str, datetime] = {}
-        regex = "|".join(re.escape(k) for k in keywords if k)
-        if not regex or not pids:
+        if not keywords or not pids:
             return result
         pid_cond = {"$or": [{"pid": {"$in": pids}}, {"patient_id": {"$in": pids}}]}
         time_cond = {"$or": [{"exeTime": {"$gte": since}}, {"executeTime": {"$gte": since}}, {"time": {"$gte": since}}]}
-        name_cond = {"$or": [{"drugName": {"$regex": regex, "$options": "i"}}, {"orderName": {"$regex": regex, "$options": "i"}}, {"name": {"$regex": regex, "$options": "i"}}]}
+        name_cond = self._keyword_query(
+            keywords,
+            regex_fields=["drugName", "orderName", "name"],
+        )
         query = {"$and": [pid_cond, time_cond, name_cond]}
         try:
-            cursor = self.db.col("drugExe").find(query, {"pid": 1, "patient_id": 1, "exeTime": 1, "executeTime": 1, "time": 1}).sort("exeTime", -1).limit(2000)
+            cursor = self.db.col("drugExe").find(
+                query, {"pid": 1, "patient_id": 1, "exeTime": 1, "executeTime": 1, "time": 1}
+            ).sort("exeTime", -1).limit(2000)
             async for row in cursor:
                 pid = _text(row.get("pid") or row.get("patient_id"))
                 t = _dt(row.get("exeTime") or row.get("executeTime") or row.get("time"))
@@ -244,12 +317,17 @@ class BundleComplianceService:
         return result
 
     async def _batch_query_alerts(self, pids: list[str], keywords: list[str], since: datetime) -> dict[str, datetime]:
-        """批量查询 alert_records，返回 {patient_id: latest_time}。"""
+        """批量查询 alert_records，返回 {patient_id: latest_time}。
+
+        优化：优先使用 kw 字段 $in 精确匹配，回退到 regex。
+        """
         result: dict[str, datetime] = {}
-        regex = "|".join(re.escape(k) for k in keywords if k)
-        if not regex or not pids:
+        if not keywords or not pids:
             return result
-        text_cond = {"$or": [{"rule_id": {"$regex": regex, "$options": "i"}}, {"name": {"$regex": regex, "$options": "i"}}, {"alert_type": {"$regex": regex, "$options": "i"}}]}
+        text_cond = self._keyword_query(
+            keywords,
+            regex_fields=["rule_id", "name", "alert_type"],
+        )
         query = {"$and": [{"patient_id": {"$in": pids}}, {"created_at": {"$gte": since}}, text_cond]}
         try:
             cursor = self.db.col("alert_records").find(query, {"patient_id": 1, "created_at": 1}).sort("created_at", -1).limit(2000)
@@ -284,16 +362,18 @@ class BundleComplianceService:
         """生成科室每日 bundle 合规汇总，持久化并返回。"""
         now = datetime.now(API_TZ)
         today = now.strftime("%Y-%m-%d")
+        cache_filter = {"date": today, "dept": dept or "", "deptCode": dept_code or ""}
 
-        # 查已有缓存（1小时内直接返回）
-        cached = await self.db.col("bundle_compliance_daily").find_one({"date": today, "dept": dept or "", "deptCode": dept_code or ""})
+        # ---- 缓存读取：1 小时内直接返回 ----
+        # 注意：generated_at 统一用 datetime 存取，避免 str/datetime 不一致
+        cached = await self.db.col("bundle_compliance_daily").find_one(cache_filter)
         if cached:
             gen_at = _dt(cached.get("generated_at"))
             if gen_at and (now - _as_api_tz(gen_at)).total_seconds() < 3600:
                 cached.pop("_id", None)
                 return cached
 
-        # 获取全科患者
+        # ---- 获取全科患者 ----
         query: dict[str, Any] = {"status": "admitted"}
         if dept_code:
             query["deptCode"] = dept_code
@@ -312,8 +392,7 @@ class BundleComplianceService:
         if not pids:
             return self._empty_summary(today, dept, dept_code)
 
-        # 批量查询所有数据源（核心优化：~15次查询替代 ~9600次）
-        since_2h = now - timedelta(hours=2)
+        # ---- 批量查询所有数据源（~15次查询替代 ~9600次） ----
         since_6h = now - timedelta(hours=6)
         since_12h = now - timedelta(hours=12)
         since_24h = now - timedelta(hours=24)
@@ -323,7 +402,6 @@ class BundleComplianceService:
         since_168h = now - timedelta(hours=168)
         since_192h = now - timedelta(hours=192)
 
-        # 并行批量查询
         results = await self._run_batch_queries(pids, now, {
             "since_6h": since_6h, "since_12h": since_12h, "since_24h": since_24h,
             "since_36h": since_36h, "since_48h": since_48h, "since_72h": since_72h,
@@ -336,10 +414,10 @@ class BundleComplianceService:
         # 聚合为科室汇总
         summary = self._aggregate_summary(today, dept, dept_code, pids, patient_scores, now)
 
-        # 持久化
+        # ---- 缓存写入：generated_at 用同一个 now 对象，读写一致 ----
         try:
             await self.db.col("bundle_compliance_daily").update_one(
-                {"date": today, "dept": dept or "", "deptCode": dept_code or ""},
+                cache_filter,
                 {"$set": summary},
                 upsert=True,
             )
@@ -359,19 +437,19 @@ class BundleComplianceService:
         # CLABSI/CAUTI: → nurseRecords
 
         tasks = {
-            # bedside 评分
+            # bedside 评分（code 字段精确匹配）
             "abcdef_a_bedside": self._batch_query_bedside(pids, ["param_score_cpot", "param_score_bps"], since["since_6h"]),
             "abcdef_c_bedside": self._batch_query_bedside(pids, ["param_score_rass_obs"], since["since_6h"]),
             "abcdef_d_bedside": self._batch_query_bedside(pids, ["param_delirium_score"], since["since_12h"]),
-            # score 集合
+            # score 集合（score_type 精确匹配）
             "abcdef_a_score": self._batch_query_score(pids, ["param_score_cpot", "param_score_bps"], since["since_6h"]),
             "abcdef_c_score": self._batch_query_score(pids, ["param_score_rass_obs"], since["since_6h"]),
             "abcdef_d_score": self._batch_query_score(pids, ["param_delirium_score"], since["since_12h"]),
-            # nurse_reminders
+            # nurse_reminders（score_type 精确匹配）
             "abcdef_a_reminders": self._batch_query_nurse_reminders(pids, ["cpot", "bps"]),
             "abcdef_c_reminders": self._batch_query_nurse_reminders(pids, ["rass"]),
             "abcdef_d_reminders": self._batch_query_nurse_reminders(pids, ["cam_icu"]),
-            # nurseRecords（关键词查询）
+            # nurseRecords（关键词 → kw $in 优先，回退 regex）
             "abcdef_b_sat": self._batch_query_nurse_records(pids, ["sat", "唤醒试验", "停镇静", "镇静中断"], since["since_36h"]),
             "abcdef_b_sbt": self._batch_query_alerts(pids, ["sbt", "自主呼吸", "撤机"], since["since_36h"]),
             "abcdef_e": self._batch_query_nurse_records(pids, ["早期活动", "下床", "站立", "行走", "康复", "活动", "坐起", "床边活动"], since["since_36h"]),

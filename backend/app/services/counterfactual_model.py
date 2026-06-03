@@ -167,12 +167,36 @@ class SemiMechanisticCounterfactualModel:
             return None
         return _round(_safe_float(rows[-1].get("value")), digits)
 
+    @staticmethod
+    def _twin_latest(twin: dict, vital_key: str) -> float | None:
+        """从 twin snapshot 的 latest/vitals 块提取最新值，兼容多种数据结构。"""
+        # twin.vitals.latest.hr.current  (PatientDigitalTwinService 结构)
+        vitals = twin.get("vitals") or {}
+        latest = vitals.get("latest") or {}
+        val = (latest.get(vital_key) or {}).get("current")
+        if val is not None:
+            return _safe_float(val)
+        # twin.snapshot.{key}.snapshot.latest  (series_snapshot 结构)
+        snap = twin.get("snapshot") or {}
+        key_snap = snap.get(vital_key) or {}
+        ss = key_snap.get("snapshot") or {}
+        val = (ss.get("latest") or {}).get("latest")
+        if val is not None:
+            return _safe_float(val)
+        return None
+
     async def build_snapshot(self, patient_id: str, patient: dict, *, hours: int = 12) -> dict[str, Any]:
         twin_service = PatientDigitalTwinService(db=self.db, alert_engine=self.alert_engine, config=get_config())
         twin = await twin_service.get_or_build_snapshot(patient_id, patient, hours=max(hours, 12), refresh=False, persist=True)
         cached_snapshot = twin.get("snapshot")
         if isinstance(cached_snapshot, dict) and cached_snapshot:
             return cached_snapshot
+
+        # 优先从 twin 的 latest 块提取已查到的生命体征
+        twin_map = self._twin_latest(twin, "map")
+        twin_hr = self._twin_latest(twin, "hr")
+        twin_spo2 = self._twin_latest(twin, "spo2")
+
         since = datetime.now() - timedelta(hours=max(2, hours))
         patient_ids = patient_his_pid_candidates(patient)
         map_series = await param_series_by_pid(patient_id, "param_nibp_m", since)
@@ -187,6 +211,12 @@ class SemiMechanisticCounterfactualModel:
         peep_code = ((vent_cfg.get("peep_measured") or {}).get("code")) or "param_vent_measure_peep"
         fio2_series = await self._device_cap_series(vent_device_id, fio2_code, since)
         peep_series = await self._device_cap_series(vent_device_id, peep_code, since)
+
+        # twin ventilator 块的 FiO2/PEEP
+        twin_vent = (twin.get("vitals") or {}).get("ventilator") or {}
+        twin_fio2 = _safe_float((twin_vent.get("fio2") or {}).get("current"))
+        twin_peep = _safe_float((twin_vent.get("peep") or {}).get("current"))
+
         urine_rate = None
         if hasattr(self.alert_engine, "_get_urine_rate"):
             try:
@@ -214,13 +244,30 @@ class SemiMechanisticCounterfactualModel:
             except Exception:
                 current_vaso_dose = None
 
+        # bedside series 取不到时，回退到 twin latest 块
+        final_map = self._latest_value(merged_map_series, digits=0)
+        final_hr = self._latest_value(hr_series, digits=0)
+        final_spo2 = self._latest_value(spo2_series, digits=0)
+        final_fio2 = self._latest_value(fio2_series, digits=0)
+        final_peep = self._latest_value(peep_series, digits=0)
+        if final_map is None and twin_map is not None:
+            final_map = _round(twin_map, 0)
+        if final_hr is None and twin_hr is not None:
+            final_hr = _round(twin_hr, 0)
+        if final_spo2 is None and twin_spo2 is not None:
+            final_spo2 = _round(twin_spo2, 0)
+        if final_fio2 is None and twin_fio2 is not None:
+            final_fio2 = _round(twin_fio2, 0)
+        if final_peep is None and twin_peep is not None:
+            final_peep = _round(twin_peep, 0)
+
         return {
-            "map": {"current": self._latest_value(merged_map_series, digits=0)},
-            "hr": {"current": self._latest_value(hr_series, digits=0)},
-            "spo2": {"current": self._latest_value(spo2_series, digits=0)},
+            "map": {"current": final_map},
+            "hr": {"current": final_hr},
+            "spo2": {"current": final_spo2},
             "lactate": {"current": self._latest_value(lactate_series, digits=1)},
-            "fio2": {"current": self._latest_value(fio2_series, digits=0)},
-            "peep": {"current": self._latest_value(peep_series, digits=0)},
+            "fio2": {"current": final_fio2},
+            "peep": {"current": final_peep},
             "urine_ml_kg_h_6h": _round(_safe_float(urine_rate), 2),
             "vasoactive_support": {"current_dose_ug_kg_min": current_vaso_dose},
         }
@@ -344,10 +391,13 @@ class SemiMechanisticCounterfactualModel:
         if current_lactate is not None and projected["lactate_30m"] is not None and abs(lactate_delta_30m) >= 0.1:
             summary_bits.append(f"乳酸趋势 {current_lactate:.1f}→{projected['lactate_30m']:.1f}")
 
+        data_available = any(v is not None for v in (current_map, current_hr, current_spo2, current_lactate))
+
         return {
             "intervention_type": intervention_type,
             "intervention_label": intervention_label,
-            "summary": "；".join(summary_bits or rationale_bits) or "模拟已生成",
+            "data_available": data_available,
+            "summary": "；".join(summary_bits or rationale_bits) or ("模拟已生成" if data_available else "当前患者暂无可用生命体征数据，无法执行反事实模拟。"),
             "rationale": " ".join(rationale_bits) or "依据近期监测趋势进行短时反事实推演。",
             "current_state": {
                 "map": _round(current_map, 0),

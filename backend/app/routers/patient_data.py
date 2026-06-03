@@ -1164,3 +1164,164 @@ async def patient_bedcard(patient_id: str):
         "code": 0,
         "data": serialize_doc(payload),
     }
+
+
+@router.post("/api/patients/bedcard-batch")
+async def patient_bedcard_batch(patient_ids: list[str] = Body(...)):
+    """批量获取患者床旁卡片数据，减少前端并发请求。"""
+    results: dict[str, dict] = {}
+    # 先从缓存中取已有的
+    to_fetch: list[str] = []
+    now = datetime.now()
+    for raw_id in patient_ids[:60]:
+        pid_str = str(raw_id).strip()
+        if not pid_str:
+            continue
+        cached = _bedcard_cache.get(pid_str)
+        if cached and (now - cached[0]).total_seconds() < _BEDCARD_CACHE_TTL_SECONDS:
+            results[pid_str] = serialize_doc(cached[1])
+        else:
+            to_fetch.append(pid_str)
+
+    # 并发获取未缓存的
+    async def _fetch_one(pid_str: str):
+        try:
+            pid = ObjectId(pid_str)
+        except Exception:
+            return
+        patient = await runtime.db.col("patient").find_one({"_id": pid})
+        if not patient:
+            return
+        identity = {
+            "name": patient.get("name", ""),
+            "gender": patient.get("gender", ""),
+            "age": patient.get("age") or calculate_age(patient.get("birthday")),
+            "bed": patient.get("hisBed") or patient.get("bed", ""),
+            "allergies": patient.get("allergies") or patient.get("allergyHistory", ""),
+            "diagnosis": patient.get("clinicalDiagnosis") or patient.get("admissionDiagnosis", ""),
+            "isolation": "保护性隔离" if "特级" in str(patient.get("nursingLevel", "")) else "",
+        }
+
+        async def load_devices():
+            active_devices = []
+            device_binds = runtime.db.col("deviceBind").find({"pid": pid_str, "unBindTime": None}, {"deviceID": 1, "type": 1, "bindTime": 1}).sort("bindTime", -1).limit(6)
+            binds = [bind async for bind in device_binds]
+            ids = [bind.get("deviceID") for bind in binds if bind.get("deviceID")]
+            info_by_id = {}
+            if ids:
+                info_cursor = runtime.db.col("deviceInfo").find({"_id": {"$in": [safe_oid(item) or item for item in ids]}}, {"deviceName": 1})
+                info_by_id = {str(info.get("_id")): info async for info in info_cursor}
+            for bind in binds:
+                device_id = bind.get("deviceID")
+                info = info_by_id.get(str(device_id)) if device_id else None
+                device_name = info.get("deviceName", "") if info else bind.get("type", "")
+                active_devices.append({"name": device_name, "type": infer_device_type(device_name) or bind.get("type", "unknown"), "bindTime": bind.get("bindTime")})
+            return active_devices
+
+        async def load_tubes():
+            active_tubes = []
+            tubes_cursor = runtime.db.col("tubeExe").find(
+                {"pid": pid_str, "$and": [
+                    {"$or": [{"stopTime": None}, {"stopTime": {"$exists": False}}]},
+                    {"$or": [{"endTime": None}, {"endTime": {"$exists": False}}]},
+                    {"$or": [{"removeTime": None}, {"removeTime": {"$exists": False}}]},
+                ]},
+                {"name": 1, "type": 1, "body": 1, "startTime": 1},
+            ).sort("startTime", 1).limit(24)
+            now_t = datetime.now()
+            async for tube in tubes_cursor:
+                start_time = tube.get("startTime")
+                dwell_days = 0
+                if start_time:
+                    try:
+                        if isinstance(start_time, datetime):
+                            parsed = start_time
+                        else:
+                            value = str(start_time).replace("Z", "+00:00")
+                            parsed = datetime.fromisoformat(value) if "." in value or "+" in value else datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")
+                        dwell_days = max(0, (now_t - parsed).days)
+                    except Exception:
+                        pass
+                tube_name = str(tube.get("name") or tube.get("type") or "").lower()
+                category = "other"
+                if any(key in tube_name for key in ["气管", "插管", "气切", "ett", "tracheo"]):
+                    category = "airway"
+                elif any(key in tube_name for key in ["中心静脉", "cvc", "picc", "动脉"]):
+                    category = "vascular"
+                elif any(key in tube_name for key in ["引流", "胸腔", "腹腔", "drain"]):
+                    category = "drain"
+                elif any(key in tube_name for key in ["尿管", "foley"]):
+                    category = "urinary"
+                active_tubes.append({"name": tube.get("name") or tube.get("type") or "", "category": category, "dwellDays": dwell_days, "body": tube.get("body", "")})
+            return active_tubes
+
+        async def load_latest_vitals():
+            query_pids = [pid_str]
+            his_pid = patient_his_pid(patient)
+            if his_pid:
+                query_pids.append(his_pid)
+            code_map = _vital_codes()
+            codes = [
+                *code_map["hr"],
+                *code_map["spo2"],
+                *code_map["rr"],
+                *code_map["temp"],
+                *code_map["sbp"],
+                *code_map["dbp"],
+                *code_map["map"],
+            ]
+            snapshot = await latest_params_by_pid(query_pids, codes)
+            source = "bedside"
+            if not snapshot:
+                device_id = await get_device_id(pid_str, "monitor", patient_doc=patient)
+                if not device_id:
+                    device_id = await get_device_id(pid_str, None, patient_doc=patient)
+                if device_id:
+                    snapshot = await latest_params_by_device(device_id, codes)
+                    source = "device"
+            vitals = _snapshot_to_vitals(snapshot, source) if snapshot else {}
+            bedside_snapshot = await _latest_bedside_vitals(pid_str, codes)
+            if bedside_snapshot:
+                bedside_vitals = _snapshot_to_vitals(bedside_snapshot, "bedside")
+                for key, value in bedside_vitals.items():
+                    if vitals.get(key) in (None, "") and value not in (None, ""):
+                        vitals[key] = value
+            fallback_vitals = await _fallback_vitals_from_alert_snapshot(pid_str)
+            if fallback_vitals:
+                for key, value in fallback_vitals.items():
+                    if vitals.get(key) in (None, "") and value not in (None, ""):
+                        vitals[key] = value
+            return {
+                "hr": vitals.get("hr"),
+                "rr": vitals.get("rr"),
+                "sbp": vitals.get("sbp") or vitals.get("ibp_sys") or vitals.get("nibp_sys"),
+                "dbp": vitals.get("dbp") or vitals.get("ibp_dia") or vitals.get("nibp_dia"),
+                "map": vitals.get("map") or vitals.get("ibp_map") or vitals.get("nibp_map"),
+                "spo2": vitals.get("spo2"),
+                "t": vitals.get("temp") or vitals.get("t"),
+                "temp": vitals.get("temp") or vitals.get("t"),
+                "time": vitals.get("time"),
+                "source": vitals.get("source"),
+            } if vitals else {}
+
+        try:
+            devs, tubes, vitals = await asyncio.gather(
+                _optional(load_devices(), [], timeout=0.12),
+                _optional(load_tubes(), [], timeout=0.12),
+                _optional(load_latest_vitals(), {}, timeout=0.35),
+            )
+        except Exception:
+            devs, tubes, vitals = [], [], {}
+        payload = {"identity": identity, "devices": devs, "tubes": tubes, "metrics": {"sofa": None, "netFluid24h": None, "glucose": None, "vitals": vitals}, "notes": [], "alert_notes": [], "alert_summary_card": None}
+        _bedcard_cache[pid_str] = (datetime.now(), payload)
+        results[pid_str] = serialize_doc(payload)
+
+    if to_fetch:
+        # 限制并发为 10
+        sem = asyncio.Semaphore(10)
+        async def _run(pid_str: str):
+            async with sem:
+                await _fetch_one(pid_str)
+        await asyncio.gather(*[_run(pid) for pid in to_fetch])
+
+    return {"code": 0, "data": results}

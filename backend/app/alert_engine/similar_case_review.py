@@ -206,15 +206,8 @@ class SimilarCaseReviewMixin:
     def _get_similar_case_embed_model(self):
         if hasattr(self, "_similar_case_embed_model"):
             return self._similar_case_embed_model
-        model_name = str(self._similar_case_cfg().get("embedding_model") or "BAAI/bge-small-zh-v1.5").strip()
-        try:
-            from sentence_transformers import SentenceTransformer
-            self._similar_case_embed_model = SentenceTransformer(
-                model_name,
-                **sentence_transformer_kwargs(),
-            )
-        except Exception:
-            self._similar_case_embed_model = None
+        # 内网环境无模型缓存，直接跳过 embedding 加载
+        self._similar_case_embed_model = None
         return self._similar_case_embed_model
 
     async def _ensure_patient_diagnosis_embedding(self, patient_doc: dict) -> dict[str, Any] | None:

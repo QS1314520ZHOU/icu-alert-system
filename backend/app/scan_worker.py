@@ -42,6 +42,32 @@ async def _outcome_inference_loop(db: DatabaseManager, config, stop_event: async
             continue
 
 
+async def _bundle_compliance_preheat_loop(db: DatabaseManager, stop_event: asyncio.Event) -> None:
+    """定时预热 Bundle 合规缓存，确保 API 接口优先命中缓存。
+
+    每 30 分钟执行一次全科 daily_summary，将结果持久化到
+    bundle_compliance_daily 集合，避免 API 请求触发实时全量计算。
+    """
+    from app.services.bundle_compliance_service import BundleComplianceService
+
+    interval_seconds = 1800  # 30 分钟
+    service = BundleComplianceService(db)
+    while not stop_event.is_set():
+        try:
+            result = await service.daily_summary()
+            logger.info(
+                "bundle compliance preheat completed patients=%s overall_score=%s",
+                result.get("patient_count"),
+                result.get("overall_score"),
+            )
+        except Exception as exc:
+            logger.exception("bundle compliance preheat failed: %s", exc)
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval_seconds)
+        except asyncio.TimeoutError:
+            continue
+
+
 async def _serve() -> None:
     config = get_config()
     db = DatabaseManager(config)
@@ -51,6 +77,7 @@ async def _serve() -> None:
 
     stop_event = asyncio.Event()
     outcome_task = asyncio.create_task(_outcome_inference_loop(db, config, stop_event))
+    preheat_task = asyncio.create_task(_bundle_compliance_preheat_loop(db, stop_event))
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
@@ -64,10 +91,12 @@ async def _serve() -> None:
     finally:
         logger.info("⏹️ 扫描 worker 正在停止...")
         outcome_task.cancel()
-        try:
-            await outcome_task
-        except asyncio.CancelledError:
-            pass
+        preheat_task.cancel()
+        for t in (outcome_task, preheat_task):
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
         await engine.stop()
         await db.disconnect()
 

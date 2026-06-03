@@ -54,6 +54,9 @@ export const getPatientPriority = (params?: PatientPriorityFilter) =>
 export const getPatientVitals = (patientId: string, timeout = 10000) =>
   api.get(`/api/patients/${patientId}/vitals`, { timeout })
 
+export const getBatchVitals = (params?: { dept?: string; dept_code?: string; patient_scope?: string }) =>
+  analyticsApi.get('/api/patients/vitals-batch', { params, timeout: 15000 })
+
 // 获取患者详情
 export const getPatientDetail = (patientId: string) =>
   api.get(`/api/patients/${patientId}`)
@@ -67,6 +70,10 @@ export const getAiWatching = (patientId: string, hours = 1) =>
 // 获取患者床旁概览卡片数据 (增强型)
 export const getPatientBedcard = (patientId: string, timeout = 8000) =>
   api.get(`/api/patients/${patientId}/bedcard`, { timeout })
+
+// 批量获取患者床旁卡片数据
+export const getPatientBedcardBatch = (patientIds: string[], timeout = 30000) =>
+  api.post('/api/patients/bedcard-batch', patientIds, { timeout })
 
 // 批量获取患者 Bundle 灯状态
 export const getPatientBundleStatuses = (patientIds: string[]) =>
@@ -197,10 +204,10 @@ export const getDirectorHome = (params: { user_id: string; dept?: string; dept_c
   analyticsApi.get('/api/home/director', { params })
 
 export const getBundleCompliance = (params?: { dept?: string; dept_code?: string; deptCode?: string }) =>
-  api.get('/api/quality/bundle-compliance', { params })
+  bundleApi.get('/api/quality/bundle-compliance', { params })
 
 export const getPatientBundleCompliance = (patientId: string) =>
-  api.get(`/api/quality/bundle-compliance/patient/${patientId}`)
+  bundleApi.get(`/api/quality/bundle-compliance/patient/${patientId}`)
 
 export const getNurseTimeline = (params: { user_id: string; shift_code?: string; dept?: string; dept_code?: string; deptCode?: string }) =>
   analyticsApi.get('/api/home/nurse/timeline', { params })

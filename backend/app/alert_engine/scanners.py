@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -14,6 +15,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger("icu-alert")
 
 T = TypeVar("T")
+
+# MongoDB / 驱动层内部错误关键词，不应暴露给前端
+_INTERNAL_ERROR_PATTERNS = [
+    re.compile(r"cursor\s+id\s+\d+\s+not\s+found", re.IGNORECASE),
+    re.compile(r"CursorNotFound", re.IGNORECASE),
+    re.compile(r"connection\s+(?:pool\s+)?(?:closed|reset)", re.IGNORECASE),
+    re.compile(r"ServerSelectionTimeoutError", re.IGNORECASE),
+    re.compile(r"NetworkTimeout", re.IGNORECASE),
+    re.compile(r"WiredTigerError", re.IGNORECASE),
+    re.compile(r"BackgroundOperationInProgress", re.IGNORECASE),
+]
+
+
+def _sanitize_scanner_error(error: object) -> str:
+    """过滤 MongoDB 驱动层内部错误，避免 CursorNotFound 等信息泄露到前端。"""
+    text = str(error or "").strip()
+    if not text:
+        return ""
+    for pat in _INTERNAL_ERROR_PATTERNS:
+        if pat.search(text):
+            return "数据源查询超时或游标失效，请稍后重试"
+    return text[:500]
 
 
 @dataclass(frozen=True)
@@ -67,7 +90,7 @@ class BaseScanner(ABC):
                     "scanner_name": self.name,
                     "status": status,
                     "duration_ms": round(float(duration_ms or 0), 2),
-                    "error": str(error or "")[:500],
+                    "error": _sanitize_scanner_error(error),
                     "mesh_metrics": mesh_metrics,
                     "runtime_role": getattr(self.engine, "runtime_role", "api"),
                     "created_at": now,

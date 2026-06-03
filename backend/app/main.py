@@ -3,8 +3,13 @@ ICU智能协同工作台 - FastAPI 主应用
 """
 from __future__ import annotations
 
-import logging
 import os
+# 内网环境：禁止 HuggingFace / transformers 请求外网
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
+
+import logging
 import asyncio
 from datetime import datetime
 from contextlib import asynccontextmanager

@@ -94,6 +94,223 @@ async def get_patients(
     return {"code": 0, "patients": patients}
 
 
+@router.get("/api/patients/vitals-batch")
+async def batch_vitals(
+    dept: Optional[str] = Query(None),
+    dept_code: Optional[str] = Query(None),
+    patient_scope: Optional[str] = Query("in_dept"),
+):
+    """批量获取在科患者最新生命体征。deviceCap 优先，bedside 兜底，alert_snapshot 兜底。"""
+    from app.routers.patient_data import _vital_codes, _fallback_vitals_from_alert_snapshot
+    from app.utils.patient_data import cap_value, get_device_id_by_bed
+
+    query = research_patient_scope_query(patient_scope)
+    if dept_code:
+        query = {"$and": [query, {"$or": [{"deptCode": dept_code}, {"dept_code": dept_code}, {"departmentCode": dept_code}]}]}
+    elif dept:
+        query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}]}]}
+
+    # 收集患者 pid/hisPid/deviceId
+    pid_map: dict[str, str] = {}
+    all_pids: list[str] = []
+    patient_docs: dict[str, dict] = {}  # patient_id → patient doc (for bed fallback)
+    device_ids: dict[str, str] = {}  # pid → deviceID
+    cursor = runtime.db.col("patient").find(
+        query, {"_id": 1, "hisPid": 1, "hisPID": 1, "hisBed": 1, "bed": 1, "deptCode": 1}
+    ).limit(200)
+    async for doc in cursor:
+        patient_id = str(doc.get("_id"))
+        pid_map[patient_id] = patient_id
+        all_pids.append(patient_id)
+        patient_docs[patient_id] = doc
+        his_pid = str(doc.get("hisPid") or doc.get("hisPID") or "").strip()
+        if his_pid and his_pid != patient_id:
+            pid_map[his_pid] = patient_id
+            all_pids.append(his_pid)
+
+    if not all_pids:
+        logger.info("vitals-batch: 0 patients found, returning empty")
+        return {"code": 0, "vitals": {}}
+
+    logger.info("vitals-batch: found %d patients, sample ids: %s", len(pid_map), list(pid_map.keys())[:5])
+
+    # 查 deviceBind 获取 deviceID（用 _id 和 hisPid 两个 pid 匹配）
+    bind_cursor = runtime.db.col("deviceBind").find(
+        {"pid": {"$in": all_pids}, "unBindTime": None},
+        {"pid": 1, "deviceID": 1},
+    ).limit(200)
+    async for doc in bind_cursor:
+        did = str(doc.get("deviceID") or "")
+        pid = str(doc.get("pid") or "")
+        if did and pid:
+            device_ids[pid] = did
+    logger.info("vitals-batch: deviceBind matched %d pids: %s", len(device_ids), list(device_ids.keys())[:5])
+
+    # 对没有 deviceBind 的患者，尝试通过床位号从 deviceOnline/deviceInfo 兜底查找
+    bound_patient_ids = {pid_map.get(pid, pid) for pid in device_ids}
+    for patient_id, doc in patient_docs.items():
+        if patient_id in bound_patient_ids:
+            continue
+        bed = doc.get("hisBed") or doc.get("bed")
+        dept = doc.get("deptCode")
+        if bed:
+            did = await get_device_id_by_bed(bed, dept)
+            if did:
+                device_ids[patient_id] = did
+    logger.info("vitals-batch: total device_ids after bed fallback: %d", len(device_ids))
+
+    code_map = _vital_codes()
+    all_codes = list(set(
+        code_map.get("hr", []) + code_map.get("spo2", []) +
+        code_map.get("rr", []) + code_map.get("temp", []) +
+        code_map.get("sbp", []) + code_map.get("dbp", []) + code_map.get("map", [])
+    ))
+    code_to_vital: dict[str, str] = {}
+    for vital, codes in code_map.items():
+        for c in codes:
+            code_to_vital[c] = vital
+
+    def _extract_latest(rows: list[dict], code_to_vital: dict, id_field: str = "pid") -> dict[str, dict]:
+        """从排序好的记录中提取每个 patient_id 每个 vital 的最新值。"""
+        result: dict[str, dict] = {}
+        for doc in rows:
+            key = str(doc.get(id_field) or "")
+            patient_id = pid_map.get(key)
+            if not patient_id:
+                continue
+            code = str(doc.get("code") or "")
+            vital = code_to_vital.get(code)
+            if not vital:
+                continue
+            val = cap_value(doc)
+            if val is None:
+                continue
+            row = result.setdefault(patient_id, {})
+            if vital not in row:
+                row[vital] = round(float(val), 1)
+                row["time"] = doc.get("time")
+                row["source"] = "deviceCap"
+        return result
+
+    # 优先查 deviceCap
+    device_id_list = list(set(device_ids.values()))
+    result: dict[str, dict] = {}
+    logger.info("vitals-batch: %d patients, %d device bindings, %d vital codes", len(pid_map), len(device_ids), len(all_codes))
+    # deviceCap 优先：加 2 小时时间窗口限制扫描量
+    device_id_list = list(set(device_ids.values()))
+    result: dict[str, dict] = {}
+    did_to_pid = {did: pid for pid, did in device_ids.items()}
+    if device_id_list:
+        since = datetime.now() - timedelta(hours=2)
+        cap_pipeline = [
+            {"$match": {"deviceID": {"$in": device_id_list}, "code": {"$in": all_codes}, "time": {"$gte": since}}},
+            {"$sort": {"deviceID": 1, "code": 1, "time": -1}},
+            {"$group": {
+                "_id": {"deviceID": "$deviceID", "code": "$code"},
+                "fVal": {"$first": "$fVal"},
+                "intVal": {"$first": "$intVal"},
+                "strVal": {"$first": "$strVal"},
+                "time": {"$first": "$time"},
+            }},
+        ]
+        try:
+            async for doc in await runtime.db.col("deviceCap").aggregate(cap_pipeline, allowDiskUse=True):
+                did = str((doc.get("_id") or {}).get("deviceID") or "")
+                pid = did_to_pid.get(did)
+                if not pid:
+                    continue
+                code = str((doc.get("_id") or {}).get("code") or "")
+                vital = code_to_vital.get(code)
+                if not vital:
+                    continue
+                val = cap_value(doc)
+                if val is None:
+                    continue
+                row = result.setdefault(pid, {})
+                if vital not in row:
+                    row[vital] = round(float(val), 1)
+                    row["time"] = doc.get("time")
+                    row["source"] = "deviceCap"
+        except Exception as e:
+            logger.warning("vitals-batch: deviceCap aggregate failed: %s", e)
+    logger.info("vitals-batch: deviceCap covered %d patients", len(result))
+
+    # bedside 兜底：只补 deviceCap 没有的患者
+    covered_patient_ids = set(result.keys())
+    missing_pids: list[str] = []
+    seen_missing: set[str] = set()
+    for pid in all_pids:
+        patient_id = pid_map.get(pid, pid)
+        if patient_id in covered_patient_ids:
+            continue
+        if pid not in seen_missing:
+            seen_missing.add(pid)
+            missing_pids.append(pid)
+    logger.info("vitals-batch: deviceCap covered %d patients, %d missing (pids: %s)", len(covered_patient_ids), len(missing_pids), missing_pids[:5])
+    if missing_pids:
+        since_bedside = datetime.now() - timedelta(hours=24)
+        aggregation_pipeline = [
+            {"$match": {"pid": {"$in": missing_pids}, "code": {"$in": all_codes}, "time": {"$gte": since_bedside}}},
+            {"$sort": {"pid": 1, "code": 1, "time": -1}},
+            {"$group": {
+                "_id": {"pid": "$pid", "code": "$code"},
+                "fVal": {"$first": "$fVal"},
+                "intVal": {"$first": "$intVal"},
+                "strVal": {"$first": "$strVal"},
+                "time": {"$first": "$time"},
+            }},
+        ]
+        async for doc in await runtime.db.col("bedside").aggregate(aggregation_pipeline, allowDiskUse=True):
+            pid_key = str((doc.get("_id") or {}).get("pid") or "")
+            patient_id = pid_map.get(pid_key)
+            if not patient_id or patient_id in result:
+                continue
+            code = str((doc.get("_id") or {}).get("code") or "")
+            vital = code_to_vital.get(code)
+            if not vital:
+                continue
+            val = doc.get("fVal")
+            if val is None:
+                val = doc.get("intVal")
+            if val is None:
+                try:
+                    val = float(str(doc.get("strVal") or "").strip())
+                except Exception:
+                    continue
+            if val is None:
+                continue
+            row = result.setdefault(patient_id, {})
+            if vital not in row:
+                row[vital] = round(float(val), 1)
+                row["time"] = doc.get("time")
+                row["source"] = "bedside"
+        logger.info("vitals-batch: after bedside fallback, covered %d patients", len(result))
+
+    # alert_snapshot 兜底：对仍然没有数据的患者，从最近告警快照提取
+    still_missing = [pid for pid in patient_docs if pid not in result]
+    logger.info("vitals-batch: before alert_snapshot, %d patients still missing: %s", len(still_missing), still_missing[:5])
+    if still_missing:
+        for pid in still_missing:
+            try:
+                snapshot_vitals = await _fallback_vitals_from_alert_snapshot(pid)
+                if snapshot_vitals:
+                    row: dict = {}
+                    for key in ("hr", "spo2", "rr", "temp", "nibp_sys", "nibp_dia", "nibp_map"):
+                        val = snapshot_vitals.get(key)
+                        if val is not None:
+                            row[key] = round(float(val), 1)
+                    if row:
+                        row["time"] = snapshot_vitals.get("time")
+                        row["source"] = "alert_snapshot"
+                        result[pid] = row
+            except Exception:
+                pass
+        logger.info("vitals-batch: after alert_snapshot fallback, covered %d/%d patients", len(result), len(pid_map))
+
+    logger.info("vitals-batch: FINAL returning vitals for %d/%d patients", len(result), len(patient_docs))
+    return {"code": 0, "vitals": {pid: serialize_doc(v) for pid, v in result.items()}}
+
+
 @router.get("/api/patients/priority")
 async def get_patient_priority(
     dept: Optional[str] = Query(None, description="科室名称"),

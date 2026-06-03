@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { getPatients, postAiConsultChat } from '../api'
+import { getPatients } from '../api'
 import { useMobileShell } from '../composables/useMobileShell'
 import { arrayFromResponse, bedOf, patientNameOf, patientRouteIdOf } from './mobileData'
 
@@ -50,7 +50,6 @@ const draft = ref('')
 const sending = ref(false)
 const listRef = ref<HTMLElement | null>(null)
 const activeRequestId = ref('')
-let progressTimer: number | undefined
 const messages = ref<Array<{ id: string; role: 'user' | 'assistant'; content: string; pending?: boolean }>>([
   { id: 'welcome', role: 'assistant', content: '可以直接提问，也可以先选择患者后询问病情、告警、查房或治疗方案。' },
 ])
@@ -58,12 +57,58 @@ const quickPrompts = computed(() => patientId.value
   ? ['总结病情', '解释告警', '查房要点', '下一步处置']
   : ['问诊思路', '护理重点', '风险判断', '用药注意']
 )
-const progressTexts = [
-  '正在读取患者上下文...',
-  '正在梳理告警和关键指标...',
-  '正在生成可执行建议...',
-  '快好了，正在压缩成移动端易读摘要...',
-]
+
+function buildApiUrl(path: string) {
+  const base = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+  return base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path
+}
+
+async function streamConsultReply(
+  payload: { message: string; patient_id?: string; patient_ids?: string[]; mode?: string; history?: Array<{ role: string; content: string }> },
+  onDelta: (chunk: string) => void,
+): Promise<{ answer?: string; error?: string }> {
+  const res = await fetch(buildApiUrl('/api/ai/chat-consult/stream'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.body) throw new Error('流式响应不可用')
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let donePayload: any = {}
+  const consumeBlock = (block: string) => {
+    let event = 'message'
+    const dataLines: string[] = []
+    for (const raw of block.split('\n')) {
+      const line = raw.trimEnd()
+      if (!line || line.startsWith(':')) continue
+      if (line.startsWith('event:')) { event = line.slice(6).trim() || 'message'; continue }
+      if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+    }
+    const raw = dataLines.join('\n').trim()
+    if (!raw) return
+    let parsed: any = null
+    try { parsed = JSON.parse(raw) } catch { parsed = null }
+    if (event === 'delta') { onDelta(typeof parsed?.text === 'string' ? parsed.text : raw); return }
+    if (event === 'done') { donePayload = parsed || {}; return }
+  }
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() || ''
+      for (const part of parts) consumeBlock(part)
+    }
+    if (buffer.trim()) consumeBlock(buffer)
+  } finally {
+    reader.releaseLock()
+  }
+  return donePayload
+}
 
 async function loadPatients() {
   const params: Record<string, any> = { patient_scope: 'in_dept' }
@@ -83,52 +128,52 @@ async function send() {
   activeRequestId.value = requestId
   draft.value = ''
   messages.value.push({ id: `u-${Date.now()}`, role: 'user', content })
-  messages.value.push({ id: pendingId, role: 'assistant', content: progressTexts[0] || 'AI正在生成...', pending: true })
+  messages.value.push({ id: pendingId, role: 'assistant', content: '', pending: true })
   sending.value = true
-  startProgress(pendingId)
   await nextTick(scrollBottom)
   try {
     const history = messages.value
       .filter((item) => item.id !== 'welcome' && !item.pending)
       .slice(-8)
       .map(({ role, content }) => ({ role, content }))
-    const res = await postAiConsultChat({
-      message: content,
-      patient_id: patientId.value || undefined,
-      patient_ids: patientId.value ? [patientId.value] : undefined,
-      mode: patientId.value ? 'clinical' : 'free',
-      history,
-    })
+    let streamStarted = false
+    const done = await streamConsultReply(
+      {
+        message: content,
+        patient_id: patientId.value || undefined,
+        patient_ids: patientId.value ? [patientId.value] : undefined,
+        mode: patientId.value ? 'clinical' : 'free',
+        history,
+      },
+      (chunk: string) => {
+        if (activeRequestId.value !== requestId) return
+        streamStarted = true
+        const row = messages.value.find((m) => m.id === pendingId)
+        if (row) {
+          row.content += chunk
+          row.pending = true
+        }
+        void nextTick(scrollBottom)
+      },
+    )
     if (activeRequestId.value !== requestId) return
-    const answer = String(res.data?.answer || res.data?.content || res.data?.message || 'AI暂未返回有效内容。')
-    replacePending(pendingId, answer)
+    const row = messages.value.find((m) => m.id === pendingId)
+    if (row) {
+      row.pending = false
+      if (!streamStarted) {
+        row.content = String(done?.answer || done?.message || 'AI暂未返回有效内容。')
+      }
+    }
   } catch (error: any) {
     if (activeRequestId.value !== requestId) return
-    replacePending(pendingId, error?.response?.data?.detail || error?.message || '问诊请求失败。')
+    replacePending(pendingId, error?.message || '问诊请求失败。')
   } finally {
     if (activeRequestId.value === requestId) {
       sending.value = false
       activeRequestId.value = ''
     }
-    stopProgress()
     await nextTick(scrollBottom)
   }
-}
-
-function startProgress(pendingId: string) {
-  let index = 0
-  stopProgress()
-  progressTimer = window.setInterval(() => {
-    index = Math.min(index + 1, progressTexts.length - 1)
-    const row = messages.value.find((item) => item.id === pendingId && item.pending)
-    if (row) row.content = progressTexts[index] || progressTexts[progressTexts.length - 1] || 'AI正在生成...'
-    void nextTick(scrollBottom)
-  }, 2200)
-}
-
-function stopProgress() {
-  if (progressTimer) window.clearInterval(progressTimer)
-  progressTimer = undefined
 }
 
 function replacePending(id: string, content: string) {
@@ -140,11 +185,10 @@ function replacePending(id: string, content: string) {
 function stopWaiting() {
   activeRequestId.value = ''
   sending.value = false
-  stopProgress()
   const pending = messages.value.find((item) => item.pending)
   if (pending) {
     pending.pending = false
-    pending.content = '已停止等待。本次后台请求若稍后返回，将不会再追加到对话。'
+    if (!pending.content) pending.content = '已停止等待。'
   }
 }
 

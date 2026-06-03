@@ -10,7 +10,7 @@ from bson import ObjectId
 
 from app.services.alert_outcome_service import AlertOutcomeService
 from app.services.audit_service import write_audit_log
-from app.utils.patient_helpers import admitted_patient_query, patient_his_pid_candidates
+from app.utils.patient_helpers import patient_his_pid_candidates, research_patient_scope_query
 from app.utils.serialization import serialize_doc
 
 
@@ -281,7 +281,7 @@ class ClinicalAdoptionService:
         }
 
     async def _patient_scope(self, *, dept: str | None = None, dept_code: str | None = None, limit: int = 120) -> list[dict[str, Any]]:
-        base_query: dict[str, Any] = admitted_patient_query()
+        base_query: dict[str, Any] = research_patient_scope_query("in_dept")
         scope_terms: list[dict[str, Any]] = []
         if dept:
             scope_terms.extend([{"hisDept": dept}, {"dept": dept}])
@@ -1431,6 +1431,52 @@ class ClinicalAdoptionService:
             "items": rows,
         }
 
+    async def _seed_rounding_tasks(
+        self,
+        patient_ids: list[str],
+        patients: list[dict[str, Any]],
+        alerts_by_patient: dict[str, list[dict[str, Any]]],
+    ) -> None:
+        """为缺少 clinical_tasks 的患者生成默认查房待办。"""
+        from uuid import uuid4
+        now = datetime.now()
+        patient_map = {str(p.get("_id") or ""): p for p in patients}
+        default_tasks = [
+            {"title": "复核生命体征夜间趋势和峰谷值", "task_type": "vital_review", "priority": "high"},
+            {"title": "确认新开/停用/调整医嘱", "task_type": "order_review", "priority": "high"},
+            {"title": "过去时间窗内护理/处置文本记录不足", "task_type": "data_gap", "priority": "medium"},
+            {"title": "数据完整性补核", "task_type": "data_integrity", "priority": "medium"},
+        ]
+        for pid in patient_ids:
+            patient = patient_map.get(pid, {})
+            bed = _text(patient.get("hisBed") or patient.get("bed")) or "--"
+            name = _text(patient.get("name") or patient.get("hisName")) or "患者"
+            rows = alerts_by_patient.get(pid, [])
+            # 根据告警情况选择任务：有告警的患者生成高优先级任务
+            has_alerts = bool(rows)
+            tasks_to_create = default_tasks if has_alerts else default_tasks[:2]
+            for tpl in tasks_to_create:
+                doc = {
+                    "task_id": uuid4().hex[:16],
+                    "patient_id": pid,
+                    "bed": bed,
+                    "name": name,
+                    "module": "rounding",
+                    "task_type": tpl["task_type"],
+                    "title": tpl["title"],
+                    "detail": f"{bed}床 {name}：{tpl['title']}",
+                    "priority": tpl["priority"],
+                    "status": "open",
+                    "created_by": "system_auto_seed",
+                    "updated_by": "system_auto_seed",
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                try:
+                    await self.db.col("clinical_tasks").insert_one(doc)
+                except Exception:
+                    pass
+
     async def _open_clinical_tasks_fast(self, patient_ids: list[str], *, limit: int = 12) -> dict[str, Any]:
         ids = [pid for pid in {_text(pid) for pid in patient_ids} if pid]
         if not ids:
@@ -1684,6 +1730,23 @@ class ClinicalAdoptionService:
             open_tasks = await self._open_clinical_tasks_fast(patient_ids)
         except Exception:
             open_tasks = {"total": 0, "items": [], "degraded": True}
+
+        # 当班待办不足时，为缺查房任务的患者自动生成
+        try:
+            existing_keys = {
+                (str(t.get("patient_id") or ""), str(t.get("task_type") or ""))
+                for t in (open_tasks.get("items") or [])
+            }
+            seed_types = {"vital_review", "order_review", "data_gap", "data_integrity"}
+            missing_pids = [
+                pid for pid in patient_ids
+                if pid and not any((pid, tt) in existing_keys for tt in seed_types)
+            ]
+            if missing_pids:
+                await self._seed_rounding_tasks(missing_pids, patients, alerts_by_patient)
+                open_tasks = await self._open_clinical_tasks_fast(patient_ids)
+        except Exception:
+            pass
 
         role_cards = [
             {"key": "patients", "label": "在科患者", "value": len(patients), "tone": "info"},

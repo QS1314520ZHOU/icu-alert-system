@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import statistics
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -7,6 +8,21 @@ from typing import Any
 
 import yaml
 from bson import ObjectId
+
+_INTERNAL_ERR_RE = re.compile(
+    r"cursor\s+id\s+\d+\s+not\s+found|CursorNotFound|connection\s+(?:pool\s+)?(?:closed|reset)"
+    r"|ServerSelectionTimeoutError|NetworkTimeout|WiredTigerError|BackgroundOperationInProgress",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_display_error(text: str) -> str:
+    """过滤 MongoDB 驱动层内部错误，返回用户可读的摘要。"""
+    if not text:
+        return ""
+    if _INTERNAL_ERR_RE.search(text):
+        return "数据源查询超时或游标失效，请稍后重试"
+    return text
 
 
 OUTCOME_WINDOWS = ("6h", "24h", "72h")
@@ -488,7 +504,7 @@ class AlertOutcomeService:
                 "p95_duration_ms": round(durations[p95_index], 1) if durations else None,
                 "last_run_at": runs[0].get("created_at"),
                 "last_status": str(runs[0].get("status") or "unknown"),
-                "last_error": str((errors[0] if errors else {}).get("error") or "")[:200],
+                "last_error": _sanitize_display_error(str((errors[0] if errors else {}).get("error") or ""))[:200],
                 "tone": tone,
             }
             if tone == "red":

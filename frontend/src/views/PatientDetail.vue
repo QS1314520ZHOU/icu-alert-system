@@ -4047,7 +4047,7 @@ async function loadDetailPage() {
     })(),
     (async () => {
       try {
-        const vRes = await getPatientVitals(patientId, 3000)
+        const vRes = await getPatientVitals(patientId, 15000)
         vitals.value = vRes.data.vitals || null
       } catch (e) {
         console.error('加载生命体征失败', e)
@@ -4055,7 +4055,7 @@ async function loadDetailPage() {
     })(),
     (async () => {
       try {
-        const res = await getPatientBedcard(patientId, 4000)
+        const res = await getPatientBedcard(patientId, 15000)
         bedcard.value = res.data?.data || null
       } catch (e) {
         console.error('加载床旁概览卡失败', e)

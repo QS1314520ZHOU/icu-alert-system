@@ -4,6 +4,7 @@ const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL ?? '', tim
 
 export type RespiratoryScopeParams = { dept?: string; dept_code?: string; patient_scope?: 'in_dept' | 'out_dept' | 'all' }
 
+export const getRespiratoryDashboard = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/dashboard', { params })
 export const getVentilatedPatients = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/ventilated-patients', { params })
 export const getSbtCandidates = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/sbt-candidates', { params })
 export const getRespiratoryWorklist = (params?: RespiratoryScopeParams) => api.get('/api/respiratory/worklist', { params })

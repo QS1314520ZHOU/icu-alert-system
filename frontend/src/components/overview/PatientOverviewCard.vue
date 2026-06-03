@@ -328,7 +328,7 @@ import {
 
 const BEDCARD_CACHE_TTL_MS = 60 * 1000
 const BEDCARD_FAIL_COOLDOWN_MS = 45 * 1000
-const BEDCARD_MAX_CONCURRENT = 2
+const BEDCARD_MAX_CONCURRENT = 8
 const bedcardCache = new Map<string, { data: any; expiresAt: number }>()
 const bedcardInFlight = new Map<string, Promise<any>>()
 const bedcardFailCooldown = new Map<string, number>()
@@ -337,6 +337,7 @@ let bedcardActiveRequests = 0
 
 const props = defineProps<{
   patient: any
+  initialBedcard?: any
 }>()
 
 const emit = defineEmits<{
@@ -507,7 +508,7 @@ async function loadBedcard() {
     return
   }
   const request = runBedcardRequest(async () => {
-    const res = await getPatientBedcard(props.patient._id, 5000)
+    const res = await getPatientBedcard(props.patient._id, 15000)
     if (res.data?.code === 0) {
       const data = res.data.data || null
       primeBedcardCache(cacheKey, data)
@@ -534,6 +535,13 @@ function handleCardIntent() {
 }
 
 onMounted(() => {
+  // 如果父组件已经预取了 bedcard 数据，直接使用
+  if (props.initialBedcard) {
+    bedcard.value = props.initialBedcard
+    shouldLoadBedcard.value = true
+    primeBedcardCache(getCacheKey(), props.initialBedcard)
+    return
+  }
   if (!cardEl.value || typeof IntersectionObserver === 'undefined') {
     handleCardIntent()
     return
@@ -562,6 +570,13 @@ watch(() => props.patient?._id, () => {
     cardObserver.disconnect()
     cardObserver = null
   }
+  // 如果有预取数据，直接使用
+  if (props.initialBedcard) {
+    bedcard.value = props.initialBedcard
+    shouldLoadBedcard.value = true
+    primeBedcardCache(getCacheKey(), props.initialBedcard)
+    return
+  }
   if (!cardEl.value || typeof IntersectionObserver === 'undefined') {
     handleCardIntent()
     return
@@ -573,6 +588,14 @@ watch(() => props.patient?._id, () => {
     cardObserver = null
   }, { rootMargin: '180px 0px', threshold: 0.05 })
   cardObserver.observe(cardEl.value)
+})
+
+watch(() => props.initialBedcard, (newVal) => {
+  if (newVal && !bedcard.value) {
+    bedcard.value = newVal
+    shouldLoadBedcard.value = true
+    primeBedcardCache(getCacheKey(), newVal)
+  }
 })
 
 function vitalClass(type: string, val: any) {
