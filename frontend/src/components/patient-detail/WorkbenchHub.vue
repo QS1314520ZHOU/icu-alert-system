@@ -156,6 +156,40 @@ html[data-theme='light'] .topic-card:hover {
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
 }
 html[data-theme='light'] .ops-link { color: #1d4ed8; }
+
+/* === Additional light-mode overrides === */
+html[data-theme='light'] .workbench-shell {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+}
+html[data-theme='light'] .runtime-pill {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+  color: #334155;
+}
+html[data-theme='light'] .topic-card,
+html[data-theme='light'] .ops-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .topic-card-title,
+html[data-theme='light'] .ops-card strong { color: #0f172a; }
+html[data-theme='light'] .topic-card-sub,
+html[data-theme='light'] .topic-card-meta,
+html[data-theme='light'] .ops-foot { color: #64748b; }
+html[data-theme='light'] .topic-card-main,
+html[data-theme='light'] .ops-main { color: #334155; }
+html[data-theme='light'] .topic-card-count {
+  background: rgba(243,248,252,0.96);
+  color: #47627e;
+}
+html[data-theme='light'] .topic-chip,
+html[data-theme='light'] .ops-chip,
+html[data-theme='light'] .ops-bullet {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+  color: #334155;
+}
+
 @media (max-width: 1300px) { .workbench-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 720px) { .workbench-grid,.ops-grid { grid-template-columns: 1fr; } .workbench-shell { padding: 14px; } }

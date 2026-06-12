@@ -904,9 +904,9 @@ function severityText(v: any) {
   font-size: 9px;
   font-weight: 700;
 }
-.post-extub-pill--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.post-extub-pill--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.post-extub-pill--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.post-extub-pill--warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.post-extub-pill--high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.post-extub-pill--critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .post-extub-main {
   color: #fff1f3;
   font-size: 12px;
@@ -1226,10 +1226,10 @@ function severityText(v: any) {
   letter-spacing: .08em;
   border: 1px solid transparent;
 }
-.sev-tag--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.sev-tag--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.sev-tag--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
-.sev-tag--normal { color: #6ee7b7; background: #10372b; border-color: #14532d; }
+.sev-tag--warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.sev-tag--high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.sev-tag--critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
+.sev-tag--normal { color: var(--sev-normal-text); background: var(--sev-normal-bg); border-color: var(--sev-normal-border); }
 .sev-dot {
   width: 8px;
   height: 8px;

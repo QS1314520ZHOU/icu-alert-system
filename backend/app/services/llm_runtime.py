@@ -262,7 +262,8 @@ def _should_trip_breaker(exc: Exception) -> bool:
         return True
     if isinstance(exc, httpx.HTTPStatusError):
         status = int(exc.response.status_code)
-        return status == 408 or status == 429 or status >= 500
+        # 400/401/403 = persistent config/auth errors — no point retrying; open the breaker
+        return status in (400, 401, 403, 408, 429) or status >= 500
     return False
 
 
@@ -399,6 +400,16 @@ async def call_llm_chat(
         for attempt in range(max_retries + 1):
             resp = await req_client.post(llm_url, json=payload, headers=headers)
             if resp.status_code != 429 or attempt == max_retries:
+                if resp.status_code >= 400:
+                    # Log the response body so 400/401/403 errors are diagnosable
+                    try:
+                        body_preview = resp.text[:500]
+                    except Exception:
+                        body_preview = "<unreadable>"
+                    logger.error(
+                        "LLM API error: status=%d url=%s model=%s body=%s",
+                        resp.status_code, llm_url, parts.get("model", ""), body_preview,
+                    )
                 resp.raise_for_status()
                 return resp.json()
             # Respect Retry-After header; fall back to exponential backoff

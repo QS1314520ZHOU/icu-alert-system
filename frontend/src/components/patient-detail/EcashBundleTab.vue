@@ -127,4 +127,32 @@ html[data-theme='light'] .domain-chip, html[data-theme='light'] .bundle-list-cou
 html[data-theme='light'] .bundle-alert-head strong { color: #16324f; }
 html[data-theme='light'] .bundle-alert-foot { color: #6a8098; }
 html[data-theme='light'] .bundle-empty { color: #6a8098; border-color: rgba(187,204,220,0.72); }
+
+/* === Additional light-mode overrides === */
+html[data-theme='light'] .bundle-light,
+html[data-theme='light'] .domain-card,
+html[data-theme='light'] .bundle-alert-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .bundle-light-key {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+  color: #47627e;
+}
+html[data-theme='light'] .bundle-title,
+html[data-theme='light'] .bundle-alert-head strong,
+html[data-theme='light'] .domain-main,
+html[data-theme='light'] .bundle-alert-main { color: #0f172a; }
+html[data-theme='light'] .bundle-sub,
+html[data-theme='light'] .bundle-list-sub,
+html[data-theme='light'] .domain-meta,
+html[data-theme='light'] .bundle-alert-head span,
+html[data-theme='light'] .bundle-alert-foot,
+html[data-theme='light'] .bundle-empty { color: #64748b; }
+html[data-theme='light'] .bundle-score-box {
+  background: rgba(236,253,245,0.98);
+  border-color: rgba(16,185,129,0.28);
+  color: #047857;
+}
 </style>

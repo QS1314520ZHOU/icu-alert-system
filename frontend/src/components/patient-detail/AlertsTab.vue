@@ -1823,9 +1823,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   font-size: 9px;
   font-weight: 700;
 }
-.post-extub-pill.sev-warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.post-extub-pill.sev-high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.post-extub-pill.sev-critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.post-extub-pill.sev-warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.post-extub-pill.sev-high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.post-extub-pill.sev-critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .post-extub-main {
   color: #fff1f3;
   font-size: 12px;
@@ -1978,9 +1978,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   font-weight: 700;
   border: 1px solid transparent;
 }
-.group-pill.sev-warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.group-pill.sev-high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.group-pill.sev-critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.group-pill.sev-warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.group-pill.sev-high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.group-pill.sev-critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .group-alert-list {
   margin-top: 10px;
   display: grid;
@@ -2200,9 +2200,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   letter-spacing: .08em;
   border: 1px solid transparent;
 }
-.alert-pill.sev-warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.alert-pill.sev-high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.alert-pill.sev-critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.alert-pill.sev-warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.alert-pill.sev-high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.alert-pill.sev-critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .alert-value {
   font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
   font-size: 18px;
@@ -2716,8 +2716,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   color: #8da4c7;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #10233d;
-  border: 1px solid #1b3a60;
+  background: var(--container-dark-bg);
+  border: 1px solid var(--container-dark-border);
 }
 .alert-rule {
   margin-top: 8px;
@@ -2737,9 +2737,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  color: #9ca3af;
-  background: #0f2038;
-  border: 1px solid #1c3d64;
+  color: var(--container-alt-text);
+  background: var(--container-alt-bg);
+  border: 1px solid var(--container-alt-border);
   border-radius: 8px;
   padding: 6px 8px;
 }
@@ -2751,8 +2751,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   color: #94a3b8;
   font-size: 11px;
   line-height: 1.4;
-  background: #0b1626;
-  border: 1px solid #19304d;
+  background: var(--container-dark-bg);
+  border: 1px solid var(--container-dark-border);
   border-radius: 8px;
   padding: 8px;
 }
@@ -2760,7 +2760,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   white-space: normal;
   font-size: 12px;
   color: #9eb2cc;
-  background: #0d1c2f;
+  background: var(--container-alt-bg);
 }
 .ai-risk-panel {
   margin-top: 12px;
@@ -2776,9 +2776,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .ai-risk-summary,
 .ai-risk-card {
-  border: 1px solid #214064;
+  border: 1px solid var(--container-alt-border);
   border-radius: 10px;
-  background: #0d2036;
+  background: var(--container-alt-bg);
   padding: 10px 12px;
 }
 .ai-risk-summary {
@@ -2806,9 +2806,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 8px;
 }
 .ai-risk-organ {
-  border: 1px solid #1c3a5b;
+  border: 1px solid var(--container-dark-border);
   border-radius: 10px;
-  background: #0c1d31;
+  background: var(--container-dark-bg);
   padding: 8px 10px;
   transition: opacity .2s ease;
 }
@@ -2826,9 +2826,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .ai-risk-organ-evidence { margin-top: 6px; color: #a9bbda; line-height: 1.5; }
 .ai-risk-organ-conf { margin-top: 6px; color: #7fa0d0; }
 .ai-risk-section {
-  border: 1px solid #1d3554;
+  border: 1px solid var(--container-dark-border);
   border-radius: 10px;
-  background: #0a1829;
+  background: var(--container-dark-bg);
   padding: 10px 12px;
 }
 .ai-risk-section-title {
@@ -2856,8 +2856,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   max-width: 100%;
   border: 1px solid transparent;
 }
-.hallucination-warning { color: #fde68a; background: #3c2d06; border-color: #6b4f11; }
-.hallucination-high { color: #fecaca; background: #47131d; border-color: #7f1d32; }
+.hallucination-warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.hallucination-high { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .ai-risk-evidence-list {
   margin: 0;
   padding-left: 18px;
@@ -3080,6 +3080,118 @@ html[data-theme='light'] .threshold-card { border-color: rgba(187,204,220,0.72);
 html[data-theme='light'] .threshold-card-name { color: #16324f; }
 html[data-theme='light'] .threshold-card-main span { color: #47627e; }
 html[data-theme='light'] .threshold-card-reason { color: #6f8399; background: #ffffff; }
+
+/* === Additional light-mode overrides for remaining dark elements === */
+html[data-theme='light'] .modi-panel,
+html[data-theme='light'] .organ-focus-suite,
+html[data-theme='light'] .alert-explanation {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .modi-kpi,
+html[data-theme='light'] .organ-focus-suite__pill,
+html[data-theme='light'] .weaning-brief-score,
+html[data-theme='light'] .weaning-chip,
+html[data-theme='light'] .post-extub-chip,
+html[data-theme='light'] .context-chip--lab {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+  color: #334155;
+}
+html[data-theme='light'] .post-extub-chip--warn {
+  background: rgba(254,243,199,0.96);
+  color: #92400e;
+}
+html[data-theme='light'] .modi-title,
+html[data-theme='light'] .organ-focus-suite__title,
+html[data-theme='light'] .organ-focus-card__name,
+html[data-theme='light'] .group-name,
+html[data-theme='light'] .alert-title,
+html[data-theme='light'] .post-extub-main,
+html[data-theme='light'] .rescue-headline-main,
+html[data-theme='light'] .weaning-brief-main,
+html[data-theme='light'] .weaning-brief-title { color: #0f172a; }
+html[data-theme='light'] .modi-sub,
+html[data-theme='light'] .modi-organs,
+html[data-theme='light'] .modi-kpi > span,
+html[data-theme='light'] .weaning-brief-sub,
+html[data-theme='light'] .alert-time,
+html[data-theme='light'] .terminal-tag { color: #64748b; }
+html[data-theme='light'] .modi-kpi > strong,
+html[data-theme='light'] .weaning-brief-score strong,
+html[data-theme='light'] .alert-value,
+html[data-theme='light'] .post-extub-tag { color: #0f172a; }
+html[data-theme='light'] .composite-chain-card,
+html[data-theme='light'] .composite-group-section {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .suite-tag { color: #1d4ed8; }
+html[data-theme='light'] .suite-code {
+  background: #ffffff;
+  border-color: rgba(187,204,220,0.72);
+  color: #3b82f6;
+}
+html[data-theme='light'] .chain-summary,
+html[data-theme='light'] .chain-chip { color: #334155; }
+html[data-theme='light'] .chain-suggestion {
+  background: rgba(236,253,243,0.96);
+  color: #047857;
+}
+html[data-theme='light'] .organ-focus-card,
+html[data-theme='light'] .organ-focus-card__item,
+html[data-theme='light'] .group-card,
+html[data-theme='light'] .group-alert-item {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .organ-focus-card__item span,
+html[data-theme='light'] .group-alert-name { color: #334155; }
+html[data-theme='light'] .post-extub-panel {
+  background: linear-gradient(180deg, rgba(255,245,246,0.98), rgba(255,255,255,0.98));
+  border-color: rgba(248,113,113,0.22);
+}
+html[data-theme='light'] .alert-meta > span {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+  color: #47627e;
+}
+html[data-theme='light'] .detail-label { color: #47627e; }
+html[data-theme='light'] .detail-value { color: #0f172a; }
+html[data-theme='light'] .ai-risk-summary,
+html[data-theme='light'] .ai-risk-card {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .ai-risk-card strong,
+html[data-theme='light'] .ai-risk-summary { color: #0f172a; }
+html[data-theme='light'] .ai-risk-card p { color: #475569; }
+html[data-theme='light'] .ai-risk-organ {
+  background: #ffffff;
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .ai-risk-organ-name { color: #0f172a; }
+html[data-theme='light'] .ai-risk-organ-status { color: #2563eb; }
+html[data-theme='light'] .ai-risk-organ-evidence,
+html[data-theme='light'] .ai-risk-organ-conf { color: #475569; }
+html[data-theme='light'] .ai-risk-section {
+  background: #ffffff;
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .ai-risk-section-title { color: #0f172a; }
+html[data-theme='light'] .ai-risk-list { color: #334155; }
+html[data-theme='light'] .ai-risk-list-warning { color: #dc2626; }
+html[data-theme='light'] .ai-evidence-link,
+html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
+html[data-theme='light'] .ai-evidence-popover { color: #0f172a; }
+html[data-theme='light'] .tab-empty { color: #64748b; }
+html[data-theme='light'] .threshold-status-pill {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+  color: #47627e;
+}
+html[data-theme='light'] .threshold-status-pill.is-approved { color: #059669; }
+html[data-theme='light'] .threshold-status-pill.is-rejected { color: #dc2626; }
 </style>
 
 

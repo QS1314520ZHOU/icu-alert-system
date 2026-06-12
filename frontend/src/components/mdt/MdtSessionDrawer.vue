@@ -172,4 +172,18 @@ function formatDate(value: any) {
 :global(.ant-drawer-close) {
   color: #f8fafc !important;
 }
+:global(html[data-theme='light'] .ant-drawer-content),
+:global(html[data-theme='light'] .ant-drawer-header) {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+:global(html[data-theme='light'] .ant-drawer-title),
+:global(html[data-theme='light'] .ant-drawer-close) {
+  color: #0f172a !important;
+}
+html[data-theme='light'] .drawer-input {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
 </style>

@@ -1638,12 +1638,6 @@ onMounted(async () => {
   position: relative;
   width: 100%;
   max-width: none;
-}
-.mdt-page::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 18%),
     linear-gradient(90deg, rgba(125, 167, 214, 0.04) 1px, transparent 1px),
@@ -3271,12 +3265,6 @@ onMounted(async () => {
 .action-list { margin: 10px 0 0; padding-left: 18px; color: #dbf0fa; display: grid; gap: 8px; }
 .conflict-card__agents { margin-top: 6px; }
 .error-box { background: rgba(127, 29, 29, 0.22); border-color: rgba(248, 113, 113, 0.24); color: #fecaca; }
-html[data-theme='light'] .mdt-page::before {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 18%),
-    linear-gradient(90deg, rgba(187, 204, 220, 0.22) 1px, transparent 1px),
-    linear-gradient(rgba(187, 204, 220, 0.18) 1px, transparent 1px);
-}
 html[data-theme='light'] .mdt-hero,
 html[data-theme='light'] .mdt-panel {
   border-color: rgba(187, 204, 220, 0.72);
@@ -3529,9 +3517,6 @@ html[data-theme='light'] .mdt-page {
     radial-gradient(circle at 88% 8%, rgba(20, 184, 166, .10), transparent 30%),
     linear-gradient(180deg, rgba(236, 252, 255, .92), rgba(245, 250, 255, .96));
   color: #07172b;
-}
-html[data-theme='light'] .mdt-page::before {
-  display: none;
 }
 html[data-theme='light'] .mdt-hero {
   border-color: rgba(15, 23, 42, .08);

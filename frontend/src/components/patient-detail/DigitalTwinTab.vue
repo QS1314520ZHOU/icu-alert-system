@@ -824,6 +824,37 @@ html[data-theme='light'] .mini-btn--soft { background: rgba(16,185,129,.14); }
 html[data-theme='light'] .mini-btn--ghost { background: rgba(239,68,68,.12); }
 html[data-theme='light'] .effect-box { color: #223a54; }
 html[data-theme='light'] .error-panel { background: rgba(254,226,226,0.8); border-color: rgba(239,68,68,.3); color: #991b1b; }
+
+/* === Additional light-mode overrides === */
+html[data-theme='light'] .twin-head {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .twin-kicker,
+html[data-theme='light'] .loop-step { color: #1d4ed8; }
+html[data-theme='light'] .twin-title,
+html[data-theme='light'] .twin-kpi strong,
+html[data-theme='light'] .loop-value,
+html[data-theme='light'] .card-title,
+html[data-theme='light'] .overview-item strong,
+html[data-theme='light'] .timeline-card-title,
+html[data-theme='light'] .effect-box,
+html[data-theme='light'] .whatif-banner { color: #0f172a; }
+html[data-theme='light'] .twin-sub,
+html[data-theme='light'] .twin-kpi span,
+html[data-theme='light'] .loop-label,
+html[data-theme='light'] .loop-meta,
+html[data-theme='light'] .overview-item span,
+html[data-theme='light'] .timeline-time,
+html[data-theme='light'] .timeline-card-sub,
+html[data-theme='light'] .whatif-axis,
+html[data-theme='light'] .whatif-legend { color: #64748b; }
+html[data-theme='light'] .whatif-chart,
+html[data-theme='light'] .whatif-drawer {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .whatif-banner { color: #92400e; }
 </style>
 
 

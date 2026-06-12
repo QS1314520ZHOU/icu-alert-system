@@ -349,6 +349,34 @@ html[data-theme='light'] .safety {
   color: #92400e;
   background: #fffbeb;
 }
+
+/* === Additional light-mode overrides === */
+html[data-theme='light'] .metric-item {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .metric-item span { color: #47627e; }
+html[data-theme='light'] .metric-item strong { color: #0f172a; }
+html[data-theme='light'] .refresh-btn {
+  background: rgba(241,246,251,0.98);
+  border-color: rgba(187,204,220,0.72);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .risk-critical,
+html[data-theme='light'] .risk-high {
+  background: rgba(254,226,226,0.6);
+  color: #991b1b;
+}
+html[data-theme='light'] .risk-warning {
+  background: rgba(254,243,199,0.6);
+  color: #92400e;
+}
+html[data-theme='light'] .worse-grid span,
+html[data-theme='light'] .summary-empty {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+
 @media (max-width: 1180px) {
   .summary-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));

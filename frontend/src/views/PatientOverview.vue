@@ -734,7 +734,7 @@ async function hydrateOverviewSignals(items: any[], params: any) {
     console.log('[signals] recentAlerts:', recentAlerts.length, 'types:', [...new Set(recentAlerts.map((a: any) => a.alert_type))].slice(0, 10))
     priorityRows.value = Array.isArray(priorityRes.data?.data) ? priorityRes.data.data : []
     const organMapByPatient = buildOrganStateMapByPatient(recentAlerts)
-    console.log('[signals] organMapByPatient size:', organMapByPatient.size, 'sample:', organMapByPatient.size > 0 ? Object.fromEntries(organMapByPatient.entries().next().value) : 'none')
+    console.log('[signals] organMapByPatient size:', organMapByPatient.size, 'sample:', organMapByPatient.size > 0 ? Object.fromEntries(organMapByPatient as any) : 'none')
     const rescueSeverityMap = new Map<string, string>()
     const rescuePidSet = new Set(
       recentAlerts

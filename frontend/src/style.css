@@ -86,6 +86,40 @@ html.boot-mobile #app {
   --icu-success: #6ee7b7;
 
   --pill-bg: rgba(255, 255, 255, 0.04);
+
+  /* Severity Pills (dark mode) */
+  --sev-warning-text: #fcd34d;
+  --sev-warning-bg: #3f2d07;
+  --sev-warning-border: #6a4b0d;
+  --sev-high-text: #fdba74;
+  --sev-high-bg: #41210b;
+  --sev-high-border: #7c3816;
+  --sev-critical-text: #fda4af;
+  --sev-critical-bg: #47131d;
+  --sev-critical-border: #7f1d32;
+  --sev-normal-text: #6ee7b7;
+  --sev-normal-bg: #10372b;
+  --sev-normal-border: #14532d;
+  /* Severity Pills - Soft variant */
+  --sev-soft-warning-text: #fcd34d;
+  --sev-soft-warning-bg: rgba(75, 54, 10, 0.92);
+  --sev-soft-warning-border: rgba(251, 191, 36, 0.24);
+  --sev-soft-high-text: #fdba74;
+  --sev-soft-high-bg: rgba(76, 43, 12, 0.92);
+  --sev-soft-high-border: rgba(251, 146, 60, 0.24);
+  --sev-soft-critical-text: #ff98aa;
+  --sev-soft-critical-bg: rgba(70, 16, 28, 0.92);
+  --sev-soft-critical-border: rgba(248, 113, 113, 0.24);
+  --sev-soft-normal-text: #5eead4;
+  --sev-soft-normal-bg: rgba(7, 63, 55, 0.92);
+  --sev-soft-normal-border: rgba(45, 212, 191, 0.24);
+  /* Dark container backgrounds */
+  --container-dark-bg: #0b1626;
+  --container-dark-border: #19304d;
+  --container-dark-text: #94a3b8;
+  --container-alt-bg: #0f2038;
+  --container-alt-border: #1c3d64;
+  --container-alt-text: #9ca3af;
 }
 
 html[data-theme='light'] {
@@ -167,6 +201,40 @@ html[data-theme='light'] {
   --icu-success: #059669;
 
   --pill-bg: #F1F5F9;
+
+  /* Severity Pills - Light Mode */
+  --sev-warning-text: #b45309;
+  --sev-warning-bg: rgba(254, 243, 199, 0.98);
+  --sev-warning-border: rgba(245, 158, 11, 0.28);
+  --sev-high-text: #c2410c;
+  --sev-high-bg: rgba(255, 237, 213, 0.98);
+  --sev-high-border: rgba(251, 146, 60, 0.28);
+  --sev-critical-text: #be123c;
+  --sev-critical-bg: rgba(255, 241, 242, 0.98);
+  --sev-critical-border: rgba(251, 113, 133, 0.28);
+  --sev-normal-text: #047857;
+  --sev-normal-bg: rgba(220, 252, 231, 0.98);
+  --sev-normal-border: rgba(16, 185, 129, 0.28);
+  /* Severity Pills - Soft variant - Light Mode */
+  --sev-soft-warning-text: #92400e;
+  --sev-soft-warning-bg: #FEF3C7;
+  --sev-soft-warning-border: rgba(245, 158, 11, 0.28);
+  --sev-soft-high-text: #9A3412;
+  --sev-soft-high-bg: #FFEDD5;
+  --sev-soft-high-border: rgba(251, 146, 60, 0.28);
+  --sev-soft-critical-text: #991B1B;
+  --sev-soft-critical-bg: #FFF1F2;
+  --sev-soft-critical-border: rgba(251, 113, 133, 0.28);
+  --sev-soft-normal-text: #065F46;
+  --sev-soft-normal-bg: #E9F7EF;
+  --sev-soft-normal-border: rgba(16, 185, 129, 0.28);
+  /* Dark container backgrounds - Light Mode */
+  --container-dark-bg: #F8FAFC;
+  --container-dark-border: #E2E8F0;
+  --container-dark-text: #475569;
+  --container-alt-bg: #F1F5F9;
+  --container-alt-border: #E2E8F0;
+  --container-alt-text: #475569;
 }
 
 body {
