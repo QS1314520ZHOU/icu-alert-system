@@ -131,9 +131,9 @@ def main() -> None:
     total = DB.count(Patient, QC().eq("status", 1))
     print(f"  有效患者: {total} 人")
 
-    # 5b. 查询单条
-    print("\n[Step 5b] 查询单条记录 (id=1)")
-    one = DB.query_one(Patient, QC().eq("id", 1))
+    # 5b. 查询单条（建议指定 order_by 确保结果稳定）
+    print("\n[Step 5b] 查询单条记录 (id=1, order_by=['id'])")
+    one = DB.query_one(Patient, QC().eq("id", 1), order_by=["id"])
     print(f"  结果: {one}")
 
     # 5c. 分页 + 排序
@@ -205,6 +205,27 @@ def main() -> None:
     # 验证删除后计数
     remaining = DB.count(Patient)
     print(f"  剩余记录: {remaining}")
+
+    # 5j. 事务示例
+    print("\n[Step 5j] 事务示例: 在同一事务中插入两条记录")
+    with DB.transaction() as session:
+        session.add(Patient(
+            saas_org_code="ORG003",
+            saas_department_code="DEPT_ICU",
+            name="孙八",
+            age=38,
+            gender="男",
+            status=1,
+        ))
+        session.add(Patient(
+            saas_org_code="ORG003",
+            saas_department_code="DEPT_ER",
+            name="周九",
+            age=42,
+            gender="女",
+            status=1,
+        ))
+    print(f"  事务提交后总记录数: {DB.count(Patient)}")
 
     # ── Step 6: 清理 ──────────────────────────────────────────────
     print("\n[Step 6] 清理测试表")
