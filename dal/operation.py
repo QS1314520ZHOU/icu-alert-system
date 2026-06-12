@@ -57,9 +57,15 @@ from dal.config import get_session
 T = TypeVar("T", bound=DeclarativeBase)
 
 # order_by 解析正则：字段名 + 可选的 ASC/DESC + 可选的 NULLS FIRST/LAST
-# 例: "age desc", "created_at DESC NULLS LAST", "name"
+# 支持格式：
+#   - "age"
+#   - "age desc"
+#   - "age DESC NULLS LAST"
+#   - "t.age"（带表名前缀）
+#   - '"MyColumn"'（带引号的标识符，金仓/PG 大小写敏感场景）
+#   - "age DESC NULLS LAST"
 _ORDER_BY_RE = re.compile(
-    r"^(\w+)\s*(?:(ASC|DESC)\s*(?:NULLS\s+(FIRST|LAST))?)?$",
+    r'^(?:"([^"]+)"|([\w.]+))\s*(?:(ASC|DESC)\s*(?:NULLS\s+(FIRST|LAST))?)?$',
     re.IGNORECASE,
 )
 
@@ -75,6 +81,26 @@ class OperationDatabase:
         """
         事务上下文管理器，用于在同一事务中组合多个操作。
 
+        **重要警告：事务块内请使用 yield 出来的 session 直接操作，
+        不要再调用 DB.query_list / DB.update / DB.delete 等静态方法，
+        因为它们会另开 session、独立提交，不在当前事务中。**
+
+        错误示例::
+
+            with DB.transaction() as session:
+                session.add(p1)
+                DB.update(Patient, QC().eq("id", 1), {"status": 0})  # ← 另一个 session！
+                # 如果 p1 插入失败回滚，update 已经提交了，数据不一致！
+
+        正确示例::
+
+            with DB.transaction() as session:
+                session.add(p1)
+                session.execute(
+                    sa_update(Patient).where(Patient.id == 1).values(status=0)
+                )
+                # 全部在同一事务中，要么全成功，要么全回滚
+
         用法::
 
             with DB.transaction() as session:
@@ -83,7 +109,7 @@ class OperationDatabase:
                 # 退出 with 时自动 commit，异常时自动 rollback
 
         Yields:
-            Session: 数据库会话对象
+            Session: 数据库会话对象，用于在同一事务中执行多个操作
         """
         session: Session = get_session()
         try:
@@ -295,6 +321,8 @@ def _parse_order_by_item(item: str, table_cols) -> Any:
         - "age desc"
         - "age DESC NULLS LAST"
         - "created_at ASC NULLS FIRST"
+        - "t.age"（带表名前缀，会取最后一段）
+        - '"MyColumn"'（带引号的标识符，金仓/PG 大小写敏感场景）
 
     Args:
         item: 排序描述字符串
@@ -310,13 +338,25 @@ def _parse_order_by_item(item: str, table_cols) -> Any:
     if not match:
         raise ValueError(
             f"无法解析 order_by 项: {item!r}。"
-            f"支持格式: 'field', 'field asc', 'field DESC NULLS LAST'"
+            f"支持格式: 'field', 'field asc', 'field DESC NULLS LAST', "
+            f'"quoted_field", "t.field"'
         )
 
-    col_name = match.group(1)
-    direction = (match.group(2) or "ASC").upper()
-    nulls = match.group(3)  # "FIRST" / "LAST" / None
+    # 两个捕获组：group(1)=带引号的列名, group(2)=不带引号的列名
+    col_name = match.group(1) or match.group(2)
+    direction = (match.group(3) or "ASC").upper()
+    nulls = match.group(4)  # "FIRST" / "LAST" / None
 
+    # 处理 "t.age" 这种带表名前缀的情况，取最后一段作为列名
+    if "." in col_name:
+        col_name = col_name.rsplit(".", 1)[-1]
+
+    # 从 table_cols 取列
+    if col_name not in table_cols:
+        raise ValueError(
+            f"order_by 列名 {col_name!r} 在模型中不存在。"
+            f"可用列: {list(table_cols.keys())}"
+        )
     col = table_cols[col_name]
 
     # 构建排序表达式
