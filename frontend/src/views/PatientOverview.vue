@@ -416,9 +416,7 @@ const warningCount = computed(() => byDept.value.filter(p => ['warning', 'high']
 const normalCount = computed(() =>
   byDept.value.filter(p => p.alertLevel === 'normal').length
 )
-const pendingCount = computed(() =>
-  byDept.value.filter(p => !p.alertLevel || p.alertLevel === 'none').length
-)
+
 
 /* ── toggle ── */
 function toggleAlert(a: string) { alertFilter.value = alertFilter.value === a ? '' : a }
@@ -627,31 +625,8 @@ function syncOverviewCacheSnapshot() {
   })
 }
 
-async function hydrateVitals(items: any[], onlyMissing = true) {
-  const token = ++vitalsRequestToken
-  const targetItems = items
-    .filter((item: any) => item && item._id)
-    .filter((item: any) => !onlyMissing || !hasUsableVitals(item.vitals))
-    .slice(0, 120)
 
-  for (const batch of chunkItems(targetItems, 8)) {
-    if (token !== vitalsRequestToken) return
-    await Promise.allSettled(batch.map(async (item: any) => {
-      try {
-        const res = await getPatientVitals(item._id, 15000)
-        if (token !== vitalsRequestToken) return
-        const apiVitals = res.data?.vitals || {}
-        const merged = mergeVitals(item.vitals || {}, apiVitals)
-        item.vitals = merged
-        item.alertLevel = mergeAlertLevel(item, calcLevel(merged))
-      } catch {
-        item.vitals = item.vitals || {}
-      }
-    }))
-    syncOverviewCacheSnapshot()
-  }
-}
-
+async function hydrateBedcards(items: any[]) {
 async function hydrateBedcards(items: any[]) {
   const ids = items.map((item: any) => item?._id).filter(Boolean)
   if (!ids.length) return

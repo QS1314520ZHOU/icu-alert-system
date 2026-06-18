@@ -460,7 +460,7 @@ const whatIfChartRows = computed(() => {
         band95: pctWidth(Math.abs(p975 - p025)),
       }
     })
-    .filter(Boolean)
+    .filter((row): row is NonNullable<typeof row> => row !== null)
 })
 const whatIfCautions = computed(() => {
   const rows = Array.isArray(whatIfRecord.value?.cautions) ? whatIfRecord.value.cautions : []
@@ -642,7 +642,10 @@ async function loadAll(refresh = false) {
       getAiSubphenotype(props.patientId, { refresh }),
     ])
     const labels = ['数字孪生快照', '风险预测', '主动管理', '临床推理', 'MDT多智能体', '护理文本分析', '亚表型分析']
-    const settled = (i: number) => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value : null
+    const settled = (i: number) => {
+      const r = results[i]
+      return r && r.status === 'fulfilled' ? (r as PromiseFulfilledResult<any>).value : null
+    }
     digitalTwin.value = settled(0)?.data || null
     riskForecast.value = settled(1)?.data || null
     proactivePlan.value = settled(2)?.data || null

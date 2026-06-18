@@ -66,7 +66,7 @@ function buildApiUrl(path: string) {
 async function streamConsultReply(
   payload: { message: string; patient_id?: string; patient_ids?: string[]; mode?: string; history?: Array<{ role: string; content: string }> },
   onDelta: (chunk: string) => void,
-): Promise<{ answer?: string; error?: string }> {
+): Promise<{ answer?: string; error?: string; message?: string }> {
   const res = await fetch(buildApiUrl('/api/ai/chat-consult/stream'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
