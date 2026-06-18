@@ -279,7 +279,7 @@
       <a-divider>下一步</a-divider>
       <div v-if="drawerPatient" class="action-list">
         <button type="button" class="ai-action" :disabled="aiLoading" @click="loadAiAdvice(true)">
-          <strong>{{ aiLoading ? '系统分析中...' : 'AI营养建议' }}</strong>
+          <strong>{{ aiLoading ? 'AI分析中...' : 'AI营养建议' }}</strong>
           <span>1句总评 + 可执行动作</span>
         </button>
         <button v-for="action in drawerPatient.actions || []" :key="action.title" type="button" @click="createTask(action)">
@@ -294,8 +294,8 @@
 
       <section v-if="aiAdvice" class="ai-card">
         <div class="ai-card__head">
-          <strong>营养建议</strong>
-          <span>{{ aiAdvice.degraded ? '规则兜底' : aiAdvice.model || '模型服务' }}</span>
+          <strong>AI营养建议</strong>
+          <span>{{ aiAdvice.degraded ? '规则兜底' : aiAdvice.model || 'AI' }}</span>
         </div>
         <p>{{ aiAdvice.summary || aiAdvice.text || '暂无建议' }}</p>
         <div v-if="aiAdvice.text && aiAdvice.text !== aiAdvice.summary" class="ai-text">{{ aiAdvice.text }}</div>
@@ -585,7 +585,9 @@ onMounted(loadAll)
 .nutrition-page {
   min-height: calc(100vh - 76px);
   padding: 18px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(34,197,94,.13), transparent 30%),
+    radial-gradient(circle at 92% 10%, rgba(251,191,36,.1), transparent 32%);
 }
 .topbar { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 h1 { margin: 0; font-size: 26px; color: #f6fff0; }
@@ -605,7 +607,7 @@ p { margin: 6px 0 0; color: #8fa896; }
 .kpis { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .kpi {
   border: 1px solid rgba(125,167,214,.16);
-  border-radius: 4px;
+  border-radius: 16px;
   padding: 12px;
   background: rgba(10,25,42,.9);
   text-align: left;
@@ -626,9 +628,11 @@ p { margin: 6px 0 0; color: #8fa896; }
 .patient-panel,
 .visual-panel {
   border: 1px solid rgba(125,167,214,.16);
-  border-radius: 4px;
+  border-radius: 20px;
   padding: 16px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(132,204,22,.09), transparent 30%),
+    rgba(7,20,34,.92);
 }
 .panel-head {
   display: flex;
@@ -651,7 +655,9 @@ p { margin: 6px 0 0; color: #8fa896; }
   border: 1px solid rgba(134,239,172,.16);
   border-radius: 18px;
   color: inherit;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(190,242,100,.14), transparent 34%),
+    linear-gradient(145deg, rgba(22,63,38,.82), rgba(7,20,34,.9));
   text-align: left;
   cursor: pointer;
   transition: transform .16s ease, border-color .16s ease;
@@ -666,15 +672,15 @@ p { margin: 6px 0 0; color: #8fa896; }
   height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 4px;
+  border-radius: 14px;
   color: #10200f;
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #bef264, #86efac);
   font-size: 16px;
   font-weight: 950;
 }
 .identity { min-width: 0; display: grid; gap: 2px; }
 .identity strong { color: #f7fee7; font-size: 17px; line-height: 1.15; }
-.identity small { color: #1A9C5B; font-size: 13px; font-weight: 800; }
+.identity small { color: #bbf7d0; font-size: 13px; font-weight: 800; }
 .card-top b {
   margin-left: auto;
   min-width: 38px;
@@ -693,7 +699,7 @@ p { margin: 6px 0 0; color: #8fa896; }
 }
 .score-strip span {
   padding: 9px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(2,8,20,.28);
   border: 1px solid rgba(190,242,100,.12);
 }
@@ -711,7 +717,7 @@ meter {
   overflow: hidden;
 }
 meter::-webkit-meter-bar { background: rgba(2,8,20,.34); border: 0; }
-meter::-webkit-meter-optimum-value { background: #FFFFFF; }
+meter::-webkit-meter-optimum-value { background: linear-gradient(90deg, #84cc16, #22c55e); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips span,
 .risk-lights span {
@@ -726,7 +732,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 .chips .task-chip {
   color: #10200f;
   border-color: transparent;
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #fef08a, #facc15);
   font-weight: 900;
 }
 .route-donut {
@@ -736,7 +742,9 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle, rgba(7,20,34,1) 0 55%, transparent 56%),
+    conic-gradient(#22c55e 0 var(--en), #38bdf8 var(--en) calc(var(--en) + var(--pn)), #f59e0b calc(var(--en) + var(--pn)) calc(var(--en) + var(--pn) + var(--mix)), rgba(148,163,184,.28) 0);
 }
 .route-donut strong,
 .route-donut span { display: block; text-align: center; }
@@ -746,7 +754,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 .route-buttons button {
   padding: 10px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
+  border-radius: 12px;
   color: #e7ffd2;
   background: rgba(2,8,20,.28);
   text-align: left;
@@ -756,11 +764,11 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 .dot.en { background: #22c55e; }
 .dot.pn { background: #38bdf8; }
 .dot.mix { background: #f59e0b; }
-.dot.none { background: #4E5969; }
+.dot.none { background: #94a3b8; }
 .mini-chart {
   padding: 14px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(2,8,20,.25);
 }
 .priority-box {
@@ -769,7 +777,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   margin-top: 14px;
   padding: 14px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(2,8,20,.25);
 }
 .priority-item {
@@ -779,7 +787,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   align-items: center;
   width: 100%;
   border: 1px solid rgba(190,242,100,.12);
-  border-radius: 4px;
+  border-radius: 12px;
   padding: 9px;
   color: #e7ffd2;
   background: rgba(7,20,34,.68);
@@ -790,7 +798,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   display: grid;
   place-items: center;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 10px;
   color: #10200f;
   background: #bef264;
 }
@@ -812,7 +820,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 .role-strip button {
   padding: 10px 6px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
+  border-radius: 14px;
   color: #e7ffd2;
   background: rgba(2,8,20,.26);
   cursor: pointer;
@@ -828,14 +836,14 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   flex: 1;
   min-height: 8px;
   border-radius: 999px 999px 4px 4px;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, #bef264, #16a34a);
 }
 .soft-empty {
   min-height: 160px;
   display: grid;
   place-content: center;
   border: 1px dashed rgba(190,242,100,.18);
-  border-radius: 4px;
+  border-radius: 16px;
   color: #93a79b;
   text-align: center;
 }
@@ -851,7 +859,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 .target-card {
   padding: 12px;
   border: 1px solid rgba(125,167,214,.16);
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(2,8,20,.24);
 }
 .drawer-kpis span,
@@ -870,8 +878,8 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   min-height: 96px;
   padding: 12px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(15,45,35,.42), rgba(2,8,20,.22));
 }
 .closed-loop-grid span,
 .closed-loop-grid small { display: block; color: #93a79b; }
@@ -893,13 +901,15 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   padding: 12px;
   border: 1px solid rgba(190,242,100,.16);
   border-radius: 18px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56,189,248,.14), transparent 35%),
+    rgba(2,8,20,.24);
 }
 .prescription-card.level-danger { border-color: rgba(248,113,113,.36); background-color: rgba(127,29,29,.14); }
 .prescription-card.level-warn { border-color: rgba(251,191,36,.32); background-color: rgba(113,63,18,.14); }
 .prescription-card div {
   padding: 10px;
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(2,8,20,.22);
 }
 .prescription-card span,
@@ -913,9 +923,9 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 .prescription-card button {
   min-width: 92px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 14px;
   color: #10200f;
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #bef264, #86efac);
   font-weight: 950;
   cursor: pointer;
 }
@@ -929,7 +939,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   min-height: 130px;
   padding: 12px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(2,8,20,.24);
 }
 .chart-head.small {
@@ -946,13 +956,15 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   flex: 1;
   min-height: 8px;
   border-radius: 999px 999px 4px 4px;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, #bef264, #22c55e);
 }
 .glucose-line {
   position: relative;
   height: 78px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, transparent 30%, rgba(251,191,36,.18) 31% 60%, transparent 61%),
+    rgba(2,8,20,.28);
   overflow: hidden;
 }
 .glucose-line i {
@@ -980,12 +992,12 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   align-items: center;
   padding: 10px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(2,8,20,.24);
 }
 .action-list .ai-action {
   border-color: rgba(56,189,248,.28);
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(14,116,144,.24), rgba(2,8,20,.24));
 }
 .ai-card {
   display: grid;
@@ -993,8 +1005,8 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   margin-top: 16px;
   padding: 14px;
   border: 1px solid rgba(56,189,248,.22);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(8,47,73,.22), rgba(2,8,20,.26));
 }
 .ai-card__head {
   display: flex;
@@ -1019,7 +1031,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 .ai-advice-list article {
   padding: 10px;
   border: 1px solid rgba(125,211,252,.14);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(2,8,20,.22);
 }
 .ai-advice-list b {
@@ -1044,7 +1056,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   gap: 10px;
   padding: 10px;
   border: 1px solid rgba(190,242,100,.14);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(2,8,20,.24);
 }
 .task-list b,
@@ -1057,7 +1069,7 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
   border-radius: 999px;
   padding: 7px 12px;
   color: #10200f;
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #bef264, #86efac);
   font-weight: 900;
   cursor: pointer;
 }
@@ -1076,7 +1088,10 @@ meter::-webkit-meter-optimum-value { background: #FFFFFF; }
 }
 
 html[data-theme='light'] .nutrition-page {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.08), transparent 30%),
+    radial-gradient(circle at 92% 10%, rgba(245, 158, 11, 0.07), transparent 32%),
+    #f5f7fa;
 }
 html[data-theme='light'] h1,
 html[data-theme='light'] .kpi strong,
@@ -1096,7 +1111,7 @@ html[data-theme='light'] .ai-advice-list b,
 html[data-theme='light'] .action-list strong,
 html[data-theme='light'] .task-list b,
 html[data-theme='light'] .order-list span {
-  color: #1D2129;
+  color: #0f172a;
 }
 html[data-theme='light'] p,
 html[data-theme='light'] .kpi span,
@@ -1126,7 +1141,7 @@ html[data-theme='light'] .order-list small,
 html[data-theme='light'] .action-list span,
 html[data-theme='light'] .task-list span,
 html[data-theme='light'] .task-list small {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .scope-strip {
   color: #15803d;
@@ -1164,10 +1179,14 @@ html[data-theme='light'] .ai-advice-list article {
 html[data-theme='light'] .patient-panel,
 html[data-theme='light'] .visual-panel,
 html[data-theme='light'] .nutrition-card {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.08), transparent 34%),
+    #ffffff;
 }
 html[data-theme='light'] .route-donut {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle, #ffffff 0 55%, transparent 56%),
+    conic-gradient(#22c55e 0 var(--en), #38bdf8 var(--en) calc(var(--en) + var(--pn)), #f59e0b calc(var(--en) + var(--pn)) calc(var(--en) + var(--pn) + var(--mix)), rgba(148,163,184,.28) 0);
 }
 html[data-theme='light'] .chips span,
 html[data-theme='light'] .risk-lights span {
@@ -1179,7 +1198,7 @@ html[data-theme='light'] .card-top b,
 html[data-theme='light'] .role-strip b,
 html[data-theme='light'] .chart-head span,
 html[data-theme='light'] .order-list b {
-  color: #1A9C5B;
+  color: #16a34a;
 }
 html[data-theme='light'] .card-top b {
   background: #f0fdf4;

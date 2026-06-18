@@ -1167,9 +1167,9 @@ section { display: flex; flex-direction: column; gap: 7px; }
   font-size: 9px;
   font-weight: 700;
 }
-.rescue-spotlight-sev--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.rescue-spotlight-sev--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.rescue-spotlight-sev--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.rescue-spotlight-sev--warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.rescue-spotlight-sev--high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.rescue-spotlight-sev--critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .rescue-spotlight-title {
   color: #ffe4ea;
   font-size: 12px;
@@ -1484,9 +1484,9 @@ section { display: flex; flex-direction: column; gap: 7px; }
   font-size: 9px;
   font-weight: 700;
 }
-.summary-rescue-sev--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.summary-rescue-sev--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.summary-rescue-sev--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.summary-rescue-sev--warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.summary-rescue-sev--high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.summary-rescue-sev--critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .summary-title-row {
   display: flex;
   align-items: center;
@@ -1735,9 +1735,9 @@ section { display: flex; flex-direction: column; gap: 7px; }
   font-size: 9px;
   font-weight: 700;
 }
-.hover-drawer-sev--warning { color: #fcd34d; background: #3f2d07; border-color: #6a4b0d; }
-.hover-drawer-sev--high { color: #fdba74; background: #41210b; border-color: #7c3816; }
-.hover-drawer-sev--critical { color: #fda4af; background: #47131d; border-color: #7f1d32; }
+.hover-drawer-sev--warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
+.hover-drawer-sev--high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
+.hover-drawer-sev--critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .hover-drawer-title {
   color: #ffe4ea;
   font-size: 12px;
@@ -1869,10 +1869,10 @@ section { display: flex; flex-direction: column; gap: 7px; }
   background: rgba(8, 28, 44, 0.88);
   color: #dff8ff;
 }
-.pill--severity-critical { background: rgba(70, 16, 28, 0.92); color: #ff98aa; border-color: rgba(248, 113, 113, 0.24); }
-.pill--severity-high { background: rgba(76, 43, 12, 0.92); color: #fdba74; border-color: rgba(251, 146, 60, 0.24); }
-.pill--severity-warning { background: rgba(75, 54, 10, 0.92); color: #fcd34d; border-color: rgba(251, 191, 36, 0.24); }
-.pill--severity-normal { background: rgba(7, 63, 55, 0.92); color: #5eead4; border-color: rgba(45, 212, 191, 0.24); }
+.pill--severity-critical { background: var(--sev-soft-critical-bg); color: var(--sev-soft-critical-text); border-color: var(--sev-soft-critical-border); }
+.pill--severity-high { background: var(--sev-soft-high-bg); color: var(--sev-soft-high-text); border-color: var(--sev-soft-high-border); }
+.pill--severity-warning { background: var(--sev-soft-warning-bg); color: var(--sev-soft-warning-text); border-color: var(--sev-soft-warning-border); }
+.pill--severity-normal { background: var(--sev-soft-normal-bg); color: var(--sev-soft-normal-text); border-color: var(--sev-soft-normal-border); }
 .pill--iso { background: rgba(42, 22, 81, 0.9); border-color: rgba(167, 139, 250, 0.24); color: #d0b8ff; }
 .pill--diet { background: rgba(8, 56, 42, 0.92); border-color: rgba(74, 222, 128, 0.24); color: #86efac; }
 html[data-theme='light'] .card {

@@ -811,7 +811,7 @@ function formatTime(raw: any): string {
   gap: 8px;
   min-height: 0;
   background: #f5f7fb;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: visible;
   color: #1f2937;
 }
@@ -823,7 +823,7 @@ function formatTime(raw: any): string {
 .quality-strip,
 .panel,
 .legacy-shell {
-  background: #FFFFFF;
+  background: #fff;
   border: 1px solid #edf1f7;
 }
 
@@ -850,7 +850,7 @@ function formatTime(raw: any): string {
   height: 30px;
   border-radius: 6px;
   background: #e6f4ff;
-  color: #15558D;
+  color: #1677ff;
   font-size: 12px;
   font-weight: 800;
 }
@@ -880,8 +880,8 @@ function formatTime(raw: any): string {
 }
 
 .dw-finalize-btn {
-  background: #1A9C5B !important;
-  border-color: #1A9C5B !important;
+  background: #16a34a !important;
+  border-color: #16a34a !important;
 }
 
 .dw-history-bar {
@@ -914,7 +914,7 @@ function formatTime(raw: any): string {
 }
 
 .dw-saved {
-  color: #1A9C5B;
+  color: #16a34a;
 }
 
 .patient-banner {
@@ -935,12 +935,12 @@ function formatTime(raw: any): string {
 
 .patient-main strong {
   font-size: 18px;
-  color: #1D2129;
+  color: #0f172a;
 }
 
 .patient-diagnosis {
   font-weight: 600;
-  color: #15558D;
+  color: #1d4ed8;
 }
 
 .patient-badges span,
@@ -964,7 +964,7 @@ function formatTime(raw: any): string {
   min-height: 76px;
   padding: 8px;
   border: 1px solid #edf1f7;
-  border-radius: 4px;
+  border-radius: 8px;
   background: #f8fafc;
 }
 
@@ -1043,7 +1043,7 @@ function formatTime(raw: any): string {
 }
 
 .panel {
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 9px;
   min-height: 0;
 }
@@ -1051,7 +1051,7 @@ function formatTime(raw: any): string {
 .panel h3 {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #1D2129;
+  color: #0f172a;
 }
 
 .timeline-list,
@@ -1080,7 +1080,7 @@ function formatTime(raw: any): string {
 .goal-item,
 .trend-item {
   border: 1px solid #edf1f7;
-  border-radius: 4px;
+  border-radius: 8px;
   background: #f8fafc;
   padding: 7px;
 }
@@ -1110,7 +1110,7 @@ function formatTime(raw: any): string {
   padding: 0;
   border: none;
   background: transparent;
-  color: #15558D;
+  color: #1677ff;
   font-size: 11px;
   cursor: pointer;
 }
@@ -1175,7 +1175,7 @@ function formatTime(raw: any): string {
   align-self: flex-start;
   padding: 2px 7px;
   border-radius: 4px;
-  background: #FFFFFF;
+  background: #fff7ed;
   color: #c2410c;
   font-size: 11px;
 }
@@ -1196,7 +1196,7 @@ function formatTime(raw: any): string {
 
 .risk-actions button {
   border: 1px solid #d0d5dd;
-  background: #FFFFFF;
+  background: #fff;
   border-radius: 4px;
   padding: 3px 7px;
   font-size: 12px;
@@ -1230,7 +1230,7 @@ function formatTime(raw: any): string {
   color: #1f2937;
   background: #f8fafc;
   border: 1px solid #edf1f7;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 8px 10px;
   font-family: inherit;
   font-size: 12px;
@@ -1239,7 +1239,7 @@ function formatTime(raw: any): string {
 
 .legacy-shell {
   margin: 0 10px 10px;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 16px;
 }
 
@@ -1264,10 +1264,10 @@ function formatTime(raw: any): string {
   justify-content: center;
   width: 64px;
   height: 44px;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 16px;
   background: #eef4ff;
-  color: #15558D;
+  color: #1677ff;
   font-weight: 800;
 }
 

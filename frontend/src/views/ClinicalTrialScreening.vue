@@ -3,7 +3,7 @@
     <section class="trial-hero">
       <div>
         <div class="eyebrow">Recruitment Safety Gate</div>
-        <h1>临床试验筛选</h1>
+        <h1>临床试验智能筛选</h1>
         <p>维护结构化入排标准，自动扫描当前 ICU 患者，只提示“可能符合”，不自动入组。</p>
       </div>
       <a-space wrap>
@@ -97,7 +97,7 @@
             </div>
             <a-space wrap>
               <a-button size="small" type="primary" ghost @click="activate(trial)">启用招募</a-button>
-              <a-button size="small" @click="openParse(trial)">系统解析标准</a-button>
+              <a-button size="small" @click="openParse(trial)">AI 解析标准</a-button>
               <a-button size="small" @click="editTrial(trial)">编辑</a-button>
               <a-button size="small" danger ghost @click="removeTrial(trial)">删除</a-button>
             </a-space>
@@ -152,7 +152,7 @@
         type="warning"
         show-icon
         message="规则启用前必须人工确认"
-        description="系统解析或示例规则仅作为草案，研究人员确认后才能用于正式招募提醒。"
+        description="AI 解析或示例规则仅作为草案，研究人员确认后才能用于正式招募提醒。"
       />
       <a-form layout="vertical">
         <a-form-item label="试验名称"><a-input v-model:value="trialForm.trial_name" /></a-form-item>
@@ -172,7 +172,7 @@
       </a-form>
     </a-drawer>
 
-    <a-modal v-model:open="parseOpen" title="系统解析入排标准草案" width="760" @ok="parseCriteria">
+    <a-modal v-model:open="parseOpen" title="AI 解析入排标准草案" width="760" @ok="parseCriteria">
       <a-form layout="vertical">
         <a-form-item label="入组标准原文"><a-textarea v-model:value="parseForm.inclusion_text" :rows="5" /></a-form-item>
         <a-form-item label="排除标准原文"><a-textarea v-model:value="parseForm.exclusion_text" :rows="5" /></a-form-item>
@@ -486,7 +486,9 @@ onMounted(loadAll)
   min-height: calc(100vh - 76px);
   padding: 20px;
   color: var(--text-main);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(34, 211, 238, .12), transparent 30%),
+    radial-gradient(circle at 86% 10%, rgba(16, 185, 129, .1), transparent 32%);
 }
 .trial-hero {
   display: flex;
@@ -496,7 +498,7 @@ onMounted(loadAll)
   padding: 18px;
   border: 1px solid rgba(80,199,255,.16);
   border-radius: 18px;
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(7, 25, 42, .95), rgba(5, 13, 25, .9));
 }
 .eyebrow {
   color: #67e8f9;
@@ -518,7 +520,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 }
 .guide-rail article, .kpi-card, .trial-card, .candidate-card {
   border: 1px solid rgba(125,167,214,.14);
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(7, 20, 34, .72);
 }
 .guide-rail article { padding: 14px; display: grid; gap: 6px; }
@@ -532,11 +534,11 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .kpi-card { padding: 14px; }
 .kpi-card span, .kpi-card small { display: block; color: #8aa4b8; }
 .kpi-card strong { display: block; margin: 5px 0; color: #f2fbff; font-size: 30px; line-height: 1; }
-.kpi-card--green { background: #FFFFFF; }
-.kpi-card--cyan { background: #FFFFFF; }
-.kpi-card--amber { background: #FFFFFF; }
+.kpi-card--green { background: linear-gradient(135deg, rgba(21, 86, 58, .72), rgba(7, 20, 34, .76)); }
+.kpi-card--cyan { background: linear-gradient(135deg, rgba(8, 64, 84, .74), rgba(7, 20, 34, .76)); }
+.kpi-card--amber { background: linear-gradient(135deg, rgba(91, 55, 15, .68), rgba(7, 20, 34, .76)); }
 .layout { grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr); }
-.panel { background: rgba(10,25,42,.92); border-radius: 4px; }
+.panel { background: rgba(10,25,42,.92); border-radius: 16px; }
 .panel-hint, .trial-card span, .rule-summary, .candidate-meta { color: #88a2b4; }
 .empty-state {
   display: grid;
@@ -545,7 +547,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   min-height: 320px;
   text-align: center;
   border: 1px dashed rgba(103,232,249,.24);
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(2,8,20,.22);
 }
 .empty-badge {
@@ -565,10 +567,10 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   gap: 4px;
   max-width: 560px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(103,232,249,.2);
   background: rgba(8, 47, 73, .28);
-  color: #4E5969;
+  color: #bfefff;
   font-size: 12px;
   line-height: 1.55;
 }
@@ -581,7 +583,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   border-radius: 999px;
   border: 1px solid rgba(103,232,249,.18);
   background: rgba(8, 47, 73, .24);
-  color: #4E5969;
+  color: #bfefff;
   font-size: 12px;
 }
 .trial-list, .candidate-list { display: grid; gap: 10px; }
@@ -605,7 +607,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   place-items: center;
   min-width: 58px;
   height: 42px;
-  border-radius: 4px;
+  border-radius: 12px;
   color: #ecfeff;
   font-weight: 900;
   background: rgba(14, 116, 144, .35);
@@ -629,7 +631,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .diagnosis-evidence {
   padding: 12px;
   border: 1px solid rgba(103,232,249,.18);
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(8, 47, 73, .24);
 }
 .status-flow {
@@ -652,7 +654,10 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .mb { margin-bottom: 12px; }
 html[data-theme='light'] .trial-page {
   color: #10243d;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(14, 165, 233, .14), transparent 30%),
+    radial-gradient(circle at 86% 10%, rgba(20, 184, 166, .10), transparent 32%),
+    linear-gradient(180deg, rgba(236, 252, 255, .96), rgba(247, 250, 252, .98));
 }
 html[data-theme='light'] .trial-hero,
 html[data-theme='light'] .panel,
@@ -665,20 +670,28 @@ html[data-theme='light'] .screen-diagnostics,
 html[data-theme='light'] .scope-note,
 html[data-theme='light'] .status-flow span {
   border-color: rgba(203, 213, 225, .82);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
   box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
 }
 html[data-theme='light'] .kpi-card--green {
   border-color: rgba(16, 185, 129, .24);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(236, 253, 245, .96));
 }
 html[data-theme='light'] .kpi-card--cyan {
   border-color: rgba(14, 165, 233, .24);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
 }
 html[data-theme='light'] .kpi-card--amber {
   border-color: rgba(245, 158, 11, .26);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 251, 235, .96));
 }
 html[data-theme='light'] h1,
 html[data-theme='light'] .guide-rail strong,
@@ -706,7 +719,7 @@ html[data-theme='light'] .kpi-card small,
 html[data-theme='light'] .screen-diagnostics,
 html[data-theme='light'] .scope-note,
 html[data-theme='light'] .status-flow span {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .eyebrow,
 html[data-theme='light'] .guide-rail span,
@@ -723,7 +736,9 @@ html[data-theme='light'] .bed-pill {
 }
 html[data-theme='light'] .candidate-card:hover {
   border-color: rgba(14, 165, 233, .38);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .14), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(232, 247, 252, .98));
   box-shadow: inset 3px 0 0 rgba(14, 165, 233, .68), 0 8px 20px rgba(14, 165, 233, .08);
 }
 html[data-theme='light'] .status-flow span.done {
@@ -740,7 +755,7 @@ html[data-theme='light'] .trial-page :deep(.ant-card-head-title) {
 }
 html[data-theme='light'] .diagnosis-evidence {
   border-color: rgba(14, 165, 233, .18);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(240, 249, 255, .96), rgba(255, 255, 255, .98));
 }
 html[data-theme='light'] .trial-page :deep(.ant-input),
 html[data-theme='light'] .trial-page :deep(.ant-select-selector),
@@ -748,7 +763,7 @@ html[data-theme='light'] .trial-page :deep(.ant-input-affix-wrapper),
 html[data-theme='light'] .trial-page :deep(textarea.ant-input) {
   border-color: rgba(203, 213, 225, .92) !important;
   background: rgba(248, 250, 252, .98) !important;
-  color: #1D2129 !important;
+  color: #0f172a !important;
 }
 @media (max-width: 1280px) {
   .guide-rail, .kpi-grid, .layout { grid-template-columns: 1fr 1fr; }

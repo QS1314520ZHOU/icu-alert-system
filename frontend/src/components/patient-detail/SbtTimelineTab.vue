@@ -13,7 +13,7 @@
     <section v-if="hasAiDecisionCard" class="sbt-decision-card">
       <div class="sbt-decision-card__head">
         <div>
-          <div class="sbt-decision-card__eyebrow">撤机建议</div>
+          <div class="sbt-decision-card__eyebrow">智能撤机建议</div>
           <div class="sbt-decision-card__title">顶部决策卡</div>
         </div>
         <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : '大模型结构化建议' }}</div>
@@ -227,9 +227,9 @@ function parsedRawContent(row: any) {
 .sbt-refresh {
   min-height: 34px;
   padding: 0 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(80,199,255,.16);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(9,46,70,.96) 0%, rgba(6,27,42,.98) 100%);
   color: #dffbff;
   font-size: 12px;
   font-weight: 700;
@@ -242,9 +242,11 @@ function parsedRawContent(row: any) {
 }
 .sbt-kpi-card,
 .sbt-card {
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(80,199,255,.12);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.06), rgba(34,211,238,0) 30%),
+    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 24px rgba(0,0,0,.18);
 }
 .sbt-kpi-card {
@@ -271,7 +273,7 @@ function parsedRawContent(row: any) {
 }
 .sbt-empty {
   padding: 24px 16px;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(80,199,255,.12);
   background: rgba(7,20,34,.92);
   color: #9bcde0;
@@ -288,9 +290,12 @@ function parsedRawContent(row: any) {
   display: grid;
   gap: 14px;
   padding: 16px 18px;
-  border-radius: 4px;
+  border-radius: 16px;
   border: 1px solid rgba(103,232,249,.2);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.12), rgba(34,211,238,0) 34%),
+    radial-gradient(circle at left center, rgba(59,130,246,.12), rgba(59,130,246,0) 42%),
+    linear-gradient(180deg, rgba(6,26,38,.98) 0%, rgba(4,15,24,.99) 100%);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.05), 0 16px 30px rgba(0,0,0,.22);
 }
 .sbt-decision-card__head {
@@ -339,7 +344,7 @@ function parsedRawContent(row: any) {
   display: grid;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(80,199,255,.12);
   background: rgba(8,28,44,.74);
 }
@@ -406,7 +411,7 @@ function parsedRawContent(row: any) {
   width: 2px;
   flex: 1 1 auto;
   border-radius: 999px;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, #1f3c67 0%, #0f233f 100%);
 }
 .sbt-card { padding: 14px; display: grid; gap: 10px; }
 .sbt-passed .sbt-card { border-color: rgba(34,197,94,.2); }
@@ -448,7 +453,7 @@ function parsedRawContent(row: any) {
 .sbt-score-box {
   min-width: 88px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(80,199,255,.14);
   background: rgba(8,31,49,.86);
   text-align: right;
@@ -495,7 +500,7 @@ function parsedRawContent(row: any) {
   color: var(--container-alt-text);
   background: var(--container-alt-bg);
   border: 1px solid var(--container-alt-border);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 6px 8px;
 }
 .sbt-record-item--wide {
@@ -522,7 +527,7 @@ function parsedRawContent(row: any) {
   gap: 10px;
   width: 100%;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(80,199,255,.12);
   background: rgba(7, 22, 38, 0.9);
 }
@@ -552,7 +557,9 @@ function parsedRawContent(row: any) {
   line-height: 1.4;
 }
 html[data-theme='light'] .sbt-wrap {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
   color: #1f3852;
 }
 html[data-theme='light'] .sbt-head,
@@ -587,24 +594,24 @@ html[data-theme='light'] .sbt-decision-card__label {
 html[data-theme='light'] .sbt-refresh {
   border-color: rgba(187, 204, 220, 0.72);
   background: rgba(241, 246, 251, 0.98);
-  color: #15558D;
+  color: #1d4ed8;
 }
 html[data-theme='light'] .sbt-result-pill--passed { color: #047857; background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.28); }
 html[data-theme='light'] .sbt-result-pill--failed { color: #be123c; background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.28); }
-html[data-theme='light'] .sbt-result-pill--documented { color: #15558D; background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
-html[data-theme='light'] .sbt-line { background: #FFFFFF; }
+html[data-theme='light'] .sbt-result-pill--documented { color: #1d4ed8; background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
+html[data-theme='light'] .sbt-line { background: linear-gradient(180deg, #93aac4 0%, #6f8399 100%); }
 
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .sbt-kpi-card,
 html[data-theme='light'] .sbt-card,
 html[data-theme='light'] .sbt-decision-card,
 html[data-theme='light'] .sbt-raw-card {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .sbt-empty {
   background: rgba(243,248,252,0.96);
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .sbt-decision-card__badge,
 html[data-theme='light'] .sbt-decision-card__item,
@@ -623,7 +630,7 @@ html[data-theme='light'] .sbt-card-title,
 html[data-theme='light'] .sbt-decision-card__main,
 html[data-theme='light'] .sbt-score-box strong,
 html[data-theme='light'] .sbt-kpi-card > strong,
-html[data-theme='light'] .sbt-decision-card__item strong { color: #1D2129; }
+html[data-theme='light'] .sbt-decision-card__item strong { color: #0f172a; }
 html[data-theme='light'] .sbt-sub,
 html[data-theme='light'] .sbt-kpi-card > small,
 html[data-theme='light'] .sbt-card-sub,
@@ -635,10 +642,10 @@ html[data-theme='light'] .sbt-raw-label,
 html[data-theme='light'] .sbt-decision-card__label { color: #47627e; }
 html[data-theme='light'] .sbt-decision-card__list,
 html[data-theme='light'] .sbt-chip,
-html[data-theme='light'] .sbt-raw-chip { color: #1D2129; }
+html[data-theme='light'] .sbt-raw-chip { color: #334155; }
 html[data-theme='light'] .sbt-record-label { color: #47627e; }
-html[data-theme='light'] .sbt-record-value { color: #1D2129; }
-html[data-theme='light'] .sbt-decision-card__badge { color: #1D2129; }
+html[data-theme='light'] .sbt-record-value { color: #0f172a; }
+html[data-theme='light'] .sbt-decision-card__badge { color: #0f172a; }
 
 @media (max-width: 980px) {
   .sbt-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -139,12 +139,12 @@ watch(() => [props.deptCode, props.dept], () => { void load() })
 }
 
 .bundle-header strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 15px;
 }
 
 .bundle-header span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
 }
 
@@ -170,8 +170,8 @@ button {
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid rgba(125, 211, 252, .2);
-  background: #15558D;
-  color: #1D2129;
+  background: rgba(13, 44, 66, .78);
+  color: #eafcff;
   cursor: pointer;
   font-size: 12px;
 }
@@ -181,12 +181,12 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .loading, .error {
   padding: 16px;
   text-align: center;
-  border-radius: 4px;
-  background: #FFFFFF;
-  color: #4E5969;
+  border-radius: 8px;
+  background: rgba(11, 33, 50, .58);
+  color: #91adbd;
 }
 
-.error { color: #D9342B; }
+.error { color: #fecaca; }
 
 .bundle-cards {
   display: grid;
@@ -196,8 +196,8 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 
 .bundle-card {
   padding: 12px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(6, 18, 31, .74);
   border: 1px solid rgba(125, 211, 252, .14);
   cursor: pointer;
   transition: border-color .2s;
@@ -215,7 +215,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .card-top strong {
-  color: #1D2129;
+  color: #f4fbff;
   font-size: 13px;
 }
 
@@ -235,19 +235,19 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .card-bottom span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
 }
 
 .expand-icon {
-  color: #4E5969;
+  color: #64748b;
   font-size: 10px;
 }
 
 .bundle-detail {
-  background: #FFFFFF;
+  background: rgba(6, 18, 31, .74);
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 12px;
 }
 
@@ -256,7 +256,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .detail-header strong {
-  color: #1D2129;
+  color: #f4fbff;
   font-size: 14px;
 }
 
@@ -272,7 +272,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   align-items: center;
   padding: 8px 10px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
 }
 
 .item-row.green { border-left: 3px solid #34d399; }
@@ -280,7 +280,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .item-row.red { border-left: 3px solid #ef4444; }
 
 .item-name {
-  color: #1D2129;
+  color: #eef8ff;
   font-size: 12px;
 }
 
@@ -317,7 +317,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .rate.red { color: #ef4444; }
 
 .detail {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 10px;
 }
 
@@ -330,7 +330,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .bundle-note span {
-  color: #4E5969;
+  color: #64748b;
   font-size: 10px;
 }
 
@@ -339,7 +339,7 @@ html[data-theme='light'] .bundle-header strong,
 html[data-theme='light'] .card-top strong,
 html[data-theme='light'] .detail-header strong,
 html[data-theme='light'] .item-name {
-  color: #1D2129;
+  color: #0f172a;
 }
 
 html[data-theme='light'] .bundle-card,
@@ -355,7 +355,7 @@ html[data-theme='light'] .item-row {
 html[data-theme='light'] .loading,
 html[data-theme='light'] .error {
   background: #f8fafc;
-  color: #4E5969;
+  color: #64748b;
 }
 
 html[data-theme='light'] .error { color: #dc2626; }
@@ -363,6 +363,6 @@ html[data-theme='light'] .error { color: #dc2626; }
 html[data-theme='light'] button {
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.18);
-  color: #15558D;
+  color: #1d4ed8;
 }
 </style>

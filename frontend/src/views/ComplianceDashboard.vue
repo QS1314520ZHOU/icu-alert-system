@@ -326,7 +326,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .dashboard-header strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 18px;
 }
 
@@ -340,8 +340,8 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid rgba(125, 211, 252, .2);
-  background: #15558D;
-  color: #1D2129;
+  background: rgba(13, 44, 66, .78);
+  color: #eafcff;
 }
 
 .header-actions button {
@@ -349,8 +349,8 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   padding: 0 12px;
   border-radius: 6px;
   border: 1px solid rgba(125, 211, 252, .2);
-  background: #15558D;
-  color: #1D2129;
+  background: rgba(13, 44, 66, .78);
+  color: #eafcff;
   cursor: pointer;
 }
 
@@ -362,13 +362,13 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 .loading, .error, .empty {
   padding: 20px;
   text-align: center;
-  border-radius: 4px;
-  background: #FFFFFF;
-  color: #4E5969;
+  border-radius: 8px;
+  background: rgba(11, 33, 50, .58);
+  color: #91adbd;
 }
 
 .error {
-  color: #D9342B;
+  color: #fecaca;
 }
 
 .overview-cards {
@@ -379,26 +379,26 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .overview-card {
   padding: 16px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(6, 18, 31, .74);
   border: 1px solid rgba(125, 211, 252, .14);
 }
 
 .overview-card span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
   display: block;
 }
 
 .overview-card strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 28px;
   display: block;
   margin: 8px 0 4px;
 }
 
 .overview-card em {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   font-style: normal;
 }
@@ -416,9 +416,9 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .section {
-  background: #FFFFFF;
+  background: rgba(6, 18, 31, .74);
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 16px;
 }
 
@@ -430,12 +430,12 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .section-header strong {
-  color: #1D2129;
+  color: #f4fbff;
   font-size: 15px;
 }
 
 .section-header span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
 }
 
@@ -490,14 +490,14 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .heatmap-label {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   display: flex;
   align-items: center;
 }
 
 .heatmap-type-label {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   text-align: center;
   padding: 4px;
@@ -511,7 +511,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .heatmap-hour {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -562,8 +562,8 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   gap: 12px;
   align-items: center;
   padding: 12px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(11, 33, 50, .72);
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -585,13 +585,13 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .overdue-bed strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 16px;
   display: block;
 }
 
 .overdue-bed span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
 }
 
@@ -602,7 +602,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .overdue-count {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 13px;
 }
 
@@ -616,12 +616,12 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   padding: 2px 6px;
   border-radius: 4px;
   background: rgba(125, 211, 252, .15);
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
 }
 
 .overdue-time {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   text-align: right;
 }
@@ -633,8 +633,8 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .comparison-item {
   padding: 12px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(11, 33, 50, .72);
 }
 
 .comparison-header {
@@ -645,12 +645,12 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .comparison-header strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 14px;
 }
 
 .interval {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
 }
 
@@ -668,7 +668,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .bar-label {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
 }
 
@@ -686,7 +686,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .bar-fill.current {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, #38bdf8, #34d399);
 }
 
 .bar-fill.previous {
@@ -694,7 +694,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .bar-value {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 12px;
   text-align: right;
 }
@@ -705,7 +705,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .comparison-stats span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
 }
 
@@ -743,7 +743,7 @@ html[data-theme='light'] .comparison-header strong,
 html[data-theme='light'] .overdue-bed strong,
 html[data-theme='light'] .overdue-count,
 html[data-theme='light'] .bar-value {
-  color: #1D2129;
+  color: #0f172a;
 }
 
 html[data-theme='light'] .overview-card,
@@ -761,7 +761,7 @@ html[data-theme='light'] .header-actions select,
 html[data-theme='light'] .header-actions button {
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.18);
-  color: #15558D;
+  color: #1d4ed8;
 }
 
 html[data-theme='light'] .heatmap-cell.good {
@@ -780,7 +780,7 @@ html[data-theme='light'] .heatmap-cell.bad {
 }
 
 html[data-theme='light'] .bar-fill.current {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
 }
 
 html[data-theme='light'] .bar-fill.previous {
@@ -791,7 +791,7 @@ html[data-theme='light'] .loading,
 html[data-theme='light'] .error,
 html[data-theme='light'] .empty {
   background: #f8fafc;
-  color: #4E5969;
+  color: #64748b;
 }
 
 html[data-theme='light'] .error {

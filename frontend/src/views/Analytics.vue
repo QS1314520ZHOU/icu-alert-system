@@ -291,11 +291,11 @@
         </div>
       </a-card>
 
-      <a-card title="管理摘要卡" :bordered="false" class="panel">
+      <a-card title="智能管理摘要卡" :bordered="false" class="panel">
         <div class="insight-list">
           <div class="summary-card summary-card--hero">
             <div class="summary-card__label">管理结论</div>
-            <div class="summary-card__value">{{ sepsisAiInsight.summary || '暂无管理摘要' }}</div>
+            <div class="summary-card__value">{{ sepsisAiInsight.summary || '暂无智能摘要' }}</div>
             <div class="summary-card__meta">{{ sepsisAiInsight.degraded_mode ? '规则降级模式' : '大模型结构化输出' }}</div>
           </div>
           <div v-for="(item, idx) in sepsisAiManagementRows" :key="`sepsis-ai-finding-${idx}`" class="summary-card">
@@ -305,7 +305,7 @@
         </div>
       </a-card>
 
-      <a-card title="行动建议卡" :bordered="false" class="panel">
+      <a-card title="智能行动建议卡" :bordered="false" class="panel">
         <div class="advice-list">
           <div v-for="(item, idx) in sepsisAiActionRows" :key="`sepsis-ai-action-${idx}`" class="advice-card">
             <div class="advice-card__index">0{{ Number(idx) + 1 }}</div>
@@ -947,7 +947,7 @@ const heatmapOption = computed(() => {
   return {
     backgroundColor: 'transparent',
     tooltip: icuTooltip({
-      extraCssText: 'box-shadow: 0 1px 2px rgba(0,0,0,.06); border-radius: 4px;',
+      extraCssText: 'box-shadow: 0 12px 28px rgba(0,0,0,.28); border-radius: 10px;',
       formatter: (params: any) => {
         const x = sourceX[params.value[0]]
         const y = sourceY[params.value[1]]
@@ -1081,7 +1081,7 @@ const scenarioGroupProgressRows = computed(() => scenarioGroupRows.value.map((it
   value: `${Math.round(Number(item.coverage_ratio || 0) * 100)}%`,
   width: `${Math.max(4, Number(item.coverage_ratio || 0) * 100)}%`,
   meta: `已覆盖 ${item.triggered_count}/${item.catalog_count} 个场景 · 告警 ${item.alert_count} 次`,
-  color: ['#15558D', '#1A9C5B', '#E8901C'][idx % 3],
+  color: ['linear-gradient(90deg, #22d3ee, #38bdf8)', 'linear-gradient(90deg, #2dd4bf, #34d399)', 'linear-gradient(90deg, #f59e0b, #fb7185)'][idx % 3],
 })))
 const scenarioHeatmapOption = computed(() => ({
   backgroundColor: 'transparent',
@@ -1179,7 +1179,7 @@ const activeSectionBriefs = computed(() => {
     return [
       { label: '月度总评', value: sepsisBundleKpi.value.rate, meta: sepsisBundleKpi.value.meta },
       { label: '执行断点', value: `${Number(sepsisBundleCompliance.value?.overdue_1h_cases || 0)} 例超1h`, meta: '建议优先抽查抗菌药、补液、乳酸复测延迟链路。' },
-      { label: '管理结论', value: sepsisAiInsight.value?.summary || '暂无管理摘要', meta: sepsisAiInsight.value?.degraded_mode ? '当前为规则降级模式' : '当前为大模型结构化输出' },
+      { label: '智能管理结论', value: sepsisAiInsight.value?.summary || '暂无智能摘要', meta: sepsisAiInsight.value?.degraded_mode ? '当前为规则降级模式' : '当前为大模型结构化输出' },
     ]
   }
   if (analyticsSection.value === 'weaning') {
@@ -1228,7 +1228,7 @@ const activeSectionFocusRows = computed(() => {
     return [
       { label: '超 3h 个案', value: `${Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.overdue_3h_cases || 0) ? '建议逐例追踪是否卡在首剂抗菌药、血培养或液体复苏。' : '当前没有超 3h 个案。' },
       { label: '在途病例', value: `${Number(sepsisBundleCompliance.value?.pending_active_cases || 0)} 例`, meta: Number(sepsisBundleCompliance.value?.pending_active_cases || 0) ? '交接班时应保留节点提醒，避免 1h 继续滑向 3h。' : '当前没有在途病例。' },
-      { label: '管理建议', value: sepsisAiActionRows.value[0] || '暂无额外建议', meta: '建议卡可继续查看其余行动项。' },
+      { label: '管理建议', value: sepsisAiActionRows.value[0] || '暂无额外建议', meta: '智能建议卡可继续查看其余行动项。' },
     ]
   }
   if (analyticsSection.value === 'weaning') {
@@ -1262,9 +1262,9 @@ const activeSectionActions = computed(() => {
   if (analyticsSection.value === 'sepsis') {
     return [
       {
-        label: '打开运营管理',
+        label: '打开智能运营',
         value: '阈值审核 / 反馈闭环',
-        meta: '继续查看个性化阈值审核和反馈准确率。',
+        meta: '继续查看个性化阈值审核和智能反馈准确率。',
         action: () => router.push('/ai-ops'),
       },
       {
@@ -1283,7 +1283,7 @@ const activeSectionActions = computed(() => {
   }
   if (analyticsSection.value === 'scenarios') {
     return [
-      { label: '打开 MDT 会诊', value: '多学科裁决看板', meta: '继续查看专科意见、冲突焦点和总控专科裁决。', action: () => router.push('/mdt') },
+      { label: '打开 MDT 会诊', value: '多智能体裁决看板', meta: '继续查看专科意见、冲突焦点和总控智能体裁决。', action: () => router.push('/mdt') },
       { label: '切回告警运营', value: '查看实时热区', meta: '从扩展场景覆盖切回全量规则热力图。', action: () => setAnalyticsSection('alerts') },
       { label: '打开患者总览', value: '继续做高危筛查', meta: '带着当前筛选条件回到患者工作台。', action: () => router.push({ path: '/', query: { ...route.query } }) },
     ]
@@ -1303,9 +1303,9 @@ const activeSectionActions = computed(() => {
         action: () => router.push({ path: '/', query: { ...route.query } }),
       },
       {
-        label: '查看运营管理',
+        label: '查看智能运营',
         value: '反馈与阈值审核',
-        meta: '继续结合运行态与阈值审核判断是否需要调整策略。',
+        meta: '继续结合智能运行态与阈值审核判断是否需要调整策略。',
         action: () => router.push('/ai-ops'),
       },
     ]
@@ -1313,9 +1313,9 @@ const activeSectionActions = computed(() => {
   if (analyticsSection.value === 'weaning') {
     return [
       {
-        label: '查看运营管理',
+        label: '查看智能运营',
         value: '反馈与运行态',
-        meta: '联动查看运行监控、反馈闭环和审核中心。',
+        meta: '联动查看智能监控、反馈闭环和审核中心。',
         action: () => router.push('/ai-ops'),
       },
       {
@@ -1334,9 +1334,9 @@ const activeSectionActions = computed(() => {
   }
   return [
     {
-      label: '打开运营管理',
+      label: '打开智能运营',
       value: '查看运行监控',
-      meta: '直接进入运行监控、反馈闭环和阈值审核中心。',
+      meta: '直接进入智能监控、反馈闭环和阈值审核中心。',
       action: () => router.push('/ai-ops'),
     },
     {
@@ -1486,28 +1486,28 @@ const sepsisProgressRows = computed(() => {
       value: `${compliant} 例`,
       width: `${Math.min(100, (compliant / total) * 100)}%`,
       meta: `占全部病例 ${ratioText(compliant, total)}`,
-      color: '#1A9C5B',
+      color: 'linear-gradient(90deg, #14b8a6, #2dd4bf)',
     },
     {
       label: '超 1h 未完成',
       value: `${overdue1h} 例`,
       width: `${Math.min(100, (overdue1h / total) * 100)}%`,
       meta: `需要值班与流程复盘 ${ratioText(overdue1h, total)}`,
-      color: '#E8901C',
+      color: 'linear-gradient(90deg, #f59e0b, #fb923c)',
     },
     {
       label: '超 3h 持续滞后',
       value: `${overdue3h} 例`,
       width: `${Math.min(100, (overdue3h / total) * 100)}%`,
       meta: `重点关注迟滞链路 ${ratioText(overdue3h, total)}`,
-      color: '#D9342B',
+      color: 'linear-gradient(90deg, #fb7185, #f43f5e)',
     },
     {
       label: '仍在进行中',
       value: `${pending} 例`,
       width: `${Math.min(100, (pending / total) * 100)}%`,
       meta: pending ? '建议继续跟踪首小时动作闭环' : '当前没有在途病例',
-      color: '#15558D',
+      color: 'linear-gradient(90deg, #38bdf8, #60a5fa)',
     },
   ]
 })
@@ -1523,7 +1523,7 @@ const sepsisAiManagementRows = computed(() => (
 const sepsisAiActionRows = computed(() => (
   sepsisAiActions.value.length
     ? sepsisAiActions.value
-    : ['当前没有行动建议，可先从超 1 小时 / 超 3 小时个案逐例追踪。']
+    : ['当前没有智能行动建议，可先从超 1 小时 / 超 3 小时个案逐例追踪。']
 ))
 
 const sepsisNarratives = computed(() => {
@@ -1874,7 +1874,7 @@ const deptRankOption = computed(() => ({
       const item = Array.isArray(params) ? params[0] : params
       return tooltipShell(
         item?.name || '科室',
-        [tooltipRow('预警总量', `${item?.value ?? 0} 次`, item?.color || '#15558D')],
+        [tooltipRow('预警总量', `${item?.value ?? 0} 次`, item?.color || '#16b3c9')],
         'Department Ranking'
       )
     },
@@ -1891,7 +1891,7 @@ const deptRankOption = computed(() => ({
       data: displayDeptRankings.value.map((d: any) => d.count || 0),
       itemStyle: {
         color: (params: any) => {
-          const colors = ['#15558D', '#0ea5b7', '#0891b2', '#0369a1']
+          const colors = ['#16b3c9', '#0ea5b7', '#0891b2', '#0369a1']
           return colors[params.dataIndex % colors.length]
         },
         borderRadius: [0, 8, 8, 0],
@@ -2238,7 +2238,9 @@ onMounted(() => {
   position: relative;
   isolation: isolate;
   padding: 16px 22px 24px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.1), rgba(34, 211, 238, 0) 28%),
+    linear-gradient(180deg, #06111d 0%, #040b14 100%);
   min-height: 100%;
   font-family: var(--app-display-font);
 }
@@ -2248,17 +2250,20 @@ onMounted(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: #FFFFFF;
+  background:
+    linear-gradient(rgba(73, 196, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73, 196, 255, 0.04) 1px, transparent 1px);
   background-size: 28px 28px;
   opacity: 0.26;
   z-index: -1;
 }
 
 .filter-card {
-  background: #FFFFFF;
+  background:
+    linear-gradient(180deg, rgba(9, 22, 36, 0.94) 0%, rgba(6, 15, 27, 0.92) 100%);
   border: 1px solid rgba(80, 199, 255, 0.16);
   margin-bottom: 16px;
-  border-radius: 4px;
+  border-radius: 12px;
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.06), 0 12px 28px rgba(0, 0, 0, 0.2);
 }
 
@@ -2293,7 +2298,7 @@ onMounted(() => {
 }
 
 .filter-card :deep(.ant-segmented-item-selected) {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
   color: #effcff;
   box-shadow: 0 0 12px rgba(34, 211, 238, 0.08);
 }
@@ -2308,7 +2313,7 @@ onMounted(() => {
 }
 
 .filter-card :deep(.ant-btn) {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
   border-color: rgba(110, 231, 249, 0.28);
   color: #effcff;
   font-weight: 600;
@@ -2321,7 +2326,7 @@ onMounted(() => {
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid rgba(251, 113, 133, 0.22);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(51, 15, 27, 0.9) 0%, rgba(27, 11, 18, 0.92) 100%);
   color: #ffcad5;
   font-size: 12px;
   font-weight: 700;
@@ -2336,7 +2341,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   background: #ef4444;
-  color: #FFFFFF;
+  color: #fff;
   font-size: 10px;
   font-style: normal;
   font-weight: 900;
@@ -2344,7 +2349,7 @@ onMounted(() => {
 }
 .rescue-toggle:hover,
 .rescue-toggle.active {
-  color: #;
+  color: #fff1f4;
   border-color: rgba(251, 113, 133, 0.38);
   box-shadow: 0 0 18px rgba(251, 113, 133, 0.14);
 }
@@ -2362,9 +2367,11 @@ onMounted(() => {
   gap: 16px;
   padding: 18px 20px;
   margin-bottom: 16px;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), rgba(34, 211, 238, 0) 36%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
 }
 
@@ -2405,7 +2412,7 @@ onMounted(() => {
 .hero-chip {
   min-width: 132px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(79, 182, 219, 0.16);
   background: rgba(8, 28, 44, 0.76);
 }
@@ -2443,9 +2450,11 @@ onMounted(() => {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(79, 182, 219, 0.14);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 38%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -2455,7 +2464,7 @@ onMounted(() => {
 .action-tile:hover {
   transform: translateY(-1px);
   border-color: rgba(103, 232, 249, 0.28);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
 }
 
 .action-tile__label {
@@ -2480,9 +2489,11 @@ onMounted(() => {
   position: relative;
   overflow: hidden;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 32%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
 }
 
@@ -2491,23 +2502,23 @@ onMounted(() => {
   position: absolute;
   inset: auto 0 0 0;
   height: 2px;
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0.5), rgba(34, 211, 238, 0.08));
 }
 
 .kpi-tile--risk::after {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(251, 90, 122, 0.08), rgba(251, 90, 122, 0.56), rgba(251, 90, 122, 0.08));
 }
 
 .kpi-tile--bundle::after {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.08), rgba(45, 212, 191, 0.56), rgba(45, 212, 191, 0.08));
 }
 
 .kpi-tile--weaning::after {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.58), rgba(59, 130, 246, 0.08));
 }
 
 .kpi-tile--weaning-high::after {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.58), rgba(245, 158, 11, 0.08));
 }
 
 .kpi-head {
@@ -2554,17 +2565,19 @@ onMounted(() => {
 }
 
 .panel {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.07), rgba(34, 211, 238, 0) 30%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
   border: 1px solid rgba(80, 199, 255, 0.14);
   min-height: 420px;
-  border-radius: 4px;
+  border-radius: 12px;
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.04), 0 12px 28px rgba(0, 0, 0, 0.2);
 }
 
 .panel :deep(.ant-card-head) {
   min-height: 50px;
   border-bottom: 1px solid rgba(80, 199, 255, 0.1);
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(9, 31, 48, 0.5), rgba(9, 31, 48, 0));
 }
 
 .panel :deep(.ant-card-head-title) {
@@ -2586,7 +2599,7 @@ onMounted(() => {
 .chart-wrap {
   width: 100%;
   position: relative;
-  border-radius: 4px;
+  border-radius: 12px;
 }
 
 .chart-lg {
@@ -2602,7 +2615,9 @@ onMounted(() => {
 }
 
 .panel-heatmap {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 35%),
+    var(--card-bg);
 }
 
 .heatmap-summary {
@@ -2654,9 +2669,11 @@ onMounted(() => {
 
 .brief-card,
 .focus-panel {
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(79, 182, 219, 0.14);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 38%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
 }
 
@@ -2735,7 +2752,7 @@ onMounted(() => {
   display: grid;
   gap: 6px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(79, 182, 219, 0.12);
   background: rgba(7, 28, 42, 0.68);
 }
@@ -2766,7 +2783,7 @@ onMounted(() => {
 
 .insight-tile {
   padding: 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(79, 182, 219, 0.12);
   background: rgba(7, 28, 42, 0.68);
 }
@@ -2804,9 +2821,11 @@ onMounted(() => {
 
 .status-card {
   padding: 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(79, 182, 219, 0.14);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 38%),
+    rgba(7, 28, 42, 0.72);
 }
 
 .status-card--risk {
@@ -2893,7 +2912,7 @@ onMounted(() => {
 
 .insight-line {
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(79, 182, 219, 0.12);
   background: rgba(7, 28, 42, 0.68);
 }
@@ -2928,14 +2947,16 @@ onMounted(() => {
   display: grid;
   gap: 6px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(79, 182, 219, 0.12);
   background: rgba(7, 28, 42, 0.68);
 }
 
 .summary-card--hero {
   border-color: rgba(103, 232, 249, 0.18);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.1), rgba(34, 211, 238, 0) 36%),
+    rgba(7, 28, 42, 0.8);
 }
 
 .summary-card__label {
@@ -2973,7 +2994,7 @@ onMounted(() => {
   gap: 12px;
   align-items: start;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(79, 182, 219, 0.12);
   background: rgba(7, 28, 42, 0.68);
 }
@@ -2982,7 +3003,7 @@ onMounted(() => {
   display: grid;
   place-items: center;
   min-height: 40px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(8, 28, 44, 0.82);
   border: 1px solid rgba(103, 232, 249, 0.14);
   color: #67e8f9;
@@ -3081,7 +3102,7 @@ onMounted(() => {
 
 .rank-table :deep(.ant-table-container) {
   border: 1px solid rgba(80, 199, 255, 0.08);
-  border-radius: 4px;
+  border-radius: 10px;
   overflow: hidden;
 }
 
@@ -3134,7 +3155,7 @@ html[data-theme='light'] .panel,
 html[data-theme='light'] .brief-card,
 html[data-theme='light'] .focus-panel {
   border-color: rgba(0, 0, 0, 0.06);
-  border-radius: 4px;
+  border-radius: 16px;
   background: #FFFFFF;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
 }
@@ -3151,18 +3172,18 @@ html[data-theme='light'] .filter-card :deep(.ant-input-number) {
   border-color: rgba(0, 0, 0, 0.06);
 }
 html[data-theme='light'] .filter-card :deep(.ant-segmented-item) {
-  color: #4E5969;
+  color: #64748B;
 }
 html[data-theme='light'] .filter-card :deep(.ant-segmented-item-selected) {
   background: #EFF6FF;
-  color: #15558D;
+  color: #2563EB;
   box-shadow: none;
 }
 html[data-theme='light'] .filter-card :deep(.ant-input-number input) {
-  color: #1D2129;
+  color: #0F172A;
 }
 html[data-theme='light'] .filter-card :deep(.ant-btn) {
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
   border-color: rgba(37, 99, 235, 0.16);
   color: #FFFFFF;
   font-weight: 600;
@@ -3176,7 +3197,7 @@ html[data-theme='light'] .rescue-toggle {
 html[data-theme='light'] .rescue-toggle:hover,
 html[data-theme='light'] .rescue-toggle.active {
   background: #FEE2E2;
-  border-color: #D9342B;
+  border-color: #FECACA;
   color: #B91C1C;
   box-shadow: none;
 }
@@ -3192,7 +3213,7 @@ html[data-theme='light'] .status-card__label,
 html[data-theme='light'] .insight-line__label,
 html[data-theme='light'] .summary-card__label,
 html[data-theme='light'] .advice-card__label {
-  color: #4E5969;
+  color: #64748B;
 }
 html[data-theme='light'] .hero-title,
 html[data-theme='light'] .kpi-value,
@@ -3204,7 +3225,7 @@ html[data-theme='light'] .insight-value,
 html[data-theme='light'] .status-card__value,
 html[data-theme='light'] .summary-card__value,
 html[data-theme='light'] .advice-card__text {
-  color: #1D2129;
+  color: #0F172A;
 }
 html[data-theme='light'] .hero-desc,
 html[data-theme='light'] .action-tile__meta,
@@ -3217,7 +3238,7 @@ html[data-theme='light'] .progress-row__meta,
 html[data-theme='light'] .insight-line__meta,
 html[data-theme='light'] .summary-card__meta,
 html[data-theme='light'] .empty {
-  color: #4E5969;
+  color: #64748B;
 }
 html[data-theme='light'] .hero-chip,
 html[data-theme='light'] .summary-chip,
@@ -3244,10 +3265,10 @@ html[data-theme='light'] .action-tile:hover {
 html[data-theme='light'] .action-tile__label,
 html[data-theme='light'] .action-tile__value,
 html[data-theme='light'] .action-tile__meta {
-  color: #15558D;
+  color: #2563EB;
 }
 html[data-theme='light'] .kpi-tile::after {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.04), rgba(37, 99, 235, 0.28), rgba(37, 99, 235, 0.04));
 }
 html[data-theme='light'] .focus-panel__badge,
 html[data-theme='light'] .hero-chip,
@@ -3261,21 +3282,21 @@ html[data-theme='light'] .summary-v,
 html[data-theme='light'] .analytics-link,
 html[data-theme='light'] .analytics-link:hover,
 html[data-theme='light'] .panel :deep(.ant-card-head-title) {
-  color: #15558D;
+  color: #2563EB;
 }
 html[data-theme='light'] .progress-row__top,
 html[data-theme='light'] .progress-row__top strong,
 html[data-theme='light'] .focus-item__value {
-  color: #1D2129;
+  color: #0F172A;
 }
 html[data-theme='light'] .rank-table :deep(.ant-table-container) { border-color: rgba(0, 0, 0, 0.06); }
 html[data-theme='light'] .rank-table :deep(.ant-table-thead > tr > th) {
   background: #F8FAFC;
-  color: #4E5969;
+  color: #475569;
   border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 html[data-theme='light'] .rank-table :deep(.ant-table-tbody > tr > td) {
-  color: #1D2129;
+  color: #0F172A;
   border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 html[data-theme='light'] .rank-table :deep(.ant-table-tbody > tr:hover > td) {

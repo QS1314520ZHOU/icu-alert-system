@@ -128,7 +128,7 @@ void ACard
 .mdt-step-card,
 .archive-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(15, 23, 42, 0.66);
 }
 .step-card__head,
@@ -172,7 +172,7 @@ p {
   width: 100%;
   margin-top: 8px;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 10px 12px;
   color: #f8fafc;
   background: rgba(15, 23, 42, 0.92);
@@ -184,7 +184,7 @@ p {
 .auto-summary {
   margin-top: 12px;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(2, 6, 23, 0.3);
 }
 .auto-summary strong,
@@ -217,7 +217,7 @@ p {
   color: rgba(226, 232, 240, 0.86);
   line-height: 1.7;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(2, 6, 23, 0.3);
 }
 .doc-empty {
@@ -226,7 +226,7 @@ p {
 }
 .document-grid article {
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(2, 6, 23, 0.3);
 }
 .document-grid small {
@@ -247,17 +247,17 @@ p {
 :global(html[data-theme='light']) .mdt-step-card,
 :global(html[data-theme='light']) .archive-card {
   border-color: rgba(15, 23, 42, 0.1);
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 :global(html[data-theme='light']) h2,
 :global(html[data-theme='light']) .auto-summary strong,
 :global(html[data-theme='light']) .document-grid strong {
-  color: #1D2129;
+  color: #0f172a;
 }
 :global(html[data-theme='light']) p,
 :global(html[data-theme='light']) .doc-preview {
-  color: #1D2129;
+  color: #334155;
 }
 :global(html[data-theme='light']) .step-kicker,
 :global(html[data-theme='light']) .archive-card span,
@@ -267,12 +267,12 @@ p {
 :global(html[data-theme='light']) .field-input,
 :global(html[data-theme='light']) .field-textarea {
   border-color: rgba(15, 23, 42, 0.14);
-  color: #1D2129;
+  color: #0f172a;
   background: #f8fafc;
 }
 :global(html[data-theme='light']) .field-input::placeholder,
 :global(html[data-theme='light']) .field-textarea::placeholder {
-  color: #4E5969;
+  color: #94a3b8;
 }
 :global(html[data-theme='light']) .auto-summary,
 :global(html[data-theme='light']) .document-grid article,
@@ -281,6 +281,6 @@ p {
 }
 :global(html[data-theme='light']) .document-grid small,
 :global(html[data-theme='light']) .doc-empty {
-  color: #4E5969;
+  color: #64748b;
 }
 </style>

@@ -10,7 +10,7 @@
           <div class="hdr-l">
             <span class="hdr-icon" aria-hidden="true"></span>
             <div>
-              <div class="hdr-title">ICU重症临床工作台</div>
+              <div class="hdr-title">ICU智能协同工作台</div>
               <div class="hdr-sub">重症监护预警、交班、查房与质控协同平台</div>
             </div>
           </div>
@@ -36,12 +36,12 @@
               </label>
             </div>
             <div class="theme-toggle" :title="themeMode === 'dark' ? '当前夜间模式' : '当前白天模式'">
-              <span class="theme-lbl">日</span>
+              <span class="theme-lbl">🌞</span>
               <label class="switch switch--compact">
                 <input type="checkbox" :checked="themeMode === 'dark'" @change="onThemeToggle(($event.target as HTMLInputElement)?.checked)" />
                 <span class="switch-slider switch-slider--compact"></span>
               </label>
-              <span class="theme-lbl">夜</span>
+              <span class="theme-lbl">🌙</span>
             </div>
             <span class="hdr-clock">{{ now }}</span>
           </div>
@@ -86,7 +86,7 @@ import { navGroups, navItems, type NavItemKey } from './config/roleHomeConfig'
 const route = useRoute()
 const router = useRouter()
 const now = ref('')
-const themeMode = ref<'dark' | 'light'>('light')
+const themeMode = ref<'dark' | 'light'>('dark')
 const notifyEnabled = ref(false)
 const operatorIdentity = ref('')
 const operatorDisplayName = ref('')
@@ -152,11 +152,7 @@ function firstRouteQuery(...keys: string[]) {
 
 const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'username', 'user_id', 'userId'))
 const isBootMobilePath = typeof window !== 'undefined' && window.location.pathname.startsWith('/m')
-function isMobilePath(path: string) {
-  return path === '/m' || path.startsWith('/m/')
-}
-
-const isMobileRoute = computed(() => isMobilePath(route.path) || (route.path === '/' && isBootMobilePath))
+const isMobileRoute = computed(() => route.path.startsWith('/m') || (route.path === '/' && isBootMobilePath))
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
   if (!antThemeReady.value || !antTheme.value) return undefined
@@ -166,25 +162,25 @@ const themeConfig = computed(() => {
       ? antTheme.value.darkAlgorithm
       : antTheme.value.defaultAlgorithm,
     token: {
-      colorPrimary: dark ? '#22d3ee' : '#15558D',
-      colorInfo: dark ? '#38bdf8' : '#15558D',
-      colorSuccess: dark ? '#34d399' : '#1A9C5B',
-      colorWarning: dark ? '#f59e0b' : '#E8901C',
-      colorError: dark ? '#f87171' : '#D9342B',
-      colorBgBase: dark ? '#07111d' : '#F0F2F5',
-      colorBgContainer: dark ? '#0d1a2b' : '#FFFFFF',
-      colorBgElevated: dark ? '#091827' : '#FFFFFF',
-      colorText: dark ? '#d9e6f3' : '#1D2129',
-      colorTextSecondary: dark ? '#7f93ab' : '#4E5969',
-      colorBorder: dark ? 'rgba(125, 167, 214, 0.14)' : '#E5E6EB',
-      borderRadius: 4,
-      borderRadiusLG: 4,
+      colorPrimary: dark ? '#22d3ee' : '#2563EB',
+      colorInfo: dark ? '#38bdf8' : '#3B82F6',
+      colorSuccess: dark ? '#34d399' : '#16A34A',
+      colorWarning: dark ? '#f59e0b' : '#D97706',
+      colorError: dark ? '#f87171' : '#DC2626',
+      colorBgBase: dark ? '#07111d' : '#F5F7FA',
+      colorBgContainer: dark ? '#0d1a2b' : '#ffffff',
+      colorBgElevated: dark ? '#091827' : '#ffffff',
+      colorText: dark ? '#d9e6f3' : '#0F172A',
+      colorTextSecondary: dark ? '#7f93ab' : '#64748B',
+      colorBorder: dark ? 'rgba(125, 167, 214, 0.14)' : 'rgba(0, 0, 0, 0.06)',
+      borderRadius: 12,
+      borderRadiusLG: 14,
       fontSize: 13,
       controlHeight: 32,
       controlHeightSM: 28,
       boxShadowSecondary: dark
         ? '0 18px 36px rgba(0,0,0,.34)'
-        : '0 1px 2px rgba(0,0,0,.06)',
+        : '0 1px 4px rgba(0,0,0,.08)',
     },
   }
 })
@@ -248,7 +244,7 @@ function applyTheme(mode: 'dark' | 'light') {
 
 function initTheme() {
   const saved = localStorage.getItem(THEME_KEY)
-  themeMode.value = saved === 'dark' ? 'dark' : 'light'
+  themeMode.value = saved === 'light' ? 'light' : 'dark'
   applyTheme(themeMode.value)
 }
 
@@ -362,7 +358,9 @@ onUnmounted(() => clearInterval(t))
   display: grid;
   grid-template-columns: 1fr;
   gap: 0;
-  background: #FFFFFF !important;
+  background:
+    radial-gradient(circle at 12% -40%, rgba(34, 211, 238, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(7, 18, 31, 0.98) 0%, rgba(5, 15, 26, 0.96) 58%, rgba(3, 12, 22, 0.98) 100%) !important;
   backdrop-filter: blur(14px);
   padding: 0;
   min-height: 104px;
@@ -387,7 +385,7 @@ onUnmounted(() => clearInterval(t))
   position: relative;
   width: 34px;
   height: 34px;
-  border-radius: 4px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -427,7 +425,7 @@ onUnmounted(() => clearInterval(t))
   right: 24px;
   top: 0;
   height: 1px;
-  background: #E5E6EB;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.22), transparent);
 }
 .hdr-menu {
   min-width: 0;
@@ -442,7 +440,7 @@ onUnmounted(() => clearInterval(t))
   padding: 12px 2px 0;
   scrollbar-width: thin;
   scrollbar-color: rgba(125, 211, 252, 0.32) transparent;
-  
+  mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 16px), transparent 100%);
 }
 .hdr-menu::-webkit-scrollbar {
   height: 4px;
@@ -487,7 +485,7 @@ onUnmounted(() => clearInterval(t))
   border: 1px solid var(--nav-btn-border);
   background: rgba(8, 31, 49, 0.76);
   color: var(--nav-btn-text);
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 0 16px;
   font-size: 14px;
   font-weight: 850;
@@ -506,11 +504,11 @@ onUnmounted(() => clearInterval(t))
 }
 .nav-btn:hover { color: var(--nav-btn-hover-text); background: var(--nav-btn-hover-bg); border-color: var(--nav-btn-hover-border); }
 .nav-btn.active {
-  color: #15558D;
-  background: #E8F1FA;
-  border-color: #15558D;
-  box-shadow: none;
-  transform: none;
+  color: #ecfeff;
+  background: linear-gradient(180deg, rgba(8, 145, 178, 0.9), rgba(14, 116, 144, 0.72));
+  border-color: rgba(34, 211, 238, 0.82);
+  box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.18), 0 10px 24px rgba(8, 145, 178, 0.26);
+  transform: translateY(-1px);
 }
 .hdr-tools {
   display: flex;
@@ -627,11 +625,13 @@ onUnmounted(() => clearInterval(t))
 .body { background: var(--app-bg); min-height: calc(100vh - 104px); }
 
 .theme-light .hdr {
-  background: #FFFFFF !important;
+  background:
+    radial-gradient(circle at 10% -35%, rgba(59, 130, 246, 0.16), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 255, 0.96) 58%, rgba(239, 246, 255, 0.98) 100%) !important;
   backdrop-filter: none;
   position: sticky;
   border-bottom-color: rgba(148, 163, 184, 0.22);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
 .theme-light .hdr-l {
@@ -645,7 +645,7 @@ onUnmounted(() => clearInterval(t))
   right: 24px;
   bottom: 0;
   height: 1px;
-  background: #E5E6EB;
+  background: linear-gradient(90deg, rgba(59,130,246,.22), rgba(59,130,246,.04), rgba(59,130,246,.18));
 }
 
 .theme-light .nav-btn {
@@ -657,21 +657,21 @@ onUnmounted(() => clearInterval(t))
 }
 
 .theme-light .nav-btn:hover {
-  color: #FFFFFF;
+  color: #1d4ed8;
   background: rgba(239, 246, 255, 0.98);
   border-color: rgba(59, 130, 246, 0.28);
 }
 
 .theme-light .nav-btn.active {
-  color: #15558D;
-  background: #E8F1FA;
-  border-color: #15558D;
-  transform: none;
-  box-shadow: none;
+  color: #ffffff;
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  border-color: rgba(37, 99, 235, 0.38);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.22);
 }
 
 .theme-light .hdr-title {
-  color: #1D2129;
+  color: #0f172a;
 }
 
 .theme-light .hdr-sub,
@@ -679,18 +679,18 @@ onUnmounted(() => clearInterval(t))
 .theme-light .toggle-text,
 .theme-light .hdr-clock,
 .theme-light .theme-lbl {
-  color: #4E5969;
+  color: #64748b;
 }
 
 .theme-light .hdr-icon {
-  color: #FFFFFF;
-  background: #15558D;
-  border-color: #15558D;
-  box-shadow: none;
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: rgba(59, 130, 246, 0.24);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
 }
 
 .theme-light .hdr-nav-shell::before {
-  background: #E5E6EB;
+  background: linear-gradient(90deg, transparent, rgba(59,130,246,.22), transparent);
 }
 
 .theme-light .hdr-menu {
@@ -710,11 +710,11 @@ onUnmounted(() => clearInterval(t))
 
 .theme-light .operator-pill__input {
   font-weight: 600;
-  color: #1D2129;
+  color: #0f172a;
 }
 
 .theme-light .operator-pill__name {
-  color: #1D2129;
+  color: #0f172a;
 }
 
 .theme-light .switch-slider {
@@ -722,7 +722,7 @@ onUnmounted(() => clearInterval(t))
 }
 
 .theme-light .switch input:checked + .switch-slider {
-  background: #15558D;
+  background: #2563eb;
 }
 
 .theme-light .switch-slider::before {

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="citation-textarea">
     <div
       v-if="!editing"
@@ -146,22 +146,22 @@ function alertTypeLabel(type: string) {
   padding: 0 4px;
   margin: 0 2px;
   background: #e6f4ff;
-  color: #15558D;
+  color: #1677ff;
   border-radius: 3px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
 }
 :deep(.cite:hover) {
-  background: #15558D;
-  color: #FFFFFF;
+  background: #1677ff;
+  color: #fff;
 }
 .ct-tooltip {
   max-width: 260px;
 }
 .ct-tooltip-ref {
   font-weight: 600;
-  color: #15558D;
+  color: #1677ff;
   margin-bottom: 2px;
 }
 .ct-tooltip-source {

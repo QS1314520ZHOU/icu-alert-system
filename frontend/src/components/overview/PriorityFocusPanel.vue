@@ -62,8 +62,8 @@ function compactReason(item: any) {
   gap: 12px;
   padding: 14px;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(7, 20, 34, 0.9), rgba(4, 12, 22, 0.96));
 }
 .priority-head {
   display: flex;
@@ -96,7 +96,7 @@ function compactReason(item: any) {
   align-items: center;
   min-height: 88px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 211, 252, 0.14);
   background: rgba(8, 28, 44, 0.72);
   color: #dffbff;
@@ -153,7 +153,7 @@ function compactReason(item: any) {
   justify-items: end;
 }
 .priority-side strong {
-  color: #FFFFFF;
+  color: #fff;
   font-size: 22px;
   line-height: 1;
 }
@@ -174,12 +174,12 @@ function compactReason(item: any) {
   color: #8cb7c9;
   padding: 12px;
   border: 1px dashed rgba(125, 211, 252, 0.18);
-  border-radius: 4px;
+  border-radius: 12px;
 }
 html[data-theme='light'] .priority-panel,
 html[data-theme='light'] .priority-row {
   border-color: rgba(187, 204, 220, 0.72);
-  background: #FFFFFF;
+  background: #fff;
 }
 html[data-theme='light'] .priority-head strong,
 html[data-theme='light'] .priority-main strong,
@@ -191,11 +191,11 @@ html[data-theme='light'] .priority-head small,
 html[data-theme='light'] .priority-main em,
 html[data-theme='light'] .priority-side span,
 html[data-theme='light'] .priority-side small {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .priority-main em i {
   background: rgba(219, 234, 254, 0.9);
-  color: #15558D;
+  color: #2563eb;
 }
 html[data-theme='light'] .priority-main span {
   color: #b45309;

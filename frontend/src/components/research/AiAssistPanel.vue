@@ -1,6 +1,6 @@
 <template>
   <a-collapse v-model:activeKey="activeKey" class="ai-panel">
-    <a-collapse-panel key="ai" header="辅助撰写">
+    <a-collapse-panel key="ai" header="AI 辅助撰写">
       <a-space class="mb8">
         <a-radio-group
           :value="state.lang"

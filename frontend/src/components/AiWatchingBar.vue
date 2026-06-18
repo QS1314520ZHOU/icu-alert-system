@@ -3,7 +3,7 @@
     <div class="ai-watching-bar" @click="toggleExpand">
       <div class="watching-icon">
         <span class="pulse-dot"></span>
-        <span>预警</span>
+        <span>AI</span>
       </div>
       <div class="watching-track">
         <transition name="watching-fade" mode="out-in">
@@ -28,7 +28,7 @@
           </article>
         </div>
         <div class="watching-saved">
-          系统累计复核约 <strong>{{ Number(data?.saved_minutes_estimate || 0).toFixed(0) }}</strong> 分钟
+          AI 累计为你节省约 <strong>{{ Number(data?.saved_minutes_estimate || 0).toFixed(0) }}</strong> 分钟
         </div>
       </div>
     </transition>
@@ -56,7 +56,7 @@ let slideTimer: number | null = null
 
 const visibleSlides = computed(() => {
   const stats = data.value?.stats || {}
-  const first = `过去 1 小时系统复核 ${stats.labs_reviewed || 0} 项化验、${stats.drugs_reviewed || 0} 条医嘱、${stats.imaging_reports_reviewed || 0} 份影像报告`
+  const first = `过去 1 小时 AI 替你看了 ${stats.labs_reviewed || 0} 项化验、${stats.drugs_reviewed || 0} 条医嘱、${stats.imaging_reports_reviewed || 0} 份影像报告`
   if (props.compact) return [first]
   const slides = [first]
   const findings = data.value?.findings || []
@@ -137,9 +137,9 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(8, 31, 47, 0.88), rgba(6, 22, 36, 0.9));
   color: #dffbff;
   cursor: pointer;
 }
@@ -189,11 +189,11 @@ onUnmounted(() => {
   font-weight: 900;
 }
 .watching-panel {
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(7, 20, 34, 0.96), rgba(4, 12, 22, 0.98));
   padding: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 .watching-stats {
   display: grid;
@@ -238,7 +238,7 @@ onUnmounted(() => {
 }
 .watching-findings button {
   min-height: 28px;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid rgba(34, 211, 238, 0.28);
   background: rgba(8, 145, 178, 0.18);
   color: #a5f3fc;
@@ -290,7 +290,7 @@ html[data-theme='light'] .watching-stats strong {
 html[data-theme='light'] .watching-icon {
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.16);
-  color: #15558D;
+  color: #2563eb;
 }
 @media (max-width: 860px) {
   .watching-stats {

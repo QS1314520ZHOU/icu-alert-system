@@ -125,12 +125,12 @@ function formatRange(min: any, max: any) {
   padding: 9px 10px;
   background: #f8fafc;
   border: 1px solid #edf1f7;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .cp-card-ref {
   font-weight: 700;
-  color: #15558D;
+  color: #1677ff;
   margin-bottom: 3px;
 }
 

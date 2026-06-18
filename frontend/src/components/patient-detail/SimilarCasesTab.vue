@@ -225,9 +225,9 @@ function outcomeTone(raw: any) {
 .similar-refresh {
   min-height: 34px;
   padding: 0 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(80, 199, 255, 0.16);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(9, 46, 70, 0.96) 0%, rgba(6, 27, 42, 0.98) 100%);
   color: #dffbff;
   font-size: 12px;
   font-weight: 700;
@@ -283,9 +283,11 @@ function outcomeTone(raw: any) {
 .kpi-card,
 .outcome-board,
 .case-card {
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.06), rgba(34, 211, 238, 0) 30%),
+    linear-gradient(180deg, rgba(7, 20, 34, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, 0.04), 0 12px 24px rgba(0, 0, 0, 0.18);
 }
 
@@ -339,7 +341,7 @@ function outcomeTone(raw: any) {
 .outcome-seg {
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   display: flex;
   flex-direction: column;
@@ -348,22 +350,22 @@ function outcomeTone(raw: any) {
 }
 
 .outcome-seg--green {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(7, 63, 55, 0.88) 0%, rgba(7, 38, 34, 0.94) 100%);
   color: #7cf1d3;
 }
 
 .outcome-seg--yellow {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(76, 55, 12, 0.88) 0%, rgba(44, 31, 8, 0.94) 100%);
   color: #fcd34d;
 }
 
 .outcome-seg--red {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(72, 17, 31, 0.9) 0%, rgba(42, 10, 19, 0.94) 100%);
   color: #fda4af;
 }
 
 .outcome-seg--blue {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(10, 40, 62, 0.88) 0%, rgba(7, 24, 38, 0.94) 100%);
   color: #93dcff;
 }
 
@@ -447,7 +449,7 @@ function outcomeTone(raw: any) {
 .score-box {
   min-width: 110px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(8, 29, 44, 0.9);
   text-align: right;
@@ -480,8 +482,8 @@ function outcomeTone(raw: any) {
   font-size: 13px;
   line-height: 1.6;
   padding: 10px 12px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 12px;
+  background: rgba(8, 31, 49, 0.7);
   border: 1px solid rgba(71, 196, 255, 0.1);
 }
 
@@ -500,7 +502,7 @@ function outcomeTone(raw: any) {
 
 .similar-empty {
   padding: 24px 16px;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(80, 199, 255, 0.12);
   background: rgba(7, 20, 34, 0.92);
   color: #9bcde0;
@@ -520,13 +522,15 @@ function outcomeTone(raw: any) {
 
 .similar-soft-notice {
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 14px;
   font-size: 12px;
   line-height: 1.6;
 }
 }
 html[data-theme='light'] .similar-wrap {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0) 34%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
   color: #1f3852;
 }
 html[data-theme='light'] .similar-head,
@@ -560,16 +564,16 @@ html[data-theme='light'] .case-foot {
 html[data-theme='light'] .similar-refresh {
   border-color: rgba(187, 204, 220, 0.72);
   background: rgba(241, 246, 251, 0.96);
-  color: #15558D;
+  color: #1d4ed8;
 }
 html[data-theme='light'] .outcome-seg--green { background: rgba(220, 252, 231, 0.98); color: #047857; }
 html[data-theme='light'] .outcome-seg--yellow { background: rgba(254, 243, 199, 0.98); color: #b45309; }
 html[data-theme='light'] .outcome-seg--red { background: rgba(255, 241, 242, 0.98); color: #be123c; }
-html[data-theme='light'] .outcome-seg--blue { background: rgba(219, 234, 254, 0.98); color: #15558D; }
+html[data-theme='light'] .outcome-seg--blue { background: rgba(219, 234, 254, 0.98); color: #1d4ed8; }
 html[data-theme='light'] .case-outcome-pill.tone-green { color: #047857; background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.28); }
 html[data-theme='light'] .case-outcome-pill.tone-yellow { color: #b45309; background: rgba(254, 243, 199, 0.98); border-color: rgba(245, 158, 11, 0.28); }
 html[data-theme='light'] .case-outcome-pill.tone-red { color: #be123c; background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.28); }
-html[data-theme='light'] .case-outcome-pill.tone-blue { color: #15558D; background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
+html[data-theme='light'] .case-outcome-pill.tone-blue { color: #1d4ed8; background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
 
 @media (max-width: 1200px) {
   .kpi-strip {

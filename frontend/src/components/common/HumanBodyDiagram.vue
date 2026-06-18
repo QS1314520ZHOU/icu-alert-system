@@ -19,12 +19,12 @@
             <stop offset="100%" stop-color="#34d399" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-warning')" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#" stop-opacity="0.95" />
-            <stop offset="30%" stop-color="#E8901C" stop-opacity="0.75" />
+            <stop offset="0%" stop-color="#fff8cc" stop-opacity="0.95" />
+            <stop offset="30%" stop-color="#fde68a" stop-opacity="0.75" />
             <stop offset="100%" stop-color="#fbbf24" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-high')" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#" stop-opacity="0.95" />
+            <stop offset="0%" stop-color="#fff0dc" stop-opacity="0.95" />
             <stop offset="30%" stop-color="#fdba74" stop-opacity="0.78" />
             <stop offset="100%" stop-color="#fb923c" stop-opacity="0" />
           </radialGradient>
@@ -426,8 +426,8 @@ const organAnchors: Record<string, AnchorKey> = {
 }
 
 const severityPalette: Record<BodyMapSeverity, { core: string; stroke: string; accent: string }> = {
-  normal: { core: '#34d399', stroke: '#1A9C5B', accent: '#5eead4' },
-  warning: { core: '#fbbf24', stroke: '#E8901C', accent: '#fcd34d' },
+  normal: { core: '#34d399', stroke: '#bbf7d0', accent: '#5eead4' },
+  warning: { core: '#fbbf24', stroke: '#fde68a', accent: '#fcd34d' },
   high: { core: '#fb923c', stroke: '#fed7aa', accent: '#fdba74' },
   critical: { core: '#f43f5e', stroke: '#fecdd3', accent: '#fb7185' },
 }
@@ -709,10 +709,10 @@ function regionGroupClass(key: string, severity: string) {
   min-width: 120px;
   max-width: 156px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(5, 18, 30, 0.96);
   border: 1px solid rgba(110,231,249,.22);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(10px);
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -745,7 +745,7 @@ function regionGroupClass(key: string, severity: string) {
   color: #dffbff;
   font-size: 10px;
 }
-.human-body__tooltip-sev.is-warning { color: #E8901C; border-color: rgba(245,158,11,.22); }
+.human-body__tooltip-sev.is-warning { color: #fde68a; border-color: rgba(245,158,11,.22); }
 .human-body__tooltip-sev.is-high { color: #fed7aa; border-color: rgba(249,115,22,.24); }
 .human-body__tooltip-sev.is-critical { color: #fecdd3; border-color: rgba(244,63,94,.24); }
 .human-body__badge,
@@ -757,10 +757,10 @@ function regionGroupClass(key: string, severity: string) {
   min-width: 104px;
   max-width: 128px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(6, 20, 33, 0.9);
   border: 1px solid rgba(104, 193, 229, 0.22);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(10px);
 }
 .human-body__badge-top,

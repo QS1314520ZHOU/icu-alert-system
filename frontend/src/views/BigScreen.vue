@@ -145,7 +145,7 @@ import { useThemeMode } from '../composables/themeMode'
 const BigScreenAlertFeed = defineAsyncComponent(() => import('../components/bigscreen/BigScreenAlertFeed.vue'))
 const BigScreenBedGrid = defineAsyncComponent(() => import('../components/bigscreen/BigScreenBedGrid.vue'))
 const BigScreenStatsPanel = defineAsyncComponent(() => import('../components/bigscreen/BigScreenStatsPanel.vue'))
-const chartColors = ['#2E5BFF', '#8B5CF6', '#15558D', '#1A9C5B', '#F59E0B', '#EF4444', '#EC4899', '#6B7280']
+const chartColors = ['#2E5BFF', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280']
 const themeMode = useThemeMode()
 const isLightTheme = computed(() => themeMode.value === 'light')
 const chartTokens = computed(() => icuChartTokens())
@@ -724,7 +724,7 @@ watch(() => route.query, () => {
   min-height: 100vh;
   position: relative;
   isolation: isolate;
-  background: #FFFFFF;
+  background: radial-gradient(circle at 20% 0%, #0c1f36 0%, #050b16 45%, #04070d 100%);
   color: #e2e8f0;
   font-family: var(--app-display-font);
 }
@@ -733,7 +733,9 @@ watch(() => route.query, () => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: #FFFFFF;
+  background:
+    linear-gradient(rgba(73, 196, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73, 196, 255, 0.04) 1px, transparent 1px);
   background-size: 32px 32px;
   opacity: 0.24;
 }
@@ -743,9 +745,9 @@ watch(() => route.query, () => {
   align-items: center;
   gap: 18px;
   padding: 18px 22px;
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(8,26,43,0.96), rgba(6,16,29,0.96));
   border-bottom: 1px solid rgba(80,199,255,.2);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 10px 28px rgba(0,0,0,.22);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -768,7 +770,7 @@ watch(() => route.query, () => {
   min-height: 34px;
   padding: 0 14px;
   border-radius: 999px;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, #0b6b89 0%, #07465a 100%);
   border: 1px solid rgba(110, 231, 249, 0.24);
   font-size: 13px;
   font-weight: 700;
@@ -796,7 +798,7 @@ watch(() => route.query, () => {
   top: 50%;
   width: 34px;
   height: 1px;
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(154, 232, 247, 0.9), rgba(154, 232, 247, 0.08));
   transform: translateY(-50%);
 }
 .header-filters {
@@ -806,14 +808,14 @@ watch(() => route.query, () => {
 .header-filter-chip.active {
   border-color: rgba(251, 113, 133, .38);
   box-shadow: 0 0 18px rgba(251, 113, 133, .16);
-  color: #;
+  color: #fff0f4;
 }
 .screen-kpis { display: flex; gap: 12px; margin-left: auto; }
 .kpi-chip {
   min-width: 112px;
   padding: 12px 14px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(9,31,48,.88) 0%, rgba(6,21,34,.92) 100%);
   border: 1px solid rgba(80,199,255,.14);
   display: flex;
   flex-direction: column;
@@ -828,7 +830,7 @@ watch(() => route.query, () => {
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: .08em;
   padding: 10px 14px;
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(6, 21, 34, 0.76);
   border: 1px solid rgba(80, 199, 255, 0.12);
 }
@@ -866,9 +868,11 @@ watch(() => route.query, () => {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border-radius: 4px;
+  border-radius: 16px;
   border: 1px solid rgba(80,199,255,.14);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.08), rgba(34,211,238,0) 34%),
+    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.05), 0 12px 28px rgba(0,0,0,.2);
 }
 .command-card--risk { border-color: rgba(251,113,133,.18); }
@@ -901,9 +905,9 @@ watch(() => route.query, () => {
   display: grid;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 4px;
+  border-radius: 16px;
   border: 1px solid rgba(80,199,255,.14);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.18);
 }
 .ops-lane--nurse { border-color: rgba(74,222,128,.16); }
@@ -945,7 +949,7 @@ watch(() => route.query, () => {
   display: grid;
   gap: 6px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(8, 28, 44, 0.78);
   border: 1px solid rgba(80,199,255,.12);
 }
@@ -974,9 +978,9 @@ watch(() => route.query, () => {
   z-index: 1;
 }
 .panel {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
   border: 1px solid rgba(80,199,255,.14);
-  border-radius: 4px;
+  border-radius: 16px;
   padding: 12px;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 10px 30px rgba(0,0,0,0.35);
 }
@@ -1019,7 +1023,7 @@ watch(() => route.query, () => {
 }
 html[data-theme='light'] .bigscreen {
   background: #F5F7FA;
-  color: #1D2129;
+  color: #0F172A;
 }
 html[data-theme='light'] .bigscreen::before {
   display: none;
@@ -1038,7 +1042,7 @@ html[data-theme='light'] .command-card__value,
 html[data-theme='light'] .ops-lane__title,
 html[data-theme='light'] .ops-item__value,
 html[data-theme='light'] .kpi-chip strong {
-  color: #1D2129;
+  color: #0F172A;
 }
 html[data-theme='light'] .screen-header {
   background: #FFFFFF;
@@ -1048,7 +1052,7 @@ html[data-theme='light'] .screen-header {
 html[data-theme='light'] .title-tag {
   background: #EFF6FF;
   border-color: rgba(37, 99, 235, 0.16);
-  color: #15558D;
+  color: #2563EB;
   box-shadow: none;
 }
 html[data-theme='light'] .header-sub,
@@ -1059,17 +1063,17 @@ html[data-theme='light'] .ops-lane__kicker,
 html[data-theme='light'] .ops-item__label,
 html[data-theme='light'] .ops-item__meta,
 html[data-theme='light'] .panel-meta {
-  color: #4E5969;
+  color: #64748B;
 }
 html[data-theme='light'] .header-sub {
   text-shadow: none;
 }
 html[data-theme='light'] .header-sub::before {
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.9), rgba(148, 163, 184, 0));
 }
-html[data-theme='light'] .panel-title { color: #15558D; }
+html[data-theme='light'] .panel-title { color: #2563EB; }
 html[data-theme='light'] .clock {
-  color: #1D2129;
+  color: #334155;
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
@@ -1077,26 +1081,26 @@ html[data-theme='light'] .clock {
 html[data-theme='light'] .header-context-chip,
 html[data-theme='light'] .header-filter-chip,
 html[data-theme='light'] .ops-lane__badge {
-  color: #4E5969;
+  color: #64748B;
   background: #F8FAFC;
   border-color: rgba(0, 0, 0, 0.06);
   box-shadow: none;
 }
 html[data-theme='light'] .header-filter-chip b {
-  color: #15558D;
+  color: #2563EB;
 }
 html[data-theme='light'] .header-filter-chip:hover {
   background: #F1F5F9;
-  color: #1D2129;
+  color: #0F172A;
 }
 html[data-theme='light'] .header-filter-chip.active {
   background: #EFF6FF;
   border-color: rgba(37, 99, 235, 0.2);
-  color: #15558D;
+  color: #2563EB;
   box-shadow: none;
 }
 html[data-theme='light'] .header-filter-chip.active b {
-  color: #15558D;
+  color: #2563EB;
 }
 html[data-theme='light'] .command-card {
   position: relative;
@@ -1107,13 +1111,13 @@ html[data-theme='light'] .command-card::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  border-radius: 4px 0 0 16px;
-  background: #E5E6EB;
+  border-radius: 16px 0 0 16px;
+  background: #CBD5E1;
 }
 html[data-theme='light'] .command-card--risk::before { background: #EF4444; }
 html[data-theme='light'] .command-card--bundle::before { background: #22C55E; }
 html[data-theme='light'] .command-card--amber::before { background: #F59E0B; }
-html[data-theme='light'] .command-card--cyan::before { background: #15558D; }
+html[data-theme='light'] .command-card--cyan::before { background: #06B6D4; }
 html[data-theme='light'] .command-card--risk { border-color: rgba(239, 68, 68, 0.18); }
 html[data-theme='light'] .command-card--bundle { border-color: rgba(34, 197, 94, 0.16); }
 html[data-theme='light'] .command-card--amber { border-color: rgba(245, 158, 11, 0.18); }

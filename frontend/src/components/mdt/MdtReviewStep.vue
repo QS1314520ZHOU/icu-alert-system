@@ -56,7 +56,7 @@
 
       <article class="review-card">
         <div class="review-card__head">
-          <span>辅助建议动作草案</span>
+          <span>AI 建议动作草案</span>
           <b>{{ syncableAiActions.length }} 条</b>
         </div>
         <div v-if="syncableAiActions.length" class="compact-list">
@@ -95,7 +95,7 @@
     </a-collapse>
 
     <div class="step-actions">
-      <a-button :disabled="!syncableAiActions.length || isGeneratingAssessment" @click="$emit('sync-decisions')">同步 会诊动作为决议</a-button>
+      <a-button :disabled="!syncableAiActions.length || isGeneratingAssessment" @click="$emit('sync-decisions')">同步 AI 动作为决议</a-button>
       <span v-if="!syncableAiActions.length">当前尚未形成决议，可在下一步手动新增。</span>
       <a-button type="primary" @click="$emit('next')">进入决议确认</a-button>
     </div>
@@ -162,7 +162,7 @@ function formatAgents(agents: any) {
 .mdt-step-card,
 .review-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(15, 23, 42, 0.66);
 }
 .step-card__head,
@@ -211,7 +211,7 @@ p {
 }
 .compact-list div {
   padding: 10px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: rgba(2, 6, 23, 0.3);
 }
 .compact-list strong {
@@ -232,7 +232,7 @@ p {
 .system-card {
   min-height: 118px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 4px;
+  border-radius: 10px;
   padding: 12px;
   color: #e2e8f0;
   text-align: left;
@@ -262,7 +262,7 @@ p {
 }
 .detail-collapse {
   margin-top: 16px;
-  border-radius: 4px;
+  border-radius: 10px;
   overflow: hidden;
   background: rgba(2, 6, 23, 0.28);
 }
@@ -279,7 +279,7 @@ p {
 .chip-row em {
   padding: 6px 10px;
   border-radius: 999px;
-  color: #E5E6EB;
+  color: #cbd5e1;
   font-style: normal;
   background: rgba(30, 41, 59, 0.82);
 }
@@ -299,8 +299,8 @@ p {
 :global(html[data-theme='light']) .review-card,
 :global(html[data-theme='light']) .system-card {
   border-color: #dbeafe;
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 :global(html[data-theme='light']) .step-kicker,
 :global(html[data-theme='light']) .review-card span,
@@ -311,12 +311,12 @@ p {
 :global(html[data-theme='light']) .review-card strong,
 :global(html[data-theme='light']) .review-card b,
 :global(html[data-theme='light']) .system-card strong {
-  color: #1D2129;
+  color: #0f172a;
 }
 :global(html[data-theme='light']) p,
 :global(html[data-theme='light']) .system-card,
 :global(html[data-theme='light']) .detail-stack {
-  color: #4E5969;
+  color: #475569;
 }
 :global(html[data-theme='light']) .compact-list div,
 :global(html[data-theme='light']) .chip-row em {
@@ -326,13 +326,13 @@ p {
 :global(html[data-theme='light']) .empty-box,
 :global(html[data-theme='light']) .step-actions span,
 :global(html[data-theme='light']) .system-card small {
-  color: #4E5969;
+  color: #64748b;
 }
 :global(html[data-theme='light']) .system-card.is-active {
   border-color: #38bdf8;
   background: #e0f2fe;
 }
 :global(html[data-theme='light']) .detail-collapse {
-  background: #FFFFFF;
+  background: #ffffff;
 }
 </style>

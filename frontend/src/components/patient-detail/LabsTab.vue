@@ -101,7 +101,7 @@ function formatLabValue(value: any): string {
   border-inline-start-color: rgba(80,199,255,.16);
 }
 .labs-tab :deep(.ant-timeline-item-head) {
-  background: #15558D;
+  background: #16b3c9;
   border-color: rgba(110,231,249,.4);
   box-shadow: 0 0 10px rgba(34,211,238,.18);
 }
@@ -132,7 +132,7 @@ function formatLabValue(value: any): string {
 .lab-item {
   font-size: 11px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: rgba(8,28,44,.78);
   color: #ccefff;
   border: 1px solid rgba(80,199,255,.12);
@@ -150,9 +150,9 @@ function formatLabValue(value: any): string {
 .acid-base-card {
   margin-top: 10px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(80,199,255,.14);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(10,28,45,.78) 0%, rgba(8,19,32,.82) 100%);
 }
 .acid-base-head,
 .acid-base-summary,
@@ -189,27 +189,27 @@ function formatLabValue(value: any): string {
   color: #7ccfe4;
   font-size: 12px;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(8,28,44,.58);
   border: 1px dashed rgba(80,199,255,.14);
 }
 
 /* Light mode overrides */
 html[data-theme='light'] .labs-tab :deep(.ant-timeline-item-tail) { border-inline-start-color: rgba(187,204,220,0.72); }
-html[data-theme='light'] .labs-tab :deep(.ant-timeline-item-head) { background: #15558D; border-color: rgba(37,99,235,0.4); box-shadow: 0 0 10px rgba(59,130,246,0.18); }
+html[data-theme='light'] .labs-tab :deep(.ant-timeline-item-head) { background: #3b82f6; border-color: rgba(37,99,235,0.4); box-shadow: 0 0 10px rgba(59,130,246,0.18); }
 html[data-theme='light'] .lab-head { color: #223a54; }
 html[data-theme='light'] .lab-head strong { color: #16324f; }
 html[data-theme='light'] .lab-head span { color: #6f8399; }
-html[data-theme='light'] .lab-item { background: #FFFFFF; color: #47627e; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .lab-item { background: #ffffff; color: #47627e; border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .lab-item.lab-high { background: rgba(254,226,226,0.8); color: #991b1b; border-color: rgba(239,68,68,.3); }
 html[data-theme='light'] .lab-item.lab-low { background: rgba(224,242,254,0.8); color: #0369a1; border-color: rgba(56,189,248,.3); }
 html[data-theme='light'] .acid-base-card { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .acid-base-head { color: #16324f; }
-html[data-theme='light'] .acid-primary { background: rgba(59,130,246,0.16); color: #15558D; }
+html[data-theme='light'] .acid-primary { background: rgba(59,130,246,0.16); color: #1d4ed8; }
 html[data-theme='light'] .acid-secondary { background: rgba(245,158,11,0.16); color: #b45309; }
 html[data-theme='light'] .acid-tertiary { background: rgba(239,68,68,0.16); color: #b91c1c; }
 html[data-theme='light'] .acid-base-metrics { color: #47627e; }
-html[data-theme='light'] .acid-comp { background: #FFFFFF; color: #47627e; border: 1px solid rgba(187,204,220,0.72); }
+html[data-theme='light'] .acid-comp { background: #ffffff; color: #47627e; border: 1px solid rgba(187,204,220,0.72); }
 html[data-theme='light'] .acid-comp.abnormal { background: rgba(254,226,226,0.8); color: #991b1b; border-color: rgba(239,68,68,.3); }
 html[data-theme='light'] .tab-empty { color: #6f8399; background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
 </style>

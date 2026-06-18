@@ -18,7 +18,7 @@
 
     <section class="ops-kpi-strip">
       <div class="ops-kpi">
-        <span class="ops-kpi-label">工具模块</span>
+        <span class="ops-kpi-label">智能模块</span>
         <strong class="ops-kpi-value">{{ monitorStats.length }}</strong>
         <small>{{ activeMonitorAlerts.length }} 条活跃监控告警</small>
       </div>
@@ -38,7 +38,7 @@
         <small>已批准 {{ thresholdSummary.approved || 0 }} / 已拒绝 {{ thresholdSummary.rejected || 0 }}</small>
       </div>
       <div class="ops-kpi ops-kpi--runtime">
-        <span class="ops-kpi-label">模型服务</span>
+        <span class="ops-kpi-label">AI 中枢</span>
         <strong class="ops-kpi-value">{{ runtimeStatusText }}</strong>
         <small>缓存 {{ runtimeCacheSize }} 条 / 并发上限 {{ runtimeConcurrencyLimit }}</small>
       </div>
@@ -59,7 +59,7 @@
     </section>
 
     <section class="ops-grid">
-      <a-card title="模型服务运行态" :bordered="false" class="ops-panel">
+      <a-card title="AI 中枢运行态" :bordered="false" class="ops-panel">
         <div class="ops-runtime-grid">
           <div class="ops-runtime-item">
             <span>缓存条目</span>
@@ -79,11 +79,11 @@
           </div>
         </div>
         <div class="ops-runtime-note">
-          用于观察大模型调用的缓存、限流和自动降级状态，帮助判断响应慢是模型侧、缓存未命中还是并发拥塞。
+          用于观察大模型调用的缓存、限流和自动降级状态，帮助判断 AI 响应慢是模型侧、缓存未命中还是并发拥塞。
         </div>
       </a-card>
 
-      <a-card title="运行监控" :bordered="false" class="ops-panel">
+      <a-card title="智能运行监控" :bordered="false" class="ops-panel">
         <div v-if="monitorStats.length" class="ops-table-wrap">
           <a-table
             size="small"
@@ -99,7 +99,7 @@
             </template>
           </a-table>
         </div>
-        <div v-else class="ops-empty">暂无运行监控统计</div>
+        <div v-else class="ops-empty">暂无智能运行监控统计</div>
         <div v-if="activeMonitorAlerts.length" class="ops-alert-row">
           <button
             v-for="(item, idx) in activeMonitorAlerts.slice(0, 6)"
@@ -113,7 +113,7 @@
         </div>
       </a-card>
 
-      <a-card title="反馈闭环" :bordered="false" class="ops-panel">
+      <a-card title="智能反馈闭环" :bordered="false" class="ops-panel">
         <div class="ops-chip-row">
           <span class="ops-chip">已确认 {{ feedbackSummary.by_outcome?.confirmed || 0 }}</span>
           <span class="ops-chip">已忽略 {{ feedbackSummary.by_outcome?.dismissed || 0 }}</span>
@@ -364,7 +364,7 @@ function moduleLabel(value: any) {
   const key = String(value || '').trim().toLowerCase()
   if (!key) return '未知模块'
   const map: Record<string, string> = {
-    ai_risk: '风险预测',
+    ai_risk: '智能风险预测',
     similar_case_review: '相似病例复盘',
     api_llm: '大模型接口服务',
     alert_reasoning: '告警归因',
@@ -485,12 +485,12 @@ onMounted(() => { void loadAll() })
 
 <style scoped>
 .ops-page { display: grid; gap: 16px; font-family: var(--app-display-font); }
-.ops-filter-card,.ops-panel { border: 1px solid rgba(80,199,255,.12); background: #FFFFFF; }
+.ops-filter-card,.ops-panel { border: 1px solid rgba(80,199,255,.12); background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.97) 100%); }
 .ops-filter-row,.ops-kpi-strip,.ops-chip-row,.ops-alert-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .ops-filter-row { justify-content: space-between; align-items: center; }
 .ops-label { color: #8cb7c9; font-size: 12px; }
 .ops-kpi-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.ops-kpi { padding: 16px; border-radius: 4px; border: 1px solid rgba(125,211,252,.14); background: #FFFFFF; }
+.ops-kpi { padding: 16px; border-radius: 16px; border: 1px solid rgba(125,211,252,.14); background: linear-gradient(180deg, rgba(11,31,50,.92), rgba(8,20,34,.98)); }
 .ops-kpi--warn { border-color: rgba(251,191,36,.2); }
 .ops-kpi--review { border-color: rgba(52,211,153,.2); }
 .ops-kpi--runtime { border-color: rgba(96,165,250,.22); }
@@ -498,22 +498,22 @@ onMounted(() => { void loadAll() })
 .ops-kpi-value { display: block; margin-top: 8px; color: #ecfeff; font-size: 28px; }
 .ops-kpi small { color: #86aabd; }
 .ops-action-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.ops-action-tile { display: grid; gap: 6px; padding: 14px 16px; border-radius: 4px; border: 1px solid rgba(125,211,252,.14); background: #FFFFFF; color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-.ops-action-tile:hover { transform: translateY(-1px); border-color: rgba(125,211,252,.28); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.ops-action-tile { display: grid; gap: 6px; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(125,211,252,.14); background: linear-gradient(180deg, rgba(11,31,50,.92), rgba(8,20,34,.98)); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.ops-action-tile:hover { transform: translateY(-1px); border-color: rgba(125,211,252,.28); box-shadow: 0 10px 24px rgba(0,0,0,.2); }
 .ops-action-label { color: #8cb7c9; font-size: 11px; letter-spacing: .08em; }
 .ops-action-value { color: #ecfeff; font-size: 18px; line-height: 1.2; }
 .ops-action-meta { color: #86aabd; font-size: 11px; line-height: 1.5; }
 .ops-grid { display: grid; grid-template-columns: 1.1fr 1.2fr; gap: 14px; }
 .ops-panel--wide { grid-column: 1 / -1; }
 .ops-runtime-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.ops-runtime-item { min-height: 74px; padding: 12px; border-radius: 4px; border: 1px solid rgba(125,211,252,.12); background: rgba(9,26,42,.72); display: grid; align-content: center; gap: 6px; }
+.ops-runtime-item { min-height: 74px; padding: 12px; border-radius: 12px; border: 1px solid rgba(125,211,252,.12); background: rgba(9,26,42,.72); display: grid; align-content: center; gap: 6px; }
 .ops-runtime-item span { color: #8cb7c9; font-size: 12px; }
 .ops-runtime-item strong { color: #ecfeff; font-size: 18px; line-height: 1.2; word-break: break-word; }
 .ops-runtime-note { margin-top: 12px; color: #86aabd; font-size: 12px; line-height: 1.7; }
 .ops-empty { color: #8cb7c9; padding: 18px 0; }
 .ops-chip,.ops-alert-pill { padding: 6px 10px; border-radius: 999px; background: rgba(10,36,54,.92); color: #d7f3ff; border: 1px solid rgba(125,211,252,.14); font-size: 12px; }
 .ops-module-list { display: grid; gap: 8px; margin: 14px 0; }
-.ops-module-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 4px; background: rgba(9,26,42,.72); color: #dffbff; border: 1px solid rgba(125,211,252,.08); cursor: pointer; text-align: left; transition: border-color .18s ease, transform .18s ease; }
+.ops-module-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(9,26,42,.72); color: #dffbff; border: 1px solid rgba(125,211,252,.08); cursor: pointer; text-align: left; transition: border-color .18s ease, transform .18s ease; }
 .ops-module-row:hover { border-color: rgba(125,211,252,.22); transform: translateY(-1px); }
 .ops-feedback-table { margin-top: 14px; }
 .ops-link { color: #7dd3fc; cursor: pointer; }
@@ -523,7 +523,7 @@ onMounted(() => { void loadAll() })
 .ops-review-dialog { display: grid; gap: 12px; }
 .ops-review-row { display: grid; gap: 6px; }
 .ops-review-label { color: #8cb7c9; font-size: 12px; }
-.ops-review-input,.ops-review-textarea { width: 100%; border-radius: 4px; border: 1px solid rgba(125,211,252,.16); background: rgba(8, 20, 34, 0.96); color: #ecfeff; padding: 10px 12px; }
+.ops-review-input,.ops-review-textarea { width: 100%; border-radius: 12px; border: 1px solid rgba(125,211,252,.16); background: rgba(8, 20, 34, 0.96); color: #ecfeff; padding: 10px 12px; }
 .ops-outcome { display: inline-flex; padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid rgba(125,211,252,.12); }
 .ops-outcome.is-confirmed,.ops-outcome.is-approved { color: #34d399; border-color: rgba(52,211,153,.22); }
 .ops-outcome.is-dismissed { color: #fbbf24; border-color: rgba(251,191,36,.22); }
@@ -533,7 +533,7 @@ html[data-theme='light'] .ops-page {
   --ops-text-main: #153554;
   --ops-text-sub: #5f7690;
   --ops-line: rgba(145, 176, 199, 0.36);
-  --ops-card-bg: #FFFFFF;
+  --ops-card-bg: linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 247, 253, 0.94) 100%);
   --ops-card-shadow: 0 14px 34px rgba(21, 53, 84, 0.1), 0 2px 0 rgba(255, 255, 255, 0.7) inset;
   color: var(--ops-text-main);
   position: relative;
@@ -545,8 +545,11 @@ html[data-theme='light'] .ops-page::before {
   inset: -8px -6px;
   z-index: -1;
   pointer-events: none;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 20px;
+  background:
+    radial-gradient(1200px 360px at 12% -6%, rgba(66, 153, 225, 0.16), transparent 70%),
+    radial-gradient(900px 260px at 92% -2%, rgba(16, 185, 129, 0.14), transparent 72%),
+    linear-gradient(180deg, #f8fbff 0%, #eef5fb 100%);
 }
 html[data-theme='light'] .ops-filter-card,
 html[data-theme='light'] .ops-panel,
@@ -577,7 +580,7 @@ html[data-theme='light'] .ops-kpi::after {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: #FFFFFF;
+  background: linear-gradient(100deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0) 45%);
 }
 html[data-theme='light'] .ops-label,
 html[data-theme='light'] .ops-kpi-label,
@@ -603,12 +606,12 @@ html[data-theme='light'] .ops-alert-pill {
 }
 html[data-theme='light'] .ops-module-row:hover {
   border-color: rgba(34, 119, 214, 0.42);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 14px 24px rgba(19, 78, 143, 0.14);
   transform: translateY(-2px);
 }
 html[data-theme='light'] .ops-action-tile:hover {
   border-color: rgba(34, 119, 214, 0.4);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 16px 28px rgba(19, 78, 143, 0.18);
 }
 html[data-theme='light'] .ops-alert-pill:hover,
 html[data-theme='light'] .ops-chip:hover {
@@ -631,13 +634,13 @@ html[data-theme='light'] .ops-kpi--runtime {
   border-color: rgba(59, 130, 246, 0.34);
 }
 html[data-theme='light'] .ops-kpi--warn::after {
-  background: #FFFFFF;
+  background: linear-gradient(100deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0) 48%);
 }
 html[data-theme='light'] .ops-kpi--review::after {
-  background: #FFFFFF;
+  background: linear-gradient(100deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 48%);
 }
 html[data-theme='light'] .ops-kpi--runtime::after {
-  background: #FFFFFF;
+  background: linear-gradient(100deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 48%);
 }
 html[data-theme='light'] :deep(.ant-card-head-title) {
   color: #1d4f7a;
@@ -646,7 +649,7 @@ html[data-theme='light'] :deep(.ant-card-head-title) {
 }
 html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-thead > tr > th) {
   color: #215580;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(229, 241, 251, 0.95) 0%, rgba(220, 236, 249, 0.86) 100%);
   border-bottom: 1px solid rgba(145, 176, 199, 0.44);
 }
 html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-tbody > tr > td) {
@@ -663,7 +666,7 @@ html[data-theme='light'] .ops-outcome.is-approved { color: #047857; border-color
 html[data-theme='light'] .ops-outcome.is-dismissed { color: #b45309; border-color: rgba(245,158,11,.28); background: rgba(254,243,199,.98); }
 html[data-theme='light'] .ops-outcome.is-inaccurate,
 html[data-theme='light'] .ops-outcome.is-rejected { color: #be123c; border-color: rgba(251,113,133,.3); background: rgba(255,241,242,.98); }
-html[data-theme='light'] .ops-outcome.is-pending_review { color: #15558D; border-color: rgba(59,130,246,.28); background: rgba(219,234,254,.98); }
+html[data-theme='light'] .ops-outcome.is-pending_review { color: #1d4ed8; border-color: rgba(59,130,246,.28); background: rgba(219,234,254,.98); }
 @media (max-width: 1080px) { .ops-kpi-strip,.ops-action-strip,.ops-grid { grid-template-columns: 1fr 1fr; } .ops-panel--wide { grid-column: auto; } }
 @media (max-width: 760px) { .ops-kpi-strip,.ops-action-strip,.ops-grid { grid-template-columns: 1fr; } }
 </style>

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div :class="['organ-heatmap', { 'organ-heatmap--compact': compact }]">
     <div class="organ-heatmap__frame">
       <svg
@@ -391,10 +391,10 @@ const svgLegendRows = computed(() => {
 })
 
 const severityPalette: Record<BodyMapSeverity, { fill: string; stroke: string; accent: string }> = {
-  normal: { fill: '#22c55e', stroke: '#1A9C5B', accent: '#86efac' },
-  warning: { fill: '#fbbf24', stroke: '#E8901C', accent: '#fcd34d' },
+  normal: { fill: '#22c55e', stroke: '#bbf7d0', accent: '#86efac' },
+  warning: { fill: '#fbbf24', stroke: '#fde68a', accent: '#fcd34d' },
   high: { fill: '#fb923c', stroke: '#fed7aa', accent: '#fdba74' },
-  critical: { fill: '#ef4444', stroke: '#D9342B', accent: '#fda4af' },
+  critical: { fill: '#ef4444', stroke: '#fecaca', accent: '#fda4af' },
 }
 
 const organLayerOffset = { x: -2, y: 4 }
@@ -471,7 +471,7 @@ function legendGroupClass(key: string) {
 function legendBoxStyle(severity: string) {
   const palette = paletteFor(severity)
   return {
-    fill: isLightTheme.value ? rgba('#1D2129', 0.94) : rgba('#091626', 0.76),
+    fill: isLightTheme.value ? rgba('#f8fbff', 0.94) : rgba('#091626', 0.76),
     stroke: rgba(palette.fill, isLightTheme.value ? 0.28 : 0.38),
     strokeWidth: '1.1px',
   }
@@ -545,7 +545,7 @@ function handleOrganClick(key: BodyMapOrganKey) {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 4px;
+  border-radius: 20px;
   overflow: hidden;
   background: #0a1628;
 }

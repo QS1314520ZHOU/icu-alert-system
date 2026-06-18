@@ -511,7 +511,9 @@ onMounted(loadAll)
 .work-page {
   min-height: calc(100vh - 76px);
   padding: 18px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(56,189,248,.12), transparent 30%),
+    radial-gradient(circle at 88% 14%, rgba(20,184,166,.1), transparent 32%);
 }
 .topbar { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 h1 { margin: 0; font-size: 26px; letter-spacing: 0; color: #f0fbff; }
@@ -524,12 +526,12 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   padding: 8px 12px;
   border: 1px solid rgba(103,232,249,.18);
   border-radius: 999px;
-  color: #4E5969;
+  color: #bfefff;
   background: rgba(8,47,73,.24);
   font-size: 12px;
 }
 .kpis { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.kpis article { border: 1px solid rgba(125,167,214,.16); border-radius: 4px; padding: 12px; background: rgba(10,25,42,.9); }
+.kpis article { border: 1px solid rgba(125,167,214,.16); border-radius: 16px; padding: 12px; background: rgba(10,25,42,.9); }
 .kpis span { color: #8aa4b8; display: block; }
 .kpis strong { font-size: 28px; color: #e6f7ff; }
 .closure-strip {
@@ -544,7 +546,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   margin-bottom: 14px;
   padding: 12px;
   border: 1px solid rgba(125,167,214,.16);
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(10,25,42,.82);
 }
 .rt-worklist-grid {
@@ -558,7 +560,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   gap: 10px;
   align-items: center;
   padding: 10px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125,211,252,.14);
   background: rgba(8,28,44,.72);
 }
@@ -569,7 +571,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   height: 26px;
   border-radius: 999px;
   background: rgba(59,130,246,.24);
-  color: #FFFFFF;
+  color: #fff;
 }
 .rt-task strong,
 .rt-task span {
@@ -592,8 +594,8 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid rgba(45,212,191,.16);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(20,83,45,.2), rgba(8,47,73,.2));
 }
 .closure-strip span,
 .closure-strip small {
@@ -619,7 +621,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #FFFFFF;
+  background: linear-gradient(90deg, #22c55e, #67e8f9);
 }
 .bedside-command {
   display: grid;
@@ -632,7 +634,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   padding: 14px;
   border: 1px solid rgba(125,211,252,.14);
   border-radius: 18px;
-  background: #FFFFFF;
+  background: linear-gradient(145deg, rgba(8,42,62,.88), rgba(7,20,34,.94));
 }
 .bedside-tile span,
 .bedside-tile small {
@@ -647,8 +649,8 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   font-size: 34px;
   line-height: 1;
 }
-.bedside-tile.tone-danger { border-color: rgba(251,113,133,.36); background: #FFFFFF; }
-.bedside-tile.tone-warning { border-color: rgba(251,191,36,.32); background: #FFFFFF; }
+.bedside-tile.tone-danger { border-color: rgba(251,113,133,.36); background: linear-gradient(145deg, rgba(127,29,29,.38), rgba(7,20,34,.94)); }
+.bedside-tile.tone-warning { border-color: rgba(251,191,36,.32); background: linear-gradient(145deg, rgba(113,63,18,.32), rgba(7,20,34,.94)); }
 .bedside-tile.tone-info { border-color: rgba(103,232,249,.28); }
 .bedside-tile.tone-stable { border-color: rgba(52,211,153,.22); }
 .command-layout {
@@ -660,9 +662,11 @@ p { margin: 6px 0 0; color: #8aa4b8; }
 .patient-panel,
 .sbt-panel {
   border: 1px solid rgba(125,167,214,.16);
-  border-radius: 4px;
+  border-radius: 20px;
   padding: 16px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56,189,248,.1), transparent 30%),
+    rgba(7,20,34,.92);
 }
 .panel-head {
   display: flex;
@@ -699,7 +703,9 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   border: 1px solid rgba(103,232,249,.16);
   border-radius: 18px;
   color: inherit;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(56,189,248,.14), transparent 34%),
+    linear-gradient(145deg, rgba(8,42,62,.86), rgba(7,20,34,.9));
   text-align: left;
   cursor: pointer;
   transition: transform .16s ease, border-color .16s ease, background .16s ease;
@@ -721,12 +727,12 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 4px;
+  border-radius: 14px;
   color: #06131b;
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #67e8f9, #a7f3d0);
   font-size: 16px;
   font-weight: 950;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 10px 18px rgba(34,211,238,.14);
 }
 .vent-card-name {
   min-width: 0;
@@ -762,7 +768,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
 .vent-meter-row span {
   min-width: 0;
   padding: 8px 6px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(2,8,20,.28);
   border: 1px solid rgba(125,211,252,.12);
 }
@@ -811,7 +817,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   gap: 12px;
   padding: 12px;
   border: 1px solid rgba(125,211,252,.14);
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(2,8,20,.28);
 }
 .sbt-card strong,
@@ -837,7 +843,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   display: grid;
   place-content: center;
   border: 1px dashed rgba(125,211,252,.18);
-  border-radius: 4px;
+  border-radius: 16px;
   color: #8aa4b8;
   text-align: center;
 }
@@ -853,7 +859,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
 .drawer-summary article {
   padding: 12px;
   border: 1px solid rgba(125,167,214,.16);
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(2,8,20,.24);
 }
 .drawer-summary span { display: block; color: #8aa4b8; }
@@ -868,8 +874,8 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   gap: 12px;
   padding: 14px;
   border: 1px solid rgba(45,212,191,.18);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(15,118,110,.2), rgba(2,8,20,.24));
 }
 .airway-plan-card__head {
   display: flex;
@@ -899,13 +905,16 @@ p { margin: 6px 0 0; color: #8aa4b8; }
 .airway-plan-grid article {
   min-width: 0;
   padding: 10px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(255,255,255,.04);
 }
 @media (max-width: 1100px) { .command-layout, .kpis, .closure-strip, .bedside-command, .drawer-summary { grid-template-columns: 1fr; } .topbar { flex-direction: column; } }
 
 html[data-theme='light'] .work-page {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 30%),
+    radial-gradient(circle at 88% 14%, rgba(20, 184, 166, 0.08), transparent 32%),
+    #f5f7fa;
 }
 html[data-theme='light'] h1,
 html[data-theme='light'] .kpis strong,
@@ -919,7 +928,7 @@ html[data-theme='light'] .sbt-card strong,
 html[data-theme='light'] .drawer-summary strong,
 html[data-theme='light'] .airway-plan-card strong,
 html[data-theme='light'] .airway-plan-grid strong {
-  color: #1D2129;
+  color: #0f172a;
 }
 html[data-theme='light'] p,
 html[data-theme='light'] .kpis span,
@@ -937,10 +946,10 @@ html[data-theme='light'] .drawer-summary span,
 html[data-theme='light'] .airway-plan-card span,
 html[data-theme='light'] .airway-plan-grid span,
 html[data-theme='light'] .airway-plan-card p {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .scope-strip {
-  color: #15558D;
+  color: #1d4ed8;
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.18);
 }
@@ -965,16 +974,18 @@ html[data-theme='light'] .vent-patient-card,
 html[data-theme='light'] .bedside-tile,
 html[data-theme='light'] .patient-panel,
 html[data-theme='light'] .sbt-panel {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.08), transparent 34%),
+    #ffffff;
 }
 html[data-theme='light'] .closure-strip article,
 html[data-theme='light'] .airway-plan-card {
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.98), rgba(239, 246, 255, 0.98));
 }
 html[data-theme='light'] .vent-card-name small,
 html[data-theme='light'] .vent-chip-row span,
 html[data-theme='light'] .vent-chip-row .is-ok {
-  color: #15558D;
+  color: #2563eb;
 }
 html[data-theme='light'] .vent-card-top b {
   color: #059669;
@@ -986,7 +997,7 @@ html[data-theme='light'] .vent-chip-row span {
   border-color: rgba(145, 176, 199, 0.3);
 }
 html[data-theme='light'] .soft-empty {
-  background: #FFFFFF;
+  background: #ffffff;
   border-color: rgba(145, 176, 199, 0.32);
 }
 </style>

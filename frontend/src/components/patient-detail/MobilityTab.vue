@@ -62,24 +62,24 @@ const opportunityChips = computed(() => { const readiness = oppAlert.value?.extr
 .mobility-pill { padding: 10px 14px; border-radius: 999px; background: rgba(10, 61, 87, 0.54); color: #bcecff; border: 1px solid rgba(125, 211, 252, 0.16); }
 .mobility-grid,.mobility-list { display: grid; gap: 12px; }
 .mobility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.mobility-card,.mobility-row { padding: 16px; border-radius: 4px; border: 1px solid rgba(125, 211, 252, 0.12); background: #FFFFFF; }
+.mobility-card,.mobility-row { padding: 16px; border-radius: 16px; border: 1px solid rgba(125, 211, 252, 0.12); background: linear-gradient(180deg, rgba(10, 29, 47, 0.94), rgba(7, 18, 31, 0.98)); }
 .mobility-card-title { color: #dffbff; font-size: 15px; font-weight: 800; }
 .mobility-card-main,.mobility-row-main { margin-top: 10px; color: #effcff; line-height: 1.6; }
 .mobility-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .mobility-chip { padding: 6px 10px; border-radius: 999px; background: rgba(12, 37, 57, 0.92); color: #d7f3ff; font-size: 12px; border: 1px solid rgba(125, 211, 252, 0.12); }
 .mobility-row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; align-items: start; }
 .mobility-row strong { color: #effcff; }
-.mobility-empty { padding: 24px; text-align: center; color: #8bb2c4; border: 1px dashed rgba(125, 211, 252, 0.2); border-radius: 4px; }
+.mobility-empty { padding: 24px; text-align: center; color: #8bb2c4; border: 1px dashed rgba(125, 211, 252, 0.2); border-radius: 16px; }
 @media (max-width: 900px) { .mobility-grid,.mobility-row { grid-template-columns: 1fr; } }
 
 /* Light mode overrides */
 html[data-theme='light'] .mobility-title { color: #16324f; }
 html[data-theme='light'] .mobility-sub, html[data-theme='light'] .mobility-card-meta, html[data-theme='light'] .mobility-row-time { color: #6a8098; }
-html[data-theme='light'] .mobility-pill { background: rgba(59,130,246,0.1); color: #15558D; border-color: rgba(59,130,246,0.28); }
-html[data-theme='light'] .mobility-card, html[data-theme='light'] .mobility-row { background: #FFFFFF; border-color: rgba(187,204,220,0.72); box-shadow: 0 4px 10px rgba(15,23,42,0.04); }
-html[data-theme='light'] .mobility-card-title { color: #15558D; }
+html[data-theme='light'] .mobility-pill { background: rgba(59,130,246,0.1); color: #1d4ed8; border-color: rgba(59,130,246,0.28); }
+html[data-theme='light'] .mobility-card, html[data-theme='light'] .mobility-row { background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: 0 4px 10px rgba(15,23,42,0.04); }
+html[data-theme='light'] .mobility-card-title { color: #1d4ed8; }
 html[data-theme='light'] .mobility-card-main, html[data-theme='light'] .mobility-row-main { color: #223a54; }
-html[data-theme='light'] .mobility-chip { background: #FFFFFF; color: #47627e; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .mobility-chip { background: #ffffff; color: #47627e; border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .mobility-row strong { color: #16324f; }
 html[data-theme='light'] .mobility-empty { color: #6f8399; border-color: rgba(187,204,220,0.72); }
 </style>

@@ -73,7 +73,7 @@ const progressText = computed(() => {
 .mdt-rail-card {
   min-height: 100%;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(15, 23, 42, 0.66);
 }
 .rail-label {
@@ -96,7 +96,7 @@ p {
 .rail-meter {
   margin: 18px 0;
   padding: 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(30, 41, 59, 0.58);
 }
 .rail-meter div {
@@ -119,7 +119,7 @@ p {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #FFFFFF;
+  background: linear-gradient(90deg, #38bdf8, #22c55e);
 }
 .rail-meter small,
 .rail-todo-list small {
@@ -135,7 +135,7 @@ p {
 .rail-todo-list article {
   padding: 10px;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 4px;
+  border-radius: 8px;
   background: rgba(2, 6, 23, 0.26);
 }
 .rail-todo-list strong {
@@ -149,8 +149,8 @@ p {
 
 :global(html[data-theme='light']) .mdt-rail-card {
   border-color: #dbeafe;
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 :global(html[data-theme='light']) .rail-label {
   color: #0284c7;
@@ -158,17 +158,17 @@ p {
 :global(html[data-theme='light']) strong,
 :global(html[data-theme='light']) .rail-meter b,
 :global(html[data-theme='light']) .rail-todo-list strong {
-  color: #1D2129;
+  color: #0f172a;
 }
 :global(html[data-theme='light']) p {
-  color: #4E5969;
+  color: #475569;
 }
 :global(html[data-theme='light']) .rail-meter {
   border: 1px solid #dbeafe;
   background: #f8fafc;
 }
 :global(html[data-theme='light']) .rail-meter div {
-  color: #4E5969;
+  color: #475569;
 }
 :global(html[data-theme='light']) .rail-meter i {
   background: #dbeafe;
@@ -176,7 +176,7 @@ p {
 :global(html[data-theme='light']) .rail-meter small,
 :global(html[data-theme='light']) .rail-todo-list small,
 :global(html[data-theme='light']) .rail-empty {
-  color: #4E5969;
+  color: #64748b;
 }
 :global(html[data-theme='light']) .rail-todo-list article {
   border-color: #e2e8f0;

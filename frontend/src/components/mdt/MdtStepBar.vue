@@ -46,10 +46,10 @@ defineEmits<{
   min-height: 86px;
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 4px;
+  border-radius: 10px;
   text-align: left;
   cursor: pointer;
-  color: #E5E6EB;
+  color: #cbd5e1;
   background: rgba(15, 23, 42, 0.5);
 }
 .mdt-step::before {
@@ -65,7 +65,7 @@ defineEmits<{
 .mdt-step.is-active {
   border-color: rgba(56, 189, 248, 0.6);
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 16px 36px rgba(8, 47, 73, 0.28);
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.38), rgba(15, 23, 42, 0.72));
 }
 .mdt-step.is-active::before {
   background: #38bdf8;
@@ -102,17 +102,17 @@ defineEmits<{
 }
 
 :global(html[data-theme='light']) .mdt-step {
-  color: #4E5969;
+  color: #475569;
   border-color: #dbeafe;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
 }
 :global(html[data-theme='light']) .mdt-step::before {
-  background: #E5E6EB;
+  background: #cbd5e1;
 }
 :global(html[data-theme='light']) .mdt-step.is-active {
   border-color: #38bdf8;
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #e0f2fe, #ffffff);
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.22), 0 12px 28px rgba(14, 116, 144, 0.12);
 }
 :global(html[data-theme='light']) .mdt-step.is-done::before {
@@ -123,9 +123,9 @@ defineEmits<{
   color: #0284c7;
 }
 :global(html[data-theme='light']) .mdt-step strong {
-  color: #1D2129;
+  color: #0f172a;
 }
 :global(html[data-theme='light']) .mdt-step small {
-  color: #4E5969;
+  color: #64748b;
 }
 </style>

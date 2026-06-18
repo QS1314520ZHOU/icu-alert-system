@@ -139,7 +139,7 @@
               </div>
             </div>
             <div class="kpi-section">
-              <strong>建议采纳</strong>
+              <strong>AI 采纳</strong>
               <div class="kpi-items">
                 <div class="kpi-item">
                   <span>综合推理</span>
@@ -253,7 +253,7 @@
           <ol>
             <li><b>先看科室概览</b><span>确认床位使用率和医护人员分布。</span></li>
             <li><b>查看质控大屏</b><span>关注质控事件和信号采纳率。</span></li>
-            <li><b>追踪KPI和科研</b><span>重点处理告警处置、建议采纳和科研任务。</span></li>
+            <li><b>追踪KPI和科研</b><span>重点处理告警处置、AI采纳和科研任务。</span></li>
           </ol>
         </div>
       </div>
@@ -320,7 +320,7 @@ const summaryCards = computed(() => {
   return [
     { key: 'beds', label: '床位使用率', value: `${occRate}%`, hint: `${overview.value?.occupied_beds || 0}/${overview.value?.total_beds || 0}`, tone: occRate > 90 ? 'red' : occRate > 80 ? 'yellow' : 'green' },
     { key: 'alerts', label: '告警处置率', value: `${handleRate}%`, hint: `${alertStats.value?.pending_24h || 0} 项待处理`, tone: (alertStats.value?.pending_24h || 0) > 0 ? 'yellow' : 'green' },
-    { key: 'ai', label: '建议采纳率', value: `${adoptRate}%`, hint: `${aiStats.value?.integrated_adopted || 0}/${aiStats.value?.integrated_reasoning || 0}`, tone: adoptRate > 80 ? 'green' : adoptRate > 60 ? 'yellow' : 'red' },
+    { key: 'ai', label: 'AI采纳率', value: `${adoptRate}%`, hint: `${aiStats.value?.integrated_adopted || 0}/${aiStats.value?.integrated_reasoning || 0}`, tone: adoptRate > 80 ? 'green' : adoptRate > 60 ? 'yellow' : 'red' },
     { key: 'research', label: '科研任务', value: researchTotal, hint: `${researchSummary.value?.pending || 0} 个待处理`, tone: (researchSummary.value?.pending || 0) > 0 ? 'yellow' : 'green' },
   ]
 })
@@ -397,8 +397,8 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   gap: 12px;
   padding: 12px 14px;
   border: 1px solid rgba(34, 211, 238, .22);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(8, 82, 112, .62), rgba(6, 18, 31, .74));
 }
 
 .start-guide div {
@@ -407,12 +407,12 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 }
 
 .start-guide span {
-  color: #4E5969;
+  color: #8fd3e8;
   font-size: 12px;
 }
 
 .start-guide strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 15px;
 }
 
@@ -424,8 +424,8 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   gap: 16px;
   padding: 14px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(7, 20, 34, .82);
 }
 
 .home-top div {
@@ -438,12 +438,12 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 .empty,
 .summary-card span,
 .summary-card em {
-  color: #4E5969;
+  color: #8eaabd;
   font-size: 12px;
 }
 
 .home-top strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 20px;
 }
 
@@ -457,10 +457,10 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 
 button {
   min-height: 44px;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid rgba(125, 211, 252, .2);
-  background: #15558D;
-  color: #1D2129;
+  background: rgba(13, 44, 66, .78);
+  color: #eafcff;
   padding: 0 12px;
   cursor: pointer;
 }
@@ -482,12 +482,12 @@ button {
   gap: 4px;
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(6, 18, 31, .74);
 }
 
 .summary-card strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 26px;
   line-height: 1;
 }
@@ -527,8 +527,8 @@ button {
   gap: 10px;
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(6, 18, 31, .74);
 }
 
 .panel-head {
@@ -539,7 +539,7 @@ button {
 }
 
 .panel-head strong {
-  color: #1D2129;
+  color: #f4fbff;
   font-size: 15px;
 }
 
@@ -552,25 +552,25 @@ button {
 .overview-item {
   padding: 10px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
   text-align: center;
 }
 
 .overview-item span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
   display: block;
 }
 
 .overview-item strong {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 24px;
   display: block;
   margin-top: 4px;
 }
 
 .overview-item em {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   font-style: normal;
 }
@@ -582,7 +582,7 @@ button {
 }
 
 .doctor-list strong {
-  color: #1D2129;
+  color: #eef8ff;
   font-size: 13px;
   display: block;
   margin-bottom: 8px;
@@ -600,11 +600,11 @@ button {
   align-items: center;
   padding: 6px 8px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
 }
 
 .doctor-item span {
-  color: #1D2129;
+  color: #eef8ff;
   font-size: 12px;
 }
 
@@ -620,7 +620,7 @@ button {
 
 .quality-section strong,
 .adoption-section strong {
-  color: #1D2129;
+  color: #eef8ff;
   font-size: 13px;
   display: block;
   margin-bottom: 8px;
@@ -635,18 +635,18 @@ button {
 .quality-item {
   padding: 8px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
   text-align: center;
 }
 
 .quality-item span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   display: block;
 }
 
 .quality-item b {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 18px;
   display: block;
   margin-top: 4px;
@@ -659,7 +659,7 @@ button {
 }
 
 .adoption-stats span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
 }
 
@@ -669,7 +669,7 @@ button {
 }
 
 .kpi-section strong {
-  color: #1D2129;
+  color: #eef8ff;
   font-size: 13px;
   display: block;
   margin-bottom: 8px;
@@ -684,25 +684,25 @@ button {
 .kpi-item {
   padding: 8px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
   text-align: center;
 }
 
 .kpi-item span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   display: block;
 }
 
 .kpi-item b {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 16px;
   display: block;
   margin-top: 4px;
 }
 
 .text-warning {
-  color: #E8901C !important;
+  color: #fde68a !important;
 }
 
 .research-stats {
@@ -714,18 +714,18 @@ button {
 .research-item {
   padding: 10px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
   text-align: center;
 }
 
 .research-item span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
   display: block;
 }
 
 .research-item b {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 20px;
   display: block;
   margin-top: 4px;
@@ -741,16 +741,16 @@ button {
   gap: 2px;
   padding: 8px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
 }
 
 .research-export strong {
-  color: #1D2129;
+  color: #eef8ff;
   font-size: 12px;
 }
 
 .research-export span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
 }
 
@@ -763,18 +763,18 @@ button {
 .role-item {
   padding: 10px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
   text-align: center;
 }
 
 .role-item span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
   display: block;
 }
 
 .role-item b {
-  color: #1D2129;
+  color: #f8fbff;
   font-size: 20px;
   display: block;
   margin-top: 4px;
@@ -790,11 +790,11 @@ button {
   gap: 4px;
   padding: 8px;
   border-radius: 6px;
-  background: #FFFFFF;
+  background: rgba(11, 33, 50, .72);
 }
 
 .scanner-item strong {
-  color: #1D2129;
+  color: #eef8ff;
   font-size: 13px;
 }
 
@@ -805,14 +805,14 @@ button {
 }
 
 .scanner-stats span {
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
 }
 
 .empty {
   padding: 14px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(11, 33, 50, .58);
 }
 
 .empty.small {
@@ -820,7 +820,7 @@ button {
 }
 
 .empty.danger {
-  color: #D9342B;
+  color: #fecaca;
 }
 
 .onboarding-mask {
@@ -839,9 +839,9 @@ button {
   gap: 12px;
   padding: 16px;
   border: 1px solid rgba(125, 211, 252, .24);
-  border-radius: 4px;
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  border-radius: 8px;
+  background: #081827;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .32);
 }
 
 .onboarding-card ol {
@@ -852,7 +852,7 @@ button {
 }
 
 .onboarding-card li {
-  color: #1D2129;
+  color: #eafcff;
 }
 
 .onboarding-card li b {
@@ -861,7 +861,7 @@ button {
 
 .onboarding-card li span {
   display: block;
-  color: #4E5969;
+  color: #91adbd;
   font-size: 12px;
   margin-top: 4px;
 }
@@ -883,7 +883,9 @@ button {
 
 /* Light theme */
 html[data-theme='light'] .director-home {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 28%),
+    radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.06), transparent 32%);
 }
 
 html[data-theme='light'] .home-top,
@@ -892,14 +894,14 @@ html[data-theme='light'] .panel,
 html[data-theme='light'] .summary-card {
   background: rgba(255, 255, 255, 0.96);
   border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 html[data-theme='light'] .home-top strong,
 html[data-theme='light'] .start-guide strong,
 html[data-theme='light'] .panel-head strong,
 html[data-theme='light'] .summary-card strong {
-  color: #1D2129;
+  color: #0f172a;
 }
 
 html[data-theme='light'] .home-top span,
@@ -908,7 +910,7 @@ html[data-theme='light'] .panel-head span,
 html[data-theme='light'] .empty,
 html[data-theme='light'] .summary-card span,
 html[data-theme='light'] .summary-card em {
-  color: #4E5969;
+  color: #64748b;
 }
 
 html[data-theme='light'] .overview-item,
@@ -926,7 +928,7 @@ html[data-theme='light'] .research-export {
 html[data-theme='light'] button {
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.18);
-  color: #15558D;
+  color: #1d4ed8;
 }
 
 html[data-theme='light'] button:hover {
@@ -941,15 +943,15 @@ html[data-theme='light'] .empty.danger {
 }
 
 html[data-theme='light'] .onboarding-card {
-  background: #FFFFFF;
+  background: #ffffff;
   border-color: rgba(145, 176, 199, 0.32);
 }
 
 html[data-theme='light'] .onboarding-card li {
-  color: #1D2129;
+  color: #0f172a;
 }
 
 html[data-theme='light'] .onboarding-card li span {
-  color: #4E5969;
+  color: #64748b;
 }
 </style>

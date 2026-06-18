@@ -353,7 +353,9 @@ watch(patientId, async (nextId, prevId) => {
 /* ── 根容器 ────────────────────────────── */
 .bedside-screen {
   min-height: 100vh;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 0 0, rgba(14,165,233,.16), transparent 34%),
+    linear-gradient(145deg, #07111f, #0a1324 58%, #071018);
   color: #e8eaf0;
   font-family: var(--app-display-font);
   display: flex;
@@ -403,12 +405,8 @@ watch(patientId, async (nextId, prevId) => {
 }
 .lamp-critical { background: #ff3d3d; box-shadow: 0 0 10px #ff3d3d; animation: blink 0.8s infinite; }
 .lamp-warning  { background: #ffb800; box-shadow: 0 0 8px #ffb800; }
-.lamp-info     { background: #15558D; }
+.lamp-info     { background: #00c8ff; }
 .lamp-none     { background: #3a5a3a; }
-html[data-theme='light'] .lamp-critical { background: #D9342B; box-shadow: 0 0 10px rgba(217,52,43,0.3); }
-html[data-theme='light'] .lamp-warning  { background: #E8901C; box-shadow: 0 0 8px rgba(232,144,28,0.3); }
-html[data-theme='light'] .lamp-info     { background: #15558D; }
-html[data-theme='light'] .lamp-none     { background: #1A9C5B; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
 .level-text { font-size: 1.4rem; font-weight: 800; }
@@ -525,11 +523,11 @@ html[data-theme='light'] .lamp-none     { background: #1A9C5B; }
 .voice-toggle.active {
   background: rgba(34,197,94,.16);
   border-color: rgba(74,222,128,.4);
-  color: #1A9C5B;
+  color: #bbf7d0;
 }
 .voice-toggle.ghost {
   background: rgba(14,165,233,.12);
-  color: #15558D;
+  color: #bae6fd;
 }
 
 /* ── 预警 ───────────────────────────────── */
@@ -574,29 +572,31 @@ html[data-theme='light'] .lamp-none     { background: #1A9C5B; }
   gap: 6px;
   background: rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 4px;
+  border-radius: 20px;
   padding: 8px 16px;
   font-size: 1rem;
   color: #607080;
   transition: all 0.3s;
 }
 .speech-badge.active {
-  border-color: #15558D;
-  color: #15558D;
+  border-color: #00c8ff;
+  color: #00c8ff;
   box-shadow: 0 0 12px rgba(0,200,255,0.3);
 }
 .speech-badge__icon { font-size: 1rem; font-weight: 800; }
 html[data-theme='light'] .bedside-screen {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 0 0, rgba(14,165,233,.12), transparent 34%),
+    linear-gradient(145deg, #f5fbff, #eef7fb 58%, #f8fcff);
   color: #1f3852;
 }
-html[data-theme='light'] .bedside-screen.level-critical { background: #FFFFFF; }
-html[data-theme='light'] .bedside-screen.level-warning { background: #FFFFFF; }
+html[data-theme='light'] .bedside-screen.level-critical { background: #fff5f5; }
+html[data-theme='light'] .bedside-screen.level-warning { background: #fffbeb; }
 html[data-theme='light'] .bedside-header {
   background: rgba(255,255,255,.92);
   border-bottom-color: rgba(187,204,220,.72);
 }
-html[data-theme='light'] .bed-no { color: #15558D; }
+html[data-theme='light'] .bed-no { color: #1d4ed8; }
 html[data-theme='light'] .bed-label,
 html[data-theme='light'] .patient-meta,
 html[data-theme='light'] .bedside-clock,
@@ -646,13 +646,13 @@ html[data-theme='light'] .speech-badge {
 }
 html[data-theme='light'] .speech-badge.active {
   border-color: rgba(59,130,246,.34);
-  color: #15558D;
+  color: #1d4ed8;
   box-shadow: 0 0 12px rgba(37,99,235,.18);
 }
 html[data-theme='light'] .voice-toggle {
   background: #eef6ff;
   border-color: rgba(148,163,184,.42);
-  color: #15558D;
+  color: #2563eb;
 }
 html[data-theme='light'] .voice-toggle.active {
   background: #ecfdf5;
@@ -664,13 +664,10 @@ html[data-theme='light'] .voice-toggle.ghost {
   color: #0369a1;
 }
 html[data-theme='light'] .done-btn {
-  background: #15558D;
+  background: #2563eb;
   color: white;
 }
-html[data-theme='light'] .lamp-critical { background: #D9342B; box-shadow: 0 0 10px rgba(217,52,43,0.3); }
-html[data-theme='light'] .lamp-warning  { background: #E8901C; box-shadow: 0 0 8px rgba(232,144,28,0.3); }
-html[data-theme='light'] .lamp-info     { background: #15558D; }
-html[data-theme='light'] .lamp-none     { background: #1A9C5B; }
+
 @media (max-width: 1100px) {
   .bedside-header {
     flex-wrap: wrap;

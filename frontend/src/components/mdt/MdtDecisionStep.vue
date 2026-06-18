@@ -4,7 +4,7 @@
       <div>
         <span class="step-kicker">第三步</span>
         <h2>决议确认与闭环</h2>
-        <p>系统生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。</p>
+        <p>AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。</p>
       </div>
       <a-button type="primary" :disabled="isSessionClosed" :loading="savingWorkspace" @click="$emit('save')">保存决议</a-button>
     </div>
@@ -42,7 +42,7 @@
         </div>
         <textarea v-model="item.note" class="field-textarea" :disabled="isSessionClosed" rows="2" placeholder="医生意见 / 修改原因 / 闭环说明"></textarea>
         <div v-if="item.requires_confirmation !== false" class="decision-safety">
-          会诊决议草案确认前不能转为正式医嘱或执行任务。
+          AI 决议草案确认前不能转为正式医嘱或执行任务。
         </div>
         <div class="decision-actions">
           <a-button
@@ -155,7 +155,7 @@ function decisionStatusLabel(status: any) {
 <style scoped>
 .mdt-step-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(15, 23, 42, 0.66);
 }
 .step-card__head,
@@ -189,7 +189,7 @@ p {
 }
 .decision-metrics article {
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(2, 6, 23, 0.3);
 }
 .decision-metrics span {
@@ -208,7 +208,7 @@ p {
 .decision-item {
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(2, 6, 23, 0.28);
 }
 .decision-item.is-pending_confirmation,
@@ -225,7 +225,7 @@ p {
 .decision-item__head span {
   padding: 4px 9px;
   border-radius: 999px;
-  color: #E5E6EB;
+  color: #cbd5e1;
   background: rgba(30, 41, 59, 0.82);
 }
 .decision-form-grid {
@@ -238,7 +238,7 @@ p {
 .field-textarea {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 10px 12px;
   color: #f8fafc;
   background: rgba(15, 23, 42, 0.92);
@@ -267,8 +267,8 @@ p {
 :global(html[data-theme='light']) .mdt-step-card,
 :global(html[data-theme='light']) .decision-item {
   border-color: #dbeafe;
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 :global(html[data-theme='light']) .step-kicker {
   color: #0284c7;
@@ -276,28 +276,28 @@ p {
 :global(html[data-theme='light']) h2,
 :global(html[data-theme='light']) .decision-metrics strong,
 :global(html[data-theme='light']) .decision-item__head {
-  color: #1D2129;
+  color: #0f172a;
 }
 :global(html[data-theme='light']) p,
 :global(html[data-theme='light']) .decision-metrics span {
-  color: #4E5969;
+  color: #475569;
 }
 :global(html[data-theme='light']) .decision-metrics article,
 :global(html[data-theme='light']) .decision-item__head span {
   background: #f1f5f9;
 }
 :global(html[data-theme='light']) .decision-item__head span {
-  color: #1D2129;
+  color: #334155;
 }
 :global(html[data-theme='light']) .field-input,
 :global(html[data-theme='light']) .field-textarea {
-  color: #1D2129;
-  border-color: #E5E6EB;
-  background: #FFFFFF;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  background: #ffffff;
 }
 :global(html[data-theme='light']) .field-input::placeholder,
 :global(html[data-theme='light']) .field-textarea::placeholder {
-  color: #4E5969;
+  color: #94a3b8;
 }
 :global(html[data-theme='light']) .decision-safety {
   color: #9a3412;

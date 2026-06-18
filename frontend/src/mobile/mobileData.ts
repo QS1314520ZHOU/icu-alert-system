@@ -189,7 +189,7 @@ const LABELS: Record<string, string> = {
 }
 
 const TOKEN_LABELS: Record<string, string> = {
-  ai: '辅助',
+  ai: 'AI',
   tdm: 'TDM',
   sbt: 'SBT',
   sat: 'SAT',

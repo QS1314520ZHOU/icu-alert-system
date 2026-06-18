@@ -272,14 +272,14 @@
 
     <a-card title="检验异常摘要" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入临床工具台后自动生成</span>
+        <span class="ai-card-note">进入AI工作台后自动生成</span>
         <a-button size="small" type="link" :loading="aiLabLoading" @click="loadAiLab">重新生成</a-button>
       </div>
       <a-spin :spinning="aiLabLoading">
         <div v-if="aiLabSummary" class="lab-summary-board">
           <div class="lab-summary-hero">
             <div>
-              <span class="lab-summary-kicker">LAB BRIEF</span>
+              <span class="lab-summary-kicker">LAB AI BRIEF</span>
               <strong>{{ aiLabStructured.title }}</strong>
             </div>
             <span class="lab-summary-badge">{{ aiLabStructured.abnormalItems.length }} 项重点异常</span>
@@ -327,7 +327,7 @@
 
     <a-card title="规则推荐" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入临床工具台后自动生成</span>
+        <span class="ai-card-note">进入AI工作台后自动生成</span>
         <a-button size="small" type="link" :loading="aiRuleLoading" @click="loadAiRules">重新生成</a-button>
       </div>
       <a-spin :spinning="aiRuleLoading">
@@ -350,7 +350,7 @@
 
     <a-card title="恶化风险预测" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入临床工具台后自动生成</span>
+        <span class="ai-card-note">进入AI工作台后自动生成</span>
         <a-button size="small" type="link" :loading="aiRiskLoading" @click="loadAiRisk">重新生成</a-button>
       </div>
       <a-spin :spinning="aiRiskLoading">
@@ -451,7 +451,7 @@
 
     <a-card title="交班摘要(ISBAR)" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入临床工具台后自动生成最近12h交班摘要</span>
+        <span class="ai-card-note">进入AI工作台后自动生成最近12h交班摘要</span>
         <div>
           <a-button size="small" type="link" :loading="aiHandoffLoading" @click="loadAiHandoff">重新生成</a-button>
           <a-button size="small" type="link" :disabled="!aiHandoff" @click="copyHandoffSummary">复制</a-button>
@@ -644,7 +644,7 @@ const props = defineProps<{
 }>()
 
 const standardHandoffIsbarSections = computed(() => buildIsbarSections(props.patient || {}, props.aiHandoff || {}, {
-  handoffActor: '临床工具台',
+  handoffActor: 'AI工作台',
   alerts: props.normalizeList(props.aiHandoff?.alerts_12h || props.aiHandoff?.alerts),
 }))
 
@@ -986,7 +986,7 @@ const riskForecastOption = computed(() => {
       symbol: 'none',
       data,
       z: 2,
-      lineStyle: { width: 1.2, type: 'dashed', color: organCurvePalette[organKey] || '#4E5969', opacity: 0.7 },
+      lineStyle: { width: 1.2, type: 'dashed', color: organCurvePalette[organKey] || '#94a3b8', opacity: 0.7 },
     }
   })
   return {
@@ -1099,13 +1099,13 @@ const aiServiceStatus = computed(() => {
   if (errors.length >= 2) {
     return {
       level: 'red',
-      text: '辅助服务异常',
+      text: 'AI服务异常',
       detail: '部分能力不可用，请检查模型或后端服务',
     }
   }
   return {
     level: 'green',
-    text: '辅助服务正常',
+    text: 'AI服务正常',
     detail: '',
   }
 })
@@ -1187,8 +1187,8 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   margin-bottom: 12px;
   padding: 10px 12px;
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(7,20,34,.88) 0%, rgba(4,12,22,.94) 100%);
 }
 .ai-service-dot {
   width: 10px;
@@ -1224,11 +1224,11 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 12px;
 }
 .ai-card {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
   border: 1px solid rgba(80,199,255,.14);
   min-height: 520px;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
-  border-radius: 4px;
+  border-radius: 12px;
 }
 .ai-card :deep(.ant-card-head) {
   border-bottom: 1px solid rgba(80,199,255,.1);
@@ -1272,7 +1272,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   color: #dffbff !important;
 }
 .ai-card :deep(.ant-pagination .ant-pagination-item-active) {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
   border-color: rgba(110,231,249,.28) !important;
 }
 .ai-card :deep(.ant-pagination .ant-pagination-item-active a) {
@@ -1323,8 +1323,10 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   align-items: center;
   padding: 13px 14px;
   border: 1px solid rgba(103, 232, 249, .18);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(20, 184, 166, .16), transparent 36%),
+    linear-gradient(135deg, rgba(8, 47, 73, .82), rgba(7, 20, 34, .94));
 }
 .lab-summary-kicker {
   display: block;
@@ -1345,7 +1347,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   border-radius: 999px;
   border: 1px solid rgba(251, 191, 36, .28);
   background: rgba(120, 83, 14, .22);
-  color: #E8901C;
+  color: #fde68a;
   font-size: 11px;
   font-weight: 700;
 }
@@ -1357,14 +1359,14 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .lab-abnormal-card {
   padding: 11px 12px;
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(9,31,48,.92), rgba(5,18,31,.96));
 }
 .lab-abnormal-head {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #4E5969;
+  color: #bfefff;
   font-size: 12px;
 }
 .lab-abnormal-head strong {
@@ -1380,7 +1382,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .lab-value-line {
   margin-top: 7px;
-  color: #E8901C;
+  color: #fde68a;
   font-size: 13px;
   font-weight: 800;
   line-height: 1.45;
@@ -1399,7 +1401,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .lab-summary-section {
   padding: 12px;
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(8,28,44,.72);
 }
 .lab-summary-section--action {
@@ -1429,7 +1431,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .kb-doc-meta,
 .kb-chunk-item {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(8,28,44,.72);
   padding: 10px 12px;
 }
@@ -1448,7 +1450,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .wb-kpi {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(5,16,27,.88);
   padding: 8px 10px;
   display: grid;
@@ -1467,7 +1469,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .ai-workbench-section {
   border: 1px solid rgba(80,199,255,.1);
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(6,19,32,.78);
   padding: 10px 12px;
   margin-top: 8px;
@@ -1492,7 +1494,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .summary-section {
   border: 1px solid rgba(80,199,255,.08);
-  border-radius: 4px;
+  border-radius: 8px;
   background: rgba(7,23,38,.62);
   padding: 8px 10px;
 }
@@ -1506,23 +1508,24 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .summary-conclusion {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 4px;
+  border-radius: 10px;
   padding: 10px 12px;
-  background: #FFFFFF;
+  background:
+    linear-gradient(180deg, rgba(8,28,44,.94) 0%, rgba(6,19,32,.98) 100%);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
 .summary-conclusion--low {
   border-color: rgba(52,211,153,.18);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(8,44,38,.9) 0%, rgba(5,26,22,.96) 100%);
 }
 .summary-conclusion--warning {
   border-color: rgba(250,204,21,.2);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(52,38,8,.92) 0%, rgba(31,23,5,.98) 100%);
 }
 .summary-conclusion--high,
 .summary-conclusion--critical {
   border-color: rgba(251,90,122,.22);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(57,17,27,.92) 0%, rgba(34,10,17,.98) 100%);
 }
 .summary-conclusion-label {
   color: #91ecff;
@@ -1711,14 +1714,14 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   max-height: 62vh;
   overflow: auto;
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 4px;
+  border-radius: 10px;
 }
 .ai-rule-table {
   margin-top: 2px;
   width: 100%;
 }
 .ai-rule-table :deep(.ant-table) {
-  background: #FFFFFF;
+  background: #0f1a2b;
 }
 .ai-rule-table :deep(.ant-table-content) {
   overflow-x: auto !important;
@@ -1757,7 +1760,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   max-width: 420px;
   display: grid;
   gap: 6px;
-  color: #1D2129;
+  color: #334155;
 }
 .ai-evidence-quote {
   max-width: 420px;
@@ -1772,8 +1775,8 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .ai-fallback-note {
   padding: 9px 10px;
   border: 1px solid rgba(251, 191, 36, .22);
-  border-radius: 4px;
-  color: #E8901C;
+  border-radius: 10px;
+  color: #fde68a;
   background: rgba(120, 83, 14, .18);
   font-size: 12px;
   line-height: 1.6;
@@ -1812,51 +1815,51 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   }
 }
 
-html[data-theme='light'] .ai-service-bar { background: #FFFFFF; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-service-bar { background: linear-gradient(180deg, rgba(241,246,251,0.96) 0%, rgba(231,241,249,0.98) 100%); border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .ai-service-text { color: #16324f; }
 html[data-theme='light'] .ai-service-detail { color: #6a8098; }
-html[data-theme='light'] .ai-card { background: #FFFFFF; border-color: rgba(187,204,220,0.72); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+html[data-theme='light'] .ai-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
 html[data-theme='light'] .ai-card :deep(.ant-card-head) { border-bottom-color: rgba(187,204,220,0.72); }
-html[data-theme='light'] .ai-card :deep(.ant-card-head-title) { color: #15558D; }
+html[data-theme='light'] .ai-card :deep(.ant-card-head-title) { color: #1d4ed8; }
 html[data-theme='light'] .ai-card-note, html[data-theme='light'] .ai-empty { color: #6a8098; }
 html[data-theme='light'] .ai-card :deep(.ant-btn),
 html[data-theme='light'] .ai-card :deep(.ant-select-selector),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-prev),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-next) { background: rgba(243, 248, 252, 0.96) !important; border-color: rgba(187, 204, 220, 0.72) !important; color: #223a54 !important; }
-html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active) { background: #FFFFFF; border-color: rgba(59,130,246,.28) !important; }
-html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active a) { color: #1D2129 !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active) { background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%) !important; border-color: rgba(59,130,246,.28) !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active a) { color: #f8fbff !important; }
 html[data-theme='light'] .ai-rich { color: #223a54; }
 html[data-theme='light'] .ai-rich :deep(h4) { color: #16324f; }
 html[data-theme='light'] .ai-rich :deep(code) { background: rgba(243,248,252,.96); border-color: rgba(187,204,220,.72); color: #223a54; }
-html[data-theme='light'] .lab-summary-hero { background: #FFFFFF; border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .lab-summary-hero { background: linear-gradient(135deg, #ffffff, #eef7fb); border-color: rgba(187,204,220,.72); }
 html[data-theme='light'] .lab-summary-hero strong { color: #16324f; }
 html[data-theme='light'] .lab-summary-badge { background: rgba(254,243,199,.72); border-color: rgba(217,119,6,.25); color: #92400e; }
-html[data-theme='light'] .lab-abnormal-card, html[data-theme='light'] .lab-summary-section { background: #FFFFFF; border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .lab-abnormal-card, html[data-theme='light'] .lab-summary-section { background: #ffffff; border-color: rgba(187,204,220,.72); }
 html[data-theme='light'] .lab-abnormal-head, html[data-theme='light'] .lab-abnormal-head strong { color: #16324f; }
 html[data-theme='light'] .lab-value-line { color: #b45309; }
 html[data-theme='light'] .lab-abnormal-card p, html[data-theme='light'] .lab-clean-list, html[data-theme='light'] .lab-action-list { color: #47627e; }
 html[data-theme='light'] .ai-risk-card, html[data-theme='light'] .handoff-wrap, html[data-theme='light'] .kb-doc-meta, html[data-theme='light'] .kb-chunk-item { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
 html[data-theme='light'] .handoff-wrap p, html[data-theme='light'] .ai-risk-card p, html[data-theme='light'] .kb-doc-meta p { color: #6f8399; }
-html[data-theme='light'] .wb-kpi { border-color: rgba(187,204,220,.72); background: #FFFFFF; }
+html[data-theme='light'] .wb-kpi { border-color: rgba(187,204,220,.72); background: #ffffff; }
 html[data-theme='light'] .wb-kpi span { color: #47627e; }
 html[data-theme='light'] .wb-kpi strong { color: #16324f; }
-html[data-theme='light'] .ai-workbench-section { border-color: rgba(187,204,220,.72); background: #FFFFFF; }
-html[data-theme='light'] .ai-workbench-title { color: #15558D; }
+html[data-theme='light'] .ai-workbench-section { border-color: rgba(187,204,220,.72); background: #ffffff; }
+html[data-theme='light'] .ai-workbench-title { color: #1d4ed8; }
 html[data-theme='light'] .workbench-text { color: #47627e; }
 html[data-theme='light'] .summary-section { border-color: rgba(187,204,220,.72); background: rgba(243,248,252,0.96); }
 html[data-theme='light'] .summary-label { color: #47627e; }
-html[data-theme='light'] .summary-conclusion { border-color: rgba(187,204,220,.72); background: #FFFFFF; box-shadow: 0 4px 12px rgba(15,23,42,0.03); }
+html[data-theme='light'] .summary-conclusion { border-color: rgba(187,204,220,.72); background: #ffffff; box-shadow: 0 4px 12px rgba(15,23,42,0.03); }
 html[data-theme='light'] .summary-conclusion--low { border-color: rgba(5,150,105,.28); background: rgba(209,250,229,.6); }
 html[data-theme='light'] .summary-conclusion--warning { border-color: rgba(217,119,6,.28); background: rgba(254,243,199,.6); }
 html[data-theme='light'] .summary-conclusion--high, html[data-theme='light'] .summary-conclusion--critical { border-color: rgba(220,38,38,.28); background: rgba(254,226,226,.6); }
 html[data-theme='light'] .summary-conclusion-label { color: #16324f; }
-html[data-theme='light'] .summary-conclusion-text { color: #15558D; }
-html[data-theme='light'] .summary-chip { background: #FFFFFF; border-color: rgba(187,204,220,.72); color: #223a54; }
+html[data-theme='light'] .summary-conclusion-text { color: #1d4ed8; }
+html[data-theme='light'] .summary-chip { background: #ffffff; border-color: rgba(187,204,220,.72); color: #223a54; }
 html[data-theme='light'] .summary-order { color: #47627e; }
-html[data-theme='light'] .summary-order::before { color: #15558D; }
+html[data-theme='light'] .summary-order::before { color: #1d4ed8; }
 html[data-theme='light'] .summary-text, html[data-theme='light'] .summary-list, html[data-theme='light'] .workbench-list { color: #47627e; }
-html[data-theme='light'] .isbar-code { background: #FFFFFF; border-color: rgba(187,204,220,0.72); color: #15558D; }
+html[data-theme='light'] .isbar-code { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #1d4ed8; }
 html[data-theme='light'] .workbench-flag { color: #dc2626; }
 html[data-theme='light'] .curve-meta { color: #6f8399; }
 html[data-theme='light'] .kb-status { color: #47627e; }
@@ -1864,20 +1867,20 @@ html[data-theme='light'] .kb-overridden { color: #d97706; }
 html[data-theme='light'] .kb-chunk-title { color: #16324f; }
 html[data-theme='light'] .kb-chunk-content { color: #47627e; }
 html[data-theme='light'] .ai-rule-wrap { border-color: rgba(187,204,220,.72); }
-html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: #FFFFFF; }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: #ffffff; }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) { background: #f3f8fc; color: #47627e; border-bottom-color: rgba(187,204,220,.72); }
-html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) { background: #FFFFFF; color: #223a54; border-bottom-color: rgba(187,204,220,.72); }
-html[data-theme='light'] .ai-evidence-link { color: #15558D; }
-html[data-theme='light'] .ai-evidence-link:hover { color: #15558D; }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) { background: #ffffff; color: #223a54; border-bottom-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .ai-evidence-link { color: #2563eb; }
+html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
 html[data-theme='light'] .ai-fallback-note {
   border-color: rgba(217, 119, 6, .34);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255, 251, 235, .98), rgba(254, 243, 199, .86));
   color: #92400e;
   font-weight: 650;
 }
 html[data-theme='light'] .ai-risk-card .wb-kpi span,
 html[data-theme='light'] .ai-risk-card .ai-workbench-title {
-  color: #15558D;
+  color: #1d4ed8;
   font-weight: 800;
 }
 html[data-theme='light'] .ai-risk-card .summary-text,
@@ -1887,7 +1890,7 @@ html[data-theme='light'] .ai-risk-card p {
   color: #2f4f6f;
 }
 html[data-theme='light'] .ai-risk-card .summary-chip {
-  background: #FFFFFF;
+  background: #ffffff;
   border-color: rgba(59, 130, 246, .24);
   color: #1e3a5f;
   font-weight: 600;
@@ -1896,7 +1899,7 @@ html[data-theme='light'] .ai-risk-card .summary-chip {
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .ai-service-bar,
 html[data-theme='light'] .ai-card {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .ai-card :deep(.ant-btn),
@@ -1907,28 +1910,28 @@ html[data-theme='light'] .ai-card :deep(.ant-input) {
   color: #1f3852 !important;
 }
 html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active) {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(37,99,235,0.94), rgba(29,78,216,0.98));
 }
-html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active a) { color: #FFFFFF !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active a) { color: #ffffff !important; }
 html[data-theme='light'] .ai-rich { color: #1f3852; }
-html[data-theme='light'] .ai-rich :deep(h4) { color: #1D2129; }
-html[data-theme='light'] .ai-rich :deep(code) { background: rgba(241,246,251,0.98); color: #1D2129; }
+html[data-theme='light'] .ai-rich :deep(h4) { color: #0f172a; }
+html[data-theme='light'] .ai-rich :deep(code) { background: rgba(241,246,251,0.98); color: #334155; }
 html[data-theme='light'] .lab-summary-hero {
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(241,246,251,0.98), rgba(255,255,255,0.98));
 }
 html[data-theme='light'] .lab-summary-kicker,
 html[data-theme='light'] .lab-section-title,
 html[data-theme='light'] .ai-workbench-title,
-html[data-theme='light'] .summary-label { color: #15558D; }
+html[data-theme='light'] .summary-label { color: #1d4ed8; }
 html[data-theme='light'] .lab-summary-hero strong,
 html[data-theme='light'] .lab-abnormal-head strong,
 html[data-theme='light'] .wb-kpi strong,
-html[data-theme='light'] .summary-conclusion-text { color: #1D2129; }
+html[data-theme='light'] .summary-conclusion-text { color: #0f172a; }
 html[data-theme='light'] .lab-summary-badge,
 html[data-theme='light'] .lab-value-line,
 html[data-theme='light'] .ai-fallback-note { color: #92400e; }
 html[data-theme='light'] .lab-abnormal-card {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255,251,235,0.98), rgba(255,255,255,0.98));
   border-color: rgba(245,158,11,0.22);
 }
 html[data-theme='light'] .lab-abnormal-head { color: #92400e; }
@@ -1945,7 +1948,7 @@ html[data-theme='light'] .lab-action-list,
 html[data-theme='light'] .summary-order,
 html[data-theme='light'] .summary-text,
 html[data-theme='light'] .summary-list,
-html[data-theme='light'] .workbench-list { color: #1D2129; }
+html[data-theme='light'] .workbench-list { color: #334155; }
 html[data-theme='light'] .wb-kpi {
   background: rgba(241,246,251,0.98);
   border-color: rgba(187,204,220,0.72);
@@ -1960,7 +1963,7 @@ html[data-theme='light'] .summary-conclusion,
 html[data-theme='light'] .summary-conclusion--low,
 html[data-theme='light'] .summary-conclusion--warning,
 html[data-theme='light'] .summary-conclusion--high {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .summary-conclusion-label { color: #47627e; }
@@ -1968,37 +1971,37 @@ html[data-theme='light'] .summary-chip,
 html[data-theme='light'] .isbar-code {
   background: rgba(243,248,252,0.96);
   border-color: rgba(187,204,220,0.72);
-  color: #1D2129;
+  color: #334155;
 }
 html[data-theme='light'] .action-rank,
-html[data-theme='light'] .summary-order::before { color: #15558D; }
+html[data-theme='light'] .summary-order::before { color: #1d4ed8; }
 html[data-theme='light'] .workbench-flag,
 html[data-theme='light'] .handoff-warning { color: #dc2626; }
-html[data-theme='light'] .curve-meta { color: #4E5969; }
+html[data-theme='light'] .curve-meta { color: #64748b; }
 html[data-theme='light'] .kb-status { color: #47627e; }
-html[data-theme='light'] .kb-chunk-title { color: #1D2129; }
-html[data-theme='light'] .kb-chunk-content { color: #1D2129; }
+html[data-theme='light'] .kb-chunk-title { color: #0f172a; }
+html[data-theme='light'] .kb-chunk-content { color: #334155; }
 html[data-theme='light'] .handoff-wrap p,
 html[data-theme='light'] .ai-risk-card p,
 html[data-theme='light'] .kb-doc-meta p,
-html[data-theme='light'] .workbench-text { color: #4E5969; }
+html[data-theme='light'] .workbench-text { color: #475569; }
 html[data-theme='light'] .ai-card-note,
 html[data-theme='light'] .ai-service-detail,
-html[data-theme='light'] .ai-empty { color: #4E5969; }
+html[data-theme='light'] .ai-empty { color: #64748b; }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: #f7fbff; }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) {
   background: rgba(241,246,251,0.98);
   color: #47627e;
 }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) {
-  background: #FFFFFF;
+  background: #ffffff;
   color: #1f3852;
 }
 html[data-theme='light'] .ai-evidence-link,
-html[data-theme='light'] .ai-evidence-link:hover { color: #15558D; }
-html[data-theme='light'] .ai-evidence-popover { color: #1D2129; }
+html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
+html[data-theme='light'] .ai-evidence-popover { color: #0f172a; }
 html[data-theme='light'] .ai-error { color: #dc2626; }
-html[data-theme='light'] .ai-service-text { color: #1D2129; }
+html[data-theme='light'] .ai-service-text { color: #0f172a; }
 </style>
 
 

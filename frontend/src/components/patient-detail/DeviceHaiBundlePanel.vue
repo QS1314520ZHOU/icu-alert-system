@@ -191,8 +191,8 @@ function fOleyHoursText(value: any) {
   gap: 12px;
   margin-bottom: 16px;
   padding: 14px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
   border: 1px solid rgba(80,199,255,.14);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
 }
@@ -235,7 +235,7 @@ function fOleyHoursText(value: any) {
 }
 .device-hai-panel__action {
   border: 1px solid rgba(110,231,249,.28);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(10,92,118,.94) 0%, rgba(8,55,74,.96) 100%);
   color: #effcff;
   cursor: pointer;
 }
@@ -248,7 +248,7 @@ function fOleyHoursText(value: any) {
   display: grid;
   gap: 10px;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(8, 28, 44, 0.72);
   border: 1px solid rgba(80,199,255,.12);
 }
@@ -291,7 +291,7 @@ function fOleyHoursText(value: any) {
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(104, 193, 229, 0.14);
   background: rgba(6, 20, 33, 0.92);
   cursor: pointer;
@@ -323,7 +323,7 @@ function fOleyHoursText(value: any) {
 }
 .device-hai-panel__card.is-clickable:hover {
   transform: translateY(-1px);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 10px 18px rgba(0,0,0,.16);
   border-color: rgba(110,231,249,.24);
 }
 .device-hai-panel__link,
@@ -347,7 +347,7 @@ function fOleyHoursText(value: any) {
   }
 }
 html[data-theme='light'] .device-hai-panel {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(246,250,253,.98) 0%, rgba(239,246,250,.98) 100%);
   border-color: rgba(130, 170, 194, 0.24);
 }
 html[data-theme='light'] .device-hai-panel__title,

@@ -267,7 +267,7 @@ const assessmentResult = computed(() => assessmentRecord.value?.result || assess
 const specialistRows = computed(() => Object.values(assessmentResult.value?.assessments || {}) as any[])
 const conflictRows = computed(() => Array.isArray(assessmentResult.value?.conflicts) ? assessmentResult.value.conflicts : [])
 const metaSummaryRecord = computed(() => assessmentResult.value?.meta_agent || {})
-const metaSummary = computed(() => String(metaSummaryRecord.value?.summary || assessmentRecord.value?.summary || '暂无总控专科裁决摘要'))
+const metaSummary = computed(() => String(metaSummaryRecord.value?.summary || assessmentRecord.value?.summary || '暂无总控智能体裁决摘要'))
 const metaActions = computed(() => Array.isArray(metaSummaryRecord.value?.final_actions) ? metaSummaryRecord.value.final_actions : [])
 const metaActionCount = computed(() => metaActions.value.length)
 const priorityRows = computed(() => Array.isArray(metaSummaryRecord.value?.top_priorities) ? metaSummaryRecord.value.top_priorities : [])
@@ -490,7 +490,7 @@ const detailPanelTitle = computed(() => {
   if (activeSystemDomain.value === 'hemodynamic') return '血管活性药物时间轴与液体平衡'
   if (activeSystemDomain.value === 'infection') return '培养 / 抗菌药降阶梯判断'
   if (activeSystemDomain.value === 'respiratory') return '呼吸机参数趋势'
-  return `${activeSystemLabel.value}顾问`
+  return `智能${activeSystemLabel.value}顾问`
 })
 const impactPanelTitle = computed(() => {
   if (activeSystemDomain.value === 'hemodynamic') return '循环系统关键事件'
@@ -546,7 +546,7 @@ const latestGeneratedDocuments = computed(() =>
   }, {})
 )
 const topConflictSummary = computed(() => conflictRows.value.length ? (conflictRows.value[0]?.summary || '存在跨专科冲突') : '当前无明显冲突')
-const nextActionText = computed(() => metaActions.value[0] || todoRows.value[0]?.action || '等待总控专科生成行动建议')
+const nextActionText = computed(() => metaActions.value[0] || todoRows.value[0]?.action || '等待总控智能体生成行动建议')
 const closurePercent = computed(() => {
   const total = decisionRows.value.length
   if (!total) return 0
@@ -569,13 +569,13 @@ const documentStatusRows = computed(() => [
     key: 'consultation_request',
     label: '会诊记录',
     status: consultRecord.value ? '已填写' : '待填写',
-    detail: consultRecord.value ? `${consultRecord.value.length} 字` : '可由 系统生成',
+    detail: consultRecord.value ? `${consultRecord.value.length} 字` : '可由 AI 生成',
   },
   {
     key: 'daily_progress',
     label: '病程记录',
     status: progressRecord.value ? '已填写' : '待填写',
-    detail: progressRecord.value ? `${progressRecord.value.length} 字` : '可由 系统生成',
+    detail: progressRecord.value ? `${progressRecord.value.length} 字` : '可由 AI 生成',
   },
 ])
 const mdtSummarySections = computed(() => {
@@ -628,7 +628,7 @@ const mdtActionBoardRows = computed(() => [
 const nextStepAction = computed(() => {
   if (!selectedPatientId.value) return { title: '选择患者', detail: '先选择本次会诊患者。', button: '选择患者', enabled: false, action: 'none' }
   if (isGeneratingAssessment.value) return { title: '等待会诊生成', detail: '生成完成后先看冲突和决议。', button: '生成中', enabled: false, action: 'none' }
-  if (!decisionRows.value.length && syncableAiActions.value.length) return { title: '同步 会诊动作为决议草案', detail: '同步后逐条确认负责人、时限和复评指标。', button: '同步动作', enabled: !isSessionClosed.value, action: 'sync' }
+  if (!decisionRows.value.length && syncableAiActions.value.length) return { title: '同步 AI 动作为决议草案', detail: '同步后逐条确认负责人、时限和复评指标。', button: '同步动作', enabled: !isSessionClosed.value, action: 'sync' }
   if (pendingConfirmationCount.value) return { title: '医生确认决议草案', detail: '确认前不能作为医嘱或任务执行。', button: '批量确认', enabled: !isSessionClosed.value, action: 'confirm' }
   if (pendingDecisionCount.value || inProgressDecisionCount.value) return { title: '推进未闭环决议', detail: '优先完成已确认但未闭环的决议。', button: '批量完成', enabled: !isSessionClosed.value, action: 'complete' }
   if (!consultRecord.value && !progressRecord.value) return { title: '生成会诊记录', detail: '把问题、证据、决议和复评写成可归档记录。', button: '生成记录', enabled: !isSessionClosed.value, action: 'document' }
@@ -766,7 +766,7 @@ const workflowSteps = computed(() => [
     key: 'decision',
     index: '03',
     title: '形成决议',
-    desc: decisionRows.value.length ? `${decisionRows.value.length} 条建议，${pendingConfirmationCount.value} 条需医生确认` : '同步 会诊动作或新增决议',
+    desc: decisionRows.value.length ? `${decisionRows.value.length} 条建议，${pendingConfirmationCount.value} 条需医生确认` : '同步 AI 动作或新增决议',
     done: Boolean(decisionRows.value.length && completedDecisionCount.value === decisionRows.value.length),
   },
   {
@@ -809,9 +809,9 @@ const mdtStepRows = computed(() => [
 ])
 const primaryGuidanceTitle = computed(() => {
   if (!selectedPatientId.value) return '先选患者，页面会自动收敛到这次 MDT'
-  if (isGeneratingAssessment.value) return '正在生成会诊，先等总控专科汇总'
+  if (isGeneratingAssessment.value) return '正在生成会诊，先等总控智能体汇总'
   if (conflictRows.value.length) return '先裁决冲突，再下执行动作'
-  if (pendingConfirmationCount.value) return '先由医生确认 会诊决议草案'
+  if (pendingConfirmationCount.value) return '先由医生确认 AI 决议草案'
   if (pendingDecisionCount.value || inProgressDecisionCount.value) return '现在重点是把已确认决议闭环'
   return '会诊基本闭环，可以生成文书归档'
 })
@@ -819,7 +819,7 @@ const primaryGuidanceText = computed(() => {
   if (!selectedPatientId.value) return '左侧选择患者后，系统会自动拉取专科意见、冲突焦点和历史会话，避免医生先面对一整屏空信息。'
   if (isGeneratingAssessment.value) return '请稍候，生成完成后优先看“总控结论”和“冲突焦点”，不用在所有模块里来回找。'
   if (conflictRows.value.length) return `当前有 ${conflictRows.value.length} 个跨专科冲突，建议先确认主持人裁决，再同步为执行决议。`
-  if (pendingConfirmationCount.value) return `还有 ${pendingConfirmationCount.value} 条 辅助建议草案未由医生确认，确认前不能作为医嘱或执行任务。`
+  if (pendingConfirmationCount.value) return `还有 ${pendingConfirmationCount.value} 条 AI 建议草案未由医生确认，确认前不能作为医嘱或执行任务。`
   if (pendingDecisionCount.value || inProgressDecisionCount.value) return `还有 ${pendingDecisionCount.value + inProgressDecisionCount.value} 条已确认决议未闭环，优先明确负责人、时限和监测指标。`
   return '决议已基本完成，建议生成会诊记录和病程记录，并保存或关闭当前会话。'
 })
@@ -990,7 +990,7 @@ function normalizeDecision(item: any, idx = 0) {
     review_time: String(row.review_time || '').trim() || '6h',
     requires_confirmation: confirmed ? false : (row.requires_confirmation === false ? false : true),
     confirmation_status: row.confirmation_status || (confirmed ? 'confirmed' : 'pending'),
-    safety_notice: row.safety_notice || '系统生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。',
+    safety_notice: row.safety_notice || 'AI 生成内容仅为待审核建议草案，不能作为医嘱直接执行；必须由执业医生结合床旁情况确认。',
   }
 }
 
@@ -1144,7 +1144,7 @@ async function loadAssessment(refresh = false) {
     }
   } catch {
     if (loadToken !== currentLoadToken.value) return
-    error.value = 'MDT 会诊加载失败，请检查患者数据和后端多学科接口。'
+    error.value = 'MDT 会诊加载失败，请检查患者数据和后端多智能体接口。'
   } finally {
     if (loadToken === currentLoadToken.value) {
       loading.value = false
@@ -1249,7 +1249,7 @@ function markDecisionStatus(id: string, status: 'pending_confirmation' | 'doctor
     if (item.id === id) {
       action = item.action || ''
       if (['in_progress', 'completed'].includes(status) && needsDoctorConfirmation(item)) {
-        message.warning('该 辅助建议尚未由医生确认，不能直接进入执行状态')
+        message.warning('该 AI 建议尚未由医生确认，不能直接进入执行状态')
         return item
       }
       return { ...item, status }
@@ -1293,7 +1293,7 @@ async function confirmDecision(row: any, action: 'confirm' | 'reject' | 'revise'
     if (Number(res.data?.code) !== 0) throw new Error(res.data?.message || '确认失败')
     const next = res.data?.decision || {}
     decisions.value = decisions.value.map((item: any) => item.id === id ? normalizeDecision({ ...item, ...next }, 0) : item)
-    appendActivityLog(action === 'confirm' ? '医生确认 会诊决议' : '医生反馈 会诊决议', `${row.action || '决议'} -> ${decisionStatusLabel(next.status)}`)
+    appendActivityLog(action === 'confirm' ? '医生确认 AI 决议' : '医生反馈 AI 决议', `${row.action || '决议'} -> ${decisionStatusLabel(next.status)}`)
     message.success(action === 'confirm' ? '医生已确认，可进入执行追踪' : '已记录医生反馈')
   } catch (err: any) {
     message.error(err?.response?.data?.message || err?.message || '确认失败')
@@ -1355,11 +1355,11 @@ async function markVisibleDecisions(status: 'doctor_confirmed' | 'in_progress' |
 
 function syncDecisionsFromMetaActions() {
   if (isSessionClosed.value) {
-    message.warning('当前 MDT 会话已归档，只读状态下不能同步 会诊动作')
+    message.warning('当前 MDT 会话已归档，只读状态下不能同步 AI 动作')
     return
   }
   if (!syncableAiActions.value.length) {
-    message.info('当前会诊结果还没有可同步动作，可先生成/刷新 MDT 会诊或手动新增决议')
+    message.info('当前 AI 会诊结果还没有可同步动作，可先生成/刷新 MDT 会诊或手动新增决议')
     return
   }
   const existing = new Set(decisions.value.map((item: any) => String(item.action || '').trim()).filter(Boolean))
@@ -1373,17 +1373,17 @@ function syncDecisionsFromMetaActions() {
       monitoring: '按系统指标复评',
       review_time: '6h',
       status: 'pending_confirmation',
-      note: '由总控专科动作同步，需医生确认后才能执行',
+      note: '由总控智能体动作同步，需医生确认后才能执行',
       requires_confirmation: true,
       confirmation_status: 'pending',
     }))
   if (!additions.length) {
-    message.info('会诊动作已全部在决议列表中，无需重复同步')
+    message.info('AI 动作已全部在决议列表中，无需重复同步')
     return
   }
   decisions.value = [...decisions.value, ...additions]
-  appendActivityLog('同步 会诊动作', `已追加 ${additions.length} 条最终动作到决议列表`)
-  message.success(`已同步 ${additions.length} 条 会诊动作到决议列表`)
+  appendActivityLog('同步 AI 动作', `已追加 ${additions.length} 条 AI 最终动作到决议列表`)
+  message.success(`已同步 ${additions.length} 条 AI 动作到决议列表`)
 }
 
 function fillDecisionDefaults() {
@@ -1638,13 +1638,16 @@ onMounted(async () => {
   position: relative;
   width: 100%;
   max-width: none;
-  background: #FFFFFF;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 18%),
+    linear-gradient(90deg, rgba(125, 167, 214, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(125, 167, 214, 0.03) 1px, transparent 1px);
   background-size: auto, 24px 24px, 24px 24px;
 }
 .mdt-hero,.mdt-panel {
-  border-radius: 4px;
+  border-radius: 16px;
   border: 1px solid rgba(125, 167, 214, 0.18);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(10, 22, 35, 0.985), rgba(8, 18, 30, 0.985));
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 .mdt-hero {
@@ -1734,7 +1737,7 @@ onMounted(async () => {
   gap: 10px;
   align-items: center;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(125, 167, 214, 0.14);
   background: rgba(9, 20, 31, 0.72);
 }
@@ -1743,7 +1746,7 @@ onMounted(async () => {
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(15, 42, 61, 0.9);
   color: #a7dff2;
   font-size: 12px;
@@ -1757,17 +1760,19 @@ onMounted(async () => {
 .mdt-flow-step small {
   display: block;
   margin-top: 3px;
-  color: #4E5969;
+  color: #91adbd;
   font-size: 11px;
   line-height: 1.45;
 }
 .mdt-flow-step.is-active {
   border-color: rgba(34, 211, 238, 0.36);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .12), transparent 40%),
+    rgba(9, 25, 38, 0.9);
 }
 .mdt-flow-step.is-done .mdt-flow-step__index {
   background: rgba(10, 82, 61, 0.92);
-  color: #1A9C5B;
+  color: #bbf7d0;
 }
 .mdt-simple-board {
   display: grid;
@@ -1785,7 +1790,9 @@ onMounted(async () => {
 .simple-card {
   border: 1px solid rgba(125, 211, 252, .15);
   border-radius: 18px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, .10), transparent 34%),
+    rgba(7, 20, 34, .82);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
 }
 .simple-patient-card {
@@ -1840,7 +1847,9 @@ onMounted(async () => {
 }
 .simple-card--summary {
   min-height: 132px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(94, 234, 212, .14), transparent 34%),
+    linear-gradient(135deg, rgba(8, 64, 84, .72), rgba(7, 20, 34, .86));
 }
 .simple-card--decisions {
   min-height: 132px;
@@ -1861,7 +1870,7 @@ onMounted(async () => {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #FFFFFF;
+  background: linear-gradient(90deg, #22c55e, #67e8f9);
 }
 .moderator-metrics em {
   color: #a7f3d0;
@@ -1895,7 +1904,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 8px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 4px;
+  border-radius: 12px;
   padding: 9px 10px;
   color: #dffbff;
   background: rgba(2, 8, 20, .26);
@@ -1926,7 +1935,7 @@ onMounted(async () => {
 .simple-list div,
 .simple-empty {
   padding: 10px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(2, 8, 20, .28);
   border: 1px solid rgba(125, 211, 252, .12);
 }
@@ -1949,7 +1958,7 @@ onMounted(async () => {
   gap: 4px;
   padding: 9px 10px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 4px;
+  border-radius: 12px;
   color: inherit;
   background: rgba(2, 8, 20, .28);
   text-align: left;
@@ -1975,7 +1984,7 @@ onMounted(async () => {
   align-items: center;
   min-height: 30px;
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: rgba(18, 53, 76, 0.48);
   border: 1px solid rgba(125, 167, 214, 0.18);
   color: #dcebf3;
@@ -2014,7 +2023,7 @@ onMounted(async () => {
   display: grid;
   gap: 6px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 167, 214, 0.18);
   background: rgba(11, 24, 37, 0.88);
 }
@@ -2047,9 +2056,11 @@ onMounted(async () => {
   gap: 10px;
   min-width: 0;
   padding: 14px;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(125, 167, 214, 0.16);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 36%),
+    rgba(9, 20, 31, 0.88);
 }
 .clinical-card--patient {
   border-left: 4px solid rgba(96, 165, 250, .86);
@@ -2105,7 +2116,7 @@ onMounted(async () => {
   display: grid;
   gap: 3px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(7, 17, 27, .62);
 }
@@ -2116,7 +2127,7 @@ onMounted(async () => {
 }
 .next-action-box {
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(251, 191, 36, .18);
   background: rgba(82, 48, 12, .26);
   color: #ffe9a8;
@@ -2128,7 +2139,7 @@ onMounted(async () => {
   grid-template-columns: minmax(0, 1.1fr) minmax(360px, .9fr);
   gap: 12px;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid rgba(125, 167, 214, 0.14);
   background: rgba(9, 20, 31, 0.68);
 }
@@ -2154,7 +2165,7 @@ onMounted(async () => {
 .snapshot-item,
 .decision-command-strip,
 .doc-status-card {
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 167, 214, 0.16);
   background: rgba(9, 20, 31, 0.88);
 }
@@ -2194,7 +2205,7 @@ onMounted(async () => {
 }
 .cockpit-card--accent {
   border-color: rgba(34, 211, 238, 0.26);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(12, 45, 68, 0.78), rgba(9, 20, 31, 0.9));
 }
 .cockpit-card strong,
 .snapshot-item strong,
@@ -2214,7 +2225,7 @@ onMounted(async () => {
   height: 100%;
   min-width: 4px;
   border-radius: inherit;
-  background: #FFFFFF;
+  background: linear-gradient(90deg, #22d3ee, #34d399);
 }
 .session-snapshot {
   display: grid;
@@ -2245,8 +2256,8 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 4px;
-  background: #FFFFFF;
+  border-radius: 8px;
+  background: rgba(7, 17, 27, 0.7);
   color: #9eb8c7;
   font-size: 12px;
 }
@@ -2268,7 +2279,7 @@ onMounted(async () => {
   display: grid;
   gap: 2px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(9, 20, 31, 0.78);
   border: 1px solid rgba(125, 167, 214, 0.12);
 }
@@ -2284,7 +2295,7 @@ onMounted(async () => {
 .field-input,
 .field-textarea {
   width: 100%;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid rgba(125, 167, 214, 0.18);
   background: rgba(7, 17, 27, 0.94);
   color: #e4f0f6;
@@ -2309,9 +2320,9 @@ onMounted(async () => {
 }
 .mdt-toolbar,
 .mini-card {
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 167, 214, 0.18);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(12, 24, 37, 0.94), rgba(9, 19, 30, 0.94));
 }
 .mdt-toolbar {
   display: grid;
@@ -2326,7 +2337,7 @@ onMounted(async () => {
 }
 .toolbar-hint {
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(245, 158, 11, 0.2);
   background: rgba(71, 43, 8, 0.3);
   color: #f7d08a;
@@ -2347,7 +2358,7 @@ onMounted(async () => {
   width: 100%;
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.18);
   background: rgba(9, 18, 29, 0.95);
   color: #e4f0f6;
@@ -2378,7 +2389,7 @@ onMounted(async () => {
   line-height: 1.55;
 }
 .mini-card--accent {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(18, 38, 54, 0.96), rgba(10, 22, 33, 0.95));
 }
 .detail-label,.conflict-card__agents {
   color: #89a6b8;
@@ -2457,7 +2468,7 @@ onMounted(async () => {
   gap: 6px;
   min-height: 98px;
   padding: 13px 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 167, 214, 0.14);
   background: rgba(9, 20, 31, 0.78);
 }
@@ -2480,7 +2491,7 @@ onMounted(async () => {
 }
 .mdt-action-card.is-warning {
   border-color: rgba(251, 191, 36, 0.24);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(48, 34, 13, 0.84), rgba(18, 25, 31, 0.78));
 }
 .mdt-action-card.is-info {
   border-color: rgba(96, 165, 250, 0.24);
@@ -2497,9 +2508,9 @@ onMounted(async () => {
   align-items: center;
   gap: 14px;
   padding: 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(96, 165, 250, 0.22);
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(15, 38, 58, 0.9), rgba(10, 22, 33, 0.86));
 }
 .mdt-next-step > div {
   display: grid;
@@ -2556,7 +2567,7 @@ onMounted(async () => {
   justify-items: center;
   min-width: 96px;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 16px;
   border: 1px solid rgba(52, 211, 153, 0.18);
   background: rgba(9, 57, 43, 0.44);
 }
@@ -2588,7 +2599,7 @@ onMounted(async () => {
   display: grid;
   gap: 4px;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 167, 214, 0.14);
   background: rgba(9, 20, 31, 0.74);
 }
@@ -2628,7 +2639,7 @@ onMounted(async () => {
   width: 100%;
   padding: 10px 12px;
   text-align: left;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(9, 20, 31, 0.78);
   cursor: pointer;
@@ -2669,7 +2680,7 @@ onMounted(async () => {
   display: grid;
   gap: 4px;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(9, 20, 31, 0.76);
 }
@@ -2696,7 +2707,7 @@ onMounted(async () => {
   display: grid;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(9, 20, 31, 0.86);
   cursor: pointer;
@@ -2709,7 +2720,7 @@ onMounted(async () => {
 .system-card.is-active {
   border-color: rgba(96, 165, 250, 0.38);
   box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.92);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(14, 27, 41, 0.96), rgba(9, 19, 30, 0.94));
 }
 .system-card__head {
   display: flex;
@@ -2738,7 +2749,7 @@ onMounted(async () => {
   gap: 10px;
   align-items: start;
   padding: 12px 12px 12px 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(9, 20, 31, 0.86);
   cursor: pointer;
@@ -2751,7 +2762,7 @@ onMounted(async () => {
 .specialist-row.is-active {
   border-color: rgba(96, 165, 250, 0.38);
   box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.92);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(14, 27, 41, 0.96), rgba(9, 19, 30, 0.94));
 }
 .specialist-row__main {
   display: grid;
@@ -2830,9 +2841,9 @@ onMounted(async () => {
   gap: 8px;
   margin-top: 10px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(96, 165, 250, 0.28);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(14, 27, 41, 0.96), rgba(9, 19, 30, 0.94));
 }
 .focus-specialist-card__head {
   display: flex;
@@ -2874,7 +2885,7 @@ onMounted(async () => {
   display: grid;
   gap: 10px;
   padding: 14px;
-  border-radius: 4px;
+  border-radius: 12px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(9, 20, 31, 0.82);
 }
@@ -2907,7 +2918,7 @@ onMounted(async () => {
 }
 .trend-placeholder__chart span {
   border-radius: 6px 6px 0 0;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.78), rgba(29, 78, 216, 0.18));
 }
 .trend-placeholder__chart span:nth-child(1) { height: 28%; }
 .trend-placeholder__chart span:nth-child(2) { height: 42%; }
@@ -2935,7 +2946,7 @@ onMounted(async () => {
   display: grid;
   gap: 3px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: rgba(11, 24, 36, 0.76);
   border: 1px solid rgba(125, 167, 214, 0.12);
 }
@@ -2952,7 +2963,7 @@ onMounted(async () => {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(12, 26, 40, 0.86);
 }
@@ -2975,7 +2986,7 @@ onMounted(async () => {
   display: grid;
   gap: 3px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(11, 24, 36, 0.76);
 }
@@ -3048,7 +3059,7 @@ onMounted(async () => {
   display: grid;
   gap: 6px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(9, 20, 31, 0.86);
 }
@@ -3094,7 +3105,7 @@ onMounted(async () => {
 }
 .decision-safety {
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid rgba(245, 158, 11, 0.22);
   background: rgba(82, 48, 12, 0.26);
   color: #ffe9a8;
@@ -3118,7 +3129,7 @@ onMounted(async () => {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
   border: 1px solid rgba(125, 167, 214, 0.12);
   background: rgba(9, 20, 31, 0.68);
 }
@@ -3209,13 +3220,13 @@ onMounted(async () => {
   gap: 10px;
 }
 .summary-box,.empty-box,.error-box,.priority-card,.specialist-card,.conflict-card {
-  border-radius: 4px;
+  border-radius: 12px;
   background: rgba(9, 20, 31, 0.92);
   border: 1px solid rgba(125, 167, 214, 0.14);
 }
 .summary-box,.empty-box,.error-box { padding: 14px 16px; color: #d8edf8; line-height: 1.75; }
 .summary-box--hero {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(13, 28, 42, 0.95), rgba(9, 19, 30, 0.96));
   border-color: rgba(125, 167, 214, 0.18);
   font-size: 13px;
 }
@@ -3231,7 +3242,7 @@ onMounted(async () => {
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .chip {
   padding: 5px 9px;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid rgba(125, 167, 214, 0.16);
   background: rgba(13, 31, 46, 0.86);
   color: #d6e7f1;
@@ -3247,18 +3258,20 @@ onMounted(async () => {
 }
 .detail-block {
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: rgba(9, 23, 36, 0.82);
   border: 1px solid rgba(125, 167, 214, 0.12);
 }
 .action-list { margin: 10px 0 0; padding-left: 18px; color: #dbf0fa; display: grid; gap: 8px; }
 .conflict-card__agents { margin-top: 6px; }
-.error-box { background: rgba(127, 29, 29, 0.22); border-color: rgba(248, 113, 113, 0.24); color: #D9342B; }
+.error-box { background: rgba(127, 29, 29, 0.22); border-color: rgba(248, 113, 113, 0.24); color: #fecaca; }
 html[data-theme='light'] .mdt-hero,
 html[data-theme='light'] .mdt-panel {
   border-color: rgba(187, 204, 220, 0.72);
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
+    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 html[data-theme='light'] .hero-badge,
 html[data-theme='light'] .mdt-flow-step,
@@ -3390,10 +3403,12 @@ html[data-theme='light'] .hero-badge--focus,
 html[data-theme='light'] .row-active-chip {
   background: rgba(219, 234, 254, 0.98);
   border-color: rgba(59, 130, 246, 0.28);
-  color: #15558D;
+  color: #1d4ed8;
 }
 html[data-theme='light'] .cockpit-card--accent {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0) 45%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(239,246,255,.98));
 }
 html[data-theme='light'] .hero-badge--critical {
   background: rgba(255, 241, 244, 0.98);
@@ -3407,7 +3422,7 @@ html[data-theme='light'] .hero-badge--warning {
 }
 html[data-theme='light'] .decision-safety {
   border-color: rgba(217, 119, 6, 0.24);
-  background: #FFFFFF;
+  background: #fff7ed;
   color: #9a3412;
 }
 html[data-theme='light'] .hero-badge--closed,
@@ -3419,7 +3434,7 @@ html[data-theme='light'] .session-chip--closed {
 html[data-theme='light'] .session-chip--tag {
   background: rgba(219, 234, 254, 0.98);
   border-color: rgba(59, 130, 246, 0.28);
-  color: #15558D;
+  color: #1d4ed8;
 }
 html[data-theme='light'] .session-chip--done {
   background: rgba(220, 252, 231, 0.98);
@@ -3443,14 +3458,16 @@ html[data-theme='light'] .specialist-row:hover {
 }
 html[data-theme='light'] .mdt-flow-step.is-active {
   border-color: rgba(14, 165, 233, .32);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .12), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
 }
 html[data-theme='light'] .mdt-flow-step.is-done .mdt-flow-step__index {
   background: rgba(220, 252, 231, .98);
   color: #047857;
 }
 html[data-theme='light'] .summary-box--hero {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
 }
 html[data-theme='light'] .mdt-action-card,
 html[data-theme='light'] .mdt-document-section {
@@ -3459,11 +3476,11 @@ html[data-theme='light'] .mdt-document-section {
 }
 html[data-theme='light'] .mdt-next-step {
   border-color: rgba(37, 99, 235, .24);
-  background: #FFFFFF;
+  background: linear-gradient(90deg, rgba(239, 246, 255, .98), rgba(248, 250, 252, .98));
 }
 html[data-theme='light'] .mdt-action-card.is-warning {
   border-color: rgba(217, 119, 6, .28);
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255, 251, 235, .98), rgba(255, 255, 255, .98));
 }
 html[data-theme='light'] .mdt-action-card span,
 html[data-theme='light'] .mdt-next-step span,
@@ -3478,7 +3495,7 @@ html[data-theme='light'] .mdt-document-section strong {
   color: #18344f;
 }
 html[data-theme='light'] .trend-placeholder__chart span {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.78), rgba(59, 130, 246, 0.2));
 }
 html[data-theme='light'] .toolbar-hint {
   border-color: rgba(245, 158, 11, 0.28);
@@ -3495,18 +3512,21 @@ html[data-theme='light'] .error-box {
 html[data-theme='light'] .mdt-page {
   min-height: calc(100vh - 88px);
   padding: 22px;
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(34, 211, 238, .12), transparent 30%),
+    radial-gradient(circle at 88% 8%, rgba(20, 184, 166, .10), transparent 30%),
+    linear-gradient(180deg, rgba(236, 252, 255, .92), rgba(245, 250, 255, .96));
   color: #07172b;
 }
 html[data-theme='light'] .mdt-hero {
   border-color: rgba(15, 23, 42, .08);
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background: linear-gradient(135deg, rgba(7, 25, 42, .96), rgba(14, 30, 45, .94));
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .12);
 }
 html[data-theme='light'] .mdt-panel {
   border-color: rgba(226, 232, 240, .96);
   background: rgba(255, 255, 255, .96);
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .08);
 }
 html[data-theme='light'] .mdt-panel :deep(.ant-card-head) {
   border-bottom-color: rgba(226, 232, 240, .86);
@@ -3532,7 +3552,7 @@ html[data-theme='light'] .doc-status-card strong,
 html[data-theme='light'] .impact-card__text,
 html[data-theme='light'] .alert-chain__text,
 html[data-theme='light'] .summary-box {
-  color: #1D2129;
+  color: #f8fbff;
 }
 html[data-theme='light'] .mdt-kicker,
 html[data-theme='light'] .mdt-desc,
@@ -3587,19 +3607,19 @@ html[data-theme='light'] .timeline-item,
 html[data-theme='light'] .trend-metrics__item,
 html[data-theme='light'] .detail-block {
   border-color: rgba(125, 167, 214, .14);
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(71, 88, 102, .96), rgba(42, 57, 72, .98));
   box-shadow: none;
 }
 html[data-theme='light'] .cockpit-card--accent,
 html[data-theme='light'] .sheet-item:nth-child(2),
 html[data-theme='light'] .doc-status-card:nth-child(2) {
   border-color: rgba(34, 211, 238, .18);
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(50, 103, 116, .92), rgba(42, 57, 72, .98));
 }
 html[data-theme='light'] .sheet-item:nth-child(3),
 html[data-theme='light'] .doc-status-card:nth-child(3) {
   border-color: rgba(245, 158, 11, .20);
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(117, 98, 66, .88), rgba(42, 57, 72, .98));
 }
 html[data-theme='light'] .hero-editor-card,
 html[data-theme='light'] .mdt-toolbar,
@@ -3611,7 +3631,7 @@ html[data-theme='light'] .doc-block {
 html[data-theme='light'] .hero-editor-card .detail-label,
 html[data-theme='light'] .toolbar-label,
 html[data-theme='light'] .patient-sheet__sub {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .patient-sheet__name,
 html[data-theme='light'] .hero-editor-card .empty-box,
@@ -3621,7 +3641,7 @@ html[data-theme='light'] .doc-block .detail-label {
 html[data-theme='light'] .doc-block .summary-box {
   border-color: rgba(203, 213, 225, .78);
   background: rgba(248, 250, 252, .98);
-  color: #1D2129;
+  color: #334155;
 }
 html[data-theme='light'] .owner-mini-row,
 html[data-theme='light'] .todo-row,
@@ -3630,7 +3650,7 @@ html[data-theme='light'] .chip,
 html[data-theme='light'] .inline-toggle {
   border-color: rgba(203, 213, 225, .86);
   background: rgba(248, 250, 252, .96);
-  color: #1D2129;
+  color: #334155;
 }
 html[data-theme='light'] .owner-mini-row strong,
 html[data-theme='light'] .todo-row strong {
@@ -3642,7 +3662,7 @@ html[data-theme='light'] .field-textarea,
 html[data-theme='light'] .mdt-select {
   border-color: rgba(203, 213, 225, .92);
   background: rgba(248, 250, 252, .98);
-  color: #1D2129;
+  color: #0f172a;
 }
 html[data-theme='light'] .panel-select:focus,
 html[data-theme='light'] .field-input:focus,
@@ -3670,7 +3690,7 @@ html[data-theme='light'] .row-active-chip {
 html[data-theme='light'] .system-card.is-active,
 html[data-theme='light'] .specialist-row.is-active {
   border-color: rgba(34, 211, 238, .34);
-  background: #FFFFFF;
+  background: linear-gradient(135deg, rgba(8, 64, 84, .82), rgba(42, 57, 72, .98));
   box-shadow: inset 3px 0 0 rgba(34, 211, 238, .9);
 }
 html[data-theme='light'] .system-card:hover,
@@ -3690,21 +3710,30 @@ html[data-theme='light'] .timeline-item small {
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--assessment > .mdt-panel:last-child,
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--decisions > .mdt-panel:last-child,
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-panel:first-child {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 34%),
+    rgba(255, 255, 255, .98);
 }
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--assessment > .mdt-panel:first-child,
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--timeline > .mdt-panel,
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-panel:last-child {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(15, 118, 110, .09), transparent 36%),
+    rgba(248, 252, 255, .98);
 }
 html[data-theme='light'] .mdt-hero {
   border-color: rgba(187, 204, 220, .82);
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(34, 211, 238, .14), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(59, 130, 246, .10), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(241, 248, 253, .98));
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .10);
 }
 html[data-theme='light'] .clinical-card {
   border-color: rgba(191, 219, 254, .82);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .10), rgba(56, 189, 248, 0) 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(239, 248, 252, .98));
   box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
 }
 html[data-theme='light'] .clinical-card--patient {
@@ -3725,7 +3754,7 @@ html[data-theme='light'] .clinical-metric strong {
 }
 html[data-theme='light'] .clinical-card__head span,
 html[data-theme='light'] .clinical-metric span {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .clinical-metric {
   border-color: rgba(203, 213, 225, .82);
@@ -3793,7 +3822,7 @@ html[data-theme='light'] .timeline-item span,
 html[data-theme='light'] .timeline-item small,
 html[data-theme='light'] .decision-bucket__head,
 html[data-theme='light'] .action-list {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .cockpit-main,
 html[data-theme='light'] .cockpit-card,
@@ -3825,7 +3854,9 @@ html[data-theme='light'] .owner-mini-row,
 html[data-theme='light'] .todo-row,
 html[data-theme='light'] .mdt-clinical-meta {
   border-color: rgba(203, 213, 225, .82);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .08), rgba(56, 189, 248, 0) 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
   box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
 }
 html[data-theme='light'] .cockpit-card--accent,
@@ -3839,16 +3870,18 @@ html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-pan
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--assessment > .mdt-panel:first-child,
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--timeline > .mdt-panel,
 html[data-theme='light'] .mdt-content--moderator .mdt-grid--documents > .mdt-panel:last-child {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .10), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(239, 248, 252, .98));
 }
 html[data-theme='light'] .hero-badge {
   border-color: rgba(203, 213, 225, .86);
   background: rgba(248, 250, 252, .94);
-  color: #1D2129;
+  color: #334155;
 }
 html[data-theme='light'] .hero-badge--soft {
   background: rgba(241, 245, 249, .96);
-  color: #4E5969;
+  color: #475569;
 }
 html[data-theme='light'] .hero-badge--focus,
 html[data-theme='light'] .row-active-chip {
@@ -3859,11 +3892,13 @@ html[data-theme='light'] .row-active-chip {
 html[data-theme='light'] .system-card.is-active,
 html[data-theme='light'] .specialist-row.is-active {
   border-color: rgba(56, 189, 248, .38);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, .14), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
   box-shadow: inset 3px 0 0 rgba(14, 165, 233, .75);
 }
 html[data-theme='light'] .mini-link {
-  color: #15558D;
+  color: #2563eb;
 }
 html[data-theme='light'] .guide-header h2,
 html[data-theme='light'] .clinical-fact strong,
@@ -3874,7 +3909,7 @@ html[data-theme='light'] .guide-header p,
 html[data-theme='light'] .clinical-fact span,
 html[data-theme='light'] .session-compact-item span,
 html[data-theme='light'] .mdt-flow-step small {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .guide-score {
   border-color: rgba(16, 185, 129, .24);
@@ -3890,7 +3925,9 @@ html[data-theme='light'] .mdt-flow-step,
 html[data-theme='light'] .clinical-fact,
 html[data-theme='light'] .session-compact-item {
   border-color: rgba(203, 213, 225, .82);
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, .08), rgba(56, 189, 248, 0) 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
   box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
 }
 html[data-theme='light'] .mdt-flow-step__index {
@@ -3906,38 +3943,42 @@ html[data-theme='light'] .session-compact-item strong {
 html[data-theme='light'] .mdt-flow-step small,
 html[data-theme='light'] .clinical-fact span,
 html[data-theme='light'] .session-compact-item span {
-  color: #4E5969;
+  color: #64748b;
 }
 html[data-theme='light'] .mdt-flow-step.is-active {
   border-color: rgba(14, 165, 233, .36);
-  background: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .14), transparent 42%),
+    linear-gradient(180deg, rgba(248, 253, 255, .99), rgba(232, 247, 252, .98));
+  box-shadow: 0 10px 24px rgba(14, 165, 233, .10);
 }
 html[data-theme='light'] .mdt-flow-step.is-done {
-  background: #FFFFFF;
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, .10), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(240, 253, 250, .98));
 }
 html[data-theme='light'] .mdt-hero {
   border-color: #dbeafe;
-  background: #FFFFFF !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  background: #ffffff !important;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
 }
 html[data-theme='light'] .mdt-step-layout {
-  color: #1D2129;
+  color: #0f172a;
 }
 html[data-theme='light'] .mdt-step-layout :deep(.ant-card),
 html[data-theme='light'] .mdt-step-layout :deep(.ant-card-body) {
-  color: #1D2129;
+  color: #0f172a;
 }
 html[data-theme='light'] .mdt-step-layout textarea,
 html[data-theme='light'] .mdt-step-layout input,
 html[data-theme='light'] .mdt-step-layout select {
-  color: #1D2129 !important;
-  border-color: #E5E6EB !important;
-  background: #FFFFFF !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
 }
 html[data-theme='light'] .mdt-step-layout textarea::placeholder,
 html[data-theme='light'] .mdt-step-layout input::placeholder {
-  color: #4E5969 !important;
+  color: #94a3b8 !important;
 }
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),
@@ -4012,3 +4053,4 @@ html[data-theme='light'] .mdt-step-layout input::placeholder {
   .mdt-hero__side { padding: 14px; }
 }
 </style>
+

@@ -4,7 +4,7 @@
       <div>
         <div class="twin-kicker">数字孪生闭环工作台</div>
         <h3 class="twin-title">数字孪生诊疗推理</h3>
-        <p class="twin-sub">把风险预测、建议、追踪、效果评估、因果链和 MDT 会诊收敛到一个临床工作台。</p>
+        <p class="twin-sub">把风险预测、建议、追踪、效果评估、因果链和 MDT 会诊收敛到一个智能临床工作台。</p>
       </div>
       <button class="twin-refresh" :disabled="loading" @click="loadAll(true)">{{ loading ? '刷新中…' : '刷新工作台' }}</button>
     </div>
@@ -83,7 +83,7 @@
       </section>
 
       <section class="twin-card">
-        <div class="card-head"><div><div class="card-title">护理文本分析</div><div class="card-sub">近 12h 护理记录与计划执行信号</div></div><span :class="['risk-badge', `is-${nursingRiskLevel}`]">{{ nursingRiskText }}</span></div>
+        <div class="card-head"><div><div class="card-title">护理文本智能分析</div><div class="card-sub">近 12h 护理记录与计划执行信号</div></div><span :class="['risk-badge', `is-${nursingRiskLevel}`]">{{ nursingRiskText }}</span></div>
         <div class="summary-panel">{{ nursingSummary }}</div>
         <div class="chip-row"><span v-for="item in nursingSignalLabels" :key="item" class="info-chip">{{ item }}</span></div>
         <ul class="bullet-list"><li v-for="(item, idx) in nursingSuggestions" :key="`nursing-${idx}`">{{ item }}</li></ul>
@@ -178,14 +178,14 @@
       </section>
 
       <section class="twin-card">
-        <div class="card-head"><div><div class="card-title">MDT 多学科会诊</div><div class="card-sub">专科专科观点、冲突与总控专科裁决</div></div></div>
+        <div class="card-head"><div><div class="card-title">MDT 多智能体会诊</div><div class="card-sub">专科智能体观点、冲突与总控智能体裁决</div></div></div>
         <div class="summary-panel">{{ mdtSummary }}</div>
         <div v-if="conflictRows.length" class="conflict-list">
           <article v-for="(item, idx) in conflictRows" :key="`${item.type || 'conflict'}-${idx}`" class="conflict-item"><div class="conflict-title">{{ item.summary || '存在跨专科冲突待裁决' }}</div><div class="conflict-meta">{{ item.resolution_focus || '需结合床旁动态数据与治疗目标综合判断。' }}</div></article>
         </div>
         <div class="mdt-grid"><article v-for="item in specialistCards" :key="item.agent" class="mdt-item"><div class="mdt-title">{{ item.domain }}</div><div class="mdt-meta">{{ item.summary }}</div></article></div>
         <ul class="bullet-list"><li v-for="(item, idx) in metaActions" :key="`meta-${idx}`">{{ item }}</li></ul>
-        <div class="action-row"><button class="mini-btn" @click="openMdtBoard">打开 MDT 多学科会诊页</button></div>
+        <div class="action-row"><button class="mini-btn" @click="openMdtBoard">打开 MDT 多智能体会诊页</button></div>
       </section>
 
       <section class="twin-card twin-card-wide whatif-workbench">
@@ -641,7 +641,7 @@ async function loadAll(refresh = false) {
       getAiNursingNoteSignals(props.patientId, { refresh }),
       getAiSubphenotype(props.patientId, { refresh }),
     ])
-    const labels = ['数字孪生快照', '风险预测', '主动管理', '临床推理', 'MDT多学科', '护理文本分析', '亚表型分析']
+    const labels = ['数字孪生快照', '风险预测', '主动管理', '临床推理', 'MDT多智能体', '护理文本分析', '亚表型分析']
     const settled = (i: number) => results[i].status === 'fulfilled' ? (results[i] as PromiseFulfilledResult<any>).value : null
     digitalTwin.value = settled(0)?.data || null
     riskForecast.value = settled(1)?.data || null
@@ -652,7 +652,7 @@ async function loadAll(refresh = false) {
     subphenotypeProfile.value = settled(6)?.data || null
     const failedNames = results.map((r, i) => r.status === 'rejected' ? labels[i] : null).filter(Boolean)
     if (failedNames.length === labels.length) {
-      error.value = '数字孪生工作台加载失败，请检查后端接口。'
+      error.value = '数字孪生工作台加载失败，请检查后端智能接口。'
     } else if (failedNames.length > 0) {
       error.value = `部分模块加载失败：${failedNames.join('、')}，其余数据已正常显示。`
     }
@@ -660,7 +660,7 @@ async function loadAll(refresh = false) {
     try { await loadCausal(selectedFinding.value) } catch { /* already handled inside loadCausal */ }
     try { await runWhatIf(whatIfPresets.find((item) => item.type === whatIfSelected.value) || whatIfPresets[0]) } catch { /* already handled inside runWhatIf */ }
   } catch {
-    error.value = '数字孪生工作台加载失败，请检查后端接口。'
+    error.value = '数字孪生工作台加载失败，请检查后端智能接口。'
   } finally {
     loading.value = false
   }
@@ -684,20 +684,20 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 
 <style scoped>
 .twin-shell { display: grid; gap: 16px; }
-.twin-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; padding: 18px; border-radius: 22px; border: 1px solid rgba(71,145,191,.18); background: #FFFFFF; }
+.twin-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; padding: 18px; border-radius: 22px; border: 1px solid rgba(71,145,191,.18); background: radial-gradient(circle at top right, rgba(24,126,173,.18), transparent 36%), linear-gradient(160deg, rgba(8,24,39,.98) 0%, rgba(6,17,30,.98) 58%, rgba(4,12,24,.99) 100%); }
 .twin-kicker { color: #6ee7f9; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; }
 .twin-title { margin: 6px 0 0; color: #effcff; font-size: 24px; font-weight: 800; }
 .twin-sub { margin: 8px 0 0; color: #8ab5ca; font-size: 13px; max-width: 760px; }
 .twin-refresh { border: 1px solid rgba(110,231,249,.24); background: rgba(7,27,40,.84); color: #dffbff; border-radius: 999px; padding: 10px 16px; cursor: pointer; }
 .twin-refresh:disabled { opacity: .6; cursor: default; }
 .twin-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.twin-kpi,.loop-card,.twin-card { border-radius: 18px; border: 1px solid rgba(81,163,201,.16); background: #FFFFFF; box-shadow: inset 0 1px 0 rgba(193,233,255,.04); }
+.twin-kpi,.loop-card,.twin-card { border-radius: 18px; border: 1px solid rgba(81,163,201,.16); background: linear-gradient(180deg, rgba(9,24,38,.96), rgba(5,14,24,.98)); box-shadow: inset 0 1px 0 rgba(193,233,255,.04); }
 .twin-kpi { padding: 16px; display: grid; gap: 6px; }
 .twin-kpi span,.loop-label,.card-sub,.intervention-meta,.causal-meta,.mdt-meta { color: #7ea8bc; font-size: 12px; }
-.twin-kpi strong,.loop-value,.card-title,.intervention-title,.mdt-title { color: #1D2129; }
+.twin-kpi strong,.loop-value,.card-title,.intervention-title,.mdt-title { color: #f4fbff; }
 .loop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .loop-card { padding: 16px; display: grid; gap: 8px; }
-.loop-step { width: 32px; height: 32px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; background: rgba(34,211,238,.12); color: #7ee9f6; font-weight: 800; }
+.loop-step { width: 32px; height: 32px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: rgba(34,211,238,.12); color: #7ee9f6; font-weight: 800; }
 .loop-value { font-size: 18px; font-weight: 700; }
 .loop-meta { color: #9ac0d2; font-size: 12px; line-height: 1.5; }
 .twin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -708,44 +708,44 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .risk-badge,.status-pill { border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; }
 .risk-badge.is-critical,.status-pill.is-completed { background: rgba(244,63,94,.16); color: #fecdd3; }
 .risk-badge.is-high,.status-pill.is-in_progress { background: rgba(251,146,60,.16); color: #fed7aa; }
-.risk-badge.is-medium,.status-pill.is-pending { background: rgba(56,189,248,.16); color: #15558D; }
-.risk-badge.is-low,.status-pill.is-dismissed { background: rgba(52,211,153,.16); color: #1A9C5B; }
+.risk-badge.is-medium,.status-pill.is-pending { background: rgba(56,189,248,.16); color: #bae6fd; }
+.risk-badge.is-low,.status-pill.is-dismissed { background: rgba(52,211,153,.16); color: #bbf7d0; }
 .curve-list,.intervention-list,.causal-list,.mdt-grid,.conflict-list,.causal-guidelines { display: grid; gap: 10px; }
-.curve-row,.causal-item,.mdt-item,.intervention-item,.conflict-item { padding: 12px; border-radius: 4px; background: rgba(7,20,34,.8); border: 1px solid rgba(77,152,188,.12); }
+.curve-row,.causal-item,.mdt-item,.intervention-item,.conflict-item { padding: 12px; border-radius: 14px; background: rgba(7,20,34,.8); border: 1px solid rgba(77,152,188,.12); }
 .curve-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; color: #d8eff8; font-size: 12px; }
 .curve-bar { height: 8px; border-radius: 999px; background: rgba(43,85,108,.36); overflow: hidden; }
-.curve-fill { height: 100%; border-radius: inherit; background: #FFFFFF; }
-.causal-fill { background: #FFFFFF; }
+.curve-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22d3ee, #38bdf8); }
+.causal-fill { background: linear-gradient(90deg, #f59e0b, #fb7185); }
 .overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .twin-overview-split { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 14px; align-items: start; }
 .twin-overview-copy { display: grid; gap: 12px; }
 .overview-item { display: grid; gap: 4px; }
 .overview-item span,.overview-item small { color: #8fb4c8; font-size: 12px; }
-.overview-item strong { color: #1D2129; font-size: 16px; }
+.overview-item strong { color: #f4fbff; font-size: 16px; }
 .timeline-list { display: grid; gap: 12px; }
 .timeline-item { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: stretch; }
 .timeline-rail { position: relative; display: grid; justify-items: end; gap: 8px; padding-right: 12px; }
 .timeline-time { color: #8fb6c9; font-size: 12px; line-height: 1.5; text-align: right; }
-.timeline-dot { width: 12px; height: 12px; border-radius: 999px; border: 2px solid rgba(198,239,255,.16); background: #4E5969; z-index: 1; }
+.timeline-dot { width: 12px; height: 12px; border-radius: 999px; border: 2px solid rgba(198,239,255,.16); background: #64748b; z-index: 1; }
 .timeline-dot--danger { background: #fb7185; }
 .timeline-dot--warning { background: #f59e0b; }
 .timeline-dot--accent { background: #34d399; }
 .timeline-dot--info { background: #22d3ee; }
-.timeline-dot--neutral { background: #4E5969; }
-.timeline-line { position: absolute; top: 44px; right: 17px; bottom: -12px; width: 1px; background: #FFFFFF; }
+.timeline-dot--neutral { background: #64748b; }
+.timeline-line { position: absolute; top: 44px; right: 17px; bottom: -12px; width: 1px; background: linear-gradient(180deg, rgba(110,231,249,.4), rgba(110,231,249,0)); }
 .timeline-card { display: grid; gap: 8px; }
 .timeline-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .timeline-card-title { color: #edf9ff; font-size: 14px; font-weight: 700; line-height: 1.5; }
 .timeline-card-sub,.timeline-card-meta { color: #8fb4c8; font-size: 12px; line-height: 1.6; }
 .timeline-source { border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .timeline-source.is-danger { background: rgba(244,63,94,.14); color: #fecdd3; }
-.timeline-source.is-warning { background: rgba(245,158,11,.14); color: #E8901C; }
-.timeline-source.is-accent { background: rgba(52,211,153,.16); color: #1A9C5B; }
+.timeline-source.is-warning { background: rgba(245,158,11,.14); color: #fde68a; }
+.timeline-source.is-accent { background: rgba(52,211,153,.16); color: #bbf7d0; }
 .timeline-source.is-info { background: rgba(34,211,238,.15); color: #c4fbff; }
 .timeline-source.is-neutral { background: rgba(71,85,105,.3); color: #d7e6ef; }
 .bullet-list { margin: 0; padding-left: 18px; color: #d7edf7; display: grid; gap: 8px; }
 .bullet-list.compact { gap: 6px; }
-.summary-panel,.empty-panel,.error-panel,.effect-box { padding: 12px 14px; border-radius: 4px; line-height: 1.75; }
+.summary-panel,.empty-panel,.error-panel,.effect-box { padding: 12px 14px; border-radius: 14px; line-height: 1.75; }
 .summary-panel,.empty-panel { background: rgba(7,20,34,.78); color: #d5edf8; border: 1px solid rgba(79,153,191,.12); box-shadow: inset 0 1px 0 rgba(145,228,255,.04); }
 .conflict-title { color: #fef3c7; font-size: 13px; font-weight: 700; }
 .conflict-meta { margin-top: 6px; color: #d9edf8; font-size: 12px; line-height: 1.6; }
@@ -763,27 +763,27 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .cause-chip.active { background: rgba(34,211,238,.16); border-color: rgba(110,231,249,.3); box-shadow: inset 0 1px 0 rgba(186,230,253,.08); }
 .mini-btn--soft { background: rgba(20,184,166,.14); }
 .mini-btn--ghost { background: rgba(244,63,94,.12); }
-.effect-box { display: flex; justify-content: space-between; gap: 12px; color: #1D2129; }
+.effect-box { display: flex; justify-content: space-between; gap: 12px; color: #f4fbff; }
 .effect-box.is-improving { background: rgba(20,184,166,.14); }
 .effect-box.is-worsening { background: rgba(244,63,94,.14); }
 .effect-box.is-stable { background: rgba(56,189,248,.14); }
 .mdt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.error-panel { background: rgba(127,29,29,.22); border: 1px solid rgba(248,113,113,.26); color: #D9342B; }
+.error-panel { background: rgba(127,29,29,.22); border: 1px solid rgba(248,113,113,.26); color: #fecaca; }
 .whatif-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
-.whatif-chart,.whatif-drawer { display: grid; gap: 12px; padding: 12px; border-radius: 4px; background: rgba(7,20,34,.78); border: 1px solid rgba(79,153,191,.12); }
+.whatif-chart,.whatif-drawer { display: grid; gap: 12px; padding: 12px; border-radius: 14px; background: rgba(7,20,34,.78); border: 1px solid rgba(79,153,191,.12); }
 .whatif-axis,.whatif-legend { display: flex; justify-content: space-between; gap: 10px; color: #8fb4c8; font-size: 11px; }
 .whatif-metric { display: grid; gap: 8px; }
-.whatif-track { position: relative; height: 36px; border-radius: 4px; background: rgba(43,85,108,.26); overflow: hidden; }
+.whatif-track { position: relative; height: 36px; border-radius: 12px; background: rgba(43,85,108,.26); overflow: hidden; }
 .whatif-track i,.whatif-track .band { position: absolute; left: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .actual-line { height: 3px; border-radius: 999px; background: #e0f2fe; }
 .baseline-line { height: 0; border-top: 2px dashed #38bdf8; }
-.whatif-line { height: 3px; border-radius: 4px; background: #D9342B; }
-.whatif-line.degraded { border-top-color: #4E5969; filter: grayscale(1); }
+.whatif-line { height: 3px; border-radius: 999px; background: repeating-linear-gradient(90deg, #fb7185 0 10px, transparent 10px 14px, #fb7185 14px 17px, transparent 17px 22px); }
+.whatif-line.degraded { border-top-color: #94a3b8; filter: grayscale(1); }
 .band { height: 18px; border-radius: 999px; opacity: .22; }
 .band80 { background: #fb7185; }
 .band95 { background: #f59e0b; opacity: .14; }
-.whatif-banner { padding: 10px 12px; border-radius: 4px; background: rgba(245,158,11,.16); color: #E8901C; border: 1px solid rgba(245,158,11,.24); font-size: 12px; line-height: 1.6; }
-.whatif-banner.muted { background: rgba(100,116,139,.18); color: #E5E6EB; border-color: rgba(148,163,184,.24); }
+.whatif-banner { padding: 10px 12px; border-radius: 12px; background: rgba(245,158,11,.16); color: #fde68a; border: 1px solid rgba(245,158,11,.24); font-size: 12px; line-height: 1.6; }
+.whatif-banner.muted { background: rgba(100,116,139,.18); color: #cbd5e1; border-color: rgba(148,163,184,.24); }
 @media (max-width: 900px) { .overview-grid,.timeline-item,.twin-overview-split { grid-template-columns: 1fr; } .timeline-rail { justify-items: start; padding-right: 0; padding-bottom: 8px; } .timeline-time { text-align: left; } .timeline-line { left: 5px; right: auto; top: 32px; bottom: -8px; } }
 @media (max-width: 1100px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid,.whatif-layout { grid-template-columns: 1fr 1fr; } .twin-card-wide { grid-column: span 2; } }
 @media (max-width: 720px) { .twin-kpis,.loop-grid,.twin-grid,.mdt-grid,.whatif-layout { grid-template-columns: 1fr; } .twin-card-wide { grid-column: auto; } }
@@ -791,12 +791,12 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 /* Light mode overrides */
 html[data-theme='light'] .twin-sub { color: #6a8098; }
 html[data-theme='light'] .twin-refresh { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); color: #16324f; }
-html[data-theme='light'] .twin-kpi, html[data-theme='light'] .loop-card, html[data-theme='light'] .twin-card { background: #FFFFFF; border-color: rgba(187,204,220,0.72); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+html[data-theme='light'] .twin-kpi, html[data-theme='light'] .loop-card, html[data-theme='light'] .twin-card { background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
 html[data-theme='light'] .twin-kpi span, html[data-theme='light'] .loop-label, html[data-theme='light'] .card-sub, html[data-theme='light'] .intervention-meta, html[data-theme='light'] .causal-meta, html[data-theme='light'] .mdt-meta { color: #6f8399; }
 html[data-theme='light'] .twin-kpi strong, html[data-theme='light'] .loop-value, html[data-theme='light'] .card-title, html[data-theme='light'] .intervention-title, html[data-theme='light'] .mdt-title { color: #16324f; }
-html[data-theme='light'] .loop-step { background: rgba(59,130,246,0.1); color: #15558D; }
+html[data-theme='light'] .loop-step { background: rgba(59,130,246,0.1); color: #2563eb; }
 html[data-theme='light'] .loop-meta { color: #47627e; }
-html[data-theme='light'] .risk-badge.is-medium, html[data-theme='light'] .status-pill.is-pending { background: rgba(59,130,246,.16); color: #15558D; }
+html[data-theme='light'] .risk-badge.is-medium, html[data-theme='light'] .status-pill.is-pending { background: rgba(59,130,246,.16); color: #1d4ed8; }
 html[data-theme='light'] .risk-badge.is-low, html[data-theme='light'] .status-pill.is-dismissed { background: rgba(16,185,129,.16); color: #059669; }
 html[data-theme='light'] .risk-badge.is-high, html[data-theme='light'] .status-pill.is-in_progress { background: rgba(245,158,11,.16); color: #b45309; }
 html[data-theme='light'] .risk-badge.is-critical, html[data-theme='light'] .status-pill.is-completed { background: rgba(239,68,68,.16); color: #b91c1c; }
@@ -807,18 +807,18 @@ html[data-theme='light'] .overview-item span, html[data-theme='light'] .overview
 html[data-theme='light'] .overview-item strong { color: #223a54; }
 html[data-theme='light'] .timeline-time { color: #6a8098; }
 html[data-theme='light'] .timeline-dot { border-color: rgba(255,255,255,0.8); }
-html[data-theme='light'] .timeline-line { background: #FFFFFF; }
+html[data-theme='light'] .timeline-line { background: linear-gradient(180deg, rgba(59,130,246,0.4), rgba(59,130,246,0)); }
 html[data-theme='light'] .timeline-card-title { color: #16324f; }
 html[data-theme='light'] .timeline-card-sub, html[data-theme='light'] .timeline-card-meta { color: #47627e; }
 html[data-theme='light'] .timeline-source.is-neutral { background: rgba(187,204,220,0.3); color: #47627e; }
-html[data-theme='light'] .timeline-source.is-info { background: rgba(59,130,246,.15); color: #15558D; }
+html[data-theme='light'] .timeline-source.is-info { background: rgba(59,130,246,.15); color: #1d4ed8; }
 html[data-theme='light'] .bullet-list { color: #47627e; }
 html[data-theme='light'] .summary-panel, html[data-theme='light'] .empty-panel { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); color: #223a54; }
 html[data-theme='light'] .conflict-title { color: #d97706; }
 html[data-theme='light'] .conflict-meta { color: #6a8098; }
-html[data-theme='light'] .info-chip { background: #FFFFFF; border-color: rgba(187,204,220,0.72); color: #223a54; }
+html[data-theme='light'] .info-chip { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #223a54; }
 html[data-theme='light'] .info-chip--muted { background: rgba(243,248,252,0.96); color: #6f8399; }
-html[data-theme='light'] .cause-chip, html[data-theme='light'] .mini-btn { background: #FFFFFF; border-color: rgba(187,204,220,0.72); color: #16324f; }
+html[data-theme='light'] .cause-chip, html[data-theme='light'] .mini-btn { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #16324f; }
 html[data-theme='light'] .cause-chip.active { background: rgba(239,246,255,0.96); border-color: rgba(59,130,246,0.3); }
 html[data-theme='light'] .mini-btn--soft { background: rgba(16,185,129,.14); }
 html[data-theme='light'] .mini-btn--ghost { background: rgba(239,68,68,.12); }
@@ -827,11 +827,11 @@ html[data-theme='light'] .error-panel { background: rgba(254,226,226,0.8); borde
 
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .twin-head {
-  background: #FFFFFF;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .twin-kicker,
-html[data-theme='light'] .loop-step { color: #15558D; }
+html[data-theme='light'] .loop-step { color: #1d4ed8; }
 html[data-theme='light'] .twin-title,
 html[data-theme='light'] .twin-kpi strong,
 html[data-theme='light'] .loop-value,
@@ -839,7 +839,7 @@ html[data-theme='light'] .card-title,
 html[data-theme='light'] .overview-item strong,
 html[data-theme='light'] .timeline-card-title,
 html[data-theme='light'] .effect-box,
-html[data-theme='light'] .whatif-banner { color: #1D2129; }
+html[data-theme='light'] .whatif-banner { color: #0f172a; }
 html[data-theme='light'] .twin-sub,
 html[data-theme='light'] .twin-kpi span,
 html[data-theme='light'] .loop-label,
@@ -848,7 +848,7 @@ html[data-theme='light'] .overview-item span,
 html[data-theme='light'] .timeline-time,
 html[data-theme='light'] .timeline-card-sub,
 html[data-theme='light'] .whatif-axis,
-html[data-theme='light'] .whatif-legend { color: #4E5969; }
+html[data-theme='light'] .whatif-legend { color: #64748b; }
 html[data-theme='light'] .whatif-chart,
 html[data-theme='light'] .whatif-drawer {
   background: rgba(243,248,252,0.96);
@@ -856,6 +856,8 @@ html[data-theme='light'] .whatif-drawer {
 }
 html[data-theme='light'] .whatif-banner { color: #92400e; }
 </style>
+
+
 
 
 
