@@ -160,7 +160,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDepartments, getPatients, getPatientVitals, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig, getBatchVitals, getPatientBedcardBatch } from '../api'
+import { getDepartments, getPatients, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig, getBatchVitals, getPatientBedcardBatch } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
@@ -192,7 +192,7 @@ const trajectoryConfig = ref<any>({ default_codes: ['HR', 'MAP', 'SBP', 'DBP', '
 let iv: any = null
 let offAlert: any = null
 let bundleRequestToken = 0
-let vitalsRequestToken = 0
+
 let signalRequestToken = 0
 const bedcardDataMap = ref<Record<string, any>>({})
 
@@ -539,10 +539,7 @@ function hasVitalValue(value: any): boolean {
   return value !== null && value !== undefined && value !== ''
 }
 
-function hasUsableVitals(vitals: any): boolean {
-  if (!vitals || typeof vitals !== 'object') return false
-  return [vitals.hr, vitals.spo2, vitals.rr, vitals.sbp, vitals.sys, vitals.nibp_sys, vitals.ibp_sys, vitals.temp, vitals.t].some(hasVitalValue)
-}
+
 
 function mergeVitals(base: any, preferred: any) {
   const merged: Record<string, any> = {}
@@ -625,8 +622,6 @@ function syncOverviewCacheSnapshot() {
   })
 }
 
-
-async function hydrateBedcards(items: any[]) {
 async function hydrateBedcards(items: any[]) {
   const ids = items.map((item: any) => item?._id).filter(Boolean)
   if (!ids.length) return
@@ -638,6 +633,7 @@ async function hydrateBedcards(items: any[]) {
     // 静默失败，卡片会自行加载
   }
 }
+
 
 async function hydrateBundleStatuses(items: any[]) {
   const token = ++bundleRequestToken
