@@ -80,10 +80,8 @@ const chartInitOptions = createChartInitOptions()
 .stat-block {
   position: relative;
   padding: 12px;
-  border-radius: 16px;
-  background:
-    radial-gradient(circle at top, rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0) 34%),
-    linear-gradient(180deg, rgba(8, 23, 38, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
   border: 1px solid rgba(80, 199, 255, 0.12);
   box-shadow:
     inset 0 1px 0 rgba(145, 228, 255, 0.04),
@@ -94,8 +92,8 @@ const chartInitOptions = createChartInitOptions()
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  border-radius: 16px 0 0 16px;
-  background: linear-gradient(180deg, rgba(34, 211, 238, 0.8), rgba(8, 145, 178, 0.4));
+  border-radius: 4px 0 0 16px;
+  background: #FFFFFF;
 }
 .stat-block::after {
   content: '';
@@ -104,7 +102,7 @@ const chartInitOptions = createChartInitOptions()
   right: 14px;
   width: 48px;
   height: 1px;
-  background: linear-gradient(90deg, rgba(103, 232, 249, 0.32), rgba(103, 232, 249, 0));
+  background: #FFFFFF;
 }
 .stat-head {
   display: flex;
@@ -145,26 +143,26 @@ const chartInitOptions = createChartInitOptions()
   white-space: nowrap;
 }
 .stat-block--green::before {
-  background: linear-gradient(180deg, rgba(74, 222, 128, 0.82), rgba(22, 163, 74, 0.42));
+  background: #FFFFFF;
 }
 .stat-block--amber::before {
-  background: linear-gradient(180deg, rgba(251, 191, 36, 0.84), rgba(245, 158, 11, 0.42));
+  background: #FFFFFF;
 }
 .stat-block--rose::before {
-  background: linear-gradient(180deg, rgba(251, 113, 133, 0.86), rgba(225, 29, 72, 0.4));
+  background: #FFFFFF;
 }
 .chart-wrap {
   position: relative;
   height: 240px;
   padding: 4px 2px 0;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(7, 20, 31, 0.48) 0%, rgba(7, 20, 31, 0.14) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
 }
 .chart-wrap-heatmap {
   height: 300px;
 }
 .chart-wrap :deep(canvas) {
-  border-radius: 10px;
+  border-radius: 4px;
 }
 html[data-theme='light'] .stat-block {
   border-color: rgba(0, 0, 0, 0.06);
@@ -174,7 +172,7 @@ html[data-theme='light'] .stat-block {
 html[data-theme='light'] .stat-block::after {
   display: none;
 }
-html[data-theme='light'] .stat-block--cyan::before { background: #2563EB; }
+html[data-theme='light'] .stat-block--cyan::before { background: #15558D; }
 html[data-theme='light'] .stat-block--green::before { background: #22C55E; }
 html[data-theme='light'] .stat-block--amber::before { background: #F59E0B; }
 html[data-theme='light'] .stat-block--rose::before { background: #EF4444; }
@@ -182,8 +180,8 @@ html[data-theme='light'] .stat-head {
   border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 html[data-theme='light'] .panel-kicker,
-html[data-theme='light'] .panel-scale { color: #64748B; }
-html[data-theme='light'] .panel-title { color: #0F172A; }
+html[data-theme='light'] .panel-scale { color: #4E5969; }
+html[data-theme='light'] .panel-title { color: #1D2129; }
 html[data-theme='light'] .panel-scale {
   border-color: rgba(0, 0, 0, 0.06);
   background: #F1F5F9;

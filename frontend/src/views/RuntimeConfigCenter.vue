@@ -28,7 +28,7 @@
     <section v-if="activeTab === 'overview'" class="panel overview-panel">
       <div class="metric-grid">
         <div class="metric-card"><span>模块启用</span><strong>{{ enabledModuleCount }}/{{ modules.length }}</strong></div>
-        <div class="metric-card"><span>AI Provider</span><strong>{{ enabledProviderCount }}/{{ aiProviders.length }}</strong></div>
+        <div class="metric-card"><span>模型供应商</span><strong>{{ enabledProviderCount }}/{{ aiProviders.length }}</strong></div>
         <div class="metric-card"><span>轨迹预测</span><strong>{{ trajectory.enabled === false ? '关闭' : '启用' }}</strong></div>
         <div class="metric-card"><span>启用规则</span><strong>{{ enabledRuleCount }}/{{ alertRules.length }}</strong></div>
         <div class="metric-card"><span>字段映射</span><strong>{{ mappings.length }}</strong></div>
@@ -58,14 +58,14 @@
 
     <section v-if="activeTab === 'ai'" class="panel">
       <div class="panel-toolbar">
-        <div><h2>AI 模型</h2><span>{{ ai.enabled === false ? '总开关关闭' : '总开关启用' }}</span></div>
+        <div><h2>模型服务</h2><span>{{ ai.enabled === false ? '总开关关闭' : '总开关启用' }}</span></div>
         <div class="toolbar-actions">
           <a-button @click="addProvider">新增 Provider</a-button>
-          <a-button type="primary" :loading="saving.ai" @click="saveAi">保存 AI</a-button>
+          <a-button type="primary" :loading="saving.ai" @click="saveAi">保存模型服务</a-button>
         </div>
       </div>
       <div class="form-grid compact">
-        <label><span>AI总开关</span><a-switch v-model:checked="ai.enabled" /></label>
+        <label><span>模型服务总开关</span><a-switch v-model:checked="ai.enabled" /></label>
         <label><span>温度</span><a-input-number v-model:value="ai.temperature" :min="0" :max="2" :step="0.1" /></label>
         <label><span>最大输出</span><a-input-number v-model:value="ai.max_tokens" :min="128" :max="8192" /></label>
         <label><span>超时秒数</span><a-input-number v-model:value="ai.timeout" :min="5" :max="180" /></label>
@@ -234,7 +234,7 @@ const mappingDraft = reactive<any>({ source_name: '', source_code: '', standard_
 const tabs = [
   { key: 'overview', label: '总览', hint: '健康度' },
   { key: 'modules', label: '模块', hint: '功能开关' },
-  { key: 'ai', label: 'AI模型', hint: '路由与供应商' },
+  { key: 'ai', label: '模型服务', hint: '路由与供应商' },
   { key: 'trajectory', label: '轨迹预测', hint: '模型告警' },
   { key: 'rules', label: '预警规则', hint: '阈值' },
   { key: 'mapping', label: '字段映射', hint: '标准化' },
@@ -247,7 +247,7 @@ const severityFilterOptions = [{ label: '全部级别', value: 'all' }, ...sever
 const enabledFilterOptions = [{ label: '全部状态', value: 'all' }, { label: '已启用', value: 'enabled' }, { label: '已关闭', value: 'disabled' }]
 const purposeOptions = [{ label: '快速摘要', value: 'fast' }, { label: '医疗推理', value: 'medical' }, { label: '复杂推理', value: 'reasoning' }, { label: '长上下文', value: 'long_context' }, { label: '兜底', value: 'fallback' }]
 const scopeOptions = [{ label: '全院默认', value: 'global' }, { label: '科室覆盖', value: 'unit' }, { label: '患者覆盖', value: 'patient' }]
-const historyKeyOptions = [{ label: '全部配置', value: 'all' }, { label: '模块', value: 'modules' }, { label: 'AI', value: 'ai' }, { label: '轨迹预测', value: 'trajectory_forecast' }]
+const historyKeyOptions = [{ label: '全部配置', value: 'all' }, { label: '模块', value: 'modules' }, { label: '模型服务', value: 'ai' }, { label: '轨迹预测', value: 'trajectory_forecast' }]
 const adminPayload = computed(() => ({ actor: auth.userName || auth.userId || 'admin', role: 'admin' }))
 const enabledModuleCount = computed(() => modules.value.filter((item) => item.enabled).length)
 const aiProviders = computed<any[]>({ get: () => (Array.isArray(ai.providers) ? ai.providers : (ai.providers = [])), set: (value) => { ai.providers = value } })
@@ -319,7 +319,7 @@ function addTrajectoryThreshold() {
 }
 function removeTrajectoryThreshold(index: number) { trajectory.thresholds = trajectory.thresholds.filter((_: any, idx: number) => idx !== index) }
 async function saveModules() { saving.modules = true; try { await postRuntimeModules({ modules: modules.value, ...adminPayload.value }); message.success('模块开关已保存'); await loadHistory() } catch (e: any) { message.error(e?.response?.data?.detail || e?.message || '保存失败') } finally { saving.modules = false } }
-async function saveAi() { saving.ai = true; try { await postRuntimeAi({ ...ai, ...adminPayload.value }); message.success('AI配置已保存'); await loadHistory() } catch (e: any) { message.error(e?.response?.data?.detail || e?.message || '保存失败') } finally { saving.ai = false } }
+async function saveAi() { saving.ai = true; try { await postRuntimeAi({ ...ai, ...adminPayload.value }); message.success('模型服务配置已保存'); await loadHistory() } catch (e: any) { message.error(e?.response?.data?.detail || e?.message || '保存失败') } finally { saving.ai = false } }
 async function saveTrajectory() { saving.trajectory = true; try { const payload = { ...trajectory, ...adminPayload.value, alert_codes: (trajectory.alert_codes || []).filter((code: string) => (trajectory.default_codes || []).includes(code)), thresholds: (trajectory.thresholds || []).filter((row: any) => (trajectory.alert_codes || []).includes(row.code)), expected_version: trajectory.version || 1 }; const { data } = await postRuntimeTrajectoryForecast(payload); Object.assign(trajectory, data.trajectory_forecast || trajectory); message.success(`轨迹配置已保存，版本 ${data.effective_version || trajectory.version}`); await loadHistory() } catch (e: any) { message.error(e?.response?.data?.detail || e?.message || '保存失败') } finally { saving.trajectory = false } }
 function addProvider() { aiProviders.value = [...aiProviders.value, { id: `model-${Date.now()}`, name: '新模型地址', purpose: 'fast', base_url: '', api_key: '', model: '', priority: 50, enabled: true, timeout: ai.timeout || 30, temperature: ai.temperature || 0.1, max_tokens: ai.max_tokens || 1024 }] }
 function removeProvider(index: number) { aiProviders.value = aiProviders.value.filter((_, idx) => idx !== index) }
@@ -336,14 +336,14 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 
 <style scoped>
 .runtime-page { display: grid; gap: 12px; padding: 14px; font-family: var(--app-display-font); }
-.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid rgba(125,211,252,.14); background: rgba(7,18,31,.92); border-radius: 10px; }
+.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid rgba(125,211,252,.14); background: rgba(7,18,31,.92); border-radius: 4px; }
 .runtime-header { display: flex; justify-content: space-between; gap: 16px; padding: 16px; }
 .runtime-header span, .runtime-header p, .panel-toolbar span, .metric-card span, .table-row span, .sub-panel h3 { color: #8aa4b8; }
 .runtime-header h1 { margin: 2px 0; color: #ecfeff; font-size: 26px; }
 .runtime-header p { margin: 0; }
 .header-actions, .toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .runtime-tabs { display: flex; gap: 6px; padding: 6px; overflow-x: auto; }
-.runtime-tabs button { min-width: 120px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #9cc7d8; padding: 8px 10px; text-align: left; cursor: pointer; }
+.runtime-tabs button { min-width: 120px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #9cc7d8; padding: 8px 10px; text-align: left; cursor: pointer; }
 .runtime-tabs button strong { display: block; color: #dff7ff; }
 .runtime-tabs button span { font-size: 11px; }
 .runtime-tabs button.active { background: rgba(34,211,238,.16); border-color: rgba(103,232,249,.28); }
@@ -352,13 +352,13 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .panel-toolbar h2, .panel-toolbar h3 { margin: 0; color: #ecfeff; }
 .panel-toolbar.slim { margin-top: 4px; }
 .metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: 8px; background: rgba(2,8,20,.26); padding: 12px; }
+.metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: 4px; background: rgba(2,8,20,.26); padding: 12px; }
 .metric-card strong { display: block; color: #ecfeff; font-size: 24px; }
 .overview-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
-.overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: 8px; background: rgba(2,8,20,.22); color: #dff7ff; padding: 12px; cursor: pointer; }
+.overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: 4px; background: rgba(2,8,20,.22); color: #dff7ff; padding: 12px; cursor: pointer; }
 .overview-actions span, .chip-grid small { display: block; color: #8aa4b8; font-size: 11px; }
 .dense-table { display: grid; gap: 6px; overflow-x: auto; }
-.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: 8px; background: rgba(2,8,20,.22); border: 1px solid rgba(125,211,252,.08); color: #dff7ff; }
+.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: 4px; background: rgba(2,8,20,.22); border: 1px solid rgba(125,211,252,.08); color: #dff7ff; }
 .table-head { color: #67e8f9; font-weight: 900; background: rgba(8,47,73,.45); }
 .module-table .table-row { grid-template-columns: 90px 220px 1fr; }
 .provider-table .table-row { grid-template-columns: 70px 210px 130px 180px 1fr 90px 80px; }
@@ -379,11 +379,11 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .condition-edit { display: grid; grid-template-columns: 82px 1fr; gap: 6px; }
 .error-strip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: #fed7aa; border-color: rgba(251,146,60,.28); background: rgba(124,45,18,.24); }
 .error-strip span { flex: 1; }
-html[data-theme='light'] .runtime-header, html[data-theme='light'] .panel, html[data-theme='light'] .runtime-tabs { background: #fff; border-color: rgba(148,163,184,.24); }
-html[data-theme='light'] .runtime-header h1, html[data-theme='light'] .panel-toolbar h2, html[data-theme='light'] .panel-toolbar h3, html[data-theme='light'] .metric-card strong, html[data-theme='light'] .runtime-tabs button strong { color: #0f172a; }
-html[data-theme='light'] .runtime-header span, html[data-theme='light'] .runtime-header p, html[data-theme='light'] .panel-toolbar span, html[data-theme='light'] .metric-card span, html[data-theme='light'] .table-row span, html[data-theme='light'] .sub-panel h3 { color: #64748b; }
-html[data-theme='light'] .table-row, html[data-theme='light'] .metric-card, html[data-theme='light'] .sub-panel, html[data-theme='light'] .overview-actions button, html[data-theme='light'] .chip-grid button { background: #f8fbff; border-color: rgba(148,163,184,.22); color: #0f172a; }
-html[data-theme='light'] .table-head, html[data-theme='light'] .runtime-tabs button.active { background: #eff6ff; color: #1d4ed8; }
+html[data-theme='light'] .runtime-header, html[data-theme='light'] .panel, html[data-theme='light'] .runtime-tabs { background: #FFFFFF; border-color: rgba(148,163,184,.24); }
+html[data-theme='light'] .runtime-header h1, html[data-theme='light'] .panel-toolbar h2, html[data-theme='light'] .panel-toolbar h3, html[data-theme='light'] .metric-card strong, html[data-theme='light'] .runtime-tabs button strong { color: #1D2129; }
+html[data-theme='light'] .runtime-header span, html[data-theme='light'] .runtime-header p, html[data-theme='light'] .panel-toolbar span, html[data-theme='light'] .metric-card span, html[data-theme='light'] .table-row span, html[data-theme='light'] .sub-panel h3 { color: #4E5969; }
+html[data-theme='light'] .table-row, html[data-theme='light'] .metric-card, html[data-theme='light'] .sub-panel, html[data-theme='light'] .overview-actions button, html[data-theme='light'] .chip-grid button { background: #FFFFFF; border-color: rgba(148,163,184,.22); color: #1D2129; }
+html[data-theme='light'] .table-head, html[data-theme='light'] .runtime-tabs button.active { background: #eff6ff; color: #15558D; }
 @media (max-width: 1100px) {
   .runtime-header, .panel-toolbar { display: grid; }
   .metric-grid, .form-grid.compact, .form-grid.routes, .filter-bar, .split-grid { grid-template-columns: 1fr; }

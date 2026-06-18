@@ -476,7 +476,7 @@ export const postAiMdtDecisionConfirm = (
 
 export const generateAiDocument = (
   patientId: string,
-  payload: { doc_type: 'mdt_summary' | 'daily_progress' | 'consultation_request'; time_range?: { start?: string; end?: string; hours?: number } }
+  payload: { doc_type: 'mdt_summary' | 'daily_progress' | 'consultation_request' | 'ward_round'; time_range?: { start?: string; end?: string; hours?: number }; round_level?: 'attending_first' | 'attending' | 'associate_chief' | 'chief'; doctor?: string; hours?: number }
 ) => aiApi.post(`/api/ai/documents/${patientId}`, payload)
 
 // AI: 反馈闭环

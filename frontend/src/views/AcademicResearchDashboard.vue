@@ -8,7 +8,7 @@
       </div>
       <a-space wrap>
         <a-button :loading="loading" @click="loadAll">刷新数据</a-button>
-        <a-button type="primary" :loading="topicLoading" @click="generateTopics">AI 生成课题建议</a-button>
+        <a-button type="primary" :loading="topicLoading" @click="generateTopics">系统生成课题建议</a-button>
         <a-button :loading="omopLoading" @click="exportOmop">导出 OMOP 数据包</a-button>
       </a-space>
     </section>
@@ -29,7 +29,7 @@
         <small>论文 / 课题 / 基金 / 伦理</small>
       </article>
       <article class="kpi-card kpi-card--cyan">
-        <span>AI 潜在课题</span>
+        <span>潜在课题</span>
         <strong>{{ topics.length }}</strong>
         <small>{{ topicSourceLabel }}</small>
       </article>
@@ -53,7 +53,7 @@
         <div v-if="!projects.length && !loading" class="empty-project">
           <div class="empty-icon">立项</div>
           <h2>还没有科研项目</h2>
-          <p>可以先从 AI 课题推荐中选择一个方向一键转为项目，或手动录入论文、基金、伦理和临床研究。</p>
+          <p>可以先从课题推荐中选择一个方向一键转为项目，或手动录入论文、基金、伦理和临床研究。</p>
           <a-space wrap>
             <a-button type="primary" @click="openProjectDrawer()">手动新建立项</a-button>
             <a-button :loading="topicLoading" @click="generateTopics">先生成课题建议</a-button>
@@ -141,11 +141,11 @@
     </section>
 
     <a-card class="panel topic-panel" :bordered="false">
-      <template #title>AI 潜在课题推荐</template>
+      <template #title>潜在课题推荐</template>
       <template #extra>
         <span class="panel-hint">{{ topicSourceLabel }}，需要 PI 人工确认</span>
       </template>
-      <a-empty v-if="!topics.length" description="暂无课题建议。点击“AI 生成课题建议”开始发现选题。" />
+      <a-empty v-if="!topics.length" description="暂无课题建议。点击“系统生成课题建议”开始发现选题。" />
       <div v-else class="topic-grid">
         <article v-for="topic in topics" :key="topic.suggestion_id || topic.title" class="topic-card">
           <div class="topic-title-row">
@@ -247,13 +247,13 @@ const form = reactive<any>({
 
 const guideSteps = [
   { index: '01', title: '发现问题', desc: '从预警、防控清单、呼吸机、数据质量中识别可研究的临床差距。' },
-  { index: '02', title: '一键立项', desc: '把 AI 推荐转为项目卡，补充负责人、状态、伦理和时间节点。' },
+  { index: '02', title: '一键立项', desc: '把系统推荐转为项目卡，补充负责人、状态、伦理和时间节点。' },
   { index: '03', title: '数据准备', desc: '先看缺失率和时间逻辑，再导出脱敏 OMOP CSV ZIP。' },
 ]
 const typeOptions = ['论文', '课题', '基金', '伦理', '专利', '指南共识'].map((value) => ({ value, label: value }))
 const statusOptions = ['计划中', '进行中', '投稿中', '已发表', '结题'].map((value) => ({ value, label: value }))
 const missingRows = computed(() => Object.entries(quality.value?.missing_rate || {}).map(([field, rate]) => ({ field, rate: `${Math.round(Number(rate) * 100)}%` })))
-const topicSourceLabel = computed(() => topicIsFallback.value ? '系统内置兜底建议' : 'AI / 数据摘要生成')
+const topicSourceLabel = computed(() => topicIsFallback.value ? '系统内置兜底建议' : '数据摘要生成')
 const statusRows = computed(() => Object.entries(portfolio.value?.by_status || {}).map(([key, value]) => ({ key, value })))
 const milestones = computed(() => portfolio.value?.upcoming_milestones || [])
 const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
@@ -403,7 +403,7 @@ async function generateTopics() {
     const res = await postGenerateTopicSuggestions(researchScopeParams.value)
     topics.value = res.data?.topic_suggestions || []
     topicIsFallback.value = Boolean(res.data?.degraded)
-    message.success(res.data?.degraded ? 'AI 暂不可用，已展示规则兜底建议' : '已生成课题建议')
+    message.success(res.data?.degraded ? '模型服务暂不可用，已展示规则兜底建议' : '已生成课题建议')
   } finally {
     topicLoading.value = false
   }
@@ -442,9 +442,7 @@ onMounted(loadAll)
   min-height: calc(100vh - 76px);
   padding: 20px;
   color: var(--text-main);
-  background:
-    radial-gradient(circle at 12% 0%, rgba(34, 211, 238, .12), transparent 30%),
-    radial-gradient(circle at 88% 12%, rgba(20, 184, 166, .1), transparent 32%);
+  background: #FFFFFF;
 }
 .research-hero {
   display: flex;
@@ -454,7 +452,7 @@ onMounted(loadAll)
   padding: 18px;
   border: 1px solid rgba(80,199,255,.16);
   border-radius: 18px;
-  background: linear-gradient(135deg, rgba(7, 25, 42, .95), rgba(5, 13, 25, .9));
+  background: #FFFFFF;
 }
 .eyebrow {
   color: #67e8f9;
@@ -471,7 +469,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   padding: 8px 12px;
   border: 1px solid rgba(103,232,249,.18);
   border-radius: 999px;
-  color: #bfefff;
+  color: #4E5969;
   background: rgba(8,47,73,.24);
   font-size: 12px;
 }
@@ -485,7 +483,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 }
 .guide-card, .kpi-card, .project-card, .topic-card, .quality-summary article {
   border: 1px solid rgba(125,167,214,.14);
-  border-radius: 16px;
+  border-radius: 4px;
   background: rgba(7, 20, 34, .72);
 }
 .guide-card { padding: 14px; display: grid; gap: 6px; }
@@ -499,9 +497,9 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .kpi-card { padding: 14px; }
 .kpi-card span, .kpi-card small { display: block; color: #8aa4b8; }
 .kpi-card strong { display: block; margin: 5px 0; color: #f2fbff; font-size: 30px; line-height: 1; }
-.kpi-card--cyan { background: linear-gradient(135deg, rgba(8, 64, 84, .74), rgba(7, 20, 34, .76)); }
-.kpi-card--amber { background: linear-gradient(135deg, rgba(91, 55, 15, .68), rgba(7, 20, 34, .76)); }
-.kpi-card--rose { background: linear-gradient(135deg, rgba(90, 20, 33, .68), rgba(7, 20, 34, .76)); }
+.kpi-card--cyan { background: #FFFFFF; }
+.kpi-card--amber { background: #FFFFFF; }
+.kpi-card--rose { background: #FFFFFF; }
 .dashboard-grid {
   grid-template-columns: minmax(0, 1.15fr) minmax(380px, .85fr);
   margin-bottom: 14px;
@@ -510,7 +508,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
   margin-bottom: 14px;
 }
-.panel { background: rgba(10,25,42,.92); border-radius: 16px; }
+.panel { background: rgba(10,25,42,.92); border-radius: 4px; }
 .empty-project {
   display: grid;
   place-items: center;
@@ -518,7 +516,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   min-height: 310px;
   text-align: center;
   border: 1px dashed rgba(103,232,249,.24);
-  border-radius: 16px;
+  border-radius: 4px;
   background: rgba(2,8,20,.22);
 }
 .empty-icon {
@@ -549,7 +547,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .quality-summary strong { color: #e6f7ff; font-size: 24px; }
 .quality-table {
   border: 1px solid rgba(125,167,214,.12);
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .quality-row {
@@ -562,7 +560,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .omop-note {
   margin-top: 12px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(8, 42, 62, .46);
 }
 .omop-note strong { color: #e6f7ff; }
@@ -581,7 +579,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   gap: 8px;
   align-items: flex-start;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(2, 8, 20, .24);
 }
 .governance-card strong {
@@ -600,7 +598,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 .distribution-grid article {
   padding: 12px;
   border: 1px solid rgba(125,167,214,.14);
-  border-radius: 14px;
+  border-radius: 4px;
   background: rgba(2,8,20,.24);
 }
 .distribution-grid span {
@@ -619,7 +617,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   display: grid;
   gap: 3px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(2,8,20,.24);
 }
 .milestone-list strong { color: #e6f7ff; }
@@ -639,10 +637,8 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   gap: 14px;
   align-content: start;
   overflow: hidden;
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at top right, rgba(34, 211, 238, .08), transparent 38%),
-    linear-gradient(180deg, rgba(10, 27, 43, .96), rgba(7, 20, 34, .94));
+  border-radius: 4px;
+  background: #FFFFFF;
 }
 .topic-title-row {
   display: grid;
@@ -702,7 +698,7 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
   display: grid;
   gap: 6px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 4px;
   background: rgba(2, 8, 20, .28);
   border: 1px solid rgba(125, 167, 214, .1);
 }
@@ -719,17 +715,14 @@ h1 { margin-top: 4px; color: #f0fbff; font-size: 28px; }
 }
 .topic-detail-grid > div {
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 4px;
   background: rgba(2, 8, 20, .18);
 }
 .topic-card dd { margin: 2px 0 0; }
 .drawer-tip { margin-bottom: 12px; }
 html[data-theme='light'] .research-page {
   color: #10243d;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(14, 165, 233, .14), transparent 30%),
-    radial-gradient(circle at 88% 12%, rgba(20, 184, 166, .10), transparent 32%),
-    linear-gradient(180deg, rgba(236, 252, 255, .96), rgba(247, 250, 252, .98));
+  background: #FFFFFF;
 }
 html[data-theme='light'] .research-hero,
 html[data-theme='light'] .scope-strip,
@@ -747,29 +740,21 @@ html[data-theme='light'] .omop-note,
 html[data-theme='light'] .evidence-box,
 html[data-theme='light'] .topic-detail-grid > div {
   border-color: rgba(203, 213, 225, .82);
-  background:
-    radial-gradient(circle at top right, rgba(56, 189, 248, .08), transparent 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+  background: #FFFFFF;
   box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
 }
 html[data-theme='light'] .kpi-card--cyan,
 html[data-theme='light'] .topic-card {
   border-color: rgba(14, 165, 233, .22);
-  background:
-    radial-gradient(circle at top right, rgba(14, 165, 233, .12), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+  background: #FFFFFF;
 }
 html[data-theme='light'] .kpi-card--amber {
   border-color: rgba(245, 158, 11, .26);
-  background:
-    radial-gradient(circle at top right, rgba(245, 158, 11, .12), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 251, 235, .96));
+  background: #FFFFFF;
 }
 html[data-theme='light'] .kpi-card--rose {
   border-color: rgba(251, 113, 133, .24);
-  background:
-    radial-gradient(circle at top right, rgba(251, 113, 133, .12), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 241, 242, .96));
+  background: #FFFFFF;
 }
 html[data-theme='light'] h1,
 html[data-theme='light'] .guide-card strong,
@@ -786,7 +771,7 @@ html[data-theme='light'] .empty-project h2 {
   color: #12314f;
 }
 html[data-theme='light'] .topic-original-title {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .research-hero p,
 html[data-theme='light'] .guide-card p,
@@ -809,7 +794,7 @@ html[data-theme='light'] .milestone-list span,
 html[data-theme='light'] .milestone-list small,
 html[data-theme='light'] .empty-project p,
 html[data-theme='light'] .evidence-box span {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .eyebrow,
 html[data-theme='light'] .guide-card span,
@@ -833,7 +818,7 @@ html[data-theme='light'] .quality-row--head {
   color: #0369a1;
 }
 html[data-theme='light'] .topic-action.ant-btn-background-ghost {
-  color: #2563eb;
+  color: #15558D;
   border-color: rgba(37, 99, 235, .32);
   background: rgba(239, 246, 255, .92);
 }

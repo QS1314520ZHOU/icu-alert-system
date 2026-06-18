@@ -17,6 +17,13 @@ export default defineConfig(({ mode }) => {
     },
   })
 
+  // 从 .env 读取额外允许的 host（逗号分隔），与硬编码默认值合并
+  const extraHosts = env.VITE_ALLOWED_HOSTS
+    ? env.VITE_ALLOWED_HOSTS.split(',').map(h => h.trim()).filter(Boolean)
+    : []
+  const allowedHosts = [...new Set(['alert.jylb.fun', '.jylb.fun', 'localhost', ...extraHosts])]
+
+  console.info(`[vite] allowedHosts: ${allowedHosts.join(', ')}`)
   console.info(`[vite] proxying /api and /health to ${backendTarget}`)
 
   return {
@@ -110,8 +117,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '::',
       port: 5173,
-      // 允许通过这些域名访问 dev server（Vite 默认会拒绝陌生 Host 头）
-      allowedHosts: ['alert.jylb.fun', '.jylb.fun', 'localhost'],
+      allowedHosts,
       // 通过 NPM/Cloudflare 反代时，告诉浏览器 HMR WebSocket 走 wss + 443
       hmr: {
         host: 'alert.jylb.fun',

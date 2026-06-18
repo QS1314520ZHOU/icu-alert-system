@@ -1,7 +1,7 @@
-<template>
+﻿<template>
   <div class="mobile-page mobile-consult">
     <section class="mobile-card">
-      <div class="mobile-section-head"><h2>AI问诊</h2><button type="button" @click="loadPatients">患者</button></div>
+      <div class="mobile-section-head"><h2>辅助问诊</h2><button type="button" @click="loadPatients">患者</button></div>
       <select v-model="patientId">
         <option value="">通用问答</option>
         <option v-for="patient in patients" :key="patientRouteIdOf(patient)" :value="patientRouteIdOf(patient)">
@@ -12,11 +12,11 @@
 
     <section ref="listRef" class="mobile-chat-list">
       <article v-for="msg in messages" :key="msg.id" :class="['mobile-chat-msg', msg.role]">
-        <div class="mobile-chat-avatar">{{ msg.role === 'assistant' ? 'AI' : '我' }}</div>
+        <div class="mobile-chat-avatar">{{ msg.role === 'assistant' ? '辅' : '我' }}</div>
         <div class="mobile-chat-bubble">
-          <div class="mobile-chat-role">{{ msg.role === 'assistant' ? '智能助手' : '我' }}</div>
+          <div class="mobile-chat-role">{{ msg.role === 'assistant' ? '辅助问诊' : '我' }}</div>
           <p>{{ msg.content }}</p>
-          <div v-if="msg.pending" class="mobile-typing" aria-label="AI正在生成">
+          <div v-if="msg.pending" class="mobile-typing" aria-label="系统正在生成">
             <i></i><i></i><i></i>
           </div>
         </div>
@@ -161,7 +161,7 @@ async function send() {
     if (row) {
       row.pending = false
       if (!streamStarted) {
-        row.content = String(done?.answer || done?.message || 'AI暂未返回有效内容。')
+        row.content = String(done?.answer || done?.message || '系统暂未返回有效内容。')
       }
     }
   } catch (error: any) {

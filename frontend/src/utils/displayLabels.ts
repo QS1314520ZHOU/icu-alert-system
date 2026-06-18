@@ -1,4 +1,4 @@
-const SCENARIO_GROUP_LABELS: Record<string, string> = {
+﻿const SCENARIO_GROUP_LABELS: Record<string, string> = {
   respiratory_failure: '呼吸衰竭',
   postoperative_general: '术后综合管理',
   post_liver_transplant: '肝移植术后',
@@ -41,7 +41,7 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   ventilator_asynchrony: '人机不同步',
   threshold: '阈值提醒',
   trend_analysis: '趋势分析',
-  ai_risk: 'AI 风险',
+  ai_risk: '风险',
   fluid_balance: '液体平衡',
   delirium_risk: '谵妄风险',
   sedation_delirium_conversion: '镇静转谵妄',
@@ -118,7 +118,7 @@ const ALERT_TYPE_LABELS: Record<string, string> = {
   hai_bundle_monitor: '院感防控清单监测',
   circadian_protector: '昼夜节律保护',
   clinical_reasoning_agent: '临床推理助手',
-  ai_handoff: '智能交班',
+  ai_handoff: '交班摘要',
   pulse: '主动提醒',
   proactive: '主动干预',
   metabolic: '代谢评估',

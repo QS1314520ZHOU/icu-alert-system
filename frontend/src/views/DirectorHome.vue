@@ -139,7 +139,7 @@
               </div>
             </div>
             <div class="kpi-section">
-              <strong>AI 采纳</strong>
+              <strong>建议采纳</strong>
               <div class="kpi-items">
                 <div class="kpi-item">
                   <span>综合推理</span>
@@ -253,7 +253,7 @@
           <ol>
             <li><b>先看科室概览</b><span>确认床位使用率和医护人员分布。</span></li>
             <li><b>查看质控大屏</b><span>关注质控事件和信号采纳率。</span></li>
-            <li><b>追踪KPI和科研</b><span>重点处理告警处置、AI采纳和科研任务。</span></li>
+            <li><b>追踪KPI和科研</b><span>重点处理告警处置、建议采纳和科研任务。</span></li>
           </ol>
         </div>
       </div>
@@ -320,7 +320,7 @@ const summaryCards = computed(() => {
   return [
     { key: 'beds', label: '床位使用率', value: `${occRate}%`, hint: `${overview.value?.occupied_beds || 0}/${overview.value?.total_beds || 0}`, tone: occRate > 90 ? 'red' : occRate > 80 ? 'yellow' : 'green' },
     { key: 'alerts', label: '告警处置率', value: `${handleRate}%`, hint: `${alertStats.value?.pending_24h || 0} 项待处理`, tone: (alertStats.value?.pending_24h || 0) > 0 ? 'yellow' : 'green' },
-    { key: 'ai', label: 'AI采纳率', value: `${adoptRate}%`, hint: `${aiStats.value?.integrated_adopted || 0}/${aiStats.value?.integrated_reasoning || 0}`, tone: adoptRate > 80 ? 'green' : adoptRate > 60 ? 'yellow' : 'red' },
+    { key: 'ai', label: '建议采纳率', value: `${adoptRate}%`, hint: `${aiStats.value?.integrated_adopted || 0}/${aiStats.value?.integrated_reasoning || 0}`, tone: adoptRate > 80 ? 'green' : adoptRate > 60 ? 'yellow' : 'red' },
     { key: 'research', label: '科研任务', value: researchTotal, hint: `${researchSummary.value?.pending || 0} 个待处理`, tone: (researchSummary.value?.pending || 0) > 0 ? 'yellow' : 'green' },
   ]
 })
@@ -397,8 +397,8 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   gap: 12px;
   padding: 12px 14px;
   border: 1px solid rgba(34, 211, 238, .22);
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(8, 82, 112, .62), rgba(6, 18, 31, .74));
+  border-radius: 4px;
+  background: #FFFFFF;
 }
 
 .start-guide div {
@@ -407,12 +407,12 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 }
 
 .start-guide span {
-  color: #8fd3e8;
+  color: #4E5969;
   font-size: 12px;
 }
 
 .start-guide strong {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 15px;
 }
 
@@ -424,8 +424,8 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   gap: 16px;
   padding: 14px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 8px;
-  background: rgba(7, 20, 34, .82);
+  border-radius: 4px;
+  background: #FFFFFF;
 }
 
 .home-top div {
@@ -438,12 +438,12 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 .empty,
 .summary-card span,
 .summary-card em {
-  color: #8eaabd;
+  color: #4E5969;
   font-size: 12px;
 }
 
 .home-top strong {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 20px;
 }
 
@@ -457,10 +457,10 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 
 button {
   min-height: 44px;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 1px solid rgba(125, 211, 252, .2);
-  background: rgba(13, 44, 66, .78);
-  color: #eafcff;
+  background: #15558D;
+  color: #1D2129;
   padding: 0 12px;
   cursor: pointer;
 }
@@ -482,12 +482,12 @@ button {
   gap: 4px;
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 8px;
-  background: rgba(6, 18, 31, .74);
+  border-radius: 4px;
+  background: #FFFFFF;
 }
 
 .summary-card strong {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 26px;
   line-height: 1;
 }
@@ -527,8 +527,8 @@ button {
   gap: 10px;
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 8px;
-  background: rgba(6, 18, 31, .74);
+  border-radius: 4px;
+  background: #FFFFFF;
 }
 
 .panel-head {
@@ -539,7 +539,7 @@ button {
 }
 
 .panel-head strong {
-  color: #f4fbff;
+  color: #1D2129;
   font-size: 15px;
 }
 
@@ -552,25 +552,25 @@ button {
 .overview-item {
   padding: 10px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
   text-align: center;
 }
 
 .overview-item span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
   display: block;
 }
 
 .overview-item strong {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 24px;
   display: block;
   margin-top: 4px;
 }
 
 .overview-item em {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 11px;
   font-style: normal;
 }
@@ -582,7 +582,7 @@ button {
 }
 
 .doctor-list strong {
-  color: #eef8ff;
+  color: #1D2129;
   font-size: 13px;
   display: block;
   margin-bottom: 8px;
@@ -600,11 +600,11 @@ button {
   align-items: center;
   padding: 6px 8px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
 }
 
 .doctor-item span {
-  color: #eef8ff;
+  color: #1D2129;
   font-size: 12px;
 }
 
@@ -620,7 +620,7 @@ button {
 
 .quality-section strong,
 .adoption-section strong {
-  color: #eef8ff;
+  color: #1D2129;
   font-size: 13px;
   display: block;
   margin-bottom: 8px;
@@ -635,18 +635,18 @@ button {
 .quality-item {
   padding: 8px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
   text-align: center;
 }
 
 .quality-item span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 11px;
   display: block;
 }
 
 .quality-item b {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 18px;
   display: block;
   margin-top: 4px;
@@ -659,7 +659,7 @@ button {
 }
 
 .adoption-stats span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
 }
 
@@ -669,7 +669,7 @@ button {
 }
 
 .kpi-section strong {
-  color: #eef8ff;
+  color: #1D2129;
   font-size: 13px;
   display: block;
   margin-bottom: 8px;
@@ -684,25 +684,25 @@ button {
 .kpi-item {
   padding: 8px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
   text-align: center;
 }
 
 .kpi-item span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 11px;
   display: block;
 }
 
 .kpi-item b {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 16px;
   display: block;
   margin-top: 4px;
 }
 
 .text-warning {
-  color: #fde68a !important;
+  color: #E8901C !important;
 }
 
 .research-stats {
@@ -714,18 +714,18 @@ button {
 .research-item {
   padding: 10px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
   text-align: center;
 }
 
 .research-item span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
   display: block;
 }
 
 .research-item b {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 20px;
   display: block;
   margin-top: 4px;
@@ -741,16 +741,16 @@ button {
   gap: 2px;
   padding: 8px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
 }
 
 .research-export strong {
-  color: #eef8ff;
+  color: #1D2129;
   font-size: 12px;
 }
 
 .research-export span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 11px;
 }
 
@@ -763,18 +763,18 @@ button {
 .role-item {
   padding: 10px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
   text-align: center;
 }
 
 .role-item span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
   display: block;
 }
 
 .role-item b {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 20px;
   display: block;
   margin-top: 4px;
@@ -790,11 +790,11 @@ button {
   gap: 4px;
   padding: 8px;
   border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  background: #FFFFFF;
 }
 
 .scanner-item strong {
-  color: #eef8ff;
+  color: #1D2129;
   font-size: 13px;
 }
 
@@ -805,14 +805,14 @@ button {
 }
 
 .scanner-stats span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
 }
 
 .empty {
   padding: 14px;
-  border-radius: 8px;
-  background: rgba(11, 33, 50, .58);
+  border-radius: 4px;
+  background: #FFFFFF;
 }
 
 .empty.small {
@@ -820,7 +820,7 @@ button {
 }
 
 .empty.danger {
-  color: #fecaca;
+  color: #D9342B;
 }
 
 .onboarding-mask {
@@ -839,9 +839,9 @@ button {
   gap: 12px;
   padding: 16px;
   border: 1px solid rgba(125, 211, 252, .24);
-  border-radius: 8px;
-  background: #081827;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, .32);
+  border-radius: 4px;
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 
 .onboarding-card ol {
@@ -852,7 +852,7 @@ button {
 }
 
 .onboarding-card li {
-  color: #eafcff;
+  color: #1D2129;
 }
 
 .onboarding-card li b {
@@ -861,7 +861,7 @@ button {
 
 .onboarding-card li span {
   display: block;
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
   margin-top: 4px;
 }
@@ -883,9 +883,7 @@ button {
 
 /* Light theme */
 html[data-theme='light'] .director-home {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 28%),
-    radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.06), transparent 32%);
+  background: #FFFFFF;
 }
 
 html[data-theme='light'] .home-top,
@@ -894,14 +892,14 @@ html[data-theme='light'] .panel,
 html[data-theme='light'] .summary-card {
   background: rgba(255, 255, 255, 0.96);
   border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 
 html[data-theme='light'] .home-top strong,
 html[data-theme='light'] .start-guide strong,
 html[data-theme='light'] .panel-head strong,
 html[data-theme='light'] .summary-card strong {
-  color: #0f172a;
+  color: #1D2129;
 }
 
 html[data-theme='light'] .home-top span,
@@ -910,7 +908,7 @@ html[data-theme='light'] .panel-head span,
 html[data-theme='light'] .empty,
 html[data-theme='light'] .summary-card span,
 html[data-theme='light'] .summary-card em {
-  color: #64748b;
+  color: #4E5969;
 }
 
 html[data-theme='light'] .overview-item,
@@ -928,7 +926,7 @@ html[data-theme='light'] .research-export {
 html[data-theme='light'] button {
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.18);
-  color: #1d4ed8;
+  color: #15558D;
 }
 
 html[data-theme='light'] button:hover {
@@ -943,15 +941,15 @@ html[data-theme='light'] .empty.danger {
 }
 
 html[data-theme='light'] .onboarding-card {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(145, 176, 199, 0.32);
 }
 
 html[data-theme='light'] .onboarding-card li {
-  color: #0f172a;
+  color: #1D2129;
 }
 
 html[data-theme='light'] .onboarding-card li span {
-  color: #64748b;
+  color: #4E5969;
 }
 </style>

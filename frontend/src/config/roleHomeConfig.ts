@@ -46,10 +46,10 @@ export const navGroups: NavGroup[] = [
   },
   {
     key: 'ai',
-    label: 'AI辅助',
+    label: '临床工具',
     items: [
-      { key: 'ai-consult', lines: ['AI', '问诊'], path: '/ai-consult' },
-      { key: 'rounding-sheet', lines: ['智能', '查房'], path: '/rounding-sheet' },
+      { key: 'ai-consult', lines: ['辅助', '问诊'], path: '/ai-consult' },
+      { key: 'rounding-sheet', lines: ['查房'], path: '/rounding-sheet' },
       { key: 'patient-documents', lines: ['病历', '文书'], path: '/patients' },
       { key: 'mdt', lines: ['MDT', '会诊'], path: '/mdt' },
     ],
@@ -73,7 +73,7 @@ export const navGroups: NavGroup[] = [
       { key: 'research-export', lines: ['科研', '导出'], path: '/research-export' },
       { key: 'clinical-trials', lines: ['临床', '试验'], path: '/clinical-trials' },
       { key: 'academic-research', lines: ['学术', '科研'], path: '/academic-research' },
-      { key: 'ai-ops', lines: ['AI', '运营'], path: '/ai-ops' },
+      { key: 'ai-ops', lines: ['运营', '管理'], path: '/ai-ops' },
       { key: 'runtime-config', lines: ['配置', '中心'], path: '/admin/runtime-config' },
     ],
   },

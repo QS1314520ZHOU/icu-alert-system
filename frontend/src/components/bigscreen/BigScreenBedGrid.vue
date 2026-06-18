@@ -211,11 +211,9 @@ function riskSuggestion(value: any) {
 .bed-card {
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14) 0%, rgba(56, 189, 248, 0) 28%),
-    linear-gradient(180deg, rgba(8, 23, 38, 0.96) 0%, rgba(5, 14, 25, 0.99) 100%);
+  background: #FFFFFF;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  border-radius: 16px;
+  border-radius: 4px;
   padding: 12px 12px 13px;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 24px rgba(0,0,0,.24);
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
@@ -225,15 +223,15 @@ function riskSuggestion(value: any) {
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  border-radius: 16px 0 0 16px;
-  background: rgba(80, 199, 255, 0.7);
+  border-radius: 4px 0 0 16px;
+  background: #15558D;
 }
 .bed-card::after {
   content: '';
   position: absolute;
   inset: 9px;
   border: 1px solid rgba(72, 193, 255, 0.05);
-  border-radius: 12px;
+  border-radius: 4px;
   pointer-events: none;
 }
 .bed-card:hover {
@@ -245,10 +243,10 @@ function riskSuggestion(value: any) {
 .bed-warning { border-color: rgba(245, 158, 11, 0.28); }
 .bed-high { border-color: rgba(249, 115, 22, 0.28); }
 .bed-normal { border-color: rgba(52, 211, 153, 0.2); }
-.bed-critical::before { background: linear-gradient(180deg, #fb5a7a 0%, #be123c 100%); }
-.bed-high::before { background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%); }
-.bed-warning::before { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); }
-.bed-normal::before { background: linear-gradient(180deg, #34d399 0%, #059669 100%); }
+.bed-critical::before { background: #FFFFFF; }
+.bed-high::before { background: #FFFFFF; }
+.bed-warning::before { background: #FFFFFF; }
+.bed-normal::before { background: #FFFFFF; }
 .bed-head {
   display: flex;
   justify-content: space-between;
@@ -268,12 +266,12 @@ function riskSuggestion(value: any) {
   min-width: 52px;
   height: 52px;
   padding: 0 10px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(12, 46, 68, 0.98) 0%, rgba(8, 30, 45, 0.98) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
   border: 1px solid rgba(125, 211, 252, 0.18);
   font-size: 19px;
   font-weight: 800;
-  color: #eafcff;
+  color: #1D2129;
   line-height: 1;
   font-family: 'Rajdhani', 'JetBrains Mono', monospace;
 }
@@ -348,8 +346,8 @@ function riskSuggestion(value: any) {
   gap: 5px;
   min-height: 58px;
   padding: 9px 10px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(7, 27, 42, 0.78) 0%, rgba(6, 21, 34, 0.78) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
   border: 1px solid rgba(80,199,255,.08);
 }
 .bed-diag-label {
@@ -373,7 +371,7 @@ function riskSuggestion(value: any) {
 }
 .bed-watching :deep(.ai-watching-bar) {
   min-height: 32px;
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 5px 8px;
 }
 .bed-watching :deep(.watching-text) {
@@ -393,10 +391,8 @@ function riskSuggestion(value: any) {
   align-content: space-between;
   min-height: 70px;
   padding: 10px 12px;
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 88% -10%, rgba(56, 189, 248, 0.14), rgba(56, 189, 248, 0) 44%),
-    linear-gradient(180deg, rgba(8, 31, 47, 0.94) 0%, rgba(6, 24, 37, 0.92) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
   border: 1px solid rgba(80,199,255,.14);
   font-size: 10px;
   color: #7ecce1;
@@ -409,13 +405,13 @@ function riskSuggestion(value: any) {
   top: 0;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.8), rgba(56, 189, 248, 0.12));
+  background: #FFFFFF;
 }
 .vital-cell:nth-child(2)::before {
-  background: linear-gradient(90deg, rgba(96, 165, 250, 0.86), rgba(96, 165, 250, 0.12));
+  background: #FFFFFF;
 }
 .vital-cell:nth-child(3)::before {
-  background: linear-gradient(90deg, rgba(52, 211, 153, 0.82), rgba(52, 211, 153, 0.12));
+  background: #FFFFFF;
 }
 .vital-cell span {
   display: inline-flex;
@@ -437,29 +433,27 @@ function riskSuggestion(value: any) {
 }
 .vital-cell--bp {
   grid-column: 1 / -1;
-  background:
-    radial-gradient(circle at 88% -10%, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0) 46%),
-    linear-gradient(180deg, rgba(11, 32, 48, 0.95) 0%, rgba(8, 25, 38, 0.93) 100%);
+  background: #FFFFFF;
 }
 .vital-cell--bp b {
   font-size: 16px;
 }
 .vital-cell--bp::before {
-  background: linear-gradient(90deg, rgba(251, 191, 36, 0.86), rgba(251, 191, 36, 0.14));
+  background: #FFFFFF;
 }
 .extub-risk-card {
   display: grid;
   gap: 8px;
   margin-top: 12px;
   padding: 10px 11px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(251, 113, 133, 0.18);
-  background: linear-gradient(180deg, rgba(55, 16, 28, 0.54) 0%, rgba(18, 17, 30, 0.78) 100%);
+  background: #FFFFFF;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 .extub-risk-card--critical {
   border-color: rgba(251, 90, 122, 0.32);
-  background: linear-gradient(180deg, rgba(71, 16, 28, 0.96) 0%, rgba(36, 10, 17, 0.98) 100%);
+  background: #FFFFFF;
 }
 .extub-risk-card--high {
   border-color: rgba(249, 115, 22, 0.28);
@@ -500,7 +494,7 @@ function riskSuggestion(value: any) {
   border: 1px solid transparent;
 }
 .extub-risk-pill--warning {
-  color: #fde68a;
+  color: #E8901C;
   background: rgba(120, 53, 15, 0.9);
   border-color: rgba(245, 158, 11, 0.2);
 }
@@ -515,7 +509,7 @@ function riskSuggestion(value: any) {
   border-color: rgba(251, 113, 133, 0.24);
 }
 .extub-risk-main {
-  color: #fff7ed;
+  color: #;
   font-size: 12px;
   line-height: 1.55;
   font-weight: 600;
@@ -541,9 +535,9 @@ function riskSuggestion(value: any) {
   display: grid;
   gap: 4px;
   padding: 8px 9px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(55, 199, 147, 0.14);
-  background: linear-gradient(180deg, rgba(8, 38, 30, 0.66) 0%, rgba(6, 27, 22, 0.76) 100%);
+  background: #FFFFFF;
 }
 .extub-risk-brief-label {
   color: #8ef2c4;
@@ -564,11 +558,10 @@ function riskSuggestion(value: any) {
   align-content: start;
   gap: 10px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(251, 113, 133, .18);
-  background:
-    linear-gradient(180deg, rgba(46, 12, 22, .97) 0%, rgba(20, 8, 14, .98) 100%);
-  box-shadow: 0 18px 32px rgba(0,0,0,.3);
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
   backdrop-filter: blur(8px);
   opacity: 0;
   transform: translateY(10px);
@@ -577,11 +570,11 @@ function riskSuggestion(value: any) {
 }
 .bed-hover-drawer--high {
   border-color: rgba(249, 115, 22, .18);
-  background: linear-gradient(180deg, rgba(58, 23, 11, .97) 0%, rgba(22, 11, 8, .98) 100%);
+  background: #FFFFFF;
 }
 .bed-hover-drawer--warning {
   border-color: rgba(245, 158, 11, .16);
-  background: linear-gradient(180deg, rgba(56, 35, 10, .96) 0%, rgba(24, 17, 8, .98) 100%);
+  background: #FFFFFF;
 }
 .bed-card:hover .bed-hover-drawer {
   opacity: 1;
@@ -624,12 +617,12 @@ function riskSuggestion(value: any) {
   border-color: rgba(249, 115, 22, .22);
 }
 .bed-hover-pill--warning {
-  color: #fde68a;
+  color: #E8901C;
   background: rgba(120, 53, 15, .76);
   border-color: rgba(245, 158, 11, .2);
 }
 .bed-hover-title {
-  color: #fff0f3;
+  color: #;
   font-size: 13px;
   font-weight: 800;
   line-height: 1.25;
@@ -638,7 +631,7 @@ function riskSuggestion(value: any) {
   display: grid;
   gap: 6px;
   padding: 8px 9px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(255,255,255,.04);
 }
@@ -648,7 +641,7 @@ function riskSuggestion(value: any) {
   letter-spacing: .14em;
 }
 .bed-hover-main {
-  color: #fff8fa;
+  color: #;
   font-size: 13px;
   line-height: 1.4;
   font-weight: 700;
@@ -672,7 +665,7 @@ function riskSuggestion(value: any) {
 .bed-hover-block--suggestion {
   margin-top: auto;
   border-color: rgba(55, 199, 147, 0.16);
-  background: linear-gradient(180deg, rgba(8, 38, 30, 0.66) 0%, rgba(6, 27, 22, 0.76) 100%);
+  background: #FFFFFF;
 }
 .bed-hover-suggestion {
   color: #ffe5ec;
@@ -685,7 +678,7 @@ function riskSuggestion(value: any) {
 .lamp-warning { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
 .lamp-high { background: #f97316; box-shadow: 0 0 6px #f97316; }
 .lamp-normal { background: #22c55e; }
-.lamp-none { background: #334155; }
+.lamp-none { background: #FFFFFF; }
 html[data-theme='light'] .bed-card,
 html[data-theme='light'] .sec-vitals,
 html[data-theme='light'] .sec-logistics,
@@ -719,7 +712,7 @@ html[data-theme='light'] .bed-critical::before { background: #EF4444; }
 html[data-theme='light'] .bed-high::before { background: #F97316; }
 html[data-theme='light'] .bed-warning::before { background: #EAB308; }
 html[data-theme='light'] .bed-normal::before { background: #22C55E; }
-html[data-theme='light'] .bed-none::before { background: #94A3B8; }
+html[data-theme='light'] .bed-none::before { background: #4E5969; }
 html[data-theme='light'] .patient-name,
 html[data-theme='light'] .v-val,
 html[data-theme='light'] .summary-title,
@@ -727,7 +720,7 @@ html[data-theme='light'] .summary-main,
 html[data-theme='light'] .alert-card-title,
 html[data-theme='light'] .bed-hover-title,
 html[data-theme='light'] .bed-hover-main {
-  color: #0F172A;
+  color: #1D2129;
 }
 html[data-theme='light'] .monitor-label,
 html[data-theme='light'] .section-title,
@@ -741,40 +734,40 @@ html[data-theme='light'] .alert-card-summary,
 html[data-theme='light'] .summary-block-label,
 html[data-theme='light'] .summary-mini-chip-label,
 html[data-theme='light'] .bed-hover-label {
-  color: #64748B;
+  color: #4E5969;
 }
 html[data-theme='light'] .bed-hover-drawer {
   border-color: rgba(0, 0, 0, 0.08);
-  background: #ffffff;
+  background: #FFFFFF;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 html[data-theme='light'] .bed-hover-drawer--high {
   border-color: #FED7AA;
-  background: #FFF7ED;
+  background: #FFFFFF;
 }
 html[data-theme='light'] .bed-hover-drawer--warning {
-  border-color: #FDE68A;
-  background: #FFFBEB;
+  border-color: #E8901C;
+  background: #FFFFFF;
 }
 html[data-theme='light'] .bed-hover-block--suggestion {
-  border-color: #BBF7D0;
+  border-color: #1A9C5B;
   background: #F0FDF4;
 }
 html[data-theme='light'] .bed-hover-suggestion,
-html[data-theme='light'] .extub-risk-brief-text { color: #16A34A; }
+html[data-theme='light'] .extub-risk-brief-text { color: #1A9C5B; }
 html[data-theme='light'] .extub-risk-card {
-  border-color: #FECACA;
+  border-color: #D9342B;
   background: #FEF2F2;
 }
 html[data-theme='light'] .extub-risk-main { color: #DC2626; }
 html[data-theme='light'] .bed-no {
   background: #F1F5F9;
   border-color: rgba(0, 0, 0, 0.06);
-  color: #334155;
+  color: #1D2129;
 }
 html[data-theme='light'] .bed-zone,
 html[data-theme='light'] .bed-diag-label {
-  color: #64748B;
+  color: #4E5969;
 }
 html[data-theme='light'] .bed-name,
 html[data-theme='light'] .bed-diag,
@@ -782,21 +775,21 @@ html[data-theme='light'] .vital-cell b,
 html[data-theme='light'] .extub-risk-main,
 html[data-theme='light'] .bed-hover-title,
 html[data-theme='light'] .bed-hover-main {
-  color: #0F172A;
+  color: #1D2129;
 }
 html[data-theme='light'] .bed-meta,
 html[data-theme='light'] .vital-cell,
 html[data-theme='light'] .extub-risk-chip,
 html[data-theme='light'] .bed-hover-chip {
-  color: #64748B;
+  color: #4E5969;
 }
 html[data-theme='light'] .bed-tag {
-  color: #64748B;
+  color: #4E5969;
   background: #F8FAFC;
   border-color: rgba(0, 0, 0, 0.06);
 }
 html[data-theme='light'] .bed-tag--soft {
-  color: #2563EB;
+  color: #15558D;
   background: #EFF6FF;
   border-color: rgba(37, 99, 235, 0.16);
 }
@@ -813,29 +806,29 @@ html[data-theme='light'] .vital-cell {
   background: #F8FAFC;
 }
 html[data-theme='light'] .vital-cell--bp {
-  background: #FFFBEB;
-  border-color: #FDE68A;
+  background: #FFFFFF;
+  border-color: #E8901C;
 }
 html[data-theme='light'] .vital-cell span {
-  color: #64748B;
+  color: #4E5969;
   border-color: rgba(0, 0, 0, 0.06);
   background: #FFFFFF;
 }
 html[data-theme='light'] .vital-cell b {
-  color: #0F172A;
+  color: #1D2129;
 }
 html[data-theme='light'] .extub-risk-title,
 html[data-theme='light'] .bed-hover-tag {
   color: #DC2626;
   background: #FEF2F2;
-  border-color: #FECACA;
+  border-color: #D9342B;
 }
 html[data-theme='light'] .extub-risk-subtitle,
 html[data-theme='light'] .bed-hover-label {
-  color: #64748B;
+  color: #4E5969;
 }
 html[data-theme='light'] .extub-risk-brief {
-  border-color: #BBF7D0;
+  border-color: #1A9C5B;
   background: #F0FDF4;
 }
 

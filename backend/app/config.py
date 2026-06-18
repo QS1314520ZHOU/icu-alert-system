@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     SMARTCARE_DB_USER: str = ""
     SMARTCARE_DB_PASSWORD: str = ""
     SMARTCARE_DB_AUTH: str = "admin"
+    SMARTCARE_DB_NAME: str = ""
 
     # DataCenter
     DATACENTER_DB_HOST: str = "127.0.0.1"
@@ -57,6 +58,7 @@ class Settings(BaseSettings):
     DATACENTER_DB_USER: str = ""
     DATACENTER_DB_PASSWORD: str = ""
     DATACENTER_DB_AUTH: str = "admin"
+    DATACENTER_DB_NAME: str = ""
 
     # Redis
     REDIS_HOST: str = "127.0.0.1"

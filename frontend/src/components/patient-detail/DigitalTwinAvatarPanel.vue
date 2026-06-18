@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="twin-avatar-panel">
     <div class="twin-avatar-panel__head">
       <div>
@@ -219,7 +219,7 @@ const metricBadges = computed(() => {
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80,199,255,.12);
   background: rgba(8, 28, 44, 0.72);
 }

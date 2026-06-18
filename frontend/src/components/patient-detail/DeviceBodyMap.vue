@@ -156,8 +156,8 @@ const deviceKindColor: Record<BodyMapDeviceKind, string> = {
   urinary: '#a78bfa',
   feeding: '#22c55e',
   drainage: '#fb7185',
-  dialysis: '#06b6d4',
-  other: '#94a3b8',
+  dialysis: '#15558D',
+  other: '#4E5969',
 }
 
 const markerShapeClass: Record<BodyMapDeviceKind, string> = {
@@ -566,10 +566,10 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   min-width: 170px;
   max-width: 220px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80,199,255,.16);
   background: rgba(7,20,34,.96);
-  box-shadow: 0 16px 28px rgba(0,0,0,.28);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
   color: #dffbff;
   pointer-events: none;
 }
@@ -632,7 +632,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   min-width: 0;
   width: 100%;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(8, 28, 44, 0.72);
   border: 1px solid rgba(80,199,255,.12);
   text-align: left;
@@ -658,7 +658,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 .device-map-card__item.is-active {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--item-ring) 58%, rgba(80,199,255,.14));
-  box-shadow: 0 10px 20px rgba(0,0,0,.16);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 .device-map-card__item strong {
   color: #effcff;
@@ -682,7 +682,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 }
 .device-map-card__empty {
   padding: 14px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(8, 28, 44, 0.72);
   border: 1px dashed rgba(80,199,255,.16);
 }
@@ -727,7 +727,7 @@ html[data-theme='light'] .device-map-card__figure :deep(.organ-heatmap__svg) {
 html[data-theme='light'] .device-map-card__tooltip {
   background: rgba(255,255,255,.98);
   border-color: rgba(130, 170, 194, 0.34);
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
   color: #27445b;
 }
 html[data-theme='light'] .device-map-card__tooltip-head strong {

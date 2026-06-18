@@ -18,7 +18,7 @@ function themeTokens() {
       tooltipBg: 'rgba(255,255,255,.98)',
       tooltipBorder: '#E8E8EF',
       tooltipText: '#1A1A2E',
-      tooltipShadow: 'box-shadow: 0 10px 24px rgba(15,23,42,.08); border-radius: 12px; backdrop-filter: blur(10px);',
+      tooltipShadow: 'box-shadow: 0 1px 2px rgba(0,0,0,.06); border-radius: 4px; backdrop-filter: blur(10px);',
       tooltipAxisLabelBg: '#F7F8FC',
       tooltipAxisLabelText: '#1A1A2E',
       axisLine: 'rgba(232, 232, 239, 0.92)',
@@ -37,7 +37,7 @@ function themeTokens() {
     tooltipBg: 'rgba(4,14,24,.97)',
     tooltipBorder: 'rgba(88,225,255,.2)',
     tooltipText: '#e8fbff',
-    tooltipShadow: 'box-shadow: 0 14px 30px rgba(0,0,0,.34); border-radius: 12px; backdrop-filter: blur(10px);',
+    tooltipShadow: 'box-shadow: 0 1px 2px rgba(0,0,0,.06); border-radius: 4px; backdrop-filter: blur(10px);',
     tooltipAxisLabelBg: 'rgba(8, 31, 47, 0.96)',
     tooltipAxisLabelText: '#dffbff',
     axisLine: 'rgba(79,182,219,.18)',
@@ -48,7 +48,7 @@ function themeTokens() {
     crossLine: 'rgba(110, 231, 249, 0.22)',
     legendText: '#9edff0',
     heatmapText: '#7fc7da',
-    heatmapRange: ['#0a2234', '#0e4c68', '#16b3c9', '#f59e0b', '#fb5a7a'],
+    heatmapRange: ['#0a2234', '#0e4c68', '#15558D', '#f59e0b', '#fb5a7a'],
     labelStrong: '#dffafc',
   }
 }

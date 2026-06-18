@@ -2,11 +2,11 @@
   <div class="consult-page">
     <a-card :bordered="false" class="consult-hero">
       <div class="consult-hero__copy">
-        <div class="consult-kicker">ICU AI Consultation</div>
-        <h1>AI问诊</h1>
-        <p>一个纯聊天问答的 AI 问诊框。可直接输入病情、化验、治疗方案或临床疑问；也可绑定某位患者，带着患者摘要继续追问。</p>
+        <div class="consult-kicker">ICU Consultation</div>
+        <h1>辅助问诊</h1>
+        <p>一个纯聊天问答的 辅助问诊框。可直接输入病情、化验、治疗方案或临床疑问；也可绑定某位患者，带着患者摘要继续追问。</p>
         <div class="consult-badges">
-          <span class="consult-badge">{{ sending ? 'AI 正在回答' : '对话就绪' }}</span>
+          <span class="consult-badge">{{ sending ? '系统正在回答' : '对话就绪' }}</span>
           <span :class="['consult-badge', chatMode === 'free' ? 'consult-badge--free' : 'consult-badge--soft']">
             {{ chatMode === 'free' ? '自由对话' : '结构化问诊' }}
           </span>
@@ -94,7 +94,7 @@
       <a-card :bordered="false" class="consult-chat">
         <template #title>
           <div class="chat-title-row">
-            <span>AI 对话问答</span>
+            <span>辅助问诊问答</span>
             <small>{{ selectedPatientLabel }}</small>
             <button type="button" class="mode-switch" :disabled="sending" @click="toggleChatMode">
               {{ chatMode === 'free' ? '自由对话中 · 切回问诊模板' : '结构化问诊中 · 切到自由对话' }}
@@ -110,7 +110,7 @@
           >
             <div class="chat-meta">
               <div class="chat-meta__main">
-                <span class="chat-role">{{ item.role === 'assistant' ? 'AI问诊助手' : '我' }}</span>
+                <span class="chat-role">{{ item.role === 'assistant' ? '辅助问诊助手' : '我' }}</span>
                 <span class="chat-time">{{ formatTime(item.ts) }}</span>
                 <span
                   v-if="item.role === 'assistant' && item.intentPrimary"
@@ -122,7 +122,7 @@
                   高风险建议需确认
                 </span>
                 <span v-if="item.role === 'assistant' && item.messageType === 'clarification'" class="chat-intent-badge is-clarification">
-                  AI 反问
+                  系统追问
                 </span>
               </div>
               <a-button
@@ -173,7 +173,7 @@
 
           <div v-if="sending" class="chat-row is-assistant">
             <div class="chat-meta">
-              <span class="chat-role">AI问诊助手</span>
+              <span class="chat-role">辅助问诊助手</span>
               <span class="chat-time">思考中</span>
             </div>
             <div class="chat-bubble chat-bubble--loading">
@@ -190,7 +190,7 @@
             </div>
           </div>
 
-          <a-empty v-if="!messages.length && !sending" description="开始一次新的 AI 问诊对话" />
+          <a-empty v-if="!messages.length && !sending" description="开始一次新的 辅助问诊对话" />
         </div>
 
         <div class="composer">
@@ -333,10 +333,10 @@ function defaultAssistantGreeting() {
   return createMessage(
     'assistant',
     chatMode.value === 'free'
-      ? '你好，我是自由对话模式。你可以不按固定问诊模板提问，我会按普通 AI 对话方式回答；如涉及临床决策，仍请以床旁评估和责任医生判断为准。'
+      ? '你好，我是自由对话模式。你可以不按固定问诊模板提问，我会按普通辅助问诊方式回答；如涉及临床决策，仍请以床旁评估和责任医生判断为准。'
       : selectedPatientIds.value.length
-      ? `你好，我是 AI 问诊助手。当前已绑定患者：${selectedPatientLabel.value}。你可以直接追问病情判断、风险点、检查建议或下一步处理。`
-      : '你好，我是 AI 问诊助手。你可以直接输入临床问题，我会按“初步判断 / 风险提醒 / 下一步建议”的方式回答。'
+      ? `你好，我是 辅助问诊助手。当前已绑定患者：${selectedPatientLabel.value}。你可以直接追问病情判断、风险点、检查建议或下一步处理。`
+      : '你好，我是 辅助问诊助手。你可以直接输入临床问题，我会按“初步判断 / 风险提醒 / 下一步建议”的方式回答。'
   )
 }
 
@@ -475,13 +475,13 @@ async function copyMessage(content: string) {
 
 function buildConversationExportText() {
   const header = [
-    'ICU AI 问诊导出',
+    'ICU 辅助问诊导出',
     `导出时间：${new Date().toLocaleString('zh-CN')}`,
     `绑定患者：${selectedPatientLabel.value}`,
     '',
   ]
   const rows = messages.value.map((item) => {
-    const role = item.role === 'assistant' ? 'AI问诊助手' : '我'
+    const role = item.role === 'assistant' ? '辅助问诊助手' : '我'
     return `[${formatTime(item.ts)}] ${role}\n${String(item.content || '').trim()}\n`
   })
   return [...header, ...rows].join('\n')
@@ -494,7 +494,7 @@ function buildConsultSummaryExportText() {
   const sections = latestAssistantSections.value
   const latestQuestion = latestUserMessage.value
   const header = [
-    'ICU AI 会诊摘要',
+    'ICU 辅助会诊摘要',
     `导出时间：${new Date().toLocaleString('zh-CN')}`,
     `绑定患者：${selectedPatientLabel.value}`,
     latestQuestion ? `当前问题：${String(latestQuestion.content || '').trim()}` : '当前问题：未记录',
@@ -556,7 +556,7 @@ function buildProgressNoteExportText() {
       : 'P1 请结合当前病情补充下一步处理计划。',
     '',
     '六、备注',
-    '以上内容由 AI 问诊结果整理生成，仅供临床参考，需结合床旁评估与上级医师意见。',
+    '以上内容由 辅助问诊结果整理生成，仅供临床参考，需结合床旁评估与上级医师意见。',
   ]
   return rows.join('\n')
 }
@@ -597,7 +597,7 @@ function buildConsultDocumentExportText() {
       ? actions.map((line, idx) => `${priorityBadgeLabel(idx)} ${line}`)
       : ['P1 请结合当前病情补充下一步处理。']),
     '',
-    '备注：以上内容由 AI 问诊结果整理生成，仅供临床参考，需结合床旁评估与专科医师意见。',
+    '备注：以上内容由 辅助问诊结果整理生成，仅供临床参考，需结合床旁评估与专科医师意见。',
   ]
   return rows.join('\n')
 }
@@ -611,7 +611,7 @@ function exportConversation() {
     const patientPart = exportPatientPart()
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
     anchor.href = url
-    anchor.download = `AI问诊-${patientPart}-${stamp}.txt`
+    anchor.download = `辅助问诊-${patientPart}-${stamp}.txt`
     document.body.appendChild(anchor)
     anchor.click()
     document.body.removeChild(anchor)
@@ -635,7 +635,7 @@ function exportConsultSummary() {
     const patientPart = exportPatientPart()
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
     anchor.href = url
-    anchor.download = `AI会诊摘要-${patientPart}-${stamp}.txt`
+    anchor.download = `辅助会诊摘要-${patientPart}-${stamp}.txt`
     document.body.appendChild(anchor)
     anchor.click()
     document.body.removeChild(anchor)
@@ -801,7 +801,7 @@ async function streamConsultReply(
       return
     }
     if (eventName === 'error') {
-      const errText = String(parsed?.message || parsed?.error || dataRaw || 'AI问诊失败')
+      const errText = String(parsed?.message || parsed?.error || dataRaw || '辅助问诊失败')
       throw new Error(errText)
     }
   }
@@ -1080,7 +1080,7 @@ async function sendMessage() {
           pending_clarifications: activePending,
         })
         if (Number(fallbackRes.data?.code) !== 0) {
-          throw new Error(fallbackRes.data?.message || fallbackRes.data?.error || 'AI问诊失败')
+          throw new Error(fallbackRes.data?.message || fallbackRes.data?.error || '辅助问诊失败')
         }
         streamRaw = String(fallbackRes.data?.answer || '').trim()
         donePayload = fallbackRes.data || {}
@@ -1110,7 +1110,7 @@ async function sendMessage() {
     saveConversation()
     await scrollToBottom()
   } catch (error: any) {
-    const errText = error?.response?.data?.message || error?.response?.data?.error || error?.message || 'AI问诊失败'
+    const errText = error?.response?.data?.message || error?.response?.data?.error || error?.message || '辅助问诊失败'
     message.error(errText)
     assistantMessage.content = `抱歉，当前回答失败：${errText}`
     scheduleSaveConversation()
@@ -1160,7 +1160,7 @@ onBeforeUnmount(() => {
 .consult-panel,
 .consult-chat {
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: linear-gradient(180deg, rgba(7, 20, 34, 0.94) 0%, rgba(4, 12, 22, 0.97) 100%);
+  background: #FFFFFF;
 }
 
 .consult-hero {
@@ -1200,7 +1200,7 @@ onBeforeUnmount(() => {
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid rgba(125, 211, 252, 0.16);
-  background: rgba(8, 28, 44, 0.7);
+  background: #FFFFFF;
   color: #e0f7ff;
   font-size: 12px;
 }
@@ -1261,7 +1261,7 @@ onBeforeUnmount(() => {
 .prompt-chip {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(125, 211, 252, 0.14);
   background: rgba(8, 28, 44, 0.72);
   color: #dffbff;
@@ -1393,11 +1393,11 @@ onBeforeUnmount(() => {
 
 .chat-intent-badge.is-action {
   border-color: rgba(245, 158, 11, 0.24);
-  color: #fde68a;
+  color: #E8901C;
 }
 .chat-intent-badge.is-high-risk {
   border-color: rgba(248, 113, 113, 0.3);
-  color: #fecaca;
+  color: #D9342B;
   background: rgba(69, 10, 10, 0.44);
 }
 .chat-intent-badge.is-clarification {
@@ -1411,7 +1411,7 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   line-height: 1.8;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: 4px;
   border: 1px solid rgba(125, 211, 252, 0.14);
   background: rgba(8, 28, 44, 0.74);
   color: #e6f6ff;
@@ -1441,7 +1441,7 @@ onBeforeUnmount(() => {
 
 .consult-section {
   border: 1px solid rgba(125, 211, 252, 0.14);
-  border-radius: 14px;
+  border-radius: 4px;
   background: rgba(6, 21, 35, 0.36);
   overflow: hidden;
 }
@@ -1470,14 +1470,14 @@ onBeforeUnmount(() => {
   color: #ffd5d5;
 }
 .consult-section__line--safety {
-  color: #fde68a;
+  color: #E8901C;
 }
 .high-risk-warning {
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(248, 113, 113, 0.26);
   background: rgba(69, 10, 10, 0.42);
-  color: #fecaca;
+  color: #D9342B;
   font-size: 13px;
   font-weight: 700;
 }
@@ -1497,12 +1497,12 @@ onBeforeUnmount(() => {
 }
 
 .priority-badge.is-p1 {
-  color: #fff1f2;
+  color: #;
   background: rgba(220, 38, 38, 0.9);
 }
 
 .priority-badge.is-p2 {
-  color: #fff7ed;
+  color: #;
   background: rgba(217, 119, 6, 0.88);
 }
 
@@ -1521,7 +1521,7 @@ onBeforeUnmount(() => {
 }
 
 .consult-section--risk .consult-section__title {
-  color: #fecaca;
+  color: #D9342B;
   background: rgba(220, 38, 38, 0.18);
 }
 
@@ -1531,7 +1531,7 @@ onBeforeUnmount(() => {
 }
 
 .consult-section--action .consult-section__title {
-  color: #fde68a;
+  color: #E8901C;
   background: rgba(202, 138, 4, 0.18);
 }
 
@@ -1550,12 +1550,12 @@ onBeforeUnmount(() => {
 }
 .consult-section--safety .consult-section__title,
 .consult-section--uncertain .consult-section__title {
-  color: #fde68a;
+  color: #E8901C;
   background: rgba(202, 138, 4, 0.16);
 }
 
 .chat-row.is-user .chat-bubble {
-  background: linear-gradient(180deg, rgba(17, 79, 119, 0.92), rgba(8, 42, 67, 0.98));
+  background: #FFFFFF;
 }
 
 .chat-bubble--loading {
@@ -1569,7 +1569,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 12px;
   border: 1px solid rgba(94, 234, 212, 0.18);
-  border-radius: 14px;
+  border-radius: 4px;
   background: rgba(8, 47, 73, 0.42);
 }
 .autonomous-trace__title {
@@ -1599,7 +1599,7 @@ onBeforeUnmount(() => {
 .composer-input {
   width: 100%;
   resize: vertical;
-  border-radius: 14px;
+  border-radius: 4px;
   border: 1px solid rgba(125, 211, 252, 0.16);
   background: rgba(8, 20, 34, 0.94);
   color: #ecfeff;
@@ -1640,13 +1640,13 @@ html[data-theme='light'] .prompt-chip,
 html[data-theme='light'] .chat-bubble,
 html[data-theme='light'] .composer-input {
   border-color: rgba(187, 204, 220, 0.72);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 247, 252, 0.98) 100%);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 
 html[data-theme='light'] .consult-kicker,
 html[data-theme='light'] .chat-role {
-  color: #1d4ed8;
+  color: #15558D;
 }
 
 html[data-theme='light'] .chat-intent-badge {
@@ -1666,7 +1666,7 @@ html[data-theme='light'] .chat-intent-badge.is-risk {
 }
 
 html[data-theme='light'] .chat-intent-badge.is-exam {
-  color: #1d4ed8;
+  color: #15558D;
   border-color: rgba(96, 165, 250, 0.3);
 }
 
@@ -1700,7 +1700,7 @@ html[data-theme='light'] .field-label {
 
 html[data-theme='light'] .consult-badge {
   border-color: rgba(187, 204, 220, 0.72);
-  background: #ffffff;
+  background: #FFFFFF;
   color: #355a7c;
 }
 
@@ -1721,7 +1721,7 @@ html[data-theme='light'] .prompt-chip {
 
 html[data-theme='light'] .chat-bubble {
   color: #223a54;
-  background: #ffffff;
+  background: #FFFFFF;
 }
 html[data-theme='light'] .chat-bubble--clarification {
   border-color: rgba(13, 148, 136, 0.22);
@@ -1734,7 +1734,7 @@ html[data-theme='light'] .consult-section {
 }
 
 html[data-theme='light'] .consult-section__title {
-  color: #1d4ed8;
+  color: #15558D;
   background: rgba(219, 234, 254, 0.9);
 }
 
@@ -1768,7 +1768,7 @@ html[data-theme='light'] .consult-section--exam {
 }
 
 html[data-theme='light'] .consult-section--exam .consult-section__title {
-  color: #1d4ed8;
+  color: #15558D;
   background: rgba(219, 234, 254, 0.98);
 }
 html[data-theme='light'] .consult-section--safety,
@@ -1781,7 +1781,7 @@ html[data-theme='light'] .high-risk-warning {
 
 html[data-theme='light'] .chat-row.is-user .chat-bubble {
   color: #eff6ff;
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.92), rgba(29, 78, 216, 0.98));
+  background: #FFFFFF;
 }
 
 html[data-theme='light'] .composer-input {

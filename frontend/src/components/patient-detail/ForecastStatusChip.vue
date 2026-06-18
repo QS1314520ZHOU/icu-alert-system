@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-popover v-if="visible" placement="bottomRight" trigger="click">
     <template #content>
       <div class="forecast-popover">
@@ -111,8 +111,8 @@ const indicatorDetails = computed(() => {
   cursor: pointer;
 }
 .forecast-chip--ready { border-color: rgba(52, 211, 153, 0.28); color: #a7f3d0; }
-.forecast-chip--fallback { border-color: rgba(251, 191, 36, 0.28); color: #fde68a; }
-.forecast-chip--error { border-color: rgba(148, 163, 184, 0.24); color: #cbd5e1; }
+.forecast-chip--fallback { border-color: rgba(251, 191, 36, 0.28); color: #E8901C; }
+.forecast-chip--error { border-color: rgba(148, 163, 184, 0.24); color: #E5E6EB; }
 .forecast-dot {
   width: 7px;
   height: 7px;
@@ -124,7 +124,7 @@ const indicatorDetails = computed(() => {
   padding: 2px 6px;
   border-radius: 999px;
   background: rgba(251, 191, 36, 0.14);
-  color: #fde68a;
+  color: #E8901C;
   font-size: 10px;
 }
 .forecast-popover {
@@ -136,7 +136,7 @@ const indicatorDetails = computed(() => {
   display: flex;
   justify-content: space-between;
   gap: 14px;
-  color: #64748b;
+  color: #4E5969;
   font-size: 12px;
 }
 .forecast-popover strong {
@@ -169,5 +169,33 @@ const indicatorDetails = computed(() => {
 .forecast-indicator-warn {
   color: #d97706;
   font-weight: 600;
+}
+
+/* Light mode: switch from dark monitor chip to HIS/CIS pill */
+html[data-theme='light'] .forecast-chip {
+  background: #FFFFFF;
+  border: 1px solid #E5E6EB;
+  color: #1D2129;
+  box-shadow: none;
+}
+html[data-theme='light'] .forecast-chip--ready {
+  border-color: rgba(26, 156, 91, 0.28);
+  color: #1A9C5B;
+}
+html[data-theme='light'] .forecast-chip--fallback {
+  border-color: rgba(232, 144, 28, 0.28);
+  color: #B85D00;
+}
+html[data-theme='light'] .forecast-chip--error {
+  border-color: #E5E6EB;
+  color: #4E5969;
+}
+html[data-theme='light'] .forecast-dot {
+  box-shadow: none;
+}
+html[data-theme='light'] .forecast-chip b {
+  background: #FFF7E8;
+  color: #8A5A00;
+  border: 1px solid rgba(232, 144, 28, 0.32);
 }
 </style>

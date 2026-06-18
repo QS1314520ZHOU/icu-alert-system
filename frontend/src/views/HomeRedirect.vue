@@ -95,7 +95,7 @@ onMounted(async () => {
   gap: 18px;
   padding: 22px;
   border: 1px solid rgba(125, 211, 252, 0.16);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(8, 24, 40, 0.82);
 }
 .redirect-copy {
@@ -108,7 +108,7 @@ onMounted(async () => {
   margin: 0;
 }
 .redirect-copy strong {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 26px;
 }
 .quick-start-grid {
@@ -123,7 +123,7 @@ onMounted(async () => {
   gap: 8px;
   text-align: left;
   border: 1px solid rgba(125, 211, 252, 0.18);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(19, 56, 80, 0.78);
   color: #e9fbff;
   padding: 16px;
@@ -131,7 +131,7 @@ onMounted(async () => {
 }
 .quick-card.primary {
   border-color: rgba(34, 211, 238, 0.42);
-  background: linear-gradient(135deg, rgba(8, 82, 112, 0.88), rgba(19, 56, 80, 0.78));
+  background: #FFFFFF;
 }
 .quick-card b {
   font-size: 18px;
@@ -143,28 +143,26 @@ onMounted(async () => {
 }
 
 html[data-theme='light'] .home-redirect {
-  background:
-    radial-gradient(circle at 18% 6%, rgba(59, 130, 246, 0.08), transparent 28%),
-    radial-gradient(circle at 86% 18%, rgba(20, 184, 166, 0.07), transparent 30%);
+  background: #FFFFFF;
 }
 html[data-theme='light'] .redirect-panel {
   background: rgba(255, 255, 255, 0.96);
   border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 html[data-theme='light'] .redirect-copy span,
 html[data-theme='light'] .redirect-copy p,
 html[data-theme='light'] .quick-card span {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .redirect-copy strong,
 html[data-theme='light'] .quick-card b {
-  color: #0f172a;
+  color: #1D2129;
 }
 html[data-theme='light'] .quick-card {
   background: #f8fafc;
   border-color: rgba(37, 99, 235, 0.14);
-  color: #1d4ed8;
+  color: #15558D;
 }
 html[data-theme='light'] .quick-card.primary {
   background: #eff6ff;

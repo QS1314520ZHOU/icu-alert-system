@@ -126,7 +126,7 @@
             <div v-else-if="!bundles.length" class="empty small">本班安全清单暂无同步记录。</div>
           </section>
           <section class="panel">
-            <div class="panel-head"><strong>AI 提醒</strong><span>护理相关</span></div>
+            <div class="panel-head"><strong>预警提醒</strong><span>护理相关</span></div>
             <article v-for="item in reminders" :key="item._id || item.created_at" class="reminder">
               <strong>{{ shortText(displayName(item.name || item.alert_type || item.rule_id)) }}</strong>
               <div>
@@ -135,7 +135,7 @@
                 <button type="button" @click="feedbackReminder(item, 'false_positive')">不是问题</button>
               </div>
             </article>
-            <div v-if="!reminders.length" class="empty small">暂无护理执行相关 AI 提醒。</div>
+            <div v-if="!reminders.length" class="empty small">暂无护理执行相关 预警提醒。</div>
           </section>
         </aside>
       </main>
@@ -304,7 +304,7 @@ const nurseSummary = computed(() => {
   return [
     { key: 'beds', label: isHeadMode.value ? '全科床位' : '我的床位', value: isHeadMode.value ? sortedHeadBeds.value.length : sortedBeds.value.length, hint: isHeadMode.value ? '当前科室在科' : '本班归属', tone: 'blue' },
     { key: 'tasks', label: '本班任务', value: (home.value?.timeline || []).length, hint: overdue ? `${overdue} 项逾期` : '按时间轴执行', tone: overdue ? 'red' : 'green' },
-    { key: 'reminders', label: 'AI 提醒', value: reminders.value.length + headEvents.value.length, hint: isHeadMode.value ? '含未闭环事件' : '护理执行相关', tone: reminders.value.length || headEvents.value.length ? 'yellow' : 'green' },
+    { key: 'reminders', label: '预警提醒', value: reminders.value.length + headEvents.value.length, hint: isHeadMode.value ? '含未闭环事件' : '护理执行相关', tone: reminders.value.length || headEvents.value.length ? 'yellow' : 'green' },
     { key: 'quality', label: '护理质控', value: qualityTotal, hint: isHeadMode.value ? '本班事件命中' : `${bundles.value.length} 项安全清单`, tone: qualityTotal ? 'yellow' : 'green' },
   ]
 })
@@ -316,7 +316,7 @@ function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }
 function shortText(value: any) {
-  const text = String(value || 'AI提醒')
+  const text = String(value || '预警提醒')
   return text.length > 20 ? `${text.slice(0, 20)}...` : text
 }
 function displayName(value: any) {
@@ -507,20 +507,20 @@ function dismissOnboarding() {
 
 <style scoped>
 .nurse-home { padding: 12px; display: grid; gap: 12px; }
-.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: 8px; background: linear-gradient(135deg, rgba(8,82,112,.62), rgba(6,18,31,.74)); }
+.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: 4px; background: #FFFFFF; }
 .start-guide div { display: grid; gap: 4px; }
-.start-guide span { color: #8fd3e8; font-size: 12px; }
-.start-guide strong { color: #f8fbff; font-size: 15px; }
-.nurse-top { min-height: 80px; display: grid; grid-template-columns: minmax(0,1fr) 320px auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(7,20,34,.82); }
-.nurse-top strong { color: #f8fbff; font-size: 20px; }
-.nurse-top span, .panel-head span, .empty, .bundle span, .task-modal p, .summary-card span, .summary-card em { color: #91adbd; font-size: 12px; }
+.start-guide span { color: #4E5969; font-size: 12px; }
+.start-guide strong { color: #1D2129; font-size: 15px; }
+.nurse-top { min-height: 80px; display: grid; grid-template-columns: minmax(0,1fr) 320px auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 4px; background: #FFFFFF; }
+.nurse-top strong { color: #1D2129; font-size: 20px; }
+.nurse-top span, .panel-head span, .empty, .bundle span, .task-modal p, .summary-card span, .summary-card em { color: #4E5969; font-size: 12px; }
 .workload { display: grid; gap: 6px; }
 .workload i { height: 8px; border-radius: 999px; background: rgba(148,163,184,.25); overflow: hidden; }
 .workload b { display: block; height: 100%; background: #38bdf8; }
-button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radius: 8px; background: rgba(13,44,66,.78); color: #eafcff; padding: 0 10px; cursor: pointer; }
+button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radius: 4px; background: #15558D; color: #1D2129; padding: 0 10px; cursor: pointer; }
 .nurse-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.summary-card { min-height: 82px; display: grid; align-content: center; gap: 4px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(6,18,31,.74); }
-.summary-card strong { color: #f8fbff; font-size: 25px; line-height: 1; }
+.summary-card { min-height: 82px; display: grid; align-content: center; gap: 4px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 4px; background: #FFFFFF; }
+.summary-card strong { color: #1D2129; font-size: 25px; line-height: 1; }
 .summary-card em { font-style: normal; }
 .summary-card.is-red { border-color: rgba(239,68,68,.48); }
 .summary-card.is-yellow { border-color: rgba(245,158,11,.42); }
@@ -529,44 +529,44 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .nurse-grid { min-height: 560px; display: grid; grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); gap: 12px; }
 .side, .head-layout { display: grid; gap: 12px; }
 .head-layout { grid-template-columns: 1fr 1fr; }
-.panel { min-width: 0; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(6,18,31,.74); }
+.panel { min-width: 0; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 4px; background: #FFFFFF; }
 .panel-head { display: flex; justify-content: space-between; gap: 10px; }
-.panel-head strong { color: #f4fbff; }
+.panel-head strong { color: #1D2129; }
 .task-legend { display: flex; flex-wrap: wrap; gap: 8px; }
-.task-legend span { padding: 5px 9px; border-radius: 999px; background: rgba(11,33,50,.72); color: #91adbd; font-size: 12px; }
-.task-legend .is-overdue { color: #fecaca; border: 1px solid rgba(239,68,68,.4); }
-.task-legend .is-due { color: #fde68a; border: 1px solid rgba(245,158,11,.4); }
-.task-legend .is-soon { color: #bae6fd; border: 1px solid rgba(56,189,248,.36); }
-.task-legend .is-done { color: #bbf7d0; border: 1px solid rgba(52,211,153,.36); }
+.task-legend span { padding: 5px 9px; border-radius: 999px; background: #FFFFFF; color: #4E5969; font-size: 12px; }
+.task-legend .is-overdue { color: #D9342B; border: 1px solid rgba(239,68,68,.4); }
+.task-legend .is-due { color: #E8901C; border: 1px solid rgba(245,158,11,.4); }
+.task-legend .is-soon { color: #15558D; border: 1px solid rgba(56,189,248,.36); }
+.task-legend .is-done { color: #1A9C5B; border: 1px solid rgba(52,211,153,.36); }
 .timeline { overflow: auto; display: grid; gap: 8px; }
-.time-head { min-width: 760px; display: grid; grid-template-columns: 84px repeat(7, 1fr); color: #8caabd; font-size: 12px; }
+.time-head { min-width: 760px; display: grid; grid-template-columns: 84px repeat(7, 1fr); color: #4E5969; font-size: 12px; }
 .bed-line { min-width: 760px; display: grid; grid-template-columns: 84px minmax(0,1fr); align-items: stretch; gap: 8px; }
-.bed-line > strong { display: grid; place-items: center; color: #f8fbff; border-radius: 8px; background: rgba(11,33,50,.72); }
-.task-strip { min-height: 58px; position: relative; display: flex; align-items: center; gap: 8px; padding: 7px; border-radius: 8px; background: repeating-linear-gradient(90deg, rgba(125,211,252,.08) 0, rgba(125,211,252,.08) 1px, rgba(11,33,50,.48) 1px, rgba(11,33,50,.48) 10.416%); overflow-x: auto; }
+.bed-line > strong { display: grid; place-items: center; color: #1D2129; border-radius: 4px; background: #FFFFFF; }
+.task-strip { min-height: 58px; position: relative; display: flex; align-items: center; gap: 8px; padding: 7px; border-radius: 4px; background: #FFFFFF; overflow-x: auto; }
 .task-card { flex: 0 0 132px; font-size: 12px; }
 .is-future { opacity: .7; }
 .is-soon { border-color: rgba(56,189,248,.55); }
 .is-due { border-color: rgba(245,158,11,.65); }
-.is-overdue { border-color: rgba(239,68,68,.7); color: #fecaca; }
-.is-done { border-color: rgba(52,211,153,.55); color: #bbf7d0; }
-.bundle, .reminder { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.72); }
-.bundle strong, .reminder strong { color: #edf8ff; font-size: 13px; }
+.is-overdue { border-color: rgba(239,68,68,.7); color: #D9342B; }
+.is-done { border-color: rgba(52,211,153,.55); color: #1A9C5B; }
+.bundle, .reminder { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px; border-radius: 4px; background: #FFFFFF; }
+.bundle strong, .reminder strong { color: #1D2129; font-size: 13px; }
 .bundle.is-green { border-left: 3px solid #34d399; }
 .bundle.is-yellow { border-left: 3px solid #f59e0b; }
 .bundle.is-red { border-left: 3px solid #ef4444; }
 .reminder { display: grid; }
 .reminder div { display: flex; gap: 8px; flex-wrap: wrap; }
 .reminder button { min-height: 36px; }
-.handoff-bar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 8px; background: rgba(6,18,31,.74); opacity: .82; }
+.handoff-bar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: 4px; background: #FFFFFF; opacity: .82; }
 .handoff-bar.open { border-color: rgba(245,158,11,.42); opacity: 1; }
-.handoff-bar strong { color: #f8fbff; display: block; }
-.handoff-bar span { color: #91adbd; font-size: 12px; }
-.empty { padding: 14px; border-radius: 8px; background: rgba(11,33,50,.58); }
+.handoff-bar strong { color: #1D2129; display: block; }
+.handoff-bar span { color: #4E5969; font-size: 12px; }
+.empty { padding: 14px; border-radius: 4px; background: #FFFFFF; }
 .empty.small { padding: 10px; }
-.danger { color: #fecaca; }
+.danger { color: #D9342B; }
 .modal-mask { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(0,0,0,.52); }
-.task-modal { width: min(520px, calc(100vw - 24px)); display: grid; gap: 12px; padding: 16px; border-radius: 8px; border: 1px solid rgba(125,211,252,.22); background: #081827; }
-.task-modal strong { color: #fff; font-size: 18px; }
+.task-modal { width: min(520px, calc(100vw - 24px)); display: grid; gap: 12px; padding: 16px; border-radius: 4px; border: 1px solid rgba(125,211,252,.22); background: #FFFFFF; }
+.task-modal strong { color: #FFFFFF; font-size: 18px; }
 .modal-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .bed-cloud { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 8px; }
 .heatmap { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -578,20 +578,20 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   gap: 3px;
   padding: 8px 10px;
   border: 1px solid rgba(125,211,252,.12);
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(13,44,66,.82), rgba(8,28,44,.72));
-  color: #eafcff;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: #1D2129;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 .bed-cloud span b {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 15px;
   line-height: 1.1;
   font-weight: 800;
 }
 .bed-cloud span em {
   min-width: 0;
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
   line-height: 1.2;
   font-style: normal;
@@ -599,7 +599,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.heatmap article { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); color: #eafcff; }
+.heatmap article { padding: 8px 10px; border-radius: 4px; background: #FFFFFF; color: #1D2129; }
 .heatmap article { min-width: 150px; display: grid; gap: 8px; }
 .heatmap i { height: 42px; display: flex; align-items: end; gap: 3px; }
 .heatmap b { width: 10px; min-height: 8px; border-radius: 3px 3px 0 0; background: #38bdf8; }
@@ -608,20 +608,20 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .density-low { border: 1px solid rgba(52,211,153,.45); }
 .head-side { grid-column: 1 / -1; }
 .head-event-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.head-event { display: grid; gap: 4px; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.72); }
-.head-event strong { color: #fff; font-size: 13px; }
-.head-event span, .quality-row span { color: #91adbd; font-size: 12px; }
+.head-event { display: grid; gap: 4px; padding: 10px; border-radius: 4px; background: #FFFFFF; }
+.head-event strong { color: #FFFFFF; font-size: 13px; }
+.head-event span, .quality-row span { color: #4E5969; font-size: 12px; }
 .quality-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.quality-row span { padding: 8px 10px; border-radius: 8px; background: rgba(11,33,50,.72); }
+.quality-row span { padding: 8px 10px; border-radius: 4px; background: #FFFFFF; }
 .handoff-editor { margin-top: -4px; }
 .handoff-switch { display: flex; gap: 6px; }
 .handoff-switch button { min-height: 34px; padding: 0 10px; }
-.handoff-switch button.active { border-color: rgba(52,211,153,.55); color: #bbf7d0; background: rgba(13,74,55,.72); }
-.handoff-item { display: grid; gap: 8px; padding: 10px; border-radius: 8px; background: rgba(11,33,50,.58); }
-.handoff-item > strong { color: #fff; }
+.handoff-switch button.active { border-color: rgba(52,211,153,.55); color: #1A9C5B; background: rgba(13,74,55,.72); }
+.handoff-item { display: grid; gap: 8px; padding: 10px; border-radius: 4px; background: #FFFFFF; }
+.handoff-item > strong { color: #FFFFFF; }
 .handoff-item label { display: grid; gap: 4px; }
-.handoff-item label span { color: #91adbd; font-size: 12px; }
-.handoff-item textarea { resize: vertical; min-height: 58px; border-radius: 8px; border: 1px solid rgba(125,211,252,.18); background: rgba(5,18,30,.9); color: #eafcff; padding: 8px; }
+.handoff-item label span { color: #4E5969; font-size: 12px; }
+.handoff-item textarea { resize: vertical; min-height: 58px; border-radius: 4px; border: 1px solid rgba(125,211,252,.18); background: #FFFFFF; color: #1D2129; padding: 8px; }
 .beds-panel {
   min-height: 420px;
 }
@@ -638,8 +638,8 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   gap: 12px;
   padding: 14px;
   border: 1px solid rgba(125, 211, 252, .16);
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(10, 32, 50, .92), rgba(7, 22, 36, .86));
+  border-radius: 4px;
+  background: #FFFFFF;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
   cursor: pointer;
 }
@@ -650,7 +650,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   gap: 10px;
 }
 .bed-card__main strong {
-  color: #f8fbff;
+  color: #1D2129;
   font-size: 24px;
   line-height: 1;
 }
@@ -670,7 +670,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 }
 .bed-card__meta span,
 .bed-clear {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
 }
 .bed-risk-button {
@@ -678,13 +678,13 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   min-height: 38px;
   border-color: rgba(245, 158, 11, .48);
   background: rgba(80, 45, 13, .55);
-  color: #fde68a;
+  color: #E8901C;
 }
 .bed-clear {
   display: inline-flex;
   align-items: center;
   min-height: 38px;
-  color: #bbf7d0;
+  color: #1A9C5B;
 }
 .notice-card {
   display: flex;
@@ -693,8 +693,8 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   gap: 10px;
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 8px;
-  background: rgba(11, 33, 50, .72);
+  border-radius: 4px;
+  background: #FFFFFF;
   cursor: pointer;
 }
 .notice-card div {
@@ -704,14 +704,14 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 }
 .notice-card strong {
   min-width: 0;
-  color: #edf8ff;
+  color: #1D2129;
   font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .notice-card span {
-  color: #91adbd;
+  color: #4E5969;
   font-size: 12px;
 }
 .notice-card button {
@@ -732,18 +732,16 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   opacity: .72;
 }
 .onboarding-mask { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: rgba(0,0,0,.48); padding: 16px; }
-.onboarding-card { width: min(560px, 100%); display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(125,211,252,.24); border-radius: 8px; background: #081827; box-shadow: 0 20px 50px rgba(0,0,0,.32); }
+.onboarding-card { width: min(560px, 100%); display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(125,211,252,.24); border-radius: 4px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 .onboarding-card ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
-.onboarding-card li { color: #eafcff; }
+.onboarding-card li { color: #1D2129; }
 .onboarding-card li b { display: block; }
-.onboarding-card li span { display: block; color: #91adbd; font-size: 12px; margin-top: 4px; }
+.onboarding-card li span { display: block; color: #4E5969; font-size: 12px; margin-top: 4px; }
 @media (max-width: 1024px) { .nurse-top, .nurse-summary, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 760px) { .side, .handoff-bar, .head-event-grid { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; } }
 
 html[data-theme='light'] .nurse-home {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 28%),
-    radial-gradient(circle at 88% 12%, rgba(16, 185, 129, 0.07), transparent 30%);
+  background: #FFFFFF;
 }
 html[data-theme='light'] .nurse-top,
 html[data-theme='light'] .start-guide,
@@ -753,7 +751,7 @@ html[data-theme='light'] .task-modal,
 html[data-theme='light'] .summary-card {
   background: rgba(255, 255, 255, 0.96);
   border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
 html[data-theme='light'] .nurse-top strong,
 html[data-theme='light'] .start-guide strong,
@@ -767,13 +765,13 @@ html[data-theme='light'] .head-event strong,
 html[data-theme='light'] .handoff-item > strong,
 html[data-theme='light'] .heatmap article,
 html[data-theme='light'] .summary-card strong {
-  color: #0f172a;
+  color: #1D2129;
 }
 html[data-theme='light'] .bed-cloud span b {
-  color: #0f172a;
+  color: #1D2129;
 }
 html[data-theme='light'] .bed-cloud span em {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .nurse-top span,
 html[data-theme='light'] .start-guide span,
@@ -787,7 +785,7 @@ html[data-theme='light'] .quality-row span,
 html[data-theme='light'] .handoff-item label span,
 html[data-theme='light'] .summary-card span,
 html[data-theme='light'] .summary-card em {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .bed-line > strong,
 html[data-theme='light'] .task-strip,
@@ -806,27 +804,27 @@ html[data-theme='light'] .task-legend span {
   background: #f8fafc;
 }
 html[data-theme='light'] .bed-cloud span {
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: #FFFFFF;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 html[data-theme='light'] .bed-card,
 html[data-theme='light'] .notice-card {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(145, 176, 199, 0.3);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 html[data-theme='light'] .bed-card__main strong,
 html[data-theme='light'] .bed-card__main span,
 html[data-theme='light'] .notice-card strong {
-  color: #0f172a;
+  color: #1D2129;
 }
 html[data-theme='light'] .bed-card__meta span,
 html[data-theme='light'] .bed-clear,
 html[data-theme='light'] .notice-card span {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .bed-risk-button {
-  background: #fffbeb;
+  background: #FFFFFF;
   border-color: rgba(245, 158, 11, 0.34);
   color: #92400e;
 }
@@ -835,12 +833,12 @@ html[data-theme='light'] .notice-card.is-overdue {
   border-color: rgba(220, 38, 38, 0.26);
 }
 html[data-theme='light'] .task-strip {
-  background: repeating-linear-gradient(90deg, rgba(37, 99, 235, 0.08) 0, rgba(37, 99, 235, 0.08) 1px, #f8fafc 1px, #f8fafc 10.416%);
+  background: #FFFFFF;
 }
 html[data-theme='light'] button {
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.18);
-  color: #1d4ed8;
+  color: #15558D;
 }
 html[data-theme='light'] button:hover {
   background: #dbeafe;
@@ -852,22 +850,22 @@ html[data-theme='light'] .handoff-switch button.active {
   color: #15803d;
 }
 html[data-theme='light'] .handoff-item textarea {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(145, 176, 199, 0.36);
-  color: #0f172a;
+  color: #1D2129;
 }
 html[data-theme='light'] .workload i {
   background: #e2e8f0;
 }
 html[data-theme='light'] .onboarding-card {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(145, 176, 199, 0.32);
 }
 html[data-theme='light'] .onboarding-card li {
-  color: #0f172a;
+  color: #1D2129;
 }
 html[data-theme='light'] .onboarding-card li span {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .danger,
 html[data-theme='light'] .is-overdue {

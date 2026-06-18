@@ -238,7 +238,7 @@ function alertTypeLabel(type: string) {
 .cp-section-title {
   font-size: 12px;
   font-weight: 600;
-  color: #1677ff;
+  color: #15558D;
   margin: 0 0 6px;
 }
 .cp-kv {
@@ -278,7 +278,7 @@ function alertTypeLabel(type: string) {
   padding: 1px 6px;
   border-radius: 3px;
 }
-.cp-vital-trend.is-ok { background: #ecfdf3; color: #16a34a; }
+.cp-vital-trend.is-ok { background: #ecfdf3; color: #1A9C5B; }
 .cp-vital-trend.is-warn { background: #fff7ed; color: #ea580c; }
 .cp-vital-trend.is-danger { background: #fef2f2; color: #dc2626; }
 .cp-vital-trend.is-muted { background: #f2f4f7; color: #98a2b3; }
@@ -307,7 +307,7 @@ function alertTypeLabel(type: string) {
 .cp-lab-id,
 .cp-drug-id,
 .cp-alert-id {
-  color: #1677ff;
+  color: #15558D;
   font-weight: 600;
   font-size: 11px;
 }
@@ -322,7 +322,7 @@ function alertTypeLabel(type: string) {
   border-radius: 3px;
 }
 .cp-alert-status.is-active { background: #fef2f2; color: #dc2626; }
-.cp-alert-status.is-resolved { background: #ecfdf3; color: #16a34a; }
+.cp-alert-status.is-resolved { background: #ecfdf3; color: #1A9C5B; }
 .cp-empty {
   text-align: center;
   color: #98a2b3;

@@ -103,7 +103,7 @@
             <a-checkbox value="labs">检验结果</a-checkbox>
             <a-checkbox value="alerts">预警记录</a-checkbox>
             <a-checkbox value="scores">评分数据</a-checkbox>
-            <a-checkbox value="ai_logs">人工智能日志</a-checkbox>
+            <a-checkbox value="ai_logs">模型服务日志</a-checkbox>
           </ACheckboxGroup>
         </div>
 
@@ -719,7 +719,7 @@ onUnmounted(stopPolling)
 }
 .kpi-card {
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(8, 30, 48, 0.72);
   border: 1px solid rgba(125, 211, 252, 0.16);
 }
@@ -731,7 +731,7 @@ onUnmounted(stopPolling)
 .kpi-card strong {
   display: block;
   margin-top: 6px;
-  color: #f4fbff;
+  color: #1D2129;
   font-size: 22px;
 }
 .research-card :deep(.ant-card-head-title),
@@ -780,12 +780,12 @@ onUnmounted(stopPolling)
   display: grid;
   gap: 4px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(8, 30, 48, 0.72);
   border: 1px solid rgba(125, 211, 252, 0.16);
 }
 .locked-department strong {
-  color: #f4fbff;
+  color: #1D2129;
   font-size: 14px;
 }
 .locked-department span {
@@ -800,7 +800,7 @@ onUnmounted(stopPolling)
 }
 .preview-kpi {
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 4px;
   background: rgba(8, 30, 48, 0.72);
   border: 1px solid rgba(125, 211, 252, 0.16);
 }
@@ -812,7 +812,7 @@ onUnmounted(stopPolling)
 .preview-kpi strong {
   display: block;
   margin-top: 6px;
-  color: #f4fbff;
+  color: #1D2129;
   font-size: 18px;
 }
 .warning-list {
@@ -849,18 +849,18 @@ onUnmounted(stopPolling)
 .error-panel {
   margin-top: 12px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 4px;
   background: rgba(127, 29, 29, 0.28);
   border: 1px solid rgba(248, 113, 113, 0.34);
 }
 .error-text {
-  color: #fecaca;
+  color: #D9342B;
   white-space: pre-wrap;
   line-height: 1.6;
 }
 .warning-item {
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(255, 196, 61, 0.12);
   border: 1px solid rgba(255, 196, 61, 0.24);
   color: #ffe29a;
@@ -875,7 +875,7 @@ onUnmounted(stopPolling)
 }
 .detail-item {
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 4px;
   background: rgba(8, 30, 48, 0.72);
   border: 1px solid rgba(125, 211, 252, 0.16);
 }
@@ -887,7 +887,7 @@ onUnmounted(stopPolling)
 .detail-item strong {
   display: block;
   margin-top: 6px;
-  color: #f4fbff;
+  color: #1D2129;
   line-height: 1.5;
 }
 .detail-item.full {
@@ -928,9 +928,7 @@ onUnmounted(stopPolling)
   color: #8da4bb;
 }
 html[data-theme='light'] .research-export {
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 34%),
-    linear-gradient(180deg, #f4f8fc 0%, #edf3f9 100%);
+  background: #FFFFFF;
   color: #1f3852;
 }
 html[data-theme='light'] .research-title { color: #16324f; }
@@ -957,7 +955,7 @@ html[data-theme='light'] .locked-department strong,
 html[data-theme='light'] .detail-item strong,
 html[data-theme='light'] .section-title { color: #16324f; }
 html[data-theme='light'] .highlight-chip { color: #1f3852; }
-html[data-theme='light'] .highlight-chip b { color: #1d4ed8; }
+html[data-theme='light'] .highlight-chip b { color: #15558D; }
 html[data-theme='light'] .warning-item {
   color: #b45309;
   background: rgba(254, 243, 199, 0.98);

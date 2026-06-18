@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <AAlert
     type="warning"
     show-icon
@@ -25,7 +25,7 @@ defineProps<{ warnings: string[] }>()
 <style scoped>
 .hallucination-warning {
   margin: 8px 0 12px;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 .hw-title {
   font-weight: 600;

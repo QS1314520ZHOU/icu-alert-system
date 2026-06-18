@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+﻿import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const routeComponents = {
@@ -119,7 +119,7 @@ const router = createRouter({
       path: '/ai-ops',
       name: 'ai-ops',
       component: routeComponents.aiOps,
-      meta: { title: 'AI运营中心', useAntdTheme: true }
+      meta: { title: '运营管理中心', useAntdTheme: true }
     },
     {
       path: '/admin/scanner-health',
@@ -137,13 +137,13 @@ const router = createRouter({
       path: '/ai-consult',
       name: 'ai-consult',
       component: routeComponents.aiConsult,
-      meta: { title: 'AI问诊', useAntdTheme: true }
+      meta: { title: '辅助问诊', useAntdTheme: true }
     },
     {
       path: '/rounding-sheet',
       name: 'rounding-sheet',
       component: routeComponents.roundingSheet,
-      meta: { title: '智能查房报告', useAntdTheme: true }
+      meta: { title: '查房报告', useAntdTheme: true }
     },
     {
       path: '/respiratory-dashboard',
@@ -185,7 +185,7 @@ const router = createRouter({
       path: '/mdt',
       name: 'mdt-board',
       component: routeComponents.mdtBoard,
-      meta: { title: 'MDT多智能体会诊', useAntdTheme: true }
+      meta: { title: 'MDT多学科会诊', useAntdTheme: true }
     },
     {
       path: '/bedside/:patientId',
@@ -238,7 +238,7 @@ const router = createRouter({
           path: 'consult',
           name: 'mobile-consult',
           component: routeComponents.mobileConsult,
-          meta: { title: '移动AI问诊', useAntdTheme: true, mobile: true }
+          meta: { title: '移动辅助问诊', useAntdTheme: true, mobile: true }
         },
         {
           path: 'me',

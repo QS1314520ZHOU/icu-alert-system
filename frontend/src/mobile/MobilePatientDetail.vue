@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="mobile-page mobile-patient-detail">
     <section class="mobile-bedside-card">
       <div class="mobile-bedside-card__main">
@@ -11,7 +11,7 @@
       </div>
       <div class="mobile-bedside-card__actions compact">
         <button type="button" @click="openScan">扫码</button>
-        <button type="button" :disabled="interpreting" @click="interpretPatient">{{ interpreting ? '解读中' : 'AI解读' }}</button>
+        <button type="button" :disabled="interpreting" @click="interpretPatient">{{ interpreting ? '解读中' : '辅助解读' }}</button>
       </div>
       <div class="mobile-chip-row">
         <span v-if="displayText(genderLabel(firstText(patient, ['hisSex', 'sex', 'gender'])))">{{ genderLabel(firstText(patient, ['hisSex', 'sex', 'gender'])) }}</span>

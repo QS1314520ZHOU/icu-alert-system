@@ -21,14 +21,14 @@
     </transition>
 
     <button class="pulse-fab" type="button" @click="toggleHistory">
-      <span class="fab-icon">AI</span>
+      <span class="fab-icon">!</span>
       <span v-if="unreadCount" class="fab-badge">{{ unreadCount }}</span>
     </button>
 
     <transition name="pulse-history-pop">
       <div v-if="showHistory" class="pulse-history">
         <div class="pulse-history__head">
-          <strong>AI提醒</strong>
+          <strong>报警提醒</strong>
           <span>24小时内</span>
         </div>
         <div v-if="!history.length" class="pulse-history__empty">暂无主动提醒</div>
@@ -74,12 +74,12 @@ const currentDeptCode = computed(() => String(route.query.dept_code || route.que
 function sourceLabel(source: string) {
   const labels: Record<string, string> = {
     alert: '预警',
-    reasoning: 'AI结论',
+    reasoning: '预警结论',
     lab_drug_mismatch: '药敏',
     mdt_overdue: 'MDT',
     mdt: 'MDT',
   }
-  return labels[source] || 'AI'
+  return labels[source] || '预警'
 }
 
 function dismiss(item: PulseNarration) {
@@ -165,10 +165,10 @@ onUnmounted(() => {
   position: relative;
   width: 320px;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(103, 232, 249, 0.18);
-  background: linear-gradient(180deg, rgba(8, 26, 43, 0.98), rgba(5, 16, 28, 0.98));
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
   padding: 14px 14px 13px 18px;
   color: #dffbff;
 }
@@ -204,7 +204,7 @@ onUnmounted(() => {
   width: 26px;
   height: 26px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(15, 23, 42, 0.58);
   color: #b8d5e1;
   cursor: pointer;
@@ -229,8 +229,8 @@ onUnmounted(() => {
 .pulse-primary {
   min-height: 30px;
   border: 1px solid rgba(34, 211, 238, 0.32);
-  border-radius: 8px;
-  background: linear-gradient(180deg, #0891b2, #0e7490);
+  border-radius: 4px;
+  background: #D9342B;
   color: #ecfeff;
   padding: 0 14px;
   cursor: pointer;
@@ -240,9 +240,9 @@ onUnmounted(() => {
   position: relative;
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: 4px;
   border: 1px solid rgba(103, 232, 249, 0.24);
-  background: linear-gradient(180deg, #0b6b89 0%, #07465a 100%);
+  background: #D9342B;
   color: #ecfeff;
   cursor: pointer;
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
@@ -265,9 +265,9 @@ onUnmounted(() => {
   width: 320px;
   max-height: 420px;
   overflow: auto;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(103, 232, 249, 0.16);
-  background: rgba(5, 16, 28, 0.98);
+  background: #FFFFFF;
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
   padding: 12px;
 }
@@ -286,9 +286,9 @@ onUnmounted(() => {
   text-align: left;
   margin-top: 8px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(103, 232, 249, 0.12);
-  background: rgba(8, 31, 47, 0.82);
+  background: #FFFFFF;
   cursor: pointer;
 }
 .pulse-history__item span { color: #67e8f9; font-size: 10px; }
@@ -296,21 +296,19 @@ onUnmounted(() => {
 .pulse-history__item em { color: #9cc9d8; font-size: 11px; font-style: normal; }
 html[data-theme='light'] .pulse-card {
   border-color: rgba(59, 130, 246, 0.2);
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98));
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
-  color: #0f172a;
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  color: #1D2129;
 }
 html[data-theme='light'] .pulse-source {
   border-color: rgba(59, 130, 246, 0.18);
   background: rgba(239, 246, 255, 0.98);
-  color: #1d4ed8;
+  color: #15558D;
 }
 html[data-theme='light'] .pulse-icon-btn {
   border-color: rgba(148, 163, 184, 0.26);
   background: rgba(255, 255, 255, 0.9);
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .pulse-card__headline,
 html[data-theme='light'] .pulse-history__head strong,
@@ -323,13 +321,13 @@ html[data-theme='light'] .pulse-history__item em {
 }
 html[data-theme='light'] .pulse-primary {
   border-color: rgba(37, 99, 235, 0.32);
-  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+  background: #D9342B;
   color: #fff;
 }
 html[data-theme='light'] .pulse-fab {
   border-color: rgba(37, 99, 235, 0.22);
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+  background: #D9342B;
+  box-shadow: none;
 }
 html[data-theme='light'] .pulse-history {
   border-color: rgba(148, 163, 184, 0.24);
@@ -338,14 +336,14 @@ html[data-theme='light'] .pulse-history {
 }
 html[data-theme='light'] .pulse-history__head span,
 html[data-theme='light'] .pulse-history__empty {
-  color: #64748b;
+  color: #4E5969;
 }
 html[data-theme='light'] .pulse-history__item {
   border-color: rgba(148, 163, 184, 0.22);
   background: rgba(248, 251, 255, 0.98);
 }
 html[data-theme='light'] .pulse-history__item span {
-  color: #2563eb;
+  color: #15558D;
 }
 .pulse-slide-enter-active,
 .pulse-slide-leave-active,

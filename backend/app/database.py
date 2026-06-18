@@ -48,7 +48,13 @@ class DatabaseManager:
         datacenter_cfg = db_cfg.get("datacenter", {})
 
         # ---- SmartCare (ICU专用库，读写) ----
-        smartcare_db_name = smartcare_cfg.get("db_name") or smartcare_cfg.get("database", "SmartCare")
+        # 优先 .env SMARTCARE_DB_NAME，其次 YAML database，最后默认值
+        smartcare_db_name = (
+            self.config.settings.SMARTCARE_DB_NAME
+            or smartcare_cfg.get("db_name")
+            or smartcare_cfg.get("database")
+            or "SmartCare"
+        )
         logger.info(f"正在连接 SmartCare ({smartcare_db_name})...")
 
         self.smartcare_client, self.smartcare_db = await self._connect_mongo(
@@ -61,7 +67,13 @@ class DatabaseManager:
         logger.info("✅ SmartCare 数据库连接成功")
 
         # ---- DataCenter (HIS/LIS，只读) ----
-        datacenter_db_name = datacenter_cfg.get("db_name") or datacenter_cfg.get("database", "DataCenter")
+        # 优先 .env DATACENTER_DB_NAME，其次 YAML database，最后默认值
+        datacenter_db_name = (
+            self.config.settings.DATACENTER_DB_NAME
+            or datacenter_cfg.get("db_name")
+            or datacenter_cfg.get("database")
+            or "DataCenter"
+        )
         logger.info(f"正在连接 DataCenter ({datacenter_db_name})...")
 
         self.datacenter_client, self.datacenter_db = await self._connect_mongo(

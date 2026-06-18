@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="mobile-page">
     <section class="mobile-hero">
       <span>{{ roleLabel }}工作台</span>
@@ -40,7 +40,7 @@
         <button type="button" @click="go('/m/patients')">患者</button>
         <button type="button" @click="go('/m/alerts')">告警</button>
         <button type="button" @click="go('/m/tasks')">任务</button>
-        <button type="button" @click="go('/m/consult')">AI问诊</button>
+        <button type="button" @click="go('/m/consult')">辅助问诊</button>
       </div>
     </section>
   </div>

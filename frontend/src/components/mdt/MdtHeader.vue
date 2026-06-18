@@ -73,13 +73,13 @@ p {
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
+  border-radius: 4px;
   color: #e2e8f0;
   background: rgba(15, 23, 42, 0.54);
   font-size: 13px;
 }
 .mdt-badge.is-critical {
-  color: #fecaca;
+  color: #D9342B;
   border-color: rgba(248, 113, 113, 0.45);
   background: rgba(127, 29, 29, 0.45);
 }
@@ -90,7 +90,7 @@ p {
 }
 .mdt-badge.is-closed,
 .mdt-badge.is-soft {
-  color: #bbf7d0;
+  color: #1A9C5B;
   border-color: rgba(74, 222, 128, 0.35);
   background: rgba(20, 83, 45, 0.32);
 }
@@ -107,30 +107,30 @@ p {
   color: #0284c7;
 }
 :global(html[data-theme='light']) h1 {
-  color: #0f172a;
+  color: #1D2129;
 }
 :global(html[data-theme='light']) p {
-  color: #475569;
+  color: #4E5969;
 }
 :global(html[data-theme='light']) .mdt-badge {
-  color: #334155;
-  border-color: #cbd5e1;
+  color: #1D2129;
+  border-color: #E5E6EB;
   background: #f8fafc;
 }
 :global(html[data-theme='light']) .mdt-badge.is-critical {
   color: #991b1b;
-  border-color: #fecaca;
+  border-color: #D9342B;
   background: #fef2f2;
 }
 :global(html[data-theme='light']) .mdt-badge.is-warning {
   color: #9a3412;
   border-color: #fed7aa;
-  background: #fff7ed;
+  background: #FFFFFF;
 }
 :global(html[data-theme='light']) .mdt-badge.is-closed,
 :global(html[data-theme='light']) .mdt-badge.is-soft {
   color: #166534;
-  border-color: #bbf7d0;
+  border-color: #1A9C5B;
   background: #f0fdf4;
 }
 </style>

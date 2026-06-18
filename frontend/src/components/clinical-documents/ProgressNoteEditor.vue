@@ -275,14 +275,14 @@ function confidenceLabel(confidence: string) {
   min-height: 50px;
   padding: 7px 8px;
   border: 1px solid #edf1f7;
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 4px;
+  background: #FFFFFF;
   text-align: left;
   cursor: pointer;
 }
 
 .system-nav-item.is-active {
-  border-color: #1677ff;
+  border-color: #15558D;
   background: #eff6ff;
 }
 
@@ -293,7 +293,7 @@ function confidenceLabel(confidence: string) {
 
 .system-nav-item span {
   overflow: hidden;
-  color: #0f172a;
+  color: #1D2129;
   font-size: 12px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -314,9 +314,9 @@ function confidenceLabel(confidence: string) {
 
 .system-card {
   min-height: 0;
-  background: #fff;
+  background: #FFFFFF;
   border: 1px solid #edf1f7;
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 10px;
 }
 
@@ -339,7 +339,7 @@ function confidenceLabel(confidence: string) {
 
 .system-card-head h3 {
   margin: 2px 0;
-  color: #0f172a;
+  color: #1D2129;
   font-size: 15px;
 }
 
@@ -365,7 +365,7 @@ function confidenceLabel(confidence: string) {
 .delete-btn {
   border: 1px solid #d0d5dd;
   border-radius: 6px;
-  background: #fff;
+  background: #FFFFFF;
   color: #344054;
   font-size: 12px;
 }
@@ -394,7 +394,7 @@ function confidenceLabel(confidence: string) {
 .missing-data span {
   padding: 2px 7px;
   border-radius: 4px;
-  background: #fff7ed;
+  background: #FFFFFF;
 }
 
 .statement-grid {
@@ -407,7 +407,7 @@ function confidenceLabel(confidence: string) {
 .statement-group {
   min-width: 0;
   border: 1px solid #edf1f7;
-  border-radius: 8px;
+  border-radius: 4px;
   background: #fbfdff;
   padding: 8px;
 }
@@ -434,13 +434,13 @@ function confidenceLabel(confidence: string) {
 
 .statement {
   border: 1px solid #edf1f7;
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 4px;
+  background: #FFFFFF;
   padding: 7px;
 }
 
 .statement.kind-fact {
-  border-left: 4px solid #1677ff;
+  border-left: 4px solid #15558D;
 }
 
 .statement.kind-inference {
@@ -448,7 +448,7 @@ function confidenceLabel(confidence: string) {
 }
 
 .statement.kind-recommendation {
-  border-left: 4px solid #16a34a;
+  border-left: 4px solid #1A9C5B;
 }
 
 .statement-meta {
@@ -474,7 +474,7 @@ function confidenceLabel(confidence: string) {
   border-radius: 6px;
   padding: 6px 8px;
   color: #1f2937;
-  background: #fff;
+  background: #FFFFFF;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -497,7 +497,7 @@ function confidenceLabel(confidence: string) {
   border: none;
   background: transparent;
   padding: 0 3px;
-  color: #1677ff;
+  color: #15558D;
   font-size: 12px;
   cursor: pointer;
 }

@@ -428,7 +428,7 @@ function labelCategory(v: any) {
     ventilator: '呼吸机',
     drug_safety: '药物安全',
     assessments: '护理评估',
-    ai_analysis: 'AI',
+    ai_analysis: '分析',
     fluid_balance: '液体平衡',
     glycemic_control: '血糖管理',
     antibiotic_stewardship: '抗菌药管理',
@@ -472,7 +472,7 @@ function labelType(v: any) {
     lab_threshold: '检验阈值',
     threshold: '阈值',
     trend_analysis: '趋势',
-    ai_risk: 'AI风险',
+    ai_risk: '风险',
     fluid_balance: '液体平衡',
     delirium_risk: '谵妄风险',
     sedation_delirium_conversion: '镇静转谵妄',
@@ -670,10 +670,8 @@ function severityText(v: any) {
   display: grid;
   gap: 10px;
   padding: 12px;
-  border-radius: 16px;
-  background:
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), rgba(56, 189, 248, 0) 28%),
-    linear-gradient(180deg, rgba(8, 23, 38, 0.96) 0%, rgba(4, 12, 22, 0.98) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
   border: 1px solid rgba(94, 234, 212, 0.08);
   box-shadow:
     inset 0 1px 0 rgba(145, 228, 255, 0.05),
@@ -684,31 +682,29 @@ function severityText(v: any) {
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  border-radius: 16px 0 0 16px;
-  background: rgba(245, 158, 11, 0.7);
+  border-radius: 4px 0 0 16px;
+  background: #E8901C;
 }
 .alert-row--critical {
   border-color: rgba(251, 90, 122, 0.24);
 }
 .alert-row--critical::before {
-  background: linear-gradient(180deg, #fb5a7a 0%, #be123c 100%);
+  background: #FFFFFF;
 }
 .alert-row--high {
   border-color: rgba(249, 115, 22, 0.22);
 }
 .alert-row--high::before {
-  background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  background: #FFFFFF;
 }
 .alert-row--warning {
   border-color: rgba(245, 158, 11, 0.2);
 }
 .alert-row--warning::before {
-  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  background: #FFFFFF;
 }
 .alert-row--rescue {
-  background:
-    radial-gradient(circle at top right, rgba(251, 113, 133, 0.16), rgba(251, 113, 133, 0) 28%),
-    linear-gradient(180deg, rgba(15, 22, 37, 0.98) 0%, rgba(5, 11, 21, 0.99) 100%);
+  background: #FFFFFF;
 }
 .alert-head {
   display: grid;
@@ -734,8 +730,8 @@ function severityText(v: any) {
   min-width: 54px;
   height: 54px;
   padding: 0 10px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(15, 49, 73, 0.98) 0%, rgba(8, 29, 45, 0.98) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
   border: 1px solid rgba(125, 211, 252, 0.18);
   color: #ecfeff;
   font-size: 18px;
@@ -829,9 +825,9 @@ function severityText(v: any) {
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: linear-gradient(180deg, rgba(6, 30, 44, 0.96) 0%, rgba(5, 22, 36, 0.94) 100%);
+  background: #FFFFFF;
 }
 .alert-summary-tag {
   color: #74e5f7;
@@ -871,9 +867,9 @@ function severityText(v: any) {
   display: grid;
   gap: 6px;
   padding: 10px 11px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(251, 113, 133, 0.16);
-  background: linear-gradient(180deg, rgba(55, 16, 28, 0.54) 0%, rgba(18, 17, 30, 0.78) 100%);
+  background: #FFFFFF;
 }
 .post-extub-head {
   display: flex;
@@ -908,7 +904,7 @@ function severityText(v: any) {
 .post-extub-pill--high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
 .post-extub-pill--critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .post-extub-main {
-  color: #fff1f3;
+  color: #;
   font-size: 12px;
   line-height: 1.45;
   font-weight: 700;
@@ -938,13 +934,13 @@ function severityText(v: any) {
   display: grid;
   gap: 6px;
   padding: 10px 11px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: linear-gradient(180deg, rgba(6, 23, 37, 0.92) 0%, rgba(5, 18, 30, 0.94) 100%);
+  background: #FFFFFF;
 }
 .alert-explanation--rescue {
   border-color: rgba(251, 113, 133, 0.16);
-  background: linear-gradient(180deg, rgba(54, 16, 28, 0.26) 0%, rgba(9, 23, 38, 0.94) 24%, rgba(5, 18, 30, 0.96) 100%);
+  background: #FFFFFF;
 }
 .alert-rescue-head {
   display: flex;
@@ -989,17 +985,17 @@ function severityText(v: any) {
   display: grid;
   gap: 5px;
   padding: 8px 9px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(80, 199, 255, 0.08);
   background: rgba(8, 27, 42, 0.62);
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
 .alert-explanation-block--summary {
-  background: linear-gradient(180deg, rgba(59, 17, 30, 0.72) 0%, rgba(24, 20, 34, 0.78) 100%);
+  background: #FFFFFF;
   border-color: rgba(251, 113, 133, 0.18);
 }
 .alert-explanation-block--suggestion {
-  background: linear-gradient(180deg, rgba(8, 38, 30, 0.7) 0%, rgba(6, 27, 22, 0.82) 100%);
+  background: #FFFFFF;
   border-color: rgba(55, 199, 147, 0.16);
 }
 .alert-explanation-label {
@@ -1016,7 +1012,7 @@ function severityText(v: any) {
   word-break: break-word;
 }
 .alert-explanation-text--summary {
-  color: #fff1f3;
+  color: #;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.65;
@@ -1057,13 +1053,13 @@ function severityText(v: any) {
   display: grid;
   gap: 6px;
   padding: 10px 11px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: linear-gradient(180deg, rgba(7, 24, 39, 0.88) 0%, rgba(7, 18, 30, 0.94) 100%);
+  background: #FFFFFF;
 }
 .alert-snapshot--rescue {
   border-color: rgba(96, 165, 250, 0.18);
-  background: linear-gradient(180deg, rgba(9, 29, 46, 0.94) 0%, rgba(7, 19, 34, 0.96) 100%);
+  background: #FFFFFF;
 }
 .alert-snapshot-head {
   display: flex;
@@ -1134,7 +1130,7 @@ function severityText(v: any) {
   background: rgba(51, 27, 7, 0.66);
 }
 .alert-snapshot-badge-name {
-  color: #fde68a;
+  color: #E8901C;
   font-size: 10px;
   font-weight: 700;
 }
@@ -1152,13 +1148,13 @@ function severityText(v: any) {
 }
 .alert-chain {
   padding: 10px 11px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: linear-gradient(180deg, rgba(7, 24, 39, 0.86) 0%, rgba(7, 18, 30, 0.92) 100%);
+  background: #FFFFFF;
 }
 .alert-chain--rescue {
   border-color: rgba(56, 189, 248, 0.16);
-  background: linear-gradient(180deg, rgba(11, 31, 49, 0.94) 0%, rgba(6, 21, 36, 0.96) 100%);
+  background: #FFFFFF;
 }
 .alert-composite-head {
   display: flex;
@@ -1244,9 +1240,9 @@ function severityText(v: any) {
   place-items: center;
   gap: 8px;
   min-height: 180px;
-  border-radius: 16px;
+  border-radius: 4px;
   border: 1px dashed rgba(80, 199, 255, 0.16);
-  background: linear-gradient(180deg, rgba(7, 23, 37, 0.72) 0%, rgba(4, 13, 24, 0.9) 100%);
+  background: #FFFFFF;
   color: #96dcee;
 }
 .alert-empty-title {
@@ -1285,7 +1281,7 @@ html[data-theme='light'] .alert-explanation,
 html[data-theme='light'] .alert-snapshot,
 html[data-theme='light'] .alert-chain,
 html[data-theme='light'] .post-extub-panel {
-  background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.99) 100%);
+  background: #FFFFFF;
 }
 html[data-theme='light'] .alert-patient,
 html[data-theme='light'] .alert-name,
@@ -1294,7 +1290,7 @@ html[data-theme='light'] .alert-summary-text,
 html[data-theme='light'] .alert-explanation-text,
 html[data-theme='light'] .alert-chain-summary,
 html[data-theme='light'] .alert-empty-title {
-  color: #0F172A;
+  color: #1D2129;
 }
 html[data-theme='light'] .alert-meta,
 html[data-theme='light'] .alert-time,
@@ -1307,20 +1303,20 @@ html[data-theme='light'] .alert-snapshot-time,
 html[data-theme='light'] .alert-composite-tag,
 html[data-theme='light'] .alert-composite-code,
 html[data-theme='light'] .alert-empty-copy {
-  color: #64748B;
+  color: #4E5969;
 }
 html[data-theme='light'] .alert-bed {
   background: #F1F5F9;
   border-color: rgba(0, 0, 0, 0.06);
-  color: #334155;
+  color: #1D2129;
 }
-html[data-theme='light'] .sev-tag--warning { color: #CA8A04; background: #FFFBEB; border-color: #FDE68A; }
-html[data-theme='light'] .sev-tag--high { color: #EA580C; background: #FFF7ED; border-color: #FED7AA; }
-html[data-theme='light'] .sev-tag--critical { color: #DC2626; background: #FEF2F2; border-color: #FECACA; }
-html[data-theme='light'] .sev-tag--normal { color: #16A34A; background: #F0FDF4; border-color: #BBF7D0; }
-html[data-theme='light'] .meta-pill { color: #475569; }
+html[data-theme='light'] .sev-tag--warning { color: #CA8A04; background: #FFFFFF; border-color: #E8901C; }
+html[data-theme='light'] .sev-tag--high { color: #EA580C; background: #FFFFFF; border-color: #FED7AA; }
+html[data-theme='light'] .sev-tag--critical { color: #DC2626; background: #FEF2F2; border-color: #D9342B; }
+html[data-theme='light'] .sev-tag--normal { color: #1A9C5B; background: #F0FDF4; border-color: #1A9C5B; }
+html[data-theme='light'] .meta-pill { color: #4E5969; }
 html[data-theme='light'] .alert-time {
-  color: #64748B;
+  color: #4E5969;
   background: rgba(243, 248, 252, 0.98);
   border-color: rgba(187, 204, 220, 0.72);
 }
@@ -1329,14 +1325,14 @@ html[data-theme='light'] .alert-summary {
   background: rgba(243, 248, 252, 0.98);
 }
 html[data-theme='light'] .alert-rule {
-  color: #64748B;
+  color: #4E5969;
 }
 html[data-theme='light'] .alert-code {
-  color: #1d4ed8;
+  color: #15558D;
 }
 html[data-theme='light'] .alert-row--rescue,
 html[data-theme='light'] .alert-explanation--rescue {
-  border-color: #FECACA;
+  border-color: #D9342B;
   background: #FEF2F2;
 }
 html[data-theme='light'] .alert-rescue-head {
@@ -1356,15 +1352,15 @@ html[data-theme='light'] .post-extub-pill--warning { color: #b45309; background:
 html[data-theme='light'] .post-extub-pill--high { color: #c2410c; background: rgba(255,237,213,0.98); border-color: rgba(251,146,60,0.28); }
 html[data-theme='light'] .post-extub-pill--critical { color: #be123c; background: rgba(255,241,242,0.98); border-color: rgba(251,113,133,0.28); }
 html[data-theme='light'] .alert-explanation-block {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(187, 204, 220, 0.72);
 }
 html[data-theme='light'] .alert-explanation-block--summary {
-  background: linear-gradient(180deg, rgba(255,245,246,.98) 0%, rgba(255,241,242,.99) 100%);
+  background: #FFFFFF;
   border-color: rgba(248, 113, 113, 0.22);
 }
 html[data-theme='light'] .alert-explanation-block--suggestion {
-  background: linear-gradient(180deg, rgba(244,252,247,.98) 0%, rgba(236,253,243,.99) 100%);
+  background: #FFFFFF;
   border-color: rgba(74, 222, 128, 0.2);
 }
 html[data-theme='light'] .alert-explanation-text--summary {
@@ -1377,9 +1373,9 @@ html[data-theme='light'] .alert-rescue-evidence-chip,
 html[data-theme='light'] .alert-snapshot-chip,
 html[data-theme='light'] .alert-chain-chip,
 html[data-theme='light'] .post-extub-chip {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(187, 204, 220, 0.72);
-  color: #334155;
+  color: #1D2129;
 }
 html[data-theme='light'] .alert-snapshot-chip-value,
 html[data-theme='light'] .alert-snapshot-badge-name,
@@ -1391,7 +1387,7 @@ html[data-theme='light'] .alert-snapshot-badge {
   border-color: rgba(187, 204, 220, 0.72);
 }
 html[data-theme='light'] .alert-composite-code {
-  color: #1d4ed8;
+  color: #15558D;
   background: rgba(239, 246, 255, 0.98);
   border-color: rgba(59, 130, 246, 0.2);
 }

@@ -109,21 +109,21 @@ function formatDate(value: any) {
   width: 100%;
   min-height: 38px;
   border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 0 10px;
   color: #e2e8f0;
-  background: #0f172a;
+  background: #FFFFFF;
 }
 .drawer-check {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #cbd5e1;
+  color: #E5E6EB;
 }
 .session-card {
   padding: 12px;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
+  border-radius: 4px;
   cursor: pointer;
   background: rgba(15, 23, 42, 0.78);
 }
@@ -155,17 +155,17 @@ function formatDate(value: any) {
 .session-tags em {
   padding: 4px 8px;
   border-radius: 999px;
-  color: #cbd5e1;
+  color: #E5E6EB;
   font-size: 12px;
   font-style: normal;
   background: rgba(30, 41, 59, 0.9);
 }
 .drawer-empty {
-  color: #94a3b8;
+  color: #4E5969;
 }
 :global(.ant-drawer-content),
 :global(.ant-drawer-header) {
-  background: #0f172a !important;
+  background: #FFFFFF !important;
   color: #e2e8f0 !important;
 }
 :global(.ant-drawer-title),
@@ -174,16 +174,16 @@ function formatDate(value: any) {
 }
 :global(html[data-theme='light'] .ant-drawer-content),
 :global(html[data-theme='light'] .ant-drawer-header) {
-  background: #ffffff !important;
-  color: #0f172a !important;
+  background: #FFFFFF !important;
+  color: #1D2129 !important;
 }
 :global(html[data-theme='light'] .ant-drawer-title),
 :global(html[data-theme='light'] .ant-drawer-close) {
-  color: #0f172a !important;
+  color: #1D2129 !important;
 }
 html[data-theme='light'] .drawer-input {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background: #FFFFFF;
+  color: #1D2129;
+  border-color: #E5E6EB;
 }
 </style>

@@ -11,6 +11,7 @@ from app import runtime
 from app.config import get_config
 from app.services.ai_confirmation_service import normalize_ai_decision, confirm_mdt_decision
 from app.services.document_generator import ClinicalDocumentGenerator
+from app.services.ward_round_generator import WardRoundGenerator
 from app.utils.serialization import serialize_doc
 
 router = APIRouter()
@@ -244,7 +245,24 @@ async def ai_generate_document(patient_id: str, payload: dict = Body(default={})
         ai_handoff_service=runtime.ai_handoff_service,
     )
     try:
-        record = await generator.generate(str(pid), doc_type, time_range=time_range)
+        if doc_type == "ward_round":
+            round_generator = WardRoundGenerator(
+                db=runtime.db,
+                config=get_config(),
+                alert_engine=runtime.alert_engine,
+                rag_service=runtime.ai_rag_service,
+                ai_handoff_service=runtime.ai_handoff_service,
+                document_generator=generator,
+            )
+            record = await round_generator.generate(
+                str(pid),
+                round_level=str((payload or {}).get("round_level") or "attending"),
+                doctor=str((payload or {}).get("doctor") or ""),
+                hours=int((payload or {}).get("hours") or (time_range or {}).get("hours") or 24),
+                time_range=time_range,
+            )
+        else:
+            record = await generator.generate(str(pid), doc_type, time_range=time_range)
         return {"code": 0, "document": serialize_doc(record) if record else None}
     except ValueError as exc:
         return {"code": 400, "message": str(exc)}
@@ -267,7 +285,7 @@ async def ai_mdt_workspace(patient_id: str, session_id: str | None = Query(None)
     if str(session_id or "").strip():
         workspace_query["session_id"] = str(session_id).strip()
     workspace = await runtime.db.col("score").find_one(workspace_query, sort=[("updated_at", -1), ("calc_time", -1)])
-    documents_cursor = runtime.db.col("score").find({"patient_id": str(pid), "score_type": "clinical_document", "doc_type": {"$in": ["mdt_summary", "daily_progress", "consultation_request"]}}).sort("updated_at", -1).limit(20)
+    documents_cursor = runtime.db.col("score").find({"patient_id": str(pid), "score_type": "clinical_document", "doc_type": {"$in": ["mdt_summary", "daily_progress", "consultation_request", "ward_round"]}}).sort("updated_at", -1).limit(20)
     documents = [serialize_doc(doc) async for doc in documents_cursor]
     assessment = await runtime.db.col("score").find_one({"patient_id": str(pid), "score_type": "multi_agent_mdt_assessment"}, sort=[("calc_time", -1)])
     decisions = [normalize_ai_decision(item, idx) for idx, item in enumerate(workspace.get("decisions") if isinstance(workspace, dict) and isinstance(workspace.get("decisions"), list) else [], start=1)]

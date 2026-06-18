@@ -161,7 +161,7 @@
     <div v-if="alerts[0] && itemReasoning(alerts[0])" class="reasoning-brief">
       <div class="reasoning-brief-head">
         <div>
-          <div class="reasoning-brief-title">AI 归因摘要</div>
+          <div class="reasoning-brief-title">归因摘要</div>
           <div class="reasoning-brief-sub">
             {{ fmtTime(itemReasoning(alerts[0])?.generated_at || alerts[0]?.reasoning_updated_at || alerts[0]?.created_at) || '时间未知' }}
             · 关联 {{ itemReasoning(alerts[0])?.source_alert_count || 0 }} 条活跃报警
@@ -325,7 +325,7 @@
           <div v-if="itemReasoning(item) && (idx === 0 || itemReasoning(item)?.cluster_signature !== itemReasoning(alerts[idx - 1])?.cluster_signature)" class="reasoning-card">
             <div class="reasoning-card-head">
               <div>
-                <span class="reasoning-tag">AI 归因摘要</span>
+                <span class="reasoning-tag">归因摘要</span>
                 <div class="reasoning-summary">{{ itemReasoning(item)?.root_cause_summary }}</div>
               </div>
               <span :class="['reasoning-confidence-pill', `is-${reasoningConfidenceLevel(itemReasoning(item))}`]">
@@ -533,7 +533,7 @@
           <div v-if="isAiRiskAlert(item)" class="ai-risk-panel">
             <div class="ai-risk-head">
               <div :class="['ai-risk-summary', aiConfidenceClass(aiRiskConfidenceLevel(item))]">
-                <strong>{{ item.extra?.primary_risk || item.name || 'AI综合风险' }}</strong>
+                <strong>{{ item.extra?.primary_risk || item.name || '综合风险' }}</strong>
                 <span>风险等级 {{ aiRiskLevelText(item.extra?.risk_level || item.condition?.risk_level || item.value) }}</span>
                 <span v-if="item.ai_feedback?.outcome">反馈 {{ feedbackOutcomeText(item.ai_feedback.outcome) }}</span>
               </div>
@@ -1552,9 +1552,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .modi-panel {
   margin-bottom: 16px;
   border: 1px solid rgba(80,199,255,.14);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 16px;
-  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+  background: #FFFFFF;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
 .modi-head {
@@ -1565,7 +1565,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   flex-wrap: wrap;
 }
 .modi-title {
-  color: #eafcff;
+  color: #1D2129;
   font-size: 15px;
   font-weight: 800;
   letter-spacing: .06em;
@@ -1583,7 +1583,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .modi-kpi {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 10px 12px;
   background: rgba(8,28,44,.78);
   text-align: right;
@@ -1617,9 +1617,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .organ-focus-suite {
   margin-bottom: 16px;
   border: 1px solid rgba(80,199,255,.14);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 14px;
-  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+  background: #FFFFFF;
 }
 .organ-focus-suite__head,
 .organ-focus-card__head {
@@ -1629,7 +1629,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 12px;
 }
 .organ-focus-suite__title {
-  color: #eafcff;
+  color: #1D2129;
   font-size: 15px;
   font-weight: 800;
 }
@@ -1657,7 +1657,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .organ-focus-card {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 10px;
   background: rgba(7, 21, 34, .72);
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
@@ -1679,7 +1679,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   animation: organ-focus-flash 1.8s ease;
 }
 .organ-focus-card__name {
-  color: #eafcff;
+  color: #1D2129;
   font-size: 12px;
   font-weight: 700;
 }
@@ -1699,7 +1699,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(11, 28, 44, .72);
   border: 1px solid rgba(80,199,255,.08);
   cursor: pointer;
@@ -1718,9 +1718,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .composite-chain-card,
 .composite-group-section {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 12px;
-  background: linear-gradient(180deg, rgba(8,30,46,.8) 0%, rgba(7,22,36,.92) 100%);
+  background: #FFFFFF;
 }
 .suite-section-head {
   display: flex;
@@ -1772,25 +1772,25 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   font-size: 12px;
   line-height: 1.6;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(55, 199, 147, .16);
   background: rgba(8, 36, 30, .6);
 }
 .context-snapshot {
   margin-top: 10px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(80,199,255,.12);
-  background: linear-gradient(180deg, rgba(7, 24, 39, .88) 0%, rgba(7, 18, 30, .94) 100%);
+  background: #FFFFFF;
   display: grid;
   gap: 8px;
 }
 .post-extub-panel {
   margin-top: 10px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(251, 113, 133, .16);
-  background: linear-gradient(180deg, rgba(55, 16, 28, .54) 0%, rgba(18, 17, 30, .78) 100%);
+  background: #FFFFFF;
   display: grid;
   gap: 8px;
 }
@@ -1827,7 +1827,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .post-extub-pill.sev-high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
 .post-extub-pill.sev-critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .post-extub-main {
-  color: #fff1f3;
+  color: #;
   font-size: 12px;
   line-height: 1.5;
   font-weight: 700;
@@ -1924,7 +1924,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   background: rgba(51, 27, 7, .66);
 }
 .context-badge-name {
-  color: #fde68a;
+  color: #E8901C;
   font-size: 11px;
   font-weight: 700;
 }
@@ -1940,7 +1940,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .group-card {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 10px;
   background: rgba(7, 21, 34, .72);
 }
@@ -1959,7 +1959,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 10px;
 }
 .group-name {
-  color: #eafcff;
+  color: #1D2129;
   font-size: 12px;
   font-weight: 700;
 }
@@ -1992,7 +1992,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   justify-content: space-between;
   gap: 10px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(11, 28, 44, .72);
   border: 1px solid rgba(80,199,255,.08);
 }
@@ -2009,11 +2009,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .weaning-brief {
   margin-bottom: 16px;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80,199,255,.14);
-  background:
-    radial-gradient(circle at top right, rgba(59,130,246,.08), rgba(59,130,246,0) 30%),
-    linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  background: #FFFFFF;
   display: grid;
   gap: 10px;
 }
@@ -2038,7 +2036,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .weaning-brief-score {
   min-width: 86px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(80,199,255,.14);
   background: rgba(8,31,49,.86);
   text-align: right;
@@ -2133,20 +2131,18 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   flex: 1 1 auto;
   margin-top: 8px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #1f3c67 0%, #0f233f 100%);
+  background: #FFFFFF;
 }
 .alert-body {
   border: 1px solid rgba(80,199,255,.12);
   border-left: 5px solid #f59e0b;
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 14px 18px;
-  background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.96) 100%);
+  background: #FFFFFF;
   box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
 }
 .alert-body--rescue {
-  background:
-    radial-gradient(circle at top right, rgba(251, 113, 133, .08), rgba(251, 113, 133, 0) 26%),
-    linear-gradient(180deg, rgba(11, 23, 38, .98) 0%, rgba(6, 13, 24, .99) 100%);
+  background: #FFFFFF;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px rgba(251, 113, 133, .04);
 }
 .alert-card.sev-high .alert-body { border-left-color: #f97316; }
@@ -2184,7 +2180,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .alert-title {
   margin: 0;
-  color: #eafcff;
+  color: #1D2129;
   font-size: 14px;
   font-weight: 700;
   line-height: 1.25;
@@ -2240,17 +2236,16 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .alert-explanation {
   margin-top: 10px;
   padding: 9px 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(80,199,255,.12);
-  background: linear-gradient(180deg, rgba(8,30,46,.84) 0%, rgba(8,23,38,.92) 100%);
+  background: #FFFFFF;
   display: grid;
   gap: 6px;
 }
 .alert-explanation--rescue {
   padding: 12px;
   border-color: rgba(251, 113, 133, .16);
-  background:
-    linear-gradient(180deg, rgba(47, 14, 24, .26) 0%, rgba(10, 24, 39, .92) 22%, rgba(7, 20, 34, .96) 100%);
+  background: #FFFFFF;
 }
 .rescue-headline {
   display: flex;
@@ -2289,20 +2284,20 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(80,199,255,.08);
   background: rgba(5, 18, 30, .5);
   box-shadow: inset 0 1px 0 rgba(145, 228, 255, .03);
 }
 .explanation-block--summary {
-  background: linear-gradient(180deg, rgba(57, 15, 28, .72) 0%, rgba(22, 19, 33, .78) 100%);
+  background: #FFFFFF;
   border-color: rgba(251, 113, 133, .18);
 }
 .explanation-block--evidence {
   background: rgba(8, 27, 42, .72);
 }
 .explanation-block--suggestion {
-  background: linear-gradient(180deg, rgba(8, 38, 30, .72) 0%, rgba(7, 28, 24, .8) 100%);
+  background: #FFFFFF;
   border-color: rgba(55, 199, 147, .16);
 }
 .explanation-tag {
@@ -2325,7 +2320,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   white-space: pre-wrap;
 }
 .explanation-text--summary {
-  color: #fff1f3;
+  color: #;
   font-size: 15px;
   line-height: 1.65;
   font-weight: 700;
@@ -2364,15 +2359,15 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .reasoning-card {
   margin-top: 10px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(94, 234, 212, .16);
-  background: linear-gradient(180deg, rgba(7, 33, 34, .92) 0%, rgba(7, 21, 27, .96) 100%);
+  background: #FFFFFF;
 }
 .threshold-brief {
   margin: 0 0 18px;
   padding: 16px 18px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(10, 26, 42, 0.96) 0%, rgba(6, 18, 30, 0.98) 100%);
+  border-radius: 4px;
+  background: #FFFFFF;
   border: 1px solid rgba(96, 214, 255, 0.18);
   box-shadow: inset 0 1px 0 rgba(178, 241, 255, 0.05), 0 12px 28px rgba(0, 0, 0, 0.18);
 }
@@ -2445,7 +2440,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .threshold-card {
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: rgba(10, 30, 48, 0.72);
   border: 1px solid rgba(96, 214, 255, 0.12);
 }
@@ -2514,7 +2509,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   font-size: 12px;
   line-height: 1.6;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(74, 222, 128, .18);
   background: rgba(10, 45, 31, .52);
 }
@@ -2548,19 +2543,19 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .reasoning-brief-confidence.is-high,
 .reasoning-confidence-pill.is-high {
-  color: #bbf7d0;
+  color: #1A9C5B;
   background: rgba(20, 83, 45, .62);
   border-color: rgba(74, 222, 128, .24);
 }
 .reasoning-brief-confidence.is-medium,
 .reasoning-confidence-pill.is-medium {
-  color: #fde68a;
+  color: #E8901C;
   background: rgba(66, 46, 9, .68);
   border-color: rgba(251, 191, 36, .22);
 }
 .reasoning-brief-confidence.is-low,
 .reasoning-confidence-pill.is-low {
-  color: #fecaca;
+  color: #D9342B;
   background: rgba(69, 10, 10, .62);
   border-color: rgba(248, 113, 113, .22);
 }
@@ -2633,7 +2628,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 8px;
 }
 .reasoning-group-card {
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(94, 234, 212, .12);
   background: rgba(8, 34, 38, .78);
   padding: 10px;
@@ -2699,7 +2694,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 8px;
   margin-top: 8px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(34, 197, 94, 0.18);
   background: rgba(8, 38, 30, 0.52);
   color: #b4f3ca;
@@ -2716,7 +2711,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   color: #8da4c7;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--container-dark-bg);
+  background: #FFFFFF;
   border: 1px solid var(--container-dark-border);
 }
 .alert-rule {
@@ -2740,7 +2735,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   color: var(--container-alt-text);
   background: var(--container-alt-bg);
   border: 1px solid var(--container-alt-border);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 6px 8px;
 }
 .detail-label { color: #7aa2d6; }
@@ -2748,12 +2743,12 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .alert-extra {
   margin-top: 10px;
   white-space: pre-wrap;
-  color: #94a3b8;
+  color: #4E5969;
   font-size: 11px;
   line-height: 1.4;
-  background: var(--container-dark-bg);
+  background: #FFFFFF;
   border: 1px solid var(--container-dark-border);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 8px;
 }
 .alert-extra--muted {
@@ -2777,7 +2772,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .ai-risk-summary,
 .ai-risk-card {
   border: 1px solid var(--container-alt-border);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--container-alt-bg);
   padding: 10px 12px;
 }
@@ -2807,8 +2802,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .ai-risk-organ {
   border: 1px solid var(--container-dark-border);
-  border-radius: 10px;
-  background: var(--container-dark-bg);
+  border-radius: 4px;
+  background: #FFFFFF;
   padding: 8px 10px;
   transition: opacity .2s ease;
 }
@@ -2827,8 +2822,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .ai-risk-organ-conf { margin-top: 6px; color: #7fa0d0; }
 .ai-risk-section {
   border: 1px solid var(--container-dark-border);
-  border-radius: 10px;
-  background: var(--container-dark-bg);
+  border-radius: 4px;
+  background: #FFFFFF;
   padding: 10px 12px;
 }
 .ai-risk-section-title {
@@ -2845,7 +2840,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   color: #bfd0ec;
   font-size: 12px;
 }
-.ai-risk-list-warning { color: #fecaca; }
+.ai-risk-list-warning { color: #D9342B; }
 .ai-risk-list-hallucination { list-style: none; padding-left: 0; }
 .hallucination-pill {
   display: inline-flex;
@@ -2870,7 +2865,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   max-width: 420px;
   display: grid;
   gap: 6px;
-  color: #334155;
+  color: #1D2129;
 }
 .ai-evidence-quote {
   max-width: 420px;
@@ -2884,7 +2879,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   color: #7ccfe4;
   font-size: 12px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 4px;
   background: rgba(8,28,44,.58);
   border: 1px dashed rgba(80,199,255,.14);
 }
@@ -2947,8 +2942,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 
 /* Light mode overrides */
-html[data-theme='light'] .modi-panel { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: 0 10px 24px rgba(15,23,42,0.06); }
-html[data-theme='light'] .organ-focus-suite { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .modi-panel { background: #FFFFFF; border-color: rgba(187,204,220,0.72); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+html[data-theme='light'] .organ-focus-suite { background: #FFFFFF; border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .modi-title { color: #16324f; }
 html[data-theme='light'] .organ-focus-suite__title,
 html[data-theme='light'] .organ-focus-card__name { color: #16324f; }
@@ -2956,16 +2951,16 @@ html[data-theme='light'] .modi-sub, html[data-theme='light'] .modi-organs { colo
 html[data-theme='light'] .organ-focus-suite__sub, html[data-theme='light'] .organ-focus-card__meta, html[data-theme='light'] .organ-focus-card__item small { color: #6a8098; }
 html[data-theme='light'] .modi-kpi { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); }
 html[data-theme='light'] .modi-kpi > span { color: #47627e; }
-html[data-theme='light'] .modi-kpi > strong { color: #1d4ed8; }
-html[data-theme='light'] .organ-focus-suite__pill, html[data-theme='light'] .organ-focus-card, html[data-theme='light'] .organ-focus-card__item { background: #ffffff; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .modi-kpi > strong { color: #15558D; }
+html[data-theme='light'] .organ-focus-suite__pill, html[data-theme='light'] .organ-focus-card, html[data-theme='light'] .organ-focus-card__item { background: #FFFFFF; border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .organ-focus-card__item span { color: #223a54; }
 html[data-theme='light'] .composite-chain-card, html[data-theme='light'] .composite-group-section { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); }
-html[data-theme='light'] .suite-tag { color: #1d4ed8; }
-html[data-theme='light'] .suite-code { background: #ffffff; border-color: rgba(187, 204, 220, 0.72); color: #3b82f6; }
+html[data-theme='light'] .suite-tag { color: #15558D; }
+html[data-theme='light'] .suite-code { background: #FFFFFF; border-color: rgba(187, 204, 220, 0.72); color: #15558D; }
 html[data-theme='light'] .chain-summary { color: #223a54; }
-html[data-theme='light'] .chain-chip { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #47627e; }
-html[data-theme='light'] .chain-suggestion { background: rgba(231,241,249,0.96); color: #1e3a8a; border-left-color: #3b82f6; }
-html[data-theme='light'] .group-card { background: #ffffff; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .chain-chip { background: #FFFFFF; border-color: rgba(187,204,220,0.72); color: #47627e; }
+html[data-theme='light'] .chain-suggestion { background: rgba(231,241,249,0.96); color: #1e3a8a; border-left-color: #15558D; }
+html[data-theme='light'] .group-card { background: #FFFFFF; border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .group-name { color: #16324f; }
 html[data-theme='light'] .group-sub { color: #6a8098; }
 html[data-theme='light'] .group-alert-name { color: #223a54; }
@@ -2977,39 +2972,37 @@ html[data-theme='light'] .group-alert-item {
 html[data-theme='light'] .group-pill.sev-warning { color: #b45309; background: rgba(254,243,199,0.98); border-color: rgba(245,158,11,0.28); }
 html[data-theme='light'] .group-pill.sev-high { color: #c2410c; background: rgba(255,237,213,0.98); border-color: rgba(251,146,60,0.28); }
 html[data-theme='light'] .group-pill.sev-critical { color: #be123c; background: rgba(255,241,242,0.98); border-color: rgba(251,113,133,0.28); }
-html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: #FFFFFF; border-color: rgba(187,204,220,.72); }
 html[data-theme='light'] .weaning-brief-title, html[data-theme='light'] .reasoning-brief-title, html[data-theme='light'] .threshold-brief-title { color: #16324f; }
 html[data-theme='light'] .weaning-brief-sub, html[data-theme='light'] .reasoning-brief-sub, html[data-theme='light'] .threshold-brief-sub { color: #6a8098; }
 html[data-theme='light'] .weaning-brief-main, html[data-theme='light'] .reasoning-brief-main, html[data-theme='light'] .threshold-brief-main { color: #223a54; }
-html[data-theme='light'] .weaning-chip, html[data-theme='light'] .reasoning-chip, html[data-theme='light'] .threshold-meta-chip { background: #ffffff; border-color: rgba(187,204,220,.72); color: #47627e; }
+html[data-theme='light'] .weaning-chip, html[data-theme='light'] .reasoning-chip, html[data-theme='light'] .threshold-meta-chip { background: #FFFFFF; border-color: rgba(187,204,220,.72); color: #47627e; }
 html[data-theme='light'] .weaning-evidence-chip { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,.72); color: #47627e; }
 html[data-theme='light'] .weaning-sbt-meta { color: #6f8399; }
 html[data-theme='light'] .weaning-sbt-meta--risk { color: #dc2626; }
-html[data-theme='light'] .alert-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
+html[data-theme='light'] .alert-card { background: #FFFFFF; border-color: rgba(187,204,220,0.72); box-shadow: 0 6px 16px rgba(15,23,42,0.06); }
 html[data-theme='light'] .alert-body {
-  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%);
+  background: #FFFFFF;
   border-color: rgba(187,204,220,0.72);
   box-shadow: none;
 }
 html[data-theme='light'] .alert-body--rescue {
-  background:
-    radial-gradient(circle at top right, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0) 34%),
-    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+  background: #FFFFFF;
 }
 html[data-theme='light'] .alert-time { color: #6a8098; }
 html[data-theme='light'] .alert-line { background: rgba(187,204,220,0.4); }
 html[data-theme='light'] .alert-title { color: #16324f; }
-html[data-theme='light'] .alert-value { color: #1d4ed8; }
+html[data-theme='light'] .alert-value { color: #15558D; }
 html[data-theme='light'] .terminal-tag {
   color: #47627e;
   background: rgba(243,248,252,0.98);
   border-color: rgba(187,204,220,0.72);
 }
-html[data-theme='light'] .terminal-id { color: #64748b; }
+html[data-theme='light'] .terminal-id { color: #4E5969; }
 html[data-theme='light'] .post-extub-panel { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
-html[data-theme='light'] .post-extub-tag { color: #1d4ed8; }
+html[data-theme='light'] .post-extub-tag { color: #15558D; }
 html[data-theme='light'] .post-extub-main { color: #223a54; }
-html[data-theme='light'] .post-extub-chip { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #47627e; }
+html[data-theme='light'] .post-extub-chip { background: #FFFFFF; border-color: rgba(187,204,220,0.72); color: #47627e; }
 html[data-theme='light'] .post-extub-chip--warn { background: rgba(254,243,199,0.96); border-color: rgba(245,158,11,0.28); color: #b45309; }
 html[data-theme='light'] .alert-explanation {
   border-color: rgba(187,204,220,0.72);
@@ -3017,9 +3010,7 @@ html[data-theme='light'] .alert-explanation {
 }
 html[data-theme='light'] .alert-explanation--rescue {
   border-color: rgba(248,113,113,0.22);
-  background:
-    radial-gradient(circle at top right, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0) 34%),
-    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+  background: #FFFFFF;
 }
 html[data-theme='light'] .rescue-headline {
   border-bottom-color: rgba(248,113,113,0.2);
@@ -3033,39 +3024,39 @@ html[data-theme='light'] .rescue-headline-main {
   color: #16324f;
 }
 html[data-theme='light'] .explanation-block {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(187,204,220,0.72);
   box-shadow: none;
 }
 html[data-theme='light'] .explanation-block--summary {
-  background: linear-gradient(180deg, rgba(255,245,246,.98) 0%, rgba(255,241,242,.99) 100%);
+  background: #FFFFFF;
   border-color: rgba(248,113,113,0.22);
 }
 html[data-theme='light'] .explanation-block--evidence {
-  background: #ffffff;
+  background: #FFFFFF;
 }
 html[data-theme='light'] .explanation-block--suggestion {
-  background: linear-gradient(180deg, rgba(244,252,247,.98) 0%, rgba(236,253,243,.99) 100%);
+  background: #FFFFFF;
   border-color: rgba(74,222,128,.2);
 }
-html[data-theme='light'] .explanation-label { color: #1d4ed8; }
+html[data-theme='light'] .explanation-label { color: #15558D; }
 html[data-theme='light'] .explanation-text, html[data-theme='light'] .explanation-list { color: #223a54; }
 html[data-theme='light'] .explanation-text--summary { color: #16324f; }
 html[data-theme='light'] .explanation-text--suggestion { color: #047857; }
 html[data-theme='light'] .reasoning-card { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
-html[data-theme='light'] .reasoning-tag { color: #1d4ed8; }
+html[data-theme='light'] .reasoning-tag { color: #15558D; }
 html[data-theme='light'] .reasoning-summary { color: #223a54; }
 html[data-theme='light'] .reasoning-section-title { color: #47627e; border-bottom-color: rgba(187,204,220,0.72); }
-html[data-theme='light'] .reasoning-rank { background: rgba(59,130,246,0.1); color: #2563eb; }
+html[data-theme='light'] .reasoning-rank { background: rgba(59,130,246,0.1); color: #15558D; }
 html[data-theme='light'] .reasoning-action-main { color: #223a54; }
 html[data-theme='light'] .reasoning-action-why { color: #6f8399; }
-html[data-theme='light'] .reasoning-group-card { background: #ffffff; border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .reasoning-group-card { background: #FFFFFF; border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .reasoning-group-label { color: #16324f; }
 html[data-theme='light'] .reasoning-group-reason { color: #47627e; }
 html[data-theme='light'] .reasoning-group-meta { color: #6a8098; }
 html[data-theme='light'] .reasoning-list li { color: #47627e; }
-html[data-theme='light'] .context-snapshot { border-color: rgba(187,204,220,0.72); background: #ffffff; }
-html[data-theme='light'] .context-tag { color: #1d4ed8; }
+html[data-theme='light'] .context-snapshot { border-color: rgba(187,204,220,0.72); background: #FFFFFF; }
+html[data-theme='light'] .context-tag { color: #15558D; }
 html[data-theme='light'] .context-time { color: #6f8399; }
 html[data-theme='light'] .context-row-label { color: #6f8399; }
 html[data-theme='light'] .context-chip { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
@@ -3073,19 +3064,19 @@ html[data-theme='light'] .context-chip-label { color: #47627e; }
 html[data-theme='light'] .context-chip-value { color: #223a54; }
 html[data-theme='light'] .context-badge { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .context-badge-name { color: #47627e; }
-html[data-theme='light'] .context-badge-dose { color: #1d4ed8; }
-html[data-theme='light'] .alert-action-chip { background: #ffffff; border-color: rgba(187, 204, 220, 0.72); color: #47627e; }
+html[data-theme='light'] .context-badge-dose { color: #15558D; }
+html[data-theme='light'] .alert-action-chip { background: #FFFFFF; border-color: rgba(187, 204, 220, 0.72); color: #47627e; }
 html[data-theme='light'] .alert-rule { background: rgba(243,248,252,0.96); color: #47627e; }
 html[data-theme='light'] .threshold-card { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
 html[data-theme='light'] .threshold-card-name { color: #16324f; }
 html[data-theme='light'] .threshold-card-main span { color: #47627e; }
-html[data-theme='light'] .threshold-card-reason { color: #6f8399; background: #ffffff; }
+html[data-theme='light'] .threshold-card-reason { color: #6f8399; background: #FFFFFF; }
 
 /* === Additional light-mode overrides for remaining dark elements === */
 html[data-theme='light'] .modi-panel,
 html[data-theme='light'] .organ-focus-suite,
 html[data-theme='light'] .alert-explanation {
-  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+  background: #FFFFFF;
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .modi-kpi,
@@ -3096,7 +3087,7 @@ html[data-theme='light'] .post-extub-chip,
 html[data-theme='light'] .context-chip--lab {
   background: rgba(243,248,252,0.96);
   border-color: rgba(187,204,220,0.72);
-  color: #334155;
+  color: #1D2129;
 }
 html[data-theme='light'] .post-extub-chip--warn {
   background: rgba(254,243,199,0.96);
@@ -3110,30 +3101,30 @@ html[data-theme='light'] .alert-title,
 html[data-theme='light'] .post-extub-main,
 html[data-theme='light'] .rescue-headline-main,
 html[data-theme='light'] .weaning-brief-main,
-html[data-theme='light'] .weaning-brief-title { color: #0f172a; }
+html[data-theme='light'] .weaning-brief-title { color: #1D2129; }
 html[data-theme='light'] .modi-sub,
 html[data-theme='light'] .modi-organs,
 html[data-theme='light'] .modi-kpi > span,
 html[data-theme='light'] .weaning-brief-sub,
 html[data-theme='light'] .alert-time,
-html[data-theme='light'] .terminal-tag { color: #64748b; }
+html[data-theme='light'] .terminal-tag { color: #4E5969; }
 html[data-theme='light'] .modi-kpi > strong,
 html[data-theme='light'] .weaning-brief-score strong,
 html[data-theme='light'] .alert-value,
-html[data-theme='light'] .post-extub-tag { color: #0f172a; }
+html[data-theme='light'] .post-extub-tag { color: #1D2129; }
 html[data-theme='light'] .composite-chain-card,
 html[data-theme='light'] .composite-group-section {
   background: rgba(243,248,252,0.96);
   border-color: rgba(187,204,220,0.72);
 }
-html[data-theme='light'] .suite-tag { color: #1d4ed8; }
+html[data-theme='light'] .suite-tag { color: #15558D; }
 html[data-theme='light'] .suite-code {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(187,204,220,0.72);
-  color: #3b82f6;
+  color: #15558D;
 }
 html[data-theme='light'] .chain-summary,
-html[data-theme='light'] .chain-chip { color: #334155; }
+html[data-theme='light'] .chain-chip { color: #1D2129; }
 html[data-theme='light'] .chain-suggestion {
   background: rgba(236,253,243,0.96);
   color: #047857;
@@ -3146,9 +3137,9 @@ html[data-theme='light'] .group-alert-item {
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .organ-focus-card__item span,
-html[data-theme='light'] .group-alert-name { color: #334155; }
+html[data-theme='light'] .group-alert-name { color: #1D2129; }
 html[data-theme='light'] .post-extub-panel {
-  background: linear-gradient(180deg, rgba(255,245,246,0.98), rgba(255,255,255,0.98));
+  background: #FFFFFF;
   border-color: rgba(248,113,113,0.22);
 }
 html[data-theme='light'] .alert-meta > span {
@@ -3157,34 +3148,34 @@ html[data-theme='light'] .alert-meta > span {
   color: #47627e;
 }
 html[data-theme='light'] .detail-label { color: #47627e; }
-html[data-theme='light'] .detail-value { color: #0f172a; }
+html[data-theme='light'] .detail-value { color: #1D2129; }
 html[data-theme='light'] .ai-risk-summary,
 html[data-theme='light'] .ai-risk-card {
   background: rgba(243,248,252,0.96);
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .ai-risk-card strong,
-html[data-theme='light'] .ai-risk-summary { color: #0f172a; }
-html[data-theme='light'] .ai-risk-card p { color: #475569; }
+html[data-theme='light'] .ai-risk-summary { color: #1D2129; }
+html[data-theme='light'] .ai-risk-card p { color: #4E5969; }
 html[data-theme='light'] .ai-risk-organ {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(187,204,220,0.72);
 }
-html[data-theme='light'] .ai-risk-organ-name { color: #0f172a; }
-html[data-theme='light'] .ai-risk-organ-status { color: #2563eb; }
+html[data-theme='light'] .ai-risk-organ-name { color: #1D2129; }
+html[data-theme='light'] .ai-risk-organ-status { color: #15558D; }
 html[data-theme='light'] .ai-risk-organ-evidence,
-html[data-theme='light'] .ai-risk-organ-conf { color: #475569; }
+html[data-theme='light'] .ai-risk-organ-conf { color: #4E5969; }
 html[data-theme='light'] .ai-risk-section {
-  background: #ffffff;
+  background: #FFFFFF;
   border-color: rgba(187,204,220,0.72);
 }
-html[data-theme='light'] .ai-risk-section-title { color: #0f172a; }
-html[data-theme='light'] .ai-risk-list { color: #334155; }
+html[data-theme='light'] .ai-risk-section-title { color: #1D2129; }
+html[data-theme='light'] .ai-risk-list { color: #1D2129; }
 html[data-theme='light'] .ai-risk-list-warning { color: #dc2626; }
 html[data-theme='light'] .ai-evidence-link,
-html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
-html[data-theme='light'] .ai-evidence-popover { color: #0f172a; }
-html[data-theme='light'] .tab-empty { color: #64748b; }
+html[data-theme='light'] .ai-evidence-link:hover { color: #15558D; }
+html[data-theme='light'] .ai-evidence-popover { color: #1D2129; }
+html[data-theme='light'] .tab-empty { color: #4E5969; }
 html[data-theme='light'] .threshold-status-pill {
   background: rgba(243,248,252,0.96);
   border-color: rgba(187,204,220,0.72);
