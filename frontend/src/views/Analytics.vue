@@ -117,7 +117,7 @@
     </section>
 
     <section v-if="analyticsSection === 'alerts'" class="analytics-grid">
-      <a-card title="运营摘要" :bordered="false" class="panel panel-wide">
+      <a-card title="运营摘要" :bordered="false" class="panel ds-card panel-wide">
         <div class="insight-grid">
           <div v-for="item in alertOpsHighlights" :key="item.label" class="insight-tile">
             <div class="insight-label">{{ item.label }}</div>
@@ -127,7 +127,7 @@
         </div>
       </a-card>
 
-      <a-card title="Top 告警类型闭环表" :bordered="false" class="panel panel-wide">
+      <a-card title="Top 告警类型闭环表" :bordered="false" class="panel ds-card panel-wide">
         <div class="insight-grid">
           <div class="insight-tile">
             <div class="insight-label">查看率</div>
@@ -163,28 +163,28 @@
         <div v-else class="empty">暂无生命周期追踪数据</div>
       </a-card>
 
-      <a-card title="告警生命周期漏斗" :bordered="false" class="panel">
+      <a-card title="告警生命周期漏斗" :bordered="false" class="panel ds-card">
         <div v-if="lifecycleFunnelStages.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="lifecycleFunnelOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无闭环漏斗数据</div>
       </a-card>
 
-      <a-card title="转化率折线图" :bordered="false" class="panel">
+      <a-card title="转化率折线图" :bordered="false" class="panel ds-card">
         <div v-if="lifecycleFunnelSeries.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="lifecycleConversionOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无闭环趋势数据</div>
       </a-card>
 
-      <a-card title="预警触发频率" :bordered="false" class="panel panel-wide">
+      <a-card title="预警触发频率" :bordered="false" class="panel ds-card panel-wide">
         <div v-if="displayFreqSeries.length" class="chart-wrap chart-lg">
           <AnalyticsChart :option="frequencyOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无频率数据</div>
       </a-card>
 
-      <a-card title="规则类型热力图" :bordered="false" class="panel panel-wide panel-heatmap">
+      <a-card title="规则类型热力图" :bordered="false" class="panel ds-card panel-wide panel-heatmap">
         <div v-if="displayHeatmapY.length" class="heatmap-summary">
           <div class="summary-chip">
             <span class="summary-k">规则数</span>
@@ -205,7 +205,7 @@
         <div v-else class="empty">暂无规则热力图数据</div>
       </a-card>
 
-      <a-card title="科室预警排名" :bordered="false" class="panel">
+      <a-card title="科室预警排名" :bordered="false" class="panel ds-card">
         <div v-if="displayDeptRankings.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="deptRankOption" :init-options="chartInitOptions" autoresize />
         </div>
@@ -225,7 +225,7 @@
         </a-table>
       </a-card>
 
-      <a-card title="床位预警排名" :bordered="false" class="panel">
+      <a-card title="床位预警排名" :bordered="false" class="panel ds-card">
         <div v-if="displayBedRankings.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="bedRankOption" :init-options="chartInitOptions" autoresize />
         </div>
@@ -248,7 +248,7 @@
     </section>
 
     <section v-else-if="analyticsSection === 'sepsis'" class="analytics-grid">
-      <a-card title="脓毒症解放束执行态" :bordered="false" class="panel panel-wide">
+      <a-card title="脓毒症解放束执行态" :bordered="false" class="panel ds-card panel-wide">
         <div class="bundle-status-grid">
           <div
             v-for="item in sepsisStatusCards"
@@ -262,7 +262,7 @@
         </div>
       </a-card>
 
-      <a-card title="1 小时解放束达标拆解" :bordered="false" class="panel">
+      <a-card title="1 小时解放束达标拆解" :bordered="false" class="panel ds-card">
         <div class="progress-list">
           <div
             v-for="item in sepsisProgressRows"
@@ -281,7 +281,7 @@
         </div>
       </a-card>
 
-      <a-card title="本月质控提示" :bordered="false" class="panel">
+      <a-card title="本月质控提示" :bordered="false" class="panel ds-card">
         <div class="insight-list">
           <div v-for="item in sepsisNarratives" :key="item.label" class="insight-line">
             <div class="insight-line__label">{{ item.label }}</div>
@@ -291,7 +291,7 @@
         </div>
       </a-card>
 
-      <a-card title="智能管理摘要卡" :bordered="false" class="panel">
+      <a-card title="智能管理摘要卡" :bordered="false" class="panel ds-card">
         <div class="insight-list">
           <div class="summary-card summary-card--hero">
             <div class="summary-card__label">管理结论</div>
@@ -305,7 +305,7 @@
         </div>
       </a-card>
 
-      <a-card title="智能行动建议卡" :bordered="false" class="panel">
+      <a-card title="智能行动建议卡" :bordered="false" class="panel ds-card">
         <div class="advice-list">
           <div v-for="(item, idx) in sepsisAiActionRows" :key="`sepsis-ai-action-${idx}`" class="advice-card">
             <div class="advice-card__index">0{{ Number(idx) + 1 }}</div>
@@ -319,7 +319,7 @@
     </section>
 
     <section v-else-if="analyticsSection === 'scenarios'" class="analytics-grid">
-      <a-card title="扩展场景覆盖总览" :bordered="false" class="panel panel-wide">
+      <a-card title="扩展场景覆盖总览" :bordered="false" class="panel ds-card panel-wide">
         <div class="insight-grid">
           <div v-for="item in scenarioHighlights" :key="item.label" class="insight-tile">
             <div class="insight-label">{{ item.label }}</div>
@@ -329,7 +329,7 @@
         </div>
       </a-card>
 
-      <a-card title="场景覆盖热力图" :bordered="false" class="panel panel-wide panel-heatmap">
+      <a-card title="场景覆盖热力图" :bordered="false" class="panel ds-card panel-wide panel-heatmap">
         <div v-if="scenarioHeatmapY.length" class="heatmap-summary">
           <div class="summary-chip"><span class="summary-k">场景组</span><b class="summary-v">{{ scenarioHeatmapY.length }}</b></div>
           <div class="summary-chip"><span class="summary-k">高频场景</span><b class="summary-v">{{ scenarioHeatmapX.length }}</b></div>
@@ -341,7 +341,7 @@
         <div v-else class="empty">暂无扩展场景数据</div>
       </a-card>
 
-      <a-card title="场景组覆盖率" :bordered="false" class="panel">
+      <a-card title="场景组覆盖率" :bordered="false" class="panel ds-card">
         <div class="progress-list">
           <div v-for="item in scenarioGroupProgressRows" :key="item.label" class="progress-row">
             <div class="progress-row__top"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
@@ -351,13 +351,13 @@
         </div>
       </a-card>
 
-      <a-card title="高频扩展场景" :bordered="false" class="panel">
+      <a-card title="高频扩展场景" :bordered="false" class="panel ds-card">
         <a-table class="rank-table" size="small" :columns="scenarioColumns" :data-source="scenarioTopRows" :pagination="false" row-key="scenario" />
       </a-card>
     </section>
 
     <section v-else-if="analyticsSection === 'nursing'" class="analytics-grid">
-      <a-card title="未来一个班次护理资源热力图" :bordered="false" class="panel panel-wide panel-heatmap">
+      <a-card title="未来一个班次护理资源热力图" :bordered="false" class="panel ds-card panel-wide panel-heatmap">
         <div v-if="nursingHeatmapX.length" class="heatmap-summary">
           <div class="summary-chip"><span class="summary-k">热力床位</span><b class="summary-v">{{ nursingHeatmapX.length }}</b></div>
           <div class="summary-chip"><span class="summary-k">高/极高负荷</span><b class="summary-v">{{ Number(nursingSummary?.high_and_extreme_count || 0) }}</b></div>
@@ -370,7 +370,7 @@
         <div v-else class="empty">暂无护理负荷热力图数据</div>
       </a-card>
 
-      <a-card title="科室排班压力" :bordered="false" class="panel">
+      <a-card title="科室排班压力" :bordered="false" class="panel ds-card">
         <div class="progress-list">
           <div v-for="item in nursingDeptProgressRows" :key="item.label" class="progress-row">
             <div class="progress-row__top"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div>
@@ -380,11 +380,11 @@
         </div>
       </a-card>
 
-      <a-card title="科室负荷总览" :bordered="false" class="panel">
+      <a-card title="科室负荷总览" :bordered="false" class="panel ds-card">
         <a-table class="rank-table" size="small" :columns="nursingDeptColumns" :data-source="nursingDeptRows" :pagination="false" row-key="dept" />
       </a-card>
 
-      <a-card title="高强度患者队列" :bordered="false" class="panel panel-wide">
+      <a-card title="高强度患者队列" :bordered="false" class="panel ds-card panel-wide">
         <a-table class="rank-table" size="small" :columns="nursingPatientColumns" :data-source="nursingPatientRows" :pagination="false" row-key="patient_id">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'intensity_label'">
@@ -396,7 +396,7 @@
     </section>
 
     <section v-else class="analytics-grid">
-      <a-card title="撤机分析摘要" :bordered="false" class="panel panel-wide">
+      <a-card title="撤机分析摘要" :bordered="false" class="panel ds-card panel-wide">
         <div class="insight-grid">
           <div v-for="item in weaningHighlights" :key="item.label" class="insight-tile">
             <div class="insight-label">{{ item.label }}</div>
@@ -406,14 +406,14 @@
         </div>
       </a-card>
 
-      <a-card title="月度脱机评估趋势" :bordered="false" class="panel panel-wide">
+      <a-card title="月度脱机评估趋势" :bordered="false" class="panel ds-card panel-wide">
         <div v-if="weaningTrendRows.length" class="chart-wrap chart-lg">
           <AnalyticsChart :option="weaningTrendOption" :init-options="chartInitOptions" autoresize />
         </div>
         <div v-else class="empty">暂无月度脱机评估趋势数据</div>
       </a-card>
 
-      <a-card title="科室脱机 / 再插管风险对比" :bordered="false" class="panel panel-wide">
+      <a-card title="科室脱机 / 再插管风险对比" :bordered="false" class="panel ds-card panel-wide">
         <div v-if="weaningDeptCompare.length" class="chart-wrap chart-md">
           <AnalyticsChart :option="weaningDeptCompareOption" :init-options="chartInitOptions" autoresize />
         </div>
@@ -433,7 +433,7 @@
         </a-table>
       </a-card>
 
-      <a-card title="撤机风险概览" :bordered="false" class="panel">
+      <a-card title="撤机风险概览" :bordered="false" class="panel ds-card">
         <div class="bundle-status-grid bundle-status-grid--compact">
           <div
             v-for="item in weaningStatusCards"
