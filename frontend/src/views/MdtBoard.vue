@@ -1,6 +1,6 @@
 <template>
   <div class="mdt-page">
-    <a-card :bordered="false" class="mdt-hero">
+    <a-card :bordered="false" class="mdt-hero ds-card">
       <MdtHeader
         :patient-label="selectedPatientLabel"
         :patient-headline="patientHeadline"
