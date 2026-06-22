@@ -10,7 +10,7 @@
     <div class="evidence-modal">
       <section class="evidence-panel evidence-panel--overview">
         <div class="evidence-chip-row">
-          <span class="evidence-chip">{{ modal.source || '本地知识库' }}</span>
+          <span class="evidence-chip ds-badge">{{ modal.source || '本地知识库' }}</span>
           <span v-if="modal.category" class="evidence-chip evidence-chip--soft">{{ modal.category }}</span>
           <span v-if="modal.recommendation_grade" class="evidence-chip evidence-chip--accent">{{ modal.recommendation_grade }}</span>
           <span v-if="modal.priority != null" class="evidence-chip evidence-chip--warn">P{{ modal.priority }}</span>
