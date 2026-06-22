@@ -102,13 +102,13 @@ const filteredRows = computed(() => {
   flex-wrap: wrap;
 }
 .table-title {
-  color: #ecfeff;
+  color: var(--text-primary);
   font-size: 17px;
   font-weight: 800;
 }
 .table-sub {
   margin-top: 4px;
-  color: #88b6c8;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .table-actions {
@@ -119,7 +119,7 @@ const filteredRows = computed(() => {
 .table-search {
   display: grid;
   gap: 6px;
-  color: #8bcfe1;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -129,10 +129,10 @@ const filteredRows = computed(() => {
   min-width: 220px;
   min-height: 36px;
   padding: 0 12px;
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.16);
-  background: rgba(8,28,44,.78);
-  color: #dffbff;
+  background: var(--bg-surface),.78);
+  color: var(--text-primary);
   outline: none;
 }
 .table-kpis {
@@ -142,21 +142,21 @@ const filteredRows = computed(() => {
 }
 .table-kpi {
   padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(7,20,34,.92), rgba(4,12,22,.96));
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), var(--bg-surface));
   border: 1px solid rgba(80,199,255,.12);
 }
 .table-kpi span,
 .table-kpi small,
 .table-empty span {
-  color: #88b6c8;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .table-kpi strong,
 .table-empty strong {
   display: block;
   margin-top: 6px;
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 22px;
   font-weight: 800;
 }
@@ -168,50 +168,50 @@ const filteredRows = computed(() => {
   display: grid;
   gap: 6px;
   padding: 22px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px dashed rgba(80,199,255,.18);
-  background: rgba(8,28,44,.52);
+  background: var(--bg-surface),.52);
 }
 .table-wrap :deep(.ant-table) {
   background: transparent;
-  color: #dffbff;
+  color: var(--text-primary);
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   overflow: hidden;
 }
 .table-wrap :deep(.ant-table-thead > tr > th) {
-  background: rgba(8,28,44,.82);
-  color: #7ccfe4;
+  background: var(--bg-surface),.82);
+  color: var(--accent);
   border-bottom-color: rgba(80,199,255,.1);
   font-size: 12px;
   font-weight: 700;
 }
 .table-wrap :deep(.ant-table-tbody > tr > td) {
-  background: rgba(7,20,34,.6);
-  color: #e3fbff;
+  background: var(--bg-surface),.6);
+  color: var(--text-primary);
   border-bottom-color: rgba(80,199,255,.08);
   font-size: 12px;
 }
 .table-wrap :deep(.ant-table-tbody > tr:hover > td) {
-  background: rgba(11,42,63,.42) !important;
+  background: var(--bg-surface),.42) !important;
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item),
 .table-wrap :deep(.ant-pagination .ant-pagination-prev),
 .table-wrap :deep(.ant-pagination .ant-pagination-next) {
-  background: rgba(8,28,44,.78);
+  background: var(--bg-surface),.78);
   border-color: rgba(80,199,255,.14);
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item-active) {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
+  background: var(--bg-surface) 0%, rgba(7,63,86,.98) 100%);
   border-color: rgba(110,231,249,.28);
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item a),
 .table-wrap :deep(.ant-pagination .ant-pagination-prev button),
 .table-wrap :deep(.ant-pagination .ant-pagination-next button) {
-  color: #dffbff;
+  color: var(--text-primary);
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item-active a) {
-  color: #effcff;
+  color: var(--text-primary);
 }
 @media (max-width: 920px) {
   .table-kpis {
@@ -223,60 +223,60 @@ const filteredRows = computed(() => {
   }
 }
 
-html[data-theme='light'] .table-title { color: #16324f; }
+html[data-theme='light'] .table-title { color: var(--text-secondary); }
 html[data-theme='light'] .table-sub,
 html[data-theme='light'] .table-kpi span,
 html[data-theme='light'] .table-kpi small,
 html[data-theme='light'] .table-empty span,
-html[data-theme='light'] .table-search { color: #6f8399; }
+html[data-theme='light'] .table-search { color: var(--text-secondary); }
 html[data-theme='light'] .table-search input {
-  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,253,0.98));
-  color: #223a54;
+  background: var(--bg-surface), rgba(247,250,253,0.98));
+  color: var(--text-secondary);
   border-color: rgba(187,204,220,0.72);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .table-search input::placeholder { color: #93a5b7; }
 html[data-theme='light'] .table-search input:focus {
   border-color: rgba(59,130,246,0.4);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.10), inset 0 1px 0 rgba(255,255,255,0.82);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .table-kpi,
 html[data-theme='light'] .table-empty {
   background:
-    radial-gradient(circle at top right, rgba(96,165,250,0.12), rgba(96,165,250,0) 42%),
-    linear-gradient(180deg, rgba(255,255,255,.99), rgba(243,248,253,.98));
+    var(--bg-surface), rgba(96,165,250,0) 42%),
+    var(--bg-surface), rgba(243,248,253,.98));
   border-color: rgba(187,204,220,0.72);
-  box-shadow: 0 12px 28px rgba(15,23,42,0.07);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .table-kpi strong,
-html[data-theme='light'] .table-empty strong { color: #16324f; }
+html[data-theme='light'] .table-empty strong { color: var(--text-secondary); }
 html[data-theme='light'] .table-wrap :deep(.ant-table) {
-  color: #223a54;
+  color: var(--text-secondary);
   border-color: rgba(187,204,220,0.72);
-  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.98));
-  box-shadow: 0 12px 28px rgba(15,23,42,0.07);
+  background: var(--bg-surface), rgba(248,251,255,0.98));
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .table-wrap :deep(.ant-table-container) {
-  border-radius: 12px;
+  border-radius: var(--card-radius);
 }
 html[data-theme='light'] .table-wrap :deep(.ant-table-thead > tr > th) {
-  background: linear-gradient(180deg, #f8fbff, #edf4fa);
-  color: #47627e;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
   border-bottom-color: rgba(187,204,220,0.72);
 }
-html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr > td) { background: #ffffff; color: #223a54; border-bottom-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr > td) { background: var(--bg-surface); color: var(--text-secondary); border-bottom-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr:nth-child(even) > td) { background: rgba(248,251,255,0.92); }
 html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr:hover > td) { background: rgba(231,241,249,0.96) !important; }
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-prev),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-next) {
-  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(243,248,252,0.98));
+  background: var(--bg-surface), rgba(243,248,252,0.98));
   border-color: rgba(187,204,220,0.72);
-  box-shadow: 0 4px 10px rgba(15,23,42,0.04);
+  box-shadow: var(--card-shadow);
 }
-html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active) { background: linear-gradient(180deg, rgba(37,99,235,.94), rgba(29,78,216,.98)); border-color: rgba(59,130,246,0.28); }
+html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface), rgba(29,78,216,.98)); border-color: rgba(59,130,246,0.28); }
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item a),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-prev button),
-html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-next button) { color: #47627e; }
-html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active a) { color: #f8fbff; }
+html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-next button) { color: var(--text-secondary); }
+html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active a) { color: var(--text-primary); }
 </style>

@@ -810,10 +810,10 @@ function formatTime(raw: any): string {
   flex-direction: column;
   gap: 8px;
   min-height: 0;
-  background: #f5f7fb;
-  border-radius: 8px;
+  background: var(--bg-surface);
+  border-radius: var(--card-radius);
   overflow: visible;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .dw-header,
@@ -823,7 +823,7 @@ function formatTime(raw: any): string {
 .quality-strip,
 .panel,
 .legacy-shell {
-  background: #fff;
+  background: var(--bg-surface);
   border: 1px solid #edf1f7;
 }
 
@@ -848,9 +848,9 @@ function formatTime(raw: any): string {
   justify-content: center;
   width: 42px;
   height: 30px;
-  border-radius: 6px;
-  background: #e6f4ff;
-  color: #1677ff;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+  color: var(--brand);
   font-size: 12px;
   font-weight: 800;
 }
@@ -862,7 +862,7 @@ function formatTime(raw: any): string {
 
 .dw-header-sub {
   margin-top: 2px;
-  color: #667085;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -880,8 +880,8 @@ function formatTime(raw: any): string {
 }
 
 .dw-finalize-btn {
-  background: #16a34a !important;
-  border-color: #16a34a !important;
+  background: var(--success) !important;
+  border-color: var(--success) !important;
 }
 
 .dw-history-bar {
@@ -898,7 +898,7 @@ function formatTime(raw: any): string {
 }
 
 .dw-history-label {
-  color: #667085;
+  color: var(--text-muted);
 }
 
 .dw-history-select {
@@ -910,11 +910,11 @@ function formatTime(raw: any): string {
 }
 
 .dw-dirty {
-  color: #d97706;
+  color: var(--warning);
 }
 
 .dw-saved {
-  color: #16a34a;
+  color: var(--success);
 }
 
 .patient-banner {
@@ -935,21 +935,21 @@ function formatTime(raw: any): string {
 
 .patient-main strong {
   font-size: 18px;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .patient-diagnosis {
   font-weight: 600;
-  color: #1d4ed8;
+  color: var(--brand);
 }
 
 .patient-badges span,
 .quality-chip {
   padding: 3px 8px;
-  border-radius: 4px;
-  background: #f2f4f7;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface-2);
   font-size: 12px;
-  color: #475467;
+  color: var(--text-secondary);
 }
 
 .support-strip {
@@ -964,13 +964,13 @@ function formatTime(raw: any): string {
   min-height: 76px;
   padding: 8px;
   border: 1px solid #edf1f7;
-  border-radius: 8px;
-  background: #f8fafc;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
 }
 
 .support-item.is-active {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
 }
 
 .support-label {
@@ -982,7 +982,7 @@ function formatTime(raw: any): string {
   display: -webkit-box;
   margin-top: 4px;
   overflow: hidden;
-  color: #344054;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.35;
   -webkit-line-clamp: 2;
@@ -991,7 +991,7 @@ function formatTime(raw: any): string {
 
 .missing-line {
   margin-top: 4px;
-  color: #b45309;
+  color: var(--warning);
   font-size: 11px;
   line-height: 1.4;
   white-space: nowrap;
@@ -1011,7 +1011,7 @@ function formatTime(raw: any): string {
 .quality-title {
   font-weight: 700;
   font-size: 12px;
-  color: #b45309;
+  color: var(--warning);
 }
 
 .dw-body {
@@ -1043,7 +1043,7 @@ function formatTime(raw: any): string {
 }
 
 .panel {
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 9px;
   min-height: 0;
 }
@@ -1051,7 +1051,7 @@ function formatTime(raw: any): string {
 .panel h3 {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .timeline-list,
@@ -1080,14 +1080,14 @@ function formatTime(raw: any): string {
 .goal-item,
 .trend-item {
   border: 1px solid #edf1f7;
-  border-radius: 8px;
-  background: #f8fafc;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
   padding: 7px;
 }
 
 .timeline-event time {
   display: block;
-  color: #667085;
+  color: var(--text-muted);
   font-size: 11px;
 }
 
@@ -1101,7 +1101,7 @@ function formatTime(raw: any): string {
 .timeline-event p,
 .risk-card p {
   margin: 4px 0;
-  color: #475467;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1110,7 +1110,7 @@ function formatTime(raw: any): string {
   padding: 0;
   border: none;
   background: transparent;
-  color: #1677ff;
+  color: var(--brand);
   font-size: 11px;
   cursor: pointer;
 }
@@ -1124,7 +1124,7 @@ function formatTime(raw: any): string {
 .trend-item span,
 .trend-item em {
   display: block;
-  color: #667085;
+  color: var(--text-muted);
   font-size: 11px;
   font-style: normal;
 }
@@ -1153,14 +1153,14 @@ function formatTime(raw: any): string {
 }
 
 .goal-item em {
-  color: #475467;
+  color: var(--text-secondary);
   font-size: 12px;
   font-style: normal;
   line-height: 1.5;
 }
 
 .goal-item small {
-  color: #b45309;
+  color: var(--warning);
   font-size: 11px;
 }
 
@@ -1174,15 +1174,15 @@ function formatTime(raw: any): string {
   flex: 0 0 auto;
   align-self: flex-start;
   padding: 2px 7px;
-  border-radius: 4px;
-  background: #fff7ed;
-  color: #c2410c;
+  border-radius: var(--card-radius);
+  background: var(--warning-soft);
+  color: var(--danger);
   font-size: 11px;
 }
 
 .risk-card ul {
   margin: 5px 0 0 16px;
-  color: #475467;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -1196,8 +1196,8 @@ function formatTime(raw: any): string {
 
 .risk-actions button {
   border: 1px solid #d0d5dd;
-  background: #fff;
-  border-radius: 4px;
+  background: var(--bg-surface);
+  border-radius: var(--card-radius);
   padding: 3px 7px;
   font-size: 12px;
   cursor: pointer;
@@ -1216,7 +1216,7 @@ function formatTime(raw: any): string {
 }
 
 .note-preview-head span {
-  color: #667085;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -1227,10 +1227,10 @@ function formatTime(raw: any): string {
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  color: #1f2937;
-  background: #f8fafc;
+  color: var(--text-primary);
+  background: var(--bg-surface);
   border: 1px solid #edf1f7;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 8px 10px;
   font-family: inherit;
   font-size: 12px;
@@ -1239,13 +1239,13 @@ function formatTime(raw: any): string {
 
 .legacy-shell {
   margin: 0 10px 10px;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 16px;
 }
 
 .legacy-shell p,
 .empty-text {
-  color: #667085;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -1255,7 +1255,7 @@ function formatTime(raw: any): string {
   align-items: center;
   justify-content: center;
   min-height: 420px;
-  color: #98a2b3;
+  color: var(--text-muted);
 }
 
 .dw-empty-icon {
@@ -1264,23 +1264,23 @@ function formatTime(raw: any): string {
   justify-content: center;
   width: 64px;
   height: 44px;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   margin-bottom: 16px;
-  background: #eef4ff;
-  color: #1677ff;
+  background: var(--bg-surface);
+  color: var(--brand);
   font-weight: 800;
 }
 
 .dw-empty-title {
   font-size: 16px;
   font-weight: 600;
-  color: #667085;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
 .dw-empty-hint {
   font-size: 13px;
-  color: #98a2b3;
+  color: var(--text-muted);
 }
 
 @media (max-width: 1400px) {

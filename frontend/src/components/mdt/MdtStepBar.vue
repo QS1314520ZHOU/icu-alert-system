@@ -46,11 +46,11 @@ defineEmits<{
   min-height: 86px;
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   text-align: left;
   cursor: pointer;
-  color: #cbd5e1;
-  background: rgba(15, 23, 42, 0.5);
+  color: var(--text-secondary);
+  background: var(--bg-surface), 0.5);
 }
 .mdt-step::before {
   content: '';
@@ -59,19 +59,19 @@ defineEmits<{
   right: 14px;
   bottom: 0;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: rgba(51, 65, 85, 0.9);
 }
 .mdt-step.is-active {
   border-color: rgba(56, 189, 248, 0.6);
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 16px 36px rgba(8, 47, 73, 0.28);
-  background: linear-gradient(135deg, rgba(14, 116, 144, 0.38), rgba(15, 23, 42, 0.72));
+  box-shadow: var(--card-shadow);
+  background: var(--bg-surface), var(--bg-surface));
 }
 .mdt-step.is-active::before {
-  background: #38bdf8;
+  background: var(--chart-1);
 }
 .mdt-step.is-done::before {
-  background: #22c55e;
+  background: var(--success);
 }
 .mdt-step span,
 .mdt-step em {
@@ -82,7 +82,7 @@ defineEmits<{
 .mdt-step strong {
   display: block;
   margin: 7px 0 4px;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 16px;
 }
 .mdt-step small {
@@ -102,30 +102,30 @@ defineEmits<{
 }
 
 :global(html[data-theme='light']) .mdt-step {
-  color: #475569;
-  border-color: #dbeafe;
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  color: var(--text-secondary);
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) .mdt-step::before {
-  background: #cbd5e1;
+  background: var(--border-color);
 }
 :global(html[data-theme='light']) .mdt-step.is-active {
-  border-color: #38bdf8;
-  background: linear-gradient(135deg, #e0f2fe, #ffffff);
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.22), 0 12px 28px rgba(14, 116, 144, 0.12);
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) .mdt-step.is-done::before {
-  background: #22c55e;
+  background: var(--success);
 }
 :global(html[data-theme='light']) .mdt-step span,
 :global(html[data-theme='light']) .mdt-step em {
-  color: #0284c7;
+  color: var(--brand);
 }
 :global(html[data-theme='light']) .mdt-step strong {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) .mdt-step small {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 </style>

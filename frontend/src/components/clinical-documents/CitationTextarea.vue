@@ -124,8 +124,8 @@ function alertTypeLabel(type: string) {
 .ct-display {
   padding: 6px 10px;
   border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  background: #fafafa;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
   font-size: 13px;
   line-height: 1.65;
   min-height: 40px;
@@ -145,23 +145,23 @@ function alertTypeLabel(type: string) {
   display: inline-block;
   padding: 0 4px;
   margin: 0 2px;
-  background: #e6f4ff;
-  color: #1677ff;
-  border-radius: 3px;
+  background: var(--bg-surface);
+  color: var(--brand);
+  border-radius: var(--card-radius);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
 }
 :deep(.cite:hover) {
-  background: #1677ff;
-  color: #fff;
+  background: var(--brand);
+  color: var(--text-primary);
 }
 .ct-tooltip {
   max-width: 260px;
 }
 .ct-tooltip-ref {
   font-weight: 600;
-  color: #1677ff;
+  color: var(--brand);
   margin-bottom: 2px;
 }
 .ct-tooltip-source {
@@ -172,19 +172,19 @@ function alertTypeLabel(type: string) {
 /* ================= Dark Theme Overrides ================= */
 :global(html[data-theme='dark']) .ct-display {
   border-color: rgba(125, 167, 214, 0.14);
-  background: #091827;
-  color: #d9e6f3;
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 :global(html[data-theme='dark']) :deep(.cite) {
   background: rgba(34, 211, 238, 0.15);
-  color: #22d3ee;
+  color: var(--brand);
 }
 :global(html[data-theme='dark']) :deep(.cite:hover) {
-  background: #22d3ee;
+  background: var(--brand);
   color: #07111d;
 }
 :global(html[data-theme='dark']) .ct-tooltip-ref {
-  color: #22d3ee;
+  color: var(--brand);
 }
 :global(html[data-theme='dark']) .ct-tooltip-source {
   color: #7f93ab;

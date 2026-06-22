@@ -545,9 +545,9 @@ function handleOrganClick(key: BodyMapOrganKey) {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 20px;
+  border-radius: var(--card-radius);
   overflow: hidden;
-  background: #0a1628;
+  background: var(--bg-surface);
 }
 
 .organ-heatmap__figure,
@@ -660,7 +660,7 @@ function handleOrganClick(key: BodyMapOrganKey) {
 }
 
 html[data-theme='light'] .organ-heatmap__svg {
-  background: #f1f7fc;
+  background: var(--bg-surface);
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--bg-0 {

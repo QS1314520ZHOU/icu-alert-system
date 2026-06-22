@@ -417,78 +417,78 @@ onMounted(() => { void loadRows() })
 
 <style scoped>
 .scanner-health-page { display: grid; gap: 16px; font-family: var(--app-display-font); }
-.scanner-health-filter,.scanner-health-panel { border: 1px solid rgba(80,199,255,.12); background: linear-gradient(180deg, rgba(7,20,34,.94) 0%, rgba(4,12,22,.97) 100%); }
+.scanner-health-filter,.scanner-health-panel { border: 1px solid rgba(80,199,255,.12); background: var(--bg-surface) 0%, var(--bg-surface) 100%); }
 .scanner-health-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.scanner-health-label,.muted { color: #8cb7c9; font-size: 12px; }
-.scanner-health-notice { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(251,191,36,.22); background: rgba(66,46,9,.42); color: #fde68a; font-size: 12px; }
+.scanner-health-label,.muted { color: var(--text-secondary); font-size: 12px; }
+.scanner-health-notice { padding: 10px 12px; border-radius: var(--card-radius); border: 1px solid rgba(251,191,36,.22); background: var(--bg-surface),.42); color: var(--warning-soft); font-size: 12px; }
 .scanner-health-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .admin-quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .quality-list { display: grid; gap: 8px; }
-.quality-list button { display: grid; gap: 4px; width: 100%; text-align: left; border: 1px solid rgba(125,167,214,.14); border-radius: 12px; background: rgba(8,28,44,.64); color: #dff8ff; padding: 9px 10px; }
-.quality-list strong { color: #eafcff; font-size: 12px; }
-.quality-list span { color: #8aa4b8; font-size: 11px; }
-.scanner-health-kpi { padding: 16px; border-radius: 14px; border: 1px solid rgba(125,211,252,.14); background: linear-gradient(180deg, rgba(11,31,50,.92), rgba(8,20,34,.98)); }
+.quality-list button { display: grid; gap: 4px; width: 100%; text-align: left; border: 1px solid rgba(125,167,214,.14); border-radius: var(--card-radius); background: var(--bg-surface),.64); color: var(--text-primary); padding: 9px 10px; }
+.quality-list strong { color: var(--text-primary); font-size: 12px; }
+.quality-list span { color: var(--text-secondary); font-size: 11px; }
+.scanner-health-kpi { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface), var(--bg-surface)); }
 .scanner-health-kpi.is-red { border-color: rgba(251,113,133,.28); }
-.scanner-health-kpi span { display: block; color: #8cb7c9; font-size: 12px; }
-.scanner-health-kpi strong { display: block; margin-top: 8px; color: #ecfeff; font-size: 28px; }
+.scanner-health-kpi span { display: block; color: var(--text-secondary); font-size: 12px; }
+.scanner-health-kpi strong { display: block; margin-top: 8px; color: var(--text-primary); font-size: 28px; }
 .scanner-command-grid { display: grid; grid-template-columns: 1.1fr .9fr .8fr; gap: 12px; }
-.scanner-command-card { min-width: 0; padding: 16px; border-radius: 16px; border: 1px solid rgba(125,211,252,.14); background: radial-gradient(circle at 100% 0%, rgba(34,211,238,.1), transparent 32%), rgba(7,20,34,.92); }
+.scanner-command-card { min-width: 0; padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface), transparent 32%), var(--bg-surface); }
 .scanner-command-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
-.scanner-command-head span { color: #8cb7c9; font-size: 12px; }
-.scanner-command-head strong { color: #ecfeff; font-size: 18px; }
+.scanner-command-head span { color: var(--text-secondary); font-size: 12px; }
+.scanner-command-head strong { color: var(--text-primary); font-size: 18px; }
 .scanner-light-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-.scanner-light { display: grid; gap: 4px; min-height: 58px; padding: 8px; border: 1px solid rgba(52,211,153,.22); border-radius: 12px; color: #d1fae5; background: rgba(20,83,45,.18); cursor: pointer; }
-.scanner-light.is-yellow { border-color: rgba(251,191,36,.28); color: #fde68a; background: rgba(82,48,12,.22); }
-.scanner-light.is-red { border-color: rgba(251,113,133,.34); color: #fecaca; background: rgba(69,10,10,.28); }
+.scanner-light { display: grid; gap: 4px; min-height: 58px; padding: 8px; border: 1px solid rgba(52,211,153,.22); border-radius: var(--card-radius); color: #d1fae5; background: var(--bg-surface),.18); cursor: pointer; }
+.scanner-light.is-yellow { border-color: rgba(251,191,36,.28); color: var(--warning-soft); background: var(--bg-surface),.22); }
+.scanner-light.is-red { border-color: rgba(251,113,133,.34); color: var(--danger-soft); background: var(--bg-surface),.28); }
 .scanner-light b,.scanner-light span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scanner-light b { font-size: 12px; }
 .scanner-light span { color: currentColor; opacity: .75; font-size: 11px; }
 .scanner-task-list { display: grid; gap: 8px; }
-.scanner-task { display: grid; gap: 4px; padding: 10px; border: 1px solid rgba(125,211,252,.14); border-radius: 12px; color: inherit; background: rgba(2,8,20,.28); text-align: left; cursor: pointer; }
+.scanner-task { display: grid; gap: 4px; padding: 10px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); color: inherit; background: var(--bg-surface),.28); text-align: left; cursor: pointer; }
 .scanner-task.prio-high { border-color: rgba(251,113,133,.34); }
-.scanner-task strong { color: #ecfeff; font-size: 13px; }
-.scanner-task span,.scanner-empty { color: #8cb7c9; font-size: 12px; }
-.scanner-empty { min-height: 110px; display: grid; place-content: center; border: 1px dashed rgba(125,211,252,.16); border-radius: 12px; }
+.scanner-task strong { color: var(--text-primary); font-size: 13px; }
+.scanner-task span,.scanner-empty { color: var(--text-secondary); font-size: 12px; }
+.scanner-empty { min-height: 110px; display: grid; place-content: center; border: 1px dashed rgba(125,211,252,.16); border-radius: var(--card-radius); }
 .scanner-focus { display: grid; gap: 10px; }
-.scanner-focus div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: 12px; background: rgba(2,8,20,.28); }
-.scanner-focus span { color: #8cb7c9; }
-.scanner-focus b { color: #ecfeff; }
-.scanner-focus p { margin: 0; color: #bfefff; line-height: 1.55; }
-.runtime-error { color: #fecaca !important; }
+.scanner-focus div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: var(--card-radius); background: var(--bg-surface),.28); }
+.scanner-focus span { color: var(--text-secondary); }
+.scanner-focus b { color: var(--text-primary); }
+.scanner-focus p { margin: 0; color: var(--text-primary); line-height: 1.55; }
+.runtime-error { color: var(--danger-soft) !important; }
 .runtime-cell { display: grid; gap: 4px; }
-.runtime-cell small { color: #8cb7c9; font-size: 11px; }
-.scanner-name-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: #ecfeff; }
+.runtime-cell small { color: var(--text-secondary); font-size: 11px; }
+.scanner-name-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text-primary); }
 .scanner-name-cell small { color: #6aa7bd; font-size: 11px; }
-.review-tag { padding: 2px 8px; border-radius: 999px; color: #fecaca; border: 1px solid rgba(251,113,133,.28); background: rgba(69,10,10,.38); font-size: 11px; }
-.drift-pill { display: inline-flex; min-width: 42px; justify-content: center; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(52,211,153,.24); color: #86efac; }
-.drift-pill.is-yellow { border-color: rgba(251,191,36,.28); color: #fde68a; }
-.drift-pill.is-red { border-color: rgba(251,113,133,.28); color: #fecaca; }
-.drift-pill.is-unknown { border-color: rgba(148,163,184,.24); color: #cbd5e1; }
+.review-tag { padding: 2px 8px; border-radius: var(--card-radius); color: var(--danger-soft); border: 1px solid rgba(251,113,133,.28); background: var(--bg-surface),.38); font-size: 11px; }
+.drift-pill { display: inline-flex; min-width: 42px; justify-content: center; padding: 3px 10px; border-radius: var(--card-radius); border: 1px solid rgba(52,211,153,.24); color: var(--success); }
+.drift-pill.is-yellow { border-color: rgba(251,191,36,.28); color: var(--warning-soft); }
+.drift-pill.is-red { border-color: rgba(251,113,133,.28); color: var(--danger-soft); }
+.drift-pill.is-unknown { border-color: rgba(148,163,184,.24); color: var(--text-secondary); }
 .override-list { display: flex; gap: 6px; flex-wrap: wrap; }
-.override-chip { border: 1px solid rgba(125,211,252,.14); background: rgba(10,36,54,.82); color: #d7f3ff; border-radius: 999px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
-html[data-theme='light'] .scanner-health-page { color: #0f172a; }
+.override-chip { border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface),.82); color: var(--text-primary); border-radius: var(--card-radius); padding: 4px 8px; cursor: pointer; font-size: 12px; }
+html[data-theme='light'] .scanner-health-page { color: var(--text-primary); }
 html[data-theme='light'] .scanner-health-filter,
 html[data-theme='light'] .scanner-health-panel,
 html[data-theme='light'] .scanner-health-kpi,
 html[data-theme='light'] .scanner-command-card {
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.06), transparent 36%),
+    var(--bg-surface), transparent 36%),
     #ffffff;
   border-color: rgba(148, 163, 184, 0.24);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .scanner-health-notice {
   border-color: rgba(245, 158, 11, 0.22);
-  background: #fffbeb;
-  color: #92400e;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 html[data-theme='light'] .quality-list button {
-  background: #f8fbff;
+  background: var(--bg-surface);
   border-color: rgba(148, 163, 184, 0.22);
-  color: #0f172a;
+  color: var(--text-primary);
 }
-html[data-theme='light'] .quality-list strong { color: #16324f; }
-html[data-theme='light'] .quality-list span { color: #64748b; }
+html[data-theme='light'] .quality-list strong { color: var(--text-secondary); }
+html[data-theme='light'] .quality-list span { color: var(--text-secondary); }
 html[data-theme='light'] .scanner-health-kpi strong,
 html[data-theme='light'] .scanner-name-cell,
 html[data-theme='light'] .scanner-command-head strong,
@@ -504,47 +504,47 @@ html[data-theme='light'] .muted { color: #5f7690; }
 html[data-theme='light'] .scanner-task,
 html[data-theme='light'] .scanner-focus div,
 html[data-theme='light'] .scanner-empty {
-  background: #f8fbff;
+  background: var(--bg-surface);
   border-color: rgba(148, 163, 184, 0.22);
 }
-html[data-theme='light'] .scanner-focus p { color: #334155; }
+html[data-theme='light'] .scanner-focus p { color: var(--text-primary); }
 html[data-theme='light'] .scanner-light {
-  color: #047857;
-  background: #ecfdf5;
+  color: var(--success);
+  background: var(--bg-surface);
   border-color: rgba(16, 185, 129, 0.24);
 }
 html[data-theme='light'] .scanner-light.is-yellow {
-  color: #b45309;
-  background: #fffbeb;
+  color: var(--warning);
+  background: var(--warning-soft);
   border-color: rgba(245, 158, 11, 0.24);
 }
 html[data-theme='light'] .scanner-light.is-red {
-  color: #be123c;
-  background: #fff1f2;
+  color: var(--danger-strong);
+  background: var(--danger-bg);
   border-color: rgba(244, 63, 94, 0.24);
 }
 html[data-theme='light'] .review-tag {
-  color: #be123c;
-  background: #fff1f2;
+  color: var(--danger-strong);
+  background: var(--danger-bg);
   border-color: rgba(244, 63, 94, 0.24);
 }
-html[data-theme='light'] .drift-pill { color: #047857; background: #ecfdf5; }
-html[data-theme='light'] .drift-pill.is-yellow { color: #b45309; background: #fffbeb; }
-html[data-theme='light'] .drift-pill.is-red { color: #be123c; background: #fff1f2; }
+html[data-theme='light'] .drift-pill { color: var(--success); background: var(--bg-surface); }
+html[data-theme='light'] .drift-pill.is-yellow { color: var(--warning); background: var(--warning-soft); }
+html[data-theme='light'] .drift-pill.is-red { color: var(--danger-strong); background: var(--danger-bg); }
 html[data-theme='light'] .override-chip {
-  background: #eff6ff;
+  background: var(--bg-surface);
   border-color: rgba(59, 130, 246, 0.22);
-  color: #1d4ed8;
+  color: var(--brand);
 }
 html[data-theme='light'] .scanner-health-panel :deep(.ant-table),
 html[data-theme='light'] .scanner-health-panel :deep(.ant-table-container),
 html[data-theme='light'] .scanner-health-panel :deep(.ant-table-cell) {
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 html[data-theme='light'] .scanner-health-panel :deep(.ant-table-thead > tr > th) {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
 }
 @media (max-width: 900px) {
   .scanner-health-kpis,

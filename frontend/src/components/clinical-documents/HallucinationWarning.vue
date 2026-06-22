@@ -25,7 +25,7 @@ defineProps<{ warnings: string[] }>()
 <style scoped>
 .hallucination-warning {
   margin: 8px 0 12px;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
 }
 .hw-title {
   font-weight: 600;
@@ -43,7 +43,7 @@ defineProps<{ warnings: string[] }>()
 
 /* ================= Dark Theme Overrides ================= */
 :global(html[data-theme='dark']) .hw-item {
-  color: #fbbf24;
+  color: var(--warning);
 }
 </style>
 

@@ -109,27 +109,27 @@ function formatDate(value: any) {
   width: 100%;
   min-height: 38px;
   border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 0 10px;
-  color: #e2e8f0;
-  background: #0f172a;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
 }
 .drawer-check {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #cbd5e1;
+  color: var(--text-secondary);
 }
 .session-card {
   padding: 12px;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   cursor: pointer;
-  background: rgba(15, 23, 42, 0.78);
+  background: var(--bg-surface), 0.78);
 }
 .session-card.is-active {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.22);
+  border-color: var(--chart-1);
+  box-shadow: var(--card-shadow);
 }
 .session-card__head {
   display: flex;
@@ -137,10 +137,10 @@ function formatDate(value: any) {
   gap: 10px;
 }
 .session-card strong {
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 .session-card span {
-  color: #7dd3fc;
+  color: var(--chart-1);
 }
 .session-card p {
   margin: 8px 0;
@@ -154,36 +154,36 @@ function formatDate(value: any) {
 }
 .session-tags em {
   padding: 4px 8px;
-  border-radius: 999px;
-  color: #cbd5e1;
+  border-radius: var(--card-radius);
+  color: var(--text-secondary);
   font-size: 12px;
   font-style: normal;
-  background: rgba(30, 41, 59, 0.9);
+  background: var(--bg-surface), 0.9);
 }
 .drawer-empty {
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 :global(.ant-drawer-content),
 :global(.ant-drawer-header) {
-  background: #0f172a !important;
-  color: #e2e8f0 !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-secondary) !important;
 }
 :global(.ant-drawer-title),
 :global(.ant-drawer-close) {
-  color: #f8fafc !important;
+  color: var(--text-primary) !important;
 }
 :global(html[data-theme='light'] .ant-drawer-content),
 :global(html[data-theme='light'] .ant-drawer-header) {
-  background: #ffffff !important;
-  color: #0f172a !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
 }
 :global(html[data-theme='light'] .ant-drawer-title),
 :global(html[data-theme='light'] .ant-drawer-close) {
-  color: #0f172a !important;
+  color: var(--text-primary) !important;
 }
 html[data-theme='light'] .drawer-input {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
 }
 </style>

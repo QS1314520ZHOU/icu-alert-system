@@ -111,7 +111,7 @@ function formatRange(min: any, max: any) {
 }
 
 .cp-count {
-  color: #98a2b3;
+  color: var(--text-muted);
   font-size: 11px;
 }
 
@@ -123,30 +123,30 @@ function formatRange(min: any, max: any) {
 
 .cp-card {
   padding: 9px 10px;
-  background: #f8fafc;
+  background: var(--bg-surface);
   border: 1px solid #edf1f7;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
 }
 
 .cp-card-ref {
   font-weight: 700;
-  color: #1677ff;
+  color: var(--brand);
   margin-bottom: 3px;
 }
 
 .cp-card-source {
-  color: #344054;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
 .cp-card-time {
-  color: #98a2b3;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
 .cp-card-detail {
   margin-top: 6px;
-  color: #667085;
+  color: var(--text-muted);
   line-height: 1.55;
   border-top: 1px dashed #edf1f7;
   padding-top: 6px;
@@ -154,7 +154,7 @@ function formatRange(min: any, max: any) {
 
 .cp-empty {
   text-align: center;
-  color: #98a2b3;
+  color: var(--text-muted);
   padding: 40px 0;
 }
 </style>

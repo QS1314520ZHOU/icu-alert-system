@@ -90,19 +90,19 @@ const emit = defineEmits<{
 }
 .evidence-panel {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(8,28,44,.72) 0%, rgba(6,17,29,.82) 100%);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
   padding: 14px;
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
+  box-shadow: var(--card-shadow);
 }
 .evidence-panel--overview {
   background:
-    radial-gradient(circle at top right, rgba(34,211,238,.1), rgba(34,211,238,0) 32%),
-    linear-gradient(180deg, rgba(8,28,44,.78) 0%, rgba(6,17,29,.88) 100%);
+    var(--bg-surface), rgba(34,211,238,0) 32%),
+    var(--bg-surface) 0%, rgba(6,17,29,.88) 100%);
 }
 .panel-title {
   margin-bottom: 10px;
-  color: #67e8f9;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .12em;
@@ -119,23 +119,23 @@ const emit = defineEmits<{
   align-items: center;
   min-height: 24px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.14);
-  background: rgba(8,28,44,.86);
-  color: #8fd4e6;
+  background: var(--bg-surface),.86);
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: .08em;
 }
 .evidence-chip--soft {
-  color: #dffbff;
+  color: var(--text-primary);
 }
 .evidence-chip--accent {
-  color: #67e8f9;
+  color: var(--accent);
   background: rgba(8,90,110,.24);
 }
 .evidence-chip--warn {
-  color: #fcd34d;
-  background: rgba(82,55,12,.5);
+  color: var(--warning);
+  background: var(--bg-surface),.5);
   border-color: rgba(245,158,11,.22);
 }
 .evidence-meta-grid {
@@ -152,12 +152,12 @@ const emit = defineEmits<{
   grid-column: 1 / -1;
 }
 .meta-label {
-  color: #7ecce1;
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: .08em;
 }
 .meta-value {
-  color: #dffbff;
+  color: var(--text-primary);
   font-size: 12px;
   line-height: 1.6;
   word-break: break-word;
@@ -165,8 +165,8 @@ const emit = defineEmits<{
 .meta-code {
   display: inline-block;
   padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(5,16,27,.9);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface),.9);
   border: 1px solid rgba(80,199,255,.12);
   color: #c6f6ff;
   font-size: 11px;
@@ -179,17 +179,17 @@ const emit = defineEmits<{
   line-height: 1.75;
   max-height: 52vh;
   overflow: auto;
-  background: rgba(5,16,27,.9);
+  background: var(--bg-surface),.9);
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   padding: 16px;
   color: #dceeff;
   font-size: 12px;
 }
 .evidence-modal-related {
   border: 1px solid rgba(80,199,255,.12);
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(8,28,44,.72) 0%, rgba(6,17,29,.82) 100%);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
   padding: 14px;
 }
 .ai-risk-evidence-list {
@@ -199,14 +199,14 @@ const emit = defineEmits<{
   gap: 8px;
 }
 .ai-evidence-link {
-  color: #93c5fd;
+  color: var(--chart-1);
   cursor: pointer;
   transition: color 0.2s ease;
   font-size: 12px;
   line-height: 1.55;
 }
 .ai-evidence-link:hover {
-  color: #bfdbfe;
+  color: var(--chart-1);
 }
 
 @media (max-width: 900px) {
@@ -216,18 +216,18 @@ const emit = defineEmits<{
 }
 
 /* Light mode overrides */
-html[data-theme='light'] .evidence-panel { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); box-shadow: 0 4px 10px rgba(15,23,42,0.04); }
-html[data-theme='light'] .evidence-panel--overview { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); }
-html[data-theme='light'] .panel-title { color: #1d4ed8; }
-html[data-theme='light'] .evidence-chip { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #47627e; }
-html[data-theme='light'] .evidence-chip--soft { color: #6f8399; }
-html[data-theme='light'] .evidence-chip--accent { background: rgba(59,130,246,0.1); color: #2563eb; }
-html[data-theme='light'] .evidence-chip--warn { background: rgba(254,243,199,0.96); border-color: rgba(245,158,11,0.28); color: #b45309; }
-html[data-theme='light'] .meta-label { color: #1d4ed8; }
-html[data-theme='light'] .meta-value { color: #223a54; }
-html[data-theme='light'] .meta-code { background: rgba(231,241,249,0.96); border-color: rgba(187,204,220,0.72); color: #47627e; }
-html[data-theme='light'] .evidence-modal-content { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); color: #223a54; }
-html[data-theme='light'] .evidence-modal-related { background: #ffffff; border-color: rgba(187,204,220,0.72); }
-html[data-theme='light'] .ai-evidence-link { color: #2563eb; }
-html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
+html[data-theme='light'] .evidence-panel { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .evidence-panel--overview { background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%); }
+html[data-theme='light'] .panel-title { color: var(--brand); }
+html[data-theme='light'] .evidence-chip { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
+html[data-theme='light'] .evidence-chip--soft { color: var(--text-secondary); }
+html[data-theme='light'] .evidence-chip--accent { background: rgba(59,130,246,0.1); color: var(--brand); }
+html[data-theme='light'] .evidence-chip--warn { background: rgba(254,243,199,0.96); border-color: rgba(245,158,11,0.28); color: var(--warning); }
+html[data-theme='light'] .meta-label { color: var(--brand); }
+html[data-theme='light'] .meta-value { color: var(--text-secondary); }
+html[data-theme='light'] .meta-code { background: rgba(231,241,249,0.96); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
+html[data-theme='light'] .evidence-modal-content { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
+html[data-theme='light'] .evidence-modal-related { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-evidence-link { color: var(--brand); }
+html[data-theme='light'] .ai-evidence-link:hover { color: var(--brand); }
 </style>

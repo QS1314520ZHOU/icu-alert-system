@@ -139,12 +139,12 @@ watch(() => [props.deptCode, props.dept], () => { void load() })
 }
 
 .bundle-header strong {
-  color: #f8fbff;
+  color: var(--text-primary);
   font-size: 15px;
 }
 
 .bundle-header span {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -158,20 +158,20 @@ watch(() => [props.deptCode, props.dept], () => { void load() })
   font-size: 18px;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--card-radius);
 }
 
-.overall-score.green { color: #34d399; background: rgba(52, 211, 153, .15); }
-.overall-score.yellow { color: #fbbf24; background: rgba(251, 191, 36, .15); }
-.overall-score.red { color: #ef4444; background: rgba(239, 68, 68, .15); }
+.overall-score.green { color: var(--chart-2); background: rgba(52, 211, 153, .15); }
+.overall-score.yellow { color: var(--warning); background: rgba(251, 191, 36, .15); }
+.overall-score.red { color: var(--danger); background: rgba(239, 68, 68, .15); }
 
 button {
   min-height: 32px;
   padding: 0 10px;
-  border-radius: 6px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: rgba(13, 44, 66, .78);
-  color: #eafcff;
+  background: var(--bg-surface), .78);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 12px;
 }
@@ -181,12 +181,12 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .loading, .error {
   padding: 16px;
   text-align: center;
-  border-radius: 8px;
-  background: rgba(11, 33, 50, .58);
-  color: #91adbd;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .58);
+  color: var(--text-secondary);
 }
 
-.error { color: #fecaca; }
+.error { color: var(--danger-soft); }
 
 .bundle-cards {
   display: grid;
@@ -196,8 +196,8 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 
 .bundle-card {
   padding: 12px;
-  border-radius: 8px;
-  background: rgba(6, 18, 31, .74);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .74);
   border: 1px solid rgba(125, 211, 252, .14);
   cursor: pointer;
   transition: border-color .2s;
@@ -215,7 +215,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .card-top strong {
-  color: #f4fbff;
+  color: var(--text-primary);
   font-size: 13px;
 }
 
@@ -224,9 +224,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   font-weight: 700;
 }
 
-.score.green { color: #34d399; }
-.score.yellow { color: #fbbf24; }
-.score.red { color: #ef4444; }
+.score.green { color: var(--chart-2); }
+.score.yellow { color: var(--warning); }
+.score.red { color: var(--danger); }
 
 .card-bottom {
   display: flex;
@@ -235,19 +235,19 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .card-bottom span {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
 .expand-icon {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 10px;
 }
 
 .bundle-detail {
-  background: rgba(6, 18, 31, .74);
+  background: var(--bg-surface), .74);
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 12px;
 }
 
@@ -256,7 +256,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .detail-header strong {
-  color: #f4fbff;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
@@ -271,8 +271,8 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
-  border-radius: 6px;
-  background: rgba(11, 33, 50, .72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .72);
 }
 
 .item-row.green { border-left: 3px solid #34d399; }
@@ -280,26 +280,26 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .item-row.red { border-left: 3px solid #ef4444; }
 
 .item-name {
-  color: #eef8ff;
+  color: var(--text-primary);
   font-size: 12px;
 }
 
 .bar-track {
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   background: rgba(148, 163, 184, .15);
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   transition: width .3s ease;
 }
 
-.bar-fill.green { background: #34d399; }
-.bar-fill.yellow { background: #fbbf24; }
-.bar-fill.red { background: #ef4444; }
+.bar-fill.green { background: var(--chart-2); }
+.bar-fill.yellow { background: var(--warning); }
+.bar-fill.red { background: var(--danger); }
 
 .item-stats {
   display: flex;
@@ -312,12 +312,12 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   font-weight: 600;
 }
 
-.rate.green { color: #34d399; }
-.rate.yellow { color: #fbbf24; }
-.rate.red { color: #ef4444; }
+.rate.green { color: var(--chart-2); }
+.rate.yellow { color: var(--warning); }
+.rate.red { color: var(--danger); }
 
 .detail {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 10px;
 }
 
@@ -325,12 +325,12 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   display: flex;
   justify-content: space-between;
   padding: 8px 10px;
-  border-radius: 6px;
-  background: rgba(11, 33, 50, .4);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .4);
 }
 
 .bundle-note span {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 10px;
 }
 
@@ -339,7 +339,7 @@ html[data-theme='light'] .bundle-header strong,
 html[data-theme='light'] .card-top strong,
 html[data-theme='light'] .detail-header strong,
 html[data-theme='light'] .item-name {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 html[data-theme='light'] .bundle-card,
@@ -349,20 +349,20 @@ html[data-theme='light'] .bundle-detail {
 }
 
 html[data-theme='light'] .item-row {
-  background: #f8fafc;
+  background: var(--bg-surface);
 }
 
 html[data-theme='light'] .loading,
 html[data-theme='light'] .error {
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
 }
 
-html[data-theme='light'] .error { color: #dc2626; }
+html[data-theme='light'] .error { color: var(--danger); }
 
 html[data-theme='light'] button {
-  background: #eff6ff;
+  background: var(--bg-surface);
   border-color: rgba(37, 99, 235, 0.18);
-  color: #1d4ed8;
+  color: var(--brand);
 }
 </style>

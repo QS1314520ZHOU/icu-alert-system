@@ -62,8 +62,8 @@ function compactReason(item: any) {
   gap: 12px;
   padding: 14px;
   border: 1px solid rgba(80, 199, 255, 0.14);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(7, 20, 34, 0.9), rgba(4, 12, 22, 0.96));
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), var(--bg-surface));
 }
 .priority-head {
   display: flex;
@@ -77,11 +77,11 @@ function compactReason(item: any) {
 }
 .priority-head span,
 .priority-head small {
-  color: #8cb7c9;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .priority-head strong {
-  color: #ecfeff;
+  color: var(--text-primary);
   font-size: 18px;
 }
 .priority-list {
@@ -96,10 +96,10 @@ function compactReason(item: any) {
   align-items: center;
   min-height: 88px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.14);
-  background: rgba(8, 28, 44, 0.72);
-  color: #dffbff;
+  background: var(--bg-surface), 0.72);
+  color: var(--text-primary);
   text-align: left;
   cursor: pointer;
 }
@@ -108,7 +108,7 @@ function compactReason(item: any) {
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: rgba(59, 130, 246, 0.22);
 }
 .priority-main {
@@ -124,7 +124,7 @@ function compactReason(item: any) {
   white-space: nowrap;
 }
 .priority-main span {
-  color: #fcd34d;
+  color: var(--warning);
   font-size: 12px;
   line-height: 1.35;
   overflow: hidden;
@@ -140,7 +140,7 @@ function compactReason(item: any) {
 }
 .priority-main em i {
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: rgba(125, 211, 252, 0.1);
   color: #9bdcf5;
   font-size: 11px;
@@ -153,52 +153,52 @@ function compactReason(item: any) {
   justify-items: end;
 }
 .priority-side strong {
-  color: #fff;
+  color: var(--text-primary);
   font-size: 22px;
   line-height: 1;
 }
 .priority-side span,
 .priority-side small {
-  color: #9cc2d1;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 .tone-critical {
   border-color: rgba(248, 113, 113, 0.28);
-  background: rgba(60, 14, 23, 0.42);
+  background: var(--bg-surface), 0.42);
 }
 .tone-warning {
   border-color: rgba(245, 158, 11, 0.26);
-  background: rgba(52, 34, 9, 0.36);
+  background: var(--bg-surface), 0.36);
 }
 .priority-empty {
-  color: #8cb7c9;
+  color: var(--text-secondary);
   padding: 12px;
   border: 1px dashed rgba(125, 211, 252, 0.18);
-  border-radius: 12px;
+  border-radius: var(--card-radius);
 }
 html[data-theme='light'] .priority-panel,
 html[data-theme='light'] .priority-row {
   border-color: rgba(187, 204, 220, 0.72);
-  background: #fff;
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .priority-head strong,
 html[data-theme='light'] .priority-main strong,
 html[data-theme='light'] .priority-side strong {
-  color: #16324f;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .priority-head span,
 html[data-theme='light'] .priority-head small,
 html[data-theme='light'] .priority-main em,
 html[data-theme='light'] .priority-side span,
 html[data-theme='light'] .priority-side small {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .priority-main em i {
   background: rgba(219, 234, 254, 0.9);
-  color: #2563eb;
+  color: var(--brand);
 }
 html[data-theme='light'] .priority-main span {
-  color: #b45309;
+  color: var(--warning);
 }
 @media (max-width: 1280px) {
   .priority-list {

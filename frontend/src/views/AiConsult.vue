@@ -1160,7 +1160,7 @@ onBeforeUnmount(() => {
 .consult-panel,
 .consult-chat {
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: linear-gradient(180deg, rgba(7, 20, 34, 0.94) 0%, rgba(4, 12, 22, 0.97) 100%);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
 }
 
 .consult-hero {
@@ -1170,7 +1170,7 @@ onBeforeUnmount(() => {
 }
 
 .consult-kicker {
-  color: #67e8f9;
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1178,14 +1178,14 @@ onBeforeUnmount(() => {
 
 .consult-hero h1 {
   margin: 10px 0 8px;
-  color: #ecfeff;
+  color: var(--text-primary);
   font-size: 30px;
   line-height: 1.15;
 }
 
 .consult-hero p {
   margin: 0;
-  color: #9cc2d1;
+  color: var(--text-secondary);
   line-height: 1.75;
 }
 
@@ -1198,15 +1198,15 @@ onBeforeUnmount(() => {
 
 .consult-badge {
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.16);
-  background: rgba(8, 28, 44, 0.7);
+  background: var(--bg-surface), 0.7);
   color: #e0f7ff;
   font-size: 12px;
 }
 
 .consult-badge--soft {
-  color: #8fd4e6;
+  color: var(--accent);
 }
 
 .consult-badge--free {
@@ -1216,7 +1216,7 @@ onBeforeUnmount(() => {
 }
 
 .consult-badge--warn {
-  color: #fbbf24;
+  color: var(--warning);
 }
 
 .consult-hero__tools {
@@ -1226,7 +1226,7 @@ onBeforeUnmount(() => {
 }
 
 .field-label {
-  color: #8cb7c9;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -1261,10 +1261,10 @@ onBeforeUnmount(() => {
 .prompt-chip {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.14);
-  background: rgba(8, 28, 44, 0.72);
-  color: #dffbff;
+  background: var(--bg-surface), 0.72);
+  color: var(--text-primary);
   font-size: 12px;
   text-align: left;
   cursor: pointer;
@@ -1297,8 +1297,8 @@ onBeforeUnmount(() => {
 .mode-switch {
   min-height: 28px;
   border: 1px solid rgba(125, 211, 252, 0.18);
-  border-radius: 999px;
-  background: rgba(8, 28, 44, 0.72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.72);
   color: #d8b4fe;
   padding: 0 10px;
   font-size: 12px;
@@ -1311,7 +1311,7 @@ onBeforeUnmount(() => {
 }
 
 .chat-title-row small {
-  color: #7f97bd;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
@@ -1352,7 +1352,7 @@ onBeforeUnmount(() => {
 }
 
 .chat-role {
-  color: #8fe7ff;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
 }
@@ -1367,9 +1367,9 @@ onBeforeUnmount(() => {
   align-items: center;
   min-height: 22px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.16);
-  background: rgba(8, 28, 44, 0.78);
+  background: var(--bg-surface), 0.78);
   color: #cfeeff;
   font-size: 11px;
   font-weight: 700;
@@ -1378,31 +1378,31 @@ onBeforeUnmount(() => {
 
 .chat-intent-badge.is-judgement {
   border-color: rgba(34, 211, 238, 0.2);
-  color: #a5f3fc;
+  color: var(--accent);
 }
 
 .chat-intent-badge.is-risk {
   border-color: rgba(251, 113, 133, 0.24);
-  color: #fecdd3;
+  color: var(--danger-soft);
 }
 
 .chat-intent-badge.is-exam {
   border-color: rgba(96, 165, 250, 0.24);
-  color: #bfdbfe;
+  color: var(--chart-1);
 }
 
 .chat-intent-badge.is-action {
   border-color: rgba(245, 158, 11, 0.24);
-  color: #fde68a;
+  color: var(--warning-soft);
 }
 .chat-intent-badge.is-high-risk {
   border-color: rgba(248, 113, 113, 0.3);
-  color: #fecaca;
-  background: rgba(69, 10, 10, 0.44);
+  color: var(--danger-soft);
+  background: var(--bg-surface), 0.44);
 }
 .chat-intent-badge.is-clarification {
   border-color: rgba(45, 212, 191, 0.3);
-  color: #99f6e4;
+  color: var(--success);
   background: rgba(13, 78, 74, 0.36);
 }
 
@@ -1411,9 +1411,9 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   line-height: 1.8;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.14);
-  background: rgba(8, 28, 44, 0.74);
+  background: var(--bg-surface), 0.74);
   color: #e6f6ff;
 }
 
@@ -1423,7 +1423,7 @@ onBeforeUnmount(() => {
 
 .chat-bubble--clarification {
   border-color: rgba(45, 212, 191, 0.3);
-  background: rgba(8, 47, 73, 0.78);
+  background: var(--bg-surface), 0.78);
 }
 
 .chat-bubble--final {
@@ -1441,8 +1441,8 @@ onBeforeUnmount(() => {
 
 .consult-section {
   border: 1px solid rgba(125, 211, 252, 0.14);
-  border-radius: 14px;
-  background: rgba(6, 21, 35, 0.36);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.36);
   overflow: hidden;
 }
 
@@ -1470,14 +1470,14 @@ onBeforeUnmount(() => {
   color: #ffd5d5;
 }
 .consult-section__line--safety {
-  color: #fde68a;
+  color: var(--warning-soft);
 }
 .high-risk-warning {
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(248, 113, 113, 0.26);
-  background: rgba(69, 10, 10, 0.42);
-  color: #fecaca;
+  background: var(--bg-surface), 0.42);
+  color: var(--danger-soft);
   font-size: 13px;
   font-weight: 700;
 }
@@ -1489,7 +1489,7 @@ onBeforeUnmount(() => {
   min-width: 34px;
   margin-right: 8px;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   font-size: 11px;
   font-weight: 700;
   line-height: 1.8;
@@ -1497,17 +1497,17 @@ onBeforeUnmount(() => {
 }
 
 .priority-badge.is-p1 {
-  color: #fff1f2;
+  color: var(--danger-bg);
   background: rgba(220, 38, 38, 0.9);
 }
 
 .priority-badge.is-p2 {
-  color: #fff7ed;
+  color: var(--warning-soft);
   background: rgba(217, 119, 6, 0.88);
 }
 
 .priority-badge.is-p3 {
-  color: #eff6ff;
+  color: var(--text-primary);
   background: rgba(37, 99, 235, 0.82);
 }
 
@@ -1517,45 +1517,45 @@ onBeforeUnmount(() => {
 
 .consult-section--risk {
   border-color: rgba(248, 113, 113, 0.18);
-  background: rgba(60, 14, 23, 0.26);
+  background: var(--bg-surface), 0.26);
 }
 
 .consult-section--risk .consult-section__title {
-  color: #fecaca;
+  color: var(--danger-soft);
   background: rgba(220, 38, 38, 0.18);
 }
 
 .consult-section--action {
   border-color: rgba(250, 204, 21, 0.16);
-  background: rgba(52, 34, 9, 0.24);
+  background: var(--bg-surface), 0.24);
 }
 
 .consult-section--action .consult-section__title {
-  color: #fde68a;
+  color: var(--warning-soft);
   background: rgba(202, 138, 4, 0.18);
 }
 
 .consult-section--exam {
   border-color: rgba(96, 165, 250, 0.18);
-  background: rgba(11, 30, 56, 0.24);
+  background: var(--bg-surface), 0.24);
 }
 
 .consult-section--exam .consult-section__title {
-  color: #bfdbfe;
+  color: var(--chart-1);
   background: rgba(37, 99, 235, 0.18);
 }
 .consult-section--safety {
   border-color: rgba(245, 158, 11, 0.24);
-  background: rgba(52, 34, 9, 0.24);
+  background: var(--bg-surface), 0.24);
 }
 .consult-section--safety .consult-section__title,
 .consult-section--uncertain .consult-section__title {
-  color: #fde68a;
+  color: var(--warning-soft);
   background: rgba(202, 138, 4, 0.16);
 }
 
 .chat-row.is-user .chat-bubble {
-  background: linear-gradient(180deg, rgba(17, 79, 119, 0.92), rgba(8, 42, 67, 0.98));
+  background: var(--bg-surface), var(--bg-surface));
 }
 
 .chat-bubble--loading {
@@ -1569,11 +1569,11 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 12px;
   border: 1px solid rgba(94, 234, 212, 0.18);
-  border-radius: 14px;
-  background: rgba(8, 47, 73, 0.42);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.42);
 }
 .autonomous-trace__title {
-  color: #99f6e4;
+  color: var(--success);
   font-size: 12px;
   font-weight: 800;
 }
@@ -1581,11 +1581,11 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);
   gap: 8px;
-  color: #c7f9ff;
+  color: var(--text-primary);
   font-size: 12px;
 }
 .autonomous-trace__row strong {
-  color: #67e8f9;
+  color: var(--accent);
 }
 
 .composer {
@@ -1599,10 +1599,10 @@ onBeforeUnmount(() => {
 .composer-input {
   width: 100%;
   resize: vertical;
-  border-radius: 14px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.16);
-  background: rgba(8, 20, 34, 0.94);
-  color: #ecfeff;
+  background: var(--bg-surface), 0.94);
+  color: var(--text-primary);
   padding: 12px 14px;
   outline: none;
   line-height: 1.7;
@@ -1614,7 +1614,7 @@ onBeforeUnmount(() => {
 
 .composer-input:focus {
   border-color: rgba(56, 189, 248, 0.45);
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+  box-shadow: var(--card-shadow);
 }
 
 .composer-actions {
@@ -1625,12 +1625,12 @@ onBeforeUnmount(() => {
 }
 
 .composer-hint {
-  color: #7f97bd;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
 html[data-theme='light'] .consult-page {
-  color: #16324f;
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .consult-hero,
@@ -1640,19 +1640,19 @@ html[data-theme='light'] .prompt-chip,
 html[data-theme='light'] .chat-bubble,
 html[data-theme='light'] .composer-input {
   border-color: rgba(187, 204, 220, 0.72);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 247, 252, 0.98) 100%);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  background: var(--bg-surface) 0%, rgba(242, 247, 252, 0.98) 100%);
+  box-shadow: var(--card-shadow);
 }
 
 html[data-theme='light'] .consult-kicker,
 html[data-theme='light'] .chat-role {
-  color: #1d4ed8;
+  color: var(--brand);
 }
 
 html[data-theme='light'] .chat-intent-badge {
   background: rgba(255, 255, 255, 0.98);
   border-color: rgba(187, 204, 220, 0.72);
-  color: #355a7c;
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .chat-intent-badge.is-judgement {
@@ -1661,21 +1661,21 @@ html[data-theme='light'] .chat-intent-badge.is-judgement {
 }
 
 html[data-theme='light'] .chat-intent-badge.is-risk {
-  color: #b91c1c;
+  color: var(--danger);
   border-color: rgba(248, 113, 113, 0.28);
 }
 
 html[data-theme='light'] .chat-intent-badge.is-exam {
-  color: #1d4ed8;
+  color: var(--brand);
   border-color: rgba(96, 165, 250, 0.3);
 }
 
 html[data-theme='light'] .chat-intent-badge.is-action {
-  color: #92400e;
+  color: var(--warning);
   border-color: rgba(245, 158, 11, 0.3);
 }
 html[data-theme='light'] .chat-intent-badge.is-high-risk {
-  color: #b91c1c;
+  color: var(--danger);
   border-color: rgba(248, 113, 113, 0.3);
   background: rgba(254, 242, 242, 0.98);
 }
@@ -1686,7 +1686,7 @@ html[data-theme='light'] .chat-intent-badge.is-clarification {
 }
 
 html[data-theme='light'] .consult-hero h1 {
-  color: #16324f;
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .consult-hero p,
@@ -1695,17 +1695,17 @@ html[data-theme='light'] .chat-time,
 html[data-theme='light'] .composer-hint,
 html[data-theme='light'] .chat-title-row small,
 html[data-theme='light'] .field-label {
-  color: #6a8098;
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .consult-badge {
   border-color: rgba(187, 204, 220, 0.72);
-  background: #ffffff;
-  color: #355a7c;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .consult-badge--warn {
-  color: #b45309;
+  color: var(--warning);
 }
 
 html[data-theme='light'] .consult-badge--free,
@@ -1716,16 +1716,16 @@ html[data-theme='light'] .mode-switch {
 }
 
 html[data-theme='light'] .prompt-chip {
-  color: #223a54;
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .chat-bubble {
-  color: #223a54;
-  background: #ffffff;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .chat-bubble--clarification {
   border-color: rgba(13, 148, 136, 0.22);
-  background: #f0fdfa;
+  background: var(--bg-surface);
 }
 
 html[data-theme='light'] .consult-section {
@@ -1734,7 +1734,7 @@ html[data-theme='light'] .consult-section {
 }
 
 html[data-theme='light'] .consult-section__title {
-  color: #1d4ed8;
+  color: var(--brand);
   background: rgba(219, 234, 254, 0.9);
 }
 
@@ -1744,12 +1744,12 @@ html[data-theme='light'] .consult-section--risk {
 }
 
 html[data-theme='light'] .consult-section--risk .consult-section__title {
-  color: #b91c1c;
+  color: var(--danger);
   background: rgba(254, 226, 226, 0.96);
 }
 
 html[data-theme='light'] .consult-section__line--risk {
-  color: #991b1b;
+  color: var(--danger-strong);
 }
 
 html[data-theme='light'] .consult-section--action {
@@ -1758,7 +1758,7 @@ html[data-theme='light'] .consult-section--action {
 }
 
 html[data-theme='light'] .consult-section--action .consult-section__title {
-  color: #92400e;
+  color: var(--warning);
   background: rgba(254, 243, 199, 0.98);
 }
 
@@ -1768,7 +1768,7 @@ html[data-theme='light'] .consult-section--exam {
 }
 
 html[data-theme='light'] .consult-section--exam .consult-section__title {
-  color: #1d4ed8;
+  color: var(--brand);
   background: rgba(219, 234, 254, 0.98);
 }
 html[data-theme='light'] .consult-section--safety,
@@ -1776,16 +1776,16 @@ html[data-theme='light'] .consult-section--uncertain,
 html[data-theme='light'] .high-risk-warning {
   border-color: rgba(245, 158, 11, 0.28);
   background: rgba(255, 251, 235, 0.98);
-  color: #92400e;
+  color: var(--warning);
 }
 
 html[data-theme='light'] .chat-row.is-user .chat-bubble {
-  color: #eff6ff;
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.92), rgba(29, 78, 216, 0.98));
+  color: var(--text-primary);
+  background: var(--bg-surface), rgba(29, 78, 216, 0.98));
 }
 
 html[data-theme='light'] .composer-input {
-  color: #223a54;
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .composer-input::placeholder {

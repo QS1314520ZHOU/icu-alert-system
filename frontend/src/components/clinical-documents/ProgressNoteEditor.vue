@@ -275,15 +275,15 @@ function confidenceLabel(confidence: string) {
   min-height: 50px;
   padding: 7px 8px;
   border: 1px solid #edf1f7;
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
   text-align: left;
   cursor: pointer;
 }
 
 .system-nav-item.is-active {
-  border-color: #1677ff;
-  background: #eff6ff;
+  border-color: var(--brand);
+  background: var(--bg-surface);
 }
 
 .system-nav-item.tone-critical,
@@ -293,7 +293,7 @@ function confidenceLabel(confidence: string) {
 
 .system-nav-item span {
   overflow: hidden;
-  color: #0f172a;
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -301,28 +301,28 @@ function confidenceLabel(confidence: string) {
 }
 
 .system-nav-item strong {
-  color: #d97706;
+  color: var(--warning);
   font-size: 11px;
 }
 
 .system-nav-item em {
   grid-column: 1 / -1;
-  color: #667085;
+  color: var(--text-muted);
   font-size: 11px;
   font-style: normal;
 }
 
 .system-card {
   min-height: 0;
-  background: #fff;
+  background: var(--bg-surface);
   border: 1px solid #edf1f7;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 10px;
 }
 
 .system-card.tone-critical,
 .system-card.tone-high {
-  border-color: #fed7aa;
+  border-color: var(--warning-soft);
 }
 
 .system-card-head {
@@ -339,7 +339,7 @@ function confidenceLabel(confidence: string) {
 
 .system-card-head h3 {
   margin: 2px 0;
-  color: #0f172a;
+  color: var(--text-primary);
   font-size: 15px;
 }
 
@@ -347,7 +347,7 @@ function confidenceLabel(confidence: string) {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  color: #475467;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.45;
   -webkit-line-clamp: 2;
@@ -355,7 +355,7 @@ function confidenceLabel(confidence: string) {
 }
 
 .system-kicker {
-  color: #d97706;
+  color: var(--warning);
   font-size: 12px;
   font-weight: 700;
 }
@@ -364,9 +364,9 @@ function confidenceLabel(confidence: string) {
 .statement-group-head button,
 .delete-btn {
   border: 1px solid #d0d5dd;
-  border-radius: 6px;
-  background: #fff;
-  color: #344054;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -387,14 +387,14 @@ function confidenceLabel(confidence: string) {
   gap: 5px;
   flex-wrap: wrap;
   margin-bottom: 8px;
-  color: #b45309;
+  color: var(--warning);
   font-size: 12px;
 }
 
 .missing-data span {
   padding: 2px 7px;
-  border-radius: 4px;
-  background: #fff7ed;
+  border-radius: var(--card-radius);
+  background: var(--warning-soft);
 }
 
 .statement-grid {
@@ -407,8 +407,8 @@ function confidenceLabel(confidence: string) {
 .statement-group {
   min-width: 0;
   border: 1px solid #edf1f7;
-  border-radius: 8px;
-  background: #fbfdff;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
   padding: 8px;
 }
 
@@ -422,7 +422,7 @@ function confidenceLabel(confidence: string) {
 
 .statement-group-head h4 {
   margin: 0;
-  color: #344054;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -434,8 +434,8 @@ function confidenceLabel(confidence: string) {
 
 .statement {
   border: 1px solid #edf1f7;
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
   padding: 7px;
 }
 
@@ -460,9 +460,9 @@ function confidenceLabel(confidence: string) {
 
 .statement-meta span {
   padding: 1px 6px;
-  border-radius: 4px;
-  background: #f2f4f7;
-  color: #667085;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface-2);
+  color: var(--text-muted);
   font-size: 11px;
 }
 
@@ -471,10 +471,10 @@ function confidenceLabel(confidence: string) {
   min-height: 42px;
   resize: vertical;
   border: 1px solid #d0d5dd;
-  border-radius: 6px;
+  border-radius: var(--card-radius);
   padding: 6px 8px;
-  color: #1f2937;
-  background: #fff;
+  color: var(--text-primary);
+  background: var(--bg-surface);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -497,20 +497,20 @@ function confidenceLabel(confidence: string) {
   border: none;
   background: transparent;
   padding: 0 3px;
-  color: #1677ff;
+  color: var(--brand);
   font-size: 12px;
   cursor: pointer;
 }
 
 .muted,
 .empty-text {
-  color: #98a2b3;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
 .statement-missing {
   margin-top: 5px;
-  color: #b45309;
+  color: var(--warning);
   font-size: 12px;
 }
 

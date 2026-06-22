@@ -301,7 +301,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   gap: 10px;
 }
 .device-map-card__kicker {
-  color: #7ed6eb;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .14em;
@@ -309,7 +309,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 }
 .device-map-card__title {
   margin-top: 4px;
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 700;
 }
@@ -318,10 +318,10 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   align-items: center;
   min-height: 30px;
   padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(8, 28, 44, 0.82);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.82);
   border: 1px solid rgba(80,199,255,.14);
-  color: #dffbff;
+  color: var(--text-primary);
   font-size: 12px;
 }
 .device-map-card__legend {
@@ -350,10 +350,10 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   gap: 6px;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 999px;
-  background: rgba(8, 28, 44, 0.72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.72);
   border: 1px solid rgba(80,199,255,.1);
-  color: #8fb8ca;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 .device-map-card__legend-item--risk.is-warning,
@@ -365,18 +365,18 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   width: 11px;
   height: 11px;
   background: var(--legend-color);
-  box-shadow: 0 0 0 1px rgba(7,20,34,.78);
+  box-shadow: var(--card-shadow);
 }
 .device-map-card__risk-dot {
   width: 10px;
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: var(--risk-color);
-  box-shadow: 0 0 0 1px rgba(7,20,34,.72), 0 0 10px color-mix(in srgb, var(--risk-color) 50%, transparent);
+  box-shadow: var(--card-shadow);
 }
-.device-map-card__legend-shape.shape-circle { border-radius: 999px; }
-.device-map-card__legend-shape.shape-square { border-radius: 3px; }
-.device-map-card__legend-shape.shape-diamond { border-radius: 3px; transform: rotate(45deg); }
+.device-map-card__legend-shape.shape-circle { border-radius: var(--card-radius); }
+.device-map-card__legend-shape.shape-square { border-radius: var(--card-radius); }
+.device-map-card__legend-shape.shape-diamond { border-radius: var(--card-radius); transform: rotate(45deg); }
 .device-map-card__legend-shape.shape-triangle {
   width: 0;
   height: 0;
@@ -384,9 +384,9 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-bottom: 10px solid var(--legend-color);
-  box-shadow: none;
+  box-shadow: var(--card-shadow);
 }
-.device-map-card__legend-shape.shape-pill { width: 13px; border-radius: 999px; }
+.device-map-card__legend-shape.shape-pill { width: 13px; border-radius: var(--card-radius); }
 .device-map-card__legend-shape.shape-hex {
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
@@ -395,7 +395,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   width: 12px;
   height: 12px;
   background: transparent;
-  box-shadow: none;
+  box-shadow: var(--card-shadow);
 }
 .device-map-card__legend-shape.shape-cross::before,
 .device-map-card__legend-shape.shape-cross::after {
@@ -403,7 +403,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   position: absolute;
   inset: 0;
   margin: auto;
-  border-radius: 3px;
+  border-radius: var(--card-radius);
   background: var(--legend-color);
 }
 .device-map-card__legend-shape.shape-cross::before {
@@ -448,7 +448,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   content: '';
   position: absolute;
   inset: -6px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   border: 1px solid transparent;
   opacity: 0;
   transform: scale(.94);
@@ -460,7 +460,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   top: 50%;
   width: 18px;
   height: 2px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: var(--marker-color);
   opacity: 0.7;
   transform: translateY(-50%);
@@ -477,12 +477,12 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   height: 16px;
   background: var(--marker-color);
   border: 2px solid var(--marker-ring);
-  box-shadow: 0 0 0 3px rgba(7,20,34,.88), 0 0 16px color-mix(in srgb, var(--marker-color) 65%, transparent);
+  box-shadow: var(--card-shadow);
   transition: box-shadow .18s ease, opacity .18s ease, transform .18s ease;
 }
-.device-map-card__marker.shape-circle .device-map-card__marker-dot { border-radius: 999px; }
-.device-map-card__marker.shape-square .device-map-card__marker-dot { border-radius: 4px; }
-.device-map-card__marker.shape-diamond .device-map-card__marker-dot { border-radius: 4px; transform: rotate(45deg); }
+.device-map-card__marker.shape-circle .device-map-card__marker-dot { border-radius: var(--card-radius); }
+.device-map-card__marker.shape-square .device-map-card__marker-dot { border-radius: var(--card-radius); }
+.device-map-card__marker.shape-diamond .device-map-card__marker-dot { border-radius: var(--card-radius); transform: rotate(45deg); }
 .device-map-card__marker.shape-triangle .device-map-card__marker-dot {
   width: 0;
   height: 0;
@@ -492,7 +492,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   border-top: 0;
   border-radius: 0;
   background: transparent;
-  box-shadow: none;
+  box-shadow: var(--card-shadow);
   position: relative;
 }
 .device-map-card__marker.shape-triangle .device-map-card__marker-dot::after {
@@ -504,7 +504,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   border-right: 7px solid transparent;
   border-bottom: 12px solid rgba(7,20,34,.92);
 }
-.device-map-card__marker.shape-pill .device-map-card__marker-dot { border-radius: 999px; width: 18px; }
+.device-map-card__marker.shape-pill .device-map-card__marker-dot { border-radius: var(--card-radius); width: 18px; }
 .device-map-card__marker.shape-hex .device-map-card__marker-dot {
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
@@ -512,7 +512,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   position: relative;
   background: transparent;
   border: none;
-  box-shadow: none;
+  box-shadow: var(--card-shadow);
 }
 .device-map-card__marker.shape-cross .device-map-card__marker-dot::before,
 .device-map-card__marker.shape-cross .device-map-card__marker-dot::after {
@@ -522,17 +522,17 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   margin: auto;
   background: var(--marker-color);
   border: 2px solid var(--marker-ring);
-  box-shadow: 0 0 0 2px rgba(7,20,34,.88);
+  box-shadow: var(--card-shadow);
 }
 .device-map-card__marker.shape-cross .device-map-card__marker-dot::before {
   width: 16px;
   height: 6px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
 }
 .device-map-card__marker.shape-cross .device-map-card__marker-dot::after {
   width: 6px;
   height: 16px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
 }
 .device-map-card__marker.is-high::after,
 .device-map-card__marker.is-critical::after {
@@ -556,21 +556,18 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   opacity: 1;
 }
 .device-map-card__marker.is-active .device-map-card__marker-dot {
-  box-shadow:
-    0 0 0 3px rgba(7,20,34,.92),
-    0 0 0 6px color-mix(in srgb, var(--marker-ring) 18%, transparent),
-    0 0 18px color-mix(in srgb, var(--marker-color) 72%, transparent);
+  box-shadow: var(--card-shadow);
 }
 .device-map-card__tooltip {
   position: absolute;
   min-width: 170px;
   max-width: 220px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.16);
-  background: rgba(7,20,34,.96);
-  box-shadow: 0 16px 28px rgba(0,0,0,.28);
-  color: #dffbff;
+  background: var(--bg-surface),.96);
+  box-shadow: var(--card-shadow);
+  color: var(--text-primary);
   pointer-events: none;
 }
 .device-map-card__marker.dir-left .device-map-card__tooltip {
@@ -591,12 +588,12 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   gap: 8px;
 }
 .device-map-card__tooltip-head strong {
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 13px;
 }
 .device-map-card__tooltip-head span,
 .device-map-card__tooltip-meta {
-  color: #8fb8ca;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 .device-map-card__tooltip-body {
@@ -622,7 +619,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   width: 6px;
 }
 .device-map-card__list::-webkit-scrollbar-thumb {
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: rgba(80,199,255,.18);
 }
 .device-map-card__list::-webkit-scrollbar-track {
@@ -632,8 +629,8 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   min-width: 0;
   width: 100%;
   padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(8, 28, 44, 0.72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.72);
   border: 1px solid rgba(80,199,255,.12);
   text-align: left;
   cursor: pointer;
@@ -647,7 +644,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   top: 10px;
   bottom: 10px;
   width: 3px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: var(--item-accent, rgba(80,199,255,.24));
   opacity: .7;
 }
@@ -658,10 +655,10 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 .device-map-card__item.is-active {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--item-ring) 58%, rgba(80,199,255,.14));
-  box-shadow: 0 10px 20px rgba(0,0,0,.16);
+  box-shadow: var(--card-shadow);
 }
 .device-map-card__item strong {
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 13px;
 }
 .device-map-card__item-tags {
@@ -673,7 +670,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 .device-map-card__item-top span,
 .device-map-card__item-meta,
 .device-map-card__empty {
-  color: #8fb8ca;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .device-map-card__item-meta {
@@ -682,13 +679,13 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 }
 .device-map-card__empty {
   padding: 14px;
-  border-radius: 12px;
-  background: rgba(8, 28, 44, 0.72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.72);
   border: 1px dashed rgba(80,199,255,.16);
 }
 html[data-theme='light'] .device-map-card__title,
 html[data-theme='light'] .device-map-card__item strong {
-  color: #17324a;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__legend-label {
   color: #4c7088;
@@ -697,7 +694,7 @@ html[data-theme='light'] .device-map-card__legend-item,
 html[data-theme='light'] .device-map-card__item-tags span {
   background: rgba(255,255,255,.94);
   border-color: rgba(130, 170, 194, 0.24);
-  color: #56748d;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__list::-webkit-scrollbar-thumb {
   background: rgba(130, 170, 194, 0.5);
@@ -710,16 +707,16 @@ html[data-theme='light'] .device-map-card__empty {
 }
 html[data-theme='light'] .device-map-card__item.is-active,
 html[data-theme='light'] .device-map-card__item:hover {
-  box-shadow: 0 8px 16px rgba(37,99,235,.12);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .device-map-card__count {
-  color: #27445b;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__item-top span,
 html[data-theme='light'] .device-map-card__item-meta,
 html[data-theme='light'] .device-map-card__empty,
 html[data-theme='light'] .device-map-card__kicker {
-  color: #56748d;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__figure :deep(.organ-heatmap__svg) {
   filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.12));
@@ -727,18 +724,18 @@ html[data-theme='light'] .device-map-card__figure :deep(.organ-heatmap__svg) {
 html[data-theme='light'] .device-map-card__tooltip {
   background: rgba(255,255,255,.98);
   border-color: rgba(130, 170, 194, 0.34);
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
-  color: #27445b;
+  box-shadow: var(--card-shadow);
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__tooltip-head strong {
-  color: #17324a;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__tooltip-head span,
 html[data-theme='light'] .device-map-card__tooltip-meta {
-  color: #56748d;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__tooltip-body {
-  color: #27445b;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__tooltip-meta {
   border-top-color: rgba(130, 170, 194, 0.2);

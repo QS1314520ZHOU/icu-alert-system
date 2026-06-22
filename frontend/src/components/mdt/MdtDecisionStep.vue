@@ -155,8 +155,8 @@ function decisionStatusLabel(status: any) {
 <style scoped>
 .mdt-step-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.66);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.66);
 }
 .step-card__head,
 .decision-item__head,
@@ -174,11 +174,11 @@ function decisionStatusLabel(status: any) {
 }
 h2 {
   margin: 4px 0 6px;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 p {
   margin: 0;
-  color: #fed7aa;
+  color: var(--warning-soft);
   line-height: 1.55;
 }
 .decision-metrics {
@@ -189,8 +189,8 @@ p {
 }
 .decision-metrics article {
   padding: 12px;
-  border-radius: 10px;
-  background: rgba(2, 6, 23, 0.3);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.3);
 }
 .decision-metrics span {
   color: rgba(148, 163, 184, 0.82);
@@ -198,7 +198,7 @@ p {
 .decision-metrics strong {
   display: block;
   margin-top: 4px;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 22px;
 }
 .decision-list {
@@ -208,8 +208,8 @@ p {
 .decision-item {
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 10px;
-  background: rgba(2, 6, 23, 0.28);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.28);
 }
 .decision-item.is-pending_confirmation,
 .decision-item.is-needs_revision {
@@ -220,13 +220,13 @@ p {
 }
 .decision-item__head {
   margin-bottom: 10px;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 .decision-item__head span {
   padding: 4px 9px;
-  border-radius: 999px;
-  color: #cbd5e1;
-  background: rgba(30, 41, 59, 0.82);
+  border-radius: var(--card-radius);
+  color: var(--text-secondary);
+  background: var(--bg-surface), 0.82);
 }
 .decision-form-grid {
   display: grid;
@@ -238,14 +238,14 @@ p {
 .field-textarea {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 10px 12px;
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.92);
+  color: var(--text-primary);
+  background: var(--bg-surface), 0.92);
 }
 .decision-safety {
   margin: 8px 0;
-  color: #fed7aa;
+  color: var(--warning-soft);
   font-size: 13px;
 }
 .decision-actions {
@@ -266,40 +266,40 @@ p {
 
 :global(html[data-theme='light']) .mdt-step-card,
 :global(html[data-theme='light']) .decision-item {
-  border-color: #dbeafe;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) .step-kicker {
-  color: #0284c7;
+  color: var(--brand);
 }
 :global(html[data-theme='light']) h2,
 :global(html[data-theme='light']) .decision-metrics strong,
 :global(html[data-theme='light']) .decision-item__head {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) p,
 :global(html[data-theme='light']) .decision-metrics span {
-  color: #475569;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .decision-metrics article,
 :global(html[data-theme='light']) .decision-item__head span {
-  background: #f1f5f9;
+  background: var(--bg-surface-2);
 }
 :global(html[data-theme='light']) .decision-item__head span {
-  color: #334155;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) .field-input,
 :global(html[data-theme='light']) .field-textarea {
-  color: #0f172a;
-  border-color: #cbd5e1;
-  background: #ffffff;
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .field-input::placeholder,
 :global(html[data-theme='light']) .field-textarea::placeholder {
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .decision-safety {
-  color: #9a3412;
+  color: var(--danger-strong);
 }
 </style>

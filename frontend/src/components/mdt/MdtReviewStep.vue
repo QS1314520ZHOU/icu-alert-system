@@ -162,8 +162,8 @@ function formatAgents(agents: any) {
 .mdt-step-card,
 .review-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.66);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.66);
 }
 .step-card__head,
 .review-card__head,
@@ -182,7 +182,7 @@ function formatAgents(agents: any) {
 }
 h2 {
   margin: 4px 0 6px;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 p {
   margin: 0;
@@ -202,7 +202,7 @@ p {
 .review-card b {
   display: block;
   margin: 6px 0;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 18px;
 }
 .compact-list {
@@ -211,8 +211,8 @@ p {
 }
 .compact-list div {
   padding: 10px;
-  border-radius: 8px;
-  background: rgba(2, 6, 23, 0.3);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.3);
 }
 .compact-list strong {
   margin: 0;
@@ -232,12 +232,12 @@ p {
 .system-card {
   min-height: 118px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   padding: 12px;
-  color: #e2e8f0;
+  color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
-  background: rgba(2, 6, 23, 0.3);
+  background: var(--bg-surface), 0.3);
 }
 .system-card.is-active {
   border-color: rgba(56, 189, 248, 0.62);
@@ -254,7 +254,7 @@ p {
 }
 .system-card strong {
   margin: 6px 0;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 .system-card small {
   color: rgba(203, 213, 225, 0.68);
@@ -262,9 +262,9 @@ p {
 }
 .detail-collapse {
   margin-top: 16px;
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   overflow: hidden;
-  background: rgba(2, 6, 23, 0.28);
+  background: var(--bg-surface), 0.28);
 }
 .detail-stack {
   display: grid;
@@ -278,10 +278,10 @@ p {
 }
 .chip-row em {
   padding: 6px 10px;
-  border-radius: 999px;
-  color: #cbd5e1;
+  border-radius: var(--card-radius);
+  color: var(--text-secondary);
   font-style: normal;
-  background: rgba(30, 41, 59, 0.82);
+  background: var(--bg-surface), 0.82);
 }
 .step-actions {
   margin-top: 16px;
@@ -298,41 +298,41 @@ p {
 :global(html[data-theme='light']) .mdt-step-card,
 :global(html[data-theme='light']) .review-card,
 :global(html[data-theme='light']) .system-card {
-  border-color: #dbeafe;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) .step-kicker,
 :global(html[data-theme='light']) .review-card span,
 :global(html[data-theme='light']) .detail-stack span {
-  color: #0284c7;
+  color: var(--brand);
 }
 :global(html[data-theme='light']) h2,
 :global(html[data-theme='light']) .review-card strong,
 :global(html[data-theme='light']) .review-card b,
 :global(html[data-theme='light']) .system-card strong {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) p,
 :global(html[data-theme='light']) .system-card,
 :global(html[data-theme='light']) .detail-stack {
-  color: #475569;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .compact-list div,
 :global(html[data-theme='light']) .chip-row em {
-  background: #f1f5f9;
+  background: var(--bg-surface-2);
 }
 :global(html[data-theme='light']) .compact-list small,
 :global(html[data-theme='light']) .empty-box,
 :global(html[data-theme='light']) .step-actions span,
 :global(html[data-theme='light']) .system-card small {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .system-card.is-active {
-  border-color: #38bdf8;
-  background: #e0f2fe;
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .detail-collapse {
-  background: #ffffff;
+  background: var(--bg-surface);
 }
 </style>

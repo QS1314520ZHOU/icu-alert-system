@@ -128,8 +128,8 @@ void ACard
 .mdt-step-card,
 .archive-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.66);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.66);
 }
 .step-card__head,
 .step-actions {
@@ -147,7 +147,7 @@ void ACard
 }
 h2 {
   margin: 4px 0 6px;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 p {
   margin: 0;
@@ -172,10 +172,10 @@ p {
   width: 100%;
   margin-top: 8px;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 10px 12px;
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.92);
+  color: var(--text-primary);
+  background: var(--bg-surface), 0.92);
 }
 .field-textarea--document {
   min-height: 180px;
@@ -184,13 +184,13 @@ p {
 .auto-summary {
   margin-top: 12px;
   padding: 12px;
-  border-radius: 10px;
-  background: rgba(2, 6, 23, 0.3);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.3);
 }
 .auto-summary strong,
 .document-grid strong {
   display: block;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 .document-grid {
   display: grid;
@@ -217,8 +217,8 @@ p {
   color: rgba(226, 232, 240, 0.86);
   line-height: 1.7;
   padding: 12px;
-  border-radius: 10px;
-  background: rgba(2, 6, 23, 0.3);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.3);
 }
 .doc-empty {
   margin-top: 10px;
@@ -226,8 +226,8 @@ p {
 }
 .document-grid article {
   padding: 12px;
-  border-radius: 10px;
-  background: rgba(2, 6, 23, 0.3);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.3);
 }
 .document-grid small {
   color: rgba(148, 163, 184, 0.82);
@@ -247,40 +247,40 @@ p {
 :global(html[data-theme='light']) .mdt-step-card,
 :global(html[data-theme='light']) .archive-card {
   border-color: rgba(15, 23, 42, 0.1);
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  background: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) h2,
 :global(html[data-theme='light']) .auto-summary strong,
 :global(html[data-theme='light']) .document-grid strong {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) p,
 :global(html[data-theme='light']) .doc-preview {
-  color: #334155;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) .step-kicker,
 :global(html[data-theme='light']) .archive-card span,
 :global(html[data-theme='light']) .document-grid span {
-  color: #0369a1;
+  color: var(--brand);
 }
 :global(html[data-theme='light']) .field-input,
 :global(html[data-theme='light']) .field-textarea {
   border-color: rgba(15, 23, 42, 0.14);
-  color: #0f172a;
-  background: #f8fafc;
+  color: var(--text-primary);
+  background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .field-input::placeholder,
 :global(html[data-theme='light']) .field-textarea::placeholder {
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .auto-summary,
 :global(html[data-theme='light']) .document-grid article,
 :global(html[data-theme='light']) .doc-preview {
-  background: #f1f5f9;
+  background: var(--bg-surface-2);
 }
 :global(html[data-theme='light']) .document-grid small,
 :global(html[data-theme='light']) .doc-empty {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 </style>

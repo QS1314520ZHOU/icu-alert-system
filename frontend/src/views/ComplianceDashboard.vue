@@ -326,7 +326,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .dashboard-header strong {
-  color: #f8fbff;
+  color: var(--text-primary);
   font-size: 18px;
 }
 
@@ -338,19 +338,19 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 .header-actions select {
   min-height: 36px;
   padding: 0 10px;
-  border-radius: 6px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: rgba(13, 44, 66, .78);
-  color: #eafcff;
+  background: var(--bg-surface), .78);
+  color: var(--text-primary);
 }
 
 .header-actions button {
   min-height: 36px;
   padding: 0 12px;
-  border-radius: 6px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: rgba(13, 44, 66, .78);
-  color: #eafcff;
+  background: var(--bg-surface), .78);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
@@ -362,13 +362,13 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 .loading, .error, .empty {
   padding: 20px;
   text-align: center;
-  border-radius: 8px;
-  background: rgba(11, 33, 50, .58);
-  color: #91adbd;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .58);
+  color: var(--text-secondary);
 }
 
 .error {
-  color: #fecaca;
+  color: var(--danger-soft);
 }
 
 .overview-cards {
@@ -379,26 +379,26 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .overview-card {
   padding: 16px;
-  border-radius: 8px;
-  background: rgba(6, 18, 31, .74);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .74);
   border: 1px solid rgba(125, 211, 252, .14);
 }
 
 .overview-card span {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 12px;
   display: block;
 }
 
 .overview-card strong {
-  color: #f8fbff;
+  color: var(--text-primary);
   font-size: 28px;
   display: block;
   margin: 8px 0 4px;
 }
 
 .overview-card em {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
   font-style: normal;
 }
@@ -416,9 +416,9 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .section {
-  background: rgba(6, 18, 31, .74);
+  background: var(--bg-surface), .74);
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 16px;
 }
 
@@ -430,12 +430,12 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .section-header strong {
-  color: #f4fbff;
+  color: var(--text-primary);
   font-size: 15px;
 }
 
 .section-header span {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -455,19 +455,19 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   content: '';
   width: 12px;
   height: 12px;
-  border-radius: 2px;
+  border-radius: var(--card-radius);
 }
 
 .legend-item.good::before {
-  background: #34d399;
+  background: var(--chart-2);
 }
 
 .legend-item.warn::before {
-  background: #fbbf24;
+  background: var(--warning);
 }
 
 .legend-item.bad::before {
-  background: #ef4444;
+  background: var(--danger);
 }
 
 .legend-item.empty::before {
@@ -490,14 +490,14 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .heatmap-label {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
   display: flex;
   align-items: center;
 }
 
 .heatmap-type-label {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
   text-align: center;
   padding: 4px;
@@ -511,7 +511,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .heatmap-hour {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -519,7 +519,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .heatmap-cell {
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   text-align: center;
   font-size: 12px;
   font-weight: 600;
@@ -533,17 +533,17 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .heatmap-cell.good {
   background: rgba(52, 211, 153, .3);
-  color: #34d399;
+  color: var(--chart-2);
 }
 
 .heatmap-cell.warn {
   background: rgba(251, 191, 36, .3);
-  color: #fbbf24;
+  color: var(--warning);
 }
 
 .heatmap-cell.bad {
   background: rgba(239, 68, 68, .3);
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .heatmap-cell.empty {
@@ -562,14 +562,14 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   gap: 12px;
   align-items: center;
   padding: 12px;
-  border-radius: 8px;
-  background: rgba(11, 33, 50, .72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .72);
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .overdue-item:hover {
-  background: rgba(11, 33, 50, .9);
+  background: var(--bg-surface), .9);
 }
 
 .overdue-item.severity-critical {
@@ -585,13 +585,13 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .overdue-bed strong {
-  color: #f8fbff;
+  color: var(--text-primary);
   font-size: 16px;
   display: block;
 }
 
 .overdue-bed span {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -602,7 +602,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .overdue-count {
-  color: #f8fbff;
+  color: var(--text-primary);
   font-size: 13px;
 }
 
@@ -614,14 +614,14 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .type-tag {
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   background: rgba(125, 211, 252, .15);
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
 .overdue-time {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
   text-align: right;
 }
@@ -633,8 +633,8 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .comparison-item {
   padding: 12px;
-  border-radius: 8px;
-  background: rgba(11, 33, 50, .72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), .72);
 }
 
 .comparison-header {
@@ -645,12 +645,12 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .comparison-header strong {
-  color: #f8fbff;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .interval {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
@@ -668,25 +668,25 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .bar-label {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
 .bar-track {
   height: 20px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   background: rgba(148, 163, 184, .15);
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   transition: width 0.3s ease;
 }
 
 .bar-fill.current {
-  background: linear-gradient(90deg, #38bdf8, #34d399);
+  background: var(--bg-surface);
 }
 
 .bar-fill.previous {
@@ -694,7 +694,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .bar-value {
-  color: #f8fbff;
+  color: var(--text-primary);
   font-size: 12px;
   text-align: right;
 }
@@ -705,16 +705,16 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .comparison-stats span {
-  color: #91adbd;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
 .trend-up {
-  color: #34d399 !important;
+  color: var(--chart-2) !important;
 }
 
 .trend-down {
-  color: #ef4444 !important;
+  color: var(--danger) !important;
 }
 
 @media (max-width: 768px) {
@@ -743,7 +743,7 @@ html[data-theme='light'] .comparison-header strong,
 html[data-theme='light'] .overdue-bed strong,
 html[data-theme='light'] .overdue-count,
 html[data-theme='light'] .bar-value {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 html[data-theme='light'] .overview-card,
@@ -754,33 +754,33 @@ html[data-theme='light'] .section {
 
 html[data-theme='light'] .overdue-item,
 html[data-theme='light'] .comparison-item {
-  background: #f8fafc;
+  background: var(--bg-surface);
 }
 
 html[data-theme='light'] .header-actions select,
 html[data-theme='light'] .header-actions button {
-  background: #eff6ff;
+  background: var(--bg-surface);
   border-color: rgba(37, 99, 235, 0.18);
-  color: #1d4ed8;
+  color: var(--brand);
 }
 
 html[data-theme='light'] .heatmap-cell.good {
   background: rgba(52, 211, 153, .2);
-  color: #059669;
+  color: var(--chart-2);
 }
 
 html[data-theme='light'] .heatmap-cell.warn {
   background: rgba(251, 191, 36, .2);
-  color: #d97706;
+  color: var(--warning);
 }
 
 html[data-theme='light'] .heatmap-cell.bad {
   background: rgba(239, 68, 68, .2);
-  color: #dc2626;
+  color: var(--danger);
 }
 
 html[data-theme='light'] .bar-fill.current {
-  background: linear-gradient(90deg, #3b82f6, #10b981);
+  background: var(--bg-surface);
 }
 
 html[data-theme='light'] .bar-fill.previous {
@@ -790,11 +790,11 @@ html[data-theme='light'] .bar-fill.previous {
 html[data-theme='light'] .loading,
 html[data-theme='light'] .error,
 html[data-theme='light'] .empty {
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
 }
 
 html[data-theme='light'] .error {
-  color: #dc2626;
+  color: var(--danger);
 }
 </style>

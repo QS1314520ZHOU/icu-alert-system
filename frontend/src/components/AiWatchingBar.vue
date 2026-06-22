@@ -137,10 +137,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: linear-gradient(180deg, rgba(8, 31, 47, 0.88), rgba(6, 22, 36, 0.9));
-  color: #dffbff;
+  background: var(--bg-surface), var(--bg-surface));
+  color: var(--text-primary);
   cursor: pointer;
 }
 .watching-icon {
@@ -149,10 +149,10 @@ onUnmounted(() => {
   gap: 6px;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(103, 232, 249, 0.16);
-  background: rgba(8, 40, 58, 0.86);
-  color: #67e8f9;
+  background: var(--bg-surface), 0.86);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 900;
 }
@@ -160,8 +160,8 @@ onUnmounted(() => {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #22d3ee;
-  box-shadow: 0 0 0 rgba(34, 211, 238, 0.55);
+  background: var(--brand);
+  box-shadow: var(--card-shadow);
   animation: watching-pulse 1.7s infinite;
 }
 .watching-track {
@@ -179,21 +179,21 @@ onUnmounted(() => {
 .watching-badge {
   min-width: 22px;
   height: 22px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   background: rgba(251, 90, 122, 0.18);
   border: 1px solid rgba(251, 90, 122, 0.24);
-  color: #fda4af;
+  color: var(--danger-soft);
   text-align: center;
   line-height: 20px;
   font-size: 11px;
   font-weight: 900;
 }
 .watching-panel {
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: linear-gradient(180deg, rgba(7, 20, 34, 0.96), rgba(4, 12, 22, 0.98));
+  background: var(--bg-surface), var(--bg-surface));
   padding: 12px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--card-shadow);
 }
 .watching-stats {
   display: grid;
@@ -204,16 +204,16 @@ onUnmounted(() => {
   display: grid;
   gap: 4px;
   padding: 8px;
-  border-radius: 9px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.1);
-  background: rgba(8, 31, 47, 0.72);
+  background: var(--bg-surface), 0.72);
 }
 .watching-stats span {
-  color: #7ecce1;
+  color: var(--accent);
   font-size: 10px;
 }
 .watching-stats strong {
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 16px;
 }
 .watching-findings {
@@ -227,31 +227,31 @@ onUnmounted(() => {
   gap: 10px;
   align-items: center;
   padding: 9px 10px;
-  border-radius: 9px;
-  background: rgba(8, 31, 47, 0.72);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.72);
   border: 1px solid rgba(80, 199, 255, 0.1);
 }
 .finding-headline {
-  color: #dffbff;
+  color: var(--text-primary);
   font-size: 12px;
   line-height: 1.5;
 }
 .watching-findings button {
   min-height: 28px;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(34, 211, 238, 0.28);
   background: rgba(8, 145, 178, 0.18);
-  color: #a5f3fc;
+  color: var(--accent);
   cursor: pointer;
   white-space: nowrap;
 }
 .watching-saved {
   margin-top: 10px;
-  color: #9cc9d8;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .watching-saved strong {
-  color: #67e8f9;
+  color: var(--accent);
 }
 .watching-fade-enter-active,
 .watching-fade-leave-active,
@@ -270,27 +270,27 @@ onUnmounted(() => {
   transform: translateY(-6px);
 }
 @keyframes watching-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.42); }
-  70% { box-shadow: 0 0 0 7px rgba(34, 211, 238, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+  0% { box-shadow: var(--card-shadow); }
+  70% { box-shadow: var(--card-shadow); }
+  100% { box-shadow: var(--card-shadow); }
 }
 html[data-theme='light'] .ai-watching-bar,
 html[data-theme='light'] .watching-panel,
 html[data-theme='light'] .watching-stats div,
 html[data-theme='light'] .watching-findings article {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.06);
-  box-shadow: none;
+  background: var(--bg-surface);
+  border-color: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .watching-text,
 html[data-theme='light'] .finding-headline,
 html[data-theme='light'] .watching-stats strong {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 html[data-theme='light'] .watching-icon {
-  background: #eff6ff;
+  background: var(--bg-surface);
   border-color: rgba(37, 99, 235, 0.16);
-  color: #2563eb;
+  color: var(--brand);
 }
 @media (max-width: 860px) {
   .watching-stats {

@@ -194,7 +194,7 @@ const metricBadges = computed(() => {
   gap: 10px;
 }
 .twin-avatar-panel__kicker {
-  color: #7ed6eb;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .14em;
@@ -202,12 +202,12 @@ const metricBadges = computed(() => {
 }
 .twin-avatar-panel__title {
   margin-top: 4px;
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 800;
 }
 .twin-avatar-panel__time {
-  color: #8fb8ca;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .twin-avatar-panel__metrics {
@@ -219,9 +219,9 @@ const metricBadges = computed(() => {
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: rgba(8, 28, 44, 0.72);
+  background: var(--bg-surface), 0.72);
 }
 .twin-avatar-panel__metric.is-warning { border-color: rgba(245,158,11,.22); }
 .twin-avatar-panel__metric.is-high { border-color: rgba(249,115,22,.24); }
@@ -234,7 +234,7 @@ const metricBadges = computed(() => {
 }
 .twin-avatar-panel__metric-head strong,
 .twin-avatar-panel__metric-value {
-  color: #effcff;
+  color: var(--text-primary);
 }
 .twin-avatar-panel__metric-head strong {
   font-size: 13px;
@@ -245,18 +245,18 @@ const metricBadges = computed(() => {
 }
 .twin-avatar-panel__metric-meta,
 .twin-avatar-panel__trend {
-  color: #8fb8ca;
+  color: var(--text-secondary);
   font-size: 11px;
 }
-.twin-avatar-panel__trend.is-up { color: #fb7185; }
-.twin-avatar-panel__trend.is-down { color: #67e8f9; }
+.twin-avatar-panel__trend.is-up { color: var(--danger); }
+.twin-avatar-panel__trend.is-down { color: var(--accent); }
 .twin-avatar-panel__trend.is-stable { color: #44f0a9; }
 html[data-theme='light'] .twin-avatar-panel__title {
-  color: #17324a;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .twin-avatar-panel__kicker,
 html[data-theme='light'] .twin-avatar-panel__time {
-  color: #56748d;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .twin-avatar-panel__metric {
   background: rgba(255,255,255,.94);
@@ -264,9 +264,9 @@ html[data-theme='light'] .twin-avatar-panel__metric {
 }
 html[data-theme='light'] .twin-avatar-panel__metric-head strong,
 html[data-theme='light'] .twin-avatar-panel__metric-value {
-  color: #17324a;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .twin-avatar-panel__metric-meta {
-  color: #56748d;
+  color: var(--text-secondary);
 }
 </style>

@@ -516,7 +516,7 @@ watch(
 .cb-mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--bg-surface), 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -526,14 +526,14 @@ watch(
   width: 900px;
   max-height: 80vh;
   overflow-y: auto;
-  background: linear-gradient(180deg, #0a1628 0%, #081224 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(0, 210, 210, 0.22);
-  border-radius: 14px;
+  border-radius: var(--card-radius);
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--card-shadow);
   position: relative;
   pointer-events: auto;
 }
@@ -558,9 +558,9 @@ watch(
   color: #9ceeff;
 }
 .cb-section {
-  background: rgba(8, 24, 40, 0.58);
+  background: var(--bg-surface), 0.58);
   border: 1px solid rgba(0, 210, 210, 0.15);
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -585,7 +585,7 @@ watch(
 .preset-row :deep(.ant-btn.active) {
   border-color: rgba(0, 210, 210, 0.7);
   color: #8ef6ff;
-  box-shadow: 0 0 0 2px rgba(0, 210, 210, 0.15);
+  box-shadow: var(--card-shadow);
 }
 .filter-head {
   display: flex;
@@ -620,7 +620,7 @@ watch(
 .filter-row :deep(.ant-input-number),
 .filter-row :deep(.ant-input),
 .cb-footer :deep(.ant-input) {
-  background: rgba(0, 0, 0, 0.3) !important;
+  background: var(--bg-surface), 0.3) !important;
   border-color: rgba(0, 210, 210, 0.24) !important;
 }
 .filter-row :deep(.ant-select-selection-item),
@@ -637,7 +637,7 @@ watch(
 .remove-btn {
   min-width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--card-radius);
   color: rgba(255, 180, 180, 0.9);
 }
 .remove-btn:hover {
@@ -665,8 +665,8 @@ watch(
   margin-bottom: 12px;
 }
 .demo-grid div {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  background: var(--bg-surface), 0.2);
+  border-radius: var(--card-radius);
   padding: 10px;
   color: var(--text-secondary);
 }
@@ -681,7 +681,7 @@ watch(
 }
 .demo-grid strong {
   display: block;
-  color: #fff;
+  color: var(--text-primary);
   margin-top: 4px;
 }
 .preview-table :deep(.ant-table-thead > tr > th),
@@ -699,7 +699,7 @@ watch(
   border-top: 1px solid var(--border-color);
   position: sticky;
   bottom: 0;
-  background: rgba(7, 18, 32, 0.95);
+  background: var(--bg-surface), 0.95);
   backdrop-filter: blur(6px);
   padding-bottom: 4px;
 }
@@ -719,27 +719,27 @@ watch(
 }
 
 /* Light mode overrides */
-html[data-theme='light'] .cb-panel { background: #ffffff; border-color: rgba(187,204,220,0.72); box-shadow: 0 14px 40px rgba(15,23,42,0.1); }
-html[data-theme='light'] .cb-header h3 { color: #16324f; }
-html[data-theme='light'] .cb-header p { color: #6a8098; }
-html[data-theme='light'] .cb-close { color: #6a8098; }
-html[data-theme='light'] .cb-close:hover { color: #16324f; }
+html[data-theme='light'] .cb-panel { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .cb-header h3 { color: var(--text-secondary); }
+html[data-theme='light'] .cb-header p { color: var(--text-secondary); }
+html[data-theme='light'] .cb-close { color: var(--text-secondary); }
+html[data-theme='light'] .cb-close:hover { color: var(--text-secondary); }
 html[data-theme='light'] .cb-section { background: rgba(243, 248, 252, 0.96); border-color: rgba(187,204,220,0.72); }
-html[data-theme='light'] .cb-section-head { color: #16324f; }
-html[data-theme='light'] .preset-btn { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #47627e; }
-html[data-theme='light'] .preset-row :deep(.ant-btn.active) { border-color: #3b82f6; color: #1d4ed8; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
-html[data-theme='light'] .filter-head { color: #16324f; }
-html[data-theme='light'] .add-btn { background: #ffffff; border-color: rgba(187,204,220,0.72); color: #2563eb; }
+html[data-theme='light'] .cb-section-head { color: var(--text-secondary); }
+html[data-theme='light'] .preset-btn { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
+html[data-theme='light'] .preset-row :deep(.ant-btn.active) { border-color: var(--brand); color: var(--brand); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .filter-head { color: var(--text-secondary); }
+html[data-theme='light'] .add-btn { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--brand); }
 html[data-theme='light'] .filter-row { border-bottom-color: rgba(187,204,220,0.4); }
-html[data-theme='light'] .row-index { color: #6f8399; }
-html[data-theme='light'] .filter-row :deep(.ant-select-selector), html[data-theme='light'] .filter-row :deep(.ant-input-number), html[data-theme='light'] .filter-row :deep(.ant-input), html[data-theme='light'] .cb-footer :deep(.ant-input) { background: #ffffff !important; border-color: rgba(187,204,220,0.72) !important; color: #223a54 !important; }
-html[data-theme='light'] .filter-row :deep(.ant-select-selection-item), html[data-theme='light'] .filter-row :deep(.ant-select-selection-placeholder), html[data-theme='light'] .filter-row :deep(.ant-input-number-input), html[data-theme='light'] .filter-row :deep(.ant-input), html[data-theme='light'] .cb-footer :deep(.ant-input) { color: #223a54 !important; }
-html[data-theme='light'] .remove-btn { color: #ef4444; }
-html[data-theme='light'] .remove-btn:hover { background: rgba(239,68,68,0.12); color: #b91c1c; }
-html[data-theme='light'] .cb-loading, html[data-theme='light'] .cb-empty { color: #6a8098; }
-html[data-theme='light'] .cb-empty { color: #d97706; }
-html[data-theme='light'] .demo-grid div { background: #ffffff; border: 1px solid rgba(187,204,220,0.72); color: #6f8399; }
-html[data-theme='light'] .demo-grid strong { color: #16324f; }
+html[data-theme='light'] .row-index { color: var(--text-secondary); }
+html[data-theme='light'] .filter-row :deep(.ant-select-selector), html[data-theme='light'] .filter-row :deep(.ant-input-number), html[data-theme='light'] .filter-row :deep(.ant-input), html[data-theme='light'] .cb-footer :deep(.ant-input) { background: var(--bg-surface) !important; border-color: rgba(187,204,220,0.72) !important; color: var(--text-secondary) !important; }
+html[data-theme='light'] .filter-row :deep(.ant-select-selection-item), html[data-theme='light'] .filter-row :deep(.ant-select-selection-placeholder), html[data-theme='light'] .filter-row :deep(.ant-input-number-input), html[data-theme='light'] .filter-row :deep(.ant-input), html[data-theme='light'] .cb-footer :deep(.ant-input) { color: var(--text-secondary) !important; }
+html[data-theme='light'] .remove-btn { color: var(--danger); }
+html[data-theme='light'] .remove-btn:hover { background: rgba(239,68,68,0.12); color: var(--danger); }
+html[data-theme='light'] .cb-loading, html[data-theme='light'] .cb-empty { color: var(--text-secondary); }
+html[data-theme='light'] .cb-empty { color: var(--warning); }
+html[data-theme='light'] .demo-grid div { background: var(--bg-surface); border: 1px solid rgba(187,204,220,0.72); color: var(--text-secondary); }
+html[data-theme='light'] .demo-grid strong { color: var(--text-secondary); }
 html[data-theme='light'] .cb-footer { border-top-color: rgba(187,204,220,0.4); background: rgba(255,255,255,0.95); }
-html[data-theme='light'] .cb-name-row { color: #47627e; }
+html[data-theme='light'] .cb-name-row { color: var(--text-secondary); }
 </style>

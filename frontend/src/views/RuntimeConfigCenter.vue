@@ -336,30 +336,30 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 
 <style scoped>
 .runtime-page { display: grid; gap: 12px; padding: 14px; font-family: var(--app-display-font); }
-.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid rgba(125,211,252,.14); background: rgba(7,18,31,.92); border-radius: 10px; }
+.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface),.92); border-radius: var(--card-radius); }
 .runtime-header { display: flex; justify-content: space-between; gap: 16px; padding: 16px; }
-.runtime-header span, .runtime-header p, .panel-toolbar span, .metric-card span, .table-row span, .sub-panel h3 { color: #8aa4b8; }
-.runtime-header h1 { margin: 2px 0; color: #ecfeff; font-size: 26px; }
+.runtime-header span, .runtime-header p, .panel-toolbar span, .metric-card span, .table-row span, .sub-panel h3 { color: var(--text-secondary); }
+.runtime-header h1 { margin: 2px 0; color: var(--text-primary); font-size: 26px; }
 .runtime-header p { margin: 0; }
 .header-actions, .toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .runtime-tabs { display: flex; gap: 6px; padding: 6px; overflow-x: auto; }
-.runtime-tabs button { min-width: 120px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #9cc7d8; padding: 8px 10px; text-align: left; cursor: pointer; }
-.runtime-tabs button strong { display: block; color: #dff7ff; }
+.runtime-tabs button { min-width: 120px; border: 1px solid transparent; border-radius: var(--card-radius); background: transparent; color: var(--text-secondary); padding: 8px 10px; text-align: left; cursor: pointer; }
+.runtime-tabs button strong { display: block; color: var(--text-primary); }
 .runtime-tabs button span { font-size: 11px; }
 .runtime-tabs button.active { background: rgba(34,211,238,.16); border-color: rgba(103,232,249,.28); }
 .panel { padding: 14px; display: grid; gap: 12px; }
 .panel-toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-.panel-toolbar h2, .panel-toolbar h3 { margin: 0; color: #ecfeff; }
+.panel-toolbar h2, .panel-toolbar h3 { margin: 0; color: var(--text-primary); }
 .panel-toolbar.slim { margin-top: 4px; }
 .metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: 8px; background: rgba(2,8,20,.26); padding: 12px; }
-.metric-card strong { display: block; color: #ecfeff; font-size: 24px; }
+.metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface),.26); padding: 12px; }
+.metric-card strong { display: block; color: var(--text-primary); font-size: 24px; }
 .overview-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
-.overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: 8px; background: rgba(2,8,20,.22); color: #dff7ff; padding: 12px; cursor: pointer; }
-.overview-actions span, .chip-grid small { display: block; color: #8aa4b8; font-size: 11px; }
+.overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface),.22); color: var(--text-primary); padding: 12px; cursor: pointer; }
+.overview-actions span, .chip-grid small { display: block; color: var(--text-secondary); font-size: 11px; }
 .dense-table { display: grid; gap: 6px; overflow-x: auto; }
-.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: 8px; background: rgba(2,8,20,.22); border: 1px solid rgba(125,211,252,.08); color: #dff7ff; }
-.table-head { color: #67e8f9; font-weight: 900; background: rgba(8,47,73,.45); }
+.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: var(--card-radius); background: var(--bg-surface),.22); border: 1px solid rgba(125,211,252,.08); color: var(--text-primary); }
+.table-head { color: var(--accent); font-weight: 900; background: var(--bg-surface),.45); }
 .module-table .table-row { grid-template-columns: 90px 220px 1fr; }
 .provider-table .table-row { grid-template-columns: 70px 210px 130px 180px 1fr 90px 80px; }
 .threshold-table .table-row { grid-template-columns: 1.2fr .8fr 1fr .8fr 1fr 1fr .8fr; }
@@ -369,21 +369,21 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .form-grid, .filter-bar { display: grid; gap: 8px; }
 .form-grid.compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .form-grid.routes { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.form-grid label { display: grid; gap: 5px; color: #8aa4b8; }
+.form-grid label { display: grid; gap: 5px; color: var(--text-secondary); }
 .filter-bar { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip-grid button { min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(125,211,252,.16); background: rgba(2,8,20,.3); color: #dff7ff; cursor: pointer; }
-.chip-grid button.active { background: rgba(34,211,238,.16); border-color: rgba(103,232,249,.38); color: #ecfeff; }
+.chip-grid button { min-height: 32px; padding: 0 10px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.16); background: var(--bg-surface),.3); color: var(--text-primary); cursor: pointer; }
+.chip-grid button.active { background: rgba(34,211,238,.16); border-color: rgba(103,232,249,.38); color: var(--text-primary); }
 .stack { display: grid; gap: 6px; }
 .condition-edit { display: grid; grid-template-columns: 82px 1fr; gap: 6px; }
-.error-strip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: #fed7aa; border-color: rgba(251,146,60,.28); background: rgba(124,45,18,.24); }
+.error-strip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--warning-soft); border-color: rgba(251,146,60,.28); background: rgba(124,45,18,.24); }
 .error-strip span { flex: 1; }
-html[data-theme='light'] .runtime-header, html[data-theme='light'] .panel, html[data-theme='light'] .runtime-tabs { background: #fff; border-color: rgba(148,163,184,.24); }
-html[data-theme='light'] .runtime-header h1, html[data-theme='light'] .panel-toolbar h2, html[data-theme='light'] .panel-toolbar h3, html[data-theme='light'] .metric-card strong, html[data-theme='light'] .runtime-tabs button strong { color: #0f172a; }
-html[data-theme='light'] .runtime-header span, html[data-theme='light'] .runtime-header p, html[data-theme='light'] .panel-toolbar span, html[data-theme='light'] .metric-card span, html[data-theme='light'] .table-row span, html[data-theme='light'] .sub-panel h3 { color: #64748b; }
-html[data-theme='light'] .table-row, html[data-theme='light'] .metric-card, html[data-theme='light'] .sub-panel, html[data-theme='light'] .overview-actions button, html[data-theme='light'] .chip-grid button { background: #f8fbff; border-color: rgba(148,163,184,.22); color: #0f172a; }
-html[data-theme='light'] .table-head, html[data-theme='light'] .runtime-tabs button.active { background: #eff6ff; color: #1d4ed8; }
+html[data-theme='light'] .runtime-header, html[data-theme='light'] .panel, html[data-theme='light'] .runtime-tabs { background: var(--bg-surface); border-color: rgba(148,163,184,.24); }
+html[data-theme='light'] .runtime-header h1, html[data-theme='light'] .panel-toolbar h2, html[data-theme='light'] .panel-toolbar h3, html[data-theme='light'] .metric-card strong, html[data-theme='light'] .runtime-tabs button strong { color: var(--text-primary); }
+html[data-theme='light'] .runtime-header span, html[data-theme='light'] .runtime-header p, html[data-theme='light'] .panel-toolbar span, html[data-theme='light'] .metric-card span, html[data-theme='light'] .table-row span, html[data-theme='light'] .sub-panel h3 { color: var(--text-secondary); }
+html[data-theme='light'] .table-row, html[data-theme='light'] .metric-card, html[data-theme='light'] .sub-panel, html[data-theme='light'] .overview-actions button, html[data-theme='light'] .chip-grid button { background: var(--bg-surface); border-color: rgba(148,163,184,.22); color: var(--text-primary); }
+html[data-theme='light'] .table-head, html[data-theme='light'] .runtime-tabs button.active { background: var(--bg-surface); color: var(--brand); }
 @media (max-width: 1100px) {
   .runtime-header, .panel-toolbar { display: grid; }
   .metric-grid, .form-grid.compact, .form-grid.routes, .filter-bar, .split-grid { grid-template-columns: 1fr; }

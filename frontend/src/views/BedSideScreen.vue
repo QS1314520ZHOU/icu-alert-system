@@ -354,8 +354,8 @@ watch(patientId, async (nextId, prevId) => {
 .bedside-screen {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 0 0, rgba(14,165,233,.16), transparent 34%),
-    linear-gradient(145deg, #07111f, #0a1324 58%, #071018);
+    var(--bg-surface), transparent 34%),
+    var(--bg-surface);
   color: #e8eaf0;
   font-family: var(--app-display-font);
   display: flex;
@@ -364,8 +364,8 @@ watch(patientId, async (nextId, prevId) => {
   padding: 0;
   transition: background 0.4s;
 }
-.bedside-screen.level-critical { background: #150a0a; }
-.bedside-screen.level-warning  { background: #0f0e0a; }
+.bedside-screen.level-critical { background: var(--bg-surface); }
+.bedside-screen.level-warning  { background: var(--bg-surface); }
 
 /* ── header ────────────────────────────── */
 .bedside-header {
@@ -385,13 +385,13 @@ watch(patientId, async (nextId, prevId) => {
   font-size: clamp(4rem, 7vw, 7.5rem);
   font-weight: 800;
   line-height: 1;
-  color: #a8d8ff;
+  color: var(--chart-1);
 }
 .bed-label { font-size: 1.35rem; color: #8090a8; }
 
 .bedside-header__info { flex: 1; }
 .patient-name { font-size: clamp(2rem, 3.4vw, 3.4rem); font-weight: 800; }
-.patient-meta { font-size: 1.2rem; color: #9fb3c8; margin-top: 6px; }
+.patient-meta { font-size: 1.2rem; color: var(--text-secondary); margin-top: 6px; }
 
 .bedside-header__level {
   display: flex;
@@ -403,14 +403,14 @@ watch(patientId, async (nextId, prevId) => {
   border-radius: 50%;
   display: inline-block;
 }
-.lamp-critical { background: #ff3d3d; box-shadow: 0 0 10px #ff3d3d; animation: blink 0.8s infinite; }
-.lamp-warning  { background: #ffb800; box-shadow: 0 0 8px #ffb800; }
-.lamp-info     { background: #00c8ff; }
-.lamp-none     { background: #3a5a3a; }
+.lamp-critical { background: var(--danger); box-shadow: var(--card-shadow); animation: blink 0.8s infinite; }
+.lamp-warning  { background: var(--warning); box-shadow: var(--card-shadow); }
+.lamp-info     { background: var(--accent); }
+.lamp-none     { background: var(--text-secondary); }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
 .level-text { font-size: 1.4rem; font-weight: 800; }
-.bedside-clock { font-size: 1.6rem; font-variant-numeric: tabular-nums; color: #9fb3c8; }
+.bedside-clock { font-size: 1.6rem; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
 
 /* ── 诊断 ───────────────────────────────── */
 .bedside-diag {
@@ -440,7 +440,7 @@ watch(patientId, async (nextId, prevId) => {
 .vital-card {
   background: var(--bg-surface-2);
   border: 1px solid var(--border-color);
-  border-radius: 22px;
+  border-radius: var(--card-radius);
   padding: 22px 14px;
   text-align: center;
   transition: border-color 0.3s;
@@ -484,7 +484,7 @@ watch(patientId, async (nextId, prevId) => {
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: var(--card-radius);
   background: var(--bg-surface-2);
   border: 1px solid var(--border-color);
   font-size: 1.25rem;
@@ -492,22 +492,22 @@ watch(patientId, async (nextId, prevId) => {
 .todo-item__dot {
   width: 14px; height: 14px;
   border-radius: 50%;
-  background: #4080c0;
+  background: var(--chart-1);
   flex-shrink: 0;
 }
-.todo-item--urgent .todo-item__dot { background: #ff4040; }
-.todo-item--high   .todo-item__dot { background: #ffb800; }
+.todo-item--urgent .todo-item__dot { background: var(--danger); }
+.todo-item--high   .todo-item__dot { background: var(--warning); }
 .todo-item__text { flex: 1; display: grid; gap: 4px; }
 .todo-item__text strong { color: #f1f7ff; }
-.todo-item__text small { color: #9fb3c8; font-size: 1rem; }
+.todo-item__text small { color: var(--text-secondary); font-size: 1rem; }
 .todo-item__time { font-size: 1rem; color: #76899e; white-space: nowrap; }
 .done-btn,
 .voice-toggle {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   padding: 10px 18px;
   color: #06202f;
-  background: #7dd3fc;
+  background: var(--chart-1);
   font-weight: 800;
   cursor: pointer;
 }
@@ -523,11 +523,11 @@ watch(patientId, async (nextId, prevId) => {
 .voice-toggle.active {
   background: rgba(34,197,94,.16);
   border-color: rgba(74,222,128,.4);
-  color: #bbf7d0;
+  color: var(--success);
 }
 .voice-toggle.ghost {
   background: rgba(14,165,233,.12);
-  color: #bae6fd;
+  color: var(--chart-1);
 }
 
 /* ── 预警 ───────────────────────────────── */
@@ -544,7 +544,7 @@ watch(patientId, async (nextId, prevId) => {
   justify-content: space-between;
   gap: 18px;
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--card-radius);
   background: var(--bg-surface-2);
   font-size: 1.2rem;
 }
@@ -552,7 +552,7 @@ watch(patientId, async (nextId, prevId) => {
 .alert-row--warning  { background: rgba(255,184,0,0.10); }
 .alert-row__name { color: #c8d8e8; display: grid; gap: 5px; }
 .alert-row__name strong { color: #f5f9ff; font-size: 1.35rem; }
-.alert-row__name small { color: #9fb3c8; font-size: 1rem; }
+.alert-row__name small { color: var(--text-secondary); font-size: 1rem; }
 .alert-row__severity {
   font-size: 1.15rem;
   font-weight: 800;
@@ -570,9 +570,9 @@ watch(patientId, async (nextId, prevId) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0,0,0,0.6);
+  background: var(--bg-surface),0.6);
   border: 1px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: var(--card-radius);
   padding: 8px 16px;
   font-size: 1rem;
   color: #607080;
@@ -581,22 +581,22 @@ watch(patientId, async (nextId, prevId) => {
 .speech-badge.active {
   border-color: #00c8ff;
   color: #00c8ff;
-  box-shadow: 0 0 12px rgba(0,200,255,0.3);
+  box-shadow: var(--card-shadow);
 }
 .speech-badge__icon { font-size: 1rem; font-weight: 800; }
 html[data-theme='light'] .bedside-screen {
   background:
-    radial-gradient(circle at 0 0, rgba(14,165,233,.12), transparent 34%),
-    linear-gradient(145deg, #f5fbff, #eef7fb 58%, #f8fcff);
-  color: #1f3852;
+    var(--bg-surface), transparent 34%),
+    var(--bg-surface);
+  color: var(--text-secondary);
 }
-html[data-theme='light'] .bedside-screen.level-critical { background: #fff5f5; }
-html[data-theme='light'] .bedside-screen.level-warning { background: #fffbeb; }
+html[data-theme='light'] .bedside-screen.level-critical { background: var(--danger-bg); }
+html[data-theme='light'] .bedside-screen.level-warning { background: var(--warning-soft); }
 html[data-theme='light'] .bedside-header {
   background: rgba(255,255,255,.92);
   border-bottom-color: rgba(187,204,220,.72);
 }
-html[data-theme='light'] .bed-no { color: #1d4ed8; }
+html[data-theme='light'] .bed-no { color: var(--brand); }
 html[data-theme='light'] .bed-label,
 html[data-theme='light'] .patient-meta,
 html[data-theme='light'] .bedside-clock,
@@ -606,14 +606,14 @@ html[data-theme='light'] .vital-card__unit,
 html[data-theme='light'] .todo-item__time,
 html[data-theme='light'] .bedside-todos__empty,
 html[data-theme='light'] .bedside-alerts__empty {
-  color: #6f8399;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .patient-name,
 html[data-theme='light'] .vital-card__value,
 html[data-theme='light'] .section-title-row strong,
 html[data-theme='light'] .todo-item__text strong,
 html[data-theme='light'] .alert-row__name,
-html[data-theme='light'] .alert-row__name strong { color: #16324f; }
+html[data-theme='light'] .alert-row__name strong { color: var(--text-secondary); }
 html[data-theme='light'] .todo-item__text small,
 html[data-theme='light'] .alert-row__name small {
   color: #5b7188;
@@ -623,7 +623,7 @@ html[data-theme='light'] .bedside-vitals,
 html[data-theme='light'] .bedside-todos {
   border-bottom-color: rgba(187,204,220,.56);
 }
-html[data-theme='light'] .bedside-diag__text { color: #47627e; }
+html[data-theme='light'] .bedside-diag__text { color: var(--text-secondary); }
 html[data-theme='light'] .vital-card,
 html[data-theme='light'] .todo-item,
 html[data-theme='light'] .alert-row {
@@ -636,35 +636,35 @@ html[data-theme='light'] .vital-card--warn {
 }
 html[data-theme='light'] .alert-row--critical { background: rgba(255,241,242,.98); }
 html[data-theme='light'] .alert-row--warning { background: rgba(254,243,199,.98); }
-html[data-theme='light'] .alert-row__severity { color: #6f8399; }
-html[data-theme='light'] .alert-row--critical .alert-row__severity { color: #be123c; }
-html[data-theme='light'] .alert-row--warning .alert-row__severity { color: #b45309; }
+html[data-theme='light'] .alert-row__severity { color: var(--text-secondary); }
+html[data-theme='light'] .alert-row--critical .alert-row__severity { color: var(--danger-strong); }
+html[data-theme='light'] .alert-row--warning .alert-row__severity { color: var(--warning); }
 html[data-theme='light'] .speech-badge {
   background: rgba(255,255,255,.95);
   border-color: rgba(187,204,220,.72);
-  color: #6f8399;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .speech-badge.active {
   border-color: rgba(59,130,246,.34);
-  color: #1d4ed8;
-  box-shadow: 0 0 12px rgba(37,99,235,.18);
+  color: var(--brand);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .voice-toggle {
-  background: #eef6ff;
+  background: var(--bg-surface);
   border-color: rgba(148,163,184,.42);
-  color: #2563eb;
+  color: var(--brand);
 }
 html[data-theme='light'] .voice-toggle.active {
-  background: #ecfdf5;
+  background: var(--bg-surface);
   border-color: rgba(34,197,94,.32);
-  color: #047857;
+  color: var(--success);
 }
 html[data-theme='light'] .voice-toggle.ghost {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--bg-surface);
+  color: var(--brand);
 }
 html[data-theme='light'] .done-btn {
-  background: #2563eb;
+  background: var(--brand);
   color: white;
 }
 

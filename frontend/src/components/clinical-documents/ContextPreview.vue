@@ -214,7 +214,7 @@ function alertTypeLabel(type: string) {
 <style scoped>
 .context-preview {
   font-size: 12px;
-  color: #344054;
+  color: var(--text-secondary);
 }
 .cp-header {
   display: flex;
@@ -228,7 +228,7 @@ function alertTypeLabel(type: string) {
 }
 .cp-window {
   font-size: 11px;
-  color: #98a2b3;
+  color: var(--text-muted);
 }
 .cp-section {
   margin-bottom: 14px;
@@ -238,7 +238,7 @@ function alertTypeLabel(type: string) {
 .cp-section-title {
   font-size: 12px;
   font-weight: 600;
-  color: #1677ff;
+  color: var(--brand);
   margin: 0 0 6px;
 }
 .cp-kv {
@@ -247,13 +247,13 @@ function alertTypeLabel(type: string) {
   gap: 6px 12px;
 }
 .cp-kv span {
-  background: #f2f4f7;
+  background: var(--bg-surface-2);
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
 }
 .cp-diagnosis {
   margin-top: 4px;
-  color: #667085;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 .cp-vital-grid {
@@ -271,17 +271,17 @@ function alertTypeLabel(type: string) {
   min-width: 36px;
 }
 .cp-vital-value {
-  color: #667085;
+  color: var(--text-muted);
 }
 .cp-vital-trend {
   font-size: 11px;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--card-radius);
 }
-.cp-vital-trend.is-ok { background: #ecfdf3; color: #16a34a; }
-.cp-vital-trend.is-warn { background: #fff7ed; color: #ea580c; }
-.cp-vital-trend.is-danger { background: #fef2f2; color: #dc2626; }
-.cp-vital-trend.is-muted { background: #f2f4f7; color: #98a2b3; }
+.cp-vital-trend.is-ok { background: var(--bg-surface); color: var(--success); }
+.cp-vital-trend.is-warn { background: var(--warning-soft); color: var(--warning); }
+.cp-vital-trend.is-danger { background: var(--danger-bg); color: var(--danger); }
+.cp-vital-trend.is-muted { background: var(--bg-surface-2); color: var(--text-muted); }
 .cp-events {
   margin-top: 6px;
   display: flex;
@@ -289,10 +289,10 @@ function alertTypeLabel(type: string) {
   gap: 4px;
 }
 .cp-event-chip {
-  background: #fef2f2;
+  background: var(--danger-bg);
   color: #b42318;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   font-size: 11px;
 }
 .cp-lab-row,
@@ -307,25 +307,25 @@ function alertTypeLabel(type: string) {
 .cp-lab-id,
 .cp-drug-id,
 .cp-alert-id {
-  color: #1677ff;
+  color: var(--brand);
   font-weight: 600;
   font-size: 11px;
 }
 .cp-lab-name { font-weight: 500; }
-.cp-lab-value { color: #667085; }
-.cp-lab-flag.is-critical { color: #dc2626; font-weight: 700; }
-.cp-lab-flag.is-abnormal { color: #ea580c; font-weight: 600; }
-.cp-drug-dose { color: #98a2b3; }
+.cp-lab-value { color: var(--text-muted); }
+.cp-lab-flag.is-critical { color: var(--danger); font-weight: 700; }
+.cp-lab-flag.is-abnormal { color: var(--warning); font-weight: 600; }
+.cp-drug-dose { color: var(--text-muted); }
 .cp-alert-status {
   font-size: 11px;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--card-radius);
 }
-.cp-alert-status.is-active { background: #fef2f2; color: #dc2626; }
-.cp-alert-status.is-resolved { background: #ecfdf3; color: #16a34a; }
+.cp-alert-status.is-active { background: var(--danger-bg); color: var(--danger); }
+.cp-alert-status.is-resolved { background: var(--bg-surface); color: var(--success); }
 .cp-empty {
   text-align: center;
-  color: #98a2b3;
+  color: var(--text-muted);
   padding: 40px 0;
 }
 </style>

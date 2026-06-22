@@ -92,8 +92,8 @@ void ACard
 <style scoped>
 .mdt-step-card {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.66);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.66);
 }
 .step-card__head,
 .panel-title,
@@ -110,7 +110,7 @@ void ACard
 }
 h2 {
   margin: 4px 0 6px;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 p {
   margin: 0;
@@ -126,8 +126,8 @@ p {
 .organ-panel {
   padding: 16px;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 10px;
-  background: rgba(2, 6, 23, 0.26);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.26);
 }
 label {
   display: block;
@@ -138,20 +138,20 @@ label {
   width: 100%;
   min-height: 42px;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   padding: 0 12px;
-  color: #f8fafc;
-  background: #0f172a;
+  color: var(--text-primary);
+  background: var(--bg-surface);
 }
 .step-hint {
   margin-top: 8px;
-  color: #fed7aa;
+  color: var(--warning-soft);
 }
 .patient-brief {
   margin: 18px 0;
   padding: 14px;
-  border-radius: 10px;
-  background: rgba(30, 41, 59, 0.54);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.54);
 }
 .patient-brief span,
 .panel-title span {
@@ -160,7 +160,7 @@ label {
 .patient-brief strong,
 .panel-title strong {
   display: block;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 18px;
 }
 .organ-pill-grid {
@@ -172,10 +172,10 @@ label {
 .organ-pill {
   min-height: 52px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 8px;
-  color: #e2e8f0;
+  border-radius: var(--card-radius);
+  color: var(--text-secondary);
   text-align: left;
-  background: rgba(15, 23, 42, 0.72);
+  background: var(--bg-surface), 0.72);
   cursor: pointer;
 }
 .organ-pill span,
@@ -196,38 +196,38 @@ label {
 :global(html[data-theme='light']) .mdt-step-card,
 :global(html[data-theme='light']) .patient-select-panel,
 :global(html[data-theme='light']) .organ-panel {
-  border-color: #dbeafe;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) .step-kicker,
 :global(html[data-theme='light']) .panel-title span {
-  color: #0284c7;
+  color: var(--brand);
 }
 :global(html[data-theme='light']) h2,
 :global(html[data-theme='light']) .patient-brief strong,
 :global(html[data-theme='light']) .panel-title strong {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) p,
 :global(html[data-theme='light']) label,
 :global(html[data-theme='light']) .patient-brief span {
-  color: #475569;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .mdt-select {
-  color: #0f172a;
-  border-color: #cbd5e1;
-  background: #ffffff;
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .patient-brief,
 :global(html[data-theme='light']) .organ-pill {
-  border-color: #e2e8f0;
-  background: #f8fafc;
+  border-color: var(--text-secondary);
+  background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .organ-pill {
-  color: #334155;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) .organ-pill b {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 </style>

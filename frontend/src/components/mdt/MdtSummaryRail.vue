@@ -73,8 +73,8 @@ const progressText = computed(() => {
 .mdt-rail-card {
   min-height: 100%;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.66);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.66);
 }
 .rail-label {
   display: block;
@@ -85,7 +85,7 @@ const progressText = computed(() => {
 strong {
   display: block;
   margin-top: 6px;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 20px;
 }
 p {
@@ -96,8 +96,8 @@ p {
 .rail-meter {
   margin: 18px 0;
   padding: 14px;
-  border-radius: 10px;
-  background: rgba(30, 41, 59, 0.58);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.58);
 }
 .rail-meter div {
   display: flex;
@@ -105,13 +105,13 @@ p {
   color: rgba(203, 213, 225, 0.76);
 }
 .rail-meter b {
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 .rail-meter i {
   display: block;
   height: 8px;
   margin: 12px 0 8px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   overflow: hidden;
   background: rgba(51, 65, 85, 0.9);
 }
@@ -119,7 +119,7 @@ p {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #38bdf8, #22c55e);
+  background: var(--bg-surface);
 }
 .rail-meter small,
 .rail-todo-list small {
@@ -135,8 +135,8 @@ p {
 .rail-todo-list article {
   padding: 10px;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 8px;
-  background: rgba(2, 6, 23, 0.26);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.26);
 }
 .rail-todo-list strong {
   margin: 0 0 4px;
@@ -148,38 +148,38 @@ p {
 }
 
 :global(html[data-theme='light']) .mdt-rail-card {
-  border-color: #dbeafe;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  border-color: var(--chart-1);
+  background: var(--bg-surface);
+  box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) .rail-label {
-  color: #0284c7;
+  color: var(--brand);
 }
 :global(html[data-theme='light']) strong,
 :global(html[data-theme='light']) .rail-meter b,
 :global(html[data-theme='light']) .rail-todo-list strong {
-  color: #0f172a;
+  color: var(--text-primary);
 }
 :global(html[data-theme='light']) p {
-  color: #475569;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .rail-meter {
   border: 1px solid #dbeafe;
-  background: #f8fafc;
+  background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .rail-meter div {
-  color: #475569;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .rail-meter i {
-  background: #dbeafe;
+  background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .rail-meter small,
 :global(html[data-theme='light']) .rail-todo-list small,
 :global(html[data-theme='light']) .rail-empty {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .rail-todo-list article {
-  border-color: #e2e8f0;
-  background: #f8fafc;
+  border-color: var(--text-secondary);
+  background: var(--bg-surface);
 }
 </style>

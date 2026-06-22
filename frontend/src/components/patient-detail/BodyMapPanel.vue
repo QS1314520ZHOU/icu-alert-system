@@ -129,10 +129,10 @@ const organTooltips = computed(() =>
   display: grid;
   gap: 12px;
   padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
   border: 1px solid rgba(80,199,255,.14);
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+  box-shadow: var(--card-shadow);
 }
 .body-map-panel__head,
 .body-map-panel__row-top,
@@ -143,7 +143,7 @@ const organTooltips = computed(() =>
   gap: 10px;
 }
 .body-map-panel__kicker {
-  color: #7ed6eb;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .14em;
@@ -151,7 +151,7 @@ const organTooltips = computed(() =>
 }
 .body-map-panel__title {
   margin-top: 4px;
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 700;
 }
@@ -168,13 +168,13 @@ const organTooltips = computed(() =>
   justify-content: center;
   min-height: 30px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--card-radius);
   font-size: 12px;
 }
 .body-map-panel__pill {
-  background: rgba(8, 28, 44, 0.82);
+  background: var(--bg-surface), 0.82);
   border: 1px solid rgba(80,199,255,.14);
-  color: #dffbff;
+  color: var(--text-primary);
 }
 .body-map-panel__grid {
   display: grid;
@@ -192,8 +192,8 @@ const organTooltips = computed(() =>
   width: 100%;
   text-align: left;
   border: 1px solid rgba(80,199,255,.12);
-  background: rgba(8, 28, 44, 0.7);
-  border-radius: 12px;
+  background: var(--bg-surface), 0.7);
+  border-radius: var(--card-radius);
   min-height: 82px;
   padding: 11px 12px;
   cursor: pointer;
@@ -203,38 +203,38 @@ const organTooltips = computed(() =>
 .body-map-panel__row.is-active {
   transform: translateY(-1px);
   border-color: rgba(110,231,249,.28);
-  box-shadow: 0 10px 18px rgba(0,0,0,.16);
+  box-shadow: var(--card-shadow);
 }
 .body-map-panel__row strong {
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 14px;
 }
 .body-map-panel__actions {
   grid-column: 1 / -1;
   margin-top: 2px;
   padding: 9px 12px;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   border: 1px dashed rgba(80,199,255,.14);
-  background: rgba(5, 18, 30, 0.5);
+  background: var(--bg-surface), 0.5);
 }
 .body-map-panel__row-meta,
 .body-map-panel__hint {
-  color: #8fb8ca;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
 }
 .body-map-panel__badge {
   border: 1px solid rgba(80,199,255,.14);
-  background: rgba(12, 36, 54, 0.9);
-  color: #dffbff;
+  background: var(--bg-surface), 0.9);
+  color: var(--text-primary);
 }
-.body-map-panel__badge.is-warning { color: #fde68a; border-color: rgba(245,158,11,.22); }
-.body-map-panel__badge.is-high { color: #fed7aa; border-color: rgba(249,115,22,.24); }
-.body-map-panel__badge.is-critical { color: #fecdd3; border-color: rgba(244,63,94,.24); }
+.body-map-panel__badge.is-warning { color: var(--warning-soft); border-color: rgba(245,158,11,.22); }
+.body-map-panel__badge.is-high { color: var(--warning-soft); border-color: rgba(249,115,22,.24); }
+.body-map-panel__badge.is-critical { color: var(--danger-soft); border-color: rgba(244,63,94,.24); }
 .body-map-panel__action {
   border: 1px solid rgba(110,231,249,.28);
-  background: linear-gradient(180deg, rgba(10,92,118,.94) 0%, rgba(8,55,74,.96) 100%);
-  color: #effcff;
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  color: var(--text-primary);
   cursor: pointer;
 }
 .body-map-panel--compact .body-map-panel__title {
@@ -263,37 +263,37 @@ const organTooltips = computed(() =>
   }
 }
 html[data-theme='light'] .body-map-panel {
-  background: linear-gradient(180deg, rgba(246,250,253,.98) 0%, rgba(239,246,250,.98) 100%);
+  background: var(--bg-surface) 0%, rgba(239,246,250,.98) 100%);
   border-color: rgba(130, 170, 194, 0.24);
 }
 html[data-theme='light'] .body-map-panel__title,
 html[data-theme='light'] .body-map-panel__row strong {
-  color: #17324a;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .body-map-panel__kicker,
 html[data-theme='light'] .body-map-panel__row-meta,
 html[data-theme='light'] .body-map-panel__hint {
-  color: #56748d;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .body-map-panel__row,
 html[data-theme='light'] .body-map-panel__pill,
 html[data-theme='light'] .body-map-panel__badge {
   background: rgba(255,255,255,.94);
   border-color: rgba(130, 170, 194, 0.24);
-  color: #27445b;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .body-map-panel__actions {
   background: rgba(255,255,255,.9);
   border-color: rgba(130, 170, 194, 0.32);
 }
 html[data-theme='light'] .body-map-panel__action {
-  background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%);
+  background: var(--bg-surface) 0%, rgba(29,78,216,.98) 100%);
   border-color: rgba(59,130,246,.28);
-  color: #f8fbff;
+  color: var(--text-primary);
 }
 html[data-theme='light'] .body-map-panel__row:hover,
 html[data-theme='light'] .body-map-panel__row.is-active {
   border-color: rgba(59,130,246,.3);
-  box-shadow: 0 8px 16px rgba(37,99,235,.12);
+  box-shadow: var(--card-shadow);
 }
 </style>

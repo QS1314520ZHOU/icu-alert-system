@@ -154,10 +154,10 @@ html[data-theme='light'] {
   /* Light Mode - Hospital HIS */
   --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --app-title-color: #0F172A;
-  --app-body-color: #0F172A;
+  --app-body-color: #1A2233;
   --app-muted-color: var(--text-muted);
-  --app-border-color: #E8E8EF;
-  --app-card-shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+  --app-border-color: #E8ECF1;
+  --app-card-shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
   --app-primary: #2E5BFF;
   --app-link: #4A7AFF;
   --app-tag-bg: #EBF0FF;
@@ -264,34 +264,89 @@ html[data-theme='light'] {
   --container-alt-border: #E2E8F0;
   --container-alt-text: #475569;
 
-  /* === Semantic Design Tokens (light mode) === */
-  --bg-base:        #F5F7FA;
+  /* === Semantic Design Tokens (light mode - Medical SaaS) === */
+  --bg-base:        #F7F8FA;
   --bg-surface:     #FFFFFF;
-  --bg-surface-2:   #F1F5F9;
-  --border-color:   #E2E8F0;
-  --text-primary:   #0F172A;
-  --text-secondary: #3D4A5C;
-  /* --text-muted defined above */
-  --brand:          #2563EB;
-  --accent:         #2563EB;
+  --bg-surface-2:   #F1F3F7;
+  --border-color:   #E8ECF1;
+  --text-primary:   #1A2233;
+  --text-secondary: #5A6678;
+  --text-muted:     #8A93A6;
+  --brand:          #1A56DB;
+  --accent:         #1A56DB;
   --success:        #16A34A;
   --warning:        #D97706;
   --warning-soft:   #B45309;
   --danger:         #DC2626;
-  --danger-strong:  #be123c;
-  --danger-soft:    #e85d6b;
+  --danger-strong:  #991B1B;
+  --danger-soft:    #E85D6B;
   --danger-bg:      #FEE2E2;
 
-  /* Chart palette (white bg, deeper lines) */
-  --chart-1:        #0284c7;
-  --chart-2:        #059669;
-  --chart-3:        #d97706;
-  --chart-4:        #e11d48;
-  --chart-5:        #7c3aed;
-  --chart-6:        #0d9488;
-  --chart-grid:     #E2E8F0;
-  --chart-axis:     #475569;
+  /* Chart palette (medical blue family, desaturated) */
+  --chart-1:        #1A56DB;
+  --chart-2:        #16A34A;
+  --chart-3:        #D97706;
+  --chart-4:        #DC2626;
+  --chart-5:        #6366F1;
+  --chart-6:        #0D9488;
+  --chart-grid:     #E8ECF1;
+  --chart-axis:     #5A6678;
+
+  /* Unified surface tokens */
+  --card-shadow:    0 1px 3px rgba(0,0,0,0.05);
+  --card-radius:    8px;
+  --card-padding:   20px;
+  --card-gap:       16px;
+
+
+/* === Global Light Mode Overrides — Medical SaaS === */
+html[data-theme='light'] * {
+  border-radius: var(--card-radius, 8px) !important;
 }
+
+html[data-theme='light'] [style*='linear-gradient'] {
+  background: var(--bg-surface) !important;
+}
+
+html[data-theme='light'] .ant-card,
+html[data-theme='light'] .card,
+html[data-theme='light'] [class*='card'],
+html[data-theme='light'] [class*='panel'],
+html[data-theme='light'] [class*='section'] {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+}
+
+html[data-theme='light'] [style*='box-shadow'] {
+  box-shadow: var(--card-shadow) !important;
+}
+
+html[data-theme='light'] [class*='gradient'],
+html[data-theme='light'] [class*='glow'] {
+  background: var(--bg-surface) !important;
+  box-shadow: none !important;
+}
+
+/* === Dropdown/Popover z-index fix === */
+.ant-select-dropdown,
+.ant-dropdown,
+.ant-dropdown-menu,
+.ant-picker-dropdown,
+.ant-popover,
+.ant-modal-wrap,
+.ant-notification {
+  z-index: 2000 !important;
+}
+
+.ant-select-dropdown .ant-select-item,
+.ant-dropdown-menu-item,
+.ant-picker-dropdown .ant-picker-panel-container {
+  background: var(--bg-surface) !important;
+}
+
+
 
 body {
   background: var(--app-bg);

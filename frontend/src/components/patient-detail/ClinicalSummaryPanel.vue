@@ -124,10 +124,10 @@ function fmt(value: any) {
   display: grid;
   gap: 14px;
   padding: 14px;
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.16);
-  background: rgba(5, 16, 28, 0.78);
-  box-shadow: inset 0 1px 0 var(--border-color);
+  background: var(--bg-surface), 0.78);
+  box-shadow: var(--card-shadow);
 }
 .summary-head {
   display: flex;
@@ -150,16 +150,16 @@ function fmt(value: any) {
   letter-spacing: 0;
 }
 .summary-head strong {
-  color: #ecfeff;
+  color: var(--text-primary);
   font-size: 17px;
   line-height: 1.25;
 }
 .refresh-btn {
   flex: 0 0 auto;
   border: 1px solid rgba(125, 211, 252, 0.2);
-  background: rgba(14, 45, 68, 0.72);
-  color: #dffbff;
-  border-radius: 8px;
+  background: var(--bg-surface), 0.72);
+  color: var(--text-primary);
+  border-radius: var(--card-radius);
   padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
@@ -176,9 +176,9 @@ function fmt(value: any) {
 .metric-item {
   min-height: 64px;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.12);
-  background: rgba(10, 31, 48, 0.62);
+  background: var(--bg-surface), 0.62);
 }
 .metric-item span {
   display: block;
@@ -187,7 +187,7 @@ function fmt(value: any) {
   font-size: 11px;
 }
 .metric-item strong {
-  color: #dffbff;
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.45;
@@ -204,7 +204,7 @@ function fmt(value: any) {
   padding-top: 2px;
 }
 .section-bar strong {
-  color: #e8fbff;
+  color: var(--text-primary);
   font-size: 14px;
 }
 .section-bar.compact {
@@ -221,10 +221,10 @@ function fmt(value: any) {
   gap: 10px;
   min-height: 178px;
   padding: 10px 10px 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.14);
   border-left: 3px solid rgba(148, 163, 184, 0.7);
-  background: rgba(9, 29, 45, 0.68);
+  background: var(--bg-surface), 0.68);
 }
 .problem-head {
   display: flex;
@@ -238,14 +238,14 @@ function fmt(value: any) {
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--card-radius);
   background: rgba(59, 130, 246, 0.2);
-  color: #fff;
+  color: var(--text-primary);
   font-size: 12px;
 }
 .problem-head strong {
   display: block;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 13px;
   line-height: 1.35;
 }
@@ -254,7 +254,7 @@ function fmt(value: any) {
 .worse-grid span,
 .summary-empty,
 .safety {
-  color: #9cc2d1;
+  color: var(--text-secondary);
   font-size: 11px;
   font-style: normal;
 }
@@ -283,15 +283,15 @@ function fmt(value: any) {
 }
 .risk-critical,
 .risk-high {
-  border-left-color: #f87171;
-  background: rgba(53, 18, 26, 0.26);
+  border-left-color: var(--danger-soft);
+  background: var(--bg-surface), 0.26);
 }
 .risk-warning {
-  border-left-color: #f59e0b;
-  background: rgba(54, 34, 10, 0.26);
+  border-left-color: var(--warning);
+  background: var(--bg-surface), 0.26);
 }
 .risk-info {
-  border-left-color: #38bdf8;
+  border-left-color: var(--chart-1);
 }
 .worsening {
   display: grid;
@@ -306,17 +306,17 @@ function fmt(value: any) {
 .summary-empty,
 .safety {
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.12);
-  background: rgba(10, 31, 48, 0.58);
+  background: var(--bg-surface), 0.58);
 }
 .summary-empty.small {
   padding: 8px;
 }
 .safety {
   border-color: rgba(245, 158, 11, 0.22);
-  background: rgba(68, 45, 12, 0.42);
-  color: #fde68a;
+  background: var(--bg-surface), 0.42);
+  color: var(--warning-soft);
 }
 html[data-theme='light'] .clinical-summary,
 html[data-theme='light'] .metric-item,
@@ -325,29 +325,29 @@ html[data-theme='light'] .summary-empty,
 html[data-theme='light'] .problem-card,
 html[data-theme='light'] .safety {
   border-color: rgba(187, 204, 220, 0.72);
-  background: #fff;
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .summary-head strong,
 html[data-theme='light'] .problem-head strong,
 html[data-theme='light'] .section-bar strong {
-  color: #16324f;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .metric-item strong,
 html[data-theme='light'] .worse-grid span,
 html[data-theme='light'] .problem-card dd,
 html[data-theme='light'] .summary-empty {
-  color: #334155;
+  color: var(--text-primary);
 }
 html[data-theme='light'] .metric-item span,
 html[data-theme='light'] .problem-card dt,
 html[data-theme='light'] .title-block small,
 html[data-theme='light'] .eyebrow,
 html[data-theme='light'] .section-bar span {
-  color: #64748b;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .safety {
-  color: #92400e;
-  background: #fffbeb;
+  color: var(--warning);
+  background: var(--warning-soft);
 }
 
 /* === Additional light-mode overrides === */
@@ -355,21 +355,21 @@ html[data-theme='light'] .metric-item {
   background: rgba(243,248,252,0.96);
   border-color: rgba(187,204,220,0.72);
 }
-html[data-theme='light'] .metric-item span { color: #47627e; }
-html[data-theme='light'] .metric-item strong { color: #0f172a; }
+html[data-theme='light'] .metric-item span { color: var(--text-secondary); }
+html[data-theme='light'] .metric-item strong { color: var(--text-primary); }
 html[data-theme='light'] .refresh-btn {
   background: rgba(241,246,251,0.98);
   border-color: rgba(187,204,220,0.72);
-  color: #1d4ed8;
+  color: var(--brand);
 }
 html[data-theme='light'] .risk-critical,
 html[data-theme='light'] .risk-high {
   background: rgba(254,226,226,0.6);
-  color: #991b1b;
+  color: var(--danger-strong);
 }
 html[data-theme='light'] .risk-warning {
   background: rgba(254,243,199,0.6);
-  color: #92400e;
+  color: var(--warning);
 }
 html[data-theme='light'] .worse-grid span,
 html[data-theme='light'] .summary-empty {

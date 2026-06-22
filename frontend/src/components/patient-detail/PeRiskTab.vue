@@ -57,54 +57,54 @@ const wellsChips = computed(() => { const rows = Array.isArray(wellsAlert.value?
 <style scoped>
 .pe-tab { display: grid; gap: 14px; }
 .pe-hero { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.pe-title { color: #effcff; font-size: 22px; font-weight: 800; }
-.pe-sub,.pe-card-meta,.pe-row-time { color: #8bb2c4; font-size: 12px; }
-.pe-pill { padding: 10px 14px; border-radius: 999px; background: rgba(61, 22, 36, 0.68); color: #fecdd3; border: 1px solid rgba(251, 113, 133, 0.16); }
+.pe-title { color: var(--text-primary); font-size: 22px; font-weight: 800; }
+.pe-sub,.pe-card-meta,.pe-row-time { color: var(--text-secondary); font-size: 12px; }
+.pe-pill { padding: 10px 14px; border-radius: var(--card-radius); background: var(--bg-surface), 0.68); color: var(--danger-soft); border: 1px solid rgba(251, 113, 133, 0.16); }
 .pe-grid,.pe-list { display: grid; gap: 12px; }
 .pe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.pe-card,.pe-row { padding: 16px; border-radius: 16px; border: 1px solid rgba(251, 113, 133, 0.14); background: linear-gradient(180deg, rgba(37, 13, 23, 0.7), rgba(20, 9, 17, 0.95)); }
+.pe-card,.pe-row { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(251, 113, 133, 0.14); background: var(--bg-surface), var(--bg-surface)); }
 .pe-card-title { color: #ffe4e6; font-size: 15px; font-weight: 800; }
-.pe-card-main,.pe-row-main { margin-top: 10px; color: #fff1f2; line-height: 1.6; }
+.pe-card-main,.pe-row-main { margin-top: 10px; color: var(--danger-bg); line-height: 1.6; }
 .pe-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.pe-chip { padding: 6px 10px; border-radius: 999px; background: rgba(76, 18, 34, 0.72); color: #ffe4e6; border: 1px solid rgba(251, 113, 133, 0.14); font-size: 12px; }
+.pe-chip { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface), 0.72); color: #ffe4e6; border: 1px solid rgba(251, 113, 133, 0.14); font-size: 12px; }
 .pe-row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; }
-.pe-row strong { color: #fff1f2; }
-.pe-empty { padding: 24px; text-align: center; color: #caa3ad; border: 1px dashed rgba(251, 113, 133, 0.18); border-radius: 16px; }
+.pe-row strong { color: var(--danger-bg); }
+.pe-empty { padding: 24px; text-align: center; color: #caa3ad; border: 1px dashed rgba(251, 113, 133, 0.18); border-radius: var(--card-radius); }
 html[data-theme='light'] .pe-title {
-  color: #16324f;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .pe-sub,
 html[data-theme='light'] .pe-card-meta,
 html[data-theme='light'] .pe-row-time {
-  color: #6f8399;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .pe-pill {
-  color: #be123c;
-  background: linear-gradient(180deg, rgba(255, 241, 244, 0.98) 0%, rgba(255, 233, 239, 0.98) 100%);
+  color: var(--danger-strong);
+  background: var(--bg-surface) 0%, rgba(255, 233, 239, 0.98) 100%);
   border-color: rgba(251, 113, 133, 0.28);
-  box-shadow: 0 8px 18px rgba(244, 63, 94, 0.08);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .pe-card,
 html[data-theme='light'] .pe-row {
   border-color: rgba(198, 212, 226, 0.92);
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0) 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(245, 249, 253, 0.99) 100%);
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+    var(--bg-surface), rgba(59, 130, 246, 0) 38%),
+    var(--bg-surface) 0%, rgba(245, 249, 253, 0.99) 100%);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .pe-card-title,
 html[data-theme='light'] .pe-card-main,
 html[data-theme='light'] .pe-row strong,
 html[data-theme='light'] .pe-row-main {
-  color: #16324f;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .pe-chip {
-  color: #1d4ed8;
+  color: var(--brand);
   background: rgba(239, 246, 255, 0.98);
   border-color: rgba(59, 130, 246, 0.18);
 }
 html[data-theme='light'] .pe-empty {
-  color: #6f8399;
+  color: var(--text-secondary);
   background: rgba(248, 251, 255, 0.98);
   border-color: rgba(198, 212, 226, 0.92);
 }

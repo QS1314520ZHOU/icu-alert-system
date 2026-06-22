@@ -138,7 +138,7 @@ const summaryCards = computed(() => {
   flex-wrap: wrap;
 }
 .toolbar-hint {
-  color: #88b6c8;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .summary-grid {
@@ -148,19 +148,19 @@ const summaryCards = computed(() => {
 }
 .summary-card {
   padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(7,20,34,.92) 0%, rgba(4,12,22,.94) 100%);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
   border: 1px solid rgba(80,199,255,.12);
 }
 .summary-card span,
 .summary-card small {
-  color: #88b6c8;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .summary-card strong {
   display: block;
   margin-top: 6px;
-  color: #effcff;
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 800;
 }
@@ -170,20 +170,20 @@ const summaryCards = computed(() => {
 }
 .chart-panel {
   padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(7,20,34,.92) 0%, rgba(4,12,22,.94) 100%);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
   border: 1px solid rgba(80,199,255,.12);
-  box-shadow: inset 0 1px 0 rgba(145,228,255,.04);
+  box-shadow: var(--card-shadow);
 }
 .chart-wrap {
   height: 360px;
 }
 .tab-empty {
-  color: #7ccfe4;
+  color: var(--accent);
   font-size: 12px;
   padding: 12px;
-  border-radius: 10px;
-  background: rgba(8,28,44,.58);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface),.58);
   border: 1px dashed rgba(80,199,255,.14);
 }
 .trend-tab :deep(.ant-radio-group) {
@@ -193,21 +193,21 @@ const summaryCards = computed(() => {
 .trend-tab :deep(.ant-radio-button-wrapper) {
   border-radius: 10px !important;
   border: 1px solid rgba(80,199,255,.14) !important;
-  background: rgba(8,28,44,.78) !important;
-  color: #8bcfe1 !important;
+  background: var(--bg-surface),.78) !important;
+  color: var(--accent) !important;
 }
 .trend-tab :deep(.ant-radio-button-wrapper::before) {
   display: none !important;
 }
 .trend-tab :deep(.ant-radio-button-wrapper-checked) {
-  background: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%) !important;
-  color: #effcff !important;
+  background: var(--bg-surface) 0%, rgba(7,63,86,.98) 100%) !important;
+  color: var(--text-primary) !important;
   border-color: rgba(110,231,249,.28) !important;
 }
 .trend-tab :deep(.ant-btn) {
-  background: rgba(8,28,44,.78);
+  background: var(--bg-surface),.78);
   border-color: rgba(80,199,255,.14);
-  color: #dffbff;
+  color: var(--text-primary);
 }
 @media (max-width: 920px) {
   .summary-grid {
@@ -227,31 +227,31 @@ html[data-theme='light'] .trend-tab .tab-empty { color: #5f7690; }
 html[data-theme='light'] .summary-card,
 html[data-theme='light'] .trend-tab .chart-panel {
   background:
-    radial-gradient(circle at top right, rgba(56,189,248,.10), rgba(56,189,248,0) 40%),
-    linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,248,253,.98) 100%);
+    var(--bg-surface), rgba(56,189,248,0) 40%),
+    var(--bg-surface) 0%, rgba(243,248,253,.98) 100%);
   border-color: rgba(187,204,220,.72);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--card-shadow);
 }
-html[data-theme='light'] .summary-card strong { color: #16324f; }
+html[data-theme='light'] .summary-card strong { color: var(--text-secondary); }
 html[data-theme='light'] .trend-tab .tab-empty {
   background: rgba(238,245,252,.92);
   border-color: rgba(153,183,206,.5);
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper) {
   border-color: rgba(187,204,220,.72) !important;
-  background: linear-gradient(180deg, rgba(251,253,255,.98), rgba(239,245,250,.98)) !important;
+  background: var(--bg-surface), rgba(239,245,250,.98)) !important;
   color: #56718d !important;
-  box-shadow: 0 3px 10px rgba(15,23,42,0.04);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper-checked) {
-  background: linear-gradient(180deg, rgba(37,99,235,.94) 0%, rgba(29,78,216,.98) 100%) !important;
-  color: #f8fbff !important;
+  background: var(--bg-surface) 0%, rgba(29,78,216,.98) 100%) !important;
+  color: var(--text-primary) !important;
   border-color: rgba(59,130,246,.34) !important;
 }
 html[data-theme='light'] .trend-tab :deep(.ant-btn) {
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
+  background: var(--bg-surface), rgba(241,246,251,.98));
   border-color: rgba(187,204,220,.72);
-  color: #355a7c;
-  box-shadow: 0 4px 12px rgba(15,23,42,0.05);
+  color: var(--text-secondary);
+  box-shadow: var(--card-shadow);
 }
 </style>
