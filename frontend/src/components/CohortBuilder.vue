@@ -548,10 +548,10 @@ watch(
 }
 .cb-header p {
   margin: 4px 0 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--text-secondary);
 }
 .cb-close {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--text-secondary);
   font-size: 18px;
 }
 .cb-close:hover {
@@ -569,7 +569,7 @@ watch(
 .cb-section-head {
   display: flex;
   justify-content: space-between;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-primary);
 }
 .preset-row {
   display: flex;
@@ -591,7 +591,7 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-primary);
 }
 .add-btn {
   border-color: rgba(0, 210, 210, 0.3);
@@ -607,7 +607,7 @@ watch(
   display: flex;
   gap: 12px;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-color);
   padding: 4px 0 12px;
   pointer-events: auto;
 }
@@ -628,7 +628,7 @@ watch(
 .filter-row :deep(.ant-input-number-input),
 .filter-row :deep(.ant-input),
 .cb-footer :deep(.ant-input) {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: var(--text-primary) !important;
 }
 .value-cell {
   flex: 1;
@@ -653,7 +653,7 @@ watch(
 .cb-empty {
   padding: 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
 }
 .cb-empty {
   color: #ffb970;
@@ -668,7 +668,7 @@ watch(
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   padding: 10px;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--text-secondary);
 }
 .row-fade-enter-active,
 .row-fade-leave-active {
@@ -696,7 +696,7 @@ watch(
   justify-content: space-between;
   align-items: center;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border-color);
   position: sticky;
   bottom: 0;
   background: rgba(7, 18, 32, 0.95);

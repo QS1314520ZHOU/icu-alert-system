@@ -2147,17 +2147,17 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   background:
     radial-gradient(circle at top right, rgba(251, 113, 133, .08), rgba(251, 113, 133, 0) 26%),
     linear-gradient(180deg, rgba(11, 23, 38, .98) 0%, rgba(6, 13, 24, .99) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px rgba(251, 113, 133, .04);
+  box-shadow: inset 0 1px 0 var(--border-color), 0 0 0 1px rgba(251, 113, 133, .04);
 }
 .alert-card.sev-high .alert-body { border-left-color: #f97316; }
 .alert-card.sev-critical .alert-body { border-left-color: #f43f5e; }
 .alert-card.sev-high .alert-body--rescue {
   border-color: rgba(249,115,22,.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px rgba(249,115,22,.08), 0 10px 24px rgba(249,115,22,.06);
+  box-shadow: inset 0 1px 0 var(--border-color), 0 0 0 1px rgba(249,115,22,.08), 0 10px 24px rgba(249,115,22,.06);
 }
 .alert-card.sev-critical .alert-body--rescue {
   border-color: rgba(244,63,94,.2);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px rgba(244,63,94,.1), 0 10px 28px rgba(244,63,94,.08);
+  box-shadow: inset 0 1px 0 var(--border-color), 0 0 0 1px rgba(244,63,94,.1), 0 10px 28px rgba(244,63,94,.08);
 }
 .alert-dot.sev-warning { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,.55); }
 .alert-dot.sev-high { background: #f97316; box-shadow: 0 0 8px rgba(249,115,22,.55); }

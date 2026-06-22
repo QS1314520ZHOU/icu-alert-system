@@ -1,0 +1,266 @@
+﻿components\common\HumanBodyDiagram.vue	919	background: rgba(255, 255, 255, 0.92);
+components\common\HumanBodyDiagram.vue	923	background: rgba(255, 255, 255, 0.86);
+components\common\HumanBodyDiagram.vue	927	background: rgba(255,255,255,.96);
+components\overview\PatientOverviewCard.vue	1139	box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 10px 22px rgba(244, 63, 94, 0.08);
+components\overview\PatientOverviewCard.vue	1849	border: 1px solid rgba(255, 255, 255, 0.08);
+components\overview\PatientOverviewCard.vue	1883	linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(248,250,253,.99) 100%);
+components\overview\PatientOverviewCard.vue	1900	linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,247,247,.99) 100%);
+components\overview\PatientOverviewCard.vue	1907	linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,251,235,.99) 100%);
+components\overview\PatientOverviewCard.vue	1918	linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(240,253,244,.99) 100%);
+components\overview\PatientOverviewCard.vue	1927	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,244,246,.98) 100%);
+components\overview\PatientOverviewCard.vue	1934	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,248,238,.98) 100%);
+components\overview\PatientOverviewCard.vue	1945	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,252,247,.98) 100%);
+components\overview\PatientOverviewCard.vue	1951	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(244,248,253,.98) 100%);
+components\overview\PatientOverviewCard.vue	1958	box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 8px 18px rgba(15,23,42,.04);
+components\overview\PatientOverviewCard.vue	2038	background: rgba(255,255,255,.98);
+components\overview\PatientOverviewCard.vue	2085	background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.98) 100%);
+components\overview\PatientOverviewCard.vue	2166	background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.98) 100%);
+components\overview\PatientOverviewCard.vue	2168	box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+components\overview\PatientOverviewCard.vue	2173	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,247,255,.98) 100%);
+components\overview\PatientOverviewCard.vue	2178	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,249,239,.98) 100%);
+components\overview\PatientOverviewCard.vue	2183	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(240,253,255,.98) 100%);
+components\overview\PatientOverviewCard.vue	2188	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(247,245,255,.98) 100%);
+components\overview\PatientOverviewCard.vue	2202	background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,251,235,.98) 100%);
+components\overview\PatientOverviewCard.vue	2217	background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+components\overview\PatientOverviewCard.vue	2251	background: rgba(255,255,255,.96);
+components\patient-detail\AiTab.vue	1821	html[data-theme='light'] .ai-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-colo
+components\patient-detail\AiTab.vue	1902	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\patient-detail\AiTab.vue	1920	background: linear-gradient(135deg, rgba(241,246,251,0.98), rgba(255,255,255,0.98));
+components\patient-detail\AiTab.vue	1934	background: linear-gradient(180deg, rgba(255,251,235,0.98), rgba(255,255,255,0.98));
+components\patient-detail\AiTab.vue	1966	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\patient-detail\AlertsTab.vue	2150	box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px rgba(251, 113, 133, .04);
+components\patient-detail\AlertsTab.vue	2156	box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px rgba(249,115,22,.08), 0 10px 24px rgba(249,115,22,.06);
+components\patient-detail\AlertsTab.vue	2160	box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px rgba(244,63,94,.1), 0 10px 28px rgba(244,63,94,.08);
+components\patient-detail\AlertsTab.vue	2950	html[data-theme='light'] .modi-panel { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-c
+components\patient-detail\AlertsTab.vue	2951	html[data-theme='light'] .organ-focus-suite { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); b
+components\patient-detail\AlertsTab.vue	2980	html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: 
+components\patient-detail\AlertsTab.vue	2988	html[data-theme='light'] .alert-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%); border-c
+components\patient-detail\AlertsTab.vue	2990	background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 100%);
+components\patient-detail\AlertsTab.vue	2997	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+components\patient-detail\AlertsTab.vue	3022	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+components\patient-detail\AlertsTab.vue	3088	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\patient-detail\AlertsTab.vue	3151	background: linear-gradient(180deg, rgba(255,245,246,0.98), rgba(255,255,255,0.98));
+components\patient-detail\BodyMapPanel.vue	281	background: rgba(255,255,255,.94);
+components\patient-detail\BodyMapPanel.vue	286	background: rgba(255,255,255,.9);
+components\patient-detail\ClinicalSummaryPanel.vue	130	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+components\patient-detail\DataTableTab.vue	233	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,253,0.98));
+components\patient-detail\DataTableTab.vue	236	box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+components\patient-detail\DataTableTab.vue	241	box-shadow: 0 0 0 3px rgba(59,130,246,0.10), inset 0 1px 0 rgba(255,255,255,0.82);
+components\patient-detail\DataTableTab.vue	247	linear-gradient(180deg, rgba(255,255,255,.99), rgba(243,248,253,.98));
+components\patient-detail\DataTableTab.vue	256	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.98));
+components\patient-detail\DataTableTab.vue	273	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(243,248,252,0.98));
+components\patient-detail\DeviceBodyMap.vue	698	background: rgba(255,255,255,.94);
+components\patient-detail\DeviceBodyMap.vue	708	background: rgba(255,255,255,.94);
+components\patient-detail\DeviceBodyMap.vue	728	background: rgba(255,255,255,.98);
+components\patient-detail\DeviceHaiBundlePanel.vue	369	background: rgba(255,255,255,.94);
+components\patient-detail\DigitalTwinAvatarPanel.vue	262	background: rgba(255,255,255,.94);
+components\patient-detail\DigitalTwinTab.vue	797	html[data-theme='light'] .twin-kpi, html[data-theme='light'] .loop-card, html[data-theme='light'] .twin-card { background: linear-gradient(1
+components\patient-detail\DigitalTwinTab.vue	812	html[data-theme='light'] .timeline-dot { border-color: rgba(255,255,255,0.8); }
+components\patient-detail\DigitalTwinTab.vue	833	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\patient-detail\EcashBundleTab.vue	119	html[data-theme='light'] .bundle-light, html[data-theme='light'] .domain-card, html[data-theme='light'] .bundle-alert-card { background: lin
+components\patient-detail\EcashBundleTab.vue	135	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\patient-detail\EvidenceModal.vue	220	html[data-theme='light'] .evidence-panel--overview { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(242,247,252,0.98) 1
+components\patient-detail\LongTermFollowupTab.vue	517	linear-gradient(180deg, rgba(255,255,255,.98), rgba(243,248,252,.98));
+components\patient-detail\LongTermFollowupTab.vue	524	linear-gradient(180deg, rgba(255,255,255,.99), rgba(253,246,248,.98));
+components\patient-detail\LongTermFollowupTab.vue	530	linear-gradient(180deg, rgba(255,255,255,.99), rgba(255,250,240,.98));
+components\patient-detail\LongTermFollowupTab.vue	542	background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,250,253,.98));
+components\patient-detail\LongTermFollowupTab.vue	543	box-shadow: inset 0 1px 0 rgba(255,255,255,0.76);
+components\patient-detail\LongTermFollowupTab.vue	548	box-shadow: 0 0 0 3px rgba(59,130,246,.10), inset 0 1px 0 rgba(255,255,255,0.85);
+components\patient-detail\LongTermFollowupTab.vue	574	linear-gradient(180deg, rgba(255,255,255,.99), rgba(238,245,252,.98));
+components\patient-detail\MobilityTab.vue	79	html[data-theme='light'] .mobility-card, html[data-theme='light'] .mobility-row { background: linear-gradient(180deg, rgba(255,255,255,0.98)
+components\patient-detail\PeRiskTab.vue	92	linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(245, 249, 253, 0.99) 100%);
+components\patient-detail\SbtTimelineTab.vue	562	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+components\patient-detail\SbtTimelineTab.vue	609	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\patient-detail\SimilarCasesTab.vue	533	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+components\patient-detail\TrendTab.vue	231	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(243,248,253,.98) 100%);
+components\patient-detail\TrendTab.vue	252	background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
+components\patient-detail\WaveformTab.vue	127	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+components\patient-detail\WorkbenchHub.vue	125	linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 249, 253, 0.98) 100%);
+components\patient-detail\WorkbenchHub.vue	162	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\patient-detail\WorkbenchHub.vue	171	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+components\AiPulseFloater.vue	301	linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98));
+components\AiPulseFloater.vue	312	background: rgba(255, 255, 255, 0.9);
+components\AiPulseFloater.vue	336	background: rgba(255, 255, 255, 0.98);
+components\CohortBuilder.vue	551	color: rgba(255, 255, 255, 0.72);
+components\CohortBuilder.vue	554	color: rgba(255, 255, 255, 0.72);
+components\CohortBuilder.vue	572	color: rgba(255, 255, 255, 0.85);
+components\CohortBuilder.vue	594	color: rgba(255, 255, 255, 0.85);
+components\CohortBuilder.vue	610	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+components\CohortBuilder.vue	631	color: rgba(255, 255, 255, 0.9) !important;
+components\CohortBuilder.vue	656	color: rgba(255, 255, 255, 0.7);
+components\CohortBuilder.vue	671	color: rgba(255, 255, 255, 0.75);
+components\CohortBuilder.vue	699	border-top: 1px solid rgba(255, 255, 255, 0.08);
+components\CohortBuilder.vue	743	html[data-theme='light'] .cb-footer { border-top-color: rgba(187,204,220,0.4); background: rgba(255,255,255,0.95); }
+mobile\mobile.css	31	background: rgba(255, 255, 255, .94);
+mobile\mobile.css	841	background: rgba(255, 255, 255, .96);
+mobile\mobile.css	1336	background: rgba(255, 255, 255, .96);
+views\AcademicResearchDashboard.vue	752	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+views\AcademicResearchDashboard.vue	760	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+views\AcademicResearchDashboard.vue	766	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 251, 235, .96));
+views\AcademicResearchDashboard.vue	772	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 241, 242, .96));
+views\AiConsult.vue	1643	background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 247, 252, 0.98) 100%);
+views\AiConsult.vue	1653	background: rgba(255, 255, 255, 0.98);
+views\AiOps.vue	536	--ops-card-bg: linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 247, 253, 0.94) 100%);
+views\AiOps.vue	537	--ops-card-shadow: 0 14px 34px rgba(21, 53, 84, 0.1), 0 2px 0 rgba(255, 255, 255, 0.7) inset;
+views\BedSideScreen.vue	376	background: rgba(255,255,255,0.04);
+views\BedSideScreen.vue	377	border-bottom: 1px solid rgba(255,255,255,0.08);
+views\BedSideScreen.vue	421	border-bottom: 1px solid rgba(255,255,255,0.05);
+views\BedSideScreen.vue	438	border-bottom: 1px solid rgba(255,255,255,0.05);
+views\BedSideScreen.vue	441	background: rgba(255,255,255,0.04);
+views\BedSideScreen.vue	442	border: 1px solid rgba(255,255,255,0.08);
+views\BedSideScreen.vue	461	border-bottom: 1px solid rgba(255,255,255,0.05);
+views\BedSideScreen.vue	488	background: rgba(255,255,255,.045);
+views\BedSideScreen.vue	489	border: 1px solid rgba(255,255,255,.08);
+views\BedSideScreen.vue	519	background: rgba(255,255,255,.08);
+views\BedSideScreen.vue	520	border: 1px solid rgba(255,255,255,.14);
+views\BedSideScreen.vue	548	background: rgba(255,255,255,0.03);
+views\BedSideScreen.vue	574	border: 1px solid rgba(255,255,255,0.12);
+views\BedSideScreen.vue	596	background: rgba(255,255,255,.92);
+views\BedSideScreen.vue	643	background: rgba(255,255,255,.95);
+views\BundleComplianceChecklist.vue	347	background: rgba(255, 255, 255, 0.96);
+views\ClinicalTrialScreening.vue	675	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+views\ClinicalTrialScreening.vue	682	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(236, 253, 245, .96));
+views\ClinicalTrialScreening.vue	688	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+views\ClinicalTrialScreening.vue	694	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 251, 235, .96));
+views\ClinicalTrialScreening.vue	741	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(232, 247, 252, .98));
+views\ClinicalTrialScreening.vue	758	background: linear-gradient(180deg, rgba(240, 249, 255, .96), rgba(255, 255, 255, .98));
+views\ComplianceDashboard.vue	751	background: rgba(255, 255, 255, 0.96);
+views\DirectorHome.vue	895	background: rgba(255, 255, 255, 0.96);
+views\DoctorHome.vue	388	background: rgba(255, 255, 255, 0.96);
+views\HeadNurseHome.vue	914	background: rgba(255, 255, 255, 0.96);
+views\HomeRedirect.vue	151	background: rgba(255, 255, 255, 0.96);
+views\MdtBoard.vue	1642	linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 18%),
+views\MdtBoard.vue	1651	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+views\MdtBoard.vue	1796	box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+views\MdtBoard.vue	1867	background: rgba(255,255,255,.08);
+views\MdtBoard.vue	3273	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+views\MdtBoard.vue	3411	linear-gradient(180deg, rgba(255,255,255,.98), rgba(239,246,255,.98));
+views\MdtBoard.vue	3463	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+views\MdtBoard.vue	3470	background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,246,251,.98));
+views\MdtBoard.vue	3483	background: linear-gradient(180deg, rgba(255, 251, 235, .98), rgba(255, 255, 255, .98));
+views\MdtBoard.vue	3528	background: rgba(255, 255, 255, .96);
+views\MdtBoard.vue	3628	background: rgba(255, 255, 255, .96);
+views\MdtBoard.vue	3681	background: rgba(255, 255, 255, .10);
+views\MdtBoard.vue	3715	rgba(255, 255, 255, .98);
+views\MdtBoard.vue	3729	linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(241, 248, 253, .98));
+views\MdtBoard.vue	3736	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(239, 248, 252, .98));
+views\MdtBoard.vue	3859	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+views\MdtBoard.vue	3875	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(239, 248, 252, .98));
+views\MdtBoard.vue	3897	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+views\MdtBoard.vue	3930	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+views\MdtBoard.vue	3958	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(240, 253, 250, .98));
+views\NurseHome.vue	584	box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+views\NurseHome.vue	643	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+views\NurseHome.vue	754	background: rgba(255, 255, 255, 0.96);
+views\NutritionSupportDashboard.vue	1175	background: rgba(255, 255, 255, 0.96);
+views\PatientDetail.vue	4619	box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 24px rgba(0, 0, 0, .22);
+views\PatientDetail.vue	4646	border: 1px solid rgba(255,255,255,.12);
+views\PatientDetail.vue	4702	background: rgba(255,255,255,.06);
+views\PatientDetail.vue	4703	border: 1px solid rgba(255,255,255,.08);
+views\PatientDetail.vue	4730	border: 1px solid rgba(255,255,255,.12);
+views\PatientDetail.vue	4731	background: rgba(255,255,255,.06);
+views\PatientDetail.vue	4739	border-color: rgba(255,255,255,.24);
+views\PatientDetail.vue	4740	background: rgba(255,255,255,.12);
+views\PatientDetail.vue	5759	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+views\PatientDetail.vue	5773	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+views\PatientDetail.vue	5791	background: linear-gradient(145deg, rgba(255, 255, 255, .98), rgba(241, 246, 251, .98));
+views\PatientDetail.vue	5805	background: linear-gradient(145deg, rgba(254, 242, 242, .98), rgba(255, 255, 255, .98));
+views\PatientDetail.vue	5809	background: linear-gradient(145deg, rgba(255, 251, 235, .98), rgba(255, 255, 255, .98));
+views\PatientDetail.vue	5818	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+views\PatientDetail.vue	5823	background: rgba(255,255,255,.72);
+views\PatientDetail.vue	5919	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(245,249,253,.98) 100%);
+views\PatientDetail.vue	5924	background: rgba(255, 255, 255, 0.98);
+views\PatientDetail.vue	5928	background: rgba(255, 255, 255, 0.98);
+views\PatientDetail.vue	5939	background: rgba(255, 255, 255, 0.98);
+views\PatientDetail.vue	6003	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(254,242,242,.98) 100%);
+views\PatientDetail.vue	6010	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,247,237,.98) 100%);
+views\PatientDetail.vue	6016	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,251,235,.98) 100%);
+views\PatientDetail.vue	6134	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+views\PatientDetail.vue	6139	background: linear-gradient(145deg, rgba(241,246,251,0.98), rgba(255,255,255,0.98));
+views\PatientDetail.vue	6143	background: linear-gradient(145deg, rgba(248,251,255,0.98), rgba(255,255,255,0.98));
+views\PatientDetail.vue	6147	background: linear-gradient(145deg, rgba(254,226,226,0.6), rgba(255,255,255,0.98));
+views\PatientDetail.vue	6150	background: linear-gradient(145deg, rgba(254,243,199,0.6), rgba(255,255,255,0.98));
+views\PatientDetail.vue	6154	background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,247,252,0.98));
+views\PatientOverview.vue	1406	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(247,250,255,.98) 100%);
+views\PatientOverview.vue	1419	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,253,.98) 100%);
+views\PatientOverview.vue	1427	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(239,246,255,.98) 100%);
+views\PatientOverview.vue	1433	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,241,242,.98) 100%);
+views\PatientOverview.vue	1439	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(255,247,237,.98) 100%);
+views\PatientOverview.vue	1445	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(240,253,244,.98) 100%);
+views\PatientOverview.vue	1450	background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(239,246,255,.98) 100%);
+views\PatientOverview.vue	1483	background: rgba(255,255,255,.98);
+views\PatientOverview.vue	1500	background: rgba(255,255,255,.98);
+views\PatientOverview.vue	1538	background: rgba(255,255,255,.98);
+views\PatientOverview.vue	1550	background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(244,248,253,.98) 100%);
+views\PatientOverview.vue	1568	linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.99) 100%);
+views\PatientOverview.vue	1575	linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,248,249,.99) 100%);
+views\PatientOverview.vue	1581	linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(255,251,243,.99) 100%);
+views\PatientOverview.vue	1587	linear-gradient(180deg, rgba(255,255,255,.99) 0%, rgba(247,252,249,.99) 100%);
+views\PatientOverview.vue	1599	background: rgba(255,255,255,.98);
+views\PatientOverview.vue	1628	background: rgba(255,255,255,.9);
+views\PatientOverview.vue	1652	background: rgba(255,255,255,.98);
+views\PatientOverview.vue	1657	background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(246,249,253,.99) 100%);
+views\PatientOverview.vue	1663	background: rgba(255,255,255,.98);
+views\ResearchWorkbench.vue	3495	.hero-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(0,210,210,0.16); border-radius: 10px; padding: 18px 24px; display: f
+views\ResearchWorkbench.vue	3497	.hero-card p { margin: 6px 0 0; color: rgba(255,255,255,0.6); font-size: 13px; }
+views\ResearchWorkbench.vue	3502	.cohort-pill.empty { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+views\ResearchWorkbench.vue	3506	.nav-item { padding: 10px 18px; color: rgba(255,255,255,0.7); cursor: pointer; display: flex; align-items: center; justify-content: space-be
+views\ResearchWorkbench.vue	3507	.nav-item.divider { border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0; height: 0; padding: 0; cursor: default; }
+views\ResearchWorkbench.vue	3512	.status-dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.25); display: inline-block; transition: backgrou
+views\ResearchWorkbench.vue	3519	.card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,210,210,0.15); border-radius: 10px; padding: 20px; display: flex; flex-
+views\ResearchWorkbench.vue	3526	.cohort-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,0.85); }
+views\ResearchWorkbench.vue	3527	.prep-options :deep(.ant-radio-wrapper) { display: flex; align-items: center; margin: 0; color: rgba(255,255,255,0.85); }
+views\ResearchWorkbench.vue	3528	.prep-hint { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
+views\ResearchWorkbench.vue	3529	.prep-summary { font-size: 13px; color: rgba(255,255,255,0.75); display: flex; flex-direction: column; gap: 4px; }
+views\ResearchWorkbench.vue	3531	.group-card { flex: 1; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; g
+views\ResearchWorkbench.vue	3535	.group-card span { font-size: 13px; color: rgba(255,255,255,0.85); }
+views\ResearchWorkbench.vue	3536	.group-vs { align-self: center; padding: 0 4px; font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.65); }
+views\ResearchWorkbench.vue	3539	.var-category { width: 70px; text-align: right; color: rgba(255,255,255,0.45); font-size: 12px; line-height: 24px; cursor: pointer; transiti
+views\ResearchWorkbench.vue	3540	.var-category:hover { color: rgba(255,255,255,0.75); }
+views\ResearchWorkbench.vue	3542	.var-head-actions { display: flex; align-items: center; gap: 10px; font-size: 12px; color: rgba(255,255,255,0.65); }
+views\ResearchWorkbench.vue	3545	.var-tag { padding: 4px 8px; border-radius: 5px; border: 1px solid rgba(0,210,210,0.2); background: rgba(0,210,210,0.05); color: rgba(255,25
+views\ResearchWorkbench.vue	3552	.var-type { font-size: 11px; color: rgba(255,255,255,0.65); }
+views\ResearchWorkbench.vue	3572	.radio-option { display: block; font-size: 13px; color: rgba(255,255,255,0.8); line-height: 28px; }
+views\ResearchWorkbench.vue	3584	.overview-line { margin-top: 6px; color: rgba(255,255,255,0.45); font-size: 11px; }
+views\ResearchWorkbench.vue	3597	.cat-item { font-size: 12px; color: rgba(255,255,255,0.8); }
+views\ResearchWorkbench.vue	3599	.diag-search-tip { font-size: 11px; color: rgba(255,255,255,0.5); }
+views\ResearchWorkbench.vue	3614	border: 1px solid rgba(255, 255, 255, 0.15);
+views\ResearchWorkbench.vue	3616	color: rgba(255, 255, 255, 0.6);
+views\ResearchWorkbench.vue	3621	.tooltip-divider { border-top: 1px solid rgba(255,255,255,0.25); margin: 6px 0; }
+views\ResearchWorkbench.vue	3633	color: rgba(255,255,255,0.75);
+views\ResearchWorkbench.vue	3643	color: rgba(255,255,255,0.72);
+views\ResearchWorkbench.vue	3649	background: rgba(255,255,255,0.35);
+views\ResearchWorkbench.vue	3655	.planner-step-row.is-skipped .planner-step-dot { background: rgba(255,255,255,0.4); }
+views\ResearchWorkbench.vue	3657	.planner-step-state { color: rgba(255,255,255,0.55); }
+views\ResearchWorkbench.vue	3663	border: 1px solid rgba(255,255,255,0.08);
+views\ResearchWorkbench.vue	3672	color: rgba(255,255,255,0.75);
+views\ResearchWorkbench.vue	3675	.planner-log-time { color: rgba(255,255,255,0.45); min-width: 64px; }
+views\ResearchWorkbench.vue	3678	.next-step-card { background: rgba(255,255,255,0.02); border: 1px dashed rgba(0,210,210,0.3); border-radius: 12px; padding: 16px 20px; displ
+views\ResearchWorkbench.vue	3680	.recommend { color: rgba(255,255,255,0.7); font-size: 13px; }
+views\ResearchWorkbench.vue	3681	.config-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,210,210,0.15); border-radius: 10px; }
+views\ResearchWorkbench.vue	3683	.collapse-summary { color: rgba(255,255,255,0.6); font-size: 12px; }
+views\ResearchWorkbench.vue	3688	.label { color: rgba(255,255,255,0.7); font-size: 12px; margin-bottom: 6px; }
+views\ResearchWorkbench.vue	3690	.result-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,210,210,0.1); border-radius: 10px; padding: 18px; }
+views\ResearchWorkbench.vue	3705	.sub-card { margin-top: 12px; background: rgba(255,255,255,0.85); border: 1px solid rgba(12,33,54,0.08); border-radius: 8px; padding: 10px; 
+views\ResearchWorkbench.vue	3712	border: 1px solid rgba(255,255,255,0.1);
+views\ResearchWorkbench.vue	3715	color: rgba(255,255,255,0.78);
+views\ResearchWorkbench.vue	3721	.empty-state { padding: 80px 0; text-align: center; color: rgba(255,255,255,0.35); }
+views\RespiratoryTherapistDashboard.vue	906	background: rgba(255,255,255,.04);
+views\RespiratoryTherapistDashboard.vue	966	background: rgba(255, 255, 255, 0.96);
+views\RoundingSheetView.vue	876	background: rgba(255,255,255,.08);
+views\RoundingSheetView.vue	1202	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+views\RoundingSheetView.vue	1266	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+views\RoundingSheetView.vue	1273	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(235, 248, 252, .98));
+views\RoundingSheetView.vue	1279	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 241, 242, .96));
+views\RoundingSheetView.vue	1285	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 251, 235, .96));
+views\RoundingSheetView.vue	1301	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(232, 247, 252, .98));
+views\RoundingSheetView.vue	1326	linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(241, 248, 253, .96));
+views\RoundingSheetView.vue	1347	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(255, 241, 242, .96));
+views\RoundingSheetView.vue	1352	linear-gradient(180deg, rgba(255, 255, 255, .99), rgba(244, 249, 253, .98));
+App.vue	630	linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 255, 0.96) 58%, rgba(239, 246, 255, 0.98) 100%) !important;
+App.vue	653	background: rgba(255, 255, 255, 0.82);
+App.vue	706	background: rgba(255, 255, 255, 0.82);
+style.css	42	--hdr-icon-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 16px rgba(34, 211, 238, 0.08);
+style.css	52	--nav-btn-active-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(34, 211, 238, 0.08);
+style.css	88	--pill-bg: rgba(255, 255, 255, 0.04);
+style.css	169	--hdr-bg-strong: linear-gradient(90deg, rgba(255,255,255,.98) 0%, rgba(245,249,255,.98) 100%);

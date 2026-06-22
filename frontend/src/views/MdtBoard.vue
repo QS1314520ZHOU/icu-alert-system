@@ -1648,7 +1648,7 @@ onMounted(async () => {
   border-radius: 16px;
   border: 1px solid rgba(125, 167, 214, 0.18);
   background: linear-gradient(180deg, rgba(10, 22, 35, 0.985), rgba(8, 18, 30, 0.985));
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14), inset 0 1px 0 var(--border-color);
 }
 .mdt-hero {
   position: relative;
@@ -1793,7 +1793,7 @@ onMounted(async () => {
   background:
     radial-gradient(circle at 100% 0%, rgba(34, 211, 238, .10), transparent 34%),
     rgba(7, 20, 34, .82);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  box-shadow: inset 0 1px 0 var(--border-color);
 }
 .simple-patient-card {
   display: grid;
@@ -1864,7 +1864,7 @@ onMounted(async () => {
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255,255,255,.08);
+  background: var(--bg-surface-2);
 }
 .moderator-metrics b {
   display: block;

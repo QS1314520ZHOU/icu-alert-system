@@ -873,7 +873,7 @@ h1 { margin-top: 4px; font-size: 26px; color: #f0fbff; }
   margin-top: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255,255,255,.08);
+  background: var(--bg-surface-2);
 }
 .completion-card b {
   display: block;

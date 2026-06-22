@@ -373,8 +373,8 @@ watch(patientId, async (nextId, prevId) => {
   align-items: center;
   gap: 28px;
   padding: 22px 34px;
-  background: rgba(255,255,255,0.04);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: var(--bg-surface-2);
+  border-bottom: 1px solid var(--border-color);
 }
 .bedside-header__bed {
   display: flex;
@@ -418,7 +418,7 @@ watch(patientId, async (nextId, prevId) => {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border-color);
 }
 .bedside-section-label {
   font-size: 0.72rem;
@@ -435,11 +435,11 @@ watch(patientId, async (nextId, prevId) => {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
   padding: 26px 34px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border-color);
 }
 .vital-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-color);
   border-radius: 22px;
   padding: 22px 14px;
   text-align: center;
@@ -458,7 +458,7 @@ watch(patientId, async (nextId, prevId) => {
 /* ── 待办 ───────────────────────────────── */
 .bedside-todos {
   padding: 20px 34px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -485,8 +485,8 @@ watch(patientId, async (nextId, prevId) => {
   gap: 14px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(255,255,255,.045);
-  border: 1px solid rgba(255,255,255,.08);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-color);
   font-size: 1.25rem;
 }
 .todo-item__dot {
@@ -516,8 +516,8 @@ watch(patientId, async (nextId, prevId) => {
   opacity: .72;
 }
 .voice-toggle {
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.14);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-color);
   color: #cfe8ff;
 }
 .voice-toggle.active {
@@ -545,7 +545,7 @@ watch(patientId, async (nextId, prevId) => {
   gap: 18px;
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(255,255,255,0.03);
+  background: var(--bg-surface-2);
   font-size: 1.2rem;
 }
 .alert-row--critical { background: rgba(255,40,40,0.12); }
@@ -571,7 +571,7 @@ watch(patientId, async (nextId, prevId) => {
   align-items: center;
   gap: 6px;
   background: rgba(0,0,0,0.6);
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--border-color);
   border-radius: 20px;
   padding: 8px 16px;
   font-size: 1rem;

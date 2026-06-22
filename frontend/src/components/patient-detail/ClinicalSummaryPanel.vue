@@ -127,7 +127,7 @@ function fmt(value: any) {
   border-radius: 10px;
   border: 1px solid rgba(125, 211, 252, 0.16);
   background: rgba(5, 16, 28, 0.78);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 var(--border-color);
 }
 .summary-head {
   display: flex;

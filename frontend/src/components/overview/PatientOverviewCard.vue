@@ -1136,7 +1136,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   background:
     radial-gradient(circle at top right, rgba(251, 113, 133, 0.1), rgba(251, 113, 133, 0) 28%),
     linear-gradient(180deg, rgba(20, 22, 38, 0.96) 0%, rgba(10, 15, 28, 0.98) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 10px 22px rgba(244, 63, 94, 0.08);
+  box-shadow: inset 0 1px 0 var(--border-color), 0 10px 22px rgba(244, 63, 94, 0.08);
 }
 .rescue-spotlight-head {
   display: flex;
@@ -1846,7 +1846,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   align-items: center;
   justify-content: center;
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
   font-family: 'Segoe UI', 'Noto Sans SC', sans-serif;
 }
 .mini--green { background: linear-gradient(180deg, #34d399 0%, #10b981 100%); box-shadow: 0 0 12px rgba(52, 211, 153, 0.16); }

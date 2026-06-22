@@ -581,7 +581,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(13,44,66,.82), rgba(8,28,44,.72));
   color: #eafcff;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  box-shadow: inset 0 1px 0 var(--border-color);
 }
 .bed-cloud span b {
   color: #f8fbff;
@@ -640,7 +640,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   border: 1px solid rgba(125, 211, 252, .16);
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(10, 32, 50, .92), rgba(7, 22, 36, .86));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  box-shadow: inset 0 1px 0 var(--border-color);
   cursor: pointer;
 }
 .bed-card__main {

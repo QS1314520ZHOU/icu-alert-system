@@ -12,7 +12,7 @@ html.boot-mobile #app {
   --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --app-title-color: #edf4fb;
   --app-body-color: #d9e6f3;
-  --app-muted-color: #7f93ab;
+  --app-muted-color: var(--text-muted);
   --app-border-color: rgba(125, 167, 214, 0.14);
   --app-card-shadow-sm: 0 10px 28px rgba(2, 8, 20, 0.28);
   --app-primary: #22d3ee;
@@ -63,7 +63,7 @@ html.boot-mobile #app {
   --vitals-bg: #091421;
 
   --text-main: #d9e6f3;
-  --text-muted: #7f93ab;
+  --text-muted: #9DB0C9;
   --tab-active-bg: rgba(29, 122, 231, 0.16);
   --tab-active-border: rgba(89, 168, 255, 0.36);
   --icu-accent: #67e8f9;
@@ -120,6 +120,34 @@ html.boot-mobile #app {
   --container-alt-bg: #0f2038;
   --container-alt-border: #1c3d64;
   --container-alt-text: #9ca3af;
+
+  /* === Semantic Design Tokens === */
+  --bg-base:        var(--app-bg);
+  --bg-surface:     var(--card-bg);
+  --bg-surface-2:   var(--panel-soft);
+  --border-color:   var(--app-border-color);
+  --text-primary:   var(--app-title-color);
+  --text-secondary: #8ba0ba;
+  /* --text-muted defined above */
+  --brand:          var(--app-primary);
+  --accent:         var(--icu-accent);
+  --success:        #34d399;
+  --warning:        #fbbf24;
+  --warning-soft:   #fde68a;
+  --danger:         #fb7185;
+  --danger-strong:  #f43f5e;
+  --danger-soft:    #fca5a5;
+  --danger-bg:      rgba(244,63,94,.12);
+
+  /* Chart palette (dark bg, bright lines) */
+  --chart-1:        #38bdf8;
+  --chart-2:        #34d399;
+  --chart-3:        #fbbf24;
+  --chart-4:        #fb7185;
+  --chart-5:        #a78bfa;
+  --chart-6:        #2dd4bf;
+  --chart-grid:     rgba(125,167,214,0.14);
+  --chart-axis:     #8ba0ba;
 }
 
 html[data-theme='light'] {
@@ -127,7 +155,7 @@ html[data-theme='light'] {
   --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --app-title-color: #0F172A;
   --app-body-color: #0F172A;
-  --app-muted-color: #64748B;
+  --app-muted-color: var(--text-muted);
   --app-border-color: #E8E8EF;
   --app-card-shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
   --app-primary: #2E5BFF;
@@ -178,7 +206,7 @@ html[data-theme='light'] {
   --vitals-bg: #F8FAFC;
 
   --text-main: #0F172A;
-  --text-muted: #64748B;
+  --text-muted: #4A5568;
   --tab-active-bg: #EFF6FF;
   --tab-active-border: rgba(37, 99, 235, 0.2);
   --icu-accent: #2563EB;
@@ -235,6 +263,34 @@ html[data-theme='light'] {
   --container-alt-bg: #F1F5F9;
   --container-alt-border: #E2E8F0;
   --container-alt-text: #475569;
+
+  /* === Semantic Design Tokens (light mode) === */
+  --bg-base:        #F5F7FA;
+  --bg-surface:     #FFFFFF;
+  --bg-surface-2:   #F1F5F9;
+  --border-color:   #E2E8F0;
+  --text-primary:   #0F172A;
+  --text-secondary: #3D4A5C;
+  /* --text-muted defined above */
+  --brand:          #2563EB;
+  --accent:         #2563EB;
+  --success:        #16A34A;
+  --warning:        #D97706;
+  --warning-soft:   #B45309;
+  --danger:         #DC2626;
+  --danger-strong:  #be123c;
+  --danger-soft:    #e85d6b;
+  --danger-bg:      #FEE2E2;
+
+  /* Chart palette (white bg, deeper lines) */
+  --chart-1:        #0284c7;
+  --chart-2:        #059669;
+  --chart-3:        #d97706;
+  --chart-4:        #e11d48;
+  --chart-5:        #7c3aed;
+  --chart-6:        #0d9488;
+  --chart-grid:     #E2E8F0;
+  --chart-axis:     #475569;
 }
 
 body {

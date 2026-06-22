@@ -903,7 +903,7 @@ p { margin: 6px 0 0; color: #8aa4b8; }
   min-width: 0;
   padding: 10px;
   border-radius: 12px;
-  background: rgba(255,255,255,.04);
+  background: var(--bg-surface-2);
 }
 @media (max-width: 1100px) { .command-layout, .kpis, .closure-strip, .bedside-command, .drawer-summary { grid-template-columns: 1fr; } .topbar { flex-direction: column; } }
 
