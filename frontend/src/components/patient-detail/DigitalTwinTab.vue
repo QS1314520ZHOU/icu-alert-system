@@ -779,7 +779,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .whatif-track { position: relative; height: 36px; border-radius: var(--card-radius); background: rgba(43,85,108,.26); overflow: hidden; }
 .whatif-track i,.whatif-track .band { position: absolute; left: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .actual-line { height: 3px; border-radius: var(--card-radius); background: var(--bg-surface); }
-.baseline-line { height: 0; border-top: 2px dashed #38bdf8; }
+.baseline-line { height: 0; border-top: 2px dashed #15558D; }
 .whatif-line { height: 3px; border-radius: var(--card-radius); background: repeating-var(--bg-surface); }
 .whatif-line.degraded { border-top-color: var(--text-secondary); filter: grayscale(1); }
 .band { height: 18px; border-radius: var(--card-radius); opacity: .22; }

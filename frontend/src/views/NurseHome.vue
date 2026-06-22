@@ -25,7 +25,7 @@
       </section>
 
       <section class="nurse-summary">
-        <article v-for="item in nurseSummary" :key="item.key" :class="['summary-card', `is-${item.tone}`]">
+        <article v-for="item in nurseSummary" :key="item.key" :class="['summary-card', 'ds-card', `is-${item.tone}`]">
           <span>{{ item.label }}</span>
           <strong>{{ item.value }}</strong>
           <em>{{ item.hint }}</em>
@@ -36,7 +36,7 @@
       </div>
 
       <main v-if="isHeadMode" class="head-layout">
-        <section class="panel">
+        <section class="panel ds-card">
           <div class="panel-head"><strong>全科床位</strong><span>{{ sortedHeadBeds.length }} 床</span></div>
           <div class="bed-cloud">
             <span v-for="b in sortedHeadBeds" :key="b.patient_id">
@@ -45,7 +45,7 @@
             </span>
           </div>
         </section>
-        <section class="panel">
+        <section class="panel ds-card">
           <div class="panel-head"><strong>工作负荷热力图</strong><span>本班护理记录密度</span></div>
           <div class="heatmap">
             <article v-for="row in heatmap" :key="row.nurse" :class="`density-${row.tone}`">
@@ -105,7 +105,7 @@
         </section>
 
         <aside class="side">
-          <section class="panel">
+          <section class="panel ds-card">
             <div class="panel-head"><strong>本班提醒</strong><span>{{ (home?.timeline || []).length }} 条</span></div>
             <article v-for="task in home?.timeline || []" :key="task.task_id" :class="['notice-card', `is-${task.status}`]" @click="selectTask(task)">
               <div>
@@ -116,7 +116,7 @@
             </article>
             <div v-if="!(home?.timeline || []).length" class="empty small">本班暂无需要处理的风险提醒。</div>
           </section>
-          <section class="panel">
+          <section class="panel ds-card">
             <div class="panel-head"><strong>安全清单</strong><span>闭环状态</span></div>
             <article v-for="item in bundles" :key="item.code" :class="`bundle is-${item.tone}`">
               <strong>{{ displayName(item.name || item.code) }}</strong>
@@ -125,7 +125,7 @@
             <div v-if="home?.bundle_degraded && !bundles.length" class="empty small">{{ home.bundle_degraded }}</div>
             <div v-else-if="!bundles.length" class="empty small">本班安全清单暂无同步记录。</div>
           </section>
-          <section class="panel">
+          <section class="panel ds-card">
             <div class="panel-head"><strong>AI 提醒</strong><span>护理相关</span></div>
             <article v-for="item in reminders" :key="item._id || item.created_at" class="reminder">
               <strong>{{ shortText(displayName(item.name || item.alert_type || item.rule_id)) }}</strong>
@@ -551,9 +551,9 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .is-done { border-color: rgba(52,211,153,.55); color: var(--success); }
 .bundle, .reminder { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface),.72); }
 .bundle strong, .reminder strong { color: var(--text-primary); font-size: 13px; }
-.bundle.is-green { border-left: 3px solid #34d399; }
-.bundle.is-yellow { border-left: 3px solid #f59e0b; }
-.bundle.is-red { border-left: 3px solid #ef4444; }
+.bundle.is-green { border-left: 3px solid #1A9C5B; }
+.bundle.is-yellow { border-left: 3px solid #E8901C; }
+.bundle.is-red { border-left: 3px solid #D9342B; }
 .reminder { display: grid; }
 .reminder div { display: flex; gap: 8px; flex-wrap: wrap; }
 .reminder button { min-height: 36px; }
@@ -826,7 +826,7 @@ html[data-theme='light'] .notice-card span {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .bed-risk-button {
-  background: var(--warning-soft);
+  background: var(--warning-bg);
   border-color: rgba(245, 158, 11, 0.34);
   color: var(--warning);
 }

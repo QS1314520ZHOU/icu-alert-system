@@ -151,12 +151,12 @@ const deviceKindText: Record<BodyMapDeviceKind, string> = {
 
 const deviceKindColor: Record<BodyMapDeviceKind, string> = {
   airway: '#f97316',
-  centralLine: '#38bdf8',
-  arterialLine: '#f59e0b',
+  centralLine: '#15558D',
+  arterialLine: '#E8901C',
   urinary: '#a78bfa',
-  feeding: '#22c55e',
-  drainage: '#fb7185',
-  dialysis: '#06b6d4',
+  feeding: '#1A9C5B',
+  drainage: '#D9342B',
+  dialysis: '#15558D',
   other: '#94a3b8',
 }
 

@@ -15,23 +15,23 @@
 
           <radialGradient :id="svgDefId('heat-gradient-normal')" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="#d9fff5" stop-opacity="0.95" />
-            <stop offset="30%" stop-color="#5eead4" stop-opacity="0.7" />
-            <stop offset="100%" stop-color="#34d399" stop-opacity="0" />
+            <stop offset="30%" stop-color="#1A9C5B" stop-opacity="0.7" />
+            <stop offset="100%" stop-color="#1A9C5B" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-warning')" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="#fff8cc" stop-opacity="0.95" />
-            <stop offset="30%" stop-color="#fde68a" stop-opacity="0.75" />
-            <stop offset="100%" stop-color="#fbbf24" stop-opacity="0" />
+            <stop offset="30%" stop-color="#FFF7E8" stop-opacity="0.75" />
+            <stop offset="100%" stop-color="#E8901C" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-high')" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="#fff0dc" stop-opacity="0.95" />
-            <stop offset="30%" stop-color="#fdba74" stop-opacity="0.78" />
-            <stop offset="100%" stop-color="#fb923c" stop-opacity="0" />
+            <stop offset="30%" stop-color="#A65A0C" stop-opacity="0.78" />
+            <stop offset="100%" stop-color="#E8901C" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-critical')" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="#ffe0e7" stop-opacity="1" />
-            <stop offset="30%" stop-color="#fb7185" stop-opacity="0.82" />
-            <stop offset="100%" stop-color="#f43f5e" stop-opacity="0" />
+            <stop offset="30%" stop-color="#D9342B" stop-opacity="0.82" />
+            <stop offset="100%" stop-color="#D9342B" stop-opacity="0" />
           </radialGradient>
 
           <filter :id="svgDefId('body-outer-glow')" x="-30%" y="-10%" width="160%" height="140%">
@@ -426,10 +426,10 @@ const organAnchors: Record<string, AnchorKey> = {
 }
 
 const severityPalette: Record<BodyMapSeverity, { core: string; stroke: string; accent: string }> = {
-  normal: { core: '#34d399', stroke: '#bbf7d0', accent: '#5eead4' },
-  warning: { core: '#fbbf24', stroke: '#fde68a', accent: '#fcd34d' },
-  high: { core: '#fb923c', stroke: '#fed7aa', accent: '#fdba74' },
-  critical: { core: '#f43f5e', stroke: '#fecdd3', accent: '#fb7185' },
+  normal: { core: '#1A9C5B', stroke: '#E8FFEA', accent: '#1A9C5B' },
+  warning: { core: '#E8901C', stroke: '#FFF7E8', accent: '#A65A0C' },
+  high: { core: '#E8901C', stroke: '#FFF7E8', accent: '#A65A0C' },
+  critical: { core: '#D9342B', stroke: '#FFECE8', accent: '#D9342B' },
 }
 
 const hoveredOrgan = ref('')
@@ -882,7 +882,7 @@ function regionGroupClass(key: string, severity: string) {
 }
 .human-body__legend-dot.is-normal { background: var(--chart-2); color: var(--chart-2); }
 .human-body__legend-dot.is-warning { background: var(--warning); color: var(--warning); }
-.human-body__legend-dot.is-high { background: var(--warning); color: #fb923c; }
+.human-body__legend-dot.is-high { background: var(--warning); color: #E8901C; }
 .human-body__legend-dot.is-critical { background: var(--danger-strong); color: var(--danger-strong); }
 @keyframes body-device-blink {
   0%, 100% { box-shadow: var(--card-shadow); }

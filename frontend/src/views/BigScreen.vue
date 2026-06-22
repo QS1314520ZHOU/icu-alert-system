@@ -145,7 +145,7 @@ import { useThemeMode } from '../composables/themeMode'
 const BigScreenAlertFeed = defineAsyncComponent(() => import('../components/bigscreen/BigScreenAlertFeed.vue'))
 const BigScreenBedGrid = defineAsyncComponent(() => import('../components/bigscreen/BigScreenBedGrid.vue'))
 const BigScreenStatsPanel = defineAsyncComponent(() => import('../components/bigscreen/BigScreenStatsPanel.vue'))
-const chartColors = ['#2E5BFF', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280']
+const chartColors = ['#15558D', '#15558D', '#15558D', '#1A9C5B', '#E8901C', '#D9342B', '#D9342B', '#6B7280']
 const themeMode = useThemeMode()
 const isLightTheme = computed(() => themeMode.value === 'light')
 const chartTokens = computed(() => icuChartTokens())
@@ -413,8 +413,8 @@ const alertTrendOption = computed(() => {
     xAxis: icuCategoryAxis(xs),
     yAxis: icuValueAxis(),
     series: [
-      { name: '预警', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fbbf24' }, areaStyle: { color: 'rgba(251,191,36,.12)' }, itemStyle: { color: '#fbbf24' }, data: trendSeries.value.map(s => s.warning || 0) },
-      { name: '高危', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb923c' }, areaStyle: { color: 'rgba(251,146,60,.1)' }, itemStyle: { color: '#fb923c' }, data: trendSeries.value.map(s => s.high || 0) },
+      { name: '预警', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#E8901C' }, areaStyle: { color: 'rgba(251,191,36,.12)' }, itemStyle: { color: '#E8901C' }, data: trendSeries.value.map(s => s.warning || 0) },
+      { name: '高危', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#E8901C' }, areaStyle: { color: 'rgba(251,146,60,.1)' }, itemStyle: { color: '#E8901C' }, data: trendSeries.value.map(s => s.high || 0) },
       { name: '危急', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#fb5a7a' }, areaStyle: { color: 'rgba(251,90,122,.1)' }, itemStyle: { color: '#fb5a7a' }, data: trendSeries.value.map(s => s.critical || 0) },
     ],
   }
@@ -435,9 +435,9 @@ const bundleOption = computed(() => {
         radius: ['46%', '70%'],
         center: ['50%', '46%'],
         data: [
-          { name: '达标', value: bundleCounts.value.green || 0, itemStyle: { color: '#22c55e' } },
-          { name: '待跟进', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#f59e0b' } },
-          { name: '高风险', value: bundleCounts.value.red || 0, itemStyle: { color: '#ef4444' } },
+          { name: '达标', value: bundleCounts.value.green || 0, itemStyle: { color: '#1A9C5B' } },
+          { name: '待跟进', value: bundleCounts.value.yellow || 0, itemStyle: { color: '#E8901C' } },
+          { name: '高风险', value: bundleCounts.value.red || 0, itemStyle: { color: '#D9342B' } },
         ],
         label: { color: tokens.labelStrong, fontSize: 10, formatter: '{b}\n{c}' },
         labelLine: { lineStyle: { color: light ? 'rgba(148, 163, 184, 0.9)' : 'rgba(79,182,219,.7)' }, length: 8, length2: 6 },
@@ -486,7 +486,7 @@ const deviceHeatmapOption = computed(() => {
       bottom: 0,
       calculable: false,
       text: ['高风险', '低风险'],
-      inRange: { color: isLightTheme.value ? ['#eff6ff', '#bfdbfe', '#34d399', '#f59e0b', '#ef4444'] : ['#0b2538', '#0e7490', '#34d399', '#f59e0b', '#fb5a7a'] },
+      inRange: { color: isLightTheme.value ? ['#eff6ff', '#bfdbfe', '#1A9C5B', '#E8901C', '#D9342B'] : ['#0b2538', '#0e7490', '#1A9C5B', '#E8901C', '#fb5a7a'] },
       textStyle: { color: tokens.heatmapText, fontSize: 10 },
     },
     series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 8, borderColor: tokens.axisLine, borderWidth: 1 } }],
@@ -995,7 +995,7 @@ watch(() => route.query, () => {
 }
 .panel-title {
   font-size: 12px;
-  color: #67e8f9;
+  color: #15558D;
   letter-spacing: .06em;
   font-weight: 700;
 }
@@ -1114,10 +1114,10 @@ html[data-theme='light'] .command-card::before {
   border-radius: 16px 0 0 16px;
   background: #CBD5E1;
 }
-html[data-theme='light'] .command-card--risk::before { background: #EF4444; }
-html[data-theme='light'] .command-card--bundle::before { background: #22C55E; }
-html[data-theme='light'] .command-card--amber::before { background: #F59E0B; }
-html[data-theme='light'] .command-card--cyan::before { background: #06B6D4; }
+html[data-theme='light'] .command-card--risk::before { background: #D9342B; }
+html[data-theme='light'] .command-card--bundle::before { background: #1A9C5B; }
+html[data-theme='light'] .command-card--amber::before { background: #E8901C; }
+html[data-theme='light'] .command-card--cyan::before { background: #15558D; }
 html[data-theme='light'] .command-card--risk { border-color: rgba(239, 68, 68, 0.18); }
 html[data-theme='light'] .command-card--bundle { border-color: rgba(34, 197, 94, 0.16); }
 html[data-theme='light'] .command-card--amber { border-color: rgba(245, 158, 11, 0.18); }

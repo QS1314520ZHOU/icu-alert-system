@@ -665,11 +665,11 @@ const organLabelMap: Record<string, string> = {
   hepatic: '肝脏',
 }
 const organCurvePalette: Record<string, string> = {
-  respiratory: '#38bdf8',
-  circulatory: '#fb7185',
+  respiratory: '#15558D',
+  circulatory: '#D9342B',
   renal: '#a78bfa',
-  neurologic: '#f59e0b',
-  coagulation: '#22c55e',
+  neurologic: '#E8901C',
+  coagulation: '#1A9C5B',
   hepatic: '#e879f9',
 }
 const hasRiskForecast = computed(() => {
@@ -1028,8 +1028,8 @@ const riskForecastOption = computed(() => {
         symbol: 'circle',
         symbolSize: 6,
         data: historyValues,
-        lineStyle: { width: 2, color: '#38bdf8' },
-        itemStyle: { color: '#67e8f9', borderColor: '#0b2439', borderWidth: 2 },
+        lineStyle: { width: 2, color: '#15558D' },
+        itemStyle: { color: '#15558D', borderColor: '#0b2439', borderWidth: 2 },
         areaStyle: {
           color: {
             type: 'linear',
@@ -1055,7 +1055,7 @@ const riskForecastOption = computed(() => {
         markLine: {
           symbol: 'none',
           lineStyle: { type: 'dashed', color: 'rgba(251,191,36,.38)' },
-          data: [{ yAxis: 64, label: { formatter: '高危阈值', color: '#fcd34d' } }],
+          data: [{ yAxis: 64, label: { formatter: '高危阈值', color: '#A65A0C' } }],
         },
       },
       {
@@ -1066,8 +1066,8 @@ const riskForecastOption = computed(() => {
         symbolSize: 7,
         data: futureValues,
         z: 4,
-        lineStyle: { width: 2.2, type: 'dashed', color: '#fb7185' },
-        itemStyle: { color: '#fda4af', borderColor: '#2a0f16', borderWidth: 2 },
+        lineStyle: { width: 2.2, type: 'dashed', color: '#D9342B' },
+        itemStyle: { color: '#D9342B', borderColor: '#2a0f16', borderWidth: 2 },
         markArea: highRiskZone?.max != null
           ? {
               silent: true,

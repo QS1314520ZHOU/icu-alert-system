@@ -591,7 +591,7 @@ html[data-theme='light'] .bedside-screen {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .bedside-screen.level-critical { background: var(--danger-bg); }
-html[data-theme='light'] .bedside-screen.level-warning { background: var(--warning-soft); }
+html[data-theme='light'] .bedside-screen.level-warning { background: var(--warning-bg); }
 html[data-theme='light'] .bedside-header {
   background: rgba(255,255,255,.92);
   border-bottom-color: rgba(187,204,220,.72);

@@ -191,7 +191,7 @@ const summaryCards = computed(() => {
   gap: 6px;
 }
 .trend-tab :deep(.ant-radio-button-wrapper) {
-  border-radius: 10px !important;
+  border-radius: 6px !important;
   border: 1px solid rgba(80,199,255,.14) !important;
   background: var(--bg-surface),.78) !important;
   color: var(--accent) !important;
@@ -200,9 +200,10 @@ const summaryCards = computed(() => {
   display: none !important;
 }
 .trend-tab :deep(.ant-radio-button-wrapper-checked) {
-  background: var(--bg-surface) 0%, rgba(7,63,86,.98) 100%) !important;
-  color: var(--text-primary) !important;
-  border-color: rgba(110,231,249,.28) !important;
+  background: #E8F3FF !important;
+  color: #15558D !important;
+  border-color: #15558D !important;
+  font-weight: 600;
 }
 .trend-tab :deep(.ant-btn) {
   background: var(--bg-surface),.78);
@@ -244,9 +245,10 @@ html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper) {
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper-checked) {
-  background: var(--bg-surface) 0%, rgba(29,78,216,.98) 100%) !important;
-  color: var(--text-primary) !important;
-  border-color: rgba(59,130,246,.34) !important;
+  background: #E8F3FF !important;
+  color: #15558D !important;
+  border-color: #15558D !important;
+  font-weight: 600;
 }
 html[data-theme='light'] .trend-tab :deep(.ant-btn) {
   background: var(--bg-surface), rgba(241,246,251,.98));

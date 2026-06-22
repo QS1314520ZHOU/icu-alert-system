@@ -347,7 +347,7 @@ html[data-theme='light'] .section-bar span {
 }
 html[data-theme='light'] .safety {
   color: var(--warning);
-  background: var(--warning-soft);
+  background: var(--warning-bg);
 }
 
 /* === Additional light-mode overrides === */

@@ -2093,7 +2093,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .weaning-sbt-pill.is-failed { color: var(--danger); border-color: rgba(251,113,133,.26); }
 .weaning-sbt-pill.is-documented { color: var(--chart-1); border-color: rgba(56,189,248,.24); }
 .weaning-sbt-meta--risk {
-  color: #fb923c;
+  color: #E8901C;
   border-color: rgba(251,146,60,.24);
 }
 .alert-feed {
@@ -2137,7 +2137,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .alert-body {
   border: 1px solid rgba(80,199,255,.12);
-  border-left: 5px solid #f59e0b;
+  border-left: 5px solid #E8901C;
   border-radius: var(--card-radius);
   padding: 14px 18px;
   background: var(--bg-surface) 0%, var(--bg-surface) 100%);

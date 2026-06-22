@@ -573,7 +573,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .overdue-item.severity-critical {
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid #D9342B;
 }
 
 .overdue-item.severity-high {

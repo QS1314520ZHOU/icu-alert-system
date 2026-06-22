@@ -42,7 +42,7 @@ html[data-theme='dark'] .document-workbench .cp-title {
 
 html[data-theme='dark'] .document-workbench .dw-header-icon {
   background: rgba(34, 211, 238, 0.15) !important;
-  color: #22d3ee !important;
+  color: #15558D !important;
 }
 
 html[data-theme='dark'] .document-workbench .dw-history-label,
@@ -115,7 +115,7 @@ html[data-theme='dark'] .document-workbench .missing-data span {
 html[data-theme='dark'] .document-workbench .patient-diagnosis,
 html[data-theme='dark'] .document-workbench .evidence-link,
 html[data-theme='dark'] .document-workbench .evidence-row button {
-  color: #38bdf8 !important;
+  color: #15558D !important;
 }
 
 html[data-theme='dark'] .document-workbench .missing-line,
@@ -125,7 +125,7 @@ html[data-theme='dark'] .document-workbench .system-kicker,
 html[data-theme='dark'] .document-workbench .system-nav-item strong,
 html[data-theme='dark'] .document-workbench .risk-head span,
 html[data-theme='dark'] .document-workbench .goal-item small {
-  color: #fbbf24 !important;
+  color: #E8901C !important;
 }
 
 html[data-theme='dark'] .document-workbench .risk-actions button,
@@ -141,16 +141,16 @@ html[data-theme='dark'] .document-workbench .statement textarea {
 html[data-theme='dark'] .document-workbench .risk-actions button:hover,
 html[data-theme='dark'] .document-workbench .statement-group-head button:hover,
 html[data-theme='dark'] .document-workbench .delete-btn:hover {
-  border-color: #22d3ee !important;
-  color: #22d3ee !important;
+  border-color: #15558D !important;
+  color: #15558D !important;
 }
 
 html[data-theme='dark'] .document-workbench .dw-dirty {
-  color: #fbbf24 !important;
+  color: #E8901C !important;
 }
 
 html[data-theme='dark'] .document-workbench .dw-saved {
-  color: #34d399 !important;
+  color: #1A9C5B !important;
 }
 
 html[data-theme='dark'] .document-workbench .cp-section {
@@ -163,7 +163,7 @@ html[data-theme='dark'] .document-workbench .cp-drug-id,
 html[data-theme='dark'] .document-workbench .cp-alert-id,
 html[data-theme='dark'] .document-workbench .cp-card-ref,
 html[data-theme='dark'] .document-workbench .ct-tooltip-ref {
-  color: #22d3ee !important;
+  color: #15558D !important;
 }
 
 html[data-theme='dark'] .document-workbench .cp-kv span,
@@ -185,19 +185,19 @@ html[data-theme='dark'] .document-workbench .cp-card-detail {
 html[data-theme='dark'] .document-workbench .cp-vital-trend.is-ok,
 html[data-theme='dark'] .document-workbench .cp-alert-status.is-resolved {
   background: rgba(52, 211, 153, 0.15) !important;
-  color: #34d399 !important;
+  color: #1A9C5B !important;
 }
 
 html[data-theme='dark'] .document-workbench .cp-vital-trend.is-warn {
   background: rgba(245, 158, 11, 0.15) !important;
-  color: #f59e0b !important;
+  color: #E8901C !important;
 }
 
 html[data-theme='dark'] .document-workbench .cp-vital-trend.is-danger,
 html[data-theme='dark'] .document-workbench .cp-event-chip,
 html[data-theme='dark'] .document-workbench .cp-alert-status.is-active {
   background: rgba(239, 68, 68, 0.15) !important;
-  color: #f87171 !important;
+  color: #D9342B !important;
 }
 
 html[data-theme='dark'] .document-workbench .cp-vital-trend.is-muted {
@@ -206,20 +206,20 @@ html[data-theme='dark'] .document-workbench .cp-vital-trend.is-muted {
 }
 
 html[data-theme='dark'] .document-workbench .cp-lab-flag.is-critical {
-  color: #f87171 !important;
+  color: #D9342B !important;
 }
 
 html[data-theme='dark'] .document-workbench .cp-lab-flag.is-abnormal {
-  color: #fbbf24 !important;
+  color: #E8901C !important;
 }
 
 html[data-theme='dark'] .document-workbench .cite {
   background: rgba(34, 211, 238, 0.15) !important;
-  color: #22d3ee !important;
+  color: #15558D !important;
 }
 
 html[data-theme='dark'] .document-workbench .cite:hover {
-  background: #22d3ee !important;
+  background: #15558D !important;
   color: #07111d !important;
 }
 
@@ -259,8 +259,8 @@ html[data-theme='dark'] .document-workbench .ant-btn-default {
 }
 
 html[data-theme='dark'] .document-workbench .ant-btn-default:hover {
-  border-color: #22d3ee !important;
-  color: #22d3ee !important;
+  border-color: #15558D !important;
+  color: #15558D !important;
 }
 
 html[data-theme='dark'] .ant-modal-content,
@@ -296,7 +296,7 @@ html[data-theme='dark'] .ant-select-item-option-active {
 
 html[data-theme='dark'] .ant-select-item-option-selected {
   background: #07111d !important;
-  color: #22d3ee !important;
+  color: #15558D !important;
 }
 
 html[data-theme='dark'] .document-workbench .ant-tag {

@@ -56,7 +56,7 @@
               :class="['chip', { chosen: tagFilter === ts.tag }]"
               :style="tagFilter === ts.tag ? { background: ts.color + '33', color: ts.color } : {}"
               @click="tagFilter = tagFilter === ts.tag ? '' : ts.tag">
-          <i class="chip-symbol" :style="{ background: ts.color || '#38bdf8' }">{{ tagSymbol(ts) }}</i>
+          <i class="chip-symbol" :style="{ background: ts.color || '#15558D' }">{{ tagSymbol(ts) }}</i>
           {{ ts.label }}
           <b>{{ ts.count }}</b>
         </span>

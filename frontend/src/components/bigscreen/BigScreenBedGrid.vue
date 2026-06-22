@@ -245,10 +245,10 @@ function riskSuggestion(value: any) {
 .bed-warning { border-color: rgba(245, 158, 11, 0.28); }
 .bed-high { border-color: rgba(249, 115, 22, 0.28); }
 .bed-normal { border-color: rgba(52, 211, 153, 0.2); }
-.bed-critical::before { background: linear-gradient(180deg, #fb5a7a 0%, #be123c 100%); }
-.bed-high::before { background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%); }
-.bed-warning::before { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); }
-.bed-normal::before { background: linear-gradient(180deg, #34d399 0%, #059669 100%); }
+.bed-critical::before { background: linear-gradient(180deg, #fb5a7a 0%, #D9342B 100%); }
+.bed-high::before { background: linear-gradient(180deg, #E8901C 0%, #A65A0C 100%); }
+.bed-warning::before { background: linear-gradient(180deg, #E8901C 0%, #E8901C 100%); }
+.bed-normal::before { background: linear-gradient(180deg, #1A9C5B 0%, #1A9C5B 100%); }
 .bed-head {
   display: flex;
   justify-content: space-between;
@@ -309,9 +309,9 @@ function riskSuggestion(value: any) {
 .bed-tag--soft {
   color: #dffbff;
 }
-.bed-tag--critical { color: #fda4af; border-color: rgba(248,113,113,.24); background: rgba(70,16,28,.9); }
-.bed-tag--high { color: #fdba74; border-color: rgba(249,115,22,.24); background: rgba(71,36,10,.9); }
-.bed-tag--warning { color: #fcd34d; border-color: rgba(245,158,11,.24); background: rgba(75,54,10,.9); }
+.bed-tag--critical { color: #D9342B; border-color: rgba(248,113,113,.24); background: rgba(70,16,28,.9); }
+.bed-tag--high { color: #A65A0C; border-color: rgba(249,115,22,.24); background: rgba(71,36,10,.9); }
+.bed-tag--warning { color: #A65A0C; border-color: rgba(245,158,11,.24); background: rgba(75,54,10,.9); }
 .bed-tag--normal { color: #6ee7b7; border-color: rgba(52,211,153,.22); background: rgba(7,63,55,.88); }
 .bed-tag--none { color: #93c5fd; }
 .bed-name-row {
@@ -500,17 +500,17 @@ function riskSuggestion(value: any) {
   border: 1px solid transparent;
 }
 .extub-risk-pill--warning {
-  color: #fde68a;
+  color: #FFF7E8;
   background: rgba(120, 53, 15, 0.9);
   border-color: rgba(245, 158, 11, 0.2);
 }
 .extub-risk-pill--high {
-  color: #fdba74;
+  color: #A65A0C;
   background: rgba(124, 45, 18, 0.9);
   border-color: rgba(249, 115, 22, 0.24);
 }
 .extub-risk-pill--critical {
-  color: #fecdd3;
+  color: #FFECE8;
   background: rgba(127, 29, 29, 0.9);
   border-color: rgba(251, 113, 133, 0.24);
 }
@@ -614,17 +614,17 @@ function riskSuggestion(value: any) {
   border: 1px solid transparent;
 }
 .bed-hover-pill--critical {
-  color: #fecdd3;
+  color: #FFECE8;
   background: rgba(127, 29, 29, .76);
   border-color: rgba(251, 113, 133, .24);
 }
 .bed-hover-pill--high {
-  color: #fdba74;
+  color: #A65A0C;
   background: rgba(124, 45, 18, .76);
   border-color: rgba(249, 115, 22, .22);
 }
 .bed-hover-pill--warning {
-  color: #fde68a;
+  color: #FFF7E8;
   background: rgba(120, 53, 15, .76);
   border-color: rgba(245, 158, 11, .2);
 }
@@ -681,10 +681,10 @@ function riskSuggestion(value: any) {
   font-weight: 600;
 }
 .lamp { width: 8px; height: 8px; border-radius: 50%; }
-.lamp-critical { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
-.lamp-warning { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+.lamp-critical { background: #D9342B; box-shadow: 0 0 6px #D9342B; }
+.lamp-warning { background: #E8901C; box-shadow: 0 0 6px #E8901C; }
 .lamp-high { background: #f97316; box-shadow: 0 0 6px #f97316; }
-.lamp-normal { background: #22c55e; }
+.lamp-normal { background: #1A9C5B; }
 .lamp-none { background: #334155; }
 html[data-theme='light'] .bed-card,
 html[data-theme='light'] .sec-vitals,
@@ -715,10 +715,10 @@ html[data-theme='light'] .bed-card {
 html[data-theme='light'] .bed-card::after {
   display: none;
 }
-html[data-theme='light'] .bed-critical::before { background: #EF4444; }
+html[data-theme='light'] .bed-critical::before { background: #D9342B; }
 html[data-theme='light'] .bed-high::before { background: #F97316; }
 html[data-theme='light'] .bed-warning::before { background: #EAB308; }
-html[data-theme='light'] .bed-normal::before { background: #22C55E; }
+html[data-theme='light'] .bed-normal::before { background: #1A9C5B; }
 html[data-theme='light'] .bed-none::before { background: #94A3B8; }
 html[data-theme='light'] .patient-name,
 html[data-theme='light'] .v-val,
@@ -749,24 +749,24 @@ html[data-theme='light'] .bed-hover-drawer {
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 html[data-theme='light'] .bed-hover-drawer--high {
-  border-color: #FED7AA;
+  border-color: #FFF7E8;
   background: #FFF7ED;
 }
 html[data-theme='light'] .bed-hover-drawer--warning {
-  border-color: #FDE68A;
-  background: #FFFBEB;
+  border-color: #FFF7E8;
+  background: #FFF7E8;
 }
 html[data-theme='light'] .bed-hover-block--suggestion {
-  border-color: #BBF7D0;
+  border-color: #E8FFEA;
   background: #F0FDF4;
 }
 html[data-theme='light'] .bed-hover-suggestion,
-html[data-theme='light'] .extub-risk-brief-text { color: #16A34A; }
+html[data-theme='light'] .extub-risk-brief-text { color: #1A9C5B; }
 html[data-theme='light'] .extub-risk-card {
-  border-color: #FECACA;
-  background: #FEF2F2;
+  border-color: #FFECE8;
+  background: #FFECE8;
 }
-html[data-theme='light'] .extub-risk-main { color: #DC2626; }
+html[data-theme='light'] .extub-risk-main { color: #D9342B; }
 html[data-theme='light'] .bed-no {
   background: #F1F5F9;
   border-color: rgba(0, 0, 0, 0.06);
@@ -813,8 +813,8 @@ html[data-theme='light'] .vital-cell {
   background: #F8FAFC;
 }
 html[data-theme='light'] .vital-cell--bp {
-  background: #FFFBEB;
-  border-color: #FDE68A;
+  background: #FFF7E8;
+  border-color: #FFF7E8;
 }
 html[data-theme='light'] .vital-cell span {
   color: #64748B;
@@ -826,16 +826,16 @@ html[data-theme='light'] .vital-cell b {
 }
 html[data-theme='light'] .extub-risk-title,
 html[data-theme='light'] .bed-hover-tag {
-  color: #DC2626;
-  background: #FEF2F2;
-  border-color: #FECACA;
+  color: #D9342B;
+  background: #FFECE8;
+  border-color: #FFECE8;
 }
 html[data-theme='light'] .extub-risk-subtitle,
 html[data-theme='light'] .bed-hover-label {
   color: #64748B;
 }
 html[data-theme='light'] .extub-risk-brief {
-  border-color: #BBF7D0;
+  border-color: #E8FFEA;
   background: #F0FDF4;
 }
 

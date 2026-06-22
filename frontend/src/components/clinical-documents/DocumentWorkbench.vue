@@ -1175,7 +1175,7 @@ function formatTime(raw: any): string {
   align-self: flex-start;
   padding: 2px 7px;
   border-radius: var(--card-radius);
-  background: var(--warning-soft);
+  background: var(--warning-bg);
   color: var(--danger);
   font-size: 11px;
 }

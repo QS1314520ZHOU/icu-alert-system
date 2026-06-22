@@ -479,7 +479,7 @@ html[data-theme='light'] .scanner-command-card {
 }
 html[data-theme='light'] .scanner-health-notice {
   border-color: rgba(245, 158, 11, 0.22);
-  background: var(--warning-soft);
+  background: var(--warning-bg);
   color: var(--warning);
 }
 html[data-theme='light'] .quality-list button {
@@ -515,7 +515,7 @@ html[data-theme='light'] .scanner-light {
 }
 html[data-theme='light'] .scanner-light.is-yellow {
   color: var(--warning);
-  background: var(--warning-soft);
+  background: var(--warning-bg);
   border-color: rgba(245, 158, 11, 0.24);
 }
 html[data-theme='light'] .scanner-light.is-red {
@@ -529,7 +529,7 @@ html[data-theme='light'] .review-tag {
   border-color: rgba(244, 63, 94, 0.24);
 }
 html[data-theme='light'] .drift-pill { color: var(--success); background: var(--bg-surface); }
-html[data-theme='light'] .drift-pill.is-yellow { color: var(--warning); background: var(--warning-soft); }
+html[data-theme='light'] .drift-pill.is-yellow { color: var(--warning); background: var(--warning-bg); }
 html[data-theme='light'] .drift-pill.is-red { color: var(--danger-strong); background: var(--danger-bg); }
 html[data-theme='light'] .override-chip {
   background: var(--bg-surface);

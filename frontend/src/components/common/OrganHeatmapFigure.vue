@@ -391,10 +391,10 @@ const svgLegendRows = computed(() => {
 })
 
 const severityPalette: Record<BodyMapSeverity, { fill: string; stroke: string; accent: string }> = {
-  normal: { fill: '#22c55e', stroke: '#bbf7d0', accent: '#86efac' },
-  warning: { fill: '#fbbf24', stroke: '#fde68a', accent: '#fcd34d' },
-  high: { fill: '#fb923c', stroke: '#fed7aa', accent: '#fdba74' },
-  critical: { fill: '#ef4444', stroke: '#fecaca', accent: '#fda4af' },
+  normal: { fill: '#1A9C5B', stroke: '#E8FFEA', accent: '#1A9C5B' },
+  warning: { fill: '#E8901C', stroke: '#FFF7E8', accent: '#A65A0C' },
+  high: { fill: '#E8901C', stroke: '#FFF7E8', accent: '#A65A0C' },
+  critical: { fill: '#D9342B', stroke: '#FFECE8', accent: '#D9342B' },
 }
 
 const organLayerOffset = { x: -2, y: 4 }

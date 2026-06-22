@@ -744,7 +744,7 @@ meter::-webkit-meter-optimum-value { background: var(--bg-surface); }
   border-radius: var(--card-radius);
   background:
     var(--bg-surface) 0 55%, transparent 56%),
-    conic-gradient(#22c55e 0 var(--en), #38bdf8 var(--en) calc(var(--en) + var(--pn)), #f59e0b calc(var(--en) + var(--pn)) calc(var(--en) + var(--pn) + var(--mix)), rgba(148,163,184,.28) 0);
+    conic-gradient(#1A9C5B 0 var(--en), #15558D var(--en) calc(var(--en) + var(--pn)), #E8901C calc(var(--en) + var(--pn)) calc(var(--en) + var(--pn) + var(--mix)), rgba(148,163,184,.28) 0);
 }
 .route-donut strong,
 .route-donut span { display: block; text-align: center; }
@@ -800,7 +800,7 @@ meter::-webkit-meter-optimum-value { background: var(--bg-surface); }
   height: 32px;
   border-radius: var(--card-radius);
   color: var(--text-primary);
-  background: var(--success);
+  background: var(--success-bg);
 }
 .priority-item span { color: var(--success); font-weight: 900; }
 .priority-item small { color: var(--text-muted); }
@@ -1186,7 +1186,7 @@ html[data-theme='light'] .nutrition-card {
 html[data-theme='light'] .route-donut {
   background:
     var(--bg-surface),
-    conic-gradient(#22c55e 0 var(--en), #38bdf8 var(--en) calc(var(--en) + var(--pn)), #f59e0b calc(var(--en) + var(--pn)) calc(var(--en) + var(--pn) + var(--mix)), rgba(148,163,184,.28) 0);
+    conic-gradient(#1A9C5B 0 var(--en), #15558D var(--en) calc(var(--en) + var(--pn)), #E8901C calc(var(--en) + var(--pn)) calc(var(--en) + var(--pn) + var(--mix)), rgba(148,163,184,.28) 0);
 }
 html[data-theme='light'] .chips span,
 html[data-theme='light'] .risk-lights span {

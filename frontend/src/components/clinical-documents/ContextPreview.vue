@@ -279,7 +279,7 @@ function alertTypeLabel(type: string) {
   border-radius: var(--card-radius);
 }
 .cp-vital-trend.is-ok { background: var(--bg-surface); color: var(--success); }
-.cp-vital-trend.is-warn { background: var(--warning-soft); color: var(--warning); }
+.cp-vital-trend.is-warn { background: var(--warning-bg); color: var(--warning); }
 .cp-vital-trend.is-danger { background: var(--danger-bg); color: var(--danger); }
 .cp-vital-trend.is-muted { background: var(--bg-surface-2); color: var(--text-muted); }
 .cp-events {

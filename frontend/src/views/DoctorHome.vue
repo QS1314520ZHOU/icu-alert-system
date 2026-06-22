@@ -25,7 +25,7 @@
       </section>
 
       <section class="doctor-summary">
-        <article v-for="item in doctorSummary" :key="item.key" :class="['summary-card', `is-${item.tone}`]">
+        <article v-for="item in doctorSummary" :key="item.key" :class="['summary-card', 'ds-card', `is-${item.tone}`]">
           <span>{{ item.label }}</span>
           <strong>{{ item.value }}</strong>
           <em>{{ item.hint }}</em>
@@ -33,7 +33,7 @@
       </section>
 
       <main class="doctor-grid">
-        <section class="panel focus-panel">
+        <section class="panel ds-card focus-panel">
           <div class="panel-head">
             <strong>我的今日重点</strong>
             <span>按床位数字和综合风险排序</span>
@@ -58,7 +58,7 @@
           <div v-if="!sortedFocusPatients.length" class="empty small">{{ doctorEmptyText }}</div>
         </section>
 
-        <section class="panel">
+        <section class="panel ds-card">
           <div class="panel-head">
             <strong>AI 昨夜替我做了什么</strong>
             <span>过去 12 小时</span>
@@ -72,7 +72,7 @@
           <button class="full-btn" type="button" @click="$router.push({ path: '/clinical-workflow', query: route.query })">查看夜班完整工作日志</button>
         </section>
 
-        <section class="panel">
+        <section class="panel ds-card">
           <div class="panel-head">
             <strong>我的待办</strong>
             <span>未签 / 未关闭 / 未确认</span>
@@ -87,7 +87,7 @@
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel ds-card">
           <div class="panel-head">
             <strong>科室质控速览</strong>
             <span>近 7 日质量信号</span>

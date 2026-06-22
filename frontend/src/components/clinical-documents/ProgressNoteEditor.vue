@@ -394,7 +394,7 @@ function confidenceLabel(confidence: string) {
 .missing-data span {
   padding: 2px 7px;
   border-radius: var(--card-radius);
-  background: var(--warning-soft);
+  background: var(--warning-bg);
 }
 
 .statement-grid {
@@ -448,7 +448,7 @@ function confidenceLabel(confidence: string) {
 }
 
 .statement.kind-recommendation {
-  border-left: 4px solid #16a34a;
+  border-left: 4px solid #1A9C5B;
 }
 
 .statement-meta {

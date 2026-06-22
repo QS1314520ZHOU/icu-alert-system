@@ -275,9 +275,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   background: var(--bg-surface), .72);
 }
 
-.item-row.green { border-left: 3px solid #34d399; }
-.item-row.yellow { border-left: 3px solid #fbbf24; }
-.item-row.red { border-left: 3px solid #ef4444; }
+.item-row.green { border-left: 3px solid #1A9C5B; }
+.item-row.yellow { border-left: 3px solid #E8901C; }
+.item-row.red { border-left: 3px solid #D9342B; }
 
 .item-name {
   color: var(--text-primary);

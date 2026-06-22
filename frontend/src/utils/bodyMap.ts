@@ -74,10 +74,10 @@ export function bodyMapSeverityText(value: any) {
 export function bodyMapSeverityColor(value: any) {
   const normalized = normalizeBodyMapSeverity(value)
   return ({
-    normal: '#34d399',
-    warning: '#fbbf24',
-    high: '#fb923c',
-    critical: '#f43f5e',
+    normal: '#1A9C5B',
+    warning: '#E8901C',
+    high: '#E8901C',
+    critical: '#D9342B',
   } as Record<BodyMapSeverity, string>)[normalized]
 }
 

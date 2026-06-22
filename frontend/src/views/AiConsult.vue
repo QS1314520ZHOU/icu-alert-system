@@ -1159,8 +1159,8 @@ onBeforeUnmount(() => {
 .consult-hero,
 .consult-panel,
 .consult-chat {
-  border: 1px solid rgba(80, 199, 255, 0.12);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  border: 1px solid #E5E6EB;
+  background: #FFFFFF;
 }
 
 .consult-hero {
@@ -1261,9 +1261,9 @@ onBeforeUnmount(() => {
 .prompt-chip {
   width: 100%;
   padding: 10px 12px;
-  border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, 0.14);
-  background: var(--bg-surface), 0.72);
+  border-radius: 6px;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
   font-size: 12px;
   text-align: left;
@@ -1272,8 +1272,8 @@ onBeforeUnmount(() => {
 }
 
 .prompt-chip:hover {
-  transform: translateY(-1px);
-  border-color: rgba(125, 211, 252, 0.3);
+  background: #F7F8FA;
+  border: none;
 }
 
 .tip-list {

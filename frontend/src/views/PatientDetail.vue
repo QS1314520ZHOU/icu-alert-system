@@ -1382,7 +1382,7 @@ const patientActionRail = computed(() => {
     { key: 'trend', label: '查看趋势', value: abnormalLabs ? `${abnormalLabs}项异常` : '趋势稳定', hint: '生命体征和检验走势', tab: 'trend', tone: abnormalLabs ? 'warning' : 'info' },
     { key: 'rounding', label: '查房摘要', value: aiState, hint: latestAiRiskAlert.value?.name || 'AI解释与建议', tab: 'ai', tone: aiRuntimeSummary.value.level === 'red' ? 'danger' : 'info' },
     { key: 'documents', label: '病历文书', value: '生成/编辑', hint: '病程记录和引用核对', tab: 'documents', tone: 'info' },
-    { key: 'consult', label: '进入AI问诊', value: '带入患者', hint: '围绕当前患者提问', tab: 'ai', tone: 'stable' },
+    { key: 'consult', label: '进入AI问诊', value: '带入患者', hint: '围绕当前患者提问', tab: 'ai', tone: 'brand' },
   ]
 })
 
@@ -1586,7 +1586,7 @@ const compositeRadarOption = computed(() => {
             value: values,
             name: '器官严重程度',
             areaStyle: { color: 'rgba(56, 189, 248, 0.24)' },
-            lineStyle: { color: '#38bdf8', width: 2 },
+            lineStyle: { color: '#15558D', width: 2 },
             itemStyle: { color: '#0ea5e9' },
           },
         ],
@@ -1596,11 +1596,11 @@ const compositeRadarOption = computed(() => {
 })
 
 const trendMetricDefs = [
-  { key: 'hr', code: 'HR', name: 'HR', forecastName: 'HR · 预测', color: '#38bdf8', threshold: 12, get: (p: any) => numberOrNull(p.hr) },
-  { key: 'map', code: 'MAP', name: 'MAP', forecastName: 'MAP · 预测', color: '#34d399', threshold: 8, get: (p: any) => numberOrNull(p.ibp_map ?? p.nibp_map) },
+  { key: 'hr', code: 'HR', name: 'HR', forecastName: 'HR · 预测', color: '#15558D', threshold: 12, get: (p: any) => numberOrNull(p.hr) },
+  { key: 'map', code: 'MAP', name: 'MAP', forecastName: 'MAP · 预测', color: '#1A9C5B', threshold: 8, get: (p: any) => numberOrNull(p.ibp_map ?? p.nibp_map) },
   { key: 'spo2', code: 'SpO2', name: 'SpO2', forecastName: 'SpO2 · 预测', color: '#a78bfa', threshold: 3, get: (p: any) => numberOrNull(p.spo2) },
-  { key: 'rr', code: 'RR', name: 'RR', forecastName: 'RR · 预测', color: '#f59e0b', threshold: 5, get: (p: any) => numberOrNull(p.rr) },
-  { key: 'temp', code: 'Temp', name: '体温', forecastName: '体温 · 预测', color: '#fb7185', threshold: 0.8, get: (p: any) => numberOrNull(p.temp) },
+  { key: 'rr', code: 'RR', name: 'RR', forecastName: 'RR · 预测', color: '#E8901C', threshold: 5, get: (p: any) => numberOrNull(p.rr) },
+  { key: 'temp', code: 'Temp', name: '体温', forecastName: '体温 · 预测', color: '#D9342B', threshold: 0.8, get: (p: any) => numberOrNull(p.temp) },
 ]
 
 function alphaColor(hex: string, alpha: number) {
@@ -4367,6 +4367,7 @@ onBeforeUnmount(() => {
 }
 .patient-action-tile.tone-info { border-color: rgba(103, 232, 249, .28); }
 .patient-action-tile.tone-stable { border-color: rgba(52, 211, 153, .22); }
+.patient-action-tile.tone-brand { border-color: rgba(21, 85, 141, .28); background: rgba(232, 243, 255, .6); }
 .detail-density-copy {
   display: flex;
   flex-wrap: wrap;
@@ -5808,6 +5809,11 @@ html[data-theme='light'] .patient-action-tile.tone-warning {
   border-color: rgba(217, 119, 6, .28);
   background: var(--bg-surface), rgba(255, 255, 255, .98));
 }
+
+html[data-theme='light'] .patient-action-tile.tone-brand {
+  border-color: rgba(21, 85, 141, 0.2) !important;
+  background: #E8F3FF !important;
+}
 html[data-theme='light'] .monitor-hero,
 html[data-theme='light'] .weaning-card,
 html[data-theme='light'] .info-card,
@@ -6041,10 +6047,10 @@ html[data-theme='light'] .hero-rescue-action:hover {
 }
 html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-btn) { color: var(--text-secondary); }
 html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active) {
-  background: var(--bg-surface) 0%, rgba(29, 78, 216, 0.98) 100%);
-  border-color: rgba(59, 130, 246, 0.32);
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
+  border-bottom: 2px solid var(--brand);
 }
-html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) { color: var(--text-primary); }
 html[data-theme='light'] .detail-density-btn,
 html[data-theme='light'] .tab-shortcut-btn {
   background: rgba(241, 246, 251, 0.98);

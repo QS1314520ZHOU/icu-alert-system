@@ -29,7 +29,7 @@ function themeTokens() {
       crossLine: 'rgba(46, 91, 255, 0.18)',
       legendText: '#4A4A68',
       heatmapText: '#4A4A68',
-      heatmapRange: ['#F0F4FF', '#D6E0FF', '#8FB0FF', '#F59E0B', '#EF4444'],
+      heatmapRange: ['#E8F3FF', '#D6E0FF', '#15558D', '#E8901C', '#D9342B'],
       labelStrong: '#1A1A2E',
     }
   }
@@ -48,7 +48,7 @@ function themeTokens() {
     crossLine: 'rgba(110, 231, 249, 0.22)',
     legendText: '#9edff0',
     heatmapText: '#7fc7da',
-    heatmapRange: ['#0a2234', '#0e4c68', '#16b3c9', '#f59e0b', '#fb5a7a'],
+    heatmapRange: ['#0a2234', '#0e4c68', '#15558D', '#E8901C', '#D9342B'],
     labelStrong: '#dffafc',
   }
 }

@@ -175,9 +175,9 @@ html[data-theme='light'] .stat-block::after {
   display: none;
 }
 html[data-theme='light'] .stat-block--cyan::before { background: #2563EB; }
-html[data-theme='light'] .stat-block--green::before { background: #22C55E; }
-html[data-theme='light'] .stat-block--amber::before { background: #F59E0B; }
-html[data-theme='light'] .stat-block--rose::before { background: #EF4444; }
+html[data-theme='light'] .stat-block--green::before { background: #1A9C5B; }
+html[data-theme='light'] .stat-block--amber::before { background: #E8901C; }
+html[data-theme='light'] .stat-block--rose::before { background: #D9342B; }
 html[data-theme='light'] .stat-head {
   border-bottom-color: rgba(0, 0, 0, 0.06);
 }

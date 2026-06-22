@@ -1646,8 +1646,8 @@ onMounted(async () => {
 }
 .mdt-hero,.mdt-panel {
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 167, 214, 0.18);
-  background: var(--bg-surface), var(--bg-surface));
+  border: 1px solid #E5E6EB;
+  background: #FFFFFF;
   box-shadow: var(--card-shadow);
 }
 .mdt-hero {
@@ -1738,8 +1738,8 @@ onMounted(async () => {
   align-items: center;
   padding: 12px 14px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 167, 214, 0.14);
-  background: var(--bg-surface), 0.72);
+  border: 1px solid #E5E6EB;
+  background: #FFFFFF;
 }
 .mdt-flow-step__index {
   display: grid;
@@ -1747,8 +1747,8 @@ onMounted(async () => {
   width: 34px;
   height: 34px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.9);
-  color: #a7dff2;
+  background: #F7F8FA;
+  color: #86909C;
   font-size: 12px;
   font-weight: 800;
 }
@@ -1765,14 +1765,12 @@ onMounted(async () => {
   line-height: 1.45;
 }
 .mdt-flow-step.is-active {
-  border-color: rgba(34, 211, 238, 0.36);
-  background:
-    var(--bg-surface), transparent 40%),
-    rgba(9, 25, 38, 0.9);
+  border-color: #15558D;
+  background: #E8F3FF;
 }
 .mdt-flow-step.is-done .mdt-flow-step__index {
-  background: rgba(10, 82, 61, 0.92);
-  color: var(--success);
+  background: #E8FFEA;
+  color: #1A9C5B;
 }
 .mdt-simple-board {
   display: grid;
@@ -2005,14 +2003,14 @@ onMounted(async () => {
   color: #ffd4db;
 }
 .hero-badge--warning {
-  background: var(--bg-surface), 0.86);
-  border-color: rgba(251, 191, 36, 0.28);
-  color: var(--warning-soft);
+  background: #FFF7E8;
+  border-color: rgba(166, 90, 12, 0.28);
+  color: #A65A0C;
 }
 .hero-badge--closed {
-  background: var(--bg-surface), 0.86);
-  border-color: rgba(248, 113, 113, 0.24);
-  color: #ffd7d7;
+  background: #FFECE8;
+  border-color: rgba(217, 52, 43, 0.28);
+  color: #D9342B;
 }
 .hero-conclusion-row {
   display: grid;
@@ -2321,8 +2319,8 @@ onMounted(async () => {
 .mdt-toolbar,
 .mini-card {
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 167, 214, 0.18);
-  background: var(--bg-surface), var(--bg-surface));
+  border: 1px solid #E5E6EB;
+  background: #FFFFFF;
 }
 .mdt-toolbar {
   display: grid;
@@ -3267,11 +3265,9 @@ onMounted(async () => {
 .error-box { background: rgba(127, 29, 29, 0.22); border-color: rgba(248, 113, 113, 0.24); color: var(--danger-soft); }
 html[data-theme='light'] .mdt-hero,
 html[data-theme='light'] .mdt-panel {
-  border-color: rgba(187, 204, 220, 0.72);
-  background:
-    var(--bg-surface), rgba(59, 130, 246, 0) 38%),
-    var(--bg-surface) 0%, rgba(245,249,253,.98) 100%);
-  box-shadow: var(--card-shadow);
+  border-color: #E5E6EB;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03);
 }
 html[data-theme='light'] .hero-badge,
 html[data-theme='light'] .mdt-flow-step,
@@ -3313,10 +3309,10 @@ html[data-theme='light'] .panel-select,
 html[data-theme='light'] .field-input,
 html[data-theme='light'] .field-textarea,
 html[data-theme='light'] .mdt-select {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.96);
+  border-color: #E5E6EB;
+  background: #FFFFFF;
   color: var(--text-secondary);
-  box-shadow: var(--card-shadow);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03);
 }
 html[data-theme='light'] .mdt-title,
 html[data-theme='light'] .mdt-flow-step strong,
@@ -3341,7 +3337,7 @@ html[data-theme='light'] .deep-panel__title,
 html[data-theme='light'] .decision-item__head strong,
 html[data-theme='light'] .priority-card__head strong,
 html[data-theme='light'] .conflict-card__title {
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 html[data-theme='light'] .mdt-kicker,
 html[data-theme='light'] .mdt-desc,
@@ -3416,19 +3412,19 @@ html[data-theme='light'] .hero-badge--critical {
   color: var(--danger-strong);
 }
 html[data-theme='light'] .hero-badge--warning {
-  background: rgba(254, 243, 199, 0.98);
-  border-color: rgba(251, 191, 36, 0.3);
-  color: var(--warning);
+  background: #FFF7E8;
+  border-color: rgba(166, 90, 12, 0.28);
+  color: #A65A0C;
 }
 html[data-theme='light'] .decision-safety {
   border-color: rgba(217, 119, 6, 0.24);
-  background: var(--warning-soft);
+  background: var(--warning-bg);
   color: var(--danger-strong);
 }
 html[data-theme='light'] .hero-badge--closed,
 html[data-theme='light'] .session-chip--closed {
-  background: rgba(255, 241, 242, 0.98);
-  border-color: rgba(251, 113, 133, 0.28);
+  background: #FFECE8;
+  border-color: rgba(217, 52, 43, 0.28);
   color: var(--danger-strong);
 }
 html[data-theme='light'] .session-chip--tag {
@@ -3457,22 +3453,20 @@ html[data-theme='light'] .specialist-row:hover {
   border-color: rgba(59, 130, 246, 0.28);
 }
 html[data-theme='light'] .mdt-flow-step.is-active {
-  border-color: rgba(14, 165, 233, .32);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(235, 248, 252, .98));
+  border-color: #15558D;
+  background: #E8F3FF;
 }
 html[data-theme='light'] .mdt-flow-step.is-done .mdt-flow-step__index {
-  background: rgba(220, 252, 231, .98);
-  color: var(--success);
+  background: #E8FFEA;
+  color: #1A9C5B;
 }
 html[data-theme='light'] .summary-box--hero {
   background: var(--bg-surface), rgba(241,246,251,.98));
 }
 html[data-theme='light'] .mdt-action-card,
 html[data-theme='light'] .mdt-document-section {
-  border-color: rgba(203, 213, 225, .82);
-  background: rgba(248, 250, 252, .98);
+  border-color: #E5E6EB;
+  background: #FFFFFF;
 }
 html[data-theme='light'] .mdt-next-step {
   border-color: rgba(37, 99, 235, .24);
@@ -3487,12 +3481,12 @@ html[data-theme='light'] .mdt-next-step span,
 html[data-theme='light'] .mdt-action-card small,
 html[data-theme='light'] .mdt-next-step small,
 html[data-theme='light'] .mdt-document-section p {
-  color: #60758a;
+  color: var(--text-secondary);
 }
 html[data-theme='light'] .mdt-action-card strong,
 html[data-theme='light'] .mdt-next-step strong,
 html[data-theme='light'] .mdt-document-section strong {
-  color: #18344f;
+  color: var(--text-primary);
 }
 html[data-theme='light'] .trend-placeholder__chart span {
   background: var(--bg-surface), rgba(59, 130, 246, 0.2));
@@ -3524,9 +3518,9 @@ html[data-theme='light'] .mdt-hero {
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .mdt-panel {
-  border-color: rgba(226, 232, 240, .96);
-  background: rgba(255, 255, 255, .96);
-  box-shadow: var(--card-shadow);
+  border-color: #E5E6EB;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03);
 }
 html[data-theme='light'] .mdt-panel :deep(.ant-card-head) {
   border-bottom-color: rgba(226, 232, 240, .86);
@@ -3979,6 +3973,10 @@ html[data-theme='light'] .mdt-step-layout select {
 html[data-theme='light'] .mdt-step-layout textarea::placeholder,
 html[data-theme='light'] .mdt-step-layout input::placeholder {
   color: var(--text-secondary) !important;
+}
+
+html[data-theme='light'] .simple-card p {
+  color: var(--text-primary);
 }
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),

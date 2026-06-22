@@ -125,7 +125,7 @@ p {
 :global(html[data-theme='light']) .mdt-badge.is-warning {
   color: var(--danger-strong);
   border-color: var(--warning-soft);
-  background: var(--warning-soft);
+  background: var(--warning-bg);
 }
 :global(html[data-theme='light']) .mdt-badge.is-closed,
 :global(html[data-theme='light']) .mdt-badge.is-soft {

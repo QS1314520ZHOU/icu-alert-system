@@ -1080,8 +1080,8 @@ section { display: flex; flex-direction: column; gap: 7px; }
 }
 .status-badge--critical { background: var(--danger-bg); border-color: var(--danger); color: var(--danger-strong); box-shadow: var(--card-shadow); font-weight: 600; }
 .status-badge--high { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
-.status-badge--warning { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
-.status-badge--normal { background: var(--success); border-color: var(--success); color: #FFFFFF; }
+.status-badge--warning { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+.status-badge--normal { background: var(--success-bg); border-color: var(--success); color: var(--success); }
 .status-badge--none { background: var(--bg-surface-2); border-color: var(--border-color); color: var(--text-secondary); }
 
 .patient-tags {
@@ -1197,7 +1197,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .vital-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 .risk-fingerprint {
   display: grid;
@@ -1228,8 +1228,8 @@ section { display: flex; flex-direction: column; gap: 7px; }
   min-height: 76px;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
-  border: 1px solid rgba(71, 196, 255, 0.14);
+  background: transparent;
+  border: none;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -2047,8 +2047,8 @@ html[data-theme='light'] .hover-drawer-label {
   text-transform: none;
 }
 html[data-theme='light'] .sec-vitals {
-  background: var(--bg-surface) 0%, rgba(241,245,249,.98) 100%);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: transparent;
+  border: none;
   border-radius: var(--card-radius);
 }
 html[data-theme='light'] .sec-vitals,
@@ -2067,9 +2067,9 @@ html[data-theme='light'] .device-tag,
 html[data-theme='light'] .tube-item,
 html[data-theme='light'] .pill,
 html[data-theme='light'] .vital-item {
-  border-color: rgba(0,0,0,0.06);
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 html[data-theme='light'] .sec-logistics,
 html[data-theme='light'] .sec-alerts,
@@ -2109,7 +2109,7 @@ html[data-theme='light'] .summary-suggestion--rescue,
 html[data-theme='light'] .hover-drawer-suggestion {
   border-color: #CFE9D8;
   background: var(--bg-surface);
-  color: #27AE60;
+  color: #1A9C5B;
 }
 html[data-theme='light'] .hover-drawer,
 html[data-theme='light'] .hover-drawer-block,
@@ -2142,8 +2142,8 @@ html[data-theme='light'] .status-badge {
 }
 .status-badge--critical { background: var(--danger-bg); border-color: var(--danger); color: var(--danger-strong); box-shadow: var(--card-shadow); font-weight: 600; }
 .status-badge--high { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
-.status-badge--warning { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
-.status-badge--normal { background: var(--success); border-color: var(--success); color: #FFFFFF; }
+.status-badge--warning { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+.status-badge--normal { background: var(--success-bg); border-color: var(--success); color: var(--success); }
 .status-badge--none { background: var(--bg-surface-2); border-color: var(--border-color); color: var(--text-secondary); }
 html[data-theme='light'] .status-badge strong {
   letter-spacing: .02em;
@@ -2156,9 +2156,9 @@ html[data-theme='light'] .allergy-tag {
 html[data-theme='light'] .vital-item {
   min-height: 88px;
   padding: 12px 14px;
-  background: var(--bg-surface) 0%, rgba(246,249,253,.98) 100%);
-  border-color: rgba(148, 163, 184, 0.14);
-  box-shadow: var(--card-shadow);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 html[data-theme='light'] .vital-item--hr {
   background:
@@ -2225,7 +2225,7 @@ html[data-theme='light'] .summary-chip--warning,
 html[data-theme='light'] .tube--orange {
   background: var(--bg-surface) 0%, rgba(255,237,213,.98) 100%);
   border-color: rgba(251, 146, 60, 0.2);
-  color: #E67E22;
+  color: #A65A0C;
 }
 html[data-theme='light'] .summary-chip--critical,
 html[data-theme='light'] .tube--red {

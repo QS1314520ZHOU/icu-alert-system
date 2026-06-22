@@ -881,10 +881,10 @@ const stickyFeatureCards = computed(() => {
   })
 })
 const visualTaskMix = computed(() => [
-  { key: 'focus', label: '重点', value: stickyFeatures.value?.todays_focus?.length || 0, color: '#fb7185' },
-  { key: 'nursing', label: '护理', value: stickyFeatures.value?.nursing_radar?.length || 0, color: '#5eead4' },
+  { key: 'focus', label: '重点', value: stickyFeatures.value?.todays_focus?.length || 0, color: '#D9342B' },
+  { key: 'nursing', label: '护理', value: stickyFeatures.value?.nursing_radar?.length || 0, color: '#1A9C5B' },
   { key: 'doctor', label: '查房', value: stickyFeatures.value?.rounding_checklist?.length || 0, color: '#60a5fa' },
-  { key: 'quality', label: '质控', value: stickyFeatures.value?.director_dashboard?.length || 0, color: '#fbbf24' },
+  { key: 'quality', label: '质控', value: stickyFeatures.value?.director_dashboard?.length || 0, color: '#E8901C' },
 ])
 const visualTotalTasks = computed(() => visualTaskMix.value.reduce((sum, item) => sum + Number(item.value || 0), 0))
 const donutStyle = computed(() => {
@@ -899,10 +899,10 @@ const donutStyle = computed(() => {
 })
 const visualRoleBars = computed(() => {
   const colors: Record<string, string> = {
-    nurse: '#5eead4',
+    nurse: '#1A9C5B',
     doctor: '#60a5fa',
-    head_nurse: '#fbbf24',
-    director: '#fb7185',
+    head_nurse: '#E8901C',
+    director: '#D9342B',
   }
   const fallbackRows = [
     { key: 'nurse', label: '护士', value: nursingTasks.value.length },
@@ -911,7 +911,7 @@ const visualRoleBars = computed(() => {
     { key: 'director', label: '主任', value: scannerReview.value.length + (directorDigest.value?.review_required || 0) },
   ]
   const sourceRows = roleDistribution.value.length ? roleDistribution.value : fallbackRows
-  const rows = sourceRows.map((row: any) => ({ ...row, color: colors[row.key] || '#67e8f9' }))
+  const rows = sourceRows.map((row: any) => ({ ...row, color: colors[row.key] || '#15558D' }))
   const max = Math.max(...rows.map((row: any) => Number(row.value || 0)), 1)
   return rows.map((row: any) => ({ ...row, percent: Math.max(8, Math.round((Number(row.value || 0) / max) * 100)) }))
 })
@@ -1473,11 +1473,11 @@ onMounted(() => {
 
 <style scoped>
 .clinical-workflow {
-  --icu-critical: #fb7185;
-  --icu-high: #fb923c;
-  --icu-warning: #fbbf24;
-  --icu-stable: #34d399;
-  --icu-info: #67e8f9;
+  --icu-critical: #D9342B;
+  --icu-high: #E8901C;
+  --icu-warning: #E8901C;
+  --icu-stable: #1A9C5B;
+  --icu-info: #15558D;
   display: grid;
   gap: 16px;
   padding: 18px;

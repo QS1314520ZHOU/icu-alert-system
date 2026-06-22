@@ -13,7 +13,7 @@ function readThemeMode(): ThemeMode {
     const saved = window.localStorage.getItem(THEME_KEY)
     if (saved === 'light' || saved === 'dark') return saved
   }
-  return 'dark'
+  return 'light'
 }
 
 const themeModeState = ref<ThemeMode>(readThemeMode())

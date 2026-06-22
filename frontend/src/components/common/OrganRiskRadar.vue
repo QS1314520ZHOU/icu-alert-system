@@ -142,7 +142,7 @@ const labelPoints = computed(() =>
 }
 .organ-radar__value-line {
   fill: none;
-  stroke: #38bdf8;
+  stroke: #15558D;
   stroke-width: 2;
 }
 .organ-radar__value-dot {

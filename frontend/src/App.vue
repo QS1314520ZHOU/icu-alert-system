@@ -28,14 +28,14 @@
                 @change="onOperatorIdentityChange"
               />
             </label>
-            <div class="theme-toggle">
+            <div v-if="false" class="theme-toggle">
               <span class="toggle-text">{{ notifyEnabled ? '通知开' : '通知关' }}</span>
               <label class="switch">
                 <input type="checkbox" :checked="notifyEnabled" @change="onNotifyToggle(($event.target as HTMLInputElement)?.checked)" />
                 <span class="switch-slider"></span>
               </label>
             </div>
-            <div class="theme-toggle" :title="themeMode === 'dark' ? '当前夜间模式' : '当前白天模式'">
+            <div v-if="false" class="theme-toggle" :title="themeMode === 'dark' ? '当前夜间模式' : '当前白天模式'">
               <span class="theme-lbl">🌞</span>
               <label class="switch switch--compact">
                 <input type="checkbox" :checked="themeMode === 'dark'" @change="onThemeToggle(($event.target as HTMLInputElement)?.checked)" />
@@ -86,7 +86,7 @@ import { navGroups, navItems, type NavItemKey } from './config/roleHomeConfig'
 const route = useRoute()
 const router = useRouter()
 const now = ref('')
-const themeMode = ref<'dark' | 'light'>('dark')
+const themeMode = ref<'dark' | 'light'>('light')
 const notifyEnabled = ref(false)
 const operatorIdentity = ref('')
 const operatorDisplayName = ref('')
@@ -162,19 +162,19 @@ const themeConfig = computed(() => {
       ? antTheme.value.darkAlgorithm
       : antTheme.value.defaultAlgorithm,
     token: {
-      colorPrimary: dark ? '#22d3ee' : '#2563EB',
-      colorInfo: dark ? '#38bdf8' : '#3B82F6',
-      colorSuccess: dark ? '#34d399' : '#16A34A',
-      colorWarning: dark ? '#f59e0b' : '#D97706',
-      colorError: dark ? '#f87171' : '#DC2626',
-      colorBgBase: dark ? '#07111d' : '#F5F7FA',
+      colorPrimary: dark ? '#15558D' : '#15558D',
+      colorInfo: dark ? '#15558D' : '#15558D',
+      colorSuccess: dark ? '#1A9C5B' : '#1A9C5B',
+      colorWarning: dark ? '#E8901C' : '#A65A0C',
+      colorError: dark ? '#D9342B' : '#D9342B',
+      colorBgBase: dark ? '#07111d' : '#F2F3F5',
       colorBgContainer: dark ? '#0d1a2b' : '#ffffff',
       colorBgElevated: dark ? '#091827' : '#ffffff',
-      colorText: dark ? '#d9e6f3' : '#0F172A',
-      colorTextSecondary: dark ? '#7f93ab' : '#64748B',
-      colorBorder: dark ? 'rgba(125, 167, 214, 0.14)' : 'rgba(0, 0, 0, 0.06)',
-      borderRadius: 12,
-      borderRadiusLG: 14,
+      colorText: dark ? '#d9e6f3' : '#1D2129',
+      colorTextSecondary: dark ? '#7f93ab' : '#4E5969',
+      colorBorder: dark ? 'rgba(125, 167, 214, 0.14)' : '#E5E6EB',
+      borderRadius: 6,
+      borderRadiusLG: 6,
       fontSize: 13,
       controlHeight: 32,
       controlHeightSM: 28,
@@ -243,14 +243,17 @@ function applyTheme(mode: 'dark' | 'light') {
 }
 
 function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY)
-  themeMode.value = saved === 'light' ? 'light' : 'dark'
+  // 展会默认浅色，忽略旧的 dark 偏好
+  themeMode.value = 'light'
+  localStorage.setItem(THEME_KEY, 'light')
   applyTheme(themeMode.value)
 }
 
-function onThemeToggle(checked: any) {
-  const enabled = checked === true || checked === 'true'
-  themeMode.value = enabled ? 'dark' : 'light'
+function onThemeToggle(_checked: any) {
+  // 展会锁定浅色模式
+  themeMode.value = 'light'
+  localStorage.setItem(THEME_KEY, 'light')
+  applyTheme('light')
 }
 
 function onOperatorIdentityChange() {
@@ -425,7 +428,7 @@ onUnmounted(() => clearInterval(t))
   right: 24px;
   top: 0;
   height: 1px;
-  background: var(--bg-surface);
+  background: var(--border-color);
 }
 .hdr-menu {
   min-width: 0;
@@ -625,13 +628,11 @@ onUnmounted(() => clearInterval(t))
 .body { background: var(--app-bg); min-height: calc(100vh - 104px); }
 
 .theme-light .hdr {
-  background:
-    var(--bg-surface), transparent 36%),
-    var(--bg-surface) 0%, rgba(248, 251, 255, 0.96) 58%, rgba(239, 246, 255, 0.98) 100%) !important;
+  background: #FFFFFF !important;
   backdrop-filter: none;
   position: sticky;
-  border-bottom-color: rgba(148, 163, 184, 0.22);
-  box-shadow: var(--card-shadow);
+  border-bottom: 1px solid #E5E6EB;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .theme-light .hdr-l {
@@ -663,11 +664,11 @@ onUnmounted(() => clearInterval(t))
 }
 
 .theme-light .nav-btn.active {
-  color: var(--text-primary);
-  background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.38);
-  transform: translateY(-1px);
-  box-shadow: var(--card-shadow);
+  color: #15558D;
+  background: #E8F3FF;
+  border-bottom: 2px solid #15558D;
+  border-radius: 6px 6px 0 0;
+  box-shadow: none;
 }
 
 .theme-light .hdr-title {
