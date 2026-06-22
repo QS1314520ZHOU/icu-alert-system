@@ -28,7 +28,7 @@
             </div>
           </div>
         </div>
-        <div :class="['status-badge', `status-badge--${patient.alertLevel || 'none'}`]">
+        <div :class="['status-badge', 'ds-badge', `status-badge--${patient.alertLevel || 'none'}`]">
           <strong>{{ alertStatus }}</strong>
         </div>
       </header>
@@ -44,7 +44,7 @@
         <span class="section-title">生命体征</span>
         <span class="section-desc">最近一次监测</span>
       </div>
-      <div class="vital-grid">
+      <div class="vital-grid ds-vital-grid">
         <div v-for="v in vitalsData" :key="v.key" :class="['vital-item', `vital-item--${v.key}`, v.colorClass]">
           <span class="v-label">{{ v.label }}</span>
           <span class="v-val">{{ v.value }}<small v-if="v.unit && v.value !== '--'">{{ v.unit }}</small></span>

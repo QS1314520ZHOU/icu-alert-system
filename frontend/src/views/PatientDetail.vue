@@ -160,7 +160,7 @@
           </section>
 
           <div v-if="!isCompactDetail" class="detail-content detail-content--rail">
-            <a-card title="基本信息" :bordered="false" class="info-card">
+            <a-card title="基本信息" :bordered="false" class="info-card ds-card">
               <p>诊断: {{ displayDiagnosis }}</p>
               <p>入科时间: {{ displayAdmissionTime }}</p>
               <p>HIS编号: {{ displayHisPid }}</p>
@@ -198,10 +198,10 @@
               </div>
               <div v-else class="vitals-empty">暂无监护数据</div>
             </a-card>
-            <a-card title="装置位置图" :bordered="false" class="info-card">
+            <a-card title="装置位置图" :bordered="false" class="info-card ds-card">
               <PatientDeviceBodyMap :markers="deviceBodyMarkers" :silhouette="patientSilhouette" />
             </a-card>
-            <a-card title="Clinical Trial Match / 临床试验匹配" :bordered="false" class="info-card">
+            <a-card title="Clinical Trial Match / 临床试验匹配" :bordered="false" class="info-card ds-card">
               <div v-if="trialMatchLoading" class="trial-match-empty">正在加载临床试验匹配…</div>
               <div v-else-if="trialMatchError" class="trial-match-empty trial-match-empty--error">{{ trialMatchError }}</div>
               <div v-else-if="!trialMatches.length" class="trial-match-empty">暂无可能符合的临床试验提醒</div>
@@ -1266,14 +1266,14 @@ async function openTopicTab(tab: string) {
 }
 
 function setDetailDensity(mode: DetailDensityMode) {
-  detailDensity.value = mode
-  detailTabGroup.value = mode === 'compact' ? 'focus' : 'all'
+  // 先确定 activeTab，再切换 detailDensity（:key 会销毁重建 tabs）
   if (mode === 'full' && !detailTabOrder.includes(activeTab.value as DetailTabKey)) {
     activeTab.value = 'trend'
   }
+  detailTabGroup.value = mode === 'compact' ? 'focus' : 'all'
   ensureTabVisible(activeTab.value)
+  detailDensity.value = mode  // 放最后，触发 tabs 重建时 activeTab 已就绪
 }
-
 function isTabVisible(tab: DetailTabKey) {
   return visibleDetailTabs.value.includes(tab)
 }

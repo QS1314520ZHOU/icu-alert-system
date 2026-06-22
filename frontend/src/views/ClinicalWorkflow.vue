@@ -427,7 +427,7 @@
       </section>
 
       <div class="side-stack">
-        <a-card v-if="selectedPatient" :bordered="false" class="panel story-inline-panel">
+        <a-card v-if="selectedPatient" :bordered="false" class="panel ds-card story-inline-panel">
           <template #title>
             <div class="panel-title">
               <span>{{ selectedPatient.bed || '--' }}床 {{ selectedPatient.name || '患者' }}</span>
@@ -485,7 +485,7 @@
           </a-spin>
         </a-card>
 
-        <a-card :bordered="false" class="panel">
+        <a-card :bordered="false" class="panel ds-card">
           <template #title>
             <div class="panel-title">
               <span>{{ roleLabel }}作战卡</span>
@@ -500,7 +500,7 @@
           </div>
         </a-card>
 
-        <a-card :bordered="false" class="panel">
+        <a-card :bordered="false" class="panel ds-card">
           <template #title>
             <div class="panel-title">
               <span>规则复核线索</span>
