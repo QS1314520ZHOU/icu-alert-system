@@ -1,11 +1,12 @@
 <template>
   <section class="head-nurse-home">
-    <header class="home-top">
-      <div>
-        <span>护士长首页</span>
-        <strong>{{ accountName }}</strong>
+    <header class="home-top ds-card">
+      <div class="home-title">
+        <strong>护士长质控</strong>
+        <span>护士长 · {{ home?.account?.dept || '科室待识别' }}</span>
       </div>
       <div class="top-meta">
+        <span>{{ accountName }}</span>
         <span>{{ home?.account?.dept || '科室待识别' }}</span>
         <span>{{ shiftText }}</span>
         <span>{{ clock }}</span>
@@ -13,10 +14,10 @@
       </div>
     </header>
 
-    <div v-if="loading" class="empty">正在汇总全科床位、护理负荷和质控数据...</div>
+    <div v-if="loading" class="empty">正在汇总全科床位、护理负荷 and 质控数据...</div>
     <div v-else-if="error" class="empty danger">{{ error }}</div>
     <template v-else>
-      <section class="start-guide">
+      <section class="start-guide ds-card">
         <div>
           <span>护士长看板</span>
           <strong>先看全科床位，再看护理负荷，最后追踪评估依从和质控事件。</strong>
@@ -25,20 +26,28 @@
       </section>
 
       <section class="summary-cards">
-        <article v-for="item in summaryCards" :key="item.key" :class="['summary-card', `is-${item.tone}`]">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <em>{{ item.hint }}</em>
+        <article v-for="item in summaryCards" :key="item.key" :class="['summary-card', 'ds-card', 'ds-kpi', kpiToneClass(item.tone)]">
+          <div class="ds-kpi-icon">
+            <TeamOutlined v-if="item.key === 'beds'" />
+            <ClockCircleOutlined v-else-if="item.key === 'handover'" />
+            <CheckCircleOutlined v-else-if="item.key === 'compliance'" />
+            <BellOutlined v-else-if="item.key === 'alerts'" />
+          </div>
+          <div>
+            <span class="ds-kpi-label">{{ item.label }}</span>
+            <strong class="ds-kpi-num">{{ item.value }}</strong>
+            <em>{{ item.hint }}</em>
+          </div>
         </article>
       </section>
 
       <!-- 依从性看板入口 -->
-      <section class="compliance-entry">
+      <section class="compliance-entry ds-card" @click="showCompliance = !showCompliance">
         <div class="entry-content">
           <strong>护理依从性看板</strong>
           <span>查看评估/翻身/CAM-ICU/早期活动依从率时间线、逾期TOP床位和班次对比</span>
         </div>
-        <button type="button" @click="showCompliance = !showCompliance">
+        <button type="button">
           {{ showCompliance ? '收起看板' : '展开看板' }}
         </button>
       </section>
@@ -64,7 +73,8 @@
             <span>{{ beds.length }} 床</span>
           </div>
           <div class="bed-cloud">
-            <span v-for="b in sortedBeds" :key="b.patient_id">
+            <span v-for="b in sortedBeds" :key="b.patient_id" class="ds-list-item">
+              <i :class="['ds-dot', bedDotClass(b)]"></i>
               <b>{{ displayBed(b.bed) }}</b>
               <em>{{ b.name || '未知患者' }}</em>
             </span>
@@ -162,9 +172,12 @@
             <span>{{ qualityEvents.length }} 条</span>
           </div>
           <div class="event-list">
-            <article v-for="event in qualityEvents" :key="`${event.patient_id}-${event.time}-${event.title}`" class="event-item">
-              <strong>{{ displayBed(event.bed) }} {{ event.title }}</strong>
-              <span>{{ event.type }} · {{ fmt(event.time) }}</span>
+            <article v-for="event in qualityEvents" :key="`${event.patient_id}-${event.time}-${event.title}`" class="event-item ds-list-item">
+              <i :class="['ds-dot', eventDotClass(event)]"></i>
+              <div>
+                <strong>{{ displayBed(event.bed) }} {{ event.title }}</strong>
+                <span>{{ event.type }} · {{ fmt(event.time) }}</span>
+              </div>
             </article>
           </div>
           <div v-if="!qualityEvents.length" class="empty small">本班暂无未闭环质控事件。</div>
@@ -221,6 +234,7 @@ import { useAuthStore } from '../stores/auth'
 import { roleHomeConfig } from '../config/roleHomeConfig'
 import ComplianceDashboard from './ComplianceDashboard.vue'
 import BundleComplianceChecklist from './BundleComplianceChecklist.vue'
+import { BellOutlined, CheckCircleOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons-vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -311,6 +325,28 @@ function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }
 
+function kpiToneClass(tone: any) {
+  const key = String(tone || '').toLowerCase()
+  if (key === 'red' || key === 'danger') return 'is-danger'
+  if (key === 'yellow' || key === 'warning') return 'is-warning'
+  if (key === 'green' || key === 'success') return 'is-success'
+  return 'is-brand'
+}
+
+function bedDotClass(row: any) {
+  const key = String(row?.risk_level || row?.severity || row?.status || '').toLowerCase()
+  if (['critical', 'danger', 'red', '危急'].includes(key)) return 'is-critical'
+  if (['high', 'warning', 'warn', 'yellow', '关注', '高危'].includes(key)) return 'is-warn'
+  return 'is-muted'
+}
+
+function eventDotClass(row: any) {
+  const key = String(row?.severity || row?.level || row?.risk_level || row?.type || row?.title || '').toLowerCase()
+  if (/critical|danger|red|危急|跌倒|压疮|脱出|差错/.test(key)) return 'is-critical'
+  if (/high|warning|warn|yellow|高危|关注|逾期/.test(key)) return 'is-warn'
+  return 'is-muted'
+}
+
 function tick() {
   clock.value = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
@@ -367,7 +403,7 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 
 <style scoped>
 .head-nurse-home {
-  padding: 14px;
+  padding: 14px 14px 80px;
   display: grid;
   gap: 12px;
 }
@@ -381,7 +417,7 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   padding: 12px 14px;
   border: 1px solid rgba(34, 211, 238, .22);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
 }
 
 .start-guide div {
@@ -408,9 +444,10 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   padding: 14px;
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .82);
+  background: var(--bg-surface);
 }
 
+.home-title,
 .home-top div {
   display: grid;
   gap: 4px;
@@ -436,13 +473,16 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: flex-end;
+  text-align: right;
+  color: var(--text-muted);
 }
 
 button {
   min-height: 44px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface), .78);
+  background: var(--bg-surface);
   color: var(--text-primary);
   padding: 0 12px;
   cursor: pointer;
@@ -451,7 +491,7 @@ button {
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--card-gap);
 }
 
 .compliance-entry {
@@ -462,7 +502,7 @@ button {
   padding: 14px;
   border: 1px solid rgba(34, 211, 238, .22);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
   cursor: pointer;
 }
 
@@ -489,35 +529,27 @@ button {
 
 .summary-card {
   min-height: 86px;
-  display: grid;
-  align-content: center;
-  gap: 4px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
 }
 
-.summary-card strong {
-  color: var(--text-primary);
+.summary-card .ds-kpi-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.summary-card .ds-kpi-num {
   font-size: 26px;
   line-height: 1;
 }
 
-.summary-card.is-red {
-  border-color: rgba(239, 68, 68, .42);
-}
-
-.summary-card.is-yellow {
-  border-color: rgba(245, 158, 11, .42);
-}
-
-.summary-card.is-green {
-  border-color: rgba(52, 211, 153, .34);
-}
-
-.summary-card.is-blue {
-  border-color: rgba(56, 189, 248, .34);
+.summary-card em {
+  display: block;
+  margin-top: 3px;
+  font-style: normal;
 }
 
 .bundle-panel {
@@ -540,7 +572,7 @@ button {
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
 }
 
 .panel-head {
@@ -562,21 +594,34 @@ button {
 }
 
 .bed-cloud span {
+  position: relative;
   min-width: 0;
   min-height: 54px;
   display: grid;
   align-content: center;
   gap: 3px;
-  padding: 8px 10px;
-  border: 1px solid rgba(125, 211, 252, .12);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  padding: 8px 10px 8px 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: var(--text-primary);
+  transition: background .18s ease;
+}
+
+.bed-cloud span:hover {
+  background: var(--bg-surface-2);
+}
+
+.bed-cloud .ds-dot {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .bed-cloud span b {
-  color: var(--text-primary);
-  font-size: 15px;
+  color: #1D2129;
+  font-size: 14px;
   line-height: 1.1;
   font-weight: 800;
 }
@@ -584,7 +629,7 @@ button {
 .bed-cloud span em {
   min-width: 0;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   font-style: normal;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -650,7 +695,7 @@ button {
 .heatmap article {
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   color: var(--text-primary);
   min-width: 150px;
   display: grid;
@@ -706,7 +751,7 @@ button {
   align-items: center;
   padding: 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .compliance-item strong {
@@ -743,7 +788,7 @@ button {
 .stat-item {
   padding: 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .stat-item span {
@@ -770,10 +815,16 @@ button {
 
 .event-item {
   display: grid;
-  gap: 4px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
   padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  border-radius: 6px;
+  background: transparent;
+}
+
+.event-item:hover {
+  background: var(--bg-surface-2);
 }
 
 .event-item strong {
@@ -786,6 +837,23 @@ button {
   font-size: 12px;
 }
 
+.ds-badge {
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 0;
+}
+
+.ds-badge--danger { background: #FFECE8; color: #D9342B; }
+.ds-badge--warning { background: #FFF7E8; color: #A65A0C; }
+.ds-badge--success { background: #E8FFEA; color: #1A9C5B; }
+.ds-badge--info { background: #E8F3FF; color: #15558D; }
+
+:global(.ai-pulse-root) {
+  z-index: 120;
+}
+
 .quality-row {
   display: flex;
   flex-wrap: wrap;
@@ -796,7 +864,7 @@ button {
 .quality-row span {
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -811,7 +879,7 @@ button {
   gap: 4px;
   padding: 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .scanner-item strong {
@@ -833,7 +901,7 @@ button {
 .empty {
   padding: 14px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .58);
+  background: var(--bg-surface);
 }
 
 .empty.small {
@@ -850,7 +918,7 @@ button {
   z-index: 400;
   display: grid;
   place-items: center;
-  background: var(--bg-surface), .48);
+  background: var(--bg-surface);
   padding: 16px;
 }
 
@@ -902,9 +970,7 @@ button {
 
 /* Light theme */
 html[data-theme='light'] .head-nurse-home {
-  background:
-    var(--bg-surface), transparent 28%),
-    var(--bg-surface), transparent 32%);
+  background: var(--bg-base);
 }
 
 html[data-theme='light'] .home-top,
@@ -933,8 +999,12 @@ html[data-theme='light'] .summary-card em {
 }
 
 html[data-theme='light'] .bed-cloud span {
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme='light'] .bed-cloud span:hover {
+  background: var(--bg-surface-2);
 }
 
 html[data-theme='light'] .bed-cloud span b {
@@ -984,5 +1054,11 @@ html[data-theme='light'] .onboarding-card li {
 
 html[data-theme='light'] .onboarding-card li span {
   color: var(--text-secondary);
+}
+html[data-theme='light'] .nurse-home,
+html[data-theme='light'] .doctor-home,
+html[data-theme='light'] .director-home,
+html[data-theme='light'] .head-nurse-home {
+  padding-bottom: 80px;
 }
 </style>

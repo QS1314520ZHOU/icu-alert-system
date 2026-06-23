@@ -1,11 +1,12 @@
 <template>
   <section class="role-home doctor-home">
-    <header class="home-top">
-      <div>
-        <span>主管医生首页</span>
-        <strong>{{ accountName }}</strong>
+    <header class="home-top ds-card">
+      <div class="home-title">
+        <strong>医生首页</strong>
+        <span>主管医生 · {{ home?.account?.dept || '科室待识别' }}</span>
       </div>
       <div class="top-meta">
+        <span>{{ accountName }}</span>
         <span>{{ home?.account?.dept || '科室待识别' }}</span>
         <span>{{ shiftText }}</span>
         <span>{{ clock }}</span>
@@ -16,7 +17,7 @@
     <div v-if="loading" class="empty">正在汇总我管的床、昨夜 AI 监控和待办...</div>
     <div v-else-if="error" class="empty danger">{{ error }}</div>
     <template v-else>
-      <section class="start-guide">
+      <section class="start-guide ds-card">
         <div>
           <span>今天从这里开始</span>
           <strong>先看重点患者，再处理待办，最后进入患者详情完成查房和文书。</strong>
@@ -25,10 +26,18 @@
       </section>
 
       <section class="doctor-summary">
-        <article v-for="item in doctorSummary" :key="item.key" :class="['summary-card', 'ds-card', `is-${item.tone}`]">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <em>{{ item.hint }}</em>
+        <article v-for="item in doctorSummary" :key="item.key" :class="['summary-card', 'ds-card', 'ds-kpi', kpiToneClass(item.tone)]">
+          <div class="ds-kpi-icon">
+            <TeamOutlined v-if="item.key === 'beds'" />
+            <BellOutlined v-else-if="item.key === 'risk'" />
+            <ClockCircleOutlined v-else-if="item.key === 'pending' || item.key === 'tasks'" />
+            <CheckCircleOutlined v-else />
+          </div>
+          <div>
+            <span class="ds-kpi-label">{{ item.label }}</span>
+            <strong class="ds-kpi-num">{{ item.value }}</strong>
+            <em>{{ item.hint }}</em>
+          </div>
         </article>
       </section>
 
@@ -44,7 +53,7 @@
               <strong>{{ displayBed(item.bed) }} {{ item.name || '未知患者' }}</strong>
               <span>{{ cleanReason(item.reason) }}</span>
               <small>
-                <em>{{ riskLabel(item.risk_level) }}</em>
+                <em :class="['ds-badge', badgeClass(item.risk_level)]">{{ riskLabel(item.risk_level) }}</em>
                 <em>评分 {{ item.risk_score || 0 }}</em>
               </small>
               <div class="focus-actions">
@@ -125,6 +134,7 @@ import { getDoctorHome } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { formatRiskLevelLabel } from '../utils/displayLabels'
 import { roleHomeConfig } from '../config/roleHomeConfig'
+import { BellOutlined, CheckCircleOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -201,6 +211,20 @@ function tone(value: string) {
   if (key === 'warning') return 'warning'
   if (key === 'info') return 'info'
   return 'unknown'
+}
+function badgeClass(value: any) {
+  const key = String(value || '').toLowerCase()
+  if (['critical', 'danger', 'red'].includes(key)) return 'ds-badge--danger'
+  if (['high', 'warning', 'warn', 'medium', 'watch', 'yellow'].includes(key)) return 'ds-badge--warning'
+  if (['stable', 'success', 'green', 'ok', 'normal'].includes(key)) return 'ds-badge--success'
+  return 'ds-badge--info'
+}
+function kpiToneClass(tone: any) {
+  const key = String(tone || '').toLowerCase()
+  if (key === 'red' || key === 'danger') return 'is-danger'
+  if (key === 'yellow' || key === 'warning') return 'is-warning'
+  if (key === 'green' || key === 'success') return 'is-success'
+  return 'is-brand'
 }
 function riskLabel(value: any) {
   return formatRiskLevelLabel(value, '待评估')
@@ -319,40 +343,53 @@ function dismissOnboarding() {
 </script>
 
 <style scoped>
-.role-home { padding: 14px; display: grid; gap: 12px; }
-.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: var(--card-radius); background: var(--bg-surface), var(--bg-surface)); }
+.role-home { padding: 14px 14px 80px; display: grid; gap: 12px; }
+.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: var(--card-radius); background: var(--bg-surface); }
 .start-guide div { display: grid; gap: 4px; }
-.start-guide span { color: var(--accent); font-size: 12px; }
+.start-guide span { color: var(--text-muted); font-size: 12px; }
 .start-guide strong { color: var(--text-primary); font-size: 15px; }
-.home-top { min-height: 72px; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface),.82); }
-.home-top div { display: grid; gap: 4px; }
-.home-top span, .panel-head span, .focus-row span, .task-row span, .empty, .summary-card span, .summary-card em { color: var(--text-secondary); font-size: 12px; }
+.home-top { min-height: 72px; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
+.home-title, .home-top div { display: grid; gap: 4px; }
+.home-top span { color: var(--text-muted); font-size: 12px; }
+.panel-head span, .focus-row span, .task-row span, .empty, .summary-card span, .summary-card em { color: var(--text-secondary); font-size: 12px; }
 .home-top strong { color: var(--text-primary); font-size: 20px; }
-.top-meta { display: flex !important; flex-direction: row; align-items: center; flex-wrap: wrap; }
-button { min-height: 44px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.2); background: var(--bg-surface),.78); color: var(--text-primary); padding: 0 12px; cursor: pointer; }
-.doctor-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.summary-card { min-height: 86px; display: grid; align-content: center; gap: 4px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface),.74); }
-.summary-card strong { color: var(--text-primary); font-size: 26px; line-height: 1; }
-.summary-card.is-red { border-color: rgba(239,68,68,.42); }
-.summary-card.is-yellow { border-color: rgba(245,158,11,.42); }
-.summary-card.is-green { border-color: rgba(52,211,153,.34); }
-.summary-card.is-blue { border-color: rgba(56,189,248,.34); }
+.top-meta { display: flex !important; flex-direction: row; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; text-align: right; }
+button { min-height: 44px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.2); background: var(--bg-surface); color: var(--text-primary); padding: 0 12px; cursor: pointer; }
+.doctor-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--card-gap); }
+.summary-card { min-height: 86px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
+.summary-card .ds-kpi-icon { width: 40px; height: 40px; border-radius: 8px; }
+.summary-card .ds-kpi-num { font-size: 26px; line-height: 1; }
+.summary-card em { font-style: normal; }
 .doctor-grid { min-height: 560px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .95fr); grid-template-rows: auto auto; gap: 12px; }
-.panel { min-width: 0; overflow: auto; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface),.74); }
+.panel { min-width: 0; overflow: auto; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
 .panel-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .panel-head strong { color: var(--text-primary); font-size: 15px; }
-.focus-row, .task-row { display: grid; grid-template-columns: 4px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface),.72); cursor: pointer; }
+.focus-row, .task-row { display: grid; grid-template-columns: 4px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface); cursor: pointer; }
 .focus-row i { width: 4px; height: 100%; min-height: 42px; border-radius: var(--card-radius); background: var(--text-secondary); }
 .focus-row strong, .task-row strong { color: var(--text-primary); font-size: 13px; }
-.focus-row small { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.focus-row small em { padding: 2px 7px; border-radius: var(--card-radius); background: rgba(125,211,252,.1); color: var(--text-primary); font-size: 11px; font-style: normal; }
+.focus-row small { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+.focus-row small em { font-style: normal; }
+.focus-row small em:not(.ds-badge) { padding: 2px 7px; border-radius: var(--card-radius); background: rgba(125,211,252,.1); color: var(--text-primary); font-size: 11px; }
+.ds-badge {
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 0;
+  font-style: normal;
+}
+.ds-badge--danger { background: #FFECE8; color: #D9342B; }
+.ds-badge--warning { background: #FFF7E8; color: #A65A0C; }
+.ds-badge--success { background: #E8FFEA; color: #1A9C5B; }
+.ds-badge--info { background: #E8F3FF; color: #15558D; }
+:global(.ai-pulse-root) { z-index: 120; }
 .focus-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .focus-actions button, .task-row button { min-height: 32px; padding: 0 10px; }
 .tone-critical { background: var(--danger) !important; }
 .tone-warning { background: var(--warning) !important; }
 .tone-info { background: var(--chart-1) !important; }
 .kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
-.kpi { padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface),.72); }
+.kpi { padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .kpi span { color: var(--text-secondary); font-size: 12px; }
 .kpi strong { display: block; color: var(--text-primary); font-size: 24px; margin-top: 4px; }
 .full-btn { width: 100%; }
@@ -361,25 +398,23 @@ button { min-height: 44px; border-radius: var(--card-radius); border: 1px solid 
 .task-row span { grid-column: 1; }
 .task-row button { grid-row: 1 / span 2; grid-column: 2; }
 .lights { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
-.light { display: grid; justify-items: start; align-content: center; gap: 4px; background: var(--bg-surface),.72); }
+.light { display: grid; justify-items: start; align-content: center; gap: 4px; background: var(--bg-surface); }
 .light b { font-size: 18px; }
 .is-green { border-color: rgba(52,211,153,.35); }
 .is-yellow { border-color: rgba(245,158,11,.42); }
-.empty { padding: 14px; border-radius: var(--card-radius); background: var(--bg-surface),.58); }
+.empty { padding: 14px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .empty.small { padding: 10px; }
 .empty.danger { color: var(--danger-soft); }
-.onboarding-mask { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: var(--bg-surface),.48); padding: 16px; }
+.onboarding-mask { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: var(--bg-surface); padding: 16px; }
 .onboarding-card { width: min(560px, 100%); display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(125,211,252,.24); border-radius: var(--card-radius); background: var(--bg-surface); box-shadow: var(--card-shadow); }
 .onboarding-card ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 .onboarding-card li { color: var(--text-primary); }
 .onboarding-card li b { display: block; }
 .onboarding-card li span { display: block; color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
-@media (max-width: 1024px) { .doctor-summary, .doctor-grid { grid-template-columns: 1fr; grid-template-rows: none; } .kpi-grid, .lights { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 1024px) { .doctor-summary, .doctor-grid { grid-template-columns: 1fr; grid-template-rows: none; } .kpi-grid, .lights { grid-template-columns: repeat(2,minmax(0,1fr)); } .top-meta { justify-content: flex-start; text-align: left; } }
 
 html[data-theme='light'] .role-home {
-  background:
-    var(--bg-surface), transparent 28%),
-    var(--bg-surface), transparent 32%);
+  background: var(--bg-base);
 }
 html[data-theme='light'] .home-top,
 html[data-theme='light'] .start-guide,
@@ -410,7 +445,7 @@ html[data-theme='light'] .summary-card span,
 html[data-theme='light'] .summary-card em {
   color: var(--text-secondary);
 }
-html[data-theme='light'] .focus-row small em {
+html[data-theme='light'] .focus-row small em:not(.ds-badge) {
   background: var(--bg-surface);
   color: var(--brand);
 }

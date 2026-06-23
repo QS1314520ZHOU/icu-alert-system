@@ -1,9 +1,14 @@
 <template>
   <section class="nurse-home">
-    <header class="nurse-top">
-      <div>
-        <strong>{{ accountName }}</strong>
-        <span>{{ shiftText }} · 我的床位：{{ bedText }}</span>
+    <header class="nurse-top ds-card">
+      <div class="home-title">
+        <strong>{{ isHeadMode ? '护士长首页' : '护士首页' }}</strong>
+        <span>{{ isHeadMode ? '护士长' : '责任护士' }} · {{ home?.account?.dept || routeDept || '科室待识别' }}</span>
+      </div>
+      <div class="top-meta">
+        <span>{{ accountName }}</span>
+        <span>{{ shiftText }}</span>
+        <span>{{ isHeadMode ? `全科床位：${sortedHeadBeds.length} 床` : `我的床位：${bedText}` }}</span>
       </div>
       <div class="workload">
         <span>工作负荷 {{ workload.used_minutes || 0 }} / {{ workload.estimated_minutes || 0 }} 分钟</span>
@@ -16,7 +21,7 @@
     <div v-else-if="error" class="empty danger">{{ error }}</div>
 
     <template v-else>
-      <section class="start-guide">
+      <section class="start-guide ds-card">
         <div>
           <span>{{ isHeadMode ? '护士长看板' : '今天从这里开始' }}</span>
           <strong>{{ isHeadMode ? '先看全科床位，再看工作负荷，最后追踪未闭环护理事件。' : '先看我的床位，再处理本班提醒，下班前生成交班单。' }}</strong>
@@ -25,10 +30,18 @@
       </section>
 
       <section class="nurse-summary">
-        <article v-for="item in nurseSummary" :key="item.key" :class="['summary-card', 'ds-card', `is-${item.tone}`]">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <em>{{ item.hint }}</em>
+        <article v-for="item in nurseSummary" :key="item.key" :class="['summary-card', 'ds-card', 'ds-kpi', kpiToneClass(item.tone)]">
+          <div class="ds-kpi-icon">
+            <TeamOutlined v-if="item.key === 'beds'" />
+            <ClockCircleOutlined v-else-if="item.key === 'tasks'" />
+            <BellOutlined v-else-if="item.key === 'reminders'" />
+            <CheckCircleOutlined v-else-if="item.key === 'quality'" />
+          </div>
+          <div>
+            <span class="ds-kpi-label">{{ item.label }}</span>
+            <strong class="ds-kpi-num">{{ item.value }}</strong>
+            <em>{{ item.hint }}</em>
+          </div>
         </article>
       </section>
       <div v-if="home?.head_degraded || home?.bundle_degraded" class="empty small">
@@ -39,7 +52,8 @@
         <section class="panel ds-card">
           <div class="panel-head"><strong>全科床位</strong><span>{{ sortedHeadBeds.length }} 床</span></div>
           <div class="bed-cloud">
-            <span v-for="b in sortedHeadBeds" :key="b.patient_id">
+            <span v-for="b in sortedHeadBeds" :key="b.patient_id" class="ds-list-item">
+              <i :class="['ds-dot', bedDotClass(b)]"></i>
               <b>{{ displayBed(b.bed) }}</b>
               <em>{{ b.name || '未知患者' }}</em>
             </span>
@@ -59,9 +73,12 @@
         <section class="panel head-side">
           <div class="panel-head"><strong>异常事件</strong><span>{{ headEvents.length }} 条</span></div>
           <div class="head-event-grid">
-            <article v-for="event in sortedHeadEvents" :key="`${event.patient_id}-${event.time}-${event.title}`" class="head-event">
-              <strong>{{ displayBed(event.bed) }} {{ event.title }}</strong>
-              <span>{{ event.type }} · {{ fmt(event.time) }}</span>
+            <article v-for="event in sortedHeadEvents" :key="`${event.patient_id}-${event.time}-${event.title}`" class="head-event ds-list-item">
+              <i :class="['ds-dot', eventDotClass(event)]"></i>
+              <div>
+                <strong>{{ displayBed(event.bed) }} {{ event.title }}</strong>
+                <span>{{ event.type }} · {{ fmt(event.time) }}</span>
+              </div>
             </article>
           </div>
           <div v-if="!headEvents.length" class="empty small">本班暂无未闭环护理异常。</div>
@@ -81,9 +98,9 @@
             <span>{{ sortedBeds.length }} 床</span>
           </div>
           <div class="bed-board">
-            <article v-for="bed in sortedBeds" :key="bed.patient_id" class="bed-card" @click="goPatient(bed.patient_id)">
+            <article v-for="bed in sortedBeds" :key="bed.patient_id" class="bed-card ds-list-item" @click="goPatient(bed.patient_id)">
               <div class="bed-card__main">
-                <strong>{{ displayBed(bed.bed) }}</strong>
+                <span class="bed-title"><i :class="['ds-dot', bedDotClass(bed)]"></i><strong>{{ displayBed(bed.bed) }}</strong></span>
                 <span>{{ bed.name || '未知患者' }}</span>
               </div>
               <div class="bed-card__meta">
@@ -206,6 +223,7 @@ import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, post
 import { useAuthStore } from '../stores/auth'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 import { roleHomeConfig } from '../config/roleHomeConfig'
+import { BellOutlined, CheckCircleOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons-vue'
 
 const NURSE_HOME_CACHE_TTL_MS = 2 * 60 * 1000
 const nurseHomeCache = new Map<string, { ts: number; data: any }>()
@@ -332,6 +350,25 @@ function displayBed(value: any) {
   const text = String(value || '').trim()
   if (!text || text === '--') return '--床'
   return text.includes('床') ? text : `${text}床`
+}
+function kpiToneClass(tone: any) {
+  const key = String(tone || '').toLowerCase()
+  if (key === 'red' || key === 'danger') return 'is-danger'
+  if (key === 'yellow' || key === 'warning') return 'is-warning'
+  if (key === 'green' || key === 'success') return 'is-success'
+  return 'is-brand'
+}
+function bedDotClass(row: any) {
+  const key = String(row?.risk_level || row?.severity || row?.status || '').toLowerCase()
+  if (['critical', 'danger', 'red', '危急'].includes(key)) return 'is-critical'
+  if (['high', 'warning', 'warn', 'yellow', '关注', '高危'].includes(key)) return 'is-warn'
+  return 'is-muted'
+}
+function eventDotClass(row: any) {
+  const key = String(row?.severity || row?.level || row?.risk_level || row?.type || row?.title || '').toLowerCase()
+  if (/critical|danger|red|危急|跌倒|压疮|脱出|差错/.test(key)) return 'is-critical'
+  if (/high|warning|warn|yellow|高危|关注|逾期/.test(key)) return 'is-warn'
+  return 'is-muted'
 }
 function bedSortParts(value: any) {
   const raw = String(value || '').trim()
@@ -506,34 +543,34 @@ function dismissOnboarding() {
 </script>
 
 <style scoped>
-.nurse-home { padding: 12px; display: grid; gap: 12px; }
-.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: var(--card-radius); background: var(--bg-surface), var(--bg-surface)); }
+.nurse-home { padding: 12px 12px 80px; display: grid; gap: 12px; }
+.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: var(--card-radius); background: var(--bg-surface); }
 .start-guide div { display: grid; gap: 4px; }
-.start-guide span { color: var(--accent); font-size: 12px; }
+.start-guide span { color: var(--text-muted); font-size: 12px; }
 .start-guide strong { color: var(--text-primary); font-size: 15px; }
-.nurse-top { min-height: 80px; display: grid; grid-template-columns: minmax(0,1fr) 320px auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface),.82); }
+.nurse-top { min-height: 80px; display: grid; grid-template-columns: minmax(0,1fr) minmax(220px, auto) 320px auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
 .nurse-top strong { color: var(--text-primary); font-size: 20px; }
-.nurse-top span, .panel-head span, .empty, .bundle span, .task-modal p, .summary-card span, .summary-card em { color: var(--text-secondary); font-size: 12px; }
+.nurse-top span { color: var(--text-muted); font-size: 12px; }
+.home-title { display: grid; gap: 4px; }
+.top-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; text-align: right; }
+.panel-head span, .empty, .bundle span, .task-modal p, .summary-card span, .summary-card em { color: var(--text-secondary); font-size: 12px; }
 .workload { display: grid; gap: 6px; }
 .workload i { height: 8px; border-radius: var(--card-radius); background: rgba(148,163,184,.25); overflow: hidden; }
 .workload b { display: block; height: 100%; background: var(--chart-1); }
-button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radius: var(--card-radius); background: var(--bg-surface),.78); color: var(--text-primary); padding: 0 10px; cursor: pointer; }
-.nurse-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.summary-card { min-height: 82px; display: grid; align-content: center; gap: 4px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface),.74); }
-.summary-card strong { color: var(--text-primary); font-size: 25px; line-height: 1; }
+button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radius: var(--card-radius); background: var(--bg-surface); color: var(--text-primary); padding: 0 10px; cursor: pointer; }
+.nurse-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--card-gap); }
+.summary-card { min-height: 82px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
+.summary-card .ds-kpi-icon { width: 40px; height: 40px; border-radius: 8px; }
+.summary-card .ds-kpi-num { font-size: 25px; line-height: 1; }
 .summary-card em { font-style: normal; }
-.summary-card.is-red { border-color: rgba(239,68,68,.48); }
-.summary-card.is-yellow { border-color: rgba(245,158,11,.42); }
-.summary-card.is-green { border-color: rgba(52,211,153,.34); }
-.summary-card.is-blue { border-color: rgba(56,189,248,.34); }
 .nurse-grid { min-height: 560px; display: grid; grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); gap: 12px; }
 .side, .head-layout { display: grid; gap: 12px; }
 .head-layout { grid-template-columns: 1fr 1fr; }
-.panel { min-width: 0; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface),.74); }
+.panel { min-width: 0; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
 .panel-head { display: flex; justify-content: space-between; gap: 10px; }
 .panel-head strong { color: var(--text-primary); }
 .task-legend { display: flex; flex-wrap: wrap; gap: 8px; }
-.task-legend span { padding: 5px 9px; border-radius: var(--card-radius); background: var(--bg-surface),.72); color: var(--text-secondary); font-size: 12px; }
+.task-legend span { padding: 5px 9px; border-radius: var(--card-radius); background: var(--bg-surface); color: var(--text-secondary); font-size: 12px; }
 .task-legend .is-overdue { color: var(--danger-soft); border: 1px solid rgba(239,68,68,.4); }
 .task-legend .is-due { color: var(--warning-soft); border: 1px solid rgba(245,158,11,.4); }
 .task-legend .is-soon { color: var(--chart-1); border: 1px solid rgba(56,189,248,.36); }
@@ -541,15 +578,15 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .timeline { overflow: auto; display: grid; gap: 8px; }
 .time-head { min-width: 760px; display: grid; grid-template-columns: 84px repeat(7, 1fr); color: #8caabd; font-size: 12px; }
 .bed-line { min-width: 760px; display: grid; grid-template-columns: 84px minmax(0,1fr); align-items: stretch; gap: 8px; }
-.bed-line > strong { display: grid; place-items: center; color: var(--text-primary); border-radius: var(--card-radius); background: var(--bg-surface),.72); }
-.task-strip { min-height: 58px; position: relative; display: flex; align-items: center; gap: 8px; padding: 7px; border-radius: var(--card-radius); background: repeating-var(--bg-surface) 0, rgba(125,211,252,.08) 1px, rgba(11,33,50,.48) 1px, rgba(11,33,50,.48) 10.416%); overflow-x: auto; }
+.bed-line > strong { display: grid; place-items: center; color: var(--text-primary); border-radius: var(--card-radius); background: var(--bg-surface); }
+.task-strip { min-height: 58px; position: relative; display: flex; align-items: center; gap: 8px; padding: 7px; border-radius: var(--card-radius); background: repeating-linear-gradient(90deg, rgba(125,211,252,.08) 0, rgba(125,211,252,.08) 1px, transparent 1px, transparent 10.416%); overflow-x: auto; }
 .task-card { flex: 0 0 132px; font-size: 12px; }
 .is-future { opacity: .7; }
 .is-soon { border-color: rgba(56,189,248,.55); }
 .is-due { border-color: rgba(245,158,11,.65); }
 .is-overdue { border-color: rgba(239,68,68,.7); color: var(--danger-soft); }
 .is-done { border-color: rgba(52,211,153,.55); color: var(--success); }
-.bundle, .reminder { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface),.72); }
+.bundle, .reminder { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .bundle strong, .reminder strong { color: var(--text-primary); font-size: 13px; }
 .bundle.is-green { border-left: 3px solid #1A9C5B; }
 .bundle.is-yellow { border-left: 3px solid #E8901C; }
@@ -557,49 +594,60 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .reminder { display: grid; }
 .reminder div { display: flex; gap: 8px; flex-wrap: wrap; }
 .reminder button { min-height: 36px; }
-.handoff-bar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface),.74); opacity: .82; }
+.handoff-bar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); opacity: .82; }
 .handoff-bar.open { border-color: rgba(245,158,11,.42); opacity: 1; }
 .handoff-bar strong { color: var(--text-primary); display: block; }
 .handoff-bar span { color: var(--text-secondary); font-size: 12px; }
-.empty { padding: 14px; border-radius: var(--card-radius); background: var(--bg-surface),.58); }
+.empty { padding: 14px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .empty.small { padding: 10px; }
 .danger { color: var(--danger-soft); }
-.modal-mask { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: var(--bg-surface),.52); }
+.modal-mask { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: var(--bg-surface); }
 .task-modal { width: min(520px, calc(100vw - 24px)); display: grid; gap: 12px; padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.22); background: var(--bg-surface); }
 .task-modal strong { color: var(--text-primary); font-size: 18px; }
 .modal-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .bed-cloud { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 8px; }
 .heatmap { display: flex; flex-wrap: wrap; gap: 8px; }
 .bed-cloud span {
+  position: relative;
   min-width: 0;
   min-height: 54px;
   display: grid;
   align-content: center;
   gap: 3px;
-  padding: 8px 10px;
-  border: 1px solid rgba(125,211,252,.12);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  padding: 8px 10px 8px 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: var(--text-primary);
-  box-shadow: var(--card-shadow);
+  box-shadow: none;
+  transition: background .18s ease;
+}
+.bed-cloud span:hover {
+  background: var(--bg-surface-2);
+}
+.bed-cloud .ds-dot {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .bed-cloud span b {
-  color: var(--text-primary);
-  font-size: 15px;
+  color: #1D2129;
+  font-size: 14px;
   line-height: 1.1;
   font-weight: 800;
 }
 .bed-cloud span em {
   min-width: 0;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.2;
   font-style: normal;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.heatmap article { padding: 8px 10px; border-radius: var(--card-radius); background: var(--bg-surface),.72); color: var(--text-primary); }
+.heatmap article { padding: 8px 10px; border-radius: var(--card-radius); background: var(--bg-surface); color: var(--text-primary); }
 .heatmap article { min-width: 150px; display: grid; gap: 8px; }
 .heatmap i { height: 42px; display: flex; align-items: end; gap: 3px; }
 .heatmap b { width: 10px; min-height: 8px; border-radius: 3px 3px 0 0; background: var(--chart-1); }
@@ -608,20 +656,21 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .density-low { border: 1px solid rgba(52,211,153,.45); }
 .head-side { grid-column: 1 / -1; }
 .head-event-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.head-event { display: grid; gap: 4px; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface),.72); }
+.head-event { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; padding: 10px; border-radius: 6px; background: transparent; }
+.head-event:hover { background: var(--bg-surface-2); }
 .head-event strong { color: var(--text-primary); font-size: 13px; }
 .head-event span, .quality-row span { color: var(--text-secondary); font-size: 12px; }
 .quality-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.quality-row span { padding: 8px 10px; border-radius: var(--card-radius); background: var(--bg-surface),.72); }
+.quality-row span { padding: 8px 10px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .handoff-editor { margin-top: -4px; }
 .handoff-switch { display: flex; gap: 6px; }
 .handoff-switch button { min-height: 34px; padding: 0 10px; }
-.handoff-switch button.active { border-color: rgba(52,211,153,.55); color: var(--success); background: var(--bg-surface),.72); }
-.handoff-item { display: grid; gap: 8px; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface),.58); }
+.handoff-switch button.active { border-color: rgba(52,211,153,.55); color: var(--success); background: var(--bg-surface); }
+.handoff-item { display: grid; gap: 8px; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .handoff-item > strong { color: var(--text-primary); }
 .handoff-item label { display: grid; gap: 4px; }
 .handoff-item label span { color: var(--text-secondary); font-size: 12px; }
-.handoff-item textarea { resize: vertical; min-height: 58px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.18); background: var(--bg-surface),.9); color: var(--text-primary); padding: 8px; }
+.handoff-item textarea { resize: vertical; min-height: 58px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.18); background: var(--bg-surface); color: var(--text-primary); padding: 8px; }
 .beds-panel {
   min-height: 420px;
 }
@@ -632,16 +681,20 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 }
 .bed-card {
   min-width: 0;
-  min-height: 142px;
+  min-height: 126px;
   display: grid;
   align-content: space-between;
   gap: 12px;
   padding: 14px;
-  border: 1px solid rgba(125, 211, 252, .16);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
-  box-shadow: var(--card-shadow);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
+  transition: background .18s ease;
+}
+.bed-card:hover {
+  background: var(--bg-surface-2);
 }
 .bed-card__main {
   display: flex;
@@ -650,19 +703,25 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   gap: 10px;
 }
 .bed-card__main strong {
-  color: var(--text-primary);
-  font-size: 24px;
+  color: #1D2129;
+  font-size: 14px;
   line-height: 1;
 }
 .bed-card__main span {
   min-width: 0;
-  color: #d7eefc;
-  font-size: 15px;
-  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.bed-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
 }
 .bed-card__meta {
   display: grid;
@@ -677,7 +736,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   width: 100%;
   min-height: 38px;
   border-color: rgba(245, 158, 11, .48);
-  background: var(--bg-surface), .55);
+  background: var(--bg-surface);
   color: var(--warning-soft);
 }
 .bed-clear {
@@ -694,7 +753,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   cursor: pointer;
 }
 .notice-card div {
@@ -720,7 +779,7 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 }
 .notice-card.is-overdue {
   border-color: rgba(239, 68, 68, .42);
-  background: var(--bg-surface), .46);
+  background: var(--bg-surface);
 }
 .notice-card.is-due {
   border-color: rgba(245, 158, 11, .42);
@@ -731,19 +790,29 @@ button { min-height: 44px; border: 1px solid rgba(125,211,252,.22); border-radiu
 .notice-card.is-done {
   opacity: .72;
 }
-.onboarding-mask { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: var(--bg-surface),.48); padding: 16px; }
+.ds-badge {
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 0;
+}
+.ds-badge--danger { background: #FFECE8; color: #D9342B; }
+.ds-badge--warning { background: #FFF7E8; color: #A65A0C; }
+.ds-badge--success { background: #E8FFEA; color: #1A9C5B; }
+.ds-badge--info { background: #E8F3FF; color: #15558D; }
+:global(.ai-pulse-root) { z-index: 120; }
+.onboarding-mask { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: var(--bg-surface); padding: 16px; }
 .onboarding-card { width: min(560px, 100%); display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(125,211,252,.24); border-radius: var(--card-radius); background: var(--bg-surface); box-shadow: var(--card-shadow); }
 .onboarding-card ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 .onboarding-card li { color: var(--text-primary); }
 .onboarding-card li b { display: block; }
 .onboarding-card li span { display: block; color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
-@media (max-width: 1024px) { .nurse-top, .nurse-summary, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 1024px) { .nurse-top, .nurse-summary, .nurse-grid, .head-layout { grid-template-columns: 1fr; } .side { grid-template-columns: 1fr 1fr; } .top-meta { justify-content: flex-start; text-align: left; } }
 @media (max-width: 760px) { .side, .handoff-bar, .head-event-grid { grid-template-columns: 1fr; flex-direction: column; align-items: stretch; } }
 
 html[data-theme='light'] .nurse-home {
-  background:
-    var(--bg-surface), transparent 28%),
-    var(--bg-surface), transparent 30%);
+  background: var(--bg-base);
 }
 html[data-theme='light'] .nurse-top,
 html[data-theme='light'] .start-guide,
@@ -806,14 +875,25 @@ html[data-theme='light'] .task-legend span {
   background: var(--bg-surface);
 }
 html[data-theme='light'] .bed-cloud span {
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  background: transparent;
+  box-shadow: none;
+}
+html[data-theme='light'] .bed-cloud span:hover {
+  background: var(--bg-surface-2);
 }
 html[data-theme='light'] .bed-card,
 html[data-theme='light'] .notice-card {
   background: var(--bg-surface);
   border-color: rgba(145, 176, 199, 0.3);
   box-shadow: var(--card-shadow);
+}
+html[data-theme='light'] .bed-card {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+html[data-theme='light'] .bed-card:hover {
+  background: var(--bg-surface-2);
 }
 html[data-theme='light'] .bed-card__main strong,
 html[data-theme='light'] .bed-card__main span,

@@ -150,7 +150,7 @@ onUnmounted(() => {
   position: fixed;
   right: 20px;
   bottom: 20px;
-  z-index: 3000;
+  z-index: 1000;
   display: grid;
   justify-items: end;
   gap: 12px;

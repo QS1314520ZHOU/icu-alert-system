@@ -953,6 +953,7 @@ function bundleLights(patient: any) {
 section { display: flex; flex-direction: column; gap: 7px; }
 
 .card-header {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -963,6 +964,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
   align-items: flex-start;
   gap: 12px;
   min-width: 0;
+  width: 100%;
 }
 .bed-no {
   min-width: 54px;
@@ -981,6 +983,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .identity-copy {
   min-width: 0;
   flex: 1;
+  padding-right: 72px;
 }
 .monitor-line {
   display: flex;
@@ -1059,30 +1062,38 @@ section { display: flex; flex-direction: column; gap: 7px; }
   background: var(--bg-surface), 0.72);
 }
 .status-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
   flex-shrink: 0;
-  min-width: 74px;
-  min-height: 40px;
-  padding: 8px 10px;
-  border-radius: var(--card-radius);
-  border: 1px solid transparent;
-  background: var(--bg-surface);
+  min-width: 0;
+  min-height: 0;
+  max-width: 64px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 0;
+  background: #E8F3FF;
   color: var(--text-secondary);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  box-shadow: var(--card-shadow);
+  box-shadow: none;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
 }
 .status-badge strong {
-  font-size: 13px;
-  line-height: 1.1;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-weight: 700;
 }
-.status-badge--critical { background: var(--danger-bg); border-color: var(--danger); color: var(--danger-strong); box-shadow: var(--card-shadow); font-weight: 600; }
-.status-badge--high { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
-.status-badge--warning { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
-.status-badge--normal { background: var(--success-bg); border-color: var(--success); color: var(--success); }
-.status-badge--none { background: var(--bg-surface-2); border-color: var(--border-color); color: var(--text-secondary); }
+.status-badge--critical { background: #FFECE8; color: #D9342B; }
+.status-badge--high,
+.status-badge--warning { background: #FFF7E8; color: #A65A0C; }
+.status-badge--normal { background: #E8FFEA; color: #1A9C5B; }
+.status-badge--none { background: #E8F3FF; color: #15558D; }
 
 .patient-tags {
   display: flex;
@@ -2133,20 +2144,19 @@ html[data-theme='light'] .bundle-score {
   border-color: #D6E0FF;
 }
 html[data-theme='light'] .status-badge {
-  min-height: 34px;
-  min-width: auto;
-  padding: 6px 12px;
-  border-width: 1px;
-  border-style: solid;
-  box-shadow: var(--card-shadow);
+  min-height: 0;
+  min-width: 0;
+  padding: 2px 8px;
+  border: 0;
+  box-shadow: none;
 }
-.status-badge--critical { background: var(--danger-bg); border-color: var(--danger); color: var(--danger-strong); box-shadow: var(--card-shadow); font-weight: 600; }
-.status-badge--high { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
-.status-badge--warning { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
-.status-badge--normal { background: var(--success-bg); border-color: var(--success); color: var(--success); }
-.status-badge--none { background: var(--bg-surface-2); border-color: var(--border-color); color: var(--text-secondary); }
+html[data-theme='light'] .status-badge--critical { background: #FFECE8; color: #D9342B; }
+html[data-theme='light'] .status-badge--high,
+html[data-theme='light'] .status-badge--warning { background: #FFF7E8; color: #A65A0C; }
+html[data-theme='light'] .status-badge--normal { background: #E8FFEA; color: #1A9C5B; }
+html[data-theme='light'] .status-badge--none { background: #E8F3FF; color: #15558D; }
 html[data-theme='light'] .status-badge strong {
-  letter-spacing: .02em;
+  letter-spacing: 0;
 }
 html[data-theme='light'] .allergy-tag {
   background: var(--danger-bg);

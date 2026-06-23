@@ -1,11 +1,12 @@
 <template>
   <section class="director-home">
-    <header class="home-top">
-      <div>
-        <span>科主任首页</span>
-        <strong>{{ accountName }}</strong>
+    <header class="home-top ds-card">
+      <div class="home-title">
+        <strong>主任首页</strong>
+        <span>科主任 · {{ home?.account?.dept || '科室待识别' }}</span>
       </div>
       <div class="top-meta">
+        <span>{{ accountName }}</span>
         <span>{{ home?.account?.dept || '科室待识别' }}</span>
         <span>{{ shiftText }}</span>
         <span>{{ clock }}</span>
@@ -16,7 +17,7 @@
     <div v-if="loading" class="empty">正在汇总科室质控、KPI和科研数据...</div>
     <div v-else-if="error" class="empty danger">{{ error }}</div>
     <template v-else>
-      <section class="start-guide">
+      <section class="start-guide ds-card">
         <div>
           <span>主任看板</span>
           <strong>先看科室概览，再看质控大屏，最后追踪KPI和科研动态。</strong>
@@ -25,10 +26,18 @@
       </section>
 
       <section class="summary-cards">
-        <article v-for="item in summaryCards" :key="item.key" :class="['summary-card', `is-${item.tone}`]">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <em>{{ item.hint }}</em>
+        <article v-for="item in summaryCards" :key="item.key" :class="['summary-card', 'ds-card', 'ds-kpi', kpiToneClass(item.tone)]">
+          <div class="ds-kpi-icon">
+            <TeamOutlined v-if="item.key === 'beds'" />
+            <BellOutlined v-else-if="item.key === 'alerts' || item.key === 'ai'" />
+            <ClockCircleOutlined v-else-if="item.key === 'research'" />
+            <CheckCircleOutlined v-else />
+          </div>
+          <div>
+            <span class="ds-kpi-label">{{ item.label }}</span>
+            <strong class="ds-kpi-num">{{ item.value }}</strong>
+            <em>{{ item.hint }}</em>
+          </div>
         </article>
       </section>
 
@@ -398,7 +407,7 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   padding: 12px 14px;
   border: 1px solid rgba(34, 211, 238, .22);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
 }
 
 .start-guide div {
@@ -407,7 +416,7 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 }
 
 .start-guide span {
-  color: var(--accent);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -425,7 +434,7 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   padding: 14px;
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .82);
+  background: var(--bg-surface);
 }
 
 .home-top div {
@@ -433,7 +442,11 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
   gap: 4px;
 }
 
-.home-top span,
+.home-top span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .panel-head span,
 .empty,
 .summary-card span,
@@ -459,7 +472,7 @@ button {
   min-height: 44px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface), .78);
+  background: var(--bg-surface);
   color: var(--text-primary);
   padding: 0 12px;
   cursor: pointer;
@@ -483,7 +496,7 @@ button {
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
 }
 
 .summary-card strong {
@@ -528,7 +541,7 @@ button {
   padding: 12px;
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
 }
 
 .panel-head {
@@ -552,7 +565,7 @@ button {
 .overview-item {
   padding: 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   text-align: center;
 }
 
@@ -600,7 +613,7 @@ button {
   align-items: center;
   padding: 6px 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .doctor-item span {
@@ -635,7 +648,7 @@ button {
 .quality-item {
   padding: 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   text-align: center;
 }
 
@@ -684,7 +697,7 @@ button {
 .kpi-item {
   padding: 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   text-align: center;
 }
 
@@ -714,7 +727,7 @@ button {
 .research-item {
   padding: 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   text-align: center;
 }
 
@@ -741,7 +754,7 @@ button {
   gap: 2px;
   padding: 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .research-export strong {
@@ -763,7 +776,7 @@ button {
 .role-item {
   padding: 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   text-align: center;
 }
 
@@ -790,7 +803,7 @@ button {
   gap: 4px;
   padding: 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .scanner-item strong {
@@ -812,7 +825,7 @@ button {
 .empty {
   padding: 14px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .58);
+  background: var(--bg-surface);
 }
 
 .empty.small {
@@ -829,7 +842,7 @@ button {
   z-index: 400;
   display: grid;
   place-items: center;
-  background: var(--bg-surface), .48);
+  background: var(--bg-surface);
   padding: 16px;
 }
 
@@ -883,9 +896,7 @@ button {
 
 /* Light theme */
 html[data-theme='light'] .director-home {
-  background:
-    var(--bg-surface), transparent 28%),
-    var(--bg-surface), transparent 32%);
+  background: var(--bg-base);
 }
 
 html[data-theme='light'] .home-top,
