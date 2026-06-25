@@ -103,17 +103,20 @@ defineEmits<{
 
 :global(html[data-theme='light']) .mdt-step {
   color: var(--text-secondary);
-  border-color: var(--chart-1);
+  border-color: var(--border-color);
   background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 :global(html[data-theme='light']) .mdt-step::before {
-  background: var(--border-color);
+  background: #DDE6DD;
 }
 :global(html[data-theme='light']) .mdt-step.is-active {
-  border-color: var(--chart-1);
-  background: var(--bg-surface);
+  border-color: rgba(29, 111, 99, 0.42);
+  background: var(--brand-soft);
   box-shadow: var(--card-shadow);
+}
+:global(html[data-theme='light']) .mdt-step.is-active::before {
+  background: var(--brand);
 }
 :global(html[data-theme='light']) .mdt-step.is-done::before {
   background: var(--success);
@@ -127,5 +130,11 @@ defineEmits<{
 }
 :global(html[data-theme='light']) .mdt-step small {
   color: var(--text-secondary);
+}
+:global(html[data-theme='light']) .mdt-step span {
+  color: var(--brand);
+}
+:global(html[data-theme='light']) .mdt-step em {
+  color: var(--success);
 }
 </style>

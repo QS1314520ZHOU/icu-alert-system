@@ -338,6 +338,14 @@ function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }
 
+function kpiToneClass(tone: any) {
+  const key = String(tone || '').toLowerCase()
+  if (key === 'red' || key === 'danger') return 'is-danger'
+  if (key === 'yellow' || key === 'warning') return 'is-warning'
+  if (key === 'green' || key === 'success') return 'is-success'
+  return 'is-brand'
+}
+
 function tick() {
   clock.value = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }

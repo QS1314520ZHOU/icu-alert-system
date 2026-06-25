@@ -1316,11 +1316,15 @@ onUnmounted(() => {
 }
 .lane-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 360px));
+  justify-content: center;
   gap: 20px;
 }
 .lane-card-shell {
   position: relative;
+  width: 100%;
+  max-width: 360px;
+  justify-self: center;
 }
 .lane-brief {
   display: flex;
@@ -1719,17 +1723,21 @@ html[data-theme='light'] .quick-filter-btn.active {
   min-width: 0;
 }
 .lane-grid {
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 360px));
+  justify-content: center;
   gap: 14px;
   align-items: stretch;
 }
 .lane-card-shell {
   min-width: 0;
+  width: 100%;
+  max-width: 360px;
+  justify-self: center;
   display: flex;
 }
 .lane-card-shell :deep(.card) {
-  height: 520px;
-  min-height: 520px;
+  height: 400px;
+  min-height: 400px;
 }
 .lane-brief {
   align-items: center;
@@ -1755,6 +1763,10 @@ html[data-theme='light'] .quick-filter-btn.active {
   }
   .lane-grid {
     grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+  }
+  .lane-card-shell {
+    max-width: none;
   }
   .command-strip {
     grid-template-columns: 1fr;

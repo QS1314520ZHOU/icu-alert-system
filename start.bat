@@ -1,24 +1,38 @@
 @echo off
 chcp 65001 >nul
 title ICU智能预警系统
+fltmc >nul 2>&1 || (
+    echo 正在请求管理员权限...
+    powershell -Command "Start-Process cmd -ArgumentList '/c %~s0' -Verb RunAs"
+    exit
+)
 
 echo ================================
-echo   ICU智能预警系统 启动中...
+echo   ICU智能预警系统 清理端口并启动
 echo ================================
 echo.
 
-:: 启动后端（只在本机 IPv4 暴露，给 Vite proxy 用）
+echo [0/2] 清理占用端口：8000 和 5173
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5173"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+echo 端口清理完毕
+echo.
+
+:: 启动后端
 echo [1/2] 启动后端服务...
 cd /d D:\icu-alert-system\backend
 start "ICU-Backend" cmd /k "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
-:: 等待后端启动
 timeout /t 8 /nobreak >nul
 
-:: 启动前端（双栈监听，对外提供服务）
+:: 启动前端：改为 IPv4 0.0.0.0，不再绑定IPv6，解决权限报错
 echo [2/2] 启动前端服务...
 cd /d D:\icu-alert-system\frontend
-start "ICU-Frontend" cmd /k "npm run dev -- --host :: --port 5173"
+start "ICU-Frontend" cmd /k "npm run dev -- --host 0.0.0.0 --port 5173"
 
 echo.
 echo ================================

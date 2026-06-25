@@ -807,6 +807,9 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   border-color: rgba(103,232,249,.42);
   background: var(--bg-surface), var(--bg-surface));
 }
+.patient-card.active {
+  box-shadow: inset 3px 0 0 var(--brand), var(--card-shadow);
+}
 .select-dot input { display: none; }
 .select-dot span {
   display: block;
@@ -1301,9 +1304,32 @@ html[data-theme='light'] .organ-chip.active {
     var(--bg-surface), rgba(232, 247, 252, .98));
   box-shadow: var(--card-shadow);
 }
+html[data-theme='light'] .patient-card.active {
+  border-color: rgba(2, 132, 199, .62);
+  background:
+    linear-gradient(90deg, rgba(219, 234, 254, .98), rgba(239, 249, 255, .98));
+  box-shadow: inset 4px 0 0 var(--brand), 0 10px 26px rgba(14, 116, 144, .16);
+}
+html[data-theme='light'] .patient-card.active .bed-pill {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, .28);
+  color: #1d4ed8;
+}
+html[data-theme='light'] .patient-card.active .patient-title strong {
+  color: #0f172a;
+}
+html[data-theme='light'] .patient-card.active .patient-main p,
+html[data-theme='light'] .patient-card.active .patient-main small {
+  color: #334155;
+}
 html[data-theme='light'] .select-dot span {
   border-color: rgba(14, 165, 233, .34);
   background: rgba(248, 250, 252, .98);
+}
+html[data-theme='light'] .select-dot input:checked + span {
+  background: var(--brand);
+  border-color: var(--brand);
+  box-shadow: inset 0 0 0 3px #fff, 0 0 0 2px rgba(37, 99, 235, .18);
 }
 html[data-theme='light'] .bed-pill,
 html[data-theme='light'] .bed-large {
@@ -1328,6 +1354,30 @@ html[data-theme='light'] .system-tabs {
 }
 html[data-theme='light'] .digest-headline {
   color: var(--text-secondary);
+}
+html[data-theme='light'] .action-card {
+  border-color: rgba(148, 163, 184, .36);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, .06);
+}
+html[data-theme='light'] .action-card:hover {
+  border-color: rgba(14, 165, 233, .42);
+  background: rgba(240, 249, 255, .98);
+}
+html[data-theme='light'] .action-card strong {
+  color: #0f172a;
+}
+html[data-theme='light'] .action-card span,
+html[data-theme='light'] .check-item small,
+html[data-theme='light'] .evidence-item i,
+html[data-theme='light'] .muted {
+  color: #15558D;
+  font-weight: 600;
+}
+html[data-theme='light'] .version-row span {
+  color: #15558D;
+  background: rgba(239, 246, 255, .98);
+  border: 1px solid rgba(147, 197, 253, .46);
 }
 html[data-theme='light'] .evidence-list span {
   color: var(--brand);

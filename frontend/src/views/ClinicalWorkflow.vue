@@ -1505,17 +1505,18 @@ h1 { margin: 6px 0; color: var(--text-primary); font-size: 32px; line-height: 1.
   margin-top: 10px;
 }
 .color-legend span {
-  padding: 4px 9px;
+  padding: 4px 10px;
   border-radius: var(--card-radius);
+  border: 1px solid transparent;
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 900;
 }
-.color-legend .is-critical { background: var(--icu-critical); }
-.color-legend .is-high { background: var(--icu-high); }
-.color-legend .is-warning { background: var(--icu-warning); }
-.color-legend .is-stable { background: var(--icu-stable); }
-.color-legend .is-info { background: var(--icu-info); }
+.color-legend .is-critical { background: rgba(255, 235, 233, .96); border-color: rgba(217, 52, 43, .22); color: #c24133; }
+.color-legend .is-high { background: rgba(255, 245, 230, .98); border-color: rgba(232, 144, 28, .24); color: #b96b12; }
+.color-legend .is-warning { background: rgba(255, 250, 228, .98); border-color: rgba(245, 158, 11, .24); color: #a65a0c; }
+.color-legend .is-stable { background: rgba(236, 248, 240, .98); border-color: rgba(26, 156, 91, .22); color: #1a9c5b; }
+.color-legend .is-info { background: rgba(232, 243, 255, .98); border-color: rgba(21, 85, 141, .22); color: #15558d; }
 .identity-card {
   min-width: 220px;
   padding: 16px;

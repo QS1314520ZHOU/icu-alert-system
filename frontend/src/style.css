@@ -4,7 +4,7 @@ html.boot-mobile,
 html.boot-mobile body,
 html.boot-mobile #app {
   min-height: 100vh;
-  background: #f3f6f8;
+  background: #f4f1ea;
 }
 
 :root {
@@ -180,33 +180,33 @@ html[data-theme='light'] {
   /* === Design System: Light Mode Semantic Tokens === */
 
   /* 中性色 */
-  --bg-base: #F2F3F5;
-  --bg-surface: #FFFFFF;
-  --bg-surface-2: #F7F8FA;
-  --border-color: #E5E6EB;
-  --text-primary: #1D2129;
-  --text-secondary: #4E5969;
-  --text-muted: #86909C;
+  --bg-base: #F3F1EA;
+  --bg-surface: #FFFDF7;
+  --bg-surface-2: #F6F3EA;
+  --border-color: #D7DED3;
+  --text-primary: #16241E;
+  --text-secondary: #3F564B;
+  --text-muted: #718176;
 
   /* 主色 + 浅底 */
-  --brand: #15558D;
-  --brand-soft: #E8F3FF;
-  --danger: #D9342B;
-  --danger-soft: #FFECE8;
-  --warning: #A65A0C;
-  --warning-icon: #E8901C;
-  --warning-soft: #FFF7E8;
-  --success: #1A9C5B;
-  --success-soft: #E8FFEA;
+  --brand: #1D6F63;
+  --brand-soft: #E2F0EA;
+  --danger: #B5483F;
+  --danger-soft: #FBE9E3;
+  --warning: #8A5E1B;
+  --warning-icon: #B47A24;
+  --warning-soft: #F7ECD5;
+  --success: #2F7A58;
+  --success-soft: #E3F0E6;
 
   /* 卡片/间距/圆角 */
   --card-radius: 8px;
   --card-pad: 20px;
   --card-gap: 16px;
   --section-gap: 24px;
-  --card-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  --card-shadow-hover: 0 2px 8px rgba(0,0,0,0.10);
-  --modal-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  --card-shadow: 0 8px 22px rgba(54, 69, 58, 0.08);
+  --card-shadow-hover: 0 12px 30px rgba(54, 69, 58, 0.12);
+  --modal-shadow: 0 14px 34px rgba(54, 69, 58, 0.16);
 
   /* Legacy 兼容映射 (供已有组件使用，后续逐步移除) */
   --app-bg: var(--bg-base);
@@ -225,8 +225,8 @@ html[data-theme='light'] {
   --status-warning-bg: var(--warning-soft);
   --status-normal-text: var(--success);
   --status-normal-bg: var(--success-soft);
-  --hdr-bg: #FFFFFF;
-  --hdr-bg-strong: #FFFFFF;
+  --hdr-bg: rgba(255, 253, 247, 0.94);
+  --hdr-bg-strong: linear-gradient(180deg, rgba(255, 253, 247, 0.98) 0%, rgba(246, 243, 234, 0.96) 100%);
   --hdr-border: var(--border-color);
   --hdr-title: var(--text-primary);
   --hdr-sub: var(--text-secondary);
@@ -237,7 +237,7 @@ html[data-theme='light'] {
   --hdr-shadow: 0 1px 3px rgba(0,0,0,0.06);
   --hdr-icon-bg: var(--brand);
   --hdr-icon-text: #FFFFFF;
-  --hdr-icon-border: rgba(21, 85, 141, 0.12);
+  --hdr-icon-border: rgba(31, 111, 98, 0.18);
   --hdr-icon-shadow: none;
   --nav-btn-bg: transparent;
   --nav-btn-border: transparent;
@@ -268,8 +268,8 @@ html[data-theme='light'] {
   --icu-accent-strong: var(--brand);
   --icu-surface: var(--bg-surface);
   --icu-surface-2: var(--bg-surface-2);
-  --icu-panel-gradient: linear-gradient(180deg, #FFFFFF 0%, var(--bg-surface-2) 100%);
-  --icu-panel-gradient-soft: linear-gradient(180deg, #FFFFFF 0%, var(--bg-surface-2) 100%);
+  --icu-panel-gradient: linear-gradient(180deg, #FFFDF7 0%, #F6F3EA 100%);
+  --icu-panel-gradient-soft: linear-gradient(180deg, #FFFDF7 0%, #F4F0E6 100%);
   --icu-border: var(--border-color);
   --icu-border-strong: var(--border-color);
   --icu-shadow-lg: var(--card-shadow-hover);
@@ -314,15 +314,15 @@ html[data-theme='light'] {
   --danger-bg: var(--danger-soft);
   --warning-bg: var(--warning-soft);
   --success-bg: var(--success-soft);
-  --warning-soft: var(--warning);
+  --warning-soft: #F7ECD5;
   --danger-strong: var(--danger);
-  --danger-soft: var(--danger);
+  --danger-soft: #FBE9E3;
   --chart-1: var(--brand);
   --chart-2: var(--success);
   --chart-3: var(--warning-icon);
   --chart-4: var(--danger);
-  --chart-5: var(--brand);
-  --chart-6: var(--success);
+  --chart-5: #4D7D73;
+  --chart-6: #A56F2A;
   --chart-grid: var(--border-color);
   --chart-axis: var(--text-secondary);
 }
@@ -359,28 +359,28 @@ html[data-theme='light'] [class*='glow'] {
 
 /* === Light Mode Table/Grid Borders === */
 html[data-theme='light'] .ant-table-wrapper .ant-table-thead > tr > th {
-  border-bottom: 1px solid #E5E6EB !important;
+  border-bottom: 1px solid var(--border-color) !important;
   background: var(--bg-surface) !important;
 }
 
 html[data-theme='light'] .ant-table-wrapper .ant-table-tbody > tr > td {
-  border-bottom-color: #E5E6EB !important;
+  border-bottom-color: var(--border-color) !important;
 }
 
 html[data-theme='light'] .ant-table-wrapper .ant-table-container {
-  border: 1px solid #E5E6EB !important;
+  border: 1px solid var(--border-color) !important;
 }
 
 html[data-theme='light'] .ant-card .ant-card-head {
-  border-bottom: 1px solid #E5E6EB !important;
+  border-bottom: 1px solid var(--border-color) !important;
 }
 
 html[data-theme='light'] .ant-tabs .ant-tabs-nav::before {
-  border-bottom-color: #E5E6EB !important;
+  border-bottom-color: var(--border-color) !important;
 }
 
 html[data-theme='light'] .ant-collapse > .ant-collapse-item {
-  border-bottom-color: #E5E6EB !important;
+  border-bottom-color: var(--border-color) !important;
 }
 
 /* === Dropdown/Popover z-index fix === */
@@ -476,12 +476,11 @@ h2 { font-size: 16px; font-weight: 600; color: var(--app-title-color); }
 .ant-menu-dark .ant-menu-item-selected { background: var(--tab-active-bg) !important; }
 .ant-menu-light { background: transparent !important; border-bottom: none !important; }
 html[data-theme='light'] .ant-menu-light .ant-menu-item {
-  color: #4E5969 !important;
+  color: var(--text-secondary) !important;
 }
 html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
-  color: #1d4ed8 !important;
-  color: #15558D !important;
-  border-bottom: 2px solid #15558D;
+  color: var(--brand) !important;
+  border-bottom: 2px solid var(--brand);
 }
 
 .ant-card {
@@ -1089,7 +1088,7 @@ html[data-theme='light'] .detail-container .hallucination-high {
    The MDT board is split into scoped child components, so this page-level block
    keeps all workflow cards, controls, and drawers readable in light mode. */
 html[data-theme='light'] .mdt-page {
-  color: #1D2129 !important;
+  color: var(--text-primary) !important;
 }
 html[data-theme='light'] .mdt-page .mdt-hero,
 html[data-theme='light'] .mdt-page .mdt-step-card,
@@ -1102,10 +1101,10 @@ html[data-theme='light'] .mdt-page .organ-panel,
 html[data-theme='light'] .mdt-page .doc-block,
 html[data-theme='light'] .mdt-page .mdt-panel {
   background:
-    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.08), transparent 34%),
-    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
-  border-color: #dbeafe !important;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07) !important;
+    radial-gradient(circle at 100% 0%, rgba(29, 111, 99, 0.07), transparent 34%),
+    linear-gradient(180deg, #FFFDF7 0%, #F6F3EA 100%) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
 }
 html[data-theme='light'] .mdt-page .system-card,
 html[data-theme='light'] .mdt-page .compact-list div,
@@ -1123,27 +1122,27 @@ html[data-theme='light'] .mdt-page .chip-row em,
 html[data-theme='light'] .mdt-page .decision-item__head span,
 html[data-theme='light'] .mdt-page .empty-box,
 html[data-theme='light'] .mdt-page .doc-empty {
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-  color: #1D2129 !important;
+  background: #F8F5ED !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
   box-shadow: none !important;
 }
 html[data-theme='light'] .mdt-page .system-card.is-active,
 html[data-theme='light'] .mdt-page .organ-pill.is-active {
-  background: #e0f2fe !important;
-  border-color: #15558D !important;
-  color: #1D2129 !important;
-  box-shadow: inset 3px 0 0 #0ea5e9 !important;
+  background: var(--brand-soft) !important;
+  border-color: rgba(29, 111, 99, 0.42) !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 3px 0 0 var(--brand) !important;
 }
 html[data-theme='light'] .mdt-page .system-card.is-critical,
 html[data-theme='light'] .mdt-page .system-card.is-high,
 html[data-theme='light'] .mdt-page .decision-item.is-pending_confirmation,
 html[data-theme='light'] .mdt-page .decision-item.is-needs_revision {
-  background: #fff7ed !important;
-  border-color: #fed7aa !important;
+  background: var(--warning-soft) !important;
+  border-color: rgba(180, 122, 36, 0.28) !important;
 }
 html[data-theme='light'] .mdt-page .decision-item.is-completed {
-  border-color: #E8FFEA !important;
+  border-color: rgba(47, 122, 88, 0.26) !important;
 }
 html[data-theme='light'] .mdt-page h1,
 html[data-theme='light'] .mdt-page h2,
@@ -1158,7 +1157,7 @@ html[data-theme='light'] .mdt-page .document-grid strong,
 html[data-theme='light'] .mdt-page .patient-brief strong,
 html[data-theme='light'] .mdt-page .panel-title strong,
 html[data-theme='light'] .mdt-page .decision-item__head {
-  color: #1D2129 !important;
+  color: var(--text-primary) !important;
 }
 html[data-theme='light'] .mdt-page p,
 html[data-theme='light'] .mdt-page small,
@@ -1173,7 +1172,7 @@ html[data-theme='light'] .mdt-page .doc-preview,
 html[data-theme='light'] .mdt-page .doc-empty,
 html[data-theme='light'] .mdt-page .empty-box,
 html[data-theme='light'] .mdt-page .step-actions span {
-  color: #475569 !important;
+  color: var(--text-secondary) !important;
 }
 html[data-theme='light'] .mdt-page .step-kicker,
 html[data-theme='light'] .mdt-page .rail-label,
@@ -1183,7 +1182,7 @@ html[data-theme='light'] .mdt-page .archive-card span,
 html[data-theme='light'] .mdt-page .document-grid span,
 html[data-theme='light'] .mdt-page .panel-title span,
 html[data-theme='light'] .mdt-page .system-card span {
-  color: #0369a1 !important;
+  color: var(--brand) !important;
 }
 html[data-theme='light'] .mdt-page .field-input,
 html[data-theme='light'] .mdt-page .field-textarea,
@@ -1191,23 +1190,23 @@ html[data-theme='light'] .mdt-page .mdt-select,
 html[data-theme='light'] .mdt-page input,
 html[data-theme='light'] .mdt-page textarea,
 html[data-theme='light'] .mdt-page select {
-  background: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #1D2129 !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
   box-shadow: none !important;
 }
 html[data-theme='light'] .mdt-page .field-input::placeholder,
 html[data-theme='light'] .mdt-page .field-textarea::placeholder,
 html[data-theme='light'] .mdt-page input::placeholder,
 html[data-theme='light'] .mdt-page textarea::placeholder {
-  color: #94a3b8 !important;
+  color: var(--text-muted) !important;
 }
 html[data-theme='light'] .mdt-page .decision-safety {
-  background: #fff7ed !important;
-  border: 1px solid #fed7aa !important;
+  background: var(--warning-soft) !important;
+  border: 1px solid rgba(180, 122, 36, 0.28) !important;
   border-radius: 8px !important;
   padding: 8px 10px !important;
-  color: #A65A0C !important;
+  color: var(--warning) !important;
 }
 html[data-theme='light'] .mdt-page .ant-card,
 html[data-theme='light'] .mdt-page .ant-card-body,
@@ -1215,56 +1214,56 @@ html[data-theme='light'] .mdt-page .ant-collapse,
 html[data-theme='light'] .mdt-page .ant-collapse-item,
 html[data-theme='light'] .mdt-page .ant-collapse-content {
   background: transparent !important;
-  color: #1D2129 !important;
-  border-color: #e2e8f0 !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
 }
 html[data-theme='light'] .mdt-page .ant-collapse-header,
 html[data-theme='light'] .mdt-page .ant-collapse-expand-icon,
 html[data-theme='light'] .mdt-page .ant-collapse-arrow {
-  color: #1D2129 !important;
+  color: var(--text-primary) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .ant-drawer-content,
 html[data-theme='light'] .mdt-session-drawer .ant-drawer-header,
 html[data-theme='light'] .mdt-session-drawer .ant-drawer-body {
-  background: #ffffff !important;
-  color: #1D2129 !important;
-  border-color: #e2e8f0 !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .ant-drawer-title,
 html[data-theme='light'] .mdt-session-drawer .ant-drawer-close {
-  color: #1D2129 !important;
+  color: var(--text-primary) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .drawer-input {
-  background: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #1D2129 !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .drawer-check,
 html[data-theme='light'] .mdt-session-drawer .drawer-empty {
-  color: #475569 !important;
+  color: var(--text-secondary) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .session-card {
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  background: #F8F5ED !important;
+  border-color: var(--border-color) !important;
   box-shadow: none !important;
 }
 html[data-theme='light'] .mdt-session-drawer .session-card.is-active {
-  background: #e0f2fe !important;
-  border-color: #15558D !important;
+  background: var(--brand-soft) !important;
+  border-color: rgba(29, 111, 99, 0.42) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .session-card strong {
-  color: #1D2129 !important;
+  color: var(--text-primary) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .session-card span {
-  color: #0369a1 !important;
+  color: var(--brand) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .session-card p,
 html[data-theme='light'] .mdt-session-drawer .session-tags em {
-  color: #475569 !important;
+  color: var(--text-secondary) !important;
 }
 html[data-theme='light'] .mdt-session-drawer .session-tags em {
-  background: #eef2f7 !important;
-  border: 1px solid #e2e8f0 !important;
+  background: #F8F5ED !important;
+  border: 1px solid var(--border-color) !important;
 }
 
 @media (max-width: 1920px) {

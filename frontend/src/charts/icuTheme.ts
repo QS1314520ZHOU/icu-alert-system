@@ -15,22 +15,22 @@ function themeTokens() {
   const light = currentThemeMode() === 'light'
   if (light) {
     return {
-      tooltipBg: 'rgba(255,255,255,.98)',
-      tooltipBorder: '#E8E8EF',
-      tooltipText: '#1A1A2E',
-      tooltipShadow: 'box-shadow: 0 10px 24px rgba(15,23,42,.08); border-radius: 12px; backdrop-filter: blur(10px);',
-      tooltipAxisLabelBg: '#F7F8FC',
-      tooltipAxisLabelText: '#1A1A2E',
-      axisLine: 'rgba(232, 232, 239, 0.92)',
-      axisLabel: '#8E8EA9',
-      axisLabelStrong: '#4A4A68',
-      splitLine: 'rgba(232, 232, 239, 0.92)',
-      shadowArea: 'rgba(46, 91, 255, 0.06)',
-      crossLine: 'rgba(46, 91, 255, 0.18)',
-      legendText: '#4A4A68',
-      heatmapText: '#4A4A68',
-      heatmapRange: ['#E8F3FF', '#D6E0FF', '#15558D', '#E8901C', '#D9342B'],
-      labelStrong: '#1A1A2E',
+      tooltipBg: 'rgba(255,253,247,.98)',
+      tooltipBorder: '#D7DED3',
+      tooltipText: '#16241E',
+      tooltipShadow: 'box-shadow: 0 10px 24px rgba(54,69,58,.10); border-radius: 12px; backdrop-filter: blur(10px);',
+      tooltipAxisLabelBg: '#F6F3EA',
+      tooltipAxisLabelText: '#16241E',
+      axisLine: 'rgba(215, 222, 211, 0.95)',
+      axisLabel: '#718176',
+      axisLabelStrong: '#3F564B',
+      splitLine: 'rgba(215, 222, 211, 0.86)',
+      shadowArea: 'rgba(29, 111, 99, 0.07)',
+      crossLine: 'rgba(29, 111, 99, 0.2)',
+      legendText: '#3F564B',
+      heatmapText: '#3F564B',
+      heatmapRange: ['#F6F3EA', '#E2F0EA', '#1D6F63', '#B47A24', '#B5483F'],
+      labelStrong: '#16241E',
     }
   }
   return {

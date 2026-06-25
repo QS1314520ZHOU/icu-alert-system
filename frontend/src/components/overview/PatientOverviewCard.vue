@@ -873,16 +873,16 @@ function bundleLights(patient: any) {
 
 .card {
   width: 100%;
-  min-height: 520px;
+  min-height: 400px;
   max-height: none;
   background:
     var(--bg-surface) 0%, rgba(56, 189, 248, 0) 28%),
     var(--bg-surface) 0%, rgba(4, 12, 22, 0.99) 100%);
   border-radius: var(--card-radius);
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   cursor: pointer;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
   overflow-y: auto;
@@ -950,7 +950,7 @@ function bundleLights(patient: any) {
   50% { box-shadow: var(--card-shadow); }
 }
 
-section { display: flex; flex-direction: column; gap: 7px; }
+section { display: flex; flex-direction: column; gap: 5px; }
 
 .card-header {
   position: relative;
@@ -1135,7 +1135,7 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .sec-alerts,
 .sec-summary,
 .sec-footer {
-  padding: 9px;
+  padding: 7px;
   background: var(--bg-surface) 0%, var(--bg-surface) 100%);
   border: 1px solid rgba(71, 196, 255, 0.12);
   border-radius: var(--card-radius);
@@ -1207,8 +1207,8 @@ section { display: flex; flex-direction: column; gap: 7px; }
 }
 .vital-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
 .risk-fingerprint {
   display: grid;
@@ -1236,28 +1236,29 @@ section { display: flex; flex-direction: column; gap: 7px; }
 .risk-fingerprint__chip.is-high { color: var(--warning-soft); border-color: rgba(249,115,22,.24); }
 .risk-fingerprint__chip.is-critical { color: var(--danger-soft); border-color: rgba(244,63,94,.24); }
 .vital-item {
-  min-height: 76px;
-  padding: 10px 12px;
+  min-height: 42px;
+  padding: 5px 6px;
   border-radius: var(--card-radius);
   background: transparent;
   border: none;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: flex-start;
-  gap: 14px;
+  gap: 2px;
   box-shadow: var(--card-shadow);
 }
 .v-label {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--accent);
   font-weight: 400;
   letter-spacing: 0.04em;
+  line-height: 1;
 }
 .v-val {
   display: inline-flex;
   align-items: flex-end;
-  font-size: 32px;
+  font-size: 20px;
   font-weight: 500;
   font-family: "DIN Alternate", "Roboto Mono", "SF Mono", "Consolas", monospace;
   color: var(--text-primary);
@@ -1267,14 +1268,11 @@ section { display: flex; flex-direction: column; gap: 7px; }
   letter-spacing: -0.5px;
   text-shadow: 0 0 10px rgba(110, 231, 249, 0.12);
 }
-.vital-item--bp .v-val {
-  font-size: 26px;
-}
 .v-val small {
-  font-size: 14px;
+  font-size: 9px;
   opacity: 0.72;
-  margin-left: 6px;
-  margin-bottom: 3px;
+  margin-left: 3px;
+  margin-bottom: 1px;
   font-weight: 600;
 }
 .vital--orange {
@@ -2164,8 +2162,8 @@ html[data-theme='light'] .allergy-tag {
   color: var(--danger);
 }
 html[data-theme='light'] .vital-item {
-  min-height: 88px;
-  padding: 12px 14px;
+  min-height: 46px;
+  padding: 5px 6px;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -2258,16 +2256,17 @@ html[data-theme='light'] .risk-fingerprint__chip {
 
 @media (max-width: 640px) {
   .card {
-    padding: 14px;
+    padding: 12px;
     border-radius: var(--card-radius);
+  }
+  .vital-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
   .patient-name {
     font-size: 16px;
   }
   .v-val {
-    font-size: 22px;
-  }
-  .vital-item--bp .v-val {
     font-size: 18px;
   }
   .sec-footer {

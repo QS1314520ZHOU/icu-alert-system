@@ -314,9 +314,9 @@ function fmt(value: any) {
   padding: 8px;
 }
 .safety {
-  border-color: rgba(245, 158, 11, 0.22);
-  background: var(--bg-surface), 0.42);
-  color: var(--warning-soft);
+  border-color: rgba(14, 116, 144, 0.18);
+  background: rgba(8, 145, 178, 0.1);
+  color: var(--accent);
 }
 html[data-theme='light'] .clinical-summary,
 html[data-theme='light'] .metric-item,
@@ -346,8 +346,9 @@ html[data-theme='light'] .section-bar span {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .safety {
-  color: var(--warning);
-  background: var(--warning-bg);
+  color: #15558D;
+  border-color: rgba(21, 85, 141, 0.18);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(232, 243, 255, 0.92));
 }
 
 /* === Additional light-mode overrides === */

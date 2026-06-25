@@ -3978,6 +3978,105 @@ html[data-theme='light'] .mdt-step-layout input::placeholder {
 html[data-theme='light'] .simple-card p {
   color: var(--text-primary);
 }
+
+/* Final light-mode guardrail for MDT: keep clinical workflow surfaces pale and readable. */
+html[data-theme='light'] .mdt-page {
+  background: var(--bg-base) !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(.mdt-step-card),
+html[data-theme='light'] .mdt-step-layout :deep(.patient-select-panel),
+html[data-theme='light'] .mdt-step-layout :deep(.organ-panel),
+html[data-theme='light'] .mdt-step-layout :deep(.patient-brief),
+html[data-theme='light'] .mdt-step-layout :deep(.organ-pill),
+html[data-theme='light'] .mdt-step-layout :deep(.review-metric),
+html[data-theme='light'] .mdt-step-layout :deep(.specialist-row),
+html[data-theme='light'] .mdt-step-layout :deep(.conflict-card),
+html[data-theme='light'] .mdt-step-layout :deep(.decision-item),
+html[data-theme='light'] .mdt-step-layout :deep(.doc-preview),
+html[data-theme='light'] .mdt-step-layout :deep(.doc-empty),
+html[data-theme='light'] .mdt-step-layout :deep(.doc-editor),
+html[data-theme='light'] .mdt-summary-rail :deep(.mdt-rail-card),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-meter),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-todo-list article) {
+  border-color: var(--border-color) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(.patient-select-panel),
+html[data-theme='light'] .mdt-step-layout :deep(.organ-panel),
+html[data-theme='light'] .mdt-step-layout :deep(.patient-brief),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-meter),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-todo-list article) {
+  background: #F8F5ED !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(.step-kicker),
+html[data-theme='light'] .mdt-step-layout :deep(.panel-title span),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-label) {
+  color: var(--brand) !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(h2),
+html[data-theme='light'] .mdt-step-layout :deep(.panel-title strong),
+html[data-theme='light'] .mdt-step-layout :deep(.patient-brief strong),
+html[data-theme='light'] .mdt-step-layout :deep(.organ-pill b),
+html[data-theme='light'] .mdt-summary-rail :deep(strong),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-meter b) {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(p),
+html[data-theme='light'] .mdt-step-layout :deep(label),
+html[data-theme='light'] .mdt-step-layout :deep(.patient-brief span),
+html[data-theme='light'] .mdt-step-layout :deep(.organ-pill span),
+html[data-theme='light'] .mdt-summary-rail :deep(p),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-meter div),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-meter small),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-todo-list small),
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-empty) {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(.mdt-select),
+html[data-theme='light'] .mdt-step-layout :deep(input),
+html[data-theme='light'] .mdt-step-layout :deep(select),
+html[data-theme='light'] .mdt-step-layout :deep(textarea) {
+  border-color: var(--border-color) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(.ant-btn-primary) {
+  border-color: var(--brand) !important;
+  background: var(--brand) !important;
+  color: #FFFFFF !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(.ant-btn-primary[disabled]),
+html[data-theme='light'] .mdt-step-layout :deep(.ant-btn-primary.ant-btn-disabled) {
+  border-color: rgba(168, 177, 163, 0.34) !important;
+  background: #E8EEE9 !important;
+  color: var(--text-muted) !important;
+}
+
+html[data-theme='light'] .mdt-step-layout :deep(.ant-btn-default) {
+  border-color: var(--border-color) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-meter i),
+html[data-theme='light'] .mdt-step-layout :deep(.mdt-step::before) {
+  background: #DDE6DD !important;
+}
+
+html[data-theme='light'] .mdt-summary-rail :deep(.rail-meter em) {
+  background: linear-gradient(90deg, #7DB5A4, var(--brand)) !important;
+}
 @media (max-width: 1280px) {
   .mdt-hero :deep(.ant-card-body),
   .mdt-step-layout,

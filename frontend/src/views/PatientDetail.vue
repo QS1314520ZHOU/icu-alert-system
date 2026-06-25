@@ -321,7 +321,7 @@
             </div>
           </div>
         </div>
-        <a-tabs v-model:activeKey="activeTab" :key="detailDensity" class="single-nav-tabs">
+        <a-tabs v-model:activeKey="activeTab" class="single-nav-tabs">
           <a-tab-pane v-if="isTabVisible('ecash')" key="ecash" tab="eCASH">
           <PatientEcashBundleTab
             v-if="activeTab === 'ecash'"
@@ -1265,14 +1265,22 @@ async function openTopicTab(tab: string) {
   tabsAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function setDetailDensity(mode: DetailDensityMode) {
-  // 先确定 activeTab，再切换 detailDensity（:key 会销毁重建 tabs）
-  if (mode === 'full' && !detailTabOrder.includes(activeTab.value as DetailTabKey)) {
-    activeTab.value = 'trend'
+async function setDetailDensity(mode: DetailDensityMode) {
+  const targetGroup: DetailTabGroup = mode === 'full' ? 'all' : 'focus'
+  if (detailDensity.value === mode && detailTabGroup.value === targetGroup) return
+
+  if (mode === 'full') {
+    detailTabGroup.value = targetGroup
+    if (!detailTabOrder.includes(activeTab.value as DetailTabKey)) {
+      activeTab.value = 'trend'
+    }
+  } else {
+    detailTabGroup.value = targetGroup
+    ensureTabVisible(activeTab.value)
   }
-  detailTabGroup.value = mode === 'compact' ? 'focus' : 'all'
-  ensureTabVisible(activeTab.value)
-  detailDensity.value = mode  // 放最后，触发 tabs 重建时 activeTab 已就绪
+
+  detailDensity.value = mode
+  await nextTick()
 }
 function isTabVisible(tab: DetailTabKey) {
   return visibleDetailTabs.value.includes(tab)
@@ -1292,6 +1300,11 @@ ensureTabVisible(activeTab.value)
 
 function switchTabGroup(groupKey: DetailTabGroup) {
   detailTabGroup.value = groupKey
+  if (groupKey === 'all') {
+    detailDensity.value = 'full'
+  } else if (!isCompactDetail.value) {
+    detailDensity.value = 'compact'
+  }
   const groupTabs = detailTabGroupMap[groupKey]
   if (groupTabs.length && !groupTabs.includes(activeTab.value as DetailTabKey)) {
     activeTab.value = groupTabs[0] as DetailTabKey
