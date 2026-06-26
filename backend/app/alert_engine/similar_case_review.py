@@ -618,7 +618,17 @@ class SimilarCaseReviewMixin:
                 "deathTime": 1,
                 "remark": 1,
             }
+            relaxed_candidate_pool = False
             candidate_docs = [doc async for doc in self.db.col("patient").find(query, projection).limit(max_candidates)]
+            if not candidate_docs:
+                relaxed_candidate_pool = True
+                relaxed_query: dict[str, Any] = {"_id": {"$ne": pid}}
+                candidate_docs = [
+                    doc async for doc in self.db.col("patient")
+                    .find(relaxed_query, projection)
+                    .sort([("dischargeTime", -1), ("outTime", -1), ("leaveTime", -1), ("updatedAt", -1)])
+                    .limit(max_candidates)
+                ]
             if not candidate_docs:
                 return {
                     "current_profile": {
@@ -631,7 +641,12 @@ class SimilarCaseReviewMixin:
                         "vasopressor_used": current_vaso_used,
                         "admission_time": current_admission,
                     },
-                    "summary": {"matched_cases": 0},
+                    "summary": {
+                        "matched_cases": 0,
+                        "candidate_pool": 0,
+                        "degraded": True,
+                        "fallback_message": "未找到可用于相似病例回溯的历史候选，请检查出科字段与诊断字段映射。",
+                    },
                     "cases": [],
                 }
 
@@ -677,17 +692,17 @@ class SimilarCaseReviewMixin:
             for doc in candidate_docs:
                 pid_str = str(doc.get("_id"))
                 cand_age = self._similar_case_age_years(doc)
-                if current_age is not None and cand_age is not None and abs(cand_age - current_age) > age_band:
+                if current_age is not None and cand_age is not None and abs(cand_age - current_age) > age_band and not relaxed_candidate_pool:
                     continue
 
                 support = self._support_summary_from_binds(bind_map.get(pid_str, []), self._patient_end_time(doc))
-                if support["vent_used"] != current_support["vent_used"]:
+                if current_support["vent_used"] and support["vent_used"] != current_support["vent_used"] and not relaxed_candidate_pool:
                     continue
-                if current_support["crrt_used"] and not support["crrt_used"]:
+                if current_support["crrt_used"] and not support["crrt_used"] and not relaxed_candidate_pool:
                     continue
 
                 cand_sofa = self._extract_initial_sofa(doc, score_map.get(pid_str, []), alert_map.get(pid_str, []))
-                if current_sofa is not None and cand_sofa is not None and abs(cand_sofa - current_sofa) > sofa_band:
+                if current_sofa is not None and cand_sofa is not None and abs(cand_sofa - current_sofa) > sofa_band and not relaxed_candidate_pool:
                     continue
 
                 cand_text = self._similar_case_diag_text(doc)
@@ -701,9 +716,9 @@ class SimilarCaseReviewMixin:
                     ensured = await self._ensure_patient_diagnosis_embedding(doc)
                     cand_embedding = ensured.get("diagnosis_embedding") if isinstance(ensured, dict) else None
                     embedding_similarity = self._cosine_similarity(current_embedding, cand_embedding)
-                if current_embedding is None and current_tokens and token_similarity < min_diag_similarity:
+                if current_embedding is None and current_tokens and token_similarity < min_diag_similarity and not relaxed_candidate_pool:
                     continue
-                if current_embedding is not None and embedding_similarity <= 0 and token_similarity < min_diag_similarity:
+                if current_embedding is not None and embedding_similarity <= 0 and token_similarity < min_diag_similarity and not relaxed_candidate_pool:
                     continue
 
                 icu_days = self._safe_days(self._patient_icu_start_time(doc), self._patient_end_time(doc))
@@ -825,6 +840,8 @@ class SimilarCaseReviewMixin:
                 "matched_cases": len(matched_cases),
                 "displayed_cases": len(top_cases),
                 "candidate_pool": len(candidate_docs),
+                "degraded": relaxed_candidate_pool,
+                "fallback_message": "严格出科/诊断候选不足，已放宽为院内历史患者相似度回溯。" if relaxed_candidate_pool else "",
                 "embedding_enabled": current_embedding is not None,
                 "avg_icu_days": round(sum(icu_days_list) / len(icu_days_list), 2) if icu_days_list else None,
                 "avg_vent_days": round(sum(vent_days_list) / len(vent_days_list), 2) if vent_days_list else None,

@@ -992,8 +992,24 @@ html[data-theme='light'] .detail-container .alert-extra,
 html[data-theme='light'] .detail-container .kb-doc-meta,
 html[data-theme='light'] .detail-container .kb-chunk-item {
   background: var(--icu-panel-gradient-soft) !important;
-  border-color: var(--icu-border) !important;
-  box-shadow: var(--icu-shadow-panel) !important;
+  border-color: color-mix(in srgb, var(--icu-border) 58%, transparent) !important;
+  box-shadow: 0 10px 26px rgba(36, 55, 48, 0.06) !important;
+}
+html[data-theme='light'] .detail-container .case-card,
+html[data-theme='light'] .detail-container .score-box,
+html[data-theme='light'] .detail-container .outcome-board,
+html[data-theme='light'] .detail-container .profile-chip,
+html[data-theme='light'] .detail-container .summary-card,
+html[data-theme='light'] .detail-container .topic-card,
+html[data-theme='light'] .detail-container .ops-card {
+  border-color: color-mix(in srgb, var(--icu-border) 46%, transparent) !important;
+  box-shadow: 0 6px 18px rgba(36, 55, 48, 0.045) !important;
+}
+html[data-theme='light'] .detail-container :where(.ant-card, .ant-collapse, .ant-descriptions, .ant-table-wrapper, .ant-list, .ant-timeline) {
+  --ant-color-border-secondary: color-mix(in srgb, var(--icu-border) 42%, transparent);
+}
+html[data-theme='light'] .detail-container :where(.ant-table, .ant-descriptions, .ant-collapse, .ant-list-item, .ant-timeline-item-tail) {
+  border-color: color-mix(in srgb, var(--icu-border) 42%, transparent) !important;
 }
 html[data-theme='light'] .detail-container .tab-empty,
 html[data-theme='light'] .detail-container .ai-empty {
