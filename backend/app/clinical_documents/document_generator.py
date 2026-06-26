@@ -213,6 +213,18 @@ def _tube_summary(tube: Any) -> str:
 
 def render_note_preview(draft: dict) -> dict:
     """Render APSO note text from structured content."""
+    try:
+        from app.clinical_documents.daily_progress_renderer import render_daily_progress_from_workbench
+
+        rendered = render_daily_progress_from_workbench(draft)
+        return {
+            **rendered,
+            "final_text_override": (draft.get("note_preview") or {}).get("final_text_override"),
+            "is_overridden": bool((draft.get("note_preview") or {}).get("final_text_override")),
+            "generated_from_hash": _hash_structured(draft),
+        }
+    except Exception:
+        logger.exception("daily progress preview render failed; fallback to APSO")
     banner = draft.get("patient_banner") or {}
     lines: list[str] = [
         "A/P：",

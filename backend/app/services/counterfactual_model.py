@@ -168,6 +168,57 @@ class SemiMechanisticCounterfactualModel:
         return _round(_safe_float(rows[-1].get("value")), digits)
 
     @staticmethod
+    def _snapshot_value(snapshot: dict, key: str) -> float | None:
+        """Read a latest value from the known digital-twin snapshot shapes."""
+        row = snapshot.get(key) if isinstance(snapshot, dict) else None
+        if not isinstance(row, dict):
+            return _safe_float(row)
+        for candidate in (
+            row.get("current"),
+            row.get("latest"),
+            (row.get("snapshot") or {}).get("latest") if isinstance(row.get("snapshot"), dict) else None,
+            ((row.get("snapshot") or {}).get("latest") or {}).get("latest") if isinstance((row.get("snapshot") or {}).get("latest"), dict) else None,
+        ):
+            val = _safe_float(candidate)
+            if val is not None:
+                return val
+        return None
+
+    @classmethod
+    def _normalize_snapshot(cls, snapshot: dict) -> dict[str, Any]:
+        """Normalize cached digital-twin snapshots to the What-if current-state contract."""
+        if not isinstance(snapshot, dict):
+            return {}
+        normalized: dict[str, Any] = {
+            "map": {"current": _round(cls._snapshot_value(snapshot, "map"), 0)},
+            "hr": {"current": _round(cls._snapshot_value(snapshot, "hr"), 0)},
+            "spo2": {"current": _round(cls._snapshot_value(snapshot, "spo2"), 0)},
+            "lactate": {"current": _round(cls._snapshot_value(snapshot, "lactate") or cls._snapshot_value(snapshot, "lac"), 1)},
+            "fio2": {"current": _round(cls._snapshot_value(snapshot, "fio2"), 0)},
+            "peep": {"current": _round(cls._snapshot_value(snapshot, "peep"), 0)},
+            "urine_ml_kg_h_6h": _round(cls._snapshot_value(snapshot, "urine_ml_kg_h_6h"), 2),
+            "vasoactive_support": {
+                "current_dose_ug_kg_min": _round(
+                    _safe_float(
+                        ((snapshot.get("vasoactive_support") or {}).get("current_dose_ug_kg_min"))
+                        if isinstance(snapshot.get("vasoactive_support"), dict)
+                        else None
+                    ),
+                    3,
+                )
+            },
+        }
+        return normalized
+
+    @staticmethod
+    def _has_any_current(snapshot: dict) -> bool:
+        return any(
+            _safe_float((snapshot.get(key) or {}).get("current")) is not None
+            for key in ("map", "hr", "spo2", "lactate")
+            if isinstance(snapshot.get(key), dict)
+        )
+
+    @staticmethod
     def _twin_latest(twin: dict, vital_key: str) -> float | None:
         """从 twin snapshot 的 latest/vitals 块提取最新值，兼容多种数据结构。"""
         # twin.vitals.latest.hr.current  (PatientDigitalTwinService 结构)
@@ -176,8 +227,14 @@ class SemiMechanisticCounterfactualModel:
         val = (latest.get(vital_key) or {}).get("current")
         if val is not None:
             return _safe_float(val)
+        val = (latest.get(vital_key) or {}).get("value")
+        if val is not None:
+            return _safe_float(val)
         # twin.snapshot.{key}.snapshot.latest  (series_snapshot 结构)
         snap = twin.get("snapshot") or {}
+        val = self_val = SemiMechanisticCounterfactualModel._snapshot_value(snap, vital_key)
+        if self_val is not None:
+            return self_val
         key_snap = snap.get(vital_key) or {}
         ss = key_snap.get("snapshot") or {}
         val = (ss.get("latest") or {}).get("latest")
@@ -190,7 +247,9 @@ class SemiMechanisticCounterfactualModel:
         twin = await twin_service.get_or_build_snapshot(patient_id, patient, hours=max(hours, 12), refresh=False, persist=True)
         cached_snapshot = twin.get("snapshot")
         if isinstance(cached_snapshot, dict) and cached_snapshot:
-            return cached_snapshot
+            normalized_cached = self._normalize_snapshot(cached_snapshot)
+            if self._has_any_current(normalized_cached):
+                return normalized_cached
 
         # 优先从 twin 的 latest 块提取已查到的生命体征
         twin_map = self._twin_latest(twin, "map")

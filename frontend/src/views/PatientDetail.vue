@@ -484,7 +484,7 @@
           />
         </a-tab-pane>
 
-        <a-tab-pane v-if="isTabVisible('twin')" key="twin" tab="数字孪生">
+        <a-tab-pane v-if="isTabVisible('twin')" key="twin" tab="因果 / What-if">
           <PatientDigitalTwinTab
             v-if="activeTab === 'twin'"
             :patient-id="String(route.params.id || '')"
@@ -734,6 +734,7 @@ const detailTabShortcuts: Array<{ key: DetailTabKey; label: string }> = [
   { key: 'trend', label: '趋势' },
   { key: 'labs', label: '检验' },
   { key: 'waveform', label: '波形' },
+  { key: 'twin', label: '因果/What-if' },
   { key: 'ai', label: 'AI' },
   { key: 'documents', label: '病历文书' },
 ]
@@ -750,7 +751,7 @@ const detailTabLabelMap: Record<DetailTabKey, string> = {
   alerts: '预警',
   similar: '相似病例',
   followup: '随访',
-  twin: '数字孪生',
+  twin: '因果/What-if',
   ai: 'AI',
   documents: '病历文书',
 }
@@ -763,11 +764,11 @@ const detailTabGroups: Array<{ key: DetailTabGroup; label: string }> = [
   { key: 'all', label: '全部' },
 ]
 const detailTabGroupMap: Record<DetailTabGroup, DetailTabKey[]> = {
-  focus: ['alerts', 'trend', 'labs', 'waveform', 'ai', 'documents'],
+  focus: ['alerts', 'trend', 'labs', 'waveform', 'twin', 'ai', 'documents'],
   monitor: ['trend', 'waveform', 'labs', 'alerts'],
   therapy: ['ecash', 'mobility', 'pe', 'drugs', 'assess', 'sbt', 'documents'],
   history: ['similar', 'followup', 'twin'],
-  ai: ['ai', 'documents'],
+  ai: ['twin', 'ai', 'documents'],
   all: [...detailTabOrder],
 }
 const visibleDetailTabs = computed<DetailTabKey[]>(() => {

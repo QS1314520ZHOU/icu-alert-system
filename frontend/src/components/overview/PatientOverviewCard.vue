@@ -358,7 +358,9 @@ const alertStatus = computed(() => {
     normal: '稳定',
     none: '待评估'
   }
-  return map[props.patient?.alertLevel || 'none'] || '待评估'
+  const level = String(props.patient?.alertLevel || 'none')
+  if (level === 'none' && hasAnyDisplayVital(mergedVitals.value)) return '稳定'
+  return map[level] || '待评估'
 })
 
 const mergedVitals = computed(() => {
@@ -388,6 +390,12 @@ const vitalsData = computed(() => {
     { key: 'temp', label: 'T', value: temp(temperature), unit: '℃', colorClass: vitalClass('t', temperature) }
   ]
 })
+
+function hasAnyDisplayVital(v: any): boolean {
+  if (!v || typeof v !== 'object') return false
+  return [v.hr, v.spo2, v.sbp, v.ibp_sys, v.nibp_sys, v.map, v.ibp_map, v.nibp_map, v.t, v.temp, v.rr]
+    .some((value) => value !== null && value !== undefined && value !== '')
+}
 
 const formattedTubesList = computed(() => {
   return bedcard.value?.tubes || []

@@ -255,7 +255,7 @@ class RiskTask(BaseModel):
 
 
 class NotePreview(BaseModel):
-    style: Literal["APSO", "SOAP"] = "APSO"
+    style: Literal["APSO", "SOAP", "DAILY_PROGRESS"] = "APSO"
     generated_text: str
     final_text_override: Optional[str] = None
     is_overridden: bool = False

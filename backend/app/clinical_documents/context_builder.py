@@ -72,6 +72,14 @@ def _bedside_value(doc: dict, *codes: str) -> Any:
     return None
 
 
+def _row_value(row: dict) -> Any:
+    for key in ("fVal", "intVal", "strVal", "value"):
+        value = row.get(key)
+        if value is not None and value != "":
+            return value
+    return None
+
+
 def _is_noninvasive_or_oxygen_mode(mode: Any) -> bool:
     text = str(mode or "").strip().lower()
     return bool(text) and any(
@@ -326,9 +334,53 @@ class ProgressNoteContextBuilder:
         }
         events: list[VitalEvent] = []
 
+        async def _device_ids_for_patient_ids() -> list[str]:
+            ids: list[str] = []
+            try:
+                cursor = self.db.col("deviceBind").find(
+                    {"pid": {"$in": p_ids}, "unBindTime": None},
+                    {"deviceID": 1},
+                ).limit(100)
+                async for row in cursor:
+                    device_id = str(row.get("deviceID") or "").strip()
+                    if device_id:
+                        ids.append(device_id)
+            except Exception:
+                logger.debug("clinical document deviceBind lookup failed", exc_info=True)
+            return list(dict.fromkeys(ids))
+
+        # deviceCap is the primary live monitor source used by the patient pages.
+        device_ids = await _device_ids_for_patient_ids()
+        if device_ids:
+            for key, aliases in field_alias.items():
+                try:
+                    cursor = self.db.col("deviceCap").find(
+                        {
+                            "deviceID": {"$in": device_ids},
+                            "code": {"$in": aliases},
+                            "time": {"$gte": start, "$lte": end},
+                        },
+                        {"code": 1, "time": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
+                    ).sort("time", 1).limit(3000)
+                    rows = await cursor.to_list(length=3000)
+                except Exception:
+                    rows = []
+                for row in rows:
+                    if str(row.get("code") or "") not in set(aliases):
+                        continue
+                    fv = _safe_float(_row_value(row))
+                    if fv > 0:
+                        param_map[key].append(fv)
+                        if key == "hr" and fv > 150:
+                            events.append(VitalEvent(time_hm=_hm(row.get("time")), type="心率过快", value=str(fv)))
+                        if key == "spo2" and fv < 90:
+                            events.append(VitalEvent(time_hm=_hm(row.get("time")), type="SpO2过低", value=str(fv)))
+
         # Prefer bedside monitor time series; bGATemp is only a fallback in many deployments.
         bedside_col = self.db.col("bedside")
         for key, aliases in field_alias.items():
+            if param_map[key]:
+                continue
             for code in aliases:
                 try:
                     cursor = bedside_col.find(
@@ -367,6 +419,8 @@ class ProgressNoteContextBuilder:
                     continue
                 for alias in aliases:
                     val = doc.get(alias)
+                    if val is None:
+                        val = _bedside_value(doc, alias)
                     if val is not None:
                         fv = _safe_float(val)
                         if fv > 0:

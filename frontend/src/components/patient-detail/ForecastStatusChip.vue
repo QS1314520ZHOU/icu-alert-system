@@ -170,4 +170,51 @@ const indicatorDetails = computed(() => {
   color: var(--warning);
   font-weight: 600;
 }
+
+html[data-theme='light'] .forecast-chip {
+  background: rgba(255, 255, 251, 0.96);
+  border-color: rgba(55, 89, 78, 0.16);
+  color: #24463f;
+}
+
+html[data-theme='light'] .forecast-chip--ready {
+  background: rgba(236, 253, 245, 0.96);
+  border-color: rgba(15, 118, 110, 0.28);
+  color: #0f766e;
+}
+
+html[data-theme='light'] .forecast-chip--fallback {
+  background: #fff4d6;
+  border-color: rgba(180, 83, 9, 0.34);
+  color: #8a4b08;
+}
+
+html[data-theme='light'] .forecast-chip--error {
+  background: #f7faf8;
+  border-color: rgba(91, 108, 101, 0.22);
+  color: #4a5f58;
+}
+
+html[data-theme='light'] .forecast-chip b {
+  background: rgba(180, 83, 9, 0.12);
+  color: #7c3f04;
+  border: 1px solid rgba(180, 83, 9, 0.18);
+}
+
+html[data-theme='light'] .forecast-popover div {
+  color: #526760;
+}
+
+html[data-theme='light'] .forecast-popover strong,
+html[data-theme='light'] .forecast-indicator-code {
+  color: #233f38;
+}
+
+html[data-theme='light'] .forecast-indicator-count {
+  color: #526760;
+}
+
+html[data-theme='light'] .forecast-indicator-warn {
+  color: #8a4b08;
+}
 </style>

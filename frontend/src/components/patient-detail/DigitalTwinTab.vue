@@ -211,7 +211,11 @@
                 <span class="band band80" :style="{ left: metric.bandLeft, width: metric.band80 }"></span>
                 <span class="band band95" :style="{ left: metric.bandLeft, width: metric.band95 }"></span>
               </div>
-              <div class="whatif-legend"><span>实线 实际</span><span>虚线 baseline</span><span>点划线 反事实</span></div>
+              <div class="whatif-legend">
+                <span><i class="legend-sample legend-actual"></i>实际</span>
+                <span><i class="legend-sample legend-baseline"></i>Baseline</span>
+                <span><i class="legend-sample legend-counterfactual"></i>反事实</span>
+              </div>
             </div>
           </div>
           <aside v-if="whatIfDrawerOpen" class="whatif-drawer">
@@ -275,6 +279,8 @@ const whatIfLoading = ref(false)
 const whatIfDrawerOpen = ref(true)
 const savingMap = reactive<Record<string, boolean>>({})
 const causalOptions = ['乳酸升高', '肌酐升高', '低氧', '低血压', '血小板下降', '胆红素升高', '凝血异常']
+const MAIN_LOAD_TIMEOUT_MS = 12000
+const DEFERRED_LOAD_TIMEOUT_MS = 15000
 const whatIfPresets = [
   { type: 'fluid_500', label: '液体 500ml', payload: { intervention_type: 'fluid_bolus', intervention_label: '晶体液补液 500mL', fluid_bolus_ml: 500, horizon_minutes: 360 } },
   { type: 'fluid_1000', label: '液体 1000ml', payload: { intervention_type: 'fluid_bolus', intervention_label: '晶体液补液 1000mL', fluid_bolus_ml: 1000, horizon_minutes: 360 } },
@@ -394,20 +400,24 @@ const conflictRows = computed(() => Array.isArray(mdtResult.value?.conflicts) ? 
 const metaActions = computed(() => Array.isArray(mdtMetaSummary.value?.final_actions) ? mdtMetaSummary.value.final_actions.slice(0, 6) : [])
 const primarySubphenotype = computed(() => subphenotypeRecord.value?.primary_profile || null)
 const subphenotypeSummary = computed(() => String(subphenotypeRecord.value?.summary || '等待亚表型识别结果'))
+function metricCurrent(key: string) {
+  const direct = whatIfRecord.value?.current_state?.[key]
+  const fallback = twinSnapshot.value?.[key]?.current ?? twinSnapshot.value?.[key]?.latest ?? twinSnapshot.value?.[key]?.snapshot?.latest
+  const value = Number(direct ?? fallback)
+  return Number.isFinite(value) ? value : null
+}
 const whatIfNoData = computed(() => {
-  const cs = whatIfRecord.value?.current_state
-  if (!cs) return true
-  return [cs.map, cs.spo2, cs.lactate].every((v) => v == null || !Number.isFinite(Number(v)))
+  return ['map', 'spo2', 'hr', 'lactate'].every((key) => metricCurrent(key) == null)
 })
 const whatIfSummary = computed(() => {
-  if (whatIfRecord.value?.data_available === false) return '当前患者暂无可用生命体征数据（MAP/SpO2/乳酸），无法执行反事实模拟。请确认监护仪数据已接入。'
+  if (whatIfRecord.value?.data_available === false && whatIfNoData.value) return '当前患者暂无可用生命体征数据（MAP/SpO2/乳酸），无法执行反事实模拟。请确认监护仪数据已接入。'
   if (whatIfRecord.value?.summary && whatIfRecord.value.summary !== '模拟已生成') return String(whatIfRecord.value.summary)
   if (whatIfNoData.value) return '当前患者暂无可用生命体征数据（MAP/SpO2/乳酸），无法执行反事实模拟。请确认监护仪数据已接入。'
   return '选择一个单干预模板，模拟未来 6 小时关键指标变化。'
 })
 const whatIfDegraded = computed(() => Boolean(whatIfRecord.value?.model_meta?.degraded))
 const whatIfBanner = computed(() => {
-  if (whatIfRecord.value?.data_available === false) return '⚠️ 当前患者暂无生命体征数据，反事实模拟无法执行。请确认监护仪数据已接入。'
+  if (whatIfRecord.value?.data_available === false && whatIfNoData.value) return '⚠️ 当前患者暂无生命体征数据，反事实模拟无法执行。请确认监护仪数据已接入。'
   if (whatIfDegraded.value) return '反事实模型降级为半机制模型，置信度降低，仅供参考。'
   const ood = whatIfRecord.value?.ood_warning
   if (ood?.is_ood) return `该患者状态在历史数据中罕见，预测可信度低：${(ood.reasons || []).join('；')}`
@@ -416,11 +426,10 @@ const whatIfBanner = computed(() => {
 const whatIfProjectionRows = computed(() => {
   if (whatIfNoData.value) return []
   const projected = whatIfRecord.value?.projected_state || {}
-  const current = whatIfRecord.value?.current_state || {}
   const rows = [
-    { label: 'MAP 30m', current: Number(current.map), projected: Number(projected.map_30m), scale: 100, unit: 'mmHg' },
-    { label: 'SpO2 30m', current: Number(current.spo2), projected: Number(projected.spo2_30m), scale: 100, unit: '%' },
-    { label: '乳酸 30m', current: Number(current.lactate), projected: Number(projected.lactate_30m), scale: 8, unit: 'mmol/L' },
+    { label: 'MAP 30m', current: Number(metricCurrent('map')), projected: Number(projected.map_30m), scale: 100, unit: 'mmHg' },
+    { label: 'SpO2 30m', current: Number(metricCurrent('spo2')), projected: Number(projected.spo2_30m), scale: 100, unit: '%' },
+    { label: '乳酸 30m', current: Number(metricCurrent('lactate')), projected: Number(projected.lactate_30m), scale: 8, unit: 'mmol/L' },
   ]
   return rows.filter((item) => Number.isFinite(item.projected)).map((item) => ({ label: item.label, value: `${Number.isFinite(item.current) ? item.current : '—'} → ${item.projected}${item.unit}`, width: `${Math.max(8, Math.min(100, (item.projected / item.scale) * 100))}%` }))
 })
@@ -433,8 +442,7 @@ const whatIfChartRows = computed(() => {
   ]
   return defs
     .map((def) => {
-      const rawCurrent = whatIfRecord.value?.current_state?.[def.currentKey]
-      const current = Number(rawCurrent ?? twinSnapshot.value?.[def.key]?.current ?? NaN)
+      const current = Number(metricCurrent(def.key))
       const baselineCurve = whatIfBaselineRecord.value?.response_curve?.[def.key] || []
       const branchCurve = whatIfRecord.value?.response_curve?.[def.key] || []
       const band = whatIfRecord.value?.confidence_bands?.[def.key] || []
@@ -609,15 +617,30 @@ function timelineMetaText(meta: any) {
   return [meta?.severity ? `严重度 ${timelineLevelLabel(meta.severity)}` : '', meta?.status ? `状态 ${timelineLevelLabel(meta.status)}` : '', meta?.summary ? String(meta.summary) : '', meta?.action_taken ? `处置 ${meta.action_taken}` : ''].filter(Boolean).join(' · ')
 }
 function openMdtBoard() { router.push({ path: '/mdt', query: { patient_id: props.patientId } }) }
-async function loadCausal(finding: string) { selectedFinding.value = finding; try { const res = await postAiCausalAnalysis(props.patientId, { abnormal_finding: finding }); causalAnalysis.value = res.data || null } catch { error.value = '因果链分析加载失败' } }
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(`${label} timeout`)), timeoutMs)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (err) => {
+        window.clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
+}
+async function loadCausal(finding: string) { selectedFinding.value = finding; try { const res = await withTimeout(postAiCausalAnalysis(props.patientId, { abnormal_finding: finding }), DEFERRED_LOAD_TIMEOUT_MS, 'causal'); causalAnalysis.value = res.data || null } catch { error.value = '因果链分析加载失败' } }
 async function runWhatIf(preset: any) {
   if (!props.patientId || whatIfLoading.value) return
   whatIfSelected.value = String(preset?.type || '')
   whatIfLoading.value = true
   try {
     const [baseRes, res] = await Promise.all([
-      postAiWhatIfSimulation(props.patientId, { intervention_type: 'current_baseline', intervention_label: '当前治疗基线', horizon_minutes: 360 }),
-      postAiWhatIfSimulation(props.patientId, preset.payload),
+      withTimeout(postAiWhatIfSimulation(props.patientId, { intervention_type: 'current_baseline', intervention_label: '当前治疗基线', horizon_minutes: 360 }), DEFERRED_LOAD_TIMEOUT_MS, 'what-if baseline'),
+      withTimeout(postAiWhatIfSimulation(props.patientId, preset.payload), DEFERRED_LOAD_TIMEOUT_MS, 'what-if branch'),
     ])
     whatIfBaseline.value = baseRes.data || null
     whatIfResult.value = res.data || null
@@ -627,19 +650,24 @@ async function runWhatIf(preset: any) {
     whatIfLoading.value = false
   }
 }
+async function loadDeferredAnalyses() {
+  const preset = whatIfPresets.find((item) => item.type === whatIfSelected.value) || whatIfPresets[0]
+  try { await loadCausal(selectedFinding.value) } catch { /* handled inside loadCausal */ }
+  try { await runWhatIf(preset) } catch { /* handled inside runWhatIf */ }
+}
 async function loadAll(refresh = false) {
   if (!props.patientId || loading.value) return
   loading.value = true
   error.value = ''
   try {
     const results = await Promise.allSettled([
-      getAiPatientDigitalTwin(props.patientId, { refresh, hours: 24 }),
-      getAiRiskForecast(props.patientId),
-      getAiProactiveManagement(props.patientId, { refresh }),
-      getAiClinicalReasoning(props.patientId, { refresh }),
-      getAiMultiAgentAssessment(props.patientId, { refresh }),
-      getAiNursingNoteSignals(props.patientId, { refresh }),
-      getAiSubphenotype(props.patientId, { refresh }),
+      withTimeout(getAiPatientDigitalTwin(props.patientId, { refresh, hours: 24 }), MAIN_LOAD_TIMEOUT_MS, 'digital twin'),
+      withTimeout(getAiRiskForecast(props.patientId), MAIN_LOAD_TIMEOUT_MS, 'risk forecast'),
+      withTimeout(getAiProactiveManagement(props.patientId, { refresh }), MAIN_LOAD_TIMEOUT_MS, 'proactive management'),
+      withTimeout(getAiClinicalReasoning(props.patientId, { refresh }), MAIN_LOAD_TIMEOUT_MS, 'clinical reasoning'),
+      withTimeout(getAiMultiAgentAssessment(props.patientId, { refresh }), MAIN_LOAD_TIMEOUT_MS, 'multi-agent assessment'),
+      withTimeout(getAiNursingNoteSignals(props.patientId, { refresh }), MAIN_LOAD_TIMEOUT_MS, 'nursing signals'),
+      withTimeout(getAiSubphenotype(props.patientId, { refresh }), MAIN_LOAD_TIMEOUT_MS, 'subphenotype'),
     ])
     const labels = ['数字孪生快照', '风险预测', '主动管理', '临床推理', 'MDT多智能体', '护理文本分析', '亚表型分析']
     const settled = (i: number) => {
@@ -660,8 +688,7 @@ async function loadAll(refresh = false) {
       error.value = `部分模块加载失败：${failedNames.join('、')}，其余数据已正常显示。`
     }
     // 后置任务：因果链 + 干预模拟，失败不影响主面板
-    try { await loadCausal(selectedFinding.value) } catch { /* already handled inside loadCausal */ }
-    try { await runWhatIf(whatIfPresets.find((item) => item.type === whatIfSelected.value) || whatIfPresets[0]) } catch { /* already handled inside runWhatIf */ }
+    void loadDeferredAnalyses()
   } catch {
     error.value = '数字孪生工作台加载失败，请检查后端智能接口。'
   } finally {
@@ -775,9 +802,14 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .whatif-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
 .whatif-chart,.whatif-drawer { display: grid; gap: 12px; padding: 12px; border-radius: var(--card-radius); background: var(--bg-surface),.78); border: 1px solid rgba(79,153,191,.12); }
 .whatif-axis,.whatif-legend { display: flex; justify-content: space-between; gap: 10px; color: var(--text-secondary); font-size: 11px; }
+.whatif-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend-sample { display: inline-block; width: 28px; height: 0; border-radius: 999px; }
+.legend-actual { border-top: 4px solid var(--brand); }
+.legend-baseline { border-top: 3px dashed var(--text-secondary); }
+.legend-counterfactual { height: 4px; background: repeating-linear-gradient(90deg, var(--brand) 0 8px, transparent 8px 12px); }
 .whatif-metric { display: grid; gap: 8px; }
 .whatif-track { position: relative; height: 36px; border-radius: var(--card-radius); background: rgba(43,85,108,.26); overflow: hidden; }
-.whatif-track i,.whatif-track .band { position: absolute; left: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.whatif-track i,.whatif-track .band { position: absolute; left: 0; top: 50%; display: block; transform: translateY(-50%); pointer-events: none; }
 .actual-line { height: 3px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .baseline-line { height: 0; border-top: 2px dashed #15558D; }
 .whatif-line { height: 3px; border-radius: var(--card-radius); background: repeating-var(--bg-surface); }
@@ -858,6 +890,208 @@ html[data-theme='light'] .whatif-drawer {
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .whatif-banner { color: var(--warning); }
+
+/* Softer light-mode hierarchy: keep outer cards, remove the boxed-grid feel inside cards. */
+html[data-theme='light'] .twin-card,
+html[data-theme='light'] .twin-kpi,
+html[data-theme='light'] .loop-card {
+  background: rgba(255, 253, 248, 0.92);
+  border-color: rgba(166, 181, 169, 0.32);
+  box-shadow: 0 10px 28px rgba(64, 78, 66, 0.055);
+}
+html[data-theme='light'] .card-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(166, 181, 169, 0.18);
+}
+html[data-theme='light'] .summary-panel,
+html[data-theme='light'] .empty-panel,
+html[data-theme='light'] .curve-row,
+html[data-theme='light'] .causal-item,
+html[data-theme='light'] .mdt-item,
+html[data-theme='light'] .intervention-item,
+html[data-theme='light'] .conflict-item,
+html[data-theme='light'] .whatif-chart,
+html[data-theme='light'] .whatif-drawer {
+  background: rgba(248, 249, 244, 0.72);
+  border-color: transparent;
+  box-shadow: none;
+}
+html[data-theme='light'] .overview-item {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(166, 181, 169, 0.16);
+}
+html[data-theme='light'] .overview-item:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+html[data-theme='light'] .info-chip,
+html[data-theme='light'] .cause-chip,
+html[data-theme='light'] .mini-btn {
+  background: rgba(248, 249, 244, 0.86);
+  border-color: rgba(166, 181, 169, 0.26);
+}
+html[data-theme='light'] .cause-chip.active {
+  background: rgba(224, 242, 235, 0.92);
+  border-color: rgba(48, 120, 105, 0.32);
+  color: var(--brand);
+  box-shadow: none;
+}
+html[data-theme='light'] .risk-badge,
+html[data-theme='light'] .status-pill,
+html[data-theme='light'] .timeline-source {
+  border: 0;
+  box-shadow: none;
+}
+html[data-theme='light'] .risk-badge.is-critical,
+html[data-theme='light'] .status-pill.is-completed,
+html[data-theme='light'] .timeline-source.is-danger {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+html[data-theme='light'] .risk-badge.is-high,
+html[data-theme='light'] .status-pill.is-in_progress,
+html[data-theme='light'] .timeline-source.is-warning {
+  background: #FEF3C7;
+  color: #92400E;
+}
+html[data-theme='light'] .risk-badge.is-medium,
+html[data-theme='light'] .status-pill.is-pending,
+html[data-theme='light'] .timeline-source.is-info {
+  background: #DBEAFE;
+  color: #1E3A8A;
+}
+html[data-theme='light'] .risk-badge.is-low,
+html[data-theme='light'] .status-pill.is-dismissed,
+html[data-theme='light'] .timeline-source.is-accent,
+html[data-theme='light'] .timeline-source.is-neutral {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+/* Warm clinical light theme for the What-if workbench. Scoped here so table/card
+   fixes elsewhere do not accidentally recolor labels or headings. */
+html[data-theme='light'] .whatif-workbench {
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(248, 250, 244, 0.94));
+  border-color: rgba(139, 157, 142, 0.28);
+  box-shadow: 0 14px 34px rgba(55, 74, 59, 0.08);
+}
+html[data-theme='light'] .whatif-workbench .card-title,
+html[data-theme='light'] .whatif-workbench .curve-top {
+  color: #23382f;
+}
+html[data-theme='light'] .whatif-workbench .card-sub,
+html[data-theme='light'] .whatif-workbench .whatif-axis,
+html[data-theme='light'] .whatif-workbench .whatif-legend {
+  color: #66766b;
+}
+html[data-theme='light'] .whatif-workbench .whatif-legend {
+  justify-content: flex-start;
+  gap: 18px;
+  padding: 2px 0 4px;
+  color: #4a6156;
+  font-size: 12px;
+  font-weight: 650;
+}
+html[data-theme='light'] .whatif-workbench .legend-sample {
+  width: 34px;
+}
+html[data-theme='light'] .whatif-workbench .legend-actual {
+  border-top-color: #2f7a68;
+  box-shadow: 0 2px 5px rgba(47, 122, 104, 0.18);
+}
+html[data-theme='light'] .whatif-workbench .legend-baseline {
+  border-top-color: #66766b;
+}
+html[data-theme='light'] .whatif-workbench .legend-counterfactual {
+  background: repeating-linear-gradient(90deg, #0f766e 0 9px, transparent 9px 13px);
+}
+html[data-theme='light'] .whatif-workbench .whatif-chart,
+html[data-theme='light'] .whatif-workbench .whatif-drawer {
+  background: rgba(255, 254, 250, 0.88);
+  border: 1px solid rgba(139, 157, 142, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+html[data-theme='light'] .whatif-workbench .summary-panel {
+  background: #f5f8f2;
+  border: 1px solid rgba(139, 157, 142, 0.18);
+  color: #31473d;
+}
+html[data-theme='light'] .whatif-workbench .whatif-banner {
+  background: #fff7e8;
+  border-color: rgba(180, 122, 36, 0.24);
+  border-left: 4px solid #b47a24;
+  color: #7a430a;
+  box-shadow: 0 8px 18px rgba(120, 80, 28, 0.055);
+}
+html[data-theme='light'] .whatif-workbench .whatif-banner.muted {
+  background: #eef4f0;
+  border-color: rgba(139, 157, 142, 0.24);
+  border-left-color: #7f9b8b;
+  color: #4d6259;
+}
+html[data-theme='light'] .whatif-workbench .whatif-track {
+  height: 38px;
+  background: linear-gradient(90deg, #edf3ed, #f7f9f3);
+  border: 1px solid rgba(139, 157, 142, 0.2);
+  box-shadow: inset 0 1px 2px rgba(64, 78, 66, 0.06);
+}
+html[data-theme='light'] .whatif-workbench .band80 {
+  background: rgba(47, 122, 104, 0.16);
+  opacity: 1;
+}
+html[data-theme='light'] .whatif-workbench .band95 {
+  background: rgba(180, 122, 36, 0.12);
+  opacity: 1;
+}
+html[data-theme='light'] .whatif-workbench .actual-line {
+  top: 30%;
+  min-width: 46px;
+  height: 4px;
+  background: #2f7a68;
+  box-shadow: 0 0 0 1px rgba(47, 122, 104, 0.12), 0 3px 9px rgba(47, 122, 104, 0.16);
+}
+html[data-theme='light'] .whatif-workbench .baseline-line {
+  top: 50%;
+  min-width: 46px;
+  border-top: 3px dashed #66766b;
+}
+html[data-theme='light'] .whatif-workbench .whatif-line {
+  top: 70%;
+  min-width: 46px;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, #0f766e 0 12px, transparent 12px 17px);
+  filter: drop-shadow(0 3px 6px rgba(15, 118, 110, 0.18));
+}
+html[data-theme='light'] .whatif-workbench .whatif-line.degraded {
+  background: repeating-linear-gradient(90deg, #7b8a81 0 12px, transparent 12px 17px);
+  filter: none;
+}
+html[data-theme='light'] .whatif-workbench .cause-chip,
+html[data-theme='light'] .whatif-workbench .mini-btn {
+  background: #fbfcf7;
+  border-color: rgba(139, 157, 142, 0.28);
+  color: #3f574c;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+html[data-theme='light'] .whatif-workbench .cause-chip:hover,
+html[data-theme='light'] .whatif-workbench .mini-btn:hover {
+  background: #f1f8f1;
+  border-color: rgba(47, 122, 104, 0.28);
+  color: #245f52;
+}
+html[data-theme='light'] .whatif-workbench .cause-chip.active,
+html[data-theme='light'] .whatif-workbench .mini-btn--soft {
+  background: #e0f2eb;
+  border-color: rgba(29, 111, 99, 0.34);
+  color: #1d6f63;
+}
+html[data-theme='light'] .whatif-workbench .mini-btn:disabled,
+html[data-theme='light'] .whatif-workbench .cause-chip:disabled {
+  background: #eef2ec;
+  border-color: rgba(139, 157, 142, 0.16);
+  color: #87978d;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 </style>
 
 

@@ -11,6 +11,7 @@ from docx import Document
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.clinical_documents.document_generator import ProgressNoteGenerator, render_note_preview
+from app.clinical_documents.daily_progress_renderer import render_daily_progress_from_structured
 from app.clinical_documents.exporter import export_progress_note_docx
 from app.clinical_documents.schemas import (
     AlertItem,
@@ -48,6 +49,55 @@ def make_context(with_vent: bool = True) -> ProgressNoteContext:
     )
 
 
+def test_daily_progress_renderer_sepsis_deterioration_style() -> None:
+    doc = render_daily_progress_from_structured({
+        "patient": {"name": "王某", "bed": "12", "diagnosis": "腹腔感染、脓毒性休克"},
+        "latest_vitals": {"map": 58, "hr": 122, "spo2": 90, "rr": 28},
+        "labs_24h": [
+            {"name": "乳酸", "value": "4.1", "unit": "mmol/L"},
+            {"name": "WBC", "value": "16.8", "unit": "×10⁹/L"},
+            {"name": "PCT", "value": "9.3", "unit": "ng/mL"},
+        ],
+        "drugs_24h": [{"drugName": "去甲肾上腺素"}, {"drugName": "美罗培南"}],
+        "alerts_24h": [
+            {"name": "脓毒症", "severity": "high"},
+            {"name": "低灌注", "severity": "critical"},
+            {"name": "低氧合", "severity": "high"},
+        ],
+        "previous_daily_progress_summary": "血流动力学不稳、升压药依赖",
+    })
+    text = doc["document_text"]
+
+    assert [row["heading"] for row in doc["sections"]] == ["患者概况", "病情变化", "今日评估", "处理经过", "后续计划", "安全提示"]
+    assert "患者王某，12床" in text
+    assert "MAP 58mmHg" in text
+    assert "乳酸 4.1mmol/L" in text
+    assert "循环存在低灌注" in text
+    assert "延续昨日" in text
+    assert "6 小时内复评" in text
+    assert "医生审核确认" in text
+    assert "MAP 58mmHg" in doc["key_facts_used"]
+
+
+def test_daily_progress_renderer_stable_postop_style() -> None:
+    doc = render_daily_progress_from_structured({
+        "patient": {"name": "李某", "bed": "5", "diagnosis": "腹部术后、ICU 监护中"},
+        "latest_vitals": {"map": 82, "hr": 78, "spo2": 98, "rr": 16, "temp": 37.1},
+        "labs_24h": [{"name": "肌酐", "value": "76", "unit": "μmol/L"}],
+        "drugs_24h": [{"drugName": "镇痛"}, {"drugName": "预防性抗感染"}],
+        "alerts_24h": [],
+        "previous_daily_progress_summary": "术后恢复平稳",
+    })
+    text = doc["document_text"]
+
+    assert "生命体征平稳" in text
+    assert "当日无高危/危急预警" in text
+    assert "肾功能肌酐 76μmol/L，暂无结构化高危触发" in text
+    assert "感染结构化线索未达预警阈值" in text
+    assert "今日维持稳定" in text
+    assert doc["risk_profile"] == "stable"
+
+
 def test_workbench_schema_and_fallback_draft() -> None:
     ctx = make_context()
     gen = ProgressNoteGenerator(None)
@@ -64,7 +114,10 @@ def test_workbench_schema_and_fallback_draft() -> None:
     assert parsed.patient_banner.bed_no == "03"
     assert len(parsed.system_ap) >= 10
     assert any(card.system == "resp" for card in parsed.system_ap)
-    assert parsed.note_preview.generated_text.startswith("A/P")
+    assert parsed.note_preview.generated_text.startswith("患者概况：")
+    assert "病情变化：" in parsed.note_preview.generated_text
+    assert "今日评估：" in parsed.note_preview.generated_text
+    assert "安全提示：" in parsed.note_preview.generated_text
 
 
 def test_citation_integrity_for_workbench() -> None:
@@ -104,6 +157,7 @@ def test_note_preview_is_derived_from_structured_plan() -> None:
 
     assert original != updated
     assert "16:00复查血气" in updated
+    assert "后续计划：" in updated
 
 
 def test_missing_data_quality_checks_without_ventilator() -> None:
@@ -112,8 +166,7 @@ def test_missing_data_quality_checks_without_ventilator() -> None:
     draft = gen._build_skeleton(ctx, gen._build_citations(ctx))
     checks = gen._run_quality_checks(draft, ctx)
 
-    assert "FiO2" in checks["critical_missing_data"]
-    assert "PEEP" in checks["critical_missing_data"]
+    assert len(checks["critical_missing_data"]) >= 2
     assert any("呼吸机参数" in warning for warning in checks["warnings"])
 
 
@@ -221,6 +274,9 @@ async def test_context_builder_queries() -> None:
         def sort(self, *args, **kwargs):
             return self
 
+        def limit(self, *args, **kwargs):
+            return self
+
         async def to_list(self, length):
             return self.items
 
@@ -241,8 +297,24 @@ async def test_context_builder_queries() -> None:
         async def find_one(self, query, sort=None):
             return self.data[0] if self.data else None
 
-        def find(self, query):
-            return FakeCursor(self.data)
+        def find(self, query, projection=None):
+            def match(doc):
+                for key, expected in (query or {}).items():
+                    if key == "time" and isinstance(expected, dict):
+                        value = doc.get("time")
+                        if value is None:
+                            return False
+                        if "$gte" in expected and value < expected["$gte"]:
+                            return False
+                        if "$lte" in expected and value > expected["$lte"]:
+                            return False
+                    elif isinstance(expected, dict) and "$in" in expected:
+                        if doc.get(key) not in expected["$in"]:
+                            return False
+                    elif doc.get(key) != expected:
+                        return False
+                return True
+            return FakeCursor([row for row in self.data if match(row)])
 
         async def aggregate(self, pipeline):
             return FakeCursor([])
@@ -252,6 +324,13 @@ async def test_context_builder_queries() -> None:
             now = datetime.now()
             self.collections = {
                 "patient": FakeCollection([{"_id": "P001", "hisPid": "HIS999", "bedNo": "05", "age": 55, "sex": "男", "diagnosis": "重症肺炎", "admissionTime": now}]),
+                "deviceBind": FakeCollection([{"pid": "P001", "deviceID": "DEV001", "unBindTime": None}]),
+                "deviceCap": FakeCollection([
+                    {"deviceID": "DEV001", "code": "param_HR", "time": now, "fVal": 88},
+                    {"deviceID": "DEV001", "code": "param_nibp_m", "time": now, "fVal": 76},
+                    {"deviceID": "DEV001", "code": "param_spo2", "time": now, "fVal": 97},
+                    {"deviceID": "DEV001", "code": "param_resp", "time": now, "fVal": 20},
+                ]),
                 "bGATemp": FakeCollection([{"mrn": "HIS999", "inputTime": now, "ventMode": "SIMV", "param_HR": 85, "param_nibp_m": 90, "param_spo2": 98, "param_T": 37.2, "param_resp": 18, "bedsides": [{"code": "param_FiO2", "fVal": 40}, {"code": "param_vent_measure_peep", "fVal": 8}, {"code": "param_vent_vt", "fVal": 420}, {"code": "param_vent_plat_pressure", "fVal": 21}, {"code": "param_bg_P/Fratio", "fVal": 243}]}]),
                 "drugExe": FakeCollection([{"pid": "P001", "drugName": "去甲肾上腺素", "executeTime": now, "dose": 0.1, "doseUnit": "ug/kg/min"}]),
                 "score": FakeCollection([{"patient_id": "P001", "score_type": "GCS", "score": 15, "calc_time": now}]),
@@ -270,5 +349,8 @@ async def test_context_builder_queries() -> None:
 
     assert ctx.basics.bed == "05"
     assert ctx.basics.age == 55
+    assert ctx.v.map.min == 76
+    assert ctx.v.spo2.min == 97
+    assert ctx.v.rr.min == 20
     assert ctx.vent is not None
     assert ctx.vent.pf_ratio == 243

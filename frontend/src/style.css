@@ -338,9 +338,8 @@ html[data-theme='light'] [style*='linear-gradient'] {
 
 html[data-theme='light'] .ant-card,
 html[data-theme='light'] .card,
-html[data-theme='light'] [class*='card'],
-html[data-theme='light'] [class*='panel'],
-html[data-theme='light'] [class*='section'] {
+html[data-theme='light'] .panel,
+html[data-theme='light'] .section {
   background: var(--bg-surface) !important;
   border: 1px solid var(--border-color) !important;
   box-shadow: var(--card-shadow) !important;
@@ -359,16 +358,17 @@ html[data-theme='light'] [class*='glow'] {
 
 /* === Light Mode Table/Grid Borders === */
 html[data-theme='light'] .ant-table-wrapper .ant-table-thead > tr > th {
-  border-bottom: 1px solid var(--border-color) !important;
-  background: var(--bg-surface) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--icu-surface) 82%, #fffdf8) !important;
 }
 
 html[data-theme='light'] .ant-table-wrapper .ant-table-tbody > tr > td {
-  border-bottom-color: var(--border-color) !important;
+  border-bottom-color: color-mix(in srgb, var(--icu-border) 24%, transparent) !important;
 }
 
 html[data-theme='light'] .ant-table-wrapper .ant-table-container {
-  border: 1px solid var(--border-color) !important;
+  border: 1px solid color-mix(in srgb, var(--icu-border) 30%, transparent) !important;
+  box-shadow: 0 8px 22px rgba(64, 78, 66, 0.04) !important;
 }
 
 html[data-theme='light'] .ant-card .ant-card-head {

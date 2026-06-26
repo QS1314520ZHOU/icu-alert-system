@@ -489,6 +489,7 @@ function vc(k: string, v: any): string {
   const T: Record<string, [number, number, number, number]> = {
     hr: [40, 50, 110, 130], spo2: [85, 92, 999, 999],
     sys: [70, 85, 160, 200], temp: [34, 35.5, 38.5, 40],
+    map: [50, 65, 110, 130],
     rr: [6, 10, 25, 35],
   }
   const t = T[k]; if (!t) return ''
@@ -512,25 +513,24 @@ function calcLevel(v: any): string {
   const hr   = pickV(v, 'hr')
   const spo2 = pickV(v, 'spo2')
   const sys  = pickV(v, 'sbp', 'nibp_sys', 'ibp_sys', 'sys')
+  const map  = pickV(v, 'map', 'nibp_map', 'ibp_map')
   const temp = pickV(v, 'temp', 't')
   const rr   = pickV(v, 'rr')
 
-  // 核心体征：HR / SpO2 / 收缩压。一个都没有 → 待评估，绝不洗成稳定
-  const coreVitals = [hr, spo2, sys]
-  if (!coreVitals.some(hasVitalValue)) return 'none'
+  // 有足够结构化监护数据即可做基础分区；待评估只表示数据确实不足。
+  const observedVitals = [hr, spo2, sys, map, temp, rr].filter(hasVitalValue)
+  if (observedVitals.length < 2) return 'none'
 
   const cs = [
     vc('hr', hr),
     vc('spo2', spo2),
     vc('sys', sys),
+    vc('map', map),
     vc('temp', temp),
     vc('rr', rr),
   ]
   if (cs.includes('crit')) return 'critical'
   if (cs.includes('warn')) return 'warning'
-
-  // 核心体征不全（缺了 HR/SpO2/收缩压任一）→ 不判稳定，标待评估
-  if (![hr, spo2, sys].every(hasVitalValue)) return 'none'
 
   return 'normal'
 }
@@ -629,6 +629,17 @@ async function hydrateBedcards(items: any[]) {
     const res = await getPatientBedcardBatch(ids, 30000)
     const data = res.data?.data || {}
     bedcardDataMap.value = data
+    let updated = 0
+    for (const p of patients.value) {
+      const card = data[String(p?._id || '')]
+      const vitals = card?.metrics?.vitals && typeof card.metrics.vitals === 'object' ? card.metrics.vitals : {}
+      if (!Object.keys(vitals).length) continue
+      const merged = mergeVitals(p.vitals || {}, vitals)
+      p.vitals = merged
+      p.alertLevel = mergeAlertLevel(p, calcLevel(merged))
+      updated++
+    }
+    if (updated) syncOverviewCacheSnapshot()
   } catch {
     // 静默失败，卡片会自行加载
   }

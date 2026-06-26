@@ -13,6 +13,7 @@ from bson import ObjectId
 
 from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
+from app.clinical_documents.daily_progress_renderer import render_daily_progress_from_structured
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -124,6 +125,38 @@ class ClinicalDocumentGenerator:
             sort=[("calc_time", -1)],
         )
 
+    async def _latest_daily_progress_summary(self, patient_id: str) -> str:
+        try:
+            draft = await self.db.col("clinical_document_drafts").find_one(
+                {"patient_id": patient_id, "doc_type": {"$in": ["progress_note_24h", "daily_progress"]}, "status": {"$in": ["finalized", "draft", "saved"]}},
+                sort=[("updated_at", -1)],
+            )
+            content = (draft or {}).get("current_content") if isinstance(draft, dict) else None
+            preview = (content or {}).get("note_preview") if isinstance(content, dict) else {}
+            text = str((preview or {}).get("final_text_override") or (preview or {}).get("generated_text") or "").strip()
+            if text:
+                for marker in ("今日评估：", "今日评估:"):
+                    if marker in text:
+                        return text.split(marker, 1)[1].split("\n", 1)[0].strip("。 ")
+                return text.splitlines()[0].strip("。 ")
+        except Exception:
+            pass
+        try:
+            score = await self.db.col("score").find_one(
+                {"patient_id": patient_id, "score_type": "clinical_document", "doc_type": "daily_progress"},
+                sort=[("calc_time", -1)],
+            )
+            document = (score or {}).get("document") if isinstance(score, dict) else {}
+            text = str((document or {}).get("document_text") or (score or {}).get("summary") or "").strip()
+            if text:
+                for marker in ("今日评估：", "今日评估:"):
+                    if marker in text:
+                        return text.split(marker, 1)[1].split("\n", 1)[0].strip("。 ")
+                return text.splitlines()[0].strip("。 ")
+        except Exception:
+            pass
+        return ""
+
     async def extract_structured_data(self, patient_id: str, required_fields: list[str], time_range: dict[str, Any] | None = None) -> dict[str, Any] | None:
         patient_doc = await self._load_patient(patient_id)
         if not patient_doc:
@@ -140,6 +173,7 @@ class ClinicalDocumentGenerator:
         facts = await self.alert_engine._collect_patient_facts(patient_doc, patient_doc.get("_id")) if hasattr(self.alert_engine, "_collect_patient_facts") else {}
         reasoning_doc = await self._latest_clinical_reasoning(patient_id)
         proactive_doc = await self._latest_proactive_plan(patient_id)
+        previous_daily_progress = await self._latest_daily_progress_summary(patient_id)
         nursing_context = None
         if hasattr(self.alert_engine, "_collect_nursing_context"):
             try:
@@ -204,6 +238,7 @@ class ClinicalDocumentGenerator:
             "treatments": drugs[:20],
             "evidence": (reasoning_doc or {}).get("evidence_sources") or [],
             "diagnosis": patient_doc.get("clinicalDiagnosis") or patient_doc.get("admissionDiagnosis") or "",
+            "previous_daily_progress_summary": previous_daily_progress,
         }
         if required_fields:
             structured["requested_fields"] = [field for field in required_fields]
@@ -487,6 +522,25 @@ class ClinicalDocumentGenerator:
         }
 
     def _normalize_document(self, raw: dict[str, Any], template: DocumentTemplate, structured_data: dict[str, Any], rag_hits: list[dict[str, Any]]) -> dict[str, Any]:
+        if template.doc_type == "daily_progress":
+            result = render_daily_progress_from_structured(structured_data)
+            normalized = {
+                "title": str(result.get("title") or template.title),
+                "sections": result.get("sections") or [],
+                "document_text": str(result.get("document_text") or ""),
+                "key_facts_used": result.get("key_facts_used") or [],
+                "risk_profile": result.get("risk_profile") or "uncertain",
+                "evidence_sources": [
+                    {
+                        "chunk_id": str(item.get("chunk_id") or ""),
+                        "source": str(item.get("source") or ""),
+                        "recommendation": str(item.get("recommendation") or ""),
+                    }
+                    for item in rag_hits[:6]
+                ],
+            }
+            normalized["quality_check"] = self._quality_checker(normalized, structured_data)
+            return normalized
         result = raw if isinstance(raw, dict) else {}
         title = str(result.get("title") or template.title).strip() or template.title
         sections = result.get("sections") if isinstance(result.get("sections"), list) else []
