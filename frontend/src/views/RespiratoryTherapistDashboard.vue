@@ -111,11 +111,17 @@
         <a-tabs>
           <a-tab-pane key="deterioration" :tab="`呼吸恶化预警 ${respiratoryDeteriorationRows.length}`">
             <div class="sbt-list">
-              <article v-for="item in respiratoryDeteriorationRows" :key="`deterioration-${item.patient_id}`" :class="['sbt-card', item.tone === 'danger' ? 'danger' : '']">
-                <div>
-                  <strong>{{ item.bed_no || '--' }}床 {{ item.name || '患者' }}</strong>
-                  <span>{{ item.reason }}</span>
-                  <span>S/F {{ item.sfText }} · P/F {{ fmtVentParam('pf_ratio', item.pf_ratio) }} · FiO2 {{ fmtVentParam('fio2', item.fio2) }} · experimental</span>
+              <article v-for="item in respiratoryDeteriorationRows" :key="`deterioration-${item.patient_id}`" :class="['deterioration-card', item.tone === 'danger' ? 'danger' : '']">
+                <div class="deterioration-main">
+                  <div class="deterioration-title">
+                    <strong>{{ item.bed_no || '--' }}床 {{ item.name || '患者' }}</strong>
+                    <a-tag :color="item.tone === 'danger' ? 'red' : 'gold'">{{ item.tone === 'danger' ? '优先复核' : '趋势关注' }}</a-tag>
+                  </div>
+                  <span>{{ item.actionText }}</span>
+                  <div class="deterioration-metrics">
+                    <b v-for="metric in item.metrics" :key="metric.label"><i>{{ metric.label }}</i>{{ metric.value }}</b>
+                    <em>试验性</em>
+                  </div>
                 </div>
                 <div class="sbt-actions">
                   <a-button size="small" @click="openPatient(item)">查看</a-button>
@@ -404,12 +410,18 @@ const respiratoryDeteriorationRows = computed(() => {
         reasons.push(`安全评分 ${Math.round(score)}`)
         priority += score < 60 ? 3 : 1
       }
+      const metrics = [
+        { label: 'P/F', value: Number.isFinite(pf) && pf > 0 ? Math.round(pf) : '—' },
+        { label: 'FiO2', value: Number.isFinite(fio2Percent) ? `${Math.round(Number(fio2Percent))}%` : '—' },
+        { label: '评分', value: Number.isFinite(score) ? Math.round(score) : '—' },
+      ]
       return {
         ...row,
         priority,
         tone: priority >= 5 ? 'danger' : 'warning',
         reason: reasons.join(' / '),
-        sfText: row?.sf_ratio != null ? Math.round(Number(row.sf_ratio)) : '待接口计算',
+        actionText: reasons.length ? `建议床旁复核：${reasons.slice(0, 3).join('、')}` : '建议床旁复核氧合趋势',
+        metrics,
       }
     })
     .filter((row: any) => row.priority > 0)
@@ -921,6 +933,65 @@ p { margin: 6px 0 0; color: var(--text-secondary); }
 }
 .sbt-card.muted { border-color: rgba(251,191,36,.2); }
 .sbt-card.danger { border-color: rgba(251,113,133,.24); }
+.deterioration-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(245,158,11,.22);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface),.28);
+}
+.deterioration-card.danger {
+  border-color: rgba(248,113,113,.3);
+}
+.deterioration-main {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.deterioration-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.deterioration-title strong {
+  color: var(--text-primary);
+  font-size: 15px;
+}
+.deterioration-main > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.deterioration-metrics {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.deterioration-metrics b,
+.deterioration-metrics em {
+  padding: 5px 8px;
+  border-radius: var(--card-radius);
+  background: rgba(125, 211, 252, .08);
+  border: 1px solid rgba(125,211,252,.14);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1;
+}
+.deterioration-metrics i {
+  margin-right: 4px;
+  color: var(--text-secondary);
+  font-style: normal;
+}
+.deterioration-metrics em {
+  color: var(--text-secondary);
+  background: transparent;
+}
 .sbt-actions {
   display: flex;
   gap: 8px;
