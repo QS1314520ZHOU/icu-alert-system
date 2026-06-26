@@ -14,6 +14,8 @@ export const postSbtStatus = (patientId: string, payload: Record<string, any>) =
   api.post(`/api/respiratory/sbt/${patientId}/status`, payload)
 export const getVentilatorTimeline = (patientId: string, hours = 72) =>
   api.get(`/api/respiratory/${patientId}/ventilator-timeline`, { params: { hours } })
+export const getRespiratoryDeteriorationForecast = (patientId: string) =>
+  api.get(`/api/respiratory/${patientId}/deterioration-forecast`)
 export const getAirwayRecords = (patientId: string) => api.get(`/api/respiratory/${patientId}/airway-records`)
 export const postAirwayRecord = (patientId: string, payload: Record<string, any>) =>
   api.post(`/api/respiratory/${patientId}/airway-records`, payload)

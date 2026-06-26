@@ -45,6 +45,7 @@ class ScannerSpec:
     interval_key: str
     default_interval: int
     initial_delay: int
+    maturity: str = "experimental"
 
 
 class BaseScanner(ABC):
@@ -88,6 +89,7 @@ class BaseScanner(ABC):
             await self.engine.db.col("scanner_runs").insert_one(
                 {
                     "scanner_name": self.name,
+                    "maturity": self.spec.maturity,
                     "status": status,
                     "duration_ms": round(float(duration_ms or 0), 2),
                     "error": _sanitize_scanner_error(error),

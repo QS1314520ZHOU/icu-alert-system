@@ -5,16 +5,11 @@ import re
 from datetime import datetime, timedelta
 from typing import Any
 
+from app.alert_engine.clinical_commons import EntityResolver, parse_dt
+
 
 def _parse_dt(value: Any) -> datetime | None:
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
-        return None
+    return parse_dt(value)
 
 
 def _to_num(value: Any) -> float | None:
@@ -106,7 +101,7 @@ class VteProphylaxisMixin:
             {"pid": pid_str},
             {
                 "executeTime": 1, "startTime": 1, "orderTime": 1,
-                "drugName": 1, "orderName": 1, "route": 1, "routeName": 1, "orderType": 1,
+                "drugCode": 1, "orderCode": 1, "drugName": 1, "orderName": 1, "route": 1, "routeName": 1, "orderType": 1,
             },
         ).sort("executeTime", -1).limit(1200)
         docs: list[dict] = []
@@ -126,7 +121,20 @@ class VteProphylaxisMixin:
             ("alert_engine", "vte_prophylaxis", "pharm_prophylaxis_keywords"),
             ["依诺肝素", "那曲肝素", "达肝素", "低分子肝素", "普通肝素", "肝素", "fondaparinux", "依度沙班", "利伐沙班"],
         )
-        return any(self._contains_any(self._drug_name_text(d), lmwh_kw) for d in docs)
+        resolver = EntityResolver(self.config)
+        prophylaxis_codes = self._get_cfg_list(("alert_engine", "vte_prophylaxis", "pharm_prophylaxis_order_codes"), [])
+        for doc in docs:
+            resolved = resolver.resolve_drug(doc)
+            if resolved.get("match_method") == "code" and (
+                str(resolved.get("code") or "") in prophylaxis_codes
+                or str(resolved.get("atc_class") or "").upper().startswith("B01")
+            ):
+                doc["vte_match_method"] = "code"
+                return True
+            if self._contains_any(self._drug_name_text(doc), lmwh_kw):
+                doc["vte_match_method"] = "keyword"
+                return True
+        return False
 
     def _has_hormonal_tx(self, docs: list[dict]) -> bool:
         kw = self._get_cfg_list(
@@ -163,7 +171,11 @@ class VteProphylaxisMixin:
 
         # 2) 医嘱/执行记录：扩大到 orderName/route/orderType 等文本
         drug_docs = await self._get_recent_drug_docs(pid_str, since)
+        mech_codes = self._get_cfg_list(("alert_engine", "vte_prophylaxis", "mechanical_order_codes"), [])
         for doc in drug_docs:
+            order_code = str(doc.get("orderCode") or doc.get("drugCode") or "").strip()
+            if mech_codes and order_code in mech_codes:
+                return True
             text = self._drug_name_text(doc)
             if self._contains_any(text, mech_order_kw) and not self._contains_any(text, neg_kw):
                 return True
@@ -201,6 +213,10 @@ class VteProphylaxisMixin:
             ("alert_engine", "vte_prophylaxis", "mobility_positive_keywords"),
             ["下床", "活动", "行走", "可活动", "ambulation", "walking"],
         )
+        passive_kw = self._get_cfg_list(
+            ("alert_engine", "vte_prophylaxis", "passive_mobility_keywords"),
+            ["翻身", "被动活动", "passive range", "passive rom", "被动"],
+        )
         since = now - timedelta(hours=96)
         pid_str = str(pid)
         cursor = self.db.col("bedside").find(
@@ -217,7 +233,7 @@ class VteProphylaxisMixin:
             text = " ".join(str(doc.get(k) or "") for k in ("code", "name", "paramName", "itemName", "remark", "strVal")).lower()
             if not text:
                 continue
-            if self._contains_any(text, mobile_kw):
+            if self._contains_any(text, mobile_kw) and not self._contains_any(text, passive_kw):
                 latest_mobile = t if latest_mobile is None else max(latest_mobile, t)
             if self._contains_any(text, bedrest_kw):
                 latest_immobile = t if latest_immobile is None else max(latest_immobile, t)

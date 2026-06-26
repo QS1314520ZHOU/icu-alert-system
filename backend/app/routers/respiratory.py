@@ -15,6 +15,7 @@ from app.services.respiratory_service import (
     upsert_airway_plan,
     ventilator_timeline,
 )
+from app import runtime
 
 router = APIRouter(prefix="/api/respiratory", tags=["respiratory"])
 
@@ -72,6 +73,11 @@ async def sbt_status(patient_id: str, request: Request, payload: dict = Body(def
 @router.get("/{patient_id}/ventilator-timeline")
 async def patient_ventilator_timeline(patient_id: str, hours: int = Query(72, ge=24, le=168)):
     return await ventilator_timeline(patient_id, hours)
+
+
+@router.get("/{patient_id}/deterioration-forecast")
+async def patient_deterioration_forecast(patient_id: str):
+    return {"code": 0, **await runtime.alert_engine.latest_respiratory_deterioration_forecast(patient_id)}
 
 
 @router.get("/{patient_id}/airway-records")

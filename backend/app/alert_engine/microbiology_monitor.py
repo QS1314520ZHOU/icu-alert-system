@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Any
 
+from app.alert_engine.features.mdro_features import MDRO_FEATURE_SCHEMA_VERSION, build_mdro_screening_features
 from .antibiotic_stewardship import _parse_dt
 from app.utils.labs import _lab_time
 from app.utils.parse import _parse_number
@@ -240,6 +241,16 @@ class MicrobiologyMonitorMixin:
                 return str(mdro_type)
         return None
 
+    async def _latest_prior_mdro_alert(self, pid_str: str, since: datetime) -> dict | None:
+        return await self.db.col("alert_records").find_one(
+            {
+                "patient_id": pid_str,
+                "alert_type": {"$in": ["mdro_detected", "mdro_screening_trigger"]},
+                "created_at": {"$gte": since},
+            },
+            sort=[("created_at", -1)],
+        )
+
     async def scan_microbiology(self) -> None:
         suppression = self.config.yaml_cfg.get("alert_engine", {}).get("suppression", {})
         same_rule_sec = int(suppression.get("same_rule_same_patient_seconds", 1800))
@@ -283,8 +294,58 @@ class MicrobiologyMonitorMixin:
 
             susceptibility_reports = await self._parse_susceptibility_report(his_pid, since_14d)
             current_drugs = await self._get_current_antibiotic_courses(pid_str, now, antibiotic_names)
+            mdro_trigger_cfg = self.config.yaml_cfg.get("alert_engine", {}).get("microbiology", {}).get("mdro_screening_trigger", {})
+            mdro_trigger_cfg = mdro_trigger_cfg if isinstance(mdro_trigger_cfg, dict) else {}
+            prior_mdro = await self._latest_prior_mdro_alert(
+                pid_str,
+                now - timedelta(days=int(mdro_trigger_cfg.get("prior_mdro_lookback_days", 90) or 90)),
+            )
+            mdro_features = build_mdro_screening_features(
+                patient=patient_doc,
+                susceptibility_reports=susceptibility_reports,
+                current_drugs=current_drugs,
+                prior_mdro_alert=prior_mdro,
+                now=now,
+                cfg=mdro_trigger_cfg,
+            )
+            if mdro_features.get("trigger"):
+                rule_id = "MICRO_MDRO_SCREENING_TRIGGER"
+                if not await self._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                    alert = await self._create_alert(
+                        rule_id=rule_id,
+                        name="MDRO high-risk screening trigger",
+                        category="infection_control",
+                        alert_type="mdro_screening_trigger",
+                        severity="high",
+                        parameter="mdro_screening_score",
+                        condition={"operator": ">=", "threshold": mdro_features.get("threshold")},
+                        value=mdro_features.get("score"),
+                        patient_id=pid_str,
+                        patient_doc=patient_doc,
+                        device_id=None,
+                        source_time=now,
+                        extra={
+                            "maturity": "experimental",
+                            "feature_schema_version": MDRO_FEATURE_SCHEMA_VERSION,
+                            "data_source": "mongo",
+                            "validation_status": "internal_only",
+                            "features": mdro_features.get("feature_vector") or {},
+                            "factors": mdro_features.get("factors") or [],
+                            "data_completeness": mdro_features.get("data_completeness") or {},
+                            "suggestion": "Review contact isolation status and consider MDRO screening per local infection-control policy. Experimental signal only.",
+                        },
+                        explanation={
+                            "summary": "Patient meets experimental MDRO high-risk screening trigger.",
+                            "evidence": [str(item.get("evidence") or item.get("label") or "") for item in (mdro_features.get("factors") or [])],
+                            "suggestion": "Confirm indication with infection-control workflow; do not treat this as a confirmed MDRO result.",
+                            "text": "",
+                        },
+                    )
+                    if alert:
+                        triggered += 1
 
             # A. 覆盖不足检查
+            mismatches = await self._check_coverage_mismatch(pid_str, his_pid, susceptibility_reports, current_drugs)
             mismatches = await self._check_coverage_mismatch(pid_str, his_pid, susceptibility_reports, current_drugs)
             for mismatch in mismatches:
                 rule_id = "MICRO_COVERAGE_MISMATCH"

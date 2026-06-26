@@ -131,6 +131,8 @@ ai_service:
     icarefm_dir: "icarefm"
     cql_sepsis_dir: "cql-sepsis"
     chronos_dir: "chronos"
+    respiratory_forecast_dir: "respiratory-forecast"
+    mdro_control_dir: "mdro-control"
     counterfactual_dir: "counterfactual"
     knowledge_pretrain_dir: "knowledge-guided-pretrain"
   digital_twin:
@@ -376,6 +378,7 @@ alert_engine:
     trajectory_drift_scanner: 3600
     temporal_risk_scanner: 900
     ventilator: 600
+    respiratory_deterioration: 900
     ventilator_asynchrony: 1800
     diaphragm_protection: 900
     drug_safety: 1800
@@ -423,6 +426,19 @@ alert_engine:
   suppression:
     same_rule_same_patient_seconds: 1800
     max_alerts_per_patient_per_hour: 10
+
+  respiratory_deterioration:
+    enabled: true
+    # 待 ICU 医师审核确认：以下阈值仅用于实验性 SpO2/FiO2 趋势脚手架。
+    history_hours: 12
+    horizon_hours: 6
+    min_points: 4
+    pairing_gap_minutes: 20
+    sf_warning_threshold: 235
+    sf_high_threshold: 190
+    sf_drop_warning: 30
+    sf_drop_high: 60
+    max_patients: 120
 
   patient_baseline:
     enabled: true
@@ -1095,6 +1111,11 @@ alert_engine:
       cycling_flow_ratio: ["param_vent_cycling_flow_ratio"]
 
   microbiology:
+    mdro_screening_trigger:
+      # 待 ICU 医师审核确认：实验性 MDRO 筛查触发阈值，仅用于提醒复核筛查/隔离流程。
+      trigger_score_threshold: 3
+      prior_mdro_lookback_days: 90
+      broad_antibiotic_keywords: ["meropenem", "imipenem", "vancomycin", "linezolid", "tigecycline", "缇庣綏鍩瑰崡", "浜氳儼鍩瑰崡", "涓囧彜闇夌礌"]
     mdro_keywords:
       MRSA: ["mrsa", "耐甲氧西林金黄色葡萄球菌"]
       CRE: ["cre", "碳青霉烯耐药肠杆菌", "耐碳青霉烯"]
@@ -1248,10 +1269,13 @@ alert_engine:
   glycemic_control:
     cv_warning_pct: 36
     low_warning_mmol: 3.9
-    low_critical_mmol: 2.2
+    # 待 ICU 医师审核确认：常用 ICU 低血糖危急值默认 <2.8 mmol/L。
+    low_critical_mmol: 2.8
     drop_rate_warning_mmol_per_h: 3
     insulin_recheck_hours: 2
     high_threshold_mmol: 10
+    # 待 ICU 医师审核确认：常用 ICU 高血糖危急值默认 >22.2 mmol/L。
+    high_critical_mmol: 22.2
     high_consecutive_count: 3
     insulin_lookback_hours: 12
     min_points_for_cv: 4

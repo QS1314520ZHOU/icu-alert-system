@@ -200,6 +200,21 @@
         <a-descriptions-item label="RASS">{{ fmtVentParam('rass', drawerPatient.rass) }}</a-descriptions-item>
       </a-descriptions>
       <a-divider>参数时间线</a-divider>
+      <section class="forecast-card">
+        <div class="forecast-card__head">
+          <div>
+            <span>呼吸恶化预警</span>
+            <strong>{{ forecastView.title }}</strong>
+          </div>
+          <a-tag :color="forecastView.color">experimental</a-tag>
+        </div>
+        <div class="forecast-grid">
+          <article><span>S/F</span><strong>{{ forecastView.sfRatio }}</strong></article>
+          <article><span>6h预测</span><strong>{{ forecastView.projected }}</strong></article>
+          <article><span>完整度</span><strong>{{ forecastView.completeness }}</strong></article>
+        </div>
+        <p>{{ forecastView.note }}</p>
+      </section>
       <a-timeline>
         <a-timeline-item v-for="(item, idx) in timeline" :key="idx">
           {{ fmt(item.time) }} · {{ item.mode || '模式—' }} / FiO2 {{ fmtVentParam('fio2', item.fio2) }} / PEEP {{ fmtVentParam('peep', item.peep) }} / VT(set) {{ fmtVentParam('vt_set', item.vt_set) }} / Pplat {{ fmtVentParam('pplat', item.pplat) }} / C_STAT {{ fmtVentParam('c_stat', item.c_stat) }} / DP {{ fmtVentParam('driving_pressure', item.driving_pressure) }} / EtCO2 {{ fmtVentParam('etco2', item.etco2) }} / EE {{ fmtVentParam('energy_expenditure', item.energy_expenditure) }}
@@ -260,6 +275,7 @@ import {
   closeRespiratoryWorklistTask,
   getAirwayPlan,
   getRespiratoryDashboard,
+  getRespiratoryDeteriorationForecast,
   getVentilatorTimeline,
   postAirwayPlan,
   postAirwayRecord,
@@ -282,6 +298,7 @@ const drawerOpen = ref(false)
 const drawerPatient = ref<any>(null)
 const timeline = ref<any[]>([])
 const airwayPlan = ref<any>({})
+const deteriorationForecast = ref<any>({})
 const riskOptions = [
   { value: 'all', label: '全部风险' },
   { value: '高驱动压', label: '高驱动压' },
@@ -363,6 +380,22 @@ const airwayPlanView = computed(() => {
   }
 })
 
+const forecastView = computed(() => {
+  const row = deteriorationForecast.value || {}
+  const features = row.features || {}
+  const forecast = row.forecast || {}
+  const completeness = row.data_completeness || {}
+  const severity = String(row.severity || row.risk_level || 'none').toLowerCase()
+  const ratio = Number(completeness.completeness_ratio)
+  return {
+    title: row.available ? (severity === 'high' ? '需优先复核' : severity === 'warning' ? '趋势需关注' : '暂无明显恶化') : '数据不足',
+    color: severity === 'high' ? 'red' : severity === 'warning' ? 'gold' : 'blue',
+    sfRatio: features.latest_sf_ratio != null ? Math.round(Number(features.latest_sf_ratio)) : '—',
+    projected: forecast.projected_sf_ratio != null ? Math.round(Number(forecast.projected_sf_ratio)) : '—',
+    completeness: Number.isFinite(ratio) ? `${Math.round(ratio * 100)}%` : '—',
+    note: row.available ? `特征版本 ${row.feature_schema_version || features.feature_schema_version || '—'}，仅作实验性趋势提示。` : (row.unavailable_reason || '缺少可配对的 SpO2/FiO2 数据。'),
+  }
+})
 function fmt(v: any) { return formatBeijingTime(v, '—') }
 function fmtVentParam(key: string, value: any) {
   if (value === null || value === undefined || value === '') return '—'
@@ -465,9 +498,14 @@ async function closeRespTask(item: any) {
 async function openPatient(row: any) {
   drawerPatient.value = row
   drawerOpen.value = true
-  const [tl, plan] = await Promise.all([getVentilatorTimeline(row.patient_id), getAirwayPlan(row.patient_id)])
+  const [tl, plan, forecast] = await Promise.all([
+    getVentilatorTimeline(row.patient_id),
+    getAirwayPlan(row.patient_id),
+    getRespiratoryDeteriorationForecast(row.patient_id).catch(() => ({ data: {} })),
+  ])
   timeline.value = tl.data?.timeline || []
   airwayPlan.value = plan.data?.plan || {}
+  deteriorationForecast.value = forecast.data || {}
 }
 async function recordSbt(row: any, status: 'completed' | 'failed') {
   await postSbtStatus(row.patient_id, { status, note: status === 'completed' ? '呼吸治疗师工作台记录 SBT 已完成' : '呼吸治疗师工作台记录 SBT 失败，原因待补充' })
@@ -865,6 +903,44 @@ p { margin: 6px 0 0; color: var(--text-secondary); }
   display: flex;
   gap: 8px;
   margin-bottom: 10px;
+}
+.forecast-card {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(125, 211, 252, .16);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+}
+.forecast-card__head,
+.forecast-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.forecast-card__head span,
+.forecast-grid span {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.forecast-card__head strong,
+.forecast-grid strong {
+  color: var(--text-primary);
+}
+.forecast-grid article {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--card-radius);
+  background: rgba(125, 211, 252, .08);
+}
+.forecast-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 .airway-plan-card {
   display: grid;

@@ -1,55 +1,16 @@
-"""血糖管理预警"""
+"""Glycemic control alert helpers."""
 from __future__ import annotations
 
 import math
-import re
 from datetime import datetime, timedelta
 from typing import Any
 
-
-def _parse_dt(value: Any) -> datetime | None:
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
-        return None
-
-
-def _to_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    s = str(value).strip()
-    if not s:
-        return None
-    m = re.search(r"[-+]?\d+(?:\.\d+)?", s)
-    if not m:
-        return None
-    try:
-        return float(m.group(0))
-    except Exception:
-        return None
+from app.alert_engine.clinical_commons import EntityResolver, convert_unit, parse_dt
 
 
 class GlycemicControlMixin:
-    def _glu_to_mmol_l(self, value: Any, unit: Any = None) -> float | None:
-        v = _to_float(value)
-        if v is None:
-            return None
-        u = str(unit or "").lower().replace(" ", "")
-        # 常见换算: mg/dL / 18 = mmol/L
-        if "mg/dl" in u:
-            return round(v / 18.0, 3)
-        if "mmol/l" in u or "mmol" in u:
-            return round(v, 3)
-        # 无单位时，按临床经验值做兜底判断
-        if v > 35:
-            return round(v / 18.0, 3)
-        return round(v, 3)
+    def _glu_to_mmol_l(self, value: Any, unit: Any = None) -> tuple[float | None, str]:
+        return convert_unit(value, unit, "mmol/L", "glucose")
 
     async def _get_bedside_glucose_points(self, pid_str: str, since: datetime, codes: list[str]) -> list[dict]:
         if not pid_str or not codes:
@@ -61,7 +22,7 @@ class GlycemicControlMixin:
 
         points: list[dict] = []
         async for doc in cursor:
-            t = _parse_dt(doc.get("time"))
+            t = parse_dt(doc.get("time"))
             if not t:
                 continue
             raw = doc.get("fVal")
@@ -71,8 +32,22 @@ class GlycemicControlMixin:
                 raw = doc.get("value")
             if raw is None:
                 raw = doc.get("strVal")
-            val = self._glu_to_mmol_l(raw, doc.get("unit"))
+            val, unit_confidence = self._glu_to_mmol_l(raw, doc.get("unit"))
             if val is None:
+                if unit_confidence == "unknown":
+                    points.append(
+                        {
+                            "time": t,
+                            "value": None,
+                            "source": "bedside",
+                            "unit": None,
+                            "unit_confidence": "unknown",
+                            "raw_value": raw,
+                            "raw_unit": doc.get("unit"),
+                            "raw_code": doc.get("code"),
+                            "excluded_reason": "unknown_unit",
+                        }
+                    )
                 continue
             points.append(
                 {
@@ -80,6 +55,7 @@ class GlycemicControlMixin:
                     "value": val,
                     "source": "bedside",
                     "unit": "mmol/L",
+                    "unit_confidence": unit_confidence,
                     "raw_code": doc.get("code"),
                 }
             )
@@ -94,8 +70,21 @@ class GlycemicControlMixin:
             t = item.get("time")
             if not isinstance(t, datetime):
                 continue
-            val = self._glu_to_mmol_l(item.get("value"), item.get("unit"))
+            val, unit_confidence = self._glu_to_mmol_l(item.get("raw_value", item.get("value")), item.get("unit"))
             if val is None:
+                if unit_confidence == "unknown":
+                    points.append(
+                        {
+                            "time": t,
+                            "value": None,
+                            "source": "lab",
+                            "unit": None,
+                            "unit_confidence": "unknown",
+                            "raw_value": item.get("raw_value", item.get("value")),
+                            "raw_unit": item.get("unit"),
+                            "excluded_reason": "unknown_unit",
+                        }
+                    )
                 continue
             points.append(
                 {
@@ -103,6 +92,7 @@ class GlycemicControlMixin:
                     "value": val,
                     "source": "lab",
                     "unit": "mmol/L",
+                    "unit_confidence": unit_confidence,
                     "raw_unit": item.get("unit"),
                 }
             )
@@ -114,20 +104,32 @@ class GlycemicControlMixin:
         cursor = self.db.col("drugExe").find(
             {"pid": pid_str},
             {
-                "executeTime": 1, "startTime": 1, "orderTime": 1,
-                "drugName": 1, "orderName": 1, "route": 1, "routeName": 1, "orderType": 1, "exeMethod": 1,
+                "executeTime": 1,
+                "startTime": 1,
+                "orderTime": 1,
+                "drugCode": 1,
+                "orderCode": 1,
+                "drugName": 1,
+                "orderName": 1,
+                "route": 1,
+                "routeName": 1,
+                "orderType": 1,
+                "exeMethod": 1,
             },
         ).sort("executeTime", -1).limit(600)
 
         docs: list[dict] = []
         async for doc in cursor:
-            t = _parse_dt(doc.get("executeTime")) or _parse_dt(doc.get("startTime")) or _parse_dt(doc.get("orderTime"))
+            t = parse_dt(doc.get("executeTime")) or parse_dt(doc.get("startTime")) or parse_dt(doc.get("orderTime"))
             if not t or t < since:
                 continue
             docs.append({**doc, "_event_time": t})
         return docs
 
     def _is_insulin_doc(self, doc: dict, insulin_keywords: list[str]) -> bool:
+        resolved = EntityResolver(self.config).resolve_drug(doc)
+        if resolved.get("match_method") == "code" and str(resolved.get("atc_class") or "").upper().startswith("A10A"):
+            return True
         text = " ".join(str(doc.get(k) or "") for k in ("drugName", "orderName")).lower()
         return any(k.lower() in text for k in insulin_keywords)
 

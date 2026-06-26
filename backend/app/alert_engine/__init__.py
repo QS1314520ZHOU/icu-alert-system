@@ -47,6 +47,7 @@ from .trend_analyzer import TrendMixin
 from .vte_prophylaxis import VteProphylaxisMixin
 from .vital_signs import VitalSignsMixin
 from .ventilator import VentilatorMixin
+from .respiratory_deterioration_predictor import RespiratoryDeteriorationPredictorMixin
 from .cardiac_arrest_predictor import CardiacArrestPredictorMixin
 from .microbiology_monitor import MicrobiologyMonitorMixin
 from .nursing_workload_predictor import NursingWorkloadPredictorMixin
@@ -93,6 +94,7 @@ class AlertEngine(
     BleedingMixin,
     TemporalRiskScannerMixin,
     VentilatorMixin,
+    RespiratoryDeteriorationPredictorMixin,
     DrugSafetyMixin,
     AntibioticStewardshipMixin,
     AntimicrobialPKMixin,

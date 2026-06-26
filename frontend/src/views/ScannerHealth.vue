@@ -41,6 +41,21 @@
       </div>
     </section>
 
+    <section class="mdro-panel">
+      <div class="scanner-command-head">
+        <span>感染防控 · MDRO 高风险触发筛查</span>
+        <strong>{{ mdroAlerts.length }} 条</strong>
+      </div>
+      <div v-if="mdroAlerts.length" class="mdro-list">
+        <button v-for="item in mdroAlerts" :key="item._id || item.alert_id" type="button" @click="openPatient(item.patient_id)">
+          <strong>{{ item.bed || '--' }}床 {{ item.patient_name || '患者' }}</strong>
+          <span>{{ item.explanation?.summary || item.name || item.message || 'MDRO high-risk screening trigger' }}</span>
+          <small>experimental · {{ fmtTime(item.created_at) }}</small>
+        </button>
+      </div>
+      <div v-else class="scanner-empty">暂无 MDRO 触发筛查提醒</div>
+    </section>
+
     <section class="admin-quality-grid">
       <article class="scanner-command-card">
         <div class="scanner-command-head">
@@ -194,7 +209,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button as AButton, Card as ACard, Segmented as ASegmented, Space as ASpace, Table as ATable, message } from 'ant-design-vue'
-import { getAdminQualityClosedLoop, getScannerHealth, postScannerHealthInferOutcomes, postScannerHealthRecalculate } from '../api'
+import { getAdminQualityClosedLoop, getRecentAlerts, getScannerHealth, postScannerHealthInferOutcomes, postScannerHealthRecalculate } from '../api'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 
 const route = useRoute()
@@ -207,6 +222,7 @@ const recalculating = ref(false)
 const inferring = ref(false)
 const source = ref('')
 const quality = ref<any>({ summary: {}, rule_false_positive_rows: [], department_response_rows: [], module_usage_rows: [] })
+const mdroAlerts = ref<any[]>([])
 const dayOptions = [
   { label: '7天', value: 7 },
   { label: '30天', value: 30 },
@@ -383,6 +399,8 @@ async function loadRows() {
     focusedRow.value = rows.value.find((row) => row.review_suggestion) || rows.value[0] || null
     source.value = String(res.data?.source || '')
     quality.value = qualityRes.data || quality.value
+    const mdroRes = await getRecentAlerts(20, { ...scopedParams.value, fast: true })
+    mdroAlerts.value = (mdroRes.data?.alerts || mdroRes.data?.items || []).filter((item: any) => String(item?.alert_type || '') === 'mdro_screening_trigger')
   } finally {
     loading.value = false
   }
@@ -432,6 +450,11 @@ onMounted(() => { void loadRows() })
 .scanner-health-kpi span { display: block; color: var(--text-secondary); font-size: 12px; }
 .scanner-health-kpi strong { display: block; margin-top: 8px; color: var(--text-primary); font-size: 28px; }
 .scanner-command-grid { display: grid; grid-template-columns: 1.1fr .9fr .8fr; gap: 12px; }
+.mdro-panel { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface); }
+.mdro-list { display: grid; gap: 8px; }
+.mdro-list button { display: grid; gap: 4px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid rgba(251,191,36,.22); border-radius: var(--card-radius); background: rgba(251,191,36,.08); color: var(--text-primary); cursor: pointer; }
+.mdro-list strong { color: var(--text-primary); font-size: 13px; }
+.mdro-list span,.mdro-list small { color: var(--text-secondary); font-size: 12px; }
 .scanner-command-card { min-width: 0; padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface), transparent 32%), var(--bg-surface); }
 .scanner-command-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
 .scanner-command-head span { color: var(--text-secondary); font-size: 12px; }

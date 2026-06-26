@@ -17,6 +17,7 @@ from .scanner_temporal_risk import TemporalRiskScanner
 from .scanner_foundation_model_risk import FoundationModelRiskScanner
 from .scanner_trajectory_drift import TrajectoryDriftScanner
 from .scanner_ventilator_weaning import VentilatorWeaningScanner
+from .scanner_respiratory_deterioration import RespiratoryDeteriorationScanner
 from .scanner_diaphragm_protection import DiaphragmProtectionScanner
 from .scanner_drug_safety import DrugSafetyScanner
 from .scanner_antibiotic_stewardship import AntibioticStewardshipScanner
@@ -89,6 +90,7 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         TrajectoryDriftScanner(engine),
         TemporalRiskScanner(engine),
         VentilatorWeaningScanner(engine),
+        RespiratoryDeteriorationScanner(engine),
         NoninvasiveRespiratorySupportScanner(engine),
         VentilatorAsynchronyScanner(engine),
         DiaphragmProtectionScanner(engine),

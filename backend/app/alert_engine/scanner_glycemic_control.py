@@ -1,33 +1,7 @@
 from __future__ import annotations
 
-import math
-import re
 from datetime import datetime, timedelta
-from typing import Any
-def _parse_dt(value: Any) -> datetime | None:
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
-        return None
-def _to_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    s = str(value).strip()
-    if not s:
-        return None
-    m = re.search(r"[-+]?\d+(?:\.\d+)?", s)
-    if not m:
-        return None
-    try:
-        return float(m.group(0))
-    except Exception:
-        return None
+
 from .scanners import BaseScanner, ScannerSpec
 
 
@@ -40,6 +14,7 @@ class GlycemicControlScanner(BaseScanner):
                 interval_key="glycemic_control",
                 default_interval=300,
                 initial_delay=41,
+                maturity="validated",
             ),
         )
 
@@ -50,26 +25,28 @@ class GlycemicControlScanner(BaseScanner):
 
         cfg = self.engine.config.yaml_cfg.get("alert_engine", {}).get("glycemic_control", {})
         cv_warning_pct = float(cfg.get("cv_warning_pct", 36))
+        # Default thresholds are common ICU guardrails and must be reviewed by ICU physicians before production use.
         low_warn = float(cfg.get("low_warning_mmol", 3.9))
-        low_critical = float(cfg.get("low_critical_mmol", 2.2))
+        low_critical = float(cfg.get("low_critical_mmol", 2.8))
         drop_rate_warn = float(cfg.get("drop_rate_warning_mmol_per_h", 3))
         insulin_recheck_hours = float(cfg.get("insulin_recheck_hours", 2))
         high_threshold = float(cfg.get("high_threshold_mmol", 10))
+        high_critical = float(cfg.get("high_critical_mmol", 22.2))
         high_consecutive = int(cfg.get("high_consecutive_count", 3))
         insulin_lookback_hours = float(cfg.get("insulin_lookback_hours", 12))
         min_points_for_cv = int(cfg.get("min_points_for_cv", 4))
 
         insulin_keywords = self.engine._get_cfg_list(
             ("alert_engine", "glycemic_control", "insulin_keywords"),
-            ["胰岛素", "insulin", "门冬胰岛素", "甘精胰岛素", "赖脯胰岛素", "地特胰岛素"],
+            ["insulin"],
         )
         pump_keywords = self.engine._get_cfg_list(
             ("alert_engine", "glycemic_control", "pump_keywords"),
-            ["泵", "微泵", "泵入", "泵注", "insulin pump", "pump"],
+            ["pump"],
         )
         glucose_codes = self.engine._get_cfg_list(
             ("alert_engine", "data_mapping", "glucose", "codes"),
-            ["param_blood_glucose", "param_glu", "param_血糖", "blood_glucose"],
+            ["param_blood_glucose", "param_glu", "blood_glucose"],
         )
 
         patient_cursor = self.engine.db.col("patient").find(
@@ -94,15 +71,22 @@ class GlycemicControlScanner(BaseScanner):
 
             bedside_points = await self.engine._get_bedside_glucose_points(pid_str, since_24h, glucose_codes)
             lab_points = await self.engine._get_lab_glucose_points(his_pid, since_24h) if his_pid else []
-            points = sorted([*bedside_points, *lab_points], key=lambda x: x["time"])
+            raw_points = sorted([*bedside_points, *lab_points], key=lambda x: x["time"])
+            excluded_points = [p for p in raw_points if p.get("value") is None or p.get("unit_confidence") == "unknown"]
+            points = [p for p in raw_points if p.get("value") is not None and p.get("unit_confidence") != "unknown"]
             if not points:
                 continue
+            data_completeness = {
+                "glucose_points_total": len(raw_points),
+                "glucose_points_usable": len(points),
+                "glucose_points_excluded_unknown_unit": len(excluded_points),
+                "unit_policy": "unknown_unit_excluded_from_critical_value",
+            }
 
             latest = points[-1]
             latest_val = float(latest["value"])
             latest_t = latest["time"]
 
-            # (1) 24h CV 波动预警
             cv = self.engine._calc_cv_percent([p["value"] for p in points])
             if cv is not None and len(points) >= min_points_for_cv and cv > cv_warning_pct:
                 rule_id = "GLU_VARIABILITY_HIGH"
@@ -120,12 +104,11 @@ class GlycemicControlScanner(BaseScanner):
                         patient_doc=patient_doc,
                         device_id=None,
                         source_time=latest_t,
-                        extra={"cv_percent": cv, "points_24h": len(points), "latest_glucose": latest_val},
+                        extra={"cv_percent": cv, "points_24h": len(points), "latest_glucose": latest_val, "data_completeness": data_completeness},
                     )
                     if alert:
                         triggered += 1
 
-            # (2) 低血糖连续监测 + 快速下降预警
             low_sev = None
             low_rule = None
             low_name = None
@@ -152,12 +135,12 @@ class GlycemicControlScanner(BaseScanner):
                         patient_doc=patient_doc,
                         device_id=None,
                         source_time=latest_t,
-                        extra={"latest_glucose": latest_val, "unit": "mmol/L"},
+                        extra={"latest_glucose": latest_val, "unit": "mmol/L", "data_completeness": data_completeness},
                     )
                     if alert:
                         triggered += 1
+                continue
 
-            # 1小时下降速率
             max_drop_rate = 0.0
             drop_pair: dict | None = None
             for idx in range(1, len(points)):
@@ -193,12 +176,12 @@ class GlycemicControlScanner(BaseScanner):
                             "drop_rate_mmol_per_h": round(max_drop_rate, 2),
                             "from": {"time": drop_pair["from"]["time"], "value": drop_pair["from"]["value"]},
                             "to": {"time": drop_pair["to"]["time"], "value": drop_pair["to"]["value"]},
+                            "data_completeness": data_completeness,
                         },
                     )
                     if alert:
                         triggered += 1
 
-            # 用药记录（胰岛素泵/是否已启胰岛素）
             drug_docs = await self.engine._get_drug_records(pid_str, since_12h)
             insulin_docs = [d for d in drug_docs if self.engine._is_insulin_doc(d, insulin_keywords)]
             insulin_pump_active = any(
@@ -206,7 +189,6 @@ class GlycemicControlScanner(BaseScanner):
                 for d in insulin_docs
             )
 
-            # (3) 胰岛素泵运行中但2h未复测
             if insulin_pump_active:
                 no_recheck = (now - latest_t).total_seconds() > insulin_recheck_hours * 3600
                 if no_recheck:
@@ -229,15 +211,36 @@ class GlycemicControlScanner(BaseScanner):
                                 "last_glucose_time": latest_t,
                                 "hours_since_last_check": round((now - latest_t).total_seconds() / 3600.0, 2),
                                 "insulin_pump_active": True,
+                                "data_completeness": data_completeness,
                             },
                         )
                         if alert:
                             triggered += 1
 
-            # (4) 连续3次高血糖且未启动胰岛素
+            if latest_val > high_critical:
+                rule_id = "GLU_HYPER_CRITICAL"
+                if not await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                    alert = await self.engine._create_alert(
+                        rule_id=rule_id,
+                        name="重度高血糖",
+                        category="glycemic_control",
+                        alert_type="hyperglycemia",
+                        severity="critical",
+                        parameter="glucose",
+                        condition={"operator": ">", "threshold": high_critical},
+                        value=latest_val,
+                        patient_id=pid_str,
+                        patient_doc=patient_doc,
+                        device_id=None,
+                        source_time=latest_t,
+                        extra={"latest_glucose": latest_val, "unit": "mmol/L", "data_completeness": data_completeness},
+                    )
+                    if alert:
+                        triggered += 1
+
             streak = 0
             streak_start_time = None
-            for p in reversed(points):  # 从最新往回看
+            for p in reversed(points):
                 if p["value"] > high_threshold:
                     streak += 1
                     streak_start_time = p["time"]
@@ -250,13 +253,14 @@ class GlycemicControlScanner(BaseScanner):
                     if not await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
                         alert = await self.engine._create_alert(
                             rule_id=rule_id,
-                            name="持续高血糖未启胰岛素治疗",
+                            name="持续高血糖未启动胰岛素治疗",
                             category="glycemic_control",
                             alert_type="hyperglycemia_no_insulin",
                             severity="warning",
                             parameter="glucose",
                             condition={
                                 "high_threshold_mmol": high_threshold,
+                                "high_critical_mmol": high_critical,
                                 "consecutive_count": high_consecutive,
                                 "insulin_started": False,
                             },
@@ -269,7 +273,9 @@ class GlycemicControlScanner(BaseScanner):
                                 "consecutive_high_count": streak,
                                 "latest_glucose": latest_val,
                                 "high_threshold_mmol": high_threshold,
+                                "high_critical_mmol": high_critical,
                                 "window_start": streak_start_time,
+                                "data_completeness": data_completeness,
                             },
                         )
                         if alert:

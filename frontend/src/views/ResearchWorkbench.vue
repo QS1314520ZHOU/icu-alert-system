@@ -91,7 +91,7 @@
       </article>
     </section>
 
-    <section v-if="!cohortReady && tab !== 'prep'" class="warn-banner" @click="jumpToTab('prep')">
+    <section v-if="!cohortReady && !topicTabs.includes(tab) && tab !== 'prep'" class="warn-banner" @click="jumpToTab('prep')">
       ⚠ 请先在「数据准备」中选择研究队列
     </section>
 
@@ -105,7 +105,7 @@
             {
               active: tab === item.key,
               divider: item.type === 'divider',
-              disabled: item.type !== 'divider' && !cohortReady && item.key !== 'prep',
+              disabled: item.type !== 'divider' && !cohortReady && item.key !== 'prep' && !topicTabs.includes(item.key),
             }
           ]"
           @click="onTabSelect(item)"
@@ -782,6 +782,40 @@
           <AiAssistPanel analysis-type="correlation" :result="correlationResult" :state="ai.correlation" @generate="onAiGenerate" @copy="onAiCopy" @update-lang="onAiLang" @update-part="onAiPart" @update-text="onAiText" />
         </div>
 
+        <div v-else-if="tab === 'respiratoryForecast'" key="respiratoryForecast" class="tab-content">
+          <div class="result-card topic-status-card">
+            <div class="card-head between">
+              <span>呼吸预警模型</span>
+              <a-button size="small" :loading="topicStatusLoading" @click="loadTopicStatuses">刷新</a-button>
+            </div>
+            <div class="topic-kpi-grid">
+              <article><span>可用状态</span><strong>{{ respiratoryForecastStatus.available ? 'available' : 'unavailable' }}</strong></article>
+              <article><span>AUC</span><strong>{{ respiratoryForecastStatus.performance?.auc ?? '—' }}</strong></article>
+              <article><span>敏感度</span><strong>{{ respiratoryForecastStatus.performance?.sensitivity ?? '—' }}</strong></article>
+              <article><span>提前预警</span><strong>{{ respiratoryForecastStatus.performance?.lead_time_hours ?? '—' }}</strong></article>
+            </div>
+            <div class="topic-meta-line">feature_schema_version: {{ respiratoryForecastStatus.feature_schema_version || '—' }} · {{ respiratoryForecastStatus.validation_status || 'internal_only' }}</div>
+            <div class="topic-meta-line">{{ respiratoryForecastStatus.unavailable_reason || '模型产物与 SHAP 摘要来自 docker/icu-models 或 research_artifacts。' }}</div>
+          </div>
+        </div>
+
+        <div v-else-if="tab === 'mdroControl'" key="mdroControl" class="tab-content">
+          <div class="result-card topic-status-card">
+            <div class="card-head between">
+              <span>MDRO 防控分析</span>
+              <a-button size="small" :loading="topicStatusLoading" @click="loadTopicStatuses">刷新</a-button>
+            </div>
+            <div class="topic-kpi-grid">
+              <article><span>可用状态</span><strong>{{ mdroControlSummary.available ? 'available' : 'unavailable' }}</strong></article>
+              <article><span>回顾队列</span><strong>{{ mdroControlSummary.analyses?.retrospective_cohort?.n ?? '—' }}</strong></article>
+              <article><span>传播网络</span><strong>{{ mdroControlSummary.analyses?.transmission_network?.nodes ?? '—' }}</strong></article>
+              <article><span>WGS</span><strong>{{ mdroControlSummary.wgs?.available ? 'ready' : '占位' }}</strong></article>
+            </div>
+            <div class="topic-meta-line">feature_schema_version: {{ mdroControlSummary.feature_schema_version || '—' }} · {{ mdroControlSummary.validation_status || 'internal_only' }}</div>
+            <div class="topic-meta-line">{{ mdroControlSummary.wgs?.reason || mdroControlSummary.unavailable_reason || '展示触发式筛查、普筛成本效果与传播网络分析产物。' }}</div>
+          </div>
+        </div>
+
         <div v-else-if="tab === 'export'" key="export" class="tab-content">
           <div class="result-card">
             <div class="card-head between">
@@ -934,8 +968,10 @@ import {
   postResearchAiPlan,
   getResearchIcdSearch,
   getResearchPlatformArtifacts,
+  getResearchMdroControlSummary,
   getResearchPlatformJobs,
   getResearchPlatformStatus,
+  getResearchRespiratoryForecastStatus,
   deleteResearchCohort, postResearchExportFigure, postResearchExportTable,
   postResearchPlatformCheck,
   postResearchCohortBuild, postResearchCorrelation, postResearchRegression, postResearchRoc, postResearchSubgroup, postResearchSurvival,
@@ -1096,6 +1132,10 @@ const researchJobsError = ref('')
 const researchArtifacts = ref<Array<AnyRecord>>([])
 const researchArtifactsLoading = ref(false)
 const researchArtifactsError = ref('')
+const respiratoryForecastStatus = ref<AnyRecord>({})
+const mdroControlSummary = ref<AnyRecord>({})
+const topicStatusLoading = ref(false)
+const topicTabs = ['respiratoryForecast', 'mdroControl']
 const leftNav = [
   { key: 'prep', label: '数据准备' },
   { type: 'divider', key: 'divider-1' },
@@ -1107,6 +1147,8 @@ const leftNav = [
   { key: 'trend', label: '趋势分析' },
   { key: 'correlation', label: '相关性' },
   { type: 'divider', key: 'divider-2' },
+  { key: 'respiratoryForecast', label: '呼吸预警模型' },
+  { key: 'mdroControl', label: 'MDRO 防控分析' },
   { key: 'export', label: '导出中心' },
 ]
 
@@ -2036,6 +2078,7 @@ async function loadCohorts() {
 
 async function resolveResult(req: Promise<any>) { const res = await req; const data = res?.data || {}; if (data.async && data.task_id) { message.info('后台计算中...'); for (let i = 0; i < 120; i += 1) { const s = await getResearchAnalyticsTaskStatus(String(data.task_id)); const row = s.data || {}; if (row.status === 'completed') return row.result || {}; if (row.status === 'failed') throw new Error(row.error || '任务失败'); await new Promise((r) => setTimeout(r, 1500)) } throw new Error('任务超时') } return data.result || data }
 function ensureCohortReady(target: string): boolean {
+  if (topicTabs.includes(target)) return true
   if (target !== 'prep' && !cohortReady.value) {
     message.warning('请先在「数据准备」中选择研究队列')
     return false
@@ -2972,6 +3015,20 @@ async function loadPlatformArtifacts() {
   }
 }
 
+async function loadTopicStatuses() {
+  topicStatusLoading.value = true
+  try {
+    const [resp, mdro] = await Promise.all([
+      getResearchRespiratoryForecastStatus({ limit: 20 }).catch(() => ({ data: {} })),
+      getResearchMdroControlSummary({ limit: 20 }).catch(() => ({ data: {} })),
+    ])
+    respiratoryForecastStatus.value = resp.data || {}
+    mdroControlSummary.value = mdro.data || {}
+  } finally {
+    topicStatusLoading.value = false
+  }
+}
+
 async function loadSessions() {
   sessionListLoading.value = true
   sessionListError.value = ''
@@ -2991,7 +3048,7 @@ onMounted(async () => {
   await loadDeptNameMap()
   await loadCohorts()
   await loadSessions()
-  await Promise.allSettled([loadPlatformStatus(), loadPlatformJobs(), loadPlatformArtifacts()])
+  await Promise.allSettled([loadPlatformStatus(), loadPlatformJobs(), loadPlatformArtifacts(), loadTopicStatuses()])
   useDefaultSubgroups()
 })
 
@@ -3514,6 +3571,12 @@ onUnmounted(() => {
 .status-check { color: #66ffd8; font-weight: 600; }
 .content-panel { flex: 1; background: var(--bg-surface),0.78); border: 1px solid rgba(0,210,210,0.12); border-radius: var(--card-radius); padding: 24px 28px 40px; overflow: hidden; }
 .tab-content { display: flex; flex-direction: column; gap: 18px; }
+.topic-status-card { display: grid; gap: 14px; }
+.topic-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.topic-kpi-grid article { padding: 12px; border: 1px solid rgba(125, 167, 214, .14); border-radius: var(--card-radius); background: var(--bg-surface); }
+.topic-kpi-grid span { display: block; color: var(--text-secondary); font-size: 12px; }
+.topic-kpi-grid strong { display: block; margin-top: 6px; color: var(--text-primary); font-size: 20px; }
+.topic-meta-line { color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; }
 .analysis-section { display: flex; flex-direction: column; gap: 18px; }
 .card-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .card { background: var(--bg-surface-2); border: 1px solid rgba(0,210,210,0.15); border-radius: var(--card-radius); padding: 20px; display: flex; flex-direction: column; gap: 16px; }

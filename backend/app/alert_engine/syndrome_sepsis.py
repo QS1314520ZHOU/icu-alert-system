@@ -4,6 +4,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+from app.alert_engine.clinical_commons import EntityResolver
+
 
 class SepsisMixin:
     def _sepsis_bundle_cfg(self) -> dict:
@@ -34,11 +36,21 @@ class SepsisMixin:
     def _bundle_element_completed(self, item: Any) -> bool:
         return isinstance(item, dict) and str(item.get("status") or "") in {"met", "met_late", "not_applicable"}
 
+    def _bundle_element_on_time(self, item: Any) -> bool:
+        return isinstance(item, dict) and str(item.get("status") or "") in {"met", "not_applicable"}
+
     def _bundle_completion_ratio(self, elements: dict[str, Any]) -> float:
         relevant = [value for value in (elements or {}).values() if isinstance(value, dict)]
         if not relevant:
             return 0.0
         completed = sum(1 for item in relevant if self._bundle_element_completed(item))
+        return round(completed / len(relevant), 3)
+
+    def _bundle_on_time_ratio(self, elements: dict[str, Any]) -> float:
+        relevant = [value for value in (elements or {}).values() if isinstance(value, dict)]
+        if not relevant:
+            return 0.0
+        completed = sum(1 for item in relevant if self._bundle_element_on_time(item))
         return round(completed / len(relevant), 3)
 
     def _bundle_pending_items(self, elements: dict[str, Any]) -> list[str]:
@@ -110,6 +122,7 @@ class SepsisMixin:
         bundle_elements = recent.get("bundle_elements") if isinstance(recent, dict) and isinstance(recent.get("bundle_elements"), dict) else self._default_sepsis_bundle_elements(patient_doc)
         bundle_summary = {
             "completion_ratio": self._bundle_completion_ratio(bundle_elements),
+            "on_time_ratio": self._bundle_on_time_ratio(bundle_elements),
             "pending_items": self._bundle_pending_items(bundle_elements),
         }
         tracker_patch = {
@@ -158,7 +171,7 @@ class SepsisMixin:
             "sofa_score": (sofa or {}).get("score") if isinstance(sofa, dict) else None,
             "sofa_delta": (sofa or {}).get("delta") if isinstance(sofa, dict) else None,
             "bundle_elements": self._default_sepsis_bundle_elements(patient_doc),
-            "bundle_summary": {"completion_ratio": 0.0, "pending_items": self._bundle_pending_items(self._default_sepsis_bundle_elements(patient_doc))},
+            "bundle_summary": {"completion_ratio": 0.0, "on_time_ratio": 0.0, "pending_items": self._bundle_pending_items(self._default_sepsis_bundle_elements(patient_doc))},
             "calc_time": now,
             "created_at": now,
             "updated_at": now,
@@ -211,7 +224,16 @@ class SepsisMixin:
             ("alert_engine", "sepsis_bundle", "blood_culture_keywords"),
             ["血培养", "blood culture"],
         )
-        candidates = [row for row in rows if self._match_name_keywords(str(row.get("name") or ""), blood_keywords)]
+        resolver = EntityResolver(self.config)
+        culture_codes = self._get_cfg_list(("alert_engine", "sepsis_bundle", "blood_culture_item_codes"), [])
+        candidates = []
+        for row in rows:
+            resolved = resolver.resolve_lab_item(row)
+            row = {**row, "entity_resolution": resolved}
+            code = str(resolved.get("code") or "")
+            name = str(row.get("name") or resolved.get("name") or "")
+            if (culture_codes and code in culture_codes) or self._match_name_keywords(name, blood_keywords):
+                candidates.append(row)
         if not candidates:
             return None
         candidates.sort(key=lambda x: x.get("time") or datetime.min)
@@ -222,7 +244,7 @@ class SepsisMixin:
             if antibiotic_time and t <= antibiotic_time and t >= since:
                 return {**row, "before_antibiotic": True}
             if t >= start_time:
-                return {**row, "before_antibiotic": antibiotic_time is None or t <= antibiotic_time}
+                return {**row, "before_antibiotic": None if antibiotic_time is None else t <= antibiotic_time}
         return None
 
     def _is_crystalloid_event(self, event: dict[str, Any]) -> bool:
@@ -441,6 +463,7 @@ class SepsisMixin:
             deadline_1h=deadline_1h,
         )
         completion_ratio = self._bundle_completion_ratio(elements)
+        on_time_ratio = self._bundle_on_time_ratio(elements)
         pending_items = self._bundle_pending_items(elements)
         fully_completed = not pending_items
 
@@ -451,7 +474,7 @@ class SepsisMixin:
                 if isinstance(value, dict) and isinstance(value.get("completed_at"), datetime)
             ]
             completed_at = max(completion_times) if completion_times else now
-            within_1h = isinstance(completed_at, datetime) and completed_at <= deadline_1h
+            within_1h = isinstance(completed_at, datetime) and completed_at <= deadline_1h and on_time_ratio >= 1.0
             await self.db.col("score").update_one(
                 {"_id": tracker["_id"]},
                 {
@@ -463,6 +486,7 @@ class SepsisMixin:
                         "bundle_elements": elements,
                         "bundle_summary": {
                             "completion_ratio": completion_ratio,
+                            "on_time_ratio": on_time_ratio,
                             "pending_items": [],
                             "completed_at": completed_at,
                         },
@@ -502,6 +526,7 @@ class SepsisMixin:
                         "bundle_elements": elements,
                         "pending_items": pending_items,
                         "completion_ratio": completion_ratio,
+                        "on_time_ratio": on_time_ratio,
                     },
                 )
                 if alert:
@@ -516,7 +541,7 @@ class SepsisMixin:
                         "is_active": False,
                         "resolved_at": now,
                         "bundle_elements": elements,
-                        "bundle_summary": {"completion_ratio": completion_ratio, "pending_items": pending_items},
+                        "bundle_summary": {"completion_ratio": completion_ratio, "on_time_ratio": on_time_ratio, "pending_items": pending_items},
                         "calc_time": now,
                         "updated_at": now,
                     }
@@ -552,6 +577,7 @@ class SepsisMixin:
                         "bundle_elements": elements,
                         "pending_items": pending_items,
                         "completion_ratio": completion_ratio,
+                        "on_time_ratio": on_time_ratio,
                     },
                 )
                 if alert:
@@ -564,7 +590,7 @@ class SepsisMixin:
                         "overdue_1h_alerted": True,
                         "compliant_1h": False,
                         "bundle_elements": elements,
-                        "bundle_summary": {"completion_ratio": completion_ratio, "pending_items": pending_items},
+                        "bundle_summary": {"completion_ratio": completion_ratio, "on_time_ratio": on_time_ratio, "pending_items": pending_items},
                         "calc_time": now,
                         "updated_at": now,
                     }
@@ -577,7 +603,7 @@ class SepsisMixin:
             {
                 "$set": {
                     "bundle_elements": elements,
-                    "bundle_summary": {"completion_ratio": completion_ratio, "pending_items": pending_items},
+                    "bundle_summary": {"completion_ratio": completion_ratio, "on_time_ratio": on_time_ratio, "pending_items": pending_items},
                     "calc_time": now,
                     "updated_at": now,
                 }

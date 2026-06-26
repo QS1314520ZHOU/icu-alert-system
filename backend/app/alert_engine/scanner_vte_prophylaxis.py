@@ -39,6 +39,7 @@ class VteProphylaxisScanner(BaseScanner):
                 interval_key="vte_prophylaxis",
                 default_interval=900,
                 initial_delay=43,
+                maturity="validated",
             ),
         )
 
@@ -101,6 +102,17 @@ class VteProphylaxisScanner(BaseScanner):
             immobility_hours = await self.engine._immobility_hours(patient_doc, pid, now)
             reduced_mobility = immobility_hours >= 24
             recent_surgery = self.engine._has_recent_surgery(patient_doc, now, days=30)
+            data_completeness = {
+                "age": "present" if age is not None else "missing",
+                "bmi": "present" if bmi is not None else "missing",
+                "immobility": "present" if immobility_hours > 0 else "uncertain",
+                "diagnosis_text": "present" if txt.strip() else "missing",
+                "prophylaxis_orders": "checked",
+                "missing": [],
+            }
+            for key, value in list(data_completeness.items()):
+                if key != "missing" and value in {"missing", "uncertain"}:
+                    data_completeness["missing"].append(key)
 
             # 近72h用药与机械预防状态
             since_proph = now - timedelta(hours=prophylaxis_lookback_hours)
@@ -169,7 +181,8 @@ class VteProphylaxisScanner(BaseScanner):
                 caprini_score += float(caprini_w.get("acute_stroke_or_mi", 5))
                 caprini_details.append("acute_stroke_or_mi")
 
-            high_risk = (padua_score >= padua_high) or (caprini_score >= caprini_high)
+            assessable = not data_completeness["missing"]
+            high_risk = assessable and ((padua_score >= padua_high) or (caprini_score >= caprini_high))
 
             # 出血风险联动
             bleeding_alert = await self.engine._has_active_bleeding_alert(pid_str, lookback_hours=72)

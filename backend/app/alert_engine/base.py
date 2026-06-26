@@ -12,6 +12,7 @@ from typing import Any
 
 import numpy as np
 from app.alert_engine.acid_base_analyzer import extract_bga_temp_items
+from app.alert_engine.clinical_commons import convert_unit, urine_ml_h
 from app.alert_engine.task_queue import load_queue_settings, publish_event
 from app.services.llm_runtime import call_llm_chat
 from app.services.temporal_model_runtime import TemporalRiskModelRuntime
@@ -935,7 +936,7 @@ class BaseEngine:
                 continue
             unit = doc.get("unit") or doc.get("resultUnit") or ""
             value = _convert_lab_value(test_key, num, unit)
-            series.append({"time": t, "value": value, "unit": unit})
+            series.append({"time": t, "value": value, "unit": unit, "raw_value": raw_val})
 
         cursor = self.db.dc_col("VI_ICU_EXAM_ITEM").find({"hisPid": his_pid}).sort("authTime", -1).limit(limit)
         async for doc in cursor:
@@ -953,7 +954,7 @@ class BaseEngine:
                 continue
             unit = doc.get("unit") or doc.get("resultUnit") or ""
             value = _convert_lab_value(test_key, num, unit)
-            series.append({"time": t, "value": value, "unit": unit})
+            series.append({"time": t, "value": value, "unit": unit, "raw_value": raw_val})
         series.sort(key=lambda x: x["time"])
         return series
 
@@ -1207,69 +1208,109 @@ class BaseEngine:
         return None
 
     async def _get_urine_rate(self, pid, patient_doc: dict | None, hours: int) -> float | None:
-        series = await self._get_urine_series(pid, hours=hours)
-        if not series:
+        ml_h = await urine_ml_h(self.db, self.config, self._pid_str(pid), datetime.now(), hours=hours)
+        if ml_h is None:
             return None
-        avg_ml_per_h = sum(p["value"] for p in series) / len(series)
         weight = self._get_patient_weight(patient_doc)
         if not weight:
             return None
-        return avg_ml_per_h / weight
+        return round(float(ml_h) / float(weight), 4)
 
     async def _calc_aki_stage(self, patient_doc: dict | None, pid, his_pid) -> dict | None:
         since_7d = datetime.now() - timedelta(days=7)
         series = await self._get_lab_series(his_pid, "cr", since_7d, limit=300)
-        if not series:
-            return None
-        current = series[-1]
-        baseline = min(s["value"] for s in series)
-        baseline_meta = await self._get_patient_baseline(pid, "cr", hours=12, patient_doc=patient_doc)
-        baseline_mean = _parse_number((baseline_meta or {}).get("mean"))
-        if baseline_mean is not None and baseline_mean > 0:
-            baseline = min(baseline, baseline_mean)
-        ratio = current["value"] / baseline if baseline > 0 else None
-
-        since_48h = datetime.now() - timedelta(hours=48)
-        series_48 = [s for s in series if s["time"] >= since_48h]
-        inc_48 = None
-        if series_48:
-            inc_48 = current["value"] - min(s["value"] for s in series_48)
-
+        completeness = {
+            "creatinine": "missing" if not series else "present",
+            "creatinine_unit": "missing",
+            "urine_output": "missing",
+            "weight": "present" if self._get_patient_weight(patient_doc) else "missing",
+            "missing": [],
+            "excluded": [],
+        }
         stage = 0
         condition = {}
-        if inc_48 is not None and inc_48 >= 26.5:
-            stage = max(stage, 1)
-            condition["delta_48h"] = inc_48
-        if ratio is not None:
-            absolute_cr_stage3 = False
-            if current["value"] >= 353.6:
-                if (ratio is not None and ratio >= 1.5) or (inc_48 is not None and inc_48 >= 26.5):
-                    absolute_cr_stage3 = True
-                elif baseline_mean is not None and current["value"] >= baseline_mean + 88.4:
-                    absolute_cr_stage3 = True
-            if ratio >= 3 or absolute_cr_stage3:
-                stage = max(stage, 3)
-            elif ratio >= 2:
-                stage = max(stage, 2)
-            elif ratio >= 1.5:
-                stage = max(stage, 1)
-            condition["ratio"] = ratio
-            if absolute_cr_stage3:
-                condition["absolute_cr_stage3"] = True
+        trigger_paths: list[str] = []
+        current = None
+        baseline = None
+        baseline_mean = None
+        ratio = None
+        inc_48 = None
+        cr_stage = 0
 
+        strict_series = []
+        for item in series:
+            value, confidence = convert_unit(item.get("raw_value", item.get("value")), item.get("unit"), "umol/L", "creatinine")
+            if confidence != "known" or value is None:
+                completeness["creatinine_unit"] = confidence
+                completeness["excluded"].append("creatinine_unit_unknown")
+                continue
+            strict_series.append({**item, "value": value})
+        if strict_series:
+            completeness["creatinine"] = "present"
+            completeness["creatinine_unit"] = "known"
+            current = strict_series[-1]
+            baseline = min(s["value"] for s in strict_series)
+            baseline_meta = await self._get_patient_baseline(pid, "cr", hours=12, patient_doc=patient_doc)
+            baseline_mean = _parse_number((baseline_meta or {}).get("mean"))
+            if baseline_mean is not None and baseline_mean > 0:
+                baseline = min(baseline, baseline_mean)
+            ratio = current["value"] / baseline if baseline and baseline > 0 else None
+
+            since_48h = datetime.now() - timedelta(hours=48)
+            series_48 = [s for s in strict_series if s["time"] >= since_48h]
+            if series_48:
+                inc_48 = current["value"] - min(s["value"] for s in series_48)
+
+            if inc_48 is not None and inc_48 >= 26.5:
+                cr_stage = max(cr_stage, 1)
+                condition["delta_48h_umol_l"] = round(inc_48, 3)
+            if ratio is not None:
+                absolute_cr_stage3 = False
+                if current["value"] >= 353.6:
+                    if ratio >= 1.5 or (inc_48 is not None and inc_48 >= 26.5):
+                        absolute_cr_stage3 = True
+                    elif baseline_mean is not None and current["value"] >= baseline_mean + 88.4:
+                        absolute_cr_stage3 = True
+                if ratio >= 3 or absolute_cr_stage3:
+                    cr_stage = max(cr_stage, 3)
+                elif ratio >= 2:
+                    cr_stage = max(cr_stage, 2)
+                elif ratio >= 1.5:
+                    cr_stage = max(cr_stage, 1)
+                condition["ratio"] = round(ratio, 3)
+                if absolute_cr_stage3:
+                    condition["absolute_cr_stage3"] = True
+            if cr_stage:
+                trigger_paths.append("creatinine")
+            stage = max(stage, cr_stage)
+        elif series:
+            completeness["creatinine"] = "excluded"
+
+        urine_stage = 0
         if pid is not None:
             u6 = await self._get_urine_rate(pid, patient_doc, hours=6)
             u12 = await self._get_urine_rate(pid, patient_doc, hours=12)
             u24 = await self._get_urine_rate(pid, patient_doc, hours=24)
             if u24 is not None and u24 < 0.3:
-                stage = max(stage, 3)
+                urine_stage = max(urine_stage, 3)
                 condition["urine_24h_ml_kg_h"] = u24
             elif u12 is not None and u12 < 0.5:
-                stage = max(stage, 2)
+                urine_stage = max(urine_stage, 2)
                 condition["urine_12h_ml_kg_h"] = u12
             elif u6 is not None and u6 < 0.5:
-                stage = max(stage, 1)
+                urine_stage = max(urine_stage, 1)
                 condition["urine_6h_ml_kg_h"] = u6
+            if any(v is not None for v in (u6, u12, u24)):
+                completeness["urine_output"] = "present"
+            if urine_stage:
+                trigger_paths.append("urine_output")
+            stage = max(stage, urine_stage)
+
+        for key, value in completeness.items():
+            if key in {"missing", "excluded"}:
+                continue
+            if value in {"missing", "unknown"}:
+                completeness["missing"].append(key)
 
         if stage == 0:
             return None
@@ -1278,9 +1319,14 @@ class BaseEngine:
             "stage": stage,
             "baseline": baseline,
             "baseline_mean_12h": baseline_mean,
-            "current": current["value"],
-            "time": current["time"],
+            "current": current["value"] if current else None,
+            "time": current["time"] if current else datetime.now(),
             "condition": condition,
+            "creatinine_stage": cr_stage,
+            "urine_stage": urine_stage,
+            "trigger_paths": trigger_paths,
+            "trigger_source": "both" if len(trigger_paths) > 1 else (trigger_paths[0] if trigger_paths else "unknown"),
+            "data_completeness": completeness,
         }
 
     async def _calc_dic_score(self, his_pid) -> dict | None:

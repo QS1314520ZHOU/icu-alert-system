@@ -12,6 +12,7 @@ class AkiScanner(BaseScanner):
                 interval_key="aki",
                 default_interval=600,
                 initial_delay=25,
+                maturity="validated",
             ),
         )
 

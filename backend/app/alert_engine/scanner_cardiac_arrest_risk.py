@@ -14,6 +14,7 @@ class CardiacArrestRiskScanner(BaseScanner):
                 interval_key="cardiac_arrest",
                 default_interval=120,
                 initial_delay=32,
+                maturity="validated",
             ),
         )
 
@@ -88,6 +89,16 @@ class CardiacArrestRiskScanner(BaseScanner):
             ica_value = labs.get("ica", {}).get("value") if labs else None
             lac_series = await self.engine._get_lab_series(his_pid, "lac", now - timedelta(hours=6), limit=40) if his_pid else []
             lac_latest = lac_series[-1]["value"] if lac_series else None
+            data_completeness = {
+                "hr": "present" if hr_latest is not None else "missing",
+                "bp_map": "present" if map_latest is not None or sbp_latest is not None else "missing",
+                "qrs": "present" if qrs_records else "missing",
+                "potassium": "present" if k_value is not None else "missing",
+                "ionized_calcium": "present" if ica_value is not None else "missing",
+                "lactate": "present" if lac_latest is not None else "missing",
+                "temporal_model": "present" if temporal else "missing",
+            }
+            data_completeness["missing"] = [key for key, value in data_completeness.items() if value == "missing"]
 
             score = 0.0
             factors: list[dict] = []
@@ -260,6 +271,7 @@ class CardiacArrestRiskScanner(BaseScanner):
                         "lac_baseline_6h": lac_earliest,
                         "qrs_duration": latest_qrs["value"] if latest_qrs else None,
                     },
+                    "data_completeness": data_completeness,
                 },
             )
             if alert:

@@ -16,6 +16,7 @@ class SepsisScanner(BaseScanner):
                 interval_key="sepsis",
                 default_interval=300,
                 initial_delay=15,
+                maturity="validated",
             ),
         )
 

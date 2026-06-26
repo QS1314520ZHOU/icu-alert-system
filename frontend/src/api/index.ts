@@ -740,6 +740,12 @@ export const getResearchPlatformJobs = (params?: { limit?: number }) =>
 export const getResearchPlatformArtifacts = (params?: { limit?: number }) =>
   researchApi.get('/api/research/platform/artifacts', { params })
 
+export const getResearchRespiratoryForecastStatus = (params?: { limit?: number }) =>
+  researchApi.get('/api/research/respiratory-forecast/status', { params })
+
+export const getResearchMdroControlSummary = (params?: { limit?: number }) =>
+  researchApi.get('/api/research/mdro-control/summary', { params })
+
 export const getWaveformChannels = (patientId: string, params?: { hours?: number }) =>
   api.get(`/api/waveforms/patients/${patientId}/channels`, { params })
 

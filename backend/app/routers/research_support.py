@@ -18,6 +18,7 @@ from app.services.research_support_service import (
     list_topic_suggestions,
     update_project,
 )
+from app.services.research_topic_status_service import mdro_control_summary, respiratory_forecast_status
 
 router = APIRouter(prefix="/api/research", tags=["research-support"])
 
@@ -103,3 +104,13 @@ async def data_quality(
 ):
     report = await build_data_quality_report(patient_scope, department=department or dept, dept_code=dept_code)
     return {"code": 0, "report": report, "recommendations": build_data_governance_recommendations(report)}
+
+
+@router.get("/respiratory-forecast/status")
+async def respiratory_forecast_model_status(limit: int = Query(20, ge=1, le=100)):
+    return {"code": 0, **await respiratory_forecast_status(db=runtime.db, config=runtime.config, limit=limit)}
+
+
+@router.get("/mdro-control/summary")
+async def mdro_control_analysis_summary(limit: int = Query(20, ge=1, le=100)):
+    return {"code": 0, **await mdro_control_summary(db=runtime.db, config=runtime.config, limit=limit)}
