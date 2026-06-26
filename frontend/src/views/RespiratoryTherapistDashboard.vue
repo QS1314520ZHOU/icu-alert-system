@@ -109,6 +109,21 @@
           </div>
         </div>
         <a-tabs>
+          <a-tab-pane key="deterioration" :tab="`呼吸恶化预警 ${respiratoryDeteriorationRows.length}`">
+            <div class="sbt-list">
+              <article v-for="item in respiratoryDeteriorationRows" :key="`deterioration-${item.patient_id}`" :class="['sbt-card', item.tone === 'danger' ? 'danger' : '']">
+                <div>
+                  <strong>{{ item.bed_no || '--' }}床 {{ item.name || '患者' }}</strong>
+                  <span>{{ item.reason }}</span>
+                  <span>S/F {{ item.sfText }} · P/F {{ fmtVentParam('pf_ratio', item.pf_ratio) }} · FiO2 {{ fmtVentParam('fio2', item.fio2) }} · experimental</span>
+                </div>
+                <div class="sbt-actions">
+                  <a-button size="small" @click="openPatient(item)">查看</a-button>
+                </div>
+              </article>
+              <div v-if="!respiratoryDeteriorationRows.length" class="soft-empty small">暂无呼吸恶化预警候选</div>
+            </div>
+          </a-tab-pane>
           <a-tab-pane key="tasks" :tab="`闭环任务 ${completion.tasks?.length || 0}`">
             <div class="sbt-list">
               <article v-for="item in completion.tasks || []" :key="`${item.patient_id}-${item.title}`" :class="['sbt-card', item.priority === 'high' ? 'danger' : '']">
@@ -362,6 +377,44 @@ const respiratoryWorklist = computed(() => {
     rows.push({ ...item, title: `复核 ${item.bed_no || '--'}床 肺保护通气参数`, reason: '关注 VT/Pplat/Driving Pressure', tone: 'danger' })
   }
   return rows.slice(0, 8)
+})
+const respiratoryDeteriorationRows = computed(() => {
+  return (patients.value || [])
+    .map((row: any) => {
+      const tags = Array.isArray(row?.risk_tags) ? row.risk_tags : []
+      const fio2Raw = Number(row?.fio2)
+      const fio2Percent = Number.isFinite(fio2Raw) ? (fio2Raw > 0 && fio2Raw <= 1 ? fio2Raw * 100 : fio2Raw) : null
+      const pf = Number(row?.pf_ratio)
+      const score = Number(row?.safety_score)
+      const reasons: string[] = []
+      let priority = 0
+      if (tags.some((tag: string) => String(tag).includes('低氧合'))) {
+        reasons.push('低氧合标签')
+        priority += 4
+      }
+      if (Number.isFinite(pf) && pf > 0 && pf < 200) {
+        reasons.push(`P/F ${Math.round(pf)}`)
+        priority += pf < 150 ? 4 : 2
+      }
+      if (Number.isFinite(fio2Percent) && Number(fio2Percent) >= 60) {
+        reasons.push(`FiO2 ${Math.round(Number(fio2Percent))}%`)
+        priority += Number(fio2Percent) >= 80 ? 3 : 2
+      }
+      if (Number.isFinite(score) && score < 75) {
+        reasons.push(`安全评分 ${Math.round(score)}`)
+        priority += score < 60 ? 3 : 1
+      }
+      return {
+        ...row,
+        priority,
+        tone: priority >= 5 ? 'danger' : 'warning',
+        reason: reasons.join(' / '),
+        sfText: row?.sf_ratio != null ? Math.round(Number(row.sf_ratio)) : '待接口计算',
+      }
+    })
+    .filter((row: any) => row.priority > 0)
+    .sort((a: any, b: any) => b.priority - a.priority)
+    .slice(0, 8)
 })
 const airwayPlanView = computed(() => {
   const plan = airwayPlan.value || {}
