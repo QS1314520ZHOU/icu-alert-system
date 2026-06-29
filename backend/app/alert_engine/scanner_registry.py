@@ -40,6 +40,7 @@ from .scanner_noninvasive_respiratory_support import NoninvasiveRespiratorySuppo
 from .scanner_composite_deterioration import CompositeDeteriorationScanner
 from .scanner_cardiac_arrest_risk import CardiacArrestRiskScanner
 from .scanner_liberation_bundle import LiberationBundleScanner
+from .scanner_liberation_orchestrator import LiberationOrchestratorScanner
 from .scanner_ecash_bundle import EcashBundleScanner
 from .scanner_fibrinolysis_monitor import FibrinolysisMonitorScanner
 from .scanner_icu_aw_mobility import IcuAwMobilityScanner
@@ -52,6 +53,7 @@ from .scanner_right_heart_monitor import RightHeartMonitorScanner
 from .scanner_sepsis_subphenotype import SepsisSubphenotypeScanner
 from .scanner_dose_adjustment import DoseAdjustmentScanner
 from .scanner_discharge_readiness import DischargeReadinessScanner
+from .scanner_transfer_handoff import TransferHandoffScanner, TransferHandoffVerifyScanner
 from .scanner_adaptive_thresholds import AdaptiveThresholdsScanner
 from .scanner_proactive_management import ProactiveManagementScanner
 from .scanner_extended_scenarios import ExtendedScenariosScanner
@@ -66,6 +68,8 @@ from .scanner_nursing_workload import NursingWorkloadScanner
 from .scanner_patient_scope_cleanup import PatientScopeCleanupScanner
 from .scanner_ventilator_asynchrony import VentilatorAsynchronyScanner
 from .scanner_clinical_trial_screening import ClinicalTrialScreeningScanner
+from .scanner_subphenotype_stratified import SubphenotypeStratifiedScanner
+from .scanner_rule_calibration import RuleCalibrationScanner
 
 if TYPE_CHECKING:
     from . import AlertEngine
@@ -114,6 +118,7 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         CompositeDeteriorationScanner(engine),
         CardiacArrestRiskScanner(engine),
         LiberationBundleScanner(engine),
+        LiberationOrchestratorScanner(engine),
         EcashBundleScanner(engine),
         IcuAwMobilityScanner(engine),
         MicrobiologyScanner(engine),
@@ -122,6 +127,8 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         RightHeartMonitorScanner(engine),
         DoseAdjustmentScanner(engine),
         DischargeReadinessScanner(engine),
+        TransferHandoffScanner(engine),
+        TransferHandoffVerifyScanner(engine),
         AdaptiveThresholdsScanner(engine),
         ProactiveManagementScanner(engine),
         ExtendedScenariosScanner(engine),
@@ -136,4 +143,6 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         NursingNoteAnalyzerScanner(engine),
         NursingWorkloadScanner(engine),
         ClinicalTrialScreeningScanner(engine),
+        SubphenotypeStratifiedScanner(engine),
+        RuleCalibrationScanner(engine),
     ]

@@ -23,6 +23,7 @@ from .diaphragm_protection import DiaphragmProtectionMixin
 from .delirium_risk import DeliriumRiskMixin
 from .device_management import DeviceManagementMixin
 from .discharge_readiness import DischargeReadinessMixin
+from .transfer_handoff import TransferHandoffMixin
 from .dose_adjustment import DoseAdjustmentMixin
 from .drug_safety import DrugSafetyMixin
 from .fluid_balance import FluidBalanceMixin
@@ -57,9 +58,12 @@ from .postop_monitor import PostopMonitorMixin
 from .right_heart_monitor import RightHeartMonitorMixin
 from .ecash_bundle import EcashBundleMixin
 from .icu_aw_mobility import IcuAwMobilityMixin
+from .liberation_orchestrator import LiberationOrchestratorMixin
 from .proactive_management_engine import ProactiveManagementEngineMixin
 from .extended_scenario_engine import ExtendedScenarioMixin
 from .similar_case_review import SimilarCaseReviewMixin
+from .subphenotype_stratified_outcome import SubphenotypeStratifiedOutcomeMixin
+from .rule_calibration import RuleCalibrationMixin
 from .scanner_mesh import ScannerMesh
 from .scanner_registry import build_scanners
 from .scanners import BaseScanner
@@ -112,6 +116,7 @@ class AlertEngine(
     HemodynamicAdvisorMixin,
     DoseAdjustmentMixin,
     DischargeReadinessMixin,
+    TransferHandoffMixin,
     CardiacArrestPredictorMixin,
     MicrobiologyMonitorMixin,
     PeDetectorMixin,
@@ -120,6 +125,7 @@ class AlertEngine(
     RightHeartMonitorMixin,
     EcashBundleMixin,
     IcuAwMobilityMixin,
+    LiberationOrchestratorMixin,
     ProactiveManagementEngineMixin,
     ExtendedScenarioMixin,
     SimilarCaseReviewMixin,
@@ -129,6 +135,8 @@ class AlertEngine(
     AiRiskMixin,
     NurseReminderMixin,
     NursingNoteAnalyzerMixin,
+    SubphenotypeStratifiedOutcomeMixin,
+    RuleCalibrationMixin,
 ):
     def __init__(self, db, config, ws_manager=None, *, runtime_role: str = "api") -> None:
         super().__init__(db, config, ws_manager)

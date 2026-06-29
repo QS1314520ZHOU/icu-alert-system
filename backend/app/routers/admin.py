@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException, Query, Request
@@ -328,3 +328,159 @@ async def causal_discovery_approve(request: Request, payload: dict[str, Any] = B
     )
     record["_id"] = inserted.inserted_id
     return {"code": 0, "idempotent": False, "record": serialize_doc(record)}
+
+
+# ---------------------------------------------------------------------------
+# Subphenotype × Treatment Stratified Outcome Signals
+# ---------------------------------------------------------------------------
+
+
+@router.get("/subphenotype-signals")
+async def list_subphenotype_signals(
+    status: Optional[str] = Query(None, description="状态过滤: pending_review / approved / rejected"),
+    subphenotype: Optional[str] = Query(None, description="亚表型过滤"),
+    treatment_class: Optional[str] = Query(None, description="处置类型过滤"),
+    limit: int = Query(50, ge=1, le=200, description="返回记录数"),
+):
+    """获取亚表型分层处置信号列表。"""
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    query: dict[str, Any] = {"score_type": "subphenotype_treatment_signal"}
+    if status:
+        query["status"] = str(status).strip().lower()
+    if subphenotype:
+        query["subphenotype"] = str(subphenotype).strip()
+    if treatment_class:
+        query["treatment_class"] = str(treatment_class).strip()
+    cursor = runtime.db.col("score").find(query).sort("calc_time", -1).limit(limit)
+    rows = [serialize_doc(doc) async for doc in cursor]
+    return {"code": 0, "rows": rows}
+
+
+@router.post("/subphenotype-signals/{signal_id}/approve")
+async def approve_subphenotype_signal(signal_id: str, request: Request, payload: dict[str, Any] = Body(default={})):
+    """审批通过亚表型分层处置信号。"""
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    rid = _oid_or_text(signal_id)
+    record = await runtime.db.col("score").find_one(
+        {"_id": rid, "score_type": "subphenotype_treatment_signal"}
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="信号记录不存在")
+    now = datetime.now()
+    actor = str(payload.get("actor") or request.headers.get("x-user-id") or _actor()).strip()[:120]
+    update_fields = {
+        "status": "approved",
+        "updated_at": now,
+        "reviewed_at": now,
+        "reviewer": actor,
+        "review_comment": str(payload.get("review_comment") or "").strip()[:500],
+    }
+    await runtime.db.col("score").update_one({"_id": rid}, {"$set": update_fields})
+    updated = await runtime.db.col("score").find_one({"_id": rid})
+    return {"code": 0, "record": serialize_doc(updated)}
+
+
+@router.post("/subphenotype-signals/{signal_id}/reject")
+async def reject_subphenotype_signal(signal_id: str, payload: dict[str, Any] = Body(default={})):
+    """拒绝亚表型分层处置信号。"""
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    rid = _oid_or_text(signal_id)
+    record = await runtime.db.col("score").find_one(
+        {"_id": rid, "score_type": "subphenotype_treatment_signal"}
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="信号记录不存在")
+    now = datetime.now()
+    actor = str(payload.get("actor") or "").strip()[:120]
+    update_fields = {
+        "status": "rejected",
+        "updated_at": now,
+        "reviewed_at": now,
+        "reviewer": actor,
+        "review_comment": str(payload.get("review_comment") or "").strip()[:500],
+    }
+    await runtime.db.col("score").update_one({"_id": rid}, {"$set": update_fields})
+    updated = await runtime.db.col("score").find_one({"_id": rid})
+    return {"code": 0, "record": serialize_doc(updated)}
+
+
+# ---------------------------------------------------------------------------
+# Rule Calibration
+# ---------------------------------------------------------------------------
+
+
+@router.get("/rule-calibration")
+async def list_rule_calibration(
+    status: Optional[str] = Query(None, description="状态过滤: pending_review / approved / rejected"),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """获取规则自校准建议列表。"""
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    query: dict[str, Any] = {"score_type": "rule_calibration"}
+    if status:
+        query["status"] = str(status).strip().lower()
+    cursor = runtime.db.col("score").find(query).sort("created_at", -1).limit(limit)
+    rows = [serialize_doc(doc) async for doc in cursor]
+    return {"code": 0, "rows": rows}
+
+
+@router.post("/rule-calibration/{score_id}/approve")
+async def approve_rule_calibration(score_id: str, request: Request, payload: dict[str, Any] = Body(default={})):
+    """审批通过规则校准建议。"""
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    rid = _oid_or_text(score_id)
+    record = await runtime.db.col("score").find_one(
+        {"_id": rid, "score_type": "rule_calibration"}
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="校准记录不存在")
+    now = datetime.now()
+    actor = str(payload.get("actor") or request.headers.get("x-user-id") or _actor()).strip()[:120]
+    update_fields = {
+        "status": "approved",
+        "updated_at": now,
+        "reviewed_at": now,
+        "reviewed_by": actor,
+    }
+    await runtime.db.col("score").update_one({"_id": rid}, {"$set": update_fields})
+
+    # 清除 engine 缓存
+    if runtime.alert_engine and hasattr(runtime.alert_engine, "invalidate_calibration_cache"):
+        runtime.alert_engine.invalidate_calibration_cache(record.get("rule_id"))
+
+    updated = await runtime.db.col("score").find_one({"_id": rid})
+    return {"code": 0, "record": serialize_doc(updated)}
+
+
+@router.post("/rule-calibration/{score_id}/reject")
+async def reject_rule_calibration(score_id: str, payload: dict[str, Any] = Body(default={})):
+    """拒绝规则校准建议。"""
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+    rid = _oid_or_text(score_id)
+    record = await runtime.db.col("score").find_one(
+        {"_id": rid, "score_type": "rule_calibration"}
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="校准记录不存在")
+    now = datetime.now()
+    actor = str(payload.get("actor") or "").strip()[:120]
+    update_fields = {
+        "status": "rejected",
+        "updated_at": now,
+        "reviewed_at": now,
+        "reviewed_by": actor,
+    }
+    await runtime.db.col("score").update_one({"_id": rid}, {"$set": update_fields})
+
+    # 清除 engine 缓存
+    if runtime.alert_engine and hasattr(runtime.alert_engine, "invalidate_calibration_cache"):
+        runtime.alert_engine.invalidate_calibration_cache(record.get("rule_id"))
+
+    updated = await runtime.db.col("score").find_one({"_id": rid})
+    return {"code": 0, "record": serialize_doc(updated)}

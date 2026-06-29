@@ -3102,6 +3102,12 @@ class BaseEngine:
             except Exception as e:
                 logger.debug(f"报警可行动性评分失败: {e}")
 
+        if hasattr(self, "mount_stratified_caution"):
+            try:
+                await self.mount_stratified_caution(alert_doc, patient_doc)
+            except Exception as e:
+                logger.debug(f"亚表型分层标注失败: {e}")
+
         try:
             res = await self.db.col("alert_records").insert_one(alert_doc)
             alert_doc["_id"] = res.inserted_id
