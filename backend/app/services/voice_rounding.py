@@ -198,6 +198,99 @@ class VoiceRoundingService:
                 lines.append(line)
         return "\n".join(lines)
 
+    def _build_full_system_prompt(self) -> str:
+        """
+        构建完整的规范化校对 system_prompt。
+        三类纠错提示（A/B/C）注入到"已知口音/方言对照"段。
+        """
+        accent_section = self._build_accent_prompt_section()
+        dialect_section = self._build_dialect_prompt_section()
+        drug_section = self._build_drug_confusable_prompt_section()
+
+        known_refs = ""
+        if accent_section or dialect_section:
+            known_refs = "\n".join(filter(None, [
+                "## 已知口音/方言对照（参考，非强制）",
+                accent_section,
+                dialect_section,
+                "",
+            ]))
+
+        drug_warning = ""
+        if drug_section:
+            drug_warning = "\n".join([
+                drug_section,
+                "",
+            ])
+
+        prompt = (
+            '你是 ICU 语音查房转写的“规范化校对”模块。输入是 ASR 转写后的中文文本，'
+            '可能含口语填充词、汉字数字、汉字单位。你的唯一任务是【格式规范化】，绝不改变任何临床含义。\n'
+            '\n'
+            '# 一、数值规范化\n'
+            '1. 所有数值转阿拉伯数字：“三八点五”→38.5；“一百二十”→120；“零点二”→0.2；“二分之一”→1/2；“四百万”→400万。\n'
+            '2. 数值与单位之间不加空格：38.5℃、120次/分、0.2μg/kg/min。\n'
+            '3. 删除口语填充词（嗯、啊、哦、那个、就是、这个等），其余措辞保持原样。\n'
+            '\n'
+            '# 二、单位规范化（统一用标准符号，禁止汉字单位）\n'
+            '按“数量级前缀 + 基础单位”组合识别。\n'
+            '- 数量级前缀：毫=m、微=μ、纳=n、皮=p、千=k；“万”“亿”保留中文数量词（如 400万IU）。\n'
+            '- 符号统一用半角：μ(U+03BC)、℃(U+2103)，禁止全角。\n'
+            '\n'
+            '【生命体征/血流动力学】\n'
+            '度·摄氏度→℃ | 次每分(心率/脉搏/呼吸)→次/分 | 毫米汞柱→mmHg | 厘米水柱→cmH₂O\n'
+            '每搏量毫升→mL | 心输出量升每分→L/min | 心指数升每分每平方米→L/min/m²\n'
+            '\n'
+            '【呼吸/机械通气】\n'
+            '百分之(FiO₂/SpO₂)→% | 潮气量毫升→mL | PEEP/气道压厘米水柱→cmH₂O\n'
+            '呼吸频率次每分→次/分 | 分钟通气量/氧流量升每分→L/min | PaO₂/PaCO₂毫米汞柱→mmHg\n'
+            '\n'
+            '【血气/电解质】\n'
+            '钾钠氯乳酸碳酸氢盐血糖 毫摩尔每升→mmol/L | 肌酐胆红素 微摩尔每升→μmol/L\n'
+            '毫当量每升→mEq/L | 碱剩余毫摩尔每升→mmol/L | pH/INR→无单位\n'
+            '\n'
+            '【实验室/血液】\n'
+            '白蛋白总蛋白纤维蛋白原 克每升→g/L | 血红蛋白 克每分升→g/dL 或 克每升→g/L\n'
+            '白细胞血小板 乘以十的九次方每升→×10⁹/L | 红细胞 乘以十的十二次方每升→×10¹²/L\n'
+            'CRP/D二聚体 毫克每升→mg/L | PCT/肌钙蛋白 纳克每毫升→ng/mL\n'
+            'BNP/NT-proBNP 皮克每毫升→pg/mL | ALT/AST/LDH/淀粉酶 国际单位每升→U/L\n'
+            '\n'
+            '【药物剂量/泵速】\n'
+            '微克每公斤每分钟→μg/kg/min | 微克每公斤每小时→μg/kg/h | 毫克每公斤每小时→mg/kg/h\n'
+            '毫克每小时→mg/h | 微克每小时→μg/h | 单位每小时→U/h\n'
+            '泵速/肠内营养 毫升每小时→mL/h | 普通输液 滴每分→滴/分\n'
+            '电解质补充 毫摩尔→mmol | 国际单位→IU | 按体重 毫克每千克→mg/kg\n'
+            '\n'
+            '【出入量/肾脏/CRRT】\n'
+            '尿量/引流/入量 毫升→mL | 尿量速率 毫升每小时→mL/h | 尿量标准化 毫升每公斤每小时→mL/kg/h\n'
+            '24h总量 升→L | GFR 毫升每分钟→mL/min\n'
+            'CRRT置换液 毫升每公斤每小时→mL/kg/h | CRRT血流速 毫升每分钟→mL/min\n'
+            '\n'
+            '【时间/体格/评分】\n'
+            '小时/分钟/天/秒→h/min/d/s | 体重 公斤/千克→kg | 身高 厘米→cm\n'
+            '体表面积 平方米→m² | BMI 千克每平方米→kg/m² | 液体复苏 毫升每公斤→mL/kg\n'
+            'GCS/APACHE/SOFA/RASS/CPOT/NRS 分→保留“分”(无量纲)\n'
+            '\n'
+            '# 三、歧义处理（靠上下文绑定指标）\n'
+            '- “次/分”按上文判断心率 or 呼吸；“mL/h”按上文判断尿量 or 泵速。\n'
+            '- 无法明确绑定的歧义单位，原样保留并写入 suspect。\n'
+            '- 同一指标多口径（如 Hb g/dL vs g/L）不擅自换算，保留原说法并标记。\n'
+            '\n'
+            '# 四、安全红线（必须遵守）\n'
+            '1. 严禁臆造、推断或“纠正”任何临床数值、剂量、单位；听不清原样保留并标记，绝不猜数。\n'
+            '2. 严禁修改、合并、替换药品名。易混药只规范格式，存疑写入 suspect。\n'
+            '3. 只做格式化，不增删临床信息，不做医学判断或补充。\n'
+            '4. 单位与数量级不一致，或数值明显超出生理范围时，保留原值并置 needs_human_review=true。\n'
+            '\n'
+            '# 五、输出格式（仅输出 JSON，不要任何解释）\n'
+            '{"corrected_text":"<规范化后的文本>","suspect":[{"term":"<存疑片段>","reason":"<原因>"}],"needs_human_review":<true|false>}\n'
+            '\n'
+            f'{known_refs}'
+            f'{drug_warning}'
+            '已知患者背景仅用于辅助判断术语，不得据此编造未说出的内容。'
+        )
+        return prompt
+
     # ================================================================
     # 结构化 suspect + 药名混淆检测
     # ================================================================
@@ -342,44 +435,11 @@ class VoiceRoundingService:
 
         context = await self._build_patient_context(patient_id)
 
-        # ---- 构建 system_prompt：三段物理隔离 ----
-        prompt_parts = [
-            "你是 ICU 查房记录的语音转写纠错助手。输入是一段可能含方言口音、识别错字的查房口述。",
-            "",
-            "## 任务",
-            "只纠正同音/近音错字、口音导致的识别错误、残余口语词；保持原意，不增删临床事实。",
-            "",
-            "## 受保护字段（严禁自动修改）",
-            "1. 数字、剂量、单位——若你认为数字可能识别错误，不要改，在 suspect 字段里指出。",
-            "",
-        ]
-
-        # 类型 A：口音错字纠正（强约束，鼓励改）
-        accent_section = self._build_accent_prompt_section()
-        if accent_section:
-            prompt_parts.append(accent_section)
-            prompt_parts.append("")
-
-        # 类型 B：方言口语→规范术语（中等约束）
-        dialect_section = self._build_dialect_prompt_section()
-        if dialect_section:
-            prompt_parts.append(dialect_section)
-            prompt_parts.append("")
-
-        # 类型 C：易混药名（禁止修改，单独成段，与 A/B 物理隔离）
-        drug_section = self._build_drug_confusable_prompt_section()
-        if drug_section:
-            prompt_parts.append(drug_section)
-            prompt_parts.append("")
-
-        prompt_parts.append(
-            "已知患者背景仅用于辅助判断术语，不得据此编造未说出的内容。"
-        )
-
-        system_prompt = "\n".join(prompt_parts)
+        # ---- 构建 system_prompt ----
+        system_prompt = self._build_full_system_prompt()
         user_prompt = (
             f"患者背景：{json.dumps(context, ensure_ascii=False)}\n\n"
-            f"待纠错文本：\n{cleaned_text}"
+            f"待规范化文本：\n{cleaned_text}"
         )
 
         model = (
@@ -413,10 +473,20 @@ class VoiceRoundingService:
         # ---- 收集结构化 suspect ----
         all_suspects: list[dict[str, str]] = []
 
-        # LLM 返回的 suspect（字符串→归一化为结构化）
+        # LLM 返回的 suspect：归一化 {term, reason} → {term, type, note}
         for item in (llm_suspects or []):
             if isinstance(item, dict):
-                all_suspects.append(item)
+                term = str(item.get("term") or "").strip()
+                reason = str(item.get("reason") or item.get("note") or "").strip()
+                if term:
+                    # 根据 reason 推断 type
+                    if "药名" in reason:
+                        stype = SUSPECT_TYPE_DRUG
+                    elif "数值" in reason or "剂量" in reason:
+                        stype = SUSPECT_TYPE_NUMBER
+                    else:
+                        stype = SUSPECT_TYPE_DIALECT
+                    all_suspects.append({"term": term, "type": stype, "note": reason})
             elif isinstance(item, str) and item.strip():
                 all_suspects.append({"term": item.strip(), "type": SUSPECT_TYPE_DIALECT, "note": ""})
 
