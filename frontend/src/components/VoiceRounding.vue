@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
-import { transcribeAudio, confirmVoiceRounding, type VoiceRoundingDraft } from '@/api/voiceRounding'
+import { transcribeAudio, confirmVoiceRounding, type VoiceRoundingDraft } from '../api/voiceRounding'
 
 const props = defineProps<{
   patientId: string
