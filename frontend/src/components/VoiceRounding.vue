@@ -102,6 +102,9 @@ let chunks: Blob[] = []
 let durationTimer: number | null = null
 
 async function startRecord() {
+  // 清掉上一次的转写结果
+  draft.value = null
+  editText.value = ''
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     chunks = []
