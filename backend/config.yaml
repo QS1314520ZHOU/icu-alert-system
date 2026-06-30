@@ -414,6 +414,8 @@ alert_engine:
     nursing_workload: 14400
     adaptive_threshold_advisor: 7200
     discharge_readiness: 1800
+    transfer_handoff: 1800
+    transfer_handoff_verify: 3600
     pics_risk: 7200
     proactive_management: 300
     extended_scenarios: 1800
@@ -1351,6 +1353,42 @@ alert_engine:
     monitoring_density_drop_ratio: 0.4
     candidate_keywords: ["转出", "下转", "普通病房", "stepdown", "hdu", "准备转出", "出icu"]
 
+  transfer_handoff:
+    enabled: true
+    llm_narrative: false
+    verify_window_hours: 72
+    high_threshold: 70
+    mod_threshold: 40
+    factor_weights:
+      vital_trend_high_variability: 15
+      vital_trend_acute_worsening: 20
+      sofa_trend_rising: 10
+      vent_weaned_lt_24h: 15
+      vent_weaned_24_48h: 8
+      vaso_stopped_lt_24h: 15
+      vaso_stopped_24_48h: 8
+      residual_hypoxemia: 12
+      residual_hypotension: 12
+      residual_tachycardia: 8
+      residual_fever: 8
+      residual_low_gcs: 12
+      residual_high_lactate: 12
+      residual_oliguria: 10
+      pics_risk_high: 10
+      sepsis_subtype_hyperinflammatory: 8
+    thresholds:
+      vital_cv_high: 0.3
+      trend_delta_hours: 6
+      weaning_window_hours: 48
+      spo2_low: 92
+      fio2_high: 0.4
+      map_low: 65
+      hr_high: 110
+      temp_high: 38.5
+      gcs_low: 13
+      lactate_high: 2.0
+      urine_low_ml_kg_h: 0.5
+
   similar_case_review:
     max_candidates: 200
     age_band_years: 10
@@ -1507,6 +1545,34 @@ notification:
 ui:
   theme: "dark"
   refresh_interval_seconds: 10
+
+# ==================== 语音查房 ====================
+voice_rounding:
+  enabled: true
+  asr:
+    mode: "funasr_ws"                # funasr_ws | local_import
+    ws_url: "ws://127.0.0.1:10095"
+    model: "sensevoice"
+    hotword_path: ""                  # 热词文件路径，如 /opt/icu-models/hotwords.txt
+  filler_words:
+    - "嗯"
+    - "哦"
+    - "额"
+    - "呃"
+    - "那个"
+    - "就是说"
+    - "这个这个"
+    - "对吧"
+    - "然后呢"
+    - "啊"
+  llm_correction:
+    enabled: true
+    temperature: 0.1
+    max_tokens: 2048
+    timeout: 30                       # 秒
+    protect_numbers: true             # 数值/剂量保护
+  max_audio_seconds: 300              # 最大录音时长（秒）
+  correction_hints_path: ""           # 纠错提示文件路径，空则用默认 config/voice_rounding/correction_hints.yaml
 
 scanner_schedule:
   realtime:

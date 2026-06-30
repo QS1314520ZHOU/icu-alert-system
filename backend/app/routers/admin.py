@@ -484,3 +484,75 @@ async def reject_rule_calibration(score_id: str, payload: dict[str, Any] = Body(
 
     updated = await runtime.db.col("score").find_one({"_id": rid})
     return {"code": 0, "record": serialize_doc(updated)}
+
+
+# ================================================================
+# 语音查房错例 Review
+# ================================================================
+
+
+@router.get("/voice-correction-candidates")
+async def voice_correction_candidates(
+    request: Request,
+    status: str = Query("pending", description="候选状态过滤"),
+    limit: int = Query(200, ge=1, le=500),
+):
+    """列出语音查房纠错候选（只读），药名严审区置顶。"""
+    from app.services.voice_rounding_review import list_candidates
+
+    _require_runtime_admin(request)
+    results = await list_candidates(runtime.db, status=status, limit=limit)
+    return {"code": 0, "candidates": results}
+
+
+@router.post("/voice-correction-candidates/{candidate_id}/decision")
+async def voice_correction_decision(
+    candidate_id: str,
+    request: Request,
+    payload: dict = Body(default={}),
+):
+    """
+    采纳或驳回纠错候选。
+    accept：写回 yaml + 热重载 + 审计。
+    reject：标记状态 + 审计。
+    药名相关候选禁止 accept（医疗安全红线）。
+    """
+    from app.services.voice_rounding_review import decide_candidate
+
+    actor, role = _require_runtime_admin(request, payload)
+    action = str((payload or {}).get("action") or "").strip().lower()
+    target_category = str((payload or {}).get("target_category") or "").strip()
+    reviewer = actor or "admin"
+
+    # 获取 VoiceRoundingService 实例（用于热重载）
+    vr_svc = None
+    if hasattr(runtime, "voice_rounding_service"):
+        vr_svc = runtime.voice_rounding_service
+
+    result = await decide_candidate(
+        runtime.db,
+        runtime.config,
+        candidate_id,
+        action=action,
+        reviewer=reviewer,
+        target_category=target_category,
+        voice_rounding_service=vr_svc,
+    )
+
+    if result.get("code") and result["code"] != 0:
+        raise HTTPException(status_code=result["code"], detail=result["message"])
+    return result
+
+
+@router.post("/voice-correction-candidates/reload-hints")
+async def voice_correction_reload_hints(request: Request):
+    """手动触发在线服务重载 correction_hints（兜底接口）。"""
+    _require_runtime_admin(request)
+
+    if not hasattr(runtime, "voice_rounding_service") or not runtime.voice_rounding_service:
+        raise HTTPException(status_code=503, detail="VoiceRoundingService 未初始化")
+
+    ok = await runtime.voice_rounding_service.reload_correction_hints()
+    if not ok:
+        raise HTTPException(status_code=500, detail="重载失败")
+    return {"code": 0, "message": "correction_hints 已重载"}

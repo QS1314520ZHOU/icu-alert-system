@@ -15,6 +15,7 @@ const routeComponents = {
   aiOps: () => import('../views/AiOps.vue'),
   scannerHealth: () => import('../views/ScannerHealth.vue'),
   runtimeConfig: () => import('../views/RuntimeConfigCenter.vue'),
+  voiceCorrectionReview: () => import('../views/VoiceCorrectionReview.vue'),
   aiConsult: () => import('../views/AiConsult.vue'),
   roundingSheet: () => import('../views/RoundingSheetView.vue'),
   respiratoryDashboard: () => import('../views/RespiratoryTherapistDashboard.vue'),
@@ -132,6 +133,12 @@ const router = createRouter({
       name: 'runtime-config',
       component: routeComponents.runtimeConfig,
       meta: { title: '配置中心', useAntdTheme: true }
+    },
+    {
+      path: '/admin/voice-correction-review',
+      name: 'voice-correction-review',
+      component: routeComponents.voiceCorrectionReview,
+      meta: { title: '语音纠错Review', useAntdTheme: true }
     },
     {
       path: '/ai-consult',

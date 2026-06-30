@@ -47,6 +47,7 @@ from app.routers.treatment_policy import router as treatment_policy_router
 from app.routers.waveforms import router as waveforms_router
 from app.routers.clinical_documents import router as clinical_documents_router
 from app.routers.quality import router as quality_router
+from app.routers.voice_rounding import router as voice_rounding_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
@@ -55,6 +56,7 @@ from app.services.clinical_reasoning_agent import ClinicalReasoningAgent
 from app.services.multi_agent_orchestrator import ICUMultiAgentOrchestrator
 from app.services.pulse_service import PulseService
 from app.services.rag_service import RagService
+from app.services.voice_rounding import VoiceRoundingService
 from app.utils.runtime_paths import static_dir
 from app.ws_manager import WebSocketManager
 
@@ -142,6 +144,7 @@ async def lifespan(application: FastAPI):
         ai_handoff_service=ai_handoff_service,
     )
     ai_watching_service = AiWatchingService(db, config)
+    voice_rounding_service = VoiceRoundingService(db, config)
     pulse_service = PulseService(
         db=db,
         config=config,
@@ -162,6 +165,7 @@ async def lifespan(application: FastAPI):
         ai_rag_service_value=ai_rag_service,
         ai_watching_service_value=ai_watching_service,
         pulse_service_value=pulse_service,
+        voice_rounding_service_value=voice_rounding_service,
     )
 
     application.state.db = db
@@ -173,6 +177,7 @@ async def lifespan(application: FastAPI):
     application.state.ai_rag_service = ai_rag_service
     application.state.ai_watching_service = ai_watching_service
     application.state.pulse_service = pulse_service
+    application.state.voice_rounding_service = voice_rounding_service
     try:
         from app.services.shift_service import ShiftService
 
@@ -242,6 +247,7 @@ app.include_router(analytics_router)
 app.include_router(followup_router)
 app.include_router(home_router)
 app.include_router(rounding_router)
+app.include_router(voice_rounding_router)
 app.include_router(respiratory_router)
 app.include_router(nutrition_router)
 app.include_router(research_support_router)

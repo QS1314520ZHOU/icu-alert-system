@@ -23,6 +23,7 @@ ai_monitor: AiMonitor | None = None
 ai_rag_service: RagService | None = None
 ai_watching_service: AiWatchingService | None = None
 pulse_service: PulseService | None = None
+voice_rounding_service = None
 shift_config: dict | None = None
 shift_config_loaded_at = None
 
@@ -38,8 +39,9 @@ def set_runtime(
     ai_rag_service_value: RagService,
     ai_watching_service_value: AiWatchingService | None = None,
     pulse_service_value: PulseService | None = None,
+    voice_rounding_service_value=None,
 ) -> None:
-    global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service, ai_watching_service, pulse_service
+    global db, config, ws_mgr, alert_engine, ai_handoff_service, ai_monitor, ai_rag_service, ai_watching_service, pulse_service, voice_rounding_service
 
     db = db_value
     config = config_value
@@ -50,6 +52,7 @@ def set_runtime(
     ai_rag_service = ai_rag_service_value
     ai_watching_service = ai_watching_service_value
     pulse_service = pulse_service_value
+    voice_rounding_service = voice_rounding_service_value
 
 
 def _resolve_state_attr(request: Request | None, name: str):

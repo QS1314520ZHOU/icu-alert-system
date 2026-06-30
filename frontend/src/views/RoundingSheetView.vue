@@ -261,6 +261,14 @@
                   <a-button size="small" type="primary" @click="confirmRoundingDraft">医生确认</a-button>
                 </div>
               </section>
+
+              <section v-if="activePatient" class="voice-rounding-section">
+                <div class="section-title">语音查房</div>
+                <VoiceRounding
+                  :patient-id="activePatient.patient_id"
+                  @confirmed="onVoiceRoundingConfirmed"
+                />
+              </section>
             </div>
           </a-spin>
         </template>
@@ -288,6 +296,7 @@ import {
   message,
 } from 'ant-design-vue'
 import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
+import VoiceRounding from '../components/VoiceRounding.vue'
 import { getDepartments, postClinicalTask } from '../api'
 import {
   getRoundingPatients,
@@ -676,6 +685,15 @@ async function confirmRoundingDraft() {
     await postRoundingVersionConfirm(activePatient.value.patient_id, versionId, { status: 'confirmed' })
   }
   await loadVersionHistory()
+}
+function onVoiceRoundingConfirmed(text: string) {
+  // 语音查房确认后，将文本追加到编辑区
+  if (text && editableDraft.value) {
+    editableDraft.value = editableDraft.value.trim() + '\n\n【语音查房补充】\n' + text
+  } else if (text) {
+    editableDraft.value = text
+  }
+  message.success('语音查房记录已确认')
 }
 async function exportSelected() {
   exporting.value = true
@@ -1188,6 +1206,13 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 .focus-card { display: grid; gap: 8px; margin-top: 10px; }
 .focus-card p { color: var(--text-secondary); }
 .mb { margin-bottom: 12px; }
+.voice-rounding-section {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(125,167,214,.16);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface),.72);
+}
 
 html[data-theme='light'] .rounding-page {
   color: var(--text-primary);
