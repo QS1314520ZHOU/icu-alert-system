@@ -44,7 +44,14 @@ class ASRClient:
             return await self._transcribe_funasr_ws(audio_bytes, sample_rate)
         if self.mode == "local_import":
             return await self._transcribe_local(audio_bytes, sample_rate)
+        if self.mode == "mock":
+            return await self._transcribe_mock(audio_bytes, sample_rate)
         raise ValueError(f"未知 ASR mode: {self.mode}")
+
+    async def _transcribe_mock(self, audio_bytes: bytes, sample_rate: int) -> str:
+        """Mock 模式：跳过 ASR，返回测试文本。用于无 ASR 环境时测试后续流水线。"""
+        logger.info("ASR mock 模式：返回测试文本（音频 %d 字节）", len(audio_bytes))
+        return "患者今天嗯血压稳定哦，体温三八点五度，心率一百二十次每分，嗯用了去甲肾上腺素零点二微克每公斤每分钟"
 
     async def _transcribe_funasr_ws(self, audio_bytes: bytes, sample_rate: int) -> str:
         """

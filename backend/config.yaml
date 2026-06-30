@@ -1550,7 +1550,7 @@ ui:
 voice_rounding:
   enabled: true
   asr:
-    mode: "funasr_ws"                # funasr_ws | local_import
+    mode: "mock"                     # funasr_ws | local_import | mock（无 ASR 环境时测试用）
     ws_url: "ws://127.0.0.1:10095"
     model: "sensevoice"
     hotword_path: ""                  # 热词文件路径，如 /opt/icu-models/hotwords.txt
