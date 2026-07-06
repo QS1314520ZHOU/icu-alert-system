@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     LLM_REASONING_MODEL: str = ""
 
     # ASR
-    ASR_BASE_URL: str = "http://127.0.0.1:10095"
+    ASR_BASE_URL: str = "http://127.0.0.1:10096"
 
     # ASR LLM（语音纠错专用，留空则 fallback 到全局 LLM 配置）
     ASR_LLM_BASE_URL: str = ""
