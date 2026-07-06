@@ -353,12 +353,14 @@ class VoiceRoundingService:
 
     # 汉字数字→float 映射
     _CN_DIGITS = {"零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
-                  "六": 6, "七": 7, "八": 8, "九": 9, "十": 10, "百": 100, "千": 1000}
+                  "六": 6, "七": 7, "八": 8, "九": 9, "十": 10, "百": 100, "千": 1000, "万": 10000}
 
     def _parse_cn_number(self, text: str) -> float | None:
         """
-        解析汉字数字为 float。支持整数、小数（点）、分数（分之）。
-        如：三八点五→38.5，一百二十→120，零点二→0.2，二分之一→0.5
+        解析汉字数字为 float。
+        支持：整数（三八→38、一百二十→120、一万二→12000）、
+              小数（三八点五→38.5、零点零五→0.05）、
+              分数（二分之一→0.5）、负数（负二→-2）。
         """
         text = text.strip()
         if not text:
@@ -370,27 +372,32 @@ class VoiceRoundingService:
         except ValueError:
             pass
 
+        # 负数
+        if text.startswith("负"):
+            inner = self._parse_cn_number(text[1:])
+            return -inner if inner is not None else None
+
         # 分数：X分之Y → Y/X
         if "分之" in text:
             parts = text.split("分之")
             if len(parts) == 2:
                 denom = self._parse_cn_number(parts[0])
                 numer = self._parse_cn_number(parts[1])
-                if denom and numer and denom != 0:
+                if denom is not None and numer is not None and denom != 0:
                     return numer / denom
             return None
 
         # 小数：X点Y
         if "点" in text:
             parts = text.split("点", 1)
-            int_part = self._parse_cn_int(parts[0]) if parts[0] else 0
+            int_part = self._parse_cn_int(parts[0]) if parts[0] else 0.0
             if int_part is None:
                 return None
             dec_str = parts[1] if len(parts) > 1 else ""
             dec_val = 0.0
             for i, ch in enumerate(dec_str):
                 d = self._CN_DIGITS.get(ch)
-                if d is None:
+                if d is None or d >= 10:
                     return None
                 dec_val += d / (10 ** (i + 1))
             return int_part + dec_val
@@ -399,32 +406,56 @@ class VoiceRoundingService:
         return self._parse_cn_int(text)
 
     def _parse_cn_int(self, text: str) -> float | None:
-        """解析汉字整数。"""
+        """
+        解析汉字整数。
+        乘法位：一百二十→120；一万二千三百→12300。
+        连续数字：三八→38；二十一→21。
+        省略式：一万二→12000（仅当下一位不是乘法位时）。
+        """
         text = text.strip()
         if not text:
             return None
-        # 纯阿拉伯数字
         try:
             return float(text)
         except ValueError:
             pass
+        chars = list(text)
         total = 0
-        current = 0
-        for ch in text:
+        digit = 0
+        last_multiplier = 0
+        for i, ch in enumerate(chars):
             d = self._CN_DIGITS.get(ch)
             if d is None:
                 return None
             if d >= 10:
-                if current == 0:
-                    current = 1
-                current *= d
+                if digit > 0:
+                    # 有前置数字：四百 → 4*100
+                    total += digit * d
+                    digit = 0
+                elif last_multiplier > 0:
+                    # 连续乘法位：百万 → 100*10000
+                    total *= d
+                else:
+                    # 开头乘法位：百 → 1*100
+                    total += d
+                last_multiplier = d
             else:
-                current = d
-            if current >= 10:
-                total += current
-                current = 0
-        total += current
-        return float(total) if total > 0 else None
+                # 前瞻判断省略式 vs 连续数字
+                next_d = self._CN_DIGITS.get(chars[i + 1]) if i + 1 < len(chars) else None
+                if last_multiplier > 0 and digit == 0 and (next_d is None or next_d < 10):
+                    # 省略式：一万二 → 2 * (万/10)
+                    digit = d * (last_multiplier // 10 or 1)
+                    last_multiplier = 0
+                elif digit > 0:
+                    # 连续数字：三八 → 38
+                    digit = digit * 10 + d
+                else:
+                    digit = d
+        total += digit
+        # "零" → 0 也是合法结果
+        if total == 0 and digit == 0 and "零" not in text:
+            return None
+        return float(total)
 
     def _extract_numeric_values(self, text: str) -> list[float]:
         """
