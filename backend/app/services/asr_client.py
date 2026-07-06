@@ -1,6 +1,7 @@
-"""ASR client for local FunASR OpenAI-compatible transcription service."""
+"""ASR client for local FunASR — supports HTTP API and WebSocket protocol."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -19,9 +20,12 @@ class ASRRuntimeUnavailableError(RuntimeError):
     pass
 
 
-def _asr_base_url() -> str:
+def _asr_config() -> tuple[str, str]:
+    """Return (base_url, mode) from settings."""
     cfg = get_config()
-    return str(getattr(cfg.settings, "ASR_BASE_URL", "") or "").rstrip("/")
+    url = str(getattr(cfg.settings, "ASR_BASE_URL", "") or "").rstrip("/")
+    mode = str(getattr(cfg.settings, "ASR_MODE", "") or "http").strip().lower()
+    return url, mode
 
 
 def _normalize_segments(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -53,26 +57,21 @@ def _duration_from(data: dict[str, Any], segments: list[dict[str, Any]]) -> floa
     return max(ends) if ends else 0.0
 
 
-async def transcribe(
+# ================================================================
+# HTTP mode (OpenAI-compatible /v1/audio/transcriptions)
+# ================================================================
+
+async def _transcribe_http(
+    base_url: str,
     audio_bytes: bytes,
     *,
     filename: str,
     hotwords: list[str],
-    language: str = "zh",
+    language: str,
 ) -> dict[str, Any]:
-    """Transcribe audio through local FunASR's OpenAI-compatible API."""
-    if not audio_bytes:
-        raise ValueError("audio_bytes is empty")
-
-    base_url = _asr_base_url()
-    if not base_url:
-        raise ASRRuntimeUnavailableError("ASR_BASE_URL is not configured")
-
     url = f"{base_url}/v1/audio/transcriptions"
     safe_filename = filename or "rounding_audio.wav"
-    files = {
-        "file": (safe_filename, audio_bytes, "application/octet-stream"),
-    }
+    files = {"file": (safe_filename, audio_bytes, "application/octet-stream")}
     data = {
         "model": DEFAULT_ASR_MODEL,
         "response_format": "verbose_json",
@@ -81,20 +80,109 @@ async def transcribe(
     }
     timeout = httpx.Timeout(DEFAULT_TIMEOUT_SECONDS, read=DEFAULT_TIMEOUT_SECONDS)
 
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.post(url, data=data, files=files)
+        if resp.status_code >= 400:
+            logger.error("ASR HTTP error: status=%d url=%s body=%s", resp.status_code, url, resp.text[:500])
+        resp.raise_for_status()
+        return resp.json()
+
+
+# ================================================================
+# WebSocket mode (FunASR native WS protocol)
+# ================================================================
+
+async def _transcribe_ws(
+    base_url: str,
+    audio_bytes: bytes,
+    *,
+    hotwords: list[str],
+    language: str,
+) -> dict[str, Any]:
+    """
+    FunASR native WebSocket protocol (offline mode).
+    ws_url example: ws://10.191.132.139:10095
+    """
+    import websockets  # pip install websockets
+
+    ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://")
+    if not ws_url.startswith("ws"):
+        ws_url = f"ws://{ws_url}"
+
+    result_text = ""
+    result_segments: list[dict[str, Any]] = []
+
+    async with websockets.connect(ws_url, ping_interval=None) as ws:
+        # 1) Config frame
+        config = {
+            "mode": "offline",
+            "chunk_size": [5, 10, 5],
+            "wav_name": "rounding",
+            "is_speaking": True,
+            "hotwords": "\n".join(hotwords) if hotwords else "",
+            "itn": True,
+            "language": language or "zh",
+        }
+        await ws.send(json.dumps(config))
+
+        # 2) Audio data
+        await ws.send(audio_bytes)
+
+        # 3) End frame
+        await ws.send(json.dumps({"is_speaking": False}))
+
+        # 4) Collect results
+        async for message in ws:
+            try:
+                data = json.loads(message)
+            except Exception:
+                continue
+            text_chunk = str(data.get("text") or "")
+            result_text += text_chunk
+            # Collect segment info if available
+            if "sentence_info" in data:
+                for seg in data["sentence_info"]:
+                    if isinstance(seg, dict):
+                        result_segments.append(seg)
+            if data.get("is_final") or data.get("mode") == "offline":
+                break
+
+    return {"text": result_text.strip(), "segments": result_segments, "duration": 0.0}
+
+
+# ================================================================
+# Public API
+# ================================================================
+
+async def transcribe(
+    audio_bytes: bytes,
+    *,
+    filename: str,
+    hotwords: list[str],
+    language: str = "zh",
+) -> dict[str, Any]:
+    """Transcribe audio through local FunASR (auto-selects HTTP or WS mode)."""
+    if not audio_bytes:
+        raise ValueError("audio_bytes is empty")
+
+    base_url, mode = _asr_config()
+    if not base_url:
+        raise ASRRuntimeUnavailableError("ASR_BASE_URL is not configured")
+
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, data=data, files=files)
-            if resp.status_code >= 400:
-                logger.error("ASR API error: status=%d url=%s body=%s", resp.status_code, url, resp.text[:500])
-            resp.raise_for_status()
-            payload = resp.json()
+        if mode == "ws":
+            logger.info("ASR WS mode: %s", base_url)
+            payload = await _transcribe_ws(base_url, audio_bytes, hotwords=hotwords, language=language)
+        else:
+            logger.info("ASR HTTP mode: %s", base_url)
+            payload = await _transcribe_http(base_url, audio_bytes, filename=filename, hotwords=hotwords, language=language)
     except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout) as exc:
         raise ASRRuntimeUnavailableError(f"ASR runtime unavailable: {exc}") from exc
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code
         raise ASRRuntimeUnavailableError(f"ASR runtime returned HTTP {status}") from exc
-    except ValueError as exc:
-        raise ASRRuntimeUnavailableError("ASR runtime returned invalid JSON") from exc
+    except Exception as exc:
+        raise ASRRuntimeUnavailableError(f"ASR runtime error: {exc}") from exc
 
     if not isinstance(payload, dict):
         raise ASRRuntimeUnavailableError("ASR runtime returned unexpected payload")
@@ -102,11 +190,7 @@ async def transcribe(
     text = str(payload.get("text") or "").strip()
     segments = _normalize_segments(payload)
     duration = _duration_from(payload, segments)
-    return {
-        "text": text,
-        "segments": segments,
-        "duration": duration,
-    }
+    return {"text": text, "segments": segments, "duration": duration}
 
 
 class ASRClient:
