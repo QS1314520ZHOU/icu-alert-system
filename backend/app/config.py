@@ -76,6 +76,11 @@ class Settings(BaseSettings):
     # ASR
     ASR_BASE_URL: str = "http://127.0.0.1:10095"
 
+    # ASR LLM（语音纠错专用，留空则 fallback 到全局 LLM 配置）
+    ASR_LLM_BASE_URL: str = ""
+    ASR_LLM_API_KEY: str = ""
+    ASR_LLM_MODEL: str = ""
+
     # Security
     SECRET_KEY: str = "change-me-in-production"
     CORS_ALLOWED_ORIGINS: str = ""

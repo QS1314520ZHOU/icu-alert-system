@@ -416,6 +416,44 @@ class VoiceRoundingService:
             "recent_labs": labs,
         }
 
+    def _resolve_asr_llm_cfg(self, llm_cfg: dict[str, Any]) -> tuple[Any, str | None]:
+        """
+        解析语音纠错 LLM 配置。
+        ASR_LLM_BASE_URL 非空 → 用语音专用三件套（构造 cfg 替身覆盖 settings）。
+        ASR_LLM_BASE_URL 为空 → 沿用全局 LLM 配置。
+        返回 (cfg_to_use, model)。
+        """
+        settings = getattr(self.config, "settings", None)
+        asr_llm_base = str(getattr(settings, "ASR_LLM_BASE_URL", "") or "").strip() if settings else ""
+        asr_llm_key = str(getattr(settings, "ASR_LLM_API_KEY", "") or "").strip() if settings else ""
+        asr_llm_model = str(getattr(settings, "ASR_LLM_MODEL", "") or "").strip() if settings else ""
+
+        if asr_llm_base:
+            # 语音专用配置：构造 cfg 替身，只覆盖 LLM_BASE_URL / LLM_API_KEY
+            # 用 SimpleNamespace 浅拷贝 settings，只改 LLM 相关字段
+            import copy
+            overridden_settings = copy.copy(self.config.settings)
+            overridden_settings.LLM_BASE_URL = asr_llm_base
+            if asr_llm_key:
+                overridden_settings.LLM_API_KEY = asr_llm_key
+
+            cfg_override = copy.copy(self.config)
+            cfg_override.settings = overridden_settings
+
+            model = asr_llm_model or (
+                getattr(self.config, "llm_model_medical", None)
+                or getattr(self.config, "llm_fast_model", None)
+            )
+            logger.info("语音纠错使用专用 LLM: %s / %s", asr_llm_base, model or "(默认)")
+            return cfg_override, model
+
+        # 回退：全局 LLM 配置
+        model = (
+            getattr(self.config, "llm_model_medical", None)
+            or getattr(self.config, "llm_fast_model", None)
+        )
+        return self.config, model
+
     async def _llm_correct(self, cleaned_text: str, patient_id: str) -> dict[str, Any]:
         """
         级3 LLM 纠错。
@@ -443,14 +481,12 @@ class VoiceRoundingService:
             f"待规范化文本：\n{cleaned_text}"
         )
 
-        model = (
-            getattr(self.config, "llm_model_medical", None)
-            or getattr(self.config, "llm_fast_model", None)
-        )
+        # ---- 解析 LLM 配置：语音专用优先，留空回退全局 ----
+        llm_cfg_for_call, model = self._resolve_asr_llm_cfg(llm_cfg)
 
         try:
             result = await call_llm_chat(
-                cfg=self.config,
+                cfg=llm_cfg_for_call,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 model=model,
