@@ -481,6 +481,21 @@ async def patient_discharge_readiness(patient_id: str):
     return {"code": 0, "assessment": serialize_doc(result)}
 
 
+@router.get("/api/patients/{patient_id}/transfer-handoff")
+async def patient_transfer_handoff(patient_id: str):
+    """转出交接风险评估（含 72h 验证）。"""
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    if not runtime.alert_engine:
+        return {"code": 0, "handoff": None, "error": "预警引擎未就绪"}
+    doc = await runtime.alert_engine.get_latest_transfer_handoff(str(pid))
+    if not doc:
+        return {"code": 0, "handoff": None}
+    return {"code": 0, "handoff": serialize_doc(doc)}
+
+
 @router.get("/api/patients/{patient_id}/similar-case-outcomes")
 async def patient_similar_case_outcomes(
     patient_id: str,

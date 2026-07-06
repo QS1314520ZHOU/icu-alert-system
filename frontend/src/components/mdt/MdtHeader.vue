@@ -113,24 +113,29 @@ p {
   color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .mdt-badge {
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
-  background: var(--bg-surface);
+  color: #2f3a32;
+  border-color: #d7ded4;
+  background: #fbfcf8;
 }
 :global(html[data-theme='light']) .mdt-badge.is-critical {
-  color: var(--danger-strong);
-  border-color: var(--danger-soft);
-  background: var(--danger-bg);
+  color: #9f2f2f;
+  border-color: #efb3a8;
+  background: #fff1ed;
 }
 :global(html[data-theme='light']) .mdt-badge.is-warning {
-  color: var(--danger-strong);
-  border-color: var(--warning-soft);
-  background: var(--warning-bg);
+  color: #8a4b16;
+  border-color: #e7c394;
+  background: #fff6e8;
 }
 :global(html[data-theme='light']) .mdt-badge.is-closed,
 :global(html[data-theme='light']) .mdt-badge.is-soft {
-  color: #166534;
-  border-color: var(--success);
-  background: var(--bg-surface);
+  color: #1f6b55;
+  border-color: #9bc9b9;
+  background: #eef8f3;
+}
+:global(html[data-theme='light']) .mdt-header__badges :deep(.ant-btn) {
+  border-color: #d7ded4;
+  background: #fbfcf8;
+  color: #26352f;
 }
 </style>

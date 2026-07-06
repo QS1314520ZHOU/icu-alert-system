@@ -29,6 +29,7 @@ from app.routers.admin import router as admin_router
 from app.routers.ai import router as ai_router
 from app.routers.alerts import router as alerts_router
 from app.routers.analytics import router as analytics_router
+from app.routers.asr import router as asr_router
 from app.routers.followup import router as followup_router
 from app.routers.home import router as home_router
 from app.routers.knowledge import router as knowledge_router
@@ -244,6 +245,7 @@ app.include_router(patients_router)
 app.include_router(patient_data_router)
 app.include_router(alerts_router)
 app.include_router(analytics_router)
+app.include_router(asr_router)
 app.include_router(followup_router)
 app.include_router(home_router)
 app.include_router(rounding_router)

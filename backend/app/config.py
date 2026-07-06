@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     LLM_FALLBACK_MODEL: str = ""
     LLM_REASONING_MODEL: str = ""
 
+    # ASR
+    ASR_BASE_URL: str = "http://127.0.0.1:10095"
+
     # Security
     SECRET_KEY: str = "change-me-in-production"
     CORS_ALLOWED_ORIGINS: str = ""

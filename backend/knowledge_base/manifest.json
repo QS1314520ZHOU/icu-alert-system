@@ -1,10 +1,25 @@
 {
   "package_id": "icu_offline_knowledge_base",
   "name": "ICU 离线知识包",
-  "version": "2026.04.29",
+  "version": "2026.06.26",
   "owner": "ICU CDS Team",
-  "updated_at": "2026-04-29",
+  "updated_at": "2026-06-26",
   "documents": [
+    {
+      "doc_id": "guideline_aki_rrt_crrt",
+      "title": "重症AKI患者RRT/CRRT临床实践指南",
+      "source": "重症AKI患者RRT/CRRT临床实践指南",
+      "category": "guideline",
+      "scope": "external",
+      "topic": "aki_rrt_crrt",
+      "active": true,
+      "priority": 96,
+      "owner": "ICU CDS Team",
+      "updated_at": "2026-06-26",
+      "tags": ["aki", "rrt", "crrt", "irrt", "ecmo", "rca", "anticoagulation", "vascular_access", "fluid_overload", "weaning"],
+      "local_ref": "docs/guideline_aki_rrt_crrt.json",
+      "filename": "docs/guideline_aki_rrt_crrt.json"
+    },
     {
       "doc_id": "tbi_neurocritical",
       "title": "颅脑损伤神经重症管理指南",

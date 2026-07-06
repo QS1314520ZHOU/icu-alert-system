@@ -1470,7 +1470,7 @@ onBeforeUnmount(() => {
   color: #ffd5d5;
 }
 .consult-section__line--safety {
-  color: var(--warning-soft);
+  color: var(--danger-strong);
 }
 .high-risk-warning {
   padding: 10px 12px;

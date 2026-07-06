@@ -423,27 +423,33 @@ class RagService:
             data = json.loads(fp.read_text(encoding="utf-8"))
         except Exception:
             return []
-        if not isinstance(data, dict):
+        if isinstance(data, list):
+            legacy_items = [x for x in data if isinstance(x, dict)]
+            data_obj: dict[str, Any] = {}
+        elif isinstance(data, dict):
+            legacy_items = []
+            data_obj = data
+        else:
             return []
 
-        doc_id = str(doc_meta.get("doc_id") or data.get("doc_id") or fp.stem or f"doc_{fallback_idx}")
-        title = str(doc_meta.get("title") or data.get("title") or fp.stem)
-        source = str(doc_meta.get("source") or data.get("source") or title)
-        source_url = str(doc_meta.get("source_url") or data.get("source_url") or data.get("url") or "")
-        category = str(doc_meta.get("category") or data.get("category") or "guideline")
-        scope = str(doc_meta.get("scope") or data.get("scope") or "external").lower()
-        topic = str(doc_meta.get("topic") or data.get("topic") or doc_id)
-        active = bool(doc_meta.get("active", data.get("active", True)))
-        priority = int(doc_meta.get("priority", data.get("priority", 50)) or 50)
-        owner = str(doc_meta.get("owner") or data.get("owner") or manifest.get("owner") or "ICU CDS")
-        updated_at = str(doc_meta.get("updated_at") or data.get("updated_at") or manifest.get("updated_at") or "")
+        doc_id = str(doc_meta.get("doc_id") or data_obj.get("doc_id") or fp.stem or f"doc_{fallback_idx}")
+        title = str(doc_meta.get("title") or data_obj.get("title") or fp.stem)
+        source = str(doc_meta.get("source") or data_obj.get("source") or title)
+        source_url = str(doc_meta.get("source_url") or data_obj.get("source_url") or data_obj.get("url") or "")
+        category = str(doc_meta.get("category") or data_obj.get("category") or "guideline")
+        scope = str(doc_meta.get("scope") or data_obj.get("scope") or "external").lower()
+        topic = str(doc_meta.get("topic") or data_obj.get("topic") or doc_id)
+        active = bool(doc_meta.get("active", data_obj.get("active", True)))
+        priority = int(doc_meta.get("priority", data_obj.get("priority", 50)) or 50)
+        owner = str(doc_meta.get("owner") or data_obj.get("owner") or manifest.get("owner") or "ICU CDS")
+        updated_at = str(doc_meta.get("updated_at") or data_obj.get("updated_at") or manifest.get("updated_at") or "")
         package_id = str(manifest.get("package_id") or "offline_kb")
         package_name = str(manifest.get("name") or "离线知识包")
         package_version = str(manifest.get("version") or "")
-        base_tags = [str(x).strip() for x in (doc_meta.get("tags") or data.get("tags") or []) if str(x).strip()]
-        local_doc_ref = str(doc_meta.get("local_ref") or data.get("local_ref") or fp.relative_to(self.knowledge_dir).as_posix())
+        base_tags = [str(x).strip() for x in (doc_meta.get("tags") or data_obj.get("tags") or []) if str(x).strip()]
+        local_doc_ref = str(doc_meta.get("local_ref") or data_obj.get("local_ref") or fp.relative_to(self.knowledge_dir).as_posix())
 
-        sections = data.get("sections")
+        sections = legacy_items or data_obj.get("sections")
         if not isinstance(sections, list):
             sections = []
         chunks: list[GuidelineChunk] = []
@@ -453,8 +459,8 @@ class RagService:
             text = str(item.get("text") or item.get("content") or "").strip()
             if not text:
                 continue
-            section_id = str(item.get("id") or f"{doc_id}:{section_idx}")
-            section_title = str(item.get("section_title") or item.get("title") or item.get("recommendation") or section_id)
+            section_id = str(item.get("id") or item.get("chunk_id") or f"{doc_id}:{section_idx}")
+            section_title = str(item.get("section_title") or item.get("category") or item.get("title") or item.get("recommendation") or section_id)
             rec = str(item.get("recommendation") or section_title)
             rec_grade = str(item.get("recommendation_grade") or item.get("grade") or "")
             tags = list(dict.fromkeys(base_tags + [str(t).strip() for t in (item.get("tags") or []) if str(t).strip()]))

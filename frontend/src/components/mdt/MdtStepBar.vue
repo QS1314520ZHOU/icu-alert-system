@@ -4,7 +4,14 @@
       v-for="step in steps"
       :key="step.key"
       type="button"
-      :class="['mdt-step', { 'is-active': modelValue === step.key, 'is-done': step.done }]"
+      :class="[
+        'mdt-step',
+        {
+          'is-active': modelValue === step.key,
+          'is-done': step.done,
+          'is-pending': !step.done && modelValue !== step.key,
+        },
+      ]"
       @click="$emit('update:modelValue', step.key)"
     >
       <span>{{ step.index }}</span>
@@ -103,27 +110,27 @@ defineEmits<{
 
 :global(html[data-theme='light']) .mdt-step {
   color: var(--text-secondary);
-  border-color: var(--border-color);
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  border-color: #D9E0D6;
+  background: #FBFCF8;
+  box-shadow: 0 8px 20px rgba(61, 76, 68, 0.06);
 }
 :global(html[data-theme='light']) .mdt-step::before {
-  background: #DDE6DD;
+  background: #CBD5D1;
 }
 :global(html[data-theme='light']) .mdt-step.is-active {
-  border-color: rgba(29, 111, 99, 0.42);
-  background: var(--brand-soft);
-  box-shadow: var(--card-shadow);
+  border-color: #8DBFAF;
+  background: #EAF5F0;
+  box-shadow: 0 10px 24px rgba(29, 111, 99, 0.12);
 }
 :global(html[data-theme='light']) .mdt-step.is-active::before {
-  background: var(--brand);
+  background: #1D6F63;
 }
 :global(html[data-theme='light']) .mdt-step.is-done::before {
-  background: var(--success);
+  background: #2F7A58;
 }
 :global(html[data-theme='light']) .mdt-step span,
 :global(html[data-theme='light']) .mdt-step em {
-  color: var(--brand);
+  color: #7B8790;
 }
 :global(html[data-theme='light']) .mdt-step strong {
   color: var(--text-primary);
@@ -132,9 +139,30 @@ defineEmits<{
   color: var(--text-secondary);
 }
 :global(html[data-theme='light']) .mdt-step span {
-  color: var(--brand);
+  color: #8AA4B0;
 }
 :global(html[data-theme='light']) .mdt-step em {
-  color: var(--success);
+  color: #7B8790;
+}
+:global(html[data-theme='light']) .mdt-step.is-active span,
+:global(html[data-theme='light']) .mdt-step.is-active em {
+  color: #1D6F63;
+}
+:global(html[data-theme='light']) .mdt-step.is-done span,
+:global(html[data-theme='light']) .mdt-step.is-done em {
+  color: #2F7A58;
+}
+:global(html[data-theme='light']) .mdt-step.is-active.is-done span,
+:global(html[data-theme='light']) .mdt-step.is-active.is-done em {
+  color: #2F7A58;
+}
+:global(html[data-theme='light']) .mdt-step.is-pending span {
+  color: #8AA4B0;
+}
+:global(html[data-theme='light']) .mdt-step.is-pending em {
+  color: #7B8790;
+}
+:global(html[data-theme='light']) .mdt-step.is-active.is-done::before {
+  background: #2F7A58;
 }
 </style>

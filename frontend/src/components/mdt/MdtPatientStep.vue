@@ -196,7 +196,7 @@ label {
 :global(html[data-theme='light']) .mdt-step-card,
 :global(html[data-theme='light']) .patient-select-panel,
 :global(html[data-theme='light']) .organ-panel {
-  border-color: var(--chart-1);
+  border-color: #d9e0d6;
   background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
@@ -216,18 +216,34 @@ label {
 }
 :global(html[data-theme='light']) .mdt-select {
   color: var(--text-primary);
-  border-color: var(--text-secondary);
+  border-color: #cfd8d3;
   background: var(--bg-surface);
 }
 :global(html[data-theme='light']) .patient-brief,
 :global(html[data-theme='light']) .organ-pill {
-  border-color: var(--text-secondary);
-  background: var(--bg-surface);
+  border-color: #e5e2d9;
+  background: #fbfaf6;
 }
 :global(html[data-theme='light']) .organ-pill {
   color: var(--text-primary);
 }
 :global(html[data-theme='light']) .organ-pill b {
   color: var(--text-primary);
+}
+:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary) {
+  border-color: #1D6F63;
+  background: #1D6F63;
+  color: #ffffff;
+}
+:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary:not(:disabled):hover) {
+  border-color: #15584D;
+  background: #15584D;
+  color: #ffffff;
+}
+:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary[disabled]),
+:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary.ant-btn-disabled) {
+  border-color: #d5ddd6;
+  background: #e9eee9;
+  color: #7d8a82;
 }
 </style>
