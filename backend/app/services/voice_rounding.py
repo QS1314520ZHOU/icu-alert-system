@@ -224,7 +224,8 @@ class VoiceRoundingService:
             ])
 
         prompt = (
-            '你是 ICU 语音查房转写的“规范化校对”模块。输入是 ASR 转写后的中文文本，'
+            '不要思考，不要推理，直接输出JSON结果。\n'
+            '你是 ICU 语音查房转写的”规范化校对”模块。输入是 ASR 转写后的中文文本，'
             '可能含口语填充词、汉字数字、汉字单位。你的唯一任务是【格式规范化】，绝不改变任何临床含义。\n'
             '\n'
             '# 一、数值规范化\n'
@@ -491,8 +492,10 @@ class VoiceRoundingService:
                 all_suspects.append({"term": item.strip(), "type": SUSPECT_TYPE_DIALECT, "note": ""})
 
         # 数值保护：若 LLM 动了数字，拒绝采纳，回退原文并标红
+        # 但原文无阿拉伯数字时（汉字数字场景），跳过保护——LLM 的任务就是汉字→阿拉伯数字
         needs_review = False
-        if bool(llm_cfg.get("protect_numbers", True)) and self._numbers_changed(cleaned_text, corrected):
+        original_arabic_nums = self._extract_numbers(cleaned_text)
+        if bool(llm_cfg.get("protect_numbers", True)) and original_arabic_nums and self._numbers_changed(cleaned_text, corrected):
             logger.warning("LLM 纠错改动了数值，已拒绝采纳")
             corrected = cleaned_text
             needs_review = True
