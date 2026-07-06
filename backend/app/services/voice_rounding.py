@@ -200,8 +200,8 @@ class VoiceRoundingService:
 
     def _build_full_system_prompt(self) -> str:
         # Build correction system_prompt.
-        # Core rule: never touch numbers, only fix medical terms and clean filler words.
-        # A/B/C hint sections injected into known accent/dialect reference block.
+        # Two jobs: (A) format/unit normalization, (B) medical term correction + filler cleanup.
+        # Never change numeric VALUES. A/B/C hint sections injected at end.
         accent_section = self._build_accent_prompt_section()
         dialect_section = self._build_dialect_prompt_section()
         drug_section = self._build_drug_confusable_prompt_section()
@@ -224,42 +224,58 @@ class VoiceRoundingService:
 
         prompt = (
             '不要思考，不要推理，直接输出JSON结果。\n'
+            '\n'
             '你是 ICU（重症监护）语音查房记录的文本校对助手。'
-            '医生口述的查房内容经过语音识别（ASR）转写成文字，其中常因谐音、口音、专业术语造成识别错误。'
-            '你的唯一任务是把 ASR 转写文本校对成准确的书面医疗文本。\n'
+            '医生口述的查房内容经过语音识别（ASR）转写成中文文本，'
+            '其中常含口语填充词、汉字数字、汉字单位，并因谐音/口音造成术语识别错误。'
+            '你的任务是把它校对成规范的书面医疗文本。\n'
             '\n'
-            '========== 最高铁律：数字绝对不动 ==========\n'
+            '你只做两类工作：(A) 格式与单位规范化；(B) 医学术语纠错与口语清理。'
+            '你绝不改变任何临床数值本身，绝不增删临床信息。\n'
             '\n'
-            '转写文本中的一切数字——生命体征、化验值、用药剂量、出入量、留置天数、评分、时间——你必须逐字原样保留，包括：\n'
-            '- 一位数、负数、小数（如 RASS -2、GCS 3、乳酸 1.7、去甲肾上腺素 0.1）\n'
-            '- 数字后的单位\n'
-            '你绝对禁止：修改、增删、四舍五入、单位换算、"顺手纠正"任何数字。\n'
-            '即使你认为某个数字在临床上不合理，也不许改——那是医生复核的职责，不是你的。\n'
-            '如果某处数字明显缺失或语音没转出来，保持原样，不要凭经验补一个数字进去。\n'
+            '========== 最高铁律：数值的"大小"绝对不动 ==========\n'
             '\n'
-            '========== 你可以做的 ==========\n'
+            '- 你可以把"三八点五"写成"38.5"，但绝不能把 38.5 改成 38 或 39。\n'
+            '- 你可以把汉字单位"毫米汞柱"写成"mmHg"，但绝不能换算数值口径（如 g/dL 与 g/L 之间不擅自换算）。\n'
+            '- 一位数、负数、小数一律逐字保留其值（如 RASS -2、GCS 3、乳酸 1.7、去甲肾上腺素 0.1）。\n'
+            '- 即使某数值临床上明显不合理，也不许改——那是医生复核的职责。保留原值并置 needs_human_review=true。\n'
+            '- 数字缺失或没转出来时，保持原样，绝不凭经验补一个数字。\n'
             '\n'
-            '1. 纠正谐音/识别错误的医学术语，恢复为规范写法。例如：\n'
-            '   - "去甲肾上腺" → "去甲肾上腺素"\n'
-            '   - 药名、检查名、诊断名、操作名的明显识别错误\n'
+            '========== A. 格式与单位规范化（这是允许且应做的）==========\n'
+            '\n'
+            '1. 汉字数字转阿拉伯数字（不改变数值大小）：三八点五→38.5；一百二十→120；零点二→0.2；二分之一→1/2；四百万→400万。\n'
+            '2. 数值与单位之间不加空格；符号用半角。\n'
+            '3. 汉字单位转标准符号（数量级前缀：毫=m、微=μ、纳=n、皮=p、千=k；"万""亿"保留中文）：\n'
+            '【生命体征/血流动力学】摄氏度→℃ | 次每分→次/分 | 毫米汞柱→mmHg | 厘米水柱→cmH₂O | 毫升→mL | 升每分→L/min\n'
+            '【呼吸/机械通气】百分之→% | 厘米水柱→cmH₂O | 升每分→L/min | 毫米汞柱→mmHg\n'
+            '【血气/电解质】毫摩尔每升→mmol/L | 微摩尔每升→μmol/L | 毫当量每升→mEq/L | pH/INR→无单位\n'
+            '【实验室/血液】克每升→g/L | 克每分升→g/dL | 乘以十的九次方每升→×10⁹/L | 乘以十的十二次方每升→×10¹²/L | 毫克每升→mg/L | 纳克每毫升→ng/mL | 皮克每毫升→pg/mL | 国际单位每升→U/L\n'
+            '【药物剂量/泵速】微克每公斤每分钟→μg/kg/min | 微克每公斤每小时→μg/kg/h | 毫克每公斤每小时→mg/kg/h | 毫克每小时→mg/h | 微克每小时→μg/h | 单位每小时→U/h | 毫升每小时→mL/h | 滴每分→滴/分 | 毫摩尔→mmol | 国际单位→IU | 毫克每千克→mg/kg\n'
+            '【出入量/肾脏/CRRT】毫升→mL | 毫升每小时→mL/h | 毫升每公斤每小时→mL/kg/h | 升→L | 毫升每分钟→mL/min\n'
+            '【时间/体格/评分】小时/分钟/天/秒→h/min/d/s | 公斤→kg | 厘米→cm | 平方米→m² | GCS/APACHE/SOFA/RASS/CPOT/NRS 分→保留"分"(无量纲)\n'
+            '4. 歧义单位靠上下文绑定："次/分"按上文判断心率或呼吸；"mL/h"按上文判断尿量或泵速。无法明确绑定的，原样保留并写入 suspect。\n'
+            '\n'
+            '========== B. 医学术语纠错与口语清理（允许）==========\n'
+            '\n'
+            '1. 纠正谐音/识别错误的医学术语，恢复规范写法（如"去甲肾上腺"→"去甲肾上腺素"；药名、检查名、诊断名、操作名的明显识别错误）。\n'
             '2. 补齐标点，使其成为通顺的书面医疗记录。\n'
-            '3. 去除口语语气词、重复、口误自纠（如"呃""那个""就是说""不对是"）。\n'
-            '4. 规范明显的口语表达为书面语，但不改变原意。\n'
+            '3. 去除口语填充词、重复、口误自纠（嗯、啊、那个、就是说、不对是…）。\n'
+            '4. 规范口语表达为书面语，不改变原意。\n'
             '\n'
-            '========== 你绝对不可以做的 ==========\n'
+            '========== 绝对禁止 ==========\n'
             '\n'
-            '1. 不改任何数字（见最高铁律）。\n'
-            '2. 不添加转写文本里没有的临床信息、诊断、判断、建议。\n'
-            '3. 不删除任何有临床意义的内容，即使你觉得它不重要。\n'
-            '4. 不做医学推断、不下结论、不补全"应该有但没说"的内容。\n'
-            '5. 不对内容做总结、归纳、重新组织结构——只做字面校对。\n'
-            '6. 拿不准的术语，保持原样，不要猜。\n'
+            '1. 不改任何数值的大小（见最高铁律）。\n'
+            '2. 不修改、合并、替换药品名；易混药只规范格式，存疑写入 suspect。\n'
+            '3. 不添加转写文本里没有的临床信息、诊断、判断、建议。\n'
+            '4. 不删除任何有临床意义的内容。\n'
+            '5. 不做医学推断、不下结论、不补全"应有但没说"的内容。\n'
+            '6. 不做总结、归纳、重新组织结构——只做校对。\n'
+            '7. 拿不准的术语，保持原样，写入 suspect，绝不猜。\n'
             '\n'
-            '========== 输出格式 ==========\n'
+            '========== 输出格式（仅输出 JSON，不要任何解释、前言、markdown）==========\n'
             '\n'
-            '严格输出 JSON，不要任何解释、前言、标注、markdown：\n'
             '{"corrected_text":"<校对后的文本>","suspect":[{"term":"<存疑片段>","reason":"<原因>"}],"needs_human_review":<true|false>}\n'
-            '如果原文已经准确无误，corrected_text 原样返回，suspect 为空数组。\n'
+            '原文已准确无误时，corrected_text 原样返回，suspect 为空数组。\n'
             '\n'
             f'{known_refs}'
             f'{drug_warning}'
@@ -334,6 +350,113 @@ class VoiceRoundingService:
     def _numbers_changed(self, before: str, after: str) -> bool:
         """LLM 纠错后若数字集合变了，判定为不安全改动。"""
         return sorted(self._extract_numbers(before)) != sorted(self._extract_numbers(after))
+
+    # 汉字数字→float 映射
+    _CN_DIGITS = {"零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
+                  "六": 6, "七": 7, "八": 8, "九": 9, "十": 10, "百": 100, "千": 1000}
+
+    def _parse_cn_number(self, text: str) -> float | None:
+        """
+        解析汉字数字为 float。支持整数、小数（点）、分数（分之）。
+        如：三八点五→38.5，一百二十→120，零点二→0.2，二分之一→0.5
+        """
+        text = text.strip()
+        if not text:
+            return None
+
+        # 先试阿拉伯数字
+        try:
+            return float(text)
+        except ValueError:
+            pass
+
+        # 分数：X分之Y → Y/X
+        if "分之" in text:
+            parts = text.split("分之")
+            if len(parts) == 2:
+                denom = self._parse_cn_number(parts[0])
+                numer = self._parse_cn_number(parts[1])
+                if denom and numer and denom != 0:
+                    return numer / denom
+            return None
+
+        # 小数：X点Y
+        if "点" in text:
+            parts = text.split("点", 1)
+            int_part = self._parse_cn_int(parts[0]) if parts[0] else 0
+            if int_part is None:
+                return None
+            dec_str = parts[1] if len(parts) > 1 else ""
+            dec_val = 0.0
+            for i, ch in enumerate(dec_str):
+                d = self._CN_DIGITS.get(ch)
+                if d is None:
+                    return None
+                dec_val += d / (10 ** (i + 1))
+            return int_part + dec_val
+
+        # 纯整数
+        return self._parse_cn_int(text)
+
+    def _parse_cn_int(self, text: str) -> float | None:
+        """解析汉字整数。"""
+        text = text.strip()
+        if not text:
+            return None
+        # 纯阿拉伯数字
+        try:
+            return float(text)
+        except ValueError:
+            pass
+        total = 0
+        current = 0
+        for ch in text:
+            d = self._CN_DIGITS.get(ch)
+            if d is None:
+                return None
+            if d >= 10:
+                if current == 0:
+                    current = 1
+                current *= d
+            else:
+                current = d
+            if current >= 10:
+                total += current
+                current = 0
+        total += current
+        return float(total) if total > 0 else None
+
+    def _extract_numeric_values(self, text: str) -> list[float]:
+        """
+        从文本中抽取所有数值（阿拉伯数字 + 汉字数字），返回排序后的 float 列表。
+        用于比较原文与纠错后的数值大小是否一致。
+        """
+        values: list[float] = []
+
+        # 阿拉伯数字
+        for m in re.finditer(r'-?\d+(?:\.\d+)?', text):
+            try:
+                values.append(float(m.group()))
+            except ValueError:
+                pass
+
+        # 汉字数字（逐字符扫描）
+        cn_buf = ""
+        for ch in text:
+            if ch in self._CN_DIGITS or ch in ("点", "分"):
+                cn_buf += ch
+            else:
+                if cn_buf:
+                    v = self._parse_cn_number(cn_buf)
+                    if v is not None:
+                        values.append(v)
+                    cn_buf = ""
+        if cn_buf:
+            v = self._parse_cn_number(cn_buf)
+            if v is not None:
+                values.append(v)
+
+        return sorted(values)
 
     # ================================================================
     # 级3：患者上下文 LLM 纠错
@@ -502,19 +625,21 @@ class VoiceRoundingService:
             elif isinstance(item, str) and item.strip():
                 all_suspects.append({"term": item.strip(), "type": SUSPECT_TYPE_DIALECT, "note": ""})
 
-        # 数值保护：若 LLM 动了数字，拒绝采纳，回退原文并标红
-        # 但原文无阿拉伯数字时（汉字数字场景），跳过保护——LLM 的任务就是汉字→阿拉伯数字
+        # 数值保护：比较原文与纠错后文本中的数值大小。
+        # 允许格式转换（三八点五→38.5），但禁止改变数值大小（38.5→39）。
         needs_review = False
-        original_arabic_nums = self._extract_numbers(cleaned_text)
-        if bool(llm_cfg.get("protect_numbers", True)) and original_arabic_nums and self._numbers_changed(cleaned_text, corrected):
-            logger.warning("LLM 纠错改动了数值，已拒绝采纳")
-            corrected = cleaned_text
-            needs_review = True
-            all_suspects.append({
-                "term": "数值被模型改动",
-                "type": SUSPECT_TYPE_NUMBER,
-                "note": "已保留原值，请人工核对剂量",
-            })
+        if bool(llm_cfg.get("protect_numbers", True)):
+            original_nums = self._extract_numeric_values(cleaned_text)
+            corrected_nums = self._extract_numeric_values(corrected)
+            if original_nums and corrected_nums and original_nums != corrected_nums:
+                logger.warning("LLM 纠错改动了数值大小，已拒绝采纳: %s -> %s", original_nums, corrected_nums)
+                corrected = cleaned_text
+                needs_review = True
+                all_suspects.append({
+                    "term": "数值被模型改动",
+                    "type": SUSPECT_TYPE_NUMBER,
+                    "note": "已保留原值，请人工核对剂量",
+                })
 
         # C 类药名安全校验：检测易混药名，追加到 suspect
         all_suspects.extend(self._detect_drug_confusables(cleaned_text))
