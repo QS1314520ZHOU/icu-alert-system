@@ -198,7 +198,13 @@ class ASRClient:
 
     def __init__(self, cfg: dict[str, Any] | None = None):
         self.cfg = cfg or {}
-        self.mode = str(self.cfg.get("mode") or "funasr_openai")
+        # mode 优先读 voice_rounding.asr.mode，空则 fallback 到全局 ASR_MODE(.env)
+        cfg_mode = str(self.cfg.get("mode") or "").strip().lower()
+        if cfg_mode in ("http", "ws", "mock"):
+            self.mode = cfg_mode
+        else:
+            _, global_mode = _asr_config()
+            self.mode = global_mode  # "http" or "ws"
         self.hotwords = self._load_hotwords(self.cfg.get("hotword_path"))
 
     def _load_hotwords(self, path: str | None) -> list[str]:
