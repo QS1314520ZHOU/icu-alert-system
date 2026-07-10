@@ -1,0 +1,1804 @@
+<template>
+  <div class="consult-page">
+    <a-card :bordered="false" class="consult-hero">
+      <div class="consult-hero__copy">
+        <div class="consult-kicker">ICU AI Consultation</div>
+        <h1>AI问诊</h1>
+        <p>一个纯聊天问答的 AI 问诊框。可直接输入病情、化验、治疗方案或临床疑问；也可绑定某位患者，带着患者摘要继续追问。</p>
+        <div class="consult-badges">
+          <span class="consult-badge">{{ sending ? 'AI 正在回答' : '对话就绪' }}</span>
+          <span :class="['consult-badge', chatMode === 'free' ? 'consult-badge--free' : 'consult-badge--soft']">
+            {{ chatMode === 'free' ? '自由对话' : '结构化问诊' }}
+          </span>
+          <span class="consult-badge consult-badge--soft">{{ selectedPatientLabel }}</span>
+          <span class="consult-badge consult-badge--warn">仅供临床参考，需结合床旁评估</span>
+        </div>
+      </div>
+      <div class="consult-hero__tools">
+        <div class="field-label">绑定患者（可多选）</div>
+        <a-select
+          v-model:value="selectedPatientIds"
+          mode="multiple"
+          allow-clear
+          show-search
+          option-filter-prop="label"
+          placeholder="不选则为通用问答；可选择 3 床、5 床等多个患者"
+          :options="patientOptions"
+          :loading="patientsLoading"
+          class="patient-select"
+        />
+        <div class="tool-row">
+          <a-button size="small" type="primary" ghost :disabled="sending" @click="toggleChatMode">
+            一键切换：{{ chatMode === 'free' ? '回到结构化问诊' : '自由对话' }}
+          </a-button>
+          <a-button size="small" :type="autonomousMode ? 'primary' : 'default'" ghost :disabled="sending || selectedPatientIds.length !== 1" @click="autonomousMode = !autonomousMode">
+            自主排查模式：{{ autonomousMode ? '开' : '关' }}
+          </a-button>
+          <a-button size="small" :loading="patientsLoading" @click="loadPatients">刷新患者</a-button>
+          <a-button size="small" ghost :disabled="selectedPatientIds.length !== 1" @click="openPatientDetail">打开患者详情</a-button>
+          <a-button size="small" ghost :disabled="messages.length <= 1" @click="exportConversation">导出问诊</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportConsultSummary">导出会诊摘要</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportProgressNoteTemplate">导出病程记录</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="exportConsultDocument">导出会诊单</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="generateDocumentDraft('rounding')">生成查房摘要</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="generateDocumentDraft('handoff')">生成交班摘要</a-button>
+          <a-button size="small" ghost :disabled="!latestAssistantMessage" @click="generateDocumentDraft('problem')">生成问题清单</a-button>
+          <a-button size="small" danger ghost @click="clearConversation">清空对话</a-button>
+        </div>
+      </div>
+    </a-card>
+
+    <section class="consult-layout">
+      <aside class="consult-side">
+        <a-card :bordered="false" class="consult-panel">
+          <template #title>快捷提问</template>
+          <div class="prompt-list">
+            <button
+              v-for="prompt in quickPrompts"
+              :key="prompt"
+              type="button"
+              class="prompt-chip"
+              @click="usePrompt(prompt)"
+            >
+              {{ prompt }}
+            </button>
+          </div>
+        </a-card>
+
+        <a-card :bordered="false" class="consult-panel">
+          <template #title>患者上下文</template>
+          <div class="prompt-list">
+            <button
+              v-for="item in contextInsertions"
+              :key="item.key"
+              type="button"
+              class="prompt-chip"
+              :disabled="!selectedPatientIds.length"
+              @click="insertContext(item.text)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </a-card>
+
+        <a-card :bordered="false" class="consult-panel">
+          <template #title>使用建议</template>
+          <ul class="tip-list">
+            <li>可以连续追问，系统会保留最近对话上下文。</li>
+            <li>可同时选中多个患者，或直接说“3床比5床更需要关注吗”。</li>
+            <li>描述越具体，回答越有针对性，例如：指标变化、治疗时序、当前顾虑。</li>
+          </ul>
+        </a-card>
+      </aside>
+
+      <a-card :bordered="false" class="consult-chat">
+        <template #title>
+          <div class="chat-title-row">
+            <span>AI 对话问答</span>
+            <small>{{ selectedPatientLabel }}</small>
+            <button type="button" class="mode-switch" :disabled="sending" @click="toggleChatMode">
+              {{ chatMode === 'free' ? '自由对话中 · 切回问诊模板' : '结构化问诊中 · 切到自由对话' }}
+            </button>
+          </div>
+        </template>
+
+        <div ref="messageListRef" class="chat-list">
+          <div
+            v-for="item in messages"
+            :key="item.id"
+            :class="['chat-row', `is-${item.role}`]"
+          >
+            <div class="chat-meta">
+              <div class="chat-meta__main">
+                <span class="chat-role">{{ item.role === 'assistant' ? 'AI问诊助手' : '我' }}</span>
+                <span class="chat-time">{{ formatTime(item.ts) }}</span>
+                <span
+                  v-if="item.role === 'assistant' && item.intentPrimary"
+                  :class="['chat-intent-badge', intentBadgeClass(item.intentFocusSection)]"
+                >
+                  {{ intentBadgeLabel(item.intentPrimary, item.intentFocusSection) }}
+                </span>
+                <span v-if="item.role === 'assistant' && highRiskText(item.content)" class="chat-intent-badge is-high-risk">
+                  高风险建议需确认
+                </span>
+                <span v-if="item.role === 'assistant' && item.messageType === 'clarification'" class="chat-intent-badge is-clarification">
+                  AI 反问
+                </span>
+              </div>
+              <a-button
+                v-if="item.role === 'assistant' && item.content"
+                size="small"
+                ghost
+                class="chat-copy-btn"
+                @click="copyMessage(item.content)"
+              >
+                复制
+              </a-button>
+            </div>
+            <template v-if="chatMode === 'clinical' && item.role === 'assistant' && item.messageType !== 'clarification' && parseStructuredSections(item.content).length">
+              <div class="chat-bubble chat-bubble--structured">
+                <div v-if="highRiskText(item.content)" class="high-risk-warning">
+                  该建议涉及高风险医疗决策，请由责任医生确认后执行。
+                </div>
+                <div
+                  v-for="(section, idx) in parseStructuredSections(item.content)"
+                  :key="`${item.id}-section-${idx}`"
+                  :class="['consult-section', sectionToneClass(section.title)]"
+                >
+                  <div class="consult-section__title">{{ section.title }}</div>
+                  <div class="consult-section__body">
+                    <div
+                      v-for="(line, lineIdx) in section.lines"
+                      :key="`${item.id}-section-${idx}-line-${lineIdx}`"
+                      :class="['consult-section__line', lineToneClass(section.title)]"
+                    >
+                      <span
+                        v-if="section.title === '下一步处理'"
+                        :class="['priority-badge', priorityBadgeClass(lineIdx)]"
+                      >
+                        {{ priorityBadgeLabel(lineIdx) }}
+                      </span>
+                      {{ line }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div v-else :class="['chat-bubble', item.messageType === 'clarification' ? 'chat-bubble--clarification' : '', item.messageType === 'final' ? 'chat-bubble--final' : '']">
+              <template v-for="(paragraph, idx) in splitMessageParagraphs(item.content)" :key="`${item.id}-${idx}`">
+                <div class="chat-bubble__paragraph">{{ paragraph }}</div>
+              </template>
+            </div>
+          </div>
+
+          <div v-if="sending" class="chat-row is-assistant">
+            <div class="chat-meta">
+              <span class="chat-role">AI问诊助手</span>
+              <span class="chat-time">思考中</span>
+            </div>
+            <div class="chat-bubble chat-bubble--loading">
+              <a-spin size="small" />
+              <span>正在生成回答，请稍候…</span>
+            </div>
+          </div>
+
+          <div v-if="autonomousEvents.length" class="autonomous-trace">
+            <div class="autonomous-trace__title">自主排查轨迹</div>
+            <div v-for="(event, idx) in autonomousEvents.slice(-8)" :key="`${event.event}-${idx}`" class="autonomous-trace__row">
+              <strong>{{ event.event }}</strong>
+              <span>{{ event.summary }}</span>
+            </div>
+          </div>
+
+          <a-empty v-if="!messages.length && !sending" description="开始一次新的 AI 问诊对话" />
+        </div>
+
+        <div class="composer">
+          <textarea
+            v-model.trim="draft"
+            class="composer-input"
+            rows="4"
+            maxlength="4000"
+            placeholder="请输入你的问题，例如：患者乳酸持续升高、去甲肾上腺素增加到 0.2 μg/kg/min，下一步我该重点排查什么？"
+            @keydown="onComposerKeydown"
+          />
+          <div class="composer-actions">
+            <span class="composer-hint">Enter 发送，Shift + Enter 换行</span>
+            <a-button type="primary" :loading="sending" @click="sendMessage">发送</a-button>
+          </div>
+        </div>
+      </a-card>
+    </section>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Button as AButton, Card as ACard, Empty as AEmpty, Select as ASelect, Spin as ASpin, message } from 'ant-design-vue'
+import { getPatients, postAiConsultChat } from '../api'
+
+type ChatRole = 'user' | 'assistant'
+type ChatMode = 'clinical' | 'free'
+type ChatMessageType = 'normal' | 'clarification' | 'final'
+
+type ChatMessage = {
+  id: string
+  role: ChatRole
+  content: string
+  ts: number
+  intentPrimary?: string
+  intentFocusSection?: string
+  messageType?: ChatMessageType
+}
+
+type StructuredSection = {
+  title: string
+  lines: string[]
+}
+
+const router = useRouter()
+const route = useRoute()
+const patientsLoading = ref(false)
+const sending = ref(false)
+const chatMode = ref<ChatMode>('clinical')
+const selectedPatientIds = ref<string[]>([])
+const patients = ref<any[]>([])
+const draft = ref('')
+const messages = ref<ChatMessage[]>([])
+const messageListRef = ref<HTMLElement | null>(null)
+const streamAbortController = ref<AbortController | null>(null)
+const autonomousMode = ref(false)
+const autonomousEvents = ref<Array<{ event: string; summary: string }>>([])
+const pendingClarifications = ref<string[]>([])
+const clarificationContext = ref<Array<{ question: string; answer: string; ts: number }>>([])
+let saveTimer: number | null = null
+
+const quickPrompts = [
+  '请根据当前信息给我一个初步判断和前三个风险点。',
+  '如果我要进一步明确诊断，还建议补哪些检查？',
+  '请帮我梳理接下来 6 小时的观察重点和处理优先级。',
+  '当前治疗方案里有哪些高风险点需要立刻警惕？',
+]
+
+const contextInsertions = [
+  { key: 'patient', label: '插入当前患者上下文', text: '请结合当前已绑定患者上下文回答。' },
+  { key: 'summary24', label: '插入最近24小时摘要', text: '请重点分析该患者最近24小时摘要、关键变化和待处理事项。' },
+  { key: 'alerts', label: '插入未处理预警', text: '请聚焦当前未处理预警，按问题、证据、风险、建议、复评输出。' },
+  { key: 'labs', label: '插入最新检验', text: '请结合最新检验和血气结果，说明异常指标的临床意义。' },
+  { key: 'vent', label: '插入呼吸机参数', text: '请结合呼吸机参数、氧合、P/F、PEEP、FiO2评估呼吸风险。' },
+  { key: 'drugs', label: '插入当前用药', text: '请结合当前用药，特别是升压药、镇静镇痛、抗感染和肾毒性药物评估风险。' },
+]
+
+const patientOptions = computed(() =>
+  patients.value.map((item: any) => ({
+    value: String(item?._id || ''),
+    label: `${item?.hisBed || item?.bed || '--'}床 · ${item?.name || item?.hisName || '未知患者'} · ${item?.clinicalDiagnosis || item?.admissionDiagnosis || '暂无诊断'}`,
+  }))
+)
+
+const selectedPatientLabel = computed(() => {
+  const labels = selectedPatientIds.value
+    .map((id) => patientOptions.value.find((item) => item.value === id)?.label)
+    .filter(Boolean)
+  if (!labels.length) return '未绑定具体患者'
+  if (labels.length === 1) return labels[0] || '未绑定具体患者'
+  return `已绑定 ${labels.length} 位患者：${labels.map((item) => String(item).split(' · ')[0]).join('、')}`
+})
+
+const latestAssistantMessage = computed(() => {
+  const rows = [...messages.value].reverse()
+  return rows.find((item) => item.role === 'assistant' && String(item.content || '').trim()) || null
+})
+
+const latestUserMessage = computed(() => {
+  const rows = [...messages.value].reverse()
+  return rows.find((item) => item.role === 'user' && String(item.content || '').trim()) || null
+})
+
+const latestAssistantSections = computed(() => parseStructuredSections(latestAssistantMessage.value?.content || ''))
+
+const storageKey = computed(() => `icu-ai-consult:${chatMode.value}:${selectedPatientIds.value.length ? selectedPatientIds.value.join(',') : 'global'}`)
+const sessionContextKey = computed(() => `${storageKey.value}:session-context`)
+
+function pickRouteText(...values: any[]): string {
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      const hit = String(value[0] || '').trim()
+      if (hit) return hit
+      continue
+    }
+    const hit = String(value || '').trim()
+    if (hit) return hit
+  }
+  return ''
+}
+
+const routeDeptCode = computed(() => pickRouteText(route.query.dept_code, route.query.deptCode))
+const routeDeptName = computed(() => pickRouteText(route.query.dept, route.query.department))
+const routePatientId = computed(() => pickRouteText(route.query.patient_id, route.query.patientId))
+
+function createMessage(role: ChatRole, content: string, extra: Partial<ChatMessage> = {}): ChatMessage {
+  return {
+    id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    content,
+    ts: Date.now(),
+    messageType: 'normal',
+    ...extra,
+  }
+}
+
+function defaultAssistantGreeting() {
+  return createMessage(
+    'assistant',
+    chatMode.value === 'free'
+      ? '你好，我是自由对话模式。你可以不按固定问诊模板提问，我会按普通 AI 对话方式回答；如涉及临床决策，仍请以床旁评估和责任医生判断为准。'
+      : selectedPatientIds.value.length
+      ? `你好，我是 AI 问诊助手。当前已绑定患者：${selectedPatientLabel.value}。你可以直接追问病情判断、风险点、检查建议或下一步处理。`
+      : '你好，我是 AI 问诊助手。你可以直接输入临床问题，我会按“初步判断 / 风险提醒 / 下一步建议”的方式回答。'
+  )
+}
+
+function formatTime(ts: number) {
+  return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function intentBadgeLabel(primary?: string, focusSection?: string) {
+  if (focusSection === '建议检查') return '检查建议'
+  if (focusSection === '下一步处理') return '下一步处理'
+  if (focusSection === '风险点') return '风险识别'
+  if (focusSection === '初步判断') return '诊断判断'
+  return primary || '综合评估'
+}
+
+function intentBadgeClass(focusSection?: string) {
+  if (focusSection === '建议检查') return 'is-exam'
+  if (focusSection === '下一步处理') return 'is-action'
+  if (focusSection === '风险点') return 'is-risk'
+  if (focusSection === '初步判断') return 'is-judgement'
+  return 'is-default'
+}
+
+function sanitizeAssistantText(raw: string) {
+  let text = String(raw || '').replace(/\r\n/g, '\n').trim()
+  if (!text) return ''
+
+  text = text.replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
+  text = text.replace(/<think\b[^>]*>[\s\S]*$/gi, '')
+  text = text.replace(/<\/?think\b[^>]*>/gi, '')
+  text = text.replace(/&lt;think\b[^&]*&gt;[\s\S]*?&lt;\/think&gt;/gi, '')
+  text = text.replace(/&lt;think\b[^&]*&gt;[\s\S]*$/gi, '')
+  text = text.replace(/&lt;\/?think\b[^&]*&gt;/gi, '')
+
+  const fullFence = text.match(/^\s*```(?:[\w+-]+)?\s*([\s\S]*?)\s*```\s*$/i)
+  if (fullFence) text = String(fullFence[1] || '').trim()
+
+  text = text.replace(/```(?:[\w+-]+)?\s*([\s\S]*?)```/gi, (_, inner: string) => String(inner || '').trim())
+  text = text.replace(/^\s{0,3}#{1,6}\s*/gm, '')
+  text = text.replace(/^\s{0,3}>\s?/gm, '')
+  text = text.replace(/^\s*[-*+]\s+/gm, '')
+  text = text.replace(/^\s*(\d+)\.\s+/gm, '$1、')
+  text = text.replace(/\*\*([^*\n]+)\*\*/g, '$1')
+  text = text.replace(/__([^_\n]+)__/g, '$1')
+  text = text.replace(/`([^`\n]+)`/g, '$1')
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+  text = text.replace(/^\s*[-*_]{3,}\s*$/gm, '')
+  text = text.replace(/\n{3,}/g, '\n\n')
+  return text.trim()
+}
+
+function splitMessageParagraphs(content: string) {
+  return String(content || '')
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function parseStructuredSections(content: string): StructuredSection[] {
+  const text = String(content || '').replace(/\r\n/g, '\n').trim()
+  if (!text) return []
+
+  const pattern = /(?:^|\n{2,})(初步判断|关键证据|风险点|不确定性|建议检查|下一步处理建议|下一步处理|安全提示)：\n([\s\S]*?)(?=\n{2,}(?:初步判断|关键证据|风险点|不确定性|建议检查|下一步处理建议|下一步处理|安全提示)：\n|$)/g
+  const sections: StructuredSection[] = []
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(text)) !== null) {
+    const title = String(match[1] || '').trim() === '下一步处理' ? '下一步处理建议' : String(match[1] || '').trim()
+    const body = String(match[2] || '').trim()
+    if (!title || !body) continue
+    const lines = body
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+    if (lines.length) sections.push({ title, lines })
+  }
+  return sections
+}
+
+function sectionToneClass(title: string) {
+  if (title === '风险点') return 'consult-section--risk'
+  if (title === '下一步处理建议') return 'consult-section--action'
+  if (title === '建议检查') return 'consult-section--exam'
+  if (title === '安全提示') return 'consult-section--safety'
+  if (title === '不确定性') return 'consult-section--uncertain'
+  return 'consult-section--judgement'
+}
+
+function lineToneClass(title: string) {
+  if (title === '风险点') return 'consult-section__line--risk'
+  if (title === '安全提示') return 'consult-section__line--safety'
+  return ''
+}
+
+function highRiskText(content: string) {
+  const text = String(content || '')
+  return /剂量|停用|抢救|插管|拔管|升压药|去甲肾上腺素|抗生素更换|有创|手术|穿刺|镇静加深|机械通气参数调整/.test(text)
+}
+
+function insertContext(text: string) {
+  const prefix = selectedPatientIds.value.length ? `已绑定患者：${selectedPatientLabel.value}\n` : ''
+  draft.value = `${draft.value ? `${draft.value}\n\n` : ''}${prefix}${text}`.trim()
+}
+
+function generateDocumentDraft(type: 'rounding' | 'handoff' | 'problem') {
+  const map = {
+    rounding: '请基于上一次回答生成可编辑的查房摘要，按循环、呼吸、感染、肾脏、神经、营养、镇痛镇静、护理问题分类。',
+    handoff: '请基于上一次回答生成交班摘要，突出当前问题、已处理事项、待复评事项和夜间风险。',
+    problem: '请基于上一次回答生成今日问题清单和复评计划。',
+  }
+  draft.value = map[type]
+}
+
+function priorityBadgeLabel(index: number) {
+  if (index === 0) return 'P1'
+  if (index === 1) return 'P2'
+  return 'P3'
+}
+
+function priorityBadgeClass(index: number) {
+  if (index === 0) return 'is-p1'
+  if (index === 1) return 'is-p2'
+  return 'is-p3'
+}
+
+async function copyMessage(content: string) {
+  const text = String(content || '').trim()
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    message.success('回答已复制')
+  } catch {
+    message.error('复制失败，请手动复制')
+  }
+}
+
+function buildConversationExportText() {
+  const header = [
+    'ICU AI 问诊导出',
+    `导出时间：${new Date().toLocaleString('zh-CN')}`,
+    `绑定患者：${selectedPatientLabel.value}`,
+    '',
+  ]
+  const rows = messages.value.map((item) => {
+    const role = item.role === 'assistant' ? 'AI问诊助手' : '我'
+    return `[${formatTime(item.ts)}] ${role}\n${String(item.content || '').trim()}\n`
+  })
+  return [...header, ...rows].join('\n')
+}
+
+function buildConsultSummaryExportText() {
+  const latest = latestAssistantMessage.value
+  if (!latest) return ''
+
+  const sections = latestAssistantSections.value
+  const latestQuestion = latestUserMessage.value
+  const header = [
+    'ICU AI 会诊摘要',
+    `导出时间：${new Date().toLocaleString('zh-CN')}`,
+    `绑定患者：${selectedPatientLabel.value}`,
+    latestQuestion ? `当前问题：${String(latestQuestion.content || '').trim()}` : '当前问题：未记录',
+    '',
+  ]
+
+  if (!sections.length) {
+    return [...header, String(latest.content || '').trim()].join('\n')
+  }
+
+  const body = sections.flatMap((section) => {
+    const title = `${section.title}`
+    const rows = section.lines.map((line, idx) =>
+      section.title === '下一步处理'
+        ? `${priorityBadgeLabel(idx)} ${line}`
+        : line
+    )
+    return [title, ...rows, '']
+  })
+  return [...header, ...body].join('\n')
+}
+
+function findSectionLines(title: string) {
+  return latestAssistantSections.value.find((item) => item.title === title)?.lines || []
+}
+
+function buildProgressNoteExportText() {
+  const latest = latestAssistantMessage.value
+  if (!latest) return ''
+
+  const question = String(latestUserMessage.value?.content || '').trim() || '未记录'
+  const judgement = findSectionLines('初步判断')
+  const risks = findSectionLines('风险点')
+  const exams = findSectionLines('建议检查')
+  const actions = findSectionLines('下一步处理')
+  const now = new Date().toLocaleString('zh-CN')
+
+  const rows = [
+    'ICU 病程记录模板',
+    `记录时间：${now}`,
+    `患者：${selectedPatientLabel.value}`,
+    `科室：${routeDeptName.value || routeDeptCode.value || '未提供'}`,
+    '',
+    '一、当前临床问题',
+    question,
+    '',
+    '二、病情摘要',
+    judgement.length ? judgement.join('\n') : String(latest.content || '').trim(),
+    '',
+    '三、主要风险点',
+    risks.length ? risks.join('\n') : '1、请结合当前病情补充主要风险点。',
+    '',
+    '四、建议完善的检查/评估',
+    exams.length ? exams.join('\n') : '1、请结合当前病情补充建议检查。',
+    '',
+    '五、下一步处理计划',
+    actions.length
+      ? actions.map((line, idx) => `${priorityBadgeLabel(idx)} ${line}`).join('\n')
+      : 'P1 请结合当前病情补充下一步处理计划。',
+    '',
+    '六、备注',
+    '以上内容由 AI 问诊结果整理生成，仅供临床参考，需结合床旁评估与上级医师意见。',
+  ]
+  return rows.join('\n')
+}
+
+function buildConsultDocumentExportText() {
+  const latest = latestAssistantMessage.value
+  if (!latest) return ''
+
+  const question = String(latestUserMessage.value?.content || '').trim() || '未记录'
+  const judgement = findSectionLines('初步判断')
+  const risks = findSectionLines('风险点')
+  const exams = findSectionLines('建议检查')
+  const actions = findSectionLines('下一步处理')
+  const now = new Date().toLocaleString('zh-CN')
+
+  const rows = [
+    'ICU 会诊申请单 / 会诊意见单',
+    `生成时间：${now}`,
+    `患者：${selectedPatientLabel.value}`,
+    `申请科室：${routeDeptName.value || routeDeptCode.value || '未提供'}`,
+    '',
+    '========== 会诊申请单 =========＝',
+    `申请目的：${question}`,
+    '病情摘要：',
+    ...(judgement.length ? judgement : [String(latest.content || '').trim()]),
+    '拟请协助解决问题：',
+    ...(risks.length ? risks : ['1、请结合当前病情明确重点风险与需协助问题。']),
+    '',
+    '========== 会诊意见单 =========＝',
+    '初步判断：',
+    ...(judgement.length ? judgement : ['1、请结合当前病情完善初步判断。']),
+    '风险点：',
+    ...(risks.length ? risks : ['1、请结合当前病情补充风险点。']),
+    '建议检查：',
+    ...(exams.length ? exams : ['1、请结合当前病情补充建议检查。']),
+    '下一步处理：',
+    ...(actions.length
+      ? actions.map((line, idx) => `${priorityBadgeLabel(idx)} ${line}`)
+      : ['P1 请结合当前病情补充下一步处理。']),
+    '',
+    '备注：以上内容由 AI 问诊结果整理生成，仅供临床参考，需结合床旁评估与专科医师意见。',
+  ]
+  return rows.join('\n')
+}
+
+function exportConversation() {
+  try {
+    const text = buildConversationExportText()
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const patientPart = exportPatientPart()
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    anchor.href = url
+    anchor.download = `AI问诊-${patientPart}-${stamp}.txt`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+    message.success('问诊记录已导出')
+  } catch {
+    message.error('导出失败，请稍后重试')
+  }
+}
+
+function exportConsultSummary() {
+  try {
+    const text = buildConsultSummaryExportText()
+    if (!text.trim()) {
+      message.warning('暂无可导出的会诊摘要')
+      return
+    }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const patientPart = exportPatientPart()
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    anchor.href = url
+    anchor.download = `AI会诊摘要-${patientPart}-${stamp}.txt`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+    message.success('会诊摘要已导出')
+  } catch {
+    message.error('导出失败，请稍后重试')
+  }
+}
+
+function exportProgressNoteTemplate() {
+  try {
+    const text = buildProgressNoteExportText()
+    if (!text.trim()) {
+      message.warning('暂无可导出的病程记录模板')
+      return
+    }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const patientPart = exportPatientPart()
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    anchor.href = url
+    anchor.download = `病程记录模板-${patientPart}-${stamp}.txt`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+    message.success('病程记录模板已导出')
+  } catch {
+    message.error('导出失败，请稍后重试')
+  }
+}
+
+function exportConsultDocument() {
+  try {
+    const text = buildConsultDocumentExportText()
+    if (!text.trim()) {
+      message.warning('暂无可导出的会诊单')
+      return
+    }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    const patientPart = exportPatientPart()
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    anchor.href = url
+    anchor.download = `会诊申请单-意见单-${patientPart}-${stamp}.txt`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+    message.success('会诊单已导出')
+  } catch {
+    message.error('导出失败，请稍后重试')
+  }
+}
+
+function buildApiUrl(path: string) {
+  const base = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+  if (!base) return path
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+function safeJsonParse(raw: string) {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function exportPatientPart() {
+  if (!selectedPatientIds.value.length) return '通用问答'
+  return selectedPatientLabel.value.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40)
+}
+
+function scheduleSaveConversation(delay = 180) {
+  if (saveTimer != null) window.clearTimeout(saveTimer)
+  saveTimer = window.setTimeout(() => {
+    saveConversation()
+    saveTimer = null
+  }, delay)
+}
+
+type StreamDonePayload = {
+  code?: number
+  answer?: string
+  message?: string
+  error?: string
+  degraded?: boolean
+  intent_primary?: string
+  intent_focus_section?: string
+  message_type?: ChatMessageType
+  pending_clarifications?: string[]
+  information_gaps?: Array<{ question?: string; reason?: string; information_gain?: number }>
+}
+
+async function streamConsultReply(
+  payload: {
+    message: string
+    patient_id?: string
+    patient_ids?: string[]
+    mode?: ChatMode
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
+    pending_clarifications?: string[]
+  },
+  options: {
+    signal?: AbortSignal
+    onDelta?: (chunk: string) => void
+    onPreview?: (text: string) => void
+  } = {},
+): Promise<StreamDonePayload> {
+  const res = await fetch(buildApiUrl('/api/ai/chat-consult/stream'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: options.signal,
+  })
+  if (!res.ok) {
+    throw new Error(`请求失败（HTTP ${res.status}）`)
+  }
+  if (!res.body) {
+    throw new Error('流式响应不可用')
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let donePayload: StreamDonePayload = {}
+
+  const consumeBlock = (block: string) => {
+    let eventName = 'message'
+    const dataLines: string[] = []
+    for (const rawLine of block.split('\n')) {
+      const line = rawLine.trimEnd()
+      if (!line || line.startsWith(':')) continue
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim() || 'message'
+        continue
+      }
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart())
+      }
+    }
+    const dataRaw = dataLines.join('\n').trim()
+    if (!dataRaw) return
+    const parsed = safeJsonParse(dataRaw)
+
+    if (eventName === 'delta') {
+      const chunk = typeof parsed?.text === 'string' ? parsed.text : dataRaw
+      if (chunk) options.onDelta?.(chunk)
+      return
+    }
+    if (eventName === 'preview') {
+      const previewText = typeof parsed?.text === 'string' ? parsed.text : dataRaw
+      if (previewText) options.onPreview?.(previewText)
+      return
+    }
+    if (eventName === 'done') {
+      if (parsed && typeof parsed === 'object') donePayload = parsed as StreamDonePayload
+      else donePayload = { code: 0, answer: dataRaw }
+      return
+    }
+    if (eventName === 'error') {
+      const errText = String(parsed?.message || parsed?.error || dataRaw || 'AI问诊失败')
+      throw new Error(errText)
+    }
+  }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+    let sep = buffer.indexOf('\n\n')
+    while (sep >= 0) {
+      const block = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+      consumeBlock(block)
+      sep = buffer.indexOf('\n\n')
+    }
+  }
+  if (buffer.trim()) consumeBlock(buffer)
+  return donePayload
+}
+
+async function streamAutonomousInvestigation(
+  payload: { patient_id: string; question: string },
+  options: { signal?: AbortSignal; onEvent?: (event: string, data: any) => void } = {},
+): Promise<StreamDonePayload> {
+  const res = await fetch(buildApiUrl('/api/ai/autonomous/investigate'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: options.signal,
+  })
+  if (!res.ok || !res.body) throw new Error(`自主排查请求失败（HTTP ${res.status}）`)
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let finalPayload: any = {}
+  const consumeBlock = (block: string) => {
+    let eventName = 'message'
+    const dataLines: string[] = []
+    for (const rawLine of block.split('\n')) {
+      const line = rawLine.trimEnd()
+      if (line.startsWith('event:')) eventName = line.slice(6).trim() || 'message'
+      else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+    }
+    const parsed = safeJsonParse(dataLines.join('\n').trim()) || {}
+    options.onEvent?.(eventName, parsed)
+    if (eventName === 'final') finalPayload = { code: 0, answer: parsed.answer || '', message_type: 'final' }
+    if (eventName === 'error' && !finalPayload.answer) finalPayload = { code: 0, answer: parsed.message || '自主排查中止', degraded: true }
+  }
+  while (true) {
+    const { done, value } = await reader.read()
+    if (value) {
+      buffer += decoder.decode(value, { stream: !done })
+      const blocks = buffer.split(/\n\n/)
+      buffer = blocks.pop() || ''
+      blocks.forEach(consumeBlock)
+    }
+    if (done) break
+  }
+  if (buffer.trim()) consumeBlock(buffer)
+  return finalPayload
+}
+
+function normalizeMessages(raw: unknown): ChatMessage[] {
+  if (!Array.isArray(raw)) return [defaultAssistantGreeting()]
+  const rows: ChatMessage[] = raw
+    .map((item: any): ChatMessage => ({
+      id: String(item?.id || `${item?.role || 'assistant'}-${Math.random().toString(36).slice(2, 8)}`),
+      role: item?.role === 'user' ? 'user' : 'assistant',
+      content: item?.role === 'user'
+        ? String(item?.content || '').trim()
+        : sanitizeAssistantText(String(item?.content || '')),
+      ts: Number(item?.ts || Date.now()),
+      intentPrimary: item?.role === 'assistant' ? String(item?.intentPrimary || item?.intent_primary || '').trim() || undefined : undefined,
+      intentFocusSection: item?.role === 'assistant' ? String(item?.intentFocusSection || item?.intent_focus_section || '').trim() || undefined : undefined,
+      messageType: ['clarification', 'final'].includes(String(item?.messageType || item?.message_type || ''))
+        ? String(item?.messageType || item?.message_type) as ChatMessageType
+        : 'normal',
+    }))
+    .filter((item: ChatMessage) => Boolean(item.content))
+  return rows.length ? rows : [defaultAssistantGreeting()]
+}
+
+function saveConversation() {
+  localStorage.setItem(storageKey.value, JSON.stringify(messages.value))
+  sessionStorage.setItem(sessionContextKey.value, JSON.stringify({
+    pendingClarifications: pendingClarifications.value,
+    clarificationContext: clarificationContext.value,
+  }))
+}
+
+function loadConversation() {
+  try {
+    const raw = localStorage.getItem(storageKey.value)
+    messages.value = normalizeMessages(raw ? JSON.parse(raw) : null)
+    const sessionRaw = sessionStorage.getItem(sessionContextKey.value)
+    const sessionData = sessionRaw ? JSON.parse(sessionRaw) : {}
+    pendingClarifications.value = Array.isArray(sessionData?.pendingClarifications)
+      ? sessionData.pendingClarifications.map((item: any) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+      : []
+    clarificationContext.value = Array.isArray(sessionData?.clarificationContext)
+      ? sessionData.clarificationContext
+          .map((item: any) => ({ question: String(item?.question || ''), answer: String(item?.answer || ''), ts: Number(item?.ts || Date.now()) }))
+          .filter((item: any) => item.question && item.answer)
+      : []
+  } catch {
+    messages.value = [defaultAssistantGreeting()]
+    pendingClarifications.value = []
+    clarificationContext.value = []
+  }
+  void scrollToBottom()
+}
+
+async function scrollToBottom() {
+  await nextTick()
+  const el = messageListRef.value
+  if (el) {
+    el.scrollTop = el.scrollHeight
+  }
+}
+
+async function loadPatients() {
+  patientsLoading.value = true
+  try {
+    const params: { dept?: string; dept_code?: string; patient_scope: 'in_dept' } = { patient_scope: 'in_dept' }
+    if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+    else if (routeDeptName.value) params.dept = routeDeptName.value
+
+    const res = await getPatients(params)
+    let list = Array.isArray(res.data?.patients) ? res.data.patients : []
+    if (!list.length && routeDeptCode.value && routeDeptName.value) {
+      const fallbackRes = await getPatients({ patient_scope: 'in_dept', dept: routeDeptName.value })
+      list = Array.isArray(fallbackRes.data?.patients) ? fallbackRes.data.patients : []
+    }
+    patients.value = list
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '患者列表加载失败')
+  } finally {
+    patientsLoading.value = false
+  }
+}
+
+function usePrompt(prompt: string) {
+  draft.value = prompt
+}
+
+function openPatientDetail() {
+  if (selectedPatientIds.value.length !== 1) return
+  router.push({ path: `/patient/${selectedPatientIds.value[0]}`, query: { tab: 'ai' } })
+}
+
+function clearConversation() {
+  messages.value = [defaultAssistantGreeting()]
+  pendingClarifications.value = []
+  clarificationContext.value = []
+  saveConversation()
+}
+
+function toggleChatMode() {
+  if (sending.value) return
+  chatMode.value = chatMode.value === 'free' ? 'clinical' : 'free'
+  loadConversation()
+  void scrollToBottom()
+}
+
+function onComposerKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    void sendMessage()
+  }
+}
+
+function buildRequestHistory() {
+  const rows = messages.value.slice(-8).map((item) => ({
+    role: item.role,
+    content: String(item.content || '').slice(0, 320),
+  }))
+  const clarifications = clarificationContext.value
+    .slice(-3)
+    .map((item, idx) => `${idx + 1}、${item.question} 医生回答：${item.answer}`)
+    .join('\n')
+  if (clarifications) {
+    rows.push({
+      role: 'assistant',
+      content: `会话临时澄清上下文（不写入患者主档）：\n${clarifications}`.slice(0, 480),
+    })
+  }
+  return rows
+}
+
+async function sendMessage() {
+  const content = draft.value.trim()
+  if (!content || sending.value) return
+  const requestMode = chatMode.value
+  const activePending = [...pendingClarifications.value]
+  const isClarificationAnswer = activePending.length > 0
+
+  const history = buildRequestHistory()
+  const userMessage = createMessage('user', content)
+  messages.value.push(userMessage)
+  draft.value = ''
+  saveConversation()
+  await scrollToBottom()
+
+  const assistantMessage = createMessage('assistant', '')
+  messages.value.push(assistantMessage)
+  scheduleSaveConversation()
+
+  sending.value = true
+  try {
+    let streamRaw = ''
+    const aborter = new AbortController()
+    streamAbortController.value = aborter
+
+    let donePayload: StreamDonePayload = {}
+    try {
+      if (autonomousMode.value && selectedPatientIds.value.length === 1) {
+        autonomousEvents.value = []
+        donePayload = await streamAutonomousInvestigation(
+          { patient_id: String(selectedPatientIds.value[0] || ''), question: content },
+          {
+            signal: aborter.signal,
+            onEvent: (event, data) => {
+              const summary = event === 'step'
+                ? `${data.tool || 'tool'} ${data.status || ''}`.trim()
+                : event === 'tool_result'
+                  ? `${data.tool || 'tool'} 返回证据`
+                  : event === 'final'
+                    ? '形成最终结论'
+                    : String(data.message || event)
+              autonomousEvents.value.push({ event, summary })
+              if (event === 'tool_result') {
+                assistantMessage.content = sanitizeAssistantText(`已调用 ${data.tool || '工具'}，正在整合证据...`)
+              }
+              void scrollToBottom()
+            },
+          },
+        )
+      } else {
+        donePayload = await streamConsultReply(
+        {
+          message: content,
+          patient_id: selectedPatientIds.value[0],
+          patient_ids: selectedPatientIds.value,
+          mode: requestMode,
+          history,
+          pending_clarifications: activePending,
+        },
+        {
+          signal: aborter.signal,
+          onPreview: (text: string) => {
+            if (!streamRaw.trim()) {
+              assistantMessage.content = `${sanitizeAssistantText(text)}\n\n正在生成详细分析...`
+              scheduleSaveConversation()
+              void scrollToBottom()
+            }
+          },
+          onDelta: (chunk: string) => {
+            streamRaw += chunk
+            assistantMessage.content = sanitizeAssistantText(streamRaw) || ' '
+            scheduleSaveConversation()
+            void scrollToBottom()
+          },
+        },
+        )
+      }
+    } catch (streamError: any) {
+      if (streamRaw.trim()) {
+        message.warning('流式连接中断，已保留已生成内容')
+      } else {
+        const fallbackRes = await postAiConsultChat({
+          message: content,
+          patient_id: selectedPatientIds.value[0],
+          patient_ids: selectedPatientIds.value,
+          mode: requestMode,
+          history,
+          pending_clarifications: activePending,
+        })
+        if (Number(fallbackRes.data?.code) !== 0) {
+          throw new Error(fallbackRes.data?.message || fallbackRes.data?.error || 'AI问诊失败')
+        }
+        streamRaw = String(fallbackRes.data?.answer || '').trim()
+        donePayload = fallbackRes.data || {}
+      }
+      if (!streamRaw.trim()) {
+        throw streamError
+      }
+    }
+
+    const finalAnswer = sanitizeAssistantText(String(donePayload?.answer || streamRaw || '').trim()) || '暂未生成有效回答，请稍后重试。'
+    assistantMessage.content = finalAnswer
+    assistantMessage.intentPrimary = String(donePayload?.intent_primary || '').trim() || undefined
+    assistantMessage.intentFocusSection = String(donePayload?.intent_focus_section || '').trim() || undefined
+    assistantMessage.messageType = donePayload?.message_type === 'clarification'
+      ? 'clarification'
+      : donePayload?.message_type === 'final'
+        ? 'final'
+        : (donePayload?.message_type ? 'normal' : (isClarificationAnswer ? 'final' : 'normal'))
+    if (assistantMessage.messageType === 'clarification') {
+      pendingClarifications.value = Array.isArray(donePayload?.pending_clarifications)
+        ? donePayload.pending_clarifications.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+        : []
+    } else if (isClarificationAnswer) {
+      clarificationContext.value.push(...activePending.map((question) => ({ question, answer: content, ts: Date.now() })))
+      pendingClarifications.value = []
+    }
+    saveConversation()
+    await scrollToBottom()
+  } catch (error: any) {
+    const errText = error?.response?.data?.message || error?.response?.data?.error || error?.message || 'AI问诊失败'
+    message.error(errText)
+    assistantMessage.content = `抱歉，当前回答失败：${errText}`
+    scheduleSaveConversation()
+    await scrollToBottom()
+  } finally {
+    streamAbortController.value = null
+    sending.value = false
+  }
+}
+
+watch(selectedPatientIds, () => {
+  loadConversation()
+}, { deep: true })
+
+watch(messages, () => {
+  scheduleSaveConversation()
+}, { deep: true })
+
+onMounted(async () => {
+  await loadPatients()
+  const fromRoute = routePatientId.value
+  if (fromRoute && patients.value.some((item: any) => String(item?._id || '') === fromRoute)) {
+    selectedPatientIds.value = [fromRoute]
+  }
+  loadConversation()
+})
+
+onBeforeUnmount(() => {
+  if (saveTimer != null) {
+    window.clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  if (streamAbortController.value) {
+    streamAbortController.value.abort()
+    streamAbortController.value = null
+  }
+})
+</script>
+
+<style scoped>
+.consult-page {
+  display: grid;
+  gap: 16px;
+}
+
+.consult-hero,
+.consult-panel,
+.consult-chat {
+  border: 1px solid #E5E6EB;
+  background: #FFFFFF;
+}
+
+.consult-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  gap: 20px;
+}
+
+.consult-kicker {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.consult-hero h1 {
+  margin: 10px 0 8px;
+  color: var(--text-primary);
+  font-size: 30px;
+  line-height: 1.15;
+}
+
+.consult-hero p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.consult-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.consult-badge {
+  padding: 6px 10px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background: var(--bg-surface), 0.7);
+  color: #e0f7ff;
+  font-size: 12px;
+}
+
+.consult-badge--soft {
+  color: var(--accent);
+}
+
+.consult-badge--free {
+  color: #d8b4fe;
+  border-color: rgba(192, 132, 252, 0.28);
+  background: rgba(59, 7, 100, 0.28);
+}
+
+.consult-badge--warn {
+  color: var(--warning);
+}
+
+.consult-hero__tools {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.field-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.patient-select {
+  width: 100%;
+}
+
+.tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.consult-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.consult-side {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.prompt-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.prompt-chip {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.prompt-chip:hover {
+  background: #F7F8FA;
+  border: none;
+}
+
+.tip-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #b9d6e4;
+  line-height: 1.8;
+}
+
+.consult-chat {
+  min-height: 72vh;
+}
+
+.chat-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mode-switch {
+  min-height: 28px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.72);
+  color: #d8b4fe;
+  padding: 0 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mode-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.chat-title-row small {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.chat-list {
+  display: grid;
+  gap: 14px;
+  min-height: 52vh;
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.chat-row {
+  display: grid;
+  gap: 6px;
+}
+
+.chat-row.is-user {
+  justify-items: end;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-row.is-user .chat-meta {
+  justify-content: flex-end;
+}
+
+.chat-meta__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-role {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chat-time {
+  color: #6f88aa;
+  font-size: 11px;
+}
+
+.chat-intent-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background: var(--bg-surface), 0.78);
+  color: #cfeeff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.chat-intent-badge.is-judgement {
+  border-color: rgba(34, 211, 238, 0.2);
+  color: var(--accent);
+}
+
+.chat-intent-badge.is-risk {
+  border-color: rgba(251, 113, 133, 0.24);
+  color: var(--danger-soft);
+}
+
+.chat-intent-badge.is-exam {
+  border-color: rgba(96, 165, 250, 0.24);
+  color: var(--chart-1);
+}
+
+.chat-intent-badge.is-action {
+  border-color: rgba(245, 158, 11, 0.24);
+  color: var(--warning-soft);
+}
+.chat-intent-badge.is-high-risk {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: var(--danger-soft);
+  background: var(--bg-surface), 0.44);
+}
+.chat-intent-badge.is-clarification {
+  border-color: rgba(45, 212, 191, 0.3);
+  color: var(--success);
+  background: rgba(13, 78, 74, 0.36);
+}
+
+.chat-bubble {
+  max-width: min(820px, 100%);
+  white-space: pre-wrap;
+  line-height: 1.8;
+  padding: 14px 16px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: var(--bg-surface), 0.74);
+  color: #e6f6ff;
+}
+
+.chat-bubble__paragraph + .chat-bubble__paragraph {
+  margin-top: 10px;
+}
+
+.chat-bubble--clarification {
+  border-color: rgba(45, 212, 191, 0.3);
+  background: var(--bg-surface), 0.78);
+}
+
+.chat-bubble--final {
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.chat-copy-btn {
+  flex: 0 0 auto;
+}
+
+.chat-bubble--structured {
+  display: grid;
+  gap: 12px;
+}
+
+.consult-section {
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.36);
+  overflow: hidden;
+}
+
+.consult-section__title {
+  padding: 10px 14px;
+  background: rgba(17, 79, 119, 0.18);
+  color: #8fe9ff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.consult-section__body {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.consult-section__line {
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+
+.consult-section__line--risk {
+  color: #ffd5d5;
+}
+.consult-section__line--safety {
+  color: var(--danger-strong);
+}
+.high-risk-warning {
+  padding: 10px 12px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(248, 113, 113, 0.26);
+  background: var(--bg-surface), 0.42);
+  color: var(--danger-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: var(--card-radius);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.8;
+  vertical-align: middle;
+}
+
+.priority-badge.is-p1 {
+  color: var(--danger-bg);
+  background: rgba(220, 38, 38, 0.9);
+}
+
+.priority-badge.is-p2 {
+  color: var(--warning-soft);
+  background: rgba(217, 119, 6, 0.88);
+}
+
+.priority-badge.is-p3 {
+  color: var(--text-primary);
+  background: rgba(37, 99, 235, 0.82);
+}
+
+.consult-section--judgement .consult-section__title {
+  background: rgba(17, 79, 119, 0.18);
+}
+
+.consult-section--risk {
+  border-color: rgba(248, 113, 113, 0.18);
+  background: var(--bg-surface), 0.26);
+}
+
+.consult-section--risk .consult-section__title {
+  color: var(--danger-soft);
+  background: rgba(220, 38, 38, 0.18);
+}
+
+.consult-section--action {
+  border-color: rgba(250, 204, 21, 0.16);
+  background: var(--bg-surface), 0.24);
+}
+
+.consult-section--action .consult-section__title {
+  color: var(--warning-soft);
+  background: rgba(202, 138, 4, 0.18);
+}
+
+.consult-section--exam {
+  border-color: rgba(96, 165, 250, 0.18);
+  background: var(--bg-surface), 0.24);
+}
+
+.consult-section--exam .consult-section__title {
+  color: var(--chart-1);
+  background: rgba(37, 99, 235, 0.18);
+}
+.consult-section--safety {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: var(--bg-surface), 0.24);
+}
+.consult-section--safety .consult-section__title,
+.consult-section--uncertain .consult-section__title {
+  color: var(--warning-soft);
+  background: rgba(202, 138, 4, 0.16);
+}
+
+.chat-row.is-user .chat-bubble {
+  background: var(--bg-surface), var(--bg-surface));
+}
+
+.chat-bubble--loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.autonomous-trace {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface), 0.42);
+}
+.autonomous-trace__title {
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 800;
+}
+.autonomous-trace__row {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.autonomous-trace__row strong {
+  color: var(--accent);
+}
+
+.composer {
+  margin-top: 16px;
+  border-top: 1px solid rgba(80, 199, 255, 0.1);
+  padding-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.composer-input {
+  width: 100%;
+  resize: vertical;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background: var(--bg-surface), 0.94);
+  color: var(--text-primary);
+  padding: 12px 14px;
+  outline: none;
+  line-height: 1.7;
+}
+
+.composer-input::placeholder {
+  color: #6f88aa;
+}
+
+.composer-input:focus {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: var(--card-shadow);
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.composer-hint {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+html[data-theme='light'] .consult-page {
+  color: var(--text-secondary);
+}
+
+html[data-theme='light'] .consult-hero,
+html[data-theme='light'] .consult-panel,
+html[data-theme='light'] .consult-chat,
+html[data-theme='light'] .prompt-chip,
+html[data-theme='light'] .chat-bubble,
+html[data-theme='light'] .composer-input {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: var(--bg-surface) 0%, rgba(242, 247, 252, 0.98) 100%);
+  box-shadow: var(--card-shadow);
+}
+
+html[data-theme='light'] .consult-kicker,
+html[data-theme='light'] .chat-role {
+  color: var(--brand);
+}
+
+html[data-theme='light'] .chat-intent-badge {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(187, 204, 220, 0.72);
+  color: var(--text-secondary);
+}
+
+html[data-theme='light'] .chat-intent-badge.is-judgement {
+  color: #0f766e;
+  border-color: rgba(45, 212, 191, 0.28);
+}
+
+html[data-theme='light'] .chat-intent-badge.is-risk {
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+html[data-theme='light'] .chat-intent-badge.is-exam {
+  color: var(--brand);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+html[data-theme='light'] .chat-intent-badge.is-action {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+html[data-theme='light'] .chat-intent-badge.is-high-risk {
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(254, 242, 242, 0.98);
+}
+html[data-theme='light'] .chat-intent-badge.is-clarification {
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.26);
+  background: rgba(240, 253, 250, 0.98);
+}
+
+html[data-theme='light'] .consult-hero h1 {
+  color: var(--text-secondary);
+}
+
+html[data-theme='light'] .consult-hero p,
+html[data-theme='light'] .tip-list,
+html[data-theme='light'] .chat-time,
+html[data-theme='light'] .composer-hint,
+html[data-theme='light'] .chat-title-row small,
+html[data-theme='light'] .field-label {
+  color: var(--text-secondary);
+}
+
+html[data-theme='light'] .consult-badge {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+html[data-theme='light'] .consult-badge--warn {
+  color: var(--warning);
+}
+
+html[data-theme='light'] .consult-badge--free,
+html[data-theme='light'] .mode-switch {
+  color: #6d28d9;
+  border-color: rgba(168, 85, 247, 0.28);
+  background: rgba(250, 245, 255, 0.98);
+}
+
+html[data-theme='light'] .prompt-chip {
+  color: var(--text-secondary);
+}
+
+html[data-theme='light'] .chat-bubble {
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+html[data-theme='light'] .chat-bubble--clarification {
+  border-color: rgba(13, 148, 136, 0.22);
+  background: var(--bg-surface);
+}
+
+html[data-theme='light'] .consult-section {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(248, 251, 255, 0.92);
+}
+
+html[data-theme='light'] .consult-section__title {
+  color: var(--brand);
+  background: rgba(219, 234, 254, 0.9);
+}
+
+html[data-theme='light'] .consult-section--risk {
+  border-color: rgba(248, 113, 113, 0.26);
+  background: rgba(254, 242, 242, 0.96);
+}
+
+html[data-theme='light'] .consult-section--risk .consult-section__title {
+  color: var(--danger);
+  background: rgba(254, 226, 226, 0.96);
+}
+
+html[data-theme='light'] .consult-section__line--risk {
+  color: var(--danger-strong);
+}
+
+html[data-theme='light'] .consult-section--action {
+  border-color: rgba(245, 158, 11, 0.26);
+  background: rgba(255, 251, 235, 0.98);
+}
+
+html[data-theme='light'] .consult-section--action .consult-section__title {
+  color: var(--warning);
+  background: rgba(254, 243, 199, 0.98);
+}
+
+html[data-theme='light'] .consult-section--exam {
+  border-color: rgba(96, 165, 250, 0.24);
+  background: rgba(239, 246, 255, 0.98);
+}
+
+html[data-theme='light'] .consult-section--exam .consult-section__title {
+  color: var(--brand);
+  background: rgba(219, 234, 254, 0.98);
+}
+html[data-theme='light'] .consult-section--safety,
+html[data-theme='light'] .consult-section--uncertain,
+html[data-theme='light'] .high-risk-warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(255, 251, 235, 0.98);
+  color: var(--warning);
+}
+
+html[data-theme='light'] .chat-row.is-user .chat-bubble {
+  color: var(--text-primary);
+  background: var(--bg-surface), rgba(29, 78, 216, 0.98));
+}
+
+html[data-theme='light'] .composer-input {
+  color: var(--text-secondary);
+}
+
+html[data-theme='light'] .composer-input::placeholder {
+  color: #8aa0b5;
+}
+
+@media (max-width: 1100px) {
+  .consult-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .consult-hero {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

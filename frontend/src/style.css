@@ -1,0 +1,1462 @@
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html.boot-mobile,
+html.boot-mobile body,
+html.boot-mobile #app {
+  min-height: 100vh;
+  background: #f4f1ea;
+}
+
+:root {
+  /* Dark Mode - Clinical Monitor */
+  --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --app-title-color: #edf4fb;
+  --app-body-color: #d9e6f3;
+  --app-muted-color: var(--text-muted);
+  --app-border-color: rgba(125, 167, 214, 0.14);
+  --app-card-shadow-sm: 0 10px 28px rgba(2, 8, 20, 0.28);
+  --app-primary: #15558D;
+  --app-link: #15558D;
+  --app-tag-bg: rgba(11, 35, 54, 0.84);
+  --app-soft-bg: rgba(8, 28, 44, 0.78);
+  --status-critical-text: #D9342B;
+  --status-critical-bg: rgba(217, 52, 43, 0.2);
+  --status-warning-text: #E8901C;
+  --status-warning-bg: rgba(232, 144, 28, 0.18);
+  --status-normal-text: #1A9C5B;
+  --status-normal-bg: rgba(26, 156, 91, 0.18);
+  --app-bg: #07111d;
+  --hdr-bg: rgba(9, 20, 34, 0.92);
+  --hdr-bg-strong: linear-gradient(90deg, rgba(7, 20, 34, 0.96) 0%, rgba(5, 14, 26, 0.98) 100%);
+  --hdr-border: rgba(125, 167, 214, 0.14);
+  --hdr-title: #edf4fb;
+  --hdr-sub: #8ba0ba;
+  --hdr-tool-bg: rgba(7, 29, 45, 0.86);
+  --hdr-tool-text: #7ecce1;
+  --hdr-tool-border: rgba(80, 199, 255, 0.14);
+  --hdr-clock: #8de3f3;
+  --hdr-shadow: 0 8px 24px rgba(2, 8, 20, 0.22), inset 0 -1px 0 rgba(125, 241, 255, 0.04);
+  --hdr-icon-bg: linear-gradient(180deg, #0b4e74 0%, #07273f 100%);
+  --hdr-icon-text: #ecfeff;
+  --hdr-icon-border: rgba(103, 232, 249, 0.22);
+  --hdr-icon-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 16px rgba(34, 211, 238, 0.08);
+  --nav-btn-bg: rgba(7, 29, 45, 0.86);
+  --nav-btn-border: rgba(80, 199, 255, 0.12);
+  --nav-btn-text: #7ecce1;
+  --nav-btn-hover-bg: rgba(10, 42, 63, 0.94);
+  --nav-btn-hover-text: #e9fbff;
+  --nav-btn-hover-border: rgba(103, 232, 249, 0.22);
+  --nav-btn-active-bg: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
+  --nav-btn-active-text: #effcff;
+  --nav-btn-active-border: rgba(110, 231, 249, 0.32);
+  --nav-btn-active-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(34, 211, 238, 0.08);
+  --switch-off-bg: #183247;
+  --switch-on-bg: #0ea5b7;
+
+  --card-bg: #0d1a2b;
+  --card-hover: #122238;
+  --card-border: rgba(125, 167, 214, 0.14);
+  --card-shadow: 0 10px 28px rgba(2, 8, 20, 0.28);
+
+  --panel-bg: #0b1727;
+  --panel-soft: #102033;
+  --vitals-bg: #091421;
+
+  --text-main: #d9e6f3;
+  --text-muted: #9DB0C9;
+  --tab-active-bg: rgba(29, 122, 231, 0.16);
+  --tab-active-border: rgba(89, 168, 255, 0.36);
+  --icu-accent: #15558D;
+  --icu-accent-soft: #8fd4e6;
+  --icu-accent-strong: #15558D;
+  --icu-surface: rgba(8, 28, 44, 0.78);
+  --icu-surface-2: rgba(10, 42, 62, 0.72);
+  --icu-panel-gradient: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
+  --icu-panel-gradient-soft: linear-gradient(180deg, rgba(8,28,44,.92) 0%, rgba(6,17,29,.96) 100%);
+  --icu-border: rgba(80, 199, 255, 0.14);
+  --icu-border-strong: rgba(110, 231, 249, 0.28);
+  --icu-shadow-lg: 0 18px 36px rgba(0, 0, 0, 0.34);
+  --icu-shadow-panel: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
+  --icu-brand-gradient: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
+  --icu-brand-text: #effcff;
+  --icu-overlay-mask: rgba(2, 8, 20, 0.56);
+  --icu-modal-shadow: 0 24px 48px rgba(0,0,0,.4), inset 0 1px 0 rgba(145,228,255,.05);
+  --icu-danger: #D9342B;
+  --icu-warning: #A65A0C;
+  --icu-success: #1A9C5B;
+
+  /* Severity Pills */
+  --sev-warning-text: #A65A0C;
+  --sev-warning-bg: rgba(166, 90, 12, 0.22);
+  --sev-warning-border: rgba(166, 90, 12, 0.35);
+  --sev-high-text: #E8901C;
+  --sev-high-bg: rgba(232, 144, 28, 0.18);
+  --sev-high-border: rgba(232, 144, 28, 0.32);
+  --sev-critical-text: #D9342B;
+  --sev-critical-bg: rgba(217, 52, 43, 0.2);
+  --sev-critical-border: rgba(217, 52, 43, 0.35);
+  --sev-normal-text: #1A9C5B;
+  --sev-normal-bg: rgba(26, 156, 91, 0.18);
+  --sev-normal-border: rgba(26, 156, 91, 0.32);
+  /* Severity Pills - Soft variant */
+  --sev-soft-warning-text: #A65A0C;
+  --sev-soft-warning-bg: rgba(166, 90, 12, 0.18);
+  --sev-soft-warning-border: rgba(166, 90, 12, 0.28);
+  --sev-soft-high-text: #E8901C;
+  --sev-soft-high-bg: rgba(232, 144, 28, 0.15);
+  --sev-soft-high-border: rgba(232, 144, 28, 0.28);
+  --sev-soft-critical-text: #D9342B;
+  --sev-soft-critical-bg: rgba(217, 52, 43, 0.16);
+  --sev-soft-critical-border: rgba(217, 52, 43, 0.28);
+  --sev-soft-normal-text: #1A9C5B;
+  --sev-soft-normal-bg: rgba(26, 156, 91, 0.15);
+  --sev-soft-normal-border: rgba(26, 156, 91, 0.28);
+  /* Dark container backgrounds */
+  --container-dark-bg: #0b1626;
+  --container-dark-border: #19304d;
+  --container-dark-text: #94a3b8;
+  --container-alt-bg: #0f2038;
+  --container-alt-border: #1c3d64;
+  --container-alt-text: #9ca3af;
+
+  /* === Semantic Design Tokens === */
+  --bg-base:        var(--app-bg);
+  /* === Semantic Design Tokens === */
+  --bg-base:        var(--app-bg);
+  --bg-surface:     var(--card-bg);
+  --bg-surface-2:   var(--panel-soft);
+  --border-color:   var(--app-border-color);
+  --text-primary:   var(--app-title-color);
+  --text-secondary: #8ba0ba;
+  /* --text-muted defined above */
+  --brand:          var(--app-primary);
+  --accent:         var(--icu-accent);
+  --success:        #1A9C5B;
+  --warning:        #E8901C;
+  --warning-soft:   #A65A0C;
+  --danger:         #D9342B;
+  --danger-strong:  #D9342B;
+  --danger-soft:    #D9342B;
+  --danger-bg:      rgba(217, 52, 43, 0.2);
+  --warning-bg:     rgba(232, 144, 28, 0.18);
+  --success-bg:     rgba(26, 156, 91, 0.18);
+
+  /* Chart palette */
+  --chart-1:        #15558D;
+  --chart-2:        #1A9C5B;
+  --chart-3:        #E8901C;
+  --chart-4:        #D9342B;
+  --chart-5:        #15558D;
+  --chart-6:        #1A9C5B;
+  --chart-grid:     rgba(125,167,214,0.14);
+  --chart-axis:     #8ba0ba;
+  /* === Design System: Dark Mode Tokens === */
+  --bg-base: #07111d;
+  --bg-surface: #0d1a2b;
+  --bg-surface-2: #102033;
+  --brand: #15558D;
+  --brand-soft: rgba(21, 85, 141, 0.25);
+  --danger: #D9342B;
+  --danger-soft: rgba(217, 52, 43, 0.2);
+  --warning: #A65A0C;
+  --warning-icon: #E8901C;
+  --warning-soft: rgba(232, 144, 28, 0.18);
+  --success: #1A9C5B;
+  --success-soft: rgba(26, 156, 91, 0.18);
+  --card-radius: 8px;
+  --card-pad: 20px;
+  --card-gap: 16px;
+  --section-gap: 24px;
+  --card-shadow: 0 10px 28px rgba(2, 8, 20, 0.28);
+  --card-shadow-hover: 0 14px 36px rgba(2, 8, 20, 0.34);
+  --modal-shadow: 0 24px 48px rgba(2, 8, 20, 0.38);
+  --text-primary: #edf4fb;
+  --text-secondary: #8ba0ba;
+  --text-muted: #6b8299;
+  --border-color: rgba(125, 167, 214, 0.14);
+}
+
+html[data-theme='light'] {
+  /* === Design System: Light Mode Semantic Tokens === */
+
+  /* 中性色 */
+  --bg-base: #F3F1EA;
+  --bg-surface: #FFFDF7;
+  --bg-surface-2: #F6F3EA;
+  --border-color: #D7DED3;
+  --text-primary: #16241E;
+  --text-secondary: #3F564B;
+  --text-muted: #718176;
+
+  /* 主色 + 浅底 */
+  --brand: #1D6F63;
+  --brand-soft: #E2F0EA;
+  --danger: #B5483F;
+  --danger-soft: #FBE9E3;
+  --warning: #8A5E1B;
+  --warning-icon: #B47A24;
+  --warning-soft: #F7ECD5;
+  --success: #2F7A58;
+  --success-soft: #E3F0E6;
+
+  /* 卡片/间距/圆角 */
+  --card-radius: 8px;
+  --card-pad: 20px;
+  --card-gap: 16px;
+  --section-gap: 24px;
+  --card-shadow: 0 8px 22px rgba(54, 69, 58, 0.08);
+  --card-shadow-hover: 0 12px 30px rgba(54, 69, 58, 0.12);
+  --modal-shadow: 0 14px 34px rgba(54, 69, 58, 0.16);
+
+  /* Legacy 兼容映射 (供已有组件使用，后续逐步移除) */
+  --app-bg: var(--bg-base);
+  --app-title-color: var(--text-primary);
+  --app-body-color: var(--text-primary);
+  --app-muted-color: var(--text-muted);
+  --app-border-color: var(--border-color);
+  --app-card-shadow-sm: var(--card-shadow);
+  --app-primary: var(--brand);
+  --app-link: var(--brand);
+  --app-tag-bg: var(--brand-soft);
+  --app-soft-bg: var(--bg-surface-2);
+  --status-critical-text: var(--danger);
+  --status-critical-bg: var(--danger-soft);
+  --status-warning-text: var(--warning);
+  --status-warning-bg: var(--warning-soft);
+  --status-normal-text: var(--success);
+  --status-normal-bg: var(--success-soft);
+  --hdr-bg: rgba(255, 253, 247, 0.94);
+  --hdr-bg-strong: linear-gradient(180deg, rgba(255, 253, 247, 0.98) 0%, rgba(246, 243, 234, 0.96) 100%);
+  --hdr-border: var(--border-color);
+  --hdr-title: var(--text-primary);
+  --hdr-sub: var(--text-secondary);
+  --hdr-tool-bg: var(--bg-surface-2);
+  --hdr-tool-text: var(--text-secondary);
+  --hdr-tool-border: var(--border-color);
+  --hdr-clock: var(--text-primary);
+  --hdr-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --hdr-icon-bg: var(--brand);
+  --hdr-icon-text: #FFFFFF;
+  --hdr-icon-border: rgba(31, 111, 98, 0.18);
+  --hdr-icon-shadow: none;
+  --nav-btn-bg: transparent;
+  --nav-btn-border: transparent;
+  --nav-btn-text: var(--text-secondary);
+  --nav-btn-icon: var(--text-secondary);
+  --nav-btn-hover-bg: var(--bg-surface-2);
+  --nav-btn-hover-text: var(--brand);
+  --nav-btn-hover-icon: var(--brand);
+  --nav-btn-active-bg: var(--brand-soft);
+  --nav-btn-active-text: var(--brand);
+  --nav-btn-active-icon: var(--brand);
+  --nav-btn-active-border: var(--brand);
+  --nav-btn-active-shadow: none;
+  --switch-off-bg: var(--border-color);
+  --switch-on-bg: var(--brand);
+  --tab-active-bg: var(--brand-soft);
+  --tab-active-border: var(--brand);
+  --pill-bg: var(--bg-surface-2);
+  --card-bg: var(--bg-surface);
+  --card-hover: var(--bg-surface-2);
+  --card-border: var(--border-color);
+  --panel-bg: var(--bg-surface);
+  --panel-soft: var(--bg-surface-2);
+  --vitals-bg: var(--bg-surface-2);
+  --text-main: var(--text-primary);
+  --icu-accent: var(--brand);
+  --icu-accent-soft: var(--text-secondary);
+  --icu-accent-strong: var(--brand);
+  --icu-surface: var(--bg-surface);
+  --icu-surface-2: var(--bg-surface-2);
+  --icu-panel-gradient: linear-gradient(180deg, #FFFDF7 0%, #F6F3EA 100%);
+  --icu-panel-gradient-soft: linear-gradient(180deg, #FFFDF7 0%, #F4F0E6 100%);
+  --icu-border: var(--border-color);
+  --icu-border-strong: var(--border-color);
+  --icu-shadow-lg: var(--card-shadow-hover);
+  --icu-shadow-panel: var(--card-shadow);
+  --icu-brand-gradient: var(--brand);
+  --icu-brand-text: #FFFFFF;
+  --icu-overlay-mask: rgba(15, 23, 42, 0.2);
+  --icu-modal-shadow: var(--modal-shadow);
+  --icu-danger: var(--danger);
+  --icu-warning: var(--warning);
+  --icu-success: var(--success);
+  --sev-warning-text: var(--warning);
+  --sev-warning-bg: var(--warning-soft);
+  --sev-warning-border: rgba(166, 90, 12, 0.28);
+  --sev-high-text: var(--danger);
+  --sev-high-bg: var(--danger-soft);
+  --sev-high-border: rgba(217, 52, 43, 0.28);
+  --sev-critical-text: var(--danger);
+  --sev-critical-bg: var(--danger-soft);
+  --sev-critical-border: rgba(217, 52, 43, 0.28);
+  --sev-normal-text: var(--success);
+  --sev-normal-bg: var(--success-soft);
+  --sev-normal-border: rgba(26, 156, 91, 0.28);
+  --sev-soft-warning-text: var(--warning);
+  --sev-soft-warning-bg: var(--warning-soft);
+  --sev-soft-warning-border: rgba(166, 90, 12, 0.28);
+  --sev-soft-high-text: var(--danger);
+  --sev-soft-high-bg: var(--danger-soft);
+  --sev-soft-high-border: rgba(217, 52, 43, 0.28);
+  --sev-soft-critical-text: var(--danger);
+  --sev-soft-critical-bg: var(--danger-soft);
+  --sev-soft-critical-border: rgba(217, 52, 43, 0.28);
+  --sev-soft-normal-text: var(--success);
+  --sev-soft-normal-bg: var(--success-soft);
+  --sev-soft-normal-border: rgba(26, 156, 91, 0.28);
+  --container-dark-bg: var(--bg-surface-2);
+  --container-dark-border: var(--border-color);
+  --container-dark-text: var(--text-secondary);
+  --container-alt-bg: var(--bg-base);
+  --container-alt-border: var(--border-color);
+  --container-alt-text: var(--text-secondary);
+  --danger-bg: var(--danger-soft);
+  --warning-bg: var(--warning-soft);
+  --success-bg: var(--success-soft);
+  --warning-soft: #F7ECD5;
+  --danger-strong: var(--danger);
+  --danger-soft: #FBE9E3;
+  --chart-1: var(--brand);
+  --chart-2: var(--success);
+  --chart-3: var(--warning-icon);
+  --chart-4: var(--danger);
+  --chart-5: #4D7D73;
+  --chart-6: #A56F2A;
+  --chart-grid: var(--border-color);
+  --chart-axis: var(--text-secondary);
+}
+
+/* === Global Light Mode Overrides �?Medical SaaS === */
+html[data-theme='light'] * {
+  border-radius: var(--card-radius, 6px) !important;
+}
+
+html[data-theme='light'] [style*='linear-gradient'] {
+  background: var(--bg-surface) !important;
+}
+
+html[data-theme='light'] .ant-card,
+html[data-theme='light'] .card,
+html[data-theme='light'] .panel,
+html[data-theme='light'] .section {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+}
+
+html[data-theme='light'] [style*='box-shadow'] {
+  box-shadow: var(--card-shadow) !important;
+}
+
+html[data-theme='light'] [class*='gradient'],
+html[data-theme='light'] [class*='glow'] {
+  background: var(--bg-surface) !important;
+  box-shadow: none !important;
+}
+
+/* === Light Mode Table/Grid Borders === */
+html[data-theme='light'] .ant-table-wrapper .ant-table-thead > tr > th {
+  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--icu-surface) 82%, #fffdf8) !important;
+}
+
+html[data-theme='light'] .ant-table-wrapper .ant-table-tbody > tr > td {
+  border-bottom-color: color-mix(in srgb, var(--icu-border) 24%, transparent) !important;
+}
+
+html[data-theme='light'] .ant-table-wrapper .ant-table-container {
+  border: 1px solid color-mix(in srgb, var(--icu-border) 30%, transparent) !important;
+  box-shadow: 0 8px 22px rgba(64, 78, 66, 0.04) !important;
+}
+
+html[data-theme='light'] .ant-card .ant-card-head {
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+html[data-theme='light'] .ant-tabs .ant-tabs-nav::before {
+  border-bottom-color: var(--border-color) !important;
+}
+
+html[data-theme='light'] .ant-collapse > .ant-collapse-item {
+  border-bottom-color: var(--border-color) !important;
+}
+
+/* === Dropdown/Popover z-index fix === */
+.ant-select-dropdown,
+.ant-dropdown,
+.ant-dropdown-menu,
+.ant-picker-dropdown,
+.ant-popover,
+.ant-modal-wrap,
+.ant-notification {
+  z-index: 2000 !important;
+}
+
+.ant-select-dropdown .ant-select-item,
+.ant-dropdown-menu-item,
+.ant-picker-dropdown .ant-picker-panel-container {
+  background: var(--bg-surface) !important;
+}
+
+
+
+body {
+  background: var(--app-bg);
+  color: var(--app-body-color);
+  font-family: var(--app-display-font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background .22s ease, color .22s ease;
+}
+
+html.display-large-1080p {
+  font-size: 16px;
+}
+
+html.display-large-1080p body {
+  font-size: 15px;
+  font-weight: 450;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeSpeed;
+}
+
+html.display-large-1080p .ant-card .ant-card-head-title {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+html.display-large-1080p .ant-btn,
+html.display-large-1080p .ant-segmented-item,
+html.display-large-1080p .ant-radio-button-wrapper,
+html.display-large-1080p .ant-form-item-label > label,
+html.display-large-1080p .ant-empty-normal .ant-empty-description,
+html.display-large-1080p .ant-select-item,
+html.display-large-1080p .ant-dropdown-menu-item,
+html.display-large-1080p .ant-dropdown-menu-submenu-title,
+html.display-large-1080p .ant-table-wrapper .ant-table-thead > tr > th,
+html.display-large-1080p .ant-table-wrapper .ant-table-tbody > tr > td,
+html.display-large-1080p .ant-tag {
+  font-size: 14px !important;
+}
+
+html.display-large-1080p .ant-input,
+html.display-large-1080p .ant-input-number,
+html.display-large-1080p .ant-input-affix-wrapper,
+html.display-large-1080p .ant-select-selector,
+html.display-large-1080p .ant-picker,
+html.display-large-1080p .ant-select-selection-item,
+html.display-large-1080p .ant-select-selection-placeholder,
+html.display-large-1080p .ant-picker input,
+html.display-large-1080p .ant-input-number input,
+html.display-large-1080p .ant-input-affix-wrapper input {
+  font-size: 15px !important;
+}
+
+h1 { font-size: 20px; font-weight: 700; color: var(--app-title-color); }
+h2 { font-size: 16px; font-weight: 600; color: var(--app-title-color); }
+.caption { font-size: 12px; color: var(--app-muted-color); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+  background: var(--text-muted); 
+  border-radius: 10px; 
+  opacity: 0.3;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-main); }
+
+.ant-layout-header { line-height: normal !important; }
+.ant-menu-dark { background: transparent !important; }
+.ant-menu-dark .ant-menu-item-selected { background: var(--tab-active-bg) !important; }
+.ant-menu-light { background: transparent !important; border-bottom: none !important; }
+html[data-theme='light'] .ant-menu-light .ant-menu-item {
+  color: var(--text-secondary) !important;
+}
+html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
+  color: var(--brand) !important;
+  border-bottom: 2px solid var(--brand);
+}
+
+.ant-card {
+  background: var(--icu-panel-gradient) !important;
+  border: 1px solid var(--icu-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--icu-shadow-panel) !important;
+}
+.ant-card .ant-card-head {
+  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+  min-height: 44px;
+}
+.ant-card .ant-card-head-title {
+  color: var(--app-title-color) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em;
+}
+.ant-card .ant-card-body {
+  color: var(--text-main);
+}
+
+.ant-btn {
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  box-shadow: none !important;
+}
+.ant-btn-default,
+.ant-btn-color-default,
+.ant-btn-variant-outlined {
+  background: var(--icu-surface) !important;
+  border-color: var(--icu-border) !important;
+  color: var(--text-main) !important;
+}
+.ant-btn-default:hover,
+.ant-btn-color-default:hover,
+.ant-btn-variant-outlined:hover {
+  background: var(--icu-surface-2) !important;
+  border-color: var(--icu-border-strong) !important;
+  color: var(--text-main) !important;
+}
+.ant-btn-primary {
+  background: var(--icu-brand-gradient) !important;
+  border-color: var(--app-primary) !important;
+  color: var(--icu-brand-text) !important;
+}
+.ant-btn-primary:hover {
+  filter: brightness(1.04);
+}
+.ant-btn-link {
+  color: var(--app-link) !important;
+}
+.ant-btn-link:hover {
+  color: var(--app-primary) !important;
+}
+.ant-btn-background-ghost.ant-btn-dangerous {
+  color: var(--icu-danger) !important;
+  border-color: color-mix(in srgb, var(--icu-danger) 40%, transparent) !important;
+  background: color-mix(in srgb, var(--icu-danger) 10%, transparent) !important;
+}
+
+.ant-input,
+.ant-input-number,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker,
+.ant-segmented {
+  background: var(--icu-surface) !important;
+  border-color: var(--icu-border) !important;
+  color: var(--text-main) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+.ant-input::placeholder,
+.ant-input-number input::placeholder,
+.ant-input-affix-wrapper input::placeholder {
+  color: var(--text-muted) !important;
+}
+.ant-input:hover,
+.ant-input-number:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select:hover .ant-select-selector,
+.ant-picker:hover,
+.ant-segmented:hover {
+  border-color: var(--icu-border-strong) !important;
+}
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-number-focused,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: var(--icu-border-strong) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--icu-accent-strong) 16%, transparent) !important;
+}
+.ant-input-number input,
+.ant-input-affix-wrapper input,
+.ant-picker input,
+.ant-select-selection-item,
+.ant-select-selection-placeholder,
+.ant-select-arrow,
+.ant-picker-suffix,
+.ant-input-number-handler {
+  color: var(--text-main) !important;
+}
+.ant-input-number-handler-wrap {
+  background: transparent !important;
+}
+.ant-input-number-handler:hover {
+  background: color-mix(in srgb, var(--icu-accent-strong) 10%, transparent) !important;
+}
+
+.ant-segmented {
+  padding: 4px !important;
+}
+.ant-segmented-item {
+  color: var(--icu-accent-soft) !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+.ant-segmented-item-selected,
+.ant-segmented .ant-segmented-item:hover {
+  color: var(--text-main) !important;
+}
+.ant-segmented-thumb {
+  background: var(--icu-brand-gradient) !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+.ant-radio-group {
+  gap: 6px;
+}
+.ant-radio-button-wrapper {
+  background: var(--icu-surface) !important;
+  border: 1px solid var(--icu-border) !important;
+  color: var(--icu-accent-soft) !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+}
+.ant-radio-button-wrapper::before {
+  display: none !important;
+}
+.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background: var(--icu-brand-gradient) !important;
+  border-color: var(--icu-border-strong) !important;
+  color: var(--icu-brand-text) !important;
+}
+
+.ant-switch {
+  background: var(--switch-off-bg) !important;
+}
+.ant-switch.ant-switch-checked {
+  background: var(--icu-brand-gradient) !important;
+}
+
+.ant-tabs .ant-tabs-nav::before {
+  border-bottom-color: color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+}
+.ant-tabs .ant-tabs-tab {
+  margin: 0 4px 0 0 !important;
+  padding: 8px 12px !important;
+  background: var(--icu-surface);
+  border: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent);
+  border-radius: 10px;
+}
+.ant-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+  color: var(--icu-accent-soft) !important;
+  font-size: 12px !important;
+  font-weight: 600;
+}
+.ant-tabs .ant-tabs-tab.ant-tabs-tab-active {
+  background: var(--tab-active-bg);
+  border-color: var(--tab-active-border);
+  border-bottom: 2px solid var(--brand);
+}
+
+.ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--brand) !important;
+}
+
+.ant-tabs .ant-tabs-ink-bar {
+}
+
+.ant-collapse {
+  background: transparent !important;
+  border-color: var(--icu-border) !important;
+}
+.ant-collapse > .ant-collapse-item {
+  border-bottom-color: color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+}
+.ant-collapse > .ant-collapse-item > .ant-collapse-header {
+  color: var(--text-main) !important;
+  background: color-mix(in srgb, var(--card-bg) 88%, transparent) !important;
+}
+.ant-collapse .ant-collapse-content {
+  background: transparent !important;
+  border-top-color: color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+}
+.ant-collapse .ant-collapse-content-box {
+  color: var(--text-main) !important;
+}
+
+.ant-tag {
+  border-radius: 6px !important;
+  border-color: var(--icu-border) !important;
+  background: var(--app-tag-bg) !important;
+  color: var(--app-primary) !important;
+  font-size: 11px !important;
+}
+
+.ant-table-wrapper .ant-table {
+  background: transparent !important;
+  color: var(--text-main) !important;
+}
+.ant-table-wrapper .ant-table-container {
+  border-start-start-radius: 12px !important;
+  border-start-end-radius: 12px !important;
+}
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: var(--icu-surface) !important;
+  color: var(--icu-accent-soft) !important;
+  border-bottom-color: color-mix(in srgb, var(--icu-border) 80%, transparent) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  background: color-mix(in srgb, var(--card-bg) 70%, transparent) !important;
+  color: var(--text-main) !important;
+  border-bottom-color: color-mix(in srgb, var(--icu-border) 60%, transparent) !important;
+  font-size: 12px !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--icu-accent-strong) 10%, var(--card-bg)) !important;
+}
+.ant-table-wrapper .ant-table-placeholder > td {
+  background: transparent !important;
+}
+.ant-table-wrapper .ant-empty-description {
+  color: var(--text-muted) !important;
+}
+
+.ant-pagination .ant-pagination-item,
+.ant-pagination .ant-pagination-prev,
+.ant-pagination .ant-pagination-next,
+.ant-pagination .ant-pagination-jump-prev,
+.ant-pagination .ant-pagination-jump-next {
+  background: var(--icu-surface) !important;
+  border-color: var(--icu-border) !important;
+  border-radius: 8px !important;
+}
+.ant-pagination .ant-pagination-item a,
+.ant-pagination .ant-pagination-prev button,
+.ant-pagination .ant-pagination-next button,
+.ant-pagination .ant-pagination-jump-prev button,
+.ant-pagination .ant-pagination-jump-next button {
+  color: var(--text-main) !important;
+}
+.ant-pagination .ant-pagination-item-active {
+  background: var(--icu-brand-gradient) !important;
+  border-color: var(--icu-border-strong) !important;
+}
+.ant-pagination .ant-pagination-item-active a {
+  color: var(--icu-brand-text) !important;
+}
+
+.ant-empty-normal .ant-empty-description,
+.ant-form-item-label > label,
+.ant-form-item-explain,
+.ant-select-item,
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-submenu-title {
+  font-size: 12px !important;
+}
+.ant-form-item-label > label,
+.ant-empty-normal .ant-empty-description {
+  color: var(--text-muted) !important;
+}
+
+.ant-spin-dot-item {
+  background-color: var(--icu-accent-strong) !important;
+}
+
+.ant-select-dropdown,
+.icu-monitor-select-dropdown,
+.ant-dropdown .ant-dropdown-menu,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-picker-dropdown .ant-picker-footer,
+.ant-picker-dropdown .ant-picker-header,
+.ant-picker-dropdown .ant-picker-time-panel,
+.ant-picker-dropdown .ant-picker-date-panel,
+.ant-picker-dropdown .ant-picker-week-panel,
+.ant-picker-dropdown .ant-picker-month-panel,
+.ant-picker-dropdown .ant-picker-year-panel {
+  background: var(--icu-panel-gradient) !important;
+  border-color: var(--icu-border) !important;
+}
+.ant-select-dropdown,
+.icu-monitor-select-dropdown,
+.ant-dropdown .ant-dropdown-menu,
+.ant-picker-dropdown .ant-picker-panel-container {
+  border: 1px solid var(--icu-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--icu-shadow-lg) !important;
+}
+.ant-select-dropdown .ant-select-item,
+.icu-monitor-select-dropdown .ant-select-item,
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-submenu-title {
+  color: var(--text-main) !important;
+  border-radius: 8px !important;
+}
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+.icu-monitor-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+.ant-dropdown-menu-item:hover,
+.ant-dropdown-menu-submenu-title:hover {
+  background: var(--icu-surface-2) !important;
+}
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled),
+.icu-monitor-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: var(--icu-brand-gradient) !important;
+  color: var(--icu-brand-text) !important;
+  font-weight: 600 !important;
+}
+
+.ant-picker-dropdown .ant-picker-content th,
+.ant-picker-dropdown .ant-picker-header,
+.ant-picker-dropdown .ant-picker-time-panel-column > li {
+  color: var(--text-muted) !important;
+}
+.ant-picker-dropdown .ant-picker-cell .ant-picker-cell-inner {
+  color: var(--text-main) !important;
+  border-radius: 8px !important;
+}
+.ant-picker-dropdown .ant-picker-cell:hover .ant-picker-cell-inner {
+  background: var(--icu-surface-2) !important;
+}
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: var(--icu-brand-gradient) !important;
+}
+
+.ant-popover .ant-popover-inner,
+.icu-monitor-popover .ant-popover-inner,
+.ant-tooltip .ant-tooltip-inner,
+.ant-popconfirm .ant-popover-inner {
+  background: var(--icu-panel-gradient) !important;
+  border: 1px solid var(--icu-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--icu-shadow-lg) !important;
+}
+.ant-popover .ant-popover-inner-content,
+.icu-monitor-popover .ant-popover-inner-content,
+.ant-tooltip .ant-tooltip-inner,
+.ant-popconfirm .ant-popover-inner-content {
+  color: var(--text-main) !important;
+  font-size: 12px !important;
+}
+.ant-popover .ant-popover-arrow::before,
+.icu-monitor-popover .ant-popover-arrow::before,
+.ant-tooltip .ant-tooltip-arrow::before,
+.ant-popconfirm .ant-popover-arrow::before {
+  background: color-mix(in srgb, var(--card-bg) 94%, transparent) !important;
+}
+
+.ant-modal .ant-modal-content,
+.ant-drawer .ant-drawer-content,
+.icu-evidence-modal-wrap .ant-modal-content {
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--icu-accent-strong) 10%, transparent), transparent 28%),
+    var(--icu-panel-gradient) !important;
+  border: 1px solid color-mix(in srgb, var(--icu-border) 96%, transparent) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--icu-modal-shadow) !important;
+}
+.ant-modal .ant-modal-header,
+.ant-drawer .ant-drawer-header,
+.icu-evidence-modal-wrap .ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+}
+.ant-modal .ant-modal-title,
+.ant-drawer .ant-drawer-title,
+.icu-evidence-modal-wrap .ant-modal-title {
+  color: var(--text-main) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+}
+.ant-modal .ant-modal-close,
+.ant-drawer .ant-drawer-close,
+.icu-evidence-modal-wrap .ant-modal-close {
+  color: var(--icu-accent-soft) !important;
+}
+.ant-modal .ant-modal-body,
+.ant-drawer .ant-drawer-body,
+.icu-evidence-modal-wrap .ant-modal-body {
+  color: var(--text-main) !important;
+}
+.ant-modal-root .ant-modal-mask,
+.ant-drawer-mask {
+  backdrop-filter: blur(6px);
+  background: var(--icu-overlay-mask) !important;
+}
+
+.ant-message .ant-message-notice-content,
+.ant-notification .ant-notification-notice {
+  background: var(--icu-panel-gradient-soft) !important;
+  border: 1px solid var(--icu-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--icu-shadow-lg) !important;
+  color: var(--text-main) !important;
+}
+.ant-message .ant-message-custom-content,
+.ant-notification .ant-notification-notice-message,
+.ant-notification .ant-notification-notice-description {
+  color: var(--text-main) !important;
+  font-size: 12px !important;
+}
+.ant-notification .ant-notification-notice-close {
+  color: var(--icu-accent-soft) !important;
+}
+
+.icu-monitor-select-dropdown {
+  padding: 6px !important;
+  border-radius: 12px !important;
+  background: var(--icu-panel-gradient) !important;
+  border: 1px solid var(--icu-border) !important;
+  box-shadow: var(--icu-shadow-lg) !important;
+}
+.icu-monitor-select-dropdown .ant-select-item {
+  color: var(--text-main) !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+.icu-monitor-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: var(--icu-surface-2) !important;
+}
+.icu-monitor-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: var(--icu-brand-gradient) !important;
+  color: var(--icu-brand-text) !important;
+  font-weight: 600 !important;
+}
+
+.icu-monitor-popover .ant-popover-inner {
+  background: var(--icu-panel-gradient) !important;
+  border: 1px solid var(--icu-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--icu-shadow-lg) !important;
+}
+.icu-monitor-popover .ant-popover-inner-content {
+  color: var(--text-main) !important;
+  font-size: 12px !important;
+}
+.icu-monitor-popover .ant-popover-arrow::before {
+  background: color-mix(in srgb, var(--card-bg) 94%, transparent) !important;
+}
+
+.icu-evidence-modal-wrap .ant-modal-content {
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--icu-accent-strong) 10%, transparent), transparent 28%),
+    var(--icu-panel-gradient) !important;
+  border: 1px solid color-mix(in srgb, var(--icu-border) 96%, transparent) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--icu-modal-shadow) !important;
+}
+.icu-evidence-modal-wrap .ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+  padding: 18px 22px 14px !important;
+}
+.icu-evidence-modal-wrap .ant-modal-title {
+  color: var(--text-main) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: .08em !important;
+}
+.icu-evidence-modal-wrap .ant-modal-close {
+  color: var(--icu-accent-soft) !important;
+}
+.icu-evidence-modal-wrap .ant-modal-body {
+  padding: 18px 22px 22px !important;
+}
+
+/* Light mode safety net for patient detail tabs:
+   prevents residual dark blocks when individual scoped styles miss overrides. */
+html[data-theme='light'] .detail-container .chart-panel,
+html[data-theme='light'] .detail-container .ai-risk-summary,
+html[data-theme='light'] .detail-container .ai-risk-card,
+html[data-theme='light'] .detail-container .ai-risk-organ,
+html[data-theme='light'] .detail-container .ai-risk-section,
+html[data-theme='light'] .detail-container .summary-card,
+html[data-theme='light'] .detail-container .summary-mini-chip,
+html[data-theme='light'] .detail-container .summary-chip,
+html[data-theme='light'] .detail-container .summary-snapshot,
+html[data-theme='light'] .detail-container .summary-main-wrap,
+html[data-theme='light'] .detail-container .summary-chain,
+html[data-theme='light'] .detail-container .topic-card,
+html[data-theme='light'] .detail-container .ops-card,
+html[data-theme='light'] .detail-container .side-panel,
+html[data-theme='light'] .detail-container .side-block,
+html[data-theme='light'] .detail-container .case-card,
+html[data-theme='light'] .detail-container .score-box,
+html[data-theme='light'] .detail-container .outcome-board,
+html[data-theme='light'] .detail-container .profile-chip,
+html[data-theme='light'] .detail-container .alert-detail-item,
+html[data-theme='light'] .detail-container .alert-extra,
+html[data-theme='light'] .detail-container .kb-doc-meta,
+html[data-theme='light'] .detail-container .kb-chunk-item {
+  background: var(--icu-panel-gradient-soft) !important;
+  border-color: color-mix(in srgb, var(--icu-border) 58%, transparent) !important;
+  box-shadow: 0 10px 26px rgba(36, 55, 48, 0.06) !important;
+}
+html[data-theme='light'] .detail-container .case-card,
+html[data-theme='light'] .detail-container .score-box,
+html[data-theme='light'] .detail-container .outcome-board,
+html[data-theme='light'] .detail-container .profile-chip,
+html[data-theme='light'] .detail-container .summary-card,
+html[data-theme='light'] .detail-container .topic-card,
+html[data-theme='light'] .detail-container .ops-card {
+  border-color: color-mix(in srgb, var(--icu-border) 46%, transparent) !important;
+  box-shadow: 0 6px 18px rgba(36, 55, 48, 0.045) !important;
+}
+html[data-theme='light'] .detail-container :where(.ant-card, .ant-collapse, .ant-descriptions, .ant-table-wrapper, .ant-list, .ant-timeline) {
+  --ant-color-border-secondary: color-mix(in srgb, var(--icu-border) 42%, transparent);
+}
+html[data-theme='light'] .detail-container :where(.ant-table, .ant-descriptions, .ant-collapse, .ant-list-item, .ant-timeline-item-tail) {
+  border-color: color-mix(in srgb, var(--icu-border) 42%, transparent) !important;
+}
+html[data-theme='light'] .detail-container .tab-empty,
+html[data-theme='light'] .detail-container .ai-empty {
+  background: var(--icu-surface) !important;
+  border: 1px dashed color-mix(in srgb, var(--icu-border) 94%, transparent) !important;
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .alert-title,
+html[data-theme='light'] .detail-container .detail-value,
+html[data-theme='light'] .detail-container .ai-risk-summary strong,
+html[data-theme='light'] .detail-container .ai-risk-card strong,
+html[data-theme='light'] .detail-container .ai-risk-organ-name,
+html[data-theme='light'] .detail-container .ai-risk-section-title,
+html[data-theme='light'] .detail-container .summary-card strong,
+html[data-theme='light'] .detail-container .summary-title,
+html[data-theme='light'] .detail-container .summary-mini-chip-value,
+html[data-theme='light'] .detail-container .summary-main,
+html[data-theme='light'] .detail-container .summary-chain-text,
+html[data-theme='light'] .detail-container .topic-card-title,
+html[data-theme='light'] .detail-container .topic-card-main,
+html[data-theme='light'] .detail-container .ops-main,
+html[data-theme='light'] .detail-container .case-name,
+html[data-theme='light'] .detail-container .score-value,
+html[data-theme='light'] .detail-container .kb-chunk-title {
+  color: var(--text-main) !important;
+}
+html[data-theme='light'] .detail-container .detail-label,
+html[data-theme='light'] .detail-container .ai-risk-summary span,
+html[data-theme='light'] .detail-container .ai-risk-card p,
+html[data-theme='light'] .detail-container .ai-risk-organ-status,
+html[data-theme='light'] .detail-container .ai-risk-organ-evidence,
+html[data-theme='light'] .detail-container .ai-risk-organ-conf,
+html[data-theme='light'] .detail-container .ai-risk-list,
+html[data-theme='light'] .detail-container .summary-card span,
+html[data-theme='light'] .detail-container .summary-card small,
+html[data-theme='light'] .detail-container .summary-mini-chip-label,
+html[data-theme='light'] .detail-container .summary-block-label,
+html[data-theme='light'] .detail-container .summary-snapshot-label,
+html[data-theme='light'] .detail-container .summary-chain-tag,
+html[data-theme='light'] .detail-container .summary-chain-code,
+html[data-theme='light'] .detail-container .topic-card-sub,
+html[data-theme='light'] .detail-container .topic-card-meta,
+html[data-theme='light'] .detail-container .ops-foot,
+html[data-theme='light'] .detail-container .case-rank,
+html[data-theme='light'] .detail-container .case-foot,
+html[data-theme='light'] .detail-container .kb-doc-meta p,
+html[data-theme='light'] .detail-container .kb-chunk-content {
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .alert-meta > span {
+  background: var(--icu-surface) !important;
+  border-color: var(--icu-border) !important;
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .topic-chip,
+html[data-theme='light'] .detail-container .ops-chip,
+html[data-theme='light'] .detail-container .ops-bullet,
+html[data-theme='light'] .detail-container .topic-card-count,
+html[data-theme='light'] .detail-container .match-chip,
+html[data-theme='light'] .detail-container .case-diagnosis {
+  background: var(--icu-surface) !important;
+  border-color: var(--icu-border) !important;
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .detail-container .alert-pill.sev-warning {
+  color: #A65A0C !important;
+  background: #FFF7E8 !important;
+  border-color: rgba(166, 90, 12, 0.28) !important;
+}
+html[data-theme='light'] .detail-container .alert-pill.sev-high {
+  color: #D9342B !important;
+  background: #FFECE8 !important;
+  border-color: rgba(217, 52, 43, 0.28) !important;
+}
+html[data-theme='light'] .detail-container .alert-pill.sev-critical {
+  color: #D9342B !important;
+  background: #FFECE8 !important;
+  border-color: rgba(217, 52, 43, 0.3) !important;
+}
+html[data-theme='light'] .detail-container .hallucination-warning {
+  color: #A65A0C !important;
+  background: #FFF7E8 !important;
+  border-color: rgba(166, 90, 12, 0.3) !important;
+}
+html[data-theme='light'] .detail-container .hallucination-high {
+  color: #D9342B !important;
+  background: #FFECE8 !important;
+  border-color: rgba(217, 52, 43, 0.3) !important;
+}
+
+/* MDT workflow light-mode safety net.
+   The MDT board is split into scoped child components, so this page-level block
+   keeps all workflow cards, controls, and drawers readable in light mode. */
+html[data-theme='light'] .mdt-page {
+  color: var(--text-primary) !important;
+}
+html[data-theme='light'] .mdt-page .mdt-hero,
+html[data-theme='light'] .mdt-page .mdt-step-card,
+html[data-theme='light'] .mdt-page .mdt-rail-card,
+html[data-theme='light'] .mdt-page .review-card,
+html[data-theme='light'] .mdt-page .archive-card,
+html[data-theme='light'] .mdt-page .decision-item,
+html[data-theme='light'] .mdt-page .patient-select-panel,
+html[data-theme='light'] .mdt-page .organ-panel,
+html[data-theme='light'] .mdt-page .doc-block,
+html[data-theme='light'] .mdt-page .mdt-panel {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(29, 111, 99, 0.07), transparent 34%),
+    linear-gradient(180deg, #FFFDF7 0%, #F6F3EA 100%) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+html[data-theme='light'] .mdt-page .system-card,
+html[data-theme='light'] .mdt-page .compact-list div,
+html[data-theme='light'] .mdt-page .decision-metrics article,
+html[data-theme='light'] .mdt-page .rail-meter,
+html[data-theme='light'] .mdt-page .rail-todo-list article,
+html[data-theme='light'] .mdt-page .patient-brief,
+html[data-theme='light'] .mdt-page .organ-pill,
+html[data-theme='light'] .mdt-page .auto-summary,
+html[data-theme='light'] .mdt-page .document-grid article,
+html[data-theme='light'] .mdt-page .doc-preview,
+html[data-theme='light'] .mdt-page .detail-collapse,
+html[data-theme='light'] .mdt-page .detail-stack section,
+html[data-theme='light'] .mdt-page .chip-row em,
+html[data-theme='light'] .mdt-page .decision-item__head span,
+html[data-theme='light'] .mdt-page .empty-box,
+html[data-theme='light'] .mdt-page .doc-empty {
+  background: #F8F5ED !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+html[data-theme='light'] .mdt-page .system-card.is-active,
+html[data-theme='light'] .mdt-page .organ-pill.is-active {
+  background: var(--brand-soft) !important;
+  border-color: rgba(29, 111, 99, 0.42) !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 3px 0 0 var(--brand) !important;
+}
+html[data-theme='light'] .mdt-page .system-card.is-critical,
+html[data-theme='light'] .mdt-page .system-card.is-high,
+html[data-theme='light'] .mdt-page .decision-item.is-pending_confirmation,
+html[data-theme='light'] .mdt-page .decision-item.is-needs_revision {
+  background: var(--warning-soft) !important;
+  border-color: rgba(180, 122, 36, 0.28) !important;
+}
+html[data-theme='light'] .mdt-page .decision-item.is-completed {
+  border-color: rgba(47, 122, 88, 0.26) !important;
+}
+html[data-theme='light'] .mdt-page h1,
+html[data-theme='light'] .mdt-page h2,
+html[data-theme='light'] .mdt-page h3,
+html[data-theme='light'] .mdt-page strong,
+html[data-theme='light'] .mdt-page b,
+html[data-theme='light'] .mdt-page .system-card strong,
+html[data-theme='light'] .mdt-page .review-card strong,
+html[data-theme='light'] .mdt-page .decision-metrics strong,
+html[data-theme='light'] .mdt-page .rail-meter b,
+html[data-theme='light'] .mdt-page .document-grid strong,
+html[data-theme='light'] .mdt-page .patient-brief strong,
+html[data-theme='light'] .mdt-page .panel-title strong,
+html[data-theme='light'] .mdt-page .decision-item__head {
+  color: var(--text-primary) !important;
+}
+html[data-theme='light'] .mdt-page p,
+html[data-theme='light'] .mdt-page small,
+html[data-theme='light'] .mdt-page li,
+html[data-theme='light'] .mdt-page .system-card small,
+html[data-theme='light'] .mdt-page .review-card p,
+html[data-theme='light'] .mdt-page .detail-stack,
+html[data-theme='light'] .mdt-page .patient-brief span,
+html[data-theme='light'] .mdt-page .rail-todo-list small,
+html[data-theme='light'] .mdt-page .document-grid small,
+html[data-theme='light'] .mdt-page .doc-preview,
+html[data-theme='light'] .mdt-page .doc-empty,
+html[data-theme='light'] .mdt-page .empty-box,
+html[data-theme='light'] .mdt-page .step-actions span {
+  color: var(--text-secondary) !important;
+}
+html[data-theme='light'] .mdt-page .step-kicker,
+html[data-theme='light'] .mdt-page .rail-label,
+html[data-theme='light'] .mdt-page .review-card span,
+html[data-theme='light'] .mdt-page .detail-stack span,
+html[data-theme='light'] .mdt-page .archive-card span,
+html[data-theme='light'] .mdt-page .document-grid span,
+html[data-theme='light'] .mdt-page .panel-title span,
+html[data-theme='light'] .mdt-page .system-card span {
+  color: var(--brand) !important;
+}
+html[data-theme='light'] .mdt-page .field-input,
+html[data-theme='light'] .mdt-page .field-textarea,
+html[data-theme='light'] .mdt-page .mdt-select,
+html[data-theme='light'] .mdt-page input,
+html[data-theme='light'] .mdt-page textarea,
+html[data-theme='light'] .mdt-page select {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+html[data-theme='light'] .mdt-page .field-input::placeholder,
+html[data-theme='light'] .mdt-page .field-textarea::placeholder,
+html[data-theme='light'] .mdt-page input::placeholder,
+html[data-theme='light'] .mdt-page textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+html[data-theme='light'] .mdt-page .decision-safety {
+  background: var(--warning-soft) !important;
+  border: 1px solid rgba(180, 122, 36, 0.28) !important;
+  border-radius: 8px !important;
+  padding: 8px 10px !important;
+  color: var(--warning) !important;
+}
+html[data-theme='light'] .mdt-page .ant-card,
+html[data-theme='light'] .mdt-page .ant-card-body,
+html[data-theme='light'] .mdt-page .ant-collapse,
+html[data-theme='light'] .mdt-page .ant-collapse-item,
+html[data-theme='light'] .mdt-page .ant-collapse-content {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+html[data-theme='light'] .mdt-page .ant-collapse-header,
+html[data-theme='light'] .mdt-page .ant-collapse-expand-icon,
+html[data-theme='light'] .mdt-page .ant-collapse-arrow {
+  color: var(--text-primary) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .ant-drawer-content,
+html[data-theme='light'] .mdt-session-drawer .ant-drawer-header,
+html[data-theme='light'] .mdt-session-drawer .ant-drawer-body {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .ant-drawer-title,
+html[data-theme='light'] .mdt-session-drawer .ant-drawer-close {
+  color: var(--text-primary) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .drawer-input {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .drawer-check,
+html[data-theme='light'] .mdt-session-drawer .drawer-empty {
+  color: var(--text-secondary) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .session-card {
+  background: #F8F5ED !important;
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+}
+html[data-theme='light'] .mdt-session-drawer .session-card.is-active {
+  background: var(--brand-soft) !important;
+  border-color: rgba(29, 111, 99, 0.42) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .session-card strong {
+  color: var(--text-primary) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .session-card span {
+  color: var(--brand) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .session-card p,
+html[data-theme='light'] .mdt-session-drawer .session-tags em {
+  color: var(--text-secondary) !important;
+}
+html[data-theme='light'] .mdt-session-drawer .session-tags em {
+  background: #F8F5ED !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+@media (max-width: 1920px) {
+  html {
+    font-size: 15px;
+  }
+
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  .ant-card .ant-card-head-title {
+    font-size: 14px !important;
+    letter-spacing: 0.04em;
+  }
+
+  .ant-btn,
+  .ant-segmented-item,
+  .ant-radio-button-wrapper,
+  .ant-form-item-label > label,
+  .ant-empty-normal .ant-empty-description,
+  .ant-select-item,
+  .ant-dropdown-menu-item,
+  .ant-dropdown-menu-submenu-title,
+  .ant-message .ant-message-custom-content,
+  .ant-notification .ant-notification-notice-message,
+  .ant-notification .ant-notification-notice-description,
+  .icu-monitor-select-dropdown .ant-select-item,
+  .icu-monitor-popover .ant-popover-inner-content {
+    font-size: 13px !important;
+  }
+
+  .ant-input,
+  .ant-input-number,
+  .ant-input-affix-wrapper,
+  .ant-select-selector,
+  .ant-picker,
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder,
+  .ant-picker input,
+  .ant-input-number input,
+  .ant-input-affix-wrapper input {
+    font-size: 14px !important;
+  }
+
+  .ant-table-wrapper .ant-table-thead > tr > th,
+  .ant-table-wrapper .ant-table-tbody > tr > td,
+  .ant-tag {
+    font-size: 13px !important;
+  }
+
+  .ant-modal .ant-modal-title,
+  .ant-drawer .ant-drawer-title,
+  .icu-evidence-modal-wrap .ant-modal-title {
+    font-size: 16px !important;
+    letter-spacing: 0.04em !important;
+  }
+}
+
+/* ============================================
+   Design System: Utility Classes
+   ============================================ */
+
+/* === 全局兜底 === */
+body, #app, .root { background: var(--bg-base); }
+
+/* === 卡片 === */
+.ds-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: var(--card-pad);
+}
+.ds-card:hover { box-shadow: var(--card-shadow-hover); }
+.ds-card > * { border: none; } /* 禁止框中框 */
+
+/* === KPI 卡 === */
+.ds-kpi { display: flex; align-items: center; gap: 12px; }
+.ds-kpi-icon {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  font-size: 18px;
+}
+.ds-kpi-num { font-size: 28px; font-weight: 700; line-height: 1.2; }
+.ds-kpi-label { font-size: 13px; color: var(--text-muted); }
+.ds-kpi.is-brand .ds-kpi-icon { background: var(--brand-soft); color: var(--brand); }
+.ds-kpi.is-brand .ds-kpi-num { color: var(--brand); }
+.ds-kpi.is-danger .ds-kpi-icon { background: var(--danger-soft); color: var(--danger); }
+.ds-kpi.is-danger .ds-kpi-num { color: var(--danger); }
+.ds-kpi.is-warning .ds-kpi-icon { background: var(--warning-soft); color: var(--warning); }
+.ds-kpi.is-warning .ds-kpi-num { color: var(--warning); }
+.ds-kpi.is-success .ds-kpi-icon { background: var(--success-soft); color: var(--success); }
+.ds-kpi.is-success .ds-kpi-num { color: var(--success); }
+
+/* === Badge === */
+.ds-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.ds-badge--danger { background: var(--danger-soft); color: var(--danger); }
+.ds-badge--warning { background: var(--warning-soft); color: var(--warning); }
+.ds-badge--success { background: var(--success-soft); color: var(--success); }
+.ds-badge--info { background: var(--brand-soft); color: var(--brand); }
+
+/* === 生命体征 === */
+.ds-vital { display: flex; flex-direction: column; gap: 2px; }
+.ds-vital-label { font-size: 12px; color: var(--text-muted); }
+.ds-vital-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
+.ds-vital-unit { font-size: 11px; color: var(--text-muted); }
+.ds-vital.is-normal .ds-vital-val { color: var(--success); }
+.ds-vital.is-warn .ds-vital-val { color: var(--warning); }
+.ds-vital.is-critical .ds-vital-val { color: var(--danger); }
+.ds-vital.is-empty .ds-vital-val { color: var(--text-muted); }
+.ds-vital-grid { display: grid; gap: 16px; }
+
+/* === 按钮 === */
+.ds-btn-primary {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 36px; padding: 0 16px;
+  background: var(--brand); color: #FFFFFF;
+  border: none; border-radius: 6px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.ds-btn-primary:hover { filter: brightness(1.1); }
+.ds-btn-default {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 36px; padding: 0 16px;
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border-color); border-radius: 6px;
+  font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.ds-btn-default:hover { background: var(--bg-surface-2); }
+.ds-btn-text {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 36px; padding: 0 8px;
+  background: transparent; color: var(--brand);
+  border: none; font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.ds-btn-text:hover { text-decoration: underline; }
+
+/* === 列表项 === */
+.ds-list-item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.ds-list-item:hover { background: var(--bg-surface-2); }
+.ds-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* === 状态色点 === */
+.ds-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.ds-dot.is-critical { background: var(--danger); }
+.ds-dot.is-warn { background: var(--warning); }
+.ds-dot.is-normal { background: var(--success); }
+.ds-dot.is-muted { background: var(--text-muted); }
+
+/* === 表格基础 === */
+.ds-table { border-collapse: collapse; width: 100%; }
+.ds-table th, .ds-table td { padding: 10px 12px; text-align: left; }
+.ds-table thead th { border-bottom: 1px solid var(--border-color); }
+.ds-table tbody tr:hover { background: var(--bg-surface-2); }
+.ds-table { border: none; } /* 禁止四周边框 */
+
+/* === 左侧状态色条 === */
+.ds-rail-critical { border-left: 3px solid var(--danger); }
+.ds-rail-warn { border-left: 3px solid var(--warning); }

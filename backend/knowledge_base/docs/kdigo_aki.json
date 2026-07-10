@@ -1,0 +1,15 @@
+{
+  "doc_id": "kdigo_aki",
+  "title": "KDIGO AKI Guideline",
+  "summary": "AKI分期与尿量/肌酐判定。",
+  "sections": [
+    {
+      "id": "kdigo_aki_stage",
+      "section_title": "AKI staging",
+      "recommendation": "Staging",
+      "recommendation_grade": "diagnostic_standard",
+      "tags": ["aki", "creatinine", "urine"],
+      "text": "KDIGO defines AKI stage by serum creatinine rise and urine output decline. Stage 2 includes creatinine 2.0-2.9 times baseline or urine output <0.5 mL/kg/h for >=12 hours. Stage 3 includes creatinine >=3.0 times baseline or anuria for >=12 hours."
+    }
+  ]
+}

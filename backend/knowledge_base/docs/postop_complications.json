@@ -1,0 +1,34 @@
+[
+  {
+    "id": "postop_hemorrhage",
+    "title": "ICU术后并发症监测指南",
+    "source": "ACS NSQIP + Surgical Critical Care Guidelines",
+    "recommendation": "术后出血识别与管理",
+    "tags": ["postop", "hemorrhage", "bleeding", "hematoma"],
+    "text": "术后出血预警标准：Hb下降>20g/L/6h(无其他解释)、引流量>200mL/h连续2h或>100mL/h连续4h(心脏/胸外科)、血流动力学不稳定(心率增快>20%基线/MAP下降>20%/需要额外液体或升压药)。处理：紧急评估出血来源(切口渗血/腹腔/胸腔/隐匿性)→启动MTP(参考bleeding_transfusion.json)→纠正凝血障碍→外科探查止血(引流量持续>200mL/h或血流动力学难以纠正)。腹部手术后特别关注：腹胀进行性加重、腹腔引流颜色变为鲜红、经皮测Hb持续下降。心脏手术后胸管引流>400mL/1h或>200mL/h连续4h需再次开胸探查。"
+  },
+  {
+    "id": "postop_anastomotic_leak",
+    "title": "ICU术后并发症监测指南",
+    "source": "ERAS Society + Surgical Practice",
+    "recommendation": "吻合口漏与术后感染",
+    "tags": ["postop", "anastomotic_leak", "infection", "ssi"],
+    "text": "吻合口漏高发期：术后3-7天。预警征象：术后3天后新发发热(>38.3°C)、心率持续增快(新发或进行性)、白细胞/CRP/PCT升高(术后初期下降后再次上升)、腹部引流液性质改变(浑浊/含肠内容物/胆汁样)、腹痛加重或弥漫性腹膜炎体征、新发器官功能障碍(AKI/ARDS/休克)。诊断：CT增强扫描(口服造影剂外渗)、引流液检测(淀粉酶/胆红素/细菌培养)。SSI(手术部位感染)分级：浅表切口(仅皮肤/皮下)→换药即可、深部切口(肌层/筋膜)→可能需拆线引流、器官/腔隙(腹腔脓肿)→需穿刺引流或手术。抗生素：已有感染征象时按经验覆盖(参考antimicrobial_stewardship.json),获得培养后降阶梯。"
+  },
+  {
+    "id": "postop_cardiovascular_pulmonary",
+    "title": "ICU术后并发症监测指南",
+    "source": "AHA Perioperative CV Guidelines + ERAS",
+    "recommendation": "术后心血管与肺部并发症",
+    "tags": ["postop", "mi", "atrial_fibrillation", "respiratory_failure", "pe"],
+    "text": "术后心肌梗死(POMI)：高发术后24-72h。高危手术(腹部大手术/血管手术/心脏手术)。监测：术后连续12导心电图+肌钙蛋白(术后24h和48h,高危患者)。新发ST改变+肌钙蛋白升高提示POMI。新发房颤(POAF)：术后1-5天最常见,发生率10-40%(心脏手术)。处理：血流动力学稳定→心率控制(β受体阻滞剂/地尔硫卓,目标HR<110)；不稳定→同步电复律。POAF>48h需评估抗凝(CHA2DS2-VASc评分)。术后肺部并发症：肺不张(最常见)→鼓励咳嗽/深呼吸/早期活动/CPAP。肺炎→适当抗生素。呼吸衰竭→排除PE/ARDS/膈肌功能障碍。术后PE：高危期术后1-2周。VTE预防参考vte_prophylaxis.json,新发呼吸困难+低氧+心率增快应怀疑PE(参考pulmonary_embolism.json)。"
+  },
+  {
+    "id": "postop_delirium_aki_ileus",
+    "title": "ICU术后并发症监测指南",
+    "source": "AGS Postop Delirium Guidelines + KDIGO + ERAS",
+    "recommendation": "术后谵妄、AKI与肠梗阻",
+    "tags": ["postop", "delirium", "aki", "ileus"],
+    "text": "术后谵妄：ICU发生率20-50%,年龄>65为最强危险因素。预防：ABCDEF Bundle(特别是A+C+D元素)、避免苯二氮卓/抗胆碱药、维持电解质正常、早期活动。CAM-ICU q8-12h评估。处理参考abcdef_liberation_bundle.json D元素。术后AKI：发生率5-30%(大手术)。风险：术中低血压/大量出血/肾毒性药物/造影剂/基础CKD。监测：Cr q12-24h+尿量q1h(术后48-72h内)。KDIGO分期参考kdigo_aki.json。预防：维持充分灌注/避免肾毒性药物/控制血糖。术后肠梗阻：腹部手术后常见(术后2-5天)。促进恢复：早期活动(最有效)、早期肠内营养(ERAS推荐术后24h内)、咀嚼口香糖(刺激胃肠蠕动)、减少阿片类(多模式镇痛)、避免NG管常规放置。预警：术后4-5天仍无排气排便+腹胀+恶心呕吐→评估是否机械性梗阻(CT)。"
+  }
+]

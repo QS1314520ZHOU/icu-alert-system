@@ -1,0 +1,306 @@
+html[data-theme='dark'] .document-workbench {
+  background: #07111d !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-header,
+html[data-theme='dark'] .document-workbench .dw-history-bar,
+html[data-theme='dark'] .document-workbench .patient-banner,
+html[data-theme='dark'] .document-workbench .support-strip,
+html[data-theme='dark'] .document-workbench .quality-strip,
+html[data-theme='dark'] .document-workbench .panel,
+html[data-theme='dark'] .document-workbench .legacy-shell,
+html[data-theme='dark'] .document-workbench .system-card,
+html[data-theme='dark'] .document-workbench .pne-section,
+html[data-theme='dark'] .document-workbench .pne-footer {
+  background: #0d1a2b !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-center {
+  background: transparent !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-header-title,
+html[data-theme='dark'] .document-workbench .patient-main strong,
+html[data-theme='dark'] .document-workbench .support-label,
+html[data-theme='dark'] .document-workbench .panel h3,
+html[data-theme='dark'] .document-workbench .timeline-event strong,
+html[data-theme='dark'] .document-workbench .risk-head strong,
+html[data-theme='dark'] .document-workbench .goal-item strong,
+html[data-theme='dark'] .document-workbench .trend-item strong,
+html[data-theme='dark'] .document-workbench .system-nav-item span,
+html[data-theme='dark'] .document-workbench .system-card-head h3,
+html[data-theme='dark'] .document-workbench .statement-group-head h4,
+html[data-theme='dark'] .document-workbench .pne-section-title,
+html[data-theme='dark'] .document-workbench .pne-trend-label,
+html[data-theme='dark'] .document-workbench .pne-concerns-label,
+html[data-theme='dark'] .document-workbench .cp-title {
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-header-icon {
+  background: rgba(34, 211, 238, 0.15) !important;
+  color: #15558D !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-history-label,
+html[data-theme='dark'] .document-workbench .dw-header-sub,
+html[data-theme='dark'] .document-workbench .patient-badges span,
+html[data-theme='dark'] .document-workbench .support-summary,
+html[data-theme='dark'] .document-workbench .timeline-event time,
+html[data-theme='dark'] .document-workbench .timeline-event p,
+html[data-theme='dark'] .document-workbench .risk-card p,
+html[data-theme='dark'] .document-workbench .risk-card li,
+html[data-theme='dark'] .document-workbench .goal-item em,
+html[data-theme='dark'] .document-workbench .trend-item span,
+html[data-theme='dark'] .document-workbench .trend-item em,
+html[data-theme='dark'] .document-workbench .note-preview-head span,
+html[data-theme='dark'] .document-workbench .system-nav-item em,
+html[data-theme='dark'] .document-workbench .system-card-head p,
+html[data-theme='dark'] .document-workbench .muted,
+html[data-theme='dark'] .document-workbench .empty-text,
+html[data-theme='dark'] .document-workbench .cp-window,
+html[data-theme='dark'] .document-workbench .pne-sub-label,
+html[data-theme='dark'] .document-workbench .cp-count,
+html[data-theme='dark'] .document-workbench .cp-card-detail,
+html[data-theme='dark'] .document-workbench .cp-diagnosis,
+html[data-theme='dark'] .document-workbench .cp-vital-value,
+html[data-theme='dark'] .document-workbench .cp-lab-value,
+html[data-theme='dark'] .document-workbench .cp-drug-dose,
+html[data-theme='dark'] .document-workbench .ct-tooltip-source {
+  color: #7f93ab !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-empty-title {
+  color: #7f93ab !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-empty-hint,
+html[data-theme='dark'] .document-workbench .cp-empty {
+  color: #586b82 !important;
+}
+
+html[data-theme='dark'] .document-workbench .support-item,
+html[data-theme='dark'] .document-workbench .timeline-event,
+html[data-theme='dark'] .document-workbench .risk-card,
+html[data-theme='dark'] .document-workbench .goal-item,
+html[data-theme='dark'] .document-workbench .trend-item,
+html[data-theme='dark'] .document-workbench .system-nav-item,
+html[data-theme='dark'] .document-workbench .statement-group,
+html[data-theme='dark'] .document-workbench .statement,
+html[data-theme='dark'] .document-workbench .note-preview pre,
+html[data-theme='dark'] .document-workbench .legacy-shell pre {
+  background: #091827 !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .support-item.is-active,
+html[data-theme='dark'] .document-workbench .system-nav-item.is-active {
+  background: rgba(34, 211, 238, 0.12) !important;
+  border-color: rgba(34, 211, 238, 0.72) !important;
+}
+
+html[data-theme='dark'] .document-workbench .patient-badges span,
+html[data-theme='dark'] .document-workbench .quality-chip,
+html[data-theme='dark'] .document-workbench .statement-meta span,
+html[data-theme='dark'] .document-workbench .missing-data span {
+  background: rgba(125, 167, 214, 0.12) !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #b7c8dc !important;
+}
+
+html[data-theme='dark'] .document-workbench .patient-diagnosis,
+html[data-theme='dark'] .document-workbench .evidence-link,
+html[data-theme='dark'] .document-workbench .evidence-row button {
+  color: #15558D !important;
+}
+
+html[data-theme='dark'] .document-workbench .missing-line,
+html[data-theme='dark'] .document-workbench .quality-title,
+html[data-theme='dark'] .document-workbench .statement-missing,
+html[data-theme='dark'] .document-workbench .system-kicker,
+html[data-theme='dark'] .document-workbench .system-nav-item strong,
+html[data-theme='dark'] .document-workbench .risk-head span,
+html[data-theme='dark'] .document-workbench .goal-item small {
+  color: #E8901C !important;
+}
+
+html[data-theme='dark'] .document-workbench .risk-actions button,
+html[data-theme='dark'] .document-workbench .system-card-head select,
+html[data-theme='dark'] .document-workbench .statement-group-head button,
+html[data-theme='dark'] .document-workbench .delete-btn,
+html[data-theme='dark'] .document-workbench .statement textarea {
+  background: #07111d !important;
+  border-color: rgba(125, 167, 214, 0.28) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .risk-actions button:hover,
+html[data-theme='dark'] .document-workbench .statement-group-head button:hover,
+html[data-theme='dark'] .document-workbench .delete-btn:hover {
+  border-color: #15558D !important;
+  color: #15558D !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-dirty {
+  color: #E8901C !important;
+}
+
+html[data-theme='dark'] .document-workbench .dw-saved {
+  color: #1A9C5B !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-section {
+  border-bottom-color: rgba(125, 167, 214, 0.14) !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-section-title,
+html[data-theme='dark'] .document-workbench .cp-lab-id,
+html[data-theme='dark'] .document-workbench .cp-drug-id,
+html[data-theme='dark'] .document-workbench .cp-alert-id,
+html[data-theme='dark'] .document-workbench .cp-card-ref,
+html[data-theme='dark'] .document-workbench .ct-tooltip-ref {
+  color: #15558D !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-kv span,
+html[data-theme='dark'] .document-workbench .cp-card,
+html[data-theme='dark'] .document-workbench .ct-display {
+  background: #091827 !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-card-source {
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-card-detail {
+  border-top-color: rgba(125, 167, 214, 0.14) !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-vital-trend.is-ok,
+html[data-theme='dark'] .document-workbench .cp-alert-status.is-resolved {
+  background: rgba(52, 211, 153, 0.15) !important;
+  color: #1A9C5B !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-vital-trend.is-warn {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #E8901C !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-vital-trend.is-danger,
+html[data-theme='dark'] .document-workbench .cp-event-chip,
+html[data-theme='dark'] .document-workbench .cp-alert-status.is-active {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #D9342B !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-vital-trend.is-muted {
+  background: rgba(125, 167, 214, 0.1) !important;
+  color: #586b82 !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-lab-flag.is-critical {
+  color: #D9342B !important;
+}
+
+html[data-theme='dark'] .document-workbench .cp-lab-flag.is-abnormal {
+  color: #E8901C !important;
+}
+
+html[data-theme='dark'] .document-workbench .cite {
+  background: rgba(34, 211, 238, 0.15) !important;
+  color: #15558D !important;
+}
+
+html[data-theme='dark'] .document-workbench .cite:hover {
+  background: #15558D !important;
+  color: #07111d !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-input,
+html[data-theme='dark'] .document-workbench .ant-input-affix-wrapper,
+html[data-theme='dark'] .document-workbench textarea.ant-input {
+  background: #091827 !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-input::placeholder,
+html[data-theme='dark'] .document-workbench textarea.ant-input::placeholder {
+  color: #586b82 !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-input[disabled],
+html[data-theme='dark'] .document-workbench textarea.ant-input[disabled] {
+  background: #07111d !important;
+  color: #7f93ab !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-select:not(.ant-select-disabled) .ant-select-selector {
+  background: #091827 !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-select-arrow {
+  color: #7f93ab !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-btn-default {
+  background: #0d1a2b !important;
+  border-color: rgba(125, 167, 214, 0.28) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-btn-default:hover {
+  border-color: #15558D !important;
+  color: #15558D !important;
+}
+
+html[data-theme='dark'] .ant-modal-content,
+html[data-theme='dark'] .ant-modal-header,
+html[data-theme='dark'] .ant-modal-body,
+html[data-theme='dark'] .ant-modal-footer,
+html[data-theme='dark'] .ant-popover-inner,
+html[data-theme='dark'] .ant-popover-inner-content,
+html[data-theme='dark'] .ant-select-dropdown {
+  background: #0d1a2b !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .ant-modal-title,
+html[data-theme='dark'] .ant-select-item {
+  color: #d9e6f3 !important;
+}
+
+html[data-theme='dark'] .ant-modal-close,
+html[data-theme='dark'] .ant-select-arrow {
+  color: #7f93ab !important;
+}
+
+html[data-theme='dark'] .ant-popover-arrow::before,
+html[data-theme='dark'] .ant-popover-arrow::after {
+  background: #0d1a2b !important;
+}
+
+html[data-theme='dark'] .ant-select-item-option-active {
+  background: #091827 !important;
+}
+
+html[data-theme='dark'] .ant-select-item-option-selected {
+  background: #07111d !important;
+  color: #15558D !important;
+}
+
+html[data-theme='dark'] .document-workbench .ant-tag {
+  background: #091827 !important;
+  border-color: rgba(125, 167, 214, 0.14) !important;
+  color: #d9e6f3 !important;
+}

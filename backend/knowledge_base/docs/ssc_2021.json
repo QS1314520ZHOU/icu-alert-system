@@ -1,0 +1,23 @@
+{
+  "doc_id": "ssc_2021",
+  "title": "Surviving Sepsis Campaign 2021",
+  "summary": "脓毒症与脓毒性休克初始复苏、升压药与再评估核心要点。",
+  "sections": [
+    {
+      "id": "ssc2021_1h_bundle",
+      "section_title": "1-hour bundle",
+      "recommendation": "1h Bundle",
+      "recommendation_grade": "core_bundle",
+      "tags": ["sepsis", "shock", "lactate", "antibiotic"],
+      "text": "For suspected septic shock or sepsis with hypoperfusion, complete the 1-hour bundle: measure lactate level, obtain blood cultures before antibiotics, administer broad-spectrum antibiotics, begin rapid administration of 30 mL/kg crystalloid for hypotension or lactate >=4 mmol/L, and apply vasopressors if hypotensive during or after fluid resuscitation to maintain MAP >=65 mmHg."
+    },
+    {
+      "id": "ssc2021_vasopressor_map",
+      "section_title": "Initial vasopressor target",
+      "recommendation": "MAP Target",
+      "recommendation_grade": "first_line",
+      "tags": ["sepsis", "vasopressor", "map"],
+      "text": "Recommend an initial target mean arterial pressure of 65 mmHg in adults with septic shock. Norepinephrine is recommended as the first-line vasopressor."
+    }
+  ]
+}

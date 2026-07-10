@@ -1,0 +1,215 @@
+<template>
+  <div class="detail-tab labs-tab">
+    <a-timeline>
+      <a-timeline-item v-for="exam in labs" :key="exam.requestId">
+        <div class="lab-head">
+          <strong>{{ exam.examName || exam.requestName || '检验' }}</strong>
+          <span>{{ fmtTime(exam.requestTime) }}</span>
+        </div>
+        <div class="lab-items">
+          <span
+            v-for="item in exam.items || []"
+            :key="item.itemId || item.itemCode || item.itemName"
+            :class="['lab-item', labFlag(item)]"
+          >
+            {{ item.itemName || item.itemCnName || '指标' }}:
+            {{ formatLabValue(item.result ?? item.resultValue ?? item.value) }}
+            {{ item.unit || '' }}
+          </span>
+        </div>
+        <div v-if="exam.acidBaseInterpretation" class="acid-base-card">
+          <div class="acid-base-head">
+            <strong>血气自动解读</strong>
+            <span>{{ formatLabValue(exam.acidBaseInterpretation.compensation) || '—' }}</span>
+          </div>
+          <div class="acid-base-summary">
+            <span class="acid-pill acid-primary">{{ formatLabValue(exam.acidBaseInterpretation.primary) }}</span>
+            <span v-if="exam.acidBaseInterpretation.secondary" class="acid-pill acid-secondary">{{ formatLabValue(exam.acidBaseInterpretation.secondary) }}</span>
+            <span v-if="exam.acidBaseInterpretation.tertiary" class="acid-pill acid-tertiary">{{ formatLabValue(exam.acidBaseInterpretation.tertiary) }}</span>
+          </div>
+          <div class="acid-base-metrics">
+            <span>AG {{ formatLabValue(exam.acidBaseInterpretation.AG) || '—' }}</span>
+            <span>校正AG {{ formatLabValue(exam.acidBaseInterpretation.corrected_AG) || '—' }}</span>
+            <span>Δ比 {{ formatLabValue(exam.acidBaseInterpretation.delta_ratio) || '—' }}</span>
+          </div>
+          <div v-if="exam.acidBaseInterpretation.abnormal_components?.length" class="acid-base-components">
+            <span
+              v-for="comp in exam.acidBaseInterpretation.abnormal_components"
+              :key="comp.field"
+              :class="['acid-comp', { abnormal: comp.abnormal }]"
+            >
+              {{ formatLabValue(comp.field) }} {{ formatLabValue(comp.value) || '—' }}{{ comp.unit || '' }}
+            </span>
+          </div>
+        </div>
+      </a-timeline-item>
+    </a-timeline>
+    <div v-if="!labs.length" class="tab-empty">暂无检验记录</div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { Timeline as ATimeline, TimelineItem as ATimelineItem } from 'ant-design-vue'
+
+defineProps<{
+  labs: any[]
+  fmtTime: (v: any) => string
+  labFlag: (item: any) => string
+}>()
+
+function formatLabValue(value: any): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    return value.map((item) => formatLabValue(item)).filter(Boolean).join('；')
+  }
+  if (typeof value === 'object') {
+    const candidates = [
+      value.result,
+      value.resultValue,
+      value.value,
+      value.text,
+      value.summary,
+      value.label,
+      value.name,
+      value.message,
+      value.content,
+    ]
+    for (const candidate of candidates) {
+      const text = formatLabValue(candidate)
+      if (text) return text
+    }
+    return Object.entries(value)
+      .map(([key, item]) => {
+        const text = formatLabValue(item)
+        return text ? `${key}: ${text}` : ''
+      })
+      .filter(Boolean)
+      .join('；')
+  }
+  return String(value).trim()
+}
+</script>
+
+<style scoped>
+.detail-tab {
+  display: grid;
+  gap: 12px;
+}
+.labs-tab :deep(.ant-timeline-item-tail) {
+  border-inline-start-color: rgba(80,199,255,.16);
+}
+.labs-tab :deep(.ant-timeline-item-head) {
+  background: var(--accent);
+  border-color: rgba(110,231,249,.4);
+  box-shadow: var(--card-shadow);
+}
+.labs-tab :deep(.ant-timeline-item-content) {
+  padding-bottom: 14px;
+}
+.lab-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.lab-head strong {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.lab-head span {
+  color: var(--accent);
+  font-size: 12px;
+}
+.lab-items {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lab-item {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface),.78);
+  color: #ccefff;
+  border: 1px solid rgba(80,199,255,.12);
+}
+.lab-item.lab-high {
+  color: #ffb1bd;
+  background: var(--bg-surface),.92);
+  border-color: rgba(248,113,113,.24);
+}
+.lab-item.lab-low {
+  color: #8cdfff;
+  background: var(--bg-surface),.9);
+  border-color: rgba(56,189,248,.24);
+}
+.acid-base-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(80,199,255,.14);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+}
+.acid-base-head,
+.acid-base-summary,
+.acid-base-metrics,
+.acid-base-components {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.acid-base-head {
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+.acid-base-summary {
+  margin-bottom: 6px;
+}
+.acid-pill,
+.acid-comp {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--card-radius);
+  font-size: 11px;
+}
+.acid-primary { background: rgba(14,165,183,.16); color: #7de8f6; }
+.acid-secondary { background: rgba(245,158,11,.16); color: var(--warning); }
+.acid-tertiary { background: rgba(239,68,68,.16); color: var(--danger-soft); }
+.acid-base-metrics { color: #9fd3e2; font-size: 11px; margin-bottom: 6px; }
+.acid-comp { background: rgba(148,163,184,.12); color: var(--text-primary); }
+.acid-comp.abnormal { background: rgba(239,68,68,.18); color: var(--danger-soft); }
+.tab-empty {
+  color: var(--accent);
+  font-size: 12px;
+  padding: 12px;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface),.58);
+  border: 1px dashed rgba(80,199,255,.14);
+}
+
+/* Light mode overrides */
+html[data-theme='light'] .labs-tab :deep(.ant-timeline-item-tail) { border-inline-start-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .labs-tab :deep(.ant-timeline-item-head) { background: var(--brand); border-color: rgba(37,99,235,0.4); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .lab-head { color: var(--text-secondary); }
+html[data-theme='light'] .lab-head strong { color: var(--text-secondary); }
+html[data-theme='light'] .lab-head span { color: var(--text-secondary); }
+html[data-theme='light'] .lab-item { background: var(--bg-surface); color: var(--text-secondary); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .lab-item.lab-high { background: rgba(254,226,226,0.8); color: var(--danger-strong); border-color: rgba(239,68,68,.3); }
+html[data-theme='light'] .lab-item.lab-low { background: rgba(224,242,254,0.8); color: var(--brand); border-color: rgba(56,189,248,.3); }
+html[data-theme='light'] .acid-base-card { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .acid-base-head { color: var(--text-secondary); }
+html[data-theme='light'] .acid-primary { background: rgba(59,130,246,0.16); color: var(--brand); }
+html[data-theme='light'] .acid-secondary { background: rgba(245,158,11,0.16); color: var(--warning); }
+html[data-theme='light'] .acid-tertiary { background: rgba(239,68,68,0.16); color: var(--danger); }
+html[data-theme='light'] .acid-base-metrics { color: var(--text-secondary); }
+html[data-theme='light'] .acid-comp { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid rgba(187,204,220,0.72); }
+html[data-theme='light'] .acid-comp.abnormal { background: rgba(254,226,226,0.8); color: var(--danger-strong); border-color: rgba(239,68,68,.3); }
+html[data-theme='light'] .tab-empty { color: var(--text-secondary); background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
+</style>

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "bleeding_mtp_activation",
+    "title": "ICU出血与大量输血管理指南",
+    "source": "ACS TQIP MTP Guidelines + AABB 2024",
+    "recommendation": "大量输血方案(MTP)启动标准",
+    "tags": ["bleeding", "mtp", "massive_transfusion", "hemorrhage"],
+    "text": "大量输血定义：24h内输注>=10U PRBC，或3h内输注>=4U PRBC且预计仍需持续输注。MTP启动指征：创伤性失血性休克、消化道大出血伴血流动力学不稳定、产后大出血、手术中难以控制的出血。ABC评分(Assessment of Blood Consumption)>=2分可快速筛查(穿透伤/SBP<=90/HR>=120/FAST阳性各1分)。启动后血库应按固定比例快速配发血制品，目标30分钟内送达第一组。同时启动损伤控制复苏(DCR)策略。"
+  },
+  {
+    "id": "bleeding_transfusion_ratios",
+    "title": "ICU出血与大量输血管理指南",
+    "source": "PROPPR Trial (JAMA 2015) + ACS TQIP",
+    "recommendation": "输血比例与目标",
+    "tags": ["transfusion", "ratio", "prbc", "ffp", "platelet"],
+    "text": "PROPPR试验(N=680)推荐1:1:1比例(PRBC:FFP:PLT)优于1:1:2，24h止血成功率更高(86% vs 78%)且早期死亡率更低。每6U PRBC配6U FFP和1个治疗量血小板(约6U浓缩血小板或1袋单采血小板)。输血目标：Hb>70g/L(活动性出血时可放宽至>80-90g/L)、INR<1.5、纤维蛋白原>1.5g/L(如<1.5给冷沉淀10U或纤维蛋白原浓缩物2-4g)、PLT>50×10^9(活动性出血或颅脑损伤>100×10^9)。血栓弹力图(TEG/ROTEM)可指导目标导向输血，优于传统凝血检查(结果更快、更精准)。"
+  },
+  {
+    "id": "bleeding_lethal_triad",
+    "title": "ICU出血与大量输血管理指南",
+    "source": "Damage Control Resuscitation Consensus",
+    "recommendation": "致死三联征与损伤控制复苏",
+    "tags": ["hypothermia", "acidosis", "coagulopathy", "dcr"],
+    "text": "致死三联征(lethal triad)：低体温(<35°C导致酶活性降低/凝血因子功能受损)、酸中毒(pH<7.2使凝血因子失活)、凝血病(消耗+稀释+低体温恶化)。三者形成恶性循环,死亡率极高。损伤控制复苏(DCR)策略：限制晶体液输注(允许性低血压MAP 50-60mmHg直到手术止血,颅脑损伤除外)、早期1:1:1血制品、积极复温(目标>36°C,使用加温输液/暖风毯/体腔灌洗)、纠正酸中毒(恢复灌注而非盲目补碱)、氨甲环酸(TXA)1g IV在3h内给予(CRASH-2研究，出血后>3h给予可能有害)、纠正低钙血症(大量输血后枸橼酸螯合钙，目标iCa>1.0mmol/L)。"
+  },
+  {
+    "id": "bleeding_gi_hemorrhage",
+    "title": "ICU出血与大量输血管理指南",
+    "source": "NEJM Villanueva 2013 + ACG/BSG Guidelines",
+    "recommendation": "消化道出血管理",
+    "tags": ["gi_bleed", "upper_gi", "lower_gi", "endoscopy", "ppi"],
+    "text": "上消化道出血(UGIB)：限制性输血策略(Hb<70g/L触发输血，目标70-90g/L)优于开放性策略(Villanueva NEJM 2013,N=921,死亡率5% vs 9%)。高危患者例外：急性冠脉综合征可放宽至<80g/L。Glasgow-Blatchford评分0-1分可安全门诊管理。PPI治疗：疑似上消化道出血给予大剂量PPI(如埃索美拉唑80mg IV bolus后8mg/h持续72h)。内镜：血流动力学稳定后24h内行急诊胃镜(不稳定者12h内)。下消化道出血(LGIB)：多为自限性，活动性出血考虑结肠镜或CT血管造影。药物相关出血：评估并适当逆转抗凝/抗血小板药物(华法林→PCC+维生素K,DOAC→Idarucizumab/Andexanet)。"
+  },
+  {
+    "id": "bleeding_anticoagulant_reversal",
+    "title": "ICU出血与大量输血管理指南",
+    "source": "CHEST 2021 + AHA 2026 Anticoagulant Reversal",
+    "recommendation": "抗凝药物紧急逆转",
+    "tags": ["anticoagulant", "reversal", "warfarin", "doac", "pcc"],
+    "text": "华法林(维生素K拮抗剂)：四因子PCC(凝血酶原复合物浓缩物)25-50IU/kg IV(起效10-15min)+维生素K 10mg IV(起效6-12h维持效果)。INR>9但无出血仅需维生素K。达比加群：Idarucizumab(Praxbind)5g IV(两次2.5g间隔≤15min)，若不可用考虑活性炭(服药<2h)或血液透析。利伐沙班/阿哌沙班(Xa抑制剂)：Andexanet alfa(若可用)，否则四因子PCC 50IU/kg。肝素：鱼精蛋白1mg/100U UFH(最大50mg)。LMWH：鱼精蛋白仅逆转约60%(1mg/1mg依诺肝素,<8h内给予的)。所有严重出血同时处理：止血(手术/内镜/介入)、补充凝血因子、纠正致死三联征。"
+  }
+]

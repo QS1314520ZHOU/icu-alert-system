@@ -1,0 +1,18 @@
+scanner: generic
+accepted_if:
+  window_hours: 6
+  min_signals: 1
+  signals:
+    - name: clinician_order_or_operation
+      keywords:
+        - 医嘱
+        - 处理
+        - 复查
+        - 调整
+        - intervention
+      time_fields:
+        - created_at
+        - orderTime
+        - startTime
+        - time
+        - recordTime

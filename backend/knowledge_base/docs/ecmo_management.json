@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ecmo_vv_indications",
+    "title": "ECMO体外膜肺氧合管理指南",
+    "source": "ELSO Adult Respiratory VV ECMO Guidelines 2021 + EOLIA Trial (NEJM 2018)",
+    "recommendation": "VV-ECMO适应证与禁忌证",
+    "tags": ["ecmo", "vv_ecmo", "ards", "respiratory_failure", "indication"],
+    "text": "VV-ECMO适应证(ELSO 2021)：常规治疗(肺保护性通气+俯卧位+NMBA)优化后仍严重低氧(P/F<80持续>6h或P/F<50持续>3h)或严重高碳酸血症(pH<7.20且PaCO2>80mmHg)。EOLIA试验(N=249)：VV-ECMO vs 常规治疗60天死亡率35% vs 46%(p=0.09),交叉率28%,Bayesian分析提示获益概率>95%。Murray评分>=3分提示考虑ECMO。年龄无绝对截断但>65岁预后差。绝对禁忌：不可逆疾病无移植计划、晚期恶性肿瘤预期生存<1年、不可纠正的出血、严重脑损伤(不可恢复)。相对禁忌：机械通气>10天(ELSO建议<7天预后更佳)、BMI>40、免疫抑制。启动前需多学科讨论(ICU/心胸外科/ECMO团队/伦理)。"
+  },
+  {
+    "id": "ecmo_va_indications",
+    "title": "ECMO体外膜肺氧合管理指南",
+    "source": "ELSO VA ECMO Guidelines + ESC Cardiogenic Shock",
+    "recommendation": "VA-ECMO适应证",
+    "tags": ["ecmo", "va_ecmo", "cardiogenic_shock", "cardiac_arrest"],
+    "text": "VA-ECMO适应证：难治性心源性休克(急性心梗/爆发性心肌炎/心脏术后/药物中毒致心衰)经最大药物治疗(NE+多巴酚丁胺/米力农)和IABP后仍CI<2.0L/min/m²、SvO2<50%、乳酸持续升高。心脏骤停(eCPR)：院内心脏骤停常规CPR 10-20min未恢复自主循环(ROSC)、可电击节律(VF/pVT)或非可电击节律年轻患者、已知可逆病因(PE/AMI/低温)、无明显暗红期(目标从心脏骤停到ECMO流量<60min)。绝对禁忌同VV-ECMO。VA-ECMO特有问题：左室后负荷增加(Harlequin syndrome/North-South syndrome,差异性低氧)需密切监测右桡动脉SpO2;可能需要LV unloading(IABP/Impella/房间隔造口)。"
+  },
+  {
+    "id": "ecmo_cannulation_flow",
+    "title": "ECMO体外膜肺氧合管理指南",
+    "source": "ELSO 2021 + Clinical Practice",
+    "recommendation": "插管配置与流量管理",
+    "tags": ["ecmo", "cannulation", "flow", "sweep_gas"],
+    "text": "VV-ECMO插管：首选股静脉引流管(23-25Fr)+右颈内静脉回血管(19-21Fr),或双腔管(Avalon 27-31Fr)经右颈内静脉(需超声+X线确认位置)。VA-ECMO插管：股动脉回血管(15-17Fr)+股静脉引流管(23-25Fr),需放置远端灌注管(DPC 6-8Fr)防止下肢缺血。流量目标：VV-ECMO起始60-80mL/kg/min(成人约4-6L/min),目标SpO2 85-90%(VV-ECMO不追求正常SpO2);VA-ECMO维持CI>2.2L/min/m²。氧合调节：增加血流量或增加FdO2(膜肺FiO2)至1.0。CO2清除：调节扫气流量(sweep gas),增加sweep降低PaCO2,通常起始1:1(sweep:blood flow)。"
+  },
+  {
+    "id": "ecmo_anticoagulation_monitoring",
+    "title": "ECMO体外膜肺氧合管理指南",
+    "source": "ELSO Anticoagulation Guidelines 2022 + Clinical Practice",
+    "recommendation": "ECMO抗凝与日常监测",
+    "tags": ["ecmo", "anticoagulation", "heparin", "act", "anti_xa"],
+    "text": "抗凝：UFH为标准方案,肝素泵注起始10-20U/kg/h(插管时bolus 50-100U/kg)。监测指标：ACT目标180-220s(q1-2h,稳定后q4h),或抗Xa 0.3-0.7IU/mL(更准确/q6h)。ELSO 2022推荐优先使用抗Xa替代ACT。血栓出血平衡是ECMO最大挑战,出血发生率20-40%,血栓10-20%。HIT时改用比伐芦定(0.05-0.2mg/kg/h,目标aPTT 1.5-2.5×正常)。日常监测：每日CBC/凝血(PT/aPTT/Fib/D-dimer)、溶血指标(游离Hb/LDH/结合珠蛋白)q12-24h、膜肺前后压差(ΔPML>50mmHg提示血栓/需换膜)、血气(膜肺前后+患者)q4-6h、电解质/乳酸q4-6h。Fib<1.5g/L补充冷沉淀,PLT<50-80×10^9/L且出血时输注。"
+  },
+  {
+    "id": "ecmo_ventilation_on_ecmo",
+    "title": "ECMO体外膜肺氧合管理指南",
+    "source": "ELSO 2021 + Expert Consensus",
+    "recommendation": "ECMO期间通气策略(超保护/肺休息)",
+    "tags": ["ecmo", "ventilation", "ultra_protective", "lung_rest"],
+    "text": "VV-ECMO期间肺休息(ultra-protective ventilation)：Vt<=4mL/kg PBW或更低、Pplat<=25cmH2O(优选<=20)、ΔP<=10-12cmH2O、PEEP 10-15cmH2O(维持肺复张防止肺不张)、RR 10-15次/min、FiO2<=0.4。目标是最大限度减少呼吸机致肺损伤(VILI),让肺组织恢复。不追求呼吸机端正常氧合和CO2——由ECMO负责气体交换。每日评估肺恢复:降低ECMO流量观察自身氧合(sweep gas trial)。VA-ECMO：避免完全停止通气(防止肺不张和左心血栓),维持最低通气。气管切开：ECMO>14天可考虑,需在ACT<180且无活动出血时进行。"
+  },
+  {
+    "id": "ecmo_weaning_decannulation",
+    "title": "ECMO体外膜肺氧合管理指南",
+    "source": "ELSO 2021 + Expert Consensus",
+    "recommendation": "ECMO撤机与拔管评估",
+    "tags": ["ecmo", "weaning", "decannulation", "liberation"],
+    "text": "VV-ECMO撤机试验：逐步降低sweep gas至1L/min→关闭sweep gas(保持血流)→观察2-4h自身气体交换:P/F>150(FiO2<=0.5,PEEP<=12)、PaCO2<50(RR<30,Vt 5-6mL/kg)、pH>7.30、血流动力学稳定。通过后可拔管。VA-ECMO撤机：逐步降低流量至1-1.5L/min→维持1-2h→评估:MAP>=60(NE<=0.2)、VTI>10cm、LVEF>20-25%、无新发RV扩张、乳酸稳定。VTI脉压波动(VTI-PPV试验)可辅助判断。拔管后：股动脉VA-ECMO拔管后压迫止血或手术修补,监测下肢灌注。VV-ECMO静脉拔管后压迫15-30min。拔管后24h密切监测有无复发呼吸衰竭或血流动力学恶化。"
+  }
+]

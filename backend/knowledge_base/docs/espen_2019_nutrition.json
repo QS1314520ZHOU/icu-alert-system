@@ -1,0 +1,15 @@
+{
+  "doc_id": "espen_2019_nutrition",
+  "title": "ESPEN ICU Nutrition Guideline",
+  "summary": "危重症早期肠内营养与喂养耐受监测。",
+  "sections": [
+    {
+      "id": "espen2019_icu_nutrition",
+      "section_title": "Early enteral nutrition",
+      "recommendation": "Early Enteral Nutrition",
+      "recommendation_grade": "preferred_strategy",
+      "tags": ["nutrition", "icu", "feeding"],
+      "text": "In critically ill adults, early enteral nutrition is preferred when the gut is functional. Increase feeding progressively while monitoring intolerance and aspiration risk."
+    }
+  ]
+}

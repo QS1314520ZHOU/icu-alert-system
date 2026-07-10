@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.pyc
+*.pyc.*
+*.pyo
+*.egg-info/
+dist/
+build/
+dist-output/
+
+# Environment
+.env
+backend/.env
+backend/.venv/
+*.env.local
+
+# Node
+node_modules/
+dist/
+frontend/dist/
+
+# Backend Build
+backend/static/
+backend/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Local tooling / temp artifacts
+.claude/
+tmp_test_write.txt
+tmp/
+.tmp/
+tmp_investigation_step*.py
+diff_output.txt
+investigation_step*.log
+backend/app/**/*.bak_test
+backend/app/**/tmp.txt
+backend/backend/
+
+# Root package files (if not monorepo)
+/package.json
+/package-lock.json

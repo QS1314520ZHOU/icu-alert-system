@@ -1,0 +1,34 @@
+[
+  {
+    "id": "pe_clinical_assessment",
+    "title": "肺栓塞(PE)诊治指南",
+    "source": "ESC 2019 + AHA/ACC 2026 PE Guidelines",
+    "recommendation": "临床评估与风险分层",
+    "tags": ["pe", "wells", "geneva", "d_dimer", "diagnosis"],
+    "text": "临床预测概率：Wells评分(简化版)：既往DVT/PE(1.5分)、HR>100(1.5分)、近期手术/制动(1.5分)、DVT临床征象(3分)、PE为最可能诊断(3分)、咯血(1分)、恶性肿瘤(1分)。低危<=4分、高危>4分。低危+D-dimer阴性(<500ng/mL或年龄校正<年龄×10ng/mL)可排除PE。高危直接CTPA确诊。血流动力学不稳定(SBP<90mmHg持续15min或需升压药)的疑似PE应床旁超声评估右心(若右心增大/运动减弱高度提示)并紧急处理,不必等CTPA。"
+  },
+  {
+    "id": "pe_risk_stratification",
+    "title": "肺栓塞(PE)诊治指南",
+    "source": "ESC 2019 + AHA/ACC 2026",
+    "recommendation": "PE严重程度与风险分层",
+    "tags": ["pe", "massive", "submassive", "pesi", "right_ventricle"],
+    "text": "大面积PE(高危)：血流动力学不稳定(SBP<90或心脏骤停)，早期死亡率>15%。次大面积PE(中危)：血流动力学稳定但右心功能障碍(CTPA右心增大RV/LV>0.9或超声TAPSE<16mm或BNP>600pg/mL)和/或肌钙蛋白升高，分为中高危(两者均有)和中低危(仅一项)。低危PE：无右心功能障碍且肌钙蛋白正常,sPESI=0分。sPESI评分：年龄>80(1)、恶性肿瘤(1)、心衰/慢性肺病(1)、HR>=110(1)、SBP<100(1)、SpO2<90%(1)。0分=低危(30天死亡率约1%)。"
+  },
+  {
+    "id": "pe_anticoagulation_treatment",
+    "title": "肺栓塞(PE)诊治指南",
+    "source": "ESC 2019 + AHA/ACC 2026 + CHEST 2021",
+    "recommendation": "PE抗凝治疗",
+    "tags": ["pe", "anticoagulation", "heparin", "lmwh", "doac"],
+    "text": "初始抗凝：临床高度怀疑PE即开始抗凝(不必等影像确认)。首选LMWH(依诺肝素1mg/kg SC q12h或1.5mg/kg qd)或UFH(80IU/kg bolus后18IU/kg/h,目标aPTT 60-80s)或磺达肝素钠(5-10mg SC qd按体重)。UFH适用于：大面积PE(可能需溶栓)、严重肾功能不全(CrCl<30)、高出血风险(可快速逆转)。过渡至口服：DOAC首选(利伐沙班或阿哌沙班可直接口服无需肝素桥接,达比加群和依度沙班需先5天肝素)。华法林需INR达标(2-3)≥24h后停肝素。疗程：诱因明确(手术/创伤)3个月，无诱因≥3-6个月后评估是否长期，恶性肿瘤相关建议长期抗凝。"
+  },
+  {
+    "id": "pe_thrombolysis_advanced",
+    "title": "肺栓塞(PE)诊治指南",
+    "source": "ESC 2019 + AHA/ACC 2026",
+    "recommendation": "溶栓与进阶治疗",
+    "tags": ["pe", "thrombolysis", "tpa", "catheter", "embolectomy"],
+    "text": "全身溶栓适应证：大面积PE(血流动力学不稳定,强推荐)。方案：rtPA(阿替普酶)100mg IV/2h(标准方案)或0.6mg/kg IV/15min(最大50mg,心脏骤停方案)。绝对禁忌：活动性颅内出血、近期(<3个月)缺血性卒中、颅内肿瘤、近期(<3周)大手术。相对禁忌：近期GI出血、INR>1.7、PLT<100×10^9。次大面积PE(中高危)：不常规溶栓(弱推荐反对),但临床恶化(出现血流动力学不稳定)时应溶栓(挽救性溶栓)。导管介入治疗(CDT)：适用于大面积PE溶栓禁忌或溶栓失败，或中高危PE临床恶化。包括导管定向溶栓和机械血栓清除。外科肺动脉取栓术：溶栓禁忌的大面积PE且导管介入不可用时考虑。IVC滤器：仅用于有绝对抗凝禁忌的急性PE/DVT，不常规使用。"
+  }
+]

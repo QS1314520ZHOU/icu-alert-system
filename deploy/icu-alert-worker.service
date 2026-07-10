@@ -1,0 +1,36 @@
+[Unit]
+Description=ICU智能预警系统 后台扫描 Worker
+After=network.target mongod.service icu-alert-api.service
+Wants=mongod.service
+# worker 不强依赖 API 服务启动，但建议先启动 API
+
+[Service]
+Type=simple
+User=icu
+Group=icu
+WorkingDirectory=/opt/icu-alert-system/backend
+
+# ── 环境 ──────────────────────────────────────────
+EnvironmentFile=-/opt/icu-alert-system/backend/.env
+Environment=PYTHONUNBUFFERED=1
+
+# ── 启动：运行专用 worker 入口 ────────────────
+# scan_worker.py 会初始化数据库与 AlertEngine（worker 模式）
+ExecStart=/opt/icu-alert-system/.venv/bin/python -m app.scan_worker
+
+# ── 重启策略 ──────────────────────────────────────
+Restart=on-failure
+RestartSec=10s
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+# ── 资源限制 ──────────────────────────────────────
+LimitNOFILE=65536
+
+# ── 日志 ──────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=icu-alert-worker
+
+[Install]
+WantedBy=multi-user.target

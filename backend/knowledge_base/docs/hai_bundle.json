@@ -1,0 +1,34 @@
+[
+  {
+    "id": "hai_vap_bundle",
+    "title": "医院获得性感染(HAI)预防Bundle",
+    "source": "SHEA/IDSA 2022 + IHI VAP Bundle",
+    "recommendation": "VAP预防Bundle",
+    "tags": ["vap", "ventilator", "pneumonia", "hai", "bundle"],
+    "text": "VAP(呼吸机相关性肺炎)预防Bundle五要素：1)床头抬高30-45°(减少误吸)。2)每日镇静中断+撤机评估(SAT+SBT,缩短机械通气时间)。3)口腔护理(氯己定0.12%口腔冲洗q6-8h,中国指南部分中心使用碳酸氢钠口腔护理替代)。4)消化性溃疡预防(H2RA或PPI,出血高危患者使用)。5)DVT预防(LMWH或IPC)。额外推荐：声门下分泌物引流(使用带声门下吸引的ETT)、气囊压力维持25-30cmH2O(q4h检查)、避免不必要的呼吸机管路更换(不短于7天或污染时更换)、保持呼吸机管路密闭系统。VAP发生率目标：<5例/1000机械通气日。"
+  },
+  {
+    "id": "hai_clabsi_bundle",
+    "title": "医院获得性感染(HAI)预防Bundle",
+    "source": "SHEA/IDSA 2022 + CDC CLABSI Prevention",
+    "recommendation": "CLABSI预防Bundle",
+    "tags": ["clabsi", "central_line", "bloodstream", "hai", "bundle"],
+    "text": "CLABSI(中心静脉导管相关血流感染)插入Bundle：1)手卫生(操作前)。2)最大无菌屏障(帽子/口罩/无菌手套/无菌手术衣/全身大无菌单)。3)氯己定>0.5%含酒精皮肤消毒(待干>30s)。4)最优穿刺部位选择(锁骨下>颈内>股静脉,股静脉感染和血栓风险最高)。5)每日评估导管必要性(不需要时尽早拔除)。维护Bundle：无菌技术更换敷料(透明膜q7d或纱布q2d,潮湿/松脱/污染时立即更换)、消毒接头(酒精棉片擦拭15s待干)、标准化换药流程、监测穿刺点感染征象(红肿/渗液/压痛)。抗菌药物涂层导管或氯己定贴片适用于Bundle依从性高但感染率仍高的单位。CLABSI发生率目标：<1例/1000导管日。"
+  },
+  {
+    "id": "hai_cauti_bundle",
+    "title": "医院获得性感染(HAI)预防Bundle",
+    "source": "SHEA/IDSA 2022 + CDC CAUTI Guidelines",
+    "recommendation": "CAUTI预防Bundle",
+    "tags": ["cauti", "urinary", "foley", "catheter", "hai", "bundle"],
+    "text": "CAUTI(导管相关泌尿系感染)预防Bundle：1)严格掌握留置导尿适应证(急性尿潴留/梗阻、围术期需要、重症需精确尿量监测、骶骨/会阴开放伤、姑息舒适护理)。2)无菌技术插管。3)每日评估导管必要性并尽早拔除(护士驱动的拔管方案已被证实有效)。4)维持密闭引流系统(不断开)。5)保持集尿袋低于膀胱水平。6)避免常规膀胱冲洗(不预防感染反增加感染风险)。7)不推荐常规更换导管(仅在堵塞或感染时更换)。导管留置>2天后每天CAUTI风险增加3-7%。替代方案：间歇导尿优于留置导尿,外部集尿装置(男性)、超声膀胱扫描评估残余尿量。CAUTI发生率目标：<2例/1000导管日。"
+  },
+  {
+    "id": "hai_ssi_prevention",
+    "title": "医院获得性感染(HAI)预防Bundle",
+    "source": "WHO SSI Guidelines 2018 + CDC SSI Prevention",
+    "recommendation": "手术部位感染预防",
+    "tags": ["ssi", "surgical", "wound", "prophylaxis", "hai"],
+    "text": "SSI(手术部位感染)预防要点：术前2%氯己定浴、术前30-60min给预防性抗生素(头孢唑林最常用,手术时间>2个半衰期或大量出血时追加)、维持围术期正常体温(>36°C)、维持围术期血糖<200mg/dL、适当吸氧(FiO2 0.80围术期)、消毒皮肤(氯己定-酒精优于碘伏)。术后抗生素预防不超过24h(心脏手术可至48h)。ICU中的SSI监测：每日观察切口(红/肿/热/痛/渗液)、体温趋势、白细胞和CRP/PCT变化。腹部手术后警惕吻合口漏(术后3-7天发热+腹痛+心率增快+引流液性状改变)。"
+  }
+]

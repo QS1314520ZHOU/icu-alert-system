@@ -1,0 +1,34 @@
+[
+  {
+    "id": "lab_electrolytes",
+    "title": "ICU化验参考范围与预警阈值",
+    "source": "ICU Standard Practice + LabResultsScanner Config",
+    "recommendation": "电解质参考范围与预警阈值",
+    "tags": ["electrolyte", "potassium", "sodium", "calcium", "magnesium", "phosphate"],
+    "text": "钾K+：正常3.5-5.0mmol/L。warning >5.5或<3.5。critical >6.5(ECG改变/心脏骤停风险)或<2.5(肌无力/心律失常)。高K+紧急处理：钙剂(稳膜)→胰岛素+葡萄糖(转移)→沙丁胺醇雾化→碳酸氢钠(酸中毒时)→排钾(利尿/透析)。钠Na+：正常135-145mmol/L。warning >150或<130。critical >160或<120(癫痫/脑水肿风险)。纠正速率≤10mmol/24h(慢性低钠)避免渗透性脱髓鞘。离子钙iCa2+：正常1.0-1.3mmol/L。warning <0.9。critical <0.8(低血压/心功能不全)。大量输血后常见。镁Mg2+：正常0.7-1.0mmol/L。warning <0.7。critical <0.5(抽搐/心律失常/难治性低钾)。磷酸盐PO4：正常0.8-1.5mmol/L。warning <0.65。critical <0.32(呼吸肌无力/溶血)。CRRT患者常见低磷需常规补充。"
+  },
+  {
+    "id": "lab_blood_gas_lactate",
+    "title": "ICU化验参考范围与预警阈值",
+    "source": "SSC 2021 + ICU Standard Practice",
+    "recommendation": "血气分析与乳酸",
+    "tags": ["abg", "lactate", "ph", "pao2", "paco2"],
+    "text": "pH：正常7.35-7.45。warning <7.30或>7.50。critical <7.20或>7.55。PaCO2：正常35-45mmHg。PaO2：正常80-100mmHg(吸空气)。P/F比：正常>400。<300mild ARDS/<200moderate/<100severe。乳酸Lactate：正常<2mmol/L。warning >2。critical >4(SSC 2021:乳酸>=4触发液体复苏)。乳酸清除率>20%/2h提示复苏有效。持续>4mmol/L死亡率显著增加。BE(碱剩余)：正常-2至+2mmol/L。<-5提示显著代谢性酸中毒。HCO3：正常22-26mmol/L。SpO2/FiO2(S/F比)：可替代P/F比用于无ABG时,S/F 235≈P/F 200,S/F 315≈P/F 300。"
+  },
+  {
+    "id": "lab_hematology_coagulation",
+    "title": "ICU化验参考范围与预警阈值",
+    "source": "ICU Standard Practice + ISTH DIC",
+    "recommendation": "血常规与凝血指标",
+    "tags": ["hemoglobin", "platelet", "inr", "fibrinogen", "d_dimer"],
+    "text": "血红蛋白Hb：ICU输血阈值一般70g/L(限制性策略),心血管病可放宽至80g/L。warning <80。critical <60(组织缺氧高风险)。活动性出血参考bleeding_transfusion.json。血小板PLT：正常150-400×10^9/L。warning <100(穿刺操作风险)。critical <50(自发出血风险)或<20(致命出血风险,需输注)。PLT>50操作安全,>100颅脑手术/TBI。白细胞WBC：正常4-10×10^9/L。warning >15或<3。critical >20(感染/应激)或<1(粒缺/感染高危)。INR：正常0.9-1.1(未抗凝)。warning >2.0。critical >3.0。华法林目标2-3。纤维蛋白原Fib：正常2-4g/L。<1.5g/L需补充(DIC/大出血)。critical <1.0g/L。D-dimer：正常<500ng/mL。升高无特异性(感染/创伤/手术/VTE/DIC均可),需结合临床。ISTH DIC评分中D-dimer中度升高1分/显著升高2分。"
+  },
+  {
+    "id": "lab_inflammatory_organ",
+    "title": "ICU化验参考范围与预警阈值",
+    "source": "SSC 2021 + KDIGO + ICU Practice",
+    "recommendation": "炎症标志物与器官功能指标",
+    "tags": ["pct", "crp", "bnp", "troponin", "creatinine", "bilirubin", "albumin"],
+    "text": "PCT(降钙素原)：<0.1正常/<0.25低感染可能/<0.5可能细菌感染/>2高度提示/>10脓毒性休克/重症感染。PCT指导停抗生素见antimicrobial_stewardship.json。CRP：正常<5mg/L,ICU>100常见但非特异。BNP：>100pg/mL提示心衰可能,>400高度提示(年龄/肾功能影响)。NT-proBNP：>300排除心衰(阴性预测值高),>900(75岁以上>1800)提示心衰。肌钙蛋白TnI/TnT：>99th百分位上限为阳性。ICU常见非ACS升高(脓毒症/PE/肾衰/心肌炎)。肌酐Cr：AKI判断见kdigo_aki.json。BUN/Cr比值>20:1提示上消化道出血或脱水。胆红素：正常<20umol/L。>34皮肤黄疸。SOFA评分中>102为3分/>204为4分。白蛋白：正常35-50g/L。ICU<30常见(毛细血管渗漏/营养不良/肝功能)。<25影响药物结合和AG校正。"
+  }
+]

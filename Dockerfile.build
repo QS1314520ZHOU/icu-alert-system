@@ -1,0 +1,167 @@
+FROM oraclelinux:8 AS builder
+
+ARG BUILD_VARIANT=cpu
+ARG APP_VERSION=1.0.0
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    ICU_BUILD_VARIANT=${BUILD_VARIANT}
+
+RUN dnf install -y oracle-epel-release-el8 && \
+    dnf module reset nodejs -y 2>/dev/null && \
+    dnf module enable python311 nodejs:18 -y && \
+    dnf install -y \
+        gcc gcc-c++ make \
+        python3.11 python3.11-devel python3.11-pip \
+        nodejs npm \
+        findutils binutils patchelf tar gzip shadow-utils && \
+    dnf clean all && \
+    ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/pip3.11 /usr/local/bin/pip3
+
+WORKDIR /src
+
+COPY frontend/package*.json /src/frontend/
+RUN cd /src/frontend && npm ci --no-audit
+
+COPY backend/requirements*.txt /src/backend/
+RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install -r /src/backend/requirements.common.txt && \
+    if [ "${BUILD_VARIANT}" = "gpu" ]; then \
+        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/cu121 -r /src/backend/requirements.gpu.txt; \
+    else \
+        python3 -m pip install -r /src/backend/requirements.cpu.txt; \
+    fi
+
+COPY frontend/ /src/frontend/
+COPY backend/ /src/backend/
+
+RUN cd /src/frontend && npm run build && \
+    rm -rf /src/backend/static && \
+    mkdir -p /src/backend/static && \
+    cp -r /src/frontend/dist/. /src/backend/static/
+
+RUN cd /src/backend && \
+    APP_IMPORTS=$(find app -name '*.py' ! -path '*__pycache__*' | \
+        sed 's|/|.|g;s|\.py$||;s|\.__init__||' | sort -u | \
+        awk '{printf "--hidden-import=%s ",$0}') && \
+    OPTIONAL_GPU_ARGS="" && \
+    if [ "${BUILD_VARIANT}" = "gpu" ]; then \
+        for pkg in nvidia.cublas nvidia.cuda_cupti nvidia.cuda_nvrtc nvidia.cuda_runtime nvidia.cudnn nvidia.cufft nvidia.curand nvidia.cusolver nvidia.cusparse nvidia.nccl nvidia.nvjitlink nvidia.nvtx triton; do \
+            python3 -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('${pkg}') else 1)" && \
+                OPTIONAL_GPU_ARGS="$OPTIONAL_GPU_ARGS --collect-binaries=${pkg} --collect-data=${pkg}" || true; \
+        done; \
+        APP_NAME="icu-alert-system-gpu"; \
+        EXCLUDE_ARGS=""; \
+    else \
+        APP_NAME="icu-alert-system"; \
+        EXCLUDE_ARGS="--exclude-module=nvidia --exclude-module=triton --exclude-module=torch.cuda"; \
+    fi && \
+    python3 -m PyInstaller \
+        --noconfirm \
+        --clean \
+        --onedir \
+        --name "$APP_NAME" \
+        --paths=/src/backend \
+        --collect-all sentence_transformers \
+        --collect-all transformers \
+        --collect-all chronos \
+        --collect-all tokenizers \
+        --collect-all onnxruntime \
+        --collect-all statsmodels \
+        --collect-submodules uvicorn \
+        --collect-submodules starlette \
+        --collect-submodules fastapi \
+        --collect-submodules pydantic \
+        --collect-submodules pymongo \
+        --collect-submodules motor \
+        --collect-submodules redis \
+        --collect-binaries torch \
+        --collect-binaries onnxruntime \
+        --hidden-import=uvicorn.logging \
+        --hidden-import=uvicorn.loops.auto \
+        --hidden-import=uvicorn.protocols.http.auto \
+        --hidden-import=uvicorn.protocols.websockets.auto \
+        --hidden-import=uvicorn.lifespan.on \
+        --hidden-import=uvicorn.lifespan.off \
+        --hidden-import=motor.motor_asyncio \
+        --hidden-import=redis.asyncio \
+        --hidden-import=websockets \
+        --hidden-import=yaml \
+        --hidden-import=dotenv \
+        --hidden-import=httpx \
+        --hidden-import=chronos \
+        --hidden-import=encodings.idna \
+        --add-data "/src/backend/static:static" \
+        --add-data "/src/backend/config.yaml:." \
+        --add-data "/src/backend/knowledge_base:knowledge_base" \
+        ${EXCLUDE_ARGS} \
+        ${OPTIONAL_GPU_ARGS} \
+        ${APP_IMPORTS} \
+        /src/backend/run_server.py
+
+RUN mkdir -p /release /output && \
+    if [ "${BUILD_VARIANT}" = "gpu" ]; then \
+        APP_NAME="icu-alert-system-gpu"; \
+        PACKAGE_NAME="icu-alert-system-gpu"; \
+        DEFAULT_ACCEL="gpu"; \
+        SERVICE_NAME="icu-alert-gpu"; \
+    else \
+        APP_NAME="icu-alert-system"; \
+        PACKAGE_NAME="icu-alert-system-cpu"; \
+        DEFAULT_ACCEL="cpu"; \
+        SERVICE_NAME="icu-alert"; \
+    fi && \
+    cp -r "/src/backend/dist/${APP_NAME}" "/release/${PACKAGE_NAME}" && \
+    cp /src/backend/config.yaml "/release/${PACKAGE_NAME}/config.yaml" && \
+    if [ -f /src/backend/.env.example ]; then cp /src/backend/.env.example "/release/${PACKAGE_NAME}/.env"; else touch "/release/${PACKAGE_NAME}/.env"; fi && \
+    grep -q '^ICU_ACCELERATION=' "/release/${PACKAGE_NAME}/.env" && \
+        sed -i "s/^ICU_ACCELERATION=.*/ICU_ACCELERATION=${DEFAULT_ACCEL}/" "/release/${PACKAGE_NAME}/.env" || \
+        printf '\nICU_ACCELERATION=%s\n' "${DEFAULT_ACCEL}" >> "/release/${PACKAGE_NAME}/.env" && \
+    printf 'variant=%s\nversion=%s\nbuilt_for=oraclelinux-8\n' "${BUILD_VARIANT}" "${APP_VERSION}" > "/release/${PACKAGE_NAME}/BUILD_INFO" && \
+    printf '%s\n' \
+        '#!/bin/bash' \
+        'set -euo pipefail' \
+        'DIR="$(cd "$(dirname "$0")" && pwd)"' \
+        'SERVICE="__SERVICE_NAME__"' \
+        'id icualert >/dev/null 2>&1 || useradd -r -s /sbin/nologin icualert' \
+        'chown -R icualert:icualert "$DIR"' \
+        'chmod +x "$DIR/__APP_NAME__"' \
+        'cat > "/etc/systemd/system/${SERVICE}.service" <<EOF' \
+        '[Unit]' \
+        "Description=__SERVICE_DESC__" \
+        'After=network.target' \
+        '' \
+        '[Service]' \
+        'Type=simple' \
+        'User=icualert' \
+        'WorkingDirectory=__DIR__' \
+        'Environment=DOTENV_PATH=__DIR__/.env' \
+        'ExecStart=__DIR__/__APP_NAME__' \
+        'Restart=always' \
+        'RestartSec=10' \
+        'LimitNOFILE=65536' \
+        '' \
+        '[Install]' \
+        'WantedBy=multi-user.target' \
+        'EOF' \
+        'sed -i "s|__DIR__|$DIR|g" "/etc/systemd/system/${SERVICE}.service"' \
+        'systemctl daemon-reload' \
+        'systemctl enable "${SERVICE}"' \
+        'echo "Installed service: ${SERVICE}"' \
+        'echo "Edit $DIR/.env and then run: systemctl start ${SERVICE}"' \
+        > "/release/${PACKAGE_NAME}/install.sh" && \
+    sed -i "s/__APP_NAME__/${APP_NAME}/g; s/__SERVICE_NAME__/${SERVICE_NAME}/g; s/__SERVICE_DESC__/ICU Alert System (${BUILD_VARIANT})/g" "/release/${PACKAGE_NAME}/install.sh" && \
+    chmod +x "/release/${PACKAGE_NAME}/install.sh" && \
+    printf '%s\n' \
+        '#!/bin/bash' \
+        'set -euo pipefail' \
+        'DIR="$(cd "$(dirname "$0")" && pwd)"' \
+        'exec "$DIR/__APP_NAME__"' \
+        > "/release/${PACKAGE_NAME}/start.sh" && \
+    sed -i "s/__APP_NAME__/${APP_NAME}/g" "/release/${PACKAGE_NAME}/start.sh" && \
+    chmod +x "/release/${PACKAGE_NAME}/start.sh" && \
+    tar czf "/output/${PACKAGE_NAME}-${APP_VERSION}.el8.x86_64.tar.gz" -C /release "${PACKAGE_NAME}"
+
+FROM scratch
+COPY --from=builder /output/ /output/

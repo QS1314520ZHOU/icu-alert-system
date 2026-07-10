@@ -1,0 +1,42 @@
+[
+  {
+    "id": "tbi_severity_classification",
+    "title": "颅脑损伤神经重症管理指南",
+    "source": "BTF 4th Edition 2016 + ACS TQP Best Practices 2024",
+    "recommendation": "TBI严重程度分级",
+    "tags": ["tbi", "gcs", "classification", "neurocritical"],
+    "text": "TBI严重程度按GCS分级：轻度GCS 13-15(无需ICU但需观察6-24h)、中度GCS 9-12(需ICU监护)、重度GCS 3-8(需气管插管+ICP监测+ICU管理)。所有中重度TBI应收入具有神经外科和神经重症能力的ICU。入院时完善CT评估(Marshall分类或Rotterdam评分)。GCS运动评分M是最具预后价值的单项指标。瞳孔反应消失为严重预后不良征象，但不应单独作为停止治疗的依据。"
+  },
+  {
+    "id": "tbi_icp_monitoring_targets",
+    "title": "颅脑损伤神经重症管理指南",
+    "source": "BTF 4th Edition 2016",
+    "recommendation": "ICP监测与目标",
+    "tags": ["tbi", "icp", "cpp", "monitoring"],
+    "text": "BTF推荐：所有可挽救的重度TBI(GCS 3-8)且CT异常患者应进行ICP监测(Level IIB)。ICP治疗阈值为22mmHg(Level IIB)，持续>5min无刺激的ICP>22mmHg应干预。CPP目标60-70mmHg(Level IIB)，避免CPP<60(脑缺血风险)和CPP>70(ARDS/液体过负荷风险)。CPP = MAP - ICP，通过调整MAP(升压药)和降低ICP来维持。持续ICP监测优于间歇评估。脑室外引流(EVD)既可监测ICP又可治疗性引流脑脊液。脑实质内探头仅监测无法引流。"
+  },
+  {
+    "id": "tbi_icp_stepwise_management",
+    "title": "颅脑损伤神经重症管理指南",
+    "source": "BTF 4th Edition + Neurocritical Care Society",
+    "recommendation": "ICP阶梯式管理",
+    "tags": ["tbi", "icp", "mannitol", "hypertonic_saline", "decompressive_craniectomy"],
+    "text": "ICP管理阶梯：第一阶(基础措施)：抬高床头30-45°、头颈中线位避免颈静脉回流受阻、适度镇痛镇静(丙泊酚/芬太尼)、维持正常体温(<37.5°C)、维持正常PaCO2(35-40mmHg)、避免低血压(SBP>100mmHg)、EVD开放引流CSF。第二阶(渗透疗法)：甘露醇20% 0.25-1g/kg q4-6h(血浆渗透压<320mOsm/L时使用)或高渗盐水3% 150-250mL bolus(目标Na 145-155mmol/L、渗透压<360mOsm/L)。第三阶(进阶措施)：短暂过度换气PaCO2 30-35mmHg(仅作为桥接，不超过2h)、巴比妥昏迷(戊巴比妥负荷5-10mg/kg后1-3mg/kg/h，需EEG爆发抑制监测)、去骨瓣减压术(DECRA/RESCUEicp研究支持ICP难治时降低死亡率但增加重度残疾)。"
+  },
+  {
+    "id": "tbi_systemic_management",
+    "title": "颅脑损伤神经重症管理指南",
+    "source": "BTF 4th Edition + ACS TQP 2024",
+    "recommendation": "TBI全身管理要点",
+    "tags": ["tbi", "seizure", "coagulopathy", "temperature", "nutrition"],
+    "text": "血压管理：SBP目标>=100mmHg(15-49岁)或>=110mmHg(50-69岁或>70岁)(BTF Level III)。避免低血压发作(每次低血压事件增加死亡率约150%)。癫痫预防：左乙拉西坦或苯妥英钠预防早期癫痫(伤后7天内)(BTF Level IIA)，不推荐常规预防晚期癫痫。凝血紊乱：TBI常合并创伤性凝血病，目标INR<1.5、PLT>100×10^9/L、纤维蛋白原>1.5g/L。抗凝/抗血小板药物需紧急逆转(维生素K/PCC/血小板输注)。体温管理：维持正常体温，积极治疗发热(>38°C增加继发损伤)，治疗性低温(32-35°C)不常规推荐但难治性ICP可考虑。血糖控制：目标140-180mg/dL，避免低血糖(<70mg/dL加重脑损伤)和高血糖(>200mg/dL)。营养：伤后72h内启动早期肠内营养(BTF Level IIA)，目标热卡基础代谢140%。"
+  },
+  {
+    "id": "tbi_neuromonitoring_prognostication",
+    "title": "颅脑损伤神经重症管理指南",
+    "source": "BTF 4th Edition + Neurocritical Care Society",
+    "recommendation": "多模态神经监测与预后评估",
+    "tags": ["tbi", "neuromonitoring", "prognosis", "pbto2"],
+    "text": "多模态监测：ICP/CPP(基础)、脑组织氧分压PbtO2(目标>20mmHg，<15mmHg提示脑缺氧应干预)、脑微透析(乳酸/丙酮酸比值>40提示代谢危机)、连续EEG(癫痫监测和爆发抑制评估)。CT随访：首次CT后6-24h复查，临床恶化时随时复查。预后评估：不应在伤后72h内做出终止治疗决定(BTF建议)。预后因素：年龄、GCS运动评分、瞳孔反应、CT表现(中线移位/基底池受压/SAH)、合并伤。IMPACT和CRASH预后模型可辅助预后判断但不应替代临床综合评估。"
+  }
+]

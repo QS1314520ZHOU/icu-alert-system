@@ -1,0 +1,26 @@
+[
+  {
+    "id": "rv_failure_recognition",
+    "title": "右心功能评估与肺动脉高压管理",
+    "source": "ESC 2022 Pulmonary Hypertension + ESICM Expert Statement",
+    "recommendation": "急性右心衰竭识别",
+    "tags": ["right_ventricle", "rv_failure", "cvp", "tricuspid"],
+    "text": "急性右心衰竭(RVF)识别：临床表现-低血压/休克、颈静脉怒张、肝脏淤血/肝肿大、外周水肿、少尿。血流动力学特征-CVP升高(>15mmHg)且CVP/PCWP比值>0.8、低心输出量、低MAP。常见ICU诱因：急性大面积PE(最常见)、ARDS(右心后负荷急剧增加)、急性呼吸衰竭(低氧/高碳酸血症致肺血管收缩)、心脏手术后、脓毒症(心肌抑制)、机械通气设置不当(过高PEEP/高潮气量增加右心后负荷)。CVP升高提示右心后负荷过重或右心功能障碍,但需结合超声和临床综合判断,单独CVP值不能诊断RVF。"
+  },
+  {
+    "id": "rv_echocardiography",
+    "title": "右心功能评估与肺动脉高压管理",
+    "source": "ASE/EACVI Guidelines + ICU POCUS",
+    "recommendation": "床旁超声评估右心功能",
+    "tags": ["echocardiography", "tapse", "rv_fac", "rv_lv_ratio"],
+    "text": "床旁超声右心评估指标：RV/LV比值：四腔心切面,RV/LV>1.0提示RV扩张(正常RV<LV)。PE时RV/LV>0.9有意义。TAPSE(三尖瓣环平面收缩期位移)：M型测量,正常>=17mm,<16mm提示RV收缩功能减低。FAC(面积变化分数)：(舒张末面积-收缩末面积)/舒张末面积×100%,正常>=35%,<35%提示RV功能减低。McConnell征：RV游离壁运动减弱而心尖部运动保留,高度提示急性PE。室间隔运动：收缩期室间隔向左室偏移(D型室间隔)提示右心压力负荷增高。三尖瓣反流速度：>2.8m/s提示肺动脉压力升高,用于估算PASP=4V²+RAP。IVC评估：扩张(>21mm)且呼吸变异率<50%提示RAP升高(约15mmHg)。"
+  },
+  {
+    "id": "rv_protection_strategies",
+    "title": "右心功能评估与肺动脉高压管理",
+    "source": "ESICM + Pulmonary Hypertension Expert Consensus",
+    "recommendation": "右心保护策略",
+    "tags": ["rv_protection", "volume", "afterload", "inotrope", "ventilation"],
+    "text": "右心保护三原则：优化前负荷+降低后负荷+增强收缩力。容量管理：RV对容量高度敏感,过度扩张→室间隔偏移→LV受压→CO下降(恶性循环)。RVF时避免大量补液,即使CVP已经很高。容量反应性差时应利尿或CRRT超滤。小量试验性补液(250mL)观察反应。降低RV后负荷：纠正低氧血症(肺血管收缩的最强刺激)、纠正高碳酸血症和酸中毒、肺血管扩张剂(吸入NO 10-40ppm或雾化依前列醇/伊洛前列素,选择性肺血管扩张避免全身低血压)。机械通气优化：避免过高PEEP(增加肺血管阻力)、限制平台压<27cmH2O、避免过度充气(Vt 6mL/kg)、允许性高碳酸血症但避免pH<7.20。增强RV收缩：多巴酚丁胺(2-10ug/kg/min)或米力农(0.25-0.75ug/kg/min,需充分前负荷)。去甲肾上腺素维持冠脉灌注压(RV灌注依赖收缩期和舒张期MAP)。严重难治性RVF考虑VA-ECMO或右心辅助装置(RVAD)。"
+  }
+]

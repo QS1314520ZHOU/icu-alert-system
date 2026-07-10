@@ -1,0 +1,117 @@
+FROM node:22-bullseye AS frontend-builder
+
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --prefer-offline || npm install
+
+COPY frontend/ ./
+RUN npm run build && \
+    if [ ! -d dist ] && [ -d build ]; then mv build dist; fi && \
+    if [ ! -d dist ]; then echo "frontend build failed"; exit 1; fi
+
+
+FROM quay.io/pypa/manylinux2014_x86_64 AS builder
+
+ARG APP_VERSION=1.0.0
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    ICU_BUILD_VARIANT=cpu-universal \
+    PYBIN=/opt/python/cp311-cp311/bin \
+    PATH=/opt/python/cp311-cp311/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+RUN yum install -y \
+        findutils \
+        binutils \
+        patchelf \
+        tar \
+        gzip \
+    && yum clean all
+
+WORKDIR /src
+
+COPY backend/requirements*.txt /src/backend/
+RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install -r /src/backend/requirements.common.txt && \
+    python3 -m pip install -r /src/backend/requirements.cpu.txt
+
+COPY backend/ /src/backend/
+COPY --from=frontend-builder /src/frontend/dist /src/backend/static/
+
+RUN cd /src/backend && \
+    APP_IMPORTS=$(find app -name '*.py' ! -path '*__pycache__*' | \
+        sed 's|/|.|g;s|\.py$||;s|\.__init__||' | sort -u | \
+        awk '{printf "--hidden-import=%s ",$0}') && \
+    python3 -c "import sys; sys.path.insert(0, '/src/backend'); import app.main; print('>>> app import precheck OK:', app.main.__file__)" && \
+    python3 -m PyInstaller \
+        --noconfirm \
+        --clean \
+        --onedir \
+        --name "icu-alert-system-linux-universal" \
+        --paths=/src/backend \
+        --collect-all sentence_transformers \
+        --collect-all transformers \
+        --collect-all chronos \
+        --collect-all tokenizers \
+        --collect-all onnxruntime \
+        --collect-all numpy \
+        --collect-all statsmodels \
+        --collect-submodules uvicorn \
+        --collect-submodules starlette \
+        --collect-submodules fastapi \
+        --collect-submodules pydantic \
+        --collect-submodules pymongo \
+        --collect-submodules motor \
+        --collect-submodules redis \
+        --collect-binaries torch \
+        --collect-binaries onnxruntime \
+        --hidden-import=uvicorn.logging \
+        --hidden-import=uvicorn.loops.auto \
+        --hidden-import=uvicorn.protocols.http.auto \
+        --hidden-import=uvicorn.protocols.websockets.auto \
+        --hidden-import=uvicorn.lifespan.on \
+        --hidden-import=uvicorn.lifespan.off \
+        --hidden-import=motor.motor_asyncio \
+        --hidden-import=redis.asyncio \
+        --hidden-import=websockets \
+        --hidden-import=yaml \
+        --hidden-import=dotenv \
+        --hidden-import=httpx \
+        --hidden-import=chronos \
+        --hidden-import=encodings.idna \
+        --hidden-import=numpy._core \
+        --hidden-import=numpy._core._exceptions \
+        --hidden-import=numpy._core._multiarray_tests \
+        --hidden-import=numpy._core._multiarray_umath \
+        --hidden-import=numpy.linalg \
+        --hidden-import=numpy.linalg.lapack_lite \
+        --exclude-module=nvidia \
+        --exclude-module=triton \
+        --exclude-module=torch.cuda \
+        --add-data "/src/backend/static:static" \
+        --add-data "/src/backend/config.yaml:." \
+        --add-data "/src/backend/knowledge_base:knowledge_base" \
+        ${APP_IMPORTS} \
+        /src/backend/run_server.py
+
+RUN mkdir -p /release /output && \
+    PACKAGE_NAME="icu-alert-system-linux-universal" && \
+    cp -r "/src/backend/dist/${PACKAGE_NAME}" "/release/${PACKAGE_NAME}" && \
+    cp /src/backend/config.yaml "/release/${PACKAGE_NAME}/config.yaml" && \
+    if [ -f /src/backend/.env.example ]; then cp /src/backend/.env.example "/release/${PACKAGE_NAME}/.env"; else touch "/release/${PACKAGE_NAME}/.env"; fi && \
+    grep -q '^ICU_ACCELERATION=' "/release/${PACKAGE_NAME}/.env" && \
+        sed -i "s/^ICU_ACCELERATION=.*/ICU_ACCELERATION=cpu/" "/release/${PACKAGE_NAME}/.env" || \
+        printf '\nICU_ACCELERATION=cpu\n' >> "/release/${PACKAGE_NAME}/.env" && \
+    printf 'variant=cpu-universal\nversion=%s\nbuilt_for=manylinux2014_x86_64\n' "${APP_VERSION}" > "/release/${PACKAGE_NAME}/BUILD_INFO" && \
+    printf '%s\n' \
+        '#!/bin/bash' \
+        'set -euo pipefail' \
+        'DIR="$(cd "$(dirname "$0")" && pwd)"' \
+        'export DOTENV_PATH="${DOTENV_PATH:-$DIR/.env}"' \
+        'exec "$DIR/icu-alert-system-linux-universal"' \
+        > "/release/${PACKAGE_NAME}/start.sh" && \
+    chmod +x "/release/${PACKAGE_NAME}/start.sh" && \
+    tar czf "/output/${PACKAGE_NAME}-${APP_VERSION}.tar.gz" -C /release "${PACKAGE_NAME}"
+
+FROM scratch
+COPY --from=builder /output/ /output/

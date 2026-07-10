@@ -1,0 +1,34 @@
+[
+  {
+    "id": "ecash_concept_overview",
+    "title": "eCASH舒适化浅镇静理念",
+    "source": "Vincent 2016 eCASH + PADIS 2018",
+    "recommendation": "eCASH概念与核心原则",
+    "tags": ["ecash", "comfort", "sedation", "analgesia", "humane"],
+    "text": "eCASH(early Comfort using Analgesia, minimal Sedation and maximal Humane care)是由Jean-Louis Vincent教授2016年提出的ICU镇痛镇静理念。核心原则：尽早(early)实现患者舒适(Comfort),通过充分镇痛(Analgesia)、最小化镇静(minimal Sedation)和最大化人文关怀(maximal Humane care)。与传统的深镇静→逐步减量方案相反,eCASH倡导从入ICU起即以浅镇静为目标。理念转变：从'让患者安静'转向'让患者舒适且清醒参与'。目标RASS 0至-1,患者能够遵从简单指令、沟通需求、参与康复活动。"
+  },
+  {
+    "id": "ecash_analgesia_first",
+    "title": "eCASH舒适化浅镇静理念",
+    "source": "PADIS 2018 + eCASH Concept",
+    "recommendation": "镇痛优先策略",
+    "tags": ["analgesia", "pain", "opioid", "multimodal"],
+    "text": "镇痛优先(Analgesia-first)：疼痛是ICU患者最常见的不适来源,未控制的疼痛导致焦虑→不配合→增加镇静→延长通气。处理顺序：先评估疼痛(BPS/CPOT)→给予充分镇痛→再评估是否仍需镇静。多模式镇痛：基础-对乙酰氨基酚1g q6h IV/PO(减少阿片用量25-30%)；一线阿片-芬太尼(起效快/短效/血流动力学影响小)或瑞芬太尼输注(超短效/无蓄积)；辅助-氯胺酮低剂量输注0.1-0.3mg/kg/h(阿片节省/神经病理痛/阿片耐受)、加巴喷丁/普瑞巴林(神经病理痛)、区域麻醉(胸/腹手术后)；非药物-体位/冰敷/音乐/认知行为干预。操作前预防性镇痛(翻身/吸痰/伤口换药前5-10min给予)。"
+  },
+  {
+    "id": "ecash_minimal_sedation",
+    "title": "eCASH舒适化浅镇静理念",
+    "source": "PADIS 2018 + SPICE III Trial",
+    "recommendation": "最小化镇静策略",
+    "tags": ["sedation", "rass", "propofol", "dexmedetomidine", "benzodiazepine"],
+    "text": "目标浅镇静RASS 0至-1(条件推荐,PADIS 2018)。深镇静仅限于特定指征：癫痫持续状态、严重ARDS俯卧位通气时不耐受、ICP危机、严重酒精戒断、开放腹部/使用肌松药。药物选择：首选丙泊酚(短效/可滴定/促进SAT-SBT)或右美托咪定(减少谵妄/维持可唤醒/轻度镇痛)。避免苯二氮卓类(PADIS强推荐反对,增加谵妄风险1.5-3倍)。SPICE III试验(N=4000)：右美托咪定vs常规镇静(主要丙泊酚)在90天死亡率无差异,但右美托咪定组更多心动过缓和低血压。镇静深度监测：RASS q2-4h(主观)、BIS(客观,深镇静或肌松时辅助,目标40-60深镇静/60-80浅镇静)。每日SAT(自主觉醒试验)强制执行。"
+  },
+  {
+    "id": "ecash_humane_care_circadian",
+    "title": "eCASH舒适化浅镇静理念",
+    "source": "eCASH Concept + PADIS 2018 Sleep Section",
+    "recommendation": "人文关怀与昼夜节律保护",
+    "tags": ["humane", "sleep", "circadian", "noise", "family"],
+    "text": "最大化人文关怀包括：睡眠保护-22:00-06:00降低灯光(夜灯模式)、减少噪音(目标<45dB,静音报警/降低报警音量/关闭不必要设备)、集中夜间护理操作(避免碎片化打扰)、耳塞和眼罩(PADIS推荐)、褪黑素(可考虑0.5-5mg睡前,证据有限但安全)。环境优化-白天充分光照(促进昼夜节律)、提供时钟和日历(定向提示)、允许个人物品(眼镜/助听器/照片)。沟通尊重-向患者解释操作和环境(即使镇静中)、称呼患者姓名而非'XX床'、定期评估沟通需求(图片交流板/写字板)。家属参与-灵活探视、ICU日记(护士/家属/患者共同记录)、定期家属会议(入ICU 72h内首次)。出院后随访-PICS(重症后综合征)筛查、心理支持。"
+  }
+]

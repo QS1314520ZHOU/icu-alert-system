@@ -1,0 +1,42 @@
+[
+  {
+    "id": "abcdef_overview",
+    "title": "ABCDEF ICU Liberation Bundle",
+    "source": "SCCM ICU Liberation Campaign + PADIS 2018",
+    "recommendation": "ABCDEF Bundle概述与循证依据",
+    "tags": ["abcdef", "liberation", "bundle", "icu", "padis"],
+    "text": "ABCDEF Bundle是SCCM ICU Liberation运动推荐的循证集束化方案,旨在减少ICU获得性并发症(谵妄/ICU-AW/PTSD)并促进早期康复。多中心研究(N>15000)显示完整执行ABCDEF Bundle与以下结局显著相关：死亡率降低(每多执行10%的Bundle天数,7天死亡OR 0.94)、谵妄天数减少、机械通气天数缩短、ICU住院时间缩短、身体约束使用减少。Bundle各元素协同而非独立执行,每日应完整评估所有6个元素。"
+  },
+  {
+    "id": "abcdef_a_pain",
+    "title": "ABCDEF ICU Liberation Bundle",
+    "source": "PADIS 2018",
+    "recommendation": "A-Assess,Prevent,Manage Pain(疼痛评估预防管理)",
+    "tags": ["pain", "analgesia", "cpot", "bps", "opioid"],
+    "text": "A元素-疼痛：常规使用BPS(行为疼痛量表,3-12分)或CPOT(重症疼痛观察工具,0-8分)评估(q4h+操作前后)。BPS>5或CPOT>2提示显著疼痛需干预。镇痛优先(analgesia-first)策略：先处理疼痛再考虑镇静。一线：IV阿片类(芬太尼/吗啡/氢吗啡酮),滴定至目标。辅助：对乙酰氨基酚(减少阿片用量30-40%)、氯胺酮低剂量(0.1-0.5mg/kg/h,阿片耐受/神经病理痛)、区域麻醉(胸外科/腹部手术)。非药物措施：体位调整、冰敷/热敷、音乐疗法。状态判定：Green(BPS<=5/CPOT<=2无不适)、Yellow(BPS 6-7/CPOT 3-4轻中度痛)、Red(BPS>=8/CPOT>=5重度痛)。"
+  },
+  {
+    "id": "abcdef_bc_sat_sbt",
+    "title": "ABCDEF ICU Liberation Bundle",
+    "source": "ABC Trial (Lancet 2008) + AARC CPG 2024",
+    "recommendation": "B+C-SAT与SBT协同执行",
+    "tags": ["sat", "sbt", "sedation_interruption", "weaning", "coordination"],
+    "text": "B元素-SAT+SBT协同：每日执行。SAT安全筛查通过后→暂停镇静→等待觉醒(RASS>=−1或睁眼/遵从指令)→SBT安全筛查→执行SBT(30-120min,T管或PSV<=8cmH2O)。SAT失败标准：RASS>=+2持续5min、SpO2<88%持续5min、急性呼吸窘迫、癫痫发作。SBT失败标准：RR>35、SpO2<90%>2min、HR>140或增加>20%、SBP<90或>180、烦躁/大汗/胸腹矛盾运动。C元素-镇静选择：避免苯二氮卓(增加谵妄风险,PADIS强推荐)。首选丙泊酚(短效好调控)或右美托咪定(减少谵妄)。目标浅镇静RASS 0至-1(PADIS条件推荐)。状态：Green(每日完成SAT+SBT)、Yellow(完成SAT但SBT失败或未评估)、Red(SAT/SBT均未执行)。"
+  },
+  {
+    "id": "abcdef_d_delirium",
+    "title": "ABCDEF ICU Liberation Bundle",
+    "source": "PADIS 2018 + DSD Trial",
+    "recommendation": "D-Assess,Prevent,Manage Delirium(谵妄评估预防管理)",
+    "tags": ["delirium", "cam_icu", "icdsc", "prevention", "haloperidol"],
+    "text": "D元素-谵妄：每班次>=1次CAM-ICU或ICDSC评估。可改变风险因素干预(非药物为主)：促进睡眠(降噪/光控/夜间集中护理)、早期活动(E元素)、认知刺激(定向沟通/日历/时钟)、减少苯二氮卓、纠正感觉剥夺(眼镜/助听器)、维持日常节律。药物治疗：PADIS 2018不推荐常规使用氟哌啶醇或非典型抗精神病药预防谵妄(条件推荐反对)。谵妄发作时：首先寻找并纠正可逆原因(感染/疼痛/低氧/代谢紊乱/药物/便秘/尿潴留)。严重激越危及安全时可短期使用氟哌啶醇0.5-1mg IV或喹硫平25-50mg PO(监测QTc)。右美托咪定可用于需要镇静的谵妄患者。状态：Green(CAM-ICU阴性)、Yellow(阳性但无激越/安全)、Red(激越性谵妄或持续>48h)。"
+  },
+  {
+    "id": "abcdef_ef_mobility_family",
+    "title": "ABCDEF ICU Liberation Bundle",
+    "source": "SCCM ICU Liberation + ESICM Early Mobility Guidelines",
+    "recommendation": "E-Early Mobility + F-Family Engagement",
+    "tags": ["mobility", "rehabilitation", "family", "engagement", "icuaw"],
+    "text": "E元素-早期活动：入ICU 24-72h内启动(血流动力学稳定且无绝对禁忌后)。分级活动方案：Level 1-被动关节活动(ROM)/床上翻身；Level 2-坐位训练(床头>45°)/辅助坐床边；Level 3-站立/原地踏步；Level 4-辅助行走/转移椅。安全标准：MAP 60-110(无新发升压药增量)、HR 60-130、SpO2>=90%、RR<=35、无新发心律失常、FiO2<=0.6、无危险的气道问题。禁忌：活动性出血、不稳定骨折、高ICP、深度镇静RASS<=-3、高剂量升压药(NE>0.3ug/kg/min)。F元素-家属参与：开放探视时间或灵活探视政策、邀请家属参加查房、ICU日记(患者和家属)、家属沟通会(入ICU 72h内首次/之后定期)、出院前教育。状态：Green(当日完成活动+家属参与)、Yellow(仅部分完成)、Red(未启动或有禁忌未评估)。"
+  }
+]

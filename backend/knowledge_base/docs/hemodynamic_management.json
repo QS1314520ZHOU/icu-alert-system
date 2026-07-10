@@ -1,0 +1,42 @@
+[
+  {
+    "id": "hemo_initial_fluid_resuscitation",
+    "title": "ICU血流动力学与液体管理指南",
+    "source": "SSC 2021",
+    "recommendation": "脓毒性休克初始液体复苏",
+    "tags": ["fluid", "resuscitation", "crystalloid", "septic_shock"],
+    "text": "SSC 2021强推荐：脓毒性休克识别后3小时内以30mL/kg晶体液开始复苏。首选平衡液(乳酸林格或醋酸林格)优于0.9%生理盐水(弱推荐)，生理盐水可致高氯性酸中毒和AKI风险增加。强推荐不使用羟乙基淀粉(HES)。白蛋白可在大量晶体液后补充(弱推荐)。复苏目标：乳酸清除、毛细血管再充盈时间CRT<3s、尿量>0.5mL/kg/h，不再推荐固定CVP目标。"
+  },
+  {
+    "id": "hemo_vasopressor_escalation",
+    "title": "ICU血流动力学与液体管理指南",
+    "source": "SSC 2021",
+    "recommendation": "血管活性药物选择与阶梯升级",
+    "tags": ["vasopressor", "norepinephrine", "vasopressin", "map"],
+    "text": "SSC 2021强推荐：去甲肾上腺素(NE)为脓毒性休克首选升压药，目标MAP>=65mmHg(强推荐)。升级阶梯：一线NE 0.1-1.0ug/kg/min → 二线加用血管加压素0.03U/min(NE达0.25-0.5ug/kg/min时，弱推荐) → 三线肾上腺素或多巴酚丁胺(心输出量不足时)。不推荐多巴胺(心律失常风险更高)。可外周静脉短时间启动NE(弱推荐)。难治性休克(NE>0.5ug/kg/min)考虑氢化可的松200mg/d(弱推荐)。"
+  },
+  {
+    "id": "hemo_fluid_responsiveness",
+    "title": "ICU血流动力学与液体管理指南",
+    "source": "ESICM Consensus",
+    "recommendation": "容量反应性评估",
+    "tags": ["fluid_responsiveness", "plr", "ppv", "ultrasound"],
+    "text": "不应依赖CVP静态指标判断容量反应性。推荐动态评估：被动抬腿试验(PLR,敏感性85-90%,特异性90-95%),双腿抬高45度保持1分钟,CO增加>=10%为阳性。脉压变异度PPV>13%提示阳性(需窦律+控制通气+Vt>=8mL/kg)。小容量负荷试验250mL/10-15min,VTI增加>=10%为阳性。超声下腔静脉呼吸变异率>18%(机械通气)或>40%(自主呼吸)提示容量反应性。"
+  },
+  {
+    "id": "hemo_rose_four_phases",
+    "title": "ICU血流动力学与液体管理指南",
+    "source": "ROSE Concept / Malbrain",
+    "recommendation": "液体管理四阶段模型(ROSE)",
+    "tags": ["fluid", "deresuscitation", "rose", "fluid_overload"],
+    "text": "R-Resuscitation(前6h)：快速补液纠正低灌注，正液体平衡预期。O-Optimization(6-24h)：根据容量反应性指导补液，最佳前负荷。S-Stabilization(24-72h)：目标零液体平衡(输入=输出)。E-Evacuation(72h后)：血流动力学稳定(MAP>=65,NE<=0.1且减量中)时主动去复苏达负平衡。策略：限制不必要输液、浓缩药物、利尿剂(呋塞米泵入)、CRRT超滤。液体累积>10%体重与ICU死亡率显著增加相关。"
+  },
+  {
+    "id": "hemo_monitoring_tools",
+    "title": "ICU血流动力学与液体管理指南",
+    "source": "ESICM + SSC 2021",
+    "recommendation": "血流动力学监测工具分级",
+    "tags": ["monitoring", "picco", "ultrasound", "lactate", "scvo2"],
+    "text": "基础监测(所有ICU患者)：有创动脉压、HR、CVP(趋势)、尿量、乳酸q2-6h、CRT。进阶监测(复杂休克)：PiCCO(CI/EVLW/SVRI)或Swan-Ganz(PCWP/SvO2)。床旁超声POCUS：心功能(LVEF)、右心室、下腔静脉、肺B线、VTI变异。组织灌注指标：ScvO2>70%、静脉-动脉CO2差<6mmHg、乳酸清除率>20%/2h。"
+  }
+]

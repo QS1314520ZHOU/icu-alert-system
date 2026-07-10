@@ -1,0 +1,231 @@
+﻿1576	axisName: { color: '#7d93b5', fontSize: 11 },
+1577	axisLine: { lineStyle: { color: '#214368' } },
+1578	splitLine: { lineStyle: { color: ['#183357', '#1f3f67', '#26547c'] } },
+1589	lineStyle: { color: '#38bdf8', width: 2 },
+1590	itemStyle: { color: '#0ea5e9' },
+1599	{ key: 'hr', code: 'HR', name: 'HR', forecastName: 'HR · 预测', color: '#38bdf8', threshold: 12, get: (p: any) => numberOrNull(p.hr)
+1600	{ key: 'map', code: 'MAP', name: 'MAP', forecastName: 'MAP · 预测', color: '#34d399', threshold: 8, get: (p: any) => numberOrNull(p.
+1601	{ key: 'spo2', code: 'SpO2', name: 'SpO2', forecastName: 'SpO2 · 预测', color: '#a78bfa', threshold: 3, get: (p: any) => numberOrNul
+1602	{ key: 'rr', code: 'RR', name: 'RR', forecastName: 'RR · 预测', color: '#f59e0b', threshold: 5, get: (p: any) => numberOrNull(p.rr) 
+1603	{ key: 'temp', code: 'Temp', name: '体温', forecastName: '体温 · 预测', color: '#fb7185', threshold: 0.8, get: (p: any) => numberOrNull(
+1753	legend: icuLegend({ data: legendData, selected, textStyle: { color: '#9aa4b2', fontSize: 10 } }),
+1757	axisLine: { lineStyle: { color: '#1e2a3a' } },
+1758	axisLabel: { color: '#6b7280', fontSize: 10, formatter: (value: any) => fmtTimeShort(value) },
+1762	axisLine: { show: true, lineStyle: { color: '#1e2a3a' } },
+1763	axisLabel: { color: '#6b7280', fontSize: 10 },
+1764	splitLine: { lineStyle: { color: '#132237' } },
+4217	color: #7ecce1;
+4228	color: #ecfeff;
+4240	color: #9bcde0;
+4245	color: #fda4af;
+4264	color: #ecfeff;
+4268	color: #86efac;
+4274	color: #c9d9e6;
+4279	color: #88a2b4;
+4290	color: #ecfeff;
+4295	color: #7ecce1;
+4324	color: #8aa4b8;
+4330	color: #f0fbff;
+4346	color: #8aa4b8;
+4353	color: #f0fbff;
+4375	color: #a5d8e7;
+4379	color: #ecfeff;
+4389	color: #bdf5ff;
+4407	color: #9fdcec;
+4416	color: #ecfeff;
+4422	color: #effcff;
+4501	color: #7ecce1;
+4505	.hero-tag--soft { color: #dffbff; }
+4509	color: #ecfeff;
+4517	.hero-meta { color: #8fb8ca; font-size: 13px; }
+4532	color: #7ecce1;
+4537	color: #effcff;
+4559	color: #81dff1;
+4573	color: #effcff;
+4585	color: #effcff;
+4594	color: #8fb8ca;
+4599	.hero-bundle--green .hero-bundle-dot { color: #34d399; }
+4601	.hero-bundle--yellow .hero-bundle-dot { color: #fbbf24; }
+4603	.hero-bundle--red .hero-bundle-dot { color: #fb7185; }
+4605	.hero-bundle--orange .hero-bundle-dot { color: #fb923c; }
+4607	.hero-bundle--blue .hero-bundle-dot { color: #38bdf8; }
+4609	.hero-bundle--gray .hero-bundle-dot { color: #94a3b8; }
+4648	color: #ffe5ec;
+4664	color: #fecdd3;
+4669	color: #fdba74;
+4674	color: #fde68a;
+4679	color: #ffd5de;
+4685	color: #fff3f5;
+4706	color: #ffced9;
+4711	color: #fff8fa;
+4716	color: #ffe7eb;
+4732	color: #fff3f6;
+4760	color: #7ecce1;
+4766	color: #effcff;
+4778	color: #dffbff;
+4797	.hero-vital span { font-size: 11px; color: #7ecce1; letter-spacing: .14em; }
+4800	color: #effcff;
+4809	color: #8fb8ca;
+4863	color: #7ed6eb;
+4871	color: #8fb8ca;
+4884	color: #81dff1;
+4889	color: #effcff;
+4895	color: #effcff;
+4915	color: #dffbff;
+4919	color: #f4fbff;
+4926	color: #8fb8ca;
+4939	color: #dffbff;
+4941	.weaning-sbt-pill.is-passed { color: #34d399; border-color: rgba(52, 211, 153, .28); }
+4942	.weaning-sbt-pill.is-failed { color: #fb7185; border-color: rgba(251, 113, 133, .28); }
+4943	.weaning-sbt-pill.is-documented { color: #38bdf8; border-color: rgba(56, 189, 248, .24); }
+4968	color: #67e8f9;
+4975	color: #dffbff;
+5002	color: #cbd5f5;
+5015	.acid-primary { background: rgba(59, 130, 246, 0.16); color: #93c5fd; }
+5016	.acid-secondary { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+5017	.acid-tertiary { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+5018	.acid-base-metrics { color: #9fb3d1; font-size: 12px; margin-bottom: 6px; }
+5019	.acid-comp { background: rgba(148, 163, 184, 0.14); color: #cbd5f5; }
+5020	.acid-comp.abnormal { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+5031	color: #7ecce1;
+5039	color: #effcff;
+5043	color: #7ccfe4;
+5066	color: #8bcfe1;
+5076	color: #effcff;
+5081	color: #dffbff;
+5085	color: #7ccfe4;
+5090	color: #e3fbff;
+5100	color: #e8fbff !important;
+5138	color: #79cfe1;
+5144	color: #ecfeff;
+5165	color: #76bfd3;
+5180	color: #9bdcf1;
+5188	color: #effcff;
+5193	color: #ffffff;
+5198	color: #dffbff;
+5203	color: #effcff;
+5209	color: #6b7280;
+5216	color: #d1d5db;
+5232	.lab-item.lab-high { color: #fca5a5; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); }
+5233	.lab-item.lab-low { color: #93c5fd; background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); }
+5250	color: #eaf2ff;
+5256	color: #8da4c7;
+5283	color: #a4b8d5;
+5317	background: linear-gradient(180deg, #1f3c67 0%, #0f233f 100%);
+5321	border-left: 5px solid #f59e0b;
+5327	.alert-card.sev-high .alert-body { border-left-color: #f97316; }
+5328	.alert-card.sev-critical .alert-body { border-left-color: #f43f5e; }
+5329	.alert-dot.sev-warning { background: #f59e0b; box-shadow: 0 0 8px #f59e0b99; }
+5330	.alert-dot.sev-high { background: #f97316; box-shadow: 0 0 8px #f9731699; }
+5331	.alert-dot.sev-critical { background: #f43f5e; box-shadow: 0 0 10px #f43f5e99; }
+5347	color: #eaf2ff;
+5382	color: #f1f6ff;
+5395	color: #8da4c7;
+5404	color: #d7e6ff;
+5425	.detail-label { color: #7aa2d6; }
+5426	.detail-value { color: #e5e7eb; font-weight: 600; }
+5430	color: #94a3b8;
+5464	color: #eef4ff;
+5468	color: #b9cae8;
+5496	color: #d9e8ff;
+5500	color: #93c5fd;
+5505	color: #a9bbda;
+5511	color: #7fa0d0;
+5521	color: #dbe9ff;
+5531	color: #bfd0ec;
+5535	color: #fecaca;
+5567	color: #93c5fd;
+5571	color: #bfdbfe;
+5580	color: #334155;
+5627	color: #7f97bd;
+5630	color: #8898b5;
+5680	color: #c3d3ec;
+5696	color: #dce8fb;
+5703	color: #b6c8e4;
+5744	color: #f87171;
+5752	linear-gradient(180deg, #f4f8fc 0%, #edf3f9 100%);
+5753	color: #1f3852;
+5763	color: #16324f;
+5767	color: #47627e;
+5777	color: #47627e;
+5781	color: #16324f;
+5786	color: #1d4ed8;
+5797	color: #47627e;
+5801	color: #16324f;
+5873	color: #16324f;
+5900	color: #6f8399;
+5908	color: #1d4ed8;
+5911	color: #1f3852;
+5914	color: #47627e;
+5923	color: #334e68;
+5929	color: #2563eb;
+5932	color: #47627e;
+5943	color: #334e68;
+5946	color: #334e68;
+5949	color: #047857;
+5954	color: #be123c;
+5959	color: #1d4ed8;
+5965	color: #059669;
+5971	color: #b45309;
+5977	color: #dc2626;
+5983	color: #ea580c;
+5989	color: #2563eb;
+5995	color: #64748b;
+6019	color: #be123c;
+6024	color: #c2410c;
+6029	color: #b45309;
+6034	color: #1d4ed8;
+6042	html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-btn) { color: #47627e; }
+6047	html[data-theme='light'] .tabs-card :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) { color: #f8fbff; }
+6052	color: #47627e;
+6057	color: #5b728d;
+6063	color: #16324f;
+6069	color: #f8fbff;
+6075	color: #1d4ed8;
+6078	html[data-theme='light'] .tab-toolbar-kicker { color: #47627e; }
+6081	color: #47627e;
+6085	color: #1f3852;
+6095	color: #1f3852 !important;
+6098	html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: #f7fbff; }
+6101	color: #47627e;
+6105	background: #ffffff;
+6106	color: #1f3852;
+6111	background: #ffffff;
+6114	background: linear-gradient(180deg, #93aac4 0%, #6f8399 100%);
+6117	color: #6f8399;
+6122	html[data-theme='light'] .ai-evidence-link:hover { color: #1d4ed8; }
+6123	html[data-theme='light'] .ai-error { color: #dc2626; }
+6163	background: #ffffff;
+6165	color: #0f172a;
+6169	color: #64748b;
+6171	html[data-theme='light'] .trial-match-empty--error { color: #dc2626; }
+6173	html[data-theme='light'] .trial-match-head span { color: #0f172a; }
+6175	html[data-theme='light'] .trial-match-card small { color: #64748b; }
+6179	color: #47627e;
+6181	html[data-theme='light'] .alert-rule { color: #334155; }
+6182	html[data-theme='light'] .detail-label { color: #47627e; }
+6183	html[data-theme='light'] .detail-value { color: #0f172a; }
+6190	html[data-theme='light'] .ai-risk-card strong { color: #0f172a; }
+6192	html[data-theme='light'] .ai-risk-card p { color: #475569; }
+6194	background: #ffffff;
+6197	html[data-theme='light'] .ai-risk-organ-name { color: #0f172a; }
+6198	html[data-theme='light'] .ai-risk-organ-status { color: #2563eb; }
+6199	html[data-theme='light'] .ai-risk-organ-evidence { color: #475569; }
+6200	html[data-theme='light'] .ai-risk-organ-conf { color: #64748b; }
+6202	background: #ffffff;
+6205	html[data-theme='light'] .ai-risk-section-title { color: #0f172a; }
+6206	html[data-theme='light'] .ai-risk-list { color: #334155; }
+6207	html[data-theme='light'] .ai-risk-list-warning { color: #dc2626; }
+6210	background: #ffffff;
+6213	html[data-theme='light'] .kb-doc-meta p { color: #475569; }
+6214	html[data-theme='light'] .kb-chunk-title { color: #0f172a; }
+6215	html[data-theme='light'] .kb-chunk-content { color: #334155; }
+6218	html[data-theme='light'] .modi-organs { color: #334155; }
+6220	html[data-theme='light'] .ai-empty { color: #64748b; }
+6221	html[data-theme='light'] .acid-base-head { color: #334155; }
+6222	html[data-theme='light'] .acid-primary { color: #2563eb; }
+6223	html[data-theme='light'] .acid-comp { color: #475569; }
+6224	html[data-theme='light'] .acid-comp.abnormal { color: #dc2626; }
+6225	html[data-theme='light'] .lab-head { color: #64748b; }
+6226	html[data-theme='light'] .tab-empty { color: #64748b; }
+6227	html[data-theme='light'] .ai-evidence-popover { color: #0f172a; }

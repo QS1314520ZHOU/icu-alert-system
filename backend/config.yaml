@@ -1,0 +1,1637 @@
+# ============================================================
+# ICU智能预警系统 - 主配置文件
+# ============================================================
+
+system:
+  name: "ICU智能预警系统"
+  version: "1.0.0"
+  timezone: "Asia/Shanghai"
+  log_level: "INFO"
+  log_dir: "./logs"
+
+security:
+  cors_allowed_origins:
+    - "http://127.0.0.1:5173"
+    - "http://localhost:5173"
+    - "http://127.0.0.1:4173"
+    - "http://localhost:4173"
+  websocket:
+    require_token: auto
+    tokens: []
+    ws_token_secret: "替换为随机密钥"
+    ws_token_algorithm: "HS256"
+
+# ==================== 数据库配置 ====================
+databases:
+  smartcare:
+    database: "SmartCare"
+    # 已有Collection
+    collections:
+      patient: "patient"
+      bedside: "bedside"
+      device_cap: "deviceCap"
+      device_online: "deviceOnline"
+      device_bind: "deviceBind"
+      drug_exe: "drugExe"
+      config_param: "configParam"
+      config_drug: "configDrug"
+    # 预警系统新建Collection
+    alert_collections:
+      alert_records: "alert_records"
+      alert_rules: "alert_rules"
+      field_mapping: "field_mapping"
+      score_records: "score_records"
+      nurse_reminders: "nurse_reminders"
+      audit_log: "audit_log"
+
+  datacenter:
+    database: "DataCenter"
+    collections:
+      exam: "VI_ICU_EXAM"
+      exam_item: "VI_ICU_EXAM_ITEM"
+      report: "VI_ICU_report"
+
+# ==================== 数据关联 ====================
+data_linking:
+  # SmartCare库内关联: patient._id ←→ bedside.pid / drugExe.pid / deviceBind.pid
+  # 跨库关联: patient.hisPid ←→ VI_ICU_EXAM.hisPid / VI_ICU_EXAM_ITEM.hisPid
+  # 设备关联: deviceCap.deviceID → deviceBind.deviceID(unBindTime=null) → deviceBind.pid → patient._id
+  cross_db_patient_key:
+    smartcare: "_id"
+    datacenter: "hisPid"
+  device_to_patient:
+    method: "device_bind"
+    bind_collection: "deviceBind"
+    active_condition: "unBindTime == null"
+
+# ==================== 监护仪参数映射 ====================
+vital_signs:
+  temperature:    { code: "param_T",         name: "体温",      unit: "℃" }
+  heart_rate:     { code: "param_HR",        name: "心率",      unit: "bpm" }
+  resp_rate:      { code: "param_resp",      name: "呼吸频率",  unit: "次/分" }
+  spo2:           { code: "param_spo2",      name: "血氧饱和度", unit: "%" }
+  pulse_rate:     { code: "param_PR",        name: "脉率",      unit: "bpm" }
+  rhythm:         { code: "param_xinLvLv",   name: "心律",      unit: "" }
+  cvp:            { code: "param_cvp",       name: "中心静脉压", unit: "cmH2O" }
+  etco2:          { code: "param_ETCO2",     name: "呼气末CO2", unit: "mmHg" }
+  # 血压 - 有创（优先）
+  ibp_systolic:   { code: "param_ibp_s",     name: "有创收缩压", unit: "mmHg" }
+  ibp_diastolic:  { code: "param_ibp_d",     name: "有创舒张压", unit: "mmHg" }
+  ibp_mean:       { code: "param_ibp_m",     name: "有创平均压", unit: "mmHg" }
+  # 血压 - 无创
+  nibp_systolic:  { code: "param_nibp_s",    name: "无创收缩压", unit: "mmHg" }
+  nibp_diastolic: { code: "param_nibp_d",    name: "无创舒张压", unit: "mmHg" }
+  nibp_mean:      { code: "param_nibp_m",    name: "无创平均压", unit: "mmHg" }
+
+  # 取值优先级: 有创 > 无创
+  map_priority: ["param_ibp_m", "param_nibp_m"]
+  sbp_priority: ["param_ibp_s", "param_nibp_s"]
+  dbp_priority: ["param_ibp_d", "param_nibp_d"]
+
+# ==================== 呼吸机参数映射 ====================
+ventilator:
+  # 设置参数
+  vent_mode:      { code: "param_HuXiMoShi",           name: "呼吸模式" }
+  fio2:           { code: "param_FiO2",                 name: "FiO2",           unit: "%" }
+  vt_set:         { code: "param_vent_set_vt",          name: "设置潮气量",     unit: "ml" }
+  peep_set:       { code: "param_vent_peep",            name: "PEEP(设置)",     unit: "cmH2O" }
+  ps_set:         { code: "param_vent_ps",              name: "PS(设置)",       unit: "cmH2O" }
+  ipap:           { code: "param_vent_pc",              name: "IPAP",           unit: "cmH2O" }
+  rr_set:         { code: "param_HuXiPinLv",            name: "设置频率",       unit: "次/分" }
+  # 实测参数
+  minute_vent:    { code: "param_vent_VE",              name: "分钟通气量",     unit: "L/min" }
+  rr_measured:    { code: "param_vent_resp",             name: "实测呼吸率",     unit: "次/分" }
+  vte:            { code: "param_vent_vt",               name: "呼出潮气量",     unit: "ml" }
+  peep_measured:  { code: "param_vent_measure_peep",     name: "PEEP(实测)",     unit: "cmH2O" }
+  pip:            { code: "param_vent_pip",              name: "气道峰压",       unit: "cmH2O" }
+  pplat:          { code: "param_vent_plat_pressure",    name: "平台压",         unit: "cmH2O" }
+  pmean:          { code: "param_vent_measure_Pmean",    name: "平均气道压",     unit: "cmH2O" }
+  compliance:     { code: "param_vent_compliance",       name: "呼吸顺应性",     unit: "ml/cmH2O" }
+  c_stat:         { code: "param_vent_C_STAT",           name: "静态顺应性",     unit: "ml/cmH2O" }
+
+# ==================== 评分参数映射 ====================
+assessments:
+  gcs:            { code: "param_score_gcs_obs",    name: "GCS评分",     range: [3, 15] }
+  rass:           { code: "param_score_rass_obs",   name: "RASS评分",    range: [-5, 4] }
+  pain:           { code: "param_tengTong_score",   name: "疼痛评分",    range: [0, 10] }
+  cpot:           { code: "param_score_cpot",       name: "CPOT评分",    range: [0, 8] }
+  bps:            { code: "param_score_bps",        name: "BPS评分",     range: [3, 12] }
+  delirium:       { code: "param_delirium_score",   name: "谵妄评分" }
+  consciousness:  { code: "param_Yishi",            name: "意识" }
+  braden:         { code: "param_score_braden",     name: "Braden评分",  range: [0, 23] }
+  pupil_left:     { code: "param_左瞳孔/光反射",    name: "左瞳孔" }
+  pupil_right:    { code: "param_右瞳孔/光反射",    name: "右瞳孔" }
+
+# ==================== AI配置 ====================
+ai_service:
+  max_patients: 30
+  suppression_seconds: 3600
+  local_models:
+    base_dir: "/opt/icu-models"
+    icarefm_dir: "icarefm"
+    cql_sepsis_dir: "cql-sepsis"
+    chronos_dir: "chronos"
+    respiratory_forecast_dir: "respiratory-forecast"
+    mdro_control_dir: "mdro-control"
+    counterfactual_dir: "counterfactual"
+    knowledge_pretrain_dir: "knowledge-guided-pretrain"
+  digital_twin:
+    cache_minutes: 15
+    fm_cache_minutes: 60
+  counterfactual:
+    backend: "auto"                 # prod override: "transformer"
+    allow_fallback: true            # prod override: false, or alert on model_meta.degraded=true
+    transformer_rollout:
+      enabled_cohorts: []
+      enabled_percentage: 0
+  foundation_model:
+    enabled: true
+    providers:
+      primary: "icarefm"
+      shadow: ["knowledge_guided"]
+      mode: "primary"               # "primary" | "shadow" | "ab"
+    thresholds:
+      mortality: 0.75
+      aki: 0.70
+      circulation_failure: 0.70
+  treatment_policy:
+    enabled: true
+  trajectory_forecast:
+    enabled: true
+    drift_codes: ["HR", "MAP", "SpO2", "RR"]
+  llm:
+    timeout: 60
+    max_concurrency: 4
+    cache_ttl_seconds: 1800
+    temperature: 0.1
+    max_tokens: 4096
+    circuit_breaker:
+      failure_threshold: 3
+      cooldown_seconds: 180
+
+  temporal_model:
+    backend: auto
+    model_path: ""
+    history_offsets_hours: [-8, -6, -4, -2, 0]
+    candidate_names:
+      - temporal_risk.onnx
+      - temporal_risk.pt
+      - temporal_risk.pth
+      - temporal_risk_model.onnx
+      - temporal_risk_model.pt
+
+  task_routing:
+    lab_item_mapping:
+      temperature: 0.0
+    rule_generation:
+      temperature: 0.2
+
+  lab_mapping:
+    auto_init_on_startup: false
+    confidence_threshold: 0.8
+    batch_size: 50
+
+  rag:
+    enabled: true
+    provider: "local"
+    knowledge_dir: "knowledge_base"
+    top_k: 4
+    backend: "tfidf"                      # "tfidf" | "embedding"
+    embedding_model: "BAAI/bge-small-zh-v1.5"
+
+  clinical_reasoning:
+    enabled: true
+    rag_top_k: 6
+    persist_window_minutes: 60
+    reference_types: ["guideline", "consensus", "meta-analysis"]
+
+  document_generation:
+    enabled: true
+    default_hours: 24
+    rag_top_k: 5
+    persist_window_minutes: 30
+    temperature: 0.1
+    timeout: 60
+    max_tokens: 3200
+
+  knowledge_graph:
+    enabled: true
+    persist_window_minutes: 60
+
+  multi_agent:
+    enabled: true
+    persist_window_minutes: 60
+
+  pulse:
+    enabled: true
+    loop_interval_seconds: 30
+    push_threshold: 0.55
+    cooldown_minutes_per_patient: 10
+    max_pushes_per_viewer_per_hour: 12
+    candidate_lookback_minutes: 5
+    overdue_alert_minutes: 30
+    overdue_mdt_minutes: 120
+    narrate_model: fast
+
+  watching:
+    weights:
+      scanner_runs: 0.05
+      labs_reviewed: 0.2
+      drugs_reviewed: 0.1
+      imaging_reports_reviewed: 1.5
+      alerts_critical: 2.0
+    cap_minutes: 60
+    findings_max: 3
+    cache_ttl_seconds: 60
+
+research:
+  figure_dpi: 300
+  figure_font_family: "Times New Roman"
+  figure_font_family_cjk: "SimHei"
+  default_significance_level: 0.05
+  max_export_patients: 10000
+
+extended_scenarios:
+  post_cardiac_surgery:
+    - tamponade_risk
+    - sternal_wound_infection
+    - post_pump_syndrome
+  post_neurosurgery:
+    - cerebral_vasospasm
+    - hydrocephalus_acute
+    - seizure_prophylaxis
+  post_liver_transplant:
+    - primary_graft_nonfunction
+    - hepatic_artery_thrombosis
+  rare_critical:
+    - malignant_hyperthermia
+    - transfusion_reaction
+    - adrenal_crisis
+    - thyroid_storm
+    - fat_embolism_syndrome
+    - refeeding_syndrome
+    - tumor_lysis_syndrome
+    - heparin_induced_thrombocytopenia
+  drug_interactions:
+    - serotonin_syndrome
+    - neuroleptic_malignant_syndrome
+    - propofol_infusion_syndrome
+    - contrast_nephropathy_risk
+  device_complications:
+    - ventilator_auto_peep
+    - iabp_timing_mismatch
+    - ecmo_circuit_thrombosis
+    - pacemaker_failure_to_capture
+    - crrt_filter_clotting
+    - central_line_dislodgement_risk
+    - arterial_line_failure
+    - tracheostomy_obstruction
+    - urinary_catheter_obstruction
+  hemodynamic_instability:
+    - septic_shock_escalation
+    - septic_shock_refractory
+    - hemorrhagic_shock
+    - cardiogenic_shock
+    - obstructive_shock_pe
+    - vasoplegia_refractory
+    - hypertensive_emergency
+  respiratory_failure:
+    - refractory_hypoxemia
+    - hypercapnic_failure
+    - pneumothorax_risk
+    - aspiration_pneumonia
+    - mucus_plugging
+    - ventilator_asynchrony
+    - extubation_failure_risk
+    - pulmonary_edema
+  renal_metabolic:
+    - aki_progression
+    - hyperkalemia_critical
+    - severe_hyponatremia
+    - severe_hypernatremia
+    - metabolic_acidosis
+    - lactic_acidosis_persistent
+    - uremic_complication
+    - rhabdomyolysis
+  infection_sepsis:
+    - sepsis_escalation
+    - invasive_fungal_risk
+    - catheter_bloodstream_infection
+    - ventilator_associated_pneumonia
+    - c_difficile_risk
+    - neutropenic_sepsis_risk
+  neuro_critical:
+    - delirium_hyperactive
+    - delirium_hypoactive
+    - status_epilepticus_risk
+    - elevated_icp_risk
+    - acute_stroke_evolution
+  hematology_transfusion:
+    - dic_progression
+    - active_bleeding_risk
+    - coagulopathy_severe
+    - thrombocytopenia_severe
+    - anemia_transfusion_trigger
+  nutrition_endocrine:
+    - hypoglycemia_critical
+    - hyperglycemia_crisis
+    - starvation_ketosis_risk
+    - adrenal_insufficiency_risk
+  postoperative_general:
+    - anastomotic_leak_risk
+    - postop_bleeding_recurrence
+    - ileus_risk
+    - abdominal_compartment_risk
+
+  monitor:
+    enabled: true
+    aggregate_interval_seconds: 300
+    success_rate_alert_threshold: 0.9
+    p95_latency_alert_ms: 15000
+    min_samples_for_alert: 5
+
+# ==================== 预警引擎配置 ====================
+alert_engine:
+  max_concurrent_scans: 4
+  execution_mode: inline  # inline | redis_queue
+  task_queue:
+    mode: redis_queue
+    redis_queue_name: icu:alert_engine:scan_queue
+    redis_pubsub_channel: icu:alerts:broadcast
+    dedupe_ttl_seconds: 900
+    worker_concurrency: 4
+    worker_poll_timeout: 5
+    dispatcher_enabled: true
+  scan_intervals:
+    vital_signs: 60
+    lab_results: 300
+    sepsis: 300
+    sepsis_subphenotype: 3600
+    ards: 300
+    prone_position_monitor: 3600
+    aki: 600
+    dic: 900
+    fibrinolysis_monitor: 3600
+    tbi: 300
+    bleeding: 600
+    foundation_model_risk_scanner: 3600
+    trajectory_drift_scanner: 3600
+    temporal_risk_scanner: 900
+    ventilator: 600
+    respiratory_deterioration: 900
+    ventilator_asynchrony: 1800
+    diaphragm_protection: 900
+    drug_safety: 1800
+    antibiotic_stewardship: 1800
+    arc_risk: 300
+    antimicrobial_pk: 600
+    vanco_tdm_closed_loop: 600
+    immunocompromised_monitor: 600
+    delirium_risk: 900
+    circadian_protector: 900
+    fluid_balance: 600
+    hai_bundle: 1800
+    glycemic_control: 300
+    vte_prophylaxis: 900
+    nutrition_monitor: 900
+    composite_deterioration: 300
+    cardiac_arrest: 120
+    microbiology: 1800
+    right_heart_monitor: 600
+    pe_detection: 600
+    palliative_trigger: 1800
+    postop_monitor: 1800
+    ecash_bundle: 600
+    icu_aw_mobility: 900
+    assessments: 600
+    trend_analysis: 900
+    alert_reasoning: 300
+    integrated_risk_reasoning: 3600
+    metabolic_phase_detector: 3600
+    beta_blocker_advisor: 3600
+    imaging_report_analyzer: 7200
+    nursing_note_analyzer: 14400
+    nursing_workload: 14400
+    adaptive_threshold_advisor: 7200
+    discharge_readiness: 1800
+    transfer_handoff: 1800
+    transfer_handoff_verify: 3600
+    pics_risk: 7200
+    proactive_management: 300
+    extended_scenarios: 1800
+
+  severity_levels:
+    warning:  { color: "#ffab00", priority: 1 }
+    high:     { color: "#ff5252", priority: 2 }
+    critical: { color: "#d500f9", priority: 3 }
+
+  suppression:
+    same_rule_same_patient_seconds: 1800
+    max_alerts_per_patient_per_hour: 10
+
+  respiratory_deterioration:
+    enabled: true
+    # 待 ICU 医师审核确认：以下阈值仅用于实验性 SpO2/FiO2 趋势脚手架。
+    history_hours: 12
+    horizon_hours: 6
+    min_points: 4
+    pairing_gap_minutes: 20
+    sf_warning_threshold: 235
+    sf_high_threshold: 190
+    sf_drop_warning: 30
+    sf_drop_high: 60
+    max_patients: 120
+
+  patient_baseline:
+    enabled: true
+    hours: 12
+    min_points: 3
+    zscore_tolerance: 2.0
+    relative_tolerance: 0.08
+    absolute_floor: 2.0
+
+  alert_reasoning_agent:
+    enabled: true
+    trigger_window_minutes: 30
+    min_active_alerts: 3
+    recent_context_hours: 24
+    cache_ttl_seconds: 900
+    max_concurrency: 2
+
+  integrated_risk_reasoning:
+    enabled: true
+    scan_interval: 3600
+    force_trigger_on_new_critical: true
+    lookback_window: 7200
+    llm_model: "qwen2.5:32b"
+    max_tokens: 2000
+    rag_top_k: 5
+    cooldown: 7200
+
+  metabolic_phase_detector:
+    enabled: true
+    scan_interval: 3600
+    vasopressor_lookback_hours: 12
+    activity_lookback_hours: 48
+    activity_keywords: ["活动", "下床", "坐起", "床边活动", "康复", "步行", "早期活动"]
+    lab_keywords:
+      crp: ["crp", "c反应蛋白", "超敏c反应蛋白"]
+      prealbumin: ["前白蛋白", "prealbumin", "pab"]
+      bun: ["尿素氮", "bun", "urea nitrogen"]
+    thresholds:
+      lactate_elevated: 2.0
+      glucose_cv_high: 36
+      glucose_stabilizing_cv: 30
+      crp_rising_delta: 5
+      crp_falling_delta: 5
+      crp_normal_threshold: 10
+      bun_high_threshold: 12
+      bun_daily_rise_threshold: 2
+      sofa_unstable_delta: 1
+      sofa_low: 3
+      prealbumin_rise_delta: 2
+      vasopressor_taper_ratio: 0.1
+      positive_nitrogen_protein_floor: 1.2
+    phase_weights:
+      ebb:
+        lactate_elevated: 0.20
+        glucose_cv_high: 0.15
+        crp_rising: 0.15
+        sofa_unstable: 0.20
+        bun_generation_high: 0.15
+        vasopressor_use: 0.15
+      transition:
+        lactate_normalizing: 0.20
+        glucose_stabilizing: 0.20
+        crp_falling: 0.20
+        sofa_stable_or_falling: 0.20
+        vasopressor_weaning: 0.20
+      anabolic:
+        crp_normal: 0.15
+        prealbumin_rising: 0.20
+        sofa_low: 0.20
+        no_vasopressor: 0.15
+        spontaneous_activity: 0.15
+        positive_nitrogen: 0.15
+    calorie_targets:
+      ebb: [10, 15]
+      transition: [20, 25]
+      anabolic: [25, 30]
+    protein_targets:
+      ebb: [0.5, 0.8]
+      transition: [1.0, 1.3]
+      anabolic: [1.3, 1.5]
+
+  beta_blocker_advisor:
+    enabled: true
+    scan_interval: 3600
+    hr_threshold: 95
+    tachy_ratio: 0.8
+    map_threshold: 65
+    troponin_upper_limit: 0.04
+    bnp_threshold: 300
+    norepi_threshold: 0.2
+    norepi_taper_ratio: 0.1
+    fever_threshold: 38.3
+    cpot_threshold: 3
+    bps_threshold: 5
+    brady_history_threshold: 60
+    cardiac_index_code: "param_ci"
+    cardiac_index_threshold: 2.0
+    esmolol_start_ug_kg_min: 25
+    esmolol_start_high_ug_kg_min: 50
+    target_hr_low: 80
+    target_hr_high: 94
+    bronchospasm_keywords: ["哮喘", "支气管痉挛", "bronchospasm", "asthma"]
+    av_block_keywords: ["二度房室传导阻滞", "三度房室传导阻滞", "av block", "房室阻滞"]
+    ccb_keywords: ["地尔硫卓", "维拉帕米", "diltiazem", "verapamil"]
+
+  imaging_report_analyzer:
+    analysis_window_hours: 96
+
+
+  antimicrobial_pk:
+    arc:
+      age_lt: 50
+      crcl_threshold: 130
+      creatinine_lt_umol_l: 60
+      urine_ml_h_gt: 100
+      trauma_neuro_keywords: ["外伤", "创伤", "脑外伤", "tbi", "sah", "神经外科", "颅脑", "神外"]
+
+    pop_pk:
+      vancomycin:
+        # PopPK参数来源：Roberts et al., Antimicrob Agents Chemother, 2011。
+        # 这里将 ICU 人群模型工程化简化为一室近似，70kg 基准下取 CL≈4.5 L/h, Vd≈45 L。
+        keywords: ["万古霉素", "vancomycin"]
+        base_cl_l_h: 4.5
+        base_vd_l: 45
+        tau_h: 12
+        mic: 1
+        auc_mic_target_low: 400
+        auc_mic_target_high: 600
+        crcl_ref: 100
+        weight_ref: 70
+        arc_cl_multiplier_high: 1.25
+        arc_cl_multiplier_moderate: 1.1
+        # 当前版本尚未读取 CRRT effluent_rate 定量计算 CL_crrt，这里仅作保守简化乘数。
+        crrt_cl_multiplier: 0.85
+        low_albumin_vd_multiplier: 1.15
+      meropenem:
+        # PopPK参数参考 ICU 人群文献并工程化简化为一室近似，用于实时预警而非替代正式TDM建模。
+        keywords: ["美罗培南", "meropenem"]
+        base_cl_l_h: 10
+        base_vd_l: 25
+        tau_h: 8
+        mic: 2
+        ft_mic_target: 0.5
+        crcl_ref: 100
+        weight_ref: 70
+        arc_cl_multiplier_high: 1.3
+        arc_cl_multiplier_moderate: 1.15
+        # 当前版本尚未读取 CRRT effluent_rate 定量计算 CL_crrt，这里仅作保守简化乘数。
+        crrt_cl_multiplier: 0.9
+        low_albumin_vd_multiplier: 1.1
+      piperacillin_tazobactam:
+        # PopPK参数参考 ICU 人群文献并工程化简化为一室近似，用于实时预警而非替代正式TDM建模。
+        keywords: ["哌拉西林他唑巴坦", "哌拉西林", "他唑巴坦", "piperacillin", "tazobactam", "特治星", "他唑仙"]
+        base_cl_l_h: 12
+        base_vd_l: 28
+        tau_h: 8
+        mic: 16
+        ft_mic_target: 0.5
+        crcl_ref: 100
+        weight_ref: 70
+        arc_cl_multiplier_high: 1.3
+        arc_cl_multiplier_moderate: 1.15
+        # 当前版本尚未读取 CRRT effluent_rate 定量计算 CL_crrt，这里仅作保守简化乘数。
+        crrt_cl_multiplier: 0.9
+        low_albumin_vd_multiplier: 1.1
+
+    tdm:
+      vanco_keywords: ["万古霉素", "vancomycin", "vanco", "万古谷浓度"]
+      vanco_mic: 1
+      auc_mic_target_low: 400
+      auc_mic_target_high: 600
+      omega_cl_sq: 0.15
+      sigma_sq: 0.04
+
+  alert_intelligence:
+    enabled: true
+    fusion_window_minutes: 15
+    procedure_suppression_minutes: 10
+    nursing_plan_coverage_enabled: true
+    nursing_plan_lookback_hours: 12
+    nursing_plan_execution_window_minutes: 120
+    suppress_warning_when_plan_active: true
+    post_execution_recurrence_window_minutes: 180
+    post_execution_recurrence_threshold: 2
+    suction_keywords: ["吸痰", "拍背", "翻身拍背", "气道护理", "痰液吸引"]
+
+  alert_actionability:
+    enabled: true
+    history_lookback_days: 30
+    min_history_samples: 8
+    action_match_hours: 24
+    recent_response_window_minutes: 60
+
+  adaptive_threshold_advisor:
+    enabled: true
+    scan_interval_seconds: 7200
+    stats_lookback_hours: 48
+    min_data_points: 20
+    llm_temperature: 0.1
+    llm_max_tokens: 2048
+    llm_timeout: 45
+    max_concurrent: 3
+    cache_ttl_seconds: 3600
+    max_population_relative_drift: 0.2
+    max_population_absolute_drift:
+      map: 10
+      hr: 20
+      spo2: 4
+      sbp: 20
+      rr: 8
+      temperature: 1.0
+    reissue_mean_shift_sd: 1.0
+    reissue_latest_shift_sd: 0.8
+    reissue_min_abs_delta:
+      map: 5
+      hr: 8
+      spo2: 2
+      sbp: 8
+      rr: 3
+      temperature: 0.4
+    vasopressor_keywords:
+      - "去甲肾上腺素"
+      - "多巴胺"
+      - "多巴酚丁胺"
+      - "肾上腺素"
+      - "血管加压素"
+      - "垂体后叶素"
+      - "米力农"
+      - "norepinephrine"
+      - "dopamine"
+      - "dobutamine"
+      - "epinephrine"
+      - "vasopressin"
+      - "milrinone"
+      - "phenylephrine"
+      - "去氧肾上腺素"
+    sedation_keywords:
+      - "丙泊酚"
+      - "咪达唑仑"
+      - "右美托咪定"
+      - "propofol"
+      - "midazolam"
+      - "dexmedetomidine"
+      - "芬太尼"
+      - "瑞芬太尼"
+      - "舒芬太尼"
+      - "fentanyl"
+      - "remifentanil"
+      - "sufentanil"
+      - "吗啡"
+      - "morphine"
+    bounds:
+      map: { low_min: 40, low_max: 85, high_min: 90, high_max: 150 }
+      hr: { low_min: 30, low_max: 70, high_min: 90, high_max: 180 }
+      spo2: { low_min: 75, low_max: 96 }
+      sbp: { low_min: 50, low_max: 120, high_min: 140, high_max: 230 }
+      rr: { low_min: 4, low_max: 16, high_min: 22, high_max: 50 }
+      temperature: { low_min: 32.0, low_max: 36.5, high_min: 37.5, high_max: 41.0 }
+
+  temporal_risk_scanner:
+    lookback_hours: 12
+    grid_minutes: 5
+    horizons_hours: [4, 12, 24]
+    organ_keys: ["respiratory", "circulatory", "renal", "neurologic"]
+    population_medians:
+      hr: 88
+      map: 75
+      spo2: 97
+      rr: 19
+      temp: 36.8
+      lactate: 1.6
+      sofa: 5
+
+  hai_bundle:
+    cvc_review_days: 7
+    foley_hours_threshold: 48
+    fever_threshold: 38.0
+    cvc_keywords: ["中心静脉", "cvc", "picc", "深静脉"]
+    foley_keywords: ["导尿", "foley", "尿管", "导尿管"]
+    vent_keywords: ["气管插管", "ett", "endotracheal", "机械通气"]
+    blood_culture_keywords: ["血培养", "blood culture"]
+    hob_keywords: ["床头抬高", "抬高床头", "半卧位", "30°", "45°"]
+    oral_care_keywords: ["口腔护理", "口护", "口腔清洁"]
+
+  immunocompromised_monitor:
+    drug_lookback_hours: 336
+    neutropenia_threshold: 0.5
+    fever_threshold_c: 38.0
+    map_threshold: 65
+    sbp_threshold: 90
+    tachy_threshold: 110
+    immunosuppressive_keywords: ["环孢素", "他克莫司", "吗替麦考酚酯", "化疗", "环磷酰胺", "甲氨蝶呤", "移植", "激素", "泼尼松", "地塞米松"]
+    anc_keywords: ["anc", "中性粒细胞绝对值", "中性粒细胞#", "neut#"]
+    lymphocyte_keywords: ["淋巴细胞绝对值", "lymphocyte", "lymph#"]
+
+  circadian_protector:
+    enabled: true
+    night_start_hour: 22
+    night_end_hour: 6
+    night_operation_threshold: 6
+    night_rass_fluctuation_threshold: 2
+    night_warning_summary_threshold: 4
+
+  diaphragm_protection:
+    min_ventilation_days: 0.5
+    edi_low_threshold: 5
+    edi_high_threshold: 15
+    pdi_low_threshold: 3
+    pdi_high_threshold: 12
+    p0_1_high_threshold: 3.5
+    rr_high_threshold: 30
+    deep_sedation_rass_threshold: -3
+    driving_pressure_warning: 15
+    pressure_swing_warning: 15
+
+  palliative_trigger:
+    icu_days_threshold: 14
+    burden_days: 3
+    gcs_threshold: 8
+    age_threshold: 80
+    comorbidity_threshold: 3
+    score_threshold: 5
+
+  pics_risk:
+    enabled: true
+    scan_interval: 7200
+    icu_days_threshold: 5
+    early_warning_threshold: 55
+    warning_threshold: 45
+    high_threshold: 70
+    gcs_low_threshold: 13
+    deep_sedation_threshold: -3
+    high_alert_threshold: 5
+    psychological_keywords: ["焦虑", "恐惧", "失眠", "噩梦", "创伤", "panic", "ptsd", "睡眠差", "家属焦虑"]
+
+  data_quality_filter:
+    lead_off_spo2_threshold: 90
+    temp_min_c: 30
+    temp_max_c: 43
+    nibp_delta_threshold: 40
+
+  data_mapping:
+    urine_output:
+      codes: ["param_urine", "param_尿量", "urine_output", "urine_ml_h", "param_udd_urine_total"]
+    fluid_output:
+      drainage_codes: ["param_drainage", "param_引流量", "drainage_output"]
+      ultrafiltration_codes: ["param_uf", "param_超滤量", "ultrafiltration_output"]
+      gi_decompression_codes: ["param_gi_decompression", "param_胃肠减压", "gi_decompression_output"]
+    glucose:
+      codes: ["param_blood_glucose", "param_glu", "param_血糖", "blood_glucose"]
+    qtc_codes: ["param_qtc", "param_QTc", "ecg_qtc", "qtc"]
+    icp_codes: ["param_ICP", "param_icp"]
+    cpp_codes: ["param_CPP", "param_cpp"]
+
+  vital_signs_advanced:
+    af_hr_threshold: 100
+    af_irregular_duration_seconds: 300
+    af_max_gap_seconds: 120
+    af_new_onset_lookback_hours: 6
+    af_rhythm_lookback_minutes: 30
+    af_keywords: ["房颤", "AF", "atrial fibrillation"]
+    afl_keywords: ["房扑", "AFL", "atrial flutter"]
+    irregular_keywords: ["不规则", "irregular", "arrhythmia", "房颤", "房扑"]
+    rhythm_codes: ["param_xinLvLv", "rhythm_type", "param_rhythm_type", "arrhythmia_flag", "param_arrhythmia_flag"]
+    arrhythmia_flag_codes: ["arrhythmia_flag", "param_arrhythmia_flag"]
+    brady_hr_threshold: 50
+    brady_sbp_drop_threshold: 20
+    brady_sbp_window_minutes: 30
+    qtc_threshold_ms: 500
+    qtc_critical_ms: 550
+    qtc_lookback_hours: 2
+
+  composite_deterioration:
+    window_hours: 4
+    organ_threshold: 3
+    min_alert_count: 3
+    max_source_alerts: 300
+    ignore_categories: ["assessments", "ai_analysis", "composite_deterioration"]
+    ignore_alert_types: ["nurse_reminder", "multi_organ_deterioration_trend"]
+    organ_mapping:
+      respiratory:
+        alert_types: ["ards", "weaning", "opioid_respiratory_depression"]
+        categories: ["ventilator"]
+        parameters: ["param_resp", "param_spo2", "pao2", "oxygen", "fio2", "peep"]
+        keywords: ["呼吸", "氧", "spo2", "p/f", "呼吸机", "resp"]
+      circulatory:
+        alert_types: ["septic_shock", "qsofa", "sofa", "brady_hypotension", "af_afl_new_onset"]
+        categories: ["vital_signs"]
+        parameters: ["param_ibp_m", "param_nibp_m", "param_ibp_s", "param_nibp_s", "map", "sbp", "hr", "shock"]
+        keywords: ["循环", "休克", "低血压", "心动过缓", "房颤", "房扑", "map", "sbp"]
+      renal:
+        alert_types: ["aki", "nephrotoxicity", "fluid_balance"]
+        categories: []
+        parameters: ["cr", "creatinine", "urine", "尿", "renal"]
+        keywords: ["肾", "肌酐", "尿量", "液体平衡", "renal", "aki"]
+      coagulation:
+        alert_types: ["dic", "hit", "gi_bleeding"]
+        categories: []
+        parameters: ["plt", "inr", "pt", "fib", "ddimer", "coag"]
+        keywords: ["凝血", "血小板", "d-dimer", "出血", "coag"]
+      hepatic:
+        alert_types: []
+        categories: []
+        parameters: ["bil", "bilirubin", "tbil", "liver", "hepatic"]
+        keywords: ["肝", "胆红素", "liver", "hepatic"]
+      neurologic:
+        alert_types: ["pupil", "tbi", "icp", "cpp", "gcs_drop", "delirium_risk", "sedation_delirium_conversion"]
+        categories: ["tbi"]
+        parameters: ["gcs", "rass", "icp", "cpp", "pupil", "neuro"]
+        keywords: ["神经", "意识", "谵妄", "瞳孔", "颅脑", "neuro", "gcs", "rass"]
+
+  proactive_management:
+    enabled: true
+    lookback_hours: 6
+    trajectory_hours: 6
+    lab_window_hours: 24
+    drug_window_hours: 24
+    trigger_probability: 0.3
+    alert_probability: 0.45
+    persist_window_minutes: 20
+    max_patients_per_cycle: 60
+    tracked_labs: ["lac", "cr", "wbc", "plt", "tbil", "inr"]
+
+  nursing_workload:
+    account_collection: "account"
+    shift_hours: 8
+    recent_alert_window_hours: 6
+    nursing_context_hours: 24
+    base_points: 18
+    ventilation_points: 12
+    crrt_points: 8
+    vasopressor_points: 6
+    vasopressor_points_high: 10
+    nas_offset: 16
+    nas_scale: 1.65
+
+  nursing_note_analyzer:
+    analysis_window_hours: 12
+
+  trend_analysis_advanced:
+    acute_window_minutes: 30
+    acute_sd_multiplier: 3.0
+    subacute_window_hours: 6
+    cyclic_window_hours: 2
+
+  alert_grouping:
+    sepsis_group: ["*SEPSIS*", "*qsofa*", "*sofa*", "*septic_shock*", "*lac*", "*map*"]
+    bleeding_group: ["*BLEEDING*", "*gi_bleeding*", "*hb*", "*hr*", "*sbp*"]
+    respiratory_group: ["*ARDS*", "*VENT*", "*spo2*", "*resp*", "*weaning*"]
+
+  cardiac_arrest:
+    factor_weights:
+      brady_tachy_alternating: 3
+      extreme_bradycardia: 3
+      new_wide_qrs: 2
+      hyperkalemia: 4
+      severe_hypokalemia: 3
+      severe_hypocalcemia: 3
+      lactate_surge_with_map_drop: 3
+      pea_risk_pattern: 2
+    warning_score: 4
+    high_score: 6
+    critical_score: 8
+
+
+  sepsis_bundle:
+    deadline_minutes: 60
+    escalation_3h_minutes: 180
+    tracker_reopen_hours: 24
+    fluid_target_ml_per_kg: 30
+    culture_lead_hours: 6
+    blood_culture_keywords: ["血培养", "blood culture"]
+    crystalloid_keywords: ["生理盐水", "氯化钠", "平衡液", "乳酸林格", "林格", "normal saline", "sodium chloride", "ringer", "crystalloid"]
+
+  sepsis_subphenotype:
+    enabled: true
+    scan_interval: 3600
+    min_sofa: 2
+    confidence_threshold: 0.6
+    transition_detection_hours: 12
+    diagnosis_keywords: ["脓毒", "感染", "sepsis", "菌血症", "肺炎"]
+    hyperthermia_threshold: 38.3
+    hypothermia_threshold: 36.0
+    labels:
+      alpha_hyperinflammatory: "α-高炎症型"
+      beta_immunosuppressed: "β-免疫抑制型"
+      gamma_hypercoagulable: "γ-高凝型"
+      delta_mixed: "δ-混合型"
+      mixed_uncertain: "混合/不确定"
+    care_implications:
+      alpha_hyperinflammatory:
+        summary: "炎症负荷和循环失稳更突出。"
+        care_implications: ["优先复核炎症风暴、休克与糖皮质激素适应证"]
+      beta_immunosuppressed:
+        summary: "免疫抑制和淋巴细胞低下更突出。"
+        care_implications: ["建议评估免疫增强治疗与继发感染风险"]
+      gamma_hypercoagulable:
+        summary: "凝血激活/微血栓风险更突出。"
+        care_implications: ["建议强化凝血-纤溶复核与器官灌注评估"]
+      delta_mixed:
+        summary: "炎症、凝血和器官功能损伤混合并存。"
+        care_implications: ["建议多系统并行复评，避免单一器官导向处理"]
+    feature_order: ["inflammation", "immunosuppression", "coagulopathy", "organ_dysfunction", "hemodynamic_instability", "temperature_pattern"]
+    feature_reference:
+      inflammation: { mean: 1.0, std: 0.6 }
+      immunosuppression: { mean: 1.0, std: 0.6 }
+      coagulopathy: { mean: 1.0, std: 0.6 }
+      organ_dysfunction: { mean: 1.0, std: 0.6 }
+      hemodynamic_instability: { mean: 1.0, std: 0.6 }
+      temperature_pattern: { mean: 0.0, std: 1.0 }
+    centroids:
+      alpha_hyperinflammatory: [1.8, 0.6, 0.0, 0.6, 0.2, 1.0]
+      beta_immunosuppressed: [0.3, 2.0, 0.2, 0.5, 0.0, -0.8]
+      gamma_hypercoagulable: [0.7, 0.7, 1.8, 0.9, 0.2, 0.0]
+      delta_mixed: [1.0, 1.0, 1.0, 1.0, 0.8, 0.2]
+    crp_keywords: ["crp", "c反应蛋白", "超敏c反应蛋白"]
+    il6_keywords: ["il-6", "il6", "白介素6"]
+    ferritin_keywords: ["铁蛋白", "ferritin"]
+    wbc_keywords: ["wbc", "白细胞"]
+    neutrophil_keywords: ["中性粒细胞绝对值", "neut", "anc", "中性粒细胞#"]
+    lymphocyte_keywords: ["淋巴细胞绝对值", "lymph", "alc", "淋巴细胞#"]
+
+
+  weaning_assistant:
+    warning_score: 4
+    high_score: 7
+    critical_score: 9
+    vent_days_warning: 5
+    vent_days_high: 7
+    pf_warning: 200
+    pf_high: 150
+    rsbi_warning: 80
+    rsbi_high: 105
+    rass_min: -2
+    rass_max: 1
+    gcs_min: 9
+    map_min: 65
+    ready_fio2_max: 0.4
+    ready_peep_max: 8
+    asynchrony_warning_ai_percent: 10
+    asynchrony_high_ai_percent: 20
+    asynchrony_gate_ai_percent: 10
+    fluid_overload_warning_pct: 5
+    fluid_overload_high_pct: 10
+    bnp_surge_ratio: 1.5
+    default_male_height_cm: 170
+    default_female_height_cm: 160
+    extubation_monitor_hours: 48
+    post_extub_rr_threshold: 30
+    post_extub_spo2_threshold: 92
+    factor_weights:
+      vent_days_ge_5: 1
+      vent_days_ge_7: 2
+      pf_lt_200: 2
+      pf_lt_150: 3
+      pf_worsening: 1
+      rsbi_ge_80: 2
+      rsbi_ge_105: 3
+      rass_outside_target: 2
+      deep_sedation: 2
+      fluid_overload_gt_5: 2
+      fluid_overload_gt_10: 3
+      bnp_surge: 2
+      previous_sbt_failure: 3
+      vasopressor_support: 2
+      gcs_low: 1
+      map_low: 1
+      ventilator_asynchrony: 2
+      ventilator_asynchrony_high: 3
+
+  prone_position_monitor:
+    enabled: true
+    scan_interval: 3600
+    position_code: "param_TiWei"
+    pf_threshold: 150
+    fio2_threshold: 0.6
+    peep_threshold: 5
+    target_hours_per_day: 16
+    prone_values: ["俯卧位", "俯卧", "prone", "pronation", "proning"]
+    supine_values: ["仰卧位", "仰卧", "平卧", "平", "左", "右", "自主", "高侧卧位", "supine", "return supine", "恢复仰卧"]
+    start_keywords: ["俯卧位", "prone", "proning"]
+    end_keywords: ["恢复仰卧", "结束俯卧位", "supine", "return supine", "停止俯卧位"]
+    complication_keywords: ["面部水肿", "压疮", "皮肤破损", "管路脱出", "tube dislodgement", "导管位置异常"]
+
+  fibrinolysis_monitor:
+    enabled: true
+    scan_interval: 3600
+    ddimer_hyper_threshold: 5.0
+    ddimer_shutdown_threshold: 1.0
+    fibrinogen_low_threshold: 1.5
+    fibrinogen_high_threshold: 4.0
+    platelet_low_threshold: 80
+    inr_high_threshold: 1.5
+    pt_high_threshold: 16
+    ly30_hyper_threshold: 7.5
+    ly30_shutdown_threshold: 0.8
+    hyper_score_threshold: 5
+    hyper_critical_threshold: 7
+    shutdown_score_threshold: 5
+    shutdown_high_threshold: 6
+    ly30_keywords: ["ly30", "lysis30", "li30", "30min纤溶"]
+    max_lysis_keywords: ["ml", "maximum lysis", "max lysis", "最大纤溶"]
+
+  ventilator_asynchrony:
+    enabled: true
+    scan_interval: 1800
+    analysis_window_minutes: 30
+    ai_threshold_warning: 0.10
+    ai_threshold_high: 0.10
+    ai_threshold_critical: 0.30
+    double_trigger_vt_ratio: 1.5
+    stacked_vt_ml_kg_threshold: 8.0
+    double_trigger_interval_ratio_threshold: 0.5
+    ineffective_rr_gap_tolerance: 1
+    ineffective_spontaneous_rr_max: 2
+    drive_p0_1_threshold: 3.5
+    drive_edi_threshold: 15
+    reverse_rass_threshold: -3
+    flow_starvation_rr_excess: 3
+    premature_ti_threshold: 0.5
+    delayed_ti_threshold: 1.5
+    cycling_flow_ratio_threshold: 0.25
+    double_trigger_rr_excess: 5
+    use_llm_analysis: true
+    llm_timeout: 20
+    llm_temperature: 0.1
+    llm_max_tokens: 600
+    evidence_source: "SYNAPsE Delphi Consensus 2026, Intensive Care Medicine"
+    type_severity:
+      ineffective_triggering: warning
+      double_triggering: high
+      reverse_triggering: high
+      flow_starvation: warning
+      premature_cycling: warning
+      delayed_cycling: warning
+    heuristic_event_fraction:
+      ineffective_triggering: 0.08
+      double_triggering: 0.12
+      reverse_triggering: 0.10
+      flow_starvation: 0.08
+      premature_cycling: 0.06
+      delayed_cycling: 0.06
+    muscle_relaxant_keywords: ["罗库溴铵", "维库溴铵", "顺式阿曲库铵", "阿曲库铵", "rocuronium", "vecuronium", "cisatracurium"]
+    signal_codes:
+      mode: ["param_HuXiMoShi", "param_vent_mode"]
+      vt_set: ["param_vent_set_vt"]
+      rr_set: ["param_HuXiPinLv", "param_vent_rr_set"]
+      peep: ["param_vent_measure_peep", "param_vent_peep"]
+      ps: ["param_vent_ps"]
+      ti_set: ["param_vent_ti", "param_vent_insp_time"]
+      trigger_sensitivity: ["param_vent_trigger", "param_trigger_sensitivity"]
+      vt_actual: ["param_vent_vt"]
+      rr_total: ["param_vent_resp", "param_vent_rr_total"]
+      rr_spontaneous: ["param_vent_rr_spont", "param_vent_rr_spontaneous"]
+      pip: ["param_vent_pip"]
+      pplat: ["param_vent_plat_pressure"]
+      minute_vent: ["param_vent_VE"]
+      double_trigger_count: ["param_vent_async_double_count"]
+      ineffective_trigger_count: ["param_vent_async_ineffective_count"]
+      reverse_trigger_count: ["param_vent_async_reverse_count"]
+      flow_starvation_count: ["param_vent_async_flow_starvation_count"]
+      premature_cycling_count: ["param_vent_async_premature_count"]
+      delayed_cycling_count: ["param_vent_async_delayed_count"]
+      double_trigger_interval_ratio: ["param_vent_double_trigger_interval_ratio"]
+      pressure_scooping_flag: ["param_vent_pressure_scooping_flag"]
+      reverse_trigger_flag: ["param_vent_reverse_trigger_flag"]
+      premature_cycling_flag: ["param_vent_premature_cycling_flag"]
+      delayed_cycling_flag: ["param_vent_delayed_cycling_flag"]
+      expiratory_muscle_flag: ["param_vent_expiratory_muscle_flag"]
+      cycling_flow_ratio: ["param_vent_cycling_flow_ratio"]
+
+  microbiology:
+    mdro_screening_trigger:
+      # 待 ICU 医师审核确认：实验性 MDRO 筛查触发阈值，仅用于提醒复核筛查/隔离流程。
+      trigger_score_threshold: 3
+      prior_mdro_lookback_days: 90
+      broad_antibiotic_keywords: ["meropenem", "imipenem", "vancomycin", "linezolid", "tigecycline", "缇庣綏鍩瑰崡", "浜氳儼鍩瑰崡", "涓囧彜闇夌礌"]
+    mdro_keywords:
+      MRSA: ["mrsa", "耐甲氧西林金黄色葡萄球菌"]
+      CRE: ["cre", "碳青霉烯耐药肠杆菌", "耐碳青霉烯"]
+      VRE: ["vre", "耐万古霉素肠球菌"]
+      CRAB: ["crab", "鲍曼不动杆菌", "耐碳青霉烯鲍曼"]
+      CRPA: ["crpa", "耐碳青霉烯铜绿假单胞菌"]
+    susceptibility_keywords: ["药敏", "susceptibility", "MIC", "敏感", "耐药"]
+    vanco_trough_low: 10
+    vanco_trough_high: 20
+    meropenem_keywords: ["美罗培南", "meropenem"]
+
+  pe_detection:
+    pattern_window_hours: 2
+    spo2_drop_threshold: 5
+    ddimer_threshold_mg_l: 0.5
+    wells_weights:
+      dvt_symptoms: 3.0
+      pe_most_likely: 3.0
+      hr_gt_100: 1.5
+      immobilization_or_surgery: 1.5
+      previous_vte: 1.5
+      hemoptysis: 1.0
+      malignancy: 1.0
+
+  postop_monitor:
+    hb_decline_threshold_g_l: 20
+    drain_6h_threshold_ml: 200
+    drain_hourly_threshold_ml: 100
+    ileus_no_flatus_hours: 72
+    grv_threshold_ml: 500
+    temp_resurgence_low: 37.5
+    temp_resurgence_high: 38.5
+
+  fluid_balance:
+    windows_hours: [6, 12, 24]
+    positive_balance_warning_pct: 5
+    positive_balance_high_pct: 10
+    positive_balance_critical_pct: 10
+    percent_fluid_overload_warning_pct: 5
+    percent_fluid_overload_high_pct: 10
+    rapid_infusion_ml_per_kg_6h: 30
+    urine_response_ml_per_kg_h: 0.5
+    linkage_lookback_hours: 24
+    map_min_increase_mmHg: 3
+    lactate_nonresponse_ratio: 0.9
+    deresuscitation_map_stable_hours: 2
+    deresuscitation_map_threshold: 65
+    deresuscitation_vaso_lookback_hours: 12
+    deresuscitation_lactate_down_ratio: 0.9
+    deresuscitation_positive_net_ml: 1000
+    deresuscitation_positive_net_high_ml: 2000
+    deresuscitation_target_negative_ml_24h: 500
+    deresuscitation_target_negative_high_ml_24h: 1000
+
+  right_heart_monitor:
+    cvp_window_hours: 24
+    bnp_window_hours: 72
+    cvp_rise_threshold: 3
+    bnp_ratio_threshold: 2.0
+    peep_threshold: 10
+    min_factor_count: 2
+    critical_factor_count: 4
+
+  delirium_risk:
+    warning_score: 4
+    high_score: 7
+    critical_score: 10
+    benzodiazepine_keywords: ["咪达唑仑", "地西泮", "劳拉西泮", "阿普唑仑", "艾司唑仑", "氯硝西泮"]
+    morphine_keywords: ["吗啡", "morphine"]
+    factor_weights:
+      age_gt_65: 1
+      benzodiazepine: 2
+      emergency_admission: 1
+      mechanical_ventilation: 2
+      metabolic_acidosis: 2
+      morphine_use: 1
+      bun_elevated: 2
+      deep_sedation: 1
+      gcs_low: 1
+
+  ecash:
+    target_rass_range: [-2, 0]
+    pain_assessment_overdue_hours: 8
+    sat_interval_hours: 24
+    over_sedation_hours: 4
+    sat_detection_window_hours: 2
+    sat_recent_sedative_hours: 6
+    sat_rass_rise_min: 2
+    sat_baseline_rass_max: -3
+    analgesic_keywords: ["芬太尼", "瑞芬太尼", "舒芬太尼", "吗啡", "布洛芬", "对乙酰氨基酚", "氟比洛芬", "帕瑞昔布", "曲马多", "氯胺酮"]
+    benzo_keywords: ["咪达唑仑", "地西泮", "劳拉西泮", "阿普唑仑", "艾司唑仑", "氯硝西泮"]
+    sat_stress:
+      map_threshold_neurosurgery: 120
+      sbp_threshold_aorta: 140
+      hr_threshold_cad_hf: 130
+      arrhythmia_lookback_hours: 6
+      arrhythmia_recent_hours: 2
+      arrhythmia_prior_quiet_hours: 4
+      neurosurgery_keywords: ["脑外科", "开颅", "颅脑术后", "神经外科术后"]
+      aortic_keywords: ["夹层", "主动脉夹层", "动脉瘤", "主动脉瘤", "aortic dissection", "aneurysm"]
+      cad_hf_keywords: ["冠心病", "心肌缺血", "心衰", "心力衰竭", "heart failure", "cad", "chf"]
+      arrhythmia_keywords: ["房颤", "房扑", "arrhythmia", "irregular", "室速", "室早", "心律失常"]
+
+  icu_aw:
+    warning_score: 4
+    high_score: 7
+    critical_score: 10
+    max_lookback_days: 21
+    ventilation_days_warning: 3
+    ventilation_days_high: 7
+    sedative_days_threshold: 3
+    sofa_threshold: 8
+    immobility_hours_threshold: 72
+    mobility_opportunity_immobility_hours: 72
+    glucose_window_hours: 48
+    glucose_cv_threshold: 36
+    glucose_low_threshold: 3.9
+    glucose_high_threshold: 10
+    factor_weights:
+      age_ge_65: 1
+      mechanical_ventilation_ge_3d: 2
+      mechanical_ventilation_ge_7d: 3
+      sedative_exposure_ge_3d: 2
+      sedative_multiclass: 1
+      sofa_ge_8: 2
+      sepsis_active: 2
+      glucose_instability: 1
+      steroid_exposure: 1
+      immobility_ge_72h: 2
+    sedative_keywords: ["咪达唑仑", "丙泊酚", "右美托咪定", "地西泮", "劳拉西泮", "芬太尼", "瑞芬太尼", "舒芬太尼"]
+    benzodiazepine_keywords: ["咪达唑仑", "地西泮", "劳拉西泮", "阿普唑仑", "艾司唑仑", "氯硝西泮"]
+    propofol_keywords: ["丙泊酚", "propofol"]
+    dexmedetomidine_keywords: ["右美托咪定", "dexmedetomidine"]
+    opioid_sedation_keywords: ["芬太尼", "瑞芬太尼", "舒芬太尼"]
+    steroid_keywords: ["地塞米松", "甲强龙", "甲泼尼龙", "氢化可的松", "泼尼松", "methylprednisolone", "dexamethasone", "hydrocortisone"]
+    active_bleeding_alert_types: ["gi_bleeding", "postop_bleeding"]
+    active_bleeding_keywords: ["活动性出血", "active bleeding"]
+    unstable_fracture_keywords: ["不稳定骨折", "unstable fracture", "骨盆不稳", "脊柱不稳", "骨折未固定"]
+    activity_keywords: ["活动", "下床", "坐起", "坐位", "站立", "行走", "床边活动", "早期活动", "康复训练", "转移到椅", "步行"]
+    norepi_keywords: ["去甲肾上腺素", "norepinephrine", "noradrenaline", "去甲"]
+    mobility:
+      fio2_threshold: 0.6
+      peep_threshold: 10
+      norepi_threshold_ug_kg_min: 0.2
+      norepi_lookback_hours: 12
+      norepi_taper_min_drop_ratio: 0.1
+      rass_min: -2
+      rass_max: 1
+      map_threshold: 60
+
+  glycemic_control:
+    cv_warning_pct: 36
+    low_warning_mmol: 3.9
+    # 待 ICU 医师审核确认：常用 ICU 低血糖危急值默认 <2.8 mmol/L。
+    low_critical_mmol: 2.8
+    drop_rate_warning_mmol_per_h: 3
+    insulin_recheck_hours: 2
+    high_threshold_mmol: 10
+    # 待 ICU 医师审核确认：常用 ICU 高血糖危急值默认 >22.2 mmol/L。
+    high_critical_mmol: 22.2
+    high_consecutive_count: 3
+    insulin_lookback_hours: 12
+    min_points_for_cv: 4
+    insulin_keywords: ["胰岛素", "insulin", "门冬胰岛素", "甘精胰岛素", "赖脯胰岛素", "地特胰岛素"]
+    pump_keywords: ["泵", "微泵", "泵入", "泵注", "insulin pump", "pump"]
+
+  antibiotic_stewardship:
+    empiric_timeout_hours: 48
+    pct_stop_eval_days: 5
+    vanco_tdm_days: 3
+    duration_limit_days: 7
+    antibiotic_type_keywords: ["抗生素", "抗菌", "抗感染", "antibiotic", "antimicrobial"]
+    broad_type_keywords: ["广谱", "碳青霉烯", "三四代头孢", "broad", "carbapenem"]
+    antibiotic_keywords: ["头孢", "青霉素", "美罗培南", "左氧氟沙星", "万古霉素", "阿奇霉素", "哌拉西林"]
+    broad_spectrum_keywords: ["美罗培南", "亚胺培南", "哌拉西林他唑巴坦", "头孢哌酮舒巴坦", "头孢吡肟", "替加环素"]
+    culture_keywords: ["培养", "culture", "药敏", "细菌", "真菌"]
+    culture_pending_keywords: ["待报", "待回", "进行中", "pending", "未出"]
+    culture_positive_keywords: ["阳性", "positive", "生长", "检出", "分离出"]
+    vancomycin_keywords: ["万古霉素", "vancomycin"]
+    aminoglycoside_keywords: ["阿米卡星", "庆大霉素", "妥布霉素", "依替米星", "奈替米星", "链霉素"]
+    vanco_tdm_keywords: ["万古霉素谷", "万古霉素浓度", "万古霉素血药浓度", "vancomycin trough"]
+    aminoglycoside_tdm_keywords: ["阿米卡星谷", "庆大霉素谷", "妥布霉素谷", "氨基糖苷", "amikacin trough", "gentamicin trough"]
+
+  vte_prophylaxis:
+    padua_high_risk_score: 4
+    caprini_high_risk_score: 5
+    immobility_hours_threshold: 48
+    prophylaxis_lookback_hours: 72
+    pharm_prophylaxis_keywords: ["依诺肝素", "那曲肝素", "达肝素", "低分子肝素", "普通肝素", "肝素", "fondaparinux", "利伐沙班"]
+    mechanical_prophylaxis_keywords: ["间歇充气", "IPC", "SCD", "气压治疗", "弹力袜", "机械预防", "下肢气压泵", "梯度压力袜"]
+    mechanical_order_keywords: ["间歇充气", "IPC", "SCD", "气压治疗", "弹力袜", "机械预防", "下肢气压泵", "梯度压力袜", "静脉泵", "足底泵"]
+    mechanical_negative_keywords: ["未做", "未行", "未实施", "none", "no", "否"]
+    active_bleeding_alert_types: ["gi_bleeding"]
+    immobility_keywords: ["卧床", "制动", "绝对卧床", "不能下床", "bed rest", "immobile", "瘫痪", "昏迷"]
+    mobility_positive_keywords: ["下床", "活动", "行走", "可活动", "ambulation", "walking"]
+    cancer_keywords: ["恶性肿瘤", "癌", "cancer", "肿瘤"]
+    previous_vte_keywords: ["静脉血栓", "肺栓塞", "DVT", "PE", "VTE"]
+    thrombophilia_keywords: ["易栓症", "抗磷脂", "thrombophilia"]
+    heart_resp_failure_keywords: ["心衰", "呼衰", "heart failure", "respiratory failure"]
+    acute_mi_stroke_keywords: ["急性心梗", "脑卒中", "stroke", "MI"]
+    infection_rheum_keywords: ["感染", "sepsis", "肺炎", "风湿", "rheum"]
+    recent_surgery_keywords: ["术后", "手术", "surgery", "trauma", "外伤", "骨折手术"]
+    hormonal_treatment_keywords: ["雌激素", "孕激素", "激素替代", "tamoxifen", "他莫昔芬"]
+    padua_weights:
+      active_cancer: 3
+      previous_vte: 3
+      reduced_mobility: 3
+      thrombophilia: 3
+      recent_trauma_surgery: 2
+      age_ge_70: 1
+      heart_or_resp_failure: 1
+      acute_mi_or_stroke: 1
+      acute_infection_or_rheum: 1
+      obesity_bmi_ge_30: 1
+      hormonal_treatment: 1
+    caprini_weights:
+      age_41_60: 1
+      age_61_74: 2
+      age_ge_75: 3
+      bmi_gt_25: 1
+      bedrest_gt_72h: 1
+      recent_surgery: 2
+      active_cancer: 2
+      previous_vte: 3
+      thrombophilia: 3
+      acute_stroke_or_mi: 5
+
+  discharge_readiness:
+    high_alert_lookback_hours: 12
+    sofa_lookback_hours: 24
+    urine_lookback_hours: 6
+    monitoring_density_window_hours: 6
+    monitoring_density_drop_ratio: 0.4
+    candidate_keywords: ["转出", "下转", "普通病房", "stepdown", "hdu", "准备转出", "出icu"]
+
+  transfer_handoff:
+    enabled: true
+    llm_narrative: false
+    verify_window_hours: 72
+    high_threshold: 70
+    mod_threshold: 40
+    factor_weights:
+      vital_trend_high_variability: 15
+      vital_trend_acute_worsening: 20
+      sofa_trend_rising: 10
+      vent_weaned_lt_24h: 15
+      vent_weaned_24_48h: 8
+      vaso_stopped_lt_24h: 15
+      vaso_stopped_24_48h: 8
+      residual_hypoxemia: 12
+      residual_hypotension: 12
+      residual_tachycardia: 8
+      residual_fever: 8
+      residual_low_gcs: 12
+      residual_high_lactate: 12
+      residual_oliguria: 10
+      pics_risk_high: 10
+      sepsis_subtype_hyperinflammatory: 8
+    thresholds:
+      vital_cv_high: 0.3
+      trend_delta_hours: 6
+      weaning_window_hours: 48
+      spo2_low: 92
+      fio2_high: 0.4
+      map_low: 65
+      hr_high: 110
+      temp_high: 38.5
+      gcs_low: 13
+      lactate_high: 2.0
+      urine_low_ml_kg_h: 0.5
+
+  similar_case_review:
+    max_candidates: 200
+    age_band_years: 10
+    sofa_band: 2
+    diagnosis_keyword_limit: 6
+    min_diagnosis_similarity: 0.15
+    embedding_model: "BAAI/bge-small-zh-v1.5"
+    embedding_weight: 0.4
+    token_weight: 0.1
+    age_weight: 0.15
+    sofa_weight: 0.25
+    support_weight: 0.1
+
+  nutrition_monitor:
+    start_delay_hours: 48
+    calorie_target_kcal_per_kg_day: 25
+    calorie_coverage_threshold: 0.6
+    calorie_under_target_persist_hours: 72
+    feeding_intolerance_lookback_hours: 72
+    grv_threshold_ml: 500
+    refeeding_monitor_hours: 72
+    malnutrition_bmi_threshold: 18.5
+    malnutrition_albumin_g_l_threshold: 25
+    albumin_baseline_lookback_days: 7
+    electrolyte_drop_ratio_threshold: 0.2
+    electrolyte_drop_abs_threshold:
+      k: 0.5
+      phosphate: 0.3
+      magnesium: 0.2
+    electrolyte_low_threshold:
+      k: 3.5
+      phosphate: 0.8
+      magnesium: 0.75
+    default_enteral_kcal_per_ml: 1.0
+    default_parenteral_kcal_per_ml: 0.8
+    default_rate_duration_hours: 1.0
+    enteral_keywords: ["肠内营养", "鼻饲", "胃管", "enteral", "tube feeding", "营养泵"]
+    parenteral_keywords: ["肠外营养", "TPN", "全肠外", "静脉营养", "脂肪乳", "复方氨基酸", "葡萄糖注射液"]
+    grv_keywords: ["胃残余", "胃潴留", "GRV", "gastric residual"]
+    vomit_keywords: ["呕吐", "返流", "反流", "vomit", "emesis", "regurgitation"]
+    abdominal_distension_keywords: ["腹胀", "腹部膨隆", "abdominal distension", "bloating"]
+    feeding_interrupt_keywords: ["中断喂养", "暂停喂养", "停止喂养", "禁食", "NPO", "hold feeding", "feeding interrupted"]
+    albumin_keywords: ["白蛋白", "albumin", "ALB"]
+    phosphate_keywords: ["磷", "无机磷", "血磷", "phosphate", "phos", "phosphorus"]
+    magnesium_keywords: ["镁", "血镁", "magnesium"]
+
+  drug_safety:
+    opioid_med_warning_mg_per_day: 200
+    opioid_min_long_term_days: 3
+    opioid_stop_gap_hours: 24
+    opioid_withdrawal_window_hours: 72
+    opioid_course_gap_hours: 36
+    opioid_resp_rr_threshold: 10
+    opioid_resp_rr_critical: 8
+    opioid_spo2_low_threshold: 92
+    opioid_spo2_critical_threshold: 90
+    opioid_spo2_drop_threshold: 4
+    opioid_spo2_drop_window_hours: 2
+    opioid_med_factors:
+      morphine: 1.0
+      fentanyl: 100.0
+      sufentanil: 1000.0
+      remifentanil: 200.0
+      oxycodone: 1.5
+      hydromorphone: 5.0
+      pethidine: 0.1
+      meperidine: 0.1
+      tramadol: 0.1
+      codeine: 0.15
+      butorphanol: 7.0
+
+  drug_mapping:
+    vasopressors: ["去甲肾上腺素", "肾上腺素", "多巴胺", "去氧肾上腺素", "血管加压素"]
+    heparin: ["肝素"]
+    vancomycin: ["万古霉素"]
+    sedatives: ["咪达唑仑", "丙泊酚", "右美托咪定", "地西泮", "芬太尼", "瑞芬太尼"]
+    opioids: ["吗啡", "芬太尼", "舒芬太尼", "瑞芬太尼", "羟考酮", "氢吗啡酮", "哌替啶", "曲马多", "可待因", "布托啡诺", "morphine", "fentanyl", "sufentanil", "remifentanil", "oxycodone", "hydromorphone", "tramadol", "codeine", "opioid"]
+    qt_risk: ["胺碘酮", "左氧氟沙星", "环丙沙星", "红霉素", "阿奇霉素", "氟哌啶醇", "奥氮平", "喹硫平"]
+
+  rag:
+    synonyms:
+      脓毒症: ["sepsis", "感染性休克", "脓毒性休克"]
+      感染性休克: ["septic shock", "脓毒症", "脓毒性休克"]
+      急性呼吸窘迫综合征: ["ards", "急性肺损伤"]
+      谵妄: ["delirium", "cam-icu", "cam icu"]
+      急性肾损伤: ["aki", "acute kidney injury"]
+
+# ==================== 护理提醒 ====================
+nurse_reminders:
+  gcs:       { code: "param_score_gcs_obs",   interval_hours: 4 }
+  rass:      { code: "param_score_rass_obs",   interval_hours: 4 }
+  pain:      { code: "param_tengTong_score",   interval_hours: 4 }
+  cpot:
+    code: "param_score_cpot"
+    interval_hours: 4
+    name: "CPOT评估超时"
+    analgesic_adjustment_enabled: true
+    adjustment_lookback_hours: 8
+    assessment_before_hours: 1
+    assessment_after_hours: 1
+    dose_change_ratio_threshold: 0.25
+    adjustment_name: "CPOT评估(镇痛药调整前后)"
+  bps:
+    code: "param_score_bps"
+    interval_hours: 4
+    name: "BPS评估超时"
+    analgesic_adjustment_enabled: true
+    adjustment_lookback_hours: 8
+    assessment_before_hours: 1
+    assessment_after_hours: 1
+    dose_change_ratio_threshold: 0.25
+    adjustment_name: "BPS评估(镇痛药调整前后)"
+  delirium:  { code: "param_delirium_score",   interval_hours: 12, severity: "critical", name: "谵妄评估超时" }
+  braden:    { code: "param_score_braden",     interval_hours: 24, name: "BRADEN压疮风险评估超时" }
+  cam_icu:   { code: "param_delirium_score", rass_gte: -3, interval_hours: 8, severity: "critical", name: "CAM-ICU评估超时" }
+  turning:
+    code: "nurse_turning"
+    interval_hours: 2
+    very_high_risk_interval_hours: 1.5
+    braden_high_risk_threshold: 12
+    deep_sedation_rass_threshold: -2
+    bmi_low_threshold: 18.5
+    bmi_high_threshold: 30
+    turning_event_lookback_hours: 96
+    turning_keywords: ["翻身", "体位变换", "更换体位", "reposition", "turn", "侧卧", "俯卧位", "半卧位", "卧位调整"]
+  early_mobility:
+    code: "nurse_early_mobility"
+    interval_hours: 8
+    icu_hours_threshold: 48
+    inactivity_hours: 24
+    map_threshold: 60
+    norepi_threshold_ug_kg_min: 0.2
+    norepi_lookback_hours: 12
+    norepi_taper_min_drop_ratio: 0.1
+    fio2_threshold: 0.6
+    peep_threshold: 10
+    rass_min: -1
+    rass_max: 1
+    activity_keywords: ["活动", "下床", "坐起", "坐位", "站立", "行走", "床边活动", "早期活动", "康复训练", "转移到椅", "步行"]
+    norepi_keywords: ["去甲肾上腺素", "norepinephrine", "noradrenaline", "去甲"]
+    name: "建议评估早期活动"
+    rule_id: "NURSE_EARLY_MOBILITY"
+
+# ==================== 通知（纯内网）====================
+notification:
+  websocket:
+    enabled: true
+  screen_alert:
+    enabled: true
+    critical_flash: true
+    sound_enabled: true
+
+# ==================== UI ====================
+ui:
+  theme: "dark"
+  refresh_interval_seconds: 10
+
+# ==================== 语音查房 ====================
+voice_rounding:
+  enabled: true
+  asr:
+    mode: ""                         # http | ws | mock | 空=读全局 ASR_MODE(.env)
+    hotword_path: ""                  # 热词文件路径，如 /opt/icu-models/hotwords.txt
+  filler_words:
+    - "嗯"
+    - "哦"
+    - "额"
+    - "呃"
+    - "那个"
+    - "就是说"
+    - "这个这个"
+    - "对吧"
+    - "然后呢"
+    - "啊"
+  llm_correction:
+    enabled: true
+    temperature: 0.1
+    max_tokens: 2048
+    timeout: 30                       # 秒
+    protect_numbers: true             # 数值/剂量保护
+  max_audio_seconds: 300              # 最大录音时长（秒）
+  correction_hints_path: ""           # 纠错提示文件路径，空则用默认 config/voice_rounding/correction_hints.yaml
+
+scanner_schedule:
+  realtime:
+    interval_seconds: 30
+    scanners:
+      - VitalSignsScanner
+      - TrendScanner
+      - CardiacArrestRiskScanner
+      - HemodynamicAdvisorScanner
+
+  frequent:
+    interval_seconds: 300
+    scanners:
+      - SepsisScanner
+      - AkiScanner
+      - ArdsScanner
+      - DicScanner
+      - BleedingScanner
+      - CrrtScanner
+      - DrugSafetyScanner
+      - GlycemicControlScanner
+      - FluidBalanceScanner
+      - VentilatorWeaningScanner
+      - DiaphragmProtectionScanner
+      - RightHeartMonitorScanner
+      - LabResultsScanner
+
+  periodic:
+    interval_seconds: 1800
+    scanners:
+      - AntibioticStewardshipScanner
+      - AntimicrobialPkScanner
+      - VancoTdmClosedLoopScanner
+      - DoseAdjustmentScanner
+      - DeviceManagementScanner
+      - HaiBundleScanner
+      - VteProphylaxisScanner
+      - LiberationBundleScanner
+      - EcashBundleScanner
+      - NurseRemindersScanner
+      - DeliriumRiskScanner
+
+  slow:
+    interval_seconds: 3600
+    scanners:
+      - NutritionMonitorScanner
+      - DischargeReadinessScanner
+      - IcuAwMobilityScanner
+      - PalliativeTriggerScanner
+      - CircadianProtectorScanner
+      - NursingWorkloadScanner
+      - NursingNoteAnalyzerScanner
+
+  ai:
+    interval_seconds: 900
+    scanners:
+      - AiRiskScanner
+      - AdaptiveThresholdsScanner
+      - AlertReasoningScanner
+      - TemporalRiskScanner
+      - ProactiveManagementScanner
+      - SimilarCaseReviewScanner
+      - ExtendedScenariosScanner
+      - CompositeDeteriorationScanner

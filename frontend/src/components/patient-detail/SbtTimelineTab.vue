@@ -1,0 +1,681 @@
+<template>
+  <section class="sbt-wrap">
+    <header class="sbt-head">
+      <div>
+        <div class="sbt-title">自主呼吸试验时间线 / 结构化记录</div>
+        <div class="sbt-sub">自主呼吸试验结构化时间线，聚焦结果、参数与失败线索</div>
+      </div>
+      <button type="button" class="sbt-refresh" @click="onRefresh">
+        {{ loading ? '刷新中…' : '刷新记录' }}
+      </button>
+    </header>
+
+    <section v-if="hasAiDecisionCard" class="sbt-decision-card">
+      <div class="sbt-decision-card__head">
+        <div>
+          <div class="sbt-decision-card__eyebrow">智能撤机建议</div>
+          <div class="sbt-decision-card__title">顶部决策卡</div>
+        </div>
+        <div class="sbt-decision-card__badge">{{ aiSummaryDegraded ? '规则降级模式' : '大模型结构化建议' }}</div>
+      </div>
+      <div v-if="aiSummaryText" class="sbt-decision-card__main">{{ aiSummaryText }}</div>
+      <div v-if="decisionFindingRows.length" class="sbt-decision-card__grid">
+        <article
+          v-for="(item, idx) in decisionFindingRows"
+          :key="`decision-finding-${idx}`"
+          class="sbt-decision-card__item"
+        >
+          <span class="sbt-decision-card__label">关键判断 {{ Number(idx) + 1 }}</span>
+          <strong>{{ item }}</strong>
+        </article>
+      </div>
+      <div v-if="decisionActionRows.length" class="sbt-decision-card__actions">
+        <div class="sbt-decision-card__actions-title">建议动作</div>
+        <ul class="sbt-decision-card__list">
+          <li v-for="(item, idx) in decisionActionRows" :key="`decision-action-${idx}`">{{ item }}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section v-if="summaryCards.length" class="sbt-kpi-strip">
+      <article v-for="card in summaryCards" :key="card.label" class="sbt-kpi-card">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+        <small>{{ card.meta }}</small>
+      </article>
+    </section>
+
+    <div v-if="loading && !records.length" class="sbt-empty">正在加载自主呼吸试验结构化记录…</div>
+    <div v-else-if="error && !records.length" class="sbt-empty sbt-empty--error">{{ error }}</div>
+    <div v-else-if="!records.length" class="sbt-empty">暂无自主呼吸试验结构化记录</div>
+
+    <div v-else class="sbt-content">
+      <section class="sbt-timeline">
+        <article
+          v-for="(row, idx) in records"
+          :key="`${row.time || row.trial_time || row.created_at || idx}`"
+          :class="['sbt-timeline-item', `sbt-${resultTone(row.result || row.status)}`]"
+        >
+          <div class="sbt-time-rail">
+            <span class="sbt-time">{{ fmtTime(row.time || row.trial_time || row.created_at) || '时间未知' }}</span>
+            <i :class="['sbt-dot', `sbt-dot--${resultTone(row.result || row.status)}`]" />
+            <span v-if="idx < records.length - 1" class="sbt-line" />
+          </div>
+          <div class="sbt-card">
+            <div class="sbt-card-head">
+              <div>
+                <div class="sbt-card-title-row">
+                  <strong class="sbt-card-title">{{ row.label || row.title || '自主呼吸试验记录' }}</strong>
+                  <span :class="['sbt-result-pill', `sbt-result-pill--${resultTone(row.result || row.status)}`]">{{ row.label || row.title || '已记录自主呼吸试验' }}</span>
+                </div>
+                <div class="sbt-card-sub">
+                  来源 {{ row.source || '—' }}
+                  <span v-if="row.duration_minutes != null"> · 时长 {{ row.duration_minutes }} 分钟</span>
+                  <span v-if="row.source_code"> · {{ row.source_code }}</span>
+                  <span v-if="row.event_type && row.event_type !== 'sbt'"> · {{ row.event_type }}</span>
+                </div>
+              </div>
+              <div class="sbt-score-box">
+                <span>RSBI</span>
+                <strong>{{ valueOrDash(row.rsbi ?? row.detail?.rsbi) }}</strong>
+              </div>
+            </div>
+
+            <div class="sbt-chip-row">
+              <span class="sbt-chip">RR {{ valueOrDash(row.rr ?? row.detail?.rr) }}</span>
+              <span class="sbt-chip">潮气量 {{ valueOrDash(row.vte_ml ?? row.detail?.vte_ml) }}</span>
+              <span class="sbt-chip">FiO₂ {{ valueOrDash(row.fio2 ?? row.detail?.fio2) }}</span>
+              <span class="sbt-chip">PEEP {{ valueOrDash(row.peep ?? row.detail?.peep) }}</span>
+              <span v-if="(row.minute_vent ?? row.detail?.minute_vent) != null" class="sbt-chip">MV {{ valueOrDash(row.minute_vent ?? row.detail?.minute_vent) }}</span>
+            </div>
+
+            <div class="sbt-record-grid">
+              <div class="sbt-record-item">
+                <span class="sbt-record-label">结果</span>
+                <span class="sbt-record-value">{{ row.label || row.title || '—' }}</span>
+              </div>
+              <div class="sbt-record-item">
+                <span class="sbt-record-label">是否通过</span>
+                <span class="sbt-record-value">{{ row.passed == null ? '—' : row.passed ? '是' : '否' }}</span>
+              </div>
+              <div class="sbt-record-item">
+                <span class="sbt-record-label">试验时间</span>
+                <span class="sbt-record-value">{{ fmtTime(row.time || row.trial_time || row.created_at) || '—' }}</span>
+              </div>
+              <div class="sbt-record-item sbt-record-item--wide">
+                <span class="sbt-record-label">原始文本</span>
+                <div v-if="parsedRawContent(row).sections.length" class="sbt-raw-card">
+                  <div
+                    v-for="section in parsedRawContent(row).sections"
+                    :key="section.label"
+                    class="sbt-raw-section"
+                  >
+                    <div class="sbt-raw-label">{{ section.label }}</div>
+                    <div v-if="section.items?.length" class="sbt-raw-chip-row">
+                      <span
+                        v-for="(item, itemIdx) in section.items"
+                        :key="`${section.label}-${itemIdx}`"
+                        class="sbt-raw-chip"
+                      >
+                        {{ item }}
+                      </span>
+                    </div>
+                    <div v-else class="sbt-record-value sbt-record-value--multiline">{{ section.text }}</div>
+                  </div>
+                </div>
+                <div v-else class="sbt-record-value sbt-record-value--multiline">{{ parsedRawContent(row).fallback }}</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+const props = defineProps<{
+  summary: any
+  records: any[]
+  aiSummary?: any
+  loading: boolean
+  error: string
+  onRefresh: () => void
+  fmtTime: (value: any) => string
+}>()
+
+const summaryCards = computed(() => {
+  const summary = props.summary && typeof props.summary === 'object' ? props.summary : {}
+  return [
+    { label: '记录总数', value: summary.total_records ?? summary.sbt_total ?? 0, meta: '自主呼吸试验记录' },
+    { label: '通过', value: summary.passed_count ?? summary.sbt_passed_count ?? 0, meta: '试验通过' },
+    { label: '失败', value: summary.failed_count ?? summary.sbt_failed_count ?? 0, meta: '试验失败' },
+    { label: '最近一次', value: props.fmtTime(summary.last_trial_time || summary.latest_sbt?.trial_time) || '—', meta: '最近试验时间' },
+  ]
+})
+
+const aiSummaryText = computed(() => String(props.aiSummary?.summary || '').trim())
+const aiSummaryFindings = computed(() => Array.isArray(props.aiSummary?.key_findings) ? props.aiSummary.key_findings : [])
+const aiSummaryActions = computed(() => Array.isArray(props.aiSummary?.recommended_actions) ? props.aiSummary.recommended_actions : [])
+const aiSummaryDegraded = computed(() => Boolean(props.aiSummary?.degraded_mode))
+const hasAiDecisionCard = computed(() => Boolean(aiSummaryText.value || aiSummaryFindings.value.length || aiSummaryActions.value.length))
+const decisionFindingRows = computed(() => aiSummaryFindings.value.slice(0, 3))
+const decisionActionRows = computed(() => aiSummaryActions.value.slice(0, 4))
+
+function resultTone(raw: any) {
+  const value = String(raw || '').toLowerCase()
+  if (value === 'passed') return 'passed'
+  if (value === 'failed') return 'failed'
+  return 'documented'
+}
+
+function valueOrDash(value: any) {
+  if (value == null || value === '') return '—'
+  const num = Number(value)
+  if (Number.isNaN(num)) return String(value)
+  return Number.isInteger(num) ? String(num) : num.toFixed(1)
+}
+
+function rawContent(row: any) {
+  return String(row?.raw_text || row?.detail?.raw_text || row?.detail?.text || row?.detail?.explanation || '').trim()
+}
+
+function parsedRawContent(row: any) {
+  const fallback = rawContent(row) || '—'
+  try {
+    const payload = JSON.parse(fallback)
+    const sections: Array<{ label: string; text?: string; items?: string[] }> = []
+    const summary = String(payload?.summary || payload?.text || '').trim()
+    const suggestion = String(payload?.suggestion || '').trim()
+    const evidence = Array.isArray(payload?.evidence)
+      ? payload.evidence.map((item: any) => String(item || '').trim()).filter(Boolean)
+      : []
+
+    if (summary) sections.push({ label: '总结', text: summary })
+    if (evidence.length) sections.push({ label: '依据', items: evidence })
+    if (suggestion) sections.push({ label: '建议', text: suggestion })
+
+    return { sections, fallback }
+  } catch {
+    return { sections: [], fallback }
+  }
+}
+</script>
+
+<style scoped>
+.sbt-wrap { display: grid; gap: 12px; }
+.sbt-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sbt-title {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.sbt-sub {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.sbt-refresh {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(80,199,255,.16);
+  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sbt-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.sbt-kpi-card,
+.sbt-card {
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(80,199,255,.12);
+  background:
+    var(--bg-surface), rgba(34,211,238,0) 30%),
+    var(--bg-surface) 0%, rgba(4,12,22,.98) 100%);
+  box-shadow: var(--card-shadow);
+}
+.sbt-kpi-card {
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+}
+.sbt-kpi-card > span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.sbt-kpi-card > strong {
+  color: var(--text-primary);
+  font-size: 26px;
+  line-height: 1;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+}
+.sbt-kpi-card > small {
+  color: #86adc0;
+  font-size: 11px;
+}
+.sbt-empty {
+  padding: 24px 16px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(80,199,255,.12);
+  background: var(--bg-surface),.92);
+  color: var(--accent);
+  font-size: 13px;
+  text-align: center;
+}
+.sbt-empty--error {
+  color: var(--danger-soft);
+  border-color: rgba(251,113,133,.18);
+}
+.sbt-content { display: grid; gap: 12px; }
+.sbt-timeline { display: grid; gap: 12px; }
+.sbt-decision-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(103,232,249,.2);
+  background:
+    var(--bg-surface), rgba(34,211,238,0) 34%),
+    var(--bg-surface), rgba(59,130,246,0) 42%),
+    var(--bg-surface) 0%, rgba(4,15,24,.99) 100%);
+  box-shadow: var(--card-shadow);
+}
+.sbt-decision-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.sbt-decision-card__eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.sbt-decision-card__title {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.sbt-decision-card__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(103,232,249,.2);
+  background: var(--bg-surface),.8);
+  color: #d8fbff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.sbt-decision-card__main {
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.8;
+}
+.sbt-decision-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.sbt-decision-card__item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(80,199,255,.12);
+  background: var(--bg-surface),.74);
+}
+.sbt-decision-card__label {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.sbt-decision-card__item strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.sbt-decision-card__actions {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+.sbt-decision-card__actions-title {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.sbt-decision-card__list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.sbt-timeline-item {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 12px;
+}
+.sbt-time-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+.sbt-time {
+  color: var(--accent);
+  font-size: 11px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.sbt-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.sbt-dot--passed { background: var(--success); box-shadow: var(--card-shadow); }
+.sbt-dot--failed { background: var(--danger); box-shadow: var(--card-shadow); }
+.sbt-dot--documented { background: var(--chart-1); box-shadow: var(--card-shadow); }
+.sbt-line {
+  width: 2px;
+  flex: 1 1 auto;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+}
+.sbt-card { padding: 14px; display: grid; gap: 10px; }
+.sbt-passed .sbt-card { border-color: rgba(34,197,94,.2); }
+.sbt-failed .sbt-card { border-color: rgba(251,90,122,.2); }
+.sbt-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sbt-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sbt-card-title {
+  color: var(--text-primary);
+  font-size: 15px;
+}
+.sbt-card-sub {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.sbt-result-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: var(--card-radius);
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+.sbt-result-pill--passed { color: var(--sev-normal-text); background: var(--sev-normal-bg); border-color: var(--sev-normal-border); }
+.sbt-result-pill--failed { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
+.sbt-result-pill--documented { color: var(--accent); background: var(--bg-surface),.9); border-color: rgba(56,189,248,.22); }
+.sbt-score-box {
+  min-width: 88px;
+  padding: 8px 10px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(80,199,255,.14);
+  background: var(--bg-surface),.86);
+  text-align: right;
+}
+.sbt-score-box span {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+}
+.sbt-score-box strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 24px;
+  line-height: 1;
+  font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+}
+.sbt-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sbt-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(79,182,219,.18);
+  background: var(--bg-surface),.82);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.sbt-record-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+.sbt-record-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--container-alt-text);
+  background: var(--container-alt-bg);
+  border: 1px solid var(--container-alt-border);
+  border-radius: var(--card-radius);
+  padding: 6px 8px;
+}
+.sbt-record-item--wide {
+  grid-column: 1 / -1;
+  display: grid;
+  align-items: start;
+}
+.sbt-record-label { color: var(--accent); }
+.sbt-record-value {
+  color: #e5e7eb;
+  font-weight: 600;
+  text-align: right;
+  max-width: 68%;
+  word-break: break-word;
+}
+.sbt-record-value--multiline {
+  max-width: none;
+  text-align: left;
+  white-space: pre-wrap;
+  line-height: 1.75;
+}
+.sbt-raw-card {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(80,199,255,.12);
+  background: var(--bg-surface), 0.9);
+}
+.sbt-raw-section {
+  display: grid;
+  gap: 6px;
+}
+.sbt-raw-label {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.sbt-raw-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sbt-raw-chip {
+  padding: 6px 10px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: var(--bg-surface), 0.92);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+html[data-theme='light'] .sbt-wrap {
+  background:
+    var(--bg-surface), rgba(59, 130, 246, 0) 34%),
+    var(--bg-surface) 0%, rgba(245,249,253,.98) 100%);
+  color: var(--text-secondary);
+}
+html[data-theme='light'] .sbt-head,
+html[data-theme='light'] .sbt-decision-card,
+html[data-theme='light'] .sbt-kpi-card,
+html[data-theme='light'] .sbt-card,
+html[data-theme='light'] .sbt-score-box,
+html[data-theme='light'] .sbt-chip,
+html[data-theme='light'] .sbt-record-item,
+html[data-theme='light'] .sbt-raw-card,
+html[data-theme='light'] .sbt-raw-chip,
+html[data-theme='light'] .sbt-empty {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.96);
+  box-shadow: var(--card-shadow);
+}
+html[data-theme='light'] .sbt-title,
+html[data-theme='light'] .sbt-decision-card__title,
+html[data-theme='light'] .sbt-card-title,
+html[data-theme='light'] .sbt-score-box strong,
+html[data-theme='light'] .sbt-record-value {
+  color: var(--text-secondary);
+}
+html[data-theme='light'] .sbt-sub,
+html[data-theme='light'] .sbt-card-sub,
+html[data-theme='light'] .sbt-time,
+html[data-theme='light'] .sbt-record-label,
+html[data-theme='light'] .sbt-raw-label,
+html[data-theme='light'] .sbt-decision-card__label {
+  color: var(--text-secondary);
+}
+html[data-theme='light'] .sbt-refresh {
+  border-color: rgba(187, 204, 220, 0.72);
+  background: rgba(241, 246, 251, 0.98);
+  color: var(--brand);
+}
+html[data-theme='light'] .sbt-result-pill--passed { color: var(--success); background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.28); }
+html[data-theme='light'] .sbt-result-pill--failed { color: var(--danger-strong); background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.28); }
+html[data-theme='light'] .sbt-result-pill--documented { color: var(--brand); background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
+html[data-theme='light'] .sbt-line { background: var(--bg-surface); }
+
+/* === Additional light-mode overrides === */
+html[data-theme='light'] .sbt-kpi-card,
+html[data-theme='light'] .sbt-card,
+html[data-theme='light'] .sbt-decision-card,
+html[data-theme='light'] .sbt-raw-card {
+  background: var(--bg-surface), rgba(242,247,252,0.98));
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .sbt-empty {
+  background: rgba(243,248,252,0.96);
+  color: var(--text-secondary);
+}
+html[data-theme='light'] .sbt-decision-card__badge,
+html[data-theme='light'] .sbt-decision-card__item,
+html[data-theme='light'] .sbt-chip,
+html[data-theme='light'] .sbt-raw-chip {
+  background: rgba(243,248,252,0.96);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .sbt-score-box {
+  background: rgba(241,246,251,0.98);
+  border-color: rgba(187,204,220,0.72);
+}
+html[data-theme='light'] .sbt-title,
+html[data-theme='light'] .sbt-decision-card__title,
+html[data-theme='light'] .sbt-card-title,
+html[data-theme='light'] .sbt-decision-card__main,
+html[data-theme='light'] .sbt-score-box strong,
+html[data-theme='light'] .sbt-kpi-card > strong,
+html[data-theme='light'] .sbt-decision-card__item strong { color: var(--text-primary); }
+html[data-theme='light'] .sbt-sub,
+html[data-theme='light'] .sbt-kpi-card > small,
+html[data-theme='light'] .sbt-card-sub,
+html[data-theme='light'] .sbt-decision-card__eyebrow,
+html[data-theme='light'] .sbt-kpi-card > span,
+html[data-theme='light'] .sbt-score-box span,
+html[data-theme='light'] .sbt-time,
+html[data-theme='light'] .sbt-raw-label,
+html[data-theme='light'] .sbt-decision-card__label { color: var(--text-secondary); }
+html[data-theme='light'] .sbt-decision-card__list,
+html[data-theme='light'] .sbt-chip,
+html[data-theme='light'] .sbt-raw-chip { color: var(--text-primary); }
+html[data-theme='light'] .sbt-record-label { color: var(--text-secondary); }
+html[data-theme='light'] .sbt-record-value { color: var(--text-primary); }
+html[data-theme='light'] .sbt-decision-card__badge { color: var(--text-primary); }
+
+@media (max-width: 980px) {
+  .sbt-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sbt-timeline-item { grid-template-columns: 1fr; }
+  .sbt-time-rail {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  .sbt-time {
+    writing-mode: initial;
+    transform: none;
+  }
+  .sbt-line { display: none; }
+}
+@media (max-width: 640px) {
+  .sbt-kpi-strip,
+  .sbt-decision-card__grid { grid-template-columns: 1fr; }
+  .sbt-record-grid { grid-template-columns: 1fr; }
+  .sbt-card-head { flex-direction: column; }
+  .sbt-score-box {
+    width: 100%;
+    text-align: left;
+  }
+}
+</style>
+
+
+
+
+
+
+

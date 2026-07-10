@@ -1,0 +1,15 @@
+{
+  "doc_id": "padis_2018",
+  "title": "PADIS Guideline 2018",
+  "summary": "镇静、谵妄与非药物预防核心要点。",
+  "sections": [
+    {
+      "id": "padis2018_delirium",
+      "section_title": "Sedation and delirium",
+      "recommendation": "Sedation and Delirium",
+      "recommendation_grade": "best_practice",
+      "tags": ["delirium", "sedation", "rass"],
+      "text": "Use protocolized sedation with light sedation target when feasible, and routine delirium monitoring with validated tools. Minimize benzodiazepines and promote non-pharmacologic delirium prevention."
+    }
+  ]
+}

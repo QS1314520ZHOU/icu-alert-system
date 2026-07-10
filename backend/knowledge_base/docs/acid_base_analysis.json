@@ -1,0 +1,42 @@
+[
+  {
+    "id": "abg_systematic_approach",
+    "title": "ICU酸碱平衡分析指南",
+    "source": "EMCrit IBCC + ATS ABG Interpretation",
+    "recommendation": "ABG系统分析六步法",
+    "tags": ["acid_base", "abg", "ph", "paco2", "hco3"],
+    "text": "六步分析法：Step 1-判断酸血症(pH<7.35)还是碱血症(pH>7.45)。Step 2-判断原发失调：呼吸性(PaCO2改变方向与pH相反)还是代谢性(HCO3改变方向与pH相同)。Step 3-判断代偿是否恰当(使用代偿公式)。Step 4-计算阴离子间隙AG=Na-(Cl+HCO3)，正常8-12(白蛋白校正AG=AG+2.5×(4.0-白蛋白g/dL))。Step 5-若AG升高,计算Delta-Delta(ΔAG/ΔHCO3)：>2提示合并代谢性碱中毒,<1提示合并非AG代谢性酸中毒,1-2纯AG酸中毒。Step 6-综合临床情景判断。永远先看pH确定总体方向，然后逐步分析。"
+  },
+  {
+    "id": "abg_compensation_rules",
+    "title": "ICU酸碱平衡分析指南",
+    "source": "EMCrit + UCSF Hospitalist Handbook",
+    "recommendation": "代偿规则公式",
+    "tags": ["compensation", "winter", "metabolic_acidosis", "respiratory"],
+    "text": "代谢性酸中毒代偿：Winter公式：预期PaCO2=1.5×HCO3+8(±2)。若实测PaCO2>预期=合并呼吸性酸中毒;实测PaCO2<预期=合并呼吸性碱中毒。PaCO2不会代偿性低于10-12mmHg。代谢性碱中毒代偿：预期PaCO2=0.7×HCO3+21(±2),或预期PaCO2≈HCO3+15。PaCO2不会代偿性高于55mmHg。急性呼吸性酸中毒：每PaCO2升高10mmHg,HCO3升高1mmol/L。慢性呼吸性酸中毒：每PaCO2升高10mmHg,HCO3升高3.5mmol/L(肾脏代偿3-5天达峰)。急性呼吸性碱中毒：每PaCO2下降10mmHg,HCO3下降2mmol/L。慢性呼吸性碱中毒：每PaCO2下降10mmHg,HCO3下降5mmol/L。"
+  },
+  {
+    "id": "abg_ag_metabolic_acidosis",
+    "title": "ICU酸碱平衡分析指南",
+    "source": "EMCrit IBCC + LITFL",
+    "recommendation": "AG与非AG代谢性酸中毒鉴别",
+    "tags": ["anion_gap", "agma", "nagma", "lactate", "dka"],
+    "text": "高AG代谢性酸中毒(AGMA)病因(GOLDMARK)：G-乙二醇(Glycol)、O-草酸盐(Oxoproline/乙酰氨基酚过量)、L-乳酸(Lactate,最常见ICU原因)、D-D-乳酸(短肠综合征)、M-甲醇(Methanol)、A-阿司匹林(Aspirin)、R-肾衰竭(Renal failure,尿毒症)、K-酮症(Ketoacidosis:DKA/酒精性/饥饿性)。乳酸酸中毒分型：A型(组织低灌注：休克/缺氧)和B型(非低灌注：药物如二甲双胍/利奈唑胺/肝功能衰竭/恶性肿瘤/癫痫)。非AG代谢性酸中毒(NAGMA)：高氯性,病因HARDUPS：H-高钾/低醛固酮(Hyperalimentation)、A-乙酰唑胺(Acetazolamide)、R-肾小管性酸中毒(RTA)、D-腹泻(Diarrhea)、U-输尿管分流(Ureteral diversion)、P-胰瘘(Pancreatic fistula)、S-生理盐水过多(Saline excess)。"
+  },
+  {
+    "id": "abg_stewart_approach",
+    "title": "ICU酸碱平衡分析指南",
+    "source": "Stewart 1983 + Fencl-Stewart Simplified",
+    "recommendation": "Stewart物理化学方法",
+    "tags": ["stewart", "sid", "atot", "sig", "physical_chemical"],
+    "text": "Stewart方法三个独立变量决定pH：SID(强离子差)=强阳离子(Na+K+Ca+Mg)-强阴离子(Cl+乳酸)，正常40-42mmol/L。SID降低→酸中毒(高氯/乳酸/酮体)，SID升高→碱中毒(低氯/呕吐)。Atot(弱酸总量)：主要是白蛋白和磷酸盐。低白蛋白→碱中毒(常见ICU患者)。SIG(强离子间隙)=SID apparent-SID effective，正常0-2mmol/L，SIG升高提示未测量阴离子(类似于校正AG)。Stewart vs传统方法：Stewart可发现传统方法遗漏的11-12%酸碱失调(PMC 2022研究)，特别是低白蛋白掩盖的AG升高和混合失调。临床简化应用：校正AG(用白蛋白校正)+Delta-Delta分析基本等同于简化Stewart分析。"
+  },
+  {
+    "id": "abg_common_icu_patterns",
+    "title": "ICU酸碱平衡分析指南",
+    "source": "Critical Care Medicine Review",
+    "recommendation": "ICU常见酸碱模式",
+    "tags": ["acid_base", "pattern", "sepsis", "copd", "icu"],
+    "text": "脓毒症典型模式：乳酸性AGMA+生理盐水复苏后NAGMA(高氯性)+低白蛋白代碱(三重混合失调)。DKA：高AG酸中毒(酮体)+可能合并NAGMA(治疗后HCO3恢复慢),Delta-Delta往往>2(呕吐致代碱)。COPD急性加重：慢性呼吸性酸中毒(高PaCO2+代偿性高HCO3)+急性呼吸性酸中毒(PaCO2进一步升高),HCO3代偿不足提示急性成分。大量输血后：枸橼酸代谢为碳酸氢钠→代谢性碱中毒+低钙。肾衰竭：高AG(尿毒症)±NAGMA(RTA)。慢性利尿剂使用：代谢性碱中毒(低氯/低钾)+代偿性呼吸性酸中毒(轻度PaCO2升高)。肝硬化：呼吸性碱中毒(高通气)+代谢性碱中毒(低钾)+可能乳酸性酸中毒(三重紊乱)。"
+  }
+]

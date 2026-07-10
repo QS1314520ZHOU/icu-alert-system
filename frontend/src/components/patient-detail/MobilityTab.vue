@@ -1,0 +1,85 @@
+<template>
+  <section class="mobility-tab">
+    <div class="mobility-hero">
+      <div>
+        <div class="mobility-title">ICU 获得性衰弱 / 早期活动</div>
+        <div class="mobility-sub">围绕 ICU 获得性衰弱风险、制动时长和早期活动机会做专题展示。</div>
+      </div>
+      <div class="mobility-pill">{{ headline }}</div>
+    </div>
+
+    <div class="mobility-grid">
+      <article class="mobility-card">
+        <div class="mobility-card-title">ICU 获得性衰弱风险</div>
+        <div class="mobility-card-main">{{ riskSummary }}</div>
+        <div class="mobility-card-meta">{{ riskMeta }}</div>
+        <div v-if="riskChips.length" class="mobility-chip-row">
+          <span v-for="(chip, idx) in riskChips" :key="`risk-${idx}`" class="mobility-chip">{{ chip }}</span>
+        </div>
+      </article>
+      <article class="mobility-card">
+        <div class="mobility-card-title">活动时机</div>
+        <div class="mobility-card-main">{{ opportunitySummary }}</div>
+        <div class="mobility-card-meta">{{ opportunityMeta }}</div>
+        <div v-if="opportunityChips.length" class="mobility-chip-row">
+          <span v-for="(chip, idx) in opportunityChips" :key="`opp-${idx}`" class="mobility-chip">{{ chip }}</span>
+        </div>
+      </article>
+    </div>
+
+    <div v-if="alerts.length" class="mobility-list">
+      <article v-for="(item, idx) in alerts.slice(0, 6)" :key="item._id || idx" class="mobility-row">
+        <div>
+          <strong>{{ item.name || '活动评估' }}</strong>
+          <div class="mobility-row-time">{{ fmtTime(item.created_at) || '时间未知' }}</div>
+        </div>
+        <div class="mobility-row-main">{{ item.explanation?.summary || item.extra?.message || item.extra?.recommended_level_label || '暂无说明' }}</div>
+      </article>
+    </div>
+    <div v-else class="mobility-empty">暂无 ICU 获得性衰弱 / 早期活动相关预警</div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+const props = defineProps<{ alerts: Array<any>; fmtTime: (v: any) => string }>()
+const riskAlert = computed(() => props.alerts.find((row) => String(row?.alert_type || '') === 'icu_aw_risk'))
+const oppAlert = computed(() => props.alerts.find((row) => String(row?.alert_type || '') === 'early_mobility_recommendation'))
+const headline = computed(() => oppAlert.value?.extra?.recommended_level_label || (riskAlert.value ? '存在高风险信号' : '等待评估'))
+const riskSummary = computed(() => riskAlert.value?.explanation?.summary || riskAlert.value?.name || '当前未见 ICU 获得性衰弱高风险提示')
+const riskMeta = computed(() => riskAlert.value ? (props.fmtTime(riskAlert.value.created_at) || '最近更新') : '当前无高风险预警')
+const riskChips = computed(() => { const factors = Array.isArray(riskAlert.value?.extra?.factors) ? riskAlert.value.extra.factors : []; return factors.slice(0, 4).map((item: any) => item?.evidence || item?.factor).filter(Boolean) })
+const opportunitySummary = computed(() => oppAlert.value?.extra?.message || oppAlert.value?.explanation?.summary || '当前未触发活动机会提醒')
+const opportunityMeta = computed(() => { const hours = oppAlert.value?.extra?.hours_since_activity; return hours != null ? `距上次活动 ${hours}h` : (oppAlert.value ? (props.fmtTime(oppAlert.value.created_at) || '最近更新') : '待活动评估') })
+const opportunityChips = computed(() => { const readiness = oppAlert.value?.extra?.mobility_readiness || {}; const rows = [readiness?.recommended_level_label, readiness?.hemodynamic_status, readiness?.oxygenation_status, oppAlert.value?.extra?.immobility_hours != null ? `制动 ${oppAlert.value.extra.immobility_hours}h` : '']; return rows.filter(Boolean) })
+</script>
+
+<style scoped>
+.mobility-tab { display: grid; gap: 14px; }
+.mobility-hero { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.mobility-title { color: var(--text-primary); font-size: 22px; font-weight: 800; }
+.mobility-sub,.mobility-card-meta,.mobility-row-time { color: var(--text-secondary); font-size: 12px; }
+.mobility-pill { padding: 10px 14px; border-radius: var(--card-radius); background: rgba(10, 61, 87, 0.54); color: var(--accent); border: 1px solid rgba(125, 211, 252, 0.16); }
+.mobility-grid,.mobility-list { display: grid; gap: 12px; }
+.mobility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mobility-card,.mobility-row { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125, 211, 252, 0.12); background: var(--bg-surface), var(--bg-surface)); }
+.mobility-card-title { color: var(--text-primary); font-size: 15px; font-weight: 800; }
+.mobility-card-main,.mobility-row-main { margin-top: 10px; color: var(--text-primary); line-height: 1.6; }
+.mobility-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.mobility-chip { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface), 0.92); color: var(--text-primary); font-size: 12px; border: 1px solid rgba(125, 211, 252, 0.12); }
+.mobility-row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; align-items: start; }
+.mobility-row strong { color: var(--text-primary); }
+.mobility-empty { padding: 24px; text-align: center; color: var(--text-secondary); border: 1px dashed rgba(125, 211, 252, 0.2); border-radius: var(--card-radius); }
+@media (max-width: 900px) { .mobility-grid,.mobility-row { grid-template-columns: 1fr; } }
+
+/* Light mode overrides */
+html[data-theme='light'] .mobility-title { color: var(--text-secondary); }
+html[data-theme='light'] .mobility-sub, html[data-theme='light'] .mobility-card-meta, html[data-theme='light'] .mobility-row-time { color: var(--text-secondary); }
+html[data-theme='light'] .mobility-pill { background: rgba(59,130,246,0.1); color: var(--brand); border-color: rgba(59,130,246,0.28); }
+html[data-theme='light'] .mobility-card, html[data-theme='light'] .mobility-row { background: var(--bg-surface), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .mobility-card-title { color: var(--brand); }
+html[data-theme='light'] .mobility-card-main, html[data-theme='light'] .mobility-row-main { color: var(--text-secondary); }
+html[data-theme='light'] .mobility-chip { background: var(--bg-surface); color: var(--text-secondary); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .mobility-row strong { color: var(--text-secondary); }
+html[data-theme='light'] .mobility-empty { color: var(--text-secondary); border-color: rgba(187,204,220,0.72); }
+</style>

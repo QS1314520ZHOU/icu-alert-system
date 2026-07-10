@@ -1,0 +1,83 @@
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      args:
+        INCLUDE_LOCAL_MODELS: ${INCLUDE_LOCAL_MODELS:-false}
+    container_name: icu_alert_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # --- 数据库连接 ---
+      - SMARTCARE_DB_HOST=${SMARTCARE_DB_HOST:-127.0.0.1}
+      - SMARTCARE_DB_PORT=${SMARTCARE_DB_PORT:-27017}
+      - SMARTCARE_DB_USER=${SMARTCARE_DB_USER:-}
+      - SMARTCARE_DB_PASSWORD=${SMARTCARE_DB_PASSWORD:-}
+      - SMARTCARE_DB_AUTH=${SMARTCARE_DB_AUTH:-SmartCare}
+
+      - DATACENTER_DB_HOST=${DATACENTER_DB_HOST:-127.0.0.1}
+      - DATACENTER_DB_PORT=${DATACENTER_DB_PORT:-27017}
+      - DATACENTER_DB_USER=${DATACENTER_DB_USER:-}
+      - DATACENTER_DB_PASSWORD=${DATACENTER_DB_PASSWORD:-}
+      - DATACENTER_DB_AUTH=${DATACENTER_DB_AUTH:-DataCenter}
+
+      # --- AI / LLM ---
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://notion.jylb.fun/v1}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-gpt-5.4}
+      - LLM_MODEL_MEDICAL=${LLM_MODEL_MEDICAL:-}
+      - LLM_FALLBACK_MODEL=${LLM_FALLBACK_MODEL:-}
+      - LLM_REASONING_MODEL=${LLM_REASONING_MODEL:-}
+
+      # --- ASR ---
+      - ASR_BASE_URL=${ASR_BASE_URL:-http://127.0.0.1:10096}
+      - ASR_MODE=${ASR_MODE:-http}
+      - ASR_LLM_BASE_URL=${ASR_LLM_BASE_URL:-}
+      - ASR_LLM_API_KEY=${ASR_LLM_API_KEY:-}
+      - ASR_LLM_MODEL=${ASR_LLM_MODEL:-}
+
+      # --- Redis ---
+      - REDIS_HOST=${REDIS_HOST:-icu_alert_redis}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - ICU_MODELS_DIR=${ICU_MODELS_DIR:-/opt/icu-models}
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - icu_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: icu_alert_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - icu_net
+
+volumes:
+  redis_data:
+
+networks:
+  icu_net:
+    driver: bridge

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "lpv_ardsnet_protocol",
+    "title": "机械通气参数管理与肺保护性通气策略",
+    "source": "ARDSNet ARMA Trial (NEJM 2000) + ATS/ESICM/SCCM 2017",
+    "recommendation": "ARDSNet低潮气量通气方案",
+    "tags": ["ventilator", "ards", "tidal_volume", "pplat", "lung_protective"],
+    "text": "ARDSNet ARMA试验(N=861)证实低潮气量显著降低ARDS死亡率(31% vs 39.8%,p=0.007)。核心设置：潮气量(Vt)目标6mL/kg预计体重(PBW),男性PBW=50+0.91×(身高cm-152.4),女性PBW=45.5+0.91×(身高cm-152.4)。初始设置8mL/kg PBW,每2h减少1mL/kg至6mL/kg。平台压(Pplat)目标<=30cmH2O,每4h测量(吸气末屏气0.5s)。若Pplat>30,每次减Vt 1mL/kg至最低4mL/kg。呼吸频率(RR)调整至维持pH>=7.30,最高35次/min。允许性高碳酸血症：pH 7.15-7.30可接受,pH<7.15考虑碳酸氢钠或增加RR/Vt(Pplat允许范围内)。氧合目标：PaO2 55-80mmHg或SpO2 88-95%。"
+  },
+  {
+    "id": "lpv_driving_pressure",
+    "title": "机械通气参数管理与肺保护性通气策略",
+    "source": "Amato 2015 (NEJM) + ATS/ESICM 2017",
+    "recommendation": "驱动压(Driving Pressure)优化",
+    "tags": ["driving_pressure", "compliance", "ards", "mortality"],
+    "text": "驱动压(ΔP)=Pplat-PEEP,反映潮气量与呼吸系统顺应性的比值(Vt/Crs)。Amato 2015个体患者荟萃分析(N=3562)显示ΔP是与ARDS死亡率关联最强的通气变量,每增加1cmH2O标准化死亡比增加约1.41。目标ΔP<15cmH2O(优于单独限制Vt或Pplat)。当Pplat<=30但ΔP>15时,应进一步减低Vt或增加PEEP(在不增加ΔP前提下)。临床操作：PEEP滴定时观察ΔP变化,选择使ΔP最低的PEEP水平(最佳顺应性点)。ΔP>15cmH2O提示肺可复张容积小(baby lung),应警惕过度牵张。"
+  },
+  {
+    "id": "lpv_peep_fio2_table",
+    "title": "机械通气参数管理与肺保护性通气策略",
+    "source": "ARDSNet PEEP-FiO2 Table + ART Trial + EPVent-2",
+    "recommendation": "PEEP-FiO2配对表与PEEP滴定",
+    "tags": ["peep", "fio2", "recruitment", "oxygenation"],
+    "text": "ARDSNet低PEEP表(常用)：FiO2 0.3/PEEP 5→FiO2 0.4/PEEP 5→FiO2 0.5/PEEP 8→FiO2 0.6/PEEP 10→FiO2 0.7/PEEP 10→FiO2 0.8/PEEP 14→FiO2 0.9/PEEP 14→FiO2 1.0/PEEP 18-24。高PEEP表(中重度ARDS)：FiO2 0.3/PEEP 12→FiO2 0.4/PEEP 14→FiO2 0.5/PEEP 16→FiO2 0.6/PEEP 18→FiO2 0.7/PEEP 18→FiO2 0.8/PEEP 22→FiO2 0.9/PEEP 22→FiO2 1.0/PEEP 24。ART试验(N=1010)显示肺复张策略+高PEEP不优于低PEEP且可能有害(60天死亡率55.3% vs 49.3%)。EPVent-2(食管压引导PEEP)无明显获益。实用策略：中重度ARDS试用较高PEEP,监测ΔP和血流动力学反应,选择个体化最佳PEEP。PEEP增加后MAP下降>10%或心输出量显著降低应减回。"
+  },
+  {
+    "id": "lpv_prone_positioning",
+    "title": "机械通气参数管理与肺保护性通气策略",
+    "source": "PROSEVA Trial (NEJM 2013) + ATS/ESICM 2017",
+    "recommendation": "俯卧位通气",
+    "tags": ["prone", "ards", "severe", "oxygenation", "mortality"],
+    "text": "PROSEVA试验(N=466)证实中重度ARDS(P/F<150,FiO2>=0.6,PEEP>=5)早期俯卧位通气显著降低28天死亡率(16% vs 32.8%,p<0.001)和90天死亡率(23.6% vs 41%,p<0.001)。执行要点：入ARDS诊断12-24h内启动,每次>=16h/session,连续至P/F>150持续4h(仰卧位FiO2<=0.6且PEEP<=10时)或临床改善。绝对禁忌：脊柱不稳定骨折、开放性腹部、颅内压增高且不稳定、近期气管切开或胸骨切开(72h内)。相对禁忌：血流动力学极不稳定(NE>0.5)、面部创伤/手术、ECMO(非绝对)。翻转时安全确认：固定ETT/CVC/A-line/引流管,暂停肠内营养,充分镇静(RASS -4至-5),2-3人协作翻转。监测：俯卧位后1h查ABG评估反应,P/F改善<20mmHg为无反应者需评估其他措施。"
+  },
+  {
+    "id": "lpv_nmba_recruitment",
+    "title": "机械通气参数管理与肺保护性通气策略",
+    "source": "ACURASYS (NEJM 2010) + ROSE (NEJM 2019) + ATS/ESICM",
+    "recommendation": "神经肌肉阻滞剂与肺复张手法",
+    "tags": ["nmba", "cisatracurium", "recruitment_maneuver", "ards"],
+    "text": "ACURASYS试验(N=340)：早期使用顺式阿曲库铵48h(重度ARDS,P/F<150)改善90天死亡率(31.6% vs 40.7%,校正后p=0.04)。ROSE试验(N=1006,更大样本)：早期NMBA+深镇静vs轻度镇静策略(允许按需NMBA),90天死亡率无差异(42.5% vs 42.8%),且NMBA组更多ICU-AW和心血管不良事件。当前推荐(ATS/ESICM)：不常规使用NMBA;仅在深镇静下仍有严重人机不同步或P/F<80-100且需要俯卧位时短期使用(<=48h)。使用时需BIS监测确保充分镇静(BIS 40-60)。肺复张手法(RM)：ART试验后不推荐常规高压RM(PEEP 45cmH2O阶梯)。若使用,建议保守方式：CPAP 30-35cmH2O持续30-40s,密切监测血压和心率,出现MAP<60或HR下降>20%立即终止。"
+  },
+  {
+    "id": "lpv_advanced_modes",
+    "title": "机械通气参数管理与肺保护性通气策略",
+    "source": "ESICM Expert Opinion + Clinical Practice",
+    "recommendation": "高级通气模式(APRV/HFOV)",
+    "tags": ["aprv", "hfov", "advanced_ventilation", "rescue"],
+    "text": "APRV(气道压力释放通气)：双水平CPAP,P-high(20-30cmH2O,T-high 4-6s)和P-low(0cmH2O,T-low 0.5-0.8s自动调节至呼气流速降至峰值25-50%)。理论优势：维持自主呼吸、改善V/Q匹配、减少镇静需求。无大型RCT证实优于传统保护性通气,目前仅作为挽救性或过渡性策略。HFOV(高频振荡通气)：OSCAR(N=795)和OSCILLATE(N=548)两项大型RCT均未显示HFOV优于常规保护性通气,OSCILLATE甚至显示HFOV组死亡率更高(47% vs 35%,p=0.005)。当前不推荐常规使用HFOV。挽救性策略阶梯(常规保护性通气失败后)：俯卧位→NMBA短期→吸入NO(5-20ppm,改善氧合但不改善死亡率)→VV-ECMO(参考ecmo_management.json)。"
+  }
+]

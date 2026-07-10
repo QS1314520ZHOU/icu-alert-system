@@ -1,0 +1,42 @@
+# SmartCare 数据库
+SMARTCARE_DB_HOST=127.0.0.1
+SMARTCARE_DB_PORT=27017
+SMARTCARE_DB_USER=dxm
+SMARTCARE_DB_PASSWORD=DB@dmin
+SMARTCARE_DB_AUTH=SmartCare
+
+# DataCenter 数据库
+DATACENTER_DB_HOST=127.0.0.1
+DATACENTER_DB_PORT=27017
+DATACENTER_DB_USER=data
+DATACENTER_DB_PASSWORD=Data@dmin
+DATACENTER_DB_AUTH=DataCenter
+
+# Redis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+
+REDIS_PASSWORD=
+
+# AI/LLM
+LLM_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
+LLM_API_KEY=tp-c6upwh0xuciwr9bvgycq4ivuwlx9j88kbji5lkhyjo1gakxq
+LLM_MODEL=mimo-v2.5
+LLM_MODEL_MEDICAL=mimo-v2.5
+LLM_FALLBACK_MODEL=mimo-v2.5
+LLM_REASONING_MODEL=mimo-v2.5
+
+# FunASR 语音识别服务地址
+ASR_BASE_URL=http://10.191.132.139:10095
+ASR_MODE=ws
+
+# 语音纠错专用 LLM（留空则自动 fallback 到全局 LLM 配置）
+ASR_LLM_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
+ASR_LLM_API_KEY=tp-c6upwh0xuciwr9bvgycq4ivuwlx9j88kbji5lkhyjo1gakxq
+ASR_LLM_MODEL=mimo-v2.5-asr
+
+# 系统
+SECRET_KEY=change-me-in-production
+
+# CORS 白名单（前端访问后端需要的来源，逗号分隔，无空格）
+CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173,http://192.168.31.185:5173,http://[2408:8262:245d:65c6:e278:36ab:bf:f94d]:5173,https://alert.jylb.fun

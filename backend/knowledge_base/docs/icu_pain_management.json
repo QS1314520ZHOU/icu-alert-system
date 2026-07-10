@@ -1,0 +1,42 @@
+[
+  {
+    "id": "pain_assessment_tools",
+    "title": "ICU疼痛管理指南",
+    "source": "PADIS 2018 + SCCM",
+    "recommendation": "疼痛评估工具",
+    "tags": ["pain", "bps", "cpot", "nrs", "assessment"],
+    "text": "PADIS 2018推荐对不能自诉的ICU患者使用BPS(行为疼痛量表)或CPOT(重症疼痛观察工具)进行常规评估(强推荐)。BPS(3-12分)：面部表情(1-4)、上肢运动(1-4)、呼吸机顺应性(1-4)。BPS>5提示显著疼痛。CPOT(0-8分)：面部表情(0-2)、身体运动(0-2)、肌张力(0-2)、呼吸机顺应性或发声(0-2)。CPOT>2提示显著疼痛。可自诉患者使用NRS(数字评分0-10)或VAS(视觉模拟)。评估频率：q4h常规+操作前后(吸痰/翻身/伤口护理前5-10min给予预防性镇痛后评估)。评估结果需指导治疗调整:设定个体化目标(如BPS<=5或NRS<=3)。"
+  },
+  {
+    "id": "pain_opioid_management",
+    "title": "ICU疼痛管理指南",
+    "source": "PADIS 2018 + Clinical Pharmacology",
+    "recommendation": "阿片类药物使用与等效换算",
+    "tags": ["opioid", "fentanyl", "morphine", "remifentanil", "equianalgesic"],
+    "text": "ICU一线镇痛药物：芬太尼(起效1-2min,半衰期2-4h,无组胺释放/血流动力学稳定→肝肾不全和血流动力学不稳定首选)50-100μg IV负荷→25-200μg/h泵注。吗啡(起效5-10min,半衰期3-4h,活性代谢物M6G肾脏清除→肾功不全蓄积)2-4mg IV q1-2h→2-10mg/h泵注。瑞芬太尼(超短效,起效1min,半衰期3-5min,不蓄积→需要频繁神经学评估时)0.5-1μg/kg负荷→0.05-0.3μg/kg/min。氢吗啡酮(效价吗啡5-7倍,半衰期2-3h)0.2-0.6mg IV q1-2h→0.2-1mg/h泵注。等效换算(IV)：吗啡10mg≈芬太尼100μg≈氢吗啡酮1.5mg。阿片相关不良反应：呼吸抑制(有通气支持时可控)、低血压(吗啡>芬太尼)、便秘/肠梗阻(甲基纳曲酮12mg SC qd)、瞳孔缩小(影响神经评估)、谵妄、耐受与戒断(>7天使用逐渐减量,每日减10-20%)。"
+  },
+  {
+    "id": "pain_multimodal_analgesia",
+    "title": "ICU疼痛管理指南",
+    "source": "PADIS 2018 + ERAS Society + Clinical Practice",
+    "recommendation": "多模式镇痛策略",
+    "tags": ["multimodal", "acetaminophen", "ketamine", "gabapentin", "regional"],
+    "text": "多模式镇痛核心理念：联合不同机制药物减少阿片需求25-50%,降低不良反应。基础层-对乙酰氨基酚(PADIS 2018条件推荐)：1g IV/PO q6h(最大4g/d,肝病/体重<50kg减量),可减少阿片用量30-40%。辅助层-氯胺酮(PADIS 2018条件推荐)：低剂量0.1-0.5mg/kg/h(亚麻醉剂量)→阿片节省/抗痛觉过敏/不抑制呼吸。适应症：阿片耐受、神经病理性疼痛、大手术后。禁忌：颅内压增高(相对)、精神病史。加巴喷丁/普瑞巴林(PADIS条件推荐)：术后或神经病理性疼痛300-600mg PO q8h(肾功调整)。区域麻醉：胸段硬膜外(胸腹部手术)、肋间神经阻滞(胸部创伤)、TAP阻滞(腹部手术)→显著减少全身阿片需求。NSAIDs：ICU慎用(AKI/出血/胃肠风险),短期低风险患者可考虑酮咯酸15-30mg IV q6h(<=5天)。"
+  },
+  {
+    "id": "pain_procedural_management",
+    "title": "ICU疼痛管理指南",
+    "source": "PADIS 2018 + Clinical Practice",
+    "recommendation": "操作性疼痛管理",
+    "tags": ["procedural_pain", "preemptive", "chest_tube", "wound_care"],
+    "text": "ICU患者经历的最痛操作(VAS评分)：胸管拔除(6-8/10)、伤口换药(5-7)、气管内吸痰(4-6)、翻身/体位变换(4-6)、动脉穿刺(3-5)、中心静脉置管(3-5)。预防性镇痛策略：操作前15-30min给予芬太尼25-50μg IV(或吗啡2mg IV)。非药物辅助：操作前充分解释(减少焦虑30%)、冰敷/热敷(伤口换药)、音乐干预(RCT显示减少操作痛VAS约1-2分)。胸管拔除：操作前30min给予阿片+局部利多卡因浸润+快速拔管(吸气末Valsalva时)。伤口换药：复杂伤口考虑氯胺酮0.5mg/kg IV+丙泊酚亚催眠剂量(0.5mg/kg)短效联合。CVC/A-line：局部利多卡因1-2%皮下浸润(必须)+超声引导(减少穿刺次数)。"
+  },
+  {
+    "id": "pain_special_populations",
+    "title": "ICU疼痛管理指南",
+    "source": "PADIS 2018 + Clinical Practice",
+    "recommendation": "特殊人群疼痛管理",
+    "tags": ["pain", "elderly", "renal_failure", "liver_failure", "opioid_tolerant"],
+    "text": "老年患者(>65岁)：药物清除降低,起始剂量减半(芬太尼25μg→12.5μg,吗啡4mg→2mg),滴定间隔延长。首选芬太尼(无活性代谢物)。加巴喷丁起始100-200mg q8h(肾功调整)。避免哌替啶(代谢物降低癫痫阈值)。肾功能不全(CrCl<30)：避免吗啡(M6G蓄积)→首选芬太尼或氢吗啡酮。加巴喷丁需减量。肝功能不全：吗啡/氢吗啡酮清除降低→减量50%+延长间隔。芬太尼轻中度肝病相对安全。对乙酰氨基酚严重肝病(Child C)禁用或<2g/d。阿片耐受患者(慢性阿片使用)：维持基线阿片等效剂量+额外给予急性痛治疗。低剂量氯胺酮特别有效。PCA(患者自控镇痛)适用于清醒配合的患者。"
+  }
+]

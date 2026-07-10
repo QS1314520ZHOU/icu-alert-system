@@ -1,0 +1,231 @@
+from __future__ import annotations
+
+import math
+from datetime import datetime
+
+from .scanners import BaseScanner, ScannerSpec
+
+
+def _format_number(value: object, digits: int = 1) -> str:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    if not math.isfinite(num):
+        return "-"
+    rounded = round(num, digits)
+    if digits <= 0 or abs(rounded - round(rounded)) < 1e-9:
+        return str(int(round(rounded)))
+    return f"{rounded:.{digits}f}".rstrip("0").rstrip(".")
+
+
+def _round_number(value: object, digits: int = 1) -> float | int | None:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(num):
+        return None
+    rounded = round(num, digits)
+    if digits <= 0 or abs(rounded - round(rounded)) < 1e-9:
+        return int(round(rounded))
+    return rounded
+
+
+def _ratio_label(ratio_type: str | None) -> str:
+    return "P/F" if ratio_type == "pf_ratio" else "S/F"
+
+
+class ArdsScanner(BaseScanner):
+    def __init__(self, engine) -> None:
+        super().__init__(
+            engine,
+            ScannerSpec(
+                name="ards",
+                interval_key="ards",
+                default_interval=300,
+                initial_delay=20,
+            ),
+        )
+
+    async def scan(self) -> None:
+        patient_cursor = self.engine.db.col("patient").find(
+            self.engine._active_patient_query(),
+            {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1},
+        )
+        patients = [p async for p in patient_cursor]
+        if not patients:
+            return
+
+        suppression = self.engine.config.yaml_cfg.get("alert_engine", {}).get("suppression", {})
+        same_rule_sec = int(suppression.get("same_rule_same_patient_seconds", 1800))
+        max_per_hour = int(suppression.get("max_alerts_per_patient_per_hour", 10))
+
+        triggered = 0
+        for patient_doc in patients:
+            pid = patient_doc.get("_id")
+            if not pid:
+                continue
+            pid_str = str(pid)
+            imaging = await self.engine.get_imaging_report_analysis(
+                patient_doc,
+                pid_str,
+                hours=96,
+                max_age_hours=8,
+                persist_if_refresh=False,
+            )
+            imaging_signals = self.engine._select_imaging_signals(imaging, module_tags={"ards"}, max_items=3)
+            device_id = await self.engine._get_device_id_for_patient(patient_doc, ["vent"])
+            if not device_id:
+                continue
+
+            his_pid = patient_doc.get("hisPid")
+            if not his_pid:
+                continue
+
+            cap = await self.engine._get_latest_device_cap(device_id)
+            if not cap:
+                continue
+
+            fio2 = self.engine._vent_param(cap, "fio2", "param_FiO2")
+            peep = self.engine._vent_param_priority(cap, ["peep_measured", "peep_set"], ["param_vent_measure_peep", "param_vent_peep"])
+            if fio2 is None or peep is None or peep < 5:
+                continue
+
+            fio2_frac = fio2 / 100.0 if fio2 > 1 else fio2
+            labs = await self.engine._get_latest_labs_map(his_pid, lookback_hours=24)
+            pao2 = labs.get("pao2", {}).get("value") if labs else None
+            spo2 = self.engine._vent_param_priority(cap, ["spo2"], ["param_spo2"]) or self.engine._vent_param(cap, "spo2", "param_spo2")
+            if fio2_frac <= 0:
+                continue
+
+            ratio_value = None
+            ratio_type = None
+            severity = None
+            name = None
+            if pao2 is not None:
+                ratio_value = pao2 / fio2_frac
+                ratio_type = "pf_ratio"
+                if ratio_value <= 100:
+                    severity = "critical"
+                    name = "ARDS重度"
+                elif ratio_value <= 200:
+                    severity = "high"
+                    name = "ARDS中度"
+                elif ratio_value <= 300:
+                    severity = "warning"
+                    name = "ARDS轻度"
+            elif spo2 is not None and float(spo2) <= 97:
+                ratio_value = float(spo2) / fio2_frac
+                ratio_type = "sf_ratio"
+                if ratio_value <= 148:
+                    severity = "critical"
+                    name = "ARDS重度(SF替代)"
+                elif ratio_value <= 235:
+                    severity = "high"
+                    name = "ARDS中度(SF替代)"
+                elif ratio_value <= 315:
+                    severity = "warning"
+                    name = "ARDS轻度(SF替代)"
+            if ratio_value is None or severity is None or not name:
+                continue
+
+            ratio_display = _format_number(ratio_value, 1)
+            peep_display = _format_number(peep, 1)
+            fio2_display = _format_number(fio2, 0 if fio2 > 1 else 2)
+            pao2_display = _format_number(pao2, 0) if pao2 is not None else None
+            spo2_display = _format_number(spo2, 0) if spo2 is not None else None
+            ratio_label = _ratio_label(ratio_type)
+            rounded_condition = {
+                ratio_type: _round_number(ratio_value, 1),
+                "peep": _round_number(peep, 1),
+                "fio2": _round_number(fio2, 0 if fio2 > 1 else 2),
+            }
+            rounded_extra = {
+                "pao2": _round_number(pao2, 0) if pao2 is not None else None,
+                "spo2": _round_number(spo2, 0) if spo2 is not None else None,
+                "fio2": rounded_condition["fio2"],
+                "peep": rounded_condition["peep"],
+            }
+            bnp_trend = await self.engine._get_bnp_trend(his_pid, datetime.now(), hours=72) if hasattr(self.engine, "_get_bnp_trend") else {}
+            cardiogenic_flag = (bnp_trend.get("ratio") or 0) >= 1.5 or (bnp_trend.get("latest") or 0) >= 1000
+            imaging_lines = self.engine._format_imaging_evidence_lines(imaging_signals, max_items=2)
+            summary_suffix = f"；{self.engine._build_imaging_summary(imaging_signals)}" if imaging_signals else ""
+            explanation = await self.engine._polish_structured_alert_explanation(
+                {
+                    "summary": f"{name} 风险，当前依据为 {ratio_label} {ratio_display}、PEEP {peep_display} cmH2O{summary_suffix}。",
+                    "evidence": [
+                        f"FiO2 {fio2_display}",
+                        f"PEEP {peep_display}",
+                        f"PaO2 {pao2_display}" if pao2 is not None else f"SpO2 {spo2_display}",
+                        "BNP/容量状态提示需排除心源性肺水肿" if cardiogenic_flag else "请临床结合影像和容量状态排除心源性肺水肿",
+                        *imaging_lines,
+                    ],
+                    "suggestion": "若无动脉血气，可结合 SF ratio 连续复评；若 BNP 升高或容量负荷偏高，请谨慎解释 ARDS 结论。",
+                    "text": "",
+                }
+            )
+
+            effective_severity = severity
+            if cardiogenic_flag and severity == "critical":
+                effective_severity = "high"
+            elif cardiogenic_flag and severity == "high":
+                effective_severity = "warning"
+
+            recent_asynchrony = await self.engine._latest_ventilator_asynchrony_assessment(pid_str, hours=4) if hasattr(self.engine, "_latest_ventilator_asynchrony_assessment") else None
+            asynchrony_type = str((recent_asynchrony or {}).get("dominant_type") or "")
+            asynchrony_ai = float((recent_asynchrony or {}).get("ai_index") or 0.0)
+            pbw = self.engine._predicted_body_weight(patient_doc) if hasattr(self.engine, "_predicted_body_weight") else None
+            vt_ml_kg = (float(self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"])) / float(pbw)) if pbw and self.engine._vent_param_priority(cap, ["vte", "vt_set"], ["param_vent_vt", "param_vent_set_vt"]) is not None else None
+            if asynchrony_type == "double_triggering" and vt_ml_kg is not None and vt_ml_kg > 8:
+                explanation["evidence"].append(f"近期双触发 AI {_format_number(asynchrony_ai, 1)}%")
+                explanation["evidence"].append(f"VTe/PBW {_format_number(vt_ml_kg, 2)} mL/kg")
+                explanation["suggestion"] = (
+                    str(explanation.get("suggestion") or "").rstrip("。")
+                    + "；同时存在双触发叠加高 VT，建议强化肺保护通气并优先控制人机不同步。"
+                ).strip("；")
+                explanation["text"] = ""
+                if effective_severity == "warning":
+                    effective_severity = "high"
+                elif effective_severity == "high":
+                    effective_severity = "critical"
+
+            rule_id = "ARDS_" + effective_severity.upper()
+            if await self.engine._is_suppressed(pid_str, rule_id, same_rule_sec, max_per_hour):
+                continue
+
+            alert = await self.engine._create_alert(
+                rule_id=rule_id,
+                name=name,
+                category="syndrome",
+                alert_type="ards",
+                severity=effective_severity,
+                parameter=ratio_type,
+                condition=rounded_condition,
+                value=rounded_condition[ratio_type],
+                patient_id=pid_str,
+                patient_doc=patient_doc,
+                device_id=device_id,
+                source_time=labs.get("pao2", {}).get("time") if pao2 is not None and labs else datetime.now(),
+                explanation=explanation,
+                extra={
+                    "pao2": rounded_extra["pao2"],
+                    "spo2": rounded_extra["spo2"],
+                    "fio2": rounded_extra["fio2"],
+                    "peep": rounded_extra["peep"],
+                    "ratio_type": ratio_type,
+                    "cardiogenic_overlap_risk": cardiogenic_flag,
+                    "bnp_trend": bnp_trend,
+                    "recent_asynchrony": recent_asynchrony,
+                    "vt_ml_kg_pbw": _round_number(vt_ml_kg, 2) if vt_ml_kg is not None else None,
+                    "imaging_findings": {
+                        "summary": self.engine._build_imaging_summary(imaging_signals),
+                        "matched_signals": imaging_signals,
+                    } if imaging_signals else None,
+                },
+            )
+            if alert:
+                triggered += 1
+
+        if triggered > 0:
+            self.engine._log_info("ARDS预警", triggered)

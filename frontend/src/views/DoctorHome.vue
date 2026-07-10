@@ -1,0 +1,484 @@
+<template>
+  <section class="role-home doctor-home">
+    <header class="home-top ds-card">
+      <div class="home-title">
+        <strong>医生首页</strong>
+        <span>主管医生 · {{ home?.account?.dept || '科室待识别' }}</span>
+      </div>
+      <div class="top-meta">
+        <span>{{ accountName }}</span>
+        <span>{{ home?.account?.dept || '科室待识别' }}</span>
+        <span>{{ shiftText }}</span>
+        <span>{{ clock }}</span>
+        <button type="button" @click="load">刷新</button>
+      </div>
+    </header>
+
+    <div v-if="loading" class="empty">正在汇总我管的床、昨夜 AI 监控和待办...</div>
+    <div v-else-if="error" class="empty danger">{{ error }}</div>
+    <template v-else>
+      <section class="start-guide ds-card">
+        <div>
+          <span>今天从这里开始</span>
+          <strong>先看重点患者，再处理待办，最后进入患者详情完成查房和文书。</strong>
+        </div>
+        <button type="button" @click="showOnboarding = true">查看3步引导</button>
+      </section>
+
+      <section class="doctor-summary">
+        <article v-for="item in doctorSummary" :key="item.key" :class="['summary-card', 'ds-card', 'ds-kpi', kpiToneClass(item.tone)]">
+          <div class="ds-kpi-icon">
+            <TeamOutlined v-if="item.key === 'beds'" />
+            <BellOutlined v-else-if="item.key === 'risk'" />
+            <ClockCircleOutlined v-else-if="item.key === 'pending' || item.key === 'tasks'" />
+            <CheckCircleOutlined v-else />
+          </div>
+          <div>
+            <span class="ds-kpi-label">{{ item.label }}</span>
+            <strong class="ds-kpi-num">{{ item.value }}</strong>
+            <em>{{ item.hint }}</em>
+          </div>
+        </article>
+      </section>
+
+      <main class="doctor-grid">
+        <section class="panel ds-card focus-panel">
+          <div class="panel-head">
+            <strong>我的今日重点</strong>
+            <span>按床位数字和综合风险排序</span>
+          </div>
+          <article v-for="item in sortedFocusPatients" :key="item.patient_id" class="focus-row" @click="goPatient(item.patient_id)">
+            <i :class="`tone-${tone(item.risk_level)}`"></i>
+            <div>
+              <strong>{{ displayBed(item.bed) }} {{ item.name || '未知患者' }}</strong>
+              <span>{{ cleanReason(item.reason) }}</span>
+              <small>
+                <em :class="['ds-badge', badgeClass(item.risk_level)]">{{ riskLabel(item.risk_level) }}</em>
+                <em>评分 {{ item.risk_score || 0 }}</em>
+              </small>
+              <div class="focus-actions">
+                <button type="button" @click.stop="goPatient(item.patient_id)">查看详情</button>
+                <button type="button" @click.stop="goPatientTab(item.patient_id, 'alerts')">处理告警</button>
+                <button type="button" @click.stop="goPatientTab(item.patient_id, 'ai')">查房摘要</button>
+                <button type="button" @click.stop="goPatientTab(item.patient_id, 'documents')">病历文书</button>
+              </div>
+            </div>
+          </article>
+          <div v-if="!sortedFocusPatients.length" class="empty small">{{ doctorEmptyText }}</div>
+        </section>
+
+        <section class="panel ds-card">
+          <div class="panel-head">
+            <strong>AI 昨夜替我做了什么</strong>
+            <span>过去 12 小时</span>
+          </div>
+          <div class="kpi-grid">
+            <div v-for="item in aiStats" :key="item.label" class="kpi">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </div>
+          <button class="full-btn" type="button" @click="$router.push({ path: '/clinical-workflow', query: route.query })">查看夜班完整工作日志</button>
+        </section>
+
+        <section class="panel ds-card">
+          <div class="panel-head">
+            <strong>我的待办</strong>
+            <span>未签 / 未关闭 / 未确认</span>
+          </div>
+          <div class="task-list">
+            <article v-for="item in pendingTasks" :key="item.task_id || item.title" class="task-row">
+              <strong>{{ item.title || item.detail || '临床任务' }}</strong>
+              <span>{{ displayBed(item.bed_label || item.bed) }} · {{ item.module_label || item.module || '临床' }}</span>
+              <button type="button" @click="goTask(item)">去处理</button>
+            </article>
+            <div v-if="!pendingTasks.length" class="empty small">暂无待办，仍建议复核高风险患者详情。</div>
+          </div>
+        </section>
+
+        <section class="panel ds-card">
+          <div class="panel-head">
+            <strong>科室质控速览</strong>
+            <span>近 7 日质量信号</span>
+          </div>
+          <div class="lights">
+            <button v-for="item in qualityLights" :key="item.key" type="button" :class="`light is-${item.tone}`" @click="$router.push('/analytics')">
+              <span>{{ item.label }}</span>
+              <b>{{ item.value }}</b>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <div v-if="showOnboarding" class="onboarding-mask" @click.self="dismissOnboarding">
+        <div class="onboarding-card">
+          <div class="panel-head">
+            <strong>医生首页3步用法</strong>
+            <button type="button" @click="dismissOnboarding">知道了</button>
+          </div>
+          <ol>
+            <li><b>先看重点患者</b><span>红色/黄色风险优先进入详情复核证据。</span></li>
+            <li><b>处理待办和高危预警</b><span>从卡片按钮直接进入告警、AI摘要或病历文书。</span></li>
+            <li><b>进入患者详情闭环</b><span>在详情页完成趋势查看、查房摘要和文书生成。</span></li>
+          </ol>
+        </div>
+      </div>
+    </template>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getDoctorHome } from '../api'
+import { useAuthStore } from '../stores/auth'
+import { formatRiskLevelLabel } from '../utils/displayLabels'
+import { roleHomeConfig } from '../config/roleHomeConfig'
+import { BellOutlined, CheckCircleOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons-vue'
+
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const loading = ref(false)
+const error = ref('')
+const home = ref<any>(null)
+const clock = ref('')
+const showOnboarding = ref(false)
+let timer: any
+
+function firstIdentityQuery(...keys: string[]) {
+  for (const key of keys) {
+    const value = route.query[key]
+    const text = String(Array.isArray(value) ? value[0] : value || '').trim()
+    if (text) return text
+  }
+  return ''
+}
+const routeIdentity = computed(() => firstIdentityQuery('user_id', 'userId', 'userName', 'useName', 'username'))
+const userId = computed(() => String(routeIdentity.value || auth.effectiveUserId || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
+const routeDept = computed(() => String(route.query.dept || route.query.department || auth.dept || '').trim())
+const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别医生')
+const focusPatients = computed(() => home.value?.focus_patients || [])
+const sortedFocusPatients = computed(() => sortBeds(focusPatients.value, (row: any) => row?.bed))
+const pendingTasks = computed(() => (home.value?.pending_tasks || []).slice(0, 8))
+const doctorEmptyText = computed(() => cleanEmptyText(home.value?.data_state?.empty_reason, '当前暂无需要置顶的分管患者，请确认患者主管医生信息已维护。'))
+const shiftText = computed(() => {
+  const s = home.value?.shift
+  if (!s) return '班次待配置'
+  return `${s.name} ${String(s.start || '').slice(11, 16)}-${String(s.end || '').slice(11, 16)}`
+})
+const aiStats = computed(() => {
+  const a = home.value?.ai_night_watch || {}
+  return [
+    { label: '告警总数', value: a.total_alerts ?? 0 },
+    { label: '自动抑制', value: a.auto_suppressed ?? 0 },
+    { label: '已推送', value: a.pushed ?? 0 },
+    { label: '已处理', value: a.handled ?? 0 },
+    { label: '待跟进', value: a.pending_followup ?? 0 },
+    { label: '综合判断', value: a.integrated_reasoning ?? 0 },
+    { label: '判断采纳', value: a.integrated_adopted ?? 0 },
+    { label: '主动提醒点击', value: `${a.pulse_clicks ?? 0}/${a.pulse_pushes ?? 0}` },
+  ]
+})
+const doctorSummary = computed(() => {
+  const a = home.value?.ai_night_watch || {}
+  const managed = Number(home.value?.managed_beds ?? home.value?.data_state?.managed_beds ?? 0)
+  const highRisk = focusPatients.value.filter((item: any) => ['critical', 'high', 'warning'].includes(String(item?.risk_level || '').toLowerCase())).length
+  const pending = Number(a.pending_followup ?? 0)
+  return [
+    { key: 'beds', label: '分管床位', value: managed, hint: '当前账号匹配', tone: managed ? 'blue' : 'muted' },
+    { key: 'risk', label: '重点风险', value: highRisk, hint: '需优先复核', tone: highRisk ? 'red' : 'green' },
+    { key: 'pending', label: '待跟进告警', value: pending, hint: '过去 12 小时', tone: pending ? 'yellow' : 'green' },
+    { key: 'tasks', label: '临床待办', value: pendingTasks.value.length, hint: '未签未确认', tone: pendingTasks.value.length ? 'yellow' : 'green' },
+  ]
+})
+const qualityLights = computed(() => {
+  const q = home.value?.quality_summary || {}
+  const rows = q?.scanner_health?.rows || q?.rows || []
+  const labels = ['VAP', 'CRBSI', 'CAUTI', '拔管失败', '镇静过度', '谵妄发生率']
+  return labels.map((label) => {
+    const row = rows.find((r: any) => String(r?.name || r?.scanner_name || '').toLowerCase().includes(label.toLowerCase()))
+    const value = row?.rate ?? row?.count ?? row?.value ?? '--'
+    const num = Number(value)
+    return { key: label, label, value, tone: Number.isFinite(num) && num > 0 ? 'yellow' : 'green' }
+  })
+})
+
+function tone(value: string) {
+  const key = String(value || '').toLowerCase()
+  if (['critical', 'high'].includes(key)) return 'critical'
+  if (key === 'warning') return 'warning'
+  if (key === 'info') return 'info'
+  return 'unknown'
+}
+function badgeClass(value: any) {
+  const key = String(value || '').toLowerCase()
+  if (['critical', 'danger', 'red'].includes(key)) return 'ds-badge--danger'
+  if (['high', 'warning', 'warn', 'medium', 'watch', 'yellow'].includes(key)) return 'ds-badge--warning'
+  if (['stable', 'success', 'green', 'ok', 'normal'].includes(key)) return 'ds-badge--success'
+  return 'ds-badge--info'
+}
+function kpiToneClass(tone: any) {
+  const key = String(tone || '').toLowerCase()
+  if (key === 'red' || key === 'danger') return 'is-danger'
+  if (key === 'yellow' || key === 'warning') return 'is-warning'
+  if (key === 'green' || key === 'success') return 'is-success'
+  return 'is-brand'
+}
+function riskLabel(value: any) {
+  return formatRiskLevelLabel(value, '待评估')
+}
+function displayBed(value: any) {
+  const text = String(value || '').trim()
+  if (!text || text === '--') return '--床'
+  return text.includes('床') ? text : `${text}床`
+}
+function bedSortParts(value: any) {
+  const raw = String(value || '').trim()
+  const normalized = raw
+    .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+    .replace(/[\s_-]+/g, '')
+  const numberHit = normalized.match(/\d+/)
+  return {
+    hasNumber: numberHit ? 0 : 1,
+    number: numberHit ? Number(numberHit[0]) : Number.MAX_SAFE_INTEGER,
+    suffix: numberHit ? normalized.slice((numberHit.index || 0) + numberHit[0].length) : normalized,
+    raw: normalized,
+  }
+}
+function sortBeds(rows: any[], getBed: (row: any) => any = (row) => row?.bed) {
+  return [...(rows || [])].sort((a: any, b: any) => {
+    const scoreDiff = Number(b?.risk_score || 0) - Number(a?.risk_score || 0)
+    if (scoreDiff) return scoreDiff
+    const left = bedSortParts(getBed(a))
+    const right = bedSortParts(getBed(b))
+    if (left.hasNumber !== right.hasNumber) return left.hasNumber - right.hasNumber
+    if (left.number !== right.number) return left.number - right.number
+    const suffixCompare = left.suffix.localeCompare(right.suffix, 'zh-CN', { numeric: true, sensitivity: 'base' })
+    if (suffixCompare) return suffixCompare
+    return left.raw.localeCompare(right.raw, 'zh-CN', { numeric: true, sensitivity: 'base' })
+  })
+}
+function goPatient(id: string) {
+  if (id) router.push({ path: `/patient/${id}`, query: route.query })
+}
+function goPatientTab(id: string, tab: string) {
+  if (id) router.push({ path: `/patient/${id}`, query: { ...route.query, tab } })
+}
+function goTask(item: any) {
+  const patientId = String(item?.patient_id || item?.patientId || item?.pid || '').trim()
+  const module = String(item?.module || item?.module_label || '').toLowerCase()
+  const tab = module.includes('文书') || module.includes('document') ? 'documents'
+    : module.includes('告警') || module.includes('alert') ? 'alerts'
+      : 'ai'
+  if (patientId) goPatientTab(patientId, tab)
+  else router.push({ path: '/clinical-workflow', query: route.query })
+}
+function cleanReason(value: any) {
+  if (value && typeof value === 'object') {
+    const summary = String(value.summary || value.text || value.title || '').trim()
+    const suggestion = String(value.suggestion || value.recommendation || '').trim()
+    return [summary, suggestion ? `建议：${suggestion}` : ''].filter(Boolean).join('。') || '进入患者详情复核。'
+  }
+  const text = String(value || '').trim()
+  if (!text) return '暂无一句话理由'
+  if (text.includes("'summary'") || text.includes('"summary"')) return '综合风险推理已生成结论，点击进入患者详情查看证据和建议。'
+  return text
+}
+function cleanEmptyText(value: any, fallback: string) {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  if (/patient\s*表|account\s*表|bedDoctorId|user[_-]?id|userId|collection|集合|数据库/i.test(text)) return fallback
+  return text
+}
+async function load() {
+  if (!userId.value) {
+    error.value = '未识别当前账号。'
+    return
+  }
+  loading.value = true
+  error.value = ''
+  try {
+    const params: { user_id: string; dept?: string; dept_code?: string } = { user_id: userId.value }
+    if (routeDeptCode.value) params.dept_code = routeDeptCode.value
+    else if (routeDept.value) params.dept = routeDept.value
+    const { data } = await getDoctorHome(params)
+    home.value = data?.data || {}
+    auth.updateAccount(home.value?.account)
+  } catch (err: any) {
+    error.value = err?.message || '医生首页加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+function tick() {
+  clock.value = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+onMounted(() => {
+  auth.hydrateFromQuery(route.query)
+  cleanDuplicateIdentityQuery()
+  tick()
+  timer = setInterval(tick, 1000)
+  void load()
+  if (typeof window !== 'undefined' && !window.localStorage.getItem(roleHomeConfig.doctor.onboardingKey)) {
+    showOnboarding.value = true
+  }
+})
+onUnmounted(() => clearInterval(timer))
+
+watch(() => [route.query.user_id, route.query.userId, route.query.userName, route.query.useName, route.query.username, route.query.deptCode, route.query.dept_code, route.query.dept, route.query.department], () => {
+  auth.hydrateFromQuery(route.query)
+  void load()
+})
+
+function cleanDuplicateIdentityQuery() {
+  const query = auth.cleanIdentityQuery(route.query)
+  if (JSON.stringify(query) !== JSON.stringify(route.query)) router.replace({ path: route.path, query })
+}
+function dismissOnboarding() {
+  showOnboarding.value = false
+  if (typeof window !== 'undefined') window.localStorage.setItem(roleHomeConfig.doctor.onboardingKey, '1')
+}
+</script>
+
+<style scoped>
+.role-home { padding: 14px 14px 80px; display: grid; gap: 12px; }
+.start-guide { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(34,211,238,.22); border-radius: var(--card-radius); background: var(--bg-surface); }
+.start-guide div { display: grid; gap: 4px; }
+.start-guide span { color: var(--text-muted); font-size: 12px; }
+.start-guide strong { color: var(--text-primary); font-size: 15px; }
+.home-top { min-height: 72px; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
+.home-title, .home-top div { display: grid; gap: 4px; }
+.home-top span { color: var(--text-muted); font-size: 12px; }
+.panel-head span, .focus-row span, .task-row span, .empty, .summary-card span, .summary-card em { color: var(--text-secondary); font-size: 12px; }
+.home-top strong { color: var(--text-primary); font-size: 20px; }
+.top-meta { display: flex !important; flex-direction: row; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; text-align: right; }
+button { min-height: 44px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.2); background: var(--bg-surface); color: var(--text-primary); padding: 0 12px; cursor: pointer; }
+.doctor-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--card-gap); }
+.summary-card { min-height: 86px; padding: 14px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
+.summary-card .ds-kpi-icon { width: 40px; height: 40px; border-radius: 8px; }
+.summary-card .ds-kpi-num { font-size: 26px; line-height: 1; }
+.summary-card em { font-style: normal; }
+.doctor-grid { min-height: 560px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .95fr); grid-template-rows: auto auto; gap: 12px; }
+.panel { min-width: 0; overflow: auto; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); background: var(--bg-surface); }
+.panel-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.panel-head strong { color: var(--text-primary); font-size: 15px; }
+.focus-row, .task-row { display: grid; grid-template-columns: 4px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface); cursor: pointer; }
+.focus-row i { width: 4px; height: 100%; min-height: 42px; border-radius: var(--card-radius); background: var(--text-secondary); }
+.focus-row strong, .task-row strong { color: var(--text-primary); font-size: 13px; }
+.focus-row small { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+.focus-row small em { font-style: normal; }
+.focus-row small em:not(.ds-badge) { padding: 2px 7px; border-radius: var(--card-radius); background: rgba(125,211,252,.1); color: var(--text-primary); font-size: 11px; }
+.ds-badge {
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 0;
+  font-style: normal;
+}
+.ds-badge--danger { background: #FFECE8; color: #D9342B; }
+.ds-badge--warning { background: #FFF7E8; color: #A65A0C; }
+.ds-badge--success { background: #E8FFEA; color: #1A9C5B; }
+.ds-badge--info { background: #E8F3FF; color: #15558D; }
+:global(.ai-pulse-root) { z-index: 120; }
+.focus-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.focus-actions button, .task-row button { min-height: 32px; padding: 0 10px; }
+.tone-critical { background: var(--danger) !important; }
+.tone-warning { background: var(--warning) !important; }
+.tone-info { background: var(--chart-1) !important; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.kpi { padding: 10px; border-radius: var(--card-radius); background: var(--bg-surface); }
+.kpi span { color: var(--text-secondary); font-size: 12px; }
+.kpi strong { display: block; color: var(--text-primary); font-size: 24px; margin-top: 4px; }
+.full-btn { width: 100%; }
+.task-list { display: grid; gap: 8px; }
+.task-row { grid-template-columns: minmax(0,1fr) auto; cursor: default; }
+.task-row span { grid-column: 1; }
+.task-row button { grid-row: 1 / span 2; grid-column: 2; }
+.lights { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.light { display: grid; justify-items: start; align-content: center; gap: 4px; background: var(--bg-surface); }
+.light b { font-size: 18px; }
+.is-green { border-color: rgba(52,211,153,.35); }
+.is-yellow { border-color: rgba(245,158,11,.42); }
+.empty { padding: 14px; border-radius: var(--card-radius); background: var(--bg-surface); }
+.empty.small { padding: 10px; }
+.empty.danger { color: var(--danger-soft); }
+.onboarding-mask { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: var(--bg-surface); padding: 16px; }
+.onboarding-card { width: min(560px, 100%); display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(125,211,252,.24); border-radius: var(--card-radius); background: var(--bg-surface); box-shadow: var(--card-shadow); }
+.onboarding-card ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.onboarding-card li { color: var(--text-primary); }
+.onboarding-card li b { display: block; }
+.onboarding-card li span { display: block; color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+@media (max-width: 1024px) { .doctor-summary, .doctor-grid { grid-template-columns: 1fr; grid-template-rows: none; } .kpi-grid, .lights { grid-template-columns: repeat(2,minmax(0,1fr)); } .top-meta { justify-content: flex-start; text-align: left; } }
+
+html[data-theme='light'] .role-home {
+  background: var(--bg-base);
+}
+html[data-theme='light'] .home-top,
+html[data-theme='light'] .start-guide,
+html[data-theme='light'] .panel,
+html[data-theme='light'] .summary-card {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(145, 176, 199, 0.32);
+  box-shadow: var(--card-shadow);
+}
+html[data-theme='light'] .home-top strong,
+html[data-theme='light'] .start-guide strong,
+html[data-theme='light'] .panel-head strong,
+html[data-theme='light'] .focus-row strong,
+html[data-theme='light'] .task-row strong,
+html[data-theme='light'] .kpi strong,
+html[data-theme='light'] .light b,
+html[data-theme='light'] .summary-card strong {
+  color: var(--text-primary);
+}
+html[data-theme='light'] .home-top span,
+html[data-theme='light'] .start-guide span,
+html[data-theme='light'] .panel-head span,
+html[data-theme='light'] .focus-row span,
+html[data-theme='light'] .task-row span,
+html[data-theme='light'] .kpi span,
+html[data-theme='light'] .empty,
+html[data-theme='light'] .summary-card span,
+html[data-theme='light'] .summary-card em {
+  color: var(--text-secondary);
+}
+html[data-theme='light'] .focus-row small em:not(.ds-badge) {
+  background: var(--bg-surface);
+  color: var(--brand);
+}
+html[data-theme='light'] .focus-row,
+html[data-theme='light'] .task-row,
+html[data-theme='light'] .kpi,
+html[data-theme='light'] .light,
+html[data-theme='light'] .empty {
+  background: var(--bg-surface);
+  border: 1px solid rgba(145, 176, 199, 0.26);
+}
+html[data-theme='light'] .onboarding-card {
+  background: var(--bg-surface);
+  border-color: rgba(145, 176, 199, 0.32);
+}
+html[data-theme='light'] .onboarding-card li {
+  color: var(--text-primary);
+}
+html[data-theme='light'] .onboarding-card li span {
+  color: var(--text-secondary);
+}
+html[data-theme='light'] button {
+  background: var(--bg-surface);
+  border-color: rgba(37, 99, 235, 0.18);
+  color: var(--brand);
+}
+html[data-theme='light'] button:hover {
+  background: var(--bg-surface);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+html[data-theme='light'] .empty.danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+</style>

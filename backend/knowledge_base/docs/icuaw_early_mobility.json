@@ -1,0 +1,34 @@
+[
+  {
+    "id": "icuaw_definition_risk",
+    "title": "ICU获得性肌无力与早期活动指南",
+    "source": "ESICM 2024 Mobility Guidelines + Lancet Review",
+    "recommendation": "ICU-AW定义与风险因素",
+    "tags": ["icuaw", "weakness", "mrc", "risk_factors"],
+    "text": "ICU获得性肌无力(ICU-AW)定义：ICU住院期间新发的对称性肢体和/或呼吸肌无力，无法用其他病因解释。MRC(Medical Research Council)徒手肌力评分：6组肌群(肩外展/肘屈/腕伸/髋屈/膝伸/踝背屈)双侧评估,每项0-5分,总分0-60。MRC<48诊断ICU-AW,<36为严重ICU-AW。发生率：ICU患者25-40%,机械通气>7天高达60-70%。风险因素：脓毒症/MODS(最强风险)、制动>48h、高血糖(>180mg/dL)、类固醇使用(尤其联合肌松药)、神经肌肉阻滞剂、机械通气时间、年龄>65、苯二氮卓类使用。膈肌无力可独立于肢体肌力评估,机械通气后24-48h即可出现。"
+  },
+  {
+    "id": "icuaw_early_mobility_protocol",
+    "title": "ICU获得性肌无力与早期活动指南",
+    "source": "ESICM 2024 + SCCM ABCDEF Bundle E",
+    "recommendation": "早期活动分级方案",
+    "tags": ["mobility", "rehabilitation", "protocol", "levels"],
+    "text": "入ICU 24-72h内启动(血流动力学稳定后)。分级方案：Level 0(被动)：被动关节活动ROM 2次/日,体位变换q2h,功能性电刺激(FES可选)。Level 1(床上主动)：主动辅助ROM,床上主动翻身,抗阻训练(弹力带),半坐位>45°。Level 2(坐位)：坐床边(脚悬空),坐轮椅,呼吸肌训练(IMT)。Level 3(站立)：辅助站立,原地踏步,站立式康复训练。Level 4(行走)：辅助行走(助行器),独立行走,楼梯训练。进阶标准：前一级别安全完成(无心率/血压/SpO2异常)。每次活动前评估安全标准,每次活动后30min再评估耐受性。活动时间：每天至少2次,每次20-30min(耐受性允许时)。"
+  },
+  {
+    "id": "icuaw_safety_criteria",
+    "title": "ICU获得性肌无力与早期活动指南",
+    "source": "ESICM + SCCM Consensus",
+    "recommendation": "活动安全标准与禁忌证",
+    "tags": ["mobility", "safety", "contraindication", "criteria"],
+    "text": "启动活动的安全标准：心血管-MAP 60-110mmHg(无需新增或增量升压药)、HR 60-130、无新发心律失常、无活动性心肌缺血。呼吸-FiO2<=0.6、PEEP<=10cmH2O、SpO2>=90%、RR<=35。神经-RASS>=-2(非深度镇静)、ICP<20mmHg(颅脑患者)、无癫痫发作。其他-无活动性出血、无不稳定骨折、体温<39°C。绝对禁忌(不应活动)：心脏骤停<24h、活动性大出血、不稳定脊柱骨折、深度镇静RASS<=-3、持续神经肌肉阻滞、ECMO(除非MDT评估安全)。活动中止标准：HR<60或>140、MAP<60或>110(较基线变化>20%)、SpO2<88%、新发心律失常、患者主诉严重不适/疼痛、意识状态下降、管路滑脱风险。"
+  },
+  {
+    "id": "icuaw_diaphragm_respiratory",
+    "title": "ICU获得性肌无力与早期活动指南",
+    "source": "ATS/ERS Respiratory Muscle Testing + WIND Study",
+    "recommendation": "膈肌与呼吸肌评估训练",
+    "tags": ["diaphragm", "respiratory_muscle", "imt", "ultrasound"],
+    "text": "膈肌功能障碍：机械通气后24h即可出现膈肌萎缩(VIDD),与撤机困难直接相关。床旁超声评估：膈肌增厚分数(DTF)=(吸气末厚度-呼气末厚度)/呼气末厚度×100%,正常>30%,<20%提示膈肌功能障碍。膈肌移动度：正常>10mm(平静呼吸),<10mm提示减弱。呼吸肌训练(IMT)：适用于撤机困难患者。使用阈值负荷训练器，起始负荷为最大吸气压(MIP)的30%,渐增至50-60%。每次5-10min,每天2次。MIP(最大吸气压)：<-20cmH2O提示撤机可能成功,>-20cmH2O(即绝对值更小)提示呼吸肌无力。P0.1(气道闭合压)：>3.5cmH2O提示呼吸驱动增高/呼吸肌疲劳风险。"
+  }
+]
