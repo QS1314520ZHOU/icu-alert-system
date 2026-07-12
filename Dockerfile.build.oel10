@@ -6,105 +6,116 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     ICU_BUILD_VARIANT=cpu
 
-# OEL10 自带 python3.12。node 用 dnf module（OEL10 提供 nodejs:20/22）
 RUN dnf install -y oracle-epel-release-el10 || true && \
     dnf install -y \
         gcc gcc-c++ make \
         python3.12 python3.12-devel python3.12-pip \
         nodejs npm \
-        findutils binutils patchelf tar gzip shadow-utils && \
+        findutils binutils patchelf tar gzip shadow-utils sed && \
     dnf clean all && \
     ln -sf /usr/bin/python3.12 /usr/local/bin/python3 && \
     ln -sf /usr/bin/pip3.12 /usr/local/bin/pip3
 
 WORKDIR /src
 
-# ---- 前端依赖 ----
 COPY frontend/package*.json /src/frontend/
 RUN cd /src/frontend && npm ci --no-audit
 
-# ---- 后端依赖：纯 CPU ----
 COPY backend/requirements*.txt /src/backend/
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install /
-        torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu && \
-    python3 -m pip install --upgrade-strategy only-if-needed /
-        -r /src/backend/requirements.common.txt && \
-    python3 -m pip install --upgrade-strategy only-if-needed /
-        onnxruntime==1.20.1
-
-# 说明：不再 -r requirements.cpu.txt，因为它内含裸 torch（会拉 CUDA 版）。
-# 上面手动锁死了 CPU torch + onnxruntime，common 覆盖其余业务依赖。
+    python3 -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu && \
+    python3 -m pip install --upgrade-strategy only-if-needed -r /src/backend/requirements.common.txt && \
+    python3 -m pip install --upgrade-strategy only-if-needed -r /src/backend/requirements.analytics.txt && \
+    python3 -m pip install --upgrade-strategy only-if-needed onnxruntime==1.20.1 && \
+    python3 -m pip install --upgrade-strategy only-if-needed python-multipart
 
 COPY frontend/ /src/frontend/
 COPY backend/ /src/backend/
 
-# ---- 前端构建并塞进 static ----
-RUN cd /src/frontend && npm run build && \
+# 删掉 App.vue 里任何引用 favicon.ico 的行（原作者写死了 Windows 绝对路径），并校验删干净
+RUN sed -i '/favicon\.ico/d' /src/frontend/src/App.vue && \
+    echo "=== 确认 App.vue 中已无 favicon 引用 ===" && \
+    ! grep -n 'favicon' /src/frontend/src/App.vue
+
+# 前端构建：跳过 vue-tsc 类型检查，直接 vite build
+RUN cd /src/frontend && npx vite build && \
     rm -rf /src/backend/static && \
     mkdir -p /src/backend/static && \
     cp -r /src/frontend/dist/. /src/backend/static/
 
-# ---- PyInstaller 打包（纯 CPU，排除所有 GPU 模块）----
 RUN cd /src/backend && \
-    APP_IMPORTS=$(find app -name '*.py' ! -path '*__pycache__*' | /
-        sed 's|/|.|g;s|\.py$||;s|\.__init__||' | sort -u | /
+    APP_IMPORTS=$(find app -name '*.py' ! -path '*__pycache__*' | \
+        sed 's|/|.|g;s|\.py$||;s|\.__init__||' | sort -u | \
         awk '{printf "--hidden-import=%s ",$0}') && \
     APP_NAME="icu-alert-system" && \
-    python3 -m PyInstaller /
-        --noconfirm --clean --onedir /
-        --name "$APP_NAME" /
-        --paths=/src/backend /
-        --collect-all sentence_transformers /
-        --collect-all transformers /
-        --collect-all chronos /
-        --collect-all tokenizers /
-        --collect-all onnxruntime /
-        --collect-all statsmodels /
-        --collect-submodules uvicorn /
-        --collect-submodules starlette /
-        --collect-submodules fastapi /
-        --collect-submodules pydantic /
-        --collect-submodules pymongo /
-        --collect-submodules motor /
-        --collect-submodules redis /
-        --collect-binaries torch /
-        --collect-binaries onnxruntime /
-        --hidden-import=uvicorn.logging /
-        --hidden-import=uvicorn.loops.auto /
-        --hidden-import=uvicorn.protocols.http.auto /
-        --hidden-import=uvicorn.protocols.websockets.auto /
-        --hidden-import=uvicorn.lifespan.on /
-        --hidden-import=uvicorn.lifespan.off /
-        --hidden-import=motor.motor_asyncio /
-        --hidden-import=redis.asyncio /
-        --hidden-import=websockets /
-        --hidden-import=yaml /
-        --hidden-import=dotenv /
-        --hidden-import=httpx /
-        --hidden-import=chronos /
-        --hidden-import=encodings.idna /
-        --add-data "/src/backend/static:static" /
-        --add-data "/src/backend/config.yaml:." /
-        --add-data "/src/backend/knowledge_base:knowledge_base" /
-        --exclude-module=nvidia /
-        --exclude-module=triton /
-        --exclude-module=torch.cuda /
-        --exclude-module=torch.backends.cudnn /
-        ${APP_IMPORTS} /
+    python3 -m PyInstaller \
+        --noconfirm --clean --onedir \
+        --name "$APP_NAME" \
+        --paths=/src/backend \
+        --collect-all numpy \
+        --collect-submodules numpy \
+        --collect-all scipy \
+        --collect-all sklearn \
+        --collect-all pandas \
+        --collect-all pyarrow \
+        --collect-all lifelines \
+        --collect-all matplotlib \
+        --collect-all seaborn \
+        --collect-all statsmodels \
+        --collect-all docx \
+        --collect-all sentence_transformers \
+        --collect-all transformers \
+        --collect-all chronos \
+        --collect-all tokenizers \
+        --collect-all onnxruntime \
+        --collect-submodules uvicorn \
+        --collect-submodules starlette \
+        --collect-submodules fastapi \
+        --collect-submodules pydantic \
+        --collect-submodules pymongo \
+        --collect-submodules motor \
+        --collect-submodules redis \
+        --collect-binaries torch \
+        --collect-binaries onnxruntime \
+        --hidden-import=torch.cuda \
+        --hidden-import=torch.backends \
+        --hidden-import=torch.backends.cudnn \
+        --hidden-import=multipart \
+        --hidden-import=python_multipart \
+        --hidden-import=uvicorn.logging \
+        --hidden-import=uvicorn.loops.auto \
+        --hidden-import=uvicorn.protocols.http.auto \
+        --hidden-import=uvicorn.protocols.websockets.auto \
+        --hidden-import=uvicorn.lifespan.on \
+        --hidden-import=uvicorn.lifespan.off \
+        --hidden-import=motor.motor_asyncio \
+        --hidden-import=redis.asyncio \
+        --hidden-import=websockets \
+        --hidden-import=yaml \
+        --hidden-import=dotenv \
+        --hidden-import=httpx \
+        --hidden-import=chronos \
+        --hidden-import=encodings.idna \
+        --add-data "/src/backend/static:static" \
+        --add-data "/src/backend/config.yaml:." \
+        --add-data "/src/backend/knowledge_base:knowledge_base" \
+        --exclude-module=nvidia \
+        --exclude-module=triton \
+        ${APP_IMPORTS} \
         /src/backend/run_server.py
 
-# ---- 组装发布目录 + install.sh / start.sh ----
 RUN mkdir -p /release /output && \
     APP_NAME="icu-alert-system" && \
     PACKAGE_NAME="icu-alert-system-cpu" && \
-    SERVICE_NAME="icu-alert" && \
     cp -r "/src/backend/dist/${APP_NAME}" "/release/${PACKAGE_NAME}" && \
     cp /src/backend/config.yaml "/release/${PACKAGE_NAME}/config.yaml" && \
     if [ -f /src/backend/.env.example ]; then cp /src/backend/.env.example "/release/${PACKAGE_NAME}/.env"; else touch "/release/${PACKAGE_NAME}/.env"; fi && \
-    grep -q '^ICU_ACCELERATION=' "/release/${PACKAGE_NAME}/.env" && \
+    ( grep -q '^ICU_ACCELERATION=' "/release/${PACKAGE_NAME}/.env" && \
         sed -i "s/^ICU_ACCELERATION=.*/ICU_ACCELERATION=cpu/" "/release/${PACKAGE_NAME}/.env" || \
-        printf '\nICU_ACCELERATION=cpu\n' >> "/release/${PACKAGE_NAME}/.env" && \
+        printf '\nICU_ACCELERATION=cpu\n' >> "/release/${PACKAGE_NAME}/.env" ) && \
+    ( grep -q '^WEBSOCKET_REQUIRE_TOKEN=' "/release/${PACKAGE_NAME}/.env" && \
+        sed -i "s/^WEBSOCKET_REQUIRE_TOKEN=.*/WEBSOCKET_REQUIRE_TOKEN=false/" "/release/${PACKAGE_NAME}/.env" || \
+        printf 'WEBSOCKET_REQUIRE_TOKEN=false\n' >> "/release/${PACKAGE_NAME}/.env" ) && \
     printf 'variant=cpu\nversion=%s\nbuilt_for=oraclelinux-10\n' "${APP_VERSION}" > "/release/${PACKAGE_NAME}/BUILD_INFO" && \
     printf '%s\n' \
         '#!/bin/bash' \

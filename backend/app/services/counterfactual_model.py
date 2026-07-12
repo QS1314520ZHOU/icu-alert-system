@@ -28,6 +28,18 @@ def _safe_float(value: object) -> float | None:
         return None
 
 
+def _unwrap_current(entry: object) -> float | None:
+    """entry 可能是裸标量，也可能是 {"current"/"value"/"latest": x}。统一取数值。"""
+    if isinstance(entry, dict):
+        for k in ("current", "value", "latest"):
+            if k in entry:
+                v = _unwrap_current(entry[k])
+                if v is not None:
+                    return v
+        return None
+    return _safe_float(entry)
+
+
 def _round(value: float | None, digits: int = 1) -> float | None:
     if value is None:
         return None
@@ -223,22 +235,15 @@ class SemiMechanisticCounterfactualModel:
         """从 twin snapshot 的 latest/vitals 块提取最新值，兼容多种数据结构。
 
         注意：vitals.latest 来自 _get_latest_vitals_by_patient，其值为裸 float
-        （如 {"hr": 85.0}），不是嵌套 dict。因此不能直接 .get("current")，必须先判断类型。
+        （如 {"hr": 85.0}），不能直接用 (x or {}).get(...)，必须经 _unwrap_current 安全取值。
         """
-        # twin.vitals.latest — 值为裸 float（来自 _get_latest_vitals_by_patient）
+        # twin.vitals.latest — 值可能是裸 float（来自 _get_latest_vitals_by_patient）
         vitals = twin.get("vitals") or {}
         latest = vitals.get("latest") or {}
-        entry = latest.get(vital_key)
-        if isinstance(entry, dict):
-            val = entry.get("current")
-            if val is not None:
-                return _safe_float(val)
-            val = entry.get("value")
-            if val is not None:
-                return _safe_float(val)
-        elif entry is not None:
-            return _safe_float(entry)
-        # twin.snapshot.{key} — 通过 _snapshot_value 安全提取
+        result = _unwrap_current(latest.get(vital_key))
+        if result is not None:
+            return result
+        # twin.snapshot.{key} — 由 _snapshot_value 安全提取
         snap = twin.get("snapshot") or {}
         self_val = SemiMechanisticCounterfactualModel._snapshot_value(snap, vital_key)
         if self_val is not None:
@@ -246,15 +251,10 @@ class SemiMechanisticCounterfactualModel:
         # twin.snapshot.{key}.snapshot.latest (series_snapshot 深层结构)
         key_snap = snap.get(vital_key)
         if isinstance(key_snap, dict):
-            ss = key_snap.get("snapshot")
-            if isinstance(ss, dict):
-                sl = ss.get("latest")
-                if isinstance(sl, dict):
-                    val = sl.get("latest")
-                    if val is not None:
-                        return _safe_float(val)
-                elif sl is not None:
-                    return _safe_float(sl)
+            ss = key_snap.get("snapshot") if isinstance(key_snap.get("snapshot"), dict) else key_snap.get("snapshot")
+            result = _unwrap_current(ss.get("latest") if isinstance(ss, dict) else None)
+            if result is not None:
+                return result
         return None
 
     async def build_snapshot(self, patient_id: str, patient: dict, *, hours: int = 12) -> dict[str, Any]:
@@ -288,15 +288,9 @@ class SemiMechanisticCounterfactualModel:
 
         # twin ventilator 块的 FiO2/PEEP
         twin_vent = (twin.get("vitals") or {}).get("ventilator") or {}
-
-        def _safe_twin_vent(key: str) -> float | None:
-            entry = twin_vent.get(key) if isinstance(twin_vent, dict) else None
-            if isinstance(entry, dict):
-                return _safe_float(entry.get("current"))
-            return _safe_float(entry)
-
-        twin_fio2 = _safe_twin_vent("fio2")
-        twin_peep = _safe_twin_vent("peep")
+        twin_vent = twin_vent if isinstance(twin_vent, dict) else {}
+        twin_fio2 = _unwrap_current(twin_vent.get("fio2"))
+        twin_peep = _unwrap_current(twin_vent.get("peep"))
 
         urine_rate = None
         if hasattr(self.alert_engine, "_get_urine_rate"):
@@ -364,25 +358,18 @@ class SemiMechanisticCounterfactualModel:
         diuretic_intensity = _safe_float((payload or {}).get("diuretic_intensity"))
 
         snapshot = await self.build_snapshot(patient_id, patient, hours=12)
-
-        def _safe_current(snap: dict, key: str) -> float | None:
-            """安全提取 snap[key].current，兼容裸 float 回退。"""
-            entry = snap.get(key) if isinstance(snap, dict) else None
-            if isinstance(entry, dict):
-                return _safe_float(entry.get("current"))
-            return _safe_float(entry)
-
-        current_map = _safe_current(snapshot, "map")
-        current_hr = _safe_current(snapshot, "hr")
-        current_spo2 = _safe_current(snapshot, "spo2")
-        current_lactate = _safe_current(snapshot, "lactate")
-        current_fio2 = _safe_current(snapshot, "fio2")
-        current_peep = _safe_current(snapshot, "peep")
+        current_map = _unwrap_current(snapshot.get("map"))
+        current_hr = _unwrap_current(snapshot.get("hr"))
+        current_spo2 = _unwrap_current(snapshot.get("spo2"))
+        current_lactate = _unwrap_current(snapshot.get("lactate"))
+        current_fio2 = _unwrap_current(snapshot.get("fio2"))
+        current_peep = _unwrap_current(snapshot.get("peep"))
         urine_rate = _safe_float(snapshot.get("urine_ml_kg_h_6h"))
+        vaso_entry = snapshot.get("vasoactive_support")
         current_vaso = _safe_float(
-            (snapshot.get("vasoactive_support") or {}).get("current_dose_ug_kg_min")
-            if isinstance(snapshot.get("vasoactive_support"), dict)
-            else snapshot.get("vasoactive_support")
+            vaso_entry.get("current_dose_ug_kg_min")
+            if isinstance(vaso_entry, dict)
+            else vaso_entry
         )
 
         facts = await self.alert_engine._collect_patient_facts(patient, patient.get("_id")) if hasattr(self.alert_engine, "_collect_patient_facts") else {}
@@ -630,28 +617,21 @@ class TransformerCounterfactualModel:
         }
 
     def _feature_vector(self, snapshot: dict[str, Any], payload: dict[str, Any]) -> list[float]:
-        def _snap_val(key: str) -> float:
-            """安全提取 snap[key].current，兼容裸 float 回退。"""
-            entry = snapshot.get(key) if isinstance(snapshot, dict) else None
-            if isinstance(entry, dict):
-                return _safe_float(entry.get("current")) or 0.0
-            return _safe_float(entry) or 0.0
-
         vaso_entry = snapshot.get("vasoactive_support")
         vaso_val = (
-            vaso_entry.get("current_dose_ug_kg_min")
+            _safe_float(vaso_entry.get("current_dose_ug_kg_min"))
             if isinstance(vaso_entry, dict)
-            else vaso_entry
+            else _safe_float(vaso_entry)
         )
         values = [
-            _snap_val("map"),
-            _snap_val("hr"),
-            _snap_val("spo2"),
-            _snap_val("lactate"),
-            _snap_val("fio2"),
-            _snap_val("peep"),
+            _unwrap_current(snapshot.get("map")) or 0.0,
+            _unwrap_current(snapshot.get("hr")) or 0.0,
+            _unwrap_current(snapshot.get("spo2")) or 0.0,
+            _unwrap_current(snapshot.get("lactate")) or 0.0,
+            _unwrap_current(snapshot.get("fio2")) or 0.0,
+            _unwrap_current(snapshot.get("peep")) or 0.0,
             _safe_float(snapshot.get("urine_ml_kg_h_6h")) or 0.0,
-            _safe_float(vaso_val) or 0.0,
+            vaso_val or 0.0,
             _safe_float(payload.get("dose_delta_pct")) or 0.0,
             _safe_float(payload.get("fluid_bolus_ml")) or 0.0,
             _safe_float(payload.get("fio2_delta")) or 0.0,
