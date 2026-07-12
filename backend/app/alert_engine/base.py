@@ -993,7 +993,16 @@ class BaseEngine:
         labs = await self._get_latest_labs_map(his_pid, lookback_hours=48) if his_pid else {}
         cap = await self._get_latest_device_cap(device_id) if device_id else None
 
-        pao2 = labs.get("pao2", {}).get("value") if labs else None
+        def _lab_val(key: str) -> float | None:
+            """安全提取 labs[key].value，兼容 labs 值可能为裸 float 的异常数据。"""
+            if not isinstance(labs, dict):
+                return None
+            entry = labs.get(key)
+            if isinstance(entry, dict):
+                return _parse_number(entry.get("value"))
+            return _parse_number(entry)
+
+        pao2 = _lab_val("pao2")
         fio2 = self._vent_param(cap, "fio2", "param_FiO2") if cap else None
         peep = self._vent_param_priority(cap, ["peep_measured", "peep_set"], ["param_vent_measure_peep", "param_vent_peep"]) if cap else None
         ventilated = peep is not None and peep >= 5
@@ -1012,7 +1021,7 @@ class BaseEngine:
             elif pf < 400:
                 resp_score = 1
 
-        plt = labs.get("plt", {}).get("value") if labs else None
+        plt = _lab_val("plt")
         coag_score = 0
         if plt is not None:
             if plt < 20:
@@ -1024,7 +1033,7 @@ class BaseEngine:
             elif plt < 150:
                 coag_score = 1
 
-        bil = labs.get("bil", {}).get("value") if labs else None
+        bil = _lab_val("bil")
         liver_score = 0
         if bil is not None:
             if bil > 204:
@@ -1056,7 +1065,7 @@ class BaseEngine:
             elif gcs < 15:
                 neuro_score = 1
 
-        cr = labs.get("cr", {}).get("value") if labs else None
+        cr = _lab_val("cr")
         renal_score = 0
         if cr is not None:
             if cr > 440:

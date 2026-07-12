@@ -245,7 +245,7 @@ async def ai_patient_digital_twin(patient_id: str, refresh: bool = Query(default
             pass
         return {"code": 0, "record": serialize_doc(record)}
     except Exception as exc:
-        logger.error("AI patient digital twin error: %s", exc)
+        logger.error("AI patient digital twin error: %s", exc, exc_info=True)
         return {"code": 0, "record": None, "error": f"数字孪生快照异常: {str(exc)[:120]}"}
 
 
@@ -281,7 +281,7 @@ async def ai_what_if_simulation(patient_id: str, request: Request, payload: dict
             logger.debug("what-if query log write failed: %s", log_exc)
         return {"code": 0, "simulation": serialize_doc(record)}
     except Exception as exc:
-        logger.error("AI what-if simulation error: %s", exc)
+        logger.error("AI what-if simulation error: %s", exc, exc_info=True)
         return {"code": 0, "simulation": None, "error": f"What-if 模拟异常: {str(exc)[:120]}"}
 
 
@@ -308,7 +308,7 @@ async def ai_subphenotype_profile(patient_id: str, refresh: bool = Query(default
             record = await _persist_ai_score_record(patient, result, score_type="clinical_subphenotype_profile")
         return {"code": 0, "profile": serialize_doc(record)}
     except Exception as exc:
-        logger.error("AI subphenotype error: %s", exc)
+        logger.error("AI subphenotype error: %s", exc, exc_info=True)
         return {"code": 0, "profile": None, "error": f"亚表型识别异常: {str(exc)[:120]}"}
 
 
@@ -330,7 +330,7 @@ async def ai_multi_agent_assessment(patient_id: str, refresh: bool = Query(defau
             record = await orchestrator.orchestrated_assessment(str(pid))
         return {"code": 0, "assessment": serialize_doc(record) if record else None}
     except Exception as exc:
-        logger.error("AI multi-agent assessment error: %s", exc)
+        logger.error("AI multi-agent assessment error: %s", exc, exc_info=True)
         return {"code": 0, "assessment": None, "error": f"多智能体评估异常: {str(exc)[:120]}"}
 
 
@@ -352,5 +352,5 @@ async def ai_system_panels(patient_id: str, window: str = Query(default="24h", p
         )
         return {"code": 0, "window": window, "panels": {"hemodynamic": _serialize_nullable(hemodynamic), "infection": _serialize_nullable(infection), "respiratory": _serialize_nullable(respiratory)}}
     except Exception as exc:
-        logger.error("AI system panels error: %s", exc)
+        logger.error("AI system panels error: %s", exc, exc_info=True)
         return {"code": 0, "window": window, "panels": {}, "error": f"系统深度面板异常: {str(exc)[:120]}"}

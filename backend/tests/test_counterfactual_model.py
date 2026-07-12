@@ -181,3 +181,162 @@ async def test_counterfactual_rollout_disabled_uses_semi_mechanistic(monkeypatch
 async def _fake_get_device_id(patient_id: str, prefer_type: str | None = None, patient_doc: dict | None = None) -> str | None:
     del patient_id, prefer_type, patient_doc
     return "monitor-1"
+
+
+# ---------------------------------------------------------------------------
+# 防御性类型测试：验证裸 float 值不再触发 AttributeError
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_twin_latest_handles_float_values_from_vitals() -> None:
+    """_twin_latest 应能处理 vitals.latest 中值为裸 float 的情况。
+
+    这是本次 bug 的精确重现：_get_latest_vitals_by_patient 返回
+    {"hr": 85.0, "map": 70.0}（裸 float），而 _twin_latest 之前用
+    (latest.get("map") or {}).get("current") 去读，非零 float 是 truthy，
+    or 不会短路到空 dict，导致 float.get("current") → AttributeError。
+    """
+    twin = {
+        "vitals": {
+            "latest": {
+                "hr": 85.0,
+                "rr": 18.0,
+                "sbp": 120.0,
+                "map": 70.0,
+                "time": None,
+            },
+            "snapshot": {},
+            "ventilator": {},
+        },
+        "snapshot": {},
+    }
+    # 不应抛异常
+    hr = SemiMechanisticCounterfactualModel._twin_latest(twin, "hr")
+    assert hr == 85.0, f"expected 85.0, got {hr}"
+    map_val = SemiMechanisticCounterfactualModel._twin_latest(twin, "map")
+    assert map_val == 70.0, f"expected 70.0, got {map_val}"
+
+
+@pytest.mark.asyncio
+async def test_twin_latest_handles_missing_key_gracefully() -> None:
+    """_twin_latest 键缺失时返回 None 而不抛异常。"""
+    twin = {"vitals": {"latest": {}}, "snapshot": {}}
+    result = SemiMechanisticCounterfactualModel._twin_latest(twin, "spo2")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_twin_latest_handles_nested_dict_values() -> None:
+    """_twin_latest 仍能正常处理嵌套 dict 结构（正常路径不退化）。"""
+    twin = {
+        "vitals": {
+            "latest": {
+                "hr": {"current": 88.0, "value": 90.0},
+            },
+            "snapshot": {},
+            "ventilator": {},
+        },
+        "snapshot": {},
+    }
+    result = SemiMechanisticCounterfactualModel._twin_latest(twin, "hr")
+    assert result == 88.0  # 优先 current
+
+
+@pytest.mark.asyncio
+async def test_simulate_tolerates_flat_float_snapshot() -> None:
+    """simulate() 在快照字段为裸 float（而非 {"current": ...}）时不抛异常。"""
+    model = SemiMechanisticCounterfactualModel(db=None, alert_engine=_AlertEngine())
+
+    async def _snapshot(patient_id, patient, *, hours=12):
+        del patient_id, patient, hours
+        return {
+            "map": 58.0,       # 裸 float，非 dict
+            "hr": 122.0,        # 裸 float，非 dict
+            "spo2": 91.0,       # 裸 float，非 dict
+            "lactate": 4.3,     # 裸 float，非 dict
+            "fio2": 60.0,       # 裸 float，非 dict
+            "peep": 8.0,        # 裸 float，非 dict
+            "urine_ml_kg_h_6h": 0.35,
+            "vasoactive_support": 0.12,  # 裸 float，非 dict
+        }
+
+    model.build_snapshot = _snapshot  # type: ignore[method-assign]
+    original_get_device_id = counterfactual_module.get_device_id
+    counterfactual_module.get_device_id = _fake_get_device_id  # type: ignore[assignment]
+
+    try:
+        result = await model.simulate(
+            "p1",
+            {"_id": "p1", "hisPid": "H1"},
+            {"intervention_type": "vasopressor_up", "dose_delta_pct": 25},
+        )
+    finally:
+        counterfactual_module.get_device_id = original_get_device_id  # type: ignore[assignment]
+
+    # 不应抛异常，且当前状态应正确解析为 float
+    assert result["current_state"]["map"] == 58
+    assert result["current_state"]["lactate"] == 4.3
+    assert result["current_state"]["vaso_dose_ug_kg_min"] == 0.12
+    assert result["projected_state"]["map_30m"] is not None
+
+
+@pytest.mark.asyncio
+async def test_feature_vector_tolerates_mixed_dict_and_float_snapshot() -> None:
+    """TransformerCounterfactualModel._feature_vector 混合 dict/float 时不抛异常。"""
+    model = TransformerCounterfactualModel(
+        db=None, alert_engine=_AlertEngine(), allow_fallback=True
+    )
+    # 通过 _feature_vector (是实例方法但只读 snapshot，可以直接调用)
+    snapshot = {
+        "map": 70.0,            # 裸 float
+        "hr": {"current": 110},  # 正常 dict
+        "spo2": 96.0,            # 裸 float
+        "lactate": 1.5,          # 裸 float
+        "fio2": 40.0,            # 裸 float
+        "peep": 6.0,             # 裸 float
+        "urine_ml_kg_h_6h": 0.8,
+        "vasoactive_support": {"current_dose_ug_kg_min": 0.05},  # 正常 dict
+    }
+    payload = {"intervention_type": "current_baseline"}
+    vec = model._feature_vector(snapshot, payload)
+    assert len(vec) == 32
+    assert vec[0] == 70.0  # map
+    assert vec[1] == 110.0  # hr
+    assert vec[2] == 96.0  # spo2
+    assert vec[7] == 0.05  # vaso_dose
+
+
+@pytest.mark.asyncio
+async def test_simulate_tolerates_zero_float_snapshot() -> None:
+    """simulate() 在快照字段为 0.0 时不抛异常（0.0 是 falsy，测试 or {} 短路方向）。"""
+    model = SemiMechanisticCounterfactualModel(db=None, alert_engine=_AlertEngine())
+
+    async def _snapshot(patient_id, patient, *, hours=12):
+        del patient_id, patient, hours
+        return {
+            "map": 0.0,
+            "hr": 0.0,
+            "spo2": 0.0,
+            "lactate": 0.0,
+            "fio2": 0.0,
+            "peep": 0.0,
+            "urine_ml_kg_h_6h": 0.0,
+            "vasoactive_support": 0.0,
+        }
+
+    model.build_snapshot = _snapshot  # type: ignore[method-assign]
+    original_get_device_id = counterfactual_module.get_device_id
+    counterfactual_module.get_device_id = _fake_get_device_id  # type: ignore[assignment]
+
+    try:
+        result = await model.simulate(
+            "p1",
+            {"_id": "p1", "hisPid": "H1"},
+            {"intervention_type": "vasopressor_up", "dose_delta_pct": 25},
+        )
+    finally:
+        counterfactual_module.get_device_id = original_get_device_id  # type: ignore[assignment]
+
+    assert result["current_state"]["map"] == 0
+    assert result["current_state"]["hr"] == 0

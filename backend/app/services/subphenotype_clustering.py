@@ -142,17 +142,36 @@ class CohortSubphenotypeProfiler:
         labs = facts.get("labs") if isinstance(facts.get("labs"), dict) else {}
         his_pid = str(patient.get("hisPid") or "").strip() or None
         sofa = await self.alert_engine._calc_sofa(patient, patient.get("_id"), None, his_pid) if hasattr(self.alert_engine, "_calc_sofa") else {}
-        lactate = _safe_float(((snapshot.get("lactate") or {}).get("current")))
-        map_value = _safe_float(((snapshot.get("map") or {}).get("current")))
-        spo2 = _safe_float(((snapshot.get("spo2") or {}).get("current")))
-        fio2 = _safe_float(((snapshot.get("fio2") or {}).get("current")))
-        peep = _safe_float(((snapshot.get("peep") or {}).get("current")))
+        def _safe_snap(key: str) -> float | None:
+            """安全提取 snap[key].current，兼容裸 float 回退。"""
+            entry = snapshot.get(key) if isinstance(snapshot, dict) else None
+            if isinstance(entry, dict):
+                return _safe_float(entry.get("current"))
+            return _safe_float(entry)
+
+        def _safe_lab(key: str) -> float | None:
+            """安全提取 labs[key].value，兼容裸 float 回退。"""
+            entry = labs.get(key) if isinstance(labs, dict) else None
+            if isinstance(entry, dict):
+                return _safe_float(entry.get("value"))
+            return _safe_float(entry)
+
+        lactate = _safe_snap("lactate")
+        map_value = _safe_snap("map")
+        spo2 = _safe_snap("spo2")
+        fio2 = _safe_snap("fio2")
+        peep = _safe_snap("peep")
         urine_rate = _safe_float(snapshot.get("urine_ml_kg_h_6h"))
-        vaso_dose = _safe_float((((snapshot.get("vasoactive_support") or {}).get("current_dose_ug_kg_min"))))
-        wbc = _safe_float(((labs.get("wbc") or {}) if isinstance(labs.get("wbc"), dict) else {}).get("value"))
-        plt = _safe_float(((labs.get("plt") or {}) if isinstance(labs.get("plt"), dict) else {}).get("value"))
-        cr = _safe_float(((labs.get("cr") or {}) if isinstance(labs.get("cr"), dict) else {}).get("value"))
-        bili = _safe_float(((labs.get("bil") or labs.get("bilirubin") or {}) if isinstance(labs.get("bil") or labs.get("bilirubin"), dict) else {}).get("value"))
+        vaso_entry = snapshot.get("vasoactive_support")
+        vaso_dose = _safe_float(
+            vaso_entry.get("current_dose_ug_kg_min")
+            if isinstance(vaso_entry, dict)
+            else vaso_entry
+        )
+        wbc = _safe_lab("wbc")
+        plt = _safe_lab("plt")
+        cr = _safe_lab("cr")
+        bili = _safe_lab("bil") if _safe_lab("bil") is not None else _safe_lab("bilirubin")
         sf_ratio = (spo2 / max((fio2 or 21.0) / 100.0, 0.21)) if spo2 is not None else None
         sofa_score = _safe_float((sofa or {}).get("score"))
         features = {
