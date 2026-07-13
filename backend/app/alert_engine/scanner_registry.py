@@ -10,6 +10,7 @@ from .aki_scanner import AkiScanner
 from .trend_scanner import TrendScanner
 from .crrt_scanner import CrrtScanner
 from .scanner_ards import ArdsScanner
+from .scanner_vili_risk import ViliRiskScanner
 from .scanner_dic import DicScanner
 from .scanner_tbi import TbiScanner
 from .scanner_bleeding import BleedingScanner
@@ -97,6 +98,7 @@ def build_scanners(engine: AlertEngine) -> list[BaseScanner]:
         RespiratoryDeteriorationScanner(engine),
         NoninvasiveRespiratorySupportScanner(engine),
         VentilatorAsynchronyScanner(engine),
+        ViliRiskScanner(engine),
         DiaphragmProtectionScanner(engine),
         DrugSafetyScanner(engine),
         AntibioticStewardshipScanner(engine),

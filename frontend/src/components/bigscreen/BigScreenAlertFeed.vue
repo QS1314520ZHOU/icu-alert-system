@@ -3,7 +3,7 @@
     <div
       v-for="a in alerts"
       :key="a._id"
-      :class="['alert-row', `alert-row--${a.severity || 'warning'}`, { 'alert-row--rescue': isRescueRiskAlert(a) }]"
+      :class="['alert-row', `alert-row--${a.severity || 'warning'}`, `alert-row--tone-${getAlertDisplayTone(a)}`, { 'alert-row--rescue': isRescueRiskAlert(a) }]"
     >
       <div class="alert-head">
         <div class="alert-head-main">
@@ -12,7 +12,7 @@
             <div class="alert-patient-wrap">
               <div class="alert-patient">{{ a.patient_name || '未知患者' }}</div>
               <div class="alert-time">
-                <span :class="['sev-dot', `sev-${a.severity || 'warning'}`]"></span>
+                <span :class="['sev-dot', `sev-tone-${getAlertDisplayTone(a)}`]"></span>
                 {{ fmtTime(a.created_at) || '--:--' }}
               </div>
             </div>
@@ -165,7 +165,7 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs'
-import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatSeverityLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatSeverityLabel, getAlertDisplayTone } from '../../utils/displayLabels'
 
 defineProps<{
   alerts: any[]
@@ -450,6 +450,8 @@ function labelType(v: any) {
     pupil: '瞳孔异常',
     dic: 'DIC',
     ards: 'ARDS',
+    ards_oxygenation_screen: 'ARDS氧合筛查',
+    ventilator_lung_injury_risk: '肺保护通气偏离',
     aki: 'AKI',
     qsofa: 'qSOFA',
     sofa: 'SOFA',
@@ -523,6 +525,20 @@ function formatAlertValue(a: any) {
 
   if (t === 'dic') return (extra?.score ?? v) != null ? `DIC=${extra?.score ?? v}` : '—'
   if (t === 'ards') return (v ?? extra?.pf_ratio) != null ? `P/F=${Math.round(Number(v ?? extra?.pf_ratio))}` : '—'
+  if (t === 'ards_oxygenation_screen') {
+    const a = extra?.assessment || {}
+    const ratioType = a?.ratio_type === 'sf' ? 'S/F' : 'P/F'
+    const ratioVal = a?.ratio_value != null ? Math.round(Number(a.ratio_value)) : '—'
+    const grade = a?.oxygenation_grade
+    const gradeShort: Record<string, string> = { severe: '重度', moderate: '中度', mild: '轻度' }
+    return grade ? `${ratioType}=${ratioVal}(${gradeShort[grade] || grade})` : `${ratioType}=${ratioVal}`
+  }
+  if (t === 'ventilator_lung_injury_risk') {
+    const a = extra?.assessment || {}
+    const vt = a?.vte_ml_per_kg_pbw != null ? `VT=${Number(a.vte_ml_per_kg_pbw).toFixed(1)}` : ''
+    const dt = a?.double_triggering ? '双触发' : ''
+    return [dt, vt].filter(Boolean).join('+') || '肺保护通气偏离'
+  }
   if (t === 'aki') return v != null ? `AKI=${v}期` : '—'
   if (t === 'qsofa') return v != null ? `qSOFA=${v}` : '—'
   if (t === 'sofa' || t === 'septic_shock') return v != null ? `SOFA=${v}` : '—'

@@ -3356,6 +3356,59 @@ class BaseEngine:
                 return True
         return False
 
+    async def _escalate_alert(
+        self,
+        original_alert: dict[str, Any],
+        new_rule_id: str,
+        new_priority: str,
+        reason: str,
+        patient_doc: dict[str, Any] | None = None,
+    ) -> dict | None:
+        """
+        告警升级：关闭原告警，创建升级后的新告警（episode 链）。
+        - 原告警设置 escalated_to 和 is_active=False
+        - 新告警设置 escalation_of、previous_priority、priority_history
+        - 新 rule_id 绕过同规则抑制
+        """
+        from app.alert_engine.alert_classification import build_escalation_alert_doc, lookup_classification
+
+        now = datetime.now()
+        original_id = original_alert.get("_id")
+
+        # 构建升级告警文档
+        escalated_doc = build_escalation_alert_doc(
+            original_alert, new_rule_id, new_priority, reason,
+        )
+
+        # 应用分类
+        classification = lookup_classification(new_rule_id)
+        if classification is not None:
+            classification.apply_to_alert_doc(escalated_doc)
+            escalated_doc["priority"] = new_priority
+
+        # 写入新告警
+        try:
+            res = await self.db.col("alert_records").insert_one(escalated_doc)
+            escalated_doc["_id"] = res.inserted_id
+
+            # 关闭原告警
+            if original_id:
+                await self.db.col("alert_records").update_one(
+                    {"_id": original_id},
+                    {"$set": {
+                        "is_active": False,
+                        "escalated_to": str(res.inserted_id),
+                        "resolved_at": now,
+                        "resolve_reason": f"升级为 {new_rule_id}({new_priority}): {reason}",
+                    }},
+                )
+
+            await self._broadcast_alert(escalated_doc)
+            return escalated_doc
+        except Exception as e:
+            logger.error(f"告警升级失败: {e}")
+            return None
+
     async def _load_patient(self, pid: Any) -> tuple[dict | None, str | None]:
         oid = _safe_oid(pid)
         pid_str = str(oid) if oid else str(pid)

@@ -17,6 +17,8 @@ const SCENARIO_GROUP_LABELS: Record<string, string> = {
 
 const ALERT_TYPE_LABELS: Record<string, string> = {
   ards: 'ARDS',
+  ards_oxygenation_screen: 'ARDS 氧合筛查',
+  ventilator_lung_injury_risk: '呼吸机肺损伤风险',
   aki: 'AKI',
   qsofa: 'qSOFA',
   sofa: 'SOFA',
@@ -332,6 +334,8 @@ const CLINICAL_TERM_LABELS: Record<string, string> = {
   ventilator_asynchrony: '人机不同步',
   apache: '急性生理与慢性健康评分',
   ards: '急性呼吸窘迫综合征',
+  ards_oxygenation_screen: 'ARDS 氧合分级筛查',
+  ventilator_lung_injury_risk: '肺保护通气偏离风险',
   aki: '急性肾损伤',
   crrt: '连续肾脏替代治疗',
   vte: '静脉血栓栓塞',
@@ -423,6 +427,133 @@ export function formatSeverityLabel(value: any, fallback = '关注') {
   const key = normalizeLabelKey(value)
   if (!key) return fallback
   return SEVERITY_LABELS[key] || fallback
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 告警领域 (alert_domain) 和优先级 (priority) 标签
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DOMAIN_LABELS: Record<string, string> = {
+  physiologic_alarm: '生理危急',
+  clinical_risk: '临床风险',
+  workflow_reminder: '流程提醒',
+  quality_gap: '质控缺项',
+  data_quality: '数据质量',
+  ai_advisory: 'AI 建议',
+  unknown: '未分类',
+}
+
+const DOMAIN_DISPLAY_TONES: Record<string, string> = {
+  physiologic_alarm: 'red',
+  clinical_risk: 'orange',
+  workflow_reminder: 'amber',
+  quality_gap: 'yellow',
+  data_quality: 'slate',
+  ai_advisory: 'blue',
+  unknown: 'slate',
+}
+
+const DOMAIN_CSS_CLASSES: Record<string, string> = {
+  red: 'domain-physiologic',
+  orange: 'domain-clinical',
+  amber: 'domain-workflow',
+  yellow: 'domain-quality',
+  slate: 'domain-data',
+  blue: 'domain-ai',
+}
+
+const PRIORITY_LABELS: Record<string, string> = {
+  p0: '立即响应',
+  p1: '尽快处理',
+  p2: '本班处理',
+  p3: '例行',
+}
+
+const PRIORITY_SORT_ORDER: Record<string, number> = {
+  p0: 0,
+  p1: 1,
+  p2: 2,
+  p3: 3,
+}
+
+export function formatDomainLabel(value: any, fallback = '未分类') {
+  const key = normalizeLabelKey(value)
+  if (!key) return fallback
+  return DOMAIN_LABELS[key] || fallback
+}
+
+export function formatPriorityLabel(value: any, fallback = '—') {
+  const key = normalizeLabelKey(value)
+  if (!key) return fallback
+  return PRIORITY_LABELS[key] || fallback
+}
+
+export function getDomainDisplayTone(domain: string | null | undefined): string {
+  const key = normalizeLabelKey(domain)
+  return DOMAIN_DISPLAY_TONES[key] || 'slate'
+}
+
+export function getDomainCssClass(tone: string): string {
+  return DOMAIN_CSS_CLASSES[tone] || 'domain-unknown'
+}
+
+export function getPrioritySortOrder(priority: string | null | undefined): number {
+  const key = normalizeLabelKey(priority)
+  return PRIORITY_SORT_ORDER[key] ?? 2  // default to p2
+}
+
+/**
+ * 前端显示色调映射（优先使用 alert_domain → display_tone → severity 降级）
+ */
+export function getAlertDisplayTone(alert: any): string {
+  // 1) alert_domain 优先
+  if (alert?.alert_domain) {
+    return getDomainDisplayTone(alert.alert_domain)
+  }
+  // 2) display_tone 字段
+  if (alert?.display_tone) {
+    return String(alert.display_tone).toLowerCase()
+  }
+  // 3) 旧 severity 降级
+  const sev = String(alert?.severity || '').toLowerCase()
+  if (sev === 'critical') return 'red'
+  if (sev === 'high') return 'orange'
+  if (sev === 'warning') return 'amber'
+  return 'slate'
+}
+
+/**
+ * 是否应该触发强提醒（弹窗/声音）
+ * 仅 physiologic_alarm + p0 触发
+ */
+export function shouldTriggerStrongNotification(alert: any): boolean {
+  const domain = String(alert?.alert_domain || '').toLowerCase()
+  const priority = String(alert?.priority || '').toLowerCase()
+  return domain === 'physiologic_alarm' && priority === 'p0'
+}
+
+/**
+ * 是否应该触发语音播报
+ * 仅 physiologic_alarm + p0
+ */
+export function shouldTriggerSpeech(alert: any): boolean {
+  return shouldTriggerStrongNotification(alert)
+}
+
+/**
+ * 大屏显示过滤：默认仅显示 p0/p1
+ */
+export function isBigScreenVisible(alert: any): boolean {
+  const priority = String(alert?.priority || '').toLowerCase()
+  return priority === 'p0' || priority === 'p1'
+}
+
+/**
+ * 护理任务面板显示过滤：显示 workflow_reminder 和 quality_gap
+ */
+export function isNursingTaskVisible(alert: any): boolean {
+  const domain = String(alert?.alert_domain || '').toLowerCase()
+  return domain === 'workflow_reminder' || domain === 'quality_gap'
 }
 
 export function formatRiskLevelLabel(value: any, fallback = '未分层') {
