@@ -66,21 +66,44 @@ class TemporalRiskScanner(BaseScanner):
             probability = float(result.get("probability") or 0.0)
             organ_probabilities = result.get("organ_probabilities") if isinstance(result.get("organ_probabilities"), dict) else {}
             future_probabilities = result.get("future_probabilities") if isinstance(result.get("future_probabilities"), dict) else {}
+            future_risk_scores = result.get("future_risk_scores") if isinstance(result.get("future_risk_scores"), dict) else {}
+            prediction_source = str(result.get("prediction_source") or "unknown")
+            risk_value = result.get("risk_value")
+            risk_value_type = str(result.get("risk_value_type") or "rule_score")
             payload = {
                 "patient_id": pid_str,
                 "patient_name": patient_doc.get("name"),
                 "bed": patient_doc.get("hisBed"),
                 "dept": patient_doc.get("dept") or patient_doc.get("hisDept"),
                 "score_type": "temporal_risk_scanner",
-                "score": round(probability, 4),
+                "score": round(probability, 4) if probability is not None else None,
                 "risk_level": self.engine._risk_level_from_probability(probability),
                 "organ_probabilities": {str(k): round(float(v), 4) for k, v in organ_probabilities.items() if v is not None},
                 "future_probabilities": {str(k): round(float(v), 4) for k, v in future_probabilities.items() if v is not None},
+                "future_risk_scores": {str(k): round(float(v), 4) for k, v in future_risk_scores.items() if v is not None},
                 "sequence_shape": list(sequence.shape),
                 "input_context": context,
+                # legacy fields
                 "model_backend": result.get("backend"),
                 "model_path": result.get("model_path"),
-                "model_available": bool(result.get("available")),
+                "model_available": bool(result.get("model_available") or result.get("model_loaded")),
+                # ── new contract fields ──
+                "prediction_source": prediction_source,
+                "output_available": bool(result.get("output_available") or result.get("available")),
+                "model_loaded": bool(result.get("model_loaded")),
+                "model_name": str(result.get("model_name") or ""),
+                "model_version": str(result.get("model_version") or ""),
+                "model_status": str(result.get("model_status") or ""),
+                "local_validation_status": str(result.get("local_validation_status") or "not_applicable"),
+                "calibration_version": str(result.get("calibration_version") or ""),
+                "fallback_used": bool(result.get("fallback_used")),
+                "fallback_reason": str(result.get("fallback_reason") or ""),
+                "risk_value": risk_value,
+                "risk_value_type": risk_value_type,
+                "risk_value_display": str(result.get("risk_value_display") or ""),
+                "display_label": str(result.get("display_label") or ""),
+                "safety_notice": str(result.get("safety_notice") or ""),
+                "limitations": result.get("limitations") if isinstance(result.get("limitations"), list) else [],
                 "calc_time": now,
                 "updated_at": now,
                 "month": now.strftime("%Y-%m"),
@@ -111,7 +134,11 @@ class TemporalRiskScanner(BaseScanner):
             top_organs = [name for name, _ in organ_rank[:3]]
             alert = await self.engine._create_alert(
                 rule_id=rule_id,
-                name="时序模型恶化风险预警",
+                name=(
+                    "时序模型恶化风险预警"
+                    if prediction_source == "trained_model"
+                    else "时序规则恶化风险评估"
+                ),
                 category="temporal_model",
                 alert_type="temporal_deterioration_risk",
                 severity=severity,
@@ -126,16 +153,28 @@ class TemporalRiskScanner(BaseScanner):
                 patient_doc=patient_doc,
                 source_time=now,
                 extra={
-                    "probability": round(probability, 4),
+                    "probability": round(probability, 4) if probability is not None else None,
                     "probability_4h": round(prob_4h, 4),
                     "future_probabilities": payload["future_probabilities"],
+                    "future_risk_scores": payload["future_risk_scores"],
                     "organ_probabilities": payload["organ_probabilities"],
                     "top_organs": top_organs,
                     "input_context": context,
+                    "prediction_source": prediction_source,
+                    "risk_value_type": risk_value_type,
+                    "display_label": payload["display_label"],
                     "runtime": {
                         "available": bool(result.get("available")),
+                        "output_available": bool(result.get("output_available")),
+                        "model_available": bool(result.get("model_loaded")),
                         "backend": result.get("backend"),
                         "model_path": result.get("model_path"),
+                        "model_name": payload["model_name"],
+                        "model_version": payload["model_version"],
+                        "model_status": payload["model_status"],
+                        "local_validation_status": payload["local_validation_status"],
+                        "fallback_used": payload["fallback_used"],
+                        "fallback_reason": payload["fallback_reason"],
                         "reason": result.get("reason"),
                     },
                 },

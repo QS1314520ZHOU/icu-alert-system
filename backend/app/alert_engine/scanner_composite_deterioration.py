@@ -61,12 +61,14 @@ class CompositeDeteriorationScanner(BaseScanner):
                     str(k) for k, _ in
                     sorted(((str(k), float(v)) for k, v in temporal_org.items() if v is not None), key=lambda x: x[1], reverse=True)[:3]
                 ]
+                temporal_prediction_source = str(temporal_record.get("prediction_source") or "unknown")
                 temporal_signal = {
                     "enabled": float(temporal_record.get("score") or 0.0) >= 0.58,
                     "probability_4h": float((temporal_record.get("future_probabilities") or {}).get("4") or (temporal_record.get("future_probabilities") or {}).get(4) or temporal_record.get("score") or 0.0),
                     "risk_level": str(temporal_record.get("risk_level") or "low"),
                     "organs": top_organs,
                     "contributors": [],
+                    "prediction_source": temporal_prediction_source,
                 }
                 temporal_forecast = {
                     "patient_id": pid_str,
@@ -74,10 +76,19 @@ class CompositeDeteriorationScanner(BaseScanner):
                     "organ_risk_scores": temporal_org,
                     "horizon_probabilities": temporal_record.get("future_probabilities"),
                     "composite_signal": temporal_signal,
+                    "prediction_source": temporal_prediction_source,
                     "model_meta": {
                         "mode": "temporal_risk_scanner",
                         "backend": temporal_record.get("model_backend"),
                         "model_path": temporal_record.get("model_path"),
+                        "prediction_source": temporal_prediction_source,
+                        "model_name": temporal_record.get("model_name", ""),
+                        "model_version": temporal_record.get("model_version", ""),
+                        "model_status": temporal_record.get("model_status", ""),
+                        "local_validation_status": temporal_record.get("local_validation_status", "not_applicable"),
+                        "fallback_used": temporal_record.get("fallback_used", False),
+                        "fallback_reason": temporal_record.get("fallback_reason", ""),
+                        "risk_value_type": temporal_record.get("risk_value_type", ""),
                     },
                 }
             else:

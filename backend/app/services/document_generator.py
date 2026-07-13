@@ -619,12 +619,17 @@ class ClinicalDocumentGenerator:
             return None
         rag_hits = self._rag_hits(structured_data, doc_type)
         prompt = self._compose_prompt(template, structured_data, rag_hits)
+        # Append prediction source guard instructions so the LLM never calls
+        # rule scores "model probabilities" in generated clinical text.
+        from app.services.prediction_contract import build_llm_guard_instruction
+
         system_prompt = (
             template.system_prompt
             + " 输出严格JSON，字段仅包含 title, sections, document_text, key_facts_used。"
             + " sections 为数组，每项包含 heading 和 content。"
             + " document_text 必须是完整自然语言文书。"
             + " 会诊申请单必须突出会诊目的、申请原因、需协助解决事项；日常病程记录必须突出病情变化、今日评估、处理经过、后续计划，两者不得使用同一套段落。"
+            + "\n\n" + build_llm_guard_instruction()
         )
 
         llm_cfg = (self.config.yaml_cfg or {}).get("ai_service", {}).get("llm", {})

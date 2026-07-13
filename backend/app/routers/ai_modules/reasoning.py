@@ -122,6 +122,8 @@ async def ai_risk_forecast(patient_id: str):
             horizons=(4, 8, 12),
             include_history=True,
         )
+        model_meta = forecast.get("model_meta") or {}
+        prediction_source = forecast.get("prediction_source") or model_meta.get("prediction_source") or "unknown"
         return {
             "code": 0,
             "risk_summary": forecast.get("summary") or "",
@@ -136,7 +138,33 @@ async def ai_risk_forecast(patient_id: str):
             "top_contributors": forecast.get("top_contributors") or [],
             "organ_risk_scores": forecast.get("organ_risk_scores") or {},
             "organ_risk_curves": forecast.get("organ_risk_curves") or {},
-            "model_meta": forecast.get("model_meta") or {},
+            "model_meta": model_meta,
+            # ── unified contract fields ──
+            "prediction_source": prediction_source,
+            "model_available": model_meta.get("model_available", False),
+            "model_loaded": model_meta.get("model_loaded", False),
+            "model_name": model_meta.get("model_name", ""),
+            "model_version": model_meta.get("model_version", ""),
+            "model_status": model_meta.get("model_status", ""),
+            "local_validation_status": model_meta.get("local_validation_status", ""),
+            "calibration_version": model_meta.get("calibration_version", ""),
+            "fallback_used": model_meta.get("fallback_used", False),
+            "fallback_reason": model_meta.get("fallback_reason", ""),
+            "display_label": (
+                "模型预测风险" if prediction_source == "trained_model"
+                else "规则估算风险" if prediction_source == "rule_estimate"
+                else "模型当前不可用" if prediction_source == "unavailable"
+                else "风险预测"
+            ),
+            "safety_notice": (
+                "模型预测结果仅供临床决策支持，不替代医生判断"
+                if prediction_source == "trained_model"
+                else "当前风险指数由临床规则计算，非AI模型预测，仅供临床参考"
+                if prediction_source == "rule_estimate"
+                else "AI模型当前不可用，系统无法提供模型预测"
+                if prediction_source == "unavailable"
+                else "预测来源未知，请核实数据来源后使用"
+            ),
         }
     except Exception as exc:
         logger.error("AI risk forecast error: %s", exc)

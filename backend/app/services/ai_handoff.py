@@ -40,9 +40,11 @@ class AiHandoffService:
             )
         fallback_reason = ""
         try:
+            from app.services.prediction_contract import build_llm_guard_instruction
             system_prompt = (
                 "你是ICU交班助手，按I-PASS结构生成交班摘要。"
                 "只能归纳已提供数据，不得编造。必须返回严格JSON。"
+                + "\n\n" + build_llm_guard_instruction()
             )
             user_prompt = (
                 "请基于以下数据生成交班摘要，字段包括: "

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -10,6 +11,20 @@ from typing import Any
 import numpy as np
 
 from app.services.local_model_paths import local_model_dir
+from app.services.prediction_contract import (
+    PREDICTION_SOURCE_RULE_ESTIMATE,
+    PREDICTION_SOURCE_TRAINED_MODEL,
+    PREDICTION_SOURCE_UNAVAILABLE,
+    RISK_VALUE_TYPE_RULE_SCORE,
+    RISK_VALUE_TYPE_MODEL_PROBABILITY,
+    VALIDATION_NOT_APPLICABLE,
+    VALIDATION_UNVALIDATED,
+    MODEL_STATUS_OK,
+    MODEL_STATUS_WEIGHT_MISSING,
+    MODEL_STATUS_LOAD_FAILED,
+    MODEL_STATUS_DISABLED,
+    MODEL_STATUS_TIMEOUT,
+)
 from app.services.runtime_config_service import DEFAULT_TRAJECTORY_FORECAST_CONFIG, TRAJECTORY_CODE_OPTIONS
 from app.utils.serialization import serialize_doc
 
@@ -52,6 +67,10 @@ class VitalTrajectoryForecaster:
         self._device = "cpu"
         self._backend = "torch"
         self._infer_thread_lock = threading.Lock()
+        # Model identity – resolved after _ensure_loaded()
+        self._model_name = ""
+        self._model_version = ""
+        self._model_hash = ""
 
     def _model_dir(self) -> Path:
         return local_model_dir(self.config, "chronos_dir", "chronos")
@@ -121,6 +140,8 @@ class VitalTrajectoryForecaster:
             self._model_path = root
             self._backend = "chronos"
             self._unavailable_reason = ""
+            self._model_name = "chronos"
+            self._model_version = self._model_hash or "unknown"
             return True
         except Exception as exc:
             if isinstance(exc, ModuleNotFoundError):
@@ -146,6 +167,7 @@ class VitalTrajectoryForecaster:
                 continue
             if path.suffix == ".safetensors":
                 if self._load_hf_pipeline(root):
+                    self._resolve_model_identity(str(root))
                     return
                 return
             try:
@@ -157,6 +179,7 @@ class VitalTrajectoryForecaster:
                 if hasattr(self._model, "eval"):
                     self._model.eval()
                 self._unavailable_reason = ""
+                self._resolve_model_identity(str(path))
                 return
             except Exception as exc:
                 self._model = None
@@ -164,20 +187,51 @@ class VitalTrajectoryForecaster:
                 return
         if (root / "config.json").exists():
             self._load_hf_pipeline(root)
+            if self._model is not None:
+                self._resolve_model_identity(str(root))
             return
         self._unavailable_reason = f"no torch or safetensors weight found under {self._model_dir()}"
+
+    def _resolve_model_identity(self, path_str: str) -> None:
+        """Resolve model_name, model_version, model_hash after successful load."""
+        try:
+            sha = hashlib.sha256()
+            with open(path_str, "rb") as fh:
+                sha.update(fh.read(65536))
+            self._model_hash = sha.hexdigest()[:12]
+        except Exception:
+            self._model_hash = ""
+        stem = Path(path_str).stem if path_str else ""
+        self._model_name = stem or self._backend or "unknown"
+        self._model_version = self._model_hash or "unknown"
 
     def status(self) -> dict[str, Any]:
         if not self._loaded:
             self._ensure_loaded()
+        model_is_loaded = bool(self._model is not None)
         return {
-            "available": bool(self._model is not None),
+            "available": model_is_loaded,
+            "output_available": model_is_loaded,
+            "model_available": model_is_loaded,
+            "model_loaded": model_is_loaded,
+            "prediction_source": (
+                PREDICTION_SOURCE_TRAINED_MODEL
+                if model_is_loaded
+                else PREDICTION_SOURCE_UNAVAILABLE
+            ),
             "reason": self._unavailable_reason,
             "backend": self._backend,
             "model_path": str(self._model_path or ""),
+            "model_name": self._model_name or "unknown",
+            "model_version": self._model_version or "unknown",
+            "model_hash": self._model_hash,
+            "model_status": (
+                MODEL_STATUS_OK if model_is_loaded else MODEL_STATUS_WEIGHT_MISSING
+            ),
+            "local_validation_status": VALIDATION_UNVALIDATED if model_is_loaded else VALIDATION_NOT_APPLICABLE,
+            "calibration_version": "",
             "supported_codes": list(SUPPORTED_CODES),
             "code_meta": CODE_META,
-            "calibration_version": "",
         }
 
     async def _history(self, patient_id: str, code: str, history_hours: int | None = None) -> list[dict[str, Any]]:
@@ -329,17 +383,31 @@ class VitalTrajectoryForecaster:
         if cfg.get("enabled") is False:
             return {
                 "available": False,
+                "output_available": False,
+                "model_available": False,
+                "model_loaded": False,
+                "prediction_source": PREDICTION_SOURCE_UNAVAILABLE,
                 "reason": "trajectory forecast disabled by runtime config",
                 "horizon_hours": horizon,
                 "codes": requested or list(DEFAULT_CONTINUOUS_CODES),
                 "series": {},
                 "threshold_risks": [],
                 "generated_at": serialize_doc(datetime.now()),
+                "source": "",
+                "fallback_reason": "disabled",
                 "model_meta": {
                     "available": False,
+                    "output_available": False,
+                    "model_available": False,
+                    "model_loaded": False,
+                    "prediction_source": PREDICTION_SOURCE_UNAVAILABLE,
                     "reason": "trajectory forecast disabled by runtime config",
                     "backend": "disabled",
                     "model_path": "",
+                    "model_name": "unknown",
+                    "model_version": "unknown",
+                    "model_status": MODEL_STATUS_DISABLED,
+                    "local_validation_status": VALIDATION_NOT_APPLICABLE,
                     "supported_codes": list(SUPPORTED_CODES),
                     "code_meta": CODE_META,
                     "calibration_version": str(cfg.get("calibration_version") or "uncalibrated-v1"),
@@ -382,10 +450,19 @@ class VitalTrajectoryForecaster:
         status = {**status, "calibration_version": str(cfg.get("calibration_version") or "uncalibrated-v1"), "config_version": cfg.get("version")}
         source = "chronos" if any((row or {}).get("source") == "chronos" for row in series.values()) else "heuristic"
         fallback_reasons = sorted({str((row or {}).get("fallback_reason") or "") for row in series.values() if (row or {}).get("fallback_reason")})
+        prediction_source = (
+            PREDICTION_SOURCE_TRAINED_MODEL if source == "chronos"
+            else PREDICTION_SOURCE_RULE_ESTIMATE
+        )
+        model_is_loaded = status.get("model_loaded", False)
         return {
             "available": bool(status["available"]),
+            "output_available": bool(status["available"]),
+            "model_available": model_is_loaded,
+            "model_loaded": model_is_loaded,
+            "prediction_source": prediction_source,
             "reason": "" if status["available"] else status["reason"],
-            "source": source,
+            "source": source,  # backward compat
             "fallback_reason": fallback_reasons[0] if fallback_reasons else "",
             "horizon_hours": horizon,
             "codes": requested,

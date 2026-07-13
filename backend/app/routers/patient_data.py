@@ -583,6 +583,10 @@ async def patient_vitals_forecast(
         logger.warning("vitals forecast timeout patient_id=%s codes=%s horizon=%s", patient_id, codes, horizon_hours)
         return {
             "available": False,
+            "output_available": False,
+            "model_available": False,
+            "model_loaded": False,
+            "prediction_source": "unavailable",
             "reason": "forecast_timeout",
             "source": "",
             "fallback_reason": "forecast_timeout",
@@ -591,7 +595,18 @@ async def patient_vitals_forecast(
             "series": {},
             "threshold_risks": [],
             "generated_at": serialize_doc(datetime.now()),
-            "model_meta": {"available": False, "reason": "forecast_timeout", "backend": "timeout"},
+            "model_meta": {
+                "available": False,
+                "output_available": False,
+                "model_available": False,
+                "model_loaded": False,
+                "prediction_source": "unavailable",
+                "reason": "forecast_timeout",
+                "backend": "timeout",
+                "model_status": "timeout",
+                "model_name": "unknown",
+                "model_version": "unknown",
+            },
         }
     return serialize_doc(result)
 

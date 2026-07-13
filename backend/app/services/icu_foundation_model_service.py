@@ -13,6 +13,18 @@ import numpy as np
 from bson import ObjectId
 
 from app.services.local_model_paths import local_model_dir, local_models_base_dir
+from app.services.prediction_contract import (
+    PREDICTION_SOURCE_TRAINED_MODEL,
+    PREDICTION_SOURCE_UNAVAILABLE,
+    RISK_VALUE_TYPE_MODEL_PROBABILITY,
+    VALIDATION_NOT_APPLICABLE,
+    VALIDATION_UNVALIDATED,
+    MODEL_STATUS_OK,
+    MODEL_STATUS_WEIGHT_MISSING,
+    MODEL_STATUS_LOAD_FAILED,
+    MODEL_STATUS_INFERENCE_FAILED,
+    _clamp_valid,
+)
 
 
 DEFAULT_FM_TASKS = ("mortality", "aki", "circulation_failure")
@@ -193,30 +205,85 @@ class ICUFoundationModelService:
         if not status["available"]:
             return {
                 "available": False,
+                "output_available": False,
+                "model_available": False,
+                "model_loaded": False,
+                "prediction_source": PREDICTION_SOURCE_UNAVAILABLE,
                 "reason": status["reason"],
                 "provider": status.get("provider"),
                 "tasks": {task: {"probability": None, "risk_level": "unknown"} for task in task_list},
                 "model_meta": status,
                 "generated_at": datetime.now(),
+                "risk_value": None,
+                "risk_value_type": "rule_score",
+                "risk_value_display": "—",
+                "display_label": "模型当前不可用",
+                "safety_notice": "AI模型当前不可用，系统无法提供模型预测",
+                "limitations": ["ICU基础模型未加载，无法提供预测"],
             }
         probs: dict[str, float] = {}
+        zero_shot_used = False
         if hasattr(self._model, "zero_shot_predict"):
             try:
                 raw = self._model.zero_shot_predict(embedding, task_list)
                 if isinstance(raw, dict):
                     probs = {str(k): float(v) for k, v in raw.items() if k in task_list}
+                    zero_shot_used = True
             except Exception:
                 probs = {}
-        if not probs:
-            head = embedding[:16] if embedding.size else np.asarray([0.0], dtype=np.float32)
-            score = float(1 / (1 + np.exp(-float(np.nanmean(head)) / 100.0)))
-            probs = {task: score for task in task_list}
+
+        if not zero_shot_used or not probs:
+            # Model is loaded but cannot produce task-specific predictions.
+            # Do NOT fabricate probabilities from embedding mean — that would
+            # be a fixed-value / empty-shell output masquerading as a model prediction.
+            return {
+                "available": False,
+                "output_available": False,
+                "model_available": True,
+                "model_loaded": True,
+                "prediction_source": PREDICTION_SOURCE_UNAVAILABLE,
+                "reason": "model_loaded_but_zero_shot_unavailable",
+                "provider": status.get("provider"),
+                "tasks": {task: {"probability": None, "risk_level": "unknown"} for task in task_list},
+                "model_meta": status,
+                "generated_at": datetime.now(),
+                "risk_value": None,
+                "risk_value_type": "rule_score",
+                "risk_value_display": "—",
+                "display_label": "模型当前不可用",
+                "safety_notice": "模型已加载但无法执行零样本预测，系统无法提供模型预测",
+                "limitations": ["ICU基础模型不支持零样本预测接口"],
+            }
+
+        # Model produced real zero-shot predictions
+        tasks_out = {}
+        first_prob = None
+        for task_name in task_list:
+            raw_prob = probs.get(task_name)
+            prob = _clamp_valid(raw_prob)
+            tasks_out[str(task_name)] = {
+                "probability": round(float(prob), 4) if prob is not None else None,
+                "risk_level": self._risk_level(prob if prob is not None else 0.0),
+            }
+            if prob is not None and first_prob is None:
+                first_prob = prob
+
         return {
             "available": True,
+            "output_available": True,
+            "model_available": True,
+            "model_loaded": True,
+            "prediction_source": PREDICTION_SOURCE_TRAINED_MODEL,
             "provider": status.get("provider"),
-            "tasks": {task: {"probability": round(float(probs.get(task, 0.0)), 4), "risk_level": self._risk_level(probs.get(task, 0.0))} for task in task_list},
+            "tasks": tasks_out,
             "model_meta": status,
             "generated_at": datetime.now(),
+            "risk_value": first_prob,
+            "risk_value_type": RISK_VALUE_TYPE_MODEL_PROBABILITY,
+            "risk_value_display": f"{round(first_prob * 100)}%" if first_prob is not None else "—",
+            "display_label": "模型预测风险",
+            "safety_notice": "模型预测结果仅供临床决策支持，不替代医生判断",
+            "limitations": ["ICU基础模型未经本院校准验证"],
         }
 
     @staticmethod

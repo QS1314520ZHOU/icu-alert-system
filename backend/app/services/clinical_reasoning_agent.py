@@ -13,6 +13,10 @@ from bson import ObjectId
 from app.services.ai_monitor import AiMonitor
 from app.services.clinical_knowledge_graph import ClinicalKnowledgeGraph
 from app.services.llm_runtime import call_llm_chat
+from app.services.prediction_contract import (
+    LLM_PROMPT_SOURCE_RULES,
+    format_temporal_forecast_for_llm,
+)
 from app.services.patient_digital_twin import PatientDigitalTwinService
 
 logger = logging.getLogger("icu-alert")
@@ -67,18 +71,24 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
     STRATEGY_PROMPT = """你是 ICU 临床推理 Strategy 阶段。
 基于患者数字孪生，识别最需要优先验证的 top-3 临床假设。
 只返回 JSON:
-{"hypotheses":[{"rank":1,"hypothesis":"","clinical_problem":"","why_it_matters":"","supporting_facts":[""],"missing_or_uncertain":[""],"urgency":"critical|high|medium"}]}"""
+{"hypotheses":[{"rank":1,"hypothesis":"","clinical_problem":"","why_it_matters":"","supporting_facts":[""],"missing_or_uncertain":[""],"urgency":"critical|high|medium"}]}
+
+""" + LLM_PROMPT_SOURCE_RULES
 
     PLAN_PROMPT = """你是 ICU 临床推理 Plan 阶段。
 基于 Strategy 假设和患者数字孪生，为每个假设列出需要验证的信息点。
 只返回 JSON:
-{"verification_plan":[{"hypothesis":"","information_needs":[{"item":"","reason":"","preferred_source":"digital_twin|scanner|rag|knowledge_graph|bedside","would_change_management":true}]}]}"""
+{"verification_plan":[{"hypothesis":"","information_needs":[{"item":"","reason":"","preferred_source":"digital_twin|scanner|rag|knowledge_graph|bedside","would_change_management":true}]}]}
+
+""" + LLM_PROMPT_SOURCE_RULES
 
     REFLECT_PROMPT = SYSTEM_PROMPT + """
 
 你现在处于 Reflect 阶段。请综合 Strategy、Plan、Action evidence，输出最终 JSON。
 可以在 prognosis_assessment.confidence 中体现总体信心；失败模式预测请融入 prognosis_assessment.summary 或 safety_notes。
-不要新增顶层字段，必须保持最终 JSON schema 完全不变。"""
+不要新增顶层字段，必须保持最终 JSON schema 完全不变。
+
+""" + LLM_PROMPT_SOURCE_RULES
 
     def __init__(self, *, db, config, alert_engine, rag_service=None, ai_monitor=None, ai_handoff_service=None) -> None:
         self.db = db
@@ -201,8 +211,15 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
                 problems.append(name)
         risk_level = str((temporal_forecast or {}).get("risk_level") or "").strip()
         current_probability = (temporal_forecast or {}).get("current_probability")
+        prediction_source = str((temporal_forecast or {}).get("prediction_source") or "").strip()
+        source_label = "规则评估" if prediction_source == "rule_estimate" else ("模型预测" if prediction_source == "trained_model" else "")
         if risk_level:
-            problems.append(f"未来恶化风险 {risk_level} ({current_probability})")
+            label = f"未来恶化风险 {risk_level}"
+            if current_probability is not None:
+                label += f" ({current_probability})"
+            if source_label:
+                label += f" [{source_label}]"
+            problems.append(label)
         return problems[:12]
 
     def _rag_tags(self, patient_doc: dict, facts: dict[str, Any]) -> list[str]:

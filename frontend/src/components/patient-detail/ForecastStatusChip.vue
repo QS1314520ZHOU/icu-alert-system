@@ -45,10 +45,20 @@ const visible = computed(() => props.enabled && props.meta.status !== 'idle')
 const generatedText = computed(() => props.meta.generatedAt ? dayjs(props.meta.generatedAt).format('HH:mm') : '—')
 const tone = computed(() => {
   if (props.meta.status === 'error') return 'error'
-  if (props.meta.source === 'heuristic') return 'fallback'
+  if (props.meta.predictionSource === 'rule_estimate' || props.meta.source === 'heuristic') return 'fallback'
+  if (props.meta.predictionSource === 'unavailable') return 'error'
   return 'ready'
 })
-const sourceText = computed(() => props.meta.source === 'chronos' ? '时序预测模型' : props.meta.source === 'heuristic' ? '规则外推' : '预测暂不可用')
+const sourceText = computed(() => {
+  if (props.meta.predictionSource === 'trained_model') {
+    const name = props.meta.modelName ? ` (${props.meta.modelName})` : ''
+    return `时序预测模型${name}`
+  }
+  if (props.meta.predictionSource === 'rule_estimate') return '规则外推（非AI模型）'
+  if (props.meta.predictionSource === 'unavailable') return '模型不可用'
+  // Legacy fallback
+  return props.meta.source === 'chronos' ? '时序预测模型' : props.meta.source === 'heuristic' ? '规则外推' : '预测暂不可用'
+})
 const fallbackText = computed(() => {
   const map: Record<string, string> = {
     model_not_loaded: '模型未就绪，已暂不可用',
@@ -71,6 +81,13 @@ const chipText = computed(() => {
   if (props.meta.status === 'refreshing') return '预测刷新中'
   if (props.meta.status === 'error') return '预测暂不可用'
   const horizon = props.meta.horizon || props.horizon
+  if (props.meta.predictionSource === 'trained_model') {
+    const uncal = props.meta.localValidationStatus === 'unvalidated' ? ' · 未经校准' : ''
+    return `时序模型 · ${horizon}小时预测${uncal} · ${generatedText.value} 生成`
+  }
+  if (props.meta.predictionSource === 'rule_estimate') return `规则外推 · ${horizon}小时预测 · 模型未就绪`
+  if (props.meta.predictionSource === 'unavailable') return `预测不可用 · ${horizon}小时`
+  // Legacy
   if (props.meta.source === 'heuristic') return `规则外推 · ${horizon}小时预测 · 模型未就绪`
   return `时序模型 · ${horizon}小时预测 · ${generatedText.value} 生成`
 })

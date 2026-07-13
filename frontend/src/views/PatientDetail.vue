@@ -92,6 +92,43 @@
                   <span>{{ sepsisBundleTimelineText }}</span>
                   <span v-if="sepsisBundleExtraText">{{ sepsisBundleExtraText }}</span>
                 </div>
+                <!-- v2 感染/休克/风险信息 -->
+                <div v-if="sepsisBundleV2Info" class="hero-bundle-v2-rows">
+                  <div class="hero-bundle-v2-row">
+                    <span class="hero-bundle-v2-label">感染证据</span>
+                    <span :class="`hero-bundle-v2-value hero-bundle-v2-value--${sepsisInfectionLight}`">
+                      {{ sepsisInfectionVerdictText }}
+                    </span>
+                  </div>
+                  <div v-if="sepsisBundleStatusResolved?.shock_suspected" class="hero-bundle-v2-row hero-bundle-v2-row--warn">
+                    <span class="hero-bundle-v2-label">⚠ 脓毒性休克疑似</span>
+                    <span class="hero-bundle-v2-value">{{ sepsisBundleStatusResolved?.vasopressor_active ? '升压药+' : '' }}乳酸 {{ sepsisBundleStatusResolved?.hypoperfusion_evidence?.join(', ') || '—' }}</span>
+                  </div>
+                  <div v-if="sepsisBundleFluidRiskCautions.length" class="hero-bundle-v2-row hero-bundle-v2-row--caution">
+                    <span class="hero-bundle-v2-label">补液风险</span>
+                    <span class="hero-bundle-v2-value">{{ sepsisBundleFluidRiskCautions.slice(0, 3).join('; ') }}</span>
+                  </div>
+                  <div v-if="sepsisBundleComplianceSummary" class="hero-bundle-v2-row">
+                    <span class="hero-bundle-v2-label">质控</span>
+                    <span class="hero-bundle-v2-value">{{ sepsisBundleComplianceSummary }}</span>
+                  </div>
+                </div>
+                <!-- v2 操作入口 -->
+                <div v-if="sepsisBundleV2Info" class="hero-bundle-v2-actions">
+                  <button
+                    v-if="sepsisBundleHasReviewPending"
+                    class="hero-bundle-v2-btn hero-bundle-v2-btn--confirm"
+                    @click.stop="openSepsisBundleReviewDialog"
+                  >
+                    医生确认
+                  </button>
+                  <button
+                    class="hero-bundle-v2-btn hero-bundle-v2-btn--record"
+                    @click.stop="openSepsisBundleExecutionDialog"
+                  >
+                    记录执行
+                  </button>
+                </div>
               </div>
               <div
                 v-if="postExtubationHeroVisible"
@@ -614,6 +651,110 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- 脓毒症 Bundle 临床确认对话框 -->
+    <a-modal
+      v-model:visible="sepsisBundleReviewDialogVisible"
+      title="脓毒症 Bundle 临床确认"
+      :confirm-loading="sepsisBundleSubmitting"
+      @ok="submitSepsisBundleReview"
+    >
+      <div class="sepsis-review-form">
+        <div class="sepsis-review-row">
+          <label>元素</label>
+          <select v-model="sepsisBundleReviewForm.element_key" class="sepsis-review-select">
+            <option
+              v-for="el in sepsisBundleReviewableElements"
+              :key="el.key"
+              :value="el.key"
+            >{{ el.label }}</option>
+          </select>
+        </div>
+        <div class="sepsis-review-row">
+          <label>适用性</label>
+          <select v-model="sepsisBundleReviewForm.applicability" class="sepsis-review-select">
+            <option value="required">必须执行</option>
+            <option value="not_applicable">不适用</option>
+            <option value="contraindicated">禁忌</option>
+            <option value="individualized">个体化目标</option>
+          </select>
+        </div>
+        <div v-if="sepsisBundleReviewForm.applicability === 'individualized'" class="sepsis-review-row">
+          <label>个体化目标 (mL)</label>
+          <input
+            v-model.number="sepsisBundleReviewForm.individualized_target_ml"
+            type="number"
+            class="sepsis-review-input"
+            placeholder="例如 500"
+            min="0"
+          />
+        </div>
+        <div class="sepsis-review-row">
+          <label>原因</label>
+          <textarea
+            v-model="sepsisBundleReviewForm.reason"
+            class="sepsis-review-textarea"
+            rows="3"
+            placeholder="请说明为什么调整适用性或目标"
+          />
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- 脓毒症 Bundle 执行记录对话框 -->
+    <a-modal
+      v-model:visible="sepsisBundleExecutionDialogVisible"
+      title="记录 Bundle 执行"
+      :confirm-loading="sepsisBundleSubmitting"
+      @ok="submitSepsisBundleExecution"
+    >
+      <div class="sepsis-review-form">
+        <div class="sepsis-review-row">
+          <label>元素</label>
+          <select v-model="sepsisBundleExecutionForm.element_key" class="sepsis-review-select">
+            <option value="lactate">乳酸检测</option>
+            <option value="lactate_repeat">乳酸复测</option>
+            <option value="antibiotic_assessment">抗菌药评估</option>
+            <option value="blood_culture">血培养</option>
+            <option value="infection_source">感染灶评估</option>
+            <option value="fluid_resuscitation">液体复苏</option>
+          </select>
+        </div>
+        <div class="sepsis-review-row">
+          <label>执行状态</label>
+          <select v-model="sepsisBundleExecutionForm.status" class="sepsis-review-select">
+            <option value="met">按时完成</option>
+            <option value="met_late">超时完成</option>
+            <option value="completed_before">Bundle前已完成</option>
+          </select>
+        </div>
+        <div class="sepsis-review-row">
+          <label>完成时间</label>
+          <input
+            v-model="sepsisBundleExecutionForm.completed_at"
+            type="datetime-local"
+            class="sepsis-review-input"
+          />
+        </div>
+        <div class="sepsis-review-row">
+          <label>执行值</label>
+          <input
+            v-model="sepsisBundleExecutionForm.value"
+            class="sepsis-review-input"
+            placeholder="例如: 乳酸 3.2, 补液量 1500mL"
+          />
+        </div>
+        <div class="sepsis-review-row">
+          <label>备注</label>
+          <textarea
+            v-model="sepsisBundleExecutionForm.reason"
+            class="sepsis-review-textarea"
+            rows="2"
+            placeholder="可选备注"
+          />
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -645,6 +786,8 @@ import {
   postAlertAcknowledge,
   postAlertDisposition,
   getPatientSepsisBundleStatus,
+  submitSepsisBundleElementReview,
+  recordSepsisBundleExecution,
   getPatientWeaningTimeline,
   getPatientSimilarCaseOutcomes,
   getPatientWeaningStatus,
@@ -1049,21 +1192,86 @@ function formatCountdown(seconds?: number | null) {
 
 const sepsisBundleStatusLight = computed(() => sepsisBundleStatusResolved.value?.light || 'gray')
 const sepsisBundleStatusText = computed(() => sepsisBundleStatusResolved.value?.label || '未进入计时')
+const sepsisBundleV2Info = computed(() => {
+  return sepsisBundleStatusResolved.value?.bundle_version === 2
+})
+
+const sepsisInfectionVerdictText = computed(() => {
+  const v = sepsisBundleStatusResolved.value?.infection_verdict
+  const map: Record<string, string> = {
+    supported: '感染证据支持',
+    possible: '感染可能',
+    not_supported: '无感染证据',
+    unknown: '感染证据不明',
+  }
+  return map[v] || v || '—'
+})
+const sepsisInfectionLight = computed(() => {
+  const v = sepsisBundleStatusResolved.value?.infection_verdict
+  if (v === 'supported') return 'green'
+  if (v === 'possible') return 'yellow'
+  if (v === 'not_supported') return 'red'
+  return 'gray'
+})
+
+const sepsisBundleFluidRiskCautions = computed(() => {
+  return sepsisBundleStatusResolved.value?.fluid_risk_cautions || []
+})
+
+const sepsisBundleComplianceSummary = computed(() => {
+  const c = sepsisBundleStatusResolved.value?.bundle_compliance
+  if (!c) return ''
+  const ratio = c.compliance_ratio != null ? `${(c.compliance_ratio * 100).toFixed(0)}%` : '—'
+  const denom = c.applicable_confirmed ?? 0
+  const num = c.completed_on_time ?? 0
+  let extra = ''
+  if (c.review_pending_count) extra += ` 待确认${c.review_pending_count}`
+  if (c.not_applicable_count) extra += ` 不适用${c.not_applicable_count}`
+  if (c.contraindicated_count) extra += ` 禁忌${c.contraindicated_count}`
+  if (c.data_missing_count) extra += ` 缺数据${c.data_missing_count}`
+  return `合规率 ${ratio} (${num}/${denom})${extra}`
+})
+
+const sepsisBundleHasReviewPending = computed(() => {
+  const elements = sepsisBundleStatusResolved.value?.bundle_elements
+  if (!elements) return false
+  return Object.values(elements).some((item: any) => {
+    const a = item?.applicability
+    const cr = item?.clinical_review
+    return a === 'review_pending' || cr?.status === 'pending'
+  })
+})
+
 const sepsisBundleConclusion = computed(() => {
   const status = sepsisBundleStatusResolved.value
   const name = status?.first_antibiotic_name ? ` · ${status.first_antibiotic_name}` : ''
-  if (status?.status === 'met') return `首剂抗生素已在 1 小时内执行${name}`
-  if (status?.status === 'met_late') return `首剂抗生素已补执行，但超过 1h 时限${name}`
-  if (status?.status === 'overdue_3h') return '首剂抗生素已超过 3h 仍未执行'
-  if (status?.status === 'overdue_1h') return '首剂抗生素已超过 1h 未执行'
-  if (status?.status === 'pending') return '已进入脓毒症救治清单计时，请盯紧首剂抗生素'
+  const isV2 = status?.bundle_version === 2
+  if (status?.status === 'met') return `Hour-1 Bundle 已在 1 小时内完成${name}`
+  if (status?.status === 'met_late') return `Bundle 已补执行，但超过 1h 时限${name}`
+  if (status?.status === 'overdue_3h') return 'Bundle 已超过 3h 仍未完成'
+  if (status?.status === 'overdue_1h') return 'Bundle 已超过 1h 未完成'
+  if (status?.status === 'pending') {
+    return isV2
+      ? `已检出感染+器官功能异常，进入筛查计时${name}`
+      : `已进入脓毒症救治清单计时，请盯紧首剂抗生素${name}`
+  }
   return '当前未进入脓毒症 1 小时救治清单计时'
 })
 const sepsisBundleTimelineText = computed(() => {
   const status = sepsisBundleStatusResolved.value
+  const isV2 = status?.bundle_version === 2
+  const screening = status?.screening_detected_at ? fmtTime(status.screening_detected_at) : ''
+  const clock = status?.bundle_clock_anchor ? fmtTime(status.bundle_clock_anchor) : ''
   const started = status?.bundle_started_at ? fmtTime(status.bundle_started_at) : ''
+  const confirmed = status?.clinician_confirmed_at ? fmtTime(status.clinician_confirmed_at) : ''
   const deadline1h = status?.deadline_1h ? fmtTime(status.deadline_1h) : ''
   const firstAbx = status?.first_antibiotic_time ? fmtTime(status.first_antibiotic_time) : ''
+  if (isV2) {
+    if (status?.status === 'met' || status?.status === 'met_late') {
+      return `筛查 ${screening || '—'} · 确认 ${confirmed || '—'} · 首剂 ${firstAbx || '—'}`
+    }
+    return `筛查 ${screening || '—'} · 计时起点 ${clock || started || '—'} · 截止 ${deadline1h || '—'}`
+  }
   if (status?.status === 'met' || status?.status === 'met_late') {
     return `起点 ${started || '—'} · 首剂 ${firstAbx || '—'}`
   }
@@ -1206,6 +1414,25 @@ function formatClinicalNumber(value: any, digits = 1) {
 function formatClinicalMeasure(value: any, unit = '', digits = 1) {
   const text = formatClinicalNumber(value, digits)
   return text === '—' ? text : `${text}${unit}`
+}
+
+function formatTime(value: any) {
+  if (!value) return '—'
+  try {
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return String(value)
+    return d.toLocaleString('zh-CN', { hour12: false })
+  } catch {
+    return String(value)
+  }
+}
+
+function statusLabel(status: string | undefined | null) {
+  const map: Record<string, string> = {
+    met: '✓ 符合', not_met: '✗ 不符合', unknown: '? 待确认',
+    not_excluded: '⚠ 未排除', supported: '✓ 可排除',
+  }
+  return map[String(status ?? '')] ?? String(status ?? '—')
 }
 
 function formatHeroPercent(value: any) {
@@ -1408,20 +1635,43 @@ function topicToneFromSeverity(severity: any) {
 }
 
 const aiRuntimeSummary = computed(() => {
-  const runtime = aiRiskForecast.value?.model_meta?.runtime || {}
-  const mode = String(aiRiskForecast.value?.model_meta?.mode || '')
-  const primaryModel = String(aiRiskForecast.value?.model_meta?.model || aiRiskForecast.value?.model_meta?.model_name || '').trim()
-  const fallbackModel = String(runtime?.fallback_model || aiRiskForecast.value?.model_meta?.fallback_model || '').trim()
+  const meta = aiRiskForecast.value?.model_meta || {}
+  const runtime = meta.runtime || {}
+  const predictionSource = String(aiRiskForecast.value?.prediction_source || meta?.prediction_source || '')
+  const modelName = String(meta?.model_name || meta?.name || '')
+  const modelVersion = String(meta?.model_version || '')
+  const modelStatus = String(meta?.model_status || runtime?.reason || '')
+  const fallbackUsed = Boolean(meta?.fallback_used || false)
   const hasError = Boolean(aiLabError.value || aiRuleError.value || aiRiskError.value || aiHandoffError.value)
-  const pills = [
-    primaryModel ? `主模型 ${primaryModel}` : '',
-    fallbackModel ? `兜底 ${fallbackModel}` : '',
-    mode ? `模式 ${mode}` : '',
-  ].filter(Boolean)
+
+  const pills: string[] = []
+  if (modelName && modelName !== 'unknown') {
+    pills.push(`${modelName}${modelVersion && modelVersion !== 'unknown' ? ` v${modelVersion}` : ''}`)
+  }
+  if (predictionSource === 'rule_estimate') pills.push('规则估算')
+  if (predictionSource === 'trained_model') pills.push('模型预测')
+  if (predictionSource === 'unavailable') pills.push('模型不可用')
+  if (fallbackUsed) pills.push('已降级')
+  if (modelStatus) pills.push(modelStatus)
+
+  let level = hasError ? 'red' : 'cyan'
+  let text = hasError ? 'AI服务异常' : 'AI服务正常'
+  let detail = hasError ? '部分 AI 能力返回错误，请检查模型与后端运行态。' : '主模型与知识证据链路可用。'
+
+  if (predictionSource === 'rule_estimate') {
+    level = 'warning'
+    text = '规则模式'
+    detail = '未检测到本地模型权重，当前使用启发式规则评估。可接入 ONNX/PyTorch 模型后自动切换。'
+  } else if (predictionSource === 'unavailable') {
+    level = 'red'
+    text = '模型不可用'
+    detail = '模型加载或推理失败，且未启用规则回退。请检查模型权重与配置。'
+  }
+
   return {
-    level: hasError ? 'red' : 'cyan',
-    text: hasError ? 'AI服务异常' : 'AI服务正常',
-    detail: hasError ? '部分 AI 能力返回错误，请检查模型与后端运行态。' : '主模型与知识证据链路可用。',
+    level,
+    text,
+    detail,
     pills,
   }
 })
@@ -2570,12 +2820,80 @@ function alertDetailFields(item: any) {
   }
 
   if (t === 'ards') {
+    // 兼容旧 alert_type="ards" 的历史记录
     fields.push(
       { label: 'P/F', value: formatClinicalNumber(item?.value ?? item?.condition?.pf_ratio, 1) },
       { label: 'PaO₂', value: formatClinicalNumber(extra?.pao2, 0) },
       { label: 'FiO₂', value: formatClinicalNumber(extra?.fio2, Number(extra?.fio2) > 1 ? 0 : 2) },
       { label: 'PEEP', value: formatClinicalNumber(extra?.peep, 1) },
     )
+    appendAlertLifecycleFields(fields, item)
+    return fields
+  }
+
+  if (t === 'ards_oxygenation_screen') {
+    const a = extra?.assessment || {}
+    const gradeLabels: Record<string, string> = {
+      severe: '重度', moderate: '中度', mild: '轻度',
+      sf_risk_screen_only: 'S/F筛查', none: '无',
+    }
+    const statusLabels: Record<string, string> = {
+      possible_ards: '可能ARDS', oxygenation_criteria_met: '氧合标准达标',
+      alternative_explanation_possible: '需鉴别心源性', insufficient_data: '数据不足',
+    }
+    fields.push(
+      { label: '评估类型', value: a?.ratio_type === 'sf' ? 'S/F 氧合风险筛查' : 'P/F 氧合分级筛查' },
+      { label: '比值类型', value: a?.ratio_type === 'sf' ? 'S/F' : 'P/F' },
+      { label: '比值', value: formatClinicalNumber(a?.ratio_value, 1) },
+      { label: '氧合分级', value: gradeLabels[a?.oxygenation_grade] ?? a?.oxygenation_grade ?? '—' },
+      { label: 'FiO₂', value: formatClinicalNumber(a?.fio2, Number(a?.fio2) > 1 ? 0 : 2) },
+      { label: 'PEEP', value: formatClinicalNumber(a?.peep, 1) },
+      { label: '起病时间', value: statusLabel(a?.acute_onset_status) },
+      { label: '双肺影像', value: statusLabel(a?.bilateral_opacity_status) },
+      { label: '心源性排除', value: statusLabel(a?.cardiogenic_exclusion_status) },
+      { label: '机器评估', value: statusLabels[a?.status] ?? a?.status ?? '—' },
+      { label: '评估时间', value: a?.oxygenation_time ? formatTime(a.oxygenation_time) : '—' },
+    )
+    if (a?.measurement_time_gap_minutes != null) {
+      fields.push({ label: '测量时差(分)', value: formatClinicalNumber(a.measurement_time_gap_minutes, 1) })
+    }
+    const missing = a?.missing_criteria
+    if (Array.isArray(missing) && missing.length > 0) {
+      fields.push({ label: '待完善项', value: missing.join('、') })
+    }
+    const review = a?.clinician_review
+    if (review && review.action) {
+      const reviewActionLabels: Record<string, string> = {
+        confirm: '医生确认ARDS', reject: '医生排除', needs_more_data: '需补充数据',
+        alternative_diagnosis: `替代诊断: ${review.alternative_diagnosis || '—'}`,
+      }
+      fields.push(
+        { label: '医生复核', value: reviewActionLabels[review.action] ?? review.action },
+        { label: '复核人', value: review.reviewed_by ?? '—' },
+        { label: '复核时间', value: review.reviewed_at ? formatTime(review.reviewed_at) : '—' },
+        { label: '复核版本', value: String(review.version ?? '—') },
+      )
+    }
+    appendAlertLifecycleFields(fields, item)
+    return fields
+  }
+
+  if (t === 'ventilator_lung_injury_risk') {
+    const a = extra?.assessment || {}
+    const riskLabels: Record<string, string> = { high: '高风险', elevated: '偏高', notable: '需关注' }
+    fields.push(
+      { label: '风险等级', value: riskLabels[a?.risk_level] ?? a?.risk_level ?? '—' },
+      { label: '双触发', value: a?.double_triggering ? `是 (AI ${formatClinicalNumber(a?.asynchrony_index, 1)}%)` : '否' },
+      { label: 'VTe/PBW', value: a?.vte_ml_per_kg_pbw != null ? `${formatClinicalNumber(a?.vte_ml_per_kg_pbw, 2)} mL/kg` : '—' },
+      { label: 'PBW', value: a?.pbw_kg != null ? `${formatClinicalNumber(a?.pbw_kg, 1)} kg` : '不可用' },
+      { label: '驱动压', value: a?.driving_pressure != null ? `${formatClinicalNumber(a?.driving_pressure, 1)} cmH₂O` : '—' },
+      { label: '平台压', value: a?.plateau_pressure != null ? `${formatClinicalNumber(a?.plateau_pressure, 1)} cmH₂O` : '—' },
+      { label: 'PEEP', value: a?.peep != null ? `${formatClinicalNumber(a?.peep, 1)} cmH₂O` : '—' },
+    )
+    const evidence = a?.evidence
+    if (Array.isArray(evidence) && evidence.length > 0) {
+      fields.push({ label: '证据', value: evidence.join('；') })
+    }
     appendAlertLifecycleFields(fields, item)
     return fields
   }
@@ -3045,6 +3363,22 @@ function formatAlertValue(a: any) {
     const pf = v ?? extra?.pf_ratio
     return pf != null ? `P/F=${Math.round(Number(pf))}` : '—'
   }
+  if (t === 'ards_oxygenation_screen') {
+    const a = extra?.assessment || {}
+    const ratioType = a?.ratio_type === 'sf' ? 'S/F' : 'P/F'
+    const ratioVal = a?.ratio_value != null ? Math.round(Number(a.ratio_value)) : '—'
+    const gradeLabels: Record<string, string> = {
+      severe: '重度', moderate: '中度', mild: '轻度', sf_risk_screen_only: 'S/F筛查',
+    }
+    const gradeText = gradeLabels[a?.oxygenation_grade] ?? ''
+    return gradeText ? `${ratioType}=${ratioVal} (${gradeText})` : `${ratioType}=${ratioVal}`
+  }
+  if (t === 'ventilator_lung_injury_risk') {
+    const a = extra?.assessment || {}
+    const vt = a?.vte_ml_per_kg_pbw != null ? `VT=${Number(a.vte_ml_per_kg_pbw).toFixed(1)}` : ''
+    const dt = a?.double_triggering ? '双触发' : ''
+    return [dt, vt].filter(Boolean).join('+') || '肺保护通气偏离'
+  }
   if (t === 'aki') {
     return v != null ? `AKI=${v}期` : '—'
   }
@@ -3294,6 +3628,8 @@ function alertTypeText(raw: any) {
     qsofa: 'qSOFA',
     septic_shock: '脓毒性休克',
     ards: 'ARDS',
+    ards_oxygenation_screen: 'ARDS氧合筛查',
+    ventilator_lung_injury_risk: '肺保护通气偏离',
     aki: 'AKI',
     dic: 'DIC',
     gi_bleeding: '消化道出血',
@@ -3515,6 +3851,125 @@ async function loadSepsisBundleStatus() {
     console.error('加载脓毒症救治清单状态失败', e)
     sepsisBundleStatus.value = null
   }
+}
+
+// ---- v2 临床确认 ----
+const sepsisBundleReviewDialogVisible = ref(false)
+const sepsisBundleExecutionDialogVisible = ref(false)
+const sepsisBundleReviewForm = ref({
+  element_key: 'fluid_resuscitation',
+  applicability: 'individualized',
+  individualized_target_ml: undefined as number | undefined,
+  reason: '',
+  version: 0,
+})
+const sepsisBundleExecutionForm = ref({
+  element_key: '',
+  status: 'met',
+  completed_at: '',
+  value: null as any,
+  reason: '',
+})
+const sepsisBundleSubmitting = ref(false)
+
+const sepsisBundleReviewableElements = computed(() => {
+  const elements = sepsisBundleStatusResolved.value?.bundle_elements
+  if (!elements) return []
+  return Object.entries(elements)
+    .filter(([, item]: [string, any]) => item?.clinical_review?.status === 'pending' || item?.applicability === 'review_pending')
+    .map(([key, item]: [string, any]) => ({
+      key,
+      applicability: item?.applicability || 'review_pending',
+      version: item?.clinical_review?.version || 0,
+      label: ({
+        fluid_resuscitation: '液体复苏',
+        antibiotic_assessment: '抗菌药评估',
+        lactate: '乳酸检测',
+        lactate_repeat: '乳酸复测',
+        blood_culture: '血培养',
+        infection_source: '感染灶评估',
+        clinician_path_confirmation: '路径确认',
+      } as Record<string, string>)[key] || key,
+    }))
+})
+
+function openSepsisBundleReviewDialog() {
+  const elements = sepsisBundleReviewableElements.value
+  if (elements.length > 0) {
+    const first = elements[0]!
+    sepsisBundleReviewForm.value = {
+      element_key: first.key,
+      applicability: 'individualized',
+      individualized_target_ml: undefined,
+      reason: '',
+      version: first.version,
+    }
+  }
+  sepsisBundleReviewDialogVisible.value = true
+}
+
+async function submitSepsisBundleReview() {
+  const patientId = route.params.id as string
+  if (!patientId) return
+  sepsisBundleSubmitting.value = true
+  try {
+    const identity = getOperatorIdentity()
+    const payload: any = {
+      element_key: sepsisBundleReviewForm.value.element_key,
+      applicability: sepsisBundleReviewForm.value.applicability,
+      reason: sepsisBundleReviewForm.value.reason || '临床医生确认',
+      version: sepsisBundleReviewForm.value.version,
+      actor: identity || undefined,
+      role: 'doctor',
+    }
+    if (sepsisBundleReviewForm.value.applicability === 'individualized') {
+      payload.individualized_target_ml = sepsisBundleReviewForm.value.individualized_target_ml
+    }
+    await submitSepsisBundleElementReview(patientId, payload)
+    sepsisBundleReviewDialogVisible.value = false
+    await loadSepsisBundleStatus()
+  } catch (e: any) {
+    console.error('提交临床确认失败', e)
+    alert(e?.response?.data?.message || '提交失败')
+  } finally {
+    sepsisBundleSubmitting.value = false
+  }
+}
+
+async function submitSepsisBundleExecution() {
+  const patientId = route.params.id as string
+  if (!patientId) return
+  sepsisBundleSubmitting.value = true
+  try {
+    const identity = getOperatorIdentity()
+    await recordSepsisBundleExecution(patientId, {
+      element_key: sepsisBundleExecutionForm.value.element_key,
+      status: sepsisBundleExecutionForm.value.status,
+      completed_at: sepsisBundleExecutionForm.value.completed_at || undefined,
+      value: sepsisBundleExecutionForm.value.value,
+      reason: sepsisBundleExecutionForm.value.reason,
+      actor: identity || undefined,
+      role: undefined,
+    })
+    sepsisBundleExecutionDialogVisible.value = false
+    await loadSepsisBundleStatus()
+  } catch (e: any) {
+    console.error('记录执行失败', e)
+    alert(e?.response?.data?.message || '记录失败')
+  } finally {
+    sepsisBundleSubmitting.value = false
+  }
+}
+
+function openSepsisBundleExecutionDialog() {
+  sepsisBundleExecutionForm.value = {
+    element_key: 'fluid_resuscitation',
+    status: 'met',
+    completed_at: new Date().toISOString(),
+    value: null,
+    reason: '',
+  }
+  sepsisBundleExecutionDialogVisible.value = true
 }
 
 async function loadWeaningStatus() {

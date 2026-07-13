@@ -348,13 +348,20 @@
       <div v-if="aiRuleError" class="ai-error">{{ aiRuleError }}</div>
     </a-card>
 
-    <a-card title="恶化风险预测" :bordered="false" class="ai-card">
+    <a-card :title="forecastCardTitle" :bordered="false" class="ai-card">
       <div class="ai-card-head">
-        <span class="ai-card-note">进入AI工作台后自动生成</span>
+        <span class="ai-card-note">{{ forecastCardNote }}</span>
         <a-button size="small" type="link" :loading="aiRiskLoading" @click="loadAiRisk">重新生成</a-button>
       </div>
       <a-spin :spinning="aiRiskLoading">
         <div v-if="latestAiRiskAlert || hasRiskForecast" :class="['ai-risk-card', aiConfidenceClass(aiRiskConfidenceLevel(latestAiRiskAlert || {}))]">
+          <!-- Prediction source badge -->
+          <div v-if="forecastPredictionSourceLabel" class="forecast-source-badge">
+            <span v-if="forecastPredictionSourceLabel === '未经本院校准'" class="forecast-uncalibrated-badge">⚠ 未经本院校准</span>
+            <span v-else-if="forecastPredictionSourceLabel === '规则估算'" class="forecast-rule-badge">📋 规则估算风险</span>
+            <span v-else-if="forecastPredictionSourceLabel === '模型不可用'" class="forecast-unavailable-badge">⚠ 模型当前不可用</span>
+            <span v-else-if="forecastPredictionSourceLabel === '来源未知'" class="forecast-unknown-badge">❓ 来源未知 · 旧版本记录</span>
+          </div>
           <div class="workbench-kpis">
             <div class="wb-kpi">
               <span>主要风险</span>
@@ -365,7 +372,7 @@
               <strong>{{ forecastRiskLabel }}</strong>
             </div>
             <div class="wb-kpi">
-              <span>当前概率</span>
+              <span>{{ forecastProbabilityLabel }}</span>
               <strong>{{ forecastCurrentProbability }}</strong>
             </div>
           </div>
@@ -374,6 +381,7 @@
             <div class="risk-curve-head">
               <span class="curve-meta">{{ forecastModelLabel }}</span>
               <span class="curve-meta">{{ forecastHorizonText }}</span>
+              <span v-if="props.aiRiskForecast?.safety_notice" class="curve-safety-notice">{{ props.aiRiskForecast?.safety_notice }}</span>
             </div>
             <AiRiskChart :option="riskForecastOption" :init-options="chartInitOptions" autoresize class="risk-curve-chart" />
           </div>
@@ -694,18 +702,97 @@ const forecastRiskLabel = computed(() => props.aiRiskLevelText(
 const forecastCurrentProbability = computed(() => {
   const p = Number(props.aiRiskForecast?.current_probability)
   if (Number.isNaN(p)) return '—'
+  const ps = String(props.aiRiskForecast?.prediction_source || '')
+  const rvt = String(props.aiRiskForecast?.model_meta?.risk_value_type || props.aiRiskForecast?.model_meta?.runtime?.risk_value_type || '')
+  // Legacy/unknown: never show as model probability
+  if (!ps || ps === 'unknown') {
+    return `历史风险值 ${Math.round(p * 100)}/100（来源未知）`
+  }
+  if (ps === 'rule_estimate' || rvt === 'rule_score') {
+    return `规则风险指数 ${Math.round(p * 100)}/100`
+  }
   return `${Math.round(p * 100)}%`
+})
+const forecastProbabilityLabel = computed(() => {
+  const ps = String(props.aiRiskForecast?.prediction_source || '')
+  if (!ps || ps === 'unknown') return '历史评分'
+  if (ps === 'rule_estimate') return '风险指数'
+  if (ps === 'trained_model') return '模型概率'
+  return '当前概率'
+})
+const forecastCardTitle = computed(() => {
+  const ps = String(props.aiRiskForecast?.prediction_source || '')
+  if (ps === 'trained_model') return '恶化风险预测'
+  if (ps === 'rule_estimate') return '恶化风险评估（规则）'
+  if (ps === 'unavailable') return '恶化风险评估'
+  if (!ps || ps === 'unknown') return '历史风险评估'
+  return '恶化风险预测'
+})
+const forecastCardNote = computed(() => {
+  const ps = String(props.aiRiskForecast?.prediction_source || '')
+  if (!ps || ps === 'unknown') return '该记录来自旧版本，无法确认是规则指数还是模型概率'
+  if (ps === 'trained_model') {
+    const vs = props.aiRiskForecast?.model_meta?.local_validation_status || ''
+    if (vs === 'unvalidated') return 'AI模型预测（未经本院校准）'
+    return 'AI模型预测 · 进入AI工作台后自动生成'
+  }
+  if (ps === 'rule_estimate') return '启发式规则估算 · 非AI模型预测'
+  if (ps === 'unavailable') return '模型当前不可用'
+  return '进入AI工作台后自动生成'
 })
 const forecastContributors = computed(() => Array.isArray(props.aiRiskForecast?.top_contributors) ? props.aiRiskForecast.top_contributors.slice(0, 4) : [])
 const forecastModelLabel = computed(() => {
   const meta = props.aiRiskForecast?.model_meta || {}
-  const runtime = meta.runtime || {}
-  return [meta.mode || 'temporal-model', runtime.backend].filter(Boolean).join(' · ')
+  const ps = String(props.aiRiskForecast?.prediction_source || meta?.prediction_source || '')
+  const modelName = meta?.model_name || meta?.name || ''
+  const modelVersion = meta?.model_version || ''
+  const fallbackUsed = meta?.fallback_used || false
+
+  const parts: string[] = []
+
+  if (ps === 'trained_model') {
+    parts.push('AI模型预测')
+    if (modelName) parts.push(modelName)
+    if (modelVersion && modelVersion !== 'unknown') parts.push(`v${modelVersion}`)
+  } else if (ps === 'rule_estimate') {
+    parts.push('启发式规则估算')
+    if (fallbackUsed) parts.push('(模型不可用，已降级)')
+  } else if (ps === 'unavailable') {
+    parts.push('模型不可用')
+  } else if (!ps || ps === 'unknown') {
+    parts.push('来源未知（旧版本记录）')
+  } else {
+    // Legacy fallback
+    const runtime = meta.runtime || {}
+    parts.push(meta.mode || 'temporal-model')
+    if (runtime.backend) parts.push(runtime.backend)
+  }
+
+  return parts.join(' · ')
+})
+const forecastPredictionSourceLabel = computed(() => {
+  const ps = String(props.aiRiskForecast?.prediction_source || props.aiRiskForecast?.model_meta?.prediction_source || '')
+  if (ps === 'trained_model') {
+    const vs = props.aiRiskForecast?.model_meta?.local_validation_status || ''
+    if (vs === 'unvalidated') return '未经本院校准'
+    return '已训练模型'
+  }
+  if (ps === 'rule_estimate') return '规则估算'
+  if (ps === 'unavailable') return '模型不可用'
+  if (!ps || ps === 'unknown') return '来源未知'
+  return ''
 })
 const forecastHorizonText = computed(() => {
   const items = Array.isArray(props.aiRiskForecast?.horizon_probabilities) ? props.aiRiskForecast.horizon_probabilities : []
   if (!items.length) return '4-12h'
-  return items.map((item: any) => `+${item.hours}h ${Math.round(Number(item.probability || 0) * 100)}%`).join(' / ')
+  const ps = String(props.aiRiskForecast?.prediction_source || '')
+  return items.map((item: any) => {
+    const p = Number(item?.probability || 0)
+    if (Number.isNaN(p)) return `+${item.hours}h —`
+    if (!ps || ps === 'unknown') return `+${item.hours}h ${Math.round(p * 100)}/100（来源未知）`
+    if (ps === 'rule_estimate') return `+${item.hours}h ${Math.round(p * 100)}/100`
+    return `+${item.hours}h ${Math.round(p * 100)}%`
+  }).join(' / ')
 })
 
 function cleanSummaryLine(v: any) {
@@ -1780,6 +1867,66 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   background: rgba(120, 83, 14, .18);
   font-size: 12px;
   line-height: 1.6;
+}
+
+/* ── prediction source badges ── */
+.forecast-source-badge {
+  margin-bottom: 10px;
+}
+.forecast-uncalibrated-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  background: rgba(251, 191, 36, 0.16);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 600;
+}
+.forecast-rule-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+.forecast-unavailable-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+}
+.forecast-unknown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  background: rgba(148, 163, 184, 0.10);
+  border: 1px solid rgba(148, 163, 184, 0.20);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+}
+.curve-safety-notice {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
 }
 
 @media (max-width: 1500px) {

@@ -12,6 +12,12 @@ from typing import Any
 
 import numpy as np
 from app.alert_engine.acid_base_analyzer import extract_bga_temp_items
+from app.alert_engine.alert_classification import (
+    AlertClassification,
+    lookup_classification,
+    infer_alert_classification,
+    normalize_alert_doc,
+)
 from app.alert_engine.clinical_commons import convert_unit, urine_ml_h
 from app.alert_engine.task_queue import load_queue_settings, publish_event
 from app.services.llm_runtime import call_llm_chat
@@ -1851,6 +1857,7 @@ class BaseEngine:
         *,
         snapshot: dict[str, Any],
         horizon_probs: list[dict[str, Any]],
+        prediction_source: str = "",
     ) -> str:
         current_prob = int(round(float(snapshot.get("probability") or 0) * 100))
         risk_text = {
@@ -1865,12 +1872,30 @@ class BaseEngine:
         h12 = next((item for item in horizon_probs if int(item.get("hours") or 0) == 12), None)
         horizon_text = []
         if h4:
-            horizon_text.append(f"4h约{int(round(float(h4.get('probability') or 0) * 100))}%")
+            val = int(round(float(h4.get("probability") or 0) * 100))
+            horizon_text.append(f"4h约{val}{'%' if prediction_source == 'trained_model' else '/100'}")
         if h12:
-            horizon_text.append(f"12h约{int(round(float(h12.get('probability') or 0) * 100))}%")
+            val = int(round(float(h12.get("probability") or 0) * 100))
+            horizon_text.append(f"12h约{val}{'%' if prediction_source == 'trained_model' else '/100'}")
         reason_text = "；".join(reasons[:2]) if reasons else "当前生命体征未见明显立即失代偿信号，但仍需结合趋势观察"
         horizon_line = f"，{ '，'.join(horizon_text) }" if horizon_text else ""
-        return f"模型判断当前恶化风险为{risk_text}风险（{current_prob}%）{horizon_line}。主要依据：{reason_text}。"
+
+        # Label according to prediction_source
+        if prediction_source == "trained_model":
+            prefix = "模型判断当前恶化风险为"
+            value_fmt = f"{current_prob}%"
+        elif prediction_source == "rule_estimate":
+            prefix = "规则评估当前恶化风险为"
+            value_fmt = f"{current_prob}/100（规则风险指数）"
+        elif prediction_source == "unavailable":
+            prefix = "模型不可用，系统无法评估恶化风险"
+            value_fmt = ""
+            return f"{prefix}。{reason_text}"
+        else:
+            prefix = "系统评估当前恶化风险为"
+            value_fmt = f"{current_prob}/100（来源未知）"
+
+        return f"{prefix}{risk_text}风险（{value_fmt}）{horizon_line}。主要依据：{reason_text}。"
 
     def _normalize_temporal_feature(self, name: str, value: Any) -> float:
         num = _parse_number(value)
@@ -2180,18 +2205,35 @@ class BaseEngine:
         }
 
         runtime_meta = self._get_temporal_model_runtime().meta()
-        mode = "local_weight_runtime" if runtime_meta.get("available") else "heuristic_sequence_v1"
-        architecture = "本地权重推理(Pytorch/ONNX)" if runtime_meta.get("available") else "启发式时序评分（待接入本地权重时自动切换）"
+        prediction_source = runtime_meta.get("prediction_source", "unknown")
+        model_loaded = runtime_meta.get("model_loaded", False)
+
+        # Build model_meta with the unified contract fields
+        model_meta = {
+            "name": runtime_meta.get("model_name") or "Temporal ICU Risk Predictor",
+            "mode": runtime_meta.get("backend", "heuristic"),
+            "architecture": (
+                "本地权重推理(Pytorch/ONNX)"
+                if model_loaded
+                else "启发式时序评分（待接入本地权重时自动切换）"
+            ),
+            "input_modalities": ["vitals", "labs", "assessments", "recent_alerts"],
+            "prediction_horizons_hours": list(horizons),
+            # ── unified contract fields ──
+            "prediction_source": prediction_source,
+            "model_available": runtime_meta.get("model_available", False),
+            "model_loaded": model_loaded,
+            "model_name": runtime_meta.get("model_name", "unknown"),
+            "model_version": runtime_meta.get("model_version", "unknown"),
+            "model_status": runtime_meta.get("model_status", "unknown"),
+            "local_validation_status": runtime_meta.get("local_validation_status", "not_applicable"),
+            "calibration_version": runtime_meta.get("calibration_version", ""),
+            "runtime": runtime_meta,
+        }
         return {
             "patient_id": pid_str,
-            "model_meta": {
-                "name": "Temporal ICU Risk Predictor",
-                "mode": mode,
-                "architecture": architecture,
-                "input_modalities": ["vitals", "labs", "assessments", "recent_alerts"],
-                "prediction_horizons_hours": list(horizons),
-                "runtime": runtime_meta,
-            },
+            "prediction_source": prediction_source,
+            "model_meta": model_meta,
             "anchor_time": _to_output_iso(anchor_time),
             "risk_level": snapshot.get("risk_level") or "low",
             "current_probability": round(current_prob, 4),
@@ -2204,7 +2246,7 @@ class BaseEngine:
             "top_contributors": snapshot.get("contributors", [])[:6],
             "organ_risk_scores": organ_risk_scores,
             "organ_risk_curves": organ_risk_curves,
-            "summary": self._render_temporal_risk_summary(snapshot=snapshot, horizon_probs=horizon_probs),
+            "summary": self._render_temporal_risk_summary(snapshot=snapshot, horizon_probs=horizon_probs, prediction_source=prediction_source),
             "composite_signal": composite_signal,
         }
 
@@ -2609,6 +2651,7 @@ class BaseEngine:
             )
 
         if alert_type == "ards":
+            # 兼容旧 alert_type="ards" 的历史记录
             pf = value if value is not None else extra.get("pf_ratio")
             pao2 = extra.get("pao2")
             fio2 = extra.get("fio2")
@@ -2617,6 +2660,38 @@ class BaseEngine:
                 f"P/F {self._format_alert_number(pf, 0)}，PaO₂ {self._format_alert_measure(pao2, 'mmHg', 0)}，"
                 f"FiO₂ {self._format_alert_measure(fio2, '%', 0)}，PEEP {self._format_alert_measure(peep, 'cmH₂O', 0)}，"
                 "提示氧合受损；建议执行肺保护通气并复核影像/液体负荷。"
+            )
+
+        if alert_type == "ards_oxygenation_screen":
+            assessment = extra.get("assessment") if isinstance(extra.get("assessment"), dict) else {}
+            ratio_type = str(assessment.get("ratio_type") or extra.get("ratio_type") or "pf").upper()
+            ratio_val = value if value is not None else assessment.get("ratio_value")
+            grade = str(assessment.get("oxygenation_grade") or "")
+            grade_labels = {"severe": "重度", "moderate": "中度", "mild": "轻度", "sf_risk_screen_only": "S/F筛查"}
+            grade_text = grade_labels.get(grade, grade)
+            status = str(assessment.get("status") or "")
+            status_hint = {
+                "possible_ards": "Berlin四要素均满足，建议临床确认",
+                "oxygenation_criteria_met": "氧合标准达标，待完善影像/病程/心功能评估",
+                "alternative_explanation_possible": "心源性/容量负荷因素未排除",
+                "insufficient_data": "数据不足以完成评估",
+            }.get(status, "")
+            return (
+                f"{ratio_type} {self._format_alert_number(ratio_val, 0)}（{grade_text}氧合标准），"
+                f"PEEP {self._format_alert_measure(assessment.get('peep'), 'cmH₂O', 0)}，"
+                f"FiO₂ {self._format_alert_measure(assessment.get('fio2'), '%', 0)}"
+                + (f"；{status_hint}" if status_hint else "")
+                + "；此为机器筛查结果，需临床确认。"
+            )
+
+        if alert_type == "ventilator_lung_injury_risk":
+            a = extra.get("assessment") if isinstance(extra.get("assessment"), dict) else {}
+            evidence = a.get("evidence") if isinstance(a.get("evidence"), list) else []
+            risk_level = str(a.get("risk_level") or "notable")
+            return (
+                f"肺保护通气偏离风险（{risk_level}），"
+                + "；".join(str(e) for e in evidence[:3])
+                + "；此为机器筛查，请结合临床复核后个体化调整通气参数。"
             )
 
         if alert_type == "aki":
@@ -3060,6 +3135,15 @@ class BaseEngine:
             except Exception as e:
                 logger.debug(f"生成预警解释失败: {e}")
                 explanation = None
+        # ── 分类：优先使用注册表精确匹配，兜底推断 ──
+        classification: AlertClassification | None = lookup_classification(rule_id)
+        if classification is None:
+            classification = infer_alert_classification({
+                "rule_id": rule_id,
+                "category": category,
+                "alert_type": alert_type,
+                "severity": severity,
+            })
         alert_doc = {
             "rule_id": rule_id,
             "name": name,
@@ -3079,6 +3163,8 @@ class BaseEngine:
             "created_at": now,
             "is_active": True,
             }
+        # 应用七维度分类字段
+        classification.apply_to_alert_doc(alert_doc)
         if extra:
             alert_doc["extra"] = extra
         if explanation:
@@ -3133,13 +3219,24 @@ class BaseEngine:
 
     async def _create_assessment_alert(self, reminder_doc: dict) -> None:
         score_type = reminder_doc.get("score_type")
+        rule_id = reminder_doc.get("rule_id") or f"NURSE_{str(score_type or '').upper()}"
+        severity = reminder_doc.get("severity", "warning")
+        # ── 分类：优先注册表精确匹配 ──
+        classification: AlertClassification | None = lookup_classification(rule_id)
+        if classification is None:
+            classification = infer_alert_classification({
+                "rule_id": rule_id,
+                "category": "assessments",
+                "alert_type": "nurse_reminder",
+                "severity": severity,
+            })
         alert_doc = {
-            "rule_id": reminder_doc.get("rule_id") or f"NURSE_{score_type}",
+            "rule_id": rule_id,
             "name": reminder_doc.get("name") or f"{str(score_type or '').upper()}评估超时",
             "category": "assessments",
             "parameter": reminder_doc.get("code"),
             "condition": {"operator": "overdue"},
-            "severity": reminder_doc.get("severity", "warning"),
+            "severity": severity,
             "alert_type": "nurse_reminder",
             "patient_id": reminder_doc.get("patient_id"),
             "patient_name": reminder_doc.get("patient_name"),
@@ -3152,6 +3249,7 @@ class BaseEngine:
             "is_active": True,
             "related_id": reminder_doc.get("_id"),
         }
+        classification.apply_to_alert_doc(alert_doc)
         if reminder_doc.get("extra") is not None:
             alert_doc["extra"] = reminder_doc.get("extra")
         if hasattr(self, "_initialize_alert_actionability"):
@@ -3174,10 +3272,24 @@ class BaseEngine:
             except Exception as e:
                 logger.debug(f"报警广播策略判定失败: {e}")
         try:
+            # 使用 alert_domain 和优先级确定路由角色
+            # 优先读取 alert_doc 中的 route_targets（来自分类）
             roles = alert_doc.get("route_targets")
             if not roles:
                 extra = alert_doc.get("extra") if isinstance(alert_doc.get("extra"), dict) else {}
                 roles = extra.get("route_targets")
+
+            # 广播消息中包含分类字段
+            ws_message: dict[str, Any] = {
+                "type": "alert",
+                "data": alert_doc,
+                "roles": roles,
+                # 显式携带关键分类字段供前端/WS过滤
+                "alert_domain": alert_doc.get("alert_domain", "unknown"),
+                "priority": alert_doc.get("priority", "p2"),
+                "display_tone": alert_doc.get("display_tone", "amber"),
+            }
+
             redis_client = getattr(self.db, "redis", None)
             should_publish = bool(redis_client) and (not self.ws or getattr(self, "runtime_role", "api") == "worker")
             published = False
@@ -3186,7 +3298,14 @@ class BaseEngine:
                 payload = {"type": "alert", "data": alert_doc, "roles": roles}
                 published = await publish_event(redis_client, settings.redis_pubsub_channel, payload)
             if self.ws:
-                await self.ws.broadcast({"type": "alert", "data": alert_doc}, roles=roles)
+                await self.ws.broadcast(
+                    ws_message,
+                    roles=roles,
+                    dept=alert_doc.get("dept"),
+                    dept_code=alert_doc.get("deptCode"),
+                    patient_id=alert_doc.get("patient_id"),
+                    alert_domain=alert_doc.get("alert_domain"),
+                )
             elif not published:
                 return
         except Exception as e:

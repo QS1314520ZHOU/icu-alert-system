@@ -6,6 +6,7 @@ export type ForecastStatus = 'idle' | 'loading' | 'ready' | 'refreshing' | 'erro
 export type ForecastMeta = {
   status: ForecastStatus
   source: 'chronos' | 'heuristic' | ''
+  predictionSource: 'trained_model' | 'rule_estimate' | 'unavailable' | 'unknown' | ''
   horizon: number
   generatedAt: string
   qualityLevel: 'normal' | 'low' | ''
@@ -14,6 +15,16 @@ export type ForecastMeta = {
   dataPoints: number
   modelVersion: string
   latencyMs: number
+  // New unified contract fields
+  modelAvailable: boolean
+  modelLoaded: boolean
+  modelName: string
+  modelStatus: string
+  localValidationStatus: string
+  calibrationVersion: string
+  fallbackUsed: boolean
+  displayLabel: string
+  safetyNotice: string
 }
 
 type LoadArgs = {
@@ -117,9 +128,13 @@ export function forecastErrorText(value: any) {
 function metaFromData(data: any, status: ForecastStatus, latencyMs = 0, error = ''): ForecastMeta {
   const model = data?.model_meta || {}
   const disabledOrError = data?.available === false && !data?.source
+  const predictionSource = String(
+    data?.prediction_source || model?.prediction_source || ''
+  ) as ForecastMeta['predictionSource']
   return {
     status,
     source: disabledOrError ? '' : data?.source === 'chronos' ? 'chronos' : data?.source === 'heuristic' ? 'heuristic' : '',
+    predictionSource: predictionSource || '',
     horizon: Number(data?.horizon_hours || 0),
     generatedAt: String(data?.generated_at || ''),
     qualityLevel: qualityLevel(data),
@@ -128,6 +143,16 @@ function metaFromData(data: any, status: ForecastStatus, latencyMs = 0, error = 
     dataPoints: dataPointCount(data),
     modelVersion: String(model?.calibration_version || model?.config_version || ''),
     latencyMs,
+    // New unified contract fields
+    modelAvailable: Boolean(data?.model_available ?? model?.model_available ?? false),
+    modelLoaded: Boolean(data?.model_loaded ?? model?.model_loaded ?? false),
+    modelName: String(data?.model_name || model?.model_name || ''),
+    modelStatus: String(data?.model_status || model?.model_status || ''),
+    localValidationStatus: String(data?.local_validation_status || model?.local_validation_status || ''),
+    calibrationVersion: String(data?.calibration_version || model?.calibration_version || ''),
+    fallbackUsed: Boolean(data?.fallback_used ?? model?.fallback_used ?? false),
+    displayLabel: String(data?.display_label || ''),
+    safetyNotice: String(data?.safety_notice || ''),
   }
 }
 

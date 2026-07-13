@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from pydantic import BaseModel
+
+from app.services.prediction_contract import (
+    query_model_scores,
+    model_metrics_audit,
+    normalizer_strip_rule_scores_from_model_metrics,
+    PREDICTION_SOURCE_TRAINED_MODEL,
+    RISK_VALUE_TYPE_MODEL_PROBABILITY,
+    infer_prediction_source_from_legacy_score,
+)
 
 from app import runtime
 from app.services.admin_quality_service import admin_quality_summary
@@ -154,6 +163,107 @@ async def infer_alert_outcomes(limit: int = 200, min_age_minutes: int = 30):
         min_age_minutes=max(int(min_age_minutes or 30), 0),
     )
     return {"code": 0, "result": serialize_doc(result)}
+
+
+@router.get("/model-prediction-stats")
+async def model_prediction_stats(
+    request: Request,
+    days: int = Query(default=30, ge=1, le=365),
+    score_type: str | None = Query(default="temporal_risk_scanner"),
+    limit: int = Query(default=5000, ge=1, le=20000),
+    include_patient_detail: bool = Query(default=False),
+):
+    """Return model prediction performance statistics with audit trail.
+
+    **Permission**: requires x-user-id and x-user-role=admin headers.
+    This is a **temporary header-based check**, NOT real authentication.
+    x-user-id / x-user-role can be forged by any caller.  Do NOT rely on
+    this for production access control until SSO/JWT is implemented.
+
+    **Patient detail**: ``include_patient_detail`` is disabled until
+    SSO/JWT is in place.  When enabled in future, it will require a
+    signed JWT with admin scope.
+
+    Only ``prediction_source = "trained_model"`` records with
+    ``risk_value_type = "model_probability"`` are included in model
+    performance metrics.
+    """
+    if runtime.db is None:
+        raise HTTPException(status_code=503, detail="Database runtime not ready")
+
+    # ── permission check (temporary header-based, NOT real auth) ─────────
+    # SECURITY NOTE: x-user-id and x-user-role are plain HTTP headers.
+    # Any caller can set them to arbitrary values.  This is a stop-gap
+    # until SSO/JWT is integrated.  Do not treat as authenticated.
+    role = str(
+        request.headers.get("x-user-role")
+        or request.headers.get("x-role")
+        or ""
+    ).strip().lower()
+    actor = str(
+        request.headers.get("x-user-id")
+        or request.headers.get("x-operator-id")
+        or ""
+    ).strip()
+    if not actor:
+        raise HTTPException(status_code=401, detail="authentication required: provide x-user-id header")
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="model prediction stats require admin role")
+
+    # ── patient detail disabled until SSO/JWT ────────────────────────────
+    if include_patient_detail:
+        raise HTTPException(
+            status_code=501,
+            detail="include_patient_detail is disabled until SSO/JWT authentication is implemented. "
+                   "Header-based x-user-id/x-user-role is not sufficient for patient data access.",
+        )
+
+    since = datetime.now() - timedelta(days=max(int(days), 1))
+
+    result = await query_model_scores(
+        runtime.db,
+        score_type=score_type,
+        since=since,
+        limit=max(int(limit), 1),
+    )
+
+    stat_split = result["audit"]["stat_split"]
+
+    response: dict[str, Any] = {
+        "code": 0,
+        "days": days,
+        "score_type": score_type,
+        "requested_by": actor,
+        "_auth_note": "Header-based identity check only; NOT cryptographically authenticated. SSO/JWT pending.",
+        "stat_split": {
+            "total_candidates": stat_split["total_candidates"],
+            "technical_prediction_eligible": stat_split["technical_prediction_eligible"],
+            "clinical_metrics_eligible": stat_split["clinical_metrics_eligible"],
+            "validated_metrics_eligible": stat_split["validated_metrics_eligible"],
+            "excluded_from_technical_metrics": stat_split["excluded_from_technical_metrics"],
+            "excluded_from_clinical_metrics": stat_split["excluded_from_clinical_metrics"],
+        },
+        "excluded_reasons": result["audit"]["excluded_reasons"],
+        "by_validation_status": result["audit"]["by_validation_status"],
+        "validation_status_detail": stat_split["by_status"],
+        "generated_at": datetime.now().isoformat(),
+    }
+
+    # ── access audit log ─────────────────────────────────────────────────
+    try:
+        await runtime.db.col("model_stats_access_audit").insert_one({
+            "actor": actor,
+            "role": role,
+            "endpoint": "/api/admin/model-prediction-stats",
+            "score_type": score_type,
+            "days": days,
+            "ip": request.client.host if request.client else "",
+            "accessed_at": datetime.now(),
+        })
+    except Exception:
+        pass  # audit failure must not block the response
+
+    return response
 
 
 @router.get("/runtime-config")
