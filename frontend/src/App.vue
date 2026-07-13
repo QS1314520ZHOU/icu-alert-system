@@ -9,7 +9,7 @@
         <div class="hdr-top">
           <div class="hdr-l">
           <!--  <span class="hdr-icon" aria-hidden="true"></span> -->
-          <img src="D:\icu-alert-system\frontend\src\favicon.ico" alt="SmartCare" style="width:18%">
+          <img src="./favicon.ico" alt="SmartCare" style="width:18%">
             <div>
               <div class="hdr-title">SmartCare AI</div>
               <div class="hdr-sub">重症监护预警、交班、查房与质控协同平台</div>
