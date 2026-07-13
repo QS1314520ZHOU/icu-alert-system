@@ -1573,8 +1573,8 @@ class SepsisMixin:
 
         # 休克评估
         shock = tracker.get("shock_assessment") if isinstance(tracker.get("shock_assessment"), dict) else {}
-        if shock.get("septic_shock_suspected"):
-            evidence.append("⚠ 脓毒性休克疑似")
+        if shock.get("septic_shock_screen_positive"):
+            evidence.append("⚠ 可能脓毒性休克表型，需临床确认")
         if shock.get("hypoperfusion_evidence"):
             evidence.append("低灌注证据: " + "; ".join(shock["hypoperfusion_evidence"][:3]))
 

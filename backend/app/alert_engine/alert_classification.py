@@ -156,6 +156,12 @@ _register("SEPSIS_SHOCK", alert_domain="physiologic_alarm", clinical_severity="c
           owner_role="doctor", route_targets=["nurse", "doctor"], escalation_targets=["doctor"],
           escalation_after_minutes=5)
 
+_register("SHOCK_HYPOPERFUSION_SCREEN", alert_domain="clinical_risk", clinical_severity="high",
+          priority="p1", source_type="rule", response_target_seconds=600,
+          escalation_policy="standard_escalation", display_tone="orange",
+          owner_role="doctor", route_targets=["nurse", "doctor"], escalation_targets=["doctor"],
+          escalation_after_minutes=30)
+
 _register("CARDIAC_ARREST_RISK", alert_domain="physiologic_alarm", clinical_severity="critical",
           priority="p0", source_type="trained_model", response_target_seconds=300,
           escalation_policy="immediate_escalation", display_tone="red",
@@ -904,6 +910,7 @@ _INFERENCE_CATEGORY_MAP: dict[str, dict[str, str]] = {
 
 _INFERENCE_ALERT_TYPE_MAP: dict[str, dict[str, str]] = {
     "septic_shock": {"domain": "physiologic_alarm", "priority": "p0"},
+    "shock_hypoperfusion_screen": {"domain": "clinical_risk", "priority": "p1"},
     "cardiac_arrest": {"domain": "physiologic_alarm", "priority": "p0"},
     "nurse_reminder": {"domain": "workflow_reminder", "priority": "p2"},
     "cam_icu_positive": {"domain": "clinical_risk", "priority": "p1"},

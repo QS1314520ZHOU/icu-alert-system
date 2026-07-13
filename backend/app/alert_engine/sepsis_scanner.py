@@ -88,13 +88,13 @@ class SepsisScanner(BaseScanner):
             )
             infection_verdict = str(infection.get("verdict") or "unknown")
 
-            # ---- qSOFA 预警（筛查工具，不启动 Bundle） ----
+            # ---- qSOFA 预警（筛查工具，不得称"疑似脓毒症"） ----
             if qsofa_triggered:
                 if not await self.engine._is_suppressed(pid_str, "SEPSIS_QSOFA", same_rule_sec, max_per_hour):
-                    # 附加上下文：告知感染证据状态
+                    # qSOFA≥2 是床旁筛查工具，阳性不能直接诊断为脓毒症
                     alert = await self.engine._create_alert(
                         rule_id="SEPSIS_QSOFA",
-                        name="疑似脓毒症(qSOFA≥2)",
+                        name="qSOFA≥2筛查阳性",
                         category="syndrome",
                         alert_type="qsofa",
                         severity="warning",
@@ -108,17 +108,19 @@ class SepsisScanner(BaseScanner):
                         extra={
                             "sbp": sbp, "rr": rr, "gcs": gcs,
                             "infection_evidence": infection,
+                            "clinical_note": "qSOFA≥2仅表示存在感染高危风险，不等于脓毒症诊断，需结合临床评估",
                         },
                     )
                     if alert:
                         triggered += 1
 
-            # ---- SOFA 预警 ----
+            # ---- SOFA 预警（不可称"脓毒症确认"） ----
             if sofa_triggered:
                 if not await self.engine._is_suppressed(pid_str, "SEPSIS_SOFA", same_rule_sec, max_per_hour):
+                    # SOFA Δ≥2 表示器官功能恶化，非脓毒症确诊
                     alert = await self.engine._create_alert(
                         rule_id="SEPSIS_SOFA",
-                        name="脓毒症确认(SOFA Δ≥2)",
+                        name="SOFA Δ≥2 器官功能恶化",
                         category="syndrome",
                         alert_type="sofa",
                         severity="high",
@@ -132,14 +134,15 @@ class SepsisScanner(BaseScanner):
                         extra={
                             **sofa,
                             "infection_evidence": infection,
+                            "clinical_note": "SOFA Δ≥2表示器官功能恶化，不等同于脓毒症确诊，需临床综合判断",
                         },
                     )
                     if alert:
                         triggered += 1
 
-            # ---- 脓毒性休克筛查（修正语义） ----
-            # 使用升压药维持 MAP≥65 且乳酸升高的患者仍可能符合休克
-            # 不能要求当前 MAP<65
+            # ---- 脓毒症筛查下的休克/低灌注评估（必须结合感染证据） ----
+            # 升压药 + 乳酸≥2 + 感染支持 → 可能脓毒性休克表型，需临床确认
+            # 感染不支持时 → 通用 SHOCK_HYPOPERFUSION_SCREEN（非脓毒症特异性）
             lactate_value = None
             if sofa and isinstance(sofa.get("labs"), dict):
                 lac_entry = sofa["labs"].get("lac")
@@ -150,20 +153,32 @@ class SepsisScanner(BaseScanner):
 
             vasopressor_active = await self.engine._has_vasopressor(pid)
 
-            # 休克判定：升压药 + 乳酸≥2（不要求MAP<65）
             if vasopressor_active and lactate_value is not None and lactate_value >= 2:
-                if not await self.engine._is_suppressed(pid_str, "SEPSIS_SHOCK", same_rule_sec, max_per_hour):
+                # 感染证据区分：supported/possible → 脓毒性休克表型；unknown/not_supported → 通用休克筛查
+                infection_supported = infection_verdict in ("supported", "possible")
+                shock_rule_id = "SEPSIS_SHOCK" if infection_supported else "SHOCK_HYPOPERFUSION_SCREEN"
+                shock_name = (
+                    "可能脓毒性休克表型，需临床确认"
+                    if infection_supported
+                    else "休克/低灌注筛查阳性"
+                )
+                shock_category = "syndrome" if infection_supported else "vital_signs"
+                shock_alert_type = "septic_shock" if infection_supported else "shock_hypoperfusion_screen"
+                shock_severity = "critical" if infection_supported else "high"
+
+                if not await self.engine._is_suppressed(pid_str, shock_rule_id, same_rule_sec, max_per_hour):
                     alert = await self.engine._create_alert(
-                        rule_id="SEPSIS_SHOCK",
-                        name="脓毒性休克",
-                        category="syndrome",
-                        alert_type="septic_shock",
-                        severity="critical",
+                        rule_id=shock_rule_id,
+                        name=shock_name,
+                        category=shock_category,
+                        alert_type=shock_alert_type,
+                        severity=shock_severity,
                         parameter="shock",
                         condition={
                             "vasopressor": True,
                             "lactate": lactate_value,
                             "map": map_value,
+                            "infection_verdict": infection_verdict,
                             "map_caveat": "使用升压药时MAP可能>65，但休克仍可能存在",
                         },
                         value=lactate_value,
@@ -178,6 +193,8 @@ class SepsisScanner(BaseScanner):
                             "volume_status": "unknown",
                             "other_causes_excluded": "unknown",
                             "requires_clinician_confirmation": True,
+                            "infection_verdict": infection_verdict,
+                            "infection_evidence": infection,
                         },
                     )
                     if alert:

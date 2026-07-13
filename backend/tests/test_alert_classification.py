@@ -105,6 +105,14 @@ class TestPhysiologicAlarmRemainsP0:
         assert c.priority == "p0"
         assert c.alert_domain == "physiologic_alarm"
 
+    def test_shock_hypoperfusion_screen_p1(self):
+        """SHOCK_HYPOPERFUSION_SCREEN 为 clinical_risk + p1（非脓毒症特异性）。"""
+        c = lookup_classification("SHOCK_HYPOPERFUSION_SCREEN")
+        assert c is not None, "SHOCK_HYPOPERFUSION_SCREEN must be registered"
+        assert c.priority == "p1"
+        assert c.alert_domain == "clinical_risk"
+        assert c.display_tone == "orange"
+
     def test_lab_crit_p0(self):
         for rid in ["LAB_K_CRIT_HIGH", "LAB_LAC_CRIT", "LAB_HB_CRIT", "LAB_PLT_CRIT"]:
             c = lookup_classification(rid)

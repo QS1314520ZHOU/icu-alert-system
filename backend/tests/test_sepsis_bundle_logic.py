@@ -983,3 +983,138 @@ def test_legacy_full_compat_example():
     # 没被新增的元素
     assert "clinician_path_confirmation" not in normalized
     assert "infection_source" not in normalized
+
+
+# ============================================================================
+# 测试 23: qSOFA / SOFA / SHOCK 告警名称与语义修正
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_qsofa_alert_name_is_not_sepsis():
+    """qSOFA≥2 是筛查工具，不可称'疑似脓毒症'。"""
+    # 验证 qSOFA≥2 仅表示筛查阳性，不等于脓毒症诊断
+    # 通过感染证据 unknown 时 Bundle 不启动来间接验证
+    h = make_harness()
+    patient = {"_id": "p_qsofa", "name": "Test"}
+    infection = {"verdict": "unknown", "confidence": 0.25, "confidence_level": "weak",
+                 "positive_strong": [], "positive_moderate": [], "negative_evidence": [],
+                 "missing_data": ["PCT 未测", "近24h无体温记录"]}
+    # qSOFA 单独阳性 + infection unknown → 不启动 Bundle（qSOFA不可单独诊断）
+    tracker = await h._start_or_refresh_sepsis_bundle_tracker_v2(
+        patient_doc=patient, pid_str="p_qsofa", now=datetime.now(),
+        infection=infection, qsofa_triggered=True, qsofa=2,
+        sbp=95.0, rr=24.0, gcs=14.0,
+        sofa_triggered=False, sofa=None, shock=None, risk={"risk_factors": [], "requires_individualization": False, "cautions": [], "weight_kg": 70.0, "has_weight": True},
+    )
+    # With verdict=unknown + qSOFA only → has_infection_signal=False → no tracker
+    assert tracker is None
+
+
+@pytest.mark.asyncio
+async def test_sofa_alert_name_is_not_sepsis_confirmation():
+    """SOFA Δ≥2 不可称'脓毒症确认'。"""
+    # SOFA Δ≥2 表示器官功能恶化，不等同脓毒症确诊
+    # 没有感染证据时不应启动 Bundle
+    h = make_harness()
+    patient = {"_id": "p_sofa", "name": "Test"}
+    infection = {"verdict": "not_supported", "confidence": 0.55, "confidence_level": "moderate",
+                 "positive_strong": [], "positive_moderate": [], "negative_evidence": ["诊断排除感染: (pattern=(?<!不能)(?<!尚不能)(?<!难以)(?<!无法)排除感染)"],
+                 "uncertain_phrases": [], "missing_data": []}
+    tracker = await h._start_or_refresh_sepsis_bundle_tracker_v2(
+        patient_doc=patient, pid_str="p_sofa", now=datetime.now(),
+        infection=infection, qsofa_triggered=False, qsofa=0,
+        sbp=120.0, rr=16.0, gcs=15.0,
+        sofa_triggered=True, sofa={"score": 6, "delta": 3, "baseline_available": True},
+        shock=None, risk={"risk_factors": [], "requires_individualization": False, "cautions": [], "weight_kg": 70.0, "has_weight": True},
+    )
+    # infection_verdict="not_supported" → 不启动
+    assert tracker is None
+
+
+@pytest.mark.asyncio
+async def test_sepsis_shock_requires_infection_support():
+    """SEPSIS_SHOCK 必须结合 infection_verdict = supported/possible。"""
+    h = make_harness(vasopressor_active=True, weight=70.0)
+    patient = {"_id": "p_shock", "name": "Test"}
+
+    # Case A: infection supported → septic_shock_screen_positive = True
+    shock_a = await h._assess_shock_hypoperfusion(
+        patient, "p_shock", None,
+        sbp=100.0, map_value=75.0, lactate_value=3.5,
+        sofa={"components": {"cardio": 3}},
+        infection_verdict="supported",
+        now=datetime.now(),
+    )
+    assert shock_a["septic_shock_screen_positive"] is True
+    assert shock_a["vasopressor_active"] is True
+
+    # Case B: infection possible → septic_shock_screen_positive = True
+    shock_b = await h._assess_shock_hypoperfusion(
+        patient, "p_shock", None,
+        sbp=100.0, map_value=75.0, lactate_value=3.5,
+        sofa={"components": {"cardio": 3}},
+        infection_verdict="possible",
+        now=datetime.now(),
+    )
+    assert shock_b["septic_shock_screen_positive"] is True
+
+    # Case C: infection unknown → septic_shock_screen_positive = False
+    shock_c = await h._assess_shock_hypoperfusion(
+        patient, "p_shock", None,
+        sbp=100.0, map_value=75.0, lactate_value=3.5,
+        sofa={"components": {"cardio": 3}},
+        infection_verdict="unknown",
+        now=datetime.now(),
+    )
+    assert shock_c["septic_shock_screen_positive"] is False
+    # 但血流动力学不稳定应为 True（升压药使用中）
+    assert shock_c["hemodynamic_instability"] is True
+
+    # Case D: infection not_supported → septic_shock_screen_positive = False
+    shock_d = await h._assess_shock_hypoperfusion(
+        patient, "p_shock", None,
+        sbp=100.0, map_value=75.0, lactate_value=3.5,
+        sofa={"components": {"cardio": 3}},
+        infection_verdict="not_supported",
+        now=datetime.now(),
+    )
+    assert shock_d["septic_shock_screen_positive"] is False
+
+
+@pytest.mark.asyncio
+async def test_bundle_v2_data_compatibility_after_name_fix():
+    """Shock assessment extra 字段保持 Bundle v2 兼容。"""
+    h = make_harness(vasopressor_active=True, weight=70.0)
+    patient = {"_id": "p_comp", "name": "Test", "clinicalDiagnosis": "脓毒症"}
+
+    shock = await h._assess_shock_hypoperfusion(
+        patient, "p_comp", None,
+        sbp=85.0, map_value=60.0, lactate_value=4.5,
+        sofa={"score": 8, "delta": 4, "components": {"cardio": 3}},
+        infection_verdict="supported",
+        now=datetime.now(),
+    )
+    risk = await h._assess_fluid_risk_factors(patient, "p_comp", None, datetime.now())
+
+    elements = h._default_sepsis_bundle_elements_v2(
+        patient_doc=patient,
+        infection_verdict="supported",
+        shock_assessment=shock,
+        risk_assessment=risk,
+    )
+    # Bundle v2 兼容: fluid_resuscitation 元素结构完整
+    fluid = elements["fluid_resuscitation"]
+    assert fluid["applicability"] in ("conditional", "individualized")
+    assert fluid["condition"]["ssc_2021_criterion"] is True  # lactate≥4
+    assert fluid["target"]["weight_kg"] == 70.0
+    assert fluid["clinical_review"]["risk_factors_at_trigger"] is not None
+    # 所有 A 层元素结构完整
+    for key in ("lactate", "lactate_repeat", "antibiotic_assessment", "blood_culture",
+                "infection_source", "clinician_path_confirmation"):
+        assert key in elements
+        assert isinstance(elements[key].get("applicability"), str)
+        assert isinstance(elements[key].get("execution"), dict)
+    # compliance 统计正常工作
+    stats = h._bundle_compliance_ratio_v2(elements)
+    assert stats["total_elements"] == 7
+    assert stats.get("compliance_ratio") is not None or stats.get("applicable_confirmed") == 0
