@@ -416,8 +416,6 @@ const whatIfSummary = computed(() => {
   return '选择一个单干预模板，模拟未来 6 小时关键指标变化。'
 })
 const whatIfDegraded = computed(() => Boolean(whatIfRecord.value?.model_meta?.degraded))
-const whatIfIsFallback = computed(() => Boolean(whatIfRecord.value?.model_meta?.is_fallback))
-const whatIfIsTrainedModel = computed(() => Boolean(whatIfRecord.value?.model_meta?.is_trained_model))
 const whatIfBannerMuted = computed(() => {
   const meta = whatIfRecord.value?.model_meta
   if (!meta) return false
