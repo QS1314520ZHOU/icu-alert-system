@@ -830,19 +830,29 @@ class ClinicalAdoptionService:
         rows = scanner_health.get("rows") or []
         total_fired = sum(int(row.get("fired_count") or 0) for row in rows)
         review_required = sum(1 for row in rows if row.get("review_suggestion"))
-        avg_ppv = round(sum(float(row.get("ppv") or 0) for row in rows) / len(rows), 3) if rows else 0
+        # Use reviewed_sample_ppv (new field) or fallback to ppv
+        ppv_values = []
+        for row in rows:
+            ppv = row.get("reviewed_sample_ppv") or row.get("ppv")
+            if ppv is not None and isinstance(ppv, (int, float)):
+                ppv_values.append(float(ppv))
+        avg_ppv = round(sum(ppv_values) / len(ppv_values), 3) if ppv_values else None
+        # Count reviewed vs unreviewed
+        total_reviewed = sum(int(row.get("reviewed_count") or 0) for row in rows)
         high_alerts = sum(1 for row in alerts if str(row.get("severity") or "").lower() in {"critical", "high"})
         unacked = sum(1 for row in alerts if not row.get("acknowledged_at"))
         headline = "规则健康平稳，适合抽查典型病例"
         if review_required:
-            headline = f"{review_required} 条规则建议人工复核，优先处理低阳性预测值、高覆盖率规则"
+            headline = f"{review_required} 条规则建议人工复核，优先处理低复核样本PPV、高覆盖率规则"
         elif unacked:
             headline = f"{unacked} 条告警仍未闭环，建议晨会追踪责任链"
         return {
             "headline": headline,
             "total_fired_30d": total_fired,
+            "total_reviewed": total_reviewed,
             "review_required": review_required,
-            "avg_ppv": avg_ppv,
+            "avg_reviewed_ppv": avg_ppv,
+            "ppv_note": "已复核样本PPV — 非总体PPV。复核覆盖率不足时样本代表性未知。",
             "high_alerts_24h": high_alerts,
             "unacked_24h": unacked,
             "top_actions": quality_actions[:3],
@@ -2013,7 +2023,9 @@ class ClinicalAdoptionService:
             "scanner_count": len(rows),
             "review_required": sum(1 for row in rows if row.get("review_suggestion")),
             "total_fired": sum(int(row.get("fired_count") or 0) for row in rows),
-            "avg_ppv": round(sum(float(row.get("ppv") or 0) for row in rows) / len(rows), 3) if rows else 0,
+            "total_reviewed": sum(int(row.get("formally_reviewed_count") or row.get("reviewed_count") or 0) for row in rows),
+            "avg_reviewed_ppv": round(sum(float(row.get("reviewed_sample_ppv") or row.get("ppv") or 0) for row in rows if (row.get("reviewed_sample_ppv") or row.get("ppv")) is not None) / max(len([r for r in rows if (r.get("reviewed_sample_ppv") or r.get("ppv")) is not None]), 1), 3) if rows else None,
+            "ppv_note": "已复核样本PPV (TP/(TP+FP)) — indeterminate excluded. Convenience sample, not population estimate.",
             "scanner_health": rows[:20],
             "module_completion": module_completion,
             "bundle_compliance": bundle_compliance,

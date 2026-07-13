@@ -254,7 +254,7 @@
         :data-alert-name="String(item?.name || item?.rule_id || '')"
         :data-alert-created-at="String(item?.created_at || '')"
         :data-alert-card="alertCardKey(item, idx)"
-        :class="['alert-card', `sev-${normalizeSeverity(item.severity)}`]"
+        :class="['alert-card', `sev-${normalizeSeverity(item.severity)}`, `alert-card--tone-${getAlertDisplayTone(item)}`]"
       >
         <div class="alert-rail">
           <span class="alert-time">{{ fmtTime(item.created_at) || '时间未知' }}</span>
@@ -475,6 +475,9 @@
             </section>
           </div>
           <div class="alert-meta">
+            <span v-if="item.alert_domain && alertDomainLabel" class="meta-domain meta-domain--{{ item.alert_domain }}">{{ alertDomainLabel(item.alert_domain) }}</span>
+            <span v-if="item.priority && alertPriorityLabel" class="meta-priority">{{ alertPriorityLabel(item.priority) }}</span>
+            <span v-if="item.source_type && alertSourceLabel" class="meta-source">{{ alertSourceLabel(item.source_type) }}</span>
             <span v-if="item.alert_type">{{ alertTypeText(item.alert_type) }}</span>
             <span v-if="item.category">{{ alertCategoryText(item.category) }}</span>
             <span v-if="item.parameter">{{ parameterText(item.parameter) }}</span>
@@ -626,7 +629,7 @@
 import { computed, defineAsyncComponent, nextTick, ref, toRefs, watch } from 'vue'
 import { Button as AButton, Popover as APopover, Select as ASelect } from 'ant-design-vue'
 import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
-import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel, formatSeverityLabel, formatStatusLabel } from '../../utils/displayLabels'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel, formatSeverityLabel, formatStatusLabel, getAlertDisplayTone } from '../../utils/displayLabels'
 import { BODY_MAP_ORGAN_LABELS, BODY_MAP_ORGAN_ORDER, normalizeBodyMapOrganKey } from '../../utils/bodyMap'
 
 const props = defineProps<{
@@ -650,6 +653,9 @@ const props = defineProps<{
   fmtTime: (v: any) => string
   normalizeSeverity: (v: any) => string
   alertSeverityText: (v: any) => string
+  alertDomainLabel?: (v: any) => string
+  alertPriorityLabel?: (v: any) => string
+  alertSourceLabel?: (v: any) => string
   formatAlertValue: (item: any) => string
   alertTypeText: (v: any) => string
   alertCategoryText: (v: any) => string
@@ -696,6 +702,9 @@ const {
   fmtTime,
   normalizeSeverity,
   alertSeverityText,
+  alertDomainLabel,
+  alertPriorityLabel,
+  alertSourceLabel,
   formatAlertValue,
   alertTypeText,
   alertCategoryText,

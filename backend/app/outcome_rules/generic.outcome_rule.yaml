@@ -1,5 +1,8 @@
+# Outcome rule v2 — suspected response signals only (NOT auto-acceptance)
+# "suspected_response_signals" replaces "accepted_if".
+# Detected signals are marked as suspected only; disposition is NEVER auto-changed.
 scanner: generic
-accepted_if:
+suspected_response_signals:
   window_hours: 6
   min_signals: 1
   signals:
@@ -16,3 +19,7 @@ accepted_if:
         - startTime
         - time
         - recordTime
+  note: >
+    Detected signals indicate suspected (not confirmed) clinical response.
+    They are observational only and do NOT automatically change alert disposition.
+    Causal inference requires human adjudication.

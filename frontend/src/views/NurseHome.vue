@@ -154,6 +154,40 @@
             </article>
             <div v-if="!reminders.length" class="empty small">暂无护理执行相关 AI 提醒。</div>
           </section>
+          <!-- 生理危急 / 临床风险（P0/P1） -->
+          <section v-if="physiologicAlerts.length" class="panel ds-card panel--alert">
+            <div class="panel-head"><strong>⚠ 危急/高风险</strong><span class="badge-red">{{ physiologicCount }}</span></div>
+            <article v-for="item in physiologicAlerts.slice(0, 6)" :key="item._id || item.created_at" class="alert-item alert-item--p0">
+              <div class="alert-item-main">
+                <span :class="['dot', priorityDot(item.priority)]"></span>
+                <strong>{{ item.bed || '—' }}床 {{ item.patient_name || '—' }}</strong>
+                <span class="alert-item-name">{{ item.name || item.rule_id }}</span>
+              </div>
+              <div class="alert-item-meta">
+                <span class="pill pill--domain">{{ formatDomainLabel(item.alert_domain) }}</span>
+                <span class="pill pill--priority">{{ formatPriorityLabel(item.priority) }}</span>
+                <small>{{ fmtTime(item.created_at) || '—' }}</small>
+              </div>
+            </article>
+          </section>
+          <!-- 流程任务（P2/P3） -->
+          <section v-if="workflowTasks.length" class="panel ds-card panel--task">
+            <div class="panel-head"><strong>📋 流程任务</strong><span class="badge-amber">{{ workflowTaskCount }}</span></div>
+            <article v-for="item in sortedWorkflowTasks" :key="item._id || item.created_at" class="alert-item" :class="escalationClass(item)">
+              <div class="alert-item-main">
+                <span :class="['dot', priorityDot(item.priority)]"></span>
+                <strong>{{ item.bed || '—' }}床 {{ item.patient_name || '—' }}</strong>
+                <span class="alert-item-name">{{ item.name || item.rule_id }}</span>
+              </div>
+              <div class="alert-item-meta">
+                <span v-if="item.escalation_of" class="pill pill--escalated">已升级</span>
+                <span v-if="item.alert_episode_id" class="pill pill--episode">同一事件</span>
+                <span class="pill pill--priority">{{ formatPriorityLabel(item.priority) }}</span>
+                <small>{{ fmtTime(item.due_at || item.created_at) || '—' }}</small>
+              </div>
+            </article>
+            <div v-if="!workflowTasks.length" class="empty small">暂无流程任务。</div>
+          </section>
         </aside>
       </main>
 
@@ -221,7 +255,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getNurseHome, postNurseHandoffGenerate, postNurseReminderFeedback, postNurseTaskExecute } from '../api'
 import { useAuthStore } from '../stores/auth'
-import { formatAlertTypeLabel } from '../utils/displayLabels'
+import { formatAlertTypeLabel, formatDomainLabel, formatPriorityLabel } from '../utils/displayLabels'
 import { roleHomeConfig } from '../config/roleHomeConfig'
 import { BellOutlined, CheckCircleOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons-vue'
 
@@ -265,6 +299,48 @@ const beds = computed(() => home.value?.beds || [])
 const workload = computed(() => home.value?.workload || {})
 const bundles = computed(() => home.value?.bundles || [])
 const reminders = computed(() => home.value?.ai_reminders || [])
+
+// ── 护理流程任务（workflow_reminder + quality_gap） ──
+const workflowTasks = computed(() => {
+  const all = home.value?.active_alerts || []
+  return all.filter((a: any) => {
+    const domain = String(a?.alert_domain || '').toLowerCase()
+    return domain === 'workflow_reminder' || domain === 'quality_gap'
+  })
+})
+const workflowTaskCount = computed(() => workflowTasks.value.length)
+
+const physiologicAlerts = computed(() => {
+  const all = home.value?.active_alerts || []
+  return all.filter((a: any) => {
+    const domain = String(a?.alert_domain || '').toLowerCase()
+    const priority = String(a?.priority || '').toLowerCase()
+    return domain === 'physiologic_alarm' || (domain === 'clinical_risk' && (priority === 'p0' || priority === 'p1'))
+  })
+})
+const physiologicCount = computed(() => physiologicAlerts.value.length)
+
+const PRIORITY_SORT: Record<string, number> = { p0: 0, p1: 1, p2: 2, p3: 3 }
+const sortedWorkflowTasks = computed(() =>
+  [...workflowTasks.value].sort((a: any, b: any) => {
+    const pa = PRIORITY_SORT[String(a.priority || 'p3').toLowerCase()] ?? 3
+    const pb = PRIORITY_SORT[String(b.priority || 'p3').toLowerCase()] ?? 3
+    if (pa !== pb) return pa - pb
+    const da = new Date(a.due_at || a.created_at || 0).getTime()
+    const db = new Date(b.due_at || b.created_at || 0).getTime()
+    return da - db
+  })
+)
+
+function priorityDot(priority: string) {
+  const p = String(priority || '').toLowerCase()
+  if (p === 'p0') return 'dot-p0'
+  if (p === 'p1') return 'dot-p1'
+  return 'dot-p2'
+}
+function escalationClass(item: any) {
+  return item.escalation_of ? 'is-escalated' : ''
+}
 const headBeds = computed(() => home.value?.head_view?.beds || [])
 const sortedBeds = computed(() => sortBeds(beds.value))
 const sortedHeadBeds = computed(() => sortBeds(headBeds.value))
@@ -333,6 +409,7 @@ function tasksByBed(pid: string) {
 function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }
+const fmtTime = fmt
 function shortText(value: any) {
   const text = String(value || 'AI提醒')
   return text.length > 20 ? `${text.slice(0, 20)}...` : text
@@ -953,4 +1030,26 @@ html[data-theme='light'] .danger,
 html[data-theme='light'] .is-overdue {
   color: var(--danger);
 }
+/* ── 告警/流程任务卡片 ── */
+.panel--alert { border-color: rgba(251,90,122,.22); }
+.panel--task { border-color: rgba(245,158,11,.18); }
+.badge-red { display:inline-flex;align-items:center;min-width:24px;height:22px;padding:0 7px;border-radius:99px;background:rgba(251,90,122,.18);color:#fb5a7a;font-size:11px;font-weight:700;justify-content:center; }
+.badge-amber { display:inline-flex;align-items:center;min-width:24px;height:22px;padding:0 7px;border-radius:99px;background:rgba(232,144,28,.18);color:#E8901C;font-size:11px;font-weight:700;justify-content:center; }
+.alert-item { display:grid;gap:4px;padding:8px 10px;border-radius:6px;border:1px solid rgba(125,211,252,.08);background:rgba(8,23,38,.6);margin-bottom:6px; }
+.alert-item.is-escalated { border-color:rgba(249,115,22,.18);background:rgba(40,20,8,.6); }
+.alert-item--p0 { border-left:3px solid #fb5a7a; }
+.alert-item-main { display:flex;align-items:center;gap:8px;min-width:0; }
+.alert-item-main strong { color:var(--text-primary);font-size:12px;white-space:nowrap; }
+.alert-item-name { color:var(--text-secondary);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.alert-item-meta { display:flex;align-items:center;gap:6px;padding-left:18px; }
+.alert-item-meta small { color:#7da7c4;font-size:10px; }
+.dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.dot-p0 { background:#fb5a7a;box-shadow:0 0 6px rgba(251,90,122,.6); }
+.dot-p1 { background:#f97316;box-shadow:0 0 4px rgba(249,115,22,.5); }
+.dot-p2 { background:#E8901C; }
+.pill { display:inline-flex;align-items:center;min-height:18px;padding:0 6px;border-radius:99px;font-size:9px;font-weight:600; }
+.pill--domain { background:rgba(56,189,248,.12);color:#38bdf8; }
+.pill--priority { background:rgba(125,211,252,.1);color:#7dd3fc; }
+.pill--escalated { background:rgba(249,115,22,.15);color:#f97316; }
+.pill--episode { background:rgba(232,144,28,.12);color:#E8901C; }
 </style>

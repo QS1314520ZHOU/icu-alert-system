@@ -25,28 +25,64 @@ class AlertIntelligenceMixin:
         )
 
     def _route_targets_for_alert(self, alert_doc: dict) -> list[str]:
-        severity = str(alert_doc.get("severity") or "").lower()
+        """
+        基于 alert_domain + priority 的路由决策。
+
+        优先级：
+          1. alert_doc 中已有的显式 route_targets（来自扫描器/规则配置）
+          2. 分类注册表中的精确匹配
+          3. domain 兜底规则
+
+        不再仅根据 severity 路由。
+        """
+        # 1) 显式配置优先——已在 alert_doc 中的 route_targets 由分类系统设置
+        explicit = alert_doc.get("route_targets")
+        if explicit and isinstance(explicit, list) and len(explicit) > 0:
+            return list(dict.fromkeys(explicit))  # 去重保序
+
+        # 2) 从 extra 读取（兼容旧代码路径）
+        extra = alert_doc.get("extra") if isinstance(alert_doc.get("extra"), dict) else {}
+        extra_targets = extra.get("route_targets")
+        if extra_targets and isinstance(extra_targets, list) and len(extra_targets) > 0:
+            return list(dict.fromkeys(extra_targets))
+
+        # 3) domain 兜底
+        domain = str(alert_doc.get("alert_domain") or "").lower()
+        priority = str(alert_doc.get("priority") or "p2").lower()
         category = str(alert_doc.get("category") or "").lower()
         alert_type = str(alert_doc.get("alert_type") or "").lower()
-        parameter = str(alert_doc.get("parameter") or "").lower()
+
         targets: list[str] = []
-        if severity in {"warning", "high", "critical"}:
-            targets.append("nurse")
-        if severity in {"high", "critical"}:
-            targets.append("doctor")
-        if category in {"drug_pk", "antibiotic_stewardship", "drug_safety"} or any(
-            x in alert_type or x in parameter
-            for x in ["tdm", "vancomycin", "antimicrobial", "coverage", "dose", "pk"]
-        ):
-            targets.append("pharmacist")
-        seen: set[str] = set()
-        deduped: list[str] = []
-        for item in targets:
-            if item in seen:
-                continue
-            seen.add(item)
-            deduped.append(item)
-        return deduped
+
+        # domain 基础路由
+        domain_targets: dict[str, list[str]] = {
+            "physiologic_alarm": ["nurse", "doctor"],
+            "clinical_risk": ["nurse", "doctor"],
+            "workflow_reminder": ["nurse"],
+            "quality_gap": ["nurse", "head_nurse"],
+            "data_quality": ["nurse"],
+            "ai_advisory": ["doctor"],
+            "unknown": ["nurse"],
+        }
+        targets.extend(domain_targets.get(domain, ["nurse"]))
+
+        # priority 追加
+        if priority in ("p0", "p1") and domain in ("physiologic_alarm", "clinical_risk"):
+            if "doctor" not in targets:
+                targets.append("doctor")
+
+        # 药剂师路由（通过 category 精确匹配，不通过模糊字符串）
+        if category in {"drug_safety", "antibiotic_stewardship", "drug_pk"}:
+            if "pharmacist" not in targets:
+                targets.append("pharmacist")
+
+        # 数据质量关键告警路由设备工程师 + IT
+        if domain == "data_quality" and priority in ("p0", "p1"):
+            for role in ("device_engineer", "it_staff"):
+                if role not in targets:
+                    targets.append(role)
+
+        return targets
 
     def _is_hemo_context_alert(self, alert_doc: dict) -> bool:
         return str(alert_doc.get("alert_type") or "").lower() == "contextual_hemodynamic_deterioration"
@@ -336,6 +372,60 @@ class AlertIntelligenceMixin:
             },
         )
 
+    async def _compute_confirmed_action_coverage(
+        self, alert_doc: dict, patient_id: str, patient_doc: dict | None,
+    ) -> None:
+        """Compute confirmed action coverage statistics for the alert's extra field.
+
+        Two metrics:
+        - confirmed_action_coverage_all_alerts: clinician_confirmed / all linked alerts
+        - confirmed_action_rate_among_reviewed_linkages: confirmed / (confirmed + rejected)
+        """
+        try:
+            rule_id = str(alert_doc.get("rule_id") or "").strip()
+            alert_type = str(alert_doc.get("alert_type") or "").strip()
+            linkage = alert_doc.get("action_linkage")
+            if not rule_id and not alert_type:
+                return
+            match_or = []
+            if rule_id:
+                match_or.append({"rule_id": rule_id})
+            if alert_type:
+                match_or.append({"alert_type": alert_type})
+            if not match_or:
+                return
+
+            # All alerts with suspected linkage for same rule/type
+            all_cursor = self.db.col("alert_records").find(
+                {"$or": match_or, "action_linkage": {"$ne": None}},
+                {"action_linkage.status": 1},
+            ).limit(500)
+            all_docs = [doc async for doc in all_cursor]
+            total_with_linkage = len(all_docs)
+            confirmed = sum(
+                1 for d in all_docs
+                if (isinstance(d.get("action_linkage"), dict)
+                    and d["action_linkage"].get("status") == "clinician_confirmed")
+            )
+            rejected = sum(
+                1 for d in all_docs
+                if (isinstance(d.get("action_linkage"), dict)
+                    and d["action_linkage"].get("status") == "clinician_rejected")
+            )
+            reviewed_linkages = confirmed + rejected
+
+            extra = alert_doc.get("extra") if isinstance(alert_doc.get("extra"), dict) else {}
+            extra["confirmed_action_coverage"] = {
+                "all_alerts_with_linkage": total_with_linkage,
+                "clinician_confirmed": confirmed,
+                "clinician_rejected": rejected,
+                "confirmed_action_coverage_all_alerts": round(confirmed / total_with_linkage, 3) if total_with_linkage > 0 else 0.0,
+                "confirmed_action_rate_among_reviewed_linkages": round(confirmed / reviewed_linkages, 3) if reviewed_linkages > 0 else None,
+            }
+            alert_doc["extra"] = extra
+        except Exception:
+            pass
+
     async def _after_alert_persisted(self, alert_doc: dict, patient_doc: dict | None) -> None:
         if self._is_hemo_context_alert(alert_doc):
             await self._mark_source_alerts_merged(alert_doc)
@@ -393,11 +483,43 @@ class AlertIntelligenceMixin:
 
         route_targets = self._route_targets_for_alert(alert_doc)
         recurrence = extra.get("post_execution_recurrence") if isinstance(extra.get("post_execution_recurrence"), dict) else {}
-        if recurrence.get("is_recurrent") and "doctor" not in route_targets:
-            route_targets.append("doctor")
+        # ── 复发升级使用注册表的 escalation_targets，不硬编码追加 doctor ──
+        if recurrence.get("is_recurrent"):
+            from app.alert_engine.alert_classification import lookup_classification
+            cls = lookup_classification(alert_doc.get("rule_id"))
+            esc_targets = cls.escalation_targets if cls else []
+            # 护理提醒默认升级护士长；药物问题升级 doctor/pharmacist
+            if not esc_targets:
+                domain = str(alert_doc.get("alert_domain") or "").lower()
+                if domain == "workflow_reminder":
+                    esc_targets = ["head_nurse"]
+                elif domain in ("physiologic_alarm", "clinical_risk"):
+                    esc_targets = ["doctor"]
+            for target in esc_targets:
+                if target not in route_targets:
+                    route_targets.append(target)
+            # 记录复发升级
+            if "escalation_targets" not in extra:
+                extra["escalation_targets"] = esc_targets
+            extra["escalation_reason"] = f"复发升级: {recurrence.get('recurrent_count', 1)}次"
+
         extra["route_targets"] = route_targets
         alert_doc["extra"] = extra
         alert_doc["route_targets"] = route_targets
+        # ═══ NOTIFICATION POLICY ONLY — does NOT modify heuristic_attention_score ═══
+        # Circadian and recent-response factors affect notification routing/suppression,
+        # NEVER the frozen heuristic attention score or clinical severity (P0/P1).
+        # The heuristic_attention_score was frozen at alert trigger time and must not be
+        # modified by post-trigger contextual factors.
         if hasattr(self, "_circadian_apply_alert_policy"):
-            alert_doc = await self._circadian_apply_alert_policy(alert_doc, patient_doc)
+            alert_doc = await self._circadian_apply_alert_policy(
+                alert_doc, patient_doc,
+                # Flag: notification-policy-only mode — don't modify severity/score
+                notification_policy_only=True,
+            )
+        # ── Confirmed action coverage stats ──
+        if patient_id and alert_doc.get("action_linkage"):
+            await self._compute_confirmed_action_coverage(
+                alert_doc, patient_id, patient_doc,
+            )
         return alert_doc

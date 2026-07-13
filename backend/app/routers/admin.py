@@ -119,15 +119,19 @@ async def scanner_health(
                 {
                     "scanner_name": getattr(scanner, "name", scanner.__class__.__name__),
                     "fired_count": 0,
-                    "ppv": 0,
-                    "override_rate": 0,
-                    "median_time_to_action_minutes": None,
-                    "event_24h_rate": 0,
-                    "nnt": None,
+                    "reviewed_count": 0,
+                    "review_coverage": 0.0,
+                    "reviewed_sample_ppv": None,
+                    "ppv_ci_lower": None,
+                    "ppv_ci_upper": None,
+                    "false_discovery_proportion": None,
+                    "true_fpr": None,
+                    "insufficient_review_samples": True,
+                    "median_time_to_acknowledge_minutes": None,
                     "drift_status": "green",
                     "review_suggestion": False,
                     "threshold_advice": "",
-                    "recent_overrides": [],
+                    "sampling_method": "none",
                 }
             )
         result = {"days": result.get("days") or days, "source": "registered_scanners", "rows": scanners, "total_scanners": len(scanners)}

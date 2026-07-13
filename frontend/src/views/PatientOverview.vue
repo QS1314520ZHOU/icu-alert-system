@@ -96,6 +96,23 @@
       >
         {{ item.label }}
       </button>
+      <span class="filter-sep"></span>
+      <select v-model="domainFilter" class="quick-filter-select">
+        <option value="">全部领域</option>
+        <option value="physiologic_alarm">生理危急</option>
+        <option value="clinical_risk">临床风险</option>
+        <option value="workflow_reminder">流程提醒</option>
+        <option value="quality_gap">质控缺项</option>
+        <option value="data_quality">数据质量</option>
+        <option value="ai_advisory">AI建议</option>
+      </select>
+      <select v-model="priorityFilter" class="quick-filter-select">
+        <option value="">全部优先级</option>
+        <option value="p0">P0·立即</option>
+        <option value="p1">P1·尽快</option>
+        <option value="p2">P2·本班</option>
+        <option value="p3">P3·例行</option>
+      </select>
     </section>
 
     <!-- ====== 加载态 ====== -->
@@ -186,6 +203,9 @@ const tagFilter = ref('')
 const alertFilter = ref('')
 const rescueOnly = ref(false)
 const workflowFilter = ref('all')
+// ── V2 分类筛选 ──
+const domainFilter = ref('')
+const priorityFilter = ref('')
 const priorityRows = ref<any[]>([])
 const forecastStatus = ref({ available: false, reason: '', detail: '等待患者预测数据' })
 const trajectoryConfig = ref<any>({ default_codes: ['HR', 'MAP', 'SBP', 'DBP', 'SpO2', 'RR', 'Temp', 'EtCO2'], horizon_hours: 6 })
@@ -780,11 +800,13 @@ async function load(options?: { silent?: boolean }) {
   try {
     const deptCode = routeDeptCode.value
     const deptName = routeDeptName.value
-    const params = deptCode
+    const params: Record<string, any> = deptCode
       ? { dept_code: deptCode, patient_scope: 'in_dept' as const }
       : deptName
         ? { dept: deptName, patient_scope: 'in_dept' as const }
         : { patient_scope: 'in_dept' as const }
+    if (domainFilter.value) params.alert_domain = domainFilter.value
+    if (priorityFilter.value) params.priority = priorityFilter.value
 
     const [dr, pr] = await Promise.all([
       deptCode ? Promise.resolve({ data: { departments: [] } }) : getDepartments(),
@@ -871,8 +893,10 @@ watch(
   { immediate: true }
 )
 
-watch([alertFilter, tagFilter, rescueOnly], () => {
+watch([alertFilter, tagFilter, rescueOnly, domainFilter, priorityFilter], () => {
   syncOverviewQuery()
+  // 域/优先级变化时重新加载
+  load({ silent: false })
 })
 
 onMounted(() => { iv = setInterval(() => load({ silent: true }), 60000) })
@@ -1184,6 +1208,14 @@ onUnmounted(() => {
   background: rgba(14, 116, 144, 0.56);
   color: var(--text-primary);
 }
+.filter-sep { display:inline-block;width:1px;height:20px;background:rgba(125,211,252,.14);margin:0 4px;vertical-align:middle; }
+.quick-filter-select {
+  display:inline-flex;align-items:center;min-height:30px;padding:0 10px;
+  border-radius:var(--card-radius);border:1px solid rgba(125,211,252,.16);
+  background:var(--bg-surface);color:var(--text-primary);font-size:12px;
+  cursor:pointer;outline:none;
+}
+.quick-filter-select:focus { border-color:rgba(56,189,248,.4); }
 .command-pill {
   display: grid;
   gap: 3px;

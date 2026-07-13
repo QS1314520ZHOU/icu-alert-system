@@ -110,10 +110,16 @@ class RuleCalibrationMixin:
 
         severity = str(alert_doc.get("severity") or "").lower()
 
-        # ── silence_window：非 critical 可静默 ──
+        # ── silence_window：P0 硬保护 ──
         if suggestion == "suggest_silence_window":
-            if severity == "critical":
-                # critical 硬保护，永不静默
+            is_v2 = bool(alert_doc.get("alert_domain"))
+            # V2: 仅 priority=="p0" 作为硬保护
+            # V1（旧告警无 alert_domain）: severity=="critical" 兼容判断
+            is_p0 = (
+                (is_v2 and alert_doc.get("priority") == "p0")
+                or (not is_v2 and severity == "critical")
+            )
+            if is_p0:
                 return alert_doc
             if self._in_silence_window(cal):
                 logger.info(
@@ -124,24 +130,44 @@ class RuleCalibrationMixin:
 
         # ── downgrade：降级 ──
         if suggestion == "suggest_downgrade":
+            is_v2 = bool(alert_doc.get("alert_domain"))
             suggested_severity = cal.get("suggested_severity")
             if not suggested_severity:
                 suggested_severity = SEVERITY_DOWNSTEP.get(severity, severity)
             new_severity = str(suggested_severity).lower()
+
+            # V2 告警不自动执行旧 SEVERITY_DOWNSTEP；仅在有显式 suggested_severity 时应用
+            if is_v2 and not cal.get("suggested_severity"):
+                logger.debug(
+                    f"[rule_calibration] V2告警跳过自动SEVERITY_DOWNSTEP "
+                    f"rule_id={rule_id} domain={alert_doc.get('alert_domain')}"
+                )
+                return alert_doc
+
             if new_severity != severity:
                 extra = alert_doc.get("extra")
                 if not isinstance(extra, dict):
                     extra = {}
                     alert_doc["extra"] = extra
-                extra["calibration"] = {
+                cal_record = {
                     "applied": True,
                     "original_severity": severity,
+                    "new_severity": new_severity,
                     "calibration_id": str(cal.get("_id", "")),
+                    "reason": cal.get("reason", ""),
                 }
+                # V2: 同时记录 original_priority
+                if is_v2:
+                    cal_record["original_priority"] = alert_doc.get("priority")
+                    cal_record["original_clinical_severity"] = alert_doc.get("clinical_severity")
+                    # clinical_severity 不自动降低
+                    cal_record["clinical_severity_preserved"] = True
+
+                extra["calibration"] = cal_record
                 alert_doc["severity"] = new_severity
                 logger.info(
                     f"[rule_calibration] 降级 rule_id={rule_id} "
-                    f"{severity} → {new_severity} calibration_id={cal.get('_id')}"
+                    f"{severity} → {new_severity} v2={is_v2} calibration_id={cal.get('_id')}"
                 )
 
         return alert_doc

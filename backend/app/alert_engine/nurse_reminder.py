@@ -389,8 +389,11 @@ class NurseReminderMixin:
             overdue = True
 
         severity = cfg.get("severity", "warning")
+        # ── CAM-ICU/谵妄评估逾期不再自动设置为 critical ──
+        # 流程逾期统一为 warning（由 alert_classification 注册表控制 priority=p2）
+        # 阳性发现由 scanner_delirium_risk 作为独立 clinical_risk 告警触发
         if score_type in {"delirium", "cam_icu"}:
-            severity = "critical"
+            severity = "warning"  # 曾是 "critical"，导致流程提醒与生理危急混淆
 
         if overdue and not active:
             reminder_doc = {
@@ -467,8 +470,20 @@ class NurseReminderMixin:
 
         very_high = (latest_rass is not None and latest_rass < rass_threshold) and has_vaso and bmi_extreme
         interval_h = interval_very_high_h if very_high else interval_high_h
-        severity = "critical" if very_high else "high"
+        # ── 翻身提醒使用 workflow_reminder 的 severity，不再硬编码 critical ──
+        # 极高风险翻身：先作为普通流程提醒 (p2)，只有真实 overdue_cycles + 压疮证据才升级
+        severity = "warning"  # 统一从 warning 起步
         risk_level = "very_high" if very_high else "high"
+        # ── 检查现有活跃提醒的 overdue_cycles ──
+        overdue_cycles = 1
+        if active:
+            last_trigger = _parse_dt(active.get("created_at"))
+            if last_trigger:
+                existing_extra = active.get("extra") if isinstance(active.get("extra"), dict) else {}
+                existing_cycles = existing_extra.get("overdue_cycles", 1)
+                interval_since_last = (now - last_trigger).total_seconds() / 3600.0
+                if interval_since_last >= interval_h:
+                    overdue_cycles = existing_cycles + 1
 
         last_turn_time = await self._get_last_turn_time(pid_str, now, lookback_h, turn_keywords)
         if last_turn_time is None:
@@ -526,6 +541,7 @@ class NurseReminderMixin:
                                 "bmi": bmi,
                                 "interval_hours": interval_h,
                                 "last_turn_time": last_turn_time,
+                                "overdue_cycles": overdue_cycles,
                             },
                         }
                     },
@@ -533,6 +549,31 @@ class NurseReminderMixin:
 
         if not should_fire:
             return False
+
+        # ── 升级决策：仅当 overdue_cycles >= 3 且存在临床损伤证据时升级为 clinical_risk ──
+        escalated = False
+        if very_high and overdue_cycles >= 3:
+            # 检查是否有压疮相关证据（皮肤完整性评分、床旁记录中的压疮事件）
+            skin_docs = await self._get_recent_text_events(
+                pid_str,
+                ["压疮", "pressure ulcer", "pressure injury", "皮肤破损", "皮肤损伤", "skin breakdown", "Ⅰ期", "Ⅱ期", "III期", "IV期"],
+                hours=72,
+                limit=50,
+            )
+            if skin_docs:
+                escalated = True
+
+        rule_id = (
+            "NURSE_TURNING_VERY_HIGH_ESCALATED" if escalated
+            else "NURSE_TURNING_VERY_HIGH" if very_high
+            else "NURSE_TURNING_HIGH"
+        )
+        reminder_name = (
+            "翻身提醒(极高风险-已升级)" if escalated
+            else "翻身提醒(极高风险)" if very_high
+            else "翻身提醒"
+        )
+        reminder_severity = "high" if escalated else severity
 
         reminder_doc = {
             "patient_id": pid_str,
@@ -542,13 +583,13 @@ class NurseReminderMixin:
             "deptCode": p.get("deptCode"),
             "score_type": "turning",
             "code": turning_cfg.get("code", "nurse_turning"),
-            "rule_id": "NURSE_TURNING_VERY_HIGH" if very_high else "NURSE_TURNING_HIGH",
-            "name": "翻身提醒(极高风险)" if very_high else "翻身提醒",
+            "rule_id": rule_id,
+            "name": reminder_name,
             "last_score_time": last_turn_time,
             "due_at": due_at,
             "created_at": now,
             "is_active": True,
-            "severity": severity,
+            "severity": reminder_severity,
             "extra": {
                 "risk_level": risk_level,
                 "braden": braden,
@@ -557,6 +598,8 @@ class NurseReminderMixin:
                 "bmi": bmi,
                 "interval_hours": interval_h,
                 "last_turn_time": last_turn_time,
+                "overdue_cycles": overdue_cycles,
+                "escalated": escalated,
             },
         }
         res = await self.db.col("nurse_reminders").insert_one(reminder_doc)

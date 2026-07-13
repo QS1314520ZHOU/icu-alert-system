@@ -1,7 +1,7 @@
 <template>
   <div class="alert-list">
     <div
-      v-for="a in alerts"
+      v-for="a in visibleAlerts"
       :key="a._id"
       :class="['alert-row', `alert-row--${a.severity || 'warning'}`, `alert-row--tone-${getAlertDisplayTone(a)}`, { 'alert-row--rescue': isRescueRiskAlert(a) }]"
     >
@@ -156,20 +156,24 @@
         </div>
       </div>
     </div>
-    <div v-if="!alerts.length" class="alert-empty">
-      <div class="alert-empty-title">当前无实时预警</div>
-      <div class="alert-empty-copy">预警流为空时，这里会自动展示最新床位风险。</div>
+    <div v-if="!visibleAlerts.length" class="alert-empty">
+      <div class="alert-empty-title">当前无 P0/P1 预警</div>
+      <div class="alert-empty-copy">流程提醒和质控任务请查看护理任务面板。</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import dayjs from 'dayjs'
-import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatSeverityLabel, getAlertDisplayTone } from '../../utils/displayLabels'
+import { computed } from 'vue'
+import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatSeverityLabel, getAlertDisplayTone, isBigScreenVisible } from '../../utils/displayLabels'
 
-defineProps<{
+const props = defineProps<{
   alerts: any[]
 }>()
+
+// 大屏默认只显示 p0/p1
+const visibleAlerts = computed(() => (props.alerts || []).filter(isBigScreenVisible))
 
 function fmtTime(t: any) {
   if (!t) return ''

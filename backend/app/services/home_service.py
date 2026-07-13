@@ -1479,9 +1479,9 @@ class RoleHomeService:
         if isinstance(department_overview, Exception):
             department_overview = {"total_beds": 0, "occupied_beds": 0, "occupancy_rate": 0, "doctors": [], "nurses": []}
         if isinstance(quality_dashboard, Exception):
-            quality_dashboard = {"period_days": 7, "scanner_health": {"rows": []}, "adoption_summary": {}, "quality_events": {}}
+            quality_dashboard = {"period_days": 7, "scanner_health": {"rows": []}, "adjudication_summary": {}, "quality_events": {}}
         if isinstance(kpi_summary, Exception):
-            kpi_summary = {"alert_stats": {}, "ai_stats": {}, "workload_stats": {}}
+            kpi_summary = {"alert_stats": {}, "ai_stats": {}, "adjudication_stats": {}, "workload_stats": {}}
         if isinstance(research_summary, Exception):
             research_summary = {"total": 0, "pending": 0, "completed": 0, "recent_exports": []}
         if isinstance(role_distribution, Exception):
@@ -1577,14 +1577,32 @@ class RoleHomeService:
         }
 
     async def _quality_dashboard(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]], dept: str | None, dept_code: str | None) -> dict[str, Any]:
-        """质控大屏：scanner_health + adoption_summary + quality_events"""
-        # scanner_health
+        """质控大屏：scanner_health + adjudication_summary + quality_events"""
         scanner_health = await self.outcomes.scanner_health(days=7, dept=dept, dept_code=dept_code)
 
-        # adoption_summary (从 quality_summary 提取)
-        quality_summary = await self.adoption.quality_summary(days=7, dept=dept, dept_code=dept_code)
+        # Adjudication stats from alert_adjudications (NOT adoption_summary)
+        since_7d = datetime.now(API_TZ) - timedelta(days=7)
+        adj_count = await self.db.col("alert_adjudications").count_documents(
+            {"created_at": {"$gte": since_7d}},
+        )
+        adj_tp = await self.db.col("alert_adjudications").count_documents(
+            {"created_at": {"$gte": since_7d}, "alert_validity": "true_positive"},
+        )
+        adj_fp = await self.db.col("alert_adjudications").count_documents(
+            {"created_at": {"$gte": since_7d}, "alert_validity": "false_positive"},
+        )
+        determinate = adj_tp + adj_fp
+        adj_ppv = round(adj_tp / determinate, 3) if determinate > 0 else None
 
-        # quality_events (从 _head_nurse_view 的 quality 提取)
+        adjudication_summary = {
+            "total_formally_reviewed": adj_count,
+            "determinate": determinate,
+            "true_positive": adj_tp,
+            "false_positive": adj_fp,
+            "reviewed_sample_ppv": adj_ppv,
+            "note": "Based on formal adjudications only — feedback excluded. PPV=TP/(TP+FP).",
+        }
+
         quality_events = {"falls": 0, "pressure_ulcers": 0, "line_displacement": 0, "medication_errors": 0}
         if patient_ids:
             try:
@@ -1596,14 +1614,14 @@ class RoleHomeService:
         return {
             "period_days": 7,
             "scanner_health": scanner_health,
-            "adoption_summary": quality_summary,
+            "adjudication_summary": adjudication_summary,
             "quality_events": quality_events,
         }
 
     async def _kpi_summary(self, patient_ids: list[str], patients_by_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
-        """KPI 摘要：告警统计、AI采纳、护理负荷"""
+        """KPI 摘要：告警统计、AI推理、人工复核、护理负荷"""
         if not patient_ids:
-            return {"alert_stats": {}, "ai_stats": {}, "workload_stats": {}}
+            return {"alert_stats": {}, "ai_stats": {}, "adjudication_stats": {}, "workload_stats": {}}
 
         alert_keys = self._alert_keys_for_patient_ids(patients_by_id, patient_ids)
         since_24h = datetime.now(API_TZ) - timedelta(hours=24)
@@ -1611,13 +1629,14 @@ class RoleHomeService:
         # 告警统计
         cursor = self.db.col("alert_records").find(
             {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": since_24h}},
-            {"acknowledged_at": 1, "ack_disposition": 1, "rule_id": 1, "adopted": 1}
+            {"acknowledged_at": 1, "ack_disposition": 1, "rule_id": 1, "heuristic_attention_score": 1, "manual_adjudication": 1, "action_linkage": 1},
         ).limit(2000)
 
         total_24h = 0
         handled_24h = 0
         integrated_reasoning = 0
-        integrated_adopted = 0
+        suspected_linkage = 0
+        clinician_confirmed = 0
 
         async for row in cursor:
             total_24h += 1
@@ -1625,12 +1644,19 @@ class RoleHomeService:
                 handled_24h += 1
             if _text(row.get("rule_id")) == "INTEGRATED_RISK_REASONING":
                 integrated_reasoning += 1
-                if row.get("adopted"):
-                    integrated_adopted += 1
+            linkage = row.get("action_linkage")
+            if isinstance(linkage, dict):
+                suspected_linkage += 1
+                if linkage.get("status") == "clinician_confirmed":
+                    clinician_confirmed += 1
 
         pending_24h = total_24h - handled_24h
         handle_rate = round(handled_24h / total_24h * 100, 1) if total_24h > 0 else 0.0
-        adoption_rate = round(integrated_adopted / integrated_reasoning * 100, 1) if integrated_reasoning > 0 else 0.0
+
+        # 人工复核统计（最近24小时内）
+        adj_count = await self.db.col("alert_adjudications").count_documents(
+            {"patient_id": {"$in": alert_keys}, "created_at": {"$gte": since_24h}},
+        )
 
         # 护理负荷
         workload = await self._nursing_workload(patient_ids, patients_by_id)
@@ -1641,11 +1667,16 @@ class RoleHomeService:
                 "handled_24h": handled_24h,
                 "pending_24h": pending_24h,
                 "handle_rate": handle_rate,
+                "suspected_linkage": suspected_linkage,
+                "clinician_confirmed_linkage": clinician_confirmed,
             },
             "ai_stats": {
                 "integrated_reasoning": integrated_reasoning,
-                "integrated_adopted": integrated_adopted,
-                "adoption_rate": adoption_rate,
+                "note": "AI推理生成数（adopted字段仅表示前端点击，非临床确认采纳）",
+            },
+            "adjudication_stats": {
+                "total_24h": adj_count,
+                "note": "人工复核数 — 此为正式统计口径。快速反馈不计入。",
             },
             "workload_stats": {
                 "avg_nursing_workload_percent": workload.get("percent", 0),

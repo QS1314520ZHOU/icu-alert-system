@@ -207,6 +207,72 @@
           </div>
           <div v-if="!scannerRows.length" class="empty small">暂无规则健康数据。</div>
         </section>
+
+        <!-- 流程任务逾期TOP床位 -->
+        <section v-if="overdueByBed.length" class="panel">
+          <div class="panel-head">
+            <strong>流程逾期 TOP 床位</strong>
+            <span>{{ workflowOverdue.length }} 条逾期</span>
+          </div>
+          <div class="top-bed-list">
+            <article v-for="(entry, idx) in overdueByBed.slice(0, 10)" :key="entry[0]" class="top-bed-item">
+              <span class="top-bed-rank">{{ idx + 1 }}</span>
+              <strong>{{ entry[0] }}床</strong>
+              <span>{{ entry[1] }} 条逾期</span>
+            </article>
+          </div>
+        </section>
+
+        <!-- P2→P1 升级列表 -->
+        <section v-if="escalationP2toP1.length" class="panel">
+          <div class="panel-head">
+            <strong>P2→P1 升级记录</strong>
+            <span>{{ escalationP2toP1.length }} 条</span>
+          </div>
+          <div class="event-list">
+            <article v-for="item in escalationP2toP1.slice(0, 10)" :key="item._id || item.created_at" class="event-item ds-list-item">
+              <i class="ds-dot" style="background:#f97316"></i>
+              <div>
+                <strong>{{ item.bed || '--' }}床 {{ item.patient_name || '--' }}</strong>
+                <span>{{ item.name || item.rule_id }} · {{ fmt(item.created_at) }}</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- 质控缺项 -->
+        <section v-if="qualityGaps.length" class="panel">
+          <div class="panel-head">
+            <strong>质控缺项</strong>
+            <span>{{ qualityGaps.length }} 项</span>
+          </div>
+          <div class="event-list">
+            <article v-for="item in qualityGaps.slice(0, 10)" :key="item._id || item.created_at" class="event-item ds-list-item">
+              <i class="ds-dot" style="background:#ca8a04"></i>
+              <div>
+                <strong>{{ item.bed || '--' }}床 {{ item.patient_name || '--' }}</strong>
+                <span>{{ item.name || item.rule_id }} · {{ item.alert_type ? formatAlertTypeLabel(item.alert_type) : '' }}</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- 已升级告警 -->
+        <section v-if="workflowEscalated.length" class="panel">
+          <div class="panel-head">
+            <strong>已升级告警</strong>
+            <span>{{ workflowEscalated.length }} 条</span>
+          </div>
+          <div class="event-list">
+            <article v-for="item in workflowEscalated.slice(0, 10)" :key="item._id || item.created_at" class="event-item ds-list-item">
+              <i class="ds-dot" style="background:#fb5a7a"></i>
+              <div>
+                <strong>{{ item.bed || '--' }}床 {{ item.patient_name || '--' }}</strong>
+                <span>{{ item.name || item.rule_id }} · {{ item.priority }} · {{ fmt(item.created_at) }}</span>
+              </div>
+            </article>
+          </div>
+        </section>
       </main>
 
       <div v-if="showOnboarding" class="onboarding-mask" @click.self="dismissOnboarding">
@@ -235,6 +301,7 @@ import { roleHomeConfig } from '../config/roleHomeConfig'
 import ComplianceDashboard from './ComplianceDashboard.vue'
 import BundleComplianceChecklist from './BundleComplianceChecklist.vue'
 import { BellOutlined, CheckCircleOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons-vue'
+import { formatAlertTypeLabel } from '../utils/displayLabels'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -290,6 +357,33 @@ const summaryCards = computed(() => {
 })
 
 const sortedBeds = computed(() => sortBeds(beds.value))
+
+// ── 流程/质控聚合统计 ──
+const allActiveAlerts = computed(() => home.value?.active_alerts || [])
+const workflowAlerts = computed(() => allActiveAlerts.value.filter((a: any) => {
+  const d = String(a?.alert_domain || '').toLowerCase()
+  return d === 'workflow_reminder' || d === 'quality_gap'
+}))
+const workflowOverdue = computed(() => workflowAlerts.value.filter((a: any) => {
+  const now = Date.now(); const due = new Date(a?.due_at || 0).getTime()
+  return due > 0 && due < now
+}))
+const workflowEscalated = computed(() => workflowAlerts.value.filter((a: any) => a?.escalation_of))
+const escalationP2toP1 = computed(() => workflowAlerts.value.filter((a: any) => {
+  const hist = a?.priority_history
+  return Array.isArray(hist) && hist.some((h: any) => h?.from === 'p2' && h?.to === 'p1')
+}))
+const overdueByBed = computed(() => {
+  const map = new Map<string, number>()
+  for (const a of workflowOverdue.value) {
+    const bed = String(a?.bed || '--')
+    map.set(bed, (map.get(bed) || 0) + 1)
+  }
+  return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
+})
+const qualityGaps = computed(() => allActiveAlerts.value.filter((a: any) =>
+  String(a?.alert_domain || '').toLowerCase() === 'quality_gap'
+))
 
 function displayBed(value: any) {
   const text = String(value || '').trim()

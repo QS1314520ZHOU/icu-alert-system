@@ -5,15 +5,6 @@ export type AlertSocketMessage = {
 
 export type AlertSocketListener = (msg: AlertSocketMessage) => void
 
-const SEVERITY_TEXT: Record<string, string> = {
-  critical: '危急',
-  high: '高危',
-  warning: '预警',
-  info: '关注',
-  low: '低危',
-  normal: '正常',
-}
-
 const listeners = new Set<AlertSocketListener>()
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
@@ -56,18 +47,54 @@ function notifyAlert(msg: AlertSocketMessage) {
   if (Notification.permission !== 'granted') return
   const alert = msg?.data || {}
   if (msg?.type !== 'alert') return
+
+  // ── 仅 physiologic_alarm + p0 触发浏览器通知 ──
+  const domain = String(alert?.alert_domain || '').toLowerCase()
+  const priority = String(alert?.priority || '').toLowerCase()
+  if (domain !== 'physiologic_alarm' || priority !== 'p0') {
+    return
+  }
+
   if (!document.hidden) return
 
-  const title = alert?.name || 'ICU 新预警'
-  const severity = SEVERITY_TEXT[String(alert?.severity || 'warning').toLowerCase()] || '预警'
-  const body = `${alert?.bed || '--'}床 ${alert?.patient_name || '未知患者'} · ${severity}`
+  const title = alert?.name || 'ICU 危急预警'
+  const body = `${alert?.bed || '--'}床 ${alert?.patient_name || '未知患者'} · 生理危急 · 立即响应`
   const tag = String(alert?._id || `${alert?.patient_id || ''}:${alert?.rule_id || ''}`)
 
   try {
     new Notification(title, { body, tag })
-  } catch {
-    // ignore
+    // 记录投递成功
+    recordNotificationAttempt(alert, 'delivered')
+  } catch (e: any) {
+    recordNotificationAttempt(alert, 'failed', String(e?.message || 'unknown'))
   }
+}
+
+// ── 通知投递记录（用于审计和排查） ──
+const MAX_NOTIFICATION_LOG = 200
+const notificationLog: Array<{
+  alert_id: string
+  channel: string
+  result: string
+  reason: string
+  time: number
+}> = []
+
+function recordNotificationAttempt(alert: any, result: string, reason = '') {
+  notificationLog.push({
+    alert_id: String(alert?._id || ''),
+    channel: 'browser_notification',
+    result,
+    reason,
+    time: Date.now(),
+  })
+  if (notificationLog.length > MAX_NOTIFICATION_LOG) {
+    notificationLog.splice(0, notificationLog.length - MAX_NOTIFICATION_LOG)
+  }
+}
+
+export function getNotificationLog() {
+  return [...notificationLog]
 }
 
 function connect() {
@@ -122,20 +149,28 @@ export function setAlertSpeechEnabled(enabled: boolean) {
 }
 
 /**
- * 对 critical 级别预警执行语音播报。
+ * 语音播报：仅 physiologic_alarm + p0 触发（浏览器辅助提示，不替代监护仪报警）
  * 供护士站大屏等全局视图注册，内网音箱/广播通过浏览器 Web Speech API 输出。
  */
 export function speakCriticalAlert(msg: AlertSocketMessage) {
   if (msg?.type !== 'alert') return
   const alert = msg?.data || {}
-  if (String(alert.severity || '').toLowerCase() !== 'critical') return
+
+  // ── 仅 physiologic_alarm + p0 触发语音 ──
+  const domain = String(alert?.alert_domain || '').toLowerCase()
+  const priority = String(alert?.priority || '').toLowerCase()
+  if (domain !== 'physiologic_alarm' || priority !== 'p0') return
+
   if (!getAlertSpeechEnabled()) return
-  if (!('speechSynthesis' in window)) return
+  if (!('speechSynthesis' in window)) {
+    recordNotificationAttempt(alert, 'failed', 'speech_synthesis_unavailable')
+    return
+  }
 
   const bed = alert.bed || '--'
   const name = alert.patient_name || '患者'
-  const ruleName = alert.name || '危急预警'
-  const text = `危急预警：${bed}床，${name}，${ruleName}，请立即处置`
+  const ruleName = alert.name || '生理危急预警'
+  const text = `生理危急：${bed}床，${name}，${ruleName}，请立即处置`
 
   const utter = new SpeechSynthesisUtterance(text)
   utter.lang = 'zh-CN'
@@ -143,6 +178,7 @@ export function speakCriticalAlert(msg: AlertSocketMessage) {
   utter.volume = 1
   // 不中断：排队播报，避免多条同时触发时互相打断
   window.speechSynthesis.speak(utter)
+  recordNotificationAttempt(alert, 'delivered', 'speech')
 }
 
 function closeSocketIfIdle() {
