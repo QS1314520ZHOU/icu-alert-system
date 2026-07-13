@@ -278,10 +278,7 @@ export class VoiceRoundingSession {
 // ── URL builder ──────────────────────────────────────────────────────────
 
 export function buildVoiceRoundingWsUrl(patientId: string): string {
-  const base = (import.meta as Record<string, unknown>).env
-    ? (import.meta as Record<string, unknown>).env as Record<string, string>
-    : {};
-  const wsBase = (base.VITE_WS_BASE_URL as string) || '';
+  const wsBase = (import.meta.env.VITE_WS_BASE_URL as string | undefined) || '';
   if (wsBase) {
     return `${wsBase.replace(/\/$/, '')}/api/voice-rounding/ws/voice-rounding/${patientId}`;
   }

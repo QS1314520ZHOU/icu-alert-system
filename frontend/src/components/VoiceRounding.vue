@@ -144,7 +144,7 @@ import {
   getVoiceRoundingCapabilities,
   type VoiceRoundingDraft,
   type VoiceRoundingDraftStream,
-  type VoiceRoundingSuspect,
+
 } from '../api/voiceRounding'
 import { AudioCapture } from '../audio/captureWorklet'
 import {
@@ -231,24 +231,17 @@ const processingStageText = computed(() => {
  * 只传浏览器支持的约束，避免部分浏览器因不支持某项配置而启动录音失败。
  */
 function getSupportedAudioConstraints(): MediaTrackConstraints {
-  const desired: Record<string, unknown> = {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true,
-    channelCount: 1,
-    sampleRate: 16000,
-  }
-
   const supported = navigator.mediaDevices.getSupportedConstraints()
-  const constraints: Record<string, unknown> = {}
+  const constraints: MediaTrackConstraints = {}
 
-  for (const [key, value] of Object.entries(desired)) {
-    if (supported[key]) {
-      constraints[key] = value
-    }
-  }
+  // 逐项判断浏览器是否支持，不支持时不传入该约束
+  if (supported.echoCancellation) constraints.echoCancellation = true
+  if (supported.noiseSuppression) constraints.noiseSuppression = true
+  if (supported.autoGainControl) constraints.autoGainControl = true
+  if (supported.channelCount) constraints.channelCount = 1
+  if (supported.sampleRate) constraints.sampleRate = 16000
 
-  return constraints as MediaTrackConstraints
+  return constraints
 }
 
 /**

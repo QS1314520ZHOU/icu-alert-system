@@ -42,8 +42,9 @@ export function resample(
   while (pos < input.length && outIdx < outLen) {
     const idx = Math.floor(pos);
     const f = pos - idx;
-    const a = input[idx];
-    const b = idx + 1 < input.length ? input[idx + 1] : a;
+    // idx is always < input.length because pos < input.length (loop guard)
+    const a = input[idx]!;
+    const b = idx + 1 < input.length ? input[idx + 1]! : a;
     output[outIdx++] = a + f * (b - a);
     pos += ratio;
   }
