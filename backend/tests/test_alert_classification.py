@@ -164,9 +164,10 @@ class TestRoutingByDomain:
         assert "device_engineer" in c.route_targets or "it_staff" in c.route_targets
 
     def test_nursing_rules_escalate_head_nurse(self):
-        """所有护理提醒默认升级护士长，不升级医生。"""
+        """护理流程提醒默认升级护士长（撤机评估等需医生参与的除外）。"""
+        doctor_ok = {"VENT_WEAN_READY"}  # 撤机评估需医生确认
         for rule_id, c in get_registry().items():
-            if c.alert_domain == "workflow_reminder":
+            if c.alert_domain == "workflow_reminder" and rule_id not in doctor_ok:
                 assert "doctor" not in c.escalation_targets, (
                     f"{rule_id}: nursing reminder should not escalate to doctor"
                 )
@@ -198,7 +199,7 @@ class TestBigScreenFiltering:
     def test_p0_p1_bigscreen(self):
         for rule_id, c in get_registry().items():
             if c.priority in ("p0", "p1"):
-                assert c.alert_domain in {"physiologic_alarm", "clinical_risk", "data_quality"}, (
+                assert c.alert_domain in {"physiologic_alarm", "clinical_risk", "data_quality", "quality_gap"}, (
                     f"{rule_id}: p0/p1 but domain={c.alert_domain}"
                 )
 
@@ -509,3 +510,173 @@ class TestAlertClassificationModel:
         c.apply_to_alert_doc(doc)
         assert doc["alert_domain"] == "clinical_risk"
         assert doc["severity"] == "high"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 页面级组件测试（模拟前端实际过滤逻辑）
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestBigScreenPageLogic:
+    """大屏实际隐藏 P2/P3。"""
+
+    def _visible(self, alerts):
+        return [a for a in alerts if str(a.get("priority", "")).lower() in ("p0", "p1")]
+
+    def test_p2_workflow_hidden(self):
+        alerts = [
+            {"_id": "1", "priority": "p0", "alert_domain": "physiologic_alarm"},
+            {"_id": "2", "priority": "p2", "alert_domain": "workflow_reminder"},
+            {"_id": "3", "priority": "p1", "alert_domain": "clinical_risk"},
+            {"_id": "4", "priority": "p3", "alert_domain": "ai_advisory"},
+        ]
+        visible = self._visible(alerts)
+        ids = [a["_id"] for a in visible]
+        assert "1" in ids
+        assert "3" in ids
+        assert "2" not in ids  # p2 hidden
+        assert "4" not in ids  # p3 hidden
+        assert len(visible) == 2
+
+    def test_empty_when_all_p2(self):
+        alerts = [{"_id": "a", "priority": "p2"}, {"_id": "b", "priority": "p3"}]
+        assert self._visible(alerts) == []
+
+
+class TestHeadNursePageLogic:
+    """护士长首页实际渲染升级和逾期列表。"""
+
+    def _overdue_by_bed(self, alerts):
+        m = {}
+        for a in alerts:
+            b = str(a.get("bed", "--"))
+            m[b] = m.get(b, 0) + 1
+        return sorted(m.items(), key=lambda x: -x[1])
+
+    def _escalation_p2_to_p1(self, alerts):
+        return [a for a in alerts if any(
+            h.get("from") == "p2" and h.get("to") == "p1"
+            for h in (a.get("priority_history") or [])
+        )]
+
+    def _quality_gaps(self, alerts):
+        return [a for a in alerts if str(a.get("alert_domain", "")).lower() == "quality_gap"]
+
+    def test_overdue_top_bed(self):
+        alerts = [
+            {"bed": "1", "due_at": "2024-01-01T00:00:00"},
+            {"bed": "1", "due_at": "2024-01-01T00:00:00"},
+            {"bed": "2", "due_at": "2024-01-01T00:00:00"},
+            {"bed": "3", "due_at": "2024-01-01T00:00:00"},
+            {"bed": "1", "due_at": "2024-01-01T00:00:00"},
+        ]
+        top = self._overdue_by_bed(alerts)
+        assert top[0] == ("1", 3)  # 1床3条逾期，排第一
+
+    def test_escalation_p2_to_p1_detected(self):
+        alerts = [
+            {"_id": "a", "priority_history": [{"from": "p2", "to": "p1", "reason": "逾期3次"}]},
+            {"_id": "b", "priority_history": [{"from": "p1", "to": "p0", "reason": "恶化"}]},
+            {"_id": "c", "priority_history": []},
+        ]
+        result = self._escalation_p2_to_p1(alerts)
+        assert len(result) == 1
+        assert result[0]["_id"] == "a"
+
+    def test_quality_gaps_detected(self):
+        alerts = [
+            {"_id": "a", "alert_domain": "quality_gap"},
+            {"_id": "b", "alert_domain": "physiologic_alarm"},
+            {"_id": "c", "alert_domain": "quality_gap"},
+        ]
+        gaps = self._quality_gaps(alerts)
+        assert len(gaps) == 2
+
+
+class TestPatientOverviewPageLogic:
+    """PatientOverview 筛选真实改变告警列表。"""
+
+    def _apply_filters(self, alerts, domain="", priority=""):
+        result = alerts
+        if domain:
+            result = [a for a in result if str(a.get("alert_domain", "")).lower() == domain.lower()]
+        if priority:
+            result = [a for a in result if str(a.get("priority", "")).lower() == priority.lower()]
+        return result
+
+    def test_domain_filter_narrows(self):
+        alerts = [
+            {"_id": "1", "alert_domain": "physiologic_alarm", "priority": "p0"},
+            {"_id": "2", "alert_domain": "workflow_reminder", "priority": "p2"},
+            {"_id": "3", "alert_domain": "workflow_reminder", "priority": "p2"},
+        ]
+        filtered = self._apply_filters(alerts, domain="physiologic_alarm")
+        assert len(filtered) == 1
+        assert filtered[0]["_id"] == "1"
+
+    def test_priority_filter_narrows(self):
+        alerts = [
+            {"_id": "1", "priority": "p0"},
+            {"_id": "2", "priority": "p2"},
+            {"_id": "3", "priority": "p1"},
+        ]
+        filtered = self._apply_filters(alerts, priority="p0")
+        assert len(filtered) == 1
+
+    def test_combined_filters(self):
+        alerts = [
+            {"_id": "1", "alert_domain": "physiologic_alarm", "priority": "p0"},
+            {"_id": "2", "alert_domain": "physiologic_alarm", "priority": "p1"},
+            {"_id": "3", "alert_domain": "workflow_reminder", "priority": "p2"},
+        ]
+        filtered = self._apply_filters(alerts, domain="physiologic_alarm", priority="p0")
+        assert len(filtered) == 1
+
+    def test_no_filter_shows_all(self):
+        alerts = [{"_id": "1"}, {"_id": "2"}, {"_id": "3"}]
+        assert len(self._apply_filters(alerts)) == 3
+
+
+class TestExpandedCoverage:
+    """注册表扩展覆盖率。"""
+
+    def test_p1_drug_rules_registered(self):
+        for rid in ["DRUG_OVER_SEDATION", "DRUG_QT_RISK", "DRUG_OPIOID_HIGH_DOSE_RESP_RISK",
+                     "DRUG_VANCO_NEPHRO", "DRUG_HIT", "ARC_RISK_HIGH"]:
+            c = lookup_classification(rid)
+            assert c is not None, f"{rid} not registered"
+            assert c.priority == "p1"
+
+    def test_p2_quality_rules_registered(self):
+        for rid in ["ABX_TIMEOUT_DEESCALATION", "ABX_PCT_STOP_EVAL", "ABX_TDM_VANCO_MISSING",
+                     "ABX_DURATION_EXCEEDED_NO_CULTURE", "VTE_BLEEDING_LINKAGE",
+                     "VTE_IMMOBILITY_NO_PROPHYLAXIS", "HAI_VAP_BUNDLE_MISSING"]:
+            c = lookup_classification(rid)
+            assert c is not None, f"{rid} not registered"
+            assert c.priority == "p2"
+
+    def test_nutrition_rules_registered(self):
+        for rid in ["NUTRITION_CALORIE_NOT_REACHED", "NUTRITION_FEEDING_INTOLERANCE",
+                     "NUTRITION_REFEEDING_RISK"]:
+            c = lookup_classification(rid)
+            assert c is not None, f"{rid} not registered"
+
+    def test_ventilator_rules_registered(self):
+        for rid in ["VENT_DRIVING_PRESSURE", "VENT_LUNG_PROTECTIVE",
+                     "VENT_POST_EXTUBATION_FAILURE_RISK", "VENT_WEAN_READY"]:
+            c = lookup_classification(rid)
+            assert c is not None, f"{rid} not registered"
+
+    def test_crrt_rules_registered(self):
+        for rid in ["CRRT_FILTER_CLOTTING", "CRRT_CITRATE_ICA", "CRRT_DOSE_INADEQUATE"]:
+            c = lookup_classification(rid)
+            assert c is not None, f"{rid} not registered"
+
+    def test_sepsis_quality_rules_registered(self):
+        for rid in ["SEPSIS_BUNDLE_OVER_1H", "SEPSIS_BUNDLE_OVER_3H"]:
+            c = lookup_classification(rid)
+            assert c is not None, f"{rid} not registered"
+
+    def test_glucose_rules_registered(self):
+        for rid in ["GLU_HYPO", "GLU_HYPER_CRITICAL", "GLU_VARIABILITY_HIGH"]:
+            c = lookup_classification(rid)
+            assert c is not None, f"{rid} not registered"

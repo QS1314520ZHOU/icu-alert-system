@@ -648,7 +648,7 @@ _register("VENT_WEAN_READY", alert_domain="workflow_reminder", clinical_severity
           priority="p2", workflow_urgency="informational", source_type="rule",
           response_target_seconds=14400, escalation_policy="nursing_workflow",
           display_tone="amber", owner_role="nurse",
-          route_targets=["nurse", "doctor"], escalation_targets=["doctor"],
+          route_targets=["nurse", "doctor"], escalation_targets=["doctor", "head_nurse"],
           escalation_after_minutes=240, escalation_after_repeats=2)
 
 # ── 昼夜节律 ────────────────────────────────────────────────────────────────
