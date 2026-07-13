@@ -68,12 +68,23 @@ async def sepsis_bundle_patient_ids_by_dept_code(dept_code: str | None) -> list[
 
 
 def derive_sepsis_bundle_status(tracker: dict | None, now: datetime | None = None) -> dict:
+    """派生脓毒症 Bundle 状态（兼容 v1/v2）。
+
+    v2 新增字段：
+      - bundle_version, screening_detected_at, bundle_clock_anchor, clinician_confirmed_at
+      - infection_evidence, shock_assessment, fluid_risk_assessment
+      - bundle_elements (v2 结构), bundle_compliance (v2 质控)
+    """
     now_dt = now or datetime.now()
     if not tracker:
         return {
             "active": False,
             "status": "none",
+            "bundle_version": None,
             "bundle_started_at": None,
+            "screening_detected_at": None,
+            "bundle_clock_anchor": None,
+            "clinician_confirmed_at": None,
             "deadline_1h": None,
             "deadline_3h": None,
             "first_antibiotic_time": None,
@@ -83,10 +94,16 @@ def derive_sepsis_bundle_status(tracker: dict | None, now: datetime | None = Non
             "elapsed_minutes": None,
             "compliant_1h": None,
             "source_rules": [],
+            "infection_verdict": None,
+            "shock_suspected": False,
+            "fluid_risk_factors": [],
+            "bundle_elements": None,
+            "bundle_compliance": None,
             "label": "未进入计时",
             "light": "gray",
         }
 
+    is_v2 = tracker.get("bundle_version") == 2 or str(tracker.get("bundle_type") or "").endswith("_v2")
     started = tracker.get("bundle_started_at")
     deadline_1h = tracker.get("deadline_1h")
     deadline_3h = tracker.get("deadline_3h")
@@ -119,20 +136,55 @@ def derive_sepsis_bundle_status(tracker: dict | None, now: datetime | None = Non
         else:
             light, label = "blue", "1h内待完成"
 
+    # v2 额外信息
+    infection_evidence = tracker.get("infection_evidence") if isinstance(tracker.get("infection_evidence"), dict) else {}
+    shock = tracker.get("shock_assessment") if isinstance(tracker.get("shock_assessment"), dict) else {}
+    risk = tracker.get("fluid_risk_assessment") if isinstance(tracker.get("fluid_risk_assessment"), dict) else {}
+    elements = tracker.get("bundle_elements")
+    compliance = tracker.get("bundle_compliance")
+
+    # 提取首剂抗生素信息（兼容 v1/v2）
+    first_abx_time = tracker.get("first_antibiotic_time")
+    first_abx_name = tracker.get("first_antibiotic_name")
+    if not first_abx_time and isinstance(elements, dict):
+        for key in ("first_antibiotic", "antibiotic_assessment"):
+            item = elements.get(key)
+            if isinstance(item, dict):
+                exec_data = item.get("execution") if isinstance(item.get("execution"), dict) else item
+                first_abx_time = first_abx_time or exec_data.get("completed_at")
+                first_abx_name = first_abx_name or exec_data.get("antibiotic_name") or exec_data.get("name")
+
     return {
         "active": bool(tracker.get("is_active")) and effective_status == "pending",
         "status": effective_status,
         "raw_status": raw_status,
+        "bundle_version": 2 if is_v2 else 1,
         "bundle_started_at": started,
+        "screening_detected_at": tracker.get("screening_detected_at"),
+        "bundle_clock_anchor": tracker.get("bundle_clock_anchor"),
+        "clinician_confirmed_at": tracker.get("clinician_confirmed_at"),
         "deadline_1h": deadline_1h,
         "deadline_3h": deadline_3h,
-        "first_antibiotic_time": tracker.get("first_antibiotic_time"),
-        "first_antibiotic_name": tracker.get("first_antibiotic_name"),
+        "first_antibiotic_time": first_abx_time,
+        "first_antibiotic_name": first_abx_name,
         "remaining_seconds_to_1h": remaining_1h,
         "remaining_seconds_to_3h": remaining_3h,
         "elapsed_minutes": elapsed_minutes,
         "compliant_1h": tracker.get("compliant_1h"),
         "source_rules": tracker.get("source_rules") or [],
+        "infection_verdict": infection_evidence.get("verdict"),
+        "infection_confidence": infection_evidence.get("confidence"),
+        "infection_positive_evidence": infection_evidence.get("positive_evidence") or [],
+        "infection_negative_evidence": infection_evidence.get("negative_evidence") or [],
+        "infection_missing_data": infection_evidence.get("missing_data") or [],
+        "shock_suspected": shock.get("septic_shock_suspected", False),
+        "hypoperfusion_evidence": shock.get("hypoperfusion_evidence") or [],
+        "vasopressor_active": shock.get("vasopressor_active", False),
+        "fluid_risk_factors": risk.get("risk_factors") or [],
+        "fluid_risk_cautions": risk.get("cautions") or [],
+        "requires_individualization": risk.get("requires_individualization", False),
+        "bundle_elements": elements,
+        "bundle_compliance": compliance,
         "label": label,
         "light": light,
     }

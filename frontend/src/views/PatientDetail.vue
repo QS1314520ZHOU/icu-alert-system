@@ -477,6 +477,9 @@
             :fmt-time="fmtTime"
             :normalize-severity="normalizeSeverity"
             :alert-severity-text="alertSeverityText"
+            :alert-domain-label="alertDomainLabel"
+            :alert-priority-label="alertPriorityLabel"
+            :alert-source-label="alertSourceLabel"
             :format-alert-value="formatAlertValue"
             :alert-type-text="alertTypeText"
             :alert-category-text="alertCategoryText"
@@ -3616,6 +3619,28 @@ function alertSeverityText(raw: any) {
   if (sev === 'critical') return '危急'
   if (sev === 'high') return '高风险'
   return '预警'
+}
+
+function alertDomainLabel(raw: any) {
+  const map: Record<string, string> = {
+    physiologic_alarm: '生理危急', clinical_risk: '临床风险',
+    workflow_reminder: '流程提醒', quality_gap: '质控缺项',
+    data_quality: '数据质量', ai_advisory: 'AI建议', unknown: '未分类',
+  }
+  return map[String(raw || '').toLowerCase()] || ''
+}
+
+function alertPriorityLabel(raw: any) {
+  const map: Record<string, string> = { p0: 'P0', p1: 'P1', p2: 'P2', p3: 'P3' }
+  return map[String(raw || '').toLowerCase()] || ''
+}
+
+function alertSourceLabel(raw: any) {
+  const map: Record<string, string> = {
+    rule: '规则', trained_model: '模型', heuristic: '启发式',
+    llm: 'LLM', manual: '人工', device_native: '设备', hybrid: '混合',
+  }
+  return map[String(raw || '').toLowerCase()] || ''
 }
 
 function alertTypeText(raw: any) {

@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 
 from app import runtime
+from app.services.clinical_adoption_service import ClinicalAdoptionService, _normalize_role_key
 from app.services.workflow_summary_service import build_clinical_summary, build_patient_priority
 from app.utils.analytics_ai import summarize_weaning_timeline
 from app.utils.alerting import derive_sepsis_bundle_status, normalize_sbt_status, normalize_weaning_status
@@ -713,6 +714,48 @@ async def patient_ecash_status(patient_id: str):
     return {"code": 0, "status": serialize_doc(status)}
 
 
+def _resolve_clinical_actor_role(request: Request, payload: dict | None = None) -> tuple[str, str, str]:
+    """解析临床操作者身份 — actor/role/dept。
+
+    actor 来自认证身份（X-User-Id header），role 来自 X-User-Role header 或 account 解析。
+    仅 doctor / director 可确认适用性和个体目标；
+    nurse 只能记录执行；
+    admin 不能替代临床确认。
+    """
+    body = payload if isinstance(payload, dict) else {}
+    actor = str(
+        body.get("actor") or request.headers.get("x-user-id") or request.headers.get("X-User-Id") or ""
+    ).strip()
+    role_raw = str(
+        body.get("role") or request.headers.get("x-user-role") or request.headers.get("X-User-Role") or ""
+    ).strip()
+    role = _normalize_role_key(role_raw or "doctor", "doctor")
+    dept = str(
+        body.get("dept") or request.headers.get("x-user-dept") or request.headers.get("X-User-Dept") or ""
+    ).strip()
+    if not actor:
+        raise HTTPException(status_code=401, detail="需要认证身份（actor/x-user-id）")
+    return actor, role, dept
+
+
+def _require_clinician_role(role: str) -> None:
+    """仅 doctor/director 可通过临床确认。"""
+    if role not in ("doctor", "director"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"临床确认需要医生或主任角色，当前角色: {role}。护士可记录执行，管理员不能替代临床确认。",
+        )
+
+
+def _require_clinical_staff_role(role: str) -> None:
+    """doctor/director/nurse/head_nurse 均可记录执行。"""
+    if role not in ("doctor", "director", "nurse", "head_nurse"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"记录执行需要临床角色，当前角色: {role}",
+        )
+
+
 @router.get("/api/patients/{patient_id}/sepsis-bundle-status")
 async def patient_sepsis_bundle_status(patient_id: str):
     try:
@@ -725,11 +768,12 @@ async def patient_sepsis_bundle_status(patient_id: str):
         return {"code": 404, "message": "患者不存在"}
 
     pid_str = str(pid)
+    # 查询 v2 tracker 优先，回退到旧版
     tracker = await runtime.db.col("score").find_one(
         {
             "patient_id": pid_str,
-            "score_type": "sepsis_antibiotic_bundle",
-            "bundle_type": "sepsis_1h_antibiotic",
+            "score_type": {"$in": ["sepsis_bundle_tracker", "sepsis_antibiotic_bundle"]},
+            "bundle_type": {"$in": ["sepsis_hour1_bundle_v2", "sepsis_hour1_bundle", "sepsis_1h_antibiotic"]},
             "is_active": True,
         },
         sort=[("bundle_started_at", -1)],
@@ -738,13 +782,257 @@ async def patient_sepsis_bundle_status(patient_id: str):
         tracker = await runtime.db.col("score").find_one(
             {
                 "patient_id": pid_str,
-                "score_type": "sepsis_antibiotic_bundle",
-                "bundle_type": "sepsis_1h_antibiotic",
+                "score_type": {"$in": ["sepsis_bundle_tracker", "sepsis_antibiotic_bundle"]},
+                "bundle_type": {"$in": ["sepsis_hour1_bundle_v2", "sepsis_hour1_bundle", "sepsis_1h_antibiotic"]},
             },
             sort=[("bundle_started_at", -1)],
         )
 
     return {"code": 0, "status": serialize_doc(derive_sepsis_bundle_status(tracker, now=datetime.now()))}
+
+
+# ---- 临床确认端点 ----
+
+@router.patch("/api/patients/{patient_id}/sepsis-bundle/element-review")
+async def sepsis_bundle_element_clinical_review(
+    patient_id: str,
+    request: Request,
+    payload: dict = Body(...),
+):
+    """医生/主任确认 Bundle 元素的适用性和个体化目标。
+
+    RBAC: 仅 doctor / director 角色。
+    payload:
+      - element_key: 元素键名 (e.g. "fluid_resuscitation")
+      - applicability: 确认的适用性 (required/not_applicable/contraindicated/individualized)
+      - individualized_target_ml: 个体化目标（individualized 时必填）
+      - reason: 确认原因
+      - version: 乐观锁版本号
+      - actor: 操作者（可选，优先取 header）
+    """
+    actor, role, dept = _resolve_clinical_actor_role(request, payload)
+    _require_clinician_role(role)
+
+    element_key = str(payload.get("element_key") or "").strip()
+    if not element_key:
+        return {"code": 400, "message": "缺少 element_key"}
+    allowed_applicability = {"required", "not_applicable", "contraindicated", "individualized"}
+    applicability = str(payload.get("applicability") or "").strip().lower()
+    if applicability not in allowed_applicability:
+        return {"code": 400, "message": f"applicability 必须是 {allowed_applicability} 之一"}
+
+    if applicability == "individualized" and not payload.get("individualized_target_ml"):
+        return {"code": 400, "message": "individualized 模式需提供 individualized_target_ml"}
+
+    reason = str(payload.get("reason") or "").strip()
+    if not reason:
+        return {"code": 400, "message": "必须提供确认原因 (reason)"}
+
+    expected_version = int(payload.get("version") or -1)
+
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    pid_str = str(pid)
+    tracker = await runtime.db.col("score").find_one(
+        {"patient_id": pid_str, "score_type": "sepsis_bundle_tracker", "is_active": True},
+        sort=[("bundle_started_at", -1)],
+    )
+    if not tracker:
+        return {"code": 404, "message": "未找到活跃的脓毒症 Bundle"}
+
+    elements = tracker.get("bundle_elements") if isinstance(tracker.get("bundle_elements"), dict) else {}
+    item = elements.get(element_key)
+    if not isinstance(item, dict):
+        return {"code": 404, "message": f"未知元素: {element_key}"}
+
+    # 乐观锁
+    review = item.get("clinical_review") if isinstance(item.get("clinical_review"), dict) else {}
+    current_version = int(review.get("version") or 0)
+    if expected_version >= 0 and expected_version != current_version:
+        return {"code": 409, "message": f"版本冲突: 期望 v{expected_version}，当前 v{current_version}，请刷新重试"}
+
+    now = datetime.now()
+    new_version = current_version + 1
+
+    # 更新 clinical_review
+    item["clinical_review"] = {
+        "status": "confirmed",
+        "confirmed_by": actor,
+        "confirmed_at": now,
+        "role": role,
+        "reason": reason,
+        "version": new_version,
+    }
+
+    # 更新 applicability
+    old_applicability = item.get("applicability")
+    item["applicability"] = applicability
+
+    # 更新 target（如果是 individualized 且有补液目标）
+    if applicability == "individualized" and element_key == "fluid_resuscitation":
+        target_data = item.get("target") if isinstance(item.get("target"), dict) else {}
+        target_data["individualized_target_ml"] = float(payload.get("individualized_target_ml", 0))
+        item["target"] = target_data
+
+    # 更新执行状态（适用性变更只影响 applicability，不污染 execution.status）
+    exec_data = item.get("execution") if isinstance(item.get("execution"), dict) else {}
+    if applicability in ("not_applicable", "contraindicated"):
+        exec_data["status"] = "cancelled"
+    # individualized 不在 execution.status 中出现 — execution 保持 pending/met/met_late
+    if old_applicability in ("not_applicable", "contraindicated") and applicability not in ("not_applicable", "contraindicated"):
+        # 从禁忌/不适用恢复 → 重置为 pending
+        exec_data["status"] = "pending"
+    item["execution"] = exec_data
+
+    # 审计日志
+    audit_entry = {
+        "action": "element_clinical_review",
+        "element_key": element_key,
+        "actor": actor,
+        "role": role,
+        "dept": dept,
+        "old_applicability": old_applicability,
+        "new_applicability": applicability,
+        "reason": reason,
+        "version": new_version,
+        "timestamp": now,
+    }
+    audit_log = list(tracker.get("audit_log") or [])
+    audit_log.append(audit_entry)
+
+    elements[element_key] = item
+
+    # 如果医生确认进入脓毒症路径，记录 clinician_confirmed_at
+    set_fields: dict = {
+        "bundle_elements": elements,
+        "audit_log": audit_log,
+        "updated_at": now,
+    }
+    if element_key == "clinician_path_confirmation":
+        set_fields["clinician_confirmed_at"] = now
+
+    await runtime.db.col("score").update_one(
+        {"_id": tracker["_id"]},
+        {"$set": set_fields},
+    )
+
+    return {
+        "code": 0,
+        "message": "临床确认已记录",
+        "element_key": element_key,
+        "applicability": applicability,
+        "clinical_review_version": new_version,
+        "audit_entry": audit_entry,
+    }
+
+
+@router.patch("/api/patients/{patient_id}/sepsis-bundle/record-execution")
+async def sepsis_bundle_record_execution(
+    patient_id: str,
+    request: Request,
+    payload: dict = Body(...),
+):
+    """记录 Bundle 元素执行（护士/医生均可）。
+
+    RBAC: doctor/director/nurse/head_nurse。
+    payload:
+      - element_key: 元素键名
+      - status: 执行状态 (met/met_late/completed_before)
+      - completed_at: 完成时间 (ISO8601)
+      - value: 执行值（如乳酸数值）
+      - reason: 备注
+      - actor: 操作者（可选，优先取 header）
+    """
+    actor, role, dept = _resolve_clinical_actor_role(request, payload)
+    _require_clinical_staff_role(role)
+
+    element_key = str(payload.get("element_key") or "").strip()
+    if not element_key:
+        return {"code": 400, "message": "缺少 element_key"}
+    allowed_status = {"met", "met_late", "completed_before"}
+    exec_status = str(payload.get("status") or "").strip()
+    if exec_status not in allowed_status:
+        return {"code": 400, "message": f"status 必须是 {allowed_status} 之一"}
+
+    completed_at_raw = payload.get("completed_at")
+    completed_at = None
+    if completed_at_raw:
+        try:
+            completed_at = datetime.fromisoformat(str(completed_at_raw).replace("Z", "+00:00"))
+        except Exception:
+            return {"code": 400, "message": "completed_at 格式无效，需 ISO8601"}
+
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+
+    pid_str = str(pid)
+    tracker = await runtime.db.col("score").find_one(
+        {"patient_id": pid_str, "score_type": "sepsis_bundle_tracker", "is_active": True},
+        sort=[("bundle_started_at", -1)],
+    )
+    if not tracker:
+        return {"code": 404, "message": "未找到活跃的脓毒症 Bundle"}
+
+    elements = tracker.get("bundle_elements") if isinstance(tracker.get("bundle_elements"), dict) else {}
+    item = elements.get(element_key)
+    if not isinstance(item, dict):
+        return {"code": 404, "message": f"未知元素: {element_key}"}
+
+    # 检查适用性
+    applicability = str(item.get("applicability") or "")
+    if applicability in ("not_applicable", "contraindicated"):
+        return {"code": 400, "message": f"元素已标记为 {applicability}，不能记录执行"}
+
+    now = datetime.now()
+    reason = str(payload.get("reason") or "").strip()
+
+    # 更新执行状态
+    exec_data = item.get("execution") if isinstance(item.get("execution"), dict) else {}
+    exec_data["status"] = exec_status
+    exec_data["completed_at"] = completed_at or now
+    exec_data["recorded_by"] = actor
+    exec_data["recorded_at"] = now
+    exec_data["value"] = payload.get("value")
+    item["execution"] = exec_data
+
+    # completed_before 额外信息
+    if exec_status == "completed_before" and payload.get("completed_before_info"):
+        exec_data["completed_before_info"] = payload["completed_before_info"]
+
+    # 审计日志
+    audit_entry = {
+        "action": "record_execution",
+        "element_key": element_key,
+        "actor": actor,
+        "role": role,
+        "dept": dept,
+        "execution_status": exec_status,
+        "completed_at": completed_at or now,
+        "reason": reason,
+        "timestamp": now,
+    }
+    audit_log = list(tracker.get("audit_log") or [])
+    audit_log.append(audit_entry)
+
+    elements[element_key] = item
+
+    await runtime.db.col("score").update_one(
+        {"_id": tracker["_id"]},
+        {"$set": {"bundle_elements": elements, "audit_log": audit_log, "updated_at": now}},
+    )
+
+    return {
+        "code": 0,
+        "message": "执行记录已保存",
+        "element_key": element_key,
+        "execution_status": exec_status,
+        "audit_entry": audit_entry,
+    }
 
 
 @router.get("/api/patients/{patient_id}/weaning-status")

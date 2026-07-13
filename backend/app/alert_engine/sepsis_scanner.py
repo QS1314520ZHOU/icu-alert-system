@@ -1,3 +1,13 @@
+"""脓毒症筛查扫描器 v2。
+
+三层架构：
+  A 层：感染证据 + 器官功能异常 → 筛查检出
+  B 层：休克/低灌注评估 → 条件项目触发
+  C 层：风险因素 → 个体化建议
+
+qSOFA 不能单独作为确诊依据，也不能单独触发完整治疗 Bundle。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -23,7 +33,8 @@ class SepsisScanner(BaseScanner):
     async def scan(self) -> None:
         patient_cursor = self.engine.db.col("patient").find(
             self.engine._active_patient_query(),
-            {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1},
+            {"_id": 1, "name": 1, "hisPid": 1, "hisBed": 1, "dept": 1, "hisDept": 1,
+             "clinicalDiagnosis": 1, "admissionDiagnosis": 1},
         )
         patients = [patient async for patient in patient_cursor]
         if not patients:
@@ -35,13 +46,16 @@ class SepsisScanner(BaseScanner):
 
         triggered = 0
         now = datetime.now()
+
         for patient_doc in patients:
             pid = patient_doc.get("_id")
             if not pid:
                 continue
             pid_str = str(pid)
-            device_id = await self.engine._get_device_id_for_patient(patient_doc, ["monitor"])
+            his_pid = patient_doc.get("hisPid")
 
+            # ---- 生命体征 ----
+            device_id = await self.engine._get_device_id_for_patient(patient_doc, ["monitor"])
             gcs = await self.engine._get_latest_assessment(pid, "gcs")
             cap_codes = ["param_resp", "param_nibp_s", "param_ibp_s", "param_nibp_m", "param_ibp_m"]
             latest_cap = await self.engine._get_latest_param_snapshot_by_pid(pid, codes=cap_codes)
@@ -52,11 +66,32 @@ class SepsisScanner(BaseScanner):
 
             sbp = self.engine._get_sbp(latest_cap)
             rr = _extract_param(latest_cap, "param_resp")
+            map_value = self.engine._get_map(latest_cap)
+
+            # ---- qSOFA ----
             qsofa = self.engine._calc_qsofa(sbp, rr, gcs)
             qsofa_triggered = qsofa >= 2
 
+            # ---- SOFA ----
+            sofa = await self.engine._calc_sofa(patient_doc, pid, device_id, his_pid)
+            sofa_triggered = False
+            if sofa:
+                delta = sofa["delta"]
+                sofa_triggered = delta >= 2 and (sofa.get("baseline_available") or qsofa_triggered)
+
+            # ---- 感染证据评估 ----
+            infection = await self.engine._assess_infection_evidence(
+                patient_doc=patient_doc,
+                pid_str=pid_str,
+                his_pid=his_pid,
+                now=now,
+            )
+            infection_verdict = str(infection.get("verdict") or "unknown")
+
+            # ---- qSOFA 预警（筛查工具，不启动 Bundle） ----
             if qsofa_triggered:
                 if not await self.engine._is_suppressed(pid_str, "SEPSIS_QSOFA", same_rule_sec, max_per_hour):
+                    # 附加上下文：告知感染证据状态
                     alert = await self.engine._create_alert(
                         rule_id="SEPSIS_QSOFA",
                         name="疑似脓毒症(qSOFA≥2)",
@@ -64,70 +99,117 @@ class SepsisScanner(BaseScanner):
                         alert_type="qsofa",
                         severity="warning",
                         parameter="qsofa",
-                        condition={"qsofa": qsofa},
+                        condition={"qsofa": qsofa, "infection_verdict": infection_verdict},
                         value=qsofa,
                         patient_id=pid_str,
                         patient_doc=patient_doc,
                         device_id=device_id,
                         source_time=now,
-                        extra={"sbp": sbp, "rr": rr, "gcs": gcs},
+                        extra={
+                            "sbp": sbp, "rr": rr, "gcs": gcs,
+                            "infection_evidence": infection,
+                        },
                     )
                     if alert:
                         triggered += 1
 
-            his_pid = patient_doc.get("hisPid")
-            sofa = await self.engine._calc_sofa(patient_doc, pid, device_id, his_pid)
-            sofa_triggered = False
-            if sofa:
-                delta = sofa["delta"]
-                sofa_triggered = delta >= 2 and (sofa.get("baseline_available") or qsofa_triggered)
-                if sofa_triggered:
-                    if not await self.engine._is_suppressed(pid_str, "SEPSIS_SOFA", same_rule_sec, max_per_hour):
-                        alert = await self.engine._create_alert(
-                            rule_id="SEPSIS_SOFA",
-                            name="脓毒症确认(SOFA Δ≥2)",
-                            category="syndrome",
-                            alert_type="sofa",
-                            severity="high",
-                            parameter="sofa",
-                            condition={"delta": delta, "score": sofa["score"]},
-                            value=sofa["score"],
-                            patient_id=pid_str,
-                            patient_doc=patient_doc,
-                            device_id=device_id,
-                            source_time=now,
-                            extra=sofa,
-                        )
-                        if alert:
-                            triggered += 1
+            # ---- SOFA 预警 ----
+            if sofa_triggered:
+                if not await self.engine._is_suppressed(pid_str, "SEPSIS_SOFA", same_rule_sec, max_per_hour):
+                    alert = await self.engine._create_alert(
+                        rule_id="SEPSIS_SOFA",
+                        name="脓毒症确认(SOFA Δ≥2)",
+                        category="syndrome",
+                        alert_type="sofa",
+                        severity="high",
+                        parameter="sofa",
+                        condition={"delta": delta, "score": sofa["score"], "infection_verdict": infection_verdict},
+                        value=sofa["score"],
+                        patient_id=pid_str,
+                        patient_doc=patient_doc,
+                        device_id=device_id,
+                        source_time=now,
+                        extra={
+                            **sofa,
+                            "infection_evidence": infection,
+                        },
+                    )
+                    if alert:
+                        triggered += 1
 
-                lactate = sofa.get("labs", {}).get("lac", {}).get("value")
-                map_value = sofa.get("vitals", {}).get("map")
-                on_vaso = await self.engine._has_vasopressor(pid)
-                if on_vaso and lactate is not None and lactate >= 2 and (map_value is None or map_value < 65):
-                    if not await self.engine._is_suppressed(pid_str, "SEPSIS_SHOCK", same_rule_sec, max_per_hour):
-                        alert = await self.engine._create_alert(
-                            rule_id="SEPSIS_SHOCK",
-                            name="脓毒性休克",
-                            category="syndrome",
-                            alert_type="septic_shock",
-                            severity="critical",
-                            parameter="shock",
-                            condition={"vasopressor": True, "lactate": lactate, "map": map_value},
-                            value=lactate,
-                            patient_id=pid_str,
-                            patient_doc=patient_doc,
-                            device_id=device_id,
-                            source_time=now,
-                            extra={"sofa": sofa},
-                        )
-                        if alert:
-                            triggered += 1
+            # ---- 脓毒性休克筛查（修正语义） ----
+            # 使用升压药维持 MAP≥65 且乳酸升高的患者仍可能符合休克
+            # 不能要求当前 MAP<65
+            lactate_value = None
+            if sofa and isinstance(sofa.get("labs"), dict):
+                lac_entry = sofa["labs"].get("lac")
+                if isinstance(lac_entry, dict):
+                    lactate_value = lac_entry.get("value")
+                else:
+                    lactate_value = lac_entry
 
-            tracker = await self.engine._start_or_refresh_sepsis_bundle_tracker(
+            vasopressor_active = await self.engine._has_vasopressor(pid)
+
+            # 休克判定：升压药 + 乳酸≥2（不要求MAP<65）
+            if vasopressor_active and lactate_value is not None and lactate_value >= 2:
+                if not await self.engine._is_suppressed(pid_str, "SEPSIS_SHOCK", same_rule_sec, max_per_hour):
+                    alert = await self.engine._create_alert(
+                        rule_id="SEPSIS_SHOCK",
+                        name="脓毒性休克",
+                        category="syndrome",
+                        alert_type="septic_shock",
+                        severity="critical",
+                        parameter="shock",
+                        condition={
+                            "vasopressor": True,
+                            "lactate": lactate_value,
+                            "map": map_value,
+                            "map_caveat": "使用升压药时MAP可能>65，但休克仍可能存在",
+                        },
+                        value=lactate_value,
+                        patient_id=pid_str,
+                        patient_doc=patient_doc,
+                        device_id=device_id,
+                        source_time=now,
+                        extra={
+                            "sofa": sofa,
+                            "vasopressor_active": True,
+                            "map_on_vasopressor": map_value,
+                            "volume_status": "unknown",
+                            "other_causes_excluded": "unknown",
+                            "requires_clinician_confirmation": True,
+                        },
+                    )
+                    if alert:
+                        triggered += 1
+
+            # ---- 休克/低灌注评估 ----
+            shock = await self.engine._assess_shock_hypoperfusion(
+                patient_doc=patient_doc,
+                pid_str=pid_str,
+                his_pid=his_pid,
+                sbp=sbp,
+                map_value=map_value,
+                lactate_value=lactate_value,
+                sofa=sofa,
+                infection_verdict=infection_verdict,
+                now=now,
+            )
+
+            # ---- 液体复苏风险因素评估 ----
+            risk = await self.engine._assess_fluid_risk_factors(
+                patient_doc=patient_doc,
+                pid_str=pid_str,
+                his_pid=his_pid,
+                now=now,
+            )
+
+            # ---- Bundle Tracker（v2 三层） ----
+            tracker = await self.engine._start_or_refresh_sepsis_bundle_tracker_v2(
                 patient_doc=patient_doc,
                 pid_str=pid_str,
                 now=now,
+                infection=infection,
                 qsofa_triggered=qsofa_triggered,
                 qsofa=qsofa,
                 sbp=sbp,
@@ -135,10 +217,13 @@ class SepsisScanner(BaseScanner):
                 gcs=gcs,
                 sofa_triggered=sofa_triggered,
                 sofa=sofa,
+                shock=shock,
+                risk=risk,
             )
             if not tracker:
                 tracker = await self.engine._get_active_sepsis_bundle_tracker(pid_str)
-            triggered += await self.engine._evaluate_sepsis_bundle_tracker(
+
+            triggered += await self.engine._evaluate_sepsis_bundle_tracker_v2(
                 tracker=tracker,
                 patient_doc=patient_doc,
                 pid_str=pid_str,

@@ -530,6 +530,34 @@ export const getPatientDischargeReadiness = (patientId: string) =>
 export const getPatientSepsisBundleStatus = (patientId: string) =>
   bundleApi.get(`/api/patients/${patientId}/sepsis-bundle-status`)
 
+// Sepsis Bundle 临床确认（医生/主任）
+export const submitSepsisBundleElementReview = (
+  patientId: string,
+  payload: {
+    element_key: string
+    applicability: string
+    individualized_target_ml?: number
+    reason: string
+    version: number
+    actor?: string
+    role?: string
+  }
+) => bundleApi.patch(`/api/patients/${patientId}/sepsis-bundle/element-review`, payload)
+
+// Sepsis Bundle 执行记录（护士/医生）
+export const recordSepsisBundleExecution = (
+  patientId: string,
+  payload: {
+    element_key: string
+    status: string
+    completed_at?: string
+    value?: any
+    reason?: string
+    actor?: string
+    role?: string
+  }
+) => bundleApi.patch(`/api/patients/${patientId}/sepsis-bundle/record-execution`, payload)
+
 // 脱机评估 / SBT 状态
 export const getPatientWeaningStatus = (patientId: string) =>
   bundleApi.get(`/api/patients/${patientId}/weaning-status`)

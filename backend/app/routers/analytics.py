@@ -260,7 +260,7 @@ async def analytics_sepsis_bundle_compliance(
     month_start, next_month = _month_bounds(month_norm)
     query: dict = {
         "score_type": {"$in": ["sepsis_bundle_tracker", "sepsis_antibiotic_bundle"]},
-        "bundle_type": {"$in": ["sepsis_hour1_bundle", "sepsis_1h_antibiotic"]},
+        "bundle_type": {"$in": ["sepsis_hour1_bundle_v2", "sepsis_hour1_bundle", "sepsis_1h_antibiotic"]},
         "bundle_started_at": {"$gte": month_start, "$lt": next_month},
     }
     if dept:
@@ -354,18 +354,53 @@ async def analytics_sepsis_bundle_compliance(
             dept_row["pending_cases"] += 1
 
         bundle_elements = doc.get("bundle_elements") if isinstance(doc.get("bundle_elements"), dict) else {}
+        is_v2 = doc.get("bundle_version") == 2 or str(doc.get("bundle_type") or "").endswith("_v2")
         for name, item in bundle_elements.items():
-            row = element_summary.setdefault(
-                str(name),
-                {"element": str(name), "required_cases": 0, "completed_cases": 0},
-            )
             if item is None:
                 continue
-            if isinstance(item, dict) and item.get("required") is False:
-                continue
-            row["required_cases"] += 1
-            if isinstance(item, dict) and bool(item.get("completed")):
-                row["completed_cases"] += 1
+            row = element_summary.setdefault(
+                str(name),
+                {"element": str(name), "applicable_cases": 0, "completed_on_time": 0,
+                 "completed_late": 0, "not_applicable_cases": 0, "contraindicated_cases": 0,
+                 "review_pending_cases": 0},
+            )
+            if is_v2 and isinstance(item, dict):
+                applicability = str(item.get("applicability") or "")
+                exec_data = item.get("execution") if isinstance(item.get("execution"), dict) else item
+                exec_status = str(exec_data.get("status") or "")
+                condition = item.get("condition") if isinstance(item.get("condition"), dict) else {}
+                cond_status = str(condition.get("status") or "")
+
+                if applicability in ("not_applicable",):
+                    row["not_applicable_cases"] += 1
+                elif applicability in ("contraindicated",):
+                    row["contraindicated_cases"] += 1
+                elif applicability in ("review_pending",):
+                    row["review_pending_cases"] += 1
+                elif applicability in ("required", "individualized"):
+                    row["applicable_cases"] += 1
+                    if exec_status in ("met", "completed_before", "individualized"):
+                        row["completed_on_time"] += 1
+                    elif exec_status == "met_late":
+                        row["completed_late"] += 1
+                elif applicability == "conditional":
+                    if cond_status == "met":
+                        row["applicable_cases"] += 1
+                        if exec_status in ("met", "completed_before"):
+                            row["completed_on_time"] += 1
+                        elif exec_status == "met_late":
+                            row["completed_late"] += 1
+                    # condition unknown/not_met: 不计入
+            else:
+                # 旧版逻辑
+                if isinstance(item, dict) and item.get("required") is False:
+                    continue
+                row["applicable_cases"] += 1
+                if isinstance(item, dict) and str(item.get("status") or "") in ("met", "not_applicable"):
+                    row["completed_on_time"] += 1
+                elif isinstance(item, dict) and str(item.get("status") or "") == "met_late":
+                    row["completed_late"] += 1
+
 
         recent_cases.append(
             {
@@ -405,12 +440,14 @@ async def analytics_sepsis_bundle_compliance(
 
     element_rows = []
     for row in element_summary.values():
-        required_cases = int(row.get("required_cases") or 0)
-        completed_cases = int(row.get("completed_cases") or 0)
+        applicable = int(row.get("applicable_cases") or 0)
+        completed_on_time = int(row.get("completed_on_time") or 0)
+        completed_late = int(row.get("completed_late") or 0)
         element_rows.append(
             {
                 **row,
-                "completion_rate": round((completed_cases / required_cases), 4) if required_cases else 0,
+                "compliance_rate": round((completed_on_time / applicable), 4) if applicable else None,
+                "completion_rate_including_late": round(((completed_on_time + completed_late) / applicable), 4) if applicable else None,
             }
         )
     element_rows.sort(key=lambda item: (item.get("completion_rate") or 0, item.get("required_cases") or 0))
