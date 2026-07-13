@@ -2196,17 +2196,28 @@ class BaseEngine:
         }
         organ_risk_scores = {organ: round(prob, 4) for organ, prob in current_organ_probs.items() if prob > 0}
 
-        composite_signal = {
-            "enabled": current_prob >= 0.58,
-            "probability_4h": round(float((horizon_probs[0] if horizon_probs else {}).get("probability") or current_prob), 4),
-            "risk_level": self._risk_level_from_probability(float((horizon_probs[0] if horizon_probs else {}).get("probability") or current_prob)),
-            "organs": [k for k, _ in sorted(organ_risk_scores.items(), key=lambda x: x[1], reverse=True)[:3]],
-            "contributors": snapshot.get("contributors", [])[:4],
-        }
-
         runtime_meta = self._get_temporal_model_runtime().meta()
         prediction_source = runtime_meta.get("prediction_source", "unknown")
         model_loaded = runtime_meta.get("model_loaded", False)
+        risk_value_type = runtime_meta.get("risk_value_type", "model_probability" if model_loaded else "rule_score")
+
+        # ---- composite_signal: 根据 prediction_source 使用不同字段 ----
+        future_val_4h = float((horizon_probs[0] if horizon_probs else {}).get("probability") or current_prob)
+        composite_signal = {
+            "enabled": current_prob >= 0.58,
+            "risk_level": self._risk_level_from_probability(future_val_4h),
+            "organs": [k for k, _ in sorted(organ_risk_scores.items(), key=lambda x: x[1], reverse=True)[:3]],
+            "contributors": snapshot.get("contributors", [])[:4],
+            "prediction_source": prediction_source,
+            "risk_value_type": risk_value_type,
+        }
+        # trained_model: probability 语义
+        if prediction_source == "trained_model":
+            composite_signal["probability_4h"] = round(future_val_4h, 4)
+        # rule_estimate: risk_score 语义（禁止用 score 回填 probability 字段）
+        elif prediction_source == "rule_estimate":
+            composite_signal["risk_score_4h"] = round(future_val_4h, 4)
+        # unavailable/unknown: 不填定量概率
 
         # Build model_meta with the unified contract fields
         model_meta = {
@@ -2228,16 +2239,17 @@ class BaseEngine:
             "model_status": runtime_meta.get("model_status", "unknown"),
             "local_validation_status": runtime_meta.get("local_validation_status", "not_applicable"),
             "calibration_version": runtime_meta.get("calibration_version", ""),
+            "risk_value_type": risk_value_type,
             "runtime": runtime_meta,
         }
-        return {
+        result: dict[str, Any] = {
             "patient_id": pid_str,
             "prediction_source": prediction_source,
+            "risk_value": round(current_prob, 4),
+            "risk_value_type": risk_value_type,
             "model_meta": model_meta,
             "anchor_time": _to_output_iso(anchor_time),
             "risk_level": snapshot.get("risk_level") or "low",
-            "current_probability": round(current_prob, 4),
-            "horizon_probabilities": horizon_probs,
             "risk_curve": risk_curve,
             "history_risk_curve": history_curve,
             "forecast_risk_curve": forecast_curve,
@@ -2249,6 +2261,16 @@ class BaseEngine:
             "summary": self._render_temporal_risk_summary(snapshot=snapshot, horizon_probs=horizon_probs, prediction_source=prediction_source),
             "composite_signal": composite_signal,
         }
+        # 仅 trained_model 填概率字段
+        if prediction_source == "trained_model":
+            result["current_probability"] = round(current_prob, 4)
+            result["horizon_probabilities"] = horizon_probs
+        # 仅 rule_estimate 填风险分数字段
+        elif prediction_source == "rule_estimate":
+            result["current_risk_score"] = round(current_prob, 4)
+            result["future_risk_scores"] = horizon_probs
+        # unavailable / unknown: 不填定量概率/风险分数字段
+        return result
 
     def _format_alert_number(self, value: Any, digits: int = 1) -> str:
         num = _parse_number(value)

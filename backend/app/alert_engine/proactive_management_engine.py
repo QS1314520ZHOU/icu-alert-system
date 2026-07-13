@@ -198,8 +198,17 @@ class ProactiveManagementEngineMixin:
     ) -> dict[str, Any]:
         cfg = self._proactive_management_cfg()
         forecast = await self._build_temporal_risk_forecast(patient_doc, pid, lookback_hours=int(cfg.get("lookback_hours", 6) or 6), horizons=(2, 4, 6), include_history=False)
-        horizon_probs = self._normalize_horizon_probabilities(forecast.get("horizon_probabilities"))
-        current_prob = float(forecast.get("current_probability") or 0.0)
+        # 统一提取风险值：trained_model → current_probability/horizon_probabilities
+        #                  rule_estimate → current_risk_score/future_risk_scores
+        prediction_source = str(forecast.get("prediction_source") or "")
+        horizon_map = forecast.get("horizon_probabilities") or forecast.get("future_risk_scores") or {}
+        horizon_probs = self._normalize_horizon_probabilities(horizon_map)
+        current_prob = float(
+            forecast.get("current_probability")
+            or forecast.get("current_risk_score")
+            or forecast.get("risk_value")
+            or 0.0
+        )
         prob_4h = float(horizon_probs.get("4") or current_prob)
         probability = max(current_prob, prob_4h)
         drivers: list[dict[str, Any]] = []
@@ -258,19 +267,27 @@ class ProactiveManagementEngineMixin:
             add_driver("recent_high_alert", "近期存在高等级告警", 0.04, f"6h 内高等级告警 {high_alert_count} 条")
 
         probability = round(self._clamp(probability, 0.0, 0.98), 4)
-        return {
+        forecast_result: dict[str, Any] = {
             "generated_at": datetime.now(),
             "deterioration_probability": probability,
             "risk_level": self._risk_level_from_probability(probability),
             "forecast": {
-                "current_probability": current_prob,
-                "horizon_probabilities": horizon_probs,
                 "summary": forecast.get("summary") or "",
                 "organ_risk_scores": forecast.get("organ_risk_scores") or {},
                 "top_contributors": forecast.get("top_contributors") or [],
+                "prediction_source": prediction_source,
+                "risk_value": current_prob if current_prob > 0 else None,
             },
-            "drivers": drivers[:8],
         }
+        # 仅 trained_model 填概率字段，rule_estimate 填风险分数字段
+        if prediction_source == "trained_model":
+            forecast_result["forecast"]["current_probability"] = current_prob
+            forecast_result["forecast"]["horizon_probabilities"] = horizon_probs
+        elif prediction_source == "rule_estimate":
+            forecast_result["forecast"]["current_risk_score"] = current_prob
+            forecast_result["forecast"]["future_risk_scores"] = horizon_probs
+        forecast_result["drivers"] = drivers[:8]
+        return forecast_result
 
     async def generate_proactive_plan(self, patient_doc: dict, risk_profile: dict[str, Any]) -> dict[str, Any]:
         pid = patient_doc.get("_id")

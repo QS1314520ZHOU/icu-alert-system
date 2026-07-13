@@ -62,21 +62,51 @@ class CompositeDeteriorationScanner(BaseScanner):
                     sorted(((str(k), float(v)) for k, v in temporal_org.items() if v is not None), key=lambda x: x[1], reverse=True)[:3]
                 ]
                 temporal_prediction_source = str(temporal_record.get("prediction_source") or "unknown")
+                temporal_risk_value_type = str(temporal_record.get("risk_value_type") or "")
+                temporal_risk_value = temporal_record.get("risk_value")
+
+                # ---- 严格区分 prediction_source 的字段语义 ----
+                # trained_model: current_probability / probability_4h / horizon_probabilities
+                # rule_estimate: current_risk_score / risk_score_4h / future_risk_scores
+                # unavailable / unknown: 不填定量概率，仅保留risk_value元数据
+                is_trained = temporal_prediction_source == "trained_model"
+                is_rule = temporal_prediction_source == "rule_estimate"
+                temporal_enabled = bool(
+                    (is_trained and isinstance(temporal_risk_value, (int, float)) and float(temporal_risk_value) >= 0.58)
+                    or (is_rule and isinstance(temporal_risk_value, (int, float)) and float(temporal_risk_value) >= 0.58)
+                )
+
+                # 构建 temporal_signal（使用风险值，不混淆 score 和 probability）
+                future_map = temporal_record.get("future_probabilities") or {}
                 temporal_signal = {
-                    "enabled": float(temporal_record.get("score") or 0.0) >= 0.58,
-                    "probability_4h": float((temporal_record.get("future_probabilities") or {}).get("4") or (temporal_record.get("future_probabilities") or {}).get(4) or temporal_record.get("score") or 0.0),
+                    "enabled": temporal_enabled,
                     "risk_level": str(temporal_record.get("risk_level") or "low"),
                     "organs": top_organs,
                     "contributors": [],
                     "prediction_source": temporal_prediction_source,
+                    "risk_value_type": temporal_risk_value_type,
                 }
+                # trained_model → probability 语义
+                if is_trained:
+                    temporal_signal["probability_4h"] = float(
+                        future_map.get("4") or future_map.get(4)
+                        or (temporal_risk_value if temporal_risk_value is not None else 0.0)
+                    )
+                # rule_estimate → risk_score 语义（禁止用 score 回填 probability 字段）
+                elif is_rule:
+                    temporal_signal["risk_score_4h"] = float(
+                        future_map.get("4") or future_map.get(4)
+                        or (temporal_risk_value if temporal_risk_value is not None else 0.0)
+                    )
+                # unavailable/unknown → 不填定量概率
+
                 temporal_forecast = {
                     "patient_id": pid_str,
-                    "current_probability": temporal_record.get("score"),
                     "organ_risk_scores": temporal_org,
-                    "horizon_probabilities": temporal_record.get("future_probabilities"),
                     "composite_signal": temporal_signal,
                     "prediction_source": temporal_prediction_source,
+                    "risk_value": temporal_risk_value,
+                    "risk_value_type": temporal_risk_value_type,
                     "model_meta": {
                         "mode": "temporal_risk_scanner",
                         "backend": temporal_record.get("model_backend"),
@@ -88,9 +118,18 @@ class CompositeDeteriorationScanner(BaseScanner):
                         "local_validation_status": temporal_record.get("local_validation_status", "not_applicable"),
                         "fallback_used": temporal_record.get("fallback_used", False),
                         "fallback_reason": temporal_record.get("fallback_reason", ""),
-                        "risk_value_type": temporal_record.get("risk_value_type", ""),
+                        "risk_value_type": temporal_risk_value_type,
                     },
                 }
+                # 仅 trained_model 填概率字段
+                if is_trained:
+                    temporal_forecast["current_probability"] = temporal_risk_value
+                    temporal_forecast["horizon_probabilities"] = temporal_record.get("future_probabilities")
+                # 仅 rule_estimate 填风险分数字段（禁止用 score 回填 probability 字段）
+                elif is_rule:
+                    temporal_forecast["current_risk_score"] = temporal_risk_value
+                    temporal_forecast["future_risk_scores"] = temporal_record.get("future_probabilities")
+                # unavailable / unknown: 不填定量字段
             else:
                 temporal_forecast = await self.engine._build_temporal_risk_forecast(
                     patient_doc,
@@ -133,7 +172,13 @@ class CompositeDeteriorationScanner(BaseScanner):
                 )
 
             if temporal_signal.get("enabled"):
-                temporal_prob = float(temporal_signal.get("probability_4h") or 0.0)
+                # 统一提取风险数值：trained_model 用 probability_4h，rule_estimate 用 risk_score_4h
+                temporal_value = float(
+                    temporal_signal.get("probability_4h")
+                    or temporal_signal.get("risk_score_4h")
+                    or temporal_forecast.get("risk_value")
+                    or 0.0
+                )
                 temporal_risk_level = str(temporal_signal.get("risk_level") or "warning").lower()
                 temporal_severity = "critical" if temporal_risk_level == "critical" else "high"
                 temporal_organs = [
@@ -143,16 +188,22 @@ class CompositeDeteriorationScanner(BaseScanner):
                 for organ in temporal_organs[:2]:
                     organ_counts[organ] += 1
                     organ_scores[organ] = max(organ_scores[organ], _severity_weight(temporal_severity))
-                source_rows.append(
-                    {
-                        "alert_type": "temporal_risk_forecast",
-                        "severity": temporal_severity,
-                        "time": now,
-                        "organs": temporal_organs[:2],
-                        "probability_4h": round(temporal_prob, 4),
-                        "contributors": temporal_signal.get("contributors") or [],
-                    }
-                )
+                # 源行标记风险值及其类型
+                source_row_entry: dict = {
+                    "alert_type": "temporal_risk_forecast",
+                    "severity": temporal_severity,
+                    "time": now,
+                    "organs": temporal_organs[:2],
+                    "contributors": temporal_signal.get("contributors") or [],
+                    "prediction_source": temporal_signal.get("prediction_source", ""),
+                    "risk_value_type": temporal_signal.get("risk_value_type", ""),
+                }
+                # 仅 trained_model 填 probability 语义，rule_estimate 填 risk_score 语义
+                if temporal_signal.get("prediction_source") == "trained_model":
+                    source_row_entry["probability_4h"] = round(temporal_value, 4)
+                elif temporal_signal.get("prediction_source") == "rule_estimate":
+                    source_row_entry["risk_score_4h"] = round(temporal_value, 4)
+                source_rows.append(source_row_entry)
 
             if len(source_rows) < min_alerts:
                 continue

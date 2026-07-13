@@ -700,8 +700,13 @@ const forecastRiskLabel = computed(() => props.aiRiskLevelText(
   props.latestAiRiskAlert?.value
 ))
 const forecastCurrentProbability = computed(() => {
-  const p = Number(props.aiRiskForecast?.current_probability)
-  if (Number.isNaN(p)) return '—'
+  // trained_model → current_probability；rule_estimate → current_risk_score
+  const p = Number(
+    props.aiRiskForecast?.current_probability
+    ?? props.aiRiskForecast?.current_risk_score
+    ?? props.aiRiskForecast?.risk_value
+  )
+  if (Number.isNaN(p) || p === 0) return '—'
   const ps = String(props.aiRiskForecast?.prediction_source || '')
   const rvt = String(props.aiRiskForecast?.model_meta?.risk_value_type || props.aiRiskForecast?.model_meta?.runtime?.risk_value_type || '')
   // Legacy/unknown: never show as model probability
@@ -997,8 +1002,12 @@ const forecastSummaryBlock = computed(() => {
   const level = String(props.aiRiskForecast?.risk_level || 'low')
   const horizonItems = Array.isArray(props.aiRiskForecast?.horizon_probabilities) ? props.aiRiskForecast.horizon_probabilities : []
   const maxH = horizonItems.length ? Math.max(...horizonItems.map((item: any) => Number(item?.hours || 0)).filter((n: number) => !Number.isNaN(n))) : 12
-  const currentProb = Number(props.aiRiskForecast?.current_probability)
-  const currentProbText = Number.isNaN(currentProb) ? '—' : `${Math.round(currentProb * 100)}%`
+  const currentProb = Number(
+    props.aiRiskForecast?.current_probability
+    ?? props.aiRiskForecast?.current_risk_score
+    ?? props.aiRiskForecast?.risk_value
+  )
+  const currentProbText = Number.isNaN(currentProb) || currentProb === 0 ? '—' : `${Math.round(currentProb * 100)}%`
   const h4 = horizonItems.find((item: any) => Number(item?.hours) === 4)
   const h12 = horizonItems.find((item: any) => Number(item?.hours) === 12) || horizonItems[horizonItems.length - 1]
   const evidenceFromContrib = forecastContributors.value

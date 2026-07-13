@@ -741,6 +741,9 @@ LLM_PROMPT_SOURCE_RULES = (
     "严禁直接比较两者的数值大小。\n"
     "6. 引用未来时间窗（4/12/24小时）数值时，必须同时标注 prediction_source "
     "和 risk_value_type。\n"
+    "7. current_probability 字段仅存在于 trained_model 预测中；"
+    "current_risk_score 字段仅存在于 rule_estimate 预测中；"
+    "两者语义不可互换，严禁将 rule_score 称为“概率”或填入 probability 字段。\n"
 )
 
 
@@ -756,8 +759,18 @@ def format_temporal_forecast_for_llm(
 
     ps = str(temporal_forecast.get("prediction_source") or "unknown")
     risk_level = str(temporal_forecast.get("risk_level") or "unknown")
-    current_prob = temporal_forecast.get("current_probability")
-    horizon_probs = temporal_forecast.get("horizon_probabilities") or []
+    # Unified extraction: trained_model -> current_probability; rule_estimate -> current_risk_score
+    current_prob = (
+        temporal_forecast.get("current_probability")
+        or temporal_forecast.get("current_risk_score")
+        or temporal_forecast.get("risk_value")
+    )
+    # Unified extraction: trained_model -> horizon_probabilities; rule_estimate -> future_risk_scores
+    horizon_probs = (
+        temporal_forecast.get("horizon_probabilities")
+        or temporal_forecast.get("future_risk_scores")
+        or []
+    )
     model_meta = temporal_forecast.get("model_meta") or {}
     model_name = str(model_meta.get("model_name") or "")
     model_version = str(model_meta.get("model_version") or "")

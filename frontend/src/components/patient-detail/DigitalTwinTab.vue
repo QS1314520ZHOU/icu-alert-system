@@ -326,7 +326,7 @@ const whatIfRecord = computed(() => whatIfResult.value?.simulation || whatIfResu
 const whatIfBaselineRecord = computed(() => whatIfBaseline.value?.simulation || whatIfBaseline.value || {})
 const riskLevel = computed(() => String(planRecord.value?.risk_profile?.risk_level || riskForecast.value?.risk_level || 'medium').toLowerCase())
 const riskLevelText = computed(() => ({ low: '低风险', medium: '中风险', high: '高风险', critical: '危急' } as Record<string, string>)[riskLevel.value] || '中风险')
-const deteriorationProbability = computed(() => pct(planRecord.value?.risk_profile?.deterioration_probability ?? riskForecast.value?.current_probability ?? 0))
+const deteriorationProbability = computed(() => pct(planRecord.value?.risk_profile?.deterioration_probability ?? riskForecast.value?.current_probability ?? riskForecast.value?.current_risk_score ?? riskForecast.value?.risk_value ?? 0))
 const workbenchState = computed(() => String(planRecord.value?.status || 'active') === 'monitoring' ? '连续监测中' : '闭环运行中')
 const hasTwinSnapshot = computed(() => Object.keys(twinSnapshot.value || {}).length > 0)
 const interventions = computed(() => Array.isArray(planRecord.value?.interventions) ? planRecord.value.interventions : [])

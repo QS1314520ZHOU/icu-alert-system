@@ -210,13 +210,23 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
             if name and name not in problems:
                 problems.append(name)
         risk_level = str((temporal_forecast or {}).get("risk_level") or "").strip()
-        current_probability = (temporal_forecast or {}).get("current_probability")
         prediction_source = str((temporal_forecast or {}).get("prediction_source") or "").strip()
+        # 提取风险值：trained_model → current_probability；rule_estimate → current_risk_score
+        risk_value = (
+            (temporal_forecast or {}).get("current_probability")
+            or (temporal_forecast or {}).get("current_risk_score")
+            or (temporal_forecast or {}).get("risk_value")
+        )
+        risk_value_type = str((temporal_forecast or {}).get("risk_value_type") or "")
         source_label = "规则评估" if prediction_source == "rule_estimate" else ("模型预测" if prediction_source == "trained_model" else "")
         if risk_level:
             label = f"未来恶化风险 {risk_level}"
-            if current_probability is not None:
-                label += f" ({current_probability})"
+            if risk_value is not None:
+                pct = round(float(risk_value) * 100)
+                if risk_value_type == "model_probability":
+                    label += f" ({pct}%)"
+                else:
+                    label += f" (风险指数 {pct}/100)"
             if source_label:
                 label += f" [{source_label}]"
             problems.append(label)
