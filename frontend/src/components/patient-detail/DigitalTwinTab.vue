@@ -196,7 +196,7 @@
           </div>
           <button class="mini-btn" @click="whatIfDrawerOpen = !whatIfDrawerOpen">{{ whatIfDrawerOpen ? '收起面板' : '打开面板' }}</button>
         </div>
-        <div v-if="whatIfBanner" :class="['whatif-banner', { muted: whatIfDegraded }]">{{ whatIfBanner }}</div>
+        <div v-if="whatIfBanner" :class="['whatif-banner', { muted: whatIfBannerMuted }]">{{ whatIfBanner }}</div>
         <div class="whatif-layout">
           <div class="whatif-chart">
             <div class="whatif-axis">
@@ -416,11 +416,36 @@ const whatIfSummary = computed(() => {
   return '选择一个单干预模板，模拟未来 6 小时关键指标变化。'
 })
 const whatIfDegraded = computed(() => Boolean(whatIfRecord.value?.model_meta?.degraded))
+const whatIfIsFallback = computed(() => Boolean(whatIfRecord.value?.model_meta?.is_fallback))
+const whatIfIsTrainedModel = computed(() => Boolean(whatIfRecord.value?.model_meta?.is_trained_model))
+const whatIfBannerMuted = computed(() => {
+  const meta = whatIfRecord.value?.model_meta
+  if (!meta) return false
+  // Mute when using non-transformer model (degraded, fallback, or explicit semi)
+  return Boolean(meta.degraded || meta.is_fallback || !meta.is_trained_model)
+})
 const whatIfBanner = computed(() => {
+  const meta = whatIfRecord.value?.model_meta
+  // No data → no simulation possible
   if (whatIfRecord.value?.data_available === false && whatIfNoData.value) return '⚠️ 当前患者暂无生命体征数据，反事实模拟无法执行。请确认监护仪数据已接入。'
-  if (whatIfDegraded.value) return '反事实模型降级为半机制模型，置信度降低，仅供参考。'
+  // Scenarios B/C: explicit transformer requested but degraded (inference failed or unavailable with allow_fallback)
+  if (meta?.degraded) {
+    const reason = meta?.fallback_reason || 'unknown'
+    return `训练型反事实模型不可用，已回退至半机制生理估算（${reason}）；结果置信度降低，仅供参考。`
+  }
+  // Scenario A / rollout: auto backend fell back to semi-mechanistic (not degraded, but is a fallback)
+  if (meta?.is_fallback && !meta?.degraded) {
+    const reason = meta?.selection_reason || 'unknown'
+    return `Transformer反事实模型不可用（${reason}），自动选择半机制生理估算模型；结果置信度有限，仅用于趋势参考，不用于生成医嘱。`
+  }
+  // Scenario D: explicit semi-mechanistic — no fallback occurred, but it's not a trained model
+  if (!meta?.is_trained_model && !meta?.is_fallback) {
+    return '当前使用半机制生理估算模型，不是训练型反事实模型；结果置信度有限，仅用于趋势参考，不用于生成医嘱。'
+  }
+  // OOD warning (only when transformer is running normally)
   const ood = whatIfRecord.value?.ood_warning
-  if (ood?.is_ood) return `该患者状态在历史数据中罕见，预测可信度低：${(ood.reasons || []).join('；')}`
+  if (ood?.is_ood) return `⚠️ 该患者状态在历史数据中罕见，预测可信度低：${(ood.reasons || []).join('；')}`
+  // Transformer successful — no banner needed
   return ''
 })
 const whatIfProjectionRows = computed(() => {

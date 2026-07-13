@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import math
+import os
 import re
 import hashlib
 from datetime import datetime, timedelta
@@ -12,6 +14,12 @@ from app.services.local_model_paths import local_model_dir
 from app.services.patient_digital_twin import PatientDigitalTwinService
 from app.utils.patient_data import get_device_id, param_series_by_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
+
+logger = logging.getLogger("icu-alert")
+
+# Track which unavailability reasons have already been logged at WARNING level
+# to avoid flooding logs on every request when the transformer model is absent.
+_logged_unavailable_reasons: set[str] = set()
 
 
 def _safe_float(value: object) -> float | None:
@@ -124,6 +132,55 @@ def _cohort_enabled(patient: dict[str, Any], patient_id: str, rollout_cfg: dict[
         return not cohorts
     bucket = int(hashlib.sha256(str(patient_id).encode("utf-8")).hexdigest()[:8], 16) % 100
     return bucket < percentage
+
+
+def _mask_path(text: str) -> str:
+    """Replace absolute paths with a stable label so they never leak into API responses."""
+    if not text:
+        return text
+    import re as _re
+
+    # Replace /opt/icu-models/... patterns
+    masked = _re.sub(r"/opt/icu-models/[^\s,;]*", "<model_dir>/...", text)
+    # Replace Windows drive paths like C:\... or D:\...
+    masked = _re.sub(r"[A-Za-z]:\\[^\s,;]*", "<model_dir>/...", masked)
+    # Replace any remaining absolute Unix paths
+    masked = _re.sub(r"/home/[^\s,;]*", "<model_dir>/...", masked)
+    return masked
+
+
+def _model_meta_semi(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build the standard model_meta block for a semi-mechanistic result.
+
+    Callers can pass *overrides* to set scenario-specific fields like
+    ``requested_backend``, ``degraded``, ``is_fallback``, ``selection_reason``,
+    etc.
+    """
+    base: dict[str, Any] = {
+        "kind": "semi_mechanistic_counterfactual_model",
+        "backend": "semi_mechanistic",
+        "requested_backend": "semi_mechanistic",
+        "degraded": False,
+        "is_fallback": False,
+        "selection_reason": "explicit_configuration",
+        "fallback_reason": None,
+        "model_kind": "semi_mechanistic",
+        "is_trained_model": False,
+        "confidence_level": "low",
+        "validated_for_clinical_use": False,
+        "model_version": "semi-mechanistic-v1",
+        "loaded_at": None,
+        "lookback_hours": 12,
+        "horizon_minutes": 30,
+        "equations": [],
+        "note": (
+            "采用半机制 Emax/容量反应性/复张-回流耦合模型；"
+            "如需真正论文级 PK/PD，需要基于本院连续时序数据完成参数辨识与外部验证。"
+        ),
+    }
+    if overrides:
+        base.update(overrides)
+    return base
 
 
 class SemiMechanisticCounterfactualModel:
@@ -515,19 +572,13 @@ class SemiMechanisticCounterfactualModel:
                 "recruitability": round(recruitability, 3),
                 "sofa_score": _round(sofa_score, 0),
             },
-            "model_meta": {
-                "kind": "semi_mechanistic_counterfactual_model",
-                "backend": "semi_mechanistic",
-                "requested_backend": "semi_mechanistic",
-                "degraded": False,
-                "fallback_reason": None,
-                "model_version": "semi-mechanistic-v1",
-                "loaded_at": None,
-                "lookback_hours": 12,
-                "horizon_minutes": horizon_minutes,
-                "equations": equation_hints[:4],
-                "note": "采用半机制 Emax/容量反应性/复张-回流耦合模型；如需真正论文级 PK/PD，需要基于本院连续时序数据完成参数辨识与外部验证。",
-            },
+            "model_meta": _model_meta_semi(
+                {
+                    "lookback_hours": 12,
+                    "horizon_minutes": horizon_minutes,
+                    "equations": equation_hints[:4],
+                }
+            ),
         }
 
     def _ood_warning(self, *, current_map: float | None, current_spo2: float | None, current_lactate: float | None, current_vaso: float | None) -> dict[str, Any]:
@@ -562,6 +613,9 @@ class TransformerCounterfactualModel:
         self._device = "cpu"
 
     def _model_dir(self) -> Path:
+        env_path = os.environ.get("COUNTERFACTUAL_MODEL_PATH", "").strip()
+        if env_path:
+            return Path(env_path)
         return local_model_dir(self.config, "counterfactual_dir", "counterfactual")
 
     def _candidate_paths(self) -> list[Path]:
@@ -571,6 +625,14 @@ class TransformerCounterfactualModel:
     def _set_unavailable(self, code: str, reason: str) -> None:
         self._fallback_reason_code = code
         self._unavailable_reason = reason
+        # Log once per reason code to avoid flooding on every request.
+        if code and code not in _logged_unavailable_reasons:
+            _logged_unavailable_reasons.add(code)
+            logger.warning(
+                "Transformer counterfactual model unavailable: reason=%s detail=%s",
+                code,
+                _mask_path(reason),
+            )
 
     def _ensure_loaded(self) -> None:
         if self._loaded:
@@ -601,17 +663,17 @@ class TransformerCounterfactualModel:
                 self._model = None
                 self._set_unavailable("inference_error", f"load failed: {exc.__class__.__name__}: {str(exc)[:120]}")
                 return
-        self._set_unavailable("weights_missing", f"no torch weight found under {self._model_dir()}")
+        self._set_unavailable("weights_missing", f"no torch weight found under model directory")
 
     def status(self) -> dict[str, Any]:
         if not self._loaded:
             self._ensure_loaded()
         return {
             "available": bool(self._model is not None),
-            "reason": self._unavailable_reason,
+            "reason": _mask_path(self._unavailable_reason),
             "reason_code": self._fallback_reason_code,
             "backend": "transformer",
-            "model_path": str(self._model_path or ""),
+            "model_path": self._model_path.name if self._model_path else "",
             "model_version": self._model_path.stem if self._model_path else "",
             "loaded_at": self._loaded_at,
         }
@@ -699,26 +761,51 @@ class TransformerCounterfactualModel:
                 "backend": "transformer",
                 "requested_backend": "transformer",
                 "degraded": False,
+                "is_fallback": False,
+                "selection_reason": "transformer_loaded",
                 "fallback_reason": None,
+                "model_kind": "transformer",
+                "is_trained_model": True,
+                "confidence_level": "medium",
+                "validated_for_clinical_use": False,
                 "model_version": status.get("model_version") or "counterfactual-transformer",
                 "loaded_at": status.get("loaded_at"),
                 "model_path": status.get("model_path") or "",
+                "note": "训练型反事实 Transformer 模型正常运行，结果置信度为中等，尚未完成临床验证。",
             }
             return base
         except Exception as exc:
+            reason_code = self._reason_code(exc)
+            logger.error(
+                "Transformer counterfactual inference failed, falling back to semi-mechanistic: "
+                "reason=%s requested_backend=transformer selected_backend=semi_mechanistic "
+                "model_version=%s",
+                reason_code,
+                self._model_path.stem if self._model_path else "unknown",
+                exc_info=True,
+            )
             if not self.allow_fallback:
                 raise
             result = await self.fallback_model.simulate(patient_id, patient, payload or {})
-            result["model_meta"] = {
-                **(result.get("model_meta") or {}),
-                "backend": "semi_mechanistic",
-                "requested_backend": "transformer",
-                "degraded": True,
-                "fallback_reason": self._reason_code(exc),
-                "fallback_detail": str(exc)[:180],
-                "model_version": "semi-mechanistic-v1",
-                "loaded_at": None,
-            }
+            result["model_meta"] = _model_meta_semi(
+                {
+                    "backend": "semi_mechanistic",
+                    "requested_backend": "transformer",
+                    "degraded": True,
+                    "is_fallback": True,
+                    "selection_reason": None,
+                    "fallback_reason": reason_code,
+                    "fallback_detail": _mask_path(str(exc)[:180]),
+                    "loaded_at": None,
+                    "lookback_hours": result.get("model_meta", {}).get("lookback_hours", 12),
+                    "horizon_minutes": result.get("model_meta", {}).get("horizon_minutes", 30),
+                    "equations": result.get("model_meta", {}).get("equations", []),
+                    "note": (
+                        "训练型反事实模型推理失败，已回退至半机制生理估算；"
+                        f"原因: {reason_code}。结果置信度降低，仅供参考。"
+                    ),
+                }
+            )
             return result
 
 
@@ -737,20 +824,90 @@ def get_counterfactual_model(*, db, alert_engine, config=None):
 
 
 async def simulate_counterfactual(*, db, alert_engine, config=None, patient_id: str, patient: dict, payload: dict[str, Any]) -> dict[str, Any]:
+    """Orchestrate the what-if simulation with clear model-selection semantics.
+
+    Scenarios
+    ---------
+    * **D** – ``backend: semi_mechanistic`` → direct semi-mechanistic
+      (degraded=False, is_fallback=False).
+    * **Rollout gate** – ``backend: auto/transformer`` but patient not in
+      rollout cohort → semi-mechanistic (degraded=False, is_fallback=True,
+      selection_reason="rollout_not_enabled").
+    * **A** – ``backend: auto``, transformer unavailable → semi-mechanistic
+      (degraded=False, is_fallback=True, selection_reason=<reason_code>).
+    * **B** – ``backend: transformer``, transformer unavailable but
+      allow_fallback=True → transformer falls back internally
+      (degraded=True, is_fallback=True).
+    * **C** – transformer loaded but inference throws → transformer falls
+      back internally (degraded=True, is_fallback=True,
+      fallback_reason="inference_failed").
+    """
     cfg = config or get_config()
     ai = (getattr(cfg, "yaml_cfg", {}) or {}).get("ai_service", {})
     counterfactual_cfg = (ai.get("counterfactual") if isinstance(ai, dict) else {}) or {}
     rollout_cfg = counterfactual_cfg.get("transformer_rollout") if isinstance(counterfactual_cfg.get("transformer_rollout"), dict) else {}
     backend = str(counterfactual_cfg.get("backend") or "auto").strip().lower()
+
+    # ── explicit semi-mechanistic (Scenario D) ──────────────────────
+    if backend in {"semi_mechanistic", "semi", "fallback"}:
+        model = SemiMechanisticCounterfactualModel(db=db, alert_engine=alert_engine)
+        result = await model.simulate(patient_id, patient, payload or {})
+        # model_meta already correct from _model_meta_semi() inside simulate()
+        return result
+
+    # ── auto / transformer: rollout gate ────────────────────────────
     if backend in {"auto", "transformer"} and rollout_cfg and not _cohort_enabled(patient, patient_id, rollout_cfg):
         model = SemiMechanisticCounterfactualModel(db=db, alert_engine=alert_engine)
         result = await model.simulate(patient_id, patient, payload or {})
-        result["model_meta"] = {
-            **(result.get("model_meta") or {}),
-            "requested_backend": backend,
-            "degraded": False,
-            "fallback_reason": "rollout_not_enabled",
-        }
+        result["model_meta"] = _model_meta_semi(
+            {
+                **(result.get("model_meta") or {}),
+                "requested_backend": backend,
+                "degraded": False,
+                "is_fallback": True,
+                "selection_reason": "rollout_not_enabled",
+                "fallback_reason": None,
+            }
+        )
         return result
-    model = get_counterfactual_model(db=db, alert_engine=alert_engine, config=cfg)
+
+    # ── auto / transformer: probe availability ──────────────────────
+    if backend in {"auto", "transformer"}:
+        fallback = SemiMechanisticCounterfactualModel(db=db, alert_engine=alert_engine)
+        t_model = TransformerCounterfactualModel(db=db, alert_engine=alert_engine, config=cfg, fallback_model=fallback, allow_fallback=True)
+        status = t_model.status()
+
+        if status.get("available"):
+            # Transformer loaded → use it (Scenarios B/C handled internally)
+            return await t_model.simulate(patient_id, patient, payload or {})
+
+        reason_code = status.get("reason_code") or "unknown"
+        masked_reason = status.get("reason") or "模型权重未部署"
+
+        if backend == "auto":
+            # Scenario A: auto-select semi-mechanistic, not degraded
+            result = await fallback.simulate(patient_id, patient, payload or {})
+            result["model_meta"] = _model_meta_semi(
+                {
+                    **(result.get("model_meta") or {}),
+                    "requested_backend": "auto",
+                    "degraded": False,
+                    "is_fallback": True,
+                    "selection_reason": reason_code,
+                    "fallback_reason": None,
+                    "note": (
+                        "Transformer反事实模型不可用"
+                        f"（{reason_code}: {masked_reason}），"
+                        "自动选择半机制估算模型，结果仅供参考，不可用于生成医嘱。"
+                    ),
+                }
+            )
+            return result
+        else:
+            # backend == "transformer" explicitly: let TransformerCounterfactualModel
+            # handle the fallback (Scenario B — will set degraded=True)
+            return await t_model.simulate(patient_id, patient, payload or {})
+
+    # ── unrecognised backend → safe default ─────────────────────────
+    model = SemiMechanisticCounterfactualModel(db=db, alert_engine=alert_engine)
     return await model.simulate(patient_id, patient, payload or {})

@@ -657,7 +657,7 @@
 
     <!-- 脓毒症 Bundle 临床确认对话框 -->
     <a-modal
-      v-model:visible="sepsisBundleReviewDialogVisible"
+      v-model:open="sepsisBundleReviewDialogVisible"
       title="脓毒症 Bundle 临床确认"
       :confirm-loading="sepsisBundleSubmitting"
       @ok="submitSepsisBundleReview"
@@ -706,7 +706,7 @@
 
     <!-- 脓毒症 Bundle 执行记录对话框 -->
     <a-modal
-      v-model:visible="sepsisBundleExecutionDialogVisible"
+      v-model:open="sepsisBundleExecutionDialogVisible"
       title="记录 Bundle 执行"
       :confirm-loading="sepsisBundleSubmitting"
       @ok="submitSepsisBundleExecution"
