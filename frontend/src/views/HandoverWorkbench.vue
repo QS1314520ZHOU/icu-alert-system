@@ -47,7 +47,7 @@
               <span class="banner-name">{{ currentHandover?.sections?.identify?.name || activePatient?.name || '未选择患者' }}</span>
               <span v-if="activePatient?.has_critical" class="banner-badge banner-critical">⚠️ {{ activePatient.critical_count }}</span>
               <span v-if="activePatient?.diagnosis" class="banner-diagnosis">{{ activePatient.diagnosis }}</span>
-              <span class="banner-meta">{{ currentHandover?.sections?.identify?.admission_no || activePatient?.patient_id }}</span>
+              <span class="banner-meta">{{ editableSections?.identify?.admission_no || activePatient?.raw?.mrn || activePatient?.raw?.hisPid || '' }}</span>
             </div>
             <div class="toolbar-actions">
               <a-button
@@ -398,7 +398,8 @@ async function loadLatestHandover() {
     const list = res.data?.handovers || []
     if (list.length && list[0]) {
       currentHandover.value = list[0]
-      editableSections.value = JSON.parse(JSON.stringify((list[0] as any).sections || {}))
+      const loaded = JSON.parse(JSON.stringify((list[0] as any).sections || {}))
+      editableSections.value = mergePatientFacts(loaded, activePatient.value?.raw)
     } else {
       currentHandover.value = null
       editableSections.value = prefillSectionsFromPatient(activePatient.value?.raw)
@@ -421,7 +422,10 @@ async function onGenerate() {
       handover_type: 'nurse_bedside',
     })
     currentHandover.value = res.data?.handover || null
-    editableSections.value = JSON.parse(JSON.stringify(currentHandover.value?.sections || {}))
+    editableSections.value = mergePatientFacts(
+      JSON.parse(JSON.stringify(currentHandover.value?.sections || {})),
+      activePatient.value?.raw
+    )
     const handoverId = currentHandover.value?.handover_id
 
     // Load forced alerts
@@ -575,6 +579,35 @@ function onBriefModeChange(mode: string) {
       briefData.value = res.data?.brief || { mode, blocks: [] }
     })
   }
+}
+
+function mergePatientFacts(sections: Record<string, any>, raw: any): Record<string, any> {
+  if (!raw) return sections
+  const s = JSON.parse(JSON.stringify(sections || {}))
+  s.identify = s.identify || {}
+  s.situation = s.situation || {}
+  const fill = (obj: any, key: string, val: any) => {
+    const cur = obj[key]
+    const empty = cur == null || cur === '' || (Array.isArray(cur) && cur.length === 0)
+    if (empty && val != null && val !== '') obj[key] = val
+  }
+  fill(s.identify, 'bed', String(raw.hisBed || raw.bed || ''))
+  fill(s.identify, 'name', String(raw.name || ''))
+  fill(s.identify, 'sex', raw.gender === 'Male' ? '男' : raw.gender === 'Female' ? '女' : String(raw.sex || ''))
+  fill(s.identify, 'age', String(raw.age || ''))
+  fill(s.identify, 'admission_no', String(raw.mrn || raw.hisPid || ''))
+  fill(s.identify, 'medical_group', String(raw.medicalGroup || ''))
+  if (Array.isArray(raw.clinicalTags) && raw.clinicalTags.length) {
+    const tags = raw.clinicalTags.map((t: any) => typeof t === 'string' ? t : (t?.label || '')).filter(Boolean)
+    fill(s.identify, 'special_tags', tags)
+  }
+  fill(s.situation, 'diagnosis', String(raw.diagnosis || ''))
+  fill(s.situation, 'surgery', raw.patientOperations?.[0]?.name || '')
+  if (raw.icuAdmissionTime)
+    fill(s.situation, 'icu_day', String(Math.max(0, Math.floor((Date.now() - new Date(raw.icuAdmissionTime).getTime()) / 86400000))))
+  if (raw.patientOperations?.[0]?.endTime)
+    fill(s.situation, 'post_op_day', String(Math.max(0, Math.floor((Date.now() - new Date(raw.patientOperations[0].endTime).getTime()) / 86400000))))
+  return s
 }
 
 function prefillSectionsFromPatient(raw: any): Record<string, any> {
