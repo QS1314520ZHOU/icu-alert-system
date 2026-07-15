@@ -234,7 +234,22 @@ async def resolve_model_candidates(cfg, requested_model: str | None = None) -> t
     provider_rows, provider_meta = _provider_candidates(runtime_ai, requested_model)
     if provider_rows:
         return provider_rows, len(provider_rows) > 1, provider_meta
-    primary = str(requested_model or runtime_ai.get("fast_model") or cfg.llm_fast_model or cfg.settings.LLM_MODEL or "").strip()
+
+    # Resolve tier keywords ("medical"/"fast"/"reasoning"/"long_context") → real model names.
+    # Without this, the keyword literal gets sent to DeepSeek as a model name → 400.
+    purpose = _purpose_from_requested_model(requested_model)
+    resolved_requested = requested_model
+    if purpose:
+        tier_map: dict[str, Any] = {
+            "fast": cfg.llm_fast_model,
+            "medical": cfg.llm_model_medical or cfg.llm_fast_model,
+            "reasoning": cfg.llm_reasoning_model or cfg.llm_model_medical or cfg.llm_fast_model,
+            "long_context": cfg.llm_model_medical or cfg.llm_fast_model,
+        }
+        resolved = str(tier_map.get(purpose) or "").strip()
+        resolved_requested = resolved or None  # None → falls through to fast_model below
+
+    primary = str(resolved_requested or runtime_ai.get("fast_model") or cfg.llm_fast_model or cfg.settings.LLM_MODEL or "").strip()
     explicit_fallback = str(runtime_ai.get("fallback_model") or cfg.llm_fallback_model or "").strip()
     if explicit_fallback:
         fallback = explicit_fallback
