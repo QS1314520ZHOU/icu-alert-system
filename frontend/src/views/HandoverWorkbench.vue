@@ -13,6 +13,7 @@
           size="small"
           placeholder="选择病区"
           style="width: 140px"
+          @change="onDeptFilterChange"
         />
       </div>
       <HandoverPatientList
@@ -130,7 +131,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   Alert as AAlert,
   Spin as ASpin,
@@ -156,6 +158,38 @@ import {
   getForcedAlerts,
   type HandoverBrief as BriefType,
 } from '../api/handover'
+import { getPatients, getDepartments, getRecentAlerts } from '../api'
+
+// ── Types ────────────────────────────────────────────────────────────
+
+interface PatientBrief {
+  patient_id: string
+  bed: string
+  name: string
+  diagnosis: string
+  has_draft: boolean
+  status: string
+  has_critical: boolean
+  critical_count: number
+}
+
+// ── Route ─────────────────────────────────────────────────────────────
+
+const route = useRoute()
+
+const routeDeptCode = computed(() => {
+  const raw = route.query.dept_code || route.query.deptCode
+  if (Array.isArray(raw)) return raw[0]?.trim() ?? ''
+  if (typeof raw === 'string') return raw.trim()
+  return ''
+})
+
+const routeDeptName = computed(() => {
+  const raw = route.query.dept
+  if (Array.isArray(raw)) return raw[0]?.trim() ?? ''
+  if (typeof raw === 'string') return raw.trim()
+  return ''
+})
 
 // ── State ────────────────────────────────────────────────────────────
 const error = ref('')
@@ -182,11 +216,148 @@ const showHistory = ref(false)
 const briefData = ref<BriefType>({ mode: 'full', blocks: [] })
 const historyItems = ref<Array<Record<string, any>>>([])
 
-// Placeholder — real patient data would come from the patient list API
-const patientBriefs = ref<Array<any>>([])
+const patientBriefs = ref<PatientBrief[]>([])
 const deptOptions = ref<Array<{ label: string; value: string }>>([
   { label: '全部病区', value: '' },
 ])
+
+let requestToken = 0
+
+function effectiveDeptCode(): string | undefined {
+  return (deptFilter.value || routeDeptCode.value) || undefined
+}
+
+// ── Data Loading ──────────────────────────────────────────────────────
+
+async function loadDepartments() {
+  try {
+    const res = await getDepartments()
+    const departments: Array<{ dept: string; deptCode: string; patientCount: number }> =
+      res.data?.departments || []
+    deptOptions.value = [
+      { label: '全部病区', value: '' },
+      ...departments.map((d) => ({ label: d.dept, value: d.deptCode })),
+    ]
+  } catch {
+    // keep default options
+  }
+}
+
+async function loadPatients() {
+  const token = ++requestToken
+  patientsLoading.value = true
+
+  try {
+    const res = await getPatients({
+      dept_code: effectiveDeptCode(),
+      dept: routeDeptName.value || undefined,
+      patient_scope: 'all',
+    })
+    if (token !== requestToken) return
+
+    const list: any[] = res.data?.patients || []
+
+    patientBriefs.value = list.map((p: any) => ({
+      patient_id: String(p._id),
+      bed: String(p.hisBed || p.bed || ''),
+      name: String(p.name || ''),
+      diagnosis: String(p.diagnosis || ''),
+      has_draft: false,
+      status: '',
+      critical_count: Array.isArray(p.clinicalTags) ? p.clinicalTags.length : 0,
+      has_critical: Array.isArray(p.clinicalTags) && p.clinicalTags.length > 0,
+    }))
+
+    patientsLoading.value = false
+
+    // Fire async hydration (don't await — render first, enrich later)
+    hydrateCriticalAlerts(token)
+    hydrateHandoverStatus(token)
+  } catch {
+    if (token === requestToken) {
+      patientsLoading.value = false
+    }
+  }
+}
+
+async function hydrateCriticalAlerts(token: number) {
+  try {
+    const res = await getRecentAlerts(200, {
+      dept_code: effectiveDeptCode(),
+      dept: routeDeptName.value || undefined,
+      pending: true,
+    })
+    if (token !== requestToken) return
+
+    const records: any[] = res.data?.records || []
+    const criticalMap = new Map<string, number>()
+    for (const r of records) {
+      const sev = String(r.severity || '').toLowerCase()
+      if (sev === 'critical' || sev === 'high') {
+        const pid = String(r.patient_id || '')
+        criticalMap.set(pid, (criticalMap.get(pid) || 0) + 1)
+      }
+    }
+
+    patientBriefs.value = patientBriefs.value.map((p) => {
+      const count = criticalMap.get(p.patient_id) || 0
+      return { ...p, critical_count: count, has_critical: count > 0 }
+    })
+  } catch {
+    // Keep the fallback values from loadPatients
+  }
+}
+
+async function hydrateHandoverStatus(token: number) {
+  const statusMap = new Map<string, { status: string; has_draft: boolean }>()
+
+  for (let i = 0; i < patientBriefs.value.length; i += 8) {
+    if (token !== requestToken) return
+    const batch = patientBriefs.value.slice(i, i + 8)
+
+    await Promise.all(
+      batch.map(async (p) => {
+        try {
+          const res = await getPatientHandoverHistory(p.patient_id, { limit: 1 })
+          const latest = (res.data?.handovers || [])[0]
+          if (latest) {
+            const st = String(latest.status || '')
+            statusMap.set(p.patient_id, { status: st, has_draft: st === 'draft' })
+          }
+        } catch {
+          // Skip this patient
+        }
+      })
+    )
+  }
+
+  if (token !== requestToken) return
+
+  // Merge into current patientBriefs (preserves critical alert counts from hydrateCriticalAlerts)
+  patientBriefs.value = patientBriefs.value.map((p) => {
+    const s = statusMap.get(p.patient_id)
+    return s ? { ...p, status: s.status, has_draft: s.has_draft } : p
+  })
+}
+
+function onDeptFilterChange() {
+  loadPatients()
+}
+
+// ── Lifecycle ─────────────────────────────────────────────────────────
+
+onMounted(() => {
+  deptFilter.value = routeDeptCode.value || undefined
+  loadDepartments()
+  loadPatients()
+})
+
+watch(
+  () => [routeDeptCode.value, routeDeptName.value],
+  () => {
+    loadPatients()
+  }
+)
 
 // ── Actions ──────────────────────────────────────────────────────────
 
