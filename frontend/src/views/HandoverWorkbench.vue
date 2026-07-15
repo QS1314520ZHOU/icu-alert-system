@@ -8,6 +8,7 @@
       <div class="sidebar-header">
         <h2 class="page-title">🩺 智能交接班</h2>
         <a-select
+          v-if="!routeDeptCode"
           v-model:value="deptFilter"
           :options="deptOptions"
           size="small"
@@ -15,6 +16,7 @@
           style="width: 140px"
           @change="onDeptFilterChange"
         />
+        <span v-else class="dept-locked">{{ deptOptions[0]?.label || routeDeptName || routeDeptCode }}</span>
       </div>
       <HandoverPatientList
         :patients="patientBriefs"
@@ -33,6 +35,7 @@
           <div class="placeholder">
             <div class="placeholder-icon">👈</div>
             <div class="placeholder-text">请从左侧选择患者开始交接班</div>
+            <div class="placeholder-sub">选择患者后，系统将自动带出身份与现况信息</div>
           </div>
         </template>
 
@@ -42,7 +45,9 @@
             <div class="patient-banner">
               <span class="banner-bed">{{ currentHandover?.sections?.identify?.bed || activePatient?.bed || '?' }}床</span>
               <span class="banner-name">{{ currentHandover?.sections?.identify?.name || activePatient?.name || '未选择患者' }}</span>
-              <span class="banner-meta">{{ currentHandover?.sections?.identify?.admission_no }}</span>
+              <span v-if="activePatient?.has_critical" class="banner-badge banner-critical">⚠️ {{ activePatient.critical_count }}</span>
+              <span v-if="activePatient?.diagnosis" class="banner-diagnosis">{{ activePatient.diagnosis }}</span>
+              <span class="banner-meta">{{ currentHandover?.sections?.identify?.admission_no || activePatient?.patient_id }}</span>
             </div>
             <div class="toolbar-actions">
               <a-button
@@ -171,6 +176,7 @@ interface PatientBrief {
   status: string
   has_critical: boolean
   critical_count: number
+  raw?: any
 }
 
 // ── Route ─────────────────────────────────────────────────────────────
@@ -235,12 +241,24 @@ async function loadDepartments() {
     const res = await getDepartments()
     const departments: Array<{ dept: string; deptCode: string; patientCount: number }> =
       res.data?.departments || []
-    deptOptions.value = [
-      { label: '全部病区', value: '' },
-      ...departments.map((d) => ({ label: d.dept, value: d.deptCode })),
-    ]
+
+    if (routeDeptCode.value) {
+      const match = departments.find((d) => d.deptCode === routeDeptCode.value)
+      const label = match?.dept || routeDeptName.value || routeDeptCode.value
+      deptOptions.value = [{ label, value: routeDeptCode.value }]
+      deptFilter.value = routeDeptCode.value
+    } else {
+      deptOptions.value = [
+        { label: '全部病区', value: '' },
+        ...departments.map((d) => ({ label: d.dept, value: d.deptCode })),
+      ]
+      deptFilter.value = ''
+    }
   } catch {
-    // keep default options
+    if (routeDeptCode.value) {
+      deptOptions.value = [{ label: routeDeptName.value || routeDeptCode.value, value: routeDeptCode.value }]
+      deptFilter.value = routeDeptCode.value
+    }
   }
 }
 
@@ -267,6 +285,7 @@ async function loadPatients() {
       status: '',
       critical_count: Array.isArray(p.clinicalTags) ? p.clinicalTags.length : 0,
       has_critical: Array.isArray(p.clinicalTags) && p.clinicalTags.length > 0,
+      raw: p,
     }))
 
     patientsLoading.value = false
@@ -348,8 +367,10 @@ function onDeptFilterChange() {
 // ── Lifecycle ─────────────────────────────────────────────────────────
 
 onMounted(() => {
-  deptFilter.value = routeDeptCode.value || undefined
-  loadDepartments()
+  loadDepartments() // sets deptFilter internally based on routeDeptCode
+  if (!routeDeptCode.value) {
+    deptFilter.value = ''
+  }
   loadPatients()
 })
 
@@ -380,7 +401,7 @@ async function loadLatestHandover() {
       editableSections.value = JSON.parse(JSON.stringify((list[0] as any).sections || {}))
     } else {
       currentHandover.value = null
-      editableSections.value = initEmptySections()
+      editableSections.value = prefillSectionsFromPatient(activePatient.value?.raw)
     }
   } catch (e: any) {
     error.value = e?.response?.data?.detail || '加载交班记录失败'
@@ -556,6 +577,37 @@ function onBriefModeChange(mode: string) {
   }
 }
 
+function prefillSectionsFromPatient(raw: any): Record<string, any> {
+  const sections = initEmptySections()
+  if (!raw) return sections
+
+  const s = sections
+  s.identify.bed = String(raw.hisBed || raw.bed || '')
+  s.identify.name = String(raw.name || '')
+  s.identify.sex = raw.gender === 'Male' ? '男' : raw.gender === 'Female' ? '女' : String(raw.sex || '')
+  s.identify.age = String(raw.age || '')
+  s.identify.admission_no = String(raw.mrn || raw.hisPid || '')
+  s.identify.medical_group = String(raw.medicalGroup || '')
+  s.identify.special_tags = Array.isArray(raw.clinicalTags)
+    ? raw.clinicalTags.map((t: any) => (typeof t === 'string' ? t : t?.label || '')).filter(Boolean)
+    : []
+  s.situation.diagnosis = String(raw.diagnosis || '')
+  s.situation.surgery = raw.patientOperations?.[0]?.name || ''
+  if (raw.icuAdmissionTime) {
+    const days = Math.max(0, Math.floor((Date.now() - new Date(raw.icuAdmissionTime).getTime()) / 86400000))
+    s.situation.icu_day = String(days)
+  }
+  if (raw.patientOperations?.[0]?.endTime) {
+    const pod = Math.max(0, Math.floor((Date.now() - new Date(raw.patientOperations[0].endTime).getTime()) / 86400000))
+    s.situation.post_op_day = String(pod)
+  }
+  s.background.past_history = String(raw.pastHistory || '')
+  s.background.isolation = String(raw.isolation || '')
+  s.background.allergies = String(raw.allergic || '')
+
+  return sections
+}
+
 function initEmptySections(): Record<string, any> {
   return {
     identify: { bed: '', name: '', sex: '', age: '', admission_no: '', medical_group: '', special_tags: [] },
@@ -582,7 +634,7 @@ function initEmptySections(): Record<string, any> {
   color: var(--text-main);
 }
 
-/* Sidebar */
+/* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
   width: 280px;
   flex-shrink: 0;
@@ -603,56 +655,101 @@ function initEmptySections(): Record<string, any> {
   font-weight: 700;
   color: var(--text-main);
 }
+.dept-locked {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 4px 8px;
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-/* Content */
+/* ── Content ──────────────────────────────────────────────── */
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px;
 }
+
+/* Empty state */
 .placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 400px;
+  height: 500px;
   color: var(--text-secondary);
 }
-.placeholder-icon { font-size: 48px; margin-bottom: 12px; }
-.placeholder-text { font-size: 16px; }
+.placeholder-icon {
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.6;
+}
+.placeholder-text {
+  font-size: 17px;
+  font-weight: 500;
+}
+.placeholder-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  opacity: 0.75;
+}
 
-/* Toolbar */
+/* ── Toolbar / Banner ─────────────────────────────────────── */
 .content-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 10px 16px;
-  background: var(--bg-surface);
-  border-radius: var(--card-radius);
-  border: 1px solid var(--border-color, #334155);
+  margin-bottom: 16px;
+  padding: 12px 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 .patient-banner {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 .banner-bed {
   font-size: 14px;
   font-weight: 700;
   background: var(--accent);
   color: #fff;
-  padding: 2px 10px;
-  border-radius: 6px;
+  padding: 3px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
 }
 .banner-name { font-size: 15px; font-weight: 600; }
+.banner-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.banner-critical { background: #fef2f2; color: #dc2626; }
+.banner-diagnosis {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .banner-meta { font-size: 12px; color: var(--text-secondary); }
 .toolbar-actions {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 
-/* Body */
+/* ── Two-column body ──────────────────────────────────────── */
 .content-body {
   display: grid;
   grid-template-columns: 1fr 380px;
@@ -662,33 +759,116 @@ function initEmptySections(): Record<string, any> {
 .editor-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 .panel-col {
   display: flex;
   flex-direction: column;
   gap: 12px;
   position: sticky;
-  top: 16px;
+  top: 20px;
 }
 
-/* Submit bar */
+/* ── ISBAR Section Cards ──────────────────────────────────── */
+.editor-col :deep(.ant-collapse) {
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.editor-col :deep(.ant-collapse-item) {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: none;
+  overflow: hidden;
+}
+.editor-col :deep(.ant-collapse-header) {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 18px;
+  border-left: 4px solid var(--accent);
+  background: #fafbfc;
+  align-items: center;
+}
+.editor-col :deep(.ant-collapse-content) {
+  border-top: 1px solid #f0f0f0;
+}
+.editor-col :deep(.ant-collapse-content-box) {
+  padding: 16px 18px;
+}
+
+/* ── Form fields inside ISBAR ──────────────────────────────── */
+.editor-col :deep(.field-row) {
+  margin-bottom: 12px;
+}
+.editor-col :deep(.field-row label) {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4px;
+}
+.editor-col :deep(.ant-input),
+.editor-col :deep(.ant-select-selector),
+.editor-col :deep(textarea.ant-input) {
+  border-radius: 6px;
+  border-color: #e2e8f0;
+  transition: border-color 0.2s;
+}
+.editor-col :deep(.ant-input:focus),
+.editor-col :deep(textarea.ant-input:focus),
+.editor-col :deep(.ant-select-focused .ant-select-selector) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
+}
+
+/* ── Section grid ─────────────────────────────────────────── */
+.editor-col :deep(.section-grid.two-col) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+}
+
+/* ── Submit bar ───────────────────────────────────────────── */
 .submit-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: var(--bg-surface);
-  border-radius: var(--card-radius);
-  border: 1px solid var(--border-color, #334155);
+  gap: 10px;
+  padding: 14px 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
-@media (max-width: 1280px) {
+/* ── Panel cards ──────────────────────────────────────────── */
+.panel-col :deep(.ant-card),
+.panel-col :deep(> div) {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.panel-col :deep(.ant-alert) {
+  border-radius: 10px;
+}
+.panel-col :deep(.ant-alert-error) {
+  border-left: 4px solid #dc2626;
+}
+.panel-col :deep(.ant-alert-warning) {
+  border-left: 4px solid #f59e0b;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 1100px) {
   .content-body {
     grid-template-columns: 1fr;
   }
   .panel-col {
     position: static;
+  }
+  .editor-col :deep(.section-grid.two-col) {
+    grid-template-columns: 1fr;
   }
 }
 </style>
