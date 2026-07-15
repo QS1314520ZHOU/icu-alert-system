@@ -25,6 +25,7 @@ const routeComponents = {
   researchExport: () => import('../views/ResearchExport.vue'),
   researchWorkbench: () => import('../views/ResearchWorkbench.vue'),
   mdtBoard: () => import('../views/MdtBoard.vue'),
+  handover: () => import('../views/HandoverWorkbench.vue'),
   bedside: () => import('../views/BedSideScreen.vue'),
   mobileLayout: () => import('../mobile/MobileLayout.vue'),
   mobileHome: () => import('../mobile/MobileHome.vue'),
@@ -193,6 +194,12 @@ const router = createRouter({
       name: 'mdt-board',
       component: routeComponents.mdtBoard,
       meta: { title: 'MDT多智能体会诊', useAntdTheme: true }
+    },
+    {
+      path: '/handover',
+      name: 'handover',
+      component: routeComponents.handover,
+      meta: { title: '智能交接班', roles: ['nurse', 'head_nurse', 'doctor'] }
     },
     {
       path: '/bedside/:patientId',

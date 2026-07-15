@@ -20,6 +20,7 @@ export type NavItemKey =
   | 'ai-ops'
   | 'runtime-config'
   | 'academic-research'
+  | 'handover'
 
 export type NavGroup = {
   key: string
@@ -42,6 +43,7 @@ export const navGroups: NavGroup[] = [
       { key: 'director-home', lines: ['主任', '首页'], path: '/director-home' },
       { key: 'overview', lines: ['患者', '总览'], path: '/patients' },
       { key: 'clinical-workflow', lines: ['临床', '工作台'], path: '/clinical-workflow' },
+      { key: 'handover', lines: ['智能', '交接班'], path: '/handover' },
     ],
   },
   {
