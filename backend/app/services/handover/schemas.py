@@ -186,6 +186,9 @@ class HandoverDocument(BaseModel):
     acknowledged_by: str = ""
     acknowledged_at: str = ""
     forced_confirmations: list[ForcedConfirmation] = Field(default_factory=list)
+    changes: Optional[dict[str, Any]] = None
+    completeness_check: Optional[dict[str, Any]] = None
+    conflict_check: Optional[dict[str, Any]] = None
     created_at: str = ""
     updated_at: str = ""
 

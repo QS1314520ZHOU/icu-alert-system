@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query
@@ -100,17 +100,49 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
         logger.exception("Failed to save handover document")
         raise HTTPException(status_code=500, detail=f"保存失败: {exc}")
 
+    # Run change detection after draft generation (non-blocking)
+    try:
+        changes_result = await gen_svc.detect_changes(
+            req.patient_id,
+            {"start": time_start.isoformat(), "end": time_end.isoformat()},
+        )
+        doc_dict["changes"] = changes_result
+        await db.col(COLLECTION).update_one(
+            {"handover_id": doc.handover_id},
+            {"$set": {"changes": changes_result}},
+        )
+    except Exception as exc:
+        logger.warning("Change detection failed for patient %s: %s", req.patient_id, exc)
+
     return {"code": 0, "handover": serialize_doc(doc_dict)}
 
 
 # ── Get Single Handover ─────────────────────────────────────────────
 
 @router.get("/{handover_id}")
-async def get_handover(handover_id: str, db: DbDep):
+async def get_handover(handover_id: str, db: DbDep, cfg: ConfigDep,
+                       run_checks: bool = Query(False, description="Set to true when entering edit page to refresh change detection")):
     """Retrieve a single handover document by ID."""
     doc = await db.col(COLLECTION).find_one({"handover_id": handover_id})
     if not doc:
         raise HTTPException(status_code=404, detail="交班记录不存在")
+
+    # Optionally refresh change detection when entering edit page
+    if run_checks and doc.get("status") == HandoverStatus.DRAFT.value:
+        try:
+            gen_svc = HandoverGenerationService(db, cfg)
+            changes_result = await gen_svc.detect_changes(
+                doc["patient_id"],
+                doc["time_window"],
+            )
+            await db.col(COLLECTION).update_one(
+                {"handover_id": handover_id},
+                {"$set": {"changes": changes_result}},
+            )
+            doc["changes"] = changes_result
+        except Exception as exc:
+            logger.warning("Change detection refresh failed for %s: %s", handover_id, exc)
+
     return {"code": 0, "handover": serialize_doc(doc)}
 
 
@@ -168,13 +200,59 @@ async def update_handover_content(handover_id: str, req: UpdateContentRequest, d
 # ── Confirm / Submit ────────────────────────────────────────────────
 
 @router.post("/{handover_id}/confirm")
-async def confirm_handover(handover_id: str, req: ConfirmRequest, db: DbDep):
-    """Submit handover for acknowledgment (draft → submitted)."""
+async def confirm_handover(handover_id: str, req: ConfirmRequest, db: DbDep, cfg: ConfigDep):
+    """Submit handover for acknowledgment (draft → submitted).
+
+    Runs completeness check + conflict detection before transition as a double safety gate
+    alongside the existing forced-confirmation check.
+    """
     doc = await db.col(COLLECTION).find_one({"handover_id": handover_id})
     if not doc:
         raise HTTPException(status_code=404, detail="交班记录不存在")
 
     handover = HandoverDocument(**doc)
+    gen_svc = HandoverGenerationService(db, cfg)
+
+    # ── Pre-submission AI checks (双保险) ──────────────────────────
+
+    # Completeness check
+    completeness: dict[str, Any] = {}
+    try:
+        completeness = await gen_svc.check_completeness(handover_id)
+        handover.completeness_check = completeness
+    except Exception as exc:
+        logger.exception("Completeness check failed for %s", handover_id)
+        completeness = {
+            "can_submit": True, "blockers": [],
+            "warnings": [{"field": "_system", "reason": f"完整性检查服务异常: {exc}", "evidence": []}],
+            "info": [], "missing_source": [], "checked_at": _now(),
+        }
+        handover.completeness_check = completeness
+
+    # Conflict detection
+    try:
+        conflicts_result = await gen_svc.detect_conflicts(handover_id)
+        handover.conflict_check = conflicts_result
+    except Exception as exc:
+        logger.exception("Conflict detection failed for %s", handover_id)
+        conflicts_result = {"patient_id": handover.patient_id, "conflicts": [], "checked_at": _now()}
+        handover.conflict_check = conflicts_result
+
+    # Gate: block submission if completeness check fails
+    can_submit = completeness.get("can_submit", True)
+    blockers = completeness.get("blockers", [])
+    if not can_submit or (isinstance(blockers, list) and len(blockers) > 0):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "交班内容不完整，请补充后再提交",
+                "blockers": blockers,
+                "warnings": completeness.get("warnings", []),
+            },
+        )
+
+    # ── Existing confirm flow ──────────────────────────────────────
+
     audit = HandoverAuditService(db)
 
     try:
