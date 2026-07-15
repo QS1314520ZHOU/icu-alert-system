@@ -40,8 +40,8 @@
           <!-- Top toolbar -->
           <div class="content-toolbar">
             <div class="patient-banner">
-              <span class="banner-bed">{{ currentHandover?.sections?.identify?.bed || '?' }}床</span>
-              <span class="banner-name">{{ currentHandover?.sections?.identify?.name || activePatientId }}</span>
+              <span class="banner-bed">{{ currentHandover?.sections?.identify?.bed || activePatient?.bed || '?' }}床</span>
+              <span class="banner-name">{{ currentHandover?.sections?.identify?.name || activePatient?.name || '未选择患者' }}</span>
               <span class="banner-meta">{{ currentHandover?.sections?.identify?.admission_no }}</span>
             </div>
             <div class="toolbar-actions">
@@ -202,6 +202,7 @@ const patientsLoading = ref(false)
 const historyLoading = ref(false)
 
 const activePatientId = ref('')
+const activePatient = ref<PatientBrief | null>(null)
 const patientSearch = ref('')
 const deptFilter = ref<string | undefined>()
 const operator = ref('')
@@ -251,7 +252,7 @@ async function loadPatients() {
     const res = await getPatients({
       dept_code: effectiveDeptCode(),
       dept: routeDeptName.value || undefined,
-      patient_scope: 'all',
+      patient_scope: 'in_dept',
     })
     if (token !== requestToken) return
 
@@ -363,6 +364,7 @@ watch(
 
 async function onSelectPatient(patient: any) {
   activePatientId.value = patient.patient_id || patient._id
+  activePatient.value = patient
   await loadLatestHandover()
 }
 
