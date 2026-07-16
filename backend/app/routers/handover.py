@@ -29,7 +29,15 @@ from app.services.handover.schemas import (
     RejectRequest,
     UpdateContentRequest,
 )
-from app.services.shift_service import ShiftService
+from app.services.shift_service import (
+    ShiftError,
+    ShiftNotConfiguredError,
+    ShiftNotFoundError,
+    ShiftNotMatchedError,
+    ShiftNotStartedError,
+    ShiftQueryFailedError,
+    ShiftService,
+)
 from app.utils.serialization import serialize_doc
 
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -43,6 +51,108 @@ def _now() -> str:
     return datetime.now(API_TZ).isoformat()
 
 
+# ── Shared shift-error → HTTP mapping ────────────────────────────────
+
+def _map_shift_error(exc: Exception) -> HTTPException:
+    """Convert a shift-service exception to a structured HTTPException.
+
+    Used by both ``generate`` and ``forced-alerts`` so error codes and
+    shapes stay consistent across endpoints.
+
+    Known ``ShiftError`` subtypes map to specific error codes.
+    Unknown exceptions are logged and returned as a generic internal error
+    — raw exception text is never exposed to the caller.
+    """
+    # Known shift business exceptions
+    if isinstance(exc, ShiftQueryFailedError):
+        logger.exception("Shift query failed")
+        return HTTPException(
+            status_code=500,
+            detail={
+                "code": "SHIFT_QUERY_FAILED",
+                "message": "查询数据库班次配置失败",
+                "source": "initSystemConfig.banCiInfoList",
+            },
+        )
+    if isinstance(exc, ShiftNotConfiguredError):
+        return HTTPException(
+            status_code=422,
+            detail={
+                "code": "SHIFT_NOT_CONFIGURED",
+                "message": str(exc) or "数据库未配置班次信息",
+                "source": "initSystemConfig.banCiInfoList",
+            },
+        )
+    if isinstance(exc, ShiftNotMatchedError):
+        return HTTPException(
+            status_code=422,
+            detail={
+                "code": "SHIFT_NOT_MATCHED",
+                "message": str(exc) or "当前时间不在任何班次范围内",
+                "source": "initSystemConfig.banCiInfoList",
+            },
+        )
+    if isinstance(exc, ShiftNotFoundError):
+        return HTTPException(
+            status_code=422,
+            detail={
+                "code": "SHIFT_NOT_FOUND",
+                "message": str(exc) or "未找到指定班次",
+                "source": "initSystemConfig.banCiInfoList",
+            },
+        )
+    if isinstance(exc, ShiftNotStartedError):
+        return HTTPException(
+            status_code=422,
+            detail={
+                "code": "SHIFT_NOT_STARTED",
+                "message": str(exc) or "班次尚未开始",
+                "source": "initSystemConfig.banCiInfoList",
+            },
+        )
+
+    # Any other ShiftError subclass (future extension) — keep generic
+    if isinstance(exc, ShiftError):
+        logger.exception("Unhandled shift error type")
+        return HTTPException(
+            status_code=500,
+            detail={
+                "code": "HANDOVER_INTERNAL_ERROR",
+                "message": "交班服务处理失败",
+            },
+        )
+
+    # Truly unknown — must not be passed here; log and return generic error
+    logger.exception("Unexpected non-shift exception in shift resolution")
+    return HTTPException(
+        status_code=500,
+        detail={
+            "code": "HANDOVER_INTERNAL_ERROR",
+            "message": "交班服务处理失败",
+        },
+    )
+
+
+def _parse_iso_datetime(value: str) -> datetime:
+    """Parse an ISO-8601 datetime string.
+
+    Naive values are treated as Asia/Shanghai.
+    """
+    try:
+        dt = datetime.fromisoformat(value)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_TIME_RANGE",
+                "message": f"无效的时间格式: {value}",
+            },
+        ) from exc
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=API_TZ)
+    return dt
+
+
 # ── Generate Draft ──────────────────────────────────────────────────
 
 @router.post("/generate")
@@ -53,33 +163,13 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
     """
     context_svc = HandoverContextService(db)
     gen_svc = HandoverGenerationService(db, cfg)
-    shift_svc = ShiftService(db)
+    shift_svc = ShiftService(db, cfg)
 
     # ── Resolve shift time window (must come from DB, no fallback) ──
-    shift = None
-    time_start: datetime
-    time_end: datetime
     try:
         resolved = await shift_svc.resolve_shift(req.shift_code or "auto")
     except Exception as exc:
-        logger.exception("Failed to resolve shift for patient %s", req.patient_id)
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "code": "SHIFT_QUERY_FAILED",
-                "message": "查询数据库班次配置失败",
-            },
-        ) from exc
-
-    if not resolved:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "SHIFT_NOT_CONFIGURED",
-                "message": "当前时间未匹配到数据库班次配置",
-                "source": "initSystemConfig.banCiInfoList",
-            },
-        )
+        raise _map_shift_error(exc)
 
     now = datetime.now(API_TZ)
 
@@ -97,6 +187,15 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
 
     data_start = scheduled_start
     data_end = min(now, scheduled_end)
+
+    if data_end <= data_start:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "SHIFT_NOT_STARTED",
+                "message": f'班次"{resolved.name}"尚未开始',
+            },
+        )
 
     shift = {
         "code": resolved.code,
@@ -414,17 +513,82 @@ async def get_handover_brief(
 async def get_forced_alerts(
     patient_id: str,
     db: DbDep,
-    since: Optional[str] = Query(None, description="ISO datetime start"),
-    until: Optional[str] = Query(None, description="ISO datetime end"),
+    cfg: ConfigDep,
+    since: Optional[str] = Query(None, description="ISO datetime start (paired with until)"),
+    until: Optional[str] = Query(None, description="ISO datetime end (paired with since)"),
 ):
-    """Get critical/unclosed alerts that must be forced into handover R section."""
+    """Get critical/unclosed alerts that must be forced into handover R section.
+
+    Time window resolution (in priority order):
+
+    1. Explicit *since* + *until* query parameters (must be paired, until > since).
+    2. Current shift from ``initSystemConfig.banCiInfoList`` via ShiftService.
+    3. Never falls back to "today 00:00" or a fixed "last 8 hours".
+    """
     bridge = HandoverAlertBridge(db)
+    shift_svc = ShiftService(db, cfg)
 
-    # Default to last 8 hours if no time range given
-    now_dt = datetime.now()
-    start = datetime.fromisoformat(since) if since else now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-    end = datetime.fromisoformat(until) if until else now_dt
+    # ── Validate since / until pairing ──────────────────────────────
+    if (since is not None) != (until is not None):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_TIME_RANGE",
+                "message": "since 和 until 必须成对传入",
+            },
+        )
 
-    forced = await bridge.build_forced_confirmations(patient_id, start, end)
+    if since is not None and until is not None:
+        # ── Explicit time range ─────────────────────────────────────
+        start = _parse_iso_datetime(since)
+        end = _parse_iso_datetime(until)
 
-    return {"code": 0, "patient_id": patient_id, "forced_confirmations": forced, "total": len(forced)}
+        if end <= start:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "INVALID_TIME_RANGE",
+                    "message": "until 必须大于 since",
+                },
+            )
+
+        # Strip timezone for MongoDB (naive datetime query)
+        mongo_start = start.astimezone(API_TZ).replace(tzinfo=None)
+        mongo_end = end.astimezone(API_TZ).replace(tzinfo=None)
+        source = "request"
+    else:
+        # ── Use current shift from database ─────────────────────────
+        try:
+            resolved = await shift_svc.resolve_shift("auto")
+        except Exception as exc:
+            raise _map_shift_error(exc)
+
+        now = datetime.now(API_TZ)
+        data_end = min(now, resolved.end)
+
+        if data_end <= resolved.start:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "SHIFT_NOT_STARTED",
+                    "message": f'班次"{resolved.name}"尚未开始',
+                },
+            )
+
+        mongo_start = resolved.start.astimezone(API_TZ).replace(tzinfo=None)
+        mongo_end = data_end.astimezone(API_TZ).replace(tzinfo=None)
+        source = "initSystemConfig.banCiInfoList"
+
+    forced = await bridge.build_forced_confirmations(patient_id, mongo_start, mongo_end)
+
+    return {
+        "code": 0,
+        "patient_id": patient_id,
+        "forced_confirmations": forced,
+        "total": len(forced),
+        "time_window": {
+            "start": mongo_start.isoformat(),
+            "end": mongo_end.isoformat(),
+            "source": source,
+        },
+    }

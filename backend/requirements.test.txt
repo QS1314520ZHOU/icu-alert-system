@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Test dependencies (NOT production dependencies)
+pytest>=8,<9
+pytest-asyncio>=0.24,<1

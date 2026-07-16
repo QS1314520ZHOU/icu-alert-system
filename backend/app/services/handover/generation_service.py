@@ -311,6 +311,23 @@ class HandoverGenerationService:
         }
         previous_shift_meta = previous_result.get("shift", {}) if previous_result else {}
 
+        # ── Short-circuit: no previous handover snapshot → skip LLM ──
+        # previous_result is {} from _get_previous_shift_data when no prior
+        # handover document exists in the database.
+        if not previous_result:
+            return {
+                "patient_id": patient_id,
+                "current_shift": current_shift_meta,
+                "previous_shift": {},
+                "previous_handover": {},
+                "time_window": time_window,
+                "data_snapshot_at": context.data_snapshot_at,
+                "changes": [],
+                "not_comparable": ["上一班快照缺失"],
+                "needs_human": [],
+                "missing_data": ["previous"],
+            }
+
         input_data: dict[str, Any] = {
             "patient_id": patient_id,
             "current_shift": current_shift_meta,
