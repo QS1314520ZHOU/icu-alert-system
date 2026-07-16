@@ -85,12 +85,15 @@ class HandoverGenerationService:
         # time_window for actual data query range.
         shift_dict = context.shift or {}
         input_data: dict[str, Any] = {
-            "patient_id": str(context.patient.get("admission_no") or context.patient.get("name", "")),
+            "patient_id": context.patient_id,
             "shift": {
                 "code": shift_dict.get("code", ""),
                 "name": shift_dict.get("name", ""),
-                "scheduled_start": shift_dict.get("start_time", shift_dict.get("scheduled_start", "")),
-                "scheduled_end": shift_dict.get("end_time", shift_dict.get("scheduled_end", "")),
+                "scheduled_start": shift_dict.get("scheduled_start", shift_dict.get("start", "")),
+                "scheduled_end": shift_dict.get("scheduled_end", shift_dict.get("end", "")),
+                "data_start": context.time_window.get("start", ""),
+                "data_end": context.time_window.get("end", ""),
+                "source": shift_dict.get("source", ""),
             },
             "time_window": context.time_window,
             "data_snapshot_at": context.data_snapshot_at,
@@ -171,7 +174,7 @@ class HandoverGenerationService:
     ) -> HandoverDocument:
         """Construct a HandoverDocument from parsed LLM output."""
         now = datetime.now(API_TZ).isoformat()
-        patient_id = str(context.patient.get("admission_no") or context.patient.get("name", ""))
+        patient_id = context.patient_id
 
         sections_data = parsed.get("sections", {})
         try:
@@ -208,7 +211,7 @@ class HandoverGenerationService:
         """Return a minimal empty draft when LLM is unavailable."""
         return {
             "handover_type": handover_type,
-            "patient_id": context.patient.get("admission_no", ""),
+            "patient_id": context.patient_id,
             "time_window": context.time_window,
             "data_snapshot_at": context.data_snapshot_at,
             "sections": {},
@@ -326,11 +329,7 @@ class HandoverGenerationService:
                 "alerts": context.alerts,
             },
             "previous": previous_result.get("clinical", {}) if previous_result else {},
-            "thresholds": {
-                "尿量_ml_kg_h_low": 0.5,
-                "泵速变化_pct": 30,
-                "生命体征各项上下限": "参考标准范围",
-            },
+            "thresholds": self.config.get("handover", {}).get("change_detection", {}).get("thresholds", {}),
         }
 
         system_prompt = _load_prompt("change_detection")
@@ -350,11 +349,26 @@ class HandoverGenerationService:
                 response_format={"type": "json_object"},
             )
             raw_text = str(result.get("text") or "")
-            return self._parse_json(raw_text)
+            parsed = self._parse_json(raw_text)
+            return {
+                "patient_id": patient_id,
+                "current_shift": current_shift_meta,
+                "previous_shift": previous_shift_meta,
+                "previous_handover": previous_result,
+                "time_window": time_window,
+                "data_snapshot_at": context.data_snapshot_at,
+                "changes": parsed.get("changes", []),
+                "not_comparable": parsed.get("not_comparable", []),
+                "needs_human": parsed.get("needs_human", []),
+                "missing_data": parsed.get("missing_data", []),
+            }
         except Exception as exc:
             logger.error("Change detection LLM call failed for %s: %s", patient_id, exc)
             return {
                 "patient_id": patient_id,
+                "current_shift": current_shift_meta,
+                "previous_shift": previous_shift_meta,
+                "previous_handover": previous_result,
                 "time_window": time_window,
                 "data_snapshot_at": context.data_snapshot_at,
                 "changes": [],

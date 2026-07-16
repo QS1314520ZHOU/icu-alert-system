@@ -90,6 +90,7 @@ class HandoverContextService:
         bedside_pids = list(dict.fromkeys([p_oid, *p_ids]))
 
         return HandoverContext(
+            patient_id=patient_id,
             patient=self._extract_patient_info(p),
             time_window={"start": time_window_start.isoformat(), "end": time_window_end.isoformat()},
             shift=shift or {},
@@ -238,6 +239,7 @@ class HandoverContextService:
                     .sort("time", 1)
                     .to_list(length=500)
                 )
+                source_collection = "deviceCap"
                 if not rows:
                     rows = (
                         await self.db.col("bedside")
@@ -245,13 +247,18 @@ class HandoverContextService:
                         .sort("time", 1)
                         .to_list(length=500)
                     )
+                    source_collection = "bedside"
                 values = [_safe_float(_row_value(r)) for r in rows if _row_value(r) is not None]
                 if values:
+                    last_row = rows[-1]
                     results.append({
                         "label": label,
                         "min": min(values),
                         "max": max(values),
                         "latest": values[-1],
+                        "latest_time": _safe_text(last_row.get("time")),
+                        "unit": _safe_text(last_row.get("unit")),
+                        "source": source_collection,
                         "count": len(values),
                     })
         except Exception as exc:
@@ -335,6 +342,7 @@ class HandoverContextService:
                 .sort("record_time", -1)
                 .to_list(length=200)
             )
+            source_collection = "medication_given"
             if not rows:
                 rows = (
                     await self.db.col("infusion")
@@ -342,6 +350,7 @@ class HandoverContextService:
                     .sort("time", -1)
                     .to_list(length=200)
                 )
+                source_collection = "infusion"
             seen: set[str] = set()
             for r in rows:
                 name = _safe_text(r.get("drug_name") or r.get("name") or r.get("medication"))
@@ -350,7 +359,16 @@ class HandoverContextService:
                 seen.add(name)
                 dose = _safe_text(r.get("dose") or r.get("dosage"))
                 rate = _safe_text(r.get("rate") or r.get("infusion_rate") or r.get("speed"))
-                results.append({"name": name, "dose": dose, "rate": rate})
+                results.append({
+                    "name": name,
+                    "dose": dose,
+                    "dose_unit": _safe_text(r.get("dose_unit")),
+                    "rate": rate,
+                    "rate_unit": _safe_text(r.get("rate_unit") or r.get("unit")),
+                    "route": _safe_text(r.get("route")),
+                    "record_time": _safe_text(r.get("record_time") or r.get("time")),
+                    "source": source_collection,
+                })
         except Exception as exc:
             logger.warning("handover context: pumps query failed: %s", exc)
         return results

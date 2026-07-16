@@ -223,6 +223,7 @@ class RejectRequest(BaseModel):
 # ── Context Model (input to LLM) ──────────────────────────────────────
 
 class HandoverContext(BaseModel):
+    patient_id: str = ""
     patient: dict[str, Any] = Field(default_factory=dict)
     time_window: dict[str, str] = Field(default_factory=dict)
     shift: dict[str, Any] = Field(default_factory=dict)

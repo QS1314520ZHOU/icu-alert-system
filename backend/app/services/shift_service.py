@@ -150,8 +150,8 @@ class ShiftService:
                     return ShiftInfo(code=row["code"], name=row["name"], start_time=row["start_time"], end_time=row["end_time"], start=start, end=end)
         return None
 
-    async def resolve_shift(self, shift_code: str | None = "auto") -> ShiftInfo | None:
+    async def resolve_shift(self, shift_code: str | None = "auto", now: datetime | None = None) -> ShiftInfo | None:
         code = _text(shift_code or "auto")
         if not code or code == "auto":
-            return await self.get_current_shift()
-        return await self.get_shift_window(code)
+            return await self.get_current_shift(now=now)
+        return await self.get_shift_window(code, now=now)

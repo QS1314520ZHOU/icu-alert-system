@@ -55,27 +55,64 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
     gen_svc = HandoverGenerationService(db, cfg)
     shift_svc = ShiftService(db)
 
-    # Resolve shift time window
+    # ── Resolve shift time window (must come from DB, no fallback) ──
     shift = None
     time_start: datetime
     time_end: datetime
     try:
         resolved = await shift_svc.resolve_shift(req.shift_code or "auto")
-        if resolved:
-            time_start = resolved.start.replace(tzinfo=None)
-            time_end = resolved.end.replace(tzinfo=None)
-            shift = resolved.to_dict()
-        else:
-            # Fallback: last 8 hours
-            now_dt = datetime.now()
-            time_end = now_dt
-            time_start = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-            shift = {"code": "auto", "name": "自动", "start_time": time_start.strftime("%H:%M"), "end_time": time_end.strftime("%H:%M")}
-    except Exception:
-        now_dt = datetime.now()
-        time_end = now_dt
-        time_start = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-        shift = {"code": "auto", "name": "自动"}
+    except Exception as exc:
+        logger.exception("Failed to resolve shift for patient %s", req.patient_id)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "SHIFT_QUERY_FAILED",
+                "message": "查询数据库班次配置失败",
+            },
+        ) from exc
+
+    if not resolved:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "SHIFT_NOT_CONFIGURED",
+                "message": "当前时间未匹配到数据库班次配置",
+                "source": "initSystemConfig.banCiInfoList",
+            },
+        )
+
+    now = datetime.now(API_TZ)
+
+    scheduled_start = resolved.start
+    scheduled_end = resolved.end
+
+    if now < scheduled_start:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "SHIFT_NOT_STARTED",
+                "message": f'班次"{resolved.name}"尚未开始',
+            },
+        )
+
+    data_start = scheduled_start
+    data_end = min(now, scheduled_end)
+
+    shift = {
+        "code": resolved.code,
+        "name": resolved.name,
+        "start_time": resolved.start_time,
+        "end_time": resolved.end_time,
+        "scheduled_start": scheduled_start.isoformat(),
+        "scheduled_end": scheduled_end.isoformat(),
+        "data_start": data_start.isoformat(),
+        "data_end": data_end.isoformat(),
+        "source": resolved.source,
+    }
+
+    # DB uses naive datetime — strip tzinfo for query boundaries
+    time_start = data_start.astimezone(API_TZ).replace(tzinfo=None)
+    time_end = data_end.astimezone(API_TZ).replace(tzinfo=None)
 
     # Build context (query DB first — 先查后写)
     try:
@@ -84,25 +121,21 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
         logger.exception("Failed to build handover context for patient %s", req.patient_id)
         raise HTTPException(status_code=500, detail=f"数据查询失败: {exc}")
 
-    # Run change detection BEFORE generation to get shift_changes and previous_handover
+    # ── Run change detection BEFORE generation ──
+    # detect_changes() internally queries previous shift data and returns it —
+    # no need to call _get_previous_shift_data() separately.
     time_window = {"start": time_start.isoformat(), "end": time_end.isoformat()}
     changes_result: dict[str, Any] = {}
     previous_handover: dict[str, Any] = {}
     try:
         changes_result = await gen_svc.detect_changes(req.patient_id, time_window, shift)
-        # Populate shift_changes from change detection for the LLM
+        # Populate shift_changes + previous_handover from change detection result
         context.shift_changes = changes_result.get("changes", [])
+        previous_handover = changes_result.get("previous_handover", {})
+        if previous_handover:
+            context.previous_handover = previous_handover
     except Exception as exc:
         logger.warning("Change detection failed for patient %s: %s", req.patient_id, exc)
-
-    # Fetch previous handover snapshot for context
-    try:
-        prev_data = await gen_svc._get_previous_shift_data(req.patient_id, time_window)
-        if prev_data:
-            previous_handover = prev_data
-            context.previous_handover = prev_data
-    except Exception as exc:
-        logger.warning("Previous handover fetch failed for patient %s: %s", req.patient_id, exc)
 
     # Generate AI draft (now with shift_changes + previous_handover in context)
     try:
