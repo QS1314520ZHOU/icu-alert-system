@@ -239,3 +239,5 @@ class HandoverContext(BaseModel):
     events: list[dict[str, Any]] = Field(default_factory=list)
     pending_orders: list[dict[str, Any]] = Field(default_factory=list)
     alerts: list[dict[str, Any]] = Field(default_factory=list)
+    shift_changes: list[dict[str, Any]] = Field(default_factory=list)
+    previous_handover: dict[str, Any] = Field(default_factory=dict)

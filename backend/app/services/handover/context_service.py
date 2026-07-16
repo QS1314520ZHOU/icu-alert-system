@@ -67,6 +67,8 @@ class HandoverContextService:
         time_window_start: datetime,
         time_window_end: datetime,
         shift: dict[str, Any] | None = None,
+        shift_changes: list[dict[str, Any]] | None = None,
+        previous_handover: dict[str, Any] | None = None,
     ) -> HandoverContext:
         """Aggregate all patient data for the given shift window.
 
@@ -75,6 +77,8 @@ class HandoverContextService:
             time_window_start: shift start (naive or aware datetime)
             time_window_end: shift end
             shift: optional shift metadata dict {code, name, start_time, end_time}
+            shift_changes: optional pre-computed change detection results
+            previous_handover: optional previous handover snapshot for context
         """
         p = await self._get_patient(patient_id)
         p_ids = patient_his_pid_candidates(p)
@@ -102,6 +106,8 @@ class HandoverContextService:
             events=await self._build_events(p_oid, time_window_start, time_window_end),
             pending_orders=await self._build_pending_orders(p_oid, time_window_start, time_window_end),
             alerts=await self._build_alerts(p_oid, time_window_start, time_window_end),
+            shift_changes=shift_changes or [],
+            previous_handover=previous_handover or {},
         )
 
     # ── patient ────────────────────────────────────────────────────

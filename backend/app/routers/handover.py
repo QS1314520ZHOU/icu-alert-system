@@ -84,7 +84,27 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
         logger.exception("Failed to build handover context for patient %s", req.patient_id)
         raise HTTPException(status_code=500, detail=f"数据查询失败: {exc}")
 
-    # Generate AI draft
+    # Run change detection BEFORE generation to get shift_changes and previous_handover
+    time_window = {"start": time_start.isoformat(), "end": time_end.isoformat()}
+    changes_result: dict[str, Any] = {}
+    previous_handover: dict[str, Any] = {}
+    try:
+        changes_result = await gen_svc.detect_changes(req.patient_id, time_window, shift)
+        # Populate shift_changes from change detection for the LLM
+        context.shift_changes = changes_result.get("changes", [])
+    except Exception as exc:
+        logger.warning("Change detection failed for patient %s: %s", req.patient_id, exc)
+
+    # Fetch previous handover snapshot for context
+    try:
+        prev_data = await gen_svc._get_previous_shift_data(req.patient_id, time_window)
+        if prev_data:
+            previous_handover = prev_data
+            context.previous_handover = prev_data
+    except Exception as exc:
+        logger.warning("Previous handover fetch failed for patient %s: %s", req.patient_id, exc)
+
+    # Generate AI draft (now with shift_changes + previous_handover in context)
     try:
         doc = await gen_svc.generate(context, req.handover_type)
     except Exception as exc:
@@ -100,19 +120,13 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
         logger.exception("Failed to save handover document")
         raise HTTPException(status_code=500, detail=f"保存失败: {exc}")
 
-    # Run change detection after draft generation (non-blocking)
-    try:
-        changes_result = await gen_svc.detect_changes(
-            req.patient_id,
-            {"start": time_start.isoformat(), "end": time_end.isoformat()},
-        )
+    # Attach change detection results to the stored document
+    if changes_result:
         doc_dict["changes"] = changes_result
         await db.col(COLLECTION).update_one(
             {"handover_id": doc.handover_id},
             {"$set": {"changes": changes_result}},
         )
-    except Exception as exc:
-        logger.warning("Change detection failed for patient %s: %s", req.patient_id, exc)
 
     return {"code": 0, "handover": serialize_doc(doc_dict)}
 
@@ -134,6 +148,7 @@ async def get_handover(handover_id: str, db: DbDep, cfg: ConfigDep,
             changes_result = await gen_svc.detect_changes(
                 doc["patient_id"],
                 doc["time_window"],
+                doc.get("shift"),
             )
             await db.col(COLLECTION).update_one(
                 {"handover_id": handover_id},

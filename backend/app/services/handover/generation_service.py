@@ -79,11 +79,42 @@ class HandoverGenerationService:
             HandoverDocument with AI-generated sections in draft status.
         """
         system_prompt = _load_prompt(handover_type)
-        context_json = context.model_dump_json(exclude_none=False)
+
+        # Build input_data dict matching the prompt's expected structure.
+        # Map shift keys: prompt uses scheduled_start/scheduled_end for plan times,
+        # time_window for actual data query range.
+        shift_dict = context.shift or {}
+        input_data: dict[str, Any] = {
+            "patient_id": str(context.patient.get("admission_no") or context.patient.get("name", "")),
+            "shift": {
+                "code": shift_dict.get("code", ""),
+                "name": shift_dict.get("name", ""),
+                "scheduled_start": shift_dict.get("start_time", shift_dict.get("scheduled_start", "")),
+                "scheduled_end": shift_dict.get("end_time", shift_dict.get("scheduled_end", "")),
+            },
+            "time_window": context.time_window,
+            "data_snapshot_at": context.data_snapshot_at,
+            "patient": context.patient,
+            "situation": context.situation,
+            "background": context.background,
+            "vitals": context.vitals,
+            "labs": context.labs,
+            "io": context.io,
+            "pumps": context.pumps,
+            "airway_vent": context.airway_vent,
+            "lines": context.lines,
+            "assessments": context.assessments,
+            "events": context.events,
+            "pending_orders": context.pending_orders,
+            "alerts": context.alerts,
+            "shift_changes": context.shift_changes,
+            "previous_handover": context.previous_handover,
+        }
+        input_json = json.dumps(input_data, ensure_ascii=False, default=str)
 
         user_prompt = (
             f"请基于以下数据生成{handover_type}交班草稿。\n"
-            f"<input_data>\n{context_json}\n</input_data>"
+            f"<input_data>\n{input_json}\n</input_data>"
         )
 
         # Call LLM Runtime
@@ -193,7 +224,13 @@ class HandoverGenerationService:
     async def _get_previous_shift_data(
         self, patient_id: str, current_window: dict[str, str]
     ) -> dict[str, Any]:
-        """Retrieve the most recent prior handover snapshot for change comparison."""
+        """Retrieve the most recent prior handover snapshot for change comparison.
+
+        Returns a dict with:
+          - "shift": {code, name, data_start, data_end} for the previous shift
+          - "clinical": {vitals, labs, io, pumps, ...} for comparison
+          - "handover_snapshot_at": ISO timestamp of the previous snapshot
+        """
         try:
             prev_doc = await self.db.col("handover_documents").find_one(
                 {
@@ -210,19 +247,38 @@ class HandoverGenerationService:
                 pw = prev_doc["time_window"]
                 prev_start = datetime.fromisoformat(pw["start"])
                 prev_end = datetime.fromisoformat(pw["end"])
-                prev_context = await context_svc.build(patient_id, prev_start, prev_end)
+                prev_shift = prev_doc.get("shift", {})
+                prev_context = await context_svc.build(
+                    patient_id, prev_start, prev_end,
+                    shift=prev_shift,
+                )
                 return {
+                    "shift": {
+                        "code": prev_shift.get("code", ""),
+                        "name": prev_shift.get("name", ""),
+                        "data_start": pw.get("start", ""),
+                        "data_end": pw.get("end", ""),
+                    },
+                    "clinical": {
+                        "vitals": prev_context.vitals,
+                        "labs": prev_context.labs,
+                        "io": prev_context.io,
+                        "pumps": prev_context.pumps,
+                        "airway_vent": prev_context.airway_vent,
+                        "lines": prev_context.lines,
+                        "assessments": prev_context.assessments,
+                        "events": prev_context.events,
+                        "pending_orders": prev_context.pending_orders,
+                        "alerts": prev_context.alerts,
+                    },
                     "handover_snapshot_at": prev_doc.get("data_snapshot_at", ""),
-                    "vitals": prev_context.vitals,
-                    "io": prev_context.io,
-                    "pumps": prev_context.pumps,
                 }
         except Exception as exc:
             logger.warning("Failed to retrieve previous shift data for %s: %s", patient_id, exc)
         return {}
 
     async def detect_changes(
-        self, patient_id: str, time_window: dict[str, str]
+        self, patient_id: str, time_window: dict[str, str], shift: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Detect meaningful changes between current and previous shift data.
 
@@ -238,21 +294,38 @@ class HandoverGenerationService:
         time_end = datetime.fromisoformat(time_window["end"])
 
         # Build current context (query DB first)
-        context = await context_svc.build(patient_id, time_start, time_end)
+        context = await context_svc.build(patient_id, time_start, time_end, shift=shift)
 
         # Build previous shift data for comparison
-        previous = await self._get_previous_shift_data(patient_id, time_window)
+        previous_result = await self._get_previous_shift_data(patient_id, time_window)
 
-        input_data = {
+        # Build input_data matching handover_change_detection.md spec
+        current_shift_meta = {
+            "code": (shift or {}).get("code", ""),
+            "name": (shift or {}).get("name", ""),
+            "data_start": time_window.get("start", ""),
+            "data_end": time_window.get("end", ""),
+        }
+        previous_shift_meta = previous_result.get("shift", {}) if previous_result else {}
+
+        input_data: dict[str, Any] = {
             "patient_id": patient_id,
-            "time_window": time_window,
+            "current_shift": current_shift_meta,
+            "previous_shift": previous_shift_meta,
             "data_snapshot_at": context.data_snapshot_at,
-            "this_shift": {
+            "current": {
                 "vitals": context.vitals,
+                "labs": context.labs,
                 "io": context.io,
                 "pumps": context.pumps,
+                "airway_vent": context.airway_vent,
+                "lines": context.lines,
+                "assessments": context.assessments,
+                "events": context.events,
+                "pending_orders": context.pending_orders,
+                "alerts": context.alerts,
             },
-            "previous": previous,
+            "previous": previous_result.get("clinical", {}) if previous_result else {},
             "thresholds": {
                 "尿量_ml_kg_h_low": 0.5,
                 "泵速变化_pct": 30,
@@ -420,9 +493,10 @@ class HandoverGenerationService:
         )
 
         # Get previous shift data for cross-shift conflict detection
-        previous = await self._get_previous_shift_data(
+        previous_result = await self._get_previous_shift_data(
             handover.patient_id, handover.time_window
         )
+        previous = previous_result.get("clinical", previous_result) if previous_result else {}
 
         input_data = {
             "patient_id": handover.patient_id,
