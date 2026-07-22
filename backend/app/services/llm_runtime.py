@@ -12,6 +12,71 @@ import httpx
 
 logger = logging.getLogger("icu-alert")
 
+# Tier keywords that must never be sent as model names to LLM APIs.
+_TIER_KEYWORDS: frozenset[str] = frozenset({"fast", "quick", "summary", "handoff", "medical", "clinical", "risk", "reasoning", "推理", "long", "long_context", "context"})
+
+
+def _first_non_empty(*values: Any) -> str:
+    """Return the first non-empty string from the given values, stripped."""
+    for v in values:
+        s = str(v or "").strip()
+        if s:
+            return s
+    return ""
+
+
+def _redact_url_for_log(url: str) -> str:
+    """Strip query-string API keys and tokens from a URL before logging."""
+    import re as _re
+    return _re.sub(r"[?&](api_key|token|key|secret|api-key)=[^&]*", r"?\1=***REDACTED***", url)
+
+
+_SENSITIVE_PATTERNS: list[tuple[str, str]] = [
+    # JSON / key=value style api_key
+    (r'(api[_-]?key["\x27\s]*[=:]["\x27\s]*)([^\s"\'&,}]+)', r'\1***REDACTED***'),
+    (r'(apikey[\s"\'=:]+)([^\s"\'&,}]+)', r'\1***REDACTED***'),
+    # token / access_token
+    (r'(access_?token["\x27\s]*[=:]["\x27\s]*)([^\s"\'&,}]+)', r'\1***REDACTED***'),
+    (r'(token\s*[=:]\s*["\x27]?)([^\s"\'&,}]{8,})', r'\1***REDACTED***'),
+    # secret / password
+    (r'(secret["\x27\s]*[=:]["\x27\s]*)([^\s"\'&,}]+)', r'\1***REDACTED***'),
+    (r'(password["\x27\s]*[=:]["\x27\s]*)([^\s"\'&,}]+)', r'\1***REDACTED***'),
+    # Bearer tokens in headers
+    (r'(Bearer\s+)([A-Za-z0-9_\-.]{8,})', r'\1***REDACTED***'),
+    (r'(Authorization\s*[=:]\s*["\x27]?\s*Bearer\s+)([A-Za-z0-9_\-.]{8,})', r'\1***REDACTED***'),
+]
+
+
+def _redact_sensitive(text: str) -> str:
+    """Redact API keys, tokens, secrets, passwords, and Bearer tokens from diagnostic text.
+
+    Designed to be conservative — only removes clearly sensitive patterns while
+    preserving clinical text content.  Returns the redacted string.
+    """
+    import re as _re
+    result = text
+    for pattern, replacement in _SENSITIVE_PATTERNS:
+        result = _re.sub(pattern, replacement, result, flags=_re.IGNORECASE)
+    return result
+
+
+def _safe_priority(provider: dict[str, Any]) -> int:
+    """Parse a provider's priority field into a stable integer.
+
+    - Valid int (including 0 and negative) → used as-is.
+    - None / missing / non-numeric → defaults to 50.
+    - Sorting is STABLE (Python's ``sorted``), so providers with equal priority
+      retain their original order within the ``selected + fallback`` list —
+      selected items always appear before same-priority fallback items.
+    """
+    raw = provider.get("priority")
+    if raw is None:
+        return 50
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return 50
+
 
 class LLMRuntimeUnavailableError(RuntimeError):
     pass
@@ -184,45 +249,144 @@ async def _llm_runtime_cfg(cfg) -> tuple[int, int]:
 
 def _purpose_from_requested_model(requested_model: str | None) -> str:
     text = str(requested_model or "").strip().lower()
-    if text in {"fast", "quick", "summary", "handoff"}:
-        return "fast"
-    if text in {"medical", "clinical", "risk"}:
-        return "medical"
-    if text in {"reasoning", "推理"}:
-        return "reasoning"
-    if text in {"long", "long_context", "context"}:
-        return "long_context"
+    if text in _TIER_KEYWORDS:
+        if text in {"fast", "quick", "summary", "handoff"}:
+            return "fast"
+        if text in {"medical", "clinical", "risk"}:
+            return "medical"
+        if text in {"reasoning", "推理"}:
+            return "reasoning"
+        if text in {"long", "long_context", "context"}:
+            return "long_context"
     return ""
 
 
 def _provider_candidates(runtime_ai: dict[str, Any], requested_model: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    providers = [p for p in runtime_ai.get("providers") or [] if isinstance(p, dict) and p.get("enabled", True)]
-    if not providers:
+    """Resolve candidates from Runtime Config Center providers.
+
+    Rules:
+    - Explicit model name (not a tier keyword) → match provider by model/id; if no match, fall through to env vars.
+    - Tier keyword (fast/medical/reasoning/long_context) → use routes or purpose; if no match, fall through to env vars.
+    - No model requested → use default routing (purpose="fast"); if no match, fall through to env vars.
+    - Disabled providers and providers with empty model are filtered out.
+    - Routes pointing to non-existent or disabled providers safely fall through to env vars.
+    """
+    # Filter: enabled + non-empty model
+    all_providers: list[dict[str, Any]] = []
+    for p in runtime_ai.get("providers") or []:
+        if not isinstance(p, dict):
+            continue
+        if p.get("enabled") is False:
+            continue
+        if not str(p.get("model") or "").strip():
+            continue
+        all_providers.append(p)
+
+    if not all_providers:
         return [], {}
+
     requested = str(requested_model or "").strip()
     purpose = _purpose_from_requested_model(requested)
     routes = runtime_ai.get("routes") if isinstance(runtime_ai.get("routes"), dict) else {}
-    routed_provider_id = str(routes.get(purpose) or "").strip() if purpose else ""
-    if routed_provider_id:
-        selected = [p for p in providers if str(p.get("id") or "") == routed_provider_id]
-    elif purpose:
-        selected = [p for p in providers if str(p.get("purpose") or "").strip().lower() == purpose]
+
+    selected: list[dict[str, Any]] = []
+    fallback: list[dict[str, Any]] = []
+
+    if purpose:
+        # ── Tier keyword (fast/medical/reasoning/long_context) ──
+        # Route by purpose has highest priority
+        routed_id = str(routes.get(purpose) or "").strip()
+        if routed_id:
+            selected = [p for p in all_providers if str(p.get("id") or "") == routed_id]
+            if not selected:
+                # Route points to non-existent or disabled provider → fall through
+                logger.warning(
+                    "Runtime Config route '%s' → provider '%s' not found among enabled providers; "
+                    "falling through to env-based config",
+                    purpose, routed_id,
+                )
+                return [], {}
+        else:
+            # No explicit route → match by purpose tag
+            selected = [p for p in all_providers if str(p.get("purpose") or "").strip().lower() == purpose]
+
+        if not selected:
+            # No matching provider for this tier → fall through to env vars
+            return [], {}
+
+        # Collect fallback provider
+        fallback_id = str(routes.get("fallback") or "").strip()
+        if fallback_id:
+            fb = [p for p in all_providers if str(p.get("id") or "") == fallback_id]
+            if fb:
+                fallback = fb
+            else:
+                logger.warning(
+                    "Runtime Config fallback route → provider '%s' not found; skipping fallback",
+                    fallback_id,
+                )
+
     elif requested:
-        selected = [p for p in providers if str(p.get("model") or "").strip() == requested or str(p.get("id") or "").strip() == requested]
+        # ── Explicit model name (not a tier keyword) ──
+        # Try to find a matching provider for the explicit model
+        selected = [p for p in all_providers if str(p.get("model") or "").strip() == requested or str(p.get("id") or "").strip() == requested]
+        if not selected:
+            # No provider matches → fall through to env vars, where the explicit model
+            # will be used with env-var base_url/api_key
+            return [], {}
+
     else:
-        selected = [p for p in providers if str(p.get("purpose") or "").strip().lower() == "fast"]
-    fallback_id = str(routes.get("fallback") or "").strip()
-    fallback = [p for p in providers if str(p.get("id") or "") == fallback_id] if fallback_id else []
+        # ── No model requested → use default routing (purpose="fast" or routes.fast) ──
+        # 1. Check routes.fast
+        routed_id = str(routes.get("fast") or "").strip()
+        if routed_id:
+            selected = [p for p in all_providers if str(p.get("id") or "") == routed_id]
+            if not selected:
+                logger.warning(
+                    "Runtime Config route 'fast' → provider '%s' not found; falling through to env-based config",
+                    routed_id,
+                )
+                return [], {}
+        else:
+            # 2. Fall back to purpose="fast"
+            selected = [p for p in all_providers if str(p.get("purpose") or "").strip().lower() == "fast"]
+
+        if not selected:
+            # 3. No fast provider → fall through to env vars (LLM_FAST_MODEL → LLM_MODEL → LLM_FALLBACK_MODEL)
+            # DO NOT silently use all providers — that would unpredictably route to medical/reasoning providers
+            return [], {}
+
+        # Only include fallback provider when routes.fallback is explicitly configured
+        fallback_id = str(routes.get("fallback") or "").strip()
+        if fallback_id:
+            fb = [p for p in all_providers if str(p.get("id") or "") == fallback_id]
+            if fb:
+                fallback = fb
+            else:
+                logger.warning(
+                    "Runtime Config fallback route → provider '%s' not found; skipping fallback",
+                    fallback_id,
+                )
+
+    # Merge: selected group first, then fallback group.
+    # Each group is internally sorted by priority (stable sort).
+    # Fallback providers are NEVER allowed to precede selected providers,
+    # regardless of their priority values.
+    # Dedup: if the same provider appears in both groups, the selected copy is kept.
     merged: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for item in sorted(selected + fallback + providers, key=lambda row: int(row.get("priority") or 50)):
-        key = str(item.get("id") or item.get("model") or item.get("base_url") or "")
+    for item in sorted(selected, key=_safe_priority) + sorted(fallback, key=_safe_priority):
+        key = str(item.get("id") or item.get("model") or "")
         if key and key not in seen:
             seen.add(key)
             merged.append(item)
+
+    if not merged:
+        return [], {}
+
     meta = {
-        "primary_model": str(merged[0].get("model") or "") if merged else "",
-        "fallback_model": str(fallback[0].get("model") or "") if fallback else "",
+        "primary_model": str(merged[0].get("model") or ""),
+        "fallback_model": str(merged[1].get("model") or "") if len(merged) > 1 else "",
         "provider_pool": True,
         "purpose": purpose or "model",
     }
@@ -230,46 +394,82 @@ def _provider_candidates(runtime_ai: dict[str, Any], requested_model: str | None
 
 
 async def resolve_model_candidates(cfg, requested_model: str | None = None) -> tuple[list[Any], bool, dict[str, Any]]:
+    """Resolve model candidates with unified priority:
+
+    1. Runtime Config Center providers/routes
+    2. Explicit requested model (if it is a real model name, not a tier keyword)
+    3. Tier-appropriate model (reasoning → LLM_REASONING_MODEL, medical → LLM_MODEL_MEDICAL, fast → LLM_MODEL)
+    4. LLM_FALLBACK_MODEL
+    5. Clear error if nothing is configured
+    """
     runtime_ai = await _runtime_ai_config()
     provider_rows, provider_meta = _provider_candidates(runtime_ai, requested_model)
     if provider_rows:
         return provider_rows, len(provider_rows) > 1, provider_meta
 
     # Resolve tier keywords ("medical"/"fast"/"reasoning"/"long_context") → real model names.
-    # Without this, the keyword literal gets sent to DeepSeek as a model name → 400.
+    # Without this, the keyword literal gets sent to the LLM API as a model name → 400.
     purpose = _purpose_from_requested_model(requested_model)
-    resolved_requested = requested_model
-    if purpose:
-        tier_map: dict[str, Any] = {
-            "fast": cfg.llm_fast_model,
-            "medical": cfg.llm_model_medical or cfg.llm_fast_model,
-            "reasoning": cfg.llm_reasoning_model or cfg.llm_model_medical or cfg.llm_fast_model,
-            "long_context": cfg.llm_model_medical or cfg.llm_fast_model,
-        }
-        resolved = str(tier_map.get(purpose) or "").strip()
-        resolved_requested = resolved or None  # None → falls through to fast_model below
 
-    primary = str(resolved_requested or runtime_ai.get("fast_model") or cfg.llm_fast_model or cfg.settings.LLM_MODEL or "").strip()
-    explicit_fallback = str(runtime_ai.get("fallback_model") or cfg.llm_fallback_model or "").strip()
-    if explicit_fallback:
-        fallback = explicit_fallback
+    if purpose:
+        # ── Tier keyword: walk the tier-specific fallback chain ──
+        tier_chains: dict[str, list[Any]] = {
+            "reasoning": [
+                cfg.llm_reasoning_model,
+                cfg.llm_model_medical,
+                cfg.settings.LLM_MODEL,
+                cfg.llm_fallback_model,
+            ],
+            "medical": [
+                cfg.llm_model_medical,
+                cfg.llm_fast_model,
+                cfg.settings.LLM_MODEL,
+                cfg.llm_fallback_model,
+            ],
+            "fast": [
+                cfg.llm_fast_model,
+                cfg.llm_model_medical,
+                cfg.settings.LLM_MODEL,
+                cfg.llm_fallback_model,
+            ],
+            "long_context": [
+                cfg.llm_model_medical,
+                cfg.settings.LLM_MODEL,
+                cfg.llm_fallback_model,
+            ],
+        }
+        chain = tier_chains.get(purpose, [])
     else:
-        default_main = str(cfg.settings.LLM_MODEL or "").strip()
-        fallback = default_main if (requested_model and default_main and default_main != primary) else ""
+        # ── Explicit model name or no model: explicit → global chain ──
+        chain = [
+            requested_model,                    # explicit model (or None if not provided)
+            runtime_ai.get("fast_model"),
+            cfg.llm_fast_model,
+            cfg.settings.LLM_MODEL,
+            cfg.llm_model_medical,
+            cfg.llm_fallback_model,
+        ]
+
+    # Build deduplicated candidate list from the chain (strip, filter empty, dedup, preserve order)
     seen: set[str] = set()
     normal_candidates: list[str] = []
-    for item in (primary, fallback):
+    primary = ""
+    for item in chain:
+        item = str(item or "").strip()
         if item and item not in seen:
             seen.add(item)
             normal_candidates.append(item)
-    degraded_candidates: list[str] = []
-    if fallback:
-        degraded_candidates.append(fallback)
-    elif primary:
-        degraded_candidates.append(primary)
-    degraded_candidates = [m for i, m in enumerate(degraded_candidates) if m and m not in degraded_candidates[:i]]
-    degraded = bool(fallback and primary and fallback != primary)
-    return normal_candidates, degraded, {"primary_model": primary, "fallback_model": fallback}
+            if not primary:
+                primary = item
+
+    fallback = normal_candidates[1] if len(normal_candidates) > 1 else ""
+    degraded = len(normal_candidates) > 1
+    return normal_candidates, degraded, {
+        "primary_model": primary,
+        "fallback_model": fallback,
+        "provider_pool": False,
+        "purpose": purpose or "",
+    }
 
 
 def _should_trip_breaker(exc: Exception) -> bool:
@@ -364,7 +564,10 @@ async def call_llm_chat(
 
     candidates = [c for c in candidates if c]
     if not candidates:
-        raise LLMRuntimeUnavailableError("LLM runtime has no available model candidates")
+        raise LLMRuntimeUnavailableError(
+            "未配置可用的 LLM 模型，请通过环境变量（LLM_MODEL / LLM_MODEL_MEDICAL / LLM_REASONING_MODEL / LLM_FALLBACK_MODEL）"
+            "或 Runtime Config Center 配置至少一个模型"
+        )
 
     last_exc: Exception | None = None
     used_model = ""
@@ -395,13 +598,22 @@ async def call_llm_chat(
         }
 
     async def _send(req_client: httpx.AsyncClient, parts: dict[str, Any]) -> dict[str, Any]:
+        model_name = str(parts.get("model") or "").strip()
+        if not model_name:
+            raise LLMRuntimeUnavailableError(
+                "未配置可用的 LLM 模型，请通过环境变量或 Runtime Config Center 配置"
+            )
+        if model_name.lower() in _TIER_KEYWORDS:
+            raise LLMRuntimeUnavailableError(
+                f"模型名 '{model_name}' 是路由关键字而非真实模型名，请检查 LLM 配置"
+            )
         llm_url = parts["base_url"] + "/chat/completions"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {parts['api_key']}",
         }
         payload = {
-            "model": parts["model"],
+            "model": model_name,
             "temperature": parts["temperature"],
             "max_tokens": parts["max_tokens"],
             "messages": [
@@ -416,14 +628,18 @@ async def call_llm_chat(
             resp = await req_client.post(llm_url, json=payload, headers=headers)
             if resp.status_code != 429 or attempt == max_retries:
                 if resp.status_code >= 400:
-                    # Log the response body so 400/401/403 errors are diagnosable
+                    # Log the response body so 400/401/403 errors are diagnosable.
+                    # URL and body are redacted to prevent credential leakage.
                     try:
                         body_preview = resp.text[:500]
                     except Exception:
                         body_preview = "<unreadable>"
                     logger.error(
                         "LLM API error: status=%d url=%s model=%s body=%s",
-                        resp.status_code, llm_url, parts.get("model", ""), body_preview,
+                        resp.status_code,
+                        _redact_url_for_log(llm_url),
+                        parts.get("model", ""),
+                        _redact_sensitive(body_preview),
                     )
                 resp.raise_for_status()
                 return resp.json()
@@ -459,6 +675,9 @@ async def call_llm_chat(
                     parts = _candidate_parts(candidate)
                     data = await _send(req_client, parts)
                     used_model = parts["model"]
+                    # degraded_mode: whether this call switched to a fallback model because a
+                    # prior candidate failed.  It describes *actual* failover behaviour, not
+                    # whether the current provider carries a "fallback" label.
                     used_fallback = degraded_mode or (idx > 0) or (used_model == models_meta.get("fallback_model") and has_real_degrade)
                     await _FAILURE_TRACKER.record_success()
                     message = data["choices"][0].get("message") or {}
@@ -507,7 +726,7 @@ async def call_llm_chat(
                         await _FAILURE_TRACKER.record_failure(
                             threshold=threshold,
                             cooldown_seconds=cooldown_seconds,
-                            error=str(e),
+                            error=_redact_sensitive(str(e)),
                         )
                     continue
     finally:
@@ -523,7 +742,7 @@ async def call_llm_chat(
                 "cache_hit": False,
                 "duration_ms": round((time.perf_counter() - call_started) * 1000, 1),
                 "degraded_mode": used_fallback,
-                "error": str(last_exc)[:500],
+                "error": _redact_sensitive(str(last_exc)[:500]),
                 "created_at": datetime.now(),
             }
         )

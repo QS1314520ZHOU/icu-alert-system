@@ -463,7 +463,7 @@ alert_engine:
     scan_interval: 3600
     force_trigger_on_new_critical: true
     lookback_window: 7200
-    llm_model: "qwen2.5:32b"
+    llm_model: ""
     max_tokens: 2000
     rag_top_k: 5
     cooldown: 7200

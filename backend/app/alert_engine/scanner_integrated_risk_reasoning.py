@@ -459,7 +459,7 @@ class IntegratedRiskReasoningScanner(BaseScanner):
                 cfg=self.engine.config,
                 system_prompt=system_prompt,
                 user_prompt=prompt_context,
-                model=str(cfg.get("llm_model") or self.engine.config.llm_fast_model or self.engine.config.settings.LLM_MODEL),
+                model=str(cfg.get("llm_model") or "").strip() or None,
                 temperature=0.1,
                 max_tokens=int(cfg.get("max_tokens", 2000) or 2000),
                 timeout_seconds=float(self.engine._cfg("ai_service", "llm", "timeout", default=60) or 60),

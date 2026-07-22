@@ -27,7 +27,7 @@ services:
       # --- AI / LLM ---
       - LLM_BASE_URL=${LLM_BASE_URL:-https://notion.jylb.fun/v1}
       - LLM_API_KEY=${LLM_API_KEY:-}
-      - LLM_MODEL=${LLM_MODEL:-gpt-5.4}
+      - LLM_MODEL=${LLM_MODEL:-}
       - LLM_MODEL_MEDICAL=${LLM_MODEL_MEDICAL:-}
       - LLM_FALLBACK_MODEL=${LLM_FALLBACK_MODEL:-}
       - LLM_REASONING_MODEL=${LLM_REASONING_MODEL:-}
