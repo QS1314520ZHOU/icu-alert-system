@@ -43,6 +43,11 @@ services:
       - REDIS_HOST=${REDIS_HOST:-icu_alert_redis}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - ICU_MODELS_DIR=${ICU_MODELS_DIR:-/opt/icu-models}
+
+      # --- 嵌入 iframe CSP ---
+      # embed.html 的 Content-Security-Policy frame-ancestors 白名单
+      # 留空则不输出 CSP 头（内网联调默认放行）；多个来源用逗号分隔
+      - SMARTCARE_EMBED_FRAME_ANCESTORS=${SMARTCARE_EMBED_FRAME_ANCESTORS:-}
     volumes:
       - ./backend:/app
       - ./logs:/app/logs

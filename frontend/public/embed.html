@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SmartCare 嵌入容器</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#F3F1EA}
+  #frame{border:0;width:100%;height:100%;display:block}
+  #tip{font:14px/1.6 system-ui;color:#5b6b63;padding:24px}
+</style>
+</head>
+<body>
+<div id="tip">正在与重症系统握手…</div>
+<iframe id="frame" title="SmartCare" style="display:none"
+        allow="fullscreen; autoplay; clipboard-write; microphone"></iframe>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ========== 1. 配置区（现场只改这里） ========== */
+  var CONFIG = {
+    // 允许的宿主来源白名单；留空数组表示不校验（仅联调用）
+    allowedHostOrigins: [
+      'http://192.168.5.154',
+      'http://192.168.5.154:8080'
+    ],
+    hideChrome: true,        // 隐藏 SmartCare 自带顶部导航（嵌入时用宿主菜单）
+    hideFloater: false,      // 是否隐藏 AI 悬浮球
+    injectToken: true,       // 把宿主 token 加到内层请求的 Authorization 头
+    handshakeRetryMs: 400,   // Ready 重发间隔
+    handshakeMaxTry: 20,
+    standaloneAfterMs: 4000  // 超时未收到消息时，无患者也先把页面渲染出来
+  };
+
+  // 页面别名 → 真实路由。page=xxx
+  var PAGE_MAP = {
+    'patients':        { path: '/patients' },
+    'patient':         { path: '/patient/:id', needPatient: true },
+    'bedside':         { path: '/bedside/:id', needPatient: true },
+    'bigscreen':       { path: '/bigscreen' },
+    'clinical':        { path: '/clinical-workflow' },
+    'rounding':        { path: '/rounding-sheet' },
+    'respiratory':     { path: '/respiratory-dashboard' },
+    'nutrition':       { path: '/nutrition-support' },
+    'analytics':       { path: '/analytics' },
+    'ai-consult':      { path: '/ai-consult' },
+    'mdt':             { path: '/mdt' },
+    'handover':        { path: '/handover' },
+    'research':        { path: '/research-workbench' },
+    'academic':        { path: '/academic-research' },
+    'trials':          { path: '/clinical-trials' },
+    'doctor-home':     { path: '/doctor-home' },
+    'nurse-home':      { path: '/nurse-home' },
+    'admin-config':    { path: '/admin/runtime-config' },
+    'scanner-health':  { path: '/admin/scanner-health' },
+    'mobile':          { path: '/m' }
+  };
+
+  // 宿主角色 → SmartCare 角色（守卫用到 doctor/nurse/head_nurse/director）
+  var ROLE_MAP = {
+    '医生': 'doctor', '主治医生': 'doctor', 'doctor': 'doctor',
+    '护士': 'nurse', 'nurse': 'nurse',
+    '护士长': 'head_nurse', 'head_nurse': 'head_nurse', 'charge_nurse': 'head_nurse',
+    '主任': 'director', 'director': 'director'
+  };
+
+  /* ========== 2. 内部状态 ========== */
+  var qs = new URLSearchParams(location.search);
+  var pageKey = qs.get('page') || 'patients';
+  var rawPath = qs.get('path');                    // 也支持直接给路由：?path=/patient/xxx
+  var target = rawPath ? { path: rawPath, needPatient: /:id/.test(rawPath) }
+                       : (PAGE_MAP[pageKey] || PAGE_MAP['patients']);
+
+  var frame = document.getElementById('frame');
+  var tip = document.getElementById('tip');
+  var hostOrigin = guessHostOrigin();
+  var received = false, tries = 0, timer = null;
+  var lastKey = '';           // 去重：账号+患者
+  var identity = {};          // 身份 query
+  var token = '';
+  var patientIdCache = {};    // mrn/hisPid → _id
+
+  /* ========== 3. 握手 ========== */
+  function guessHostOrigin() {
+    try {
+      if (document.referrer) return new URL(document.referrer).origin;
+    } catch (e) {}
+    return '*';
+  }
+
+  function originAllowed(origin) {
+    var list = CONFIG.allowedHostOrigins || [];
+    if (!list.length) return true;                 // 未配置=不校验（联调）
+    for (var i = 0; i < list.length; i++) {
+      if (origin === list[i]) return true;
+    }
+    return false;
+  }
+
+  function sendReady() {
+    if (received || tries >= CONFIG.handshakeMaxTry) { clearInterval(timer); return; }
+    tries++;
+    try { parent.postMessage({ type: 'SmartCareReady' }, hostOrigin); } catch (e) {}
+    if (hostOrigin !== '*') {
+      try { parent.postMessage({ type: 'SmartCareReady' }, '*'); } catch (e) {}
+    }
+  }
+
+  window.addEventListener('message', function (e) {
+    if (!e.data || e.data.type !== 'SmartCare') return;
+    if (!originAllowed(e.origin)) {
+      console.warn('[embed] 忽略非白名单来源的消息:', e.origin);
+      return;
+    }
+    received = true;
+    hostOrigin = e.origin;
+    clearInterval(timer);
+    handlePayload(e.data);
+  });
+
+  timer = setInterval(sendReady, CONFIG.handshakeRetryMs);
+  sendReady();
+
+  // 宿主一直没回：先把不需要患者的页面渲染出来，别白屏
+  setTimeout(function () {
+    if (received) return;
+    if (target.needPatient) {
+      tip.textContent = '未收到宿主系统的患者信息（SmartCare 消息），请检查 iframe 地址与 origin 配置。';
+    } else {
+      navigate(buildUrl(target.path, ''));
+    }
+  }, CONFIG.standaloneAfterMs);
+
+  /* ========== 4. 处理宿主消息 ========== */
+  function handlePayload(data) {
+    var account = data.account || {};
+    var patient = data.patient || {};
+    token = String(data.token || '');             // 只放内存，不落 storage、不打印
+
+    identity = buildIdentity(account, patient);
+    var key = JSON.stringify([identity, patient.mrn, patient.hisPid, patient.showBed]);
+    if (key === lastKey) return;                  // 宿主重复推送，忽略
+    lastKey = key;
+
+    if (!target.needPatient) {
+      navigate(buildUrl(target.path, ''));
+      return;
+    }
+
+    tip.style.display = '';
+    tip.textContent = '正在定位患者：' + (patient.name || '');
+    resolvePatientId(patient).then(function (id) {
+      if (!id) {
+        frame.style.display = 'none';
+        tip.textContent = '未能在 SmartCare 中匹配到该患者（住院号 ' +
+          (patient.mrn || '-') + ' / HIS ' + (patient.hisPid || '-') +
+          '），请确认该患者已在科并且两侧使用同一 patient 集合。';
+        return;
+      }
+      navigate(buildUrl(target.path, id));
+    });
+  }
+
+  function pick() {
+    for (var i = 0; i < arguments.length; i++) {
+      var v = arguments[i];
+      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+  }
+
+  function buildIdentity(account, patient) {
+    var rawRole = pick(account.role, account.roleCode, account.roleName);
+    return {
+      user_id:   pick(account.user_id, account.userId, account.id, account.empNo, account.code),
+      userName:  pick(account.userName, account.username, account.name, account.realName, account.staffName),
+      role:      ROLE_MAP[rawRole] || ROLE_MAP[String(rawRole).toLowerCase()] || rawRole,
+      dept:      pick(patient.dept, account.dept, account.deptName),
+      dept_code: pick(patient.deptCode, patient.deptCode2, account.deptCode, account.dept_code)
+    };
+  }
+
+  function buildUrl(pathTpl, patientId) {
+    var path = pathTpl.replace(':id', encodeURIComponent(patientId || ''));
+    var p = new URLSearchParams();
+    Object.keys(identity).forEach(function (k) { if (identity[k]) p.set(k, identity[k]); });
+    // 透传宿主额外参数（tab、hours 等），page/path 不传
+    qs.forEach(function (v, k) { if (k !== 'page' && k !== 'path') p.set(k, v); });
+    var s = p.toString();
+    return path + (s ? '?' + s : '');
+  }
+
+  /* ========== 5. 患者 ID 翻译（mrn/hisPid → Mongo _id） ========== */
+  var OID = /^[0-9a-fA-F]{24}$/;
+
+  function directId(patient) {
+    var raw = patient._id;
+    if (raw && typeof raw === 'object') raw = raw.$oid || raw.oid;
+    var cands = [raw, patient.id, patient.patientId, patient.patient_id, patient.pid];
+    for (var i = 0; i < cands.length; i++) {
+      var v = cands[i] == null ? '' : String(cands[i]).trim();
+      if (OID.test(v)) return v;
+    }
+    return '';
+  }
+
+  function norm(v) { return String(v == null ? '' : v).trim().toUpperCase(); }
+  function bedNum(v) {
+    var m = String(v == null ? '' : v).match(/\d+/);
+    return m ? String(parseInt(m[0], 10)) : '';
+  }
+
+  function resolvePatientId(patient) {
+    var hit = directId(patient);
+    if (hit) return Promise.resolve(hit);
+
+    var ck = norm(patient.mrn) + '|' + norm(patient.hisPid);
+    if (patientIdCache[ck]) return Promise.resolve(patientIdCache[ck]);
+
+    var deptCode = pick(patient.deptCode, patient.deptCode2);
+    var urls = [];
+    if (deptCode) {
+      urls.push('/api/patients?patient_scope=in_dept&dept_code=' + encodeURIComponent(deptCode));
+    }
+    urls.push('/api/patients?patient_scope=in_dept');
+    urls.push('/api/patients?patient_scope=all');
+
+    return (function next(i) {
+      if (i >= urls.length) return Promise.resolve('');
+      return fetch(urls[i], { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : { patients: [] }; })
+        .then(function (j) {
+          var id = match(j.patients || [], patient);
+          if (id) { patientIdCache[ck] = id; return id; }
+          return next(i + 1);
+        })
+        .catch(function () { return next(i + 1); });
+    })(0);
+  }
+
+  function match(list, p) {
+    var mrn = norm(p.mrn), hisPid = norm(p.hisPid);
+    var name = norm(p.name), bed = bedNum(p.showBed || p.hisBed);
+    var byMrn = null, byPid = null, byNameBed = null;
+
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (mrn && (norm(r.mrn) === mrn || norm(r.hisMrn) === mrn)) { byMrn = r; break; }
+      if (hisPid && (norm(r.hisPid) === hisPid || norm(r.hisPID) === hisPid)) byPid = byPid || r;
+      if (name && bed && norm(r.name || r.hisName) === name &&
+          bedNum(r.hisBed || r.bed || r.showBed) === bed) byNameBed = byNameBed || r;
+    }
+    var hit = byMrn || byPid || byNameBed;
+    return hit ? String(hit._id || '') : '';
+  }
+
+  /* ========== 6. 渲染内层页面 ========== */
+  function navigate(url) {
+    tip.style.display = 'none';
+    frame.style.display = 'block';
+    var cur = '';
+    try { cur = frame.contentWindow.location.pathname + frame.contentWindow.location.search; } catch (e) {}
+    if (cur && frame.dataset.ready === '1') {
+      // 已加载过：切患者时走 replace，避免重新拉整个 bundle
+      try { frame.contentWindow.location.replace(url); return; } catch (e) {}
+    }
+    frame.src = url;
+  }
+
+  frame.addEventListener('load', function () {
+    frame.dataset.ready = '1';
+    var win, doc;
+    try { win = frame.contentWindow; doc = frame.contentDocument; } catch (e) { return; }
+    if (!doc) return;
+
+    if (CONFIG.hideChrome) {
+      var css = 'header.hdr{display:none!important}' +
+                '.root>.body,main.body{padding-top:0!important}' +
+                (CONFIG.hideFloater ? '.ai-pulse-floater,[class*="pulse-floater"]{display:none!important}' : '');
+      var st = doc.createElement('style');
+      st.setAttribute('data-embed', '1');
+      st.textContent = css;
+      doc.head.appendChild(st);
+    }
+
+    if (CONFIG.injectToken && token) {
+      win.__SMARTCARE_TOKEN__ = token;
+      patchXhr(win, token);
+    }
+  });
+
+  // 同源下给内层 axios/XHR 自动带上宿主 token（后端将来加鉴权时无需改前端源码）
+  function patchXhr(win, tk) {
+    try {
+      var proto = win.XMLHttpRequest && win.XMLHttpRequest.prototype;
+      if (!proto || proto.__embedPatched) return;
+      var open = proto.open, send = proto.send;
+      proto.open = function (m, u) { this.__embedUrl = String(u || ''); return open.apply(this, arguments); };
+      proto.send = function () {
+        try {
+          if (/^\/(api|health|ws)/.test(this.__embedUrl || '')) {
+            this.setRequestHeader('Authorization', 'Bearer ' + tk);
+            this.setRequestHeader('X-SmartCare-Token', tk);
+          }
+        } catch (e) {}
+        return send.apply(this, arguments);
+      };
+      proto.__embedPatched = true;
+    } catch (e) {}
+  }
+})();
+</script>
+</body>
+</html>

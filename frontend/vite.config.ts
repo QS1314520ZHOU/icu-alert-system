@@ -78,6 +78,11 @@ export default defineConfig(({ mode }) => {
           skipWaiting: true,
           cleanupOutdatedCaches: true,
           globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+          // globIgnores：embed.html 含现场手改 CONFIG，不能进 precache（cache-first 会导致改完不生效）
+          // navigateFallbackDenylist：防止 navigate 请求被回退到 index.html
+          // 两条职责不同，缺一不可
+          globIgnores: ['embed.html'],
+          navigateFallbackDenylist: [/^\/embed\.html/],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           runtimeCaching: [
             {

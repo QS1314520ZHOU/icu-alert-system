@@ -273,13 +273,39 @@ if os.path.exists(STATIC_DIR):
     if os.path.isdir(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
+    # --- 路径穿越防护：解析后仍留在 STATIC_DIR 内的才算合法 ---
+    _static_real = os.path.realpath(STATIC_DIR)
+
+    def _is_within_static(requested_path: str) -> bool:
+        """检查请求路径是否落在 STATIC_DIR 内，防止 .. / 绝对路径 / 符号链接逃逸。"""
+        real = os.path.realpath(requested_path)
+        try:
+            return os.path.commonpath([real, _static_real]) == _static_real
+        except ValueError:
+            # Windows 上不同盘符会抛 ValueError（如 C: vs D:）
+            return False
+
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         if full_path.startswith("api") or full_path == "health" or full_path.startswith("ws"):
             return None
-        file_path = os.path.join(STATIC_DIR, full_path)
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
+
+        # 路径穿越防护：..、绝对路径、符号链接逃逸一律 404
+        raw_path = os.path.join(STATIC_DIR, full_path)
+        if not _is_within_static(raw_path):
+            raise HTTPException(status_code=404, detail="Not found")
+
+        if os.path.isfile(raw_path):
+            resp = FileResponse(raw_path)
+            # embed.html 是 iframe 桥接页，包含现场配置，禁止缓存
+            if full_path == "embed.html":
+                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                # CSP frame-ancestors：未配置环境变量时不输出头（内网联调默认放行）
+                allowed = os.environ.get("SMARTCARE_EMBED_FRAME_ANCESTORS", "").strip()
+                if allowed:
+                    origins = " ".join(o.strip() for o in allowed.split(",") if o.strip())
+                    resp.headers["Content-Security-Policy"] = f"frame-ancestors 'self' {origins};"
+            return resp
         # 只有前端路由才应该回退到 index.html；静态资源丢失时返回 404，
         # 避免把 JS/CSS/manifest 请求错误地回成 HTML，触发 MIME 报错。
         suffix = Path(full_path).suffix.lower()
