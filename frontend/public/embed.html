@@ -21,17 +21,21 @@
 
   /* ========== 1. 配置区（现场只改这里） ========== */
   var CONFIG = {
-    // 允许的宿主来源白名单；留空数组表示不校验（仅联调用）
+    // 允许的宿主来源白名单；留空数组 + requireOriginWhitelist=true 会拒绝全部消息
     allowedHostOrigins: [
       'http://192.168.5.154',
       'http://192.168.5.154:8080'
     ],
+    // 白名单为空时是否拒绝全部宿主消息（true=安全默认，false=仅联调试用）
+    requireOriginWhitelist: true,
+    // 是否允许仅凭姓名+床号自动跳转（false=必须人工确认）
+    allowNameBedFallback: false,
     hideChrome: true,        // 隐藏 SmartCare 自带顶部导航（嵌入时用宿主菜单）
     hideFloater: false,      // 是否隐藏 AI 悬浮球
     injectToken: true,       // 把宿主 token 加到内层请求的 Authorization 头
     handshakeRetryMs: 400,   // Ready 重发间隔
     handshakeMaxTry: 20,
-    standaloneAfterMs: 4000  // 超时未收到消息时，无患者也先把页面渲染出来
+    standaloneAfterMs: 4000  // 超时未收到消息时，无患者也先把页面渲染出来（实际生效值不会早于握手窗口结束）
   };
 
   // 页面别名 → 真实路由。page=xxx
@@ -92,7 +96,13 @@
 
   function originAllowed(origin) {
     var list = CONFIG.allowedHostOrigins || [];
-    if (!list.length) return true;                 // 未配置=不校验（联调）
+    if (!list.length) {
+      if (CONFIG.requireOriginWhitelist) {
+        console.error('[embed] 未配置 allowedHostOrigins，已拒绝全部宿主消息');
+        return false;
+      }
+      return true;                               // 联调试用：未配置=不校验
+    }
     for (var i = 0; i < list.length; i++) {
       if (origin === list[i]) return true;
     }
@@ -102,9 +112,17 @@
   function sendReady() {
     if (received || tries >= CONFIG.handshakeMaxTry) { clearInterval(timer); return; }
     tries++;
-    try { parent.postMessage({ type: 'SmartCareReady' }, hostOrigin); } catch (e) {}
     if (hostOrigin !== '*') {
-      try { parent.postMessage({ type: 'SmartCareReady' }, '*'); } catch (e) {}
+      try { parent.postMessage({ type: 'SmartCareReady' }, hostOrigin); } catch (e) {}
+    } else {
+      var list = CONFIG.allowedHostOrigins || [];
+      if (list.length) {
+        for (var i = 0; i < list.length; i++) {
+          try { parent.postMessage({ type: 'SmartCareReady' }, list[i]); } catch (e) {}
+        }
+      } else {
+        try { parent.postMessage({ type: 'SmartCareReady' }, '*'); } catch (e) {}
+      }
     }
   }
 
@@ -124,6 +142,7 @@
   sendReady();
 
   // 宿主一直没回：先把不需要患者的页面渲染出来，别白屏
+  // 实际生效值不会早于握手窗口结束（避免在握手完成前就渲染"无患者"页面）
   setTimeout(function () {
     if (received) return;
     if (target.needPatient) {
@@ -131,7 +150,7 @@
     } else {
       navigate(buildUrl(target.path, ''));
     }
-  }, CONFIG.standaloneAfterMs);
+  }, Math.max(CONFIG.standaloneAfterMs, CONFIG.handshakeRetryMs * CONFIG.handshakeMaxTry + 500));
 
   /* ========== 4. 处理宿主消息 ========== */
   function handlePayload(data) {
@@ -151,12 +170,38 @@
 
     tip.style.display = '';
     tip.textContent = '正在定位患者：' + (patient.name || '');
-    resolvePatientId(patient).then(function (id) {
+    resolvePatientId(patient).then(function (result) {
+      var id = result && result.id || '';
+      var matchType = result && result.matchType || '';
       if (!id) {
         frame.style.display = 'none';
         tip.textContent = '未能在 SmartCare 中匹配到该患者（住院号 ' +
           (patient.mrn || '-') + ' / HIS ' + (patient.hisPid || '-') +
           '），请确认该患者已在科并且两侧使用同一 patient 集合。';
+        return;
+      }
+      if (matchType === 'ambiguous') {
+        frame.style.display = 'none';
+        tip.textContent = '';
+        tip.appendChild(document.createTextNode(
+          '按姓名+床号匹配到多位患者，无法确定，请让宿主系统传入住院号（mrn）或 HIS 患者 ID。'
+        ));
+        return;
+      }
+      if (matchType === 'name_bed' && !CONFIG.allowNameBedFallback) {
+        frame.style.display = 'none';
+        tip.textContent = '';
+        tip.appendChild(document.createTextNode(
+          '按姓名+床号匹配到患者：' + (patient.name || '') + '，床位 ' + (patient.showBed || patient.hisBed || '-') + '。'
+        ));
+        var btn = document.createElement('button');
+        btn.textContent = '确认是该患者，继续打开';
+        btn.style.cssText = 'margin-left:8px;padding:4px 12px;cursor:pointer';
+        btn.addEventListener('click', function () {
+          btn.disabled = true;
+          navigate(buildUrl(target.path, id));
+        });
+        tip.appendChild(btn);
         return;
       }
       navigate(buildUrl(target.path, id));
@@ -207,53 +252,43 @@
   }
 
   function norm(v) { return String(v == null ? '' : v).trim().toUpperCase(); }
-  function bedNum(v) {
-    var m = String(v == null ? '' : v).match(/\d+/);
-    return m ? String(parseInt(m[0], 10)) : '';
+
+  /** 带宿主 token 的 fetch，失败时降级为空对象 */
+  function authedFetch(url) {
+    var headers = {};
+    if (token) {
+      headers['Authorization'] = 'Bearer ' + token;
+      headers['X-SmartCare-Token'] = token;
+    }
+    return fetch(url, { credentials: 'same-origin', headers: headers })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .catch(function () { return {}; });
   }
 
   function resolvePatientId(patient) {
     var hit = directId(patient);
-    if (hit) return Promise.resolve(hit);
+    if (hit) return Promise.resolve({ id: hit, matchType: 'direct' });
 
     var ck = norm(patient.mrn) + '|' + norm(patient.hisPid);
     if (patientIdCache[ck]) return Promise.resolve(patientIdCache[ck]);
 
-    var deptCode = pick(patient.deptCode, patient.deptCode2);
-    var urls = [];
-    if (deptCode) {
-      urls.push('/api/patients?patient_scope=in_dept&dept_code=' + encodeURIComponent(deptCode));
-    }
-    urls.push('/api/patients?patient_scope=in_dept');
-    urls.push('/api/patients?patient_scope=all');
+    var params = new URLSearchParams();
+    if (patient.mrn) params.set('mrn', patient.mrn);
+    if (patient.hisPid) params.set('his_pid', patient.hisPid);
+    if (patient.name) params.set('name', patient.name);
+    var bed = patient.showBed || patient.hisBed;
+    if (bed) params.set('bed', bed);
+    var deptCode = patient.deptCode || patient.deptCode2;
+    if (deptCode) params.set('dept_code', deptCode);
 
-    return (function next(i) {
-      if (i >= urls.length) return Promise.resolve('');
-      return fetch(urls[i], { credentials: 'same-origin' })
-        .then(function (r) { return r.ok ? r.json() : { patients: [] }; })
-        .then(function (j) {
-          var id = match(j.patients || [], patient);
-          if (id) { patientIdCache[ck] = id; return id; }
-          return next(i + 1);
-        })
-        .catch(function () { return next(i + 1); });
-    })(0);
-  }
-
-  function match(list, p) {
-    var mrn = norm(p.mrn), hisPid = norm(p.hisPid);
-    var name = norm(p.name), bed = bedNum(p.showBed || p.hisBed);
-    var byMrn = null, byPid = null, byNameBed = null;
-
-    for (var i = 0; i < list.length; i++) {
-      var r = list[i];
-      if (mrn && (norm(r.mrn) === mrn || norm(r.hisMrn) === mrn)) { byMrn = r; break; }
-      if (hisPid && (norm(r.hisPid) === hisPid || norm(r.hisPID) === hisPid)) byPid = byPid || r;
-      if (name && bed && norm(r.name || r.hisName) === name &&
-          bedNum(r.hisBed || r.bed || r.showBed) === bed) byNameBed = byNameBed || r;
-    }
-    var hit = byMrn || byPid || byNameBed;
-    return hit ? String(hit._id || '') : '';
+    var url = '/api/patients/resolve?' + params.toString();
+    return authedFetch(url).then(function (j) {
+      var pid = j.patient_id || '';
+      var mt = j.match_type || '';
+      var result = { id: pid, matchType: mt };
+      if (pid) patientIdCache[ck] = result;
+      return result;
+    });
   }
 
   /* ========== 6. 渲染内层页面 ========== */
@@ -287,11 +322,18 @@
 
     if (CONFIG.injectToken && token) {
       win.__SMARTCARE_TOKEN__ = token;
-      patchXhr(win, token);
+      patchNetwork(win, token);
     }
   });
 
-  // 同源下给内层 axios/XHR 自动带上宿主 token（后端将来加鉴权时无需改前端源码）
+  /** 给内层 XHR / fetch / WebSocket 注入宿主 token */
+  function patchNetwork(win, tk) {
+    patchXhr(win, tk);
+    patchFetch(win, tk);
+    patchWebSocket(win, tk);
+  }
+
+  // XHR：给 /api/*、/health*、/ws* 自动带 Authorization 头
   function patchXhr(win, tk) {
     try {
       var proto = win.XMLHttpRequest && win.XMLHttpRequest.prototype;
@@ -308,6 +350,63 @@
         return send.apply(this, arguments);
       };
       proto.__embedPatched = true;
+    } catch (e) {}
+  }
+
+  // fetch：兼容 fetch(string, init) 和 fetch(Request) 两种调用形式
+  function patchFetch(win, tk) {
+    try {
+      if (!win.fetch || win.fetch.__embedPatched) return;
+      var origFetch = win.fetch;
+      win.fetch = function (input, init) {
+        try {
+          var url = typeof input === 'string' ? input : (input && input.url || '');
+          if (/^\/(api|health|ws)/.test(url)) {
+            var headers;
+            if (input instanceof win.Request) {
+              var req = new win.Request(input, init);
+              headers = new win.Headers(req.headers);
+            } else {
+              headers = new win.Headers((init && init.headers) || {});
+            }
+            headers.set('Authorization', 'Bearer ' + tk);
+            headers.set('X-SmartCare-Token', tk);
+            if (input instanceof win.Request) {
+              input = new win.Request(input, { headers: headers });
+              init = undefined;
+            } else {
+              init = init || {};
+              init.headers = headers;
+            }
+          }
+        } catch (e) {}
+        return origFetch.apply(this, [input, init]);
+      };
+      win.fetch.__embedPatched = true;
+    } catch (e) {}
+  }
+
+  // WebSocket：URL 追加 token 查询参数（协议限制无法设请求头）
+  function patchWebSocket(win, tk) {
+    try {
+      if (!win.WebSocket || win.WebSocket.__embedPatched) return;
+      var OrigWS = win.WebSocket;
+      var PatchedWS = function (url, protocols) {
+        try {
+          if (/^\/(api|health|ws)/.test(url || '') && !/[?&]token=/.test(url)) {
+            url += (url.indexOf('?') === -1 ? '?' : '&') + 'token=' + encodeURIComponent(tk);
+          }
+        } catch (e) {}
+        if (protocols !== undefined) return new OrigWS(url, protocols);
+        return new OrigWS(url);
+      };
+      PatchedWS.prototype = OrigWS.prototype;
+      PatchedWS.CONNECTING = OrigWS.CONNECTING;
+      PatchedWS.OPEN = OrigWS.OPEN;
+      PatchedWS.CLOSING = OrigWS.CLOSING;
+      PatchedWS.CLOSED = OrigWS.CLOSED;
+      PatchedWS.__embedPatched = true;
+      win.WebSocket = PatchedWS;
     } catch (e) {}
   }
 })();

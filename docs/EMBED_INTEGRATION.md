@@ -56,13 +56,15 @@
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `allowedHostOrigins` | string[] | `['http://192.168.5.154', 'http://192.168.5.154:8080']` | 允许的宿主来源白名单，留空数组表示不校验（仅联调用） |
+| `allowedHostOrigins` | string[] | `['http://192.168.5.154', 'http://192.168.5.154:8080']` | 允许的宿主来源白名单，留空数组 + `requireOriginWhitelist=true` 会拒绝全部消息 |
 | `hideChrome` | boolean | `true` | 隐藏 SmartCare 自带顶部导航（嵌入时用宿主菜单） |
 | `hideFloater` | boolean | `false` | 是否隐藏 AI 悬浮球 |
 | `injectToken` | boolean | `true` | 把宿主 token 加到内层请求的 Authorization 头 |
 | `handshakeRetryMs` | number | `400` | Ready 重发间隔（毫秒） |
 | `handshakeMaxTry` | number | `20` | 最大握手尝试次数 |
-| `standaloneAfterMs` | number | `4000` | 超时未收到消息时，无患者也先把页面渲染出来 |
+| `requireOriginWhitelist` | boolean | `true` | 白名单为空时是否拒绝全部宿主消息（true=安全默认，false=仅联调试用） |
+| `allowNameBedFallback` | boolean | `false` | 是否允许仅凭姓名+床号自动跳转（false=需人工确认） |
+| `standaloneAfterMs` | number | `4000` | 超时未收到消息时，无患者也先把页面渲染出来（实际生效值不会早于握手窗口结束） |
 
 ## 4. 现场部署配置
 
@@ -118,7 +120,7 @@ SMARTCARE_EMBED_FRAME_ANCESTORS=http://192.168.5.154:8080,http://192.168.5.154
 
 1. embed.html 加载后，向 `parent` 发送 `{ type: 'SmartCareReady' }` 消息
 2. 宿主收到后，回传 `{ type: 'SmartCare', account: {...}, patient: {...}, token: '...' }`
-3. embed.html 收到后，定位患者并加载内层 SPA
+3. embed.html 收到后，通过 `GET /api/patients/resolve` 将宿主患者信息解析为 SmartCare 的 Mongo `patient._id`，然后加载内层 SPA。当 `match_type=name_bed` 时需人工确认，不会自动跳转。
 
 ### 6.2 宿主消息格式
 
@@ -185,10 +187,12 @@ curl -sI http://127.0.0.1:8000/embed.html | grep -iE 'cache-control|content-secu
 | 点了菜单却总跳到总览 | `account.role` 未映射成 `doctor/nurse/head_nurse/director`，被 `router.beforeEach` 的 `meta.roles` 守卫重定向 | 检查宿主发送的 role 值是否在 `embed.html` 的 `ROLE_MAP` 中；确认映射后的角色与路由 meta.roles 匹配 |
 | 一直停在"正在与重症系统握手…" | 宿主未监听 message 事件 / origin 不匹配 / 宿主未回复 SmartCare 消息 | 检查宿主代码是否有 `window.addEventListener('message', ...)`；检查 `CONFIG.allowedHostOrigins` 是否包含宿主实际 origin |
 | 嵌入后顶部导航没隐藏 | `CONFIG.hideChrome` 为 false 或 CSS 选择器失效 | 确认 `CONFIG.hideChrome` 为 `true`；检查 `.hdr` 类名是否仍存在 |
+| 一直提示未匹配到患者，但患者确实在科 | 宿主未传 mrn/hisPid，或 dept_code 收窄过头 | 直接 curl `/api/patients/resolve?mrn=xxx` 看返回，确认后端能匹配到 |
+| Console 报已拒绝全部宿主消息 | `allowedHostOrigins` 为空且 `requireOriginWhitelist=true` | 在 CONFIG 中填入宿主真实 origin，或联调时设 `requireOriginWhitelist: false` |
 
 ## 9. 安全注意事项
 
-1. **不要**在生产环境将 `allowedHostOrigins` 设为空数组（会跳过来源校验）
+1. 空数组在 `requireOriginWhitelist=true` 时会直接拒绝全部消息；生产环境必须填入真实宿主 origin
 2. **token** 仅保存在内存中，不会持久化到 localStorage
 3. 建议在生产环境启用 HTTPS
 4. CSP 的 `frame-ancestors` 指令仅允许指定来源嵌入
