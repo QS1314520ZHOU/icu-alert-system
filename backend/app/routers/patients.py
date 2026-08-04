@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -18,6 +19,12 @@ from app.utils.serialization import safe_oid, serialize_doc
 
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
+
+
+def _bed_num(v) -> str:
+    """将床号值归一化为纯数字字符串，如 '5床' / '05' / '5' → '5'。"""
+    m = re.search(r"\d+", str(v or ""))
+    return str(int(m.group())) if m else ""
 
 
 def _patient_diagnosis(doc: dict) -> str:
@@ -398,6 +405,80 @@ async def get_patient_priority(
     """按临床工作流优先级返回今日重点关注患者。"""
     rows = await build_patient_priority(runtime.db, dept=dept, dept_code=dept_code, limit=limit)
     return {"code": 0, "data": rows}
+
+
+@router.get("/api/patients/resolve")
+async def resolve_patient(
+    mrn: Optional[str] = Query(None, description="住院号，第一优先级"),
+    his_pid: Optional[str] = Query(None, description="HIS 患者标识，第二优先级"),
+    name: Optional[str] = Query(None, description="姓名，仅用于兜底，必须与 bed 同时提供"),
+    bed: Optional[str] = Query(None, description="床号，仅用于兜底，需做数字归一化"),
+    dept_code: Optional[str] = Query(None, description="科室编码，用于收窄范围"),
+    patient_scope: Optional[str] = Query("in_dept", description="患者范围，透传给 research_patient_scope_query"),
+):
+    """根据 HIS 侧标识精确解析患者，返回 Mongo patient._id。
+
+    匹配优先级（命中即返回，不继续往下走）：
+      1. mrn → 查 mrn / hisMrn / admissionNo
+      2. his_pid → 查 hisPid / hisPID
+      3. name + bed 兜底 → 姓名精确匹配 name / hisName，床号 Python 侧归一化比对
+
+    注意：match_type="name_bed" 时置信度低，调用方必须要求人工确认后才能进入患者详情。
+    """
+    # 规范化参数：直接调用时 Query() 对象不会被 FastAPI 解析
+    def _unwrap(v, default=None):
+        return getattr(v, "default", v) if not isinstance(v, str) else v
+
+    mrn = _unwrap(mrn)
+    his_pid = _unwrap(his_pid)
+    name = _unwrap(name)
+    bed = _unwrap(bed)
+    dept_code = _unwrap(dept_code)
+    patient_scope = _unwrap(patient_scope, "in_dept") or "in_dept"
+
+    col = runtime.db.col("patient")
+    base_query = research_patient_scope_query(patient_scope)
+
+    if dept_code:
+        dept_filter = {"$or": [{"deptCode": dept_code}, {"dept_code": dept_code}, {"departmentCode": dept_code}]}
+        base_query = {"$and": [base_query, dept_filter]}
+
+    # --- 1. mrn 匹配 ---
+    if mrn:
+        q = {"$and": [base_query, {"$or": [{"mrn": mrn}, {"hisMrn": mrn}, {"admissionNo": mrn}]}]}
+        doc = await col.find_one(q, {"_id": 1})
+        if doc:
+            logger.info("resolve: match_type=mrn hit")
+            return {"code": 0, "patient_id": str(doc["_id"]), "match_type": "mrn"}
+
+    # --- 2. his_pid 匹配 ---
+    if his_pid:
+        q = {"$and": [base_query, {"$or": [{"hisPid": his_pid}, {"hisPID": his_pid}]}]}
+        doc = await col.find_one(q, {"_id": 1})
+        if doc:
+            logger.info("resolve: match_type=his_pid hit")
+            return {"code": 0, "patient_id": str(doc["_id"]), "match_type": "his_pid"}
+
+    # --- 3. name + bed 兜底 ---
+    if name and bed:
+        q = {"$and": [base_query, {"$or": [{"name": name}, {"hisName": name}]}]}
+        cursor = col.find(q, {"_id": 1, "hisBed": 1, "bed": 1, "showBed": 1}).limit(20)
+        normalized_bed = _bed_num(bed)
+        matched_ids: list[str] = []
+        async for doc in cursor:
+            doc_bed = _bed_num(doc.get("hisBed") or doc.get("bed") or doc.get("showBed"))
+            if doc_bed == normalized_bed:
+                matched_ids.append(str(doc["_id"]))
+        if len(matched_ids) == 1:
+            logger.info("resolve: match_type=name_bed hit")
+            return {"code": 0, "patient_id": matched_ids[0], "match_type": "name_bed"}
+        if len(matched_ids) > 1:
+            logger.info("resolve: match_type=ambiguous candidates=%d", len(matched_ids))
+            return {"code": 409, "patient_id": "", "match_type": "ambiguous", "candidates": len(matched_ids)}
+
+    # --- 未命中 ---
+    logger.info("resolve: no match")
+    return {"code": 404, "patient_id": "", "match_type": ""}
 
 
 @router.get("/api/patients/{patient_id}")
