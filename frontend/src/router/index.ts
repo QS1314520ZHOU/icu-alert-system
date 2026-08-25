@@ -265,6 +265,11 @@ const router = createRouter({
   ] satisfies RouteRecordRaw[]
 })
 
+// 统一从路由 query 同步身份信息到 auth store（dept_code / role / userName 等）
+router.beforeEach((to) => {
+  try { useAuthStore().hydrateFromQuery(to.query) } catch {}
+})
+
 // 角色守卫：检查路由 meta.roles 配置
 router.beforeEach((to, _from, next) => {
   const requiredRoles = to.meta?.roles as string[] | undefined

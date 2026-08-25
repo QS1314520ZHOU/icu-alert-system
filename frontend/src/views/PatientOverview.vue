@@ -175,6 +175,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '../stores/auth'
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDepartments, getPatients, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig, getBatchVitals, getPatientBedcardBatch } from '../api'
@@ -182,6 +183,8 @@ import { onAlertMessage } from '../services/alertSocket'
 import { buildOrganStateMapByPatient } from '../utils/bodyMap'
 
 const OVERVIEW_CACHE_TTL_MS = 60 * 1000
+
+const auth = useAuthStore()
 const overviewCache = new Map<string, {
   ts: number
   patients: any[]
@@ -217,7 +220,7 @@ let signalRequestToken = 0
 const bedcardDataMap = ref<Record<string, any>>({})
 
 const routeDeptCode = computed(() => {
-  const raw = route.query.dept_code || route.query.deptCode
+  const raw = route.query.dept_code || route.query.deptCode || auth.deptCode
   if (Array.isArray(raw)) return raw[0]?.trim() ?? ''
   if (typeof raw === 'string') return raw.trim()
   return ''

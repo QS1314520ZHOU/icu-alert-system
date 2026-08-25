@@ -451,6 +451,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '../stores/auth'
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -492,6 +493,7 @@ const AnalyticsChart = defineAsyncComponent(async () => {
 const chartInitOptions = createChartInitOptions()
 
 const route = useRoute()
+const auth = useAuthStore()
 const router = useRouter()
 const loading = ref(false)
 const windowRange = ref('7d')
@@ -544,7 +546,7 @@ const scenarioHeatmapY = ref<string[]>([])
 const scenarioHeatmapData = ref<number[][]>([])
 const nursingWorkload = ref<any>(null)
 
-const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const deptName = computed(() => String(route.query.dept || '').trim())
 const analyticsScopeLabel = computed(() => deptName.value || deptCode.value || '全科')
 const lifecycleSummary = computed(() => lifecycleAnalytics.value?.summary || {})
@@ -2233,7 +2235,6 @@ onMounted(() => {
 
 <style scoped>
 @import url('../assets/fonts/rajdhani/rajdhani.css');
-
 .analytics-page {
   position: relative;
   isolation: isolate;

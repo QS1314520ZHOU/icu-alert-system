@@ -264,7 +264,10 @@ import {
 } from 'ant-design-vue'
 import { deleteClinicalTrial, getClinicalTrials, getTrialCandidates, postActivateTrial, postCandidateStatus, postClinicalTrial, postParseCriteria, postScreenTrials, putClinicalTrial, type ClinicalTrialScopeParams } from '../api/clinicalTrials'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
+
+const auth = useAuthStore()
 const loading = ref(false)
 const screening = ref(false)
 const saving = ref(false)
@@ -284,7 +287,7 @@ const parseForm = reactive<any>({
   exclusion_text: '年龄 <18 岁；已明确拒绝研究；临终照护或治疗限制。',
 })
 const statusOptions = ['准备中', '招募中', '暂停', '结束'].map((value) => ({ value, label: value }))
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 在科患者')
 

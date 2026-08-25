@@ -218,6 +218,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Button as AButton, Card as ACard, Empty as AEmpty, Select as ASelect, Spin as ASpin, message } from 'ant-design-vue'
 import { getPatients, postAiConsultChat } from '../api'
 
+import { useAuthStore } from '../stores/auth'
 type ChatRole = 'user' | 'assistant'
 type ChatMode = 'clinical' | 'free'
 type ChatMessageType = 'normal' | 'clarification' | 'final'
@@ -238,6 +239,8 @@ type StructuredSection = {
 }
 
 const router = useRouter()
+
+const auth = useAuthStore()
 const route = useRoute()
 const patientsLoading = ref(false)
 const sending = ref(false)
@@ -314,7 +317,7 @@ function pickRouteText(...values: any[]): string {
   return ''
 }
 
-const routeDeptCode = computed(() => pickRouteText(route.query.dept_code, route.query.deptCode))
+const routeDeptCode = computed(() => pickRouteText(route.query.dept_code, route.query.deptCode, auth.deptCode))
 const routeDeptName = computed(() => pickRouteText(route.query.dept, route.query.department))
 const routePatientId = computed(() => pickRouteText(route.query.patient_id, route.query.patientId))
 

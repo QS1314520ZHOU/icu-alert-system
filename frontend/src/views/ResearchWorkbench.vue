@@ -963,8 +963,10 @@ import {
 import AiAssistPanel from '../components/research/AiAssistPanel.vue'
 import CohortBuilder from '../components/CohortBuilder.vue'
 import { useResearchSelectionStore } from '../stores/researchSelection'
+import { useAuthStore } from '../stores/auth'
 import {
-  getDepartments, getPatients, getResearchAnalyticsTaskStatus, getResearchSession, listResearchCohorts, listResearchSessions, postResearchAiInterpret,
+
+getDepartments, getPatients, getResearchAnalyticsTaskStatus, getResearchSession, listResearchCohorts, listResearchSessions, postResearchAiInterpret,
   postResearchAiPlan,
   getResearchIcdSearch,
   getResearchPlatformArtifacts,
@@ -986,6 +988,8 @@ type VariableFilterMode = 'none' | 'range' | 'include' | 'yes' | 'no'
 type CohortFilter = { field: string; operator: string; value: any }
 
 const ARadioGroup = ARadio.Group
+
+const auth = useAuthStore()
 const ACollapsePanel = ACollapse.Panel
 const AMenuItem = AMenu.Item
 const AListItem = AList.Item
@@ -1222,7 +1226,7 @@ const cohortOptions = computed(() => cohorts.value.map((c) => {
   const created = c.created_at ? formatCohortTime(c.created_at) : ''
   return { label: created ? `${name} (${count}) · ${created}` : `${name} (${count})`, value: c.cohort_id }
 }))
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const currentDeptCode = computed(() => routeDeptCode.value)
 const currentDeptName = computed(() => deptNameByCode.value[currentDeptCode.value] || routeDeptName.value || '')

@@ -326,7 +326,10 @@ import { getClinicalAccount, getDepartments } from '../api'
 import { closeNutritionTask, getNutritionDashboard, getNutritionPatient, postNutritionAiAdvice, postNutritionTask, type NutritionScopeParams } from '../api/nutrition'
 import { formatBeijingTime } from '../utils/time'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
+
+const auth = useAuthStore()
 const loading = ref(false)
 const detailLoading = ref(false)
 const keyword = ref('')
@@ -356,7 +359,7 @@ const riskOptions = [
   { value: '未开始', label: '未开始' },
 ]
 
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const routeUserName = computed(() => String(route.query.userName || '').trim())
 const scopeLabel = computed(() => scopeName.value || routeDeptName.value || '全部 ICU 在科患者')

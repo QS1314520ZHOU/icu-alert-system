@@ -115,6 +115,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '../stores/auth'
 import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, watch } from 'vue'
 import dayjs from 'dayjs'
 import { useRoute } from 'vue-router'
@@ -143,6 +144,8 @@ import {
 import { useThemeMode } from '../composables/themeMode'
 
 const BigScreenAlertFeed = defineAsyncComponent(() => import('../components/bigscreen/BigScreenAlertFeed.vue'))
+
+const auth = useAuthStore()
 const BigScreenBedGrid = defineAsyncComponent(() => import('../components/bigscreen/BigScreenBedGrid.vue'))
 const BigScreenStatsPanel = defineAsyncComponent(() => import('../components/bigscreen/BigScreenStatsPanel.vue'))
 const chartColors = ['#15558D', '#15558D', '#15558D', '#1A9C5B', '#E8901C', '#D9342B', '#D9342B', '#6B7280']
@@ -493,7 +496,7 @@ const deviceHeatmapOption = computed(() => {
   }
 })
 
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || ''))
 
 function buildPatientParams() {

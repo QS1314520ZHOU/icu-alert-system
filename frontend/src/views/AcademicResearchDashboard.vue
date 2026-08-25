@@ -224,7 +224,10 @@ import {
 } from 'ant-design-vue'
 import { getDataQuality, getResearchProjects, getTopicSuggestions, postGenerateTopicSuggestions, postOmopExport, postResearchProject, type ResearchScopeParams } from '../api/researchSupport'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
+
+const auth = useAuthStore()
 const loading = ref(false)
 const topicLoading = ref(false)
 const omopLoading = ref(false)
@@ -256,7 +259,7 @@ const missingRows = computed(() => Object.entries(quality.value?.missing_rate ||
 const topicSourceLabel = computed(() => topicIsFallback.value ? '系统内置兜底建议' : 'AI / 数据摘要生成')
 const statusRows = computed(() => Object.entries(portfolio.value?.by_status || {}).map(([key, value]) => ({ key, value })))
 const milestones = computed(() => portfolio.value?.upcoming_milestones || [])
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 患者')
 const researchScopeParams = computed<ResearchScopeParams>(() => {

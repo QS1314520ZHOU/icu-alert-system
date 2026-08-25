@@ -212,7 +212,10 @@ import { Button as AButton, Card as ACard, Segmented as ASegmented, Space as ASp
 import { getAdminQualityClosedLoop, getRecentAlerts, getScannerHealth, postScannerHealthInferOutcomes, postScannerHealthRecalculate } from '../api'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
+
+const auth = useAuthStore()
 const router = useRouter()
 const days = ref(30)
 const rows = ref<any[]>([])
@@ -249,7 +252,7 @@ const avgPpv = computed(() => {
   return rows.value.reduce((sum, row) => sum + Number(row.ppv || 0), 0) / rows.value.length
 })
 const closureTasks = computed(() => rows.value.flatMap((row) => (row.closure?.tasks || []).map((task: any) => ({ ...task, scanner_name: row.scanner_name }))))
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDept = computed(() => String(route.query.dept || route.query.department || '').trim())
 const scopedParams = computed(() => {
   const params: { days: number; dept?: string; dept_code?: string } = { days: days.value }

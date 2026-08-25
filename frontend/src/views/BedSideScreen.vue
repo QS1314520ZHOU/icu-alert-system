@@ -120,10 +120,12 @@ import { getPatientDetail, getPatientVitals, getRecentAlerts, postAlertAcknowled
 import { onAlertMessage } from '../services/alertSocket'
 import { formatSeverityLabel } from '../utils/displayLabels'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
+const auth = useAuthStore()
 const patientId = computed(() => String(route.params.patientId || ''))
 const bedId = computed(() => String(route.query.bedId || route.query.bed || ''))
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 
 // ── 时钟 ──────────────────────────────────────────────────────

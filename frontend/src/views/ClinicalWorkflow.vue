@@ -629,7 +629,10 @@ import { closeClinicalTask, getClinicalPatientHandoff, getClinicalPatientStory, 
 import HumanBodyDiagram from '../components/common/HumanBodyDiagram.vue'
 import OrganRiskRadar from '../components/common/OrganRiskRadar.vue'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
+
+const auth = useAuthStore()
 const router = useRouter()
 const loading = ref(false)
 const home = ref<any>(null)
@@ -662,7 +665,7 @@ function firstRouteQuery(...keys: string[]) {
 
 const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'username', 'user_id', 'userId'))
 const routeRole = computed(() => firstRouteQuery('role', 'userRole'))
-const routeDeptCode = computed(() => firstRouteQuery('dept_code', 'deptCode'))
+const routeDeptCode = computed(() => firstRouteQuery('dept_code', 'deptCode') || auth.deptCode || '')
 const routeDept = computed(() => firstRouteQuery('dept', 'department'))
 const cards = computed(() => home.value?.cards || [])
 const priorityQueue = computed(() => home.value?.priority_queue || [])

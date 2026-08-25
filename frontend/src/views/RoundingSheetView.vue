@@ -312,8 +312,10 @@ import { buildIcuRoundingSections } from '../utils/clinicalHandoffTemplates'
 import { formatBeijingTime } from '../utils/time'
 import { formatRiskLevelLabel } from '../utils/displayLabels'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
 
+const auth = useAuthStore()
 const loading = ref(false)
 const summaryLoading = ref(false)
 const aiLoading = ref(false)
@@ -335,7 +337,7 @@ const latestVersionId = ref('')
 const activeSystemTab = ref('respiratory')
 const selectedOrgan = ref('')
 
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const matchedDept = computed(() => departments.value.find((item) => String(item?.deptCode || item?.code || '').trim() === routeDeptCode.value))
 const scopeLabel = computed(() => matchedDept.value?.dept || matchedDept.value?.department || routeDeptName.value || routeDeptCode.value || '全部 ICU 在科患者')

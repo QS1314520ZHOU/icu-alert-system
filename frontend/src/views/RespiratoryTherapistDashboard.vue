@@ -306,7 +306,10 @@ import {
 } from '../api/respiratory'
 import { formatBeijingTime } from '../utils/time'
 
+import { useAuthStore } from '../stores/auth'
 const route = useRoute()
+
+const auth = useAuthStore()
 const loading = ref(false)
 const keyword = ref('')
 const riskFilter = ref('all')
@@ -328,7 +331,7 @@ const riskOptions = [
   { value: '困难气道', label: '困难气道' },
   { value: 'sbt', label: 'SBT候选' },
 ]
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || '').trim())
+const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
 const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
 const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 在科患者')
 const filteredPatients = computed(() => {
