@@ -159,11 +159,15 @@
 
   /* ========== 4. 处理宿主消息 ========== */
   function handlePayload(data) {
-    var account = data.account || {};
+    var account = data.account || data.user || data.userInfo || {};
     var patient = data.patient || {};
     token = String(data.token || '');             // 只放内存，不落 storage、不打印
 
     identity = buildIdentity(account, patient);
+    console.log('[embed] account:', JSON.stringify(account));
+    console.log('[embed] patient:', JSON.stringify({name:patient.name,mrn:patient.mrn,deptCode:patient.deptCode,deptCode2:patient.deptCode2,dept:patient.dept,showBed:patient.showBed,hisBed:patient.hisBed}));
+    console.log('[embed] identity:', JSON.stringify(identity));
+    if (!identity.dept_code) console.warn('[embed] 警告：未收到 dept_code，患者列表将不按科室过滤（拉全院病人）。请在 postMessage 的 account 或 patient 中传入 dept_code / deptCode。');
     var key = JSON.stringify([identity, patient.mrn, patient.hisPid, patient.showBed]);
     if (key === lastKey) return;                  // 宿主重复推送，忽略
     lastKey = key;
@@ -222,13 +226,13 @@
   }
 
   function buildIdentity(account, patient) {
-    var rawRole = pick(account.role, account.roleCode, account.roleName);
+    var rawRole = pick(account.role, account.roleCode, account.roleName, account.userRole);
     return {
-      user_id:   pick(account.user_id, account.userId, account.id, account.empNo, account.code),
-      userName:  pick(account.userName, account.username, account.name, account.realName, account.staffName),
+      user_id:   pick(account.user_id, account.userId, account.id, account.empNo, account.code, account.staffCode, account.empCode, account.loginName, account.accountName),
+      userName:  pick(account.userName, account.username, account.name, account.realName, account.staffName, account.staffCode, account.empCode, account.actor, account.loginName, account.trueName, account.displayName),
       role:      ROLE_MAP[rawRole] || ROLE_MAP[String(rawRole).toLowerCase()] || rawRole,
-      dept:      pick(patient.dept, account.dept, account.deptName),
-      dept_code: pick(patient.deptCode, patient.deptCode2, account.deptCode, account.dept_code)
+      dept:      pick(patient.dept, account.dept, account.deptName, account.department, account.departmentName),
+      dept_code: pick(patient.deptCode, patient.deptCode2, patient.dept_code, patient.departmentCode, account.deptCode, account.dept_code, account.departmentCode)
     };
   }
 
@@ -317,6 +321,7 @@
 
     if (CONFIG.hideChrome) {
       var css = 'header.hdr{display:none!important}' +
+                '.side-nav{display:none!important}.shell-main{flex:1 1 100%!important}' +
                 '.root>.body,main.body{padding-top:0!important}' +
                 (CONFIG.hideFloater ? '.ai-pulse-floater,[class*="pulse-floater"]{display:none!important}' : '');
       var st = doc.createElement('style');
