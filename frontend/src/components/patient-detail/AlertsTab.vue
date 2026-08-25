@@ -248,30 +248,45 @@
     </div>
     <div v-if="alerts.length" class="alert-feed">
       <article
-        v-for="(item, idx) in alerts"
-        :key="item._id || item.created_at || idx"
-        :data-alert-type="String(item?.alert_type || '')"
-        :data-alert-name="String(item?.name || item?.rule_id || '')"
-        :data-alert-created-at="String(item?.created_at || '')"
-        :data-alert-card="alertCardKey(item, idx)"
-        :class="['alert-card', `sev-${normalizeSeverity(item.severity)}`, `alert-card--tone-${getAlertDisplayTone(item)}`]"
+        v-for="(group, idx) in groupedAlerts"
+        :key="group.key"
+        :data-alert-type="String(group.latest?.alert_type || '')"
+        :data-alert-name="String(group.latest?.name || group.latest?.rule_id || '')"
+        :data-alert-created-at="String(group.latest?.created_at || '')"
+        :data-alert-card="alertCardKey(group.latest, idx)"
+        :class="['alert-card', `sev-${normalizeSeverity(group.latest.severity)}`, `alert-card--tone-${getAlertDisplayTone(group.latest)}`]"
       >
+        <template v-for="item in [group.latest]" :key="item._id || group.key">
         <div class="alert-rail">
           <span class="alert-time">{{ fmtTime(item.created_at) || '时间未知' }}</span>
           <span :class="['alert-dot', `sev-${normalizeSeverity(item.severity)}`]"></span>
-          <span v-if="idx < alerts.length - 1" class="alert-line"></span>
+          <span v-if="idx < groupedAlerts.length - 1" class="alert-line"></span>
         </div>
         <div :class="['alert-body', { 'alert-body--rescue': isRescueRiskAlert(item) }]">
-          <div class="alert-head">
+          <div class="alert-head alert-head--clickable" @click="toggle(group.key)">
             <div class="alert-title-row">
+              <span class="alert-chevron">{{ isOpen(group.key) ? '\u25be' : '\u25b8' }}</span>
+
               <h4 class="alert-title">{{ item.name || item.rule_id || '预警' }}</h4>
               <span :class="['alert-pill', `sev-${normalizeSeverity(item.severity)}`]">
                 {{ alertSeverityText(item.severity) }}
               </span>
-            </div>
+                          <span v-if="group.count > 1" class="alert-count" :title="`${group.count} 条同类，聚合 4h`">
+                ×{{ group.count }}
+              </span>
+              <span v-if="group.openCount" class="alert-open-dot" :title="`${group.openCount} 条待处理`"></span>
+</div>
             <div class="alert-value">{{ formatAlertValue(item) }}</div>
           </div>
-          <div class="alert-terminal-line">
+          
+          <div v-if="!isOpen(group.key)" class="alert-digest">
+            <span class="digest-txt">{{ digestLine(item) }}</span>
+            <span v-if="group.count > 1" class="digest-span">
+              {{ fmtTime(group.firstAt) }} -> {{ fmtTime(item.created_at) }}
+            </span>
+            <span v-if="item.acknowledged_at" class="alert-action-chip alert-action-chip--ok">已确认</span>
+          </div>
+<div class="alert-terminal-line">
             <span class="terminal-tag">事件</span>
             <span class="terminal-id">{{ eventCodeText(item) }}</span>
           </div>
@@ -619,6 +634,7 @@
             附加信息已结构化存储，当前类型暂无专用展示模板。
           </div>
         </div>
+              </template>
       </article>
     </div>
     <div v-if="!alerts.length" class="tab-empty">暂无预警记录</div>
@@ -631,6 +647,7 @@ import { Button as AButton, Popover as APopover, Select as ASelect } from 'ant-d
 import { chartInitOptions as createChartInitOptions } from '../../charts/displayQuality'
 import { formatAlertTypeLabel, formatCompositeChainLabel, formatCompositeGroupLabel, formatScenarioGroupLabel, formatSeverityLabel, formatStatusLabel, getAlertDisplayTone } from '../../utils/displayLabels'
 import { BODY_MAP_ORGAN_LABELS, BODY_MAP_ORGAN_ORDER, normalizeBodyMapOrganKey } from '../../utils/bodyMap'
+import { useAlertGrouping } from '../../composables/useAlertGrouping'
 
 const props = defineProps<{
   latestCompositeAlert: any
@@ -723,6 +740,18 @@ const {
   aiRiskExplainabilityRows,
   acknowledgeAlert,
 } = props
+
+const focusedTypesRef = computed(() => props.focusedAlertTypes)
+const { groupedAlerts, isOpen, toggle } = useAlertGrouping(alerts, focusedTypesRef)
+
+function digestLine(item: any): string {
+  const s = explanationSummary(item) || itemReasoning(item)?.root_cause_summary || ''
+  const txt = prettyClinicalText(String(s)).replace(/\s+/g, ' ').trim()
+  if (txt) return txt.length > 72 ? txt.slice(0, 72) + '...' : txt
+  const f = alertDetailFields(item)?.[0]
+  return f ? `${f.label} ${f.value ?? '--'}` : alertTypeText(item.alert_type) || '--'
+}
+
 
 const CODE_LABELS: Record<string, string> = {
   extended_scenarios: '扩展场景',
@@ -3201,6 +3230,39 @@ html[data-theme='light'] .threshold-status-pill {
 }
 html[data-theme='light'] .threshold-status-pill.is-approved { color: var(--chart-2); }
 html[data-theme='light'] .threshold-status-pill.is-rejected { color: var(--danger); }
+
+.alert-card--collapsed .alert-body { padding-bottom: 8px; }
+.alert-head--clickable { cursor: pointer; user-select: none; }
+.alert-head--clickable:hover { opacity: 0.92; }
+.alert-chevron { font-size: 10px; color: #8fa3b8; flex: 0 0 12px; }
+.alert-count {
+  padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 800;
+  background: rgba(45,140,255,.14); color: #2d8cff;
+}
+.alert-open-dot { width: 7px; height: 7px; border-radius: 50%; background: #d9342b; flex-shrink: 0; }
+.alert-digest {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 4px 0 2px; font-size: 12px; color: var(--txt-sub, #7f93ab);
+}
+.digest-txt { flex: 1 1 240px; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.digest-span { font-variant-numeric: tabular-nums; opacity: .8; }
+.digest-ops { display: flex; gap: 6px; }
+.alert-action-chip {
+  padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  background: rgba(45,140,255,.1); color: #6da5ff;
+}
+.alert-action-chip--ok {
+  background: rgba(34,197,94,.12); color: #22c55e;
+}
+.group-history { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.group-history-tag { font-size: 10px; font-weight: 700; color: #6b7f96; letter-spacing: .08em; }
+.group-history-item {
+  border: 1px solid rgba(125,167,214,.2); background: transparent;
+  border-radius: 5px; padding: 2px 8px; font-size: 11px;
+  color: #9fb6cd; cursor: pointer;
+}
+.group-history-item:hover { background: rgba(125,167,214,.1); color: #e8f0f8; }
 </style>
 
 

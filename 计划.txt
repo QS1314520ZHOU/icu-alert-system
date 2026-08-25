@@ -1,0 +1,1125 @@
+以下是为 Codex 准备的完整提示词，可直接复制使用。该提示词将指导 AI 为 ICU 预警系统实现界面优化（预警聚合、卡片折叠、导航侧栏、折叠面板）及 3D 数字孪生（Three.js 器官可视化）。所有代码、文件路径、依赖和注意事项均已包含。
+
+---
+
+**提示词开始**
+
+---
+
+你是一个精通 Vue 3 + TypeScript + Ant Design Vue + Three.js 的前端专家。请根据以下需求，为 **ICU 预警系统** 前端生成完整可替换的组件代码、组合式函数（composables）和配置文件。项目基于 Vue 3，使用 `ant-design-vue` 作为 UI 库，路由为 Vue Router。
+
+当前项目存在的主要问题：
+- 预警列表（AlertsTab）卡片未聚合，同类预警重复渲染，导致界面过长。
+- 导航栏入口过多（22 个），水平排列占用大量顶部空间。
+- 患者详情页左侧面板和顶部面板未折叠，信息密度低。
+- 需要 3D 数字孪生面板展示器官状态，需高性能按需渲染。
+
+请按以下顺序生成代码（优先级从高到低）。
+
+---
+
+## 1. 预警聚合折叠（AlertsTab）
+
+**目标**：将同一 `alert_type` 在 4 小时窗口内的预警归为一张卡片，显示 `×N` 徽标，默认收起，点击展开历史列表。已确认和未确认分开聚合。
+
+**文件位置**：`frontend/src/composables/useAlertGrouping.ts`
+
+生成以下 composable：
+
+```typescript
+import { computed, ref, type Ref } from 'vue'
+
+const WINDOW_MS = 4 * 3600 * 1000   // 4h 聚合窗
+const NO_GROUP = new Set(['composite_deterioration', 'ai_risk', 'alert_reasoning'])
+
+export type AlertGroup = {
+  key: string
+  latest: any
+  count: number
+  history: any[]
+  firstAt: string
+  openCount: number
+}
+
+export function useAlertGrouping(alerts: Ref<any[]>, focusedTypes?: Ref<string[] | undefined>) {
+  const expanded = ref<Set<string>>(new Set())
+  const ts = (v: any) => new Date(v || 0).getTime()
+
+  const groupedAlerts = computed<AlertGroup[]>(() => {
+    const buckets = new Map<string, AlertGroup>()
+    for (const a of alerts.value || []) {
+      const type = String(a?.alert_type || a?.rule_id || a?.name || 'unknown')
+      const solo = NO_GROUP.has(type)
+      const ackState = a?.acknowledged_at ? 'ack' : 'open'
+      const win = Math.floor(ts(a?.created_at) / WINDOW_MS)
+      const key = solo
+        ? `solo__${a?._id || ts(a?.created_at)}`
+        : `${type}__${ackState}__${win}`
+
+      const g = buckets.get(key)
+      if (!g) {
+        buckets.set(key, {
+          key, latest: a, count: 1, history: [a],
+          firstAt: a?.created_at, openCount: ackState === 'open' ? 1 : 0,
+        })
+        continue
+      }
+      g.count++
+      g.history.push(a)
+      if (ackState === 'open') g.openCount++
+      if (ts(a?.created_at) > ts(g.latest?.created_at)) g.latest = a
+      if (ts(a?.created_at) < ts(g.firstAt)) g.firstAt = a?.created_at
+    }
+    const list = [...buckets.values()]
+    list.forEach((g) => g.history.sort((x, y) => ts(y?.created_at) - ts(x?.created_at)))
+    return list.sort((x, y) => ts(y.latest?.created_at) - ts(x.latest?.created_at))
+  })
+
+  const autoExpanded = computed(() => {
+    const set = new Set(expanded.value)
+    const focus = focusedTypes?.value
+    if (focus?.length) {
+      for (const g of groupedAlerts.value) {
+        if (focus.includes(String(g.latest?.alert_type || ''))) set.add(g.key)
+      }
+    }
+    return set
+  })
+
+  const isOpen = (key: string) => autoExpanded.value.has(key)
+  const toggle = (key: string) => {
+    const s = new Set(expanded.value)
+    s.has(key) ? s.delete(key) : s.add(key)
+    expanded.value = s
+  }
+  const expandFor = (alert: any) => {
+    const hit = groupedAlerts.value.find((g) => g.history.some((h) => h?._id === alert?._id))
+    if (hit) expanded.value = new Set(expanded.value).add(hit.key)
+    return hit?.key
+  }
+
+  return { groupedAlerts, isOpen, toggle, expandFor }
+}
+```
+
+**文件位置**：`frontend/src/components/patient-detail/AlertsTab.vue`
+
+修改模板：将原本的 `v-for="item in alerts"` 改为分组遍历，使用 `groupedAlerts`，并添加摘要头、折叠逻辑、历史列表。只给出关键修改部分，其余原有内容（展开态内部）保持不变。
+
+模板中替换为：
+
+```vue
+<article
+  v-for="(group, idx) in groupedAlerts"
+  :key="group.key"
+  :data-alert-type="String(group.latest?.alert_type || '')"
+  :data-alert-name="String(group.latest?.name || group.latest?.rule_id || '')"
+  :data-alert-created-at="String(group.latest?.created_at || '')"
+  :data-alert-card="alertCardKey(group.latest, idx)"
+  :class="['alert-card', `sev-${normalizeSeverity(group.latest.severity)}`,
+           `alert-card--tone-${getAlertDisplayTone(group.latest)}`,
+           { 'alert-card--collapsed': !isOpen(group.key) }]"
+>
+  <template v-for="item in [group.latest]" :key="item._id || group.key">
+    <div class="alert-rail">
+      <span class="alert-time">{{ fmtTime(item.created_at) || '时间未知' }}</span>
+      <span :class="['alert-dot', `sev-${normalizeSeverity(item.severity)}`]"></span>
+      <span v-if="idx < groupedAlerts.length - 1" class="alert-line"></span>
+    </div>
+
+    <div :class="['alert-body', { 'alert-body--rescue': isRescueRiskAlert(item) }]">
+      <!-- 摘要头：常驻，点击展开 -->
+      <div class="alert-head alert-head--clickable" @click="toggle(group.key)">
+        <div class="alert-title-row">
+          <span class="alert-chevron">{{ isOpen(group.key) ? '▾' : '▸' }}</span>
+          <h4 class="alert-title">{{ item.name || item.rule_id || '预警' }}</h4>
+          <span v-if="group.count > 1" class="alert-count" :title="`${group.count} 条同类，聚合 4h`">
+            ×{{ group.count }}
+          </span>
+          <span :class="['alert-pill', `sev-${normalizeSeverity(item.severity)}`]">
+            {{ alertSeverityText(item.severity) }}
+          </span>
+          <span v-if="group.openCount" class="alert-open-dot" :title="`${group.openCount} 条待处理`"></span>
+        </div>
+        <div class="alert-value">{{ formatAlertValue(item) }}</div>
+      </div>
+
+      <!-- 收起态：单行摘要 + 两个主操作 -->
+      <div v-if="!isOpen(group.key)" class="alert-digest">
+        <span class="digest-txt">{{ digestLine(item) }}</span>
+        <span v-if="group.count > 1" class="digest-span">
+          {{ fmtTime(group.firstAt) }} → {{ fmtTime(item.created_at) }}
+        </span>
+        <span v-if="item.acknowledged_at" class="alert-action-chip alert-action-chip--ok">
+          已确认{{ item.ack_disposition ? ' · ' + ackDispositionText(item.ack_disposition) : '' }}
+        </span>
+        <span v-else class="digest-ops" @click.stop>
+          <a-button size="small" type="primary" ghost
+            @click="acknowledgeAlertWithReason(item, 'resolved')">已处理</a-button>
+          <a-button size="small" ghost
+            @click="acknowledgeAlertWithReason(item, 'watching')">暂不处理</a-button>
+        </span>
+      </div>
+
+      <!-- 展开态：原有全部内容搬进来，完全不变 -->
+      <template v-else>
+        <!-- 同类历史 -->
+        <div v-if="group.count > 1" class="group-history">
+          <span class="group-history-tag">同类历史</span>
+          <button v-for="h in group.history.slice(1)" :key="h._id"
+                  class="group-history-item" @click="scrollToAlertCard(h)">
+            {{ fmtTime(h.created_at) }} · {{ formatAlertValue(h) }}
+          </button>
+        </div>
+        <!-- 此处保留原有全部展开内容（推理、处置按钮等） -->
+      </template>
+    </div>
+  </template>
+</article>
+```
+
+脚本中添加：
+
+```typescript
+import { useAlertGrouping } from '../../composables/useAlertGrouping'
+import { computed } from 'vue'
+
+const focusedTypesRef = computed(() => props.focusedAlertTypes)
+const { groupedAlerts, isOpen, toggle, expandFor } = useAlertGrouping(alerts, focusedTypesRef)
+
+function digestLine(item: any): string {
+  const s = explanationSummary(item) || itemReasoning(item)?.root_cause_summary || ''
+  const txt = prettyClinicalText(String(s)).replace(/\s+/g, ' ').trim()
+  if (txt) return txt.length > 72 ? txt.slice(0, 72) + '…' : txt
+  const f = alertDetailFields(item)?.[0]
+  return f ? `${f.label} ${f.value ?? '—'}` : alertTypeText(item.alert_type) || '—'
+}
+
+// 修改 scrollToAlertCard 加入 expandFor
+async function scrollToAlertCard(row: any) {
+  expandFor(row)
+  await nextTick()
+  // ... 原有查找元素并滚动逻辑
+}
+```
+
+处置按钮收敛：将展开态中 10 个按钮替换为“已处理”、“暂不处理”和下拉菜单（更多）。使用 `<a-dropdown>` 包裹更多选项。
+
+样式添加（放置在 AlertsTab 的 `<style>` 中）：
+
+```css
+.alert-card--collapsed .alert-body { padding-bottom: 8px; }
+.alert-head--clickable { cursor: pointer; user-select: none; }
+.alert-chevron { font-size: 10px; color: #8fa3b8; flex: 0 0 10px; }
+.alert-count {
+  padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 800;
+  background: rgba(45,140,255,.14); color: #2d8cff;
+}
+.alert-open-dot { width: 7px; height: 7px; border-radius: 50%; background: #d9342b; }
+.alert-digest {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 4px 0 2px; font-size: 12px; color: var(--txt-sub, #7f93ab);
+}
+.digest-txt { flex: 1 1 240px; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.digest-span { font-variant-numeric: tabular-nums; opacity: .8; }
+.digest-ops { display: flex; gap: 6px; }
+.group-history { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.group-history-tag { font-size: 10px; font-weight: 700; color: #6b7f96; letter-spacing: .08em; }
+.group-history-item {
+  border: 1px solid rgba(125,167,214,.2); background: transparent;
+  border-radius: 5px; padding: 2px 8px; font-size: 11px;
+  color: #9fb6cd; cursor: pointer;
+}
+.group-history-item:hover { background: rgba(125,167,214,.1); color: #e8f0f8; }
+```
+
+---
+
+## 2. 通用折叠面板组件 (CollapsePanel)
+
+**文件位置**：`frontend/src/components/common/CollapsePanel.vue`
+
+生成可复用折叠面板，支持标题、徽章、色调、摘要、本地存储持久化。代码：
+
+```vue
+<template>
+  <div class="collapse-panel" :class="[`collapse-panel--${tone}`]">
+    <div class="collapse-panel__header" @click="toggle">
+      <span class="collapse-panel__chevron">{{ open ? '▾' : '▸' }}</span>
+      <span class="collapse-panel__title">{{ title }}</span>
+      <span v-if="badge" class="collapse-panel__badge">{{ badge }}</span>
+      <span v-if="digest" class="collapse-panel__digest">{{ digest }}</span>
+    </div>
+    <div v-show="open" class="collapse-panel__body">
+      <slot />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, onMounted } from 'vue'
+
+const props = defineProps<{
+  title: string
+  badge?: string | number
+  tone?: 'neutral' | 'info' | 'warn' | 'danger'
+  digest?: string
+  storageKey?: string
+  defaultOpen?: boolean
+  forceOpen?: boolean
+}>()
+
+const open = ref(props.defaultOpen ?? false)
+
+// 持久化
+if (props.storageKey) {
+  const stored = localStorage.getItem(`collapse-${props.storageKey}`)
+  if (stored !== null) {
+    open.value = stored === 'true'
+  }
+}
+
+watch(open, (val) => {
+  if (props.storageKey) {
+    localStorage.setItem(`collapse-${props.storageKey}`, String(val))
+  }
+})
+
+watch(() => props.forceOpen, (val) => {
+  if (val) open.value = true
+}, { immediate: true })
+
+function toggle() {
+  open.value = !open.value
+}
+</script>
+
+<style scoped>
+.collapse-panel {
+  border: 1px solid rgba(125,167,214,.15);
+  border-radius: 8px;
+  background: rgba(255,255,255,.04);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.collapse-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #dce6f0;
+}
+.collapse-panel__header:hover {
+  background: rgba(255,255,255,.04);
+}
+.collapse-panel__chevron {
+  font-size: 10px;
+  color: #8fa3b8;
+}
+.collapse-panel__title {
+  flex: 0 0 auto;
+}
+.collapse-panel__badge {
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(45,140,255,.18);
+  color: #6da5ff;
+}
+.collapse-panel__digest {
+  flex: 1;
+  font-weight: 400;
+  font-size: 12px;
+  color: #7f93ab;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collapse-panel__body {
+  padding: 0 12px 12px;
+  border-top: 1px solid rgba(125,167,214,.08);
+}
+.collapse-panel--danger .collapse-panel__badge { background: rgba(217,52,43,.2); color: #ff6b6b; }
+.collapse-panel--warn .collapse-panel__badge { background: rgba(255,170,0,.2); color: #ffb347; }
+.collapse-panel--info .collapse-panel__badge { background: rgba(45,140,255,.18); color: #6da5ff; }
+</style>
+```
+
+---
+
+## 3. 导航二级化（侧边栏改造）
+
+**文件位置**：`frontend/src/config/roleHomeConfig.ts`
+
+重写配置文件，将原有扁平数组改为分组结构，并新增 `icon`、`label` 字段，修正重复项。
+
+```typescript
+export type NavItemKey =
+  | 'doctor-home' | 'nurse-home' | 'head-nurse-home' | 'director-home'
+  | 'overview' | 'clinical-workflow' | 'ai-consult' | 'rounding-sheet'
+  | 'patient-documents' | 'bigscreen' | 'analytics' | 'scanner-health'
+  | 'research-workbench' | 'research-export' | 'clinical-trials' | 'mdt'
+  | 'respiratory-dashboard' | 'nutrition-support' | 'ai-ops'
+  | 'runtime-config' | 'academic-research' | 'handover'
+
+export type NavGroup = {
+  key: string
+  label: string
+  items: Array<{
+    key: NavItemKey
+    lines: string[]
+    label: string
+    icon: string
+    path: string
+  }>
+}
+
+export const navGroups: NavGroup[] = [
+  {
+    key: 'daily',
+    label: '角色首页',
+    items: [
+      { key: 'doctor-home',     lines: ['医生','首页'],   label: '医生首页',   icon: 'stethoscope', path: '/doctor-home' },
+      { key: 'nurse-home',      lines: ['护士','首页'],   label: '护士首页',   icon: 'nurse',       path: '/nurse-home' },
+      { key: 'head-nurse-home', lines: ['护士长','首页'], label: '护士长首页', icon: 'shield',      path: '/head-nurse-home' },
+      { key: 'director-home',   lines: ['主任','首页'],   label: '主任首页',   icon: 'crown',       path: '/director-home' },
+    ],
+  },
+  {
+    key: 'clinical',
+    label: '临床预警与协同',
+    items: [
+      { key: 'overview',          lines: ['患者','总览'],   label: '患者总览',   icon: 'users',    path: '/patients' },
+      { key: 'clinical-workflow', lines: ['临床','工作台'], label: '临床工作台', icon: 'activity', path: '/clinical-workflow' },
+      { key: 'handover',          lines: ['智能','交接班'], label: '智能交接班', icon: 'exchange', path: '/handover' },
+      { key: 'bigscreen',         lines: ['护士站','大屏'], label: '护士站大屏', icon: 'monitor',  path: '/bigscreen' },
+    ],
+  },
+  {
+    key: 'ai',
+    label: 'AI 辅助',
+    items: [
+      { key: 'ai-consult',        lines: ['AI','问诊'],   label: 'AI 问诊',   icon: 'sparkles', path: '/ai-consult' },
+      { key: 'rounding-sheet',    lines: ['智能','查房'], label: '智能查房',   icon: 'clipboard', path: '/rounding-sheet' },
+      { key: 'patient-documents', lines: ['病历','文书'], label: '病历文书',   icon: 'file',     path: '/patients' },
+      { key: 'mdt',               lines: ['MDT','会诊'],  label: 'MDT 会诊',  icon: 'network',  path: '/mdt' },
+    ],
+  },
+  {
+    key: 'specialty',
+    label: '临床专科',
+    items: [
+      { key: 'respiratory-dashboard', lines: ['呼吸','治疗'], label: '呼吸治疗', icon: 'lungs', path: '/respiratory-dashboard' },
+      { key: 'nutrition-support',     lines: ['营养','支持'], label: '营养支持', icon: 'apple', path: '/nutrition-support' },
+    ],
+  },
+  {
+    key: 'quality',
+    label: '质控与运维',
+    items: [
+      { key: 'analytics',      lines: ['质控','分析'], label: '质控分析',   icon: 'chart',    path: '/analytics' },
+      { key: 'scanner-health', lines: ['规则','健康'], label: '规则健康',   icon: 'pulse',    path: '/admin/scanner-health' },
+      { key: 'ai-ops',         lines: ['AI','运营'],   label: 'AI 运营',   icon: 'cpu',      path: '/ai-ops' },
+      { key: 'runtime-config', lines: ['配置','中心'], label: '配置中心',   icon: 'settings', path: '/admin/runtime-config' },
+    ],
+  },
+  {
+    key: 'research',
+    label: '科研管理',
+    items: [
+      { key: 'research-workbench', lines: ['科研','工作台'], label: '科研工作台', icon: 'flask',    path: '/research-workbench' },
+      { key: 'research-export',    lines: ['科研','导出'],   label: '科研导出',   icon: 'download', path: '/research-export' },
+      { key: 'clinical-trials',    lines: ['临床','试验'],   label: '临床试验',   icon: 'beaker',   path: '/clinical-trials' },
+      { key: 'academic-research',  lines: ['学术','科研'],   label: '学术科研',   icon: 'book',     path: '/academic-research' },
+    ],
+  },
+]
+
+export const navItems = navGroups.flatMap((g) => g.items)
+```
+
+**文件位置**：`frontend/src/components/common/SideNav.vue`
+
+生成侧边栏组件，支持折叠/展开、分组、高亮、权限过滤（根据用户角色）。使用 CSS mask 图标占位，可替换为实际图标库。
+
+```vue
+<template>
+  <aside class="side-nav" :class="{ 'side-nav--collapsed': collapsed }">
+    <div class="side-nav__header" @click="collapsed = !collapsed">
+      <span class="side-nav__brand">{{ collapsed ? 'ICU' : 'ICU 预警系统' }}</span>
+      <button class="side-nav__toggle">{{ collapsed ? '☰' : '✕' }}</button>
+    </div>
+    <nav class="side-nav__menu">
+      <div v-for="group in filteredGroups" :key="group.key" class="side-nav__group">
+        <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
+        <router-link
+          v-for="item in group.items"
+          :key="item.key"
+          :to="item.path"
+          class="side-nav__item"
+          :class="{ 'side-nav__item--active': isActive(item.path) }"
+          @click="onNav(item)"
+        >
+          <span class="side-nav__icon">{{ iconSymbol(item.icon) }}</span>
+          <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+        </router-link>
+      </div>
+    </nav>
+  </aside>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { navGroups } from '../../config/roleHomeConfig'
+// 假设有 useAuthStore 提供角色
+// import { useAuthStore } from '../../stores/auth'
+
+const route = useRoute()
+const router = useRouter()
+// const auth = useAuthStore()
+const collapsed = ref(false)
+
+const emit = defineEmits<{
+  (e: 'nav', item: any): void
+}>()
+
+// 权限过滤（示例，根据角色过滤）
+const filteredGroups = computed(() => {
+  // const role = auth.role
+  // 这里实现根据角色隐藏无权限项的逻辑
+  return navGroups
+})
+
+function isActive(path: string) {
+  return route.path === path || route.path.startsWith(path + '/')
+}
+
+function iconSymbol(icon: string) {
+  // 简单的占位符，可换成真实图标组件
+  const map: Record<string, string> = {
+    stethoscope: '🩺', nurse: '👩‍⚕️', shield: '🛡️', crown: '👑',
+    users: '👥', activity: '📊', exchange: '🔄', monitor: '🖥️',
+    sparkles: '✨', clipboard: '📋', file: '📄', network: '🌐',
+    lungs: '🫁', apple: '🍎', chart: '📈', pulse: '❤️',
+    cpu: '⚙️', settings: '🔧', flask: '🧪', download: '⬇️',
+    beaker: '🧫', book: '📚'
+  }
+  return map[icon] || '•'
+}
+
+function onNav(item: any) {
+  emit('nav', item)
+  // 可处理透传参数
+}
+</script>
+
+<style scoped>
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  min-height: 100vh;
+  background: #0b1420;
+  border-right: 1px solid #1e2a3a;
+  transition: width 0.2s;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.side-nav--collapsed {
+  width: 56px;
+}
+.side-nav__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 12px;
+  border-bottom: 1px solid #1e2a3a;
+  cursor: pointer;
+  color: #dce6f0;
+  font-weight: 700;
+}
+.side-nav__brand {
+  font-size: 16px;
+  white-space: nowrap;
+}
+.side-nav__toggle {
+  background: transparent;
+  border: none;
+  color: #8fa3b8;
+  font-size: 18px;
+  cursor: pointer;
+}
+.side-nav__menu {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.side-nav__group {
+  margin-bottom: 4px;
+}
+.side-nav__group-label {
+  padding: 4px 16px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #5a6f84;
+}
+.side-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  color: #a0b6cc;
+  text-decoration: none;
+  font-size: 13px;
+  border-left: 3px solid transparent;
+  transition: background .15s;
+}
+.side-nav__item:hover {
+  background: rgba(255,255,255,.04);
+  color: #dce6f0;
+}
+.side-nav__item--active {
+  background: rgba(45,140,255,.08);
+  border-left-color: #2d8cff;
+  color: #dce6f0;
+}
+.side-nav__icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+.side-nav--collapsed .side-nav__label {
+  display: none;
+}
+.side-nav--collapsed .side-nav__group-label {
+  display: none;
+}
+</style>
+```
+
+**文件位置**：`frontend/src/App.vue`
+
+改造顶栏为侧边栏 + 精简顶栏，只保留面包屑和工具区域。模板改为：
+
+```vue
+<template>
+  <div class="shell">
+    <SideNav v-if="!route.meta?.fullscreen" @nav="onNav" />
+    <div class="shell-main">
+      <header class="topbar">
+        <span class="tb-crumb">{{ currentNavLabel }}</span>
+        <div class="hdr-tools">
+          <!-- 原有工具区域（用户信息、退出等）保持不变 -->
+        </div>
+      </header>
+      <main class="body">
+        <router-view />
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import SideNav from './components/common/SideNav.vue'
+import { navItems } from './config/roleHomeConfig'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+// 根据当前路由匹配导航标题
+const currentNavLabel = computed(() => {
+  const matched = navItems.find(i => route.path === i.path || route.path.startsWith(i.path + '/'))
+  return matched?.label || '患者总览'
+})
+// onNav 复用原函数，保持透传
+</script>
+
+<style>
+.shell { display: flex; min-height: 100vh; }
+.shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  height: 48px; flex: 0 0 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px; gap: 16px;
+  background: var(--hdr-bg-strong);
+  border-bottom: 1px solid var(--hdr-border);
+  position: sticky; top: 0; z-index: 90;
+}
+.tb-crumb { font-size: 15px; font-weight: 800; color: var(--hdr-title); }
+.body { flex: 1; background: var(--app-bg); min-height: 0; }
+</style>
+```
+
+同时确保 `/bigscreen` 和 `/bedside/:id` 路由 meta 添加 `fullscreen: true` 以隐藏侧边栏。
+
+---
+
+## 4. 患者详情页面板折叠
+
+**文件位置**：`frontend/src/views/PatientDetail.vue`
+
+在左栏 weaning-strip 处使用 `CollapsePanel`，并增加简洁模式判断。右栏 AlertsTab 顶部三块面板（MODI、器官定位、个性化阈值）也使用 `CollapsePanel`，MODI 默认展开。
+
+在 PatientDetail.vue 中，将 weaning 区域包裹：
+
+```vue
+<CollapsePanel
+  v-if="!isCompactDetail || weaningRiskTone === 'danger'"
+  title="脱机与自主呼吸试验"
+  :badge="weaningAssessment?.risk_score ?? '—'"
+  :tone="weaningRiskTone === 'danger' ? 'danger' : weaningRiskTone === 'warn' ? 'warn' : 'neutral'"
+  :digest="weaningDigest"
+  storage-key="weaning"
+>
+  <!-- 原来的 weaning-strip 内容 -->
+</CollapsePanel>
+```
+
+并添加 computed `weaningDigest`：
+
+```typescript
+const weaningDigest = computed(() => {
+  const w = weaningAssessment.value
+  const s = sbtAssessment.value
+  const parts: string[] = []
+  if (w?.risk_score != null) parts.push(`${weaningRiskLabel.value} ${w.risk_score}`)
+  if (w?.pf_ratio != null) parts.push(`P/F ${w.pf_ratio}`)
+  if (s?.label) parts.push(`SBT ${s.label}`)
+  return parts.join(' · ')
+})
+```
+
+在 AlertsTab.vue 顶部三块面板替换为：
+
+```vue
+<CollapsePanel
+  v-if="latestCompositeAlert"
+  title="多器官恶化指数 (MODI)"
+  :badge="`MODI ${latestCompositeModi ?? '—'} · ${latestCompositeOrganCount} 系统`"
+  :tone="(latestCompositeModi ?? 0) >= 8 ? 'danger' : (latestCompositeModi ?? 0) >= 4 ? 'warn' : 'info'"
+  :digest="latestCompositeInvolvedText"
+  storage-key="modi"
+  default-open
+>
+  <!-- MODI 内容 -->
+</CollapsePanel>
+
+<CollapsePanel
+  v-if="organFocusGroups.length"
+  title="器官关联告警定位"
+  :badge="organFocusGroups.length"
+  :digest="organFocusGroups.map(g => g.label).join(' · ')"
+  storage-key="organ-focus"
+>
+  <!-- 器官定位内容 -->
+</CollapsePanel>
+
+<CollapsePanel
+  v-if="personalizedThresholdRecord"
+  title="个性化阈值建议"
+  :badge="personalizedThresholdRecord?.status === 'pending' ? '待审核' : ''"
+  :tone="personalizedThresholdRecord?.status === 'pending' ? 'warn' : 'neutral'"
+  :digest="thresholdDigest"
+  storage-key="threshold"
+  :default-open="personalizedThresholdRecord?.status === 'pending'"
+>
+  <!-- 阈值内容 -->
+</CollapsePanel>
+```
+
+在脚本中引入 `CollapsePanel` 并定义 `thresholdDigest`。
+
+---
+
+## 5. 3D 数字孪生（Three.js 器官可视化）
+
+**安装依赖**：`npm install three` 和 `npm install -D @types/three`
+
+**文件位置**：`frontend/src/composables/useOrganSeverity.ts`
+
+生成器官评分映射，将 SOFA 分项和生理指标归一化到 0~1。
+
+```typescript
+import { computed, type Ref } from 'vue'
+
+export type OrganKey = 'lung' | 'heart' | 'liver' | 'kidney' | 'brain' | 'coag'
+
+export type OrganState = {
+  key: OrganKey
+  label: string
+  severity: number        // 0-1
+  sofa: number | null     // 0-4
+  source: 'sofa' | 'derived' | 'none'
+  metrics: Array<{ label: string; value: string }>
+}
+
+const N = (v: any): number | null => {
+  const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''))
+  return Number.isFinite(n) ? n : null
+}
+const fmt = (v: any, unit = '', d = 1) => {
+  const n = N(v)
+  return n == null ? '—' : `${n.toFixed(d).replace(/\.0$/, '')}${unit}`
+}
+
+export function useOrganSeverity(twin: Ref<any>) {
+  return computed<OrganState[]>(() => {
+    const t = twin.value || {}
+    const s = t.snapshot || {}
+    const sofa = t.scores?.sofa || {}
+
+    const pick = (...keys: string[]): number | null => {
+      for (const k of keys) {
+        const v = N(sofa[k])
+        if (v != null) return v
+      }
+      return null
+    }
+
+    const build = (
+      key: OrganKey, label: string,
+      sofaVal: number | null,
+      derived: number | null,
+      metrics: Array<{ label: string; value: string }>
+    ): OrganState => {
+      let severity: number
+      let source: OrganState['source']
+      if (sofaVal != null) { severity = Math.min(sofaVal / 4, 1); source = 'sofa' }
+      else if (derived != null) { severity = Math.min(Math.max(derived, 0), 1); source = 'derived' }
+      else { severity = 0; source = 'none' }
+      return { key, label, severity, sofa: sofaVal, source, metrics }
+    }
+
+    const spo2 = N(s.spo2?.current), fio2 = N(s.fio2?.current)
+    const sf = spo2 != null && fio2 ? spo2 / (fio2 / 100) : null
+    const lungDerived = sf != null ? (sf < 150 ? 1 : sf < 235 ? 0.7 : sf < 315 ? 0.4 : 0.15) : null
+
+    const map = N(s.map?.current)
+    const vaso = N(s.vasoactive_support?.current_dose_ug_kg_min)
+    const heartDerived = vaso != null && vaso > 0
+      ? (vaso >= 0.3 ? 1 : vaso >= 0.1 ? 0.75 : 0.5)
+      : map != null ? (map < 65 ? 0.6 : map < 75 ? 0.3 : 0.1) : null
+
+    const uo = N(s.urine_ml_kg_h_6h)
+    const kidneyDerived = uo != null ? (uo < 0.3 ? 1 : uo < 0.5 ? 0.7 : uo < 1 ? 0.35 : 0.1) : null
+
+    const lac = N(s.lactate?.current)
+
+    return [
+      build('lung', '呼吸',
+        pick('respiration', 'resp', 'respiratory', 'pulmonary'), lungDerived,
+        [{ label: 'SpO₂', value: fmt(spo2, '%', 0) },
+         { label: 'FiO₂', value: fmt(fio2, '%', 0) },
+         { label: 'PEEP', value: fmt(s.peep?.current, ' cmH₂O') },
+         { label: '模式', value: String(s.vent_mode?.current || '—') }]),
+
+      build('heart', '循环',
+        pick('cardiovascular', 'circulation', 'cardio'), heartDerived,
+        [{ label: 'MAP', value: fmt(map, ' mmHg', 0) },
+         { label: 'HR', value: fmt(s.hr?.current, ' bpm', 0) },
+         { label: '升压药', value: vaso != null ? `${vaso} μg/kg/min` : '无' },
+         { label: '乳酸', value: fmt(lac, ' mmol/L') }]),
+
+      build('brain', '神经',
+        pick('cns', 'neuro', 'neurological'), null,
+        [{ label: 'GCS', value: fmt(t.facts?.gcs, '', 0) }]),
+
+      build('liver', '肝脏',
+        pick('liver', 'hepatic'), null,
+        [{ label: '总胆红素', value: fmt(t.labs?.latest?.tbil?.value, ' μmol/L') }]),
+
+      build('kidney', '肾脏',
+        pick('renal', 'kidney'), kidneyDerived,
+        [{ label: '肌酐', value: fmt(t.labs?.latest?.cr?.value, ' μmol/L', 0) },
+         { label: '尿量', value: fmt(uo, ' mL/kg/h', 2) }]),
+
+      build('coag', '凝血',
+        pick('coagulation', 'coag', 'platelet'), null,
+        [{ label: '血小板', value: fmt(t.labs?.latest?.plt?.value, ' ×10⁹/L', 0) },
+         { label: 'INR', value: fmt(t.labs?.latest?.inr?.value, '', 2) }]),
+    ]
+  })
+}
+```
+
+**文件位置**：`frontend/src/components/patient-detail/DigitalTwin3DPanel.vue`
+
+生成完整的 Three.js 3D 面板，包含按需渲染、器官球体、颜色映射、脉冲动画、内存释放。
+
+```vue
+<template>
+  <div ref="container" class="twin-3d-container" />
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import * as THREE from 'three'
+import type { OrganState } from '../../composables/useOrganSeverity'
+
+const props = defineProps<{
+  organStates: OrganState[]
+  active?: boolean
+}>()
+
+const container = ref<HTMLDivElement>()
+let scene: THREE.Scene
+let camera: THREE.PerspectiveCamera
+let renderer: THREE.WebGLRenderer
+let meshMap = new Map<string, THREE.Mesh>()
+let dirty = true
+let frameId: number | null = null
+
+// 共用几何体
+const sphereGeo = new THREE.SphereGeometry(1, 32, 32)
+
+const init = () => {
+  if (!container.value) return
+  const w = container.value.clientWidth
+  const h = container.value.clientHeight || 400
+
+  scene = new THREE.Scene()
+  scene.background = new THREE.Color(0x0b1420)
+
+  camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100)
+  camera.position.set(4, 3, 6)
+  camera.lookAt(0, 0, 0)
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' })
+  renderer.setSize(w, h)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  container.value.appendChild(renderer.domElement)
+
+  // 灯光
+  const ambient = new THREE.AmbientLight(0x404060)
+  scene.add(ambient)
+  const dir = new THREE.DirectionalLight(0xffffff, 1)
+  dir.position.set(5, 10, 7)
+  scene.add(dir)
+  const back = new THREE.DirectionalLight(0x4488ff, 0.3)
+  back.position.set(-3, 1, -5)
+  scene.add(back)
+
+  // 地面网格（可选）
+  const grid = new THREE.GridHelper(10, 10, 0x1e2a3a, 0x1e2a3a)
+  grid.position.y = -1.8
+  scene.add(grid)
+
+  // 创建器官网格
+  const positions: Record<string, [number, number, number]> = {
+    lung: [-0.8, 0.6, 0],
+    heart: [0, 0.2, 0.7],
+    liver: [0.6, -0.2, 0.4],
+    kidney: [0.9, -0.8, -0.2],
+    brain: [0, 1.6, 0],
+    coag: [-0.6, -0.6, -0.8]
+  }
+  const scales: Record<string, [number, number, number]> = {
+    lung: [0.8, 1.2, 0.6],
+    heart: [0.5, 0.5, 0.5],
+    liver: [0.7, 0.4, 0.4],
+    kidney: [0.4, 0.4, 0.4],
+    brain: [0.6, 0.5, 0.6],
+    coag: [0.4, 0.4, 0.4]
+  }
+
+  for (const [key, pos] of Object.entries(positions)) {
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x3a6ea5,
+      emissive: 0x000000,
+      roughness: 0.3,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.85,
+    })
+    const mesh = new THREE.Mesh(sphereGeo, mat)
+    mesh.position.set(pos[0], pos[1], pos[2])
+    const s = scales[key] || [0.5, 0.5, 0.5]
+    mesh.scale.set(s[0], s[1], s[2])
+    scene.add(mesh)
+    meshMap.set(key, mesh)
+  }
+
+  // 添加标签（Sprite 简单文字，可后续增强）
+  // 可略
+
+  dirty = true
+  render()
+  startLoop()
+}
+
+const getColor = (severity: number): THREE.Color => {
+  // 绿 -> 黄 -> 红
+  const r = Math.min(1, severity * 2)
+  const g = Math.min(1, (1 - severity) * 2)
+  return new THREE.Color(r, g, 0.1)
+}
+
+const applyOrganStates = (states: OrganState[]) => {
+  for (const state of states) {
+    const mesh = meshMap.get(state.key)
+    if (!mesh) continue
+    const sev = state.severity
+    const color = getColor(sev)
+    mesh.material.color.copy(color)
+    mesh.material.emissive.copy(color.clone().multiplyScalar(sev * 0.3))
+    mesh.material.opacity = state.source === 'none' ? 0.4 : 0.85
+    mesh.material.needsUpdate = true
+    // 脉冲动画标记
+    mesh.userData.pulse = sev > 0.66
+  }
+  dirty = true
+}
+
+let lastStatesStr = ''
+watch(() => props.organStates, (newStates) => {
+  const str = JSON.stringify(newStates.map(s => ({ key: s.key, sev: s.severity, source: s.source })))
+  if (str !== lastStatesStr) {
+    lastStatesStr = str
+    applyOrganStates(newStates)
+  }
+}, { deep: true, immediate: true })
+
+// 按需渲染循环
+let pulseTime = 0
+const render = () => {
+  if (!renderer || !scene) return
+  if (dirty || props.active === false) {
+    // 如果 active=false，停止渲染
+    if (props.active === false) {
+      frameId = null
+      return
+    }
+    // 脉冲动画：高危器官 pulsate
+    pulseTime += 0.02
+    for (const [key, mesh] of meshMap) {
+      if (mesh.userData.pulse) {
+        const scale = 1 + 0.05 * Math.sin(pulseTime * 2)
+        const base = mesh.scale.x / (1 + 0.05) // 近似还原
+        const s = mesh.scale.x / (mesh.scale.x / base) // 简化，直接乘
+        // 简便方法：保存基础缩放
+        if (!mesh.userData.baseScale) {
+          mesh.userData.baseScale = mesh.scale.clone()
+        }
+        const baseS = mesh.userData.baseScale
+        mesh.scale.set(
+          baseS.x * (1 + 0.05 * Math.sin(pulseTime * 2 + key.length)),
+          baseS.y * (1 + 0.05 * Math.sin(pulseTime * 2 + key.length * 0.7)),
+          baseS.z * (1 + 0.05 * Math.sin(pulseTime * 2 + key.length * 0.5))
+        )
+        dirty = true
+      }
+    }
+    if (dirty) {
+      renderer.render(scene, camera)
+      dirty = false
+    }
+    frameId = requestAnimationFrame(render)
+  } else {
+    // 无变化，停止循环
+    frameId = null
+  }
+}
+
+const startLoop = () => {
+  if (frameId) cancelAnimationFrame(frameId)
+  dirty = true
+  render()
+}
+
+// 窗口 resize
+const onResize = () => {
+  if (!container.value || !renderer) return
+  const w = container.value.clientWidth
+  const h = container.value.clientHeight || 400
+  camera.aspect = w / h
+  camera.updateProjectionMatrix()
+  renderer.setSize(w, h)
+  dirty = true
+}
+
+onMounted(() => {
+  init()
+  window.addEventListener('resize', onResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize)
+  if (frameId) cancelAnimationFrame(frameId)
+  // 释放 GPU 资源
+  renderer?.dispose()
+  renderer?.domElement?.remove()
+  // 清除几何体、材质
+  for (const mesh of meshMap.values()) {
+    mesh.geometry.dispose()
+    mesh.material.dispose()
+  }
+  meshMap.clear()
+  // 强制销毁上下文
+  const gl = renderer?.getContext()
+  if (gl) {
+    const ext = gl.getExtension('WEBGL_lose_context')
+    if (ext) ext.loseContext()
+  }
+  renderer = null as any
+})
+</script>
+
+<style scoped>
+.twin-3d-container {
+  width: 100%;
+  height: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0b1420;
+}
+</style>
+```
+
+**在 DigitalTwinTab.vue 中集成**：
+
+```vue
+<template>
+  <div class="twin-tab">
+    <DigitalTwin3DPanel :organ-states="organStates" :active="is3dActive" />
+    <!-- 其他原有内容 -->
+  </div>
+</template>
+
+<script setup>
+import DigitalTwin3DPanel from './DigitalTwin3DPanel.vue'
+import { useOrganSeverity } from '../../composables/useOrganSeverity'
+import { computed } from 'vue'
+
+const props = defineProps<{ twinSnapshot: any, activeTab: string }>()
+const organStates = useOrganSeverity(computed(() => props.twinSnapshot))
+const is3dActive = computed(() => props.activeTab === 'twin')
+</script>
+```
+
+---
+
+## 最终指令
+
+请按照上述文件路径和内容，生成完整的可替换代码。注意以下几点：
+
+- 保持现有 API 接口字段不变，所有 computed 依赖已有 props。
+- 所有新增组件需包含必要的类型定义。
+- 确保 Three.js 按需渲染和内存释放代码正确，避免 GPU 过载。
+- 修改路由 meta 添加 `fullscreen` 逻辑。
+- 所有样式使用 scoped，避免全局污染。
+- 提供安装命令：`npm install three` 和 `npm install -D @types/three`。
+
+输出时应直接给出每个文件的完整代码，便于复制替换。
+
+---
+
+**提示词结束**

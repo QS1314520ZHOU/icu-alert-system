@@ -103,7 +103,7 @@ const router = createRouter({
       path: '/bigscreen',
       name: 'bigscreen',
       component: routeComponents.bigScreen,
-      meta: { title: '护士站大屏' }
+      meta: { title: '护士站大屏', fullscreen: true }
     },
     {
       path: '/analytics',
@@ -205,7 +205,7 @@ const router = createRouter({
       path: '/bedside/:patientId',
       name: 'bedside',
       component: routeComponents.bedside,
-      meta: { title: '床旁大屏' }
+      meta: { title: '床旁大屏', fullscreen: true }
     },
     {
       path: '/m',

@@ -263,6 +263,13 @@
             @focus-alert-types="handleDeviceHaiAlertFocus"
           />
 
+          <CollapsePanel
+          v-if="!isCompactDetail || weaningRiskTone === 'danger'"
+          title="脱机与自主呼吸试验"
+          :badge="weaningAssessment?.risk_score ?? '--'"
+          :tone="weaningRiskTone === 'danger' ? 'danger' : weaningRiskTone === 'warn' ? 'warn' : 'neutral'"
+          storage-key="weaning"
+        >
           <section class="weaning-strip weaning-strip--rail">
             <div :class="['weaning-card', `weaning-card--${weaningRiskTone}`]">
               <div class="weaning-card-head">
@@ -312,6 +319,7 @@
               </div>
             </div>
           </section>
+        </CollapsePanel>
 
           <PatientWorkbenchHub
             v-if="!isCompactDetail"
@@ -840,6 +848,7 @@ const PatientLabsTab = defineAsyncComponent(() => import('../components/patient-
 const PatientDataTableTab = defineAsyncComponent(() => import('../components/patient-detail/DataTableTab.vue'))
 const PatientSbtTimelineTab = defineAsyncComponent(() => import('../components/patient-detail/SbtTimelineTab.vue'))
 const PatientAlertsTab = defineAsyncComponent(() => import('../components/patient-detail/AlertsTab.vue'))
+import CollapsePanel from '../components/common/CollapsePanel.vue'
 const PatientSimilarCasesTab = defineAsyncComponent(() => import('../components/patient-detail/SimilarCasesTab.vue'))
 const PatientLongTermFollowupTab = defineAsyncComponent(() => import('../components/patient-detail/LongTermFollowupTab.vue'))
 const PatientDigitalTwinTab = defineAsyncComponent(() => import('../components/patient-detail/DigitalTwinTab.vue'))
@@ -1306,9 +1315,9 @@ const sbtAssessment = computed(() => weaningStatus.value?.sbt || {})
 const postExtubationRisk = computed(() => weaningStatus.value?.post_extubation_risk || {})
 const weaningRiskTone = computed(() => {
   const level = String(weaningAssessment.value?.risk_level || '').toLowerCase()
-  if (level === 'critical') return 'critical'
-  if (level === 'high') return 'high'
-  if (level === 'warning') return 'warning'
+  if (level === 'critical') return 'danger'
+  if (level === 'high') return 'danger'
+  if (level === 'warning') return 'warn'
   return 'stable'
 })
 const postExtubationHeroVisible = computed(() => !!postExtubationRisk.value?.has_alert)
@@ -6865,4 +6874,124 @@ html[data-theme='light'] .ai-evidence-popover { color: var(--text-primary); }
     padding: 10px 10px;
   }
 }
+
+/* === Bundle V2 Actions === */
+.hero-bundle-v2-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+.hero-bundle-v2-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.hero-bundle-v2-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.hero-bundle-v2-value { color: var(--text-primary); }
+.hero-bundle-v2-value--warning { color: var(--warning); }
+.hero-bundle-v2-value--danger { color: var(--danger); }
+.hero-bundle-v2-value--normal { color: var(--success); }
+.hero-bundle-v2-row--warn { background: rgba(245,158,11,.08); padding: 3px 8px; border-radius: 4px; }
+.hero-bundle-v2-row--caution { background: rgba(239,68,68,.06); padding: 3px 8px; border-radius: 4px; }
+.hero-bundle-v2-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.hero-bundle-v2-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(125,167,214,.2);
+  background: rgba(15,30,50,.7);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.hero-bundle-v2-btn:hover { border-color: var(--brand); color: var(--brand); }
+.hero-bundle-v2-btn--confirm {
+  border-color: rgba(29,111,99,.4);
+  background: rgba(29,111,99,.12);
+  color: #2dd4a8;
+}
+.hero-bundle-v2-btn--confirm:hover { background: rgba(29,111,99,.22); border-color: #2dd4a8; }
+.hero-bundle-v2-btn--record {
+  border-color: rgba(59,130,246,.3);
+  background: rgba(59,130,246,.1);
+  color: #60a5fa;
+}
+.hero-bundle-v2-btn--record:hover { background: rgba(59,130,246,.2); border-color: #60a5fa; }
+
+/* === Sepsis Review / Execution Form === */
+.sepsis-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0;
+}
+.sepsis-review-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sepsis-review-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.sepsis-review-select,
+.sepsis-review-input,
+.sepsis-review-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s;
+}
+.sepsis-review-select:focus,
+.sepsis-review-input:focus,
+.sepsis-review-textarea:focus {
+  border-color: var(--brand);
+}
+.sepsis-review-textarea { resize: vertical; min-height: 64px; }
+.sepsis-review-select {
+  appearance: auto;
+  cursor: pointer;
+}
+
+/* Light theme overrides */
+html[data-theme='light'] .hero-bundle-v2-btn {
+  background: rgba(255,255,255,.8);
+  border-color: rgba(145,176,199,.3);
+  color: var(--text-primary);
+}
+html[data-theme='light'] .hero-bundle-v2-btn--confirm {
+  background: rgba(29,111,99,.08);
+  border-color: rgba(29,111,99,.3);
+  color: #1D6F63;
+}
+html[data-theme='light'] .hero-bundle-v2-btn--record {
+  background: rgba(59,130,246,.06);
+  border-color: rgba(59,130,246,.2);
+  color: #2563EB;
+}
+html[data-theme='light'] .hero-bundle-v2-row--warn { background: rgba(245,158,11,.06); }
+html[data-theme='light'] .hero-bundle-v2-row--caution { background: rgba(239,68,68,.04); }
+
 </style>

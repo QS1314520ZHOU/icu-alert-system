@@ -9,6 +9,8 @@
       <button class="twin-refresh" :disabled="loading" @click="loadAll(true)">{{ loading ? '刷新中…' : '刷新工作台' }}</button>
     </div>
 
+    <VitalSignsStrip :vitals-snapshot="twinVitals?.snapshot || {}" />
+
     <div class="twin-kpis">
       <div class="twin-kpi"><span>患者</span><strong>{{ patient?.name || patient?.hisName || '当前患者' }}</strong></div>
       <div class="twin-kpi"><span>短时恶化风险</span><strong>{{ deteriorationProbability }}</strong></div>
@@ -244,6 +246,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DigitalTwinAvatarPanel from './DigitalTwinAvatarPanel.vue'
+import VitalSignsStrip from './VitalSignsStrip.vue'
 import { formatStatusLabel } from '../../utils/displayLabels'
 import {
   getAiClinicalReasoning,
@@ -293,6 +296,7 @@ const whatIfPresets = [
 ] as const
 const twinRecord = computed(() => digitalTwin.value?.record || digitalTwin.value || {})
 const twinSnapshot = computed(() => twinRecord.value?.snapshot || {})
+
 const twinPatient = computed(() => twinRecord.value?.patient || {})
 const twinVitals = computed(() => twinRecord.value?.vitals || {})
 const twinSummary = computed(() => twinRecord.value?.summary || {})

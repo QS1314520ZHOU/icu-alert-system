@@ -174,6 +174,16 @@ html.boot-mobile #app {
   --text-secondary: #8ba0ba;
   --text-muted: #6b8299;
   --border-color: rgba(125, 167, 214, 0.14);
+
+  /* Sidebar */
+  --sidebar-bg: #0B2545;
+  --sidebar-border: rgba(255,255,255,0.08);
+  --sidebar-item-hover: rgba(255,255,255,0.06);
+  --sidebar-item-active-bg: rgba(255,255,255,0.08);
+  --sidebar-item-active-border: #ffffff;
+  --sidebar-text: #B8C9DB;
+  --sidebar-text-active: #ffffff;
+  --sidebar-group-label: #6B8299;
 }
 
 html[data-theme='light'] {
@@ -184,6 +194,16 @@ html[data-theme='light'] {
   --bg-surface: #FFFDF7;
   --bg-surface-2: #F6F3EA;
   --border-color: #D7DED3;
+
+  /* Sidebar */
+  --sidebar-bg: #f0f4f8;
+  --sidebar-border: rgba(0,0,0,0.08);
+  --sidebar-item-hover: rgba(0,0,0,0.04);
+  --sidebar-item-active-bg: #E2F0EA;
+  --sidebar-item-active-border: #1D6F63;
+  --sidebar-text: #4A5568;
+  --sidebar-text-active: #155C52;
+  --sidebar-group-label: #87978D;
   --text-primary: #16241E;
   --text-secondary: #3F564B;
   --text-muted: #718176;
