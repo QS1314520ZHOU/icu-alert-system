@@ -2400,7 +2400,13 @@ function normalizeAiRuleItems(items: any[]): AiRuleRow[] {
       operator: String(it?.operator || '—'),
       threshold: it?.threshold != null ? String(it.threshold) : '—',
       severity: sevMap[severityRaw] || String(it?.severity || '—'),
-      reason: String(it?.reason || it?.description || '—'),
+      reason: (function() {
+        var r = it?.reason || it?.description || '';
+        if (typeof r === 'string' && r.trim().startsWith('[')) {
+          try { var arr = JSON.parse(r); if (Array.isArray(arr) && arr.length) { return arr.map(function(x){ return x.reason || x.description || x.parameter || ''; }).filter(Boolean).join('；'); } } catch(e) {}
+        }
+        return String(r || '—');
+      })(),
     }
   })
 }
