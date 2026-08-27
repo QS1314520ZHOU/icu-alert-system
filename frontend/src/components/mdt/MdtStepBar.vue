@@ -14,10 +14,9 @@
       ]"
       @click="$emit('update:modelValue', step.key)"
     >
-      <span>{{ step.index }}</span>
-      <strong>{{ step.title }}</strong>
-      <small>{{ step.desc }}</small>
-      <em>{{ step.done ? '已完成' : '待完成' }}</em>
+      <span class="mdt-step__index">{{ step.index }}</span>
+      <span class="mdt-step__title">{{ step.title }}</span>
+      <span v-if="step.done" class="mdt-step__check">✓</span>
     </button>
   </nav>
 </template>
@@ -45,124 +44,65 @@ defineEmits<{
 .mdt-step-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
+  gap: 8px;
+  margin-top: 14px;
 }
 .mdt-step {
-  position: relative;
-  min-height: 86px;
-  padding: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  text-align: left;
+  background: var(--bg-surface);
   cursor: pointer;
-  color: var(--text-secondary);
-  background: var(--bg-surface), 0.5);
+  transition: border-color 0.15s, background 0.15s;
 }
-.mdt-step::before {
-  content: '';
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 0;
-  height: 3px;
-  border-radius: var(--card-radius);
-  background: rgba(51, 65, 85, 0.9);
+.mdt-step__index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.mdt-step__title {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+.mdt-step__check {
+  margin-left: auto;
+  color: #10b981;
+  font-size: 14px;
 }
 .mdt-step.is-active {
-  border-color: rgba(56, 189, 248, 0.6);
-  box-shadow: var(--card-shadow);
-  background: var(--bg-surface), var(--bg-surface));
+  border-color: var(--brand);
+  background: var(--bg-surface);
 }
-.mdt-step.is-active::before {
-  background: var(--chart-1);
+.mdt-step.is-active .mdt-step__index {
+  background: var(--brand);
+  color: #fff;
 }
-.mdt-step.is-done::before {
-  background: var(--success);
-}
-.mdt-step span,
-.mdt-step em {
-  color: rgba(125, 211, 252, 0.88);
-  font-size: 12px;
-  font-style: normal;
-}
-.mdt-step strong {
-  display: block;
-  margin: 7px 0 4px;
+.mdt-step.is-active .mdt-step__title {
   color: var(--text-primary);
-  font-size: 16px;
+  font-weight: 600;
 }
-.mdt-step small {
-  display: block;
-  color: rgba(203, 213, 225, 0.68);
-  line-height: 1.4;
+.mdt-step.is-done .mdt-step__index {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
 }
-.mdt-step em {
-  position: absolute;
-  right: 12px;
-  top: 12px;
+.mdt-step.is-done .mdt-step__title {
+  color: var(--text-primary);
 }
-@media (max-width: 980px) {
+@media (max-width: 720px) {
   .mdt-step-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-:global(html[data-theme='light']) .mdt-step {
-  color: var(--text-secondary);
-  border-color: #D9E0D6;
-  background: #FBFCF8;
-  box-shadow: 0 8px 20px rgba(61, 76, 68, 0.06);
-}
-:global(html[data-theme='light']) .mdt-step::before {
-  background: #CBD5D1;
-}
-:global(html[data-theme='light']) .mdt-step.is-active {
-  border-color: #8DBFAF;
-  background: #EAF5F0;
-  box-shadow: 0 10px 24px rgba(29, 111, 99, 0.12);
-}
-:global(html[data-theme='light']) .mdt-step.is-active::before {
-  background: #1D6F63;
-}
-:global(html[data-theme='light']) .mdt-step.is-done::before {
-  background: #2F7A58;
-}
-:global(html[data-theme='light']) .mdt-step span,
-:global(html[data-theme='light']) .mdt-step em {
-  color: #7B8790;
-}
-:global(html[data-theme='light']) .mdt-step strong {
-  color: var(--text-primary);
-}
-:global(html[data-theme='light']) .mdt-step small {
-  color: var(--text-secondary);
-}
-:global(html[data-theme='light']) .mdt-step span {
-  color: #8AA4B0;
-}
-:global(html[data-theme='light']) .mdt-step em {
-  color: #7B8790;
-}
-:global(html[data-theme='light']) .mdt-step.is-active span,
-:global(html[data-theme='light']) .mdt-step.is-active em {
-  color: #1D6F63;
-}
-:global(html[data-theme='light']) .mdt-step.is-done span,
-:global(html[data-theme='light']) .mdt-step.is-done em {
-  color: #2F7A58;
-}
-:global(html[data-theme='light']) .mdt-step.is-active.is-done span,
-:global(html[data-theme='light']) .mdt-step.is-active.is-done em {
-  color: #2F7A58;
-}
-:global(html[data-theme='light']) .mdt-step.is-pending span {
-  color: #8AA4B0;
-}
-:global(html[data-theme='light']) .mdt-step.is-pending em {
-  color: #7B8790;
-}
-:global(html[data-theme='light']) .mdt-step.is-active.is-done::before {
-  background: #2F7A58;
 }
 </style>

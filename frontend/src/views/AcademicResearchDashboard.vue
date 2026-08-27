@@ -1,855 +1,357 @@
 <template>
-  <div class="research-page">
-    <section class="research-hero">
-      <div>
-        <div class="eyebrow">科研秘书 / PI 工作台</div>
-        <h1>科室学术科研支撑</h1>
-        <p>从“临床问题发现”到“课题立项、数据质量评估、OMOP 脱敏导出”的一站式科研入口。</p>
-      </div>
-      <a-space wrap>
-        <a-button :loading="loading" @click="loadAll">刷新数据</a-button>
+  <div class="academic-page">
+    <PageHeader title="科室学术科研支撑" subtitle="从临床问题发现到课题立项、数据质量评估的一站式科研入口">
+      <template #actions>
+        <a-button :loading="loading" @click="loadAll">刷新</a-button>
         <a-button type="primary" :loading="topicLoading" @click="generateTopics">AI 生成课题建议</a-button>
-        <a-button :loading="omopLoading" @click="exportOmop">导出 OMOP 数据包</a-button>
-      </a-space>
-    </section>
-    <div class="scope-strip">当前科研数据范围：{{ scopeLabel }} · {{ routeDeptCode || routeDeptName ? '按当前科室导出' : '全院 ICU 数据' }}</div>
-
-    <section class="guide-rail">
-      <article v-for="step in guideSteps" :key="step.title" class="guide-card">
-        <span>{{ step.index }}</span>
-        <strong>{{ step.title }}</strong>
-        <p>{{ step.desc }}</p>
-      </article>
-    </section>
-
-    <section class="kpi-grid">
-      <article class="kpi-card">
-        <span>在管科研项目</span>
-        <strong>{{ portfolio.active_count ?? projects.length }}</strong>
-        <small>论文 / 课题 / 基金 / 伦理</small>
-      </article>
-      <article class="kpi-card kpi-card--cyan">
-        <span>AI 潜在课题</span>
-        <strong>{{ topics.length }}</strong>
-        <small>{{ topicSourceLabel }}</small>
-      </article>
-      <article class="kpi-card kpi-card--amber">
-        <span>数据仓患者数</span>
-        <strong>{{ quality.patient_count || 0 }}</strong>
-        <small>默认脱敏统计</small>
-      </article>
-      <article class="kpi-card kpi-card--rose">
-        <span>时间逻辑错误</span>
-        <strong>{{ quality.time_logic_errors?.length || 0 }}</strong>
-        <small>导出前建议治理</small>
-      </article>
-    </section>
-
-    <section class="dashboard-grid">
-      <a-card class="panel project-panel" :bordered="false">
-        <template #title>科研项目看板</template>
-        <template #extra><a-button size="small" type="primary" @click="openProjectDrawer()">新建项目</a-button></template>
-
-        <div v-if="!projects.length && !loading" class="empty-project">
-          <div class="empty-icon">立项</div>
-          <h2>还没有科研项目</h2>
-          <p>可以先从 AI 课题推荐中选择一个方向一键转为项目，或手动录入论文、基金、伦理和临床研究。</p>
-          <a-space wrap>
-            <a-button type="primary" @click="openProjectDrawer()">手动新建立项</a-button>
-            <a-button :loading="topicLoading" @click="generateTopics">先生成课题建议</a-button>
-          </a-space>
-        </div>
-
-        <div v-else class="project-list">
-          <article v-for="project in projects" :key="project.project_id" class="project-card">
-            <div class="project-head">
-              <a-tag color="geekblue">{{ project.type || '课题' }}</a-tag>
-              <a-tag :color="statusColor(project.status)">{{ project.status || '计划中' }}</a-tag>
-            </div>
-            <h3>{{ project.title }}</h3>
-            <p>负责人：{{ ownerLabel(project.owner) }}</p>
-            <small>{{ project.journal_or_funding_source || project.remarks || '暂无备注' }}</small>
-          </article>
-        </div>
-      </a-card>
-
-      <a-card class="panel quality-panel" :bordered="false">
-        <template #title>数据质量与 OMOP 导出准备</template>
-        <div class="quality-summary">
-          <article>
-            <span>缺失字段</span>
-            <strong>{{ missingRows.length }}</strong>
-          </article>
-          <article>
-            <span>异常值</span>
-            <strong>{{ quality.outliers?.length || 0 }}</strong>
-          </article>
-          <article>
-            <span>单位问题</span>
-            <strong>{{ quality.unit_inconsistencies?.length || 0 }}</strong>
-          </article>
-        </div>
-        <div class="quality-table">
-          <div class="quality-row quality-row--head">
-            <span>字段</span>
-            <span>缺失率</span>
-          </div>
-          <div v-for="row in missingRows.slice(0, 8)" :key="row.field" class="quality-row">
-            <span>{{ fieldLabel(row.field) }}</span>
-            <span>{{ row.rate }}</span>
-          </div>
-          <div v-if="!missingRows.length" class="soft-empty">当前未发现明显字段缺失。</div>
-        </div>
-        <div class="omop-note">
-          <strong>导出说明</strong>
-          <p>OMOP CDM 导出默认脱敏，当前提供 PERSON、VISIT、CONDITION、DRUG、MEASUREMENT、PROCEDURE、OBSERVATION 最小表集。</p>
-        </div>
-        <div class="governance-list">
-          <div class="section-title">数据治理建议</div>
-          <article v-for="item in governance" :key="item.title" class="governance-card">
-            <a-tag :color="item.priority === 'high' ? 'red' : item.priority === 'medium' ? 'gold' : 'green'">
-              {{ item.priority === 'high' ? '优先' : item.priority === 'medium' ? '建议' : '通过' }}
-            </a-tag>
-            <div>
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.detail }}</p>
-            </div>
-          </article>
-        </div>
-      </a-card>
-    </section>
-
-    <section class="portfolio-grid">
-      <a-card class="panel" :bordered="false" title="项目组合分布">
-        <div class="distribution-grid">
-          <article v-for="row in statusRows" :key="row.key">
-            <span>{{ row.key }}</span>
-            <strong>{{ row.value }}</strong>
-          </article>
-        </div>
-      </a-card>
-      <a-card class="panel" :bordered="false" title="近期里程碑">
-        <div v-if="!milestones.length" class="soft-empty">暂无里程碑。建议为项目补充伦理递交、数据锁库、统计分析、投稿等节点。</div>
-        <div v-else class="milestone-list">
-          <article v-for="item in milestones" :key="`${item.project_id}-${item.title}-${item.date}`">
-            <strong>{{ item.title }}</strong>
-            <span>{{ item.project_title }}</span>
-            <small>{{ item.date || '未设置日期' }} · {{ item.status }}</small>
-          </article>
-        </div>
-      </a-card>
-    </section>
-
-    <a-card class="panel topic-panel" :bordered="false">
-      <template #title>AI 潜在课题推荐</template>
-      <template #extra>
-        <span class="panel-hint">{{ topicSourceLabel }}，需要 PI 人工确认</span>
       </template>
-      <a-empty v-if="!topics.length" description="暂无课题建议。点击“AI 生成课题建议”开始发现选题。" />
-      <div v-else class="topic-grid">
-        <article v-for="topic in topics" :key="topic.suggestion_id || topic.title" class="topic-card">
-          <div class="topic-title-row">
-            <h3>{{ localizeTitle(topic.title) }}</h3>
-            <a-button class="topic-action" size="small" type="primary" ghost @click="createProjectFromTopic(topic)">转为项目</a-button>
-          </div>
-          <div v-if="showOriginalTitle(topic.title)" class="topic-original-title">原题：{{ topic.title }}</div>
-          <div class="topic-meta-strip">
-            <span>{{ localizeStudyDesign(topic.study_design) }}</span>
-            <span>可行性 {{ topic.feasibility_score || '—' }}</span>
-            <span>{{ confidenceLabel(topic.confidence) }}</span>
-          </div>
-          <p class="topic-question">{{ localizeQuestion(topic.clinical_question) }}</p>
-          <div class="evidence-box">
-            <strong>数据依据</strong>
-            <span>{{ localizeText(topic.data_basis) }}</span>
-          </div>
-          <dl class="topic-detail-grid">
-            <div>
-              <dt>主要结局</dt>
-              <dd>{{ localizeOutcome(topic.primary_outcome) }}</dd>
-            </div>
-            <div>
-              <dt>伦理风险</dt>
-              <dd>{{ localizeEthicalRisk(topic.ethical_risk) }}</dd>
-            </div>
-          </dl>
-          <div class="topic-foot">
-            <span>{{ topic.multi_center_potential ? '适合多中心协作' : '单中心优先' }}</span>
-            <span>需 PI 复核</span>
-          </div>
-        </article>
-      </div>
-    </a-card>
+    </PageHeader>
 
-    <a-drawer v-model:open="drawerOpen" width="620" title="新建科研项目">
-      <a-alert
-        class="drawer-tip"
-        type="info"
-        show-icon
-        message="建议先填写最小信息，后续再补充伦理号、附件、里程碑和统计方案。"
-      />
+    <MetricStrip :metrics="kpiMetrics" />
+
+    <!-- 主内容区：Tab 划分 -->
+    <div class="main-tabs">
+      <a-tabs v-model:activeKey="activeTab">
+        <!-- Tab 1：项目管理 -->
+        <a-tab-pane key="projects" tab="科研项目">
+          <div class="tab-panel">
+            <SectionHeader title="科研项目看板" description="管理论文、课题、基金和伦理项目">
+              <template #actions>
+                <a-button type="primary" size="small" @click="openProjectDrawer">新建项目</a-button>
+              </template>
+            </SectionHeader>
+
+            <template v-if="projects.length">
+              <div class="project-grid">
+                <article v-for="project in projects" :key="project.project_id" class="project-card">
+                  <div class="project-head">
+                    <a-tag color="blue">{{ project.type || '课题' }}</a-tag>
+                    <a-tag :color="statusColor(project.status)">{{ project.status || '计划中' }}</a-tag>
+                  </div>
+                  <h3>{{ project.title }}</h3>
+                  <p>负责人：{{ ownerLabel(project.owner) }}</p>
+                  <small>{{ project.journal_or_funding_source || project.remarks || '暂无备注' }}</small>
+                </article>
+              </div>
+
+              <!-- 项目分布 -->
+              <div class="sub-section">
+                <SectionHeader title="项目状态分布" />
+                <div class="distribution-grid">
+                  <article v-for="row in statusRows" :key="row.key">
+                    <span>{{ row.key }}</span>
+                    <strong>{{ row.value }}</strong>
+                  </article>
+                </div>
+              </div>
+
+              <!-- 近期里程碑 -->
+              <div class="sub-section">
+                <SectionHeader title="近期里程碑" />
+                <template v-if="milestones.length">
+                  <div class="milestone-list">
+                    <article v-for="item in milestones" :key="`${item.project_id}-${item.title}-${item.date}`">
+                      <strong>{{ item.title }}</strong>
+                      <span>{{ item.project_title }}</span>
+                      <small>{{ item.date || '未设置日期' }} · {{ item.status }}</small>
+                    </article>
+                  </div>
+                </template>
+                <EmptyState v-else title="暂无里程碑" description="建议为项目补充伦理递交、数据锁库等节点" />
+              </div>
+            </template>
+
+            <EmptyState v-else-if="!loading" title="还没有科研项目" description="可从 AI 课题推荐中选择方向一键转为项目">
+              <template #action>
+                <a-space>
+                  <a-button type="primary" @click="openProjectDrawer">手动新建</a-button>
+                  <a-button :loading="topicLoading" @click="generateTopics">生成课题建议</a-button>
+                </a-space>
+              </template>
+            </EmptyState>
+          </div>
+        </a-tab-pane>
+
+        <!-- Tab 2：数据质量 -->
+        <a-tab-pane key="quality" tab="数据质量">
+          <div class="tab-panel">
+            <SectionHeader title="数据质量与 OMOP 导出" description="检查缺失率、异常值，治理后导出脱敏数据" />
+
+            <MetricStrip :metrics="qualityMetrics" />
+
+            <div class="quality-table-card">
+              <div class="table-title">字段缺失率</div>
+              <div v-if="missingRows.length" class="quality-table">
+                <div class="quality-row quality-row--head">
+                  <span>字段</span><span>缺失率</span>
+                </div>
+                <div v-for="row in missingRows.slice(0, 10)" :key="row.field" class="quality-row">
+                  <span>{{ fieldLabel(row.field) }}</span><span>{{ row.rate }}</span>
+                </div>
+              </div>
+              <div v-else class="soft-empty">当前未发现明显字段缺失。</div>
+            </div>
+
+            <!-- 数据治理建议 -->
+            <div v-if="governance.length" class="sub-section">
+              <SectionHeader title="数据治理建议" />
+              <div class="governance-list">
+                <article v-for="item in governance" :key="item.title" class="governance-card">
+                  <a-tag :color="item.priority === 'high' ? 'red' : item.priority === 'medium' ? 'gold' : 'green'">
+                    {{ item.priority === 'high' ? '优先' : item.priority === 'medium' ? '建议' : '通过' }}
+                  </a-tag>
+                  <div>
+                    <strong>{{ item.title }}</strong>
+                    <p>{{ item.detail }}</p>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            <!-- OMOP 导出 -->
+            <div class="omop-section">
+              <div class="omop-note">
+                <strong>OMOP 导出说明</strong>
+                <p>默认脱敏，提供 PERSON、VISIT、CONDITION 等最小表集。</p>
+              </div>
+              <a-button :loading="omopLoading" @click="exportOmop">导出 OMOP 数据包</a-button>
+            </div>
+          </div>
+        </a-tab-pane>
+
+        <!-- Tab 3：AI 课题推荐 -->
+        <a-tab-pane key="topics" tab="AI 课题推荐">
+          <div class="tab-panel">
+            <SectionHeader title="AI 潜在课题推荐" :description="topicSourceLabel + '，需 PI 人工确认'">
+              <template #actions>
+                <a-button :loading="topicLoading" @click="generateTopics">刷新课题</a-button>
+              </template>
+            </SectionHeader>
+
+            <template v-if="topics.length">
+              <div class="topic-grid">
+                <article v-for="topic in topics" :key="topic.suggestion_id || topic.title" class="topic-card">
+                  <div class="topic-title-row">
+                    <h3>{{ localizeTitle(topic.title) }}</h3>
+                    <a-button size="small" type="primary" ghost @click="createProjectFromTopic(topic)">转为项目</a-button>
+                  </div>
+                  <div v-if="showOriginalTitle(topic.title)" class="topic-original">原题：{{ topic.title }}</div>
+                  <div class="topic-meta">
+                    <span>{{ localizeStudyDesign(topic.study_design) }}</span>
+                    <span>可行性 {{ topic.feasibility_score || '—' }}</span>
+                    <span>{{ confidenceLabel(topic.confidence) }}</span>
+                  </div>
+                  <p class="topic-question">{{ localizeQuestion(topic.clinical_question) }}</p>
+                  <div class="evidence-box">
+                    <strong>数据依据</strong>
+                    <span>{{ localizeText(topic.data_basis) }}</span>
+                  </div>
+                  <div class="topic-detail-row">
+                    <div><dt>主要结局</dt><dd>{{ localizeOutcome(topic.primary_outcome) }}</dd></div>
+                    <div><dt>伦理风险</dt><dd>{{ localizeEthicalRisk(topic.ethical_risk) }}</dd></div>
+                  </div>
+                  <div class="topic-foot">
+                    <span>{{ topic.multi_center_potential ? '适合多中心' : '单中心优先' }}</span>
+                    <span>需 PI 复核</span>
+                  </div>
+                </article>
+              </div>
+            </template>
+            <EmptyState v-else title="暂无课题建议" description="点击上方 AI 生成课题建议 开始发现选题" />
+          </div>
+        </a-tab-pane>
+      </a-tabs>
+    </div>
+
+    <!-- 新建项目抽屉 -->
+    <a-drawer v-model:open="drawerOpen" width="520" title="新建科研项目">
+      <a-alert class="drawer-tip" type="info" show-icon message="建议先填写最小信息，后续再补充。" />
       <a-form layout="vertical">
         <a-form-item label="项目标题"><a-input v-model:value="form.title" placeholder="例如：ARDS 俯卧位治疗质量改进研究" /></a-form-item>
         <a-form-item label="项目类型"><a-select v-model:value="form.type" :options="typeOptions" /></a-form-item>
         <a-form-item label="负责人 / PI"><a-input v-model:value="form.owner" placeholder="请输入负责人" /></a-form-item>
         <a-form-item label="项目状态"><a-select v-model:value="form.status" :options="statusOptions" /></a-form-item>
-        <a-form-item label="期刊 / 基金来源 / 项目级别"><a-input v-model:value="form.journal_or_funding_source" /></a-form-item>
-        <a-form-item label="备注"><a-textarea v-model:value="form.remarks" :rows="5" /></a-form-item>
-        <a-space>
-          <a-button type="primary" :loading="saving" @click="saveProject">保存项目</a-button>
+        <a-form-item label="期刊 / 基金来源"><a-input v-model:value="form.journal_or_funding_source" /></a-form-item>
+        <a-form-item label="备注"><a-textarea v-model:value="form.remarks" :rows="4" /></a-form-item>
+        <ActionBar>
+          <a-button type="primary" :loading="saving" @click="saveProject">保存</a-button>
           <a-button @click="drawerOpen = false">取消</a-button>
-        </a-space>
+        </ActionBar>
       </a-form>
     </a-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
 import {
-  Alert as AAlert,
-  Button as AButton,
-  Card as ACard,
-  Drawer as ADrawer,
-  Empty as AEmpty,
-  Form as AForm,
-  FormItem as AFormItem,
-  Input as AInput,
-  Select as ASelect,
-  Space as ASpace,
-  Tag as ATag,
-  Textarea as ATextarea,
-  message,
+  Alert as AAlert, Button as AButton, Drawer as ADrawer, Form as AForm, FormItem as AFormItem,
+  Input as AInput, Select as ASelect, Space as ASpace, Tabs as ATabs, Tag as ATag, Textarea as ATextarea,
 } from 'ant-design-vue'
-import { getDataQuality, getResearchProjects, getTopicSuggestions, postGenerateTopicSuggestions, postOmopExport, postResearchProject, type ResearchScopeParams } from '../api/researchSupport'
+import { PageHeader, SectionHeader, MetricStrip, ActionBar, EmptyState } from '../components/common/design-system'
+import { useAcademicResearch } from '../composables/useAcademicResearch'
 
-import { useAuthStore } from '../stores/auth'
-const route = useRoute()
+const ATabPane = ATabs.TabPane
 
-const auth = useAuthStore()
-const loading = ref(false)
-const topicLoading = ref(false)
-const omopLoading = ref(false)
-const saving = ref(false)
-const drawerOpen = ref(false)
-const projects = ref<any[]>([])
-const portfolio = ref<any>({})
-const topics = ref<any[]>([])
-const quality = ref<any>({})
-const governance = ref<any[]>([])
-const topicIsFallback = ref(false)
-const form = reactive<any>({
-  title: '',
-  type: '课题',
-  owner: '',
-  status: '计划中',
-  journal_or_funding_source: '',
-  remarks: '',
-})
+const {
+  loading, topicLoading, omopLoading, saving, drawerOpen,
+  projects, topics, quality, governance,
+  form, typeOptions, statusOptions,
+  missingRows, topicSourceLabel, statusRows, milestones,
+  localizeTitle, showOriginalTitle, localizeQuestion, localizeStudyDesign,
+  localizeOutcome, localizeEthicalRisk, localizeText, fieldLabel,
+  ownerLabel, statusColor, confidenceLabel,
+  openProjectDrawer, createProjectFromTopic,
+  loadAll, generateTopics, exportOmop, saveProject,
+} = useAcademicResearch()
 
-const guideSteps = [
-  { index: '01', title: '发现问题', desc: '从预警、防控清单、呼吸机、数据质量中识别可研究的临床差距。' },
-  { index: '02', title: '一键立项', desc: '把 AI 推荐转为项目卡，补充负责人、状态、伦理和时间节点。' },
-  { index: '03', title: '数据准备', desc: '先看缺失率和时间逻辑，再导出脱敏 OMOP CSV ZIP。' },
-]
-const typeOptions = ['论文', '课题', '基金', '伦理', '专利', '指南共识'].map((value) => ({ value, label: value }))
-const statusOptions = ['计划中', '进行中', '投稿中', '已发表', '结题'].map((value) => ({ value, label: value }))
-const missingRows = computed(() => Object.entries(quality.value?.missing_rate || {}).map(([field, rate]) => ({ field, rate: `${Math.round(Number(rate) * 100)}%` })))
-const topicSourceLabel = computed(() => topicIsFallback.value ? '系统内置兜底建议' : 'AI / 数据摘要生成')
-const statusRows = computed(() => Object.entries(portfolio.value?.by_status || {}).map(([key, value]) => ({ key, value })))
-const milestones = computed(() => portfolio.value?.upcoming_milestones || [])
-const routeDeptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
-const routeDeptName = computed(() => String(route.query.dept || route.query.department || '').trim())
-const scopeLabel = computed(() => routeDeptName.value || routeDeptCode.value || '全部 ICU 患者')
-const researchScopeParams = computed<ResearchScopeParams>(() => {
-  const params: ResearchScopeParams = { patient_scope: routeDeptCode.value || routeDeptName.value ? 'in_dept' : 'all' }
-  if (routeDeptCode.value) params.dept_code = routeDeptCode.value
-  else if (routeDeptName.value) params.department = routeDeptName.value
-  return params
-})
+const activeTab = ref('projects')
 
-const titleMap: Record<string, string> = {
-  'Prone Positioning Effectiveness in ARDS Patients': 'ARDS 患者俯卧位治疗效果研究',
-  'Prone Positioning Efficacy in ARDS Patients within the ICU': 'ICU 内 ARDS 患者俯卧位疗效研究',
-  'Compliance with Sepsis 3-Hour Bundle and Patient Outcomes': '脓毒症 3 小时救治清单依从性与预后研究',
-  'Sepsis Bundle Compliance and Patient Outcomes': '脓毒症救治清单依从性与患者结局研究',
-  'High Driving Pressure as a Predictor of Ventilator-Associated Lung Injury': '高驱动压暴露预测呼吸机相关肺损伤研究',
-  'Impact of High Driving Pressure on Ventilator-Associated Outcomes': '高驱动压对机械通气相关结局的影响研究',
-  'Impact of Data Quality Issues on Quality-Signal Reporting Accuracy': '数据质量问题对重症质控信号准确性的影响研究',
-}
-const questionMap: Record<string, string> = {
-  'Does early prone positioning improve 28-day mortality among ICU patients diagnosed with ARDS?': '早期俯卧位治疗是否改善 ARDS ICU 患者 28 天结局？',
-  'Does early implementation of prone positioning improve 28-day mortality among ARDS patients identified by ARDS/prone related alerts?': '对 ARDS 或俯卧位相关预警患者，早期实施俯卧位是否可降低 28 天全因死亡率？',
-  'Is higher compliance with the sepsis care bundle associated with reduced ICU mortality among patients flagged by sepsis bundle alerts?': '在脓毒症救治清单预警患者中，更高的清单依从性是否与 ICU 死亡率下降相关？',
-  'Does exposure to high driving pressure (>15 cmH₂O) increase the risk of ventilator-associated lung injury and mortality in ICU patients?': 'ICU 患者暴露于高驱动压（>15 cmH₂O）是否增加呼吸机相关肺损伤和死亡风险？',
-  'Does exposure to high driving pressure (>15 cmH2O) increase the risk of ventilator-associated lung injury and mortality in ICU patients?': 'ICU 患者暴露于高驱动压（>15 cmH2O）是否增加呼吸机相关肺损伤和死亡风险？',
-}
-const studyDesignMap: Record<string, string> = {
-  'Retrospective cohort study': '回顾性队列研究',
-  'Retrospective cohort': '回顾性队列研究',
-  'Retrospective case-control study': '回顾性病例对照研究',
-  'Retrospective cross-sectional analysis': '回顾性横断面分析',
-  'Quality improvement project': '质量改进项目',
-  'QI project': '质量改进项目',
-}
-const outcomeMap: Record<string, string> = {
-  '28-day all-cause mortality': '28 天全因死亡率',
-  'ICU mortality': 'ICU 死亡率',
-  'Mortality during ICU stay': 'ICU 期间死亡率',
-  'Ventilator-associated lung injury': '呼吸机相关肺损伤',
-}
-const ethicalRiskMap: Record<string, string> = {
-  'Low risk, using existing anonymized clinical data, no intervention required.': '低风险，使用既往匿名化临床数据，无需干预。',
-  'Low risk, based on observational study using existing data.': '低风险，基于既往数据的观察性研究。',
-  'Low to moderate risk; requires protection of respiratory parameters integrity; if key variables are missing, analysis may be limited.': '低至中等风险，需确保呼吸机参数完整性；若关键变量缺失，分析能力会受限。',
-}
-const fieldMap: Record<string, string> = {
-  _id: '患者主键',
-  hisPid: 'HIS 患者号',
-  derived_age: '年龄',
-  birthday: '出生日期',
-  gender_combined: '性别',
-  clinicalDiagnosis: '临床诊断',
-  icuAdmissionTime: 'ICU 入科时间',
-}
+const kpiMetrics = computed(() => [
+  { label: '在管项目', value: projects.value.length, variant: 'info' as const },
+  { label: 'AI 课题', value: topics.value.length, variant: 'default' as const },
+  { label: '数据仓患者', value: quality.value.patient_count || 0, variant: 'default' as const },
+  { label: '数据问题', value: (quality.value.time_logic_errors?.length || 0), variant: 'warning' as const },
+])
 
-function resetForm() {
-  Object.assign(form, { title: '', type: '课题', owner: '', status: '计划中', journal_or_funding_source: '', remarks: '' })
-}
-function openProjectDrawer() {
-  resetForm()
-  drawerOpen.value = true
-}
-function createProjectFromTopic(topic: any) {
-  Object.assign(form, {
-    title: localizeTitle(topic.title),
-    type: topic.study_design?.includes('QI') || topic.study_design?.includes('质量') ? '课题' : '论文',
-    owner: '',
-    status: '计划中',
-    journal_or_funding_source: '',
-    remarks: [
-      `临床问题：${localizeQuestion(topic.clinical_question)}`,
-      `数据依据：${localizeText(topic.data_basis)}`,
-      `主要结局：${localizeOutcome(topic.primary_outcome)}`,
-      `伦理提示：${localizeEthicalRisk(topic.ethical_risk)}`,
-    ].join('\n'),
-  })
-  drawerOpen.value = true
-}
-function localizeTitle(text: string) {
-  return titleMap[text] || text || '未命名课题建议'
-}
-function showOriginalTitle(text: string) {
-  return Boolean(text && titleMap[text] && titleMap[text] !== text)
-}
-function localizeQuestion(text: string) {
-  return questionMap[text] || text || '待明确临床问题'
-}
-function localizeStudyDesign(text: string) {
-  return studyDesignMap[text] || text || '研究设计待定'
-}
-function localizeOutcome(text: string) {
-  return outcomeMap[text] || text || '待 PI 确认'
-}
-function localizeEthicalRisk(text: string) {
-  return ethicalRiskMap[text] || localizeText(text) || '需伦理秘书评估'
-}
-function localizeText(text: string) {
-  if (!text) return '暂无数据依据'
-  return String(text)
-    .replace(/Based on\s+(\d+)\s+patients/i, '基于 $1 名患者')
-    .replace(/(\d+)\s+patients/i, '$1 名患者')
-    .replace(/records?/i, '条记录')
-    .replace(/ARDS or prone related alerts/gi, 'ARDS 或俯卧位相关预警')
-    .replace(/sepsis bundle related alerts/gi, '脓毒症救治清单相关预警')
-    .replace(/high driving pressure alerts/gi, '高驱动压预警')
-    .replace(/clinical diagnosis missing rate/gi, '临床诊断缺失率')
-    .replace(/age and gender missing rate/gi, '年龄和性别缺失率')
-    .replace(/requires further validation/i, '需要进一步验证')
-    .replace('identified in the dataset', '条相关信号来自当前数据集')
-    .replace('total ICU admissions', '例 ICU 入院记录')
-    .replace('supports risk adjustment', '支持风险校正')
-}
-function fieldLabel(field: string) {
-  return fieldMap[field] || field
-}
-function ownerLabel(value: any) {
-  const text = String(value || '').trim()
-  if (!text || text.toLowerCase() === 'anonymous') return '待填写'
-  return text
-}
-function statusColor(status: string) {
-  return status === '已发表' || status === '结题' ? 'green' : status === '投稿中' ? 'purple' : status === '进行中' ? 'blue' : 'gold'
-}
-function confidenceLabel(value: string) {
-  return ({ high: '置信度较高', medium: '置信度中等', low: '置信度较低' } as any)[value] || '需人工复核'
-}
-
-async function loadAll() {
-  loading.value = true
-  try {
-    const [p, t, q] = await Promise.all([getResearchProjects(), getTopicSuggestions(researchScopeParams.value), getDataQuality(researchScopeParams.value)])
-    projects.value = p.data?.projects || []
-    portfolio.value = p.data?.portfolio || {}
-    topics.value = t.data?.topic_suggestions || []
-    topicIsFallback.value = Boolean(t.data?.is_mock)
-    quality.value = q.data?.report || {}
-    governance.value = q.data?.recommendations || []
-  } finally {
-    loading.value = false
-  }
-}
-async function generateTopics() {
-  topicLoading.value = true
-  try {
-    const res = await postGenerateTopicSuggestions(researchScopeParams.value)
-    topics.value = res.data?.topic_suggestions || []
-    topicIsFallback.value = Boolean(res.data?.degraded)
-    message.success(res.data?.degraded ? 'AI 暂不可用，已展示规则兜底建议' : '已生成课题建议')
-  } finally {
-    topicLoading.value = false
-  }
-}
-async function exportOmop() {
-  omopLoading.value = true
-  try {
-    const payload: Record<string, any> = { ...researchScopeParams.value }
-    const res = await postOmopExport(payload)
-    message.success(`OMOP 脱敏导出完成：${res.data?.task?.task_id || ''}`)
-  } finally {
-    omopLoading.value = false
-  }
-}
-async function saveProject() {
-  if (!form.title?.trim()) {
-    message.warning('请先填写项目标题')
-    return
-  }
-  saving.value = true
-  try {
-    await postResearchProject({ ...form })
-    message.success('科研项目已保存')
-    drawerOpen.value = false
-    resetForm()
-    await loadAll()
-  } finally {
-    saving.value = false
-  }
-}
-onMounted(loadAll)
+const qualityMetrics = computed(() => [
+  { label: '缺失字段', value: missingRows.value.length, variant: 'warning' as const },
+  { label: '异常值', value: quality.value.outliers?.length || 0, variant: 'danger' as const },
+  { label: '单位问题', value: quality.value.unit_inconsistencies?.length || 0, variant: 'warning' as const },
+])
 </script>
 
 <style scoped>
-.research-page {
-  min-height: calc(100vh - 76px);
-  padding: 20px;
-  color: var(--text-main);
-  background:
-    var(--bg-surface), transparent 30%),
-    var(--bg-surface), transparent 32%);
-}
-.research-hero {
+.academic-page {
+  padding: var(--page-padding, 24px);
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18px;
-  padding: 18px;
-  border: 1px solid rgba(80,199,255,.16);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  flex-direction: column;
+  gap: var(--section-gap, 24px);
+  max-width: 1400px;
 }
-.eyebrow {
-  color: var(--accent);
-  font-weight: 900;
-  letter-spacing: .12em;
-  font-size: 12px;
+.main-tabs {
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  padding: var(--card-padding, 16px);
 }
-h1, h2, h3, p { margin: 0; }
-h1 { margin-top: 4px; color: var(--text-primary); font-size: 28px; }
-.research-hero p { margin-top: 8px; color: var(--text-secondary); }
-.scope-strip {
-  display: inline-flex;
-  margin: 14px 0 0;
-  padding: 8px 12px;
-  border: 1px solid rgba(103,232,249,.18);
-  border-radius: var(--card-radius);
-  color: var(--text-primary);
-  background: var(--bg-surface),.24);
-  font-size: 12px;
+.tab-panel { display: flex; flex-direction: column; gap: 20px; padding-top: 8px; }
+.sub-section { margin-top: 8px; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.project-card {
+  padding: 14px;
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  background: var(--color-bg-surface, #fff);
+  display: flex; flex-direction: column; gap: 8px;
 }
-.guide-rail, .kpi-grid, .dashboard-grid, .topic-grid, .portfolio-grid {
-  display: grid;
-  gap: 12px;
-}
-.guide-rail {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 14px 0;
-}
-.guide-card, .kpi-card, .project-card, .topic-card, .quality-summary article {
-  border: 1px solid rgba(125,167,214,.14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
-}
-.guide-card { padding: 14px; display: grid; gap: 6px; }
-.guide-card span { color: var(--brand); font-weight: 900; }
-.guide-card strong, .project-card h3, .topic-card h3 { color: var(--text-primary); }
-.guide-card p, .project-card p, .topic-card p, .topic-card dd, .omop-note p { color: var(--text-secondary); }
-.kpi-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-bottom: 14px;
-}
-.kpi-card { padding: 14px; }
-.kpi-card span, .kpi-card small { display: block; color: var(--text-secondary); }
-.kpi-card strong { display: block; margin: 5px 0; color: var(--text-primary); font-size: 30px; line-height: 1; }
-.kpi-card--cyan { background: var(--bg-surface), var(--bg-surface)); }
-.kpi-card--amber { background: var(--bg-surface), var(--bg-surface)); }
-.kpi-card--rose { background: var(--bg-surface), var(--bg-surface)); }
-.dashboard-grid {
-  grid-template-columns: minmax(0, 1.15fr) minmax(380px, .85fr);
-  margin-bottom: 14px;
-}
-.portfolio-grid {
-  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
-  margin-bottom: 14px;
-}
-.panel { background: var(--bg-surface),.92); border-radius: var(--card-radius); }
-.empty-project {
-  display: grid;
-  place-items: center;
-  gap: 12px;
-  min-height: 310px;
-  text-align: center;
-  border: 1px dashed rgba(103,232,249,.24);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface),.22);
-}
-.empty-icon {
-  width: 70px;
-  height: 70px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--card-radius);
-  color: var(--accent);
-  font-weight: 900;
-  background: rgba(34,211,238,.1);
-  border: 1px solid rgba(103,232,249,.2);
-}
-.empty-project p { max-width: 520px; color: var(--text-secondary); }
-.project-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-.project-card { padding: 12px; display: grid; gap: 8px; }
-.project-head, .topic-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
-}
-.topic-action { flex-shrink: 0; }
-.project-card small, .topic-foot, .panel-hint, .quality-row, .soft-empty { color: var(--text-secondary); }
-.quality-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-.quality-summary article { padding: 12px; }
-.quality-summary span { display: block; color: var(--text-secondary); }
-.quality-summary strong { color: var(--text-primary); font-size: 24px; }
-.quality-table {
-  border: 1px solid rgba(125,167,214,.12);
-  border-radius: var(--card-radius);
-  overflow: hidden;
-}
-.quality-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 90px;
-  padding: 9px 10px;
-  border-bottom: 1px solid rgba(125,167,214,.1);
-}
-.quality-row--head { color: var(--accent); font-weight: 800; background: var(--bg-surface), .6); }
-.omop-note {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), .46);
-}
-.omop-note strong { color: var(--text-primary); }
-.section-title {
-  margin: 12px 0 8px;
-  color: var(--text-primary);
-  font-weight: 900;
-}
-.governance-list {
-  display: grid;
-  gap: 8px;
-}
-.governance-card {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 8px;
-  align-items: flex-start;
-  padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), .24);
-}
-.governance-card strong {
-  display: block;
-  color: var(--text-primary);
-}
-.governance-card p {
-  margin-top: 3px;
-  color: var(--text-secondary);
-}
+.project-card h3 { margin: 0; font-size: var(--text-card-title, 14px); color: var(--color-text-primary, #18212B); }
+.project-card p { margin: 0; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #667085); }
+.project-card small { color: var(--color-text-secondary, #667085); font-size: 12px; }
+.project-head { display: flex; justify-content: space-between; }
 .distribution-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;
 }
 .distribution-grid article {
-  padding: 12px;
-  border: 1px solid rgba(125,167,214,.14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface),.24);
+  padding: 12px; border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-md, 6px); background: var(--color-bg-surface-secondary, #F1F3F5);
 }
-.distribution-grid span {
-  display: block;
-  color: var(--text-secondary);
-}
-.distribution-grid strong {
-  color: var(--text-primary);
-  font-size: 26px;
-}
-.milestone-list {
-  display: grid;
-  gap: 8px;
-}
+.distribution-grid span { display: block; font-size: 12px; color: var(--color-text-secondary, #667085); }
+.distribution-grid strong { display: block; margin-top: 4px; font-size: 20px; color: var(--color-text-primary, #18212B); }
+.milestone-list { display: grid; gap: 8px; }
 .milestone-list article {
-  display: grid;
-  gap: 3px;
-  padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface),.24);
+  padding: 10px 12px; border-radius: var(--radius-md, 6px);
+  background: var(--color-bg-surface-secondary, #F1F3F5); display: grid; gap: 3px;
 }
-.milestone-list strong { color: var(--text-primary); }
-.milestone-list span { color: var(--text-secondary); }
-.milestone-list small { color: var(--text-secondary); }
-.topic-panel :deep(.ant-card-body) {
-  padding: 18px;
+.milestone-list strong { color: var(--color-text-primary, #18212B); font-size: 13px; }
+.milestone-list span { color: var(--color-text-secondary, #667085); font-size: 12px; }
+.milestone-list small { color: var(--color-text-secondary, #667085); font-size: 12px; }
+.quality-table-card {
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  padding: var(--card-padding, 16px);
 }
-.topic-grid {
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  align-items: stretch;
+.table-title { font-size: var(--text-card-title, 14px); font-weight: var(--weight-semibold, 600); color: var(--color-text-primary, #18212B); margin-bottom: 12px; }
+.quality-table {
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-md, 6px); overflow: hidden;
 }
+.quality-row {
+  display: grid; grid-template-columns: 1fr 90px;
+  padding: 9px 10px; border-bottom: 1px solid var(--color-border, #E3E7EC);
+  font-size: var(--text-table, 13px);
+}
+.quality-row--head { font-weight: var(--weight-semibold, 600); background: var(--color-bg-surface-secondary, #F1F3F5); color: var(--color-text-primary, #18212B); }
+.soft-empty { padding: 16px 0; text-align: center; color: var(--color-text-secondary, #667085); font-size: 13px; }
+.governance-list { display: grid; gap: 8px; }
+.governance-card {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px;
+  align-items: flex-start; padding: 10px 12px;
+  border-radius: var(--radius-md, 6px); background: var(--color-bg-surface-secondary, #F1F3F5);
+}
+.governance-card strong { display: block; color: var(--color-text-primary, #18212B); font-size: 13px; }
+.governance-card p { margin: 3px 0 0; color: var(--color-text-secondary, #667085); font-size: 12px; }
+.omop-section {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px; border-radius: var(--radius-lg, 8px);
+  background: var(--color-bg-surface-secondary, #F1F3F5);
+  border: 1px solid var(--color-border, #E3E7EC);
+}
+.omop-note strong { color: var(--color-text-primary, #18212B); font-size: 13px; }
+.omop-note p { margin: 4px 0 0; color: var(--color-text-secondary, #667085); font-size: 12px; }
+/* 课题推荐 */
+.topic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 14px; }
 .topic-card {
-  min-width: 0;
-  padding: 18px;
-  display: grid;
-  gap: 14px;
-  align-content: start;
-  overflow: hidden;
-  border-radius: var(--card-radius);
-  background:
-    var(--bg-surface), transparent 38%),
-    var(--bg-surface), rgba(7, 20, 34, .94));
+  padding: 16px; border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px); background: var(--color-bg-surface, #fff);
+  display: flex; flex-direction: column; gap: 12px;
 }
-.topic-title-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: start;
-}
-.topic-card h3,
-.topic-question,
-.topic-card dd,
-.evidence-box span,
-.topic-foot span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-.topic-card h3 {
-  color: var(--text-primary);
-  font-size: 17px;
-  line-height: 1.45;
-}
-.topic-original-title {
-  margin-top: -6px;
-  color: #7f9aab;
-  font-size: 12px;
-  line-height: 1.5;
-}
-.topic-meta-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.topic-meta-strip span {
-  min-height: 26px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 10px;
-  border-radius: var(--card-radius);
-  border: 1px solid rgba(103, 232, 249, .14);
-  background: rgba(14, 116, 144, .14);
-  color: var(--accent);
-  font-size: 12px;
+.topic-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.topic-card h3 { margin: 0; font-size: var(--text-section-title, 16px); color: var(--color-text-primary, #18212B); line-height: 1.4; }
+.topic-original { color: var(--color-text-secondary, #667085); font-size: 12px; margin-top: -8px; }
+.topic-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.topic-meta span {
+  padding: 3px 10px; border-radius: var(--radius-tag, 4px);
+  border: 1px solid var(--color-border, #E3E7EC);
+  background: var(--color-primary-bg, rgba(37,99,235,0.08));
+  color: var(--color-primary, #2563EB); font-size: 12px;
 }
 .topic-question {
-  color: #c8dfed;
-  line-height: 1.7;
-}
-.topic-question,
-.evidence-box span,
-.topic-card dd {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  margin: 0; color: var(--color-text-primary, #18212B);
+  font-size: var(--text-body, 14px); line-height: 1.6;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .evidence-box {
-  display: grid;
-  gap: 6px;
-  padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), .28);
-  border: 1px solid rgba(125, 167, 214, .1);
+  padding: 12px; border-radius: var(--radius-md, 6px);
+  background: var(--color-bg-surface-secondary, #F1F3F5);
+  border: 1px solid var(--color-border, #E3E7EC); display: grid; gap: 6px;
 }
-.evidence-box strong, .topic-card dt { color: var(--accent); }
+.evidence-box strong { color: var(--color-primary, #2563EB); font-size: 12px; }
 .evidence-box span {
-  color: var(--text-secondary);
-  line-height: 1.65;
+  color: var(--color-text-secondary, #667085); font-size: 13px; line-height: 1.6;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-.topic-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0;
+.topic-detail-row {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
 }
-.topic-detail-grid > div {
-  padding: 10px 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), .18);
+.topic-detail-row > div {
+  padding: 10px 12px; border-radius: var(--radius-md, 6px);
+  background: var(--color-bg-surface-secondary, #F1F3F5);
 }
-.topic-card dd { margin: 2px 0 0; }
+.topic-detail-row dt { color: var(--color-primary, #2563EB); font-size: 12px; margin: 0; }
+.topic-detail-row dd {
+  margin: 2px 0 0; color: var(--color-text-primary, #18212B); font-size: 13px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.topic-foot { display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-secondary, #667085); }
 .drawer-tip { margin-bottom: 12px; }
-html[data-theme='light'] .research-page {
-  color: var(--text-primary);
-  background:
-    var(--bg-surface), transparent 30%),
-    var(--bg-surface), transparent 32%),
-    var(--bg-surface), rgba(247, 250, 252, .98));
+@media (max-width: 1024px) {
+  .topic-grid { grid-template-columns: 1fr; }
 }
-html[data-theme='light'] .research-hero,
-html[data-theme='light'] .scope-strip,
-html[data-theme='light'] .panel,
-html[data-theme='light'] .guide-card,
-html[data-theme='light'] .kpi-card,
-html[data-theme='light'] .project-card,
-html[data-theme='light'] .topic-card,
-html[data-theme='light'] .quality-summary article,
-html[data-theme='light'] .distribution-grid article,
-html[data-theme='light'] .milestone-list article,
-html[data-theme='light'] .governance-card,
-html[data-theme='light'] .empty-project,
-html[data-theme='light'] .omop-note,
-html[data-theme='light'] .evidence-box,
-html[data-theme='light'] .topic-detail-grid > div {
-  border-color: rgba(203, 213, 225, .82);
-  background:
-    var(--bg-surface), transparent 38%),
-    var(--bg-surface), rgba(244, 249, 253, .98));
-  box-shadow: var(--card-shadow);
-}
-html[data-theme='light'] .kpi-card--cyan,
-html[data-theme='light'] .topic-card {
-  border-color: rgba(14, 165, 233, .22);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(235, 248, 252, .98));
-}
-html[data-theme='light'] .kpi-card--amber {
-  border-color: rgba(245, 158, 11, .26);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(255, 251, 235, .96));
-}
-html[data-theme='light'] .kpi-card--rose {
-  border-color: rgba(251, 113, 133, .24);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(255, 241, 242, .96));
-}
-html[data-theme='light'] h1,
-html[data-theme='light'] .guide-card strong,
-html[data-theme='light'] .project-card h3,
-html[data-theme='light'] .topic-card h3,
-html[data-theme='light'] .kpi-card strong,
-html[data-theme='light'] .quality-summary strong,
-html[data-theme='light'] .omop-note strong,
-html[data-theme='light'] .section-title,
-html[data-theme='light'] .governance-card strong,
-html[data-theme='light'] .distribution-grid strong,
-html[data-theme='light'] .milestone-list strong,
-html[data-theme='light'] .empty-project h2 {
-  color: var(--text-secondary);
-}
-html[data-theme='light'] .topic-original-title {
-  color: var(--text-secondary);
-}
-html[data-theme='light'] .research-hero p,
-html[data-theme='light'] .guide-card p,
-html[data-theme='light'] .project-card p,
-html[data-theme='light'] .topic-question,
-html[data-theme='light'] .topic-card dd,
-html[data-theme='light'] .omop-note p,
-html[data-theme='light'] .project-card small,
-html[data-theme='light'] .topic-foot,
-html[data-theme='light'] .panel-hint,
-html[data-theme='light'] .scope-strip,
-html[data-theme='light'] .quality-row,
-html[data-theme='light'] .soft-empty,
-html[data-theme='light'] .kpi-card span,
-html[data-theme='light'] .kpi-card small,
-html[data-theme='light'] .quality-summary span,
-html[data-theme='light'] .governance-card p,
-html[data-theme='light'] .distribution-grid span,
-html[data-theme='light'] .milestone-list span,
-html[data-theme='light'] .milestone-list small,
-html[data-theme='light'] .empty-project p,
-html[data-theme='light'] .evidence-box span {
-  color: var(--text-secondary);
-}
-html[data-theme='light'] .eyebrow,
-html[data-theme='light'] .guide-card span,
-html[data-theme='light'] .evidence-box strong,
-html[data-theme='light'] .topic-card dt {
-  color: var(--brand);
-}
-html[data-theme='light'] .topic-meta-strip span {
-  border-color: rgba(186, 230, 253, .88);
-  background: rgba(240, 249, 255, .98);
-  color: var(--brand);
-}
-html[data-theme='light'] .quality-table {
-  border-color: rgba(203, 213, 225, .82);
-}
-html[data-theme='light'] .quality-row {
-  border-bottom-color: rgba(203, 213, 225, .72);
-}
-html[data-theme='light'] .quality-row--head {
-  background: rgba(240, 249, 255, .98);
-  color: var(--brand);
-}
-html[data-theme='light'] .topic-action.ant-btn-background-ghost {
-  color: var(--brand);
-  border-color: rgba(37, 99, 235, .32);
-  background: rgba(239, 246, 255, .92);
-}
-@media (max-width: 1280px) {
-  .guide-rail, .kpi-grid, .dashboard-grid, .portfolio-grid { grid-template-columns: 1fr 1fr; }
-  .topic-grid { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
-}
-@media (max-width: 760px) {
-  .research-page { padding: 12px; }
-  .research-hero { flex-direction: column; }
-  .guide-rail, .kpi-grid, .dashboard-grid, .quality-summary, .portfolio-grid { grid-template-columns: 1fr; }
-  .topic-grid,
-  .topic-detail-grid { grid-template-columns: 1fr; }
-  .topic-title-row { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .project-grid { grid-template-columns: 1fr; }
+  .distribution-grid { grid-template-columns: repeat(2, 1fr); }
+  .omop-section { flex-direction: column; align-items: flex-start; }
 }
 </style>

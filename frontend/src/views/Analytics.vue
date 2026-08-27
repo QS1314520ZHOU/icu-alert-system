@@ -547,7 +547,7 @@ const scenarioHeatmapData = ref<number[][]>([])
 const nursingWorkload = ref<any>(null)
 
 const deptCode = computed(() => String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim())
-const deptName = computed(() => String(route.query.dept || '').trim())
+const deptName = computed(() => String(route.query.dept || auth.dept || '').trim())
 const analyticsScopeLabel = computed(() => deptName.value || deptCode.value || '全科')
 const lifecycleSummary = computed(() => lifecycleAnalytics.value?.summary || {})
 const lifecycleTypeRows = computed(() => lifecycleAnalytics.value?.top_alert_types || [])
@@ -595,7 +595,7 @@ const analyticsMonthCode = computed(() => sepsisBundleMonthCode.value)
 
 function commonParams() {
   const params: Record<string, any> = { window: windowRange.value }
-  if (deptCode.value) params.dept_code = deptCode.value
+  if (deptCode.value) params.dept_code = deptCode.value.replace(/\uff0c/g, ',')
   else if (deptName.value) params.dept = deptName.value
   return params
 }

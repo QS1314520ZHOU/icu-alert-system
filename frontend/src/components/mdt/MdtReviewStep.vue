@@ -3,109 +3,104 @@
     <div class="step-card__head">
       <div>
         <span class="step-kicker">第二步</span>
-        <h2>冲突评审与专科意见</h2>
-        <p>先看总控结论和冲突焦点，再决定是否同步为决议草案。</p>
+        <h2>审阅专科意见</h2>
       </div>
-      <a-button type="primary" :disabled="isGeneratingAssessment" @click="$emit('next')">进入决议确认</a-button>
+      <div class="step-card__head-actions">
+        <a-button :disabled="!syncableAiActions.length || isGeneratingAssessment" @click="$emit('sync-decisions')">
+          同步 AI 动作 ({{ syncableAiActions.length }})
+        </a-button>
+        <a-button type="primary" @click="$emit('next')">进入决议确认</a-button>
+      </div>
     </div>
 
-    <section class="review-grid">
-      <article class="review-card review-card--summary">
+    <!-- 总控结论 + 冲突焦点：一行两列 -->
+    <section class="review-summary-row">
+      <article class="review-summary-card">
         <span>总控结论</span>
         <strong>{{ mdtSeverityLabel }}</strong>
         <p>{{ metaSummary }}</p>
       </article>
-
-      <article class="review-card">
-        <div class="review-card__head">
-          <span>冲突焦点</span>
-          <b>{{ conflictRows.length }} 项</b>
-        </div>
-        <div v-if="conflictRows.length" class="compact-list">
-          <div v-for="(item, index) in conflictRows.slice(0, 4)" :key="item.id || index">
-            <strong>{{ item.summary || '跨专科意见不一致' }}</strong>
-            <small>{{ formatAgents(item.agents) }}</small>
-          </div>
-        </div>
-        <div v-else class="empty-box">当前尚未识别到明显跨专科冲突。</div>
+      <article v-if="conflictRows.length" class="review-summary-card is-warning">
+        <span>冲突焦点</span>
+        <strong>{{ conflictRows.length }} 项冲突</strong>
+        <p>{{ conflictRows[0]?.summary || '跨专科意见不一致' }}</p>
       </article>
     </section>
 
-    <section class="system-card-grid">
+    <!-- 专科意见列表：紧凑卡片 -->
+    <section class="specialist-compact-list">
       <button
         v-for="item in systemCards"
         :key="item.agent"
         type="button"
-        :class="['system-card', `is-${item.priority || 'medium'}`, { 'is-active': activeSpecialist?.agent === item.agent }]"
-        @click="$emit('select-specialist', item.agent)"
+        :class="['specialist-compact', `priority-${item.priority || 'medium'}`]"
+        @click="openSpecialistDrawer(item)"
       >
-        <span>{{ item.label }}</span>
-        <strong>{{ priorityLabel(item.priority) }}</strong>
-        <small>{{ item.summary }}</small>
+        <div class="specialist-compact__main">
+          <strong>{{ item.label }}</strong>
+          <span class="specialist-compact__summary">{{ shortSummary(item.summary) }}</span>
+        </div>
+        <div class="specialist-compact__meta">
+          <span :class="['priority-tag', `priority-${item.priority || 'medium'}`]">{{ priorityLabel(item.priority) }}</span>
+          <span v-if="hasConflict(item.agent)" class="conflict-tag">冲突</span>
+          <span v-if="!item.hasData" class="no-data-tag">无数据</span>
+        </div>
       </button>
     </section>
 
-    <section class="review-grid">
-      <article class="review-card">
-        <div class="review-card__head">
-          <span>当前专科意见</span>
-          <b>{{ activeSystemLabel }}</b>
-        </div>
-        <p>{{ activeSpecialist?.summary || (isGeneratingAssessment ? '正在生成专科意见。' : '点击上方系统卡片查看专科摘要。') }}</p>
-      </article>
-
-      <article class="review-card">
-        <div class="review-card__head">
-          <span>AI 建议动作草案</span>
-          <b>{{ syncableAiActions.length }} 条</b>
-        </div>
-        <div v-if="syncableAiActions.length" class="compact-list">
-          <div v-for="item in syncableAiActions.slice(0, 5)" :key="item">
-            <strong>{{ item }}</strong>
-          </div>
-        </div>
-        <div v-else class="empty-box">当前尚未形成动作草案，可在下一步手动新增。</div>
-      </article>
+    <!-- AI 建议动作（精简） -->
+    <section v-if="syncableAiActions.length" class="ai-actions-strip">
+      <span class="ai-actions-label">AI 建议动作</span>
+      <div class="ai-actions-chips">
+        <span v-for="(action, idx) in syncableAiActions.slice(0, 4)" :key="idx" class="ai-action-chip">{{ shortSummary(action, 36) }}</span>
+        <span v-if="syncableAiActions.length > 4" class="ai-action-chip is-more">+{{ syncableAiActions.length - 4 }} 条</span>
+      </div>
     </section>
 
-    <a-collapse class="detail-collapse">
-      <a-collapse-panel key="detail" header="查看专科深度分析">
-        <div v-if="activeSpecialist" class="detail-stack">
-          <section>
-            <span>关注点</span>
-            <ul>
-              <li v-for="(item, index) in activeSpecialist.concerns || []" :key="`concern-${index}`">{{ item }}</li>
-            </ul>
-          </section>
-          <section>
-            <span>建议</span>
-            <ul>
-              <li v-for="(item, index) in activeSpecialist.recommendations || []" :key="`rec-${index}`">{{ item }}</li>
-            </ul>
-          </section>
-          <section>
-            <span>证据线索</span>
-            <div class="chip-row">
-              <em v-for="(item, index) in activeSpecialist.evidence || []" :key="`evidence-${index}`">{{ item }}</em>
-            </div>
-          </section>
-        </div>
-        <div v-else class="empty-box">暂无可展开的专科深度分析。</div>
-      </a-collapse-panel>
-    </a-collapse>
+    <!-- 专科详情抽屉 -->
+    <a-drawer
+      :open="drawerVisible"
+      :title="drawerTitle"
+      width="480"
+      placement="right"
+      @close="drawerVisible = false"
+    >
+      <div v-if="drawerSpecialist" class="drawer-body">
+        <section class="drawer-section">
+          <span class="drawer-section-label">专科结论</span>
+          <p>{{ drawerSpecialist.summary || '暂无结论' }}</p>
+        </section>
 
-    <div class="step-actions">
-      <a-button :disabled="!syncableAiActions.length || isGeneratingAssessment" @click="$emit('sync-decisions')">同步 AI 动作为决议</a-button>
-      <span v-if="!syncableAiActions.length">当前尚未形成决议，可在下一步手动新增。</span>
-      <a-button type="primary" @click="$emit('next')">进入决议确认</a-button>
-    </div>
+        <section v-if="(drawerSpecialist.concerns || []).length" class="drawer-section">
+          <span class="drawer-section-label">关注点</span>
+          <ul>
+            <li v-for="(c, i) in drawerSpecialist.concerns" :key="i">{{ c }}</li>
+          </ul>
+        </section>
+
+        <section v-if="(drawerSpecialist.recommendations || []).length" class="drawer-section">
+          <span class="drawer-section-label">专科建议</span>
+          <ul>
+            <li v-for="(r, i) in drawerSpecialist.recommendations" :key="i">{{ r }}</li>
+          </ul>
+        </section>
+
+        <section v-if="(drawerSpecialist.evidence || []).length" class="drawer-section">
+          <span class="drawer-section-label">证据线索</span>
+          <div class="drawer-chips">
+            <span v-for="(e, i) in drawerSpecialist.evidence" :key="i">{{ e }}</span>
+          </div>
+        </section>
+      </div>
+    </a-drawer>
   </a-card>
 </template>
 
 <script setup lang="ts">
-import { Button as AButton, Card as ACard, Collapse as ACollapse, CollapsePanel as ACollapsePanel } from 'ant-design-vue'
+import { ref, computed } from 'vue'
+import { Button as AButton, Card as ACard, Drawer as ADrawer } from 'ant-design-vue'
 
-defineProps<{
+const props = defineProps<{
   metaSummary: string
   mdtSeverityLabel: string
   activeSystemLabel: string
@@ -125,214 +120,271 @@ defineEmits<{
 
 void AButton
 void ACard
-void ACollapse
-void ACollapsePanel
+void ADrawer
 
-function priorityLabel(priority: any) {
+const drawerVisible = ref(false)
+const drawerSpecialist = ref<any>(null)
+
+const drawerTitle = computed(() => {
+  if (!drawerSpecialist.value) return '专科详情'
+  const labels: Record<string, string> = {
+    hemodynamic_agent: '循环系统', respiratory_agent: '呼吸系统', infection_agent: '感染系统',
+    renal_agent: '肾脏系统', neuro_agent: '神经系统', nutrition_agent: '营养代谢', pharmacy_agent: '药学安全',
+  }
+  return labels[drawerSpecialist.value.agent] || '专科详情'
+})
+
+function openSpecialistDrawer(item: any) {
+  drawerSpecialist.value = item
+  drawerVisible.value = true
+}
+
+function hasConflict(agent: string): boolean {
+  return props.conflictRows.some((c: any) => Array.isArray(c.agents) && c.agents.includes(agent))
+}
+
+function shortSummary(text: any, max = 52): string {
+  const s = String(text || '').replace(/\s+/g, ' ').trim()
+  return s.length > max ? `${s.slice(0, max)}…` : s || '暂无'
+}
+
+function priorityLabel(priority: any): string {
   const key = String(priority || 'medium').toLowerCase()
-  return ({ critical: '危急', high: '高优先', medium: '中优先', low: '低优先' } as Record<string, string>)[key] || '中优先'
-}
-
-function domainLabel(domain: any) {
-  const key = String(domain || '')
-  return ({
-    hemodynamic: '循环',
-    respiratory: '呼吸',
-    infection: '感染',
-    renal: '肾脏',
-    neuro: '神经',
-    nutrition: '营养',
-    pharmacy: '药学',
-    hemodynamic_agent: '循环',
-    respiratory_agent: '呼吸',
-    infection_agent: '感染',
-    renal_agent: '肾脏',
-    neuro_agent: '神经',
-    nutrition_agent: '营养',
-    pharmacy_agent: '药学',
-  } as Record<string, string>)[key] || key || '多专科'
-}
-
-function formatAgents(agents: any) {
-  return Array.isArray(agents) && agents.length ? agents.map(domainLabel).join(' / ') : '多专科'
+  return ({ critical: '危急', high: '高', medium: '中', low: '低' } as Record<string, string>)[key] || '中'
 }
 </script>
 
 <style scoped>
-.mdt-step-card,
-.review-card {
-  border: 1px solid rgba(148, 163, 184, 0.18);
+.mdt-step-card {
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.66);
+  background: var(--bg-surface);
 }
-.step-card__head,
-.review-card__head,
-.step-actions {
+.step-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
-.step-kicker,
-.review-card span,
-.detail-stack span {
-  color: rgba(125, 211, 252, 0.86);
+.step-card__head-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.step-kicker {
+  color: var(--brand);
   font-size: 12px;
   font-weight: 700;
 }
 h2 {
-  margin: 4px 0 6px;
-  color: var(--text-primary);
-}
-p {
-  margin: 0;
-  color: rgba(203, 213, 225, 0.74);
-  line-height: 1.6;
-}
-.review-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 16px;
-}
-.review-card {
-  padding: 16px;
-}
-.review-card strong,
-.review-card b {
-  display: block;
-  margin: 6px 0;
+  margin: 4px 0 0;
   color: var(--text-primary);
   font-size: 18px;
 }
-.compact-list {
+
+/* 总控结论 + 冲突 */
+.review-summary-row {
   display: grid;
-  gap: 10px;
-}
-.compact-list div {
-  padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.3);
-}
-.compact-list strong {
-  margin: 0;
-  font-size: 14px;
-}
-.compact-list small,
-.empty-box,
-.step-actions span {
-  color: rgba(148, 163, 184, 0.82);
-}
-.system-card-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
   margin-top: 16px;
 }
-.system-card {
-  min-height: 118px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+.review-summary-card {
+  padding: 14px;
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  padding: 12px;
-  color: var(--text-secondary);
-  text-align: left;
-  cursor: pointer;
-  background: var(--bg-surface), 0.3);
+  background: var(--bg-surface);
 }
-.system-card.is-active {
-  border-color: rgba(56, 189, 248, 0.62);
-  background: rgba(14, 116, 144, 0.24);
-}
-.system-card.is-critical,
-.system-card.is-high {
-  border-color: rgba(248, 113, 113, 0.4);
-}
-.system-card span,
-.system-card strong,
-.system-card small {
+.review-summary-card span {
   display: block;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
 }
-.system-card strong {
-  margin: 6px 0;
+.review-summary-card strong {
+  display: block;
+  margin: 4px 0;
   color: var(--text-primary);
+  font-size: 16px;
 }
-.system-card small {
-  color: rgba(203, 213, 225, 0.68);
-  line-height: 1.4;
-}
-.detail-collapse {
-  margin-top: 16px;
-  border-radius: var(--card-radius);
-  overflow: hidden;
-  background: var(--bg-surface), 0.28);
-}
-.detail-stack {
-  display: grid;
-  gap: 14px;
-  color: rgba(226, 232, 240, 0.82);
-}
-.chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.chip-row em {
-  padding: 6px 10px;
-  border-radius: var(--card-radius);
+.review-summary-card p {
+  margin: 0;
   color: var(--text-secondary);
-  font-style: normal;
-  background: var(--bg-surface), 0.82);
+  font-size: 13px;
+  line-height: 1.6;
 }
-.step-actions {
-  margin-top: 16px;
-}
-@media (max-width: 1100px) {
-  .system-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .review-grid {
-    grid-template-columns: 1fr;
-  }
+.review-summary-card.is-warning {
+  border-color: rgba(245, 158, 11, 0.3);
 }
 
-:global(html[data-theme='light']) .mdt-step-card,
-:global(html[data-theme='light']) .review-card,
-:global(html[data-theme='light']) .system-card {
-  border-color: var(--chart-1);
+/* 专科紧凑列表 */
+.specialist-compact-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.specialist-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
 }
-:global(html[data-theme='light']) .step-kicker,
-:global(html[data-theme='light']) .review-card span,
-:global(html[data-theme='light']) .detail-stack span {
-  color: var(--brand);
+.specialist-compact:hover {
+  border-color: var(--brand);
 }
-:global(html[data-theme='light']) h2,
-:global(html[data-theme='light']) .review-card strong,
-:global(html[data-theme='light']) .review-card b,
-:global(html[data-theme='light']) .system-card strong {
+.specialist-compact__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.specialist-compact__main strong {
   color: var(--text-primary);
+  font-size: 14px;
 }
-:global(html[data-theme='light']) p,
-:global(html[data-theme='light']) .system-card,
-:global(html[data-theme='light']) .detail-stack {
+.specialist-compact__summary {
   color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-:global(html[data-theme='light']) .compact-list div,
-:global(html[data-theme='light']) .chip-row em {
+.specialist-compact__meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.priority-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--card-radius);
+  font-size: 11px;
+  font-weight: 600;
+}
+.priority-tag.priority-critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.priority-tag.priority-high {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+.priority-tag.priority-medium {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+.priority-tag.priority-low {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+.conflict-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--card-radius);
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  font-size: 11px;
+  font-weight: 600;
+}
+.no-data-tag {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+/* AI 建议动作 */
+.ai-actions-strip {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+}
+.ai-actions-label {
+  display: block;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.ai-actions-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ai-action-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--card-radius);
   background: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-size: 12px;
 }
-:global(html[data-theme='light']) .compact-list small,
-:global(html[data-theme='light']) .empty-box,
-:global(html[data-theme='light']) .step-actions span,
-:global(html[data-theme='light']) .system-card small {
+.ai-action-chip.is-more {
   color: var(--text-secondary);
 }
-:global(html[data-theme='light']) .system-card.is-active {
-  border-color: var(--chart-1);
-  background: var(--bg-surface);
+
+/* 抽屉 */
+.drawer-body {
+  display: grid;
+  gap: 16px;
 }
-:global(html[data-theme='light']) .detail-collapse {
-  background: var(--bg-surface);
+.drawer-section {
+  display: grid;
+  gap: 8px;
+}
+.drawer-section-label {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
+}
+.drawer-section p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.drawer-section ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.drawer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.drawer-chips span {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .review-summary-row {
+    grid-template-columns: 1fr;
+  }
+  .specialist-compact-list {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

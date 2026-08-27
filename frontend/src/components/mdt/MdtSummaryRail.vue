@@ -1,15 +1,19 @@
 <template>
   <a-card :bordered="false" class="mdt-rail-card">
-    <span class="rail-label">当前患者</span>
-    <strong>{{ patientHeadline }}</strong>
-    <p>{{ patientSubline }}</p>
+    <div class="rail-patient">
+      <span class="rail-label">患者</span>
+      <strong>{{ patientHeadline }}</strong>
+      <p>{{ patientSubline }}</p>
+    </div>
 
     <div class="rail-meter">
-      <div>
-        <span>风险</span>
-        <b>{{ severityLabel }}</b>
+      <div class="rail-meter__header">
+        <span>{{ severityLabel }}</span>
+        <b>{{ progressPercent }}%</b>
       </div>
-      <i><em :style="{ width: `${progressPercent}%` }"></em></i>
+      <div class="rail-meter__bar">
+        <em :style="{ width: `${progressPercent}%` }"></em>
+      </div>
       <small>{{ progressText }}</small>
     </div>
 
@@ -18,15 +22,14 @@
       <p>{{ nextActionText }}</p>
     </section>
 
-    <section>
+    <section v-if="todoRows.length" class="rail-todos">
       <span class="rail-label">待办</span>
-      <div v-if="todoRows.length" class="rail-todo-list">
-        <article v-for="(item, index) in todoRows.slice(0, 5)" :key="item.id || index">
-          <strong>{{ item.action || '待补充决议内容' }}</strong>
-          <small>{{ item.owner || '负责人待定' }} / {{ item.deadline || '时限待定' }}</small>
+      <div class="rail-todo-list">
+        <article v-for="(item, index) in todoRows.slice(0, 3)" :key="item.id || index">
+          <strong>{{ shortAction(item.action) }}</strong>
+          <small>{{ item.owner || '待定' }} · {{ item.deadline || '待定' }}</small>
         </article>
       </div>
-      <div v-else class="rail-empty">暂无待办，进入决议确认后会显示。</div>
     </section>
   </a-card>
 </template>
@@ -62,124 +65,108 @@ const progressPercent = computed(() => {
 
 const progressText = computed(() => {
   if (!props.decisionTotalCount) return '尚未形成决议'
-  if (props.pendingConfirmationCount > 0) {
-    return `医生确认 ${confirmationPercent.value}%（待确认 ${props.pendingConfirmationCount} 条）`
-  }
-  return `决议闭环 ${props.closurePercent}%（已完成 ${props.completedDecisionCount}/${props.decisionTotalCount}）`
+  if (props.pendingConfirmationCount > 0) return `医生确认 ${confirmationPercent.value}%（待确认 ${props.pendingConfirmationCount}）`
+  return `闭环 ${props.closurePercent}%（${props.completedDecisionCount}/${props.decisionTotalCount}）`
 })
+
+function shortAction(text: any): string {
+  const s = String(text || '').trim()
+  return s.length > 36 ? `${s.slice(0, 36)}…` : s || '待补充'
+}
 </script>
 
 <style scoped>
 .mdt-rail-card {
   min-height: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.66);
+  background: var(--bg-surface);
 }
 .rail-label {
   display: block;
-  color: rgba(125, 211, 252, 0.82);
-  font-size: 12px;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.rail-patient strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 16px;
   font-weight: 700;
 }
-strong {
-  display: block;
-  margin-top: 6px;
-  color: var(--text-primary);
-  font-size: 20px;
-}
-p {
-  margin: 8px 0 0;
-  color: rgba(203, 213, 225, 0.76);
-  line-height: 1.55;
+.rail-patient p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 .rail-meter {
-  margin: 18px 0;
-  padding: 14px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.58);
+  background: var(--bg-surface);
 }
-.rail-meter div {
+.rail-meter__header {
   display: flex;
   justify-content: space-between;
-  color: rgba(203, 213, 225, 0.76);
+  color: var(--text-secondary);
+  font-size: 12px;
 }
-.rail-meter b {
+.rail-meter__header b {
   color: var(--text-primary);
+  font-weight: 700;
 }
-.rail-meter i {
-  display: block;
-  height: 8px;
-  margin: 12px 0 8px;
-  border-radius: var(--card-radius);
+.rail-meter__bar {
+  height: 6px;
+  margin: 8px 0;
+  border-radius: 3px;
+  background: var(--bg-surface-2);
   overflow: hidden;
-  background: rgba(51, 65, 85, 0.9);
 }
-.rail-meter em {
+.rail-meter__bar em {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--bg-surface);
+  background: var(--brand);
+  transition: width 0.3s;
 }
-.rail-meter small,
-.rail-todo-list small {
-  color: rgba(148, 163, 184, 0.8);
+.rail-meter small {
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 .rail-next {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
+}
+.rail-next p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rail-todos {
+  margin-top: 4px;
 }
 .rail-todo-list {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 .rail-todo-list article {
-  padding: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.26);
+  background: var(--bg-surface);
 }
 .rail-todo-list strong {
-  margin: 0 0 4px;
-  font-size: 14px;
-}
-.rail-empty {
-  margin-top: 8px;
-  color: rgba(148, 163, 184, 0.8);
-}
-
-:global(html[data-theme='light']) .mdt-rail-card {
-  border-color: var(--chart-1);
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
-}
-:global(html[data-theme='light']) .rail-label {
-  color: var(--brand);
-}
-:global(html[data-theme='light']) strong,
-:global(html[data-theme='light']) .rail-meter b,
-:global(html[data-theme='light']) .rail-todo-list strong {
+  display: block;
   color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.4;
 }
-:global(html[data-theme='light']) p {
+.rail-todo-list small {
+  display: block;
+  margin-top: 2px;
   color: var(--text-secondary);
-}
-:global(html[data-theme='light']) .rail-meter {
-  border: 1px solid #dbeafe;
-  background: var(--bg-surface);
-}
-:global(html[data-theme='light']) .rail-meter div {
-  color: var(--text-secondary);
-}
-:global(html[data-theme='light']) .rail-meter i {
-  background: var(--bg-surface);
-}
-:global(html[data-theme='light']) .rail-meter small,
-:global(html[data-theme='light']) .rail-todo-list small,
-:global(html[data-theme='light']) .rail-empty {
-  color: var(--text-secondary);
-}
-:global(html[data-theme='light']) .rail-todo-list article {
-  border-color: var(--text-secondary);
-  background: var(--bg-surface);
+  font-size: 11px;
 }
 </style>

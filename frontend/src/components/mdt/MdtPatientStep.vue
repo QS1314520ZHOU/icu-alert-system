@@ -4,9 +4,8 @@
       <div>
         <span class="step-kicker">第一步</span>
         <h2>选择患者与生成会诊</h2>
-        <p>先确定本轮会诊对象，再生成七大系统风险简图和总控结果。</p>
       </div>
-      <a-button type="primary" size="large" :loading="loading" :disabled="!selectedPatientId" @click="$emit('generate')">
+      <a-button type="primary" :loading="loading" :disabled="!selectedPatientId" @click="$emit('generate')">
         生成 MDT 会诊
       </a-button>
     </div>
@@ -21,21 +20,20 @@
         <div v-if="selectedPatientOutOfDeptHint" class="step-hint">{{ selectedPatientOutOfDeptHint }}</div>
 
         <div class="patient-brief">
-          <span>患者基础信息</span>
           <strong>{{ patientHeadline }}</strong>
           <p>{{ patientSubline }}</p>
         </div>
 
         <div class="step-actions">
           <a-button :disabled="!selectedPatientId" @click="$emit('open-patient')">患者详情</a-button>
-          <a-button type="primary" :disabled="!selectedPatientId" @click="$emit('next')">进入冲突评审</a-button>
+          <a-button type="primary" :disabled="!selectedPatientId" @click="$emit('next')">下一步</a-button>
         </div>
       </div>
 
       <div class="organ-panel">
         <div class="panel-title">
-          <strong>七大系统风险简图</strong>
-          <span>点击系统可在下一步查看专科意见</span>
+          <strong>七大系统风险</strong>
+          <span>点击查看详情</span>
         </div>
         <OrganHeatmapFigure
           compact
@@ -91,159 +89,137 @@ void ACard
 
 <style scoped>
 .mdt-step-card {
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.66);
+  background: var(--bg-surface);
 }
-.step-card__head,
-.panel-title,
-.step-actions {
+.step-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
 .step-kicker {
-  color: rgba(125, 211, 252, 0.86);
+  color: var(--brand);
   font-size: 12px;
   font-weight: 700;
 }
 h2 {
-  margin: 4px 0 6px;
+  margin: 4px 0 0;
   color: var(--text-primary);
-}
-p {
-  margin: 0;
-  color: rgba(203, 213, 225, 0.72);
+  font-size: 18px;
 }
 .patient-step-grid {
   display: grid;
   grid-template-columns: minmax(280px, 0.82fr) minmax(380px, 1.18fr);
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 .patient-select-panel,
 .organ-panel {
   padding: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.26);
+  background: var(--bg-surface);
 }
 label {
   display: block;
-  margin-bottom: 8px;
-  color: rgba(226, 232, 240, 0.86);
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 .mdt-select {
   width: 100%;
-  min-height: 42px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  min-height: 38px;
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  padding: 0 12px;
+  padding: 0 10px;
   color: var(--text-primary);
   background: var(--bg-surface);
+  font-size: 13px;
 }
 .step-hint {
-  margin-top: 8px;
-  color: var(--warning-soft);
+  margin-top: 6px;
+  color: #f59e0b;
+  font-size: 12px;
 }
 .patient-brief {
-  margin: 18px 0;
-  padding: 14px;
+  margin: 14px 0;
+  padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.54);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
 }
-.patient-brief span,
-.panel-title span {
-  color: rgba(148, 163, 184, 0.82);
-}
-.patient-brief strong,
-.panel-title strong {
+.patient-brief strong {
   display: block;
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 16px;
+}
+.patient-brief p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.panel-title strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+.panel-title span {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.step-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
 }
 .organ-pill-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 10px;
 }
 .organ-pill {
-  min-height: 52px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
   color: var(--text-secondary);
   text-align: left;
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   cursor: pointer;
+  font-size: 12px;
 }
-.organ-pill span,
+.organ-pill span {
+  color: var(--text-secondary);
+}
 .organ-pill b {
-  display: block;
-  padding: 0 10px;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 .organ-pill.is-critical,
 .organ-pill.is-high {
-  border-color: rgba(248, 113, 113, 0.46);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.organ-pill.is-critical b,
+.organ-pill.is-high b {
+  color: #ef4444;
+}
+.organ-pill.is-warning b {
+  color: #f59e0b;
 }
 @media (max-width: 980px) {
   .patient-step-grid {
     grid-template-columns: 1fr;
   }
-}
-
-:global(html[data-theme='light']) .mdt-step-card,
-:global(html[data-theme='light']) .patient-select-panel,
-:global(html[data-theme='light']) .organ-panel {
-  border-color: #d9e0d6;
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
-}
-:global(html[data-theme='light']) .step-kicker,
-:global(html[data-theme='light']) .panel-title span {
-  color: var(--brand);
-}
-:global(html[data-theme='light']) h2,
-:global(html[data-theme='light']) .patient-brief strong,
-:global(html[data-theme='light']) .panel-title strong {
-  color: var(--text-primary);
-}
-:global(html[data-theme='light']) p,
-:global(html[data-theme='light']) label,
-:global(html[data-theme='light']) .patient-brief span {
-  color: var(--text-secondary);
-}
-:global(html[data-theme='light']) .mdt-select {
-  color: var(--text-primary);
-  border-color: #cfd8d3;
-  background: var(--bg-surface);
-}
-:global(html[data-theme='light']) .patient-brief,
-:global(html[data-theme='light']) .organ-pill {
-  border-color: #e5e2d9;
-  background: #fbfaf6;
-}
-:global(html[data-theme='light']) .organ-pill {
-  color: var(--text-primary);
-}
-:global(html[data-theme='light']) .organ-pill b {
-  color: var(--text-primary);
-}
-:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary) {
-  border-color: #1D6F63;
-  background: #1D6F63;
-  color: #ffffff;
-}
-:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary:not(:disabled):hover) {
-  border-color: #15584D;
-  background: #15584D;
-  color: #ffffff;
-}
-:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary[disabled]),
-:global(html[data-theme='light']) .step-actions :deep(.ant-btn-primary.ant-btn-disabled) {
-  border-color: #d5ddd6;
-  background: #e9eee9;
-  color: #7d8a82;
 }
 </style>

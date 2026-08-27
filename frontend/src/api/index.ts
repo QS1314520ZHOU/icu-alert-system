@@ -497,6 +497,7 @@ export const postAiConsultChat = (payload: {
   message: string
   patient_id?: string
   patient_ids?: string[]
+  dept_code?: string
   mode?: 'clinical' | 'free'
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
   pending_clarifications?: string[]

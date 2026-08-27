@@ -2,10 +2,10 @@
   <section class="priority-panel">
     <div class="priority-head">
       <div>
-        <span>今日重点关注</span>
-        <strong>{{ displayRows.length ? `重点关注前 ${displayRows.length} 位患者` : '暂无高优先级患者' }}</strong>
+        <span class="priority-head__label">重点关注</span>
+        <strong class="priority-head__title">{{ displayRows.length ? `前 ${displayRows.length} 位` : '暂无' }}</strong>
       </div>
-      <small>{{ rows.length > displayRows.length ? `共 ${rows.length} 位高优先级，已优先展示最需要处理的 ${displayRows.length} 位` : '按风险闭环优先级排序' }}</small>
+      <small v-if="rows.length > displayRows.length">共 {{ rows.length }} 位高优先级</small>
     </div>
     <div v-if="rows.length" class="priority-list">
       <button
@@ -15,25 +15,25 @@
         :class="['priority-row', `tone-${item.risk_level || 'unknown'}`]"
         @click="$emit('select', item.patient_id)"
       >
-        <b>{{ idx + 1 }}</b>
+        <b class="priority-row__rank">{{ idx + 1 }}</b>
         <div class="priority-main">
-          <strong>{{ item.bed || '--' }}床 {{ item.name || '未知患者' }}</strong>
+          <strong>{{ item.bed || '--' }}床 {{ item.name || '未知' }}</strong>
           <span>{{ compactReason(item) }}</span>
           <em>
             <i v-if="item.unhandled_alerts">{{ item.unhandled_alerts }} 未处理</i>
             <i v-if="item.new_alerts_6h">{{ item.new_alerts_6h }} 新发</i>
-            <i v-if="item.mechanical_ventilation">机械通气</i>
-            <i v-if="item.infection_risk">感染风险</i>
+            <i v-if="item.mechanical_ventilation">通气</i>
+            <i v-if="item.infection_risk">感染</i>
             <i v-if="item.data_missing">数据缺失</i>
           </em>
         </div>
         <div class="priority-side">
           <strong>{{ item.priority_score ?? 0 }}</strong>
-          <span>{{ item.risk_trend === 'up' ? '↑ 上升' : '→ 平稳' }}</span>
+          <span>{{ item.risk_trend === 'up' ? '↑' : '→' }}</span>
         </div>
       </button>
     </div>
-    <div v-else class="priority-empty">当前范围未发现需要置顶的闭环风险，仍需确认数据是否完整。</div>
+    <div v-else class="priority-empty">暂无高优先级患者</div>
   </section>
 </template>
 
@@ -52,7 +52,7 @@ function compactReason(item: any) {
     .map((row: any) => String(row || '').replace(/\s+/g, '').trim())
     .filter(Boolean)
     .join(' · ')
-  return text || '暂无明确风险原因'
+  return text || '暂无明确风险'
 }
 </script>
 
@@ -60,29 +60,35 @@ function compactReason(item: any) {
 .priority-panel {
   display: grid;
   gap: 12px;
-  padding: 14px;
-  border: 1px solid rgba(80, 199, 255, 0.14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  padding: 16px;
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  background: var(--color-bg-surface, #FFFFFF);
+  margin-bottom: 16px;
 }
 .priority-head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: end;
+  align-items: flex-end;
 }
 .priority-head div {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
-.priority-head span,
-.priority-head small {
-  color: var(--text-secondary);
+.priority-head__label {
+  color: var(--color-text-secondary, #667085);
   font-size: 12px;
+  font-weight: 500;
 }
-.priority-head strong {
-  color: var(--text-primary);
-  font-size: 18px;
+.priority-head__title {
+  color: var(--text-main, #18212B);
+  font-size: 15px;
+  font-weight: 600;
+}
+.priority-head small {
+  color: var(--color-text-secondary, #667085);
+  font-size: 12px;
 }
 .priority-list {
   display: grid;
@@ -91,40 +97,47 @@ function compactReason(item: any) {
 }
 .priority-row {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  min-height: 88px;
+  min-height: 72px;
   padding: 10px 12px;
-  border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, 0.14);
-  background: var(--bg-surface), 0.72);
-  color: var(--text-primary);
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #E3E7EC);
+  background: var(--color-bg-surface, #FFFFFF);
+  color: var(--text-main, #18212B);
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.15s;
 }
-.priority-row > b {
+.priority-row:hover {
+  border-color: var(--color-primary, #2563EB);
+}
+.priority-row__rank {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--card-radius);
-  background: rgba(59, 130, 246, 0.22);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
+  color: var(--color-primary, #2563EB);
+  font-size: 12px;
+  font-weight: 600;
 }
 .priority-main {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 .priority-main strong {
-  color: #f8feff;
-  font-size: 14px;
+  color: var(--text-main, #18212B);
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .priority-main span {
-  color: var(--warning);
+  color: var(--color-warning, #B54708);
   font-size: 12px;
   line-height: 1.35;
   overflow: hidden;
@@ -136,16 +149,15 @@ function compactReason(item: any) {
   flex-wrap: wrap;
   gap: 4px;
   font-style: normal;
-  min-height: 22px;
 }
 .priority-main em i {
-  padding: 2px 6px;
-  border-radius: var(--card-radius);
-  background: rgba(125, 211, 252, 0.1);
-  color: #9bdcf5;
-  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--color-bg-surface-secondary, #F1F3F5);
+  color: var(--color-text-secondary, #667085);
+  font-size: 12px;
   font-style: normal;
-  line-height: 1.35;
+  line-height: 1.5;
 }
 .priority-side {
   display: grid;
@@ -153,52 +165,31 @@ function compactReason(item: any) {
   justify-items: end;
 }
 .priority-side strong {
-  color: var(--text-primary);
-  font-size: 22px;
+  font-family: 'Rajdhani', sans-serif;
+  color: var(--text-main, #18212B);
+  font-size: 20px;
+  font-weight: 700;
   line-height: 1;
 }
-.priority-side span,
-.priority-side small {
-  color: var(--text-secondary);
-  font-size: 11px;
+.priority-side span {
+  color: var(--color-text-secondary, #667085);
+  font-size: 12px;
 }
 .tone-critical {
-  border-color: rgba(248, 113, 113, 0.28);
-  background: var(--bg-surface), 0.42);
+  border-color: rgba(217, 45, 32, 0.25);
+  border-left: 3px solid var(--color-danger, #D92D20);
 }
 .tone-warning {
-  border-color: rgba(245, 158, 11, 0.26);
-  background: var(--bg-surface), 0.36);
+  border-color: rgba(181, 71, 8, 0.2);
+  border-left: 3px solid var(--color-warning, #B54708);
 }
 .priority-empty {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary, #667085);
   padding: 12px;
-  border: 1px dashed rgba(125, 211, 252, 0.18);
-  border-radius: var(--card-radius);
-}
-html[data-theme='light'] .priority-panel,
-html[data-theme='light'] .priority-row {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: var(--bg-surface);
-}
-html[data-theme='light'] .priority-head strong,
-html[data-theme='light'] .priority-main strong,
-html[data-theme='light'] .priority-side strong {
-  color: var(--text-secondary);
-}
-html[data-theme='light'] .priority-head span,
-html[data-theme='light'] .priority-head small,
-html[data-theme='light'] .priority-main em,
-html[data-theme='light'] .priority-side span,
-html[data-theme='light'] .priority-side small {
-  color: var(--text-secondary);
-}
-html[data-theme='light'] .priority-main em i {
-  background: rgba(219, 234, 254, 0.9);
-  color: var(--brand);
-}
-html[data-theme='light'] .priority-main span {
-  color: var(--warning);
+  border: 1px dashed var(--color-border, #E3E7EC);
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
 }
 @media (max-width: 1280px) {
   .priority-list {

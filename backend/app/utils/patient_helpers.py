@@ -48,7 +48,15 @@ def research_patient_scope_query(scope: str | None) -> dict:
     in_dept_statuses = ["admitted", "在科", "住院", "icu", "icu在科"]
     out_dept_statuses = ["discharged", "出科", "出院", "离科", "转出", "dead", "death", "deceased", "死亡"]
     if token in {"in_dept", "active", "admitted"}:
-        return {"status": {"$in": in_dept_statuses}}
+        # 匹配在科状态，同时包含没有 status 字段或 status 为空的患者（兼容历史数据）
+        return {
+            "$or": [
+                {"status": {"$in": in_dept_statuses}},
+                {"status": {"$exists": False}},
+                {"status": None},
+                {"status": ""},
+            ]
+        }
     if token in {"out_dept", "discharged"}:
         return {"status": {"$in": out_dept_statuses}}
     return {

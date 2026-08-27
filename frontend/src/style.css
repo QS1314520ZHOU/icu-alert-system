@@ -1,3 +1,6 @@
+/* 导入统一设计系统 */
+@import './styles/design-system.css';
+
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html.boot-mobile,
@@ -8,373 +11,197 @@ html.boot-mobile #app {
 }
 
 :root {
-  /* Dark Mode - Clinical Monitor */
-  --app-display-font: 'Noto Sans SC', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --app-title-color: #edf4fb;
-  --app-body-color: #d9e6f3;
-  --app-muted-color: var(--text-muted);
-  --app-border-color: rgba(125, 167, 214, 0.14);
-  --app-card-shadow-sm: 0 10px 28px rgba(2, 8, 20, 0.28);
-  --app-primary: #15558D;
-  --app-link: #15558D;
-  --app-tag-bg: rgba(11, 35, 54, 0.84);
-  --app-soft-bg: rgba(8, 28, 44, 0.78);
-  --status-critical-text: #D9342B;
-  --status-critical-bg: rgba(217, 52, 43, 0.2);
-  --status-warning-text: #E8901C;
-  --status-warning-bg: rgba(232, 144, 28, 0.18);
-  --status-normal-text: #1A9C5B;
-  --status-normal-bg: rgba(26, 156, 91, 0.18);
-  --app-bg: #07111d;
-  --hdr-bg: rgba(9, 20, 34, 0.92);
-  --hdr-bg-strong: linear-gradient(90deg, rgba(7, 20, 34, 0.96) 0%, rgba(5, 14, 26, 0.98) 100%);
-  --hdr-border: rgba(125, 167, 214, 0.14);
-  --hdr-title: #edf4fb;
-  --hdr-sub: #8ba0ba;
-  --hdr-tool-bg: rgba(7, 29, 45, 0.86);
-  --hdr-tool-text: #7ecce1;
-  --hdr-tool-border: rgba(80, 199, 255, 0.14);
-  --hdr-clock: #8de3f3;
-  --hdr-shadow: 0 8px 24px rgba(2, 8, 20, 0.22), inset 0 -1px 0 rgba(125, 241, 255, 0.04);
-  --hdr-icon-bg: linear-gradient(180deg, #0b4e74 0%, #07273f 100%);
-  --hdr-icon-text: #ecfeff;
-  --hdr-icon-border: rgba(103, 232, 249, 0.22);
-  --hdr-icon-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 16px rgba(34, 211, 238, 0.08);
-  --nav-btn-bg: rgba(7, 29, 45, 0.86);
-  --nav-btn-border: rgba(80, 199, 255, 0.12);
-  --nav-btn-text: #7ecce1;
-  --nav-btn-hover-bg: rgba(10, 42, 63, 0.94);
-  --nav-btn-hover-text: #e9fbff;
-  --nav-btn-hover-border: rgba(103, 232, 249, 0.22);
-  --nav-btn-active-bg: linear-gradient(180deg, rgba(11, 107, 137, 0.96) 0%, rgba(7, 63, 86, 0.98) 100%);
-  --nav-btn-active-text: #effcff;
-  --nav-btn-active-border: rgba(110, 231, 249, 0.32);
-  --nav-btn-active-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(34, 211, 238, 0.08);
-  --switch-off-bg: #183247;
-  --switch-on-bg: #0ea5b7;
+  /* 字体 - 统一使用设计系统 */
+  --app-display-font: var(--font-primary);
 
-  --card-bg: #0d1a2b;
-  --card-hover: #122238;
-  --card-border: rgba(125, 167, 214, 0.14);
-  --card-shadow: 0 10px 28px rgba(2, 8, 20, 0.28);
+  /* 浅色临床工作台风格 - 核心变量 */
+  --app-bg: var(--color-bg-page);
+  --app-title-color: var(--color-text-primary);
+  --app-body-color: var(--color-text-primary);
+  --app-muted-color: var(--color-text-secondary);
+  --app-border-color: var(--color-border);
+  --app-primary: var(--color-primary);
+  --app-link: var(--color-primary);
 
-  --panel-bg: #0b1727;
-  --panel-soft: #102033;
-  --vitals-bg: #091421;
+  /* 表面和卡片 */
+  --bg-base: var(--color-bg-page);
+  --bg-surface: var(--color-bg-surface);
+  --bg-surface-2: var(--color-bg-surface-secondary);
+  --card-bg: var(--color-bg-surface);
+  --card-hover: var(--color-bg-surface-secondary);
+  --card-border: var(--color-border);
+  --card-radius: var(--radius-lg);
+  --card-pad: var(--card-padding);
+  --card-gap: var(--element-gap);
+  --card-shadow: var(--shadow-sm);
+  --card-shadow-hover: var(--shadow-md);
 
-  --text-main: #d9e6f3;
-  --text-muted: #9DB0C9;
-  --tab-active-bg: rgba(29, 122, 231, 0.16);
-  --tab-active-border: rgba(89, 168, 255, 0.36);
-  --icu-accent: #15558D;
-  --icu-accent-soft: #8fd4e6;
-  --icu-accent-strong: #15558D;
-  --icu-surface: rgba(8, 28, 44, 0.78);
-  --icu-surface-2: rgba(10, 42, 62, 0.72);
-  --icu-panel-gradient: linear-gradient(180deg, rgba(7,20,34,.96) 0%, rgba(4,12,22,.98) 100%);
-  --icu-panel-gradient-soft: linear-gradient(180deg, rgba(8,28,44,.92) 0%, rgba(6,17,29,.96) 100%);
-  --icu-border: rgba(80, 199, 255, 0.14);
-  --icu-border-strong: rgba(110, 231, 249, 0.28);
-  --icu-shadow-lg: 0 18px 36px rgba(0, 0, 0, 0.34);
-  --icu-shadow-panel: inset 0 1px 0 rgba(145,228,255,.04), 0 12px 28px rgba(0,0,0,.2);
-  --icu-brand-gradient: linear-gradient(180deg, rgba(11,107,137,.96) 0%, rgba(7,63,86,.98) 100%);
-  --icu-brand-text: #effcff;
-  --icu-overlay-mask: rgba(2, 8, 20, 0.56);
-  --icu-modal-shadow: 0 24px 48px rgba(0,0,0,.4), inset 0 1px 0 rgba(145,228,255,.05);
-  --icu-danger: #D9342B;
-  --icu-warning: #A65A0C;
-  --icu-success: #1A9C5B;
+  /* 文字 */
+  --text-main: var(--color-text-primary);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-secondary);
 
-  /* Severity Pills */
-  --sev-warning-text: #A65A0C;
-  --sev-warning-bg: rgba(166, 90, 12, 0.22);
-  --sev-warning-border: rgba(166, 90, 12, 0.35);
-  --sev-high-text: #E8901C;
-  --sev-high-bg: rgba(232, 144, 28, 0.18);
-  --sev-high-border: rgba(232, 144, 28, 0.32);
-  --sev-critical-text: #D9342B;
-  --sev-critical-bg: rgba(217, 52, 43, 0.2);
-  --sev-critical-border: rgba(217, 52, 43, 0.35);
-  --sev-normal-text: #1A9C5B;
-  --sev-normal-bg: rgba(26, 156, 91, 0.18);
-  --sev-normal-border: rgba(26, 156, 91, 0.32);
-  /* Severity Pills - Soft variant */
-  --sev-soft-warning-text: #A65A0C;
-  --sev-soft-warning-bg: rgba(166, 90, 12, 0.18);
-  --sev-soft-warning-border: rgba(166, 90, 12, 0.28);
-  --sev-soft-high-text: #E8901C;
-  --sev-soft-high-bg: rgba(232, 144, 28, 0.15);
-  --sev-soft-high-border: rgba(232, 144, 28, 0.28);
-  --sev-soft-critical-text: #D9342B;
-  --sev-soft-critical-bg: rgba(217, 52, 43, 0.16);
-  --sev-soft-critical-border: rgba(217, 52, 43, 0.28);
-  --sev-soft-normal-text: #1A9C5B;
-  --sev-soft-normal-bg: rgba(26, 156, 91, 0.15);
-  --sev-soft-normal-border: rgba(26, 156, 91, 0.28);
-  /* Dark container backgrounds */
-  --container-dark-bg: #0b1626;
-  --container-dark-border: #19304d;
-  --container-dark-text: #94a3b8;
-  --container-alt-bg: #0f2038;
-  --container-alt-border: #1c3d64;
-  --container-alt-text: #9ca3af;
+  /* 边框 */
+  --border-color: var(--color-border);
 
-  /* === Semantic Design Tokens === */
-  --bg-base:        var(--app-bg);
-  /* === Semantic Design Tokens === */
-  --bg-base:        var(--app-bg);
-  --bg-surface:     var(--card-bg);
-  --bg-surface-2:   var(--panel-soft);
-  --border-color:   var(--app-border-color);
-  --text-primary:   var(--app-title-color);
-  --text-secondary: #8ba0ba;
-  /* --text-muted defined above */
-  --brand:          var(--app-primary);
-  --accent:         var(--icu-accent);
-  --success:        #1A9C5B;
-  --warning:        #E8901C;
-  --warning-soft:   #A65A0C;
-  --danger:         #D9342B;
-  --danger-strong:  #D9342B;
-  --danger-soft:    #D9342B;
-  --danger-bg:      rgba(217, 52, 43, 0.2);
-  --warning-bg:     rgba(232, 144, 28, 0.18);
-  --success-bg:     rgba(26, 156, 91, 0.18);
+  /* 品牌色 */
+  --brand: var(--color-primary);
+  --brand-soft: var(--color-primary-bg);
 
-  /* Chart palette */
-  --chart-1:        #15558D;
-  --chart-2:        #1A9C5B;
-  --chart-3:        #E8901C;
-  --chart-4:        #D9342B;
-  --chart-5:        #15558D;
-  --chart-6:        #1A9C5B;
-  --chart-grid:     rgba(125,167,214,0.14);
-  --chart-axis:     #8ba0ba;
-  /* === Design System: Dark Mode Tokens === */
-  --bg-base: #07111d;
-  --bg-surface: #0d1a2b;
-  --bg-surface-2: #102033;
-  --brand: #15558D;
-  --brand-soft: rgba(21, 85, 141, 0.25);
-  --danger: #D9342B;
-  --danger-soft: rgba(217, 52, 43, 0.2);
-  --warning: #A65A0C;
-  --warning-icon: #E8901C;
-  --warning-soft: rgba(232, 144, 28, 0.18);
-  --success: #1A9C5B;
-  --success-soft: rgba(26, 156, 91, 0.18);
-  --card-radius: 8px;
-  --card-pad: 20px;
-  --card-gap: 16px;
-  --section-gap: 24px;
-  --card-shadow: 0 10px 28px rgba(2, 8, 20, 0.28);
-  --card-shadow-hover: 0 14px 36px rgba(2, 8, 20, 0.34);
-  --modal-shadow: 0 24px 48px rgba(2, 8, 20, 0.38);
-  --text-primary: #edf4fb;
-  --text-secondary: #8ba0ba;
-  --text-muted: #6b8299;
-  --border-color: rgba(125, 167, 214, 0.14);
+  /* 状态色 */
+  --danger: var(--color-danger);
+  --danger-soft: var(--color-danger-bg);
+  --danger-bg: var(--color-danger-bg);
+  --warning: var(--color-warning);
+  --warning-soft: var(--color-warning-bg);
+  --warning-bg: var(--color-warning-bg);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-bg);
+  --success-bg: var(--color-success-bg);
 
-  /* Sidebar */
-  --sidebar-bg: #0B2545;
-  --sidebar-border: rgba(255,255,255,0.08);
-  --sidebar-item-hover: rgba(255,255,255,0.06);
-  --sidebar-item-active-bg: rgba(255,255,255,0.08);
-  --sidebar-item-active-border: #ffffff;
-  --sidebar-text: #B8C9DB;
-  --sidebar-text-active: #ffffff;
-  --sidebar-group-label: #6B8299;
-}
+  /* 图表色板 */
+  --chart-1: var(--color-primary);
+  --chart-2: var(--color-success);
+  --chart-3: var(--color-warning);
+  --chart-4: var(--color-danger);
+  --chart-5: #6366F1;
+  --chart-6: #8B5CF6;
+  --chart-grid: var(--color-border);
+  --chart-axis: var(--color-text-secondary);
 
-html[data-theme='light'] {
-  /* === Design System: Light Mode Semantic Tokens === */
+  /* 侧边栏 - 浅色风格 */
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: var(--color-border);
+  --sidebar-item-hover: var(--color-bg-surface-secondary);
+  --sidebar-item-active-bg: var(--color-primary-bg);
+  --sidebar-item-active-border: var(--color-primary);
+  --sidebar-text: var(--color-text-secondary);
+  --sidebar-text-active: var(--color-text-primary);
+  --sidebar-group-label: var(--color-text-secondary);
 
-  /* 中性色 */
-  --bg-base: #F3F1EA;
-  --bg-surface: #FFFDF7;
-  --bg-surface-2: #F6F3EA;
-  --border-color: #D7DED3;
+  /* 顶部栏 - 浅色风格 */
+  --hdr-bg: rgba(255, 255, 255, 0.96);
+  --hdr-bg-strong: #FFFFFF;
+  --hdr-border: var(--color-border);
+  --hdr-title: var(--color-text-primary);
+  --hdr-sub: var(--color-text-secondary);
+  --hdr-tool-bg: var(--color-bg-surface-secondary);
+  --hdr-tool-text: var(--color-text-secondary);
+  --hdr-tool-border: var(--color-border);
+  --hdr-clock: var(--color-text-secondary);
 
-  /* Sidebar */
-  --sidebar-bg: #f0f4f8;
-  --sidebar-border: rgba(0,0,0,0.08);
-  --sidebar-item-hover: rgba(0,0,0,0.04);
-  --sidebar-item-active-bg: #E2F0EA;
-  --sidebar-item-active-border: #1D6F63;
-  --sidebar-text: #4A5568;
-  --sidebar-text-active: #155C52;
-  --sidebar-group-label: #87978D;
-  --text-primary: #16241E;
-  --text-secondary: #3F564B;
-  --text-muted: #718176;
-
-  /* 主色 + 浅底 */
-  --brand: #1D6F63;
-  --brand-soft: #E2F0EA;
-  --danger: #B5483F;
-  --danger-soft: #FBE9E3;
-  --warning: #8A5E1B;
-  --warning-icon: #B47A24;
-  --warning-soft: #F7ECD5;
-  --success: #2F7A58;
-  --success-soft: #E3F0E6;
-
-  /* 卡片/间距/圆角 */
-  --card-radius: 8px;
-  --card-pad: 20px;
-  --card-gap: 16px;
-  --section-gap: 24px;
-  --card-shadow: 0 8px 22px rgba(54, 69, 58, 0.08);
-  --card-shadow-hover: 0 12px 30px rgba(54, 69, 58, 0.12);
-  --modal-shadow: 0 14px 34px rgba(54, 69, 58, 0.16);
-
-  /* Legacy 兼容映射 (供已有组件使用，后续逐步移除) */
-  --app-bg: var(--bg-base);
-  --app-title-color: var(--text-primary);
-  --app-body-color: var(--text-primary);
-  --app-muted-color: var(--text-muted);
-  --app-border-color: var(--border-color);
-  --app-card-shadow-sm: var(--card-shadow);
-  --app-primary: var(--brand);
-  --app-link: var(--brand);
-  --app-tag-bg: var(--brand-soft);
-  --app-soft-bg: var(--bg-surface-2);
-  --status-critical-text: var(--danger);
-  --status-critical-bg: var(--danger-soft);
-  --status-warning-text: var(--warning);
-  --status-warning-bg: var(--warning-soft);
-  --status-normal-text: var(--success);
-  --status-normal-bg: var(--success-soft);
-  --hdr-bg: rgba(255, 253, 247, 0.94);
-  --hdr-bg-strong: linear-gradient(180deg, rgba(255, 253, 247, 0.98) 0%, rgba(246, 243, 234, 0.96) 100%);
-  --hdr-border: var(--border-color);
-  --hdr-title: var(--text-primary);
-  --hdr-sub: var(--text-secondary);
-  --hdr-tool-bg: var(--bg-surface-2);
-  --hdr-tool-text: var(--text-secondary);
-  --hdr-tool-border: var(--border-color);
-  --hdr-clock: var(--text-primary);
-  --hdr-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  --hdr-icon-bg: var(--brand);
-  --hdr-icon-text: #FFFFFF;
-  --hdr-icon-border: rgba(31, 111, 98, 0.18);
-  --hdr-icon-shadow: none;
+  /* 导航按钮 */
   --nav-btn-bg: transparent;
   --nav-btn-border: transparent;
-  --nav-btn-text: var(--text-secondary);
-  --nav-btn-icon: var(--text-secondary);
-  --nav-btn-hover-bg: var(--bg-surface-2);
-  --nav-btn-hover-text: var(--brand);
-  --nav-btn-hover-icon: var(--brand);
-  --nav-btn-active-bg: var(--brand-soft);
-  --nav-btn-active-text: var(--brand);
-  --nav-btn-active-icon: var(--brand);
-  --nav-btn-active-border: var(--brand);
-  --nav-btn-active-shadow: none;
-  --switch-off-bg: var(--border-color);
-  --switch-on-bg: var(--brand);
-  --tab-active-bg: var(--brand-soft);
-  --tab-active-border: var(--brand);
-  --pill-bg: var(--bg-surface-2);
-  --card-bg: var(--bg-surface);
-  --card-hover: var(--bg-surface-2);
-  --card-border: var(--border-color);
-  --panel-bg: var(--bg-surface);
-  --panel-soft: var(--bg-surface-2);
-  --vitals-bg: var(--bg-surface-2);
-  --text-main: var(--text-primary);
-  --icu-accent: var(--brand);
-  --icu-accent-soft: var(--text-secondary);
-  --icu-accent-strong: var(--brand);
-  --icu-surface: var(--bg-surface);
-  --icu-surface-2: var(--bg-surface-2);
-  --icu-panel-gradient: linear-gradient(180deg, #FFFDF7 0%, #F6F3EA 100%);
-  --icu-panel-gradient-soft: linear-gradient(180deg, #FFFDF7 0%, #F4F0E6 100%);
-  --icu-border: var(--border-color);
-  --icu-border-strong: var(--border-color);
-  --icu-shadow-lg: var(--card-shadow-hover);
-  --icu-shadow-panel: var(--card-shadow);
-  --icu-brand-gradient: var(--brand);
+  --nav-btn-text: var(--color-text-secondary);
+  --nav-btn-hover-bg: var(--color-bg-surface-secondary);
+  --nav-btn-hover-text: var(--color-text-primary);
+  --nav-btn-active-bg: var(--color-primary-bg);
+  --nav-btn-active-text: var(--color-primary);
+  --nav-btn-active-border: var(--color-primary);
+
+  /* 面板和表面 */
+  --panel-bg: var(--color-bg-surface);
+  --panel-soft: var(--color-bg-surface-secondary);
+  --vitals-bg: var(--color-bg-surface-secondary);
+  --icu-surface: var(--color-bg-surface);
+  --icu-surface-2: var(--color-bg-surface-secondary);
+
+  /* 边框和阴影 */
+  --icu-border: var(--color-border);
+  --icu-border-strong: var(--color-border);
+  --icu-shadow-lg: var(--shadow-lg);
+  --icu-shadow-panel: var(--shadow-sm);
+  --icu-modal-shadow: var(--shadow-xl);
+  --section-gap: var(--section-gap);
+
+  /* 品牌渐变 - 改为纯色 */
+  --icu-brand-gradient: var(--color-primary);
   --icu-brand-text: #FFFFFF;
-  --icu-overlay-mask: rgba(15, 23, 42, 0.2);
-  --icu-modal-shadow: var(--modal-shadow);
-  --icu-danger: var(--danger);
-  --icu-warning: var(--warning);
-  --icu-success: var(--success);
-  --sev-warning-text: var(--warning);
-  --sev-warning-bg: var(--warning-soft);
-  --sev-warning-border: rgba(166, 90, 12, 0.28);
-  --sev-high-text: var(--danger);
-  --sev-high-bg: var(--danger-soft);
-  --sev-high-border: rgba(217, 52, 43, 0.28);
-  --sev-critical-text: var(--danger);
-  --sev-critical-bg: var(--danger-soft);
-  --sev-critical-border: rgba(217, 52, 43, 0.28);
-  --sev-normal-text: var(--success);
-  --sev-normal-bg: var(--success-soft);
-  --sev-normal-border: rgba(26, 156, 91, 0.28);
-  --sev-soft-warning-text: var(--warning);
-  --sev-soft-warning-bg: var(--warning-soft);
-  --sev-soft-warning-border: rgba(166, 90, 12, 0.28);
-  --sev-soft-high-text: var(--danger);
-  --sev-soft-high-bg: var(--danger-soft);
-  --sev-soft-high-border: rgba(217, 52, 43, 0.28);
-  --sev-soft-critical-text: var(--danger);
-  --sev-soft-critical-bg: var(--danger-soft);
-  --sev-soft-critical-border: rgba(217, 52, 43, 0.28);
-  --sev-soft-normal-text: var(--success);
-  --sev-soft-normal-bg: var(--success-soft);
-  --sev-soft-normal-border: rgba(26, 156, 91, 0.28);
-  --container-dark-bg: var(--bg-surface-2);
-  --container-dark-border: var(--border-color);
-  --container-dark-text: var(--text-secondary);
-  --container-alt-bg: var(--bg-base);
-  --container-alt-border: var(--border-color);
-  --container-alt-text: var(--text-secondary);
-  --danger-bg: var(--danger-soft);
-  --warning-bg: var(--warning-soft);
-  --success-bg: var(--success-soft);
-  --warning-soft: #F7ECD5;
-  --danger-strong: var(--danger);
-  --danger-soft: #FBE9E3;
-  --chart-1: var(--brand);
-  --chart-2: var(--success);
-  --chart-3: var(--warning-icon);
-  --chart-4: var(--danger);
-  --chart-5: #4D7D73;
-  --chart-6: #A56F2A;
-  --chart-grid: var(--border-color);
-  --chart-axis: var(--text-secondary);
+  --icu-panel-gradient: var(--color-bg-surface);
+  --icu-panel-gradient-soft: var(--color-bg-surface);
+
+  /* 其他兼容变量 */
+  --icu-accent: var(--color-primary);
+  --icu-accent-soft: var(--color-text-secondary);
+  --icu-accent-strong: var(--color-primary);
+  --icu-danger: var(--color-danger);
+  --icu-warning: var(--color-warning);
+  --icu-success: var(--color-success);
+  --icu-overlay-mask: rgba(0, 0, 0, 0.45);
+
+  /* 严重程度标签 */
+  --sev-warning-text: var(--color-warning);
+  --sev-warning-bg: var(--color-warning-bg);
+  --sev-warning-border: rgba(181, 71, 8, 0.2);
+  --sev-high-text: var(--color-danger);
+  --sev-high-bg: var(--color-danger-bg);
+  --sev-high-border: rgba(217, 45, 32, 0.2);
+  --sev-critical-text: var(--color-danger);
+  --sev-critical-bg: var(--color-danger-bg);
+  --sev-critical-border: rgba(217, 45, 32, 0.3);
+  --sev-normal-text: var(--color-success);
+  --sev-normal-bg: var(--color-success-bg);
+  --sev-normal-border: rgba(22, 132, 91, 0.2);
+
+  /* 软变体 */
+  --sev-soft-warning-text: var(--color-warning);
+  --sev-soft-warning-bg: var(--color-warning-bg);
+  --sev-soft-warning-border: rgba(181, 71, 8, 0.15);
+  --sev-soft-high-text: var(--color-danger);
+  --sev-soft-high-bg: var(--color-danger-bg);
+  --sev-soft-high-border: rgba(217, 45, 32, 0.15);
+  --sev-soft-critical-text: var(--color-danger);
+  --sev-soft-critical-bg: var(--color-danger-bg);
+  --sev-soft-critical-border: rgba(217, 45, 32, 0.2);
+  --sev-soft-normal-text: var(--color-success);
+  --sev-soft-normal-bg: var(--color-success-bg);
+  --sev-soft-normal-border: rgba(22, 132, 91, 0.15);
+
+  /* 容器 */
+  --container-dark-bg: var(--color-bg-surface-secondary);
+  --container-dark-border: var(--color-border);
+  --container-dark-text: var(--color-text-secondary);
+  --container-alt-bg: var(--color-bg-page);
+  --container-alt-border: var(--color-border);
+  --container-alt-text: var(--color-text-secondary);
+
+  /* 标签页 */
+  --tab-active-bg: var(--color-primary-bg);
+  --tab-active-border: var(--color-primary);
+
+  /* 开关 */
+  --switch-off-bg: var(--color-border);
+  --switch-on-bg: var(--color-primary);
+
+  /* 应用标签 */
+  --app-tag-bg: var(--color-primary-bg);
+  --app-soft-bg: var(--color-bg-surface-secondary);
+
+  /* 状态 */
+  --status-critical-text: var(--color-danger);
+  --status-critical-bg: var(--color-danger-bg);
+  --status-warning-text: var(--color-warning);
+  --status-warning-bg: var(--color-warning-bg);
+  --status-normal-text: var(--color-success);
+  --status-normal-bg: var(--color-success-bg);
+
+  /* 卡片阴影 */
+  --app-card-shadow-sm: var(--shadow-sm);
+
+  /* 模态框 */
+  --modal-shadow: var(--shadow-xl);
 }
 
-/* === Global Light Mode Overrides �?Medical SaaS === */
-html[data-theme='light'] * {
-  border-radius: var(--card-radius, 6px) !important;
+/* 注意：现在默认就是浅色主题，不再需要 data-theme='light' 的特殊覆盖 */
+/* 保留 data-theme='light' 选择器以兼容现有代码 */
+html[data-theme='light'] {
+  /* 所有变量已在 :root 中定义为浅色主题值 */
+  /* 这里只保留必要的覆盖 */
 }
 
-html[data-theme='light'] [style*='linear-gradient'] {
-  background: var(--bg-surface) !important;
-}
-
-html[data-theme='light'] .ant-card,
-html[data-theme='light'] .card,
-html[data-theme='light'] .panel,
-html[data-theme='light'] .section {
-  background: var(--bg-surface) !important;
-  border: 1px solid var(--border-color) !important;
-  box-shadow: var(--card-shadow) !important;
-  border-radius: var(--card-radius) !important;
-}
-
-html[data-theme='light'] [style*='box-shadow'] {
-  box-shadow: var(--card-shadow) !important;
-}
-
-html[data-theme='light'] [class*='gradient'],
-html[data-theme='light'] [class*='glow'] {
-  background: var(--bg-surface) !important;
-  box-shadow: none !important;
-}
+/* === Global Light Mode Overrides === */
 
 /* === Light Mode Table/Grid Borders === */
 html[data-theme='light'] .ant-table-wrapper .ant-table-thead > tr > th {
@@ -426,61 +253,42 @@ body {
   background: var(--app-bg);
   color: var(--app-body-color);
   font-family: var(--app-display-font);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--text-body);
+  line-height: var(--text-body-line-height);
+  font-weight: var(--text-body-weight);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   transition: background .22s ease, color .22s ease;
 }
 
-html.display-large-1080p {
-  font-size: 16px;
+/* 统一标题样式 */
+h1 {
+  font-size: var(--text-page-title);
+  font-weight: var(--text-page-title-weight);
+  color: var(--app-title-color);
+  line-height: 1.3;
 }
 
-html.display-large-1080p body {
-  font-size: 15px;
-  font-weight: 450;
-  -webkit-font-smoothing: subpixel-antialiased;
-  -moz-osx-font-smoothing: auto;
-  text-rendering: optimizeSpeed;
+h2 {
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
+  color: var(--app-title-color);
+  line-height: 1.4;
 }
 
-html.display-large-1080p .ant-card .ant-card-head-title {
-  font-size: 15px !important;
-  font-weight: 800 !important;
+h3 {
+  font-size: var(--text-card-title);
+  font-weight: var(--text-card-title-weight);
+  color: var(--app-title-color);
+  line-height: 1.4;
 }
 
-html.display-large-1080p .ant-btn,
-html.display-large-1080p .ant-segmented-item,
-html.display-large-1080p .ant-radio-button-wrapper,
-html.display-large-1080p .ant-form-item-label > label,
-html.display-large-1080p .ant-empty-normal .ant-empty-description,
-html.display-large-1080p .ant-select-item,
-html.display-large-1080p .ant-dropdown-menu-item,
-html.display-large-1080p .ant-dropdown-menu-submenu-title,
-html.display-large-1080p .ant-table-wrapper .ant-table-thead > tr > th,
-html.display-large-1080p .ant-table-wrapper .ant-table-tbody > tr > td,
-html.display-large-1080p .ant-tag {
-  font-size: 14px !important;
+.caption {
+  font-size: var(--text-caption);
+  color: var(--app-muted-color);
+  line-height: var(--text-caption-line-height);
 }
-
-html.display-large-1080p .ant-input,
-html.display-large-1080p .ant-input-number,
-html.display-large-1080p .ant-input-affix-wrapper,
-html.display-large-1080p .ant-select-selector,
-html.display-large-1080p .ant-picker,
-html.display-large-1080p .ant-select-selection-item,
-html.display-large-1080p .ant-select-selection-placeholder,
-html.display-large-1080p .ant-picker input,
-html.display-large-1080p .ant-input-number input,
-html.display-large-1080p .ant-input-affix-wrapper input {
-  font-size: 15px !important;
-}
-
-h1 { font-size: 20px; font-weight: 700; color: var(--app-title-color); }
-h2 { font-size: 16px; font-weight: 600; color: var(--app-title-color); }
-.caption { font-size: 12px; color: var(--app-muted-color); }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -504,51 +312,52 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 
 .ant-card {
-  background: var(--icu-panel-gradient) !important;
-  border: 1px solid var(--icu-border) !important;
-  border-radius: 14px !important;
-  box-shadow: var(--icu-shadow-panel) !important;
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: var(--card-radius) !important;
+  box-shadow: var(--card-shadow) !important;
 }
 .ant-card .ant-card-head {
-  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+  border-bottom: 1px solid var(--border-color) !important;
   min-height: 44px;
 }
 .ant-card .ant-card-head-title {
   color: var(--app-title-color) !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.04em;
+  font-size: var(--text-card-title) !important;
+  font-weight: var(--text-card-title-weight) !important;
 }
 .ant-card .ant-card-body {
   color: var(--text-main);
 }
 
 .ant-btn {
-  border-radius: 10px !important;
-  font-size: 12px !important;
+  border-radius: var(--radius-button) !important;
+  font-size: var(--text-body) !important;
+  font-weight: var(--weight-medium) !important;
+  height: var(--button-height) !important;
   box-shadow: none !important;
 }
 .ant-btn-default,
 .ant-btn-color-default,
 .ant-btn-variant-outlined {
-  background: var(--icu-surface) !important;
-  border-color: var(--icu-border) !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
   color: var(--text-main) !important;
 }
 .ant-btn-default:hover,
 .ant-btn-color-default:hover,
 .ant-btn-variant-outlined:hover {
-  background: var(--icu-surface-2) !important;
-  border-color: var(--icu-border-strong) !important;
+  background: var(--bg-surface-2) !important;
+  border-color: var(--text-secondary) !important;
   color: var(--text-main) !important;
 }
 .ant-btn-primary {
-  background: var(--icu-brand-gradient) !important;
-  border-color: var(--app-primary) !important;
-  color: var(--icu-brand-text) !important;
+  background: var(--brand) !important;
+  border-color: var(--brand) !important;
+  color: #FFFFFF !important;
 }
 .ant-btn-primary:hover {
-  filter: brightness(1.04);
+  background: var(--color-primary-hover) !important;
 }
 .ant-btn-link {
   color: var(--app-link) !important;
@@ -557,9 +366,9 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   color: var(--app-primary) !important;
 }
 .ant-btn-background-ghost.ant-btn-dangerous {
-  color: var(--icu-danger) !important;
-  border-color: color-mix(in srgb, var(--icu-danger) 40%, transparent) !important;
-  background: color-mix(in srgb, var(--icu-danger) 10%, transparent) !important;
+  color: var(--danger) !important;
+  border-color: rgba(217, 45, 32, 0.3) !important;
+  background: var(--danger-bg) !important;
 }
 
 .ant-input,
@@ -568,10 +377,10 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 .ant-select-selector,
 .ant-picker,
 .ant-segmented {
-  background: var(--icu-surface) !important;
-  border-color: var(--icu-border) !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
   color: var(--text-main) !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-md) !important;
   box-shadow: none !important;
 }
 .ant-input::placeholder,
@@ -585,7 +394,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 .ant-select:hover .ant-select-selector,
 .ant-picker:hover,
 .ant-segmented:hover {
-  border-color: var(--icu-border-strong) !important;
+  border-color: var(--brand) !important;
 }
 .ant-input:focus,
 .ant-input-focused,
@@ -593,8 +402,8 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 .ant-input-affix-wrapper-focused,
 .ant-select-focused .ant-select-selector,
 .ant-picker-focused {
-  border-color: var(--icu-border-strong) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--icu-accent-strong) 16%, transparent) !important;
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 2px var(--brand-soft) !important;
 }
 .ant-input-number input,
 .ant-input-affix-wrapper input,
@@ -610,7 +419,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   background: transparent !important;
 }
 .ant-input-number-handler:hover {
-  background: color-mix(in srgb, var(--icu-accent-strong) 10%, transparent) !important;
+  background: var(--bg-surface-2) !important;
 }
 
 .ant-segmented {
@@ -658,23 +467,23 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 
 .ant-tabs .ant-tabs-nav::before {
-  border-bottom-color: color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+  border-bottom-color: var(--border-color) !important;
 }
 .ant-tabs .ant-tabs-tab {
   margin: 0 4px 0 0 !important;
   padding: 8px 12px !important;
-  background: var(--icu-surface);
-  border: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent);
-  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
 }
 .ant-tabs .ant-tabs-tab .ant-tabs-tab-btn {
-  color: var(--icu-accent-soft) !important;
-  font-size: 12px !important;
-  font-weight: 600;
+  color: var(--text-secondary) !important;
+  font-size: var(--text-body) !important;
+  font-weight: var(--weight-medium) !important;
 }
 .ant-tabs .ant-tabs-tab.ant-tabs-tab-active {
-  background: var(--tab-active-bg);
-  border-color: var(--tab-active-border);
+  background: var(--brand-soft);
+  border-color: var(--brand);
   border-bottom: 2px solid var(--brand);
 }
 
@@ -683,6 +492,7 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 
 .ant-tabs .ant-tabs-ink-bar {
+  background: var(--brand) !important;
 }
 
 .ant-collapse {
@@ -705,11 +515,12 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 
 .ant-tag {
-  border-radius: 6px !important;
-  border-color: var(--icu-border) !important;
-  background: var(--app-tag-bg) !important;
-  color: var(--app-primary) !important;
-  font-size: 11px !important;
+  border-radius: var(--radius-tag) !important;
+  border-color: var(--border-color) !important;
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
+  font-size: var(--text-label) !important;
+  font-weight: var(--weight-medium) !important;
 }
 
 .ant-table-wrapper .ant-table {
@@ -717,24 +528,24 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   color: var(--text-main) !important;
 }
 .ant-table-wrapper .ant-table-container {
-  border-start-start-radius: 12px !important;
-  border-start-end-radius: 12px !important;
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--border-color) !important;
 }
 .ant-table-wrapper .ant-table-thead > tr > th {
-  background: var(--icu-surface) !important;
-  color: var(--icu-accent-soft) !important;
-  border-bottom-color: color-mix(in srgb, var(--icu-border) 80%, transparent) !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
+  background: var(--bg-surface-secondary) !important;
+  color: var(--text-secondary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  font-size: var(--text-table) !important;
+  font-weight: var(--weight-semibold) !important;
 }
 .ant-table-wrapper .ant-table-tbody > tr > td {
-  background: color-mix(in srgb, var(--card-bg) 70%, transparent) !important;
+  background: var(--bg-surface) !important;
   color: var(--text-main) !important;
-  border-bottom-color: color-mix(in srgb, var(--icu-border) 60%, transparent) !important;
-  font-size: 12px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  font-size: var(--text-table) !important;
 }
 .ant-table-wrapper .ant-table-tbody > tr:hover > td {
-  background: color-mix(in srgb, var(--icu-accent-strong) 10%, var(--card-bg)) !important;
+  background: var(--bg-surface-secondary) !important;
 }
 .ant-table-wrapper .ant-table-placeholder > td {
   background: transparent !important;
@@ -795,35 +606,35 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 .ant-picker-dropdown .ant-picker-week-panel,
 .ant-picker-dropdown .ant-picker-month-panel,
 .ant-picker-dropdown .ant-picker-year-panel {
-  background: var(--icu-panel-gradient) !important;
-  border-color: var(--icu-border) !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
 }
 .ant-select-dropdown,
 .icu-monitor-select-dropdown,
 .ant-dropdown .ant-dropdown-menu,
 .ant-picker-dropdown .ant-picker-panel-container {
-  border: 1px solid var(--icu-border) !important;
-  border-radius: 12px !important;
-  box-shadow: var(--icu-shadow-lg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
 }
 .ant-select-dropdown .ant-select-item,
 .icu-monitor-select-dropdown .ant-select-item,
 .ant-dropdown-menu-item,
 .ant-dropdown-menu-submenu-title {
   color: var(--text-main) !important;
-  border-radius: 8px !important;
+  border-radius: var(--radius-md) !important;
 }
 .ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
 .icu-monitor-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled),
 .ant-dropdown-menu-item:hover,
 .ant-dropdown-menu-submenu-title:hover {
-  background: var(--icu-surface-2) !important;
+  background: var(--bg-surface-secondary) !important;
 }
 .ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled),
 .icu-monitor-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: var(--icu-brand-gradient) !important;
-  color: var(--icu-brand-text) !important;
-  font-weight: 600 !important;
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
+  font-weight: var(--weight-semibold) !important;
 }
 
 .ant-picker-dropdown .ant-picker-content th,
@@ -848,53 +659,50 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 .icu-monitor-popover .ant-popover-inner,
 .ant-tooltip .ant-tooltip-inner,
 .ant-popconfirm .ant-popover-inner {
-  background: var(--icu-panel-gradient) !important;
-  border: 1px solid var(--icu-border) !important;
-  border-radius: 12px !important;
-  box-shadow: var(--icu-shadow-lg) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
 }
 .ant-popover .ant-popover-inner-content,
 .icu-monitor-popover .ant-popover-inner-content,
 .ant-tooltip .ant-tooltip-inner,
 .ant-popconfirm .ant-popover-inner-content {
   color: var(--text-main) !important;
-  font-size: 12px !important;
+  font-size: var(--text-body) !important;
 }
 .ant-popover .ant-popover-arrow::before,
 .icu-monitor-popover .ant-popover-arrow::before,
 .ant-tooltip .ant-tooltip-arrow::before,
 .ant-popconfirm .ant-popover-arrow::before {
-  background: color-mix(in srgb, var(--card-bg) 94%, transparent) !important;
+  background: var(--bg-surface) !important;
 }
 
 .ant-modal .ant-modal-content,
 .ant-drawer .ant-drawer-content,
 .icu-evidence-modal-wrap .ant-modal-content {
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--icu-accent-strong) 10%, transparent), transparent 28%),
-    var(--icu-panel-gradient) !important;
-  border: 1px solid color-mix(in srgb, var(--icu-border) 96%, transparent) !important;
-  border-radius: 16px !important;
-  box-shadow: var(--icu-modal-shadow) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-xl) !important;
 }
 .ant-modal .ant-modal-header,
 .ant-drawer .ant-drawer-header,
 .icu-evidence-modal-wrap .ant-modal-header {
   background: transparent !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
+  border-bottom: 1px solid var(--border-color) !important;
 }
 .ant-modal .ant-modal-title,
 .ant-drawer .ant-drawer-title,
 .icu-evidence-modal-wrap .ant-modal-title {
   color: var(--text-main) !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.08em !important;
+  font-size: var(--text-section-title) !important;
+  font-weight: var(--weight-semibold) !important;
 }
 .ant-modal .ant-modal-close,
 .ant-drawer .ant-drawer-close,
 .icu-evidence-modal-wrap .ant-modal-close {
-  color: var(--icu-accent-soft) !important;
+  color: var(--text-secondary) !important;
 }
 .ant-modal .ant-modal-body,
 .ant-drawer .ant-drawer-body,
@@ -903,460 +711,105 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 }
 .ant-modal-root .ant-modal-mask,
 .ant-drawer-mask {
-  backdrop-filter: blur(6px);
   background: var(--icu-overlay-mask) !important;
 }
 
 .ant-message .ant-message-notice-content,
 .ant-notification .ant-notification-notice {
-  background: var(--icu-panel-gradient-soft) !important;
-  border: 1px solid var(--icu-border) !important;
-  border-radius: 12px !important;
-  box-shadow: var(--icu-shadow-lg) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
   color: var(--text-main) !important;
 }
 .ant-message .ant-message-custom-content,
 .ant-notification .ant-notification-notice-message,
 .ant-notification .ant-notification-notice-description {
   color: var(--text-main) !important;
-  font-size: 12px !important;
+  font-size: var(--text-body) !important;
 }
 .ant-notification .ant-notification-notice-close {
-  color: var(--icu-accent-soft) !important;
+  color: var(--text-secondary) !important;
 }
 
 .icu-monitor-select-dropdown {
   padding: 6px !important;
-  border-radius: 12px !important;
-  background: var(--icu-panel-gradient) !important;
-  border: 1px solid var(--icu-border) !important;
-  box-shadow: var(--icu-shadow-lg) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-lg) !important;
 }
 .icu-monitor-select-dropdown .ant-select-item {
   color: var(--text-main) !important;
-  border-radius: 8px !important;
-  font-size: 12px !important;
+  border-radius: var(--radius-md) !important;
+  font-size: var(--text-body) !important;
 }
 .icu-monitor-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-  background: var(--icu-surface-2) !important;
+  background: var(--bg-surface-secondary) !important;
 }
 .icu-monitor-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: var(--icu-brand-gradient) !important;
-  color: var(--icu-brand-text) !important;
-  font-weight: 600 !important;
+  background: var(--brand-soft) !important;
+  color: var(--brand) !important;
+  font-weight: var(--weight-semibold) !important;
 }
 
 .icu-monitor-popover .ant-popover-inner {
-  background: var(--icu-panel-gradient) !important;
-  border: 1px solid var(--icu-border) !important;
-  border-radius: 12px !important;
-  box-shadow: var(--icu-shadow-lg) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
 }
 .icu-monitor-popover .ant-popover-inner-content {
   color: var(--text-main) !important;
-  font-size: 12px !important;
+  font-size: var(--text-body) !important;
 }
 .icu-monitor-popover .ant-popover-arrow::before {
-  background: color-mix(in srgb, var(--card-bg) 94%, transparent) !important;
+  background: var(--bg-surface) !important;
 }
 
 .icu-evidence-modal-wrap .ant-modal-content {
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--icu-accent-strong) 10%, transparent), transparent 28%),
-    var(--icu-panel-gradient) !important;
-  border: 1px solid color-mix(in srgb, var(--icu-border) 96%, transparent) !important;
-  border-radius: 16px !important;
-  box-shadow: var(--icu-modal-shadow) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-xl) !important;
 }
 .icu-evidence-modal-wrap .ant-modal-header {
   background: transparent !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--icu-border) 82%, transparent) !important;
-  padding: 18px 22px 14px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 16px 20px 12px !important;
 }
 .icu-evidence-modal-wrap .ant-modal-title {
   color: var(--text-main) !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  letter-spacing: .08em !important;
+  font-size: var(--text-section-title) !important;
+  font-weight: var(--weight-semibold) !important;
 }
 .icu-evidence-modal-wrap .ant-modal-close {
-  color: var(--icu-accent-soft) !important;
+  color: var(--text-secondary) !important;
 }
 .icu-evidence-modal-wrap .ant-modal-body {
-  padding: 18px 22px 22px !important;
+  padding: 16px 20px 20px !important;
 }
 
-/* Light mode safety net for patient detail tabs:
-   prevents residual dark blocks when individual scoped styles miss overrides. */
-html[data-theme='light'] .detail-container .chart-panel,
-html[data-theme='light'] .detail-container .ai-risk-summary,
-html[data-theme='light'] .detail-container .ai-risk-card,
-html[data-theme='light'] .detail-container .ai-risk-organ,
-html[data-theme='light'] .detail-container .ai-risk-section,
-html[data-theme='light'] .detail-container .summary-card,
-html[data-theme='light'] .detail-container .summary-mini-chip,
-html[data-theme='light'] .detail-container .summary-chip,
-html[data-theme='light'] .detail-container .summary-snapshot,
-html[data-theme='light'] .detail-container .summary-main-wrap,
-html[data-theme='light'] .detail-container .summary-chain,
-html[data-theme='light'] .detail-container .topic-card,
-html[data-theme='light'] .detail-container .ops-card,
-html[data-theme='light'] .detail-container .side-panel,
-html[data-theme='light'] .detail-container .side-block,
-html[data-theme='light'] .detail-container .case-card,
-html[data-theme='light'] .detail-container .score-box,
-html[data-theme='light'] .detail-container .outcome-board,
-html[data-theme='light'] .detail-container .profile-chip,
-html[data-theme='light'] .detail-container .alert-detail-item,
-html[data-theme='light'] .detail-container .alert-extra,
-html[data-theme='light'] .detail-container .kb-doc-meta,
-html[data-theme='light'] .detail-container .kb-chunk-item {
-  background: var(--icu-panel-gradient-soft) !important;
-  border-color: color-mix(in srgb, var(--icu-border) 58%, transparent) !important;
-  box-shadow: 0 10px 26px rgba(36, 55, 48, 0.06) !important;
-}
-html[data-theme='light'] .detail-container .case-card,
-html[data-theme='light'] .detail-container .score-box,
-html[data-theme='light'] .detail-container .outcome-board,
-html[data-theme='light'] .detail-container .profile-chip,
-html[data-theme='light'] .detail-container .summary-card,
-html[data-theme='light'] .detail-container .topic-card,
-html[data-theme='light'] .detail-container .ops-card {
-  border-color: color-mix(in srgb, var(--icu-border) 46%, transparent) !important;
-  box-shadow: 0 6px 18px rgba(36, 55, 48, 0.045) !important;
-}
-html[data-theme='light'] .detail-container :where(.ant-card, .ant-collapse, .ant-descriptions, .ant-table-wrapper, .ant-list, .ant-timeline) {
-  --ant-color-border-secondary: color-mix(in srgb, var(--icu-border) 42%, transparent);
-}
-html[data-theme='light'] .detail-container :where(.ant-table, .ant-descriptions, .ant-collapse, .ant-list-item, .ant-timeline-item-tail) {
-  border-color: color-mix(in srgb, var(--icu-border) 42%, transparent) !important;
-}
-html[data-theme='light'] .detail-container .tab-empty,
-html[data-theme='light'] .detail-container .ai-empty {
-  background: var(--icu-surface) !important;
-  border: 1px dashed color-mix(in srgb, var(--icu-border) 94%, transparent) !important;
-  color: var(--text-muted) !important;
-}
-html[data-theme='light'] .detail-container .alert-title,
-html[data-theme='light'] .detail-container .detail-value,
-html[data-theme='light'] .detail-container .ai-risk-summary strong,
-html[data-theme='light'] .detail-container .ai-risk-card strong,
-html[data-theme='light'] .detail-container .ai-risk-organ-name,
-html[data-theme='light'] .detail-container .ai-risk-section-title,
-html[data-theme='light'] .detail-container .summary-card strong,
-html[data-theme='light'] .detail-container .summary-title,
-html[data-theme='light'] .detail-container .summary-mini-chip-value,
-html[data-theme='light'] .detail-container .summary-main,
-html[data-theme='light'] .detail-container .summary-chain-text,
-html[data-theme='light'] .detail-container .topic-card-title,
-html[data-theme='light'] .detail-container .topic-card-main,
-html[data-theme='light'] .detail-container .ops-main,
-html[data-theme='light'] .detail-container .case-name,
-html[data-theme='light'] .detail-container .score-value,
-html[data-theme='light'] .detail-container .kb-chunk-title {
-  color: var(--text-main) !important;
-}
-html[data-theme='light'] .detail-container .detail-label,
-html[data-theme='light'] .detail-container .ai-risk-summary span,
-html[data-theme='light'] .detail-container .ai-risk-card p,
-html[data-theme='light'] .detail-container .ai-risk-organ-status,
-html[data-theme='light'] .detail-container .ai-risk-organ-evidence,
-html[data-theme='light'] .detail-container .ai-risk-organ-conf,
-html[data-theme='light'] .detail-container .ai-risk-list,
-html[data-theme='light'] .detail-container .summary-card span,
-html[data-theme='light'] .detail-container .summary-card small,
-html[data-theme='light'] .detail-container .summary-mini-chip-label,
-html[data-theme='light'] .detail-container .summary-block-label,
-html[data-theme='light'] .detail-container .summary-snapshot-label,
-html[data-theme='light'] .detail-container .summary-chain-tag,
-html[data-theme='light'] .detail-container .summary-chain-code,
-html[data-theme='light'] .detail-container .topic-card-sub,
-html[data-theme='light'] .detail-container .topic-card-meta,
-html[data-theme='light'] .detail-container .ops-foot,
-html[data-theme='light'] .detail-container .case-rank,
-html[data-theme='light'] .detail-container .case-foot,
-html[data-theme='light'] .detail-container .kb-doc-meta p,
-html[data-theme='light'] .detail-container .kb-chunk-content {
-  color: var(--text-muted) !important;
-}
-html[data-theme='light'] .detail-container .alert-meta > span {
-  background: var(--icu-surface) !important;
-  border-color: var(--icu-border) !important;
-  color: var(--text-muted) !important;
-}
-html[data-theme='light'] .detail-container .topic-chip,
-html[data-theme='light'] .detail-container .ops-chip,
-html[data-theme='light'] .detail-container .ops-bullet,
-html[data-theme='light'] .detail-container .topic-card-count,
-html[data-theme='light'] .detail-container .match-chip,
-html[data-theme='light'] .detail-container .case-diagnosis {
-  background: var(--icu-surface) !important;
-  border-color: var(--icu-border) !important;
-  color: var(--text-muted) !important;
-}
-html[data-theme='light'] .detail-container .alert-pill.sev-warning {
-  color: #A65A0C !important;
-  background: #FFF7E8 !important;
-  border-color: rgba(166, 90, 12, 0.28) !important;
-}
-html[data-theme='light'] .detail-container .alert-pill.sev-high {
-  color: #D9342B !important;
-  background: #FFECE8 !important;
-  border-color: rgba(217, 52, 43, 0.28) !important;
-}
-html[data-theme='light'] .detail-container .alert-pill.sev-critical {
-  color: #D9342B !important;
-  background: #FFECE8 !important;
-  border-color: rgba(217, 52, 43, 0.3) !important;
-}
-html[data-theme='light'] .detail-container .hallucination-warning {
-  color: #A65A0C !important;
-  background: #FFF7E8 !important;
-  border-color: rgba(166, 90, 12, 0.3) !important;
-}
-html[data-theme='light'] .detail-container .hallucination-high {
-  color: #D9342B !important;
-  background: #FFECE8 !important;
-  border-color: rgba(217, 52, 43, 0.3) !important;
-}
+/* 患者详情页安全网 - 保留以兼容现有组件 */
+/* 注意：现在默认就是浅色主题，这些规则已经不需要了 */
+/* 但保留以兼容可能存在的旧代码 */
 
-/* MDT workflow light-mode safety net.
-   The MDT board is split into scoped child components, so this page-level block
-   keeps all workflow cards, controls, and drawers readable in light mode. */
-html[data-theme='light'] .mdt-page {
-  color: var(--text-primary) !important;
-}
-html[data-theme='light'] .mdt-page .mdt-hero,
-html[data-theme='light'] .mdt-page .mdt-step-card,
-html[data-theme='light'] .mdt-page .mdt-rail-card,
-html[data-theme='light'] .mdt-page .review-card,
-html[data-theme='light'] .mdt-page .archive-card,
-html[data-theme='light'] .mdt-page .decision-item,
-html[data-theme='light'] .mdt-page .patient-select-panel,
-html[data-theme='light'] .mdt-page .organ-panel,
-html[data-theme='light'] .mdt-page .doc-block,
-html[data-theme='light'] .mdt-page .mdt-panel {
-  background:
-    radial-gradient(circle at 100% 0%, rgba(29, 111, 99, 0.07), transparent 34%),
-    linear-gradient(180deg, #FFFDF7 0%, #F6F3EA 100%) !important;
-  border-color: var(--border-color) !important;
-  box-shadow: var(--card-shadow) !important;
-}
-html[data-theme='light'] .mdt-page .system-card,
-html[data-theme='light'] .mdt-page .compact-list div,
-html[data-theme='light'] .mdt-page .decision-metrics article,
-html[data-theme='light'] .mdt-page .rail-meter,
-html[data-theme='light'] .mdt-page .rail-todo-list article,
-html[data-theme='light'] .mdt-page .patient-brief,
-html[data-theme='light'] .mdt-page .organ-pill,
-html[data-theme='light'] .mdt-page .auto-summary,
-html[data-theme='light'] .mdt-page .document-grid article,
-html[data-theme='light'] .mdt-page .doc-preview,
-html[data-theme='light'] .mdt-page .detail-collapse,
-html[data-theme='light'] .mdt-page .detail-stack section,
-html[data-theme='light'] .mdt-page .chip-row em,
-html[data-theme='light'] .mdt-page .decision-item__head span,
-html[data-theme='light'] .mdt-page .empty-box,
-html[data-theme='light'] .mdt-page .doc-empty {
-  background: #F8F5ED !important;
-  border-color: var(--border-color) !important;
-  color: var(--text-primary) !important;
-  box-shadow: none !important;
-}
-html[data-theme='light'] .mdt-page .system-card.is-active,
-html[data-theme='light'] .mdt-page .organ-pill.is-active {
-  background: var(--brand-soft) !important;
-  border-color: rgba(29, 111, 99, 0.42) !important;
-  color: var(--text-primary) !important;
-  box-shadow: inset 3px 0 0 var(--brand) !important;
-}
-html[data-theme='light'] .mdt-page .system-card.is-critical,
-html[data-theme='light'] .mdt-page .system-card.is-high,
-html[data-theme='light'] .mdt-page .decision-item.is-pending_confirmation,
-html[data-theme='light'] .mdt-page .decision-item.is-needs_revision {
-  background: var(--warning-soft) !important;
-  border-color: rgba(180, 122, 36, 0.28) !important;
-}
-html[data-theme='light'] .mdt-page .decision-item.is-completed {
-  border-color: rgba(47, 122, 88, 0.26) !important;
-}
-html[data-theme='light'] .mdt-page h1,
-html[data-theme='light'] .mdt-page h2,
-html[data-theme='light'] .mdt-page h3,
-html[data-theme='light'] .mdt-page strong,
-html[data-theme='light'] .mdt-page b,
-html[data-theme='light'] .mdt-page .system-card strong,
-html[data-theme='light'] .mdt-page .review-card strong,
-html[data-theme='light'] .mdt-page .decision-metrics strong,
-html[data-theme='light'] .mdt-page .rail-meter b,
-html[data-theme='light'] .mdt-page .document-grid strong,
-html[data-theme='light'] .mdt-page .patient-brief strong,
-html[data-theme='light'] .mdt-page .panel-title strong,
-html[data-theme='light'] .mdt-page .decision-item__head {
-  color: var(--text-primary) !important;
-}
-html[data-theme='light'] .mdt-page p,
-html[data-theme='light'] .mdt-page small,
-html[data-theme='light'] .mdt-page li,
-html[data-theme='light'] .mdt-page .system-card small,
-html[data-theme='light'] .mdt-page .review-card p,
-html[data-theme='light'] .mdt-page .detail-stack,
-html[data-theme='light'] .mdt-page .patient-brief span,
-html[data-theme='light'] .mdt-page .rail-todo-list small,
-html[data-theme='light'] .mdt-page .document-grid small,
-html[data-theme='light'] .mdt-page .doc-preview,
-html[data-theme='light'] .mdt-page .doc-empty,
-html[data-theme='light'] .mdt-page .empty-box,
-html[data-theme='light'] .mdt-page .step-actions span {
-  color: var(--text-secondary) !important;
-}
-html[data-theme='light'] .mdt-page .step-kicker,
-html[data-theme='light'] .mdt-page .rail-label,
-html[data-theme='light'] .mdt-page .review-card span,
-html[data-theme='light'] .mdt-page .detail-stack span,
-html[data-theme='light'] .mdt-page .archive-card span,
-html[data-theme='light'] .mdt-page .document-grid span,
-html[data-theme='light'] .mdt-page .panel-title span,
-html[data-theme='light'] .mdt-page .system-card span {
-  color: var(--brand) !important;
-}
-html[data-theme='light'] .mdt-page .field-input,
-html[data-theme='light'] .mdt-page .field-textarea,
-html[data-theme='light'] .mdt-page .mdt-select,
-html[data-theme='light'] .mdt-page input,
-html[data-theme='light'] .mdt-page textarea,
-html[data-theme='light'] .mdt-page select {
-  background: var(--bg-surface) !important;
-  border-color: var(--border-color) !important;
-  color: var(--text-primary) !important;
-  box-shadow: none !important;
-}
-html[data-theme='light'] .mdt-page .field-input::placeholder,
-html[data-theme='light'] .mdt-page .field-textarea::placeholder,
-html[data-theme='light'] .mdt-page input::placeholder,
-html[data-theme='light'] .mdt-page textarea::placeholder {
-  color: var(--text-muted) !important;
-}
-html[data-theme='light'] .mdt-page .decision-safety {
-  background: var(--warning-soft) !important;
-  border: 1px solid rgba(180, 122, 36, 0.28) !important;
-  border-radius: 8px !important;
-  padding: 8px 10px !important;
-  color: var(--warning) !important;
-}
-html[data-theme='light'] .mdt-page .ant-card,
-html[data-theme='light'] .mdt-page .ant-card-body,
-html[data-theme='light'] .mdt-page .ant-collapse,
-html[data-theme='light'] .mdt-page .ant-collapse-item,
-html[data-theme='light'] .mdt-page .ant-collapse-content {
-  background: transparent !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
-}
-html[data-theme='light'] .mdt-page .ant-collapse-header,
-html[data-theme='light'] .mdt-page .ant-collapse-expand-icon,
-html[data-theme='light'] .mdt-page .ant-collapse-arrow {
-  color: var(--text-primary) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .ant-drawer-content,
-html[data-theme='light'] .mdt-session-drawer .ant-drawer-header,
-html[data-theme='light'] .mdt-session-drawer .ant-drawer-body {
-  background: var(--bg-surface) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .ant-drawer-title,
-html[data-theme='light'] .mdt-session-drawer .ant-drawer-close {
-  color: var(--text-primary) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .drawer-input {
-  background: var(--bg-surface) !important;
-  border-color: var(--border-color) !important;
-  color: var(--text-primary) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .drawer-check,
-html[data-theme='light'] .mdt-session-drawer .drawer-empty {
-  color: var(--text-secondary) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .session-card {
-  background: #F8F5ED !important;
-  border-color: var(--border-color) !important;
-  box-shadow: none !important;
-}
-html[data-theme='light'] .mdt-session-drawer .session-card.is-active {
-  background: var(--brand-soft) !important;
-  border-color: rgba(29, 111, 99, 0.42) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .session-card strong {
-  color: var(--text-primary) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .session-card span {
-  color: var(--brand) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .session-card p,
-html[data-theme='light'] .mdt-session-drawer .session-tags em {
-  color: var(--text-secondary) !important;
-}
-html[data-theme='light'] .mdt-session-drawer .session-tags em {
-  background: #F8F5ED !important;
-  border: 1px solid var(--border-color) !important;
-}
+/* MDT页面安全网 - 保留以兼容现有组件 */
+/* 注意：现在默认就是浅色主题，这些规则已经不需要了 */
+/* 但保留以兼容可能存在的旧代码 */
 
-@media (max-width: 1920px) {
-  html {
-    font-size: 15px;
-  }
+/* 响应式断点已在 design-system.css 中定义 */
+/* 这里只保留必要的全局覆盖 */
 
-  body {
-    -webkit-font-smoothing: subpixel-antialiased;
-    text-rendering: geometricPrecision;
-  }
-
-  .ant-card .ant-card-head-title {
-    font-size: 14px !important;
-    letter-spacing: 0.04em;
-  }
-
-  .ant-btn,
-  .ant-segmented-item,
-  .ant-radio-button-wrapper,
-  .ant-form-item-label > label,
-  .ant-empty-normal .ant-empty-description,
-  .ant-select-item,
-  .ant-dropdown-menu-item,
-  .ant-dropdown-menu-submenu-title,
-  .ant-message .ant-message-custom-content,
-  .ant-notification .ant-notification-notice-message,
-  .ant-notification .ant-notification-notice-description,
-  .icu-monitor-select-dropdown .ant-select-item,
-  .icu-monitor-popover .ant-popover-inner-content {
-    font-size: 13px !important;
+@media (max-width: 1024px) {
+  /* 移动端优化 */
+  .ant-btn {
+    min-height: var(--touch-target) !important;
   }
 
   .ant-input,
-  .ant-input-number,
-  .ant-input-affix-wrapper,
-  .ant-select-selector,
-  .ant-picker,
-  .ant-select-selection-item,
-  .ant-select-selection-placeholder,
-  .ant-picker input,
-  .ant-input-number input,
-  .ant-input-affix-wrapper input {
-    font-size: 14px !important;
-  }
-
-  .ant-table-wrapper .ant-table-thead > tr > th,
-  .ant-table-wrapper .ant-table-tbody > tr > td,
-  .ant-tag {
-    font-size: 13px !important;
-  }
-
-  .ant-modal .ant-modal-title,
-  .ant-drawer .ant-drawer-title,
-  .icu-evidence-modal-wrap .ant-modal-title {
-    font-size: 16px !important;
-    letter-spacing: 0.04em !important;
+  .ant-select-selector {
+    min-height: var(--touch-target) !important;
   }
 }
 
@@ -1386,7 +839,7 @@ body, #app, .root { background: var(--bg-base); }
   display: grid; place-items: center;
   font-size: 18px;
 }
-.ds-kpi-num { font-size: 28px; font-weight: 700; line-height: 1.2; }
+.ds-kpi-num { font-size: 24px; font-weight: 700; line-height: 1.2; }
 .ds-kpi-label { font-size: 13px; color: var(--text-muted); }
 .ds-kpi.is-brand .ds-kpi-icon { background: var(--brand-soft); color: var(--brand); }
 .ds-kpi.is-brand .ds-kpi-num { color: var(--brand); }
@@ -1415,7 +868,7 @@ body, #app, .root { background: var(--bg-base); }
 .ds-vital { display: flex; flex-direction: column; gap: 2px; }
 .ds-vital-label { font-size: 12px; color: var(--text-muted); }
 .ds-vital-val { font-size: 22px; font-weight: 700; line-height: 1.2; }
-.ds-vital-unit { font-size: 11px; color: var(--text-muted); }
+.ds-vital-unit { font-size: 12px; color: var(--text-muted); }
 .ds-vital.is-normal .ds-vital-val { color: var(--success); }
 .ds-vital.is-warn .ds-vital-val { color: var(--warning); }
 .ds-vital.is-critical .ds-vital-val { color: var(--danger); }

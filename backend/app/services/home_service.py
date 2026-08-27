@@ -95,15 +95,49 @@ class RoleHomeService:
         if not row:
             return {"user_id": uid, "userName": uid, "display_name": uid, "role": "doctor", "found": False}
         role = self.adoption._normalize_role(row, "doctor")
+
+        # 解析科室名称：优先使用已有名称字段，若仅有编码则从 department 集合查询
+        dept_code = _text(row.get("deptCode") or row.get("departmentCode") or row.get("dept_code"))
+        dept_name = _text(row.get("deptName") or row.get("departmentName") or row.get("dept"))
+        # 如果 dept 字段看起来像编码（纯数字或与 deptCode 相同），尝试从 department 集合解析
+        if dept_name and dept_code and dept_name == dept_code:
+            dept_name = ""
+        if not dept_name and dept_code:
+            try:
+                dept_doc = await self.db.col("department").find_one(
+                    {"code": dept_code}, {"name": 1}
+                )
+                if dept_doc:
+                    dept_name = _text(dept_doc.get("name"))
+            except Exception:
+                pass
+        if not dept_name:
+            dept_name = dept_code  # 兜底：编码当名称显示
+
+        # 解析显示名称：多字段兜底，避免显示工号
+        display_name = _text(
+            row.get("trueName")
+            or row.get("realName")
+            or row.get("nickName")
+            or row.get("name")
+            or row.get("displayName")
+        )
+        # 如果解析出的名称和 userName/工号一样，说明不是真实姓名，继续尝试其他字段
+        if not display_name or display_name == _text(row.get("userName")) or display_name == _text(row.get("username")):
+            # 尝试从 patient 集合反查（如果该用户也是患者）
+            display_name = _text(row.get("trueName") or row.get("realName") or row.get("name"))
+        if not display_name:
+            display_name = _text(row.get("userName") or row.get("username") or uid)
+
         return {
             "user_id": _text(row.get("username") or row.get("userName") or row.get("userId") or uid),
             "requested_user_id": uid,
             "userName": row.get("userName") or row.get("username") or row.get("account") or uid,
             "trueName": row.get("trueName"),
-            "display_name": row.get("trueName") or row.get("name") or row.get("realName") or row.get("userName") or uid,
+            "display_name": display_name,
             "role": role,
-            "dept": row.get("deptName") or row.get("departmentName") or row.get("dept"),
-            "dept_code": row.get("deptCode") or row.get("departmentCode"),
+            "dept": dept_name,
+            "dept_code": dept_code,
             "found": True,
         }
 

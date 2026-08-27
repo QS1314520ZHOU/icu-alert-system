@@ -39,6 +39,14 @@
       </div>
     </section>
 
+    <nav class="pd-area-nav">
+      <button :class="['pd-area-btn', { 'is-active': activeArea === 'overview' }]" @click="setArea('overview')">&#9673; 总览</button>
+      <button :class="['pd-area-btn', { 'is-active': activeArea === 'monitoring' }]" @click="setArea('monitoring')">&#9678; 监护</button>
+      <button :class="['pd-area-btn', { 'is-active': activeArea === 'treatment' }]" @click="setArea('treatment')">&#9764; 治疗与护理</button>
+      <button :class="['pd-area-btn', { 'is-active': activeArea === 'decision' }]" @click="setArea('decision')">&#9888; 预警与决策</button>
+      <button :class="['pd-area-btn', { 'is-active': activeArea === 'documents' }]" @click="setArea('documents')">&#128221; 文书与AI</button>
+    </nav>
+
     <section class="patient-action-rail">
       <div class="patient-action-title">
         <span>下一步操作</span>
@@ -883,6 +891,22 @@ const vitals = ref<any>(null)
 const activeTab = ref(normalizeDetailTab(route.query.tab))
 const detailDensity = ref<DetailDensityMode>('compact')
 const isCompactDetail = computed(() => detailDensity.value === 'compact')
+type DetailAreaKey = "overview" | "monitoring" | "treatment" | "decision" | "documents"
+const activeArea = ref<DetailAreaKey>((route.query.area as DetailAreaKey) || 'overview')
+const areaTabGroupMap: Record<DetailAreaKey, { group: DetailTabGroup; tab: DetailTabKey }> = {
+  overview: { group: 'focus', tab: 'alerts' },
+  monitoring: { group: 'monitor', tab: 'trend' },
+  treatment: { group: 'therapy', tab: 'drugs' },
+  decision: { group: 'focus', tab: 'alerts' },
+  documents: { group: 'ai', tab: 'documents' },
+}
+function setArea(area: DetailAreaKey) {
+  activeArea.value = area
+  const { group, tab } = areaTabGroupMap[area]
+  switchTabGroup(group)
+  activeTab.value = tab
+  router.replace({ query: { ...route.query, area, tab } })
+}
 const detailTabGroup = ref<DetailTabGroup>('focus')
 const detailTabShortcuts: Array<{ key: DetailTabKey; label: string }> = [
   { key: 'alerts', label: '预警' },
@@ -6999,5 +7023,31 @@ html[data-theme='light'] .hero-bundle-v2-btn--record {
 }
 html[data-theme='light'] .hero-bundle-v2-row--warn { background: rgba(245,158,11,.06); }
 html[data-theme='light'] .hero-bundle-v2-row--caution { background: rgba(239,68,68,.04); }
+
+
+
+/* === Area Navigation === */
+.pd-area-nav {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.pd-area-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(125,211,252,.12);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.pd-area-btn:hover { border-color: var(--brand); color: var(--text-primary); }
+.pd-area-btn.is-active { background: rgba(34,211,238,.12); border-color: var(--brand); color: var(--brand); font-weight: 600; }
+html[data-theme='light'] .pd-area-btn { border-color: rgba(148,163,184,.24); }
+html[data-theme='light'] .pd-area-btn.is-active { background: rgba(37,99,235,.08); border-color: #2563EB; color: #2563EB; }
 
 </style>

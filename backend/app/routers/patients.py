@@ -17,6 +17,27 @@ from app.utils.alerting import derive_sepsis_bundle_status, normalize_sbt_status
 from app.utils.patient_helpers import admitted_patient_query, calculate_age, infer_clinical_tags, research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
 
+def _dept_code_tokens(value: str) -> list[str]:
+    """将逗号分隔的科室代码拆分为列表，支持中英文逗号"""
+    import re
+    parts = re.split(r'[,，]', str(value or ''))
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _dept_code_filter(dept_code: str) -> dict:
+    """构建科室代码过滤条件，支持逗号分隔多科室"""
+    tokens = _dept_code_tokens(dept_code)
+    if not tokens:
+        return {}
+    if len(tokens) == 1:
+        return {"": [{"deptCode": tokens[0]}, {"dept_code": tokens[0]}, {"departmentCode": tokens[0]}]}
+    return {"": [
+        {"deptCode": {"": tokens}},
+        {"dept_code": {"": tokens}},
+        {"departmentCode": {"": tokens}},
+    ]}
+
+
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
 
@@ -50,7 +71,7 @@ async def get_departments():
     """获取所有科室及在院患者数量"""
     col = runtime.db.col("patient")
     pipeline = [
-        {"$match": admitted_patient_query()},
+        {"$match": research_patient_scope_query("in_dept")},
         {
             "$group": {
                 "_id": {
@@ -88,7 +109,7 @@ async def get_patients(
     if dept:
         query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}, {"deptName": dept}, {"department": dept}, {"departmentName": dept}]}]}
     elif dept_code:
-        query = {"$and": [query, {"$or": [{"deptCode": dept_code}, {"dept_code": dept_code}, {"departmentCode": dept_code}]}]}
+        query = {"$and": [query, _dept_code_filter(dept_code)]}
 
     cursor = runtime.db.col("patient").find(query).sort("hisBed", 1).limit(200)
     patients = []
@@ -116,7 +137,7 @@ async def batch_vitals(
 
     query = research_patient_scope_query(patient_scope)
     if dept_code:
-        query = {"$and": [query, {"$or": [{"deptCode": dept_code}, {"dept_code": dept_code}, {"departmentCode": dept_code}]}]}
+        query = {"$and": [query, _dept_code_filter(dept_code)]}
     elif dept:
         query = {"$and": [query, {"$or": [{"hisDept": dept}, {"dept": dept}]}]}
 
@@ -440,7 +461,7 @@ async def resolve_patient(
     base_query = research_patient_scope_query(patient_scope)
 
     if dept_code:
-        dept_filter = {"$or": [{"deptCode": dept_code}, {"dept_code": dept_code}, {"departmentCode": dept_code}]}
+        dept_filter = _dept_code_filter(dept_code)
         base_query = {"$and": [base_query, dept_filter]}
 
     # --- 1. mrn 匹配 ---

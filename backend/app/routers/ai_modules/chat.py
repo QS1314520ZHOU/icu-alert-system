@@ -116,6 +116,7 @@ class ChatConsultPayload(BaseModel):
     history: list[ChatTurn] = Field(default_factory=list)
     patient_id: str | None = Field(default=None, max_length=64)
     patient_ids: list[str] = Field(default_factory=list, max_length=8)
+    dept_code: str | None = Field(default=None, max_length=64)
     mode: Literal["clinical", "free"] = "clinical"
     pending_clarifications: list[str] = Field(default_factory=list, max_length=3)
 

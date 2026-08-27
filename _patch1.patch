@@ -1,0 +1,7 @@
+*** Begin Patch
+*** Update File: frontend/src/App.vue
+@@ import { useRoute } from 'vue-router' @@
+ import { useRoute } from 'vue-router'
++import { useAuthStore } from './stores/auth'
+ import { getClinicalAccount } from './api'
+*** End Patch

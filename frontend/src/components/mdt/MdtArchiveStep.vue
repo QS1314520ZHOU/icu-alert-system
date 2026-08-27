@@ -3,89 +3,99 @@
     <div class="step-card__head">
       <div>
         <span class="step-kicker">第四步</span>
-        <h2>文书生成与归档</h2>
-        <p v-if="isSessionClosed">该 MDT 会话已归档，只读查看。</p>
-        <p v-else>把决议、复评计划和最终纪要写入会诊记录，完成后关闭归档。</p>
+        <h2>文书归档</h2>
+        <p v-if="isSessionClosed" class="step-hint">已归档，只读查看。</p>
       </div>
-      <a-button type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="$emit('save')">保存文书</a-button>
+      <div class="step-card__head-actions">
+        <a-button :loading="savingWorkspace" :disabled="isSessionClosed" @click="$emit('save')">保存</a-button>
+        <a-button type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="$emit('close-session')">关闭归档</a-button>
+      </div>
     </div>
 
-    <section class="archive-grid">
-      <article class="archive-card">
-        <span>标签</span>
-        <input :value="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="脓毒症、撤机、高乳酸" @input="$emit('update:tagsText', ($event.target as HTMLInputElement).value)" />
-      </article>
-      <article class="archive-card">
-        <span>参与成员</span>
-        <input :value="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="ICU、感染、呼吸、药学" @input="$emit('update:participantsText', ($event.target as HTMLInputElement).value)" />
+    <!-- 文书状态 -->
+    <section class="doc-status-strip">
+      <article v-for="item in documentStatusRows" :key="item.key" class="doc-status-item">
+        <span class="doc-status-label">{{ item.label }}</span>
+        <span :class="['doc-status-value', item.status === '已生成' || item.status === '已填写' ? 'is-done' : '']">{{ item.status }}</span>
       </article>
     </section>
 
-    <section class="archive-card archive-card--summary">
-      <span>最终纪要</span>
-      <textarea :value="finalSummary" class="field-textarea" :disabled="isSessionClosed" rows="6" placeholder="可填写主任确认后的最终纪要；留空时可使用自动摘要。" @input="$emit('update:finalSummary', ($event.target as HTMLTextAreaElement).value)"></textarea>
-      <div v-if="autoSessionSummary" class="auto-summary">
-        <strong>自动摘要</strong>
+    <!-- 标签与成员（一行） -->
+    <section class="archive-meta-row">
+      <div class="meta-field">
+        <label>标签</label>
+        <input :value="tagsText" class="field-input" :disabled="isSessionClosed" placeholder="脓毒症、感染" @input="$emit('update:tagsText', ($event.target as HTMLInputElement).value)" />
+      </div>
+      <div class="meta-field">
+        <label>参与成员</label>
+        <input :value="participantsText" class="field-input" :disabled="isSessionClosed" placeholder="ICU、感染、呼吸" @input="$emit('update:participantsText', ($event.target as HTMLInputElement).value)" />
+      </div>
+    </section>
+
+    <!-- 最终纪要 -->
+    <section class="archive-section">
+      <div class="archive-section__head">
+        <span class="archive-section-label">最终纪要</span>
+        <a-button size="small" :disabled="!autoSessionSummary" @click="$emit('copy-summary')">复制自动摘要</a-button>
+      </div>
+      <textarea
+        :value="finalSummary"
+        class="field-textarea"
+        :disabled="isSessionClosed"
+        rows="4"
+        placeholder="主任确认后的最终纪要；留空使用自动摘要。"
+        @input="$emit('update:finalSummary', ($event.target as HTMLTextAreaElement).value)"
+      ></textarea>
+      <div v-if="autoSessionSummary && !finalSummary" class="auto-summary">
         <p>{{ autoSessionSummary }}</p>
       </div>
     </section>
 
-    <section class="document-grid">
-      <article v-for="item in documentStatusRows" :key="item.key">
-        <span>{{ item.label }}</span>
-        <strong>{{ item.status }}</strong>
-        <small>{{ item.detail }}</small>
-      </article>
-    </section>
-
-    <section class="generated-docs">
-      <article class="archive-card">
-        <div class="doc-head">
-          <span>MDT 总结</span>
-          <a-button size="small" :loading="generatingDocType === 'mdt_summary'" :disabled="isSessionClosed" @click="$emit('generate-document', 'mdt_summary')">重新生成</a-button>
+    <!-- 文书生成 -->
+    <section class="doc-generate-grid">
+      <article class="doc-generate-card">
+        <div class="doc-generate-head">
+          <strong>MDT 总结</strong>
+          <a-button size="small" :loading="generatingDocType === 'mdt_summary'" :disabled="isSessionClosed" @click="$emit('generate-document', 'mdt_summary')">生成</a-button>
         </div>
         <div v-if="mdtSummaryPreview" class="doc-preview">{{ mdtSummaryPreview }}</div>
-        <div v-else class="doc-empty">点击“生成 MDT 总结”后在这里查看结果。</div>
+        <div v-else class="doc-empty">点击生成后查看</div>
       </article>
 
-      <article class="archive-card">
-        <div class="doc-head">
-          <span>会诊记录</span>
-          <a-button size="small" :loading="generatingDocType === 'consultation_request'" :disabled="isSessionClosed" @click="$emit('generate-document', 'consultation_request')">重新生成</a-button>
+      <article class="doc-generate-card">
+        <div class="doc-generate-head">
+          <strong>会诊记录</strong>
+          <a-button size="small" :loading="generatingDocType === 'consultation_request'" :disabled="isSessionClosed" @click="$emit('generate-document', 'consultation_request')">生成</a-button>
         </div>
         <textarea
           :value="consultRecord"
-          class="field-textarea field-textarea--document"
+          class="field-textarea field-textarea--doc"
           :disabled="isSessionClosed"
-          rows="8"
-          placeholder="点击“生成会诊记录”后在这里查看并编辑。"
+          rows="6"
+          placeholder="点击生成后查看并编辑。"
           @input="$emit('update:consultRecord', ($event.target as HTMLTextAreaElement).value)"
         ></textarea>
       </article>
 
-      <article class="archive-card">
-        <div class="doc-head">
-          <span>病程记录</span>
-          <a-button size="small" :loading="generatingDocType === 'daily_progress'" :disabled="isSessionClosed" @click="$emit('generate-document', 'daily_progress')">重新生成</a-button>
+      <article class="doc-generate-card">
+        <div class="doc-generate-head">
+          <strong>病程记录</strong>
+          <a-button size="small" :loading="generatingDocType === 'daily_progress'" :disabled="isSessionClosed" @click="$emit('generate-document', 'daily_progress')">生成</a-button>
         </div>
         <textarea
           :value="progressRecord"
-          class="field-textarea field-textarea--document"
+          class="field-textarea field-textarea--doc"
           :disabled="isSessionClosed"
-          rows="8"
-          placeholder="点击“生成病程”后在这里查看并编辑。"
+          rows="6"
+          placeholder="点击生成后查看并编辑。"
           @input="$emit('update:progressRecord', ($event.target as HTMLTextAreaElement).value)"
         ></textarea>
       </article>
     </section>
 
+    <!-- 底部操作 -->
     <div class="step-actions">
-      <a-button :disabled="!autoSessionSummary" @click="$emit('copy-summary')">复制摘要</a-button>
-      <a-button :loading="generatingDocType === 'mdt_summary'" :disabled="isSessionClosed" @click="$emit('generate-document', 'mdt_summary')">生成 MDT 总结</a-button>
-      <a-button :loading="generatingDocType === 'consultation_request'" :disabled="isSessionClosed" @click="$emit('generate-document', 'consultation_request')">生成会诊记录</a-button>
-      <a-button :loading="generatingDocType === 'daily_progress'" :disabled="isSessionClosed" @click="$emit('generate-document', 'daily_progress')">生成病程</a-button>
       <a-button @click="$emit('export-session')">导出会话</a-button>
-      <a-button type="primary" :loading="savingWorkspace" :disabled="isSessionClosed" @click="$emit('close-session')">关闭归档</a-button>
     </div>
   </a-card>
 </template>
@@ -125,162 +135,186 @@ void ACard
 </script>
 
 <style scoped>
-.mdt-step-card,
-.archive-card {
-  border: 1px solid rgba(148, 163, 184, 0.18);
+.mdt-step-card {
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.66);
+  background: var(--bg-surface);
 }
-.step-card__head,
-.step-actions {
+.step-card__head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
 }
-.step-kicker,
-.archive-card span,
-.document-grid span {
-  color: rgba(125, 211, 252, 0.86);
+.step-card__head-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.step-kicker {
+  color: var(--brand);
   font-size: 12px;
   font-weight: 700;
 }
 h2 {
-  margin: 4px 0 6px;
+  margin: 4px 0 0;
   color: var(--text-primary);
+  font-size: 18px;
 }
-p {
-  margin: 0;
-  color: rgba(203, 213, 225, 0.74);
-  line-height: 1.6;
-  white-space: pre-wrap;
+.step-hint {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
-.archive-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+/* 文书状态条 */
+.doc-status-strip {
+  display: flex;
   gap: 12px;
-  margin-top: 16px;
-}
-.archive-card {
-  padding: 14px;
-}
-.archive-card--summary {
-  margin-top: 12px;
-}
-.field-input,
-.field-textarea {
-  width: 100%;
-  margin-top: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
-  padding: 10px 12px;
+  background: var(--bg-surface);
+}
+.doc-status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.doc-status-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.doc-status-value {
   color: var(--text-primary);
-  background: var(--bg-surface), 0.92);
+  font-size: 12px;
+  font-weight: 600;
 }
-.field-textarea--document {
-  min-height: 180px;
-  line-height: 1.65;
+.doc-status-value.is-done {
+  color: #10b981;
 }
-.auto-summary {
+
+/* 标签与成员 */
+.archive-meta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   margin-top: 12px;
-  padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.3);
 }
-.auto-summary strong,
-.document-grid strong {
+.meta-field label {
   display: block;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.field-input {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
   color: var(--text-primary);
+  background: var(--bg-surface);
+  font-size: 13px;
 }
-.document-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+.field-input:disabled { opacity: 0.6; }
+
+/* 最终纪要 */
+.archive-section {
   margin-top: 12px;
 }
-.generated-docs {
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-}
-.doc-head {
+.archive-section__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  margin-bottom: 6px;
 }
-.doc-preview {
-  margin-top: 10px;
-  max-height: 280px;
-  overflow: auto;
-  white-space: pre-wrap;
-  color: rgba(226, 232, 240, 0.86);
-  line-height: 1.7;
-  padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.3);
-}
-.doc-empty {
-  margin-top: 10px;
-  color: rgba(148, 163, 184, 0.82);
-}
-.document-grid article {
-  padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.3);
-}
-.document-grid small {
-  color: rgba(148, 163, 184, 0.82);
-}
-.step-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  margin-top: 16px;
-}
-@media (max-width: 980px) {
-  .archive-grid,
-  .document-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-:global(html[data-theme='light']) .mdt-step-card,
-:global(html[data-theme='light']) .archive-card {
-  border-color: rgba(15, 23, 42, 0.1);
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
-}
-:global(html[data-theme='light']) h2,
-:global(html[data-theme='light']) .auto-summary strong,
-:global(html[data-theme='light']) .document-grid strong {
-  color: var(--text-primary);
-}
-:global(html[data-theme='light']) p,
-:global(html[data-theme='light']) .doc-preview {
-  color: var(--text-primary);
-}
-:global(html[data-theme='light']) .step-kicker,
-:global(html[data-theme='light']) .archive-card span,
-:global(html[data-theme='light']) .document-grid span {
+.archive-section-label {
   color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
 }
-:global(html[data-theme='light']) .field-input,
-:global(html[data-theme='light']) .field-textarea {
-  border-color: rgba(15, 23, 42, 0.14);
+.field-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
   color: var(--text-primary);
   background: var(--bg-surface);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
 }
-:global(html[data-theme='light']) .field-input::placeholder,
-:global(html[data-theme='light']) .field-textarea::placeholder {
-  color: var(--text-secondary);
-}
-:global(html[data-theme='light']) .auto-summary,
-:global(html[data-theme='light']) .document-grid article,
-:global(html[data-theme='light']) .doc-preview {
+.field-textarea:disabled { opacity: 0.6; }
+.auto-summary {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: var(--card-radius);
   background: var(--bg-surface-2);
 }
-:global(html[data-theme='light']) .document-grid small,
-:global(html[data-theme='light']) .doc-empty {
+.auto-summary p {
+  margin: 0;
   color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* 文书生成 */
+.doc-generate-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.doc-generate-card {
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+}
+.doc-generate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.doc-generate-head strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+.field-textarea--doc {
+  min-height: 140px;
+}
+.doc-preview {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 10px;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface-2);
+}
+.doc-empty {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.step-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@media (max-width: 980px) {
+  .archive-meta-row {
+    grid-template-columns: 1fr;
+  }
+  .doc-status-strip {
+    flex-wrap: wrap;
+  }
 }
 </style>

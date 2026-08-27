@@ -247,6 +247,8 @@ class ClinicalAdoptionService:
             "trueName": 1,
             "name": 1,
             "realName": 1,
+            "nickName": 1,
+            "displayName": 1,
             "role": 1,
             "roleName": 1,
             "jobTitle": 1,
@@ -256,6 +258,7 @@ class ClinicalAdoptionService:
             "userType": 1,
             "postName": 1,
             "deptCode": 1,
+            "dept_code": 1,
             "departmentCode": 1,
             "deptName": 1,
             "departmentName": 1,
@@ -268,10 +271,25 @@ class ClinicalAdoptionService:
         dept_code = account.get("deptCode") or account.get("departmentCode")
         dept_name = account.get("deptName") or account.get("departmentName") or account.get("dept") or await self._department_names(dept_code)
         dept_options = await self._department_options(dept_code, dept_name)
+        # 解析显示名称：多字段兜底，避免显示工号
+        display_name = _text(
+            account.get("trueName")
+            or account.get("realName")
+            or account.get("nickName")
+            or account.get("name")
+            or account.get("displayName")
+        )
+        # 如果解析出的名称和 userName 一样，说明不是真实姓名
+        user_name_text = _text(account.get("userName") or account.get("username") or user_name)
+        if not display_name or display_name == user_name_text:
+            display_name = _text(account.get("trueName") or account.get("realName") or account.get("name"))
+        if not display_name:
+            display_name = user_name_text
+
         return {
-            "userName": account.get("userName") or account.get("username") or user_name,
+            "userName": user_name_text,
             "trueName": account.get("trueName"),
-            "display_name": account.get("trueName") or account.get("name") or account.get("realName") or account.get("userName") or user_name,
+            "display_name": display_name,
             "role": role,
             "dept_code": dept_code,
             "dept": dept_name,

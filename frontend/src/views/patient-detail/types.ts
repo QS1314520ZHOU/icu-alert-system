@@ -1,0 +1,4 @@
+﻿export type DetailTabKey = 'ecash' | 'mobility' | 'pe' | 'trend' | 'waveform' | 'labs' | 'drugs' | 'assess' | 'sbt' | 'alerts' | 'similar' | 'followup' | 'twin' | 'ai' | 'documents'
+export type DetailAreaKey = 'overview' | 'monitoring' | 'treatment' | 'decision' | 'documents'
+export const detailTabOrder: readonly DetailTabKey[] = ['ecash', 'mobility', 'pe', 'trend', 'waveform', 'labs', 'drugs', 'assess', 'sbt', 'alerts', 'similar', 'followup', 'twin', 'ai', 'documents'] as const
+export const compositeOrganLabelDefault: Record<string, string> = { respiratory: '呼吸', circulatory: '循环', renal: '肾脏', coagulation: '凝血', hepatic: '肝脏', neurologic: '神经' }

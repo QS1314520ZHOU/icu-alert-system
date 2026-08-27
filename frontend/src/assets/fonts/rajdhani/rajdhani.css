@@ -1,4 +1,6 @@
-/* Rajdhani Font - Local Files (downloaded from Google Fonts) */
+/* Rajdhani Font - 仅用于纯数字监护数据 */
+/* 警告：不要将此字体用于标题、正文或中文内容 */
+
 @font-face {
   font-family: 'Rajdhani';
   font-style: normal;
@@ -6,6 +8,7 @@
   font-display: swap;
   src: url('./Rajdhani-Regular.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Rajdhani';
   font-style: normal;
@@ -13,6 +16,7 @@
   font-display: swap;
   src: url('./Rajdhani-Medium.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Rajdhani';
   font-style: normal;
@@ -20,6 +24,7 @@
   font-display: swap;
   src: url('./Rajdhani-SemiBold.ttf') format('truetype');
 }
+
 @font-face {
   font-family: 'Rajdhani';
   font-style: normal;
@@ -27,3 +32,20 @@
   font-display: swap;
   src: url('./Rajdhani-Bold.ttf') format('truetype');
 }
+
+/* 限制使用范围的辅助类 */
+.digit-only {
+  font-family: 'Rajdhani', sans-serif;
+}
+
+/* 医疗监护核心数值专用 */
+.monitor-value {
+  font-family: 'Rajdhani', 'Noto Sans SC', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* 警告：以下用法是错误的 */
+/* .title { font-family: 'Rajdhani'; } ← 错误 */
+/* .body-text { font-family: 'Rajdhani'; } ← 错误 */
+/* .card-title { font-family: 'Rajdhani'; } ← 错误 */

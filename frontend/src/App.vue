@@ -16,9 +16,9 @@
             <div class="topbar__right">
               <label class="operator-pill" title="用于记录告警查看 / 确认操作人">
                 <span class="operator-pill__label">操作人</span>
-                <span v-if="routeUserName" class="operator-pill__name">{{ operatorDisplayName || routeUserName }}</span>
+                <span v-if="operatorDisplayName || routeUserName" class="operator-pill__name">{{ operatorDisplayName || routeUserName }}</span>
                 <input
-                  v-else
+                  v-if="!operatorDisplayName && !routeUserName"
                   v-model.trim="operatorIdentity"
                   class="operator-pill__input"
                   type="text"
@@ -42,6 +42,7 @@
 <script setup lang="ts">
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from './stores/auth'
 import { getClinicalAccount } from './api'
 import { preloadCoreRouteComponents } from './router'
 import AiPulseFloater from './components/AiPulseFloater.vue'
@@ -49,6 +50,7 @@ import SideNav from './components/common/SideNav.vue'
 import { getOperatorIdentity, setOperatorIdentity } from './utils/operatorIdentity'
 import { setThemeMode } from './composables/themeMode'
 const route = useRoute()
+const auth = useAuthStore()
 const now = ref('')
 const themeMode = ref<'dark' | 'light'>('light')
 const operatorIdentity = ref('')
@@ -146,10 +148,10 @@ function syncOperatorFromRoute() {
 }
 
 async function resolveOperatorDisplayName() {
-  const userName = routeUserName.value
-  const deptCode = String(route.query.dept_code || route.query.deptCode || '').trim()
-  const dept = String(route.query.dept || route.query.department || '').trim()
-  const role = String(route.query.role || route.query.userRole || '').trim()
+  const userName = routeUserName.value || auth.effectiveUserId || operatorIdentity.value
+  const deptCode = String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim()
+  const dept = String(route.query.dept || route.query.department || auth.dept || '').trim()
+  const role = String(route.query.role || route.query.userRole || auth.role || '').trim()
   const cacheKey = [userName, role, deptCode, dept].join('|')
   const seq = ++operatorResolveSeq
   if (!userName) {
@@ -158,15 +160,15 @@ async function resolveOperatorDisplayName() {
   }
 
   // 账号识别先用地址栏工号即时展示，后台姓名查询只做增强，避免卡住首页/工作台渲染。
-  operatorDisplayName.value = operatorNameCache.get(cacheKey) || userName
+  operatorDisplayName.value = operatorNameCache.get(cacheKey) || auth.userName || userName
   if (operatorNameCache.has(cacheKey)) return
 
   try {
     const { data } = await getClinicalAccount({
       userName,
-      role: role || undefined,
-      dept_code: deptCode || undefined,
-      dept: dept || undefined,
+      role: role || auth.role || undefined,
+      dept_code: deptCode || auth.deptCode || undefined,
+      dept: dept || auth.dept || undefined,
     })
     if (seq !== operatorResolveSeq) return
     const account = data?.account || {}
@@ -212,63 +214,46 @@ onUnmounted(() => clearInterval(t))
 </script>
 
 <style scoped>
-@import url('./assets/fonts/rajdhani/rajdhani.css');
-
-.root { min-height: 100vh; background: var(--app-bg); font-family: var(--app-display-font, 'Noto Sans SC', 'Segoe UI', sans-serif); }
+.root { min-height: 100vh; background: var(--bg-base, #F6F7F9); font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
 
 /* Shell layout */
 .shell { display: flex; min-height: 100vh; }
 .shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-/* Top bar */
+/* Top bar - 简洁浅色风格 */
 .topbar {
   height: 48px; flex: 0 0 48px;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 18px; gap: 16px;
-  background: var(--hdr-bg-strong);
-  border-bottom: 1px solid var(--hdr-border);
+  padding: 0 24px; gap: 16px;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--color-border, #E3E7EC);
   position: sticky; top: 0; z-index: 90;
 }
 .topbar__left { display: flex; align-items: center; gap: 16px; }
-.topbar__crumb { font-size: 15px; font-weight: 800; color: var(--hdr-title); }
-.topbar__brand { font-size: 12px; font-weight: 600; color: var(--hdr-sub, #7f93ab); }
+.topbar__crumb { font-size: 15px; font-weight: 700; color: var(--color-text-primary, #18212B); }
+.topbar__brand { font-size: 12px; font-weight: 400; color: var(--color-text-secondary, #667085); }
 .topbar__right { display: flex; align-items: center; gap: 12px; }
 .topbar__clock {
   font-family: 'SF Mono','Consolas',monospace;
-  color: var(--hdr-clock, #7f93ab);
+  color: var(--color-text-secondary, #667085);
   font-size: 12px; white-space: nowrap; letter-spacing: 0.02em;
 }
 
-.body { flex: 1; background: var(--app-bg); min-height: 0; overflow: auto; }
+.body { flex: 1; background: var(--bg-base, #F6F7F9); min-height: 0; overflow: auto; }
 
 .operator-pill {
   display: flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border-radius: var(--card-radius);
-  background: var(--hdr-tool-bg); border: 1px solid var(--hdr-tool-border); font-size: 12px;
+  padding: 4px 10px; border-radius: 6px;
+  background: var(--color-bg-surface-secondary, #F1F3F5);
+  border: 1px solid var(--color-border, #E3E7EC);
+  font-size: 12px;
 }
-.operator-pill__label { color: var(--text-secondary); font-size: 11px; }
-.operator-pill__name { font-weight: 700; color: var(--text-primary); }
+.operator-pill__label { color: var(--color-text-secondary, #667085); font-size: 12px; }
+.operator-pill__name { font-weight: 600; color: var(--color-text-primary, #18212B); }
 .operator-pill__input {
   width: 110px; background: transparent; border: none; outline: none;
-  font-weight: 600; color: var(--text-primary); font-size: 12px;
+  font-weight: 600; color: var(--color-text-primary, #18212B); font-size: 12px;
 }
-
-/* Theme light overrides */
-.theme-light .topbar {
-  background: rgba(255,253,247,0.96) !important;
-  border-bottom-color: var(--border-color);
-}
-.theme-light .topbar__crumb { color: var(--text-primary); }
-.theme-light .topbar__brand { color: var(--text-secondary); }
-.theme-light .operator-pill {
-  background: rgba(255,253,247,0.78);
-  border-color: rgba(168,177,163,0.34);
-}
-.theme-light .operator-pill__label { color: var(--text-secondary); }
-.theme-light .operator-pill__input { font-weight: 600; color: var(--text-primary); }
-.theme-light .operator-pill__name { color: var(--text-primary); }
-.theme-light .topbar__clock { color: var(--text-secondary); }
-.theme-light .body { background: var(--bg-base); }
 
 @media (max-width: 920px) {
   .topbar__brand { display: none; }

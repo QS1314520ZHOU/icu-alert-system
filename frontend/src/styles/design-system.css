@@ -1,0 +1,413 @@
+/**
+ * ICU Alert System - 统一设计系统
+ * 浅色临床工作台风格
+ */
+
+/* ============================================
+   字体系统
+   ============================================ */
+
+/* 中文字体栈 - 优先使用 */
+:root {
+  --font-primary: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  /* Rajdhani 只用于纯数字监护数据 */
+  --font-digit: 'Rajdhani', var(--font-primary);
+}
+
+/* ============================================
+   字号系统
+   ============================================ */
+:root {
+  /* 页面标题 */
+  --text-page-title: 24px;
+  --text-page-title-weight: 700;
+
+  /* 页面副标题 */
+  --text-page-subtitle: 14px;
+  --text-page-subtitle-weight: 400;
+
+  /* 区域标题 */
+  --text-section-title: 16px;
+  --text-section-title-weight: 650;
+
+  /* 卡片标题 */
+  --text-card-title: 14px;
+  --text-card-title-weight: 650;
+
+  /* 正文 */
+  --text-body: 14px;
+  --text-body-line-height: 1.5;
+  --text-body-weight: 400;
+
+  /* 辅助文字 */
+  --text-caption: 12px;
+  --text-caption-line-height: 1.45;
+  --text-caption-weight: 400;
+
+  /* 标签文字 */
+  --text-label: 12px;
+  --text-label-weight: 500;
+
+  /* 表格文字 */
+  --text-table: 13px;
+  --text-table-header-weight: 600;
+
+  /* 指标数字 */
+  --text-metric-normal: 20px;
+  --text-metric-key: 24px;
+  --text-metric-monitor: 28px;  /* 医疗监护核心值最大 */
+
+  /* 禁止出现的字号 */
+  /* 普通页面禁止 32px 以上大数字 */
+  /* 普通模块标题禁止超过 28px */
+  /* 移动端正文字禁止小于 14px */
+}
+
+/* ============================================
+   字重系统
+   ============================================ */
+:root {
+  --weight-regular: 400;    /* 正文 */
+  --weight-medium: 500;     /* 按钮、标签 */
+  --weight-semibold: 600;   /* 卡片和区域标题 */
+  --weight-bold: 700;       /* 页面标题、关键数字 */
+}
+
+/* ============================================
+   颜色系统 - 浅色临床工作台
+   ============================================ */
+:root {
+  /* 页面背景 */
+  --color-bg-page: #F6F7F9;
+
+  /* 主要表面 */
+  --color-bg-surface: #FFFFFF;
+
+  /* 次级表面 */
+  --color-bg-surface-secondary: #F1F3F5;
+
+  /* 主要文字 */
+  --color-text-primary: #18212B;
+
+  /* 次级文字 */
+  --color-text-secondary: #667085;
+
+  /* 边框 */
+  --color-border: #E3E7EC;
+
+  /* 主操作蓝 */
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-bg: rgba(37, 99, 235, 0.08);
+
+  /* 危急红 - 需要立即干预 */
+  --color-danger: #D92D20;
+  --color-danger-hover: #B42318;
+  --color-danger-bg: rgba(217, 45, 32, 0.08);
+
+  /* 警告橙 - 本班复评 */
+  --color-warning: #B54708;
+  --color-warning-hover: #93370D;
+  --color-warning-bg: rgba(181, 71, 8, 0.08);
+
+  /* 稳定绿 - 稳定或完成 */
+  --color-success: #16845B;
+  --color-success-hover: #126C4A;
+  --color-success-bg: rgba(22, 132, 91, 0.08);
+
+  /* 状态颜色不能只依靠颜色，必须同时显示文字或图标 */
+  /* 禁止大面积红色背景 */
+  /* 禁止高饱和霓虹蓝和发光效果 */
+}
+
+/* ============================================
+   间距系统
+   ============================================ */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* 页面边距 */
+  --page-padding: 24px;
+
+  /* 卡片内边距 */
+  --card-padding: 16px;
+
+  /* 区域间距 */
+  --section-gap: 24px;
+
+  /* 同组元素间距 */
+  --element-gap: 8px;
+  --element-gap-lg: 12px;
+
+  /* 表格行高度 */
+  --table-row-height: 48px;
+  --table-row-height-lg: 56px;
+
+  /* 按钮高度 */
+  --button-height: 40px;
+
+  /* 移动端触控区域 */
+  --touch-target: 44px;
+}
+
+/* ============================================
+   圆角系统
+   ============================================ */
+:root {
+  /* 普通圆角 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* 大容器圆角 */
+  --radius-xl: 10px;
+
+  /* 标签圆角 */
+  --radius-tag: 4px;
+  --radius-tag-lg: 6px;
+
+  /* 按钮不全部做成胶囊形 */
+  --radius-button: 6px;
+}
+
+/* ============================================
+   阴影系统
+   ============================================ */
+:root {
+  /* 优先使用边框，不要大量阴影 */
+  /* 阴影仅用于抽屉、弹窗和浮层 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   全局基础样式
+   ============================================ */
+
+/* 页面标题 */
+.page-title {
+  font-size: var(--text-page-title);
+  font-weight: var(--text-page-title-weight);
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* 页面副标题 */
+.page-subtitle {
+  font-size: var(--text-page-subtitle);
+  font-weight: var(--text-page-subtitle-weight);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* 区域标题 */
+.section-title {
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* 卡片标题 */
+.card-title {
+  font-size: var(--text-card-title);
+  font-weight: var(--text-card-title-weight);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* 正文 */
+.body-text {
+  font-size: var(--text-body);
+  font-weight: var(--text-body-weight);
+  color: var(--color-text-primary);
+  line-height: var(--text-body-line-height);
+}
+
+/* 辅助文字 */
+.caption-text {
+  font-size: var(--text-caption);
+  font-weight: var(--text-caption-weight);
+  color: var(--color-text-secondary);
+  line-height: var(--text-caption-line-height);
+}
+
+/* 标签文字 */
+.label-text {
+  font-size: var(--text-label);
+  font-weight: var(--text-label-weight);
+  color: var(--color-text-secondary);
+}
+
+/* 指标数字 */
+.metric-number {
+  font-family: var(--font-digit);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.metric-number--normal {
+  font-size: var(--text-metric-normal);
+}
+
+.metric-number--key {
+  font-size: var(--text-metric-key);
+}
+
+.metric-number--monitor {
+  font-size: var(--text-metric-monitor);
+}
+
+/* 状态标签基础样式 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-tag);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.status-badge--danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.status-badge--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.status-badge--success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.status-badge--info {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+/* 按钮基础样式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--button-height);
+  padding: 0 16px;
+  border-radius: var(--radius-button);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.btn--primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn--default {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.btn--default:hover {
+  background: var(--color-bg-surface-secondary);
+  border-color: var(--color-text-secondary);
+}
+
+/* 卡片基础样式 - 使用 ds-card 前缀避免与业务组件冲突 */
+.ds-surface-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--card-padding);
+}
+
+/* 列表项 */
+.list-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease;
+}
+
+.list-item:hover {
+  background: var(--color-bg-surface-secondary);
+}
+
+/* 状态色点 */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot--danger { background: var(--color-danger); }
+.status-dot--warning { background: var(--color-warning); }
+.status-dot--success { background: var(--color-success); }
+.status-dot--info { background: var(--color-primary); }
+
+/* 左侧状态色条 */
+.rail-danger { border-left: 3px solid var(--color-danger); }
+.rail-warning { border-left: 3px solid var(--color-warning); }
+.rail-success { border-left: 3px solid var(--color-success); }
+
+/* ============================================
+   响应式断点
+   ============================================ */
+@media (max-width: 1440px) {
+  :root {
+    --page-padding: 20px;
+    --card-padding: 14px;
+    --section-gap: 20px;
+  }
+}
+
+@media (max-width: 1280px) {
+  :root {
+    --page-padding: 16px;
+    --card-padding: 12px;
+    --section-gap: 16px;
+  }
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --page-padding: 12px;
+    --card-padding: 10px;
+    --section-gap: 12px;
+    --text-page-title: 20px;
+    --text-section-title: 15px;
+  }
+}
+
+@media (max-width: 390px) {
+  :root {
+    --text-body: 14px; /* 移动端正文字不得小于14px */
+    --text-caption: 12px;
+    --touch-target: 44px;
+  }
+}
