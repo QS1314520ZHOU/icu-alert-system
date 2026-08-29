@@ -5,6 +5,7 @@ export type NavItemKey =
   | 'research-workbench' | 'research-export' | 'clinical-trials'
   | 'mdt' | 'respiratory-dashboard' | 'nutrition-support'
   | 'ai-ops' | 'runtime-config' | 'academic-research' | 'handover'
+  | 'disease-center'
 
 export type NavGroup = {
   key: string
@@ -55,6 +56,13 @@ export const navGroups: NavGroup[] = [
       { key: 'handover',       lines: ['智能','交接班'], label: '智能交接班', icon: 'exchange',     path: '/handover' },
       { key: 'ai-consult',     lines: ['AI','问诊'],     label: 'AI问诊',     icon: 'sparkles',     path: '/ai-consult' },
       { key: 'rounding-sheet', lines: ['智能','查房'],   label: '智能查房',   icon: 'clipboard',    path: '/rounding-sheet' },
+    ],
+  },
+  {
+    key: 'clinical-knowledge',
+    label: '临床知识',
+    items: [
+      { key: 'disease-center', lines: ['病种', '中心'], label: '病种中心', icon: 'database', path: '/disease-center' },
     ],
   },
   {

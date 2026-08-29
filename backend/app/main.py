@@ -50,6 +50,7 @@ from app.routers.clinical_documents import router as clinical_documents_router
 from app.routers.handover import router as handover_router
 from app.routers.quality import router as quality_router
 from app.routers.voice_rounding import router as voice_rounding_router
+from app.routers.disease_center import router as disease_center_router
 from app.routers.ws import router as ws_router
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
@@ -263,6 +264,7 @@ app.include_router(knowledge_router)
 app.include_router(clinical_documents_router)
 app.include_router(handover_router)
 app.include_router(quality_router)
+app.include_router(disease_center_router)
 app.include_router(waveforms_router)
 app.include_router(ws_router)
 
