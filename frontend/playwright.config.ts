@@ -23,15 +23,14 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     screenshot: 'only-on-failure',
-    trace: 'off',
-    video: 'off',
+    trace: 'retain-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [
     {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        channel: 'chrome',
       },
     },
   ],
