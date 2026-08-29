@@ -507,6 +507,7 @@ export interface QualitySnapshot {
   validation_sample_size?: number
   calculated_at?: string
   calculation_version?: string
+  issues?: QualityIssue[]
 }
 
 /** 获取质量快照列表 */

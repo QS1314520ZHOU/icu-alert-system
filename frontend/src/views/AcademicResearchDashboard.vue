@@ -21,7 +21,7 @@
       </div>
       <div class="academic-viz-card academic-viz-card--ring">
         <h4>数据质量</h4>
-        <DataCompletenessRing :percent="dataQualityScore" :size="100" />
+        <DataCompletenessRing :value="dataQualityScore" :size="100" />
         <span class="academic-viz-ring-label">{{ quality.value.patient_count || 0 }} 例患者</span>
       </div>
     </div>

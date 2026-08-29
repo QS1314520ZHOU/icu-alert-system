@@ -12,7 +12,7 @@
       <!-- 相似病例 -->
       <a-tab-pane key="similar-cases" tab="相似病例">
         <Suspense>
-          <SimilarCasesTab :patient-id="patientId" />
+          <SimilarCasesTab :review="similarCaseReview" :loading="similarCaseLoading" :error="similarCaseError" :on-refresh="() => {}" :fmt-time="(v: any) => v ? new Date(v).toLocaleString('zh-CN') : '—'" />
           <template #fallback><div class="loading-placeholder"><a-spin tip="加载相似病例..." /></div></template>
         </Suspense>
       </a-tab-pane>
@@ -100,6 +100,7 @@ const {
   patient,
   aiRiskForecast, aiRiskText, aiRiskLoading,
   loadAiRisk, aiRiskOrganRows,
+  similarCaseReview, similarCaseLoading, similarCaseError,
 } = usePatientDetail()
 
 const patientId = computed(() => String(route.params.patientId || route.params.id || ''))

@@ -70,7 +70,7 @@
       </div>
       <div class="ops-viz-card ops-viz-card--ring">
         <h4>整体准确率</h4>
-        <DataCompletenessRing :percent="overallAccuracy" :size="100" />
+        <DataCompletenessRing :value="overallAccuracy" :size="100" />
         <span class="ops-viz-ring-label">{{ feedbackSummary.total || 0 }} 条反馈</span>
       </div>
     </section>

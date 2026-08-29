@@ -24,7 +24,7 @@
       </div>
       <div class="mdt-viz-card mdt-viz-card--progress">
         <h4>决策闭环进度</h4>
-        <DataCompletenessRing :percent="closurePercent" :size="110" />
+        <DataCompletenessRing :value="closurePercent" :size="110" />
         <div class="mdt-viz-progress-grid">
           <div class="mdt-viz-stat">
             <span class="mdt-viz-stat__value mdt-viz-stat__value--pending">{{ pendingDecisionCount }}</span>

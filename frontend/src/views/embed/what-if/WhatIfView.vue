@@ -221,7 +221,7 @@ async function runSimulation() {
     for (const ctrl of controls) {
       interventions[ctrl.key] = ctrl.modelValue
     }
-    const res = await postAiWhatIfSimulation(patientId.value, interventions)
+    const res = await postAiWhatIfSimulation(patientId.value, interventions as any)
     const data = res.data || {}
 
     const origProb = data.original_probability ?? (currentRisk.value / 100)
@@ -258,12 +258,12 @@ async function runSimulation() {
 }
 
 function resetControls() {
-  controls[0].modelValue = 65
-  controls[1].modelValue = 0
-  controls[2].modelValue = 0.15
-  controls[3].modelValue = 10
-  controls[4].modelValue = 50
-  controls[5].modelValue = -2
+  controls[0]!.modelValue = 65
+  controls[1]!.modelValue = 0
+  controls[2]!.modelValue = 0.15
+  controls[3]!.modelValue = 10
+  controls[4]!.modelValue = 50
+  controls[5]!.modelValue = -2
   simulationResult.value = null
 }
 

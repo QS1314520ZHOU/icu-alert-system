@@ -19,7 +19,7 @@
     <div class="workbench-viz-row">
       <div class="workbench-viz-card workbench-viz-card--ring">
         <h4>数据就绪度</h4>
-        <DataCompletenessRing :percent="dataReadiness" :size="90" />
+        <DataCompletenessRing :value="dataReadiness" :size="90" />
         <span class="workbench-viz-ring-label">{{ selectedVariables.length }} 变量已选</span>
       </div>
       <div class="workbench-viz-card">

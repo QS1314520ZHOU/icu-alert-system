@@ -84,7 +84,7 @@ export function isFeatureEnabled(flag: string): boolean {
  * 3. User's role is in the feature flag's requiredRoles (if specified)
  */
 export function canAccessPatientModule(
-  moduleKey: string,
+  _moduleKey: string,
   moduleConfig?: { featureFlag?: string; requiredRoles?: string[] },
   userRole?: string
 ): boolean {

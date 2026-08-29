@@ -39,7 +39,7 @@
       </div>
       <div class="nutr-viz-card nutr-viz-card--ring">
         <h4>数据完整性</h4>
-        <DataCompletenessRing :percent="dataCompleteness" :size="100" />
+        <DataCompletenessRing :value="dataCompleteness" :size="100" />
         <span class="nutr-viz-ring-label">{{ ctx.patients.value.length }} 人在科</span>
       </div>
     </div>

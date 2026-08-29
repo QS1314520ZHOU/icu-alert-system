@@ -409,7 +409,7 @@ export const getAiPicsRisk = (patientId: string, params?: { refresh?: boolean })
 
 export const postAiCausalAnalysis = (
   patientId: string,
-  payload: { abnormal_finding: string }
+  payload: { abnormal_finding: string; outcome?: string }
 ) => aiApi.post(`/api/ai/causal-analysis/${patientId}`, payload)
 
 export const getAiNursingNoteSignals = (patientId: string, params?: { refresh?: boolean }) =>

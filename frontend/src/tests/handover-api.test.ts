@@ -44,11 +44,11 @@ describe('Handover API', () => {
       }
       mockAiApi.post.mockResolvedValue(mockResponse)
 
-      const result = await generateHandover({ patient_id: 'p1', mode: 'nurse_bedside' })
+      const result = await generateHandover({ patient_id: 'p1', handover_type: 'nurse_bedside' })
 
       expect(mockAiApi.post).toHaveBeenCalledWith(
         '/api/handover/generate',
-        { patient_id: 'p1', mode: 'nurse_bedside' }
+        { patient_id: 'p1', handover_type: 'nurse_bedside' }
       )
       // Function returns raw axios response
       expect(result).toBe(mockResponse)
@@ -99,11 +99,11 @@ describe('Handover API', () => {
       const mockResponse = { data: { data: { _id: 'doc123' } } }
       mockApi.post.mockResolvedValue(mockResponse)
 
-      await confirmHandover('doc123', { confirmed: true })
+      await confirmHandover('doc123', { operator: 'nurse_zhang' })
 
       expect(mockApi.post).toHaveBeenCalledWith(
         '/api/handover/doc123/confirm',
-        { confirmed: true }
+        { operator: 'nurse_zhang' }
       )
     })
   })
@@ -127,11 +127,11 @@ describe('Handover API', () => {
       const mockResponse = { data: { data: { _id: 'doc123' } } }
       mockApi.post.mockResolvedValue(mockResponse)
 
-      await rejectHandover('doc123', { reason: '需补充' })
+      await rejectHandover('doc123', { operator: 'nurse001', reason: '需补充' })
 
       expect(mockApi.post).toHaveBeenCalledWith(
         '/api/handover/doc123/reject',
-        { reason: '需补充' }
+        { operator: 'nurse001', reason: '需补充' }
       )
     })
   })

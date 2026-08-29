@@ -93,7 +93,7 @@
           <h4 class="ev-section-title">推理步骤</h4>
           <div class="ev-steps-list">
             <div v-for="(step, idx) in plan.reasoning_steps" :key="idx" class="ev-step-item">
-              <span class="ev-step-num">{{ idx + 1 }}</span>
+              <span class="ev-step-num">{{ Number(idx) + 1 }}</span>
               <span class="ev-step-text">{{ step }}</span>
             </div>
           </div>
@@ -102,7 +102,7 @@
           <h4 class="ev-section-title">RAG引用 ({{ plan.rag_citations.length }})</h4>
           <div class="ev-citations-list">
             <div v-for="(c, idx) in plan.rag_citations" :key="idx" class="ev-citation-item">
-              <span class="ev-citation-rank">{{ idx + 1 }}</span>
+              <span class="ev-citation-rank">{{ Number(idx) + 1 }}</span>
               <div class="ev-citation-content">
                 <span v-if="c.source" class="ev-citation-source">{{ c.source }}</span>
                 <p class="ev-citation-text">{{ c.text || c.content || c.chunk || '' }}</p>

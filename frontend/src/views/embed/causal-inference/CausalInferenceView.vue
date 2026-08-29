@@ -169,13 +169,6 @@ const canProceed = computed(() => question.value.exposure && question.value.outc
 const matchResult = ref({ total: 0, matched: 0, excluded: 0 })
 const effectResult = ref({ ate: '', ate_ci: '', att: '', att_ci: '' })
 
-// Chart refs
-const dagRef = ref<HTMLElement | null>(null)
-const psDistRef = ref<HTMLElement | null>(null)
-const lovePlotRef = ref<HTMLElement | null>(null)
-const forestRef = ref<HTMLElement | null>(null)
-const sensitivityRef = ref<HTMLElement | null>(null)
-
 function nextStep() {
   if (currentStep.value < steps.length - 1) {
     currentStep.value++

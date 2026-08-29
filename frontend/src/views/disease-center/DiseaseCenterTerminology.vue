@@ -43,7 +43,7 @@
               v-for="cat in categories"
               :key="cat.id"
               :class="['tree-item', { 'tree-item--active': selectedCategory === cat.id }]"
-              @click="selectCategory(cat.id)"
+              @click="selectCategory(cat.id || '')"
             >
               <span class="tree-item__name">{{ cat.name }}</span>
               <span class="tree-item__count">{{ cat.count }}</span>
@@ -76,7 +76,7 @@
               @click="selectTerm(item)"
             >
               <div class="term-item__main">
-                <div class="term-item__name">{{ item.name }}</div>
+                <div class="term-item__name">{{ item.standard_name }}</div>
                 <div class="term-item__codes">
                   <span v-if="item.icd10_codes?.length" class="code-tag">ICD-10: {{ item.icd10_codes[0] }}</span>
                   <span v-if="item.icd11_codes?.length" class="code-tag">ICD-11: {{ item.icd11_codes[0] }}</span>

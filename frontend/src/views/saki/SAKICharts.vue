@@ -46,7 +46,7 @@ const forestData = ref<any>(null)
 const outcomesData = ref<any>(null)
 
 const trajectoryOption = computed(() => {
-  if (!trajectoryData.value?.trajectories?.length) return null
+  if (!trajectoryData.value?.trajectories?.length) return undefined
   const series = trajectoryData.value.trajectories.slice(0, 10).map((t: any, i: number) => ({
     name: `Patient ${i + 1}`,
     type: 'line' as const,
@@ -64,7 +64,7 @@ const trajectoryOption = computed(() => {
 })
 
 const forestOption = computed(() => {
-  if (!forestData.value?.forest_data?.length) return null
+  if (!forestData.value?.forest_data?.length) return undefined
   const data = forestData.value.forest_data
   return {
     tooltip: { trigger: 'axis' },
@@ -75,7 +75,7 @@ const forestOption = computed(() => {
 })
 
 const outcomesOption = computed(() => {
-  if (!outcomesData.value) return null
+  if (!outcomesData.value) return undefined
   const dist = outcomesData.value.stage_distribution || {}
   return {
     tooltip: { trigger: 'item' },

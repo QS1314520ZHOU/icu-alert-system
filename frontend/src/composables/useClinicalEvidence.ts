@@ -6,8 +6,8 @@
 import { ref, computed, shallowRef } from 'vue'
 import { getPatientEvidence } from '../api/clinicalEvidence'
 import type {
-  EvidenceParams, EvidenceResponse, EvidenceMetric,
-  ContextType, OrganSystem, TimeRange,
+  EvidenceParams, EvidenceResponse,
+  OrganSystem, TimeRange,
 } from '../api/clinicalEvidence'
 
 // 模块级缓存：key = `${patientId}|${contextType}|${contextId}|${organSystem}`
@@ -38,7 +38,7 @@ export function useClinicalEvidence() {
 
   const confidencePercent = computed(() => {
     const c = evidence.value?.confidence?.evidence_completeness
-    return c != null ? Math.round(c * 100) : null
+    return c != null ? Math.round(c * 100) : undefined
   })
 
   const severityColor = computed(() => {

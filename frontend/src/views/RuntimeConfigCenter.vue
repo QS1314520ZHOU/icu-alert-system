@@ -29,7 +29,7 @@
       <div class="overview-ring-row">
         <div class="overview-ring-card">
           <h4>配置完整度</h4>
-          <DataCompletenessRing :percent="configCompleteness" :size="100" />
+          <DataCompletenessRing :value="configCompleteness" :size="100" />
           <span class="overview-ring-hint">模块 + Provider + 规则 + 映射</span>
         </div>
         <div class="metric-grid">

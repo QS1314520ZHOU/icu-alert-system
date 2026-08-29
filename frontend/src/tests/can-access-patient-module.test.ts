@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // Don't mock featureFlags — test the real implementation
-import { canAccessPatientModule, isFeatureEnabled, FEATURE_FLAGS } from '../config/featureFlags'
+import { canAccessPatientModule, isFeatureEnabled } from '../config/featureFlags'
 
 describe('canAccessPatientModule', () => {
   describe('module with no restrictions', () => {

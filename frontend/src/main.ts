@@ -36,7 +36,7 @@ function patchEmbedToken(token: string) {
   // Patch XMLHttpRequest
   const origOpen = XMLHttpRequest.prototype.open
   const origSend = XMLHttpRequest.prototype.send
-  XMLHttpRequest.prototype.open = function (method: string, url: string) {
+  XMLHttpRequest.prototype.open = function (_method: string, url: string) {
     ;(this as any).__embedUrl = url
     return origOpen.apply(this, arguments as any)
   }

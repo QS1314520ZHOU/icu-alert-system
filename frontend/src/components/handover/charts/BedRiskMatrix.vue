@@ -24,7 +24,7 @@
           <span v-if="bed.has_ventilator" class="icon-tag icon-tag--vent" title="呼吸机">V</span>
           <span v-if="bed.has_vasoactive" class="icon-tag icon-tag--vaso" title="血管活性药">P</span>
           <span v-if="bed.has_crrt" class="icon-tag icon-tag--crrt" title="CRRT">C</span>
-          <span v-if="bed.unclosed_alert_count > 0" class="icon-tag icon-tag--alert" :title="`${bed.unclosed_alert_count}条未闭环告警`">{{ bed.unclosed_alert_count }}</span>
+          <span v-if="bed.unclosed_alert_count && bed.unclosed_alert_count > 0" class="icon-tag icon-tag--alert" :title="`${bed.unclosed_alert_count}条未闭环告警`">{{ bed.unclosed_alert_count }}</span>
         </div>
         <div class="bed-status">{{ handoverStatusLabel(bed.handover_status) }}</div>
       </div>
@@ -37,7 +37,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 
 interface BedPatient {
   patient_id: string

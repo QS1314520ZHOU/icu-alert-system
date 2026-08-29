@@ -189,7 +189,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { usePatientContext } from '../../stores/patientContext'
 import { useAuthStore } from '../../stores/auth'
 import { resolveNavigation } from '../../navigation/navigationResolver'
@@ -198,7 +198,6 @@ import PatientSelectorModal from '../PatientSelectorModal.vue'
 import type { NavItem } from '../../navigation/navigationTypes'
 
 const route = useRoute()
-const router = useRouter()
 const patientCtx = usePatientContext()
 const auth = useAuthStore()
 const {

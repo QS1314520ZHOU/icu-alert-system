@@ -26,7 +26,7 @@
             <span class="ir-chain-time">{{ node.time }}</span>
             <span v-if="node.metric" class="ir-chain-metric">{{ node.metric }}</span>
           </div>
-          <span v-if="idx < causalChain.length - 1" class="ir-chain-arrow">→</span>
+          <span v-if="Number(idx) < causalChain.length - 1" class="ir-chain-arrow">→</span>
         </div>
       </div>
     </div>

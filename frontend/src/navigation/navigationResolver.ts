@@ -4,7 +4,7 @@
  * This is the SINGLE source of truth for what appears in the sidebar.
  * SideNav.vue calls this; it never builds menus directly.
  */
-import type { NavigationMode, NavGroup, NavItem, ResolvedNavigation, NavigationResolveOptions } from './navigationTypes'
+import type { NavGroup, NavItem, ResolvedNavigation, NavigationResolveOptions } from './navigationTypes'
 import { navGroups as globalNavGroups, moreMenuItems } from '../config/roleHomeConfig'
 import { PATIENT_MODULES, MODULE_GROUPS, type PatientModule } from '../config/patientModuleRegistry'
 import { canAccessPatientModule } from '../config/featureFlags'

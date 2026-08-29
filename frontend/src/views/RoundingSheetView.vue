@@ -320,6 +320,7 @@ import {
 import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
 import VoiceRounding from '../components/VoiceRounding.vue'
 import ClinicalEvidenceDrawer from '../components/evidence/ClinicalEvidenceDrawer.vue'
+import type { ContextType, OrganSystem } from '../api/clinicalEvidence'
 import { ClinicalTimeline } from '../components/charts'
 import type { TimelineEvent } from '../components/charts'
 import { getDepartments, postClinicalTask } from '../api'
@@ -596,16 +597,16 @@ function handleOrganClick(organKey: string) {
 const evidenceDrawer = ref({
   open: false,
   patientId: '',
-  contextType: 'organ_system' as string,
+  contextType: 'organ_system' as ContextType,
   contextId: '',
-  organSystem: '',
+  organSystem: undefined as OrganSystem | undefined,
   title: '',
 })
 
 function handleOrganChipClick(item: any) {
   activeSystemTab.value = item.systemKey
   // 映射 systemKey 到 organ system
-  const organMap: Record<string, string> = {
+  const organMap: Record<string, OrganSystem> = {
     respiratory: 'respiratory', circulatory: 'circulatory',
     renal: 'renal', hepatic: 'hepatic', neurologic: 'neurologic',
     coagulation: 'coagulation', infection: 'infection', nutrition: 'nutrition',

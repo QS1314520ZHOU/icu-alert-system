@@ -8,7 +8,7 @@
         v-for="(step, i) in steps"
         :key="step.key"
         class="flow-step"
-        :class="stepClass(step, i)"
+        :class="stepClass(step)"
       >
         <div class="step-dot">{{ i + 1 }}</div>
         <div class="step-label">{{ step.label }}</div>
@@ -36,7 +36,7 @@ interface FlowStep {
 
 defineProps<{ steps: FlowStep[] }>()
 
-function stepClass(step: FlowStep, index: number) {
+function stepClass(step: FlowStep) {
   return `flow-step--${step.status}`
 }
 </script>

@@ -14,14 +14,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
+import { onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import type { EvidenceTrend } from '../../api/clinicalEvidence'
 
 const props = defineProps<{
   trends: EvidenceTrend[]
 }>()
 
-const chartRefs = ref<HTMLElement[]>([])
 const chartInstances: any[] = []
 
 onMounted(() => {

@@ -121,10 +121,6 @@ const outcomes = computed(() => {
 
 const renalRecovery = computed(() => summary.value?.outcome_distribution?.renal_recovery ?? 0)
 
-const scatterRef = ref<HTMLElement | null>(null)
-const radarRef = ref<HTMLElement | null>(null)
-const losRef = ref<HTMLElement | null>(null)
-
 function similarityClass(s: number) {
   if (s >= 0.8) return 'sc-sim-high'
   if (s >= 0.6) return 'sc-sim-medium'
@@ -138,11 +134,11 @@ function outcomeClass(o: string) {
   return ''
 }
 
-function openWhatIf(c: any) {
+function openWhatIf(_c: any) {
   sendNavigateModule('what-if', patientId.value)
 }
 
-function openCausal(c: any) {
+function openCausal(_c: any) {
   sendNavigateModule('causal-inference', patientId.value)
 }
 

@@ -167,7 +167,6 @@ const {
   displayBed,
   fmt,
   displayName,
-  bedDotClass,
   priorityDot,
 } = useNurseHome()
 
@@ -199,14 +198,6 @@ const bedMapData = computed<BedInfo[]>(() => {
       alertCount: bed.alert_count || (tasksByBed(bed.patient_id).length || 0),
     }
   })
-})
-
-const nurseEmptyText = computed(() => {
-  const reason = home.value?.data_state?.empty_reason
-  if (reason && !/patient\s*表|account\s*表|nurseRecords|bedDoctorId|user[_-]?id|userId|collection|集合|数据库/i.test(reason)) {
-    return reason
-  }
-  return '本班暂未识别到分管床位，请完成接班护理记录后刷新。'
 })
 
 // ── 按床位分组任务（避免在 v-for 中重复过滤） ──

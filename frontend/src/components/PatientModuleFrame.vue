@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useHostBridge } from '../composables/useHostBridge'
 import { getModuleByKey, isIframeModule } from '../config/patientModuleRegistry'
 import { canAccessPatientModule } from '../config/featureFlags'
@@ -123,7 +123,7 @@ const origin = computed(() => {
 const moduleKeyRef = computed(() => props.moduleKey)
 const patientIdRef = computed(() => props.patientId)
 
-const { sendThemeChanged, sendRefresh: bridgeRefresh } = useHostBridge({
+const { sendRefresh: bridgeRefresh } = useHostBridge({
   iframeRef,
   moduleKey: moduleKeyRef,
   patientId: patientIdRef,

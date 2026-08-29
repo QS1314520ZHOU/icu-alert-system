@@ -16,6 +16,7 @@ import {
   postClinicalTask,
 } from '../api'
 import { useAuthStore } from '../stores/auth'
+import type { ContextType, OrganSystem } from '../api/clinicalEvidence'
 
 /* ───── 标签映射 ───── */
 const labelMap: Record<string, string> = {
@@ -64,9 +65,9 @@ export function useClinicalWorkflow() {
   const evidenceDrawer = ref({
     open: false,
     patientId: '',
-    contextType: 'risk' as string,
+    contextType: 'risk' as ContextType,
     contextId: '',
-    organSystem: '',
+    organSystem: undefined as OrganSystem | undefined,
     title: '',
   })
   const treatmentRecommendation = ref<any>(null)
@@ -390,7 +391,7 @@ export function useClinicalWorkflow() {
   }
 
   // 打开证据抽屉
-  function openEvidence(patientId: string, contextType: string, opts?: { contextId?: string; organSystem?: string; title?: string }) {
+  function openEvidence(patientId: string, contextType: ContextType, opts?: { contextId?: string; organSystem?: OrganSystem; title?: string }) {
     const id = String(patientId || firstPatientId())
     if (!id) {
       message.warning('缺少患者ID，无法加载证据')
@@ -401,7 +402,7 @@ export function useClinicalWorkflow() {
       patientId: id,
       contextType,
       contextId: opts?.contextId || '',
-      organSystem: opts?.organSystem || '',
+      organSystem: opts?.organSystem,
       title: opts?.title || '',
     }
   }
@@ -417,7 +418,7 @@ export function useClinicalWorkflow() {
     else selectedPatient.value = { patient_id: '', name: '暂无患者', bed: '--' }
 
     // 打开证据抽屉而非静态 checklist
-    const contextTypeMap: Record<string, string> = {
+    const contextTypeMap: Record<string, ContextType> = {
       story: 'risk', rounding: 'vitals', nursing: 'nursing',
       order_gap: 'order', discharge: 'discharge', family: 'risk',
       medication: 'order', preview: 'risk', weaning: 'weaning',
@@ -484,7 +485,7 @@ export function useClinicalWorkflow() {
     const patientId = String(row?.patient_id || firstPatientId())
 
     // 直接打开证据抽屉
-    const contextTypeMap: Record<string, string> = {
+    const contextTypeMap: Record<string, ContextType> = {
       order_gap: 'order', weaning: 'weaning', discharge: 'discharge', family: 'risk',
     }
     openEvidence(patientId, contextTypeMap[mode] || 'risk', {

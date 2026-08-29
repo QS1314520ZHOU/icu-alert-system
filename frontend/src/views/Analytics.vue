@@ -60,7 +60,7 @@
         </div>
         <div class="hero-chip hero-chip--ring">
           <span class="hero-chip__label">数据完整性</span>
-          <DataCompletenessRing :percent="analyticsDataCompleteness" :size="60" />
+          <DataCompletenessRing :value="analyticsDataCompleteness" :size="60" />
         </div>
       </div>
     </section>

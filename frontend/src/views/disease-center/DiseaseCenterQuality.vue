@@ -3,14 +3,14 @@
     <!-- 概览卡 -->
     <div class="overview-cards">
       <div class="overview-card">
-        <DataCompletenessRing :percent="overview.completeness" :size="64" />
+        <DataCompletenessRing :value="overview.completeness" :size="64" />
         <div class="card-info">
           <div class="card-value">{{ overview.completeness }}%</div>
           <div class="card-label">病种完整性</div>
         </div>
       </div>
       <div class="overview-card">
-        <DataCompletenessRing :percent="overview.icd_quality" :size="64" />
+        <DataCompletenessRing :value="overview.icd_quality" :size="64" />
         <div class="card-info">
           <div class="card-value">{{ overview.icd_quality }}%</div>
           <div class="card-label">ICD编码质量</div>
@@ -31,7 +31,7 @@
         </div>
       </div>
       <div class="overview-card">
-        <DataCompletenessRing :percent="overview.ai_accuracy" :size="64" />
+        <DataCompletenessRing :value="overview.ai_accuracy" :size="64" />
         <div class="card-info">
           <div class="card-value">{{ overview.ai_accuracy }}%</div>
           <div class="card-label">AI建议准确率</div>
@@ -200,7 +200,7 @@ interface QualityIssue {
   id: string
   issue_type: string
   type?: string
-  severity: 'high' | 'medium' | 'low'
+  severity: string
   title?: string
   description: string
   detected_at?: string

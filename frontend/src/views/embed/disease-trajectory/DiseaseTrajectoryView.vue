@@ -92,19 +92,19 @@ const trajectoryChartOption = computed(() => {
   // 分界标记
   const markLine = historyLen > 0 ? {
     data: [{ xAxis: historyLen - 1, label: { formatter: '当前', fontSize: 11 } }],
-    lineStyle: { type: 'dashed', color: '#94A3B8' },
+    lineStyle: { type: 'dashed' as const, color: '#94A3B8' },
   } : undefined
 
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: { trigger: 'axis' as const },
     legend: { data: ['历史风险', '预测轨迹'], top: 0 },
     grid: { left: 12, right: 16, top: 40, bottom: 30, containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 11 } },
-    yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
+    xAxis: { type: 'category' as const, data: xData, axisLabel: { fontSize: 11 } },
+    yAxis: { type: 'value' as const, max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
     series: [
       {
         name: '历史风险',
-        type: 'line',
+        type: 'line' as const,
         data: yData.map((v: number, i: number) => i < historyLen ? v : null),
         smooth: true,
         lineStyle: { width: 2 },
@@ -113,10 +113,10 @@ const trajectoryChartOption = computed(() => {
       },
       {
         name: '预测轨迹',
-        type: 'line',
+        type: 'line' as const,
         data: yData.map((v: number, i: number) => i >= historyLen ? v : null),
         smooth: true,
-        lineStyle: { width: 2, type: 'dashed' },
+        lineStyle: { width: 2, type: 'dashed' as const },
         areaStyle: { color: 'rgba(8,145,178,0.06)' },
       },
     ],
@@ -142,12 +142,12 @@ const organChartOption = computed(() => {
   })).sort((a, b) => b.value - a.value)
 
   return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: 'axis' as const, axisPointer: { type: 'shadow' as const } },
     grid: { left: 60, right: 16, top: 12, bottom: 12 },
-    xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
-    yAxis: { type: 'category', data: data.map(d => d.name), axisLabel: { fontSize: 12 } },
+    xAxis: { type: 'value' as const, max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
+    yAxis: { type: 'category' as const, data: data.map(d => d.name), axisLabel: { fontSize: 12 } },
     series: [{
-      type: 'bar',
+      type: 'bar' as const,
       data: data.map(d => ({
         value: d.value,
         itemStyle: {

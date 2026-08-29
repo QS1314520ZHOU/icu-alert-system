@@ -15,14 +15,14 @@ describe('RuleCalculationPanel', () => {
     total_score: 80,
     calculable: true,
     items: [
-      { label: '循环稳定', status: 'pass', ok: true },
-      { label: '氧合达标', status: 'pass', ok: true },
-      { label: 'SOFA ≤ 6', status: 'unavailable', ok: null },
+      { label: '循环稳定', status: 'pass' as const, ok: true },
+      { label: '氧合达标', status: 'pass' as const, ok: true },
+      { label: 'SOFA ≤ 6', status: 'unavailable' as const, ok: null },
     ],
     lights: [
-      { label: 'RSBI < 105', status: 'pass', ok: true },
-      { label: 'SpO2 > 90%', status: 'pass', ok: true },
-      { label: 'SBT 通过', status: 'unavailable', ok: null },
+      { label: 'RSBI < 105', status: 'pass' as const, ok: true },
+      { label: 'SpO2 > 90%', status: 'pass' as const, ok: true },
+      { label: 'SBT 通过', status: 'unavailable' as const, ok: null },
     ],
     description: '撤机评估',
   }
@@ -37,9 +37,9 @@ describe('RuleCalculationPanel', () => {
     expect(lights.length).toBe(3)
 
     // 验证三态 class（组件使用 status 值作为 CSS class）
-    expect(lights[0].classes()).toContain('pass')
-    expect(lights[1].classes()).toContain('pass')
-    expect(lights[2].classes()).toContain('unavailable')
+    expect(lights[0]!.classes()).toContain('pass')
+    expect(lights[1]!.classes()).toContain('pass')
+    expect(lights[2]!.classes()).toContain('unavailable')
   })
 
   it('渲染评分明细三态', () => {
@@ -169,8 +169,8 @@ describe('EvidenceMetricCards', () => {
     expect(cards.length).toBe(3)
 
     // 验证异常卡片有 flag-high class（组件使用 flag- 前缀）
-    expect(cards[0].classes()).toContain('flag-high')
-    expect(cards[1].classes()).toContain('flag-normal')
+    expect(cards[0]!.classes()).toContain('flag-high')
+    expect(cards[1]!.classes()).toContain('flag-normal')
   })
 
   it('缺失值显示"不可计算"', () => {

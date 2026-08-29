@@ -19,7 +19,7 @@
               <button class="btn btn--xs btn--ghost" @click="removeNode(index)">×</button>
             </div>
             <div class="node-body">
-              <div v-for="(input, inputIndex) in node.inputs" :key="inputIndex" class="node-input">
+              <div v-for="(_input, inputIndex) in node.inputs" :key="inputIndex" class="node-input">
                 <input
                   v-model="node.inputs[inputIndex]"
                   class="form-input"

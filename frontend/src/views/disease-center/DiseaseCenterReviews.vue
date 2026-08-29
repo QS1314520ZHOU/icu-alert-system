@@ -123,7 +123,7 @@ interface ReviewItem {
   resource_type: string
   resource_id: string
   resource_version: string
-  status: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'changes_requested'
+  status: string
   submitter_id: string
   submitted_at: string
   reviewer_id?: string

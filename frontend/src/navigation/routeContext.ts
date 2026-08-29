@@ -9,15 +9,10 @@
  *
  * Legacy `deptCode` is accepted as input but output always uses `dept_code`.
  */
-import type { LocationQuery, RouteLocationNormalized } from 'vue-router'
+import type { LocationQuery } from 'vue-router'
 
 /** Whitelisted context keys that propagate across navigation */
 const ALLOWED_CONTEXT_KEYS = ['dept_code', 'dept', 'ward', 'shift'] as const
-
-/** Legacy key mapping: deptCode → dept_code */
-const LEGACY_KEY_MAP: Record<string, string> = {
-  deptCode: 'dept_code',
-}
 
 /**
  * Extract whitelisted context from a route's query string.

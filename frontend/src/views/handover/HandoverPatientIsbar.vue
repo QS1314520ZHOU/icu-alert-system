@@ -125,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Spin as ASpin, Button as AButton, Input as AInput, Tag as ATag, Alert as AAlert, Tabs as ATabs, TabPane as ATabPane, message } from 'ant-design-vue'
 import { useAuthStore } from '../../stores/auth'
@@ -137,7 +137,6 @@ import {
   confirmHandover,
   acknowledgeHandover,
   rejectHandover,
-  getForcedAlerts,
 } from '../../api/handover'
 import IsbarEditor from '../../components/handover/IsbarEditor.vue'
 import HandoverEvidencePanel from '../../components/handover/HandoverEvidencePanel.vue'
@@ -218,8 +217,8 @@ async function selectPatient(p: any) {
     const histRes = await getPatientHandoverHistory(activePatientId.value, { limit: 1 })
     const handovers = histRes.data?.handovers || []
     if (handovers.length > 0) {
-      currentHandover.value = handovers[0]
-      editableSections.value = structuredClone(handovers[0].sections || {})
+      currentHandover.value = handovers[0]!
+      editableSections.value = structuredClone(handovers[0]!.sections || {})
     } else {
       currentHandover.value = null
       editableSections.value = {}

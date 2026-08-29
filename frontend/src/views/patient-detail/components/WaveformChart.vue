@@ -16,6 +16,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { EChartsOption } from 'echarts'
 import ClinicalChart from '../../../components/charts/base/ClinicalChart.vue'
 
 const props = defineProps<{
@@ -45,10 +46,12 @@ const channelUnits: Record<string, string> = {
 }
 
 const sampleInterval = computed(() => {
-  if (!props.points.length) return '—'
   if (props.points.length < 2) return '—'
-  const t0 = new Date(props.points[0].time).getTime()
-  const t1 = new Date(props.points[1].time).getTime()
+  const p0 = props.points[0]
+  const p1 = props.points[1]
+  if (!p0?.time || !p1?.time) return '—'
+  const t0 = new Date(p0.time).getTime()
+  const t1 = new Date(p1.time).getTime()
   const diffSec = Math.abs(t1 - t0) / 1000
   if (diffSec < 60) return `${Math.round(diffSec)}秒`
   if (diffSec < 3600) return `${Math.round(diffSec / 60)}分钟`
@@ -58,6 +61,7 @@ const sampleInterval = computed(() => {
 const updatedAt = computed(() => {
   if (!props.points.length) return ''
   const last = props.points[props.points.length - 1]
+  if (!last?.time) return ''
   try {
     return new Date(last.time).toLocaleString('zh-CN')
   } catch {
@@ -65,7 +69,7 @@ const updatedAt = computed(() => {
   }
 })
 
-const chartOption = computed(() => {
+const chartOption = computed<EChartsOption | null>(() => {
   if (!props.points.length) return null
 
   const xData = props.points.map(p => {

@@ -11,13 +11,10 @@ import { ref, onMounted, onBeforeUnmount, watch, toValue, type Ref, type Compute
 import {
   createHostMessage,
   isEmbedMessage,
-  isValidMessage,
   isDuplicateRequestId,
   validateEmbedPayload,
-  HOST_MESSAGE_TYPES,
   EMBED_MESSAGE_TYPES,
   type HostMessage,
-  type EmbedMessage,
   type PatientContextPayload,
   type ThemePayload,
   type PermissionPayload,

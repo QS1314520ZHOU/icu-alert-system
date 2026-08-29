@@ -18,12 +18,10 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PatientModuleFrame from '../../components/PatientModuleFrame.vue'
 import { getPatientIdFromRoute } from '../../utils/patientRouteHelper'
-import { useNavigationContext } from '../../navigation/useNavigationContext'
 import { buildContextQuery } from '../../navigation/routeContext'
 
 const route = useRoute()
 const router = useRouter()
-const navCtx = useNavigationContext()
 
 const moduleKey = computed(() => String(route.params.moduleKey || ''))
 const patientId = computed(() => getPatientIdFromRoute(route))

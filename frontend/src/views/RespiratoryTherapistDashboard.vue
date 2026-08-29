@@ -43,7 +43,7 @@
       </div>
       <div class="resp-viz-card resp-viz-card--ring">
         <h4>数据完整性</h4>
-        <DataCompletenessRing :percent="ctx.completion.value?.data_quality?.percent ?? 0" :size="100" />
+        <DataCompletenessRing :value="ctx.completion.value?.data_quality?.percent ?? 0" :size="100" />
         <span class="resp-viz-ring-label">完成率 {{ ctx.completion.value?.percent ?? 0 }}%</span>
       </div>
     </div>
@@ -273,11 +273,11 @@ const weaningNodes = computed<WorkflowNode[]>(() => {
   const completionPct = ctx.completion.value?.percent ?? 0
 
   return [
-    { id: '1', label: '评估', status: totalPatients > 0 ? 'completed' : 'pending', description: `${totalPatients}人通气中` },
-    { id: '2', label: 'SBT筛选', status: sbtCandidates > 0 ? 'running' : 'completed', description: `${sbtCandidates}人可评估` },
-    { id: '3', label: 'SBT试验', status: sbtDone > 0 ? 'completed' : sbtCandidates > 0 ? 'pending' : 'unknown', description: `${sbtDone}人已完成` },
-    { id: '4', label: '脱机拔管', status: completionPct >= 80 ? 'completed' : completionPct >= 50 ? 'running' : 'pending', description: `完成率${completionPct}%` },
-    { id: '5', label: '48h稳定', status: 'pending', description: '持续监测中' },
+    { id: '1', name: '评估', status: totalPatients > 0 ? 'completed' : 'pending' as const, count: totalPatients },
+    { id: '2', name: 'SBT筛选', status: sbtCandidates > 0 ? 'running' : 'completed' as const, count: sbtCandidates },
+    { id: '3', name: 'SBT试验', status: sbtDone > 0 ? 'completed' : sbtCandidates > 0 ? 'pending' : 'unknown' as const, count: sbtDone },
+    { id: '4', name: '脱机拔管', status: completionPct >= 80 ? 'completed' : completionPct >= 50 ? 'running' : 'pending' as const },
+    { id: '5', name: '48h稳定', status: 'pending' as const },
   ]
 })
 

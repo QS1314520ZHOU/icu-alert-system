@@ -56,37 +56,34 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, provide } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import { useAppNavigation } from '../../navigation/useAppNavigation'
-import { getPatientIdFromRoute } from '../../utils/patientRouteHelper'
 import ClinicalEvidenceDrawer from '../../components/evidence/ClinicalEvidenceDrawer.vue'
+import type { ContextType, OrganSystem } from '../../api/clinicalEvidence'
 
-const router = useRouter()
-const route = useRoute()
 const { navigateBack } = useAppNavigation()
 const {
-  patient, vitals, bedcard, alerts,
+  patient, alerts,
   displayName, displayBed, displayDept, displayGenderAge,
-  heroMonitorUpdatedAt, clinicalSummaryLoading, loadClinicalSummary,
+  heroMonitorUpdatedAt,
   initLifecycle, cleanupLifecycle,
 } = usePatientDetail()
 
 // 证据抽屉状态
 const evidenceDrawerOpen = ref(false)
 const evidenceDrawerPatientId = ref('')
-const evidenceDrawerContextType = ref<string>('risk')
+const evidenceDrawerContextType = ref<ContextType>('risk')
 const evidenceDrawerContextId = ref('')
-const evidenceDrawerOrganSystem = ref<string>('')
+const evidenceDrawerOrganSystem = ref<OrganSystem | undefined>(undefined)
 const evidenceDrawerTitle = ref('')
 
-function openEvidenceDrawer(contextType: string, opts?: { contextId?: string; organSystem?: string; title?: string }) {
+function openEvidenceDrawer(contextType: ContextType, opts?: { contextId?: string; organSystem?: OrganSystem; title?: string }) {
   const pid = patient.value?._id || patient.value?.id || ''
   if (!pid) return
   evidenceDrawerPatientId.value = pid
   evidenceDrawerContextType.value = contextType
   evidenceDrawerContextId.value = opts?.contextId || ''
-  evidenceDrawerOrganSystem.value = opts?.organSystem || ''
+  evidenceDrawerOrganSystem.value = opts?.organSystem
   evidenceDrawerTitle.value = opts?.title || '临床证据'
   evidenceDrawerOpen.value = true
 }

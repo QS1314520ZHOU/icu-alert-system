@@ -30,7 +30,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEmbedBridge } from '../../composables/useEmbedBridge'
-import type { PatientContextPayload, ThemePayload } from '../../config/postMessageProtocol'
+import type { ThemePayload } from '../../config/postMessageProtocol'
 
 const route = useRoute()
 const themeMode = ref<'light' | 'dark'>('light')
@@ -40,10 +40,10 @@ const breadcrumbs = ref<Array<{ label: string; path?: string }>>([])
 // 从路由 meta 或 query 获取 moduleKey
 const moduleKey = computed(() => (route.meta?.moduleKey as string) || (route.params?.moduleKey as string) || '')
 
-const { patientId, sendUpdateTitle, sendUpdateBreadcrumb, sendResize } = useEmbedBridge({
+const { sendUpdateTitle, sendResize } = useEmbedBridge({
   moduleKey: moduleKey.value,
   targetOrigin: window.location.origin,
-  onPatientContextChanged: (payload: PatientContextPayload) => {
+  onPatientContextChanged: () => {
     // 模块可以通过 watch patientId 来响应患者切换
   },
   onThemeChanged: (payload: ThemePayload) => {

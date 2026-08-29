@@ -7,20 +7,17 @@
  * - 校验消息来源和结构
  */
 
-import { ref, onMounted, onBeforeUnmount, type Ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import {
   createEmbedMessage,
   isHostMessage,
   isDuplicateRequestId,
   validateHostPayload,
-  EMBED_MESSAGE_TYPES,
   type EmbedMessage,
-  type HostMessage,
   type PatientContextPayload,
   type ThemePayload,
   type PermissionPayload,
   type NavigateModulePayload,
-  type BreadcrumbPayload,
   type ErrorPayload,
   type NotificationPayload,
 } from '../config/postMessageProtocol'

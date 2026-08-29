@@ -45,7 +45,7 @@
             </div>
             <div class="meta-item">
               <span class="meta-label">大小</span>
-              <span class="meta-value">{{ formatFileSize(pkg.file_size) }}</span>
+              <span class="meta-value">{{ formatFileSize(pkg.file_size || 0) }}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">上传时间</span>
@@ -128,24 +128,24 @@ const uploadForm = ref({ type: 'icd', signature: '' })
 interface OfflinePackage {
   id: string
   name: string
-  package_type: string  // icd, terminology, guidelines, model, embedding, vector
-  version: string
+  package_type?: string  // icd, terminology, guidelines, model, embedding, vector
+  version?: string
   source_version?: string
   sha256?: string
-  file_size: number
-  status: 'draft' | 'published' | 'deprecated' | 'validating' | 'rollback'
-  uploaded_at: string
+  file_size?: number
+  status: string
+  uploaded_at?: string
   uploaded_by?: string
   diff_summary?: string
   impact_summary?: string
 }
 
 const packages = ref<OfflinePackage[]>([])
-
+const loading = ref(false)
 const error = ref<string | null>(null)
 
 // 包类型图标
-function packageIcon(type: string) {
+function packageIcon(type?: string) {
   const icons: Record<string, string> = {
     'icd': '📋',
     'terminology': '📖',
@@ -154,7 +154,7 @@ function packageIcon(type: string) {
     'embedding': '🔢',
     'vector': '🗂️',
   }
-  return icons[type] || '📦'
+  return type ? (icons[type] || '📦') : '📦'
 }
 
 // 格式化文件大小
@@ -207,7 +207,7 @@ function rollbackPackage(pkg: OfflinePackage) {
 }
 
 // 差异预览
-function previewDiff(pkg: OfflinePackage) {
+function previewDiff(_pkg: OfflinePackage) {
   message.info('差异预览功能开发中')
 }
 

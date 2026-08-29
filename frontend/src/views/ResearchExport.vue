@@ -12,7 +12,7 @@
     <div class="export-viz-row">
       <div class="export-viz-card export-viz-card--ring">
         <h4>导出就绪度</h4>
-        <DataCompletenessRing :percent="exportReadiness" :size="100" />
+        <DataCompletenessRing :value="exportReadiness" :size="100" />
         <span class="export-viz-ring-label">{{ form.data_types.length }} 类数据已选</span>
       </div>
       <div class="export-viz-card">
@@ -303,10 +303,10 @@ function historyRowProps(record: any) {
 const exportReadiness = computed(() => {
   let total = 4
   let filled = 0
-  if (form.cohort_id || form.department || form.patient_scope !== 'all') filled++
-  if (form.data_types.length > 0) filled++
-  if (form.format) filled++
-  if (form.desensitize || form.include_data_dict) filled++
+  if (form.value.cohort_id || form.value.department || form.value.patient_scope !== 'all') filled++
+  if (form.value.data_types.length > 0) filled++
+  if (form.value.format) filled++
+  if (form.value.desensitize || form.value.include_data_dict) filled++
   return Math.round((filled / total) * 100)
 })
 

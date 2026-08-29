@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 // Mock the feature flags module
 vi.mock('../config/featureFlags', () => ({
-  canAccessPatientModule: vi.fn((moduleKey: string, config: any, role?: string) => {
+  canAccessPatientModule: vi.fn((_moduleKey: string, config: any, role?: string) => {
     // Check feature flag first (matches real implementation order)
     if (config?.featureFlag) {
       const disabled = ['ai-causal-inference', 'ai-what-if', 'ai-disease-trajectory']

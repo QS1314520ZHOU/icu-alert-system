@@ -17,7 +17,7 @@
       </div>
       <div class="trial-viz-card trial-viz-card--ring">
         <h4>数据完整性</h4>
-        <DataCompletenessRing :percent="screeningCompleteness" :size="100" />
+        <DataCompletenessRing :value="screeningCompleteness" :size="100" />
         <span class="trial-viz-ring-label">{{ trials.length }} 项试验</span>
       </div>
     </div>

@@ -112,7 +112,7 @@
       <div class="rp-ai-content">
         <div class="rp-contributors-list">
           <div v-for="(c, idx) in topContributors" :key="idx" class="rp-contributor-item">
-            <span class="rp-contributor-rank">{{ idx + 1 }}</span>
+            <span class="rp-contributor-rank">{{ Number(idx) + 1 }}</span>
             <span class="rp-contributor-name">{{ c.feature || c.name || '' }}</span>
             <span class="rp-contributor-impact" :class="c.direction > 0 ? 'rp-change-up' : 'rp-change-down'">
               {{ c.direction > 0 ? '↑' : '↓' }}{{ (Math.abs(c.impact || c.weight || 0) * 100).toFixed(1) }}%
@@ -128,6 +128,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import type { EChartsOption } from 'echarts'
 import { useEmbedBridge } from '../../../composables/useEmbedBridge'
 import { getAiRiskForecast } from '../../../api'
 import { getRiskLevel } from '../../../styles/tokens/risk'
@@ -289,7 +290,7 @@ const organRiskScores = computed(() => rawData.value?.organ_risk_scores || {})
 
 // ── 图表 option ──────────────────────────────────
 
-const trendChartOption = computed(() => {
+const trendChartOption = computed<any>(() => {
   const history = rawData.value?.history_risk_curve || []
   const forecast = rawData.value?.forecast_risk_curve || []
   const all = [...history, ...forecast]
@@ -335,7 +336,7 @@ const trendChartOption = computed(() => {
   }
 })
 
-const organChartOption = computed(() => {
+const organChartOption = computed<EChartsOption | null>(() => {
   const scores = organRiskScores.value
   const keys = Object.keys(scores)
   if (!keys.length) return null
@@ -373,7 +374,7 @@ const organChartOption = computed(() => {
   }
 })
 
-const contributorChartOption = computed(() => {
+const contributorChartOption = computed<EChartsOption | null>(() => {
   const contribs = topContributors.value
   if (!contribs.length) return null
 
@@ -381,7 +382,7 @@ const contributorChartOption = computed(() => {
     name: c.feature || c.name || '',
     value: Math.abs(c.weight || c.impact || 0),
     direction: c.direction || (c.weight > 0 ? 1 : -1),
-  })).filter(d => d.value > 0)
+  })).filter((d: { value: number }) => d.value > 0)
 
   if (!data.length) return null
 
@@ -389,10 +390,10 @@ const contributorChartOption = computed(() => {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: 120, right: 16, top: 12, bottom: 12 },
     xAxis: { type: 'value', axisLabel: { fontSize: 11 } },
-    yAxis: { type: 'category', data: data.map(d => d.name), axisLabel: { fontSize: 11 } },
+    yAxis: { type: 'category', data: data.map((d: { name: string }) => d.name), axisLabel: { fontSize: 11 } },
     series: [{
       type: 'bar',
-      data: data.map(d => ({
+      data: data.map((d: { value: number; direction: number }) => ({
         value: d.value,
         itemStyle: {
           color: d.direction > 0 ? '#DC2626' : '#16A34A',

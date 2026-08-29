@@ -60,7 +60,7 @@ export function useAppNavigation() {
    * Called when a patient is selected from the PatientSelectorModal.
    * Navigates to the pending module for the selected patient.
    */
-  function onPatientSelected(patientId: string) {
+  async function onPatientSelected(patientId: string) {
     showPatientSelector.value = false
     const moduleKey = patientCtx.consumePendingModule()
 
@@ -69,7 +69,7 @@ export function useAppNavigation() {
     // Sync patient context
     patientCtx.activePatientId = patientId
     try {
-      const { useAuthStore } = require('../stores/auth')
+      const { useAuthStore } = await import('../stores/auth')
       const auth = useAuthStore()
       const userId = String(auth.userId || auth.userName || '').trim()
       const key = userId ? `icu_active_patient_id:${userId}` : 'icu_active_patient_id:anonymous'

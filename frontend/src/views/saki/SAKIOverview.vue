@@ -81,10 +81,10 @@ onMounted(async () => {
       getSakiCases({ page: 1, page_size: 10 }),
     ])
     const stats = statsRes.data
-    metrics.value[0].value = stats.total_cases || 0
-    metrics.value[1].value = stats.saki_positive || 0
-    metrics.value[2].value = (stats.by_review_status?.pending) || 0
-    metrics.value[3].value = (stats.by_review_status?.confirmed) || 0
+    metrics.value[0]!.value = stats.total_cases || 0
+    metrics.value[1]!.value = stats.saki_positive || 0
+    metrics.value[2]!.value = (stats.by_review_status?.pending) || 0
+    metrics.value[3]!.value = (stats.by_review_status?.confirmed) || 0
 
     const byStage = stats.by_stage || {}
     const stageData = Object.entries(byStage).map(([k, v]) => ({ name: `Stage ${k}`, value: v as number }))
