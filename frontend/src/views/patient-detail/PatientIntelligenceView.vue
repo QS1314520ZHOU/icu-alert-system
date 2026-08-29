@@ -1,29 +1,319 @@
 <template>
-  <div class="patient-intelligence">
-    <a-card title="AI 分析" :bordered="false">
-      <a-tabs>
-        <a-tab-pane key="digital-twin" tab="数字孪生">
-          <p class="placeholder-text">数字孪生与 What-if 模拟分析</p>
-        </a-tab-pane>
-        <a-tab-pane key="similar-cases" tab="相似病例">
-          <p class="placeholder-text">相似病例检索与结局回溯</p>
-        </a-tab-pane>
-        <a-tab-pane key="risk-forecast" tab="风险预测">
-          <p class="placeholder-text">多维风险预测与趋势分析</p>
-        </a-tab-pane>
-        <a-tab-pane key="causal" tab="因果分析">
-          <p class="placeholder-text">因果推理与干预建议</p>
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
+  <div class="intelligence-layout">
+    <a-tabs v-model:activeKey="activeTab" type="card">
+      <!-- 数字孪生 -->
+      <a-tab-pane key="digital-twin" tab="数字孪生">
+        <Suspense>
+          <DigitalTwinTab :patient-id="patientId" :patient="patient" />
+          <template #fallback><div class="loading-placeholder"><a-spin tip="加载数字孪生..." /></div></template>
+        </Suspense>
+      </a-tab-pane>
+
+      <!-- 相似病例 -->
+      <a-tab-pane key="similar-cases" tab="相似病例">
+        <Suspense>
+          <SimilarCasesTab :patient-id="patientId" />
+          <template #fallback><div class="loading-placeholder"><a-spin tip="加载相似病例..." /></div></template>
+        </Suspense>
+      </a-tab-pane>
+
+      <!-- 风险预测 -->
+      <a-tab-pane key="risk-forecast" tab="风险预测">
+        <section class="intel-section">
+          <div class="section-header">
+            <h3>AI 风险预测</h3>
+            <a-button size="small" @click="loadRiskForecast" :loading="riskLoading">刷新</a-button>
+          </div>
+          <div v-if="riskForecast" class="risk-detail">
+            <div class="risk-summary">
+              <p>{{ riskText || '暂无风险摘要' }}</p>
+            </div>
+            <div v-if="organRows.length" class="organ-assessment">
+              <h4>器官风险评估</h4>
+              <div class="organ-grid">
+                <div v-for="organ in organRows" :key="organ.key" class="organ-item" :class="organClass(organ)">
+                  <span class="organ-name">{{ organ.label }}</span>
+                  <span class="organ-status">{{ organ.status_text }}</span>
+                  <p v-if="organ.evidence" class="organ-evidence">{{ organ.evidence }}</p>
+                </div>
+              </div>
+            </div>
+            <div v-if="riskForecast.forecast_data" class="risk-raw">
+              <CollapseSection>
+                <template #title><span style="font-size:13px;font-weight:600">预测数据详情</span></template>
+                <pre class="risk-raw-data">{{ JSON.stringify(riskForecast.forecast_data, null, 2) }}</pre>
+              </CollapseSection>
+            </div>
+          </div>
+          <a-empty v-else-if="!riskLoading" description="暂无风险预测数据" :image-style="{ height: '40px' }" />
+        </section>
+      </a-tab-pane>
+
+      <!-- 因果分析 -->
+      <a-tab-pane key="causal" tab="因果分析">
+        <section class="intel-section">
+          <div class="section-header">
+            <h3>因果推理分析</h3>
+            <a-button size="small" @click="loadCausal" :loading="causalLoading">生成分析</a-button>
+          </div>
+          <div v-if="causalResult" class="causal-detail">
+            <div v-if="causalResult.causal_chain" class="causal-chain">
+              <h4>因果链</h4>
+              <p>{{ causalResult.causal_chain }}</p>
+            </div>
+            <div v-if="causalResult.intervention_suggestions?.length" class="causal-suggestions">
+              <h4>干预建议</h4>
+              <ul>
+                <li v-for="(s, i) in causalResult.intervention_suggestions" :key="i">{{ s }}</li>
+              </ul>
+            </div>
+            <div v-if="causalResult.risk_factors?.length" class="causal-risk-factors">
+              <h4>风险因素</h4>
+              <div class="risk-factor-list">
+                <a-tag v-for="(f, i) in causalResult.risk_factors" :key="i" color="orange">{{ f }}</a-tag>
+              </div>
+            </div>
+            <CollapseSection v-if="causalResult.raw_analysis">
+              <template #title><span style="font-size:13px;font-weight:600">完整分析</span></template>
+              <div class="causal-raw" v-html="causalResult.raw_analysis"></div>
+            </CollapseSection>
+          </div>
+          <a-empty v-else-if="!causalLoading" description="点击"生成分析"获取因果推理" :image-style="{ height: '40px' }" />
+        </section>
+      </a-tab-pane>
+    </a-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Card as ACard, Tabs as ATabs, TabPane as ATabPane } from 'ant-design-vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { useRoute } from 'vue-router'
+import { usePatientDetail } from '../../composables/usePatientDetail'
+import CollapseSection from '../../components/common/CollapseSection.vue'
+import {
+  getAiRiskForecast,
+  postAiCausalAnalysis,
+} from '../../api/index'
+
+const DigitalTwinTab = defineAsyncComponent(() => import('../../components/patient-detail/DigitalTwinTab.vue'))
+const SimilarCasesTab = defineAsyncComponent(() => import('../../components/patient-detail/SimilarCasesTab.vue'))
+
+const route = useRoute()
+const { patient, aiRiskForecast, aiRiskText, aiRiskLoading, loadAiRisk, aiRiskOrganRows } = usePatientDetail()
+
+const patientId = computed(() => String(route.params.id || ''))
+const activeTab = ref('digital-twin')
+
+// ── Risk Forecast ───────────────────────────────────────
+const riskForecast = ref<any>(null)
+const riskLoading = ref(false)
+const riskText = ref('')
+const organRows = ref<any[]>([])
+
+async function loadRiskForecast() {
+  if (!patientId.value) return
+  riskLoading.value = true
+  try {
+    const res = await getAiRiskForecast(patientId.value)
+    riskForecast.value = res?.data?.data || res?.data || null
+    riskText.value = riskForecast.value?.summary || riskForecast.value?.risk_text || ''
+    organRows.value = riskForecast.value?.organ_assessments
+      ? Object.entries(riskForecast.value.organ_assessments).map(([key, val]: any) => ({
+          key,
+          label: val.label || key,
+          status_text: val.status_text || val.status || '',
+          evidence: val.evidence || '',
+        }))
+      : []
+  } catch (e) {
+    console.warn('[IntelligenceView] risk forecast failed:', e)
+  } finally {
+    riskLoading.value = false
+  }
+}
+
+// ── Causal Analysis ─────────────────────────────────────
+const causalResult = ref<any>(null)
+const causalLoading = ref(false)
+
+async function loadCausal() {
+  if (!patientId.value) return
+  causalLoading.value = true
+  try {
+    // Use diagnosis or first abnormal finding as context
+    const abnormalFinding = patient.value?.diagnosis
+      || riskText.value
+      || '患者综合评估'
+    const res = await postAiCausalAnalysis(patientId.value, { abnormal_finding: abnormalFinding })
+    causalResult.value = res?.data?.data || res?.data || null
+  } catch (e) {
+    console.warn('[IntelligenceView] causal analysis failed:', e)
+  } finally {
+    causalLoading.value = false
+  }
+}
+
+function organClass(organ: any) {
+  const s = String(organ.status_text || '').toLowerCase()
+  if (s.includes('衰竭') || s.includes('failure') || s.includes('危')) return 'organ-critical'
+  if (s.includes('受损') || s.includes('impaired') || s.includes('风险')) return 'organ-warning'
+  return 'organ-normal'
+}
+
+onMounted(() => {
+  // Pre-load risk forecast on mount
+  loadRiskForecast()
+})
 </script>
 
 <style scoped>
-.patient-intelligence { padding: 16px; }
-.placeholder-text { color: #8a94a6; text-align: center; padding: 40px 0; }
+.intelligence-layout {
+  padding: 0;
+}
+
+.loading-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.intel-section {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Risk Forecast */
+.risk-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.risk-summary p {
+  margin: 0;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.organ-assessment h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.organ-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.organ-item {
+  padding: 10px 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.organ-name {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.organ-status {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.organ-critical { border-left: 3px solid #ff4d4f; }
+.organ-critical .organ-status { color: #ff4d4f; }
+.organ-warning { border-left: 3px solid #fa8c16; }
+.organ-warning .organ-status { color: #fa8c16; }
+.organ-normal { border-left: 3px solid #52c41a; }
+.organ-normal .organ-status { color: #52c41a; }
+
+.organ-evidence {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #999;
+  line-height: 1.4;
+}
+
+.risk-raw-data {
+  font-size: 11px;
+  color: #666;
+  background: #fafafa;
+  padding: 10px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow: auto;
+}
+
+/* Causal Analysis */
+.causal-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.causal-detail h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.causal-chain p {
+  margin: 0;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
+  padding: 10px;
+  background: #f6f8fa;
+  border-radius: 6px;
+}
+
+.causal-suggestions ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.causal-suggestions li {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.8;
+}
+
+.risk-factor-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.causal-raw {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333;
+}
 </style>
