@@ -12,6 +12,8 @@ import {
   createHostMessage,
   isEmbedMessage,
   isValidMessage,
+  isDuplicateRequestId,
+  validateEmbedPayload,
   HOST_MESSAGE_TYPES,
   EMBED_MESSAGE_TYPES,
   type HostMessage,
@@ -114,6 +116,18 @@ export function useHostBridge(options: HostBridgeOptions) {
 
     // 8. 校验 requestId 存在且格式正确
     if (!data.requestId || typeof data.requestId !== 'string') return
+
+    // 8b. requestId 短期去重（防重放）
+    if (isDuplicateRequestId(data.requestId)) {
+      console.warn('[HostBridge] Rejected duplicate requestId:', data.requestId)
+      return
+    }
+
+    // 8c. 逐类型 payload schema 校验
+    if (!validateEmbedPayload(data.type, data.payload)) {
+      console.warn('[HostBridge] Rejected invalid payload for type:', data.type)
+      return
+    }
 
     // 9. 校验 moduleKey（防止其他 iframe 的消息混入）
     if (data.payload?.moduleKey && data.payload.moduleKey !== currentModuleKey()) return

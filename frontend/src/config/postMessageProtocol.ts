@@ -67,6 +67,7 @@ export interface PatientContextPayload {
   bed?: string
   dept?: string
   riskLevel?: string
+  moduleKey?: string
 }
 
 export interface ThemePayload {
@@ -110,10 +111,37 @@ export interface BreadcrumbPayload {
   items: Array<{ label: string; path?: string }>
 }
 
+export interface OpenEvidencePayload {
+  contextType: string
+  contextId?: string
+  patientId: string
+}
+
+export interface OpenAlertPayload {
+  alertId: string
+  patientId: string
+}
+
 // ── 安全配置 ──────────────────────────────────────
 
 export const ALLOWED_SOURCES = ['icu-alert-host', 'icu-alert-embed'] as const
 export const PROTOCOL_VERSION = '1.0'
+
+/** RESIZE 安全范围 */
+export const RESIZE_MIN = 400
+export const RESIZE_MAX = 2000
+
+/** 通知文本最大长度 */
+export const NOTIFICATION_TITLE_MAX = 200
+export const NOTIFICATION_MESSAGE_MAX = 1000
+
+/** requestId 去重窗口 (ms) */
+export const REQUEST_ID_DEDUP_WINDOW = 5 * 60 * 1000
+
+/** OPEN_EVIDENCE contextType 白名单 */
+export const EVIDENCE_CONTEXT_TYPES = [
+  'risk', 'alert', 'lab', 'medication', 'diagnosis', 'vital', 'treatment',
+] as const
 
 // ── 工具函数 ──────────────────────────────────────
 
@@ -153,6 +181,8 @@ export function isValidMessage(data: any): boolean {
   if (!ALLOWED_SOURCES.includes(data.source)) return false
   if (data.version !== PROTOCOL_VERSION) return false
   if (typeof data.type !== 'string') return false
+  if (typeof data.requestId !== 'string' || !data.requestId) return false
+  if (typeof data.timestamp !== 'number' || data.timestamp <= 0) return false
   return true
 }
 
@@ -164,4 +194,105 @@ export function isHostMessage(data: any): data is HostMessage {
 /** 判断是否为嵌入消息 */
 export function isEmbedMessage(data: any): data is EmbedMessage {
   return isValidMessage(data) && data.source === 'icu-alert-embed'
+}
+
+// ── requestId 去重 ──────────────────────────────────
+
+const _seenRequestIds = new Map<string, number>()
+
+/**
+ * Check if a requestId has been seen recently (replay protection).
+ * Returns true if this is a duplicate (should be rejected).
+ */
+export function isDuplicateRequestId(requestId: string): boolean {
+  const now = Date.now()
+  // Clean up old entries
+  for (const [id, ts] of _seenRequestIds) {
+    if (now - ts > REQUEST_ID_DEDUP_WINDOW) {
+      _seenRequestIds.delete(id)
+    }
+  }
+  if (_seenRequestIds.has(requestId)) return true
+  _seenRequestIds.set(requestId, now)
+  return false
+}
+
+// ── 逐类型 Schema 校验 ──────────────────────────────
+
+/** String with max length check */
+function isStringWithMax(val: any, maxLen: number): boolean {
+  return typeof val === 'string' && val.length <= maxLen && val.length > 0
+}
+
+/** Validate host message payload by type */
+export function validateHostPayload(type: string, payload: any): boolean {
+  if (!payload || typeof payload !== 'object') return false
+  switch (type) {
+    case 'HOST_READY':
+      return typeof payload.moduleKey === 'string' || typeof payload.patientId === 'string'
+    case 'PATIENT_CONTEXT_CHANGED':
+      return typeof payload.patientId === 'string' && payload.patientId.length > 0
+    case 'THEME_CHANGED':
+      return payload.mode === 'light' || payload.mode === 'dark'
+    case 'LOCALE_CHANGED':
+      return typeof payload.locale === 'string'
+    case 'PERMISSION_CHANGED':
+      return Array.isArray(payload.roles)
+    case 'REFRESH_MODULE':
+      return typeof payload.moduleKey === 'string'
+    case 'ROUTE_ACTIVATED':
+      return typeof payload.moduleKey === 'string' && typeof payload.path === 'string'
+    default:
+      return false
+  }
+}
+
+/** Validate embed message payload by type */
+export function validateEmbedPayload(type: string, payload: any): boolean {
+  if (!payload || typeof payload !== 'object') return false
+  switch (type) {
+    case 'EMBED_READY':
+      return typeof payload.moduleKey === 'string'
+    case 'NAVIGATE_MODULE':
+      return typeof payload.moduleKey === 'string' && payload.moduleKey.length > 0
+    case 'NAVIGATE_PATIENT':
+      return typeof payload.patientId === 'string' && payload.patientId.length > 0
+    case 'OPEN_PATIENT_DETAIL':
+      return typeof payload.patientId === 'string' && payload.patientId.length > 0
+    case 'OPEN_ALERT':
+      return typeof payload.alertId === 'string' && typeof payload.patientId === 'string'
+    case 'OPEN_EVIDENCE':
+      return (
+        typeof payload.contextType === 'string' &&
+        (EVIDENCE_CONTEXT_TYPES as readonly string[]).includes(payload.contextType) &&
+        typeof payload.patientId === 'string' &&
+        payload.patientId.length > 0
+      )
+    case 'UPDATE_TITLE':
+      return isStringWithMax(payload.title, 500)
+    case 'UPDATE_BREADCRUMB':
+      return Array.isArray(payload.items) && payload.items.length <= 20
+    case 'SET_DIRTY_STATE':
+      return typeof payload.dirty === 'boolean'
+    case 'REQUEST_FULLSCREEN':
+    case 'EXIT_FULLSCREEN':
+      return true
+    case 'SHOW_NOTIFICATION':
+      return (
+        ['info', 'success', 'warning', 'error'].includes(payload.type) &&
+        isStringWithMax(payload.title, NOTIFICATION_TITLE_MAX) &&
+        (payload.message == null || (typeof payload.message === 'string' && payload.message.length <= NOTIFICATION_MESSAGE_MAX))
+      )
+    case 'REPORT_ERROR':
+      return typeof payload.code === 'string' && typeof payload.message === 'string'
+    case 'RESIZE':
+      return (
+        typeof payload.height === 'number' &&
+        isFinite(payload.height) &&
+        payload.height >= RESIZE_MIN &&
+        payload.height <= RESIZE_MAX
+      )
+    default:
+      return false
+  }
 }

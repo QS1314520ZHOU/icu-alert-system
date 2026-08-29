@@ -11,6 +11,8 @@ import { ref, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import {
   createEmbedMessage,
   isHostMessage,
+  isDuplicateRequestId,
+  validateHostPayload,
   EMBED_MESSAGE_TYPES,
   type EmbedMessage,
   type HostMessage,
@@ -58,6 +60,15 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
 
     const data = event.data
     if (!isHostMessage(data)) return
+
+    // requestId 去重（防重放）
+    if (isDuplicateRequestId(data.requestId)) return
+
+    // 逐类型 payload schema 校验
+    if (!validateHostPayload(data.type, data.payload)) {
+      console.warn('[EmbedBridge] Rejected invalid payload for type:', data.type)
+      return
+    }
 
     switch (data.type) {
       case 'HOST_READY':
