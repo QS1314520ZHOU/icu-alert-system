@@ -23,8 +23,8 @@ class SAKIStatistics:
             from app.services.research_analytics import generate_table1
             return await generate_table1(db, patient_ids=ids, group_by=group_by, variables=variables or [])
         except Exception as exc:
-            logger.warning("Table1 生成失败: %s", exc)
-            return await self._fallback_table1(db, ids, group_by)
+            logger.error("Table1 生成失败，不使用回退: %s", exc)
+            return {"error": f"Table1 分析失败: {exc}", "table": {}}
 
     async def km_analysis(
         self, db: Any, patient_ids: list[str] | None = None, cohort_id: str | None = None,
@@ -105,11 +105,13 @@ class SAKIStatistics:
         for pid in ids[:200]:
             cursor = db.col("labResult").find(
                 {
-                    "$or": [{"patientId": pid}, {"patient_id": pid}],
-                    "$or": [
-                        {"test_code": {"$in": cr_keys}},
-                        {"testName": {"$regex": "|".join(cr_keys), "$options": "i"}},
-                        {"code": {"$in": cr_keys}},
+                    "$and": [
+                        {"$or": [{"patientId": pid}, {"patient_id": pid}]},
+                        {"$or": [
+                            {"test_code": {"$in": cr_keys}},
+                            {"testName": {"$regex": "|".join(cr_keys), "$options": "i"}},
+                            {"code": {"$in": cr_keys}},
+                        ]},
                     ],
                 }
             ).sort("reportTime", 1)
@@ -219,3 +221,4 @@ class SAKIStatistics:
                 except ValueError:
                     continue
         return None
+

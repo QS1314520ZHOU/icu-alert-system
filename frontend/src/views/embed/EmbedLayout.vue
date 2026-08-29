@@ -42,7 +42,7 @@ const moduleKey = computed(() => (route.meta?.moduleKey as string) || (route.par
 
 const { patientId, sendUpdateTitle, sendUpdateBreadcrumb, sendResize } = useEmbedBridge({
   moduleKey: moduleKey.value,
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
   onPatientContextChanged: (payload: PatientContextPayload) => {
     // 模块可以通过 watch patientId 来响应患者切换
   },
@@ -138,3 +138,4 @@ watch(() => route.meta?.title, (title) => {
   opacity: 0.6;
 }
 </style>
+

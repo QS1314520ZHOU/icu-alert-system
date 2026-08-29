@@ -97,7 +97,7 @@ const patientId = computed(() => String(route.params.patientId || ''))
 
 const { sendUpdateTitle, sendReportError } = useEmbedBridge({
   moduleKey: 'risk-prediction',
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
   onPatientContextChanged: () => loadData(),
   onRefresh: () => loadData(),
 })
@@ -351,3 +351,4 @@ onMounted(() => {
 
 @media (max-width: 1200px) { .rp-chart-row { grid-template-columns: 1fr; } .rp-info-row { grid-template-columns: 1fr; } }
 </style>
+

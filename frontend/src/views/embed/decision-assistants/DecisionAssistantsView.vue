@@ -28,7 +28,7 @@ import { useEmbedBridge } from '../../../composables/useEmbedBridge'
 
 const { sendUpdateTitle } = useEmbedBridge({
   moduleKey: 'decision-assistants',
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
 })
 
 onMounted(() => {
@@ -99,3 +99,4 @@ onMounted(() => {
   line-height: 1.8;
 }
 </style>
+

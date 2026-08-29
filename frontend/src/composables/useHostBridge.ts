@@ -72,6 +72,8 @@ export function useHostBridge(options: HostBridgeOptions) {
   function handleMessage(event: MessageEvent) {
     // 校验 origin
     if (targetOrigin !== '*' && event.origin !== targetOrigin) return
+    // 校验 source：只接受来自目标 iframe 的消息
+    if (iframeRef.value && event.source !== iframeRef.value.contentWindow) return
 
     const data = event.data
     if (!isEmbedMessage(data)) return

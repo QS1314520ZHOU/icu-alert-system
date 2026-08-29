@@ -68,7 +68,7 @@ const patientId = computed(() => String(route.params.patientId || ''))
 
 const { sendUpdateTitle, sendReportError } = useEmbedBridge({
   moduleKey: 'integrated-risk',
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
   onPatientContextChanged: () => loadData(),
   onRefresh: () => loadData(),
 })
@@ -363,3 +363,4 @@ onMounted(() => {
   .ir-organs-row { grid-template-columns: repeat(3, 1fr); }
 }
 </style>
+

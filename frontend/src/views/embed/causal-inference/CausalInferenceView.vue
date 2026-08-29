@@ -90,6 +90,9 @@
     <!-- Step 4: 因果效应 -->
     <section v-if="currentStep === 3" class="ci-section">
       <h3 class="ci-section-title">因果效应估计</h3>
+      <div class="ci-disclaimer" style="background:#fff7e6;border:1px solid #ffe58f;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#ad6800">
+        ⚠ 当前为探索性分析结果，不等同于正式因果推断。ATE/ATT 基于观察性数据的近似估计，不可直接用于临床决策。
+      </div>
       <div class="ci-effect-cards">
         <div class="ci-effect-card">
           <span class="ci-effect-label">ATE (平均处理效应)</span>
@@ -138,7 +141,7 @@ const patientId = computed(() => String(route.params.patientId || ''))
 
 const { sendUpdateTitle, sendReportError } = useEmbedBridge({
   moduleKey: 'causal-inference',
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
 })
 
 const currentStep = ref(0)
@@ -479,3 +482,4 @@ onMounted(() => {
   .ci-form-grid { grid-template-columns: 1fr; }
 }
 </style>
+

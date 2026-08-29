@@ -10,10 +10,12 @@ from typing import Any
 logger = logging.getLogger("icu-alert")
 
 TEST_PREFIX = "SAKI_TEST_"
+_rng = random.Random(42)  # module-level default for standalone helpers
 
 
-async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
+async def seed_saki_demo_data(db: Any, count: int = 50, seed: int = 42) -> dict[str, Any]:
     """生成 S-AKI 演示数据。"""
+    rng = random.Random(seed)
     now = datetime.now(timezone.utc)
     patients = []
     lab_results = []
@@ -24,22 +26,22 @@ async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
 
     for i in range(count):
         pid = f"{TEST_PREFIX}{uuid.uuid4().hex[:8]}"
-        is_saki = random.random() < 0.60
-        has_sepsis = is_saki or random.random() < 0.10
-        has_aki = is_saki or random.random() < 0.25
+        is_saki = rng.random() < 0.60
+        has_sepsis = is_saki or rng.random() < 0.10
+        has_aki = is_saki or rng.random() < 0.25
 
-        age = random.randint(18, 90)
-        sex = random.choice(["M", "F"])
-        weight = random.uniform(45, 110)
-        admit_time = now - timedelta(days=random.randint(3, 30))
-        dept = random.choice(["ICU-A", "ICU-B", "ICU-C", "SICU", "MICU"])
+        age = rng.randint(18, 90)
+        sex = rng.choice(["M", "F"])
+        weight = rng.uniform(45, 110)
+        admit_time = now - timedelta(days=rng.randint(3, 30))
+        dept = rng.choice(["ICU-A", "ICU-B", "ICU-C", "SICU", "MICU"])
 
         # 患者文档
         patient_doc = {
             "_id": pid,
             "name": f"{TEST_PREFIX}Patient_{i+1:03d}",
             "hisPid": pid,
-            "hisBed": f"{dept}-{random.randint(1, 20):02d}",
+            "hisBed": f"{dept}-{rng.randint(1, 20):02d}",
             "dept": dept,
             "hisDept": dept,
             "deptCode": dept,
@@ -59,7 +61,7 @@ async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
         patients.append(patient_doc)
 
         # 肌酐序列（7 天内）
-        baseline_cr = random.uniform(50, 100) if sex == "F" else random.uniform(60, 120)
+        baseline_cr = rng.uniform(50, 100) if sex == "F" else rng.uniform(60, 120)
         cr_trajectory = _gen_creatinine_trajectory(baseline_cr, has_aki, has_sepsis, admit_time, now)
         for t, val in cr_trajectory:
             lab_results.append({
@@ -84,13 +86,13 @@ async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
                 ("wbc", "白细胞", 4, 20), ("pct", "降钙素原", 0.1, 15),
                 ("crp", "C反应蛋白", 5, 200),
             ]:
-                val = random.uniform(base_val, high_val)
+                val = rng.uniform(base_val, high_val)
                 lab_results.append({
                     "_id": f"{TEST_PREFIX}lab_{lab_code}_{pid}",
                     "patientId": pid, "patient_id": pid,
                     "testName": lab_name, "test_code": lab_code, "code": lab_code,
                     "result": str(round(val, 2)), "value": round(val, 2),
-                    "unit": "", "reportTime": admit_time + timedelta(hours=random.randint(1, 24)),
+                    "unit": "", "reportTime": admit_time + timedelta(hours=rng.randint(1, 24)),
                     "test_data": True, "test_prefix": TEST_PREFIX,
                 })
 
@@ -100,10 +102,10 @@ async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
             vitals.append({
                 "_id": f"{TEST_PREFIX}vital_{pid}_{hour_offset}",
                 "patientId": pid, "patient_id": pid,
-                "param_code": "param_HR", "value": random.randint(60, 130),
+                "param_code": "param_HR", "value": rng.randint(60, 130),
                 "recordTime": t, "test_data": True, "test_prefix": TEST_PREFIX,
             })
-            map_val = random.uniform(55, 95) if has_sepsis else random.uniform(70, 100)
+            map_val = rng.uniform(55, 95) if has_sepsis else rng.uniform(70, 100)
             vitals.append({
                 "_id": f"{TEST_PREFIX}vital_map_{pid}_{hour_offset}",
                 "patientId": pid, "patient_id": pid,
@@ -118,15 +120,15 @@ async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
                 "patientId": pid, "patient_id": pid,
                 "drugName": "美罗培南", "drug_name": "美罗培南",
                 "dose": "1g q8h", "route": "IV",
-                "startTime": admit_time + timedelta(hours=random.randint(1, 6)),
+                "startTime": admit_time + timedelta(hours=rng.randint(1, 6)),
                 "test_data": True, "test_prefix": TEST_PREFIX,
             })
-        if has_aki and random.random() < 0.4:
+        if has_aki and rng.random() < 0.4:
             crrt_records.append({
                 "_id": f"{TEST_PREFIX}crrt_{pid}",
                 "patientId": pid, "patient_id": pid,
-                "startTime": admit_time + timedelta(hours=random.randint(12, 48)),
-                "mode": "CVVHDF", "flow_rate": random.randint(25, 35),
+                "startTime": admit_time + timedelta(hours=rng.randint(12, 48)),
+                "mode": "CVVHDF", "flow_rate": rng.randint(25, 35),
                 "test_data": True, "test_prefix": TEST_PREFIX,
             })
 
@@ -142,9 +144,9 @@ async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
             "is_saki": is_saki,
             "saki_probability": "high" if is_saki and saki_stage >= 2 else ("moderate" if is_saki else "none"),
             "aki_stage": saki_stage,
-            "sepsis_phenotype": {"is_sepsis": has_sepsis, "sofa_score": random.randint(2, 12), "sofa_delta": random.randint(0, 8)},
+            "sepsis_phenotype": {"is_sepsis": has_sepsis, "sofa_score": rng.randint(2, 12), "sofa_delta": rng.randint(0, 8)},
             "aki_phenotype": {"aki_stage": saki_stage, "creatinine_baseline": round(baseline_cr, 1)},
-            "temporal_association": {"associated": is_saki, "time_delta_hours": random.uniform(-12, 168)},
+            "temporal_association": {"associated": is_saki, "time_delta_hours": rng.uniform(-12, 168)},
             "risk_factors": [],
             "review_status": "pending",
             "version": "v1.0.0",
@@ -177,7 +179,7 @@ async def seed_saki_demo_data(db: Any, count: int = 50) -> dict[str, Any]:
 async def cleanup_saki_test_data(db: Any) -> dict[str, Any]:
     """清除所有 S-AKI 测试数据。"""
     collections = ["patient", "labResult", "vitalSign", "drug", "crrt",
-                    "saki_cases", "saki_cohorts", "saki_snapshots", "saki_audit_log"]
+                    "saki_cases", "saki_cohorts", "saki_snapshots", "saki_audit_log", "diseases"]
     summary: dict[str, Any] = {"counts": {}}
     for coll_name in collections:
         result = await db.col(coll_name).delete_many({"test_data": True})
@@ -212,21 +214,21 @@ async def ensure_saki_disease_definition(db: Any) -> dict[str, Any]:
 def _gen_diagnosis(has_sepsis: bool, has_aki: bool) -> str:
     parts = []
     if has_sepsis:
-        parts.append(random.choice([
+        parts.append(_rng.choice([
             "脓毒症", "重症脓毒症", "脓毒性休克", "肺部感染", "腹腔感染",
             "泌尿系感染", "导管相关感染", "血流感染",
         ]))
     if has_aki:
         parts.append("急性肾损伤")
-    parts.append(random.choice(["高血压", "2型糖尿病", "冠心病", "COPD", "脑血管病"]))
+    parts.append(_rng.choice(["高血压", "2型糖尿病", "冠心病", "COPD", "脑血管病"]))
     return "，".join(parts)
 
 
 def _gen_creatinine_trajectory(baseline: float, has_aki: bool, has_sepsis: bool, admit: datetime, now: datetime) -> list[tuple[datetime, float]]:
     trajectory = []
     if has_aki:
-        peak_multiplier = random.choice([1.5, 2.0, 2.5, 3.0, 4.0])
-        peak_time_offset = random.randint(12, 72)
+        peak_multiplier = _rng.choice([1.5, 2.0, 2.5, 3.0, 4.0])
+        peak_time_offset = _rng.randint(12, 72)
         for h in range(0, min(168, int((now - admit).total_seconds() / 3600) + 1), 8):
             t = admit + timedelta(hours=h)
             if h < peak_time_offset:

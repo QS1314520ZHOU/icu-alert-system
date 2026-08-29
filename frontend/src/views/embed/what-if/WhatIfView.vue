@@ -128,7 +128,7 @@ const patientId = computed(() => String(route.params.patientId || ''))
 
 const { sendUpdateTitle, sendReportError } = useEmbedBridge({
   moduleKey: 'what-if',
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
   onPatientContextChanged: () => loadCurrentState(),
   onRefresh: () => loadCurrentState(),
 })
@@ -225,10 +225,10 @@ async function runSimulation() {
     const data = res.data || {}
 
     const origProb = data.original_probability ?? (currentRisk.value / 100)
-    const simProb = data.simulated_probability ?? data.new_risk ?? 0
+    const simProb = data.simulated_probability ?? data.new_risk ?? null
     const simResult: any = {
       originalRisk: Math.round(origProb * 100),
-      simulatedRisk: Math.round(simProb * 100),
+      simulatedRisk: simProb != null ? Math.round(simProb * 100) : null,
     }
 
     // 不确定区间
@@ -578,3 +578,4 @@ onMounted(() => {
   .wi-layout { grid-template-columns: 1fr; }
 }
 </style>
+

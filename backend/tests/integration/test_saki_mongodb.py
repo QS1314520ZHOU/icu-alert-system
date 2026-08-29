@@ -248,3 +248,40 @@ def pytest_sessionfinish(s,e):
     for k,v in _stats.items(): print(f"  {k:>10}: {v}")
     print(f"{'='*50}")
 
+
+# ==== 10. 跨患者隔离回归测试 ====
+class TestCrossPatientIsolation:
+    @pytest.mark.asyncio
+    async def test_creatinine_trajectories_isolated(self, db):
+        """两名患者的肌酐轨迹互不干扰（回归测试：修复重复$or bug）。"""
+        pid_a = await _ins_patient(db, "ISO_A")
+        pid_b = await _ins_patient(db, "ISO_B")
+        # 患者A: 肌酐 60 → 200
+        await _ins_lab(db, pid_a, "cr", 60, hrs=48)
+        await _ins_lab(db, pid_a, "cr", 200, hrs=1)
+        # 患者B: 肌酐 50 → 80 (完全不同的轨迹)
+        await _ins_lab(db, pid_b, "cr", 50, hrs=48)
+        await _ins_lab(db, pid_b, "cr", 80, hrs=1)
+
+        from app.services.saki.statistics import SAKIStatistics
+        stats = SAKIStatistics()
+        result = await stats.creatinine_trajectory(_DB(db), patient_ids=[pid_a, pid_b])
+        trajectories = result.get("trajectories", [])
+        assert len(trajectories) == 2
+
+        # 验证每条轨迹只包含对应患者的数据
+        tr_a = next((t for t in trajectories if t["patient_id"] == pid_a), None)
+        tr_b = next((t for t in trajectories if t["patient_id"] == pid_b), None)
+        assert tr_a is not None and tr_b is not None
+
+        # 患者A的轨迹应该包含200，不包含50或80
+        a_values = [p["value"] for p in tr_a["points"]]
+        assert 200 in a_values, f"患者A应有肌酐200，实际: {a_values}"
+        assert 50 not in a_values, f"患者A不应有肌酐50（来自患者B），实际: {a_values}"
+        assert 80 not in a_values, f"患者A不应有肌酐80（来自患者B），实际: {a_values}"
+
+        # 患者B的轨迹应该包含80，不包含60或200
+        b_values = [p["value"] for p in tr_b["points"]]
+        assert 80 in b_values, f"患者B应有肌酐80，实际: {b_values}"
+        assert 60 not in b_values, f"患者B不应有肌酐60（来自患者A），实际: {b_values}"
+        assert 200 not in b_values, f"患者B不应有肌酐200（来自患者A），实际: {b_values}"

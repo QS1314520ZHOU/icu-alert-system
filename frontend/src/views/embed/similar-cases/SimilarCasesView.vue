@@ -89,7 +89,7 @@ const patientId = computed(() => String(route.params.patientId || ''))
 
 const { sendUpdateTitle, sendNavigateModule, sendReportError } = useEmbedBridge({
   moduleKey: 'similar-cases',
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
   onPatientContextChanged: () => loadData(),
   onRefresh: () => loadData(),
 })
@@ -360,3 +360,4 @@ onMounted(() => {
   .sc-overview-row { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
+

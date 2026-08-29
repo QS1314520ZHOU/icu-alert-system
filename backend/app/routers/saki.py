@@ -427,23 +427,44 @@ async def query_audit(
     return serialize_doc(events)
 
 
-# ==================== 演示数据 ====================
+# ==================== 演示数据（仅 testing/development） ====================
+
+def _require_demo_env():
+    """生产环境禁止访问 demo 接口。"""
+    env = os.environ.get("APP_ENV", "production").lower()
+    if env not in ("testing", "development", "test", "dev", "ci"):
+        raise HTTPException(404, "Not found")
+
 
 @router.post("/demo/seed")
-async def seed_demo(count: int = Query(50, ge=1, le=200)):
-    """生成演示数据。"""
+async def seed_demo(count: int = Query(50, ge=1, le=200), seed: int = Query(42)):
+    """生成演示数据。仅 testing/development 可用。"""
+    _require_demo_env()
     _check_ready()
-    result = await seed_data.seed_saki_demo_data(_db(), count)
+    test_run_id = str(__import__("uuid").uuid4())[:8]
+    audit = audit_service.SAKIAuditService()
+    await audit.log_event(_db(), "demo_seed_started", "system", test_run_id, details={"count": count, "seed": seed})
+    result = await seed_data.seed_saki_demo_data(_db(), count, seed=seed)
     await seed_data.ensure_saki_disease_definition(_db())
-    return serialize_doc(result)
+    await audit.log_event(_db(), "demo_seed_completed", "system", test_run_id, details={"counts": result.get("counts", {})})
+    return serialize_doc({"test_run_id": test_run_id, **result})
 
 
 @router.post("/demo/cleanup")
-async def cleanup_demo():
-    """清理测试数据。"""
+async def cleanup_demo(test_run_id: str = Query(..., description="必须提供 test_run_id，禁止无条件清理")):
+    """清理测试数据。仅 testing/development 可用，必须提供 test_run_id。"""
+    _require_demo_env()
     _check_ready()
-    result = await seed_data.cleanup_saki_test_data(_db())
-    return serialize_doc(result)
+    audit = audit_service.SAKIAuditService()
+    await audit.log_event(_db(), "demo_cleanup_started", "system", test_run_id)
+    collections = ["patient", "labResult", "vitalSign", "drug", "crrt",
+                    "saki_cases", "saki_cohorts", "saki_snapshots", "saki_audit_log", "diseases"]
+    summary: dict[str, Any] = {"counts": {}, "test_run_id": test_run_id}
+    for coll_name in collections:
+        result = await _db().col(coll_name).delete_many({"test_prefix": {"": test_run_id}})
+        summary["counts"][coll_name] = result.deleted_count
+    await audit.log_event(_db(), "demo_cleanup_completed", "system", test_run_id, details={"counts": summary["counts"]})
+    return serialize_doc(summary)
 
 
 # ==================== 免责声明 ====================
@@ -458,4 +479,6 @@ async def get_disclaimer():
         "analysis_disclaimer": disclaimer.ANALYSIS_DISCLAIMER,
         "llm_disclaimer": disclaimer.LLM_DISCLAIMER,
     }
+
+
 

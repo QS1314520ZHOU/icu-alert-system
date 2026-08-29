@@ -97,7 +97,7 @@ const patientId = computed(() => String(route.params.patientId || ''))
 
 const { sendUpdateTitle, sendReportError } = useEmbedBridge({
   moduleKey: 'evidence',
-  targetOrigin: '*',
+  targetOrigin: window.location.origin,
   onPatientContextChanged: () => loadData(),
   onRefresh: () => loadData(),
 })
@@ -181,3 +181,4 @@ onMounted(() => {
 
 .ev-disclaimer { padding: 10px 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; font-size: 12px; color: #92400E; }
 </style>
+
