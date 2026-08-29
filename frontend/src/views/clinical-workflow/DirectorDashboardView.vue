@@ -115,9 +115,9 @@ const typicalCase = computed(() => {
 
 const roleBars = computed(() => {
   const colors: Record<string, string> = {
-    nurse: '#1A9C5B',
+    nurse: 'var(--color-success)',
     doctor: '#60a5fa',
-    head_nurse: '#E8901C',
+    head_nurse: 'var(--color-warning)',
     director: '#D9342B',
   }
   const source = props.ctx.roleDistribution.value.length
@@ -131,7 +131,7 @@ const roleBars = computed(() => {
   const max = Math.max(...source.map((r: any) => Number(r.value || 0)), 1)
   return source.map((row: any) => ({
     ...row,
-    color: colors[row.key] || '#15558D',
+    color: colors[row.key] || 'var(--color-primary)',
     percent: Math.max(8, Math.round((Number(row.value || 0) / max) * 100)),
   }))
 })
@@ -145,7 +145,7 @@ const roleBars = computed(() => {
 .task-section {
   padding: 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .section-header {
@@ -163,9 +163,9 @@ const roleBars = computed(() => {
 }
 .section-label.high { background: rgba(251,146,60,.15); color: #b96b12; }
 .section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
-.section-label.info { background: rgba(21,85,141,.15); color: #15558D; }
-.section-label.warning { background: rgba(232,144,28,.15); color: #E8901C; }
-.section-label.stable { background: rgba(26,156,91,.15); color: #1A9C5B; }
+.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
+.section-label.warning { background: rgba(232,144,28,.15); color: var(--color-warning); }
+.section-label.stable { background: rgba(26,156,91,.15); color: var(--color-success); }
 .section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
 
 .event-list { display: grid; gap: 6px; }
@@ -175,9 +175,9 @@ const roleBars = computed(() => {
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
@@ -195,8 +195,8 @@ const roleBars = computed(() => {
 .metric-item {
   padding: 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125,211,252,.1);
-  background: rgba(14,116,144,.06);
+  border: 1px solid var(--color-border);
+  background: var(--color-primary-bg);
   text-align: center;
 }
 .metric-item span { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
@@ -213,7 +213,7 @@ const roleBars = computed(() => {
 .role-track {
   height: 8px;
   border-radius: 999px;
-  background: rgba(125,211,252,.12);
+  background: var(--color-border);
   overflow: hidden;
 }
 .role-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
@@ -225,9 +225,9 @@ const roleBars = computed(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
 }
 .scanner-row strong { font-size: 13px; color: var(--text-primary); }
 .scanner-row span { font-size: 12px; color: var(--text-secondary); }
@@ -251,9 +251,9 @@ const roleBars = computed(() => {
   gap: 10px;
   align-items: center;
   padding: 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;

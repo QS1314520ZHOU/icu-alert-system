@@ -40,46 +40,41 @@
       <div v-for="item in filteredReviews" :key="item.id" class="review-card">
         <div class="review-header">
           <div class="review-type">
-            <span class="type-icon">{{ typeIcon(item.type) }}</span>
-            <span class="type-text">{{ item.type }}</span>
+            <span class="type-icon">{{ typeIcon(item.resource_type) }}</span>
+            <span class="type-text">{{ resourceTypeText(item.resource_type) }}</span>
           </div>
           <span :class="['status-badge', `status-badge--${item.status}`]">{{ statusText(item.status) }}</span>
         </div>
 
         <div class="review-body">
-          <h4 class="review-title">{{ item.title }}</h4>
-          <p class="review-desc">{{ item.description }}</p>
+          <h4 class="review-title">{{ resourceTypeText(item.resource_type) }}审核</h4>
+          <p class="review-desc">资源ID: {{ item.resource_id }}</p>
 
           <div class="review-meta">
             <div class="meta-item">
               <span class="meta-label">提交人</span>
-              <span class="meta-value">{{ item.submitted_by }}</span>
+              <span class="meta-value">{{ item.submitter_id }}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">提交时间</span>
               <span class="meta-value">{{ item.submitted_at }}</span>
             </div>
             <div class="meta-item">
-              <span class="meta-label">版本变更</span>
-              <span class="meta-value meta-value--code">{{ item.version_from }} → {{ item.version_to }}</span>
+              <span class="meta-label">版本</span>
+              <span class="meta-value meta-value--code">{{ item.resource_version }}</span>
             </div>
           </div>
 
-          <!-- 影响范围 -->
-          <div v-if="item.impact" class="review-impact">
-            <span class="impact-label">影响范围：</span>
-            <span class="impact-text">{{ item.impact }}</span>
+          <!-- 审核意见 -->
+          <div v-if="item.review_comment" class="review-impact">
+            <span class="impact-label">审核意见：</span>
+            <span class="impact-text">{{ item.review_comment }}</span>
           </div>
 
-          <!-- 版本差异 -->
-          <div v-if="item.changes?.length" class="review-changes">
-            <h5 class="changes-title">变更内容</h5>
-            <ul class="changes-list">
-              <li v-for="(change, i) in item.changes" :key="i" class="change-item">
-                <span :class="['change-type', `change-type--${change.type}`]">{{ change.type }}</span>
-                <span class="change-text">{{ change.text }}</span>
-              </li>
-            </ul>
+          <!-- 修改请求 -->
+          <div v-if="item.change_request" class="review-impact">
+            <span class="impact-label">修改要求：</span>
+            <span class="impact-text">{{ item.change_request }}</span>
           </div>
         </div>
 
@@ -103,7 +98,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { getReviews } from '../../api/diseaseCenter'
 
 // 状态
 const activeTab = ref('pending')
@@ -123,92 +120,22 @@ const tabs = computed(() => [
 // 审核项
 interface ReviewItem {
   id: string
-  type: string
-  title: string
-  description: string
-  submitted_by: string
+  resource_type: string
+  resource_id: string
+  resource_version: string
+  status: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'changes_requested'
+  submitter_id: string
   submitted_at: string
-  version_from: string
-  version_to: string
-  status: 'pending' | 'reviewing' | 'approved' | 'rejected'
-  impact?: string
-  changes?: Array<{ type: string; text: string }>
+  reviewer_id?: string
+  reviewed_at?: string
+  review_comment?: string
+  change_request?: string
+  diff?: string
 }
 
 const reviews = ref<ReviewItem[]>([])
-
-// 模拟数据
-const mockReviews: ReviewItem[] = [
-  {
-    id: '1',
-    type: '病种',
-    title: '脓毒症表型规则更新',
-    description: '更新脓毒症表型识别规则，增加乳酸阈值条件和时间窗口约束',
-    submitted_by: '张医生',
-    submitted_at: '2024-03-20 14:30',
-    version_from: 'v2.0.0',
-    version_to: 'v2.1.0',
-    status: 'pending',
-    impact: '影响 5 条规则，1247 名患者',
-    changes: [
-      { type: '新增', text: '乳酸 > 2 mmol/L 条件' },
-      { type: '修改', text: 'SOFA 阈值从 3 调整为 2' },
-      { type: '新增', text: '6小时时间窗口约束' },
-    ],
-  },
-  {
-    id: '2',
-    type: '规则',
-    title: 'SOFA-2 评分阈值调整',
-    description: '根据最新指南调整 SOFA-2 评分的器官功能障碍阈值',
-    submitted_by: '李主任',
-    submitted_at: '2024-03-19 10:15',
-    version_from: 'v1.0.0',
-    version_to: 'v2.0.0',
-    status: 'reviewing',
-    impact: '影响 SOFA-2 评分计算，所有使用 SOFA-2 的规则',
-    changes: [
-      { type: '修改', text: '呼吸系统 PaO2/FiO2 阈值调整' },
-      { type: '修改', text: '肾脏系统肌酐阈值调整' },
-    ],
-  },
-  {
-    id: '3',
-    type: '知识包',
-    title: '指南更新 v2024.3',
-    description: '导入最新重症医学指南文档，包含 SCCM 2024 更新',
-    submitted_by: '王药师',
-    submitted_at: '2024-03-18 16:45',
-    version_from: 'v1.4.0',
-    version_to: 'v1.5.0',
-    status: 'pending',
-    impact: '新增 3 份指南文档，更新 2 份',
-  },
-  {
-    id: '4',
-    type: '术语',
-    title: 'ICD-11 编码补充',
-    description: '补充 50 个 ICD-11 编码映射',
-    submitted_by: '赵编码员',
-    submitted_at: '2024-03-17 09:20',
-    version_from: 'v2024.1',
-    version_to: 'v2024.2',
-    status: 'approved',
-    impact: '新增 50 个编码映射',
-  },
-  {
-    id: '5',
-    type: '病种',
-    title: 'ARDS 分期标准修订',
-    description: '根据柏林定义修订 ARDS 轻中重分期标准',
-    submitted_by: '陈医生',
-    submitted_at: '2024-03-15 11:30',
-    version_from: 'v1.2.0',
-    version_to: 'v1.3.0',
-    status: 'approved',
-    impact: '影响 ARDS 相关规则和评分',
-  },
-]
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 // 过滤后的列表
 const filteredReviews = computed(() => {
@@ -218,13 +145,19 @@ const filteredReviews = computed(() => {
 
 // 类型图标
 function typeIcon(type: string) {
-  const icons: Record<string, string> = { 病种: '📁', 规则: '🧬', 知识包: '📦', 术语: '🔤' }
+  const icons: Record<string, string> = { disease: '📋', rule: '📐', terminology: '📖', offline: '📦', phenotype_rule: '🧬', clinical_pathway: '🗺️', quality_indicator: '📊', scoring: '🎯' }
   return icons[type] || '📄'
+}
+
+// 资源类型文本
+function resourceTypeText(type: string) {
+  const map: Record<string, string> = { disease: '病种', rule: '规则', terminology: '术语', offline: '离线包', phenotype_rule: '表型规则', clinical_pathway: '临床路径', quality_indicator: '质量指标', scoring: '评分体系' }
+  return map[type] || type
 }
 
 // 状态文本
 function statusText(status: string) {
-  const map: Record<string, string> = { pending: '待审核', reviewing: '审核中', approved: '已通过', rejected: '已拒绝' }
+  const map: Record<string, string> = { pending: '待审核', reviewing: '审核中', approved: '已通过', rejected: '已拒绝', changes_requested: '需修改' }
   return map[status] || status
 }
 
@@ -236,36 +169,69 @@ function statusLabel(status: string) {
 
 // 查看详情
 function viewDetail(item: ReviewItem) {
-  alert(`查看详情: ${item.title}`)
+  // TODO: 实现查看详情逻辑
+  message.info(`查看详情: ${resourceTypeText(item.resource_type)} - ${item.resource_id}`)
 }
 
 // 通过
 function approveItem(item: ReviewItem) {
-  if (confirm(`确认通过 "${item.title}"？`)) {
-    item.status = 'approved'
-    stats.value.pending--
-    stats.value.approved++
-  }
+  Modal.confirm({
+    title: '审核确认',
+    content: `确认通过 "${resourceTypeText(item.resource_type)}" 审核？`,
+    okText: '确认',
+    cancelText: '取消',
+    onOk() {
+      // TODO: 调用审核API
+      item.status = 'approved'
+      stats.value.pending--
+      stats.value.approved++
+      message.success('审核通过')
+    },
+  })
 }
 
 // 拒绝
 function rejectItem(item: ReviewItem) {
-  if (confirm(`确认拒绝 "${item.title}"？`)) {
-    item.status = 'rejected'
-    stats.value.pending--
-    stats.value.rejected++
-  }
+  Modal.confirm({
+    title: '拒绝确认',
+    content: `确认拒绝 "${resourceTypeText(item.resource_type)}" 审核？`,
+    okText: '确认',
+    cancelText: '取消',
+    onOk() {
+      // TODO: 调用审核API
+      item.status = 'rejected'
+      stats.value.pending--
+      stats.value.rejected++
+      message.success('已拒绝')
+    },
+  })
 }
 
 // 修改后通过
 function requestChanges(item: ReviewItem) {
-  alert(`已发送修改意见给 ${item.submitted_by}`)
+  // TODO: 实现发送修改意见逻辑
+  message.success(`已发送修改意见给 ${item.submitter_id}`)
+}
+
+// 加载数据
+async function loadReviews() {
+  loading.value = true
+  error.value = null
+
+  try {
+    const { data } = await getReviews()
+    reviews.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    error.value = e?.message || '获取审核列表失败，请稍后重试'
+    reviews.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 // 初始化
-import { onMounted } from 'vue'
 onMounted(() => {
-  reviews.value = mockReviews
+  loadReviews()
 })
 </script>
 

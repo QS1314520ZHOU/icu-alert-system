@@ -95,7 +95,7 @@ function runRounding(item: any) {
 .task-section {
   padding: 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .section-header {
@@ -111,8 +111,8 @@ function runRounding(item: any) {
   padding: 3px 10px;
   border-radius: var(--card-radius);
 }
-.section-label.info { background: rgba(21,85,141,.15); color: #15558D; }
-.section-label.warning { background: rgba(232,144,28,.15); color: #E8901C; }
+.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
+.section-label.warning { background: rgba(232,144,28,.15); color: var(--color-warning); }
 .section-label.high { background: rgba(251,146,60,.15); color: #b96b12; }
 .section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
 .section-hint { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); }
@@ -124,11 +124,11 @@ function runRounding(item: any) {
   grid-template-columns: 52px repeat(5, minmax(0, 1fr));
   gap: 6px;
   align-items: center;
-  border: 1px solid rgba(125,211,252,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 8px;
   color: var(--text-primary);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   cursor: pointer;
 }
 .swimlane-row:hover { border-color: rgba(103,232,249,.32); }
@@ -138,11 +138,11 @@ function runRounding(item: any) {
   border-radius: var(--card-radius);
   text-align: center;
   color: var(--text-secondary);
-  background: rgba(125,211,252,.09);
+  background: var(--color-border);
   font-size: 11px;
 }
-.swimlane-row .is-done { color: #1A9C5B; background: rgba(20,184,166,.22); }
-.swimlane-row .is-todo { color: #E8901C; background: rgba(113,63,18,.28); }
+.swimlane-row .is-done { color: var(--color-success); background: rgba(20,184,166,.22); }
+.swimlane-row .is-todo { color: var(--color-warning); background: rgba(113,63,18,.28); }
 
 .gap-list { display: grid; gap: 8px; }
 .gap-row {
@@ -151,16 +151,16 @@ function runRounding(item: any) {
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
 }
 .gap-info { flex: 1; min-width: 0; }
 .gap-info strong { display: block; color: var(--text-primary); font-size: 13px; }
 .gap-info p { margin: 4px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
 .gap-action {
   flex: 0 0 auto;
-  border: 1px solid rgba(125,211,252,.24);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 5px 10px;
   font-size: 12px;

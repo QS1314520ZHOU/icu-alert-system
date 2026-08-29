@@ -49,10 +49,14 @@ import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, MarkAreaComponent, MarkLineComponent, DataZoomComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { Radio as ARadio } from 'ant-design-vue'
 import { lineChartBase, getChartColor } from '../../../charts/icuTheme'
 import { METRIC } from '../../../styles/tokens/colors'
 import ChartExplanation from '../base/ChartExplanation.vue'
 import ClinicalEmptyState from '../base/ClinicalEmptyState.vue'
+
+const ARadioGroup = ARadio.Group
+const ARadioButton = ARadio.Button
 
 echarts.use([LineChart, GridComponent, TooltipComponent, LegendComponent, MarkAreaComponent, MarkLineComponent, DataZoomComponent, CanvasRenderer])
 

@@ -27,6 +27,27 @@
       <a-spin tip="正在加载呼吸治疗数据..." />
     </div>
 
+    <!-- 可视化概览行 -->
+    <div v-if="ctx.patients.value.length" class="resp-viz-row">
+      <div class="resp-viz-card">
+        <h4>通气参数分布</h4>
+        <div ref="ventChartRef" class="resp-viz-chart"></div>
+      </div>
+      <div class="resp-viz-card">
+        <h4>脱机路径进度</h4>
+        <WorkflowDiagram
+          :nodes="weaningNodes"
+          direction="horizontal"
+          size="small"
+        />
+      </div>
+      <div class="resp-viz-card resp-viz-card--ring">
+        <h4>数据完整性</h4>
+        <DataCompletenessRing :percent="ctx.completion.value?.data_quality?.percent ?? 0" :size="100" />
+        <span class="resp-viz-ring-label">完成率 {{ ctx.completion.value?.percent ?? 0 }}%</span>
+      </div>
+    </div>
+
     <!-- 主体布局 -->
     <div v-else class="resp-layout">
       <!-- 左侧：患者队列 -->
@@ -190,15 +211,85 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { Button as AButton, Input as AInput, Select as ASelect, Spin as ASpin } from 'ant-design-vue'
+import * as echarts from 'echarts/core'
+import { BarChart, GaugeChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import { useRespiratoryDashboard } from '../composables/useRespiratoryDashboard'
 import RespiratoryPatientRow from '../components/respiratory/RespiratoryPatientRow.vue'
 import RespiratoryDrawer from '../components/respiratory/RespiratoryDrawer.vue'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
+import WorkflowDiagram from '../components/charts/flow/WorkflowDiagram.vue'
+import { icuGrid, icuTooltip, getChartColor } from '../charts/icuTheme'
+import type { WorkflowNode } from '../components/charts'
+
+echarts.use([BarChart, GaugeChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const ctx = useRespiratoryDashboard()
 
-onMounted(() => { void ctx.loadAll() })
+// ── 通气参数分布图 ─────────────────────────────────────────────────
+const ventChartRef = ref<HTMLElement>()
+let ventChart: echarts.ECharts | null = null
+
+const ventOption = computed(() => {
+  const pts = ctx.patients.value || []
+  const beds = pts.map((p: any) => p.bed_no || '?')
+  const fio2 = pts.map((p: any) => Number(p.fio2 || 0))
+  const peep = pts.map((p: any) => Number(p.peep || 0))
+  const pf = pts.map((p: any) => Number(p.pf_ratio || 0))
+
+  return {
+    ...icuGrid,
+    ...icuTooltip,
+    legend: { data: ['FiO₂(%)', 'PEEP(cmH₂O)', 'P/F比'], bottom: 0, textStyle: { color: '#8C8C8C', fontSize: 11 } },
+    xAxis: { type: 'category', data: beds, axisLabel: { color: '#8C8C8C', fontSize: 11 }, axisLine: { lineStyle: { color: '#E8E8E8' } }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: '#8C8C8C', fontSize: 11 }, splitLine: { lineStyle: { color: '#F0F0F0', type: 'dashed' } } },
+    series: [
+      { name: 'FiO₂(%)', type: 'bar', data: fio2, itemStyle: { color: getChartColor(0), borderRadius: [4, 4, 0, 0] }, barMaxWidth: 20 },
+      { name: 'PEEP(cmH₂O)', type: 'bar', data: peep, itemStyle: { color: getChartColor(1), borderRadius: [4, 4, 0, 0] }, barMaxWidth: 20 },
+      { name: 'P/F比', type: 'bar', data: pf, itemStyle: { color: getChartColor(2), borderRadius: [4, 4, 0, 0] }, barMaxWidth: 20 },
+    ],
+    grid: { left: 50, right: 16, top: 12, bottom: 40 },
+  }
+})
+
+function initVentChart() {
+  if (!ventChartRef.value) return
+  ventChart = echarts.init(ventChartRef.value)
+  ventChart.setOption(ventOption.value)
+  const ro = new ResizeObserver(() => ventChart?.resize())
+  ro.observe(ventChartRef.value)
+}
+
+watch(ventOption, (opt) => { ventChart?.setOption(opt, true) }, { deep: true })
+
+// ── 脱机路径节点 ──────────────────────────────────────────────────
+const weaningNodes = computed<WorkflowNode[]>(() => {
+  const totalPatients = ctx.patients.value?.length || 0
+  const sbtCandidates = ctx.sbt.value?.todo?.length || 0
+  const sbtDone = ctx.sbt.value?.done?.length || 0
+  const completionPct = ctx.completion.value?.percent ?? 0
+
+  return [
+    { id: '1', label: '评估', status: totalPatients > 0 ? 'completed' : 'pending', description: `${totalPatients}人通气中` },
+    { id: '2', label: 'SBT筛选', status: sbtCandidates > 0 ? 'running' : 'completed', description: `${sbtCandidates}人可评估` },
+    { id: '3', label: 'SBT试验', status: sbtDone > 0 ? 'completed' : sbtCandidates > 0 ? 'pending' : 'unknown', description: `${sbtDone}人已完成` },
+    { id: '4', label: '脱机拔管', status: completionPct >= 80 ? 'completed' : completionPct >= 50 ? 'running' : 'pending', description: `完成率${completionPct}%` },
+    { id: '5', label: '48h稳定', status: 'pending', description: '持续监测中' },
+  ]
+})
+
+onMounted(() => {
+  void ctx.loadAll()
+  setTimeout(initVentChart, 300)
+})
+
+onBeforeUnmount(() => {
+  ventChart?.dispose()
+  ventChart = null
+})
 </script>
 
 <style scoped>
@@ -237,6 +328,46 @@ onMounted(() => { void ctx.loadAll() })
 }
 .resp-header__search { width: 220px; }
 .resp-header__filter { width: 140px; }
+
+/* 可视化概览行 */
+.resp-viz-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 200px;
+  gap: 16px;
+  margin-bottom: var(--section-gap, 24px);
+}
+
+.resp-viz-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.resp-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.resp-viz-chart {
+  width: 100%;
+  height: 180px;
+}
+
+.resp-viz-card--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.resp-viz-ring-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
 
 /* 加载状态 */
 .loading-state {

@@ -3,14 +3,14 @@
     <!-- 概览卡 -->
     <div class="overview-cards">
       <div class="overview-card">
-        <div class="card-icon card-icon--success">✓</div>
+        <DataCompletenessRing :percent="overview.completeness" :size="64" />
         <div class="card-info">
           <div class="card-value">{{ overview.completeness }}%</div>
           <div class="card-label">病种完整性</div>
         </div>
       </div>
       <div class="overview-card">
-        <div class="card-icon card-icon--info">📊</div>
+        <DataCompletenessRing :percent="overview.icd_quality" :size="64" />
         <div class="card-info">
           <div class="card-value">{{ overview.icd_quality }}%</div>
           <div class="card-label">ICD编码质量</div>
@@ -31,7 +31,7 @@
         </div>
       </div>
       <div class="overview-card">
-        <div class="card-icon card-icon--ai">🤖</div>
+        <DataCompletenessRing :percent="overview.ai_accuracy" :size="64" />
         <div class="card-info">
           <div class="card-value">{{ overview.ai_accuracy }}%</div>
           <div class="card-label">AI建议准确率</div>
@@ -70,9 +70,9 @@
             >
               <div class="issue-header">
                 <span :class="['severity-badge', `severity-badge--${issue.severity}`]">{{ severityText(issue.severity) }}</span>
-                <span class="issue-type">{{ issue.type }}</span>
+                <span class="issue-type">{{ issue.issue_type || issue.type }}</span>
               </div>
-              <h4 class="issue-title">{{ issue.title }}</h4>
+              <h4 class="issue-title">{{ issue.title || issue.description }}</h4>
               <p class="issue-desc">{{ issue.description }}</p>
               <div class="issue-meta">
                 <span class="meta-item">发现时间: {{ issue.detected_at }}</span>
@@ -170,6 +170,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { message } from 'ant-design-vue'
+import { getQualityIssues } from '../../api/diseaseCenter'
+import DataCompletenessRing from '../../components/charts/risk/DataCompletenessRing.vue'
 
 // 状态
 const activeTab = ref('all')
@@ -186,73 +189,27 @@ const overview = ref({
 // 标签
 const issueTabs = computed(() => [
   { key: 'all', label: '全部', count: issues.value.length },
-  { key: 'completeness', label: '完整性', count: issues.value.filter((i) => i.type === '完整性').length },
-  { key: 'icd', label: 'ICD编码', count: issues.value.filter((i) => i.type === 'ICD编码').length },
-  { key: 'version', label: '版本', count: issues.value.filter((i) => i.type === '版本').length },
-  { key: 'phenotype', label: '表型误报', count: issues.value.filter((i) => i.type === '表型误报').length },
+  { key: 'completeness', label: '完整性', count: issues.value.filter((i) => (i.issue_type || i.type) === '完整性').length },
+  { key: 'icd', label: 'ICD编码', count: issues.value.filter((i) => (i.issue_type || i.type) === 'ICD编码').length },
+  { key: 'version', label: '版本', count: issues.value.filter((i) => (i.issue_type || i.type) === '版本').length },
+  { key: 'phenotype', label: '表型误报', count: issues.value.filter((i) => (i.issue_type || i.type) === '表型误报').length },
 ])
 
 // 问题类型
 interface QualityIssue {
   id: string
-  type: string
+  issue_type: string
+  type?: string
   severity: 'high' | 'medium' | 'low'
-  title: string
+  title?: string
   description: string
-  detected_at: string
+  detected_at?: string
   affected_count?: number
 }
 
 const issues = ref<QualityIssue[]>([])
-
-// 模拟数据
-const mockIssues: QualityIssue[] = [
-  {
-    id: '1',
-    type: '完整性',
-    severity: 'high',
-    title: '脓毒症病种缺少分型分期',
-    description: '脓毒症病种定义中缺少"脓毒性休克"分期标准，可能导致漏报。',
-    detected_at: '2024-03-20 10:30',
-    affected_count: 1,
-  },
-  {
-    id: '2',
-    type: 'ICD编码',
-    severity: 'medium',
-    title: 'ICD-11 编码映射缺失',
-    description: '3 个病种缺少 ICD-11 编码映射，影响数据标准化。',
-    detected_at: '2024-03-19 14:15',
-    affected_count: 3,
-  },
-  {
-    id: '3',
-    type: '版本',
-    severity: 'low',
-    title: 'SOFA 评分版本不一致',
-    description: '部分规则引用了旧版本的 SOFA 评分，建议统一到最新版本。',
-    detected_at: '2024-03-18 09:20',
-    affected_count: 2,
-  },
-  {
-    id: '4',
-    type: '表型误报',
-    severity: 'high',
-    title: 'ARDS 表型规则误报率偏高',
-    description: 'ARDS 轻度表型规则误报率达到 15%，超过阈值 10%。建议调整 PaO2/FiO2 阈值。',
-    detected_at: '2024-03-17 16:45',
-    affected_count: 1,
-  },
-  {
-    id: '5',
-    type: '表型误报',
-    severity: 'medium',
-    title: 'AKI 表型漏报',
-    description: 'AKI 高风险表型规则漏报 3 例，建议增加尿量监测条件。',
-    detected_at: '2024-03-16 11:30',
-    affected_count: 3,
-  },
-]
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 // 过滤后的问题
 const filteredIssues = computed(() => {
@@ -263,7 +220,7 @@ const filteredIssues = computed(() => {
     version: '版本',
     phenotype: '表型误报',
   }
-  return issues.value.filter((i) => i.type === typeMap[activeTab.value])
+  return issues.value.filter((i) => (i.issue_type || i.type) === typeMap[activeTab.value])
 })
 
 // 标签文本
@@ -313,18 +270,36 @@ const packageChecks = ref([
 
 // 查看详情
 function viewIssueDetail(issue: QualityIssue) {
-  alert(`查看详情: ${issue.title}`)
+  // TODO: 实现查看详情逻辑
+  message.info(`查看详情: ${issue.title || issue.description}`)
 }
 
 // 修复问题
 function fixIssue(issue: QualityIssue) {
-  alert(`修复功能开发中: ${issue.title}`)
+  // TODO: 实现修复逻辑
+  message.info(`修复功能开发中: ${issue.title || issue.description}`)
+}
+
+// 加载数据
+async function loadIssues() {
+  loading.value = true
+  error.value = null
+
+  try {
+    const { data } = await getQualityIssues()
+    issues.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    error.value = e?.message || '获取质量问题失败，请稍后重试'
+    issues.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 // 初始化
 import { onMounted } from 'vue'
 onMounted(() => {
-  issues.value = mockIssues
+  loadIssues()
 })
 </script>
 

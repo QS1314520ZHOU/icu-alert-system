@@ -54,3 +54,8 @@ backend/backend/
 # Root package files (if not monorepo)
 /package.json
 /package-lock.json
+
+# Debug scripts and patches
+_*.py
+_*.patch
+*.patch

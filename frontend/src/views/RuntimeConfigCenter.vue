@@ -26,12 +26,19 @@
     </nav>
 
     <section v-if="activeTab === 'overview'" class="panel overview-panel">
-      <div class="metric-grid">
-        <div class="metric-card"><span>模块启用</span><strong>{{ enabledModuleCount }}/{{ modules.length }}</strong></div>
-        <div class="metric-card"><span>AI Provider</span><strong>{{ enabledProviderCount }}/{{ aiProviders.length }}</strong></div>
-        <div class="metric-card"><span>轨迹预测</span><strong>{{ trajectory.enabled === false ? '关闭' : '启用' }}</strong></div>
-        <div class="metric-card"><span>启用规则</span><strong>{{ enabledRuleCount }}/{{ alertRules.length }}</strong></div>
-        <div class="metric-card"><span>字段映射</span><strong>{{ mappings.length }}</strong></div>
+      <div class="overview-ring-row">
+        <div class="overview-ring-card">
+          <h4>配置完整度</h4>
+          <DataCompletenessRing :percent="configCompleteness" :size="100" />
+          <span class="overview-ring-hint">模块 + Provider + 规则 + 映射</span>
+        </div>
+        <div class="metric-grid">
+          <div class="metric-card"><span>模块启用</span><strong>{{ enabledModuleCount }}/{{ modules.length }}</strong></div>
+          <div class="metric-card"><span>AI Provider</span><strong>{{ enabledProviderCount }}/{{ aiProviders.length }}</strong></div>
+          <div class="metric-card"><span>轨迹预测</span><strong>{{ trajectory.enabled === false ? '关闭' : '启用' }}</strong></div>
+          <div class="metric-card"><span>启用规则</span><strong>{{ enabledRuleCount }}/{{ alertRules.length }}</strong></div>
+          <div class="metric-card"><span>字段映射</span><strong>{{ mappings.length }}</strong></div>
+        </div>
       </div>
       <div class="overview-actions">
         <button v-for="tab in tabs.filter((item) => item.key !== 'overview')" :key="tab.key" type="button" @click="activeTab = tab.key">
@@ -209,6 +216,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { Button as AButton, Input as AInput, InputNumber as AInputNumber, Select as ASelect, Switch as ASwitch, message, Modal } from 'ant-design-vue'
 import { getRuntimeConfig, getRuntimeConfigExport, getRuntimeConfigHistory, postRuntimeAi, postRuntimeAlertRule, postRuntimeConfigRollback, postRuntimeFieldMapping, postRuntimeModules, postRuntimeTrajectoryForecast } from '../api'
 import { useAuthStore } from '../stores/auth'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
 
 const auth = useAuthStore()
 const loading = ref(false)
@@ -254,6 +262,18 @@ const aiProviders = computed<any[]>({ get: () => (Array.isArray(ai.providers) ? 
 const enabledProviderCount = computed(() => aiProviders.value.filter((item) => item.enabled !== false).length)
 const enabledRuleCount = computed(() => alertRules.value.filter((item) => item.enabled !== false).length)
 const providerOptions = computed(() => aiProviders.value.map((item) => ({ label: `${item.name || item.id || item.model || '未命名'} · ${item.model || '未填模型'}`, value: item.id })))
+
+// ── 配置完整度 ──────────────────────────────────────────────────────
+const configCompleteness = computed(() => {
+  let total = 5
+  let filled = 0
+  if (enabledModuleCount.value > 0) filled++
+  if (enabledProviderCount.value > 0) filled++
+  if (trajectory.enabled !== false) filled++
+  if (enabledRuleCount.value > 0) filled++
+  if (mappings.value.length > 0) filled++
+  return Math.round((filled / total) * 100)
+})
 const trajectoryAlertOptions = computed(() => trajectoryCodeOptions.value.filter((item) => trajectory.default_codes.includes(item.code) && item.series_type !== 'discrete_trend'))
 const trajectoryAlertSelectOptions = computed(() => trajectoryAlertOptions.value.map((item) => ({ label: `${item.label || item.code} (${item.code})`, value: item.code })))
 const filteredRules = computed(() => {
@@ -353,6 +373,38 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .panel-toolbar.slim { margin-top: 4px; }
 .metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface),.26); padding: 12px; }
+
+/* 配置完整度环 */
+.overview-ring-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.overview-ring-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid rgba(125,211,252,.12);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+}
+
+.overview-ring-card h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.overview-ring-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}
 .metric-card strong { display: block; color: var(--text-primary); font-size: 24px; }
 .overview-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
 .overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface),.22); color: var(--text-primary); padding: 12px; cursor: pointer; }

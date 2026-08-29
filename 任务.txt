@@ -1,0 +1,1220 @@
+你是一名资深医疗信息化产品设计师、临床 UX 专家、Vue 3 前端架构师和代码审查工程师。
+
+请对项目最新版本执行第二轮完整 UI、UX 和前端架构优化：
+技术栈：
+- Vue 3
+- TypeScript
+- Vite
+- Ant Design Vue
+- ECharts
+- Python / FastAPI
+- MongoDB
+- Redis
+
+开始前必须阅读项目根目录 CLAUDE.md，并严格遵守其中的文件读取规则。
+
+不要扫描整个仓库。先按模块定位入口，只读取当前阶段涉及的文件及直接依赖。
+
+---
+
+# 一、当前改造状态
+
+项目已经完成第一轮重构，包括：
+
+- 新增统一设计系统。
+- 新增 PageHeader、SectionHeader、StatusBadge、MetricStrip、ActionBar、FilterBar、EvidenceDrawer、MoreMenu 等公共组件。
+- 新增多个 composable。
+- ClinicalWorkflow 已拆为 5 个子视图。
+- NurseHome、AiConsult、MdtBoard 等页面已进行结构调整。
+- 全局字体、字号、颜色、间距和圆角已经初步统一。
+- SideNav 已增加“更多”分类。
+- PatientDetail 已增加 5 个一级区域入口。
+
+以上方向总体正确，本轮不要推翻重做。
+
+本轮重点是修复第一轮重构中仍然存在的以下问题：
+
+1. PatientDetail 只是增加了新导航，没有真正拆掉旧结构。
+2. PatientDetail 仍然超过 6,700 行。
+3. PatientDetail 同时保留新旧多套导航。
+4. PatientDetail 仍保留“简洁/全量模式”和大量旧首屏内容。
+5. usePatientDetail.ts 已创建，但原页面仍保留大量请求、状态和业务逻辑。
+6. AiConsult 界面改进了，但主文件仍约 1,600 行。
+7. NurseHome 已拆组件，但仍重复实现公共设计系统组件。
+8. ClinicalWorkflow 已拆分成功，但仍残留旧的深色、青色和硬编码样式。
+9. SideNav 的“更多”仍采用侧栏内展开，展开后入口依然很多。
+10. style.css 和业务页面仍有大量旧样式与硬编码颜色。
+11. style.css 存在自引用变量。
+12. 新设计系统已经创建，但没有在全部页面中真正统一使用。
+13. 仓库中误提交了调试脚本和 patch 临时文件。
+14. 尚未完成系统性 TypeScript、生产构建和响应式视觉验收。
+
+---
+
+# 二、总体目标
+
+本轮完成后必须实现：
+
+1. PatientDetail 真正拆成独立子页面。
+2. PatientDetail 主文件控制在 300–500 行以内。
+3. PatientDetail 首屏常驻文字减少至少 50%。
+4. PatientDetail 不再同时存在多套导航。
+5. AiConsult 页面文件控制在合理规模。
+6. 公共设计组件在主要页面真正复用。
+7. 旧的深色、霓虹青色和硬编码样式被清理。
+8. 侧边栏主入口不超过 6 个。
+9. 所有页面使用一致的字体、字号、间距、状态颜色和操作层级。
+10. 不删除任何现有业务功能。
+11. 不修改现有临床字段含义。
+12. 不破坏现有后端 API。
+13. 不破坏现有路由参数、用户身份和科室过滤。
+14. TypeScript 检查通过。
+15. Vite 生产构建通过。
+16. 1440、1280、1024、390 四种宽度下无明显破版。
+
+---
+
+# 三、必须优先修复的问题
+
+## 3.1 清理仓库中的临时文件
+
+检查并删除以下不应进入正式仓库的文件：
+
+- _patch1.patch
+- backend/_check_db.py
+- backend/_check_patients.py
+- backend/_check_patients2.py
+
+这些文件属于开发调试脚本或临时补丁。
+
+要求：
+
+- 不允许正式代码中保留真实数据库连接信息。
+- 不允许调试脚本打印患者敏感信息。
+- 不允许调试脚本随生产镜像打包。
+- 如确实需要保留通用诊断脚本，将其移动到 scripts/dev/。
+- 移动后必须删除真实账号、密码和患者字段打印。
+- 增加明确的开发环境限制。
+- 检查 .dockerignore 和 .gitignore，避免类似文件再次进入构建产物。
+
+不要修改正式业务逻辑来适配这些调试脚本。
+
+## 3.2 修复设计变量
+
+检查：
+
+frontend/src/style.css
+frontend/src/styles/design-system.css
+
+当前 style.css 中存在类似：
+
+--section-gap: var(--section-gap);
+
+这种无效自引用。
+
+要求：
+
+- 删除所有 CSS 自引用变量。
+- 设计令牌只允许在 design-system.css 中定义基础值。
+- style.css 只负责兼容旧变量，不要覆盖成自引用。
+- 检查所有 var() 是否存在有效的定义和 fallback。
+- 不要在业务页面重新声明全局字体和字号。
+
+---
+
+# 四、PatientDetail 真正拆分
+
+这是本轮最高优先级任务。
+
+涉及：
+
+- frontend/src/views/PatientDetail.vue
+- frontend/src/views/patient-detail/
+- frontend/src/components/patient-detail/
+- frontend/src/router/index.ts
+- frontend/src/composables/
+- frontend/src/stores/
+
+## 4.1 当前问题
+
+PatientDetail 当前同时存在：
+
+第一套导航：
+
+- 总览
+- 监护
+- 治疗与护理
+- 预警与决策
+- 文书与 AI
+
+第二套导航：
+
+- 重点
+- 监护
+- 治疗
+- 回顾
+- AI
+- 全部
+
+第三套快捷入口：
+
+- 趋势
+- 波形
+- 检验
+- 预警
+- What-if
+- AI
+- 病历文书
+
+同时还保留：
+
+- 简洁模式
+- 全量模式
+- 下一步操作
+- 脓毒症 Bundle
+- 抢救期风险卡
+- 床旁快照
+- 临床试验匹配
+- 脱机评分
+- SBT
+- 器官风险
+- 15 个旧页签
+- 大量 AI 分析
+- 文书功能
+
+这不是渐进披露，而是新旧信息架构同时存在。
+
+## 4.2 最终信息架构
+
+患者详情只能保留 5 个一级区域：
+
+1. 总览
+2. 监护
+3. 治疗与护理
+4. 预警与决策
+5. 文书与 AI
+
+删除以下常驻入口：
+
+- 页面视图
+- 简洁模式
+- 全量模式
+- 重点
+- 回顾
+- 全部
+- 首屏所有二级快捷入口
+
+一级导航不允许和二级页签同时平铺。
+
+进入一级区域后，再显示该区域相关的二级导航。
+
+## 4.3 文件结构
+
+将 PatientDetail 拆成：
+
+frontend/src/views/patient-detail/
+├── PatientDetailLayout.vue
+├── PatientOverviewView.vue
+├── PatientMonitoringView.vue
+├── PatientTreatmentView.vue
+├── PatientDecisionView.vue
+├── PatientDocumentsView.vue
+├── usePatientDetail.ts
+└── types.ts
+
+建议组件：
+
+frontend/src/components/patient-detail/
+├── PatientHeaderBar.vue
+├── PatientSafetyStrip.vue
+├── PatientPrimaryRisk.vue
+├── PatientSecondaryRisks.vue
+├── PatientVitalStrip.vue
+├── PatientShiftTasks.vue
+├── PatientRecentChanges.vue
+├── PatientTrendPreview.vue
+├── PatientRiskEvidenceDrawer.vue
+├── PatientMoreMenu.vue
+└── PatientLoadingState.vue
+
+PatientDetail.vue 最终只负责：
+
+- 读取 patient ID。
+- 兼容旧 query 参数。
+- 提供患者共享上下文。
+- 渲染 PatientDetailLayout。
+- 渲染一级导航。
+- 渲染对应子页面。
+- 处理页面级错误和加载状态。
+
+PatientDetail.vue 最终目标：
+
+- 不超过 500 行。
+- 不直接管理几十个 API 请求。
+- 不直接包含大量图表配置。
+- 不直接包含所有二级业务组件。
+- 不包含大段页面级业务 CSS。
+
+## 4.4 数据管理
+
+usePatientDetail.ts 当前文件较大，需要继续按领域拆分：
+
+- usePatientIdentity.ts
+- usePatientOverview.ts
+- usePatientMonitoring.ts
+- usePatientTreatment.ts
+- usePatientAlerts.ts
+- usePatientAi.ts
+- usePatientDocuments.ts
+
+要求：
+
+- 患者身份和基础数据只请求一次。
+- 多个子页面不能重复请求同一个患者接口。
+- 数据按需加载。
+- 未进入的页面不要提前加载波形、AI、相似病例、随访和临床试验数据。
+- API 请求需要明确的 loading、error、empty 状态。
+- WebSocket 订阅在页面卸载时正确取消。
+- 请求切换患者时防止旧响应覆盖新患者数据。
+- 保留现有缓存逻辑。
+- 不改变现有 API 返回结构。
+
+## 4.5 路由
+
+建议使用嵌套路由：
+
+/patient/:id/overview
+/patient/:id/monitoring
+/patient/:id/treatment
+/patient/:id/decision
+/patient/:id/documents
+
+兼容旧地址：
+
+/patient/:id
+
+旧地址默认进入 overview。
+
+必须兼容旧 query：
+
+- tab
+- area
+- dept_code
+- dept
+- role
+- userName
+- user_id
+
+建立旧 tab 到新区块的映射：
+
+- trend、waveform、labs → monitoring
+- drugs、assess、sbt、ecash、mobility、pe → treatment
+- alerts、twin、similar、followup → decision
+- ai、documents → documents
+- 未识别值 → overview
+
+替换路由时不能丢失用户身份和科室参数。
+
+---
+
+# 五、PatientOverviewView 首屏设计
+
+患者总览只回答三个问题：
+
+1. 患者是谁？
+2. 当前最严重的问题是什么？
+3. 下一步应该做什么？
+
+## 5.1 固定患者头部
+
+显示：
+
+- 返回按钮
+- 床号
+- 姓名
+- 性别
+- 年龄
+- 主要诊断
+- 科室
+- HIS 编号
+- 入科时间
+- 最近更新时间
+
+安全信息显示为紧凑状态条：
+
+- 过敏
+- 隔离
+- 机械通气
+- CRRT
+- 主要管路
+
+头部右侧只保留：
+
+- 生成查房摘要
+- 更多
+
+不要放大段说明。
+
+## 5.2 当前最高风险
+
+首屏只展开一条最高优先级风险。
+
+内容最多包含：
+
+- 风险名称
+- 严重程度
+- 一句话结论
+- 最多 3 个证据
+- 1 条建议动作
+- 确认已查看
+- 查看完整证据
+
+示例：
+
+高钠血症 · 危急
+
+Na⁺ 258 mmol/L，最近 6 小时持续上升。
+
+证据：
+[Na⁺ 258] [血糖 21.2] [尿量下降]
+
+建议：
+复核液体方案并排查高渗性药物。
+
+[确认已查看] [完整证据]
+
+第二和第三风险显示为折叠行：
+
+2. 多器官恶化指数升高 >
+3. 综合风险评分升高 >
+
+完整证据、病理生理链、数据来源、模型说明和详细建议放到 EvidenceDrawer。
+
+## 5.3 本班待办
+
+最高风险右侧展示最多 3 条：
+
+- 任务
+- 截止时间
+- 完成状态
+- 对应患者操作
+
+其余通过“查看全部”进入任务抽屉。
+
+## 5.4 核心生命体征
+
+使用紧凑 MetricStrip：
+
+- HR
+- BP 或 MAP
+- SpO₂
+- RR
+- T
+- 尿量或乳酸
+
+不要每个生命体征单独做大卡片。
+
+异常值必须同时使用：
+
+- 数值
+- 状态文字
+- 趋势箭头
+- 语义颜色
+
+不能只依赖颜色。
+
+## 5.5 趋势预览
+
+首屏只显示与最高风险相关的 2–3 条趋势。
+
+示例：
+
+循环风险：
+
+- MAP
+- HR
+- 乳酸
+
+呼吸风险：
+
+- SpO₂
+- P/F
+- RR
+
+高钠风险：
+
+- Na⁺
+- 血糖
+- 尿量
+
+完整趋势放到监护页面。
+
+## 5.6 从首屏移除
+
+以下内容不允许常驻首屏：
+
+- 完整器官雷达
+- 完整病理生理链
+- 全部检验项目
+- 全部设备管路
+- 全部 Bundle
+- 完整 SBT 记录
+- 完整脱机评分
+- 临床试验详细匹配
+- 相似病例
+- 长期随访
+- 完整 AI 报告
+- 完整病历编辑器
+
+这些功能必须保留，但移动到相应子页面或“更多”。
+
+---
+
+# 六、PatientMonitoringView
+
+只负责患者监护数据。
+
+二级导航：
+
+- 趋势
+- 波形
+- 检验
+- 出入量
+- 呼吸机
+
+要求：
+
+- 默认进入趋势。
+- 图表按需加载。
+- 首屏最多显示 3 张主要图表。
+- 图表标题必须是结论，不要只写“趋势图”。
+- 数据来源和更新时间统一放在图表右上角。
+- 图例和筛选不要占据大面积。
+- 高级指标放进筛选抽屉。
+- 图表默认根据当前风险推荐展示指标。
+- 空状态明确说明缺失的数据来源。
+- 不允许所有趋势一次全部展示。
+
+---
+
+# 七、PatientTreatmentView
+
+二级导航：
+
+- 用药
+- 护理
+- 管路设备
+- Bundle
+- 呼吸治疗
+- 康复活动
+
+要求：
+
+- 默认只展示当前正在执行的治疗。
+- 已停止用药默认折叠。
+- 管路和设备使用列表，不使用大量卡片。
+- Bundle 显示完成度、缺项和下一步。
+- 完整执行记录按需展开。
+- SBT、eCASH、早期活动、肺栓塞等放到相应二级区域。
+- 不在同一屏同时展示所有专项治疗。
+- 每个专项页面只突出一个下一步操作。
+
+---
+
+# 八、PatientDecisionView
+
+二级导航：
+
+- 当前预警
+- 风险证据
+- 器官风险
+- What-if
+- 相似病例
+- 随访与试验
+
+要求：
+
+- 当前预警按处置优先级排序。
+- 第一风险展开，其余折叠。
+- 已确认预警默认收起。
+- EvidenceDrawer 展示完整证据。
+- AI 结论和规则结论必须明确区分。
+- 显示来源、时间和置信度。
+- 不能把模型输出写成已确认医学事实。
+- What-if 必须明确标记“模拟结果”。
+- 相似病例不能直接作为治疗建议。
+- 临床试验只显示可能匹配，必须人工确认。
+
+---
+
+# 九、PatientDocumentsView
+
+二级导航：
+
+- 查房摘要
+- 病程记录
+- 交接班
+- AI 问诊
+- MDT
+
+要求：
+
+- 默认展示最近文书和新建入口。
+- 不同时渲染完整查房、AI 问诊和 MDT。
+- 每次只加载当前二级页面。
+- AI 生成文书必须经过人工编辑和确认。
+- 区分系统草稿、AI 草稿和医生确认版本。
+- 保留版本历史。
+- 显示生成时间和确认人。
+- 不允许 AI 输出直接标记为正式病历。
+
+---
+
+# 十、AiConsult 第二轮拆分
+
+涉及：
+
+- frontend/src/views/AiConsult.vue
+- frontend/src/composables/useAiConsult.ts
+- frontend/src/components/ai-consult/
+
+当前界面布局方向正确，但主文件仍然过大。
+
+## 10.1 继续拆分 composable
+
+新增或拆分：
+
+- useAiConsultSession.ts
+- useAiConsultStream.ts
+- useAutonomousInvestigation.ts
+- useConsultPatientContext.ts
+- useConsultExport.ts
+- consultMessageParser.ts
+- consultTextSanitizer.ts
+
+AiConsult.vue 不应继续直接实现：
+
+- SSE 数据块解析。
+- autonomous stream 解析。
+- 文本清理规则。
+- 全部导出格式。
+- 会话持久化。
+- 患者数据适配。
+- 长篇消息结构解析。
+
+## 10.2 页面组件
+
+建议拆分：
+
+- ConsultSessionList.vue
+- ConsultHeader.vue
+- ConsultMessageList.vue
+- ConsultMessageItem.vue
+- ConsultComposer.vue
+- ConsultQuickTasks.vue
+- ConsultPatientContext.vue
+- ConsultEvidencePanel.vue
+- ConsultSafetyNotice.vue
+
+目标：
+
+- AiConsult.vue 控制在 400–600 行以内。
+- 主页面只负责布局和协调。
+- 当前三栏结构继续保留。
+- 右侧患者上下文在窄屏改为抽屉。
+- 导出功能继续放在 MoreMenu。
+- 快捷任务保持最多 3 个。
+- 免责声明页面固定显示一次，不要每条消息重复。
+
+---
+
+# 十一、NurseHome 继续统一
+
+涉及：
+
+- frontend/src/views/NurseHome.vue
+- frontend/src/components/nurse/
+- frontend/src/composables/useNurseHome.ts
+- frontend/src/components/common/design-system/
+
+当前结构已经明显改善，不要重做。
+
+本轮重点：
+
+- 使用公共 PageHeader 替换自定义 page-top。
+- 使用 MetricStrip 替换自定义 kpi-strip。
+- 使用 SectionHeader 替换重复 panel-head。
+- 使用 StatusBadge 替换自定义 badge。
+- 使用 EmptyState、LoadingState、ErrorState。
+- 任务操作放入任务抽屉。
+- 床位卡继续保持紧凑。
+- 危急风险列表按优先级和时间排序。
+- 交班只保留入口，不在护士首页渲染完整交班内容。
+- 首次使用引导只显示一次。
+- 护士长页面与普通护士页面保持独立。
+
+不要为每个页面重新复制一套 PageHeader、KPI 和空状态 CSS。
+
+---
+
+# 十二、ClinicalWorkflow 样式清理
+
+涉及：
+
+- frontend/src/views/ClinicalWorkflow.vue
+- frontend/src/views/clinical-workflow/
+- frontend/src/composables/useClinicalWorkflow.ts
+
+当前组件拆分已经成功，保留现有 5 个子视图。
+
+本轮重点清理旧样式。
+
+禁止继续硬编码：
+
+- rgba(125, 211, 252, ...)
+- rgba(14, 116, 144, ...)
+- rgba(8, 31, 49, ...)
+- #E8901C
+- #1A9C5B
+- 旧深色背景
+- 旧赛博青色边框
+
+统一改用：
+
+- var(--color-bg-page)
+- var(--color-bg-surface)
+- var(--color-bg-surface-secondary)
+- var(--color-border)
+- var(--color-text-primary)
+- var(--color-text-secondary)
+- var(--color-primary)
+- var(--color-danger)
+- var(--color-warning)
+- var(--color-success)
+
+要求：
+
+- 页面头使用 PageHeader。
+- 待办条使用 ActionBar 或紧凑任务条。
+- 标签使用 StatusBadge。
+- 空状态使用 EmptyState。
+- 抽屉使用统一背景和边框。
+- 不使用发光效果。
+- 不使用深色半透明面板。
+- 不在子视图重复声明全局字体。
+
+useClinicalWorkflow.ts 如仍过大，可以按以下领域继续拆分：
+
+- useClinicalTaskQueue
+- useClinicalPatientStory
+- useClinicalTreatment
+- useClinicalDirectorDashboard
+
+但不要为了拆文件制造无意义包装。
+
+---
+
+# 十三、SideNav 最终收敛
+
+涉及：
+
+- frontend/src/components/common/SideNav.vue
+- frontend/src/config/roleHomeConfig.ts
+- frontend/src/router/index.ts
+
+一级导航最多保留：
+
+1. 今日工作
+2. 患者
+3. 预警与任务
+4. 交接班
+5. AI 助手
+6. 更多
+
+要求：
+
+- 不要在 SideNav 内展开十几个“更多”项目。
+- 点击“更多”打开下拉浮层、抽屉或功能中心。
+- 更多中按业务分组：
+  - 临床协作
+  - 专项治疗
+  - 管理分析
+  - 科研
+  - 系统管理
+- 当前页面状态清晰。
+- 展开宽度约 208px。
+- 收起宽度约 64px。
+- 收起状态提供 Tooltip。
+- 主导航图标使用同一套线性图标。
+- 不使用 emoji 作为主导航图标。
+- 移动端不展示固定侧栏。
+- 移动端使用底部主导航加“更多”抽屉。
+- 保留现有角色权限和路由。
+
+---
+
+# 十四、设计系统真正落地
+
+涉及：
+
+- frontend/src/styles/design-system.css
+- frontend/src/style.css
+- frontend/src/components/common/design-system/
+
+## 14.1 字体
+
+全站主字体：
+
+"Noto Sans SC",
+"Microsoft YaHei",
+"PingFang SC",
+-apple-system,
+BlinkMacSystemFont,
+"Segoe UI",
+Arial,
+sans-serif
+
+要求：
+
+- 中文标题和正文禁止使用 Rajdhani。
+- Rajdhani 只能用于纯数字监护值。
+- 普通表格数字默认使用主字体。
+- 等宽字体只用于时间戳、ID、编码和原始数据。
+- 不允许业务页面单独覆盖全局字体。
+
+## 14.2 字号
+
+严格执行：
+
+- 页面标题：24px
+- 页面副标题：14px
+- 区域标题：16px
+- 卡片标题：14px
+- 正文：14px
+- 辅助文字：12px
+- 标签：12px
+- 表格：13–14px
+- 普通指标：20px
+- 关键指标：24px
+- 核心监护值：最大 28px
+
+禁止：
+
+- 普通页面出现 32px 以上数字。
+- 页面标题超过 28px。
+- 移动端正文小于 14px。
+- 大量使用 800、900 字重。
+- 为了塞内容不断缩小字体。
+
+## 14.3 字重
+
+只使用：
+
+- 400：正文
+- 500：按钮和标签
+- 600/650：卡片和区域标题
+- 700：页面标题和关键数字
+
+## 14.4 颜色
+
+统一：
+
+- 页面背景：#F6F7F9
+- 表面：#FFFFFF
+- 次级表面：#F1F3F5
+- 主要文字：#18212B
+- 次级文字：#667085
+- 边框：#E3E7EC
+- 主操作蓝：#2563EB
+- 危急红：#D92D20
+- 警告橙：#B54708
+- 稳定绿：#16845B
+
+要求：
+
+- 红色只用于需要立即处理。
+- 橙色用于本班复评。
+- 绿色用于稳定和完成。
+- 蓝色用于普通操作。
+- 状态不能只依赖颜色。
+- 禁止大面积红色背景。
+- 禁止霓虹和发光效果。
+
+## 14.5 卡片规则
+
+可以使用卡片：
+
+- 当前第一风险
+- 独立任务组
+- 独立图表
+- 编辑器
+- 需要明确边界的业务区域
+
+不要为以下内容单独创建卡片：
+
+- 每一个指标
+- 每一个按钮
+- 每一条患者记录
+- 每一个导航入口
+- 普通说明文字
+- 每一条时间线
+
+普通列表优先使用：
+
+- 表格
+- 列表行
+- 分隔线
+- 分组标题
+- 折叠区域
+
+## 14.6 公共组件
+
+检查以下组件是否真实复用：
+
+- PageHeader
+- SectionHeader
+- StatusBadge
+- MetricStrip
+- ActionBar
+- FilterBar
+- EvidenceDrawer
+- MoreMenu
+- EmptyState
+- LoadingState
+- ErrorState
+
+禁止各业务页面继续复制类似组件的 CSS。
+
+## 14.7 公共组件类型
+
+检查 design-system/index.ts 的类型导出是否正确。
+
+不要将 Vue 组件 default export 错误地当成 Props 类型导出。
+
+每个公共组件需要明确：
+
+- defineProps 类型
+- defineEmits 类型
+- slot 说明
+- 默认值
+- 可访问性属性
+
+确保 vue-tsc 能正确检查。
+
+---
+
+# 十五、文字密度规则
+
+所有模块统一执行：
+
+1. 页面说明最多一行。
+2. 卡片标题不超过 12 个汉字。
+3. 卡片摘要不超过 2 行。
+4. 临床结论最多 36 个汉字。
+5. 一个风险最多显示 3 条证据。
+6. 一个区域最多突出 1 个主操作。
+7. 单张卡片最多 2 个常驻按钮。
+8. 其余操作进入 MoreMenu。
+9. 帮助说明进入 Tooltip、问号或首次引导。
+10. 长证据进入抽屉。
+11. 长报告进入独立页面。
+12. 空状态只显示：
+    - 当前没有什么
+    - 可能原因
+    - 下一步操作
+13. 同一个风险不能在同一首屏重复展示。
+14. 不要展示数据库字段名和内部错误。
+15. 不要展示原始 JSON。
+16. 不要把 AI 的完整推理过程显示给临床用户。
+
+---
+
+# 十六、医疗安全和可审计性
+
+所有 AI 和规则输出必须区分：
+
+- 规则命中
+- 模型预测
+- AI 建议
+- 医生确认
+- 已执行
+- 已复评
+
+要求：
+
+- 模型预测不能显示为确定诊断。
+- AI 建议不能显示为已执行医嘱。
+- 高风险操作必须人工确认。
+- 显示数据来源和时间。
+- 显示是否存在数据缺失。
+- 确认和处置操作保留操作者、时间和结果。
+- 不要因为减少文字而删除关键安全信息。
+- 过敏、隔离和重要管路必须始终容易找到。
+- 颜色之外必须有文字状态。
+- 不依赖悬停才能看到危急信息。
+
+---
+
+# 十七、响应式和可访问性
+
+检查：
+
+- 1440×900
+- 1280×800
+- 1024×768
+- 390×844
+
+要求：
+
+- 无页面级横向滚动。
+- 表格可在容器内横向滚动。
+- 390px 下侧栏不显示。
+- 390px 下多栏布局变成单栏。
+- 右侧面板变成抽屉。
+- 主要操作不被隐藏。
+- 按钮和触控区域至少 40–44px。
+- 键盘焦点清晰。
+- 输入框有 label。
+- 图标按钮有 aria-label。
+- 状态不只依赖颜色。
+- 正文对比度符合 WCAG AA。
+- 尊重 prefers-reduced-motion。
+- 不使用影响阅读的持续动画。
+- 长患者姓名和诊断正确截断或换行。
+- 空数据和加载失败状态不会撑破布局。
+
+---
+
+# 十八、执行顺序
+
+必须按以下阶段执行，不要一次重写全部文件。
+
+## 阶段 1：仓库和设计系统修复
+
+- 清理临时文件。
+- 修复 CSS 自引用。
+- 检查设计系统类型。
+- 清理全局字体问题。
+- 执行 TypeScript 和构建。
+
+## 阶段 2：PatientDetail 真正拆分
+
+- 建立 layout。
+- 建立 5 个子页面。
+- 迁移共享状态。
+- 建立旧路由映射。
+- 删除旧多套导航。
+- 删除简洁/全量模式。
+- 执行 TypeScript 和构建。
+
+## 阶段 3：患者总览首屏
+
+- 固定患者头。
+- 第一风险。
+- 次要风险折叠。
+- 核心生命体征。
+- 本班待办。
+- 趋势预览。
+- 完整证据抽屉。
+- 执行 TypeScript 和构建。
+
+## 阶段 4：监护、治疗、决策和文书
+
+- 按领域迁移旧功能。
+- 每迁移一个领域就检查功能。
+- 低频功能懒加载。
+- 执行 TypeScript 和构建。
+
+## 阶段 5：AiConsult
+
+- 提取流式请求。
+- 提取消息解析。
+- 提取导出逻辑。
+- 拆分 UI 组件。
+- 执行 TypeScript 和构建。
+
+## 阶段 6：公共组件落地
+
+- NurseHome 使用公共组件。
+- ClinicalWorkflow 清理旧样式。
+- SideNav 改造“更多”。
+- 替换硬编码颜色。
+- 执行 TypeScript 和构建。
+
+## 阶段 7：全局视觉验收
+
+- 逐页面检查。
+- 修复溢出和响应式问题。
+- 输出最终报告。
+
+每个阶段完成后必须先验证，再进入下一阶段。
+
+---
+
+# 十九、测试要求
+
+至少执行：
+
+- npm run type-check
+- npm run build
+
+如果项目脚本名称不同，先阅读 package.json 使用实际脚本。
+
+同时检查：
+
+- 路由是否正常。
+- 患者切换是否正常。
+- query 参数是否保留。
+- 科室过滤是否正常。
+- 医生、护士、护士长、主任角色是否正常。
+- 旧 patient tab 链接是否仍可进入正确区域。
+- AI 流式输出是否正常。
+- WebSocket 是否正确订阅和释放。
+- 抽屉是否正常关闭。
+- 空数据是否正常展示。
+- API 失败是否出现可理解提示。
+- 构建是否存在循环依赖。
+- 懒加载组件是否能正确加载。
+- CSS 是否存在无效 var()。
+- 是否有未使用 import。
+- 是否有明显 any 扩散。
+- 是否有 console.log 和调试代码。
+- 是否有真实账号、密码或患者数据进入仓库。
+
+---
+
+# 二十、视觉验收清单
+
+每个主要页面都需要实际渲染并查看截图。
+
+必须检查：
+
+- 没有元素重叠。
+- 没有内容溢出容器。
+- 没有横向页面滚动。
+- 元素之间有足够间距。
+- 首屏能在 5 秒内理解。
+- 页面只有一个明显主任务。
+- 页面标题没有过大。
+- 数字没有过大。
+- 中文字体自然。
+- 没有旧赛博风格残留。
+- 没有大面积渐变。
+- 没有过多卡片。
+- 没有过多按钮。
+- 状态颜色语义一致。
+- 危急信息不依赖悬停。
+- 移动端主要功能仍可操作。
+- 长文本不会破版。
+- 空状态不会出现大块无意义空白。
+
+重点页面：
+
+- PatientDetail overview
+- PatientDetail monitoring
+- PatientDetail treatment
+- PatientDetail decision
+- PatientDetail documents
+- ClinicalWorkflow
+- NurseHome
+- AiConsult
+- SideNav 展开和收起状态
+- 390px 移动端状态
+
+---
+
+# 二十一、完成标准
+
+完成后必须满足：
+
+1. PatientDetail.vue 不超过 500 行，或者给出不能达到的明确技术原因。
+2. PatientDetail 不再存在简洁/全量切换。
+3. PatientDetail 不再存在三套导航。
+4. PatientDetail 首屏只展开一个主要风险。
+5. 其他风险默认折叠。
+6. 首屏常驻文字减少至少 50%。
+7. 完整证据通过抽屉查看。
+8. 一级导航不超过 5 个。
+9. 子页面按需加载。
+10. AiConsult.vue 显著缩小。
+11. NurseHome 使用公共设计组件。
+12. ClinicalWorkflow 不再残留深色青色风格。
+13. SideNav 主入口不超过 6 个。
+14. CSS 不存在自引用变量。
+15. 生产仓库不包含临时数据库脚本和 patch 文件。
+16. 无真实凭证和患者敏感信息。
+17. TypeScript 检查通过。
+18. Vite 生产构建通过。
+19. 四种目标尺寸无明显布局错误。
+20. 原有核心业务功能没有丢失。
+
+---
+
+# 二十二、最终输出格式
+
+完成后请输出：
+
+## 1. 总体结果
+
+简要说明是否完成所有阶段。
+
+## 2. 修改文件
+
+按模块列出新增、修改和删除的文件。
+
+## 3. PatientDetail 拆分结果
+
+说明：
+
+- 原文件行数
+- 新文件行数
+- 5 个子页面结构
+- 旧 tab 的兼容方式
+- 延迟加载策略
+
+## 4. UI 改进
+
+说明：
+
+- 字体
+- 字号
+- 颜色
+- 间距
+- 卡片数量
+- 文字密度
+- 导航层级
+- 移动端适配
+
+## 5. 功能保留
+
+逐项说明哪些原有功能被迁移到了什么位置。
+
+## 6. 测试结果
+
+列出：
+
+- type-check
+- build
+- 路由
+- 角色
+- 科室过滤
+- 旧链接兼容
+- 响应式检查
+
+## 7. 风险和未完成事项
+
+不能完成的内容必须明确说明，不要隐瞒。
+
+## 8. 截图
+
+提供：
+
+- PatientDetail 总览桌面端
+- PatientDetail 总览移动端
+- AiConsult
+- NurseHome
+- ClinicalWorkflow
+- SideNav
+
+不要只输出设计建议，请直接修改代码、运行检查并修复发现的问题。
+这是生产级医疗系统重构。禁止一次性重写全部页面；必须按阶段修改，每个阶段构建成功后才能继续。任何视觉简化都不能删除过敏、隔离、危急风险、数据来源、人工确认和审计信息。

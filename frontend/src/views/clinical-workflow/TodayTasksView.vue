@@ -133,7 +133,7 @@ const recentEvents = computed(() => {
 .task-section {
   padding: 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .section-header {
@@ -150,9 +150,9 @@ const recentEvents = computed(() => {
   border-radius: var(--card-radius);
 }
 .section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
-.section-label.warning { background: rgba(232,144,28,.15); color: #E8901C; }
+.section-label.warning { background: var(--color-warning-bg); color: var(--color-warning); }
 .section-label.high { background: rgba(251,146,60,.15); color: #b96b12; }
-.section-label.info { background: rgba(21,85,141,.15); color: #15558D; }
+.section-label.info { background: var(--color-primary-bg); color: var(--color-primary); }
 .section-count {
   font-size: 13px;
   color: var(--text-secondary);
@@ -168,7 +168,7 @@ const recentEvents = computed(() => {
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: rgba(14,116,144,.06);
   color: var(--text-primary);
@@ -198,7 +198,7 @@ const recentEvents = computed(() => {
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: rgba(14,116,144,.06);
   color: var(--text-primary);
@@ -216,14 +216,14 @@ const recentEvents = computed(() => {
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: rgba(14,116,144,.06);
 }
 .event-bed { font-size: 13px; font-weight: 700; color: var(--accent); }
 .event-text { font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-action {
-  border: 1px solid rgba(125,211,252,.24);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 4px 10px;
   font-size: 12px;

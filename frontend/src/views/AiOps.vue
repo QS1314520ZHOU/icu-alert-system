@@ -58,6 +58,23 @@
       </button>
     </section>
 
+    <!-- 可视化概览行 -->
+    <section class="ops-viz-row">
+      <div class="ops-viz-card">
+        <h4>反馈结果分布</h4>
+        <div ref="feedbackChartRef" class="ops-viz-chart"></div>
+      </div>
+      <div class="ops-viz-card">
+        <h4>模块调用量</h4>
+        <div ref="monitorChartRef" class="ops-viz-chart"></div>
+      </div>
+      <div class="ops-viz-card ops-viz-card--ring">
+        <h4>整体准确率</h4>
+        <DataCompletenessRing :percent="overallAccuracy" :size="100" />
+        <span class="ops-viz-ring-label">{{ feedbackSummary.total || 0 }} 条反馈</span>
+      </div>
+    </section>
+
     <section class="ops-grid">
       <a-card title="AI 中枢运行态" :bordered="false" class="ops-panel">
         <div class="ops-runtime-grid">
@@ -214,9 +231,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import * as echarts from 'echarts/core'
+import { PieChart, BarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import {
   Button as AButton,
   Card as ACard,
@@ -232,6 +253,10 @@ import {
   getThresholdReviewCenter,
   reviewPatientPersonalizedThreshold,
 } from '../api'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
+import { getChartColor } from '../charts/icuTheme'
+
+echarts.use([PieChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const router = useRouter()
 const loading = ref(false)
@@ -480,17 +505,136 @@ async function loadAll() {
 
 watch(days, () => { void loadAll() })
 watch(thresholdStatus, () => { void loadAll() })
-onMounted(() => { void loadAll() })
+
+// ── 可视化图表 ──────────────────────────────────────────────────────
+const feedbackChartRef = ref<HTMLElement>()
+const monitorChartRef = ref<HTMLElement>()
+let feedbackChart: echarts.ECharts | null = null
+let monitorChart: echarts.ECharts | null = null
+
+const overallAccuracy = computed(() => {
+  const confirmed = feedbackSummary.value?.by_outcome?.confirmed || 0
+  const inaccurate = feedbackSummary.value?.by_outcome?.inaccurate || 0
+  const total = confirmed + inaccurate
+  if (!total) return 0
+  return Math.round((confirmed / total) * 100)
+})
+
+const feedbackChartOption = computed(() => {
+  const byOutcome = feedbackSummary.value?.by_outcome || {}
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}: {c}条 ({d}%)' },
+    legend: { bottom: 0, textStyle: { color: '#8C8C8C', fontSize: 11 } },
+    series: [{
+      type: 'pie',
+      radius: ['35%', '60%'],
+      center: ['50%', '42%'],
+      label: { show: true, fontSize: 11, color: '#595959' },
+      data: [
+        { value: byOutcome.confirmed || 0, name: '已确认', itemStyle: { color: '#12B76A' } },
+        { value: byOutcome.dismissed || 0, name: '已忽略', itemStyle: { color: '#8C8C8C' } },
+        { value: byOutcome.inaccurate || 0, name: '不准确', itemStyle: { color: '#F79009' } },
+      ].filter(d => d.value > 0),
+    }],
+  }
+})
+
+const monitorChartOption = computed(() => {
+  const stats = monitorStats.value || []
+  const modules = stats.map((s: any) => moduleLabel(s.module))
+  const calls = stats.map((s: any) => Number(s.calls || 0))
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    xAxis: { type: 'category', data: modules, axisLabel: { color: '#8C8C8C', fontSize: 10, rotate: 30 }, axisLine: { lineStyle: { color: '#E8E8E8' } }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: '#8C8C8C', fontSize: 11 }, splitLine: { lineStyle: { color: '#F0F0F0', type: 'dashed' } } },
+    series: [{
+      type: 'bar',
+      data: calls,
+      itemStyle: { color: getChartColor(0), borderRadius: [4, 4, 0, 0] },
+      barMaxWidth: 30,
+    }],
+    grid: { left: 50, right: 16, top: 12, bottom: 60 },
+  }
+})
+
+function initOpsCharts() {
+  if (feedbackChartRef.value) {
+    feedbackChart = echarts.init(feedbackChartRef.value)
+    feedbackChart.setOption(feedbackChartOption.value)
+    const ro = new ResizeObserver(() => feedbackChart?.resize())
+    ro.observe(feedbackChartRef.value)
+  }
+  if (monitorChartRef.value) {
+    monitorChart = echarts.init(monitorChartRef.value)
+    monitorChart.setOption(monitorChartOption.value)
+    const ro = new ResizeObserver(() => monitorChart?.resize())
+    ro.observe(monitorChartRef.value)
+  }
+}
+
+watch(feedbackChartOption, (opt) => { feedbackChart?.setOption(opt, true) }, { deep: true })
+watch(monitorChartOption, (opt) => { monitorChart?.setOption(opt, true) }, { deep: true })
+
+onMounted(() => {
+  void loadAll()
+  setTimeout(initOpsCharts, 400)
+})
+
+onBeforeUnmount(() => {
+  feedbackChart?.dispose()
+  monitorChart?.dispose()
+  feedbackChart = null
+  monitorChart = null
+})
 </script>
 
 <style scoped>
 .ops-page { display: grid; gap: 16px; font-family: var(--app-display-font); }
 .ops-filter-card,.ops-panel { border: 1px solid rgba(80,199,255,.12); background: var(--bg-surface) 0%, var(--bg-surface) 100%); }
+
+/* 可视化概览行 */
+.ops-viz-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 200px;
+  gap: 16px;
+}
+
+.ops-viz-card {
+  background: var(--bg-surface);
+  border: 1px solid rgba(80,199,255,.12);
+  border-radius: var(--card-radius);
+  padding: 14px 16px;
+}
+
+.ops-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ops-viz-chart {
+  width: 100%;
+  height: 200px;
+}
+
+.ops-viz-card--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ops-viz-ring-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 .ops-filter-row,.ops-kpi-strip,.ops-chip-row,.ops-alert-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .ops-filter-row { justify-content: space-between; align-items: center; }
 .ops-label { color: var(--text-secondary); font-size: 12px; }
 .ops-kpi-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.ops-kpi { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface), var(--bg-surface)); }
+.ops-kpi { padding: 16px; border-radius: var(--card-radius); border: 1px solid var(--color-border); background: var(--bg-surface), var(--bg-surface)); }
 .ops-kpi--warn { border-color: rgba(251,191,36,.2); }
 .ops-kpi--review { border-color: rgba(52,211,153,.2); }
 .ops-kpi--runtime { border-color: rgba(96,165,250,.22); }
@@ -498,23 +642,23 @@ onMounted(() => { void loadAll() })
 .ops-kpi-value { display: block; margin-top: 8px; color: var(--text-primary); font-size: 28px; }
 .ops-kpi small { color: var(--text-secondary); }
 .ops-action-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.ops-action-tile { display: grid; gap: 6px; padding: 14px 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface), var(--bg-surface)); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-.ops-action-tile:hover { transform: translateY(-1px); border-color: rgba(125,211,252,.28); box-shadow: var(--card-shadow); }
+.ops-action-tile { display: grid; gap: 6px; padding: 14px 16px; border-radius: var(--card-radius); border: 1px solid var(--color-border); background: var(--bg-surface), var(--bg-surface)); color: inherit; text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.ops-action-tile:hover { transform: translateY(-1px); border-color: var(--color-border); box-shadow: var(--card-shadow); }
 .ops-action-label { color: var(--text-secondary); font-size: 11px; letter-spacing: .08em; }
 .ops-action-value { color: var(--text-primary); font-size: 18px; line-height: 1.2; }
 .ops-action-meta { color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
 .ops-grid { display: grid; grid-template-columns: 1.1fr 1.2fr; gap: 14px; }
 .ops-panel--wide { grid-column: 1 / -1; }
 .ops-runtime-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.ops-runtime-item { min-height: 74px; padding: 12px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.12); background: var(--bg-surface),.72); display: grid; align-content: center; gap: 6px; }
+.ops-runtime-item { min-height: 74px; padding: 12px; border-radius: var(--card-radius); border: 1px solid var(--color-border); background: var(--bg-surface),.72); display: grid; align-content: center; gap: 6px; }
 .ops-runtime-item span { color: var(--text-secondary); font-size: 12px; }
 .ops-runtime-item strong { color: var(--text-primary); font-size: 18px; line-height: 1.2; word-break: break-word; }
 .ops-runtime-note { margin-top: 12px; color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
 .ops-empty { color: var(--text-secondary); padding: 18px 0; }
-.ops-chip,.ops-alert-pill { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface),.92); color: var(--text-primary); border: 1px solid rgba(125,211,252,.14); font-size: 12px; }
+.ops-chip,.ops-alert-pill { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface),.92); color: var(--text-primary); border: 1px solid var(--color-border); font-size: 12px; }
 .ops-module-list { display: grid; gap: 8px; margin: 14px 0; }
-.ops-module-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: var(--card-radius); background: var(--bg-surface),.72); color: var(--text-primary); border: 1px solid rgba(125,211,252,.08); cursor: pointer; text-align: left; transition: border-color .18s ease, transform .18s ease; }
-.ops-module-row:hover { border-color: rgba(125,211,252,.22); transform: translateY(-1px); }
+.ops-module-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: var(--card-radius); background: var(--bg-surface),.72); color: var(--text-primary); border: 1px solid var(--color-border); cursor: pointer; text-align: left; transition: border-color .18s ease, transform .18s ease; }
+.ops-module-row:hover { border-color: var(--color-border); transform: translateY(-1px); }
 .ops-feedback-table { margin-top: 14px; }
 .ops-link { color: var(--chart-1); cursor: pointer; }
 .ops-threshold-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
@@ -523,12 +667,12 @@ onMounted(() => { void loadAll() })
 .ops-review-dialog { display: grid; gap: 12px; }
 .ops-review-row { display: grid; gap: 6px; }
 .ops-review-label { color: var(--text-secondary); font-size: 12px; }
-.ops-review-input,.ops-review-textarea { width: 100%; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.16); background: var(--bg-surface), 0.96); color: var(--text-primary); padding: 10px 12px; }
-.ops-outcome { display: inline-flex; padding: 4px 10px; border-radius: var(--card-radius); font-size: 12px; border: 1px solid rgba(125,211,252,.12); }
+.ops-review-input,.ops-review-textarea { width: 100%; border-radius: var(--card-radius); border: 1px solid var(--color-border); background: var(--bg-surface), 0.96); color: var(--text-primary); padding: 10px 12px; }
+.ops-outcome { display: inline-flex; padding: 4px 10px; border-radius: var(--card-radius); font-size: 12px; border: 1px solid var(--color-border); }
 .ops-outcome.is-confirmed,.ops-outcome.is-approved { color: var(--chart-2); border-color: rgba(52,211,153,.22); }
 .ops-outcome.is-dismissed { color: var(--warning); border-color: rgba(251,191,36,.22); }
 .ops-outcome.is-inaccurate,.ops-outcome.is-rejected { color: var(--danger); border-color: rgba(251,113,133,.24); }
-.ops-outcome.is-pending_review { color: var(--chart-1); border-color: rgba(125,211,252,.22); }
+.ops-outcome.is-pending_review { color: var(--chart-1); border-color: var(--color-border); }
 html[data-theme='light'] .ops-page {
   --ops-text-main: #153554;
   --ops-text-sub: #5f7690;

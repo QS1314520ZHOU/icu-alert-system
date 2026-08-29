@@ -11,9 +11,10 @@
       <div class="filter-group">
         <select v-model="selectedStatus" class="filter-select" @change="onSearch">
           <option value="">全部状态</option>
-          <option value="published">已发布</option>
           <option value="draft">草稿</option>
-          <option value="review">审核中</option>
+          <option value="published">已发布</option>
+          <option value="review_pending">待审核</option>
+          <option value="approved">已批准</option>
         </select>
         <select v-model="selectedVersion" class="filter-select" @change="onSearch">
           <option value="">全部版本</option>
@@ -40,7 +41,7 @@
             >
               <span class="tree-item__icon">{{ cat.icon }}</span>
               <span class="tree-item__name">{{ cat.name }}</span>
-              <span class="tree-item__count">{{ cat.count }}</span>
+              <span class="tree-item__count">{{ getCategoryCount(cat.id) }}</span>
             </div>
           </div>
         </div>
@@ -57,6 +58,11 @@
             <div class="spinner"></div>
             <span>加载中...</span>
           </div>
+          <div v-else-if="error" class="error-state">
+            <span class="error-icon">⚠️</span>
+            <span class="error-text">{{ error }}</span>
+            <button class="btn btn--sm btn--outline" @click="onSearch">重试</button>
+          </div>
           <div v-else-if="filteredDiseases.length === 0" class="empty-state">
             <span class="empty-icon">📁</span>
             <span class="empty-text">暂无病种数据</span>
@@ -71,8 +77,8 @@
               <div class="disease-item__main">
                 <div class="disease-item__name">{{ disease.name }}</div>
                 <div class="disease-item__codes">
-                  <span v-if="disease.icd10" class="code-tag">ICD-10: {{ disease.icd10 }}</span>
-                  <span v-if="disease.icd11" class="code-tag">ICD-11: {{ disease.icd11 }}</span>
+                  <span v-for="code in disease.icd10_codes" :key="code" class="code-tag">ICD-10: {{ code }}</span>
+                  <span v-for="code in disease.icd11_codes" :key="code" class="code-tag">ICD-11: {{ code }}</span>
                 </div>
               </div>
               <div class="disease-item__meta">
@@ -107,17 +113,21 @@
                 <span class="detail-label">病种名称</span>
                 <span class="detail-value detail-value--name">{{ selectedDisease.name }}</span>
               </div>
-              <div v-if="selectedDisease.icd10" class="detail-row">
-                <span class="detail-label">ICD-10</span>
-                <span class="detail-value detail-value--code">{{ selectedDisease.icd10 }}</span>
+              <div v-if="selectedDisease.english_name" class="detail-row">
+                <span class="detail-label">英文名称</span>
+                <span class="detail-value">{{ selectedDisease.english_name }}</span>
               </div>
-              <div v-if="selectedDisease.icd11" class="detail-row">
+              <div v-if="selectedDisease.icd10_codes?.length" class="detail-row">
+                <span class="detail-label">ICD-10</span>
+                <span class="detail-value detail-value--code">{{ selectedDisease.icd10_codes.join(', ') }}</span>
+              </div>
+              <div v-if="selectedDisease.icd11_codes?.length" class="detail-row">
                 <span class="detail-label">ICD-11</span>
-                <span class="detail-value detail-value--code">{{ selectedDisease.icd11 }}</span>
+                <span class="detail-value detail-value--code">{{ selectedDisease.icd11_codes.join(', ') }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">分类</span>
-                <span class="detail-value">{{ selectedDisease.category }}</span>
+                <span class="detail-value">{{ selectedDisease.category_id }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">当前版本</span>
@@ -135,12 +145,10 @@
               <p class="detail-desc">{{ selectedDisease.description }}</p>
             </div>
 
-            <!-- 同义词 -->
-            <div v-if="selectedDisease.synonyms?.length" class="detail-section">
-              <h4 class="section-title">同义词 ({{ selectedDisease.synonyms.length }})</h4>
-              <div class="synonym-list">
-                <span v-for="syn in selectedDisease.synonyms" :key="syn" class="synonym-tag">{{ syn }}</span>
-              </div>
+            <!-- 诊断标准 -->
+            <div v-if="selectedDisease.diagnostic_criteria" class="detail-section">
+              <h4 class="section-title">诊断标准</h4>
+              <p class="detail-desc">{{ selectedDisease.diagnostic_criteria }}</p>
             </div>
 
             <!-- 分型分期 -->
@@ -154,36 +162,25 @@
               </div>
             </div>
 
-            <!-- 关联评分 -->
-            <div v-if="selectedDisease.related_scores?.length" class="detail-section">
-              <h4 class="section-title">关联评分 ({{ selectedDisease.related_scores.length }})</h4>
-              <div class="related-list">
-                <div v-for="score in selectedDisease.related_scores" :key="score.id" class="related-item">
-                  <span class="related-icon">📈</span>
-                  <span class="related-name">{{ score.name }}</span>
-                </div>
+            <!-- 治疗原则 -->
+            <div v-if="selectedDisease.treatment_principles" class="detail-section">
+              <h4 class="section-title">治疗原则</h4>
+              <p class="detail-desc">{{ selectedDisease.treatment_principles }}</p>
+            </div>
+
+            <!-- 并发症 -->
+            <div v-if="selectedDisease.complications?.length" class="detail-section">
+              <h4 class="section-title">并发症 ({{ selectedDisease.complications.length }})</h4>
+              <div class="synonym-list">
+                <span v-for="comp in selectedDisease.complications" :key="comp" class="synonym-tag">{{ comp }}</span>
               </div>
             </div>
 
-            <!-- 关联规则 -->
-            <div v-if="selectedDisease.related_rules?.length" class="detail-section">
-              <h4 class="section-title">关联规则 ({{ selectedDisease.related_rules.length }})</h4>
-              <div class="related-list">
-                <div v-for="rule in selectedDisease.related_rules" :key="rule.id" class="related-item">
-                  <span class="related-icon">🧬</span>
-                  <span class="related-name">{{ rule.name }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 关联指南 -->
-            <div v-if="selectedDisease.guidelines?.length" class="detail-section">
-              <h4 class="section-title">关联指南 ({{ selectedDisease.guidelines.length }})</h4>
-              <div class="related-list">
-                <div v-for="guide in selectedDisease.guidelines" :key="guide.id" class="related-item">
-                  <span class="related-icon">📚</span>
-                  <span class="related-name">{{ guide.name }}</span>
-                </div>
+            <!-- 推荐检查 -->
+            <div v-if="selectedDisease.recommended_tests?.length" class="detail-section">
+              <h4 class="section-title">推荐检查 ({{ selectedDisease.recommended_tests.length }})</h4>
+              <div class="synonym-list">
+                <span v-for="test in selectedDisease.recommended_tests" :key="test" class="synonym-tag">{{ test }}</span>
               </div>
             </div>
 
@@ -212,12 +209,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import { getDiseases, type Disease } from '../../api/diseaseCenter'
 
 // 扩展病种类型
 interface DiseaseExtended extends Disease {
-  description?: string
+  definition?: string
+  diagnostic_criteria?: string
+  differential_diagnoses?: string[]
   stages?: Array<{ name: string; description: string }>
+  complications?: string[]
+  recommended_tests?: string[]
+  treatment_principles?: string
   guidelines?: Array<{ id: string; name: string }>
   rules_count?: number
   patients_count?: number
@@ -233,131 +236,29 @@ const selectedDisease = ref<DiseaseExtended | null>(null)
 
 // 分类数据
 const categories = ref([
-  { id: 'infection', name: '感染', icon: '🦠', count: 32 },
-  { id: 'respiratory', name: '呼吸', icon: '🫁', count: 28 },
-  { id: 'circulation', name: '循环', icon: '❤️', count: 24 },
-  { id: 'neurology', name: '神经', icon: '🧠', count: 18 },
-  { id: 'nephrology', name: '肾脏', icon: '🫘', count: 16 },
-  { id: 'coagulation', name: '凝血', icon: '🩸', count: 12 },
-  { id: 'digestive', name: '消化', icon: '🏥', count: 14 },
-  { id: 'nutrition', name: '营养', icon: '🍎', count: 12 },
+  { id: 'infection', name: '感染', icon: '🦠' },
+  { id: 'respiratory', name: '呼吸', icon: '🫁' },
+  { id: 'circulation', name: '循环', icon: '❤️' },
+  { id: 'neurology', name: '神经', icon: '🧠' },
+  { id: 'nephrology', name: '肾脏', icon: '🫘' },
+  { id: 'coagulation', name: '凝血', icon: '🩸' },
+  { id: 'digestive', name: '消化', icon: '🏥' },
+  { id: 'nutrition', name: '营养', icon: '🍎' },
 ])
 
-// 模拟数据
-const mockDiseases: DiseaseExtended[] = [
-  {
-    id: '1',
-    name: '脓毒症',
-    icd10: 'A41.9',
-    icd11: '1G40-1G41',
-    category: '感染',
-    status: 'published',
-    version: 'v2.1.0',
-    description: '脓毒症是指因感染引起的宿主反应失调，导致危及生命的器官功能障碍。根据 Sepsis-3 定义，SOFA 评分急性升高 ≥ 2 分提示脓毒症。',
-    synonyms: ['Sepsis', '败血症', '全身性感染', '脓毒病'],
-    stages: [
-      { name: '脓毒症', description: 'SOFA ≥ 2 分' },
-      { name: '脓毒性休克', description: '需要血管活性药物维持 MAP ≥ 65 mmHg，且乳酸 > 2 mmol/L' },
-    ],
-    related_scores: [{ id: 'sofa', name: 'SOFA' }, { id: 'qsofa', name: 'qSOFA' }],
-    related_rules: [{ id: 'sep-1', name: 'Sepsis 1h Bundle' }],
-    guidelines: [{ id: 'sccm-2021', name: 'SCCM/ESICM 2021 指南' }],
-    rules_count: 5,
-    patients_count: 1247,
-    updated_at: '2024-03-15',
-  },
-  {
-    id: '2',
-    name: '急性呼吸窘迫综合征',
-    icd10: 'J80',
-    icd11: 'CA0Y',
-    category: '呼吸',
-    status: 'published',
-    version: 'v1.3.0',
-    description: 'ARDS 是一种急性弥漫性肺部炎症性损伤，导致肺血管通透性增加、肺组织实变和低氧血症。',
-    synonyms: ['ARDS', '急性肺损伤', 'Adult Respiratory Distress Syndrome'],
-    stages: [
-      { name: '轻度', description: '200 < PaO2/FiO2 ≤ 300 mmHg（PEEP ≥ 5 cmH2O）' },
-      { name: '中度', description: '100 < PaO2/FiO2 ≤ 200 mmHg（PEEP ≥ 5 cmH2O）' },
-      { name: '重度', description: 'PaO2/FiO2 ≤ 100 mmHg（PEEP ≥ 5 cmH2O）' },
-    ],
-    related_scores: [{ id: 'pao2_fio2', name: 'PaO2/FiO2' }],
-    related_rules: [{ id: 'ards-vent', name: 'ARDS 通气策略' }],
-    guidelines: [{ id: 'ards-2023', name: 'ARDS 管理指南 2023' }],
-    rules_count: 3,
-    patients_count: 892,
-    updated_at: '2024-03-10',
-  },
-  {
-    id: '3',
-    name: '急性肾损伤',
-    icd10: 'N17',
-    icd11: 'GB60',
-    category: '肾脏',
-    status: 'published',
-    version: 'v1.2.1',
-    description: 'AKI 是指肾功能在短时间内（数小时至数天）急剧下降，表现为血肌酐升高和/或尿量减少。',
-    synonyms: ['AKI', '急性肾功能衰竭', 'Acute Kidney Injury'],
-    stages: [
-      { name: 'AKI 1期', description: '血肌酐升高 1.5-1.9 倍或尿量 < 0.5 mL/kg/h 持续 6-12h' },
-      { name: 'AKI 2期', description: '血肌酐升高 2.0-2.9 倍或尿量 < 0.5 mL/kg/h 持续 ≥ 12h' },
-      { name: 'AKI 3期', description: '血肌酐升高 ≥ 3.0 倍或尿量 < 0.3 mL/kg/h 持续 ≥ 24h' },
-    ],
-    related_scores: [{ id: 'kdigo', name: 'KDIGO' }],
-    related_rules: [{ id: 'aki-monitor', name: 'AKI 监测规则' }],
-    guidelines: [{ id: 'kdigo-2012', name: 'KDIGO AKI 指南 2012' }],
-    rules_count: 4,
-    patients_count: 756,
-    updated_at: '2024-03-08',
-  },
-  {
-    id: '4',
-    name: '弥散性血管内凝血',
-    icd10: 'D65',
-    icd11: '3B20',
-    category: '凝血',
-    status: 'draft',
-    version: 'v1.0.0',
-    description: 'DIC 是一种获得性凝血功能紊乱，特征为全身性凝血激活、微血管血栓形成和继发性纤溶亢进。',
-    synonyms: ['DIC', '消耗性凝血病', 'Disseminated Intravascular Coagulation'],
-    related_scores: [{ id: 'isth-dic', name: 'ISTH DIC 评分' }],
-    related_rules: [],
-    guidelines: [],
-    rules_count: 2,
-    patients_count: 534,
-    updated_at: '2024-02-28',
-  },
-  {
-    id: '5',
-    name: '多器官功能障碍综合征',
-    icd10: 'R65.3',
-    icd11: 'MG46',
-    category: '感染',
-    status: 'published',
-    version: 'v1.1.0',
-    description: 'MODS 是指急性疾病过程中，两个或两个以上器官或系统同时或序贯发生功能障碍。',
-    synonyms: ['MODS', '多器官衰竭', 'MOF'],
-    stages: [
-      { name: '功能障碍', description: '器官功能评分升高但可逆' },
-      { name: '功能衰竭', description: '器官功能严重受损，需要支持治疗' },
-    ],
-    related_scores: [{ id: 'sofa', name: 'SOFA' }, { id: 'apache', name: 'APACHE II' }],
-    related_rules: [{ id: 'mods-monitor', name: 'MODS 监测' }],
-    guidelines: [],
-    rules_count: 3,
-    patients_count: 423,
-    updated_at: '2024-02-20',
-  },
-]
+// 计算分类数量
+function getCategoryCount(catId: string) {
+  return diseases.value.filter(d => d.category_id === catId).length
+}
 
+const error = ref<string | null>(null)
 const diseases = ref<DiseaseExtended[]>([])
 
 // 过滤后的病种列表
 const filteredDiseases = computed(() => {
   let items = diseases.value
   if (selectedCategory.value) {
-    const catName = categories.value.find((c) => c.id === selectedCategory.value)?.name
-    if (catName) items = items.filter((d) => d.category === catName)
+    items = items.filter((d) => d.category_id === selectedCategory.value)
   }
   if (selectedStatus.value) {
     items = items.filter((d) => d.status === selectedStatus.value)
@@ -367,7 +268,17 @@ const filteredDiseases = computed(() => {
 
 // 状态文本
 function statusText(status?: string) {
-  const map: Record<string, string> = { published: '已发布', draft: '草稿', review: '审核中' }
+  const map: Record<string, string> = {
+    draft: '草稿',
+    validating: '验证中',
+    review_pending: '待审核',
+    reviewing: '审核中',
+    changes_requested: '需修改',
+    approved: '已批准',
+    published: '已发布',
+    deprecated: '已废弃',
+    archived: '已归档',
+  }
   return map[status || 'draft'] || '草稿'
 }
 
@@ -383,42 +294,35 @@ function selectDisease(disease: DiseaseExtended) {
 
 // 编辑病种
 function editDisease() {
-  // TODO: 进入分步编辑器
-  alert('编辑功能开发中')
+  // TODO: 实现编辑功能
+  message.info('编辑功能开发中')
 }
 
 // 搜索
 async function onSearch() {
   loading.value = true
+  error.value = null
+
   try {
     const { data } = await getDiseases({
       status: selectedStatus.value || undefined,
       limit: 100,
     })
-    let items = data.diseases || []
+    // API 返回的是数组，不是 { diseases: [...] }
+    let items = Array.isArray(data) ? data : []
     if (searchQuery.value) {
       const q = searchQuery.value.toLowerCase()
       items = items.filter(
         (d: Disease) =>
           d.name.toLowerCase().includes(q) ||
-          d.icd10?.toLowerCase().includes(q) ||
-          d.icd11?.toLowerCase().includes(q)
+          d.icd10_codes?.some(code => code.toLowerCase().includes(q)) ||
+          d.icd11_codes?.some(code => code.toLowerCase().includes(q))
       )
     }
     diseases.value = items as DiseaseExtended[]
-  } catch {
-    // 使用模拟数据
-    let items = [...mockDiseases]
-    if (searchQuery.value) {
-      const q = searchQuery.value.toLowerCase()
-      items = items.filter(
-        (d) =>
-          d.name.toLowerCase().includes(q) ||
-          d.icd10?.toLowerCase().includes(q) ||
-          d.synonyms?.some((s) => s.toLowerCase().includes(q))
-      )
-    }
-    diseases.value = items
+  } catch (e: any) {
+    error.value = e?.message || '获取病种列表失败，请稍后重试'
+    diseases.value = []
   } finally {
     loading.value = false
   }

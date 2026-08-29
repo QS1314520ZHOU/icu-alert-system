@@ -52,6 +52,12 @@ from app.routers.quality import router as quality_router
 from app.routers.voice_rounding import router as voice_rounding_router
 from app.routers.disease_center import router as disease_center_router
 from app.routers.ws import router as ws_router
+from app.routers.auth import router as auth_router
+from app.routers.notifications import router as notifications_router
+from app.routers.monitoring import router as monitoring_router
+from app.repositories import connect as mongo_connect, disconnect as mongo_disconnect
+from app.cache import connect as redis_connect, disconnect as redis_disconnect
+from app.seed_data import seed_diseases
 from app.services.ai_handoff import AiHandoffService
 from app.services.ai_monitor import AiMonitor
 from app.services.ai_watching_service import AiWatchingService
@@ -119,6 +125,28 @@ async def lifespan(application: FastAPI):
     config = get_config()
     db = DatabaseManager(config)
     await db.connect()
+
+    # 连接 MongoDB（病种中心使用）
+    try:
+        mongodb_url = config.yaml_cfg.get("databases", {}).get("mongodb", {}).get("url", "mongodb://localhost:27017")
+        await mongo_connect(mongodb_url)
+        logger.info("✅ MongoDB 连接成功")
+    except Exception as e:
+        logger.warning(f"⚠️ MongoDB 连接失败（非致命）: {e}")
+
+    # 连接 Redis（缓存使用）
+    try:
+        redis_url = config.yaml_cfg.get("databases", {}).get("redis", {}).get("url", "redis://localhost:6379")
+        await redis_connect(redis_url)
+        logger.info("✅ Redis 连接成功")
+    except Exception as e:
+        logger.warning(f"⚠️ Redis 连接失败（非致命）: {e}")
+
+    # 初始化示例数据
+    try:
+        await seed_diseases()
+    except Exception as e:
+        logger.warning(f"⚠️ 示例数据初始化失败（非致命）: {e}")
 
     ws_mgr = WebSocketManager()
     if db.redis:
@@ -203,6 +231,21 @@ async def lifespan(application: FastAPI):
     await alert_engine.stop()
     await ws_mgr.stop_redis_relay()
     await db.disconnect()
+
+    # 断开 MongoDB 连接
+    try:
+        await mongo_disconnect()
+        logger.info("✅ MongoDB 连接已关闭")
+    except Exception as e:
+        logger.warning(f"⚠️ MongoDB 关闭警告: {e}")
+
+    # 断开 Redis 连接
+    try:
+        await redis_disconnect()
+        logger.info("✅ Redis 连接已关闭")
+    except Exception as e:
+        logger.warning(f"⚠️ Redis 关闭警告: {e}")
+
     logger.info("✅ ICU智能协同工作台已关闭")
 
 
@@ -215,6 +258,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def monitoring_middleware(request: Request, call_next):
+    """监控中间件。"""
+    import time
+    from app.monitoring import record_request, record_error
+
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+
+    # 记录请求指标
+    record_request(
+        method=request.method,
+        endpoint=request.url.path,
+        status=response.status_code,
+        duration=duration,
+    )
+
+    # 记录错误
+    if response.status_code >= 500:
+        record_error("server_error", request.url.path)
+    elif response.status_code >= 400:
+        record_error("client_error", request.url.path)
+
+    return response
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -267,6 +337,9 @@ app.include_router(quality_router)
 app.include_router(disease_center_router)
 app.include_router(waveforms_router)
 app.include_router(ws_router)
+app.include_router(auth_router)
+app.include_router(notifications_router)
+app.include_router(monitoring_router)
 
 STATIC_DIR = str(static_dir())
 

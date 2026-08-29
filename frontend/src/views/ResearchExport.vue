@@ -8,6 +8,22 @@
 
     <MetricStrip :metrics="kpiMetrics" />
 
+    <!-- 导出就绪度 -->
+    <div class="export-viz-row">
+      <div class="export-viz-card export-viz-card--ring">
+        <h4>导出就绪度</h4>
+        <DataCompletenessRing :percent="exportReadiness" :size="100" />
+        <span class="export-viz-ring-label">{{ form.data_types.length }} 类数据已选</span>
+      </div>
+      <div class="export-viz-card">
+        <h4>已选数据类型</h4>
+        <div class="export-type-chips">
+          <span v-for="dt in form.data_types" :key="dt" class="export-type-chip">{{ dataTypeLabel(dt) }}</span>
+          <span v-if="!form.data_types.length" class="export-type-empty">未选择</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 步骤式流程 -->
     <div class="step-card">
       <a-steps :current="currentStep" size="small" :items="stepItems" />
@@ -209,6 +225,7 @@ import { computed, ref, watch } from 'vue'
 import { Button as AButton, Checkbox as ACheckbox, DatePicker, Drawer as ADrawer, Progress as AProgress, Radio as ARadio, Select as ASelect, Space as ASpace, Steps as ASteps, Table as ATable, Tag as ATag } from 'ant-design-vue'
 import { PageHeader, SectionHeader, MetricStrip, ActionBar, EmptyState } from '../components/common/design-system'
 import { useResearchExport } from '../composables/useResearchExport'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
 
 const ARangePicker = DatePicker.RangePicker
 const ACheckboxGroup = ACheckbox.Group
@@ -282,6 +299,25 @@ function historyRowProps(record: any) {
   return { style: { cursor: 'pointer' }, onClick: () => openDetail(record) }
 }
 
+// ── 导出就绪度 ──────────────────────────────────────────────────────
+const exportReadiness = computed(() => {
+  let total = 4
+  let filled = 0
+  if (form.cohort_id || form.department || form.patient_scope !== 'all') filled++
+  if (form.data_types.length > 0) filled++
+  if (form.format) filled++
+  if (form.desensitize || form.include_data_dict) filled++
+  return Math.round((filled / total) * 100)
+})
+
+function dataTypeLabel(dt: string): string {
+  const map: Record<string, string> = {
+    patients: '患者主表', outcomes: '结局表', vitals: '生命体征',
+    labs: '检验结果', alerts: '预警记录', scores: '评分数据', ai_logs: 'AI日志',
+  }
+  return map[dt] || dt
+}
+
 init()
 </script>
 
@@ -292,6 +328,62 @@ init()
   flex-direction: column;
   gap: var(--section-gap, 24px);
   max-width: 1200px;
+}
+
+/* 导出就绪度 */
+.export-viz-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+}
+
+.export-viz-card {
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  padding: 14px 16px;
+}
+
+.export-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.export-viz-card--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.export-viz-ring-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.export-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.export-type-chip {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #E6F4FF;
+  color: #2563EB;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.export-type-empty {
+  color: #8c8c8c;
+  font-size: 12px;
 }
 .step-card {
   background: var(--color-bg-surface, #fff);

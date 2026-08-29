@@ -9,6 +9,19 @@
 
     <MetricStrip :metrics="kpiMetrics" />
 
+    <!-- 筛选漏斗可视化 -->
+    <div v-if="trials.length" class="trial-viz-row">
+      <div class="trial-viz-card">
+        <h4>筛选漏斗</h4>
+        <div ref="funnelChartRef" class="trial-viz-chart"></div>
+      </div>
+      <div class="trial-viz-card trial-viz-card--ring">
+        <h4>数据完整性</h4>
+        <DataCompletenessRing :percent="screeningCompleteness" :size="100" />
+        <span class="trial-viz-ring-label">{{ trials.length }} 项试验</span>
+      </div>
+    </div>
+
     <!-- 步骤式流程 -->
     <div class="step-card">
       <a-steps :current="currentStep" size="small" :items="stepItems" />
@@ -226,7 +239,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import * as echarts from 'echarts/core'
+import { FunnelChart } from 'echarts/charts'
+import { TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import {
   Alert as AAlert, Button as AButton, Drawer as ADrawer, Form as AForm, FormItem as AFormItem,
   Input as AInput, Modal as AModal, Select as ASelect, Space as ASpace, Steps as ASteps,
@@ -234,6 +251,9 @@ import {
 } from 'ant-design-vue'
 import { PageHeader, SectionHeader, MetricStrip, ActionBar, EmptyState } from '../components/common/design-system'
 import { useClinicalTrial } from '../composables/useClinicalTrial'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
+
+echarts.use([FunnelChart, TooltipComponent, CanvasRenderer])
 
 const {
   loading, screening, saving, demoLoading,
@@ -293,6 +313,54 @@ const candidateColumns = [
 ]
 
 const candidateRows = computed(() => candidates.value.map((c, idx) => ({ ...c, row_key: c.candidate_id || idx })))
+
+// ── 筛选漏斗图 ──────────────────────────────────────────────────────
+const funnelChartRef = ref<HTMLElement>()
+let funnelChart: echarts.ECharts | null = null
+
+const screeningCompleteness = computed(() => {
+  const total = trials.value.length
+  const active = activeTrialCount.value
+  const withCandidates = candidates.value.length > 0 ? 1 : 0
+  if (!total) return 0
+  return Math.round(((active + withCandidates) / (total + 1)) * 100)
+})
+
+const funnelOption = computed(() => {
+  const scanned = lastScreenResult.value?.scanned_patients || 0
+  const candidatesCount = candidates.value.length
+  const notified = candidates.value.filter((c: any) => c.status !== 'pending').length
+  const enrolled = candidates.value.filter((c: any) => c.status === 'enrolled').length
+
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}: {c}人' },
+    series: [{
+      type: 'funnel',
+      left: '10%',
+      width: '80%',
+      sort: 'descending',
+      gap: 4,
+      label: { show: true, position: 'inside', fontSize: 12, color: '#fff' },
+      data: [
+        { value: scanned, name: '扫描患者', itemStyle: { color: '#2563EB' } },
+        { value: candidatesCount, name: '候选匹配', itemStyle: { color: '#12B76A' } },
+        { value: notified, name: '已通知', itemStyle: { color: '#F79009' } },
+        { value: enrolled, name: '已入组', itemStyle: { color: '#7C3AED' } },
+      ].filter(d => d.value > 0),
+    }],
+  }
+})
+
+function initFunnelChart() {
+  if (!funnelChartRef.value) return
+  funnelChart = echarts.init(funnelChartRef.value)
+  funnelChart.setOption(funnelOption.value)
+  const ro = new ResizeObserver(() => funnelChart?.resize())
+  ro.observe(funnelChartRef.value)
+}
+
+onMounted(() => { setTimeout(initFunnelChart, 400) })
+onBeforeUnmount(() => { funnelChart?.dispose(); funnelChart = null })
 </script>
 
 <style scoped>
@@ -302,6 +370,45 @@ const candidateRows = computed(() => candidates.value.map((c, idx) => ({ ...c, r
   flex-direction: column;
   gap: var(--section-gap, 24px);
   max-width: 1400px;
+}
+
+/* 筛选漏斗可视化 */
+.trial-viz-row {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 16px;
+}
+
+.trial-viz-card {
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  padding: 14px 16px;
+}
+
+.trial-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.trial-viz-chart {
+  width: 100%;
+  height: 200px;
+}
+
+.trial-viz-card--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.trial-viz-ring-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
 }
 .step-card {
   background: var(--color-bg-surface, #fff);

@@ -18,10 +18,10 @@
     <div class="packages-grid">
       <div v-for="pkg in packages" :key="pkg.id" class="package-card">
         <div class="package-header">
-          <div class="package-icon">{{ packageIcon(pkg.type) }}</div>
+          <div class="package-icon">{{ packageIcon(pkg.package_type) }}</div>
           <div class="package-info">
             <h4 class="package-name">{{ pkg.name }}</h4>
-            <span class="package-type">{{ pkg.type }}</span>
+            <span class="package-type">{{ pkg.package_type }}</span>
           </div>
           <span :class="['status-badge', `status-badge--${pkg.status}`]">{{ statusText(pkg.status) }}</span>
         </div>
@@ -32,17 +32,9 @@
               <span class="version-label">包版本</span>
               <span class="version-value">{{ pkg.version }}</span>
             </div>
-            <div v-if="pkg.icd_version" class="version-item">
-              <span class="version-label">ICD版本</span>
-              <span class="version-value">{{ pkg.icd_version }}</span>
-            </div>
-            <div v-if="pkg.guide_version" class="version-item">
-              <span class="version-label">指南版本</span>
-              <span class="version-value">{{ pkg.guide_version }}</span>
-            </div>
-            <div v-if="pkg.model_version" class="version-item">
-              <span class="version-label">模型版本</span>
-              <span class="version-value">{{ pkg.model_version }}</span>
+            <div v-if="pkg.source_version" class="version-item">
+              <span class="version-label">源版本</span>
+              <span class="version-value">{{ pkg.source_version }}</span>
             </div>
           </div>
 
@@ -53,7 +45,7 @@
             </div>
             <div class="meta-item">
               <span class="meta-label">大小</span>
-              <span class="meta-value">{{ pkg.size }}</span>
+              <span class="meta-value">{{ formatFileSize(pkg.file_size) }}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">上传时间</span>
@@ -125,6 +117,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { getOfflinePackages } from '../../api/diseaseCenter'
 
 // 状态
 const showUpload = ref(false)
@@ -134,139 +128,123 @@ const uploadForm = ref({ type: 'icd', signature: '' })
 interface OfflinePackage {
   id: string
   name: string
-  type: string
+  package_type: string  // icd, terminology, guidelines, model, embedding, vector
   version: string
-  icd_version?: string
-  guide_version?: string
-  model_version?: string
-  prompt_version?: string
+  source_version?: string
   sha256?: string
-  size: string
-  status: 'draft' | 'published' | 'deprecated'
+  file_size: number
+  status: 'draft' | 'published' | 'deprecated' | 'validating' | 'rollback'
   uploaded_at: string
+  uploaded_by?: string
+  diff_summary?: string
+  impact_summary?: string
 }
 
 const packages = ref<OfflinePackage[]>([])
 
-// 模拟数据
-const mockPackages: OfflinePackage[] = [
-  {
-    id: '1',
-    name: 'ICD-10/11 标准编码库',
-    type: 'ICD数据',
-    version: 'v2024.1',
-    icd_version: 'ICD-10 v2024',
-    sha256: 'a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456',
-    size: '45.2 MB',
-    status: 'published',
-    uploaded_at: '2024-03-15',
-  },
-  {
-    id: '2',
-    name: '医学术语同义词库',
-    type: '医学术语',
-    version: 'v3.2.0',
-    sha256: 'b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678',
-    size: '12.8 MB',
-    status: 'published',
-    uploaded_at: '2024-03-10',
-  },
-  {
-    id: '3',
-    name: '重症医学指南合集',
-    type: '指南文档',
-    version: 'v1.5.0',
-    guide_version: '2024 Q1',
-    sha256: 'c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567890',
-    size: '156.3 MB',
-    status: 'published',
-    uploaded_at: '2024-03-08',
-  },
-  {
-    id: '4',
-    name: '本地 LLM 医学模型',
-    type: 'AI模型',
-    version: 'v2.1.0',
-    model_version: 'Qwen2-7B-Medical',
-    sha256: 'd4e5f6789012345678901234567890abcdef1234567890abcdef123456789012',
-    size: '4.2 GB',
-    status: 'draft',
-    uploaded_at: '2024-03-20',
-  },
-  {
-    id: '5',
-    name: '医学 Embedding 模型',
-    type: 'Embedding',
-    version: 'v1.0.0',
-    model_version: 'bge-large-zh-v1.5',
-    sha256: 'e5f6789012345678901234567890abcdef1234567890abcdef12345678901234',
-    size: '1.2 GB',
-    status: 'published',
-    uploaded_at: '2024-02-28',
-  },
-]
+const error = ref<string | null>(null)
 
 // 包类型图标
 function packageIcon(type: string) {
   const icons: Record<string, string> = {
-    'ICD数据': '📋',
-    '医学术语': '📖',
-    '指南文档': '📚',
-    'AI模型': '🤖',
-    'Embedding': '🔢',
-    '向量索引': '🗂️',
+    'icd': '📋',
+    'terminology': '📖',
+    'guidelines': '📚',
+    'model': '🤖',
+    'embedding': '🔢',
+    'vector': '🗂️',
   }
   return icons[type] || '📦'
 }
 
+// 格式化文件大小
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
 // 状态文本
 function statusText(status: string) {
-  const map: Record<string, string> = { draft: '草稿', published: '已发布', deprecated: '已废弃' }
+  const map: Record<string, string> = { draft: '草稿', validating: '验证中', published: '已发布', deprecated: '已废弃', rollback: '已回滚' }
   return map[status] || status
 }
 
 // 验证包
 function verifyPackage(pkg: OfflinePackage) {
-  alert(`正在验证 ${pkg.name}...\nSHA-256: ${pkg.sha256?.substring(0, 32)}...`)
+  message.info(`正在验证 ${pkg.name}...`)
+  // TODO: 实现验证逻辑
 }
 
 // 发布包
 function publishPackage(pkg: OfflinePackage) {
-  if (confirm(`确认发布 ${pkg.name} ${pkg.version}？`)) {
-    pkg.status = 'published'
-    alert('发布成功')
-  }
+  Modal.confirm({
+    title: '发布确认',
+    content: `确认发布 ${pkg.name} ${pkg.version}？`,
+    okText: '确认',
+    cancelText: '取消',
+    onOk() {
+      // TODO: 调用发布API
+      message.success('发布成功')
+    },
+  })
 }
 
 // 回滚包
 function rollbackPackage(pkg: OfflinePackage) {
-  if (confirm(`确认回滚 ${pkg.name} 到上一版本？`)) {
-    alert('回滚功能开发中')
-  }
+  Modal.confirm({
+    title: '回滚确认',
+    content: `确认回滚 ${pkg.name} 到上一版本？`,
+    okText: '确认',
+    cancelText: '取消',
+    onOk() {
+      // TODO: 实现回滚逻辑
+      message.info('回滚功能开发中')
+    },
+  })
 }
 
 // 差异预览
 function previewDiff(pkg: OfflinePackage) {
-  alert(`差异预览功能开发中\n包: ${pkg.name}\n版本: ${pkg.version}`)
+  message.info('差异预览功能开发中')
 }
 
 // 文件选择
 function onFileSelect(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (file) {
-    alert(`已选择文件: ${file.name}\n大小: ${(file.size / 1024 / 1024).toFixed(2)} MB`)
+    message.info(`已选择文件: ${file.name}`)
   }
 }
 
 // 上传包
 function uploadPackage() {
-  alert('上传功能开发中')
+  // TODO: 实现上传逻辑
+  message.info('上传功能开发中')
   showUpload.value = false
+}
+
+// 加载数据
+async function loadPackages() {
+  loading.value = true
+  error.value = null
+
+  try {
+    const { data } = await getOfflinePackages()
+    packages.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    error.value = e?.message || '获取离线包列表失败，请稍后重试'
+    packages.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 // 初始化
 onMounted(() => {
-  packages.value = mockPackages
+  loadPackages()
 })
 </script>
 

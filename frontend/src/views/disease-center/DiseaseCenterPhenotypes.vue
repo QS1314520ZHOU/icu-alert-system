@@ -231,6 +231,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import { getPhenotypeRules, getDiseases, type PhenotypeRule, type Disease } from '../../api/diseaseCenter'
 
 // 状态
@@ -273,65 +274,7 @@ const editForm = ref<{
   },
 })
 
-// 模拟数据
-const mockDiseases: Disease[] = [
-  { id: '1', name: '脓毒症', category: '感染' },
-  { id: '2', name: 'ARDS', category: '呼吸' },
-  { id: '3', name: 'AKI', category: '肾脏' },
-]
-
-const mockRules: PhenotypeRule[] = [
-  {
-    id: '1',
-    name: '脓毒症表型',
-    disease_id: '1',
-    disease_name: '脓毒症',
-    version: 'v2.1.0',
-    status: 'active',
-    description: '基于 Sepsis-3 定义的脓毒症表型识别规则',
-    dsl: {
-      operator: 'ALL',
-      conditions: [
-        { type: 'lab', field: 'lactate', operator: '>', value: 2, time_window: '6h' },
-        { type: 'score', field: 'sofa', operator: '>=', value: 2, time_window: '24h' },
-        { type: 'vital', field: 'temperature', operator: '>', value: 38.3 },
-      ],
-    },
-    updated_at: '2024-03-15',
-  },
-  {
-    id: '2',
-    name: 'ARDS 轻度表型',
-    disease_id: '2',
-    disease_name: 'ARDS',
-    version: 'v1.0.0',
-    status: 'active',
-    dsl: {
-      operator: 'ALL',
-      conditions: [
-        { type: 'lab', field: 'pao2_fio2', operator: 'between', value: [200, 300] },
-        { type: 'device', field: 'peep', operator: '>=', value: 5 },
-      ],
-    },
-    updated_at: '2024-03-10',
-  },
-  {
-    id: '3',
-    name: 'AKI 高风险表型',
-    disease_id: '3',
-    disease_name: 'AKI',
-    version: 'v1.0.0',
-    status: 'draft',
-    dsl: {
-      operator: 'ANY',
-      conditions: [
-        { type: 'lab', field: 'creatinine', operator: '>=', value: 1.5, time_window: '48h' },
-        { type: 'vital', field: 'urine_output', operator: '<', value: 0.5, time_window: '6h' },
-      ],
-    },
-    updated_at: '2024-03-08',
-  },
-]
+const error = ref<string | null>(null)
 
 // 运算符提示
 const operatorHint = computed(() => {
@@ -427,42 +370,51 @@ function createRule() {
 
 // 保存规则
 function saveRule() {
-  alert('保存功能开发中')
+  // TODO: 实现保存逻辑
+  message.info('保存功能开发中')
 }
 
 // 保存草稿
 function saveDraft() {
-  alert('草稿已保存')
+  // TODO: 实现保存草稿逻辑
+  message.success('草稿已保存')
 }
 
 // 提交审核
 function submitReview() {
-  alert('已提交审核')
+  // TODO: 实现提交审核逻辑
+  message.success('已提交审核')
 }
 
 // 测试规则
 function testRule() {
-  alert('测试功能开发中')
+  // TODO: 实现测试逻辑
+  message.info('测试功能开发中')
 }
 
 // Schema检查
 function validateRule() {
-  alert('Schema检查通过')
+  // TODO: 实现Schema检查逻辑
+  message.success('Schema检查通过')
 }
 
 // AI检查
 function aiCheck() {
-  alert('AI检查功能开发中')
+  // TODO: 实现AI检查逻辑
+  message.info('AI检查功能开发中')
 }
 
 // 加载规则
 async function loadRules() {
   loading.value = true
+  error.value = null
+
   try {
     const { data } = await getPhenotypeRules({ disease_id: selectedDisease.value || undefined })
-    rules.value = data.rules || []
-  } catch {
-    rules.value = mockRules
+    rules.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    error.value = e?.message || '获取表型规则失败，请稍后重试'
+    rules.value = []
   } finally {
     loading.value = false
   }
@@ -473,9 +425,9 @@ onMounted(async () => {
   // 加载病种列表
   try {
     const { data } = await getDiseases()
-    diseases.value = data.diseases || []
-  } catch {
-    diseases.value = mockDiseases
+    diseases.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    message.error(e?.message || '获取病种列表失败')
   }
 
   await loadRules()

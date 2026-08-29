@@ -90,7 +90,7 @@ const nursingRadar = computed(() => {
 .task-section {
   padding: 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .section-header {
@@ -106,9 +106,9 @@ const nursingRadar = computed(() => {
   padding: 3px 10px;
   border-radius: var(--card-radius);
 }
-.section-label.warning { background: rgba(232,144,28,.15); color: #E8901C; }
+.section-label.warning { background: rgba(232,144,28,.15); color: var(--color-warning); }
 .section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
-.section-label.info { background: rgba(21,85,141,.15); color: #15558D; }
+.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
 .section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
 
 .completion-bar {
@@ -121,19 +121,19 @@ const nursingRadar = computed(() => {
   flex: 1;
   height: 8px;
   border-radius: 999px;
-  background: rgba(125,211,252,.12);
+  background: var(--color-border);
   overflow: hidden;
 }
 .completion-fill {
   height: 100%;
   border-radius: 999px;
-  background: #1A9C5B;
+  background: var(--color-success);
   transition: width .3s ease;
 }
 .completion-text {
   font-size: 12px;
   font-weight: 700;
-  color: #1A9C5B;
+  color: var(--color-success);
   white-space: nowrap;
 }
 
@@ -147,10 +147,10 @@ const nursingRadar = computed(() => {
   display: grid;
   place-items: center;
   gap: 3px;
-  border: 1px solid rgba(125,211,252,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   color: var(--text-primary);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   cursor: pointer;
 }
 .omission-cell:hover { border-color: rgba(103,232,249,.32); }
@@ -165,9 +165,9 @@ const nursingRadar = computed(() => {
   font-size: 12px;
 }
 .omission-cell span { font-size: 12px; }
-.omission-cell.is-ok i { color: #052e24; background: #1A9C5B; }
+.omission-cell.is-ok i { color: #052e24; background: var(--color-success); }
 .omission-cell.is-todo { border-color: rgba(251,191,36,.34); background: rgba(113,63,18,.2); }
-.omission-cell.is-todo i { color: #451a03; background: #E8901C; }
+.omission-cell.is-todo i { color: #451a03; background: var(--color-warning); }
 
 .nursing-list { display: grid; gap: 8px; }
 .nursing-row {
@@ -176,16 +176,16 @@ const nursingRadar = computed(() => {
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
 }
 .nursing-info { flex: 1; min-width: 0; }
 .nursing-info strong { display: block; color: var(--text-primary); font-size: 13px; }
 .nursing-info p { margin: 4px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
 .nursing-action {
   flex: 0 0 auto;
-  border: 1px solid rgba(125,211,252,.24);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 5px 10px;
   font-size: 12px;
@@ -203,9 +203,9 @@ const nursingRadar = computed(() => {
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
-  border: 1px solid rgba(125,211,252,.1);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;

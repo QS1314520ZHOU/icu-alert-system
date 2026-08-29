@@ -211,6 +211,16 @@
                 <div v-else class="soft-empty">暂无床旁生命体征趋势，建议确认监护数据同步。</div>
               </section>
 
+              <!-- 24小时临床事件时间线 -->
+              <section class="timeline-section">
+                <ClinicalTimeline
+                  title="24小时临床事件"
+                  :events="roundingTimelineEvents"
+                  :type-filters="roundingEventTypeFilters"
+                  empty-message="过去24小时无记录事件"
+                />
+              </section>
+
               <a-tabs v-model:activeKey="activeSystemTab" class="system-tabs">
                 <a-tab-pane v-for="system in systemTabs" :key="system.key" :tab="`${system.label} ${systemCount(system.key)}`">
                   <article v-if="systemAssessment(system.key)" class="assessment-card">
@@ -297,6 +307,8 @@ import {
 } from 'ant-design-vue'
 import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
 import VoiceRounding from '../components/VoiceRounding.vue'
+import { ClinicalTimeline } from '../components/charts'
+import type { TimelineEvent } from '../components/charts'
 import { getDepartments, postClinicalTask } from '../api'
 import {
   getRoundingPatients,
@@ -435,6 +447,34 @@ const roundingOrganTooltips = computed(() => Object.fromEntries(Object.entries(r
     severity,
   }]
 })))
+
+// 24小时临床事件时间线
+const roundingTimelineEvents = computed<TimelineEvent[]>(() => {
+  if (!summary.value?.systems) return []
+  const events: TimelineEvent[] = []
+  const systems = summary.value.systems
+  for (const [systemKey, items] of Object.entries(systems)) {
+    if (!Array.isArray(items)) continue
+    for (const item of items) {
+      events.push({
+        id: item.id || `${systemKey}-${item.time}`,
+        time: item.time || item.created_at,
+        type: eventLabel(item.type) || systemKey,
+        title: item.title || item.type || '事件',
+        description: item.description,
+        source: item.source,
+      })
+    }
+  }
+  return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 30)
+})
+
+const roundingEventTypeFilters = [
+  { label: '告警', value: '告警' },
+  { label: '用药', value: '用药' },
+  { label: '检验', value: '检验' },
+  { label: '操作', value: '操作' },
+]
 
 function riskColor(v: string) {
   return v === 'critical' ? 'red' : v === 'high' ? 'volcano' : v === 'medium' ? 'gold' : 'cyan'
@@ -1147,6 +1187,13 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface), .42);
+}
+
+.timeline-section {
+  padding: 12px;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-color, rgba(145, 176, 199, 0.2));
 }
 .editable-rounding {
   display: grid;

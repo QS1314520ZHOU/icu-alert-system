@@ -137,7 +137,7 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
 .task-section {
   padding: 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .section-header {
@@ -153,8 +153,8 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   padding: 3px 10px;
   border-radius: var(--card-radius);
 }
-.section-label.info { background: rgba(21,85,141,.15); color: #15558D; }
-.section-label.stable { background: rgba(26,156,91,.15); color: #1A9C5B; }
+.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
+.section-label.stable { background: rgba(26,156,91,.15); color: var(--color-success); }
 .section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
 .section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
 
@@ -168,7 +168,7 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   padding: 6px 8px;
   border-radius: var(--card-radius);
   color: var(--text-primary);
-  background: rgba(14,116,144,.1);
+  background: var(--color-primary-bg);
   text-align: center;
   font-size: 12px;
   font-weight: 700;
@@ -206,9 +206,9 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid rgba(125,211,252,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   cursor: pointer;
 }
 .antibiotic-task.prio-high { border-color: rgba(251,113,133,.34); }
@@ -219,7 +219,7 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   font-size: 12px;
 }
 .antibiotic-task strong { color: var(--text-primary); }
-.antibiotic-task span { color: #1A9C5B; }
+.antibiotic-task span { color: var(--color-success); }
 
 .light-list { display: grid; gap: 6px; }
 .light-row {
@@ -228,22 +228,22 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   grid-template-columns: 54px repeat(5, 1fr);
   gap: 7px;
   align-items: center;
-  border: 1px solid rgba(125,211,252,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 9px;
   color: var(--text-primary);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   cursor: pointer;
 }
 .light-row:hover { border-color: rgba(103,232,249,.32); }
 .light-row strong { font-size: 12px; }
-.light-percent { color: #1A9C5B; font-size: 12px; font-weight: 700; text-align: center; }
+.light-percent { color: var(--color-success); font-size: 12px; font-weight: 700; text-align: center; }
 .light-row i {
   height: 14px;
   border-radius: var(--card-radius);
   background: var(--text-secondary);
 }
-.light-row i.ok { background: #1A9C5B; }
+.light-row i.ok { background: var(--color-success); }
 .light-row i.bad { background: #D9342B; }
 
 .rescue-list { display: grid; gap: 6px; }
@@ -276,11 +276,11 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
   gap: 6px;
-  border: 1px solid rgba(125,211,252,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 10px;
   color: var(--text-primary);
-  background: rgba(14,116,144,.06);
+  background: var(--color-primary-bg);
   cursor: pointer;
   text-align: left;
 }
@@ -295,7 +295,7 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   place-items: center;
   border-radius: var(--card-radius);
   color: #052e24;
-  background: #1A9C5B;
+  background: var(--color-success);
   font-style: normal;
   font-size: 12px;
   font-weight: 700;
@@ -304,7 +304,7 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   padding: 4px 6px;
   border-radius: var(--card-radius);
   text-align: center;
-  background: rgba(14,116,144,.12);
+  background: var(--color-primary-bg);
   font-size: 11px;
 }
 

@@ -145,7 +145,7 @@ onMounted(() => {
   gap: 16px;
   padding: 14px 18px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .cw-header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -161,8 +161,8 @@ onMounted(() => {
   border-radius: var(--card-radius);
   font-size: 11px;
   font-weight: 700;
-  color: var(--accent);
-  background: rgba(14,116,144,.14);
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
 }
 .cw-scope {
   font-size: 12px;
@@ -180,14 +180,14 @@ onMounted(() => {
   gap: 12px;
   padding: 10px 14px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(251,191,36,.2);
+  border: 1px solid var(--color-warning-bg);
   background: var(--bg-surface);
 }
 .strip-label {
   flex: 0 0 auto;
   font-size: 13px;
   font-weight: 700;
-  color: #E8901C;
+  color: var(--color-warning);
 }
 .strip-chips {
   display: flex;
@@ -296,7 +296,7 @@ onMounted(() => {
   padding: 8px 14px;
   border: 1px solid rgba(52,211,153,.28);
   border-radius: var(--card-radius);
-  color: #1A9C5B;
+  color: var(--color-success);
   background: rgba(26,156,91,.1);
   cursor: pointer;
   font-weight: 700;
@@ -307,7 +307,7 @@ onMounted(() => {
   padding: 12px;
   border-radius: var(--card-radius);
   margin-bottom: 12px;
-  color: #1A9C5B;
+  color: var(--color-success);
   background: rgba(63,98,18,.14);
   font-size: 13px;
   line-height: 1.6;
@@ -316,7 +316,7 @@ onMounted(() => {
 .story-empty {
   padding: 20px;
   border-radius: var(--card-radius);
-  border: 1px dashed rgba(125,211,252,.18);
+  border: 1px dashed var(--color-border);
   text-align: center;
 }
 .story-empty strong { color: var(--text-primary); font-size: 14px; }
@@ -325,7 +325,7 @@ onMounted(() => {
 .story-cluster {
   padding: 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125,211,252,.12);
+  border: 1px solid var(--color-border);
   background: rgba(14,116,144,.06);
 }
 .story-cluster strong { color: var(--text-primary); font-size: 13px; }

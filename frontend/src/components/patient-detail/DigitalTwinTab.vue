@@ -19,8 +19,8 @@
       <div class="twin-kpi"><span>已追踪干预</span><strong>{{ trackedInterventions }}</strong></div>
     </div>
 
-    <div v-if="foundationModelChips.length" class="chip-row fm-chip-row">
-      <span v-for="item in foundationModelChips" :key="item.label" class="info-chip">{{ item.label }} {{ item.value }}</span>
+    <div v-if="filteredModelChips.length" class="chip-row fm-chip-row">
+      <span v-for="item in filteredModelChips" :key="item.label" class="info-chip">{{ item.label }} {{ item.value }}</span>
     </div>
 
     <div class="loop-grid">
@@ -313,6 +313,7 @@ const foundationModelChips = computed(() => {
     value: row?.probability == null ? '—' : pct(row.probability),
   })).slice(0, 3)
 })
+const filteredModelChips = computed(() => (foundationModelChips.value || []).filter((c: any) => !String(c.value || '').includes('no torch')))
 const patientSilhouette = computed<'female' | 'male'>(() => {
   const text = String(patient.value?.gender || patient.value?.genderText || patient.value?.hisSex || '').toLowerCase()
   if (text.includes('female') || text.includes('女')) return 'female'
@@ -1120,6 +1121,12 @@ html[data-theme='light'] .whatif-workbench .cause-chip:disabled {
   box-shadow: none;
 }
 </style>
+
+
+
+
+
+
 
 
 

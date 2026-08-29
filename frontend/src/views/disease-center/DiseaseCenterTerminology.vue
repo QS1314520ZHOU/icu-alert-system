@@ -78,8 +78,8 @@
               <div class="term-item__main">
                 <div class="term-item__name">{{ item.name }}</div>
                 <div class="term-item__codes">
-                  <span v-if="item.icd10" class="code-tag">ICD-10: {{ item.icd10 }}</span>
-                  <span v-if="item.icd11" class="code-tag">ICD-11: {{ item.icd11 }}</span>
+                  <span v-if="item.icd10_codes?.length" class="code-tag">ICD-10: {{ item.icd10_codes[0] }}</span>
+                  <span v-if="item.icd11_codes?.length" class="code-tag">ICD-11: {{ item.icd11_codes[0] }}</span>
                 </div>
               </div>
               <div class="term-item__meta">
@@ -106,19 +106,31 @@
               <h4 class="section-title">基本信息</h4>
               <div class="detail-row">
                 <span class="detail-label">标准名称</span>
-                <span class="detail-value">{{ selectedTerm.name }}</span>
+                <span class="detail-value">{{ selectedTerm.standard_name }}</span>
               </div>
-              <div v-if="selectedTerm.icd10" class="detail-row">
+              <div v-if="selectedTerm.english_name" class="detail-row">
+                <span class="detail-label">英文名称</span>
+                <span class="detail-value">{{ selectedTerm.english_name }}</span>
+              </div>
+              <div v-if="selectedTerm.abbreviation" class="detail-row">
+                <span class="detail-label">缩写</span>
+                <span class="detail-value detail-value--code">{{ selectedTerm.abbreviation }}</span>
+              </div>
+              <div v-if="selectedTerm.icd10_codes?.length" class="detail-row">
                 <span class="detail-label">ICD-10</span>
-                <span class="detail-value detail-value--code">{{ selectedTerm.icd10 }}</span>
+                <span class="detail-value detail-value--code">{{ selectedTerm.icd10_codes.join(', ') }}</span>
               </div>
-              <div v-if="selectedTerm.icd11" class="detail-row">
+              <div v-if="selectedTerm.icd11_codes?.length" class="detail-row">
                 <span class="detail-label">ICD-11</span>
-                <span class="detail-value detail-value--code">{{ selectedTerm.icd11 }}</span>
+                <span class="detail-value detail-value--code">{{ selectedTerm.icd11_codes.join(', ') }}</span>
               </div>
               <div v-if="selectedTerm.category" class="detail-row">
                 <span class="detail-label">分类</span>
                 <span class="detail-value">{{ selectedTerm.category }}</span>
+              </div>
+              <div v-if="selectedTerm.unit" class="detail-row">
+                <span class="detail-label">单位</span>
+                <span class="detail-value">{{ selectedTerm.unit }}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-label">状态</span>
@@ -128,6 +140,11 @@
               </div>
             </div>
 
+            <div v-if="selectedTerm.description" class="detail-section">
+              <h4 class="section-title">描述</h4>
+              <p class="detail-desc">{{ selectedTerm.description }}</p>
+            </div>
+
             <div v-if="selectedTerm.synonyms?.length" class="detail-section">
               <h4 class="section-title">同义词 ({{ selectedTerm.synonyms.length }})</h4>
               <div class="synonym-list">
@@ -135,21 +152,15 @@
               </div>
             </div>
 
-            <div v-if="selectedTerm.related_diseases?.length" class="detail-section">
-              <h4 class="section-title">关联病种 ({{ selectedTerm.related_diseases.length }})</h4>
-              <div class="related-list">
-                <div v-for="disease in selectedTerm.related_diseases" :key="disease.id" class="related-item">
-                  <span class="related-icon">📁</span>
-                  <span class="related-name">{{ disease.name }}</span>
-                </div>
-              </div>
-            </div>
-
             <div class="detail-section">
-              <h4 class="section-title">使用统计</h4>
+              <h4 class="section-title">版本信息</h4>
               <div class="detail-row">
-                <span class="detail-label">使用次数</span>
-                <span class="detail-value">{{ selectedTerm.usage_count || 0 }}</span>
+                <span class="detail-label">版本</span>
+                <span class="detail-value">{{ selectedTerm.version }}</span>
+              </div>
+              <div v-if="selectedTerm.source" class="detail-row">
+                <span class="detail-label">来源</span>
+                <span class="detail-value">{{ selectedTerm.source }}</span>
               </div>
               <div v-if="selectedTerm.updated_at" class="detail-row">
                 <span class="detail-label">最后更新</span>
@@ -165,15 +176,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import {
-  searchTerminology,
+  getTerminologies,
   getTerminologyCategories,
   type TerminologyItem,
   type TerminologyCategory,
 } from '../../api/diseaseCenter'
 
 // 状态
-const loading = ref(false)
 const searchQuery = ref('')
 const selectedCategory = ref('')
 const selectedStatus = ref('')
@@ -182,81 +193,8 @@ const selectedTerm = ref<TerminologyItem | null>(null)
 // 数据
 const categories = ref<TerminologyCategory[]>([])
 const termItems = ref<TerminologyItem[]>([])
-
-// 模拟数据（规则核心不可用时使用）
-const mockCategories: TerminologyCategory[] = [
-  { id: 'infection', name: '感染', count: 32 },
-  { id: 'respiratory', name: '呼吸', count: 28 },
-  { id: 'circulation', name: '循环', count: 24 },
-  { id: 'neurology', name: '神经', count: 18 },
-  { id: 'nephrology', name: '肾脏', count: 16 },
-  { id: 'coagulation', name: '凝血', count: 12 },
-  { id: 'digestive', name: '消化', count: 14 },
-  { id: 'nutrition', name: '营养', count: 12 },
-]
-
-const mockTerms: TerminologyItem[] = [
-  {
-    id: '1',
-    name: '脓毒症',
-    icd10: 'A41.9',
-    icd11: '1G40-1G41',
-    category: '感染',
-    synonyms: ['Sepsis', '败血症', '全身性感染'],
-    related_diseases: [{ id: '1', name: '脓毒性休克' }],
-    usage_count: 1247,
-    status: 'active',
-    updated_at: '2024-03-15',
-  },
-  {
-    id: '2',
-    name: '急性呼吸窘迫综合征',
-    icd10: 'J80',
-    icd11: 'CA0Y',
-    category: '呼吸',
-    synonyms: ['ARDS', '急性肺损伤', 'Adult Respiratory Distress Syndrome'],
-    related_diseases: [{ id: '2', name: '急性肺损伤' }],
-    usage_count: 892,
-    status: 'active',
-    updated_at: '2024-03-10',
-  },
-  {
-    id: '3',
-    name: '急性肾损伤',
-    icd10: 'N17',
-    icd11: 'GB60',
-    category: '肾脏',
-    synonyms: ['AKI', '急性肾功能衰竭', 'Acute Kidney Injury'],
-    related_diseases: [{ id: '3', name: 'AKI 1期' }, { id: '4', name: 'AKI 2期' }],
-    usage_count: 756,
-    status: 'active',
-    updated_at: '2024-03-08',
-  },
-  {
-    id: '4',
-    name: '弥散性血管内凝血',
-    icd10: 'D65',
-    icd11: '3B20',
-    category: '凝血',
-    synonyms: ['DIC', '消耗性凝血病', 'Disseminated Intravascular Coagulation'],
-    related_diseases: [],
-    usage_count: 534,
-    status: 'active',
-    updated_at: '2024-02-28',
-  },
-  {
-    id: '5',
-    name: '多器官功能障碍综合征',
-    icd10: 'R65.3',
-    icd11: 'MG46',
-    category: '感染',
-    synonyms: ['MODS', '多器官衰竭', 'MOF'],
-    related_diseases: [{ id: '5', name: '脓毒症' }],
-    usage_count: 423,
-    status: 'active',
-    updated_at: '2024-02-20',
-  },
-]
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 // 过滤后的列表
 const filteredItems = computed(() => {
@@ -291,32 +229,18 @@ function selectTerm(item: TerminologyItem) {
 // 搜索
 async function onSearch() {
   loading.value = true
+  error.value = null
+
   try {
-    const { data } = await searchTerminology({
-      q: searchQuery.value || '*',
+    const { data } = await getTerminologies({
+      keyword: searchQuery.value || undefined,
       category: selectedCategory.value || undefined,
       limit: 50,
     })
-    termItems.value = data.items || []
-  } catch {
-    // 规则核心不可用时使用模拟数据
-    let items = [...mockTerms]
-    if (searchQuery.value) {
-      const q = searchQuery.value.toLowerCase()
-      items = items.filter(
-        (item) =>
-          item.name.toLowerCase().includes(q) ||
-          item.icd10?.toLowerCase().includes(q) ||
-          item.synonyms?.some((s) => s.toLowerCase().includes(q))
-      )
-    }
-    if (selectedCategory.value) {
-      const catName = mockCategories.find((c) => c.id === selectedCategory.value)?.name
-      if (catName) {
-        items = items.filter((item) => item.category === catName)
-      }
-    }
-    termItems.value = items
+    termItems.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    error.value = e?.message || '搜索术语失败，请稍后重试'
+    termItems.value = []
   } finally {
     loading.value = false
   }
@@ -327,9 +251,9 @@ onMounted(async () => {
   // 加载分类
   try {
     const { data } = await getTerminologyCategories()
-    categories.value = data.categories || []
-  } catch {
-    categories.value = mockCategories
+    categories.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    message.error(e?.message || '获取术语分类失败')
   }
 
   // 加载术语列表

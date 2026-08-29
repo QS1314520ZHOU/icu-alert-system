@@ -19,6 +19,9 @@
 
     <div v-if="loading && !hasReview" class="similar-empty">正在检索相似病例…</div>
     <div v-else-if="error && !hasReview" class="similar-empty similar-empty--warn">{{ error }}</div>
+    <div v-else-if="!cases.length && degraded" class="similar-empty similar-empty--warn">
+      {{ fallbackMessage || 'AI服务暂时繁忙，已自动降级为基础模式，可稍后刷新重试。' }}
+    </div>
     <div v-else-if="!cases.length" class="similar-empty">暂无可展示的相似出院病例</div>
 
     <template v-else>
@@ -121,10 +124,11 @@ const props = defineProps<{
 const summary = computed(() => (props.review?.summary && typeof props.review.summary === 'object' ? props.review.summary : {}))
 const cases = computed(() => (Array.isArray(props.review?.cases) ? props.review.cases : []))
 const hasReview = computed(() => !!props.review)
+const degraded = computed(() => !!summary.value?.degraded)
+const fallbackMessage = computed(() => String(summary.value?.fallback_message || '').trim())
 const softNotice = computed(() => {
-  const fallbackMessage = String(summary.value?.fallback_message || '').trim()
-  if (fallbackMessage) return fallbackMessage
-  if (summary.value?.degraded && props.error) return props.error
+  if (fallbackMessage.value) return fallbackMessage.value
+  if (degraded.value && props.error) return props.error
   return ''
 })
 

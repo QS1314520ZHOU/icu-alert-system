@@ -35,6 +35,12 @@ frontend/dist
 frontend/.vite
 frontend/.cache
 frontend/coverage
+
+# Debug scripts and patches
+_*.py
+_*.patch
+*.patch
+worktrees
 .pytest_cache
 .mypy_cache
 .ruff_cache

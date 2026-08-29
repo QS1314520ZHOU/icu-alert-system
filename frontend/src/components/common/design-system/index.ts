@@ -14,11 +14,4 @@ export { default as FilterBar } from './FilterBar.vue'
 export { default as EvidenceDrawer } from './EvidenceDrawer.vue'
 export { default as MoreMenu } from './MoreMenu.vue'
 
-// 导出类型
-export type { default as PageHeaderProps } from './PageHeader.vue'
-export type { default as SectionHeaderProps } from './SectionHeader.vue'
-export type { default as StatusBadgeProps } from './StatusBadge.vue'
-export type { default as EmptyStateProps } from './EmptyState.vue'
-export type { default as LoadingStateProps } from './LoadingState.vue'
-export type { default as ErrorStateProps } from './ErrorState.vue'
-export type { default as MetricStripProps } from './MetricStrip.vue'
+// Props 类型由各组件通过 defineProps 导入使用，无需在此重复导出

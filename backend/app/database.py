@@ -460,6 +460,11 @@ class DatabaseManager:
         except Exception as e:
             logger.warning(f"插入默认预警规则失败（非致命）: {e}")
 
+    @property
+    def client(self):
+        """兼容旧代码的 client 属性"""
+        return self.smartcare_client
+
     def col(self, name: str):
         """获取 SmartCare 集合"""
         return self.smartcare_db[name]

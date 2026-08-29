@@ -44,8 +44,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { Checkbox as ACheckbox } from 'ant-design-vue'
 import { CHART_SERIES } from '../../../styles/tokens/colors'
 import ClinicalEmptyState from '../base/ClinicalEmptyState.vue'
+
+const ACheckboxGroup = ACheckbox.Group
 
 export interface TimelineEvent {
   id?: string

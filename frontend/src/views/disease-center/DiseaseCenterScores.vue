@@ -9,19 +9,14 @@
         </div>
         <div class="panel__body">
           <div class="score-tree">
-            <div v-for="group in scoreGroups" :key="group.name" class="score-group">
-              <div class="group-header">
-                <span class="group-name">{{ group.name }}</span>
-              </div>
-              <div
-                v-for="variant in group.variants"
-                :key="variant.id"
-                :class="['tree-item', { 'tree-item--active': selectedRule?.id === variant.id }]"
-                @click="selectRule(variant)"
-              >
-                <span class="tree-item__name">{{ variant.name }}</span>
-                <span class="tree-item__version">{{ variant.version }}</span>
-              </div>
+            <div
+              v-for="system in scoreGroups"
+              :key="system.score_name"
+              :class="['tree-item', { 'tree-item--active': selectedRule?.score_system === system.score_name }]"
+              @click="selectRule(system)"
+            >
+              <span class="tree-item__name">{{ system.name }}</span>
+              <span class="tree-item__version">{{ system.rulepack_version }}</span>
             </div>
           </div>
         </div>
@@ -34,7 +29,16 @@
           <span v-if="selectedRule" class="panel__badge">{{ selectedRule.version }}</span>
         </div>
         <div class="panel__body">
-          <div v-if="!selectedRule" class="empty-state">
+          <div v-if="loading" class="loading-state">
+            <div class="spinner"></div>
+            <span>加载中...</span>
+          </div>
+          <div v-else-if="error" class="error-state">
+            <span class="error-icon">⚠️</span>
+            <span class="error-text">{{ error }}</span>
+            <button class="btn btn--sm btn--outline" @click="loadScoringSystems">重试</button>
+          </div>
+          <div v-else-if="!selectedRule" class="empty-state">
             <span class="empty-icon">📈</span>
             <span class="empty-text">选择左侧评分体系查看详情</span>
           </div>
@@ -45,11 +49,7 @@
               <div class="detail-grid">
                 <div class="detail-item">
                   <span class="detail-label">评分系统</span>
-                  <span class="detail-value">{{ selectedRule.score_system }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">变体</span>
-                  <span class="detail-value">{{ selectedRule.score_variant || '-' }}</span>
+                  <span class="detail-value">{{ selectedRule.name }}</span>
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">版本</span>
@@ -124,6 +124,11 @@
             <div class="spinner"></div>
             <span>正在计算...</span>
           </div>
+          <div v-else-if="error" class="error-state">
+            <span class="error-icon">⚠️</span>
+            <span class="error-text">{{ error }}</span>
+            <button class="btn btn--sm btn--outline" @click="runTest">重试</button>
+          </div>
           <div v-else-if="!testResult" class="empty-state">
             <span class="empty-icon">▶️</span>
             <span class="empty-text">点击"运行测试"查看结果</span>
@@ -133,6 +138,14 @@
             <div class="result-total">
               <span class="result-label">总分</span>
               <span class="result-score">{{ testResult.total_score }}</span>
+            </div>
+
+            <!-- 总分 -->
+            <div class="result-section">
+              <h4 class="section-title">总分</h4>
+              <div class="total-score">
+                <span class="score-value">{{ testResult.total_score }}</span>
+              </div>
             </div>
 
             <!-- 分项得分 -->
@@ -207,7 +220,9 @@
 import { ref, onMounted } from 'vue'
 import {
   getScoringSystems,
+  getScoringRule,
   evaluateScore,
+  type ScoringSystem,
   type ScoringRule,
   type ScoringResult,
 } from '../../api/diseaseCenter'
@@ -218,204 +233,24 @@ const testRunning = ref(false)
 const testResult = ref<ScoringResult | null>(null)
 
 // 评分体系分组
-interface ScoreGroup {
-  name: string
-  variants: ScoringRule[]
-}
-
-const scoreGroups = ref<ScoreGroup[]>([])
-
-// 模拟数据
-const mockGroups: ScoreGroup[] = [
-  {
-    name: 'SOFA',
-    variants: [
-      {
-        id: 'sofa-classic',
-        name: 'Classic SOFA 1996',
-        score_system: 'SOFA',
-        score_variant: 'classic_1996',
-        version: 'v1.0.0',
-        description: 'Sequential Organ Failure Assessment，1996年经典版本。评估6个器官系统功能障碍程度。',
-        inputs: [
-          { name: 'pao2_fio2', label: 'PaO2/FiO2', type: 'number', unit: 'mmHg', required: true },
-          { name: 'platelets', label: '血小板', type: 'number', unit: '×10³/μL', required: true },
-          { name: 'bilirubin', label: '胆红素', type: 'number', unit: 'mg/dL', required: true },
-          { name: 'map', label: '平均动脉压', type: 'number', unit: 'mmHg', required: true },
-          { name: 'dopamine', label: '多巴胺', type: 'number', unit: 'μg/kg/min', required: false },
-          { name: 'dobutamine', label: '多巴酚丁胺', type: 'boolean', required: false },
-          { name: 'epinephrine', label: '肾上腺素', type: 'number', unit: 'μg/kg/min', required: false },
-          { name: 'norepinephrine', label: '去甲肾上腺素', type: 'number', unit: 'μg/kg/min', required: false },
-          { name: 'gcs', label: 'GCS评分', type: 'number', required: true },
-          { name: 'creatinine', label: '肌酐', type: 'number', unit: 'mg/dL', required: true },
-          { name: 'urine_output', label: '尿量', type: 'number', unit: 'mL/day', required: false },
-        ],
-        thresholds: [
-          { range: [0, 0], label: '正常', severity: 'normal' },
-          { range: [1, 6], label: '轻度障碍', severity: 'mild' },
-          { range: [7, 12], label: '中度障碍', severity: 'moderate' },
-          { range: [13, 24], label: '重度障碍', severity: 'severe' },
-        ],
-        missing_policy: '使用最差值',
-        time_window: '24小时',
-      },
-      {
-        id: 'sofa-2',
-        name: 'SOFA-2 2025',
-        score_system: 'SOFA',
-        score_variant: 'sofa2_2025',
-        version: 'v2.0.0',
-        description: 'SOFA 第二版，2025年更新。改进了呼吸和肾脏评估标准。',
-        inputs: [
-          { name: 'pao2_fio2', label: 'PaO2/FiO2', type: 'number', unit: 'mmHg', required: true },
-          { name: 'platelets', label: '血小板', type: 'number', unit: '×10³/μL', required: true },
-          { name: 'bilirubin', label: '胆红素', type: 'number', unit: 'mg/dL', required: true },
-          { name: 'map', label: '平均动脉压', type: 'number', unit: 'mmHg', required: true },
-          { name: 'vasopressor_dose', label: '血管活性药物剂量', type: 'number', unit: 'μg/kg/min', required: false },
-          { name: 'gcs', label: 'GCS评分', type: 'number', required: true },
-          { name: 'creatinine', label: '肌酐', type: 'number', unit: 'mg/dL', required: true },
-          { name: 'urine_output', label: '尿量', type: 'number', unit: 'mL/day', required: false },
-        ],
-        thresholds: [
-          { range: [0, 0], label: '正常', severity: 'normal' },
-          { range: [1, 6], label: '轻度障碍', severity: 'mild' },
-          { range: [7, 12], label: '中度障碍', severity: 'moderate' },
-          { range: [13, 24], label: '重度障碍', severity: 'severe' },
-        ],
-        missing_policy: '使用最差值',
-        time_window: '24小时',
-      },
-    ],
-  },
-  {
-    name: 'qSOFA',
-    variants: [
-      {
-        id: 'qsofa',
-        name: 'qSOFA',
-        score_system: 'qSOFA',
-        version: 'v1.0.0',
-        description: '快速SOFA评估，用于床旁快速筛查脓毒症。',
-        inputs: [
-          { name: 'respiratory_rate', label: '呼吸频率', type: 'number', unit: '次/分', required: true },
-          { name: 'systolic_bp', label: '收缩压', type: 'number', unit: 'mmHg', required: true },
-          { name: 'gcs', label: 'GCS评分', type: 'number', required: true },
-        ],
-        thresholds: [
-          { range: [0, 0], label: '低风险', severity: 'normal' },
-          { range: [1, 3], label: '高风险', severity: 'high' },
-        ],
-      },
-    ],
-  },
-  {
-    name: 'NEWS2',
-    variants: [
-      {
-        id: 'news2',
-        name: 'NEWS2',
-        score_system: 'NEWS2',
-        version: 'v1.0.0',
-        description: 'National Early Warning Score 2，英国国家早期预警评分。',
-        inputs: [
-          { name: 'respiratory_rate', label: '呼吸频率', type: 'number', unit: '次/分', required: true },
-          { name: 'spo2', label: 'SpO2', type: 'number', unit: '%', required: true },
-          { name: 'temperature', label: '体温', type: 'number', unit: '°C', required: true },
-          { name: 'systolic_bp', label: '收缩压', type: 'number', unit: 'mmHg', required: true },
-          { name: 'heart_rate', label: '心率', type: 'number', unit: '次/分', required: true },
-          { name: 'consciousness', label: '意识状态', type: 'string', required: true },
-          { name: 'supplemental_oxygen', label: '吸氧', type: 'boolean', required: true },
-        ],
-        thresholds: [
-          { range: [0, 2], label: '低风险', severity: 'normal' },
-          { range: [3, 4], label: '中风险', severity: 'moderate' },
-          { range: [5, 6], label: '高风险', severity: 'high' },
-          { range: [7, 20], label: '极高风险', severity: 'critical' },
-        ],
-      },
-    ],
-  },
-  {
-    name: 'MEWS',
-    variants: [
-      {
-        id: 'mews',
-        name: 'MEWS',
-        score_system: 'MEWS',
-        version: 'v1.0.0',
-        description: 'Modified Early Warning Score，改良早期预警评分。',
-        inputs: [
-          { name: 'respiratory_rate', label: '呼吸频率', type: 'number', unit: '次/分', required: true },
-          { name: 'temperature', label: '体温', type: 'number', unit: '°C', required: true },
-          { name: 'systolic_bp', label: '收缩压', type: 'number', unit: 'mmHg', required: true },
-          { name: 'heart_rate', label: '心率', type: 'number', unit: '次/分', required: true },
-          { name: 'consciousness', label: '意识状态', type: 'string', required: true },
-        ],
-        thresholds: [
-          { range: [0, 2], label: '正常', severity: 'normal' },
-          { range: [3, 4], label: '警惕', severity: 'moderate' },
-          { range: [5, 20], label: '危急', severity: 'critical' },
-        ],
-      },
-    ],
-  },
-  {
-    name: 'GCS',
-    variants: [
-      {
-        id: 'gcs',
-        name: 'GCS',
-        score_system: 'GCS',
-        version: 'v1.0.0',
-        description: 'Glasgow Coma Scale，格拉斯哥昏迷评分。',
-        inputs: [
-          { name: 'eye_opening', label: '睁眼反应', type: 'number', required: true },
-          { name: 'verbal_response', label: '言语反应', type: 'number', required: true },
-          { name: 'motor_response', label: '运动反应', type: 'number', required: true },
-        ],
-        thresholds: [
-          { range: [3, 8], label: '重度昏迷', severity: 'critical' },
-          { range: [9, 12], label: '中度昏迷', severity: 'moderate' },
-          { range: [13, 15], label: '轻度/正常', severity: 'normal' },
-        ],
-      },
-    ],
-  },
-]
-
-// 模拟测试结果
-const mockResult: ScoringResult = {
-  score_system: 'SOFA',
-  score_variant: 'classic_1996',
-  rule_id: 'sofa-classic',
-  rule_version: 'v1.0.0',
-  evaluation_time: '2024-03-15T10:30:00Z',
-  component_scores: {
-    respiratory: 3,
-    coagulation: 1,
-    liver: 0,
-    cardiovascular: 2,
-    cns: 1,
-    renal: 2,
-  },
-  total_score: 9,
-  missing_inputs: ['urine_output'],
-  evidence: [
-    { input: 'pao2_fio2', value: 180, source: '血气分析' },
-    { input: 'platelets', value: 120, source: '血常规' },
-    { input: 'bilirubin', value: 1.2, source: '肝功能' },
-    { input: 'map', value: 65, source: '有创血压' },
-    { input: 'dopamine', value: 5, source: '医嘱' },
-    { input: 'gcs', value: 12, source: '护理评估' },
-    { input: 'creatinine', value: 2.1, source: '肾功能' },
-  ],
-  input_snapshot_hash: 'a1b2c3d4e5f6',
-}
+const scoreGroups = ref<ScoringSystem[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 // 选择评分规则
-function selectRule(rule: ScoringRule) {
-  selectedRule.value = rule
-  testResult.value = null
+async function selectRule(system: ScoringSystem) {
+  loading.value = true
+  error.value = null
+
+  try {
+    const { data } = await getScoringRule(system.score_name)
+    selectedRule.value = data
+    testResult.value = null
+  } catch (e: any) {
+    error.value = e?.message || '获取评分规则失败'
+  } finally {
+    loading.value = false
+  }
 }
 
 // 运行测试
@@ -424,49 +259,44 @@ async function runTest() {
 
   testRunning.value = true
   testResult.value = null
+  error.value = null
 
   try {
-    const { data } = await evaluateScore({
-      patient_id: 'test-patient',
-      score_system: selectedRule.value.score_system,
-      score_variant: selectedRule.value.score_variant,
-    })
+    // 使用示例数据运行测试
+    const sampleInputs = selectedRule.value.inputs.map((input) => ({
+      code: input.name,
+      display_name: input.label,
+      value: 0,
+      unit: input.unit,
+    }))
+
+    const { data } = await evaluateScore(selectedRule.value.score_system, sampleInputs)
     testResult.value = data
-  } catch {
-    // 规则核心不可用时使用模拟数据
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    testResult.value = {
-      ...mockResult,
-      score_system: selectedRule.value.score_system,
-      score_variant: selectedRule.value.score_variant,
-      rule_id: selectedRule.value.id,
-      rule_version: selectedRule.value.version,
-    }
+  } catch (e: any) {
+    error.value = e?.message || '评分计算失败，请稍后重试'
   } finally {
     testRunning.value = false
   }
 }
 
-// 初始化
-onMounted(async () => {
+// 加载评分系统
+async function loadScoringSystems() {
+  loading.value = true
+  error.value = null
+
   try {
     const { data } = await getScoringSystems()
-    if (data.systems?.length) {
-      scoreGroups.value = data.systems.map((sys) => ({
-        name: sys.name,
-        variants: sys.variants?.map((v) => ({
-          id: v.id,
-          name: v.name,
-          score_system: sys.name,
-          score_variant: v.id,
-          version: v.version || 'v1.0.0',
-          inputs: [],
-        })) || [],
-      }))
-    }
-  } catch {
-    scoreGroups.value = mockGroups
+    scoreGroups.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
+    error.value = e?.message || '获取评分体系失败，请稍后重试'
+  } finally {
+    loading.value = false
   }
+}
+
+// 初始化
+onMounted(() => {
+  loadScoringSystems()
 })
 </script>
 
@@ -483,6 +313,19 @@ onMounted(async () => {
   grid-template-columns: 200px 1fr 360px;
   gap: 16px;
   min-height: 600px;
+}
+
+/* 总分 */
+.total-score {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.score-value {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--color-primary, #4C80F1);
 }
 
 /* 面板 */
@@ -940,7 +783,8 @@ onMounted(async () => {
 
 /* 加载和空状态 */
 .loading-state,
-.empty-state {
+.empty-state,
+.error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -963,15 +807,25 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
-.empty-icon {
+.empty-icon,
+.error-icon {
   font-size: 32px;
   opacity: 0.6;
 }
 
-.empty-text {
+.empty-text,
+.error-text {
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text-primary, #18212B);
+}
+
+.error-state .error-icon {
+  opacity: 1;
+}
+
+.error-state .error-text {
+  color: var(--color-error, #DC2626);
 }
 
 /* 响应式 */

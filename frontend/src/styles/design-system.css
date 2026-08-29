@@ -119,6 +119,58 @@
   /* 状态颜色不能只依靠颜色，必须同时显示文字或图标 */
   /* 禁止大面积红色背景 */
   /* 禁止高饱和霓虹蓝和发光效果 */
+
+  /* ── 临床状态色（SmartCare AI 统一规范）── */
+  /* 危急红 - 仅用于生命威胁 */
+  --color-critical: #D92D20;
+  --color-critical-bg: #FEECEB;
+  --color-critical-border: #FDA29B;
+
+  /* 高风险橙 */
+  --color-high-risk: #F79009;
+  --color-high-risk-bg: #FFF3E0;
+  --color-high-risk-border: #FEC84B;
+
+  /* 提醒黄 */
+  --color-warning-soft: #E5B700;
+  --color-warning-soft-bg: #FFF9D8;
+  --color-warning-soft-border: #FFE58F;
+
+  /* 正常绿 */
+  --color-normal: #12A66A;
+  --color-normal-bg: #E8F7F0;
+  --color-normal-border: #84E1BC;
+
+  /* 信息蓝 */
+  --color-info: #2E90FA;
+  --color-info-bg: #EAF4FF;
+  --color-info-border: #84CAFF;
+
+  /* AI紫色 - AI生成内容 */
+  --color-ai: #6E5AE6;
+  --color-ai-light: #F0EDFF;
+
+  /* 未知/缺失灰 */
+  --color-unknown: #98A2B3;
+  --color-unknown-bg: #F2F4F7;
+
+  /* ── 图表序列色（8色循环）── */
+  --chart-color-1: #1677FF;
+  --chart-color-2: #12A66A;
+  --chart-color-3: #6E5AE6;
+  --chart-color-4: #F79009;
+  --chart-color-5: #27B3B8;
+  --chart-color-6: #8B6FD6;
+  --chart-color-7: #5B8FF9;
+  --chart-color-8: #98A2B3;
+
+  /* ── 临床指标固定颜色 ── */
+  --metric-heart-rate: #E05252;
+  --metric-bp: #1677FF;
+  --metric-spo2: #27B3B8;
+  --metric-rr: #6E5AE6;
+  --metric-temp: #F79009;
+  --metric-lactate: #D92D20;
 }
 
 /* ============================================

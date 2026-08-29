@@ -18,6 +18,26 @@
         />
         <span v-else class="dept-locked">{{ deptOptions[0]?.label || routeDeptName || routeDeptCode }}</span>
       </div>
+      <!-- 班次概览卡片 -->
+      <div v-if="patientBriefs.length" class="shift-overview">
+        <div class="shift-stat">
+          <span class="shift-stat__value shift-stat__value--critical">{{ criticalPatientCount }}</span>
+          <span class="shift-stat__label">危重</span>
+        </div>
+        <div class="shift-stat">
+          <span class="shift-stat__value shift-stat__value--draft">{{ draftCount }}</span>
+          <span class="shift-stat__label">待交班</span>
+        </div>
+        <div class="shift-stat">
+          <span class="shift-stat__value shift-stat__value--done">{{ confirmedCount }}</span>
+          <span class="shift-stat__label">已完成</span>
+        </div>
+        <div class="shift-stat">
+          <span class="shift-stat__value shift-stat__value--total">{{ patientBriefs.length }}</span>
+          <span class="shift-stat__label">总人数</span>
+        </div>
+      </div>
+
       <HandoverPatientList
         :patients="patientBriefs"
         :active-patient-id="activePatientId"
@@ -227,6 +247,17 @@ const patientBriefs = ref<PatientBrief[]>([])
 const deptOptions = ref<Array<{ label: string; value: string }>>([
   { label: '全部病区', value: '' },
 ])
+
+// ── 班次概览统计 ──────────────────────────────────────────────────
+const criticalPatientCount = computed(() =>
+  patientBriefs.value.filter(p => p.has_critical || (p.critical_count && p.critical_count > 0)).length
+)
+const draftCount = computed(() =>
+  patientBriefs.value.filter(p => p.status === 'draft' || p.has_draft).length
+)
+const confirmedCount = computed(() =>
+  patientBriefs.value.filter(p => p.status === 'confirmed' || p.status === 'submitted').length
+)
 
 let requestToken = 0
 
@@ -698,6 +729,39 @@ function initEmptySections(): Record<string, any> {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 班次概览卡片 */
+.shift-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.shift-stat {
+  text-align: center;
+  padding: 6px 0;
+}
+
+.shift-stat__value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.shift-stat__value--critical { color: #E05252; }
+.shift-stat__value--draft { color: #F79009; }
+.shift-stat__value--done { color: #12B76A; }
+.shift-stat__value--total { color: #2563EB; }
+
+.shift-stat__label {
+  display: block;
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-top: 2px;
 }
 
 /* ── Content ──────────────────────────────────────────────── */

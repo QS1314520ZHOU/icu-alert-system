@@ -27,6 +27,23 @@
       <a-spin tip="正在加载营养数据..." />
     </div>
 
+    <!-- 可视化概览行 -->
+    <div v-if="ctx.patients.value.length" class="nutr-viz-row">
+      <div class="nutr-viz-card">
+        <h4>营养路径分布</h4>
+        <div ref="routeChartRef" class="nutr-viz-chart"></div>
+      </div>
+      <div class="nutr-viz-card">
+        <h4>7日达标趋势</h4>
+        <div ref="trendChartRef" class="nutr-viz-chart"></div>
+      </div>
+      <div class="nutr-viz-card nutr-viz-card--ring">
+        <h4>数据完整性</h4>
+        <DataCompletenessRing :percent="dataCompleteness" :size="100" />
+        <span class="nutr-viz-ring-label">{{ ctx.patients.value.length }} 人在科</span>
+      </div>
+    </div>
+
     <!-- 主体布局 -->
     <div v-else class="nutr-layout">
       <!-- 左侧：患者队列 -->
@@ -200,13 +217,85 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { Button as AButton, Input as AInput, Select as ASelect, Spin as ASpin } from 'ant-design-vue'
+import * as echarts from 'echarts/core'
+import { PieChart, BarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import { useNutritionDashboard } from '../composables/useNutritionDashboard'
 import NutritionPatientRow from '../components/nutrition/NutritionPatientRow.vue'
 import NutritionDrawer from '../components/nutrition/NutritionDrawer.vue'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
+import { icuGrid, icuTooltip, getChartColor } from '../charts/icuTheme'
+
+echarts.use([PieChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const ctx = useNutritionDashboard()
+
+// ── 营养路径饼图 ──────────────────────────────────────────────────
+const routeChartRef = ref<HTMLElement>()
+const trendChartRef = ref<HTMLElement>()
+let routeChart: echarts.ECharts | null = null
+let trendChart: echarts.ECharts | null = null
+
+const dataCompleteness = computed(() => {
+  const total = ctx.patients.value?.length || 0
+  if (!total) return 0
+  const withData = ctx.patients.value.filter((p: any) => p.calories_actual || p.route).length
+  return Math.round((withData / total) * 100)
+})
+
+const routeChartOption = computed(() => ({
+  tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+  legend: { bottom: 0, textStyle: { color: '#8C8C8C', fontSize: 11 } },
+  series: [{
+    type: 'pie',
+    radius: ['40%', '65%'],
+    center: ['50%', '45%'],
+    label: { show: true, fontSize: 11, color: '#595959' },
+    data: [
+      { value: ctx.routeCount('EN'), name: '肠内(EN)', itemStyle: { color: getChartColor(0) } },
+      { value: ctx.routeCount('PN'), name: '肠外(PN)', itemStyle: { color: getChartColor(1) } },
+      { value: ctx.routeCount('混合'), name: '混合', itemStyle: { color: getChartColor(2) } },
+      { value: ctx.routeCount('未开始'), name: '未开始', itemStyle: { color: '#D9D9D9' } },
+    ].filter(d => d.value > 0),
+  }],
+}))
+
+const trendChartOption = computed(() => {
+  const data = ctx.wardTrend.value || []
+  const days = data.map((_: any, i: number) => `${7 - i}天前`)
+  return {
+    ...icuGrid,
+    ...icuTooltip,
+    xAxis: { type: 'category', data: days.reverse(), axisLabel: { color: '#8C8C8C', fontSize: 11 }, axisLine: { lineStyle: { color: '#E8E8E8' } }, axisTick: { show: false } },
+    yAxis: { type: 'value', max: 100, axisLabel: { color: '#8C8C8C', fontSize: 11, formatter: '{value}%' }, splitLine: { lineStyle: { color: '#F0F0F0', type: 'dashed' } } },
+    series: [{
+      type: 'bar',
+      data: [...data].reverse(),
+      itemStyle: { color: getChartColor(3), borderRadius: [4, 4, 0, 0] },
+      barMaxWidth: 30,
+      label: { show: true, position: 'top', fontSize: 10, color: '#8C8C8C', formatter: '{c}%' },
+    }],
+    grid: { left: 50, right: 16, top: 16, bottom: 40 },
+  }
+})
+
+function initCharts() {
+  if (routeChartRef.value) {
+    routeChart = echarts.init(routeChartRef.value)
+    routeChart.setOption(routeChartOption.value)
+    const ro = new ResizeObserver(() => routeChart?.resize())
+    ro.observe(routeChartRef.value)
+  }
+  if (trendChartRef.value) {
+    trendChart = echarts.init(trendChartRef.value)
+    trendChart.setOption(trendChartOption.value)
+    const ro = new ResizeObserver(() => trendChart?.resize())
+    ro.observe(trendChartRef.value)
+  }
+}
 
 /* 行级状态映射 */
 function getToleranceLabel(p: any): string {
@@ -238,7 +327,17 @@ function getRefeedingClass(p: any): string {
   return 'tag-muted'
 }
 
-onMounted(() => { void ctx.loadAll() })
+onMounted(() => {
+  void ctx.loadAll()
+  setTimeout(initCharts, 300)
+})
+
+onBeforeUnmount(() => {
+  routeChart?.dispose()
+  trendChart?.dispose()
+  routeChart = null
+  trendChart = null
+})
 </script>
 
 <style scoped>
@@ -246,6 +345,46 @@ onMounted(() => { void ctx.loadAll() })
   min-height: calc(100vh - 76px);
   padding: var(--page-padding, 24px);
   background: var(--color-bg-page, #F6F7F9);
+}
+
+/* 可视化概览行 */
+.nutr-viz-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 200px;
+  gap: 16px;
+  margin-bottom: var(--section-gap, 24px);
+}
+
+.nutr-viz-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.nutr-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.nutr-viz-chart {
+  width: 100%;
+  height: 180px;
+}
+
+.nutr-viz-card--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.nutr-viz-ring-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
 }
 
 /* 头部 */

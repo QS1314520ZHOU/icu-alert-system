@@ -283,15 +283,6 @@ class AppConfig:
         security_cfg = self.yaml_cfg.get("security", {})
         return str(security_cfg.get("ws_token_algorithm") or "HS256").strip() or "HS256"
 
-    @property
-    def rule_core_url(self) -> str:
-        """规则核心服务地址"""
-        env_url = os.environ.get("RULE_CORE_URL", "").strip()
-        if env_url:
-            return env_url
-        integration_cfg = self.yaml_cfg.get("integration", {})
-        return str(integration_cfg.get("rule_core_url") or "http://127.0.0.1:8001").strip()
-
 
 # 单例
 _config = None

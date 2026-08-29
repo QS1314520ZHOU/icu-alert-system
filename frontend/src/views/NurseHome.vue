@@ -1,21 +1,20 @@
 <template>
   <section class="nurse-home">
     <!-- 页面头部 -->
-    <header class="page-top">
-      <div class="page-top__left">
-        <h1 class="page-top__title">护士首页</h1>
-        <span class="page-top__subtitle">责任护士 · {{ home?.account?.dept || routeDept || '科室待识别' }}</span>
-      </div>
-      <div class="page-top__right">
-        <span class="page-top__meta">{{ accountName }}</span>
-        <span class="page-top__meta">{{ shiftText }}</span>
+    <PageHeader
+      title="护士首页"
+      :subtitle="`责任护士 · ${home?.account?.dept || routeDept || '科室待识别'}`"
+    >
+      <template #actions>
+        <span class="page-meta">{{ accountName }}</span>
+        <span class="page-meta">{{ shiftText }}</span>
         <button class="refresh-btn" @click="load">刷新</button>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <!-- 加载/错误状态 -->
-    <div v-if="loading" class="state-msg">正在读取本班数据...</div>
-    <div v-else-if="error" class="state-msg is-danger">{{ error }}</div>
+    <LoadingState v-if="loading" message="正在读取本班数据..." />
+    <ErrorState v-else-if="error" :message="error" />
 
     <template v-else>
       <!-- KPI 摘要条 -->
@@ -42,33 +41,12 @@
       <div class="main-grid">
         <!-- 左列：床位 + 危急风险 -->
         <div class="col-left">
-          <!-- 我的床位 -->
-          <section class="panel">
-            <div class="panel-head">
-              <strong>我的床位</strong>
-              <span>{{ sortedBeds.length }} 床</span>
-            </div>
-            <div class="bed-grid">
-              <article
-                v-for="bed in sortedBeds"
-                :key="bed.patient_id"
-                class="bed-card"
-                @click="goPatient(bed.patient_id)"
-              >
-                <div class="bed-card__top">
-                  <i :class="['bed-dot', bedDotClass(bed)]"></i>
-                  <strong>{{ displayBed(bed.bed) }}</strong>
-                </div>
-                <span class="bed-card__name">{{ bed.name || '未知患者' }}</span>
-                <span v-if="tasksByBed(bed.patient_id).length" class="bed-card__badge">
-                  {{ tasksByBed(bed.patient_id).length }} 条
-                </span>
-              </article>
-            </div>
-            <div v-if="!sortedBeds.length" class="empty-hint">
-              {{ nurseEmptyText }}
-            </div>
-          </section>
+          <!-- 我的床位 - ICU床位地图 -->
+          <ICUBedMap
+            :beds="bedMapData"
+            :columns="4"
+            @bed-click="(bed) => bed.patientId && goPatient(bed.patientId)"
+          />
 
           <!-- 危急/高风险 -->
           <section v-if="criticalAlerts.length" class="panel panel--critical">
@@ -156,6 +134,9 @@ import { postNurseHandoffGenerate } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useNurseHome } from '../composables/useNurseHome'
 import { roleHomeConfig } from '../config/roleHomeConfig'
+import { PageHeader, LoadingState, ErrorState } from '../components/common/design-system'
+import { ICUBedMap } from '../components/charts'
+import type { BedInfo } from '../components/charts'
 import NurseShiftTasks from '../components/nurse/NurseShiftTasks.vue'
 import NurseSafetyChecklist from '../components/nurse/NurseSafetyChecklist.vue'
 import NurseHandoffEntry from '../components/nurse/NurseHandoffEntry.vue'
@@ -196,6 +177,29 @@ const handoffId = ref('')
 
 // ── 计算 ──
 const overdueCount = computed(() => timeline.value.filter((t: any) => t.status === 'overdue').length)
+
+// ICU床位地图数据
+const bedMapData = computed<BedInfo[]>(() => {
+  return sortedBeds.value.map((bed: any) => {
+    const riskLevel = String(bed.risk_level || '').toLowerCase()
+    let status: BedInfo['status'] = 'normal'
+    if (['critical', 'danger', 'red'].includes(riskLevel)) status = 'critical'
+    else if (['high', 'warning', 'warn', 'medium'].includes(riskLevel)) status = 'high'
+    return {
+      bedNo: displayBed(bed.bed),
+      patientId: bed.patient_id,
+      patientName: bed.name || '未知',
+      age: bed.age,
+      gender: bed.gender,
+      status,
+      hr: bed.hr ?? bed.heart_rate,
+      bp: bed.bp ?? (bed.sbp && bed.dbp ? `${bed.sbp}/${bed.dbp}` : undefined),
+      spo2: bed.spo2 ?? bed.sp_o2,
+      device: bed.device || bed.ventilator_mode,
+      alertCount: bed.alert_count || (tasksByBed(bed.patient_id).length || 0),
+    }
+  })
+})
 
 const nurseEmptyText = computed(() => {
   const reason = home.value?.data_state?.empty_reason

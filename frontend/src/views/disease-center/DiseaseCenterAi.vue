@@ -14,7 +14,7 @@
         </button>
       </div>
       <div class="capability-info">
-        <span class="info-model">本地模型: Qwen2-7B-Medical</span>
+        <span class="info-model">本地模型: {{ currentModel || '未知' }}</span>
         <span class="info-status">
           <span class="status-dot status-dot--success"></span>
           在线
@@ -164,6 +164,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
+import { message } from 'ant-design-vue'
 import { postAiConsultChat } from '../../api'
 
 // 状态
@@ -171,6 +172,7 @@ const activeCapability = ref('disease')
 const inputText = ref('')
 const loading = ref(false)
 const messageList = ref<HTMLElement | null>(null)
+const currentModel = ref('')
 
 // 消息类型
 interface Message {
@@ -291,27 +293,15 @@ async function sendMessage() {
       role: 'assistant',
       content: data.reply || data.message || '抱歉，我无法处理这个请求。',
       metadata: {
-        model: data.model || 'Qwen2-7B-Medical',
-        version: data.version || 'v2.1.0',
-        confidence: data.confidence || 85,
+        model: data.model || '',
+        version: data.version || '',
+        confidence: data.confidence,
         source: data.source || '本地知识库',
       },
       actions: true,
     })
-  } catch {
-    // 模拟回复
-    await new Promise((r) => setTimeout(r, 1000))
-    messages.value.push({
-      role: 'assistant',
-      content: generateMockReply(text),
-      metadata: {
-        model: 'Qwen2-7B-Medical',
-        version: 'v2.1.0',
-        confidence: 88,
-        source: '本地知识库',
-      },
-      actions: true,
-    })
+  } catch (e: any) {
+    message.error(e?.message || 'AI 咨询失败，请稍后重试')
   } finally {
     loading.value = false
     await scrollToBottom()
@@ -324,59 +314,28 @@ function sendQuickAction(action: string) {
   sendMessage()
 }
 
-// 生成模拟回复
-function generateMockReply(question: string): string {
-  const q = question.toLowerCase()
-  if (q.includes('脓毒症') && q.includes('定义')) {
-    return `<p><strong>脓毒症定义（Sepsis-3）：</strong></p>
-<p>脓毒症是指因感染引起的宿主反应失调，导致危及生命的器官功能障碍。</p>
-<p><strong>诊断标准：</strong></p>
-<ul>
-<li>疑似或确认感染</li>
-<li>SOFA 评分急性升高 ≥ 2 分</li>
-</ul>
-<p><strong>来源：</strong>Singer M, et al. JAMA. 2016;315(8):801-810.</p>
-<p><strong>置信度：</strong>95% — 基于 SCCM/ESICM 2021 指南</p>`
-  }
-  if (q.includes('sofa') && q.includes('比较')) {
-    return `<p><strong>Classic SOFA vs SOFA-2 对比：</strong></p>
-<table>
-<tr><th>项目</th><th>Classic SOFA 1996</th><th>SOFA-2 2025</th></tr>
-<tr><td>呼吸系统</td><td>PaO2/FiO2</td><td>PaO2/FiO2 + 机械通气校正</td></tr>
-<tr><td>肾脏系统</td><td>肌酐 + 尿量</td><td>肌酐 + 尿量 + AKI 分期</td></tr>
-<tr><td>心血管</td><td>MAP + 血管活性药物</td><td>MAP + 血管活性药物剂量梯度</td></tr>
-</table>
-<p><strong>主要改进：</strong>SOFA-2 增加了器官支持校正和时间窗约束。</p>`
-  }
-  return `<p>感谢您的提问。基于本地知识库分析：</p>
-<p>您的问题涉及 <strong>${currentCapability.value?.label}</strong> 领域。</p>
-<p><strong>建议：</strong></p>
-<ul>
-<li>请参考最新指南文档</li>
-<li>结合临床实际情况判断</li>
-<li>AI 建议需人工确认后才能生效</li>
-</ul>
-<p><em>此回复由本地 AI 模型生成，仅供参考。</em></p>`
-}
-
 // 接受建议
 function acceptSuggestion(_msg: Message) {
-  alert('已接受建议')
+  // TODO: 实现接受建议逻辑
+  message.success('已接受建议')
 }
 
 // 拒绝建议
 function rejectSuggestion(_msg: Message) {
-  alert('已拒绝建议')
+  // TODO: 实现拒绝建议逻辑
+  message.info('已拒绝建议')
 }
 
 // 修改后接受
 function modifySuggestion(_msg: Message) {
-  alert('修改后接受功能开发中')
+  // TODO: 实现修改后接受逻辑
+  message.info('修改后接受功能开发中')
 }
 
 // 查看原文
 function viewSource(msg: Message) {
-  alert(`来源: ${msg.metadata?.source || '本地知识库'}`)
+  // TODO: 实现查看原文逻辑
+  message.info(`来源: ${msg.metadata?.source || '本地知识库'}`)
 }
 
 // 滚动到底部

@@ -41,10 +41,15 @@ import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, MarkLineComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { Checkbox as ACheckbox, Radio as ARadio } from 'ant-design-vue'
 import { METRIC } from '../../../styles/tokens/colors'
 import { FONT_FAMILY } from '../../../styles/tokens/typography'
 import ChartExplanation from '../base/ChartExplanation.vue'
 import ClinicalEmptyState from '../base/ClinicalEmptyState.vue'
+
+const ACheckboxGroup = ACheckbox.Group
+const ARadioGroup = ARadio.Group
+const ARadioButton = ARadio.Button
 
 echarts.use([LineChart, GridComponent, TooltipComponent, LegendComponent, MarkLineComponent, CanvasRenderer])
 

@@ -9,6 +9,23 @@
 
     <MetricStrip :metrics="kpiMetrics" />
 
+    <!-- 可视化概览行 -->
+    <div v-if="projects.length" class="academic-viz-row">
+      <div class="academic-viz-card">
+        <h4>项目状态分布</h4>
+        <div ref="statusChartRef" class="academic-viz-chart"></div>
+      </div>
+      <div class="academic-viz-card">
+        <h4>课题可行性分布</h4>
+        <div ref="topicChartRef" class="academic-viz-chart"></div>
+      </div>
+      <div class="academic-viz-card academic-viz-card--ring">
+        <h4>数据质量</h4>
+        <DataCompletenessRing :percent="dataQualityScore" :size="100" />
+        <span class="academic-viz-ring-label">{{ quality.value.patient_count || 0 }} 例患者</span>
+      </div>
+    </div>
+
     <!-- 主内容区：Tab 划分 -->
     <div class="main-tabs">
       <a-tabs v-model:activeKey="activeTab">
@@ -183,13 +200,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import * as echarts from 'echarts/core'
+import { PieChart, BarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import {
   Alert as AAlert, Button as AButton, Drawer as ADrawer, Form as AForm, FormItem as AFormItem,
   Input as AInput, Select as ASelect, Space as ASpace, Tabs as ATabs, Tag as ATag, Textarea as ATextarea,
 } from 'ant-design-vue'
 import { PageHeader, SectionHeader, MetricStrip, ActionBar, EmptyState } from '../components/common/design-system'
 import { useAcademicResearch } from '../composables/useAcademicResearch'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
+import { getChartColor } from '../charts/icuTheme'
+
+echarts.use([PieChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const ATabPane = ATabs.TabPane
 
@@ -219,6 +244,83 @@ const qualityMetrics = computed(() => [
   { label: '异常值', value: quality.value.outliers?.length || 0, variant: 'danger' as const },
   { label: '单位问题', value: quality.value.unit_inconsistencies?.length || 0, variant: 'warning' as const },
 ])
+
+// ── 可视化图表 ──────────────────────────────────────────────────────
+const statusChartRef = ref<HTMLElement>()
+const topicChartRef = ref<HTMLElement>()
+let statusChart: echarts.ECharts | null = null
+let topicChart: echarts.ECharts | null = null
+
+const dataQualityScore = computed(() => {
+  const missing = missingRows.value.length
+  const outliers = quality.value.outliers?.length || 0
+  const issues = missing + outliers
+  if (issues === 0) return 100
+  return Math.max(0, Math.round(100 - issues * 5))
+})
+
+const statusChartOption = computed(() => {
+  const rows = statusRows.value || []
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}: {c}项 ({d}%)' },
+    legend: { bottom: 0, textStyle: { color: '#8C8C8C', fontSize: 11 } },
+    series: [{
+      type: 'pie',
+      radius: ['35%', '60%'],
+      center: ['50%', '42%'],
+      label: { show: true, fontSize: 11, color: '#595959' },
+      data: rows.map((r: any, i: number) => ({
+        value: r.value,
+        name: r.key,
+        itemStyle: { color: getChartColor(i) },
+      })),
+    }],
+  }
+})
+
+const topicChartOption = computed(() => {
+  const tps = topics.value || []
+  const scores = tps.map((t: any) => Number(t.feasibility_score || 0))
+  const labels = tps.map((t: any) => (t.title || '').slice(0, 12))
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    xAxis: { type: 'category', data: labels, axisLabel: { color: '#8C8C8C', fontSize: 10, rotate: 30 }, axisLine: { lineStyle: { color: '#E8E8E8' } }, axisTick: { show: false } },
+    yAxis: { type: 'value', max: 100, axisLabel: { color: '#8C8C8C', fontSize: 11 }, splitLine: { lineStyle: { color: '#F0F0F0', type: 'dashed' } } },
+    series: [{
+      type: 'bar',
+      data: scores,
+      itemStyle: { color: getChartColor(2), borderRadius: [4, 4, 0, 0] },
+      barMaxWidth: 24,
+    }],
+    grid: { left: 50, right: 16, top: 12, bottom: 60 },
+  }
+})
+
+function initAcademicCharts() {
+  if (statusChartRef.value) {
+    statusChart = echarts.init(statusChartRef.value)
+    statusChart.setOption(statusChartOption.value)
+    const ro = new ResizeObserver(() => statusChart?.resize())
+    ro.observe(statusChartRef.value)
+  }
+  if (topicChartRef.value) {
+    topicChart = echarts.init(topicChartRef.value)
+    topicChart.setOption(topicChartOption.value)
+    const ro = new ResizeObserver(() => topicChart?.resize())
+    ro.observe(topicChartRef.value)
+  }
+}
+
+watch(statusChartOption, (opt) => { statusChart?.setOption(opt, true) }, { deep: true })
+watch(topicChartOption, (opt) => { topicChart?.setOption(opt, true) }, { deep: true })
+
+onMounted(() => { setTimeout(initAcademicCharts, 400) })
+onBeforeUnmount(() => {
+  statusChart?.dispose()
+  topicChart?.dispose()
+  statusChart = null
+  topicChart = null
+})
 </script>
 
 <style scoped>
@@ -228,6 +330,45 @@ const qualityMetrics = computed(() => [
   flex-direction: column;
   gap: var(--section-gap, 24px);
   max-width: 1400px;
+}
+
+/* 可视化概览行 */
+.academic-viz-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 200px;
+  gap: 16px;
+}
+
+.academic-viz-card {
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  padding: 14px 16px;
+}
+
+.academic-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.academic-viz-chart {
+  width: 100%;
+  height: 200px;
+}
+
+.academic-viz-card--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.academic-viz-ring-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
 }
 .main-tabs {
   background: var(--color-bg-surface, #fff);

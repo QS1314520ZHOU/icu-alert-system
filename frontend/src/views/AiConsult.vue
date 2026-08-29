@@ -58,36 +58,13 @@
     <!-- 三栏布局 -->
     <div class="ai-consult__body">
       <!-- 左栏：会话列表 -->
-      <aside class="ai-consult__sidebar">
-        <div class="sidebar-header">
-          <span class="sidebar-title">会话</span>
-          <a-button size="small" type="primary" @click="handleNewSession">新建</a-button>
-        </div>
-        <div class="session-list">
-          <div v-if="!sessions.length" class="session-empty">
-            暂无会话，点击新建开始
-          </div>
-          <div
-            v-for="session in sessions"
-            :key="session.id"
-            :class="['session-item', { 'is-active': session.id === currentSessionId }]"
-            @click="switchSession(session.id)"
-          >
-            <div class="session-item__label">{{ session.label }}</div>
-            <div class="session-item__meta">
-              <span class="session-item__patient">{{ session.patientLabel }}</span>
-              <span class="session-item__time">{{ formatRelativeTime(session.updatedAt) }}</span>
-            </div>
-            <button
-              class="session-item__delete"
-              title="删除会话"
-              @click.stop="deleteSession(session.id)"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      </aside>
+      <ConsultSessionList
+        :sessions="sessions"
+        :current-session-id="currentSessionId"
+        @new-session="handleNewSession"
+        @switch-session="switchSession"
+        @delete-session="deleteSession"
+      />
 
       <!-- 中栏：对话区 -->
       <main class="ai-consult__chat">
@@ -106,103 +83,12 @@
             </div>
           </div>
 
-          <template v-for="item in messages" :key="item.id">
-            <!-- 用户消息 -->
-            <div v-if="item.role === 'user'" class="chat-row is-user">
-              <div class="chat-bubble is-user">{{ item.content }}</div>
-            </div>
-
-            <!-- AI 消息：结构化折叠 -->
-            <div v-else class="chat-row is-assistant">
-              <div class="chat-bubble is-assistant">
-                <!-- 意图标签 -->
-                <div v-if="item.intentPrimary || item.messageType === 'clarification'" class="chat-intent">
-                  <span
-                    v-if="item.intentPrimary"
-                    :class="['intent-tag', intentTagClass(item.intentFocusSection)]"
-                  >
-                    {{ intentTagLabel(item.intentPrimary, item.intentFocusSection) }}
-                  </span>
-                  <span v-if="item.messageType === 'clarification'" class="intent-tag is-clarify">
-                    需补充信息
-                  </span>
-                </div>
-
-                <!-- 高风险警告（简短） -->
-                <div v-if="item.isHighRisk" class="high-risk-banner">
-                  高风险建议，请确认后执行
-                </div>
-
-                <!-- 结构化区块：默认折叠证据和不确定性 -->
-                <template v-if="item.sections?.length">
-                  <div
-                    v-for="(section, sIdx) in item.sections"
-                    :key="`${item.id}-s-${sIdx}`"
-                    :class="['section-block', sectionBlockClass(section.title)]"
-                  >
-                    <div
-                      class="section-block__header"
-                      @click="toggleSection(item.id, sIdx)"
-                    >
-                      <span class="section-block__title">{{ section.title }}</span>
-                      <span
-                        v-if="section.title === '下一步处理建议'"
-                        class="section-block__count"
-                      >
-                        {{ section.lines.length }} 项
-                      </span>
-                      <svg
-                        :class="['section-block__arrow', { 'is-open': !section.collapsed }]"
-                        width="12" height="12" viewBox="0 0 12 12"
-                      >
-                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                      </svg>
-                    </div>
-                    <div v-show="!section.collapsed" class="section-block__body">
-                      <div
-                        v-for="(line, lIdx) in section.lines"
-                        :key="`${item.id}-s-${sIdx}-l-${lIdx}`"
-                        class="section-block__line"
-                      >
-                        <span
-                          v-if="section.title === '下一步处理建议'"
-                          :class="['priority-dot', priorityClass(lIdx)]"
-                        >
-                          {{ priorityLabel(lIdx) }}
-                        </span>
-                        {{ line }}
-                      </div>
-                    </div>
-                  </div>
-                </template>
-
-                <!-- 非结构化消息：纯文本 -->
-                <template v-else>
-                  <div
-                    v-for="(para, pIdx) in splitParagraphs(item.content)"
-                    :key="`${item.id}-p-${pIdx}`"
-                    class="chat-para"
-                  >
-                    {{ para }}
-                  </div>
-                </template>
-
-                <!-- 操作栏 -->
-                <div class="chat-actions">
-                  <button class="chat-action-btn" @click="copyMessage(item.content)">
-                    复制
-                  </button>
-                  <button
-                    v-if="item.sections?.length"
-                    class="chat-action-btn"
-                    @click="expandAllSections(item.id)"
-                  >
-                    展开全部
-                  </button>
-                </div>
-              </div>
-            </div>
-          </template>
+          <ConsultMessageItem
+            v-for="item in messages"
+            :key="item.id"
+            :message="item"
+            @toggle-section="toggleSection"
+          />
 
           <!-- AI 思考中 -->
           <div v-if="sending" class="chat-row is-assistant">
@@ -220,35 +106,20 @@
         </div>
 
         <!-- 快捷任务（仅 3 个） -->
-        <div class="quick-tasks">
-          <button
-            v-for="task in quickTasks"
-            :key="task.label"
-            class="quick-task-btn"
-            :disabled="sending"
-            @click="runQuickTask(task)"
-          >
-            {{ task.label }}
-          </button>
-        </div>
+        <ConsultQuickTasks
+          :tasks="quickTasks"
+          :disabled="sending"
+          @select="runQuickTaskByPrompt"
+        />
 
         <!-- 输入区 -->
-        <div class="composer">
-          <textarea
-            v-model.trim="draft"
-            class="composer-input"
-            rows="3"
-            maxlength="4000"
-            placeholder="输入临床问题…"
-            @keydown="onComposerKeydown"
-          />
-          <div class="composer-footer">
-            <span class="composer-hint">Enter 发送 · Shift+Enter 换行</span>
-            <a-button type="primary" size="small" :loading="sending" @click="sendMessage">
-              发送
-            </a-button>
-          </div>
-        </div>
+        <ConsultComposer
+          v-model="draft"
+          :disabled="sending"
+          placeholder="输入临床问题…"
+          hint="Enter 发送 · Shift+Enter 换行"
+          @send="sendMessage"
+        />
       </main>
 
       <!-- 右栏：患者上下文 -->
@@ -278,6 +149,32 @@
                 </a-button>
               </div>
             </template>
+          </div>
+        </div>
+
+        <!-- 患者状态摘要图 -->
+        <div v-if="selectedPatientIds.length === 1 && patientContext" class="ctx-card ctx-card--status">
+          <div class="ctx-card__title">患者状态摘要</div>
+          <div class="ctx-card__body">
+            <div class="ctx-status-grid">
+              <div class="ctx-status-item">
+                <DataCompletenessRing :value="patientContext.dataCompleteness ?? 0" :size="56" label="数据完整度" />
+              </div>
+              <div class="ctx-status-item">
+                <span class="ctx-status-label">风险</span>
+                <span class="ctx-status-value" :style="{ color: riskColor(patientContext.riskLevel) }">
+                  {{ riskText(patientContext.riskLevel) }}
+                </span>
+              </div>
+              <div class="ctx-status-item">
+                <span class="ctx-status-label">SOFA</span>
+                <span class="ctx-status-value">{{ patientContext.sofa ?? '—' }}</span>
+              </div>
+              <div class="ctx-status-item">
+                <span class="ctx-status-label">告警</span>
+                <span class="ctx-status-value">{{ patientContext.alertCount ?? 0 }}</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -318,6 +215,11 @@ import { Button as AButton, Select as ASelect, Spin as ASpin, MenuItem as AMenuI
 import { getPatients, postAiConsultChat } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { PageHeader, MoreMenu } from '../components/common/design-system'
+import { DataCompletenessRing } from '../components/charts'
+import ConsultSessionList from '../components/ai-consult/ConsultSessionList.vue'
+import ConsultComposer from '../components/ai-consult/ConsultComposer.vue'
+import ConsultQuickTasks from '../components/ai-consult/ConsultQuickTasks.vue'
+import ConsultMessageItem from '../components/ai-consult/ConsultMessageItem.vue'
 import { useAiConsult } from '../composables/useAiConsult'
 import type { ChatMessage, ParsedSection } from '../composables/useAiConsult'
 
@@ -373,6 +275,39 @@ const patientOptions = computed(() =>
 
 function getPatientLabel(id: string): string {
   return patientOptions.value.find((o) => o.value === id)?.label || '未知患者'
+}
+
+// 患者状态摘要数据
+const patientContext = computed(() => {
+  if (selectedPatientIds.value.length !== 1) return null
+  const id = selectedPatientIds.value[0]
+  const p = patients.value.find((item: any) => String(item?._id || '') === id)
+  if (!p) return null
+  return {
+    dataCompleteness: p.data_completeness ?? p.dataCompleteness ?? 0,
+    riskLevel: p.risk_level || p.riskLevel || 'unknown',
+    sofa: p.sofa_score ?? p.sofa,
+    alertCount: p.alert_count ?? 0,
+  }
+})
+
+function riskColor(level: string) {
+  const l = String(level).toLowerCase()
+  if (['critical', 'danger', 'red'].includes(l)) return '#D92D20'
+  if (['high', 'warning', 'warn'].includes(l)) return '#F79009'
+  if (['medium'].includes(l)) return '#E5B700'
+  if (['low', 'stable', 'normal', 'ok'].includes(l)) return '#12A66A'
+  return '#98A2B3'
+}
+
+function riskText(level: string) {
+  const l = String(level).toLowerCase()
+  if (['critical', 'danger', 'red'].includes(l)) return '危急'
+  if (['high'].includes(l)) return '高风险'
+  if (['medium', 'warning', 'warn'].includes(l)) return '中风险'
+  if (['low'].includes(l)) return '低风险'
+  if (['stable', 'normal', 'ok'].includes(l)) return '稳定'
+  return '未知'
 }
 
 const selectedPatientLabel = computed(() => {
@@ -477,39 +412,8 @@ function sanitizeAssistantText(raw: string): string {
   return text.trim()
 }
 
-function splitParagraphs(content: string): string[] {
-  return String(content || '').replace(/\r\n/g, '\n').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
-}
-
 function highRiskText(content: string): boolean {
   return /剂量|停用|抢救|插管|拔管|升压药|去甲肾上腺素|抗生素更换|有创|手术|穿刺|镇静加深|机械通气参数调整/.test(String(content || ''))
-}
-
-// ── UI 辅助 ──
-function intentTagLabel(primary?: string, focusSection?: string): string {
-  if (focusSection === '建议检查') return '检查建议'
-  if (focusSection === '下一步处理') return '下一步处理'
-  if (focusSection === '风险点') return '风险识别'
-  if (focusSection === '初步判断') return '诊断判断'
-  return primary || '综合评估'
-}
-
-function intentTagClass(focusSection?: string): string {
-  if (focusSection === '建议检查') return 'is-exam'
-  if (focusSection === '下一步处理') return 'is-action'
-  if (focusSection === '风险点') return 'is-risk'
-  if (focusSection === '初步判断') return 'is-judge'
-  return 'is-default'
-}
-
-function sectionBlockClass(title: string): string {
-  if (title === '风险点') return 'is-risk'
-  if (title === '下一步处理建议') return 'is-action'
-  if (title === '建议检查') return 'is-exam'
-  if (title === '安全提示') return 'is-safety'
-  if (title === '不确定性') return 'is-uncertain'
-  if (title === '关键证据') return 'is-evidence'
-  return 'is-judge'
 }
 
 function priorityLabel(index: number): string {
@@ -518,31 +422,10 @@ function priorityLabel(index: number): string {
   return 'P3'
 }
 
-function priorityClass(index: number): string {
-  if (index === 0) return 'is-p1'
-  if (index === 1) return 'is-p2'
-  return 'is-p3'
-}
-
-function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  return new Date(ts).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-}
-
 function toggleSection(messageId: string, sectionIdx: number) {
   const msg = messages.value.find((m) => m.id === messageId)
   if (msg?.sections?.[sectionIdx]) {
     msg.sections[sectionIdx].collapsed = !msg.sections[sectionIdx].collapsed
-  }
-}
-
-function expandAllSections(messageId: string) {
-  const msg = messages.value.find((m) => m.id === messageId)
-  if (msg?.sections) {
-    msg.sections.forEach((s) => { s.collapsed = false })
   }
 }
 
@@ -562,11 +445,11 @@ function handleNewSession() {
   addMessage(createMessage('assistant', buildGreeting()))
 }
 
-function runQuickTask(task: { label: string; prompt: string }) {
+function runQuickTaskByPrompt(prompt: string) {
   if (!currentSessionId.value) {
     handleNewSession()
   }
-  draft.value = task.prompt
+  draft.value = prompt
   void sendMessage()
 }
 
@@ -895,23 +778,6 @@ async function scrollToBottom() {
   if (el) el.scrollTop = el.scrollHeight
 }
 
-function onComposerKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    void sendMessage()
-  }
-}
-
-async function copyMessage(content: string) {
-  const text = String(content || '').trim()
-  if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
-    message.success('已复制')
-  } catch {
-    message.error('复制失败')
-  }
-}
 
 // ── 导出功能 ──
 function exportPatientPart(): string {
@@ -1640,6 +1506,36 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 患者状态摘要 */
+.ctx-card--status {
+  border-left: 3px solid var(--color-ai, #6E5AE6);
+}
+
+.ctx-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ctx-status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ctx-status-label {
+  font-size: 11px;
+  color: var(--color-text-secondary, #667085);
+}
+
+.ctx-status-value {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary, #18212b);
 }
 
 .ctx-cited {

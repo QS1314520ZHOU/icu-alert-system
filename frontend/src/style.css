@@ -114,7 +114,7 @@ html.boot-mobile #app {
   --icu-shadow-lg: var(--shadow-lg);
   --icu-shadow-panel: var(--shadow-sm);
   --icu-modal-shadow: var(--shadow-xl);
-  --section-gap: var(--section-gap);
+  /* --section-gap defined in design-system.css */
 
   /* 品牌渐变 - 改为纯色 */
   --icu-brand-gradient: var(--color-primary);

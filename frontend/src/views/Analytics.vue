@@ -58,6 +58,10 @@
           <span class="hero-chip__label">分析粒度</span>
           <strong class="hero-chip__value">{{ bucket === 'hour' ? '小时' : '天' }} · 前 {{ topN }} 项</strong>
         </div>
+        <div class="hero-chip hero-chip--ring">
+          <span class="hero-chip__label">数据完整性</span>
+          <DataCompletenessRing :percent="analyticsDataCompleteness" :size="60" />
+        </div>
       </div>
     </section>
 
@@ -483,6 +487,7 @@ import {
 } from '../charts/icuTheme'
 import { chartInitOptions as createChartInitOptions } from '../charts/displayQuality'
 import { formatAlertTypeLabel, formatScenarioGroupLabel } from '../utils/displayLabels'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
 
 const AnalyticsChart = defineAsyncComponent(async () => {
   await import('../charts/analytics')
@@ -537,6 +542,20 @@ const sepsisBundleCompliance = ref<any>(null)
 const sepsisBundleAiInsight = ref<any>(null)
 const weaningSummary = ref<any>(null)
 const recentAlerts = ref<any[]>([])
+
+// ── 数据完整性 ──────────────────────────────────────────────────────
+const analyticsDataCompleteness = computed(() => {
+  const sections = ['alerts', 'sepsis', 'weaning', 'nursing', 'scenarios']
+  const loaded = sections.filter(s => {
+    if (s === 'alerts') return freqSeries.value.length > 0
+    if (s === 'sepsis') return sepsisBundleCompliance.value != null
+    if (s === 'weaning') return weaningSummary.value != null
+    if (s === 'nursing') return nursingSummary.value && Object.keys(nursingSummary.value).length > 0
+    if (s === 'scenarios') return scenarioCoverageSummary.value != null
+    return false
+  })
+  return Math.round((loaded.length / sections.length) * 100)
+})
 const lifecycleAnalytics = ref<any>(null)
 const scenarioCoverageSummary = ref<any>(null)
 const scenarioGroupRows = ref<any[]>([])
@@ -568,10 +587,10 @@ const lifecycleFunnelStages = computed(() => {
   const acked = Number(lifecycleSummary.value?.acknowledged_alerts || 0)
   const actioned = Number(lifecycleSummary.value?.actioned_alerts || 0)
   return [
-    { key: 'created', label: '已触发', value: total, rate: total ? 1 : 0, color: '#15558D' },
-    { key: 'viewed', label: '已查看', value: viewed, rate: total ? viewed / total : 0, color: '#E8901C' },
-    { key: 'acknowledged', label: '已确认', value: acked, rate: viewed ? acked / viewed : 0, color: '#E8901C' },
-    { key: 'actioned', label: '已行动', value: actioned, rate: acked ? actioned / acked : 0, color: '#1A9C5B' },
+    { key: 'created', label: '已触发', value: total, rate: total ? 1 : 0, color: 'var(--color-primary)' },
+    { key: 'viewed', label: '已查看', value: viewed, rate: total ? viewed / total : 0, color: 'var(--color-warning)' },
+    { key: 'acknowledged', label: '已确认', value: acked, rate: viewed ? acked / viewed : 0, color: 'var(--color-warning)' },
+    { key: 'actioned', label: '已行动', value: actioned, rate: acked ? actioned / acked : 0, color: 'var(--color-success)' },
   ].filter((item) => item.value > 0)
 })
 
@@ -801,7 +820,7 @@ const frequencyOption = computed(() => {
       formatter: (params: any[]) => {
         const list = Array.isArray(params) ? params : [params]
         const title = list[0]?.axisValueLabel || list[0]?.name || '时间窗'
-        const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', item.value ?? 0, item.color || '#15558D'))
+        const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', item.value ?? 0, item.color || 'var(--color-primary)'))
         const total = list.find((item: any) => item.seriesName === '总量')?.value ?? 0
         return tooltipShell(title, rows, `总触发 ${total} 次`)
       },
@@ -829,8 +848,8 @@ const frequencyOption = computed(() => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 6,
-        lineStyle: { width: 2, color: '#E8901C' },
-        itemStyle: { color: '#E8901C' },
+        lineStyle: { width: 2, color: 'var(--color-warning)' },
+        itemStyle: { color: 'var(--color-warning)' },
         data: source.map((p: any) => p.warning || 0),
       },
       {
@@ -839,8 +858,8 @@ const frequencyOption = computed(() => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 6,
-        lineStyle: { width: 2, color: '#E8901C' },
-        itemStyle: { color: '#E8901C' },
+        lineStyle: { width: 2, color: 'var(--color-warning)' },
+        itemStyle: { color: 'var(--color-warning)' },
         data: source.map((p: any) => p.high || 0),
       },
       {
@@ -865,8 +884,8 @@ const lifecycleFunnelOption = computed(() => ({
       return tooltipShell(
         row?.label || '生命周期',
         [
-          tooltipRow('告警数', `${row?.value || 0} 条`, row?.color || '#15558D'),
-          tooltipRow('阶段转化', formatPct(row?.rate || 0), row?.color || '#15558D'),
+          tooltipRow('告警数', `${row?.value || 0} 条`, row?.color || 'var(--color-primary)'),
+          tooltipRow('阶段转化', formatPct(row?.rate || 0), row?.color || 'var(--color-primary)'),
         ],
         '生命周期漏斗'
       )
@@ -887,7 +906,7 @@ const lifecycleFunnelOption = computed(() => ({
       barWidth: 26,
       itemStyle: {
         borderRadius: [0, 8, 8, 0],
-        color: (params: any) => lifecycleFunnelStages.value[params.dataIndex]?.color || '#15558D',
+        color: (params: any) => lifecycleFunnelStages.value[params.dataIndex]?.color || 'var(--color-primary)',
       },
       label: {
         show: true,
@@ -912,11 +931,11 @@ const lifecycleConversionOption = computed(() => ({
       return tooltipShell(
         row?.time || '时间段',
         [
-          tooltipRow('新增告警', `${row?.created || 0} 条`, '#15558D'),
-          tooltipRow('告警→查看', formatPct(row?.created_to_view_rate || 0), '#E8901C'),
-          tooltipRow('查看→确认', formatPct(row?.view_to_ack_rate || 0), '#E8901C'),
-          tooltipRow('确认→行动', formatPct(row?.ack_to_action_rate || 0), '#1A9C5B'),
-          tooltipRow('告警→行动', formatPct(row?.created_to_action_rate || 0), '#15558D'),
+          tooltipRow('新增告警', `${row?.created || 0} 条`, 'var(--color-primary)'),
+          tooltipRow('告警→查看', formatPct(row?.created_to_view_rate || 0), 'var(--color-warning)'),
+          tooltipRow('查看→确认', formatPct(row?.view_to_ack_rate || 0), 'var(--color-warning)'),
+          tooltipRow('确认→行动', formatPct(row?.ack_to_action_rate || 0), 'var(--color-success)'),
+          tooltipRow('告警→行动', formatPct(row?.created_to_action_rate || 0), 'var(--color-primary)'),
         ],
         '阶段转化率'
       )
@@ -934,10 +953,10 @@ const lifecycleConversionOption = computed(() => ({
     max: 100,
   }),
   series: [
-    { name: '告警→查看', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#E8901C' }, itemStyle: { color: '#E8901C' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.created_to_view_rate || 0) * 1000) / 10) },
-    { name: '查看→确认', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#E8901C' }, itemStyle: { color: '#E8901C' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.view_to_ack_rate || 0) * 1000) / 10) },
-    { name: '确认→行动', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: '#1A9C5B' }, itemStyle: { color: '#1A9C5B' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.ack_to_action_rate || 0) * 1000) / 10) },
-    { name: '告警→行动', type: 'line', smooth: true, symbol: 'circle', symbolSize: 5, lineStyle: { width: 2, type: 'dashed', color: '#15558D' }, itemStyle: { color: '#15558D' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.created_to_action_rate || 0) * 1000) / 10) },
+    { name: '告警→查看', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: 'var(--color-warning)' }, itemStyle: { color: 'var(--color-warning)' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.created_to_view_rate || 0) * 1000) / 10) },
+    { name: '查看→确认', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: 'var(--color-warning)' }, itemStyle: { color: 'var(--color-warning)' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.view_to_ack_rate || 0) * 1000) / 10) },
+    { name: '确认→行动', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: 'var(--color-success)' }, itemStyle: { color: 'var(--color-success)' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.ack_to_action_rate || 0) * 1000) / 10) },
+    { name: '告警→行动', type: 'line', smooth: true, symbol: 'circle', symbolSize: 5, lineStyle: { width: 2, type: 'dashed', color: 'var(--color-primary)' }, itemStyle: { color: 'var(--color-primary)' }, data: lifecycleFunnelSeries.value.map((item: any) => Math.round(Number(item.created_to_action_rate || 0) * 1000) / 10) },
   ],
 }))
 
@@ -956,7 +975,7 @@ const heatmapOption = computed(() => {
         return tooltipShell(
           `${y || '规则类型'}`,
           [
-            tooltipRow('时段', x || '—', '#15558D'),
+            tooltipRow('时段', x || '—', 'var(--color-primary)'),
             tooltipRow('触发', `${params.value[2] || 0} 次`, '#fb5a7a'),
           ],
           '规则类型热区'
@@ -1088,7 +1107,7 @@ const scenarioGroupProgressRows = computed(() => scenarioGroupRows.value.map((it
 const scenarioHeatmapOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: icuTooltip({
-    formatter: (params: any) => tooltipShell(`${scenarioHeatmapY.value[params.value[1]] || '场景组'}`, [tooltipRow('场景', scenarioHeatmapX.value[params.value[0]] || '—', '#15558D'), tooltipRow('命中', `${params.value[2] || 0} 次`, '#fb5a7a')], '扩展场景覆盖热区'),
+    formatter: (params: any) => tooltipShell(`${scenarioHeatmapY.value[params.value[1]] || '场景组'}`, [tooltipRow('场景', scenarioHeatmapX.value[params.value[0]] || '—', 'var(--color-primary)'), tooltipRow('命中', `${params.value[2] || 0} 次`, '#fb5a7a')], '扩展场景覆盖热区'),
   }),
   grid: icuGrid({ left: 128, right: 22, top: 20, bottom: 62 }),
   xAxis: icuCategoryAxis(scenarioHeatmapX.value, { axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, rotate: 18, margin: 12 } }),
@@ -1102,7 +1121,7 @@ const nursingHeatmapOption = computed(() => ({
     formatter: (params: any) => tooltipShell(
       nursingHeatmapX.value[params.value[0]] || '床位',
       [
-        tooltipRow('护理强度', nursingHeatmapY.value[params.value[1]] || '未来一个班次', '#15558D'),
+        tooltipRow('护理强度', nursingHeatmapY.value[params.value[1]] || '未来一个班次', 'var(--color-primary)'),
         tooltipRow('预计 NAS', `${params.value[2] || 0}`, '#fb5a7a'),
       ],
       '护理资源热力图',
@@ -1111,7 +1130,7 @@ const nursingHeatmapOption = computed(() => ({
   grid: icuGrid({ left: 88, right: 22, top: 20, bottom: 72 }),
   xAxis: icuCategoryAxis(nursingHeatmapX.value, { axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, rotate: 28, margin: 12 } }),
   yAxis: icuCategoryAxis(nursingHeatmapY.value, { axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10, margin: 14 } }),
-  visualMap: { min: 20, max: 100, orient: 'horizontal', left: 'center', bottom: 8, text: ['高负荷', '低负荷'], textStyle: { color: icuChartTokens().heatmapText, fontSize: 10 }, inRange: { color: ['#eff6ff', '#bfdbfe', '#60a5fa', '#E8901C', '#D9342B'] } },
+  visualMap: { min: 20, max: 100, orient: 'horizontal', left: 'center', bottom: 8, text: ['高负荷', '低负荷'], textStyle: { color: icuChartTokens().heatmapText, fontSize: 10 }, inRange: { color: ['#eff6ff', '#bfdbfe', '#60a5fa', 'var(--color-warning)', '#D9342B'] } },
   series: [{ type: 'heatmap', data: nursingHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: icuChartTokens().labelStrong, fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: icuChartTokens().axisLine, borderWidth: 1 } }],
 }))
 const scenarioColumns = [
@@ -1856,7 +1875,7 @@ const nursingDeptProgressRows = computed(() =>
     const nurses = Number(row?.recommended_nurse_count || 0)
     const intensity = Number(row?.avg_nas_score || 0)
     const width = `${Math.max(8, Math.min(100, intensity))}%`
-    const color = intensity >= 85 ? '#D9342B' : intensity >= 65 ? '#E8901C' : intensity >= 45 ? '#15558D' : '#1A9C5B'
+    const color = intensity >= 85 ? '#D9342B' : intensity >= 65 ? 'var(--color-warning)' : intensity >= 45 ? 'var(--color-primary)' : 'var(--color-success)'
     return {
       label: row?.dept || '未知科室',
       value: `${nurses.toFixed(nurses >= 10 ? 0 : 1)} 护士`,
@@ -1918,7 +1937,7 @@ const bedRankOption = computed(() => ({
       const item = Array.isArray(params) ? params[0] : params
       return tooltipShell(
         item?.name || '床位',
-        [tooltipRow('预警总量', `${item?.value ?? 0} 次`, item?.color || '#E8901C')],
+        [tooltipRow('预警总量', `${item?.value ?? 0} 次`, item?.color || 'var(--color-warning)')],
         'Bed Ranking'
       )
     },
@@ -1935,7 +1954,7 @@ const bedRankOption = computed(() => ({
       data: displayBedRankings.value.map((d: any) => d.count || 0),
       itemStyle: {
         color: (params: any) => {
-          const colors = ['#E8901C', '#E8901C', '#D9342B', '#D9342B']
+          const colors = ['var(--color-warning)', 'var(--color-warning)', '#D9342B', '#D9342B']
           return colors[params.dataIndex % colors.length]
         },
         borderRadius: [0, 8, 8, 0],
@@ -1960,7 +1979,7 @@ const weaningTrendOption = computed(() => {
       formatter: (params: any[]) => {
         const list = Array.isArray(params) ? params : [params]
         const title = list[0]?.axisValueLabel || list[0]?.name || '日期'
-        const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', item.value ?? 0, item.color || '#15558D'))
+        const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', item.value ?? 0, item.color || 'var(--color-primary)'))
         return tooltipShell(title, rows, '撤机月度趋势')
       },
     }),
@@ -1982,8 +2001,8 @@ const weaningTrendOption = computed(() => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 6,
-        lineStyle: { width: 2, color: '#E8901C' },
-        itemStyle: { color: '#E8901C' },
+        lineStyle: { width: 2, color: 'var(--color-warning)' },
+        itemStyle: { color: 'var(--color-warning)' },
         data: weaningTrendRows.value.map((row: any) => Number(row.high_risk || 0)),
       },
       {
@@ -2008,7 +2027,7 @@ const weaningDeptCompareOption = computed(() => ({
     formatter: (params: any[]) => {
       const list = Array.isArray(params) ? params : [params]
       const title = list[0]?.name || '科室'
-      const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', `${item.value ?? 0}%`, item.color || '#15558D'))
+      const rows = list.map((item: any) => tooltipRow(item.seriesName || '指标', `${item.value ?? 0}%`, item.color || 'var(--color-primary)'))
       return tooltipShell(title, rows, 'Department Compare')
     },
   }),
@@ -2028,7 +2047,7 @@ const weaningDeptCompareOption = computed(() => ({
       name: '脱机高风险占比',
       type: 'bar',
       data: weaningDeptCompare.value.map((row: any) => Math.round(Number(row.high_risk_ratio || 0) * 1000) / 10),
-      itemStyle: { color: '#E8901C', borderRadius: [6, 6, 0, 0] },
+      itemStyle: { color: 'var(--color-warning)', borderRadius: [6, 6, 0, 0] },
       barMaxWidth: 18,
     },
     {
@@ -2431,6 +2450,13 @@ onMounted(() => {
   margin-top: 4px;
   color: var(--text-primary);
   font-size: 14px;
+}
+
+.hero-chip--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .kpi-strip {

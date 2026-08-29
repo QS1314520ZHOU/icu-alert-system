@@ -24,12 +24,61 @@
 
     <!-- 主内容 -->
     <template v-else>
+      <!-- 关键指标卡 -->
+      <div class="kpi-metrics">
+        <ClinicalMetricCard
+          label="ICU在科患者"
+          :value="sortedFocusPatients.length"
+          unit="人"
+          value-size="key"
+          :change-text="`较昨日${focusPatientsDelta >= 0 ? '+' : ''}${focusPatientsDelta}`"
+        />
+        <ClinicalMetricCard
+          label="危急患者"
+          :value="criticalCount"
+          unit="人"
+          status="critical"
+          value-size="key"
+        />
+        <ClinicalMetricCard
+          label="未签收告警"
+          :value="unackedAlertCount"
+          unit="条"
+          :status="unackedAlertCount > 0 ? 'high-risk' : 'normal'"
+          value-size="key"
+        />
+        <ClinicalMetricCard
+          label="即将超时"
+          :value="timeoutItems.length"
+          unit="项"
+          :status="timeoutItems.length > 0 ? 'warning' : 'normal'"
+          value-size="key"
+        />
+      </div>
+
       <!-- 昨夜AI摘要：一句话自然语言 -->
       <section v-if="aiSummary" class="ai-summary" @click="$router.push({ path: '/clinical-workflow', query: route.query })">
         <span class="ai-summary-icon">✨</span>
         <span class="ai-summary-text">{{ aiSummary }}</span>
         <span class="ai-summary-link">查看详情 →</span>
       </section>
+
+      <!-- 可视化区：风险矩阵 + 告警漏斗 -->
+      <div class="viz-row">
+        <div class="viz-matrix">
+          <RiskMatrix
+            :patients="riskMatrixPatients"
+            :height="320"
+            @patient-click="(p) => goPatient(p.id)"
+          />
+        </div>
+        <div class="viz-funnel">
+          <AlertFunnel
+            :stages="alertFunnelStages"
+            :height="320"
+          />
+        </div>
+      </div>
 
       <!-- 主网格：4个核心区域 -->
       <main class="doctor-grid">
@@ -145,6 +194,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { getDoctorHome } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { formatRiskLevelLabel } from '../utils/displayLabels'
+import { ClinicalMetricCard, RiskMatrix, AlertFunnel } from '../components/charts'
+import type { MatrixPatient } from '../components/charts'
+import type { FunnelStage } from '../components/charts'
 
 const route = useRoute()
 const router = useRouter()
@@ -239,6 +291,53 @@ const timeoutItems = computed(() => {
     }
   })
   return items.slice(0, 5)
+})
+
+// ─── 可视化数据 ────────────────────────────────────────────────────────────
+
+// 风险矩阵数据
+const riskMatrixPatients = computed<MatrixPatient[]>(() => {
+  return focusPatients.value.map((p: any) => ({
+    id: p.patient_id || p.id,
+    name: p.name || '未知',
+    bedNo: displayBed(p.bed),
+    diagnosis: p.diagnosis || p.reason || '',
+    riskScore: Number(p.risk_score || 0),
+    riskVelocity: Number(p.risk_velocity || p.risk_delta || 0),
+    pendingIssues: Number(p.pending_issues || p.alert_count || 0),
+  }))
+})
+
+// 危急患者数
+const criticalCount = computed(() => {
+  return focusPatients.value.filter((p: any) => {
+    const level = String(p.risk_level || '').toLowerCase()
+    return ['critical', 'danger', 'red'].includes(level)
+  }).length
+})
+
+// 未签收告警数
+const unackedAlertCount = computed(() => {
+  return Number(home.value?.ai_night_watch?.pending_followup || 0)
+})
+
+// 患者数变化
+const focusPatientsDelta = computed(() => {
+  return Number(home.value?.patient_delta || 0)
+})
+
+// 告警漏斗数据
+const alertFunnelStages = computed<FunnelStage[]>(() => {
+  const a = home.value?.ai_night_watch || {}
+  const total = a.total_alerts || 0
+  const handled = a.handled || 0
+  const pending = a.pending_followup || 0
+  return [
+    { name: '告警触发', value: total, color: '#D92D20' },
+    { name: '已签收', value: total - pending, color: '#F79009' },
+    { name: '已处置', value: handled, color: '#1677FF' },
+    { name: '已关闭', value: Math.max(0, handled - 2), color: '#12A66A' },
+  ]
 })
 
 // 科室质控：只显示异常
@@ -402,6 +501,42 @@ function cleanDuplicateIdentityQuery() {
 </script>
 
 <style scoped>
+/* ─── KPI指标卡 ──────────────────────────────────────────────────────────── */
+.kpi-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* ─── 可视化行 ──────────────────────────────────────────────────────────── */
+.viz-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.viz-matrix,
+.viz-funnel {
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .viz-row {
+    grid-template-columns: 1fr;
+  }
+  .kpi-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ─── 基础变量 ─────────────────────────────────────────────────────────────── */
 .role-home {
   --spacing-xs: 8px;

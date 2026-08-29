@@ -15,6 +15,34 @@
       当前队列：{{ currentCohortSummary || '未选择' }} · 患者 {{ selectedPatientIds.length }} 例
     </div>
 
+    <!-- 数据就绪度 -->
+    <div class="workbench-viz-row">
+      <div class="workbench-viz-card workbench-viz-card--ring">
+        <h4>数据就绪度</h4>
+        <DataCompletenessRing :percent="dataReadiness" :size="90" />
+        <span class="workbench-viz-ring-label">{{ selectedVariables.length }} 变量已选</span>
+      </div>
+      <div class="workbench-viz-card">
+        <h4>分组分布</h4>
+        <div class="workbench-group-summary">
+          <div v-for="card in groupSummaryCards" :key="card.name" class="workbench-group-item" :class="card.type">
+            <span class="workbench-group-name">{{ card.name }}</span>
+            <strong class="workbench-group-count">{{ card.countText }}</strong>
+            <span class="workbench-group-pct">{{ card.percentText }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="workbench-viz-card">
+        <h4>变量覆盖率</h4>
+        <div class="workbench-var-coverage">
+          <div class="workbench-var-bar">
+            <div class="workbench-var-fill" :style="{ width: `${variableCoverage}%` }"></div>
+          </div>
+          <span class="workbench-var-label">{{ selectedVariables.length }}/{{ variableCatalog.length }} ({{ variableCoverage }}%)</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 步骤导航 -->
     <div class="step-card">
       <a-steps :current="currentStep" size="small" :items="stepItems" @change="(n: number) => currentStep = n" />
@@ -306,6 +334,7 @@ import { PageHeader, SectionHeader, ActionBar, EmptyState } from '../components/
 import AiAssistPanel from '../components/research/AiAssistPanel.vue'
 import CohortBuilder from '../components/CohortBuilder.vue'
 import { useResearchWorkbench } from '../composables/useResearchWorkbench'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
 
 type AnyRecord = Record<string, any>
 
@@ -375,6 +404,22 @@ const {
   runTable1, runSurvival, runRegression, runRoc, runTrend, runSubgroup, runCorrelation,
   exportTable, exportTableCsv, /*  */
 } = wb
+
+// ── 数据就绪度 ──────────────────────────────────────────────────────
+const dataReadiness = computed(() => {
+  let total = 4
+  let filled = 0
+  if (cohortReady.value) filled++
+  if (selectedVariables.value.length > 0) filled++
+  if (selectedPatientIds.value.length > 0) filled++
+  if (groupSummaryCards.value.length > 0) filled++
+  return Math.round((filled / total) * 100)
+})
+
+const variableCoverage = computed(() => {
+  if (!variableCatalog.length) return 0
+  return Math.round((selectedVariables.value.length / variableCatalog.length) * 100)
+})
 
 // AI assist handlers (not in composable, defined locally)
 function onAiGenerate(payload: any) {
@@ -604,6 +649,105 @@ onUnmounted(() => { document.removeEventListener('pointerdown', () => {}) })
   color: var(--color-primary, #2563EB); font-size: 13px; cursor: pointer;
 }
 .cohort-strip.empty { background: var(--color-warning-bg, rgba(181,71,8,0.08)); border-color: rgba(245,158,11,0.24); color: var(--color-warning, #B54708); }
+
+/* 数据就绪度可视化 */
+.workbench-viz-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 1fr;
+  gap: 16px;
+}
+
+.workbench-viz-card {
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 8px);
+  padding: 14px 16px;
+}
+
+.workbench-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.workbench-viz-card--ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.workbench-viz-ring-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.workbench-group-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workbench-group-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: #f5f5f5;
+}
+
+.workbench-group-item.treatment { background: #E6F4FF; }
+.workbench-group-item.control { background: #F6FFED; }
+
+.workbench-group-name {
+  font-size: 12px;
+  color: #595959;
+  flex: 1;
+}
+
+.workbench-group-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.workbench-group-pct {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.workbench-var-coverage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  height: 100%;
+}
+
+.workbench-var-bar {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.workbench-var-fill {
+  height: 100%;
+  background: #2563EB;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.workbench-var-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  text-align: center;
+}
+
 .step-card {
   background: var(--color-bg-surface, #fff); border: 1px solid var(--color-border, #E3E7EC);
   border-radius: var(--radius-lg, 8px); padding: var(--card-padding, 16px);

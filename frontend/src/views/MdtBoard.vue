@@ -16,6 +16,36 @@
       <MdtStepBar v-model="currentMdtStep" :steps="mdtStepRows" />
     </a-card>
 
+    <!-- 可视化概览（会诊进行中时显示） -->
+    <section v-if="specialistRows.length" class="mdt-viz-row">
+      <div class="mdt-viz-card">
+        <h4>专科意见分布</h4>
+        <div ref="mdtGraphRef" class="mdt-viz-chart"></div>
+      </div>
+      <div class="mdt-viz-card mdt-viz-card--progress">
+        <h4>决策闭环进度</h4>
+        <DataCompletenessRing :percent="closurePercent" :size="110" />
+        <div class="mdt-viz-progress-grid">
+          <div class="mdt-viz-stat">
+            <span class="mdt-viz-stat__value mdt-viz-stat__value--pending">{{ pendingDecisionCount }}</span>
+            <span class="mdt-viz-stat__label">待处理</span>
+          </div>
+          <div class="mdt-viz-stat">
+            <span class="mdt-viz-stat__value mdt-viz-stat__value--progress">{{ inProgressDecisionCount }}</span>
+            <span class="mdt-viz-stat__label">进行中</span>
+          </div>
+          <div class="mdt-viz-stat">
+            <span class="mdt-viz-stat__value mdt-viz-stat__value--done">{{ completedDecisionCount }}</span>
+            <span class="mdt-viz-stat__label">已完成</span>
+          </div>
+          <div class="mdt-viz-stat">
+            <span class="mdt-viz-stat__value mdt-viz-stat__value--dismissed">{{ dismissedDecisionCount }}</span>
+            <span class="mdt-viz-stat__label">已忽略</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- 主体：侧边栏 + 步骤内容 -->
     <section class="mdt-step-layout">
       <aside class="mdt-summary-rail">
@@ -132,7 +162,12 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { Card as ACard } from 'ant-design-vue'
+import * as echarts from 'echarts/core'
+import { GraphChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import { useMdtWorkspace } from '../composables/useMdtWorkspace'
 import MdtArchiveStep from '../components/mdt/MdtArchiveStep.vue'
 import MdtDecisionStep from '../components/mdt/MdtDecisionStep.vue'
@@ -142,6 +177,10 @@ import MdtReviewStep from '../components/mdt/MdtReviewStep.vue'
 import MdtSessionDrawer from '../components/mdt/MdtSessionDrawer.vue'
 import MdtStepBar from '../components/mdt/MdtStepBar.vue'
 import MdtSummaryRail from '../components/mdt/MdtSummaryRail.vue'
+import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
+import { getChartColor } from '../charts/icuTheme'
+
+echarts.use([GraphChart, TooltipComponent, LegendComponent, CanvasRenderer])
 
 void ACard
 
@@ -176,6 +215,92 @@ function handleMdtOrganClick(organKey: string) {
   const row = mdtOrganRows.value.find((item: any) => item.organKey === organKey)
   if (row?.agent) selectSpecialist(row.agent)
 }
+
+// ── 专科意见关系图 ─────────────────────────────────────────────────
+const mdtGraphRef = ref<HTMLElement>()
+let mdtGraph: echarts.ECharts | null = null
+
+const mdtGraphOption = computed(() => {
+  const specialists = specialistRows.value || []
+  const nodes: any[] = []
+  const links: any[] = []
+
+  // 中心节点 - 患者
+  nodes.push({
+    id: 'patient',
+    name: patientHeadline.value || '患者',
+    symbolSize: 50,
+    itemStyle: { color: '#2563EB', borderColor: '#fff', borderWidth: 2 },
+    label: { show: true, fontSize: 12, fontWeight: 'bold' },
+  })
+
+  // 专科节点
+  specialists.forEach((s: any, i: number) => {
+    const name = s.name || s.specialist || `专科${i + 1}`
+    const hasConflict = (conflictRows.value || []).some((c: any) => c.specialist === name)
+    nodes.push({
+      id: `sp-${i}`,
+      name,
+      symbolSize: 35,
+      itemStyle: {
+        color: hasConflict ? '#F79009' : getChartColor(i % 6),
+        borderColor: '#fff',
+        borderWidth: 2,
+      },
+      label: { show: true, fontSize: 11 },
+    })
+    links.push({
+      source: 'patient',
+      target: `sp-${i}`,
+      lineStyle: {
+        color: hasConflict ? '#F79009' : '#D9D9D9',
+        width: hasConflict ? 3 : 1,
+        type: hasConflict ? 'dashed' : 'solid',
+      },
+    })
+  })
+
+  // 专科间冲突连线
+  for (const c of (conflictRows.value || [])) {
+    const srcIdx = specialists.findIndex((s: any) => s.name === c.specialist || s.specialist === c.specialist)
+    const tgtIdx = specialists.findIndex((s: any) => s.name === c.conflictWith || s.specialist === c.conflictWith)
+    if (srcIdx >= 0 && tgtIdx >= 0 && srcIdx < tgtIdx) {
+      links.push({
+        source: `sp-${srcIdx}`,
+        target: `sp-${tgtIdx}`,
+        lineStyle: { color: '#F79009', width: 2, type: 'dashed' },
+      })
+    }
+  }
+
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}' },
+    series: [{
+      type: 'graph',
+      layout: 'force',
+      roam: false,
+      draggable: true,
+      force: { repulsion: 200, gravity: 0.1, edgeLength: [80, 160] },
+      data: nodes,
+      links,
+      label: { position: 'bottom' },
+      emphasis: { focus: 'adjacency', lineStyle: { width: 4 } },
+    }],
+  }
+})
+
+function initMdtGraph() {
+  if (!mdtGraphRef.value) return
+  mdtGraph = echarts.init(mdtGraphRef.value)
+  mdtGraph.setOption(mdtGraphOption.value)
+  const ro = new ResizeObserver(() => mdtGraph?.resize())
+  ro.observe(mdtGraphRef.value)
+}
+
+watch(mdtGraphOption, (opt) => { mdtGraph?.setOption(opt, true) }, { deep: true })
+
+onMounted(() => { setTimeout(initMdtGraph, 300) })
+onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
 </script>
 
 <style scoped>
@@ -185,6 +310,68 @@ function handleMdtOrganClick(organKey: string) {
   min-height: calc(100vh - 88px);
   padding: 16px;
   background: var(--bg-base);
+}
+
+/* 可视化概览行 */
+.mdt-viz-row {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 14px;
+}
+
+.mdt-viz-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 14px 16px;
+}
+
+.mdt-viz-card h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.mdt-viz-chart {
+  width: 100%;
+  height: 220px;
+}
+
+.mdt-viz-card--progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mdt-viz-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.mdt-viz-stat {
+  text-align: center;
+}
+
+.mdt-viz-stat__value {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mdt-viz-stat__value--pending { color: #F79009; }
+.mdt-viz-stat__value--progress { color: #2563EB; }
+.mdt-viz-stat__value--done { color: #12B76A; }
+.mdt-viz-stat__value--dismissed { color: #8C8C8C; }
+
+.mdt-viz-stat__label {
+  display: block;
+  font-size: 11px;
+  color: #8C8C8C;
+  margin-top: 2px;
 }
 .mdt-hero {
   border: 1px solid var(--border-color);
