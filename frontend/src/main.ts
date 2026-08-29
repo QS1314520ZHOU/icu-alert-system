@@ -1,9 +1,13 @@
 import { createApp } from 'vue'
 import 'ant-design-vue/dist/reset.css'
 import { registerSW } from 'virtual:pwa-register'
+import { registerClinicalThemes } from './charts/clinicalThemes'
 import './style.css'
 import './styles/clinical-documents-dark.css'
 import './mobile/mobile.css'
+
+// 注册 ECharts 临床主题（必须在任何图表组件挂载前）
+registerClinicalThemes()
 
 /**
  * Patch fetch and XHR to inject embed token into API requests.
