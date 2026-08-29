@@ -15,6 +15,15 @@ const routeComponents = {
   patientTreatment: () => import('../views/patient-detail/PatientTreatmentView.vue'),
   patientAlerts: () => import('../views/patient-detail/PatientAlertsView.vue'),
   patientDocuments: () => import('../views/patient-detail/PatientDocumentsView.vue'),
+  patientIntelligence: () => import('../views/patient-detail/PatientIntelligenceView.vue'),
+  patientFollowup: () => import('../views/patient-detail/PatientFollowupView.vue'),
+  handoverOverview: () => import('../views/handover/HandoverOverview.vue'),
+  handoverPatients: () => import('../views/handover/HandoverPatients.vue'),
+  handoverPatientIsbar: () => import('../views/handover/HandoverPatientIsbar.vue'),
+  handoverTasks: () => import('../views/handover/HandoverTasks.vue'),
+  handoverHistory: () => import('../views/handover/HandoverHistory.vue'),
+  handoverSettings: () => import('../views/handover/HandoverSettings.vue'),
+  handoverLayout: () => import('../views/handover/HandoverLayout.vue'),
   bigScreen: () => import('../views/BigScreen.vue'),
   analytics: () => import('../views/Analytics.vue'),
   clinicalWorkflow: () => import('../views/ClinicalWorkflow.vue'),
@@ -148,6 +157,18 @@ const router = createRouter({
           component: routeComponents.patientDocuments,
           meta: { title: '文书与AI', useAntdTheme: true },
         },
+        {
+          path: 'intelligence',
+          name: 'patient-intelligence',
+          component: routeComponents.patientIntelligence,
+          meta: { title: 'AI分析', useAntdTheme: true },
+        },
+        {
+          path: 'followup',
+          name: 'patient-followup',
+          component: routeComponents.patientFollowup,
+          meta: { title: '随访管理', useAntdTheme: true },
+        },
       ],
     },
     {
@@ -248,9 +269,50 @@ const router = createRouter({
     },
     {
       path: '/handover',
-      name: 'handover',
-      component: routeComponents.handover,
-      meta: { title: '智能交接班', roles: ['nurse', 'head_nurse', 'doctor'] }
+      component: routeComponents.handoverLayout,
+      meta: { title: '智能交接班', roles: ['nurse', 'head_nurse', 'doctor'] },
+      children: [
+        {
+          path: '',
+          redirect: '/handover/overview',
+        },
+        {
+          path: 'overview',
+          name: 'handover-overview',
+          component: routeComponents.handoverOverview,
+          meta: { title: '交班总览', roles: ['nurse', 'head_nurse', 'doctor'] },
+        },
+        {
+          path: 'patients',
+          name: 'handover-patients',
+          component: routeComponents.handoverPatients,
+          meta: { title: '患者交班', roles: ['nurse', 'head_nurse', 'doctor'] },
+        },
+        {
+          path: 'patient/:patientId',
+          name: 'handover-patient',
+          component: routeComponents.handoverPatientIsbar,
+          meta: { title: '患者ISBAR', roles: ['nurse', 'head_nurse', 'doctor'] },
+        },
+        {
+          path: 'tasks',
+          name: 'handover-tasks',
+          component: routeComponents.handoverTasks,
+          meta: { title: '待办与未闭环', roles: ['nurse', 'head_nurse', 'doctor'] },
+        },
+        {
+          path: 'history',
+          name: 'handover-history',
+          component: routeComponents.handoverHistory,
+          meta: { title: '交班历史', roles: ['nurse', 'head_nurse', 'doctor'] },
+        },
+        {
+          path: 'settings',
+          name: 'handover-settings',
+          component: routeComponents.handoverSettings,
+          meta: { title: '班次与诊断', roles: ['nurse', 'head_nurse'] },
+        },
+      ],
     },
     {
       path: '/bedside/:patientId',
