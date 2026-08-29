@@ -177,12 +177,14 @@
     </nav>
   </aside>
 
-  <!-- Patient Selector Modal (global mode AI click) -->
-  <PatientSelectorModal
-    :open="showPatientSelector"
-    @select="onPatientSelected"
-    @cancel="onCancelPatientSelector"
-  />
+  <!-- Patient Selector Modal (global mode AI click) — teleported to body -->
+  <Teleport to="body">
+    <PatientSelectorModal
+      :open="showPatientSelector"
+      @select="onPatientSelected"
+      @cancel="onCancelPatientSelector"
+    />
+  </Teleport>
 </template>
 
 <script setup lang="ts">

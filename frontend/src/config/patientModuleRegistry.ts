@@ -5,6 +5,8 @@
  * 每个模块包含路由、权限、iframe地址等元数据。
  */
 
+export type ModuleRenderMode = 'native' | 'embed' | 'external'
+
 export interface PatientModule {
   moduleKey: string
   title: string
@@ -12,6 +14,7 @@ export interface PatientModule {
   group: 'patient-detail' | 'alert-decision' | 'ai-analysis' | 'ai-intelligence' | 'clinical-docs' | 'followup'
   route: string
   iframeUrl: (patientId: string) => string
+  renderMode?: ModuleRenderMode
   requiredRoles?: string[]
   featureFlag?: string
   preload?: boolean
@@ -162,10 +165,10 @@ export const PATIENT_MODULES: PatientModule[] = [
     title: 'AI文书',
     icon: 'clipboard',
     group: 'clinical-docs',
-    route: '/patient/:patientId/tool/documents',
-    iframeUrl: (pid) => `/embed/patient/${pid}/documents`,
+    route: '/patient/:patientId/documents',
+    iframeUrl: () => '',
+    renderMode: 'native',
     description: '查房摘要、AI文书、交接班、MDT材料',
-    legacyRoutes: ['/patient/:id/documents'],
   },
 
   // 随访管理组
@@ -174,10 +177,10 @@ export const PATIENT_MODULES: PatientModule[] = [
     title: '随访管理',
     icon: 'activity',
     group: 'followup',
-    route: '/patient/:patientId/tool/followup',
-    iframeUrl: (pid) => `/embed/patient/${pid}/followup`,
+    route: '/patient/:patientId/followup',
+    iframeUrl: () => '',
+    renderMode: 'native',
     description: 'PICS评估、随访任务、康复转诊',
-    legacyRoutes: ['?tab=followup'],
     featureFlag: 'ai-followup',
     requiredRoles: ['doctor', 'nurse', 'head_nurse'],
   },
@@ -231,9 +234,15 @@ export function getModuleByKey(key: string): PatientModule | undefined {
   return PATIENT_MODULES.find(m => m.moduleKey === key)
 }
 
-export function isIframeModule(moduleKey: string): boolean {
+export function getModuleRenderMode(moduleKey: string): ModuleRenderMode {
   const mod = getModuleByKey(moduleKey)
-  return mod ? mod.iframeUrl('') !== '' : false
+  if (!mod) return 'native'
+  if (mod.renderMode) return mod.renderMode
+  return mod.iframeUrl('') !== '' ? 'embed' : 'native'
+}
+
+export function isIframeModule(moduleKey: string): boolean {
+  return getModuleRenderMode(moduleKey) === 'embed'
 }
 
 export function getModuleRoute(moduleKey: string, patientId: string): string {
