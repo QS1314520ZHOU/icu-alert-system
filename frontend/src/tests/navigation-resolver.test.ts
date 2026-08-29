@@ -114,6 +114,32 @@ describe('Navigation Resolver', () => {
     })
   })
 
+  describe('no duplicate AI modules', () => {
+    it('should not have duplicate module keys in patient mode', () => {
+      const result = resolveNavigation({ mode: 'patient', role: 'doctor' })
+      const allKeys = result.groups.flatMap(g => g.items.map(i => i.key))
+      const uniqueKeys = new Set(allKeys)
+      expect(allKeys.length).toBe(uniqueKeys.size)
+    })
+
+    it('should not have duplicate module keys in global mode', () => {
+      const result = resolveNavigation({ mode: 'global', role: 'doctor' })
+      const allKeys = result.groups.flatMap(g => g.items.map(i => i.key))
+      const uniqueKeys = new Set(allKeys)
+      expect(allKeys.length).toBe(uniqueKeys.size)
+    })
+
+    it('ai-analysis modules should appear exactly once in patient mode', () => {
+      const result = resolveNavigation({ mode: 'patient', role: 'doctor' })
+      const allKeys = result.groups.flatMap(g => g.items.map(i => i.key))
+      const aiKeys = ['similar-cases', 'causal-inference', 'what-if', 'disease-trajectory', 'evidence']
+      for (const key of aiKeys) {
+        const count = allKeys.filter(k => k === key).length
+        expect(count).toBeLessThanOrEqual(1)
+      }
+    })
+  })
+
   describe('getAccessibleModuleKeys', () => {
     it('should return accessible modules for doctor', () => {
       const keys = getAccessibleModuleKeys('doctor')

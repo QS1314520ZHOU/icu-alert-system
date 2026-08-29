@@ -12,7 +12,6 @@ import { buildPatientPath } from '../utils/patientRouteHelper'
 
 /** Global state for patient selector modal */
 const showPatientSelector = ref(false)
-const pendingModuleKey = ref('')
 
 export function useAppNavigation() {
   const router = useRouter()
@@ -38,7 +37,7 @@ export function useAppNavigation() {
     const patientId = patientCtx.activePatientId
     if (!patientId) {
       // Open patient selector, remember the target module
-      pendingModuleKey.value = moduleKey
+      patientCtx.setPendingModule(moduleKey)
       showPatientSelector.value = true
       return
     }
@@ -63,14 +62,19 @@ export function useAppNavigation() {
    */
   function onPatientSelected(patientId: string) {
     showPatientSelector.value = false
-    const moduleKey = pendingModuleKey.value
-    pendingModuleKey.value = ''
+    const moduleKey = patientCtx.consumePendingModule()
 
     if (!patientId) return
 
     // Sync patient context
     patientCtx.activePatientId = patientId
-    try { sessionStorage.setItem('icu_active_patient_id', patientId) } catch {}
+    try {
+      const { useAuthStore } = require('../stores/auth')
+      const auth = useAuthStore()
+      const userId = String(auth.userId || auth.userName || '').trim()
+      const key = userId ? `icu_active_patient_id:${userId}` : 'icu_active_patient_id:anonymous'
+      sessionStorage.setItem(key, patientId)
+    } catch {}
 
     // Navigate to the module
     if (moduleKey) {
@@ -94,7 +98,7 @@ export function useAppNavigation() {
    */
   function onCancelPatientSelector() {
     showPatientSelector.value = false
-    pendingModuleKey.value = ''
+    patientCtx.clearPendingModule()
   }
 
   /**
@@ -114,6 +118,6 @@ export function useAppNavigation() {
     onPatientSelected,
     onCancelPatientSelector,
     showPatientSelector,
-    pendingModuleKey,
+    pendingModuleKey: patientCtx.pendingModuleKey,
   }
 }

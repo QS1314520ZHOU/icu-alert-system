@@ -120,10 +120,13 @@ const origin = computed(() => {
   return '*'
 })
 
+const moduleKeyRef = computed(() => props.moduleKey)
+const patientIdRef = computed(() => props.patientId)
+
 const { sendThemeChanged, sendRefresh: bridgeRefresh } = useHostBridge({
   iframeRef,
-  moduleKey: props.moduleKey,
-  patientId: props.patientId,
+  moduleKey: moduleKeyRef,
+  patientId: patientIdRef,
   targetOrigin: origin.value,
   onEmbedReady: () => {
     loading.value = false
@@ -145,8 +148,9 @@ const { sendThemeChanged, sendRefresh: bridgeRefresh } = useHostBridge({
     emit('error', payload.message)
   },
   onResize: (payload) => {
-    if (payload.height > 0 && iframeRef.value) {
-      iframeRef.value.style.height = `${payload.height}px`
+    const h = Number(payload.height)
+    if (isFinite(h) && h >= 400 && h <= 2000 && iframeRef.value) {
+      iframeRef.value.style.height = `${h}px`
     }
   },
 })

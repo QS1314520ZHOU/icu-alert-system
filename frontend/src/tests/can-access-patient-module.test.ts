@@ -86,10 +86,14 @@ describe('isFeatureEnabled', () => {
   it('should return false for disabled flags', () => {
     expect(isFeatureEnabled('ai-causal-inference')).toBe(false)
     expect(isFeatureEnabled('ai-what-if')).toBe(false)
-    expect(isFeatureEnabled('ai-disease-trajectory')).toBe(false)
+    expect(isFeatureEnabled('ai-decision-assistants')).toBe(false)
   })
 
-  it('should return true for unknown flags', () => {
-    expect(isFeatureEnabled('nonexistent-flag')).toBe(true)
+  it('should return true for enabled flags', () => {
+    expect(isFeatureEnabled('ai-disease-trajectory')).toBe(true)
+  })
+
+  it('should return false for unknown flags', () => {
+    expect(isFeatureEnabled('nonexistent-flag')).toBe(false)
   })
 })

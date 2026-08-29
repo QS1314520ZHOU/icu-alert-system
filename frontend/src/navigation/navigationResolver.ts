@@ -4,7 +4,7 @@
  * This is the SINGLE source of truth for what appears in the sidebar.
  * SideNav.vue calls this; it never builds menus directly.
  */
-import type { NavigationMode, NavGroup, ResolvedNavigation, NavigationResolveOptions } from './navigationTypes'
+import type { NavigationMode, NavGroup, NavItem, ResolvedNavigation, NavigationResolveOptions } from './navigationTypes'
 import { navGroups as globalNavGroups, moreMenuItems } from '../config/roleHomeConfig'
 import { PATIENT_MODULES, MODULE_GROUPS, type PatientModule } from '../config/patientModuleRegistry'
 import { canAccessPatientModule } from '../config/featureFlags'
@@ -29,24 +29,13 @@ export function resolveNavigation(opts: NavigationResolveOptions): ResolvedNavig
 
 /**
  * Resolve global navigation (non-patient pages).
- * Returns role-filtered navGroups from roleHomeConfig.
+ * Returns role-filtered navGroups from roleHomeConfig,
+ * plus a "患者智能分析" group with AI modules from patientModuleRegistry.
  */
 function resolveGlobalNavigation(role?: string): ResolvedNavigation {
-  const filteredGroups: NavGroup[] = globalNavGroups.map(group => {
-    if (group.key === 'more') {
-      // "更多" group items come from moreMenuItems
-      return {
-        key: group.key,
-        label: group.label,
-        items: moreMenuItems.map(item => ({
-          key: item.key,
-          label: item.label,
-          icon: item.icon,
-          path: item.path,
-        })),
-      }
-    }
-    return {
+  const filteredGroups: NavGroup[] = globalNavGroups
+    .filter(g => g.key !== 'more')
+    .map(group => ({
       key: group.key,
       label: group.label,
       items: group.items.map(item => ({
@@ -56,7 +45,43 @@ function resolveGlobalNavigation(role?: string): ResolvedNavigation {
         path: item.path,
         lines: item.lines,
       })),
+    }))
+
+  // Add "患者智能分析" group with AI modules from patientModuleRegistry
+  const aiModules = PATIENT_MODULES.filter(m => m.group === 'ai-analysis')
+  const accessibleAiModules = aiModules.filter(mod =>
+    canAccessPatientModule(mod.moduleKey, {
+      featureFlag: mod.featureFlag,
+      requiredRoles: mod.requiredRoles,
+    }, role)
+  )
+
+  if (accessibleAiModules.length > 0) {
+    // Find the "患者" group to insert AI modules after it
+    const patientGroupIndex = filteredGroups.findIndex(g => g.key === 'patients')
+    const aiGroup: NavGroup = {
+      key: 'ai-intelligence',
+      label: '患者智能分析',
+      items: accessibleAiModules.map(mod => moduleToNavItem(mod)),
     }
+
+    if (patientGroupIndex >= 0) {
+      filteredGroups.splice(patientGroupIndex + 1, 0, aiGroup)
+    } else {
+      filteredGroups.push(aiGroup)
+    }
+  }
+
+  // Add "更多" group at the end
+  filteredGroups.push({
+    key: 'more',
+    label: '更多',
+    items: moreMenuItems.map(item => ({
+      key: item.key,
+      label: item.label,
+      icon: item.icon,
+      path: item.path,
+    })),
   })
 
   return { groups: filteredGroups, mode: 'global' }
@@ -65,6 +90,9 @@ function resolveGlobalNavigation(role?: string): ResolvedNavigation {
 /**
  * Resolve patient navigation (patient detail pages).
  * Returns patient modules from registry, filtered by role and feature flags.
+ *
+ * NOTE: MODULE_GROUPS already includes the 'ai-analysis' group — we iterate
+ * once through MODULE_GROUPS to avoid duplicate AI entries.
  */
 function resolvePatientNavigation(role?: string): ResolvedNavigation {
   const groups: NavGroup[] = []
@@ -86,30 +114,13 @@ function resolvePatientNavigation(role?: string): ResolvedNavigation {
     }
   }
 
-  // Add "患者智能分析" expandable group with AI sub-modules
-  const aiModules = PATIENT_MODULES.filter(m => m.group === 'ai-analysis')
-  const accessibleAiModules = aiModules.filter(mod =>
-    canAccessPatientModule(mod.moduleKey, {
-      featureFlag: mod.featureFlag,
-      requiredRoles: mod.requiredRoles,
-    }, role)
-  )
-
-  if (accessibleAiModules.length > 0) {
-    groups.push({
-      key: 'ai-intelligence',
-      label: '患者智能分析',
-      items: accessibleAiModules.map(mod => moduleToNavItem(mod)),
-    })
-  }
-
   return { groups, mode: 'patient' }
 }
 
 /**
  * Convert a PatientModule to a NavItem for the sidebar.
  */
-function moduleToNavItem(mod: PatientModule) {
+function moduleToNavItem(mod: PatientModule): NavItem {
   return {
     key: mod.moduleKey,
     label: mod.title,

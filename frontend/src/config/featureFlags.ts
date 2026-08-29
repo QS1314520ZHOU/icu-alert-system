@@ -15,41 +15,47 @@ export interface FeatureFlagConfig {
 export const FEATURE_FLAGS: Record<string, FeatureFlagConfig> = {
   'ai-risk-prediction': {
     defaultEnabled: true,
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director'],
     description: '风险预测模块',
   },
   'ai-integrated-risk': {
     defaultEnabled: true,
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director'],
     description: '综合风险评估',
   },
   'ai-similar-cases': {
     defaultEnabled: true,
+    requiredRoles: ['doctor', 'director', 'researcher'],
     description: '相似病例检索',
   },
   'ai-causal-inference': {
     defaultEnabled: false,
-    requiredRoles: ['doctor', 'director'],
+    requiredRoles: ['doctor', 'director', 'researcher'],
     description: '因果推断分析',
   },
   'ai-what-if': {
     defaultEnabled: false,
-    requiredRoles: ['doctor'],
+    requiredRoles: ['doctor', 'director'],
     description: 'What-if模拟',
   },
   'ai-disease-trajectory': {
-    defaultEnabled: false,
-    requiredRoles: ['doctor', 'director'],
+    defaultEnabled: true,
+    requiredRoles: ['doctor', 'nurse', 'director'],
     description: '疾病轨迹推演',
   },
   'ai-evidence': {
     defaultEnabled: true,
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director'],
     description: '循证证据检索',
   },
   'ai-decision-assistants': {
-    defaultEnabled: true,
-    description: '专项决策助手',
+    defaultEnabled: false,
+    requiredRoles: ['doctor', 'director'],
+    description: '专项决策助手（无真实API时默认关闭）',
   },
   'ai-documents': {
     defaultEnabled: true,
+    requiredRoles: ['doctor', 'nurse', 'head_nurse'],
     description: '文书与AI',
   },
   'ai-followup': {
@@ -65,7 +71,7 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig> = {
  */
 export function isFeatureEnabled(flag: string): boolean {
   const config = FEATURE_FLAGS[flag]
-  if (!config) return true  // unknown flags default to enabled
+  if (!config) return false  // unknown flags default to disabled
   return config.defaultEnabled
 }
 

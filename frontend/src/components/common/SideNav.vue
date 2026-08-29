@@ -76,107 +76,110 @@
         </div>
       </template>
 
-      <!-- ═══ 全局模式：标准导航 ═══ -->
+      <!-- ═══ 全局模式：统一由 resolveNavigation 生成 ═══ -->
       <template v-else>
-        <div v-for="group in mainNavGroups" :key="group.key" class="side-nav__group">
-          <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
-          <router-link
-            v-for="item in group.items"
-            :key="item.key"
-            :to="item.path"
-            :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
-            :title="item.label"
-          >
-            <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-            <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
-          </router-link>
-        </div>
-
-        <!-- 全局模式下的"患者智能分析"入口 -->
-        <div class="side-nav__group">
-          <button
-            v-if="!collapsed"
-            class="side-nav__group-label side-nav__group-label--toggle"
-            @click="toggleAiGlobal"
-          >
-            患者智能分析
-            <span class="side-nav__toggle-arrow" :class="{ 'side-nav__toggle-arrow--open': aiGlobalExpanded }">▸</span>
-          </button>
-          <button
-            v-else
-            class="side-nav__item"
-            title="患者智能分析"
-            @click="toggleAiGlobal"
-          >
-            <span class="side-nav__icon" v-html="iconSvg('brain')"></span>
-          </button>
-          <div v-show="aiGlobalExpanded">
+        <template v-for="group in globalNavGroups" :key="group.key">
+          <!-- AI 智能分析组：可展开/折叠 -->
+          <div v-if="group.key === 'ai-intelligence'" class="side-nav__group">
             <button
-              v-for="item in globalAiModules"
-              :key="item.key"
-              class="side-nav__item"
-              :title="item.label"
-              @click="onGlobalAiClick(item.key)"
+              v-if="!collapsed"
+              class="side-nav__group-label side-nav__group-label--toggle"
+              @click="toggleAiGlobal"
             >
-              <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-              <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+              {{ group.label }}
+              <span class="side-nav__toggle-arrow" :class="{ 'side-nav__toggle-arrow--open': aiGlobalExpanded }">▸</span>
             </button>
+            <button
+              v-else
+              class="side-nav__item"
+              :title="group.label"
+              @click="toggleAiGlobal"
+            >
+              <span class="side-nav__icon" v-html="iconSvg('brain')"></span>
+            </button>
+            <div v-show="aiGlobalExpanded">
+              <button
+                v-for="item in group.items"
+                :key="item.key"
+                class="side-nav__item"
+                :title="item.label"
+                @click="onGlobalAiClick(item.key)"
+              >
+                <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+                <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- 更多菜单 -->
-        <div class="side-nav__group">
-          <div v-if="!collapsed" class="side-nav__group-label">更多</div>
-          <a-dropdown
-            v-if="collapsed"
-            :trigger="['click']"
-            placement="bottomRight"
-            overlay-class-name="side-nav__more-dropdown"
-          >
-            <button class="side-nav__item side-nav__more-trigger" title="更多">
-              <span class="side-nav__icon" v-html="iconSvg('more')"></span>
-            </button>
-            <template #overlay>
-              <a-menu>
-                <a-menu-item v-for="item in moreItems" :key="item.key">
-                  <router-link :to="item.path" class="side-nav__more-item">
-                    <span v-html="iconSvg(item.icon)"></span>
-                    <span>{{ item.label }}</span>
-                  </router-link>
-                </a-menu-item>
-              </a-menu>
+          <!-- 更多组：折叠态用 dropdown -->
+          <div v-else-if="group.key === 'more'" class="side-nav__group">
+            <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
+            <a-dropdown
+              v-if="collapsed"
+              :trigger="['click']"
+              placement="bottomRight"
+              overlay-class-name="side-nav__more-dropdown"
+            >
+              <button class="side-nav__item side-nav__more-trigger" :title="group.label">
+                <span class="side-nav__icon" v-html="iconSvg('more')"></span>
+              </button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item v-for="item in group.items" :key="item.key">
+                    <router-link :to="item.path" class="side-nav__more-item">
+                      <span v-html="iconSvg(item.icon)"></span>
+                      <span>{{ item.label }}</span>
+                    </router-link>
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+
+            <template v-else>
+              <router-link
+                v-for="item in visibleMoreItems(group.items)"
+                :key="item.key"
+                :to="item.path"
+                :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
+                :title="item.label"
+              >
+                <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+                <span class="side-nav__label">{{ item.label }}</span>
+              </router-link>
+
+              <button
+                v-if="group.items.length > maxVisibleMoreItems"
+                class="side-nav__item side-nav__expand-btn"
+                @click="showAllMore = !showAllMore"
+              >
+                <span class="side-nav__icon" v-html="iconSvg(showAllMore ? 'chevron-up' : 'chevron-down')"></span>
+                <span class="side-nav__label">{{ showAllMore ? '收起' : `展开 ${group.items.length - maxVisibleMoreItems} 项` }}</span>
+              </button>
             </template>
-          </a-dropdown>
+          </div>
 
-          <template v-else>
+          <!-- 普通组 -->
+          <div v-else class="side-nav__group">
+            <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
             <router-link
-              v-for="item in visibleMoreItems"
+              v-for="item in group.items"
               :key="item.key"
               :to="item.path"
               :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
               :title="item.label"
             >
               <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-              <span class="side-nav__label">{{ item.label }}</span>
+              <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
             </router-link>
-
-            <button
-              v-if="moreItems.length > maxVisibleMoreItems"
-              class="side-nav__item side-nav__expand-btn"
-              @click="showAllMore = !showAllMore"
-            >
-              <span class="side-nav__icon" v-html="iconSvg(showAllMore ? 'chevron-up' : 'chevron-down')"></span>
-              <span class="side-nav__label">{{ showAllMore ? '收起' : `展开 ${moreItems.length - maxVisibleMoreItems} 项` }}</span>
-            </button>
-          </template>
-        </div>
+          </div>
+        </template>
       </template>
     </nav>
   </aside>
 
   <!-- Patient Selector Modal (global mode AI click) -->
   <PatientSelectorModal
-    v-if="showPatientSelector"
+    :open="showPatientSelector"
     @select="onPatientSelected"
     @cancel="onCancelPatientSelector"
   />
@@ -185,7 +188,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { navGroups, moreMenuItems } from '../../config/roleHomeConfig'
 import { usePatientContext } from '../../stores/patientContext'
 import { useAuthStore } from '../../stores/auth'
 import { resolveNavigation } from '../../navigation/navigationResolver'
@@ -215,7 +217,7 @@ const expandedGroups = ref(new Set<string>())
 const navigationMode = computed(() => (route.meta?.navigationMode as string) || 'global')
 const isPatientMode = computed(() => navigationMode.value === 'patient')
 
-// ── Patient navigation ──
+// ── Patient navigation (unified via resolveNavigation) ──
 const patientNav = computed(() => {
   return resolveNavigation({
     mode: 'patient',
@@ -247,25 +249,19 @@ function getPatientItemPath(item: NavItem): string {
   return `/patient/${patientId}/tool/${item.key}`
 }
 
-// ── Global navigation ──
-const mainNavGroups = computed(() => navGroups.filter(g => g.key !== 'more'))
-const moreItems = computed(() => moreMenuItems)
+// ── Global navigation (unified via resolveNavigation) ──
+const globalResolved = computed(() => {
+  return resolveNavigation({
+    mode: 'global',
+    role: auth.role,
+  })
+})
+
+// All global groups except 'ai-intelligence' (handled separately for expand/collapse)
+const globalNavGroups = computed(() => globalResolved.value.groups)
 
 // ── AI Intelligence in global mode ──
 const aiGlobalExpanded = ref(false)
-const globalAiModules = computed(() => {
-  const aiModules = [
-    { key: 'risk-prediction', label: 'AI 风险预测', icon: 'chart' },
-    { key: 'clinical-decision', label: '临床决策支持', icon: 'lightbulb' },
-    { key: 'vitals-trends', label: '智能指标趋势', icon: 'chart' },
-    { key: 'lab-heatmap', label: '检验热力图', icon: 'grid' },
-    { key: 'ai-chatbot', label: 'AI 临床问答', icon: 'brain' },
-    { key: 'similar-cases', label: '相似病例检索', icon: 'search' },
-    { key: 'evidence', label: '循证支持', icon: 'book' },
-    { key: 'followup', label: '智能随访', icon: 'calendar' },
-  ]
-  return aiModules
-})
 
 function toggleAiGlobal() {
   aiGlobalExpanded.value = !aiGlobalExpanded.value
@@ -275,10 +271,10 @@ function onGlobalAiClick(moduleKey: string) {
   navToModule(moduleKey)
 }
 
-const visibleMoreItems = computed(() => {
-  if (showAllMore.value) return moreItems.value
-  return moreItems.value.slice(0, maxVisibleMoreItems)
-})
+function visibleMoreItems(items: NavItem[]) {
+  if (showAllMore.value) return items
+  return items.slice(0, maxVisibleMoreItems)
+}
 
 // ── Actions ──
 function toggleCollapse() {
@@ -328,8 +324,14 @@ function iconSvg(icon: string) {
     'chevron-down': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
     'chevron-up': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>',
     'arrow-left': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>',
+    brain: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-3 3 3 3 0 0 0 1 2.24V14a4 4 0 0 0 2.8 3.82L10 22h4l1.2-4.18A4 4 0 0 0 18 14v-1.76A3 3 0 0 0 19 10a3 3 0 0 0-3-3V6a4 4 0 0 0-4-4z"/></svg>',
     alert: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
     'trending-up': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+    search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    book: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    calendar: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+    grid: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+    lightbulb: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>',
   }
   return svgs[icon] || '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/></svg>'
 }

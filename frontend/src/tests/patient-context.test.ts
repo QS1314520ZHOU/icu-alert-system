@@ -9,6 +9,8 @@ const sessionStorageMock = (() => {
     setItem: vi.fn((key: string, value: string) => { store[key] = value }),
     removeItem: vi.fn((key: string) => { delete store[key] }),
     clear: vi.fn(() => { Object.keys(store).forEach(k => delete store[k]) }),
+    get length() { return Object.keys(store).length },
+    key: vi.fn((index: number) => Object.keys(store)[index] || null),
   }
 })()
 
@@ -16,6 +18,17 @@ Object.defineProperty(window, 'sessionStorage', {
   value: sessionStorageMock,
   writable: true,
 })
+
+// Mock auth store — returns no user (anonymous)
+vi.mock('../stores/auth', () => ({
+  useAuthStore: () => ({
+    userId: '',
+    userName: '',
+    role: '',
+    dept: '',
+    deptCode: '',
+  }),
+}))
 
 import { usePatientContext } from '../stores/patientContext'
 
@@ -47,14 +60,14 @@ describe('Patient Context Store', () => {
       expect(store.activePatientId).toBe('456')
     })
 
-    it('should save patientId to sessionStorage', () => {
+    it('should save patientId to sessionStorage with user-scoped key', () => {
       const store = usePatientContext()
       store.syncFromRoute({
         params: { patientId: '789' },
         query: {},
       } as any)
 
-      expect(sessionStorageMock.setItem).toHaveBeenCalledWith('icu_active_patient_id', '789')
+      expect(sessionStorageMock.setItem).toHaveBeenCalledWith('icu_active_patient_id:anonymous', '789')
     })
 
     it('should NOT store PHI in sessionStorage', () => {
@@ -64,10 +77,10 @@ describe('Patient Context Store', () => {
         query: {},
       } as any)
 
-      // Only patientId should be stored
+      // Only patientId should be stored, key should start with icu_active_patient_id
       const calls = sessionStorageMock.setItem.mock.calls
       for (const call of calls) {
-        expect(call[0]).toBe('icu_active_patient_id')
+        expect(call[0]).toMatch(/^icu_active_patient_id/)
         expect(call[1]).toMatch(/^\d+$/)  // Only numeric IDs
       }
     })
@@ -115,7 +128,7 @@ describe('Patient Context Store', () => {
       expect(store.patientSnapshot).toBeNull()
     })
 
-    it('should remove sessionStorage entry', () => {
+    it('should remove sessionStorage entry with user-scoped key', () => {
       const store = usePatientContext()
       store.syncFromRoute({
         params: { patientId: '123' },
@@ -123,7 +136,7 @@ describe('Patient Context Store', () => {
       } as any)
       store.clearContext()
 
-      expect(sessionStorageMock.removeItem).toHaveBeenCalledWith('icu_active_patient_id')
+      expect(sessionStorageMock.removeItem).toHaveBeenCalledWith('icu_active_patient_id:anonymous')
     })
   })
 
@@ -154,6 +167,25 @@ describe('Patient Context Store', () => {
       const store = usePatientContext()
       store.setOriginRoute('/patient/123/overview')
       expect(store.originRoute).toBe('')
+    })
+  })
+
+  describe('pendingModuleKey', () => {
+    it('should set and consume pending module key', () => {
+      const store = usePatientContext()
+      store.setPendingModule('risk-prediction')
+      expect(store.pendingModuleKey).toBe('risk-prediction')
+
+      const consumed = store.consumePendingModule()
+      expect(consumed).toBe('risk-prediction')
+      expect(store.pendingModuleKey).toBe('')
+    })
+
+    it('should clear pending module key', () => {
+      const store = usePatientContext()
+      store.setPendingModule('risk-prediction')
+      store.clearPendingModule()
+      expect(store.pendingModuleKey).toBe('')
     })
   })
 })

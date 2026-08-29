@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { LocationQuery } from 'vue-router'
 import { getOperatorIdentity, setOperatorIdentity } from '../utils/operatorIdentity'
+import { usePatientContext } from './patientContext'
 
 const AUTH_KEY = 'icu_auth_identity'
 
@@ -120,8 +121,20 @@ export const useAuthStore = defineStore('auth', () => {
     deptCode.value = ''
     persist()
     setOperatorIdentity('')
-    // 清除患者上下文 sessionStorage
-    try { sessionStorage.removeItem('icu_active_patient_id') } catch {}
+    // 清除患者上下文 sessionStorage（所有用户作用域的 key）
+    try {
+      usePatientContext().clearAllSessionData()
+    } catch {
+      // Fallback: 直接清理
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i)
+          if (key && key.startsWith('icu_active_patient_id')) {
+            sessionStorage.removeItem(key)
+          }
+        }
+      } catch {}
+    }
   }
 
   /**
@@ -132,7 +145,18 @@ export const useAuthStore = defineStore('auth', () => {
     deptCode.value = newDeptCode
     persist()
     // 科室切换后清除患者上下文
-    try { sessionStorage.removeItem('icu_active_patient_id') } catch {}
+    try {
+      usePatientContext().clearAllSessionData()
+    } catch {
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i)
+          if (key && key.startsWith('icu_active_patient_id')) {
+            sessionStorage.removeItem(key)
+          }
+        }
+      } catch {}
+    }
   }
 
   /**
@@ -147,7 +171,18 @@ export const useAuthStore = defineStore('auth', () => {
     persist()
     setOperatorIdentity(newUserId || newUserName)
     // 用户切换后清除患者上下文
-    try { sessionStorage.removeItem('icu_active_patient_id') } catch {}
+    try {
+      usePatientContext().clearAllSessionData()
+    } catch {
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i)
+          if (key && key.startsWith('icu_active_patient_id')) {
+            sessionStorage.removeItem(key)
+          }
+        }
+      } catch {}
+    }
   }
 
   return { userId, userName, role, dept, deptCode, effectiveUserId, hydrateFromQuery, updateAccount, cleanIdentityQuery, logout, switchDepartment, switchUser }
