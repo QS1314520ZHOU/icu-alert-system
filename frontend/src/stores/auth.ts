@@ -109,5 +109,46 @@ export const useAuthStore = defineStore('auth', () => {
     return next
   }
 
-  return { userId, userName, role, dept, deptCode, effectiveUserId, hydrateFromQuery, updateAccount, cleanIdentityQuery }
+  /**
+   * 登出：清除所有身份信息和患者上下文。
+   */
+  function logout() {
+    userId.value = ''
+    userName.value = ''
+    role.value = ''
+    dept.value = ''
+    deptCode.value = ''
+    persist()
+    setOperatorIdentity('')
+    // 清除患者上下文 sessionStorage
+    try { sessionStorage.removeItem('icu_active_patient_id') } catch {}
+  }
+
+  /**
+   * 切换科室：更新 dept/deptCode 并清除患者上下文（避免跨科室数据泄漏）。
+   */
+  function switchDepartment(newDept: string, newDeptCode: string) {
+    dept.value = newDept
+    deptCode.value = newDeptCode
+    persist()
+    // 科室切换后清除患者上下文
+    try { sessionStorage.removeItem('icu_active_patient_id') } catch {}
+  }
+
+  /**
+   * 切换用户：清除旧身份，设置新身份，清除患者上下文。
+   */
+  function switchUser(newUserId: string, newUserName: string, newRole?: string) {
+    userId.value = newUserId
+    userName.value = newUserName
+    if (newRole) role.value = newRole
+    dept.value = ''
+    deptCode.value = ''
+    persist()
+    setOperatorIdentity(newUserId || newUserName)
+    // 用户切换后清除患者上下文
+    try { sessionStorage.removeItem('icu_active_patient_id') } catch {}
+  }
+
+  return { userId, userName, role, dept, deptCode, effectiveUserId, hydrateFromQuery, updateAccount, cleanIdentityQuery, logout, switchDepartment, switchUser }
 })

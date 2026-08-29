@@ -92,6 +92,38 @@
           </router-link>
         </div>
 
+        <!-- 全局模式下的"患者智能分析"入口 -->
+        <div class="side-nav__group">
+          <button
+            v-if="!collapsed"
+            class="side-nav__group-label side-nav__group-label--toggle"
+            @click="toggleAiGlobal"
+          >
+            患者智能分析
+            <span class="side-nav__toggle-arrow" :class="{ 'side-nav__toggle-arrow--open': aiGlobalExpanded }">▸</span>
+          </button>
+          <button
+            v-else
+            class="side-nav__item"
+            title="患者智能分析"
+            @click="toggleAiGlobal"
+          >
+            <span class="side-nav__icon" v-html="iconSvg('brain')"></span>
+          </button>
+          <div v-show="aiGlobalExpanded">
+            <button
+              v-for="item in globalAiModules"
+              :key="item.key"
+              class="side-nav__item"
+              :title="item.label"
+              @click="onGlobalAiClick(item.key)"
+            >
+              <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+              <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+            </button>
+          </div>
+        </div>
+
         <!-- 更多菜单 -->
         <div class="side-nav__group">
           <div v-if="!collapsed" class="side-nav__group-label">更多</div>
@@ -141,6 +173,13 @@
       </template>
     </nav>
   </aside>
+
+  <!-- Patient Selector Modal (global mode AI click) -->
+  <PatientSelectorModal
+    v-if="showPatientSelector"
+    @select="onPatientSelected"
+    @cancel="onCancelPatientSelector"
+  />
 </template>
 
 <script setup lang="ts">
@@ -151,13 +190,20 @@ import { usePatientContext } from '../../stores/patientContext'
 import { useAuthStore } from '../../stores/auth'
 import { resolveNavigation } from '../../navigation/navigationResolver'
 import { useAppNavigation } from '../../navigation/useAppNavigation'
+import PatientSelectorModal from '../PatientSelectorModal.vue'
 import type { NavItem } from '../../navigation/navigationTypes'
 
 const route = useRoute()
 const router = useRouter()
 const patientCtx = usePatientContext()
 const auth = useAuthStore()
-const { navigateBack } = useAppNavigation()
+const {
+  navigateBack,
+  navigateToModule: navToModule,
+  onPatientSelected,
+  onCancelPatientSelector,
+  showPatientSelector,
+} = useAppNavigation()
 
 const STORAGE_KEY = 'side-nav-collapsed'
 const collapsed = ref(localStorage.getItem(STORAGE_KEY) === 'true')
@@ -204,6 +250,30 @@ function getPatientItemPath(item: NavItem): string {
 // ── Global navigation ──
 const mainNavGroups = computed(() => navGroups.filter(g => g.key !== 'more'))
 const moreItems = computed(() => moreMenuItems)
+
+// ── AI Intelligence in global mode ──
+const aiGlobalExpanded = ref(false)
+const globalAiModules = computed(() => {
+  const aiModules = [
+    { key: 'risk-prediction', label: 'AI 风险预测', icon: 'chart' },
+    { key: 'clinical-decision', label: '临床决策支持', icon: 'lightbulb' },
+    { key: 'vitals-trends', label: '智能指标趋势', icon: 'chart' },
+    { key: 'lab-heatmap', label: '检验热力图', icon: 'grid' },
+    { key: 'ai-chatbot', label: 'AI 临床问答', icon: 'brain' },
+    { key: 'similar-cases', label: '相似病例检索', icon: 'search' },
+    { key: 'evidence', label: '循证支持', icon: 'book' },
+    { key: 'followup', label: '智能随访', icon: 'calendar' },
+  ]
+  return aiModules
+})
+
+function toggleAiGlobal() {
+  aiGlobalExpanded.value = !aiGlobalExpanded.value
+}
+
+function onGlobalAiClick(moduleKey: string) {
+  navToModule(moduleKey)
+}
 
 const visibleMoreItems = computed(() => {
   if (showAllMore.value) return moreItems.value
@@ -357,6 +427,30 @@ function iconSvg(icon: string) {
   color: var(--sidebar-group-label, #667085);
   font-weight: 600;
   white-space: nowrap;
+}
+
+.side-nav__group-label--toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.side-nav__group-label--toggle:hover {
+  color: var(--sidebar-active, #1677ff);
+}
+
+.side-nav__toggle-arrow {
+  font-size: 11px;
+  transition: transform 0.2s;
+}
+
+.side-nav__toggle-arrow--open {
+  transform: rotate(90deg);
 }
 
 .side-nav__item {

@@ -36,9 +36,9 @@ describe('RuleCalculationPanel', () => {
     const lights = wrapper.findAll('.light-item')
     expect(lights.length).toBe(3)
 
-    // 验证三态 class
-    expect(lights[0].classes()).toContain('ok')
-    expect(lights[1].classes()).toContain('ok')
+    // 验证三态 class（组件使用 status 值作为 CSS class）
+    expect(lights[0].classes()).toContain('pass')
+    expect(lights[1].classes()).toContain('pass')
     expect(lights[2].classes()).toContain('unavailable')
   })
 
@@ -168,9 +168,9 @@ describe('EvidenceMetricCards', () => {
     const cards = wrapper.findAll('.metric-card')
     expect(cards.length).toBe(3)
 
-    // 验证异常卡片有 high class
-    expect(cards[0].classes()).toContain('high')
-    expect(cards[1].classes()).toContain('normal')
+    // 验证异常卡片有 flag-high class（组件使用 flag- 前缀）
+    expect(cards[0].classes()).toContain('flag-high')
+    expect(cards[1].classes()).toContain('flag-normal')
   })
 
   it('缺失值显示"不可计算"', () => {

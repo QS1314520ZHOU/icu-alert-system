@@ -24,6 +24,9 @@ import {
   type NotificationPayload,
   type BreadcrumbPayload,
 } from '../config/postMessageProtocol'
+import { getModuleByKey } from '../config/patientModuleRegistry'
+import { canAccessPatientModule } from '../config/featureFlags'
+import { useAuthStore } from '../stores/auth'
 
 export interface HostBridgeOptions {
   iframeRef: Ref<HTMLIFrameElement | null>
@@ -70,16 +73,44 @@ export function useHostBridge(options: HostBridgeOptions) {
   // ── 消息处理 ────────────────────────────────────
 
   function handleMessage(event: MessageEvent) {
-    // 校验 origin
+    // ── 安全校验 ──
+    // 1. 校验 origin
     if (targetOrigin !== '*' && event.origin !== targetOrigin) return
-    // 校验 source：只接受来自目标 iframe 的消息
+    // 2. 校验 source：只接受来自目标 iframe 的消息
     if (iframeRef.value && event.source !== iframeRef.value.contentWindow) return
 
     const data = event.data
+    // 3. 校验 schema（基本结构）
     if (!isEmbedMessage(data)) return
 
-    // 校验 moduleKey（防止其他 iframe 的消息混入）
+    // 4. 校验 moduleKey（防止其他 iframe 的消息混入）
     if (data.payload?.moduleKey && data.payload.moduleKey !== moduleKey) return
+
+    // 5. 校验 patientId（防止跨患者操作）
+    if (data.payload?.patientId && data.payload.patientId !== patientId) {
+      console.warn('[HostBridge] Rejected message with mismatched patientId:', data.payload.patientId)
+      return
+    }
+
+    // 6. 导航类消息的权限二次校验
+    if (data.type === 'NAVIGATE_MODULE') {
+      const payload = data.payload as NavigateModulePayload
+      const targetKey = payload?.moduleKey
+      if (targetKey) {
+        const targetMod = getModuleByKey(targetKey)
+        if (targetMod) {
+          const auth = useAuthStore()
+          const userRole = String(auth.role || '').toLowerCase()
+          if (!canAccessPatientModule(targetKey, {
+            featureFlag: targetMod.featureFlag,
+            requiredRoles: targetMod.requiredRoles,
+          }, userRole)) {
+            console.warn('[HostBridge] Rejected NAVIGATE_MODULE — no permission:', targetKey)
+            return
+          }
+        }
+      }
+    }
 
     switch (data.type) {
       case 'EMBED_READY':
@@ -94,6 +125,7 @@ export function useHostBridge(options: HostBridgeOptions) {
         break
 
       case 'NAVIGATE_PATIENT':
+        // patientId 已在校验5中确认匹配
         onNavigatePatient?.(data.payload?.patientId)
         break
 

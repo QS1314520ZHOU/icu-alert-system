@@ -4,10 +4,15 @@
  * All navigation in the app should go through this composable
  * to ensure context is preserved and patientId is valid.
  */
+import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { usePatientContext } from '../stores/patientContext'
 import { buildContextQuery, getOriginRoute } from './routeContext'
 import { buildPatientPath } from '../utils/patientRouteHelper'
+
+/** Global state for patient selector modal */
+const showPatientSelector = ref(false)
+const pendingModuleKey = ref('')
 
 export function useAppNavigation() {
   const router = useRouter()
@@ -27,10 +32,16 @@ export function useAppNavigation() {
 
   /**
    * Navigate to a patient module (tool or native page).
+   * If no active patient, opens the patient selector modal.
    */
   function navigateToModule(moduleKey: string) {
     const patientId = patientCtx.activePatientId
-    if (!patientId) return
+    if (!patientId) {
+      // Open patient selector, remember the target module
+      pendingModuleKey.value = moduleKey
+      showPatientSelector.value = true
+      return
+    }
 
     // Check if it's a native page (overview, monitoring, treatment, alerts)
     const nativePages = ['overview', 'monitoring', 'treatment', 'alerts']
@@ -47,6 +58,46 @@ export function useAppNavigation() {
   }
 
   /**
+   * Called when a patient is selected from the PatientSelectorModal.
+   * Navigates to the pending module for the selected patient.
+   */
+  function onPatientSelected(patientId: string) {
+    showPatientSelector.value = false
+    const moduleKey = pendingModuleKey.value
+    pendingModuleKey.value = ''
+
+    if (!patientId) return
+
+    // Sync patient context
+    patientCtx.activePatientId = patientId
+    try { sessionStorage.setItem('icu_active_patient_id', patientId) } catch {}
+
+    // Navigate to the module
+    if (moduleKey) {
+      const nativePages = ['overview', 'monitoring', 'treatment', 'alerts']
+      if (nativePages.includes(moduleKey)) {
+        navigateToPatient(patientId, moduleKey)
+      } else {
+        const path = buildPatientPath(patientId, `tool/${moduleKey}`)
+        if (path) {
+          const query = buildContextQuery(route.query)
+          router.push({ path, query })
+        }
+      }
+    } else {
+      navigateToPatient(patientId, 'overview')
+    }
+  }
+
+  /**
+   * Cancel patient selector.
+   */
+  function onCancelPatientSelector() {
+    showPatientSelector.value = false
+    pendingModuleKey.value = ''
+  }
+
+  /**
    * Navigate back to origin route with context preservation.
    * Falls back to /patients if no origin is recorded.
    */
@@ -56,32 +107,13 @@ export function useAppNavigation() {
     router.push({ path: origin, query })
   }
 
-  /**
-   * Navigate with patient selector fallback.
-   * If no active patient, opens the patient selector.
-   * If patient exists, navigates directly.
-   * Returns true if navigated, false if selector was opened.
-   */
-  function navigateWithPatientSelector(targetPath: string): boolean {
-    const patientId = patientCtx.activePatientId
-    if (!patientId) {
-      // Open patient selector — for now, navigate to patient list with return path
-      const query = buildContextQuery(route.query, { returnTo: targetPath })
-      router.push({ path: '/patients', query })
-      return false
-    }
-
-    // Replace :patientId placeholder in target path
-    const resolvedPath = targetPath.replace(':patientId', patientId)
-    const query = buildContextQuery(route.query)
-    router.push({ path: resolvedPath, query })
-    return true
-  }
-
   return {
     navigateToPatient,
     navigateToModule,
     navigateBack,
-    navigateWithPatientSelector,
+    onPatientSelected,
+    onCancelPatientSelector,
+    showPatientSelector,
+    pendingModuleKey,
   }
 }

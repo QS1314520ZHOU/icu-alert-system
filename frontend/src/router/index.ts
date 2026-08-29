@@ -203,23 +203,6 @@ const router = createRouter({
         },
       ],
     },
-    // ═══ 旧路由兼容重定向 ═══
-    // /patient/:id → /patient/:patientId（保留 query）
-    {
-      path: '/patient/:id',
-      redirect: (to: any) => ({
-        path: `/patient/${to.params.id}/overview`,
-        query: to.query,
-      }),
-    },
-    // /patient/:id/intelligence → /patient/:patientId/tool/risk-prediction
-    {
-      path: '/patient/:id/intelligence',
-      redirect: (to: any) => ({
-        path: `/patient/${to.params.id}/tool/risk-prediction`,
-        query: to.query,
-      }),
-    },
     // ═══ Embed 路由（iframe 内加载的独立模块页面）═══
     {
       path: '/embed/patient/:patientId',
@@ -531,6 +514,21 @@ const router = createRouter({
       ]
     }
   ] satisfies RouteRecordRaw[]
+})
+
+// ── 守卫 0: 旧路由兼容重定向 ──
+// /patient/:id/intelligence → /patient/:patientId/tool/risk-prediction
+// 通过 beforeEach 实现，避免注册仅参数名不同的重复路径
+router.beforeEach((to, _from, next) => {
+  const path = to.path
+  // Match /patient/:id/intelligence
+  const intelligenceMatch = path.match(/^\/patient\/([^/]+)\/intelligence$/)
+  if (intelligenceMatch) {
+    const id = intelligenceMatch[1]
+    next({ path: `/patient/${id}/tool/risk-prediction`, query: to.query })
+    return
+  }
+  next()
 })
 
 // ── 守卫 1: 从 query 同步身份信息 ──

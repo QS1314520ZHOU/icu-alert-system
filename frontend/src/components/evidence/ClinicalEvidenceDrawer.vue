@@ -297,11 +297,6 @@ watch(
   color: var(--text-tertiary, #9CA3AF);
   font-size: 13px;
 }
-  background: #7C3AED;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-}
 
 /* 来源 */
 .prov-body { display: grid; gap: 4px; margin-top: 8px; }
