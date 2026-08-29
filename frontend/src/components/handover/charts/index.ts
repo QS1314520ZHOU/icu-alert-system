@@ -1,0 +1,6 @@
+export { default as BedRiskMatrix } from './BedRiskMatrix.vue'
+export { default as ShiftTimeline } from './ShiftTimeline.vue'
+export { default as UnclosedFunnel } from './UnclosedFunnel.vue'
+export { default as PatientRiskRanking } from './PatientRiskRanking.vue'
+export { default as DataCompleteness } from './DataCompleteness.vue'
+export { default as HandoverFlowDiagram } from './HandoverFlowDiagram.vue'

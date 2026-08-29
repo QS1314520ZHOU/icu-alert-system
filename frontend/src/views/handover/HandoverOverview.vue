@@ -100,6 +100,20 @@
       </a-card>
     </div>
 
+    <!-- Charts row -->
+    <div class="charts-row" v-if="summary">
+      <BedRiskMatrix
+        :beds="summary.patients || []"
+        :time-range="`${summary.data_start} — ${summary.data_end}`"
+        :updated-at="summary.created_at"
+        @select="(bed) => goToPatient(bed.patient_id)"
+      />
+      <PatientRiskRanking
+        :patients="riskPatients"
+        @select="goToPatient"
+      />
+    </div>
+
     <!-- Empty state -->
     <a-empty v-if="!loading && !summary" description="暂无交班总结数据，请点击生成" />
   </div>
@@ -111,6 +125,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Card as ACard, Button as AButton, Table as ATable, Tag as ATag, Empty as AEmpty, message } from 'ant-design-vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
+import { BedRiskMatrix, PatientRiskRanking } from '../../components/handover/charts'
 
 const route = useRoute()
 const router = useRouter()
@@ -123,6 +138,28 @@ const currentShift = ref<any>(null)
 
 const deptCode = computed(() => authStore.deptCode || (route.query.dept_code as string) || '')
 const deptName = computed(() => authStore.dept || (route.query.dept as string) || '')
+
+// Build risk patients for the ranking chart
+const riskPatients = computed(() => {
+  const patients = summary.value?.patients || []
+  return patients.map((p: any) => {
+    let score = 0
+    const factors: string[] = []
+    if (p.critical_value_count > 0) { score += 30; factors.push('危急值') }
+    if (p.unclosed_alert_count > 0) { score += 20; factors.push(`${p.unclosed_alert_count}条未闭环`) }
+    if (p.has_vasoactive) { score += 25; factors.push('血管活性药') }
+    if (p.has_ventilator) { score += 15; factors.push('呼吸机') }
+    if (p.has_crrt) { score += 20; factors.push('CRRT') }
+    if (p.isolation) { score += 5; factors.push('隔离') }
+    return {
+      patient_id: p.patient_id,
+      bed: p.bed,
+      name: p.name,
+      risk_score: Math.min(score, 100),
+      risk_factors: factors,
+    }
+  }).filter((p: any) => p.risk_score > 0).sort((a: any, b: any) => b.risk_score - a.risk_score)
+})
 
 const priorityColumns = [
   { title: '床号', dataIndex: 'bed', key: 'bed', width: 80 },
@@ -265,8 +302,14 @@ onMounted(() => {
 .stat-card--alert .stat-value { color: #D92D20; }
 .stat-card--task .stat-value { color: #F79009; }
 
-.summary-card, .priority-card, .life-support-row {
+.summary-card, .priority-card, .life-support-row, .charts-row {
   margin-bottom: 16px;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
 .summary-text {
@@ -315,6 +358,9 @@ onMounted(() => {
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .charts-row {
+    grid-template-columns: 1fr;
   }
   .handover-overview {
     padding: 12px;
