@@ -17,16 +17,16 @@
         </Suspense>
       </a-tab-pane>
 
-      <!-- 风险预测 -->
+      <!-- 风险预测（复用 usePatientDetail 中的 aiRisk 状态） -->
       <a-tab-pane key="risk-forecast" tab="风险预测">
         <section class="intel-section">
           <div class="section-header">
             <h3>AI 风险预测</h3>
-            <a-button size="small" @click="loadRiskForecast" :loading="riskLoading">刷新</a-button>
+            <a-button size="small" @click="loadAiRisk" :loading="aiRiskLoading">刷新</a-button>
           </div>
-          <div v-if="riskForecast" class="risk-detail">
+          <div v-if="aiRiskForecast" class="risk-detail">
             <div class="risk-summary">
-              <p>{{ riskText || '暂无风险摘要' }}</p>
+              <p>{{ aiRiskText || '暂无风险摘要' }}</p>
             </div>
             <div v-if="organRows.length" class="organ-assessment">
               <h4>器官风险评估</h4>
@@ -38,14 +38,14 @@
                 </div>
               </div>
             </div>
-            <div v-if="riskForecast.forecast_data" class="risk-raw">
+            <div v-if="aiRiskForecast.forecast_data" class="risk-raw">
               <CollapseSection>
                 <template #title><span style="font-size:13px;font-weight:600">预测数据详情</span></template>
-                <pre class="risk-raw-data">{{ JSON.stringify(riskForecast.forecast_data, null, 2) }}</pre>
+                <pre class="risk-raw-data">{{ JSON.stringify(aiRiskForecast.forecast_data, null, 2) }}</pre>
               </CollapseSection>
             </div>
           </div>
-          <a-empty v-else-if="!riskLoading" description="暂无风险预测数据" :image-style="{ height: '40px' }" />
+          <a-empty v-else-if="!aiRiskLoading" description="暂无风险预测数据" :image-style="{ height: '40px' }" />
         </section>
       </a-tab-pane>
 
@@ -90,47 +90,23 @@ import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import CollapseSection from '../../components/common/CollapseSection.vue'
-import {
-  getAiRiskForecast,
-  postAiCausalAnalysis,
-} from '../../api/index'
+import { postAiCausalAnalysis } from '../../api/index'
 
 const DigitalTwinTab = defineAsyncComponent(() => import('../../components/patient-detail/DigitalTwinTab.vue'))
 const SimilarCasesTab = defineAsyncComponent(() => import('../../components/patient-detail/SimilarCasesTab.vue'))
 
 const route = useRoute()
-const { patient, aiRiskForecast, aiRiskText, aiRiskLoading, loadAiRisk, aiRiskOrganRows } = usePatientDetail()
+const {
+  patient,
+  aiRiskForecast, aiRiskText, aiRiskLoading,
+  loadAiRisk, aiRiskOrganRows,
+} = usePatientDetail()
 
 const patientId = computed(() => String(route.params.id || ''))
 const activeTab = ref('digital-twin')
 
-// ── Risk Forecast ───────────────────────────────────────
-const riskForecast = ref<any>(null)
-const riskLoading = ref(false)
-const riskText = ref('')
-const organRows = ref<any[]>([])
-
-async function loadRiskForecast() {
-  if (!patientId.value) return
-  riskLoading.value = true
-  try {
-    const res = await getAiRiskForecast(patientId.value)
-    riskForecast.value = res?.data?.data || res?.data || null
-    riskText.value = riskForecast.value?.summary || riskForecast.value?.risk_text || ''
-    organRows.value = riskForecast.value?.organ_assessments
-      ? Object.entries(riskForecast.value.organ_assessments).map(([key, val]: any) => ({
-          key,
-          label: val.label || key,
-          status_text: val.status_text || val.status || '',
-          evidence: val.evidence || '',
-        }))
-      : []
-  } catch (e) {
-    console.warn('[IntelligenceView] risk forecast failed:', e)
-  } finally {
-    riskLoading.value = false
-  }
-}
+// 复用 composable 的器官评估行
+const organRows = computed(() => aiRiskOrganRows(aiRiskForecast.value))
 
 // ── Causal Analysis ─────────────────────────────────────
 const causalResult = ref<any>(null)
@@ -140,10 +116,7 @@ async function loadCausal() {
   if (!patientId.value) return
   causalLoading.value = true
   try {
-    // Use diagnosis or first abnormal finding as context
-    const abnormalFinding = patient.value?.diagnosis
-      || riskText.value
-      || '患者综合评估'
+    const abnormalFinding = patient.value?.diagnosis || aiRiskText.value || '患者综合评估'
     const res = await postAiCausalAnalysis(patientId.value, { abnormal_finding: abnormalFinding })
     causalResult.value = res?.data?.data || res?.data || null
   } catch (e) {
@@ -161,8 +134,7 @@ function organClass(organ: any) {
 }
 
 onMounted(() => {
-  // Pre-load risk forecast on mount
-  loadRiskForecast()
+  loadAiRisk()
 })
 </script>
 
