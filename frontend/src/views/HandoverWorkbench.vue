@@ -107,7 +107,7 @@
               <!-- Confirm / Acknowledge actions -->
               <div class="submit-bar" v-if="currentHandover">
                 <template v-if="currentHandover.status === 'draft' || currentHandover.status === 'not_created'">
-                  <a-input v-model:value="operator" placeholder="交班人" size="small" style="width: 140px" />
+                  <span class="operator-identity">交班人：{{ operator || '未登录' }}</span>
                   <a-button type="primary" :disabled="!operator" :loading="confirming" @click="onConfirm">
                     提交交班
                   </a-button>
@@ -158,6 +158,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 import {
   Alert as AAlert,
   Spin as ASpin,
@@ -202,6 +203,12 @@ interface PatientBrief {
 // ── Route ─────────────────────────────────────────────────────────────
 
 const route = useRoute()
+const authStore = useAuthStore()
+
+// Operator identity comes from verified auth context, not free-text input
+const operator = computed(() =>
+  authStore.effectiveUserId || authStore.userName || ''
+)
 
 const routeDeptCode = computed(() => {
   const raw = route.query.dept_code || route.query.deptCode
@@ -231,7 +238,6 @@ const activePatientId = ref('')
 const activePatient = ref<PatientBrief | null>(null)
 const patientSearch = ref('')
 const deptFilter = ref<string | undefined>()
-const operator = ref('')
 const currentHandover = ref<Record<string, any> | null>(null)
 const editableSections = ref<Record<string, any>>({})
 const editedFields = ref<string[]>([])

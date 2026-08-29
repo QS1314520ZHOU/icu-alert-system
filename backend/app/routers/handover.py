@@ -220,6 +220,17 @@ async def generate_handover(req: GenerateRequest, db: DbDep, cfg: ConfigDep):
         logger.exception("Failed to build handover context for patient %s", req.patient_id)
         raise HTTPException(status_code=500, detail=f"数据查询失败: {exc}")
 
+    # Check if patient was actually found
+    if not context.patient or not context.patient.get("name"):
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "PATIENT_NOT_FOUND",
+                "message": f"未找到患者: {req.patient_id}",
+                "request_id": req.patient_id,
+            },
+        )
+
     # ── Run change detection BEFORE generation ──
     # detect_changes() internally queries previous shift data and returns it —
     # no need to call _get_previous_shift_data() separately.

@@ -14,6 +14,9 @@ from app.services.handover.schemas import HandoverContext
 from app.utils.patient_helpers import patient_his_pid_candidates
 from app.utils.serialization import safe_oid
 
+# Fields in various collections that store patient identifier
+_PATIENT_ID_FIELDS = ["patient_id", "pid", "hisPid", "hisPID", "patientId", "patientID"]
+
 logger = logging.getLogger("icu-alert")
 
 
@@ -22,6 +25,18 @@ def _safe_float(val: Any, default: float = 0.0) -> float:
         return float(val)
     except (TypeError, ValueError):
         return default
+
+
+def _patient_id_or_query(patient_id: str, field: str = "patient_id") -> dict[str, Any]:
+    """Build a query that matches patient_id as both ObjectId and string.
+
+    Many collections store patient_id inconsistently — some as ObjectId,
+    some as string.  This helper returns an ``$or`` condition that covers both.
+    """
+    oid = safe_oid(patient_id)
+    if oid:
+        return {"$or": [{field: oid}, {field: patient_id}]}
+    return {field: patient_id}
 
 
 def _safe_text(val: Any) -> str:
@@ -81,11 +96,17 @@ class HandoverContextService:
             previous_handover: optional previous handover snapshot for context
         """
         p = await self._get_patient(patient_id)
+        if not p:
+            from app.services.handover.schemas import HandoverContext as _HC
+            # Return a minimal context with empty data — caller should check
+            # and raise 404 if needed
+            logger.warning("Patient not found for id=%s", patient_id)
+
         p_ids = patient_his_pid_candidates(p)
         if patient_id not in p_ids:
             p_ids.append(patient_id)
-        p_oid = str(p.get("_id"))
-        if p_oid not in p_ids:
+        p_oid = str(p.get("_id", ""))
+        if p_oid and p_oid not in p_ids:
             p_ids.append(p_oid)
         bedside_pids = list(dict.fromkeys([p_oid, *p_ids]))
 
@@ -114,13 +135,40 @@ class HandoverContextService:
     # ── patient ────────────────────────────────────────────────────
 
     async def _get_patient(self, patient_id: str) -> dict[str, Any]:
-        for field in ("_id", "hisPid", "patientId"):
+        """Resolve patient by trying multiple identifier strategies.
+
+        Priority:
+        1. Valid Mongo ObjectId → query _id as ObjectId
+        2. hisPid / hisPID / patientId / patientID / mrn / hisMrn / admissionNo
+        """
+        pid = str(patient_id or "").strip()
+        if not pid:
+            return {}
+
+        # 1. Try ObjectId match (the most common case from frontend)
+        oid = safe_oid(pid)
+        if oid:
             try:
-                doc = await self.db.col("patient").find_one({field: patient_id})
+                doc = await self.db.col("patient").find_one({"_id": oid})
+                if doc:
+                    return doc
+            except Exception:
+                pass
+
+        # 2. Try string identifier fields
+        candidate_fields = [
+            "hisPid", "hisPID", "patientId", "patientID",
+            "mrn", "hisMrn", "admissionNo", "inpatientNo",
+            "pid",
+        ]
+        for field in candidate_fields:
+            try:
+                doc = await self.db.col("patient").find_one({field: pid})
                 if doc:
                     return doc
             except Exception:
                 continue
+
         return {}
 
     def _extract_patient_info(self, p: dict) -> dict[str, Any]:
@@ -377,14 +425,20 @@ class HandoverContextService:
 
     async def _build_airway_vent(self, bedside_pids: list[str], start: datetime, end: datetime) -> dict[str, Any]:
         result: dict[str, Any] = {}
+        # Build mixed ObjectId + string list for $in queries
+        pid_candidates = list(bedside_pids)
+        for pid in bedside_pids:
+            oid = safe_oid(pid)
+            if oid and oid not in pid_candidates:
+                pid_candidates.append(oid)
         try:
             vent = (
                 await self.db.col("ventilator")
-                .find_one({"pid": {"$in": bedside_pids}}, sort=[("time", -1)])
+                .find_one({"pid": {"$in": pid_candidates}}, sort=[("time", -1)])
             )
             if not vent:
                 vent = await self.db.col("respiratory").find_one(
-                    {"patient_id": {"$in": bedside_pids}}, sort=[("time", -1)]
+                    {"patient_id": {"$in": pid_candidates}}, sort=[("time", -1)]
                 )
             if vent:
                 result = {
@@ -435,10 +489,16 @@ class HandoverContextService:
 
     async def _build_assessments(self, bedside_pids: list[str], p_ids: list[str], start: datetime, end: datetime) -> dict[str, Any]:
         result: dict[str, Any] = {"neuro": "", "resp": "", "circ": "", "temp": "", "gi": "", "heme": "", "specialty": "", "nursing": "", "skin": "", "items": ""}
+        # Build a mixed list of ObjectId + string for $in queries
+        score_pid_candidates = list(bedside_pids)
+        for pid in bedside_pids:
+            oid = safe_oid(pid)
+            if oid and oid not in score_pid_candidates:
+                score_pid_candidates.append(oid)
         try:
             # RASS / CAM-ICU / GCS
             for code, key in [("RASS", "neuro"), ("CAM-ICU", "neuro"), ("GCS", "neuro")]:
-                doc = await self.db.col("score").find_one({"patient_id": {"$in": bedside_pids}, "code": code}, sort=[("time", -1)])
+                doc = await self.db.col("score").find_one({"patient_id": {"$in": score_pid_candidates}, "code": code}, sort=[("time", -1)])
                 if doc:
                     existing = result.get(key, "")
                     val = _row_value(doc)
@@ -446,12 +506,12 @@ class HandoverContextService:
                         result[key] = f"{existing} {code}:{val}".strip()
 
             # Braden (skin)
-            braden = await self.db.col("score").find_one({"patient_id": {"$in": bedside_pids}, "code": "Braden"}, sort=[("time", -1)])
+            braden = await self.db.col("score").find_one({"patient_id": {"$in": score_pid_candidates}, "code": "Braden"}, sort=[("time", -1)])
             if braden:
                 result["skin"] = f"Braden评分:{_row_value(braden)}"
 
             # SOFA
-            sofa = await self.db.col("score").find_one({"patient_id": {"$in": bedside_pids}, "code": "SOFA"}, sort=[("time", -1)])
+            sofa = await self.db.col("score").find_one({"patient_id": {"$in": score_pid_candidates}, "code": "SOFA"}, sort=[("time", -1)])
             if sofa:
                 sofa_val = _row_value(sofa)
                 if sofa_val is not None:
@@ -465,9 +525,10 @@ class HandoverContextService:
     async def _build_events(self, p_oid: str, start: datetime, end: datetime) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         try:
+            pid_query = _patient_id_or_query(p_oid, "patient_id")
             rows = (
                 await self.db.col("nursing_record")
-                .find({"patient_id": p_oid, "record_time": {"$gte": start, "$lte": end}})
+                .find({**pid_query, "record_time": {"$gte": start, "$lte": end}})
                 .sort("record_time", -1)
                 .to_list(length=50)
             )
@@ -485,9 +546,10 @@ class HandoverContextService:
     async def _build_pending_orders(self, p_oid: str, start: datetime, end: datetime) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         try:
+            pid_query = _patient_id_or_query(p_oid, "patient_id")
             rows = (
                 await self.db.col("orders")
-                .find({"patient_id": p_oid, "status": {"$in": ["pending", "ordered", "active"]}})
+                .find({**pid_query, "status": {"$in": ["pending", "ordered", "active"]}})
                 .sort("order_time", -1)
                 .to_list(length=50)
             )
@@ -506,10 +568,11 @@ class HandoverContextService:
     async def _build_alerts(self, p_oid: str, start: datetime, end: datetime) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         try:
+            pid_query = _patient_id_or_query(p_oid, "patient_id")
             rows = (
                 await self.db.col("alert_records")
                 .find({
-                    "patient_id": p_oid,
+                    **pid_query,
                     "created_at": {"$gte": start, "$lte": end},
                     "$or": [{"is_active": True}, {"is_active": {"$exists": False}}],
                 })

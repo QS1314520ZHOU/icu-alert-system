@@ -167,6 +167,15 @@ class ForcedConfirmation(BaseModel):
 
 # ── Main Document ─────────────────────────────────────────────────────
 
+class AiStatus(BaseModel):
+    """Tracks whether AI summarization succeeded or degraded."""
+    status: str = "success"  # success | unavailable | invalid_output | timeout
+    model: str = ""
+    model_version: str = ""
+    generated_at: str = ""
+    error_code: Optional[str] = None
+
+
 class HandoverDocument(BaseModel):
     handover_id: str = ""
     patient_id: str = ""
@@ -180,6 +189,7 @@ class HandoverDocument(BaseModel):
     ai_generated_fields: list[str] = Field(default_factory=list)
     content_sources: dict[str, str] = Field(default_factory=dict)
     status: HandoverStatus = HandoverStatus.NOT_CREATED
+    ai_status: AiStatus = Field(default_factory=AiStatus)
     versions: list[VersionSnapshot] = Field(default_factory=list)
     submitted_by: str = ""
     submitted_at: str = ""

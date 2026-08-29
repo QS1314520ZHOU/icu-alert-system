@@ -2,18 +2,11 @@
  * Handover — API module.
  *
  * Typed API functions for ISBAR structured handover endpoints.
+ * Uses the shared API clients from index.ts so that auth headers
+ * (Authorization, X-SmartCare-Token), request interceptors, and
+ * error handling are applied consistently across embed and standalone modes.
  */
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
-  timeout: 15000,
-})
-
-const aiApi = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
-  timeout: 120000,
-})
+import api, { aiApi } from './index'
 
 // ── Types ───────────────────────────────────────────────────────────
 

@@ -41,9 +41,40 @@
 
   // 页面别名 → 真实路由。page=xxx
   var PAGE_MAP = {
-    'patients':        { path: '/patients' },
-    'patient':         { path: '/patient/:id', needPatient: true },
-    'bedside':         { path: '/bedside/:id', needPatient: true },
+    // Patient workbench
+    'patients':            { path: '/patients' },
+    'patient':             { path: '/patient/:id', needPatient: true },
+    'patient-overview':    { path: '/patient/:id/overview', needPatient: true },
+    'patient-monitoring':  { path: '/patient/:id/monitoring', needPatient: true },
+    'patient-care':        { path: '/patient/:id/treatment', needPatient: true },
+    'patient-decisions':   { path: '/patient/:id/alerts', needPatient: true },
+    'patient-intelligence':{ path: '/patient/:id/intelligence', needPatient: true },
+    'patient-documents':   { path: '/patient/:id/documents', needPatient: true },
+    'patient-followup':    { path: '/patient/:id/followup', needPatient: true },
+    'bedside':             { path: '/bedside/:id', needPatient: true },
+
+    // Disease center
+    'disease-center':      { path: '/disease-center' },
+    'disease-overview':    { path: '/disease-center/overview' },
+    'disease-diseases':    { path: '/disease-center/diseases' },
+    'disease-terminology': { path: '/disease-center/terminology' },
+    'disease-scores':      { path: '/disease-center/scores' },
+    'disease-phenotypes':  { path: '/disease-center/phenotypes' },
+    'disease-offline-packages': { path: '/disease-center/offline-packages' },
+    'disease-reviews':     { path: '/disease-center/reviews' },
+    'disease-ai':          { path: '/disease-center/ai' },
+    'disease-quality':     { path: '/disease-center/quality' },
+
+    // Handover center
+    'handover':            { path: '/handover' },
+    'handover-overview':   { path: '/handover/overview' },
+    'handover-patients':   { path: '/handover/patients' },
+    'handover-patient':    { path: '/handover/patient/:id', needPatient: true },
+    'handover-tasks':      { path: '/handover/tasks' },
+    'handover-history':    { path: '/handover/history' },
+    'handover-settings':   { path: '/handover/settings' },
+
+    // Other pages
     'bigscreen':       { path: '/bigscreen' },
     'clinical':        { path: '/clinical-workflow' },
     'rounding':        { path: '/rounding-sheet' },
@@ -52,7 +83,6 @@
     'analytics':       { path: '/analytics' },
     'ai-consult':      { path: '/ai-consult' },
     'mdt':             { path: '/mdt' },
-    'handover':        { path: '/handover' },
     'research':        { path: '/research-workbench' },
     'academic':        { path: '/academic-research' },
     'trials':          { path: '/clinical-trials' },
@@ -63,8 +93,8 @@
     'ai-ops':          { path: '/ai-ops' },
     'research-export': { path: '/research-export' },
     'voice-review':    { path: '/admin/voice-correction-review' },
-    'head-nurse-home': { path: '/head-nurse-home' },   // 需要 role=head_nurse 或 charge_nurse
-    'director-home':   { path: '/director-home' },     // 需要 role=director
+    'head-nurse-home': { path: '/head-nurse-home' },
+    'director-home':   { path: '/director-home' },
     'mobile':          { path: '/m' }
   };
 
@@ -144,6 +174,13 @@
     handlePayload(e.data);
   });
 
+  /** Send a typed event back to the host */
+  function sendToHost(eventType, extra) {
+    var msg = { type: eventType, version: '1.0' };
+    if (extra) { for (var k in extra) { if (extra.hasOwnProperty(k)) msg[k] = extra[k]; } }
+    try { parent.postMessage(msg, hostOrigin); } catch (e) {}
+  }
+
   timer = setInterval(sendReady, CONFIG.handshakeRetryMs);
   sendReady();
 
@@ -162,19 +199,32 @@
   function handlePayload(data) {
     var account = data.account || data.user || data.userInfo || {};
     var patient = data.patient || {};
+    var nav = data.navigation || {};
+    var requestId = data.requestId || '';
     token = String(data.token || '');             // 只放内存，不落 storage、不打印
 
     identity = buildIdentity(account, patient);
-    console.log('[embed] account:', JSON.stringify(account));
-    console.log('[embed] patient:', JSON.stringify({name:patient.name,mrn:patient.mrn,deptCode:patient.deptCode,deptCode2:patient.deptCode2,dept:patient.dept,showBed:patient.showBed,hisBed:patient.hisBed}));
-    console.log('[embed] identity:', JSON.stringify(identity));
-    if (!identity.dept_code) console.warn('[embed] 警告：未收到 dept_code，患者列表将不按科室过滤（拉全院病人）。请在 postMessage 的 account 或 patient 中传入 dept_code / deptCode。');
-    var key = JSON.stringify([identity, patient.mrn, patient.hisPid, patient.showBed]);
-    if (key === lastKey) return;                  // 宿主重复推送，忽略
+
+    // Support dynamic page navigation via PostMessage
+    var pageKey = nav.page || '';
+    if (pageKey && PAGE_MAP[pageKey]) {
+      target = PAGE_MAP[pageKey];
+      // Apply resourceId as :id if present
+      if (nav.resourceId && target.path.indexOf(':id') >= 0) {
+        // Will be used in navigate below
+      }
+    }
+
+    var key = JSON.stringify([identity, patient.mrn, patient.hisPid, patient.showBed, pageKey]);
+    if (key === lastKey && frame.dataset.ready === '1') return;  // duplicate, skip
     lastKey = key;
 
+    sendToHost('SmartCareNavigationStart', { requestId: requestId });
+
     if (!target.needPatient) {
-      navigate(buildUrl(target.path, ''));
+      var url = buildUrl(target.path, nav.resourceId || '');
+      navigate(url);
+      sendToHost('SmartCareNavigationSuccess', { requestId: requestId, page: pageKey });
       return;
     }
 
@@ -188,6 +238,7 @@
         tip.textContent = '未能在 SmartCare 中匹配到该患者（住院号 ' +
           (patient.mrn || '-') + ' / HIS ' + (patient.hisPid || '-') +
           '），请确认该患者已在科并且两侧使用同一 patient 集合。';
+        sendToHost('SmartCareNavigationError', { requestId: requestId, code: 'PATIENT_NOT_FOUND' });
         return;
       }
       if (matchType === 'ambiguous') {
@@ -196,6 +247,7 @@
         tip.appendChild(document.createTextNode(
           '按姓名+床号匹配到多位患者，无法确定，请让宿主系统传入住院号（mrn）或 HIS 患者 ID。'
         ));
+        sendToHost('SmartCareNavigationError', { requestId: requestId, code: 'PATIENT_AMBIGUOUS' });
         return;
       }
       if (matchType === 'name_bed' && !CONFIG.allowNameBedFallback) {
@@ -210,11 +262,13 @@
         btn.addEventListener('click', function () {
           btn.disabled = true;
           navigate(buildUrl(target.path, id));
+          sendToHost('SmartCareNavigationSuccess', { requestId: requestId, page: pageKey, patientId: id });
         });
         tip.appendChild(btn);
         return;
       }
       navigate(buildUrl(target.path, id));
+      sendToHost('SmartCareNavigationSuccess', { requestId: requestId, page: pageKey, patientId: id });
     });
   }
 
@@ -241,6 +295,8 @@
     var path = pathTpl.replace(':id', encodeURIComponent(patientId || ''));
     var p = new URLSearchParams();
     Object.keys(identity).forEach(function (k) { if (identity[k]) p.set(k, identity[k]); });
+    // Pass token via URL so Vue can read it before mount (earlier than load event patching)
+    if (token) p.set('__sc_token', token);
     // 透传宿主额外参数（tab、hours 等），page/path 不传
     qs.forEach(function (v, k) { if (k !== 'page' && k !== 'path') p.set(k, v); });
     var s = p.toString();

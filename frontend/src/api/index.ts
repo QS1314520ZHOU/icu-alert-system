@@ -29,7 +29,7 @@ const alertsApi = axios.create({
 })
 
 // AI 调用可能耗时较长，单独加长超时
-const aiApi = axios.create({
+export const aiApi = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   timeout: 120000,
 })

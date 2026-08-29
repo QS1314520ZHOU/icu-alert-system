@@ -15,6 +15,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.services.handover.schemas import (
+    AiStatus,
     HandoverContext,
     HandoverDocument,
     HandoverStatus,
@@ -121,6 +122,8 @@ class HandoverGenerationService:
         )
 
         # Call LLM Runtime
+        ai_status = "success"
+        ai_error_code = None
         try:
             result = await call_llm_chat(
                 cfg=self.config,
@@ -134,12 +137,23 @@ class HandoverGenerationService:
             )
             raw_text = str(result.get("text") or "")
             parsed = self._parse_json(raw_text)
+            if not parsed.get("sections"):
+                # LLM returned valid JSON but no sections — treat as invalid output
+                logger.warning("LLM returned JSON without sections for patient %s", context.patient_id)
+                ai_status = "invalid_output"
+                fallback = self._build_empty_draft(handover_type, context)
+                # Merge: keep any partial data from LLM, fill gaps from deterministic prefill
+                for key, val in fallback.items():
+                    if key not in parsed or not parsed[key]:
+                        parsed[key] = val
         except Exception as exc:
             logger.error("LLM call failed for handover generation: %s", exc)
+            ai_status = "unavailable"
+            ai_error_code = "LLM_CALL_FAILED"
             parsed = self._build_empty_draft(handover_type, context)
 
         # Build document
-        return self._build_document(parsed, context, handover_type)
+        return self._build_document(parsed, context, handover_type, ai_status, ai_error_code)
 
     def _parse_json(self, raw: str) -> dict[str, Any]:
         """Parse LLM output, stripping markdown fences if present."""
@@ -171,6 +185,8 @@ class HandoverGenerationService:
         parsed: dict[str, Any],
         context: HandoverContext,
         handover_type: str,
+        ai_status: str = "success",
+        ai_error_code: str | None = None,
     ) -> HandoverDocument:
         """Construct a HandoverDocument from parsed LLM output."""
         now = datetime.now(API_TZ).isoformat()
@@ -195,6 +211,11 @@ class HandoverGenerationService:
             ai_generated_fields=parsed.get("ai_generated_fields", []),
             content_sources=self._init_content_sources(parsed.get("ai_generated_fields", [])),
             status=HandoverStatus.DRAFT,
+            ai_status=AiStatus(
+                status=ai_status,
+                generated_at=now,
+                error_code=ai_error_code,
+            ),
             versions=[],
             created_at=now,
             updated_at=now,
@@ -208,18 +229,76 @@ class HandoverGenerationService:
         return sources
 
     def _build_empty_draft(self, handover_type: str, context: HandoverContext) -> dict[str, Any]:
-        """Return a minimal empty draft when LLM is unavailable."""
+        """Return a deterministic prefill draft when LLM is unavailable.
+
+        This is NOT an empty draft — it populates all fields that can be
+        derived from the context data without AI.  The caller must check
+        ``ai_status`` to know whether AI summarization succeeded.
+        """
+        patient = context.patient or {}
+        situation = context.situation or {}
+        background = context.background or {}
+        assessments = context.assessments or {}
+
+        # Build deterministic ISBAR sections from context data
+        sections = {
+            "identify": {
+                "bed": patient.get("bed", ""),
+                "name": patient.get("name", ""),
+                "sex": patient.get("sex", ""),
+                "age": patient.get("age", ""),
+                "admission_no": patient.get("admission_no", ""),
+                "medical_group": patient.get("medical_group", ""),
+                "special_tags": patient.get("special_tags", []),
+            },
+            "situation": {
+                "diagnosis": situation.get("diagnosis", ""),
+                "surgery": situation.get("surgery", ""),
+                "post_op_day": situation.get("post_op_day", ""),
+                "icu_day": situation.get("icu_day", ""),
+                "main_problems": "",
+                "life_support_level": "",
+                "life_support_changes": "",
+            },
+            "background": {
+                "admission_course": background.get("admission_course", ""),
+                "past_history": background.get("past_history", ""),
+                "isolation": background.get("isolation", ""),
+                "allergies": background.get("allergies", ""),
+            },
+            "assessment": {
+                "neuro": {"content": assessments.get("neuro", ""), "changes": ""},
+                "resp": {"content": assessments.get("resp", ""), "changes": ""},
+                "circ": {"content": assessments.get("circ", ""), "changes": ""},
+                "temp": {"content": assessments.get("temp", ""), "changes": ""},
+                "gi": {"content": assessments.get("gi", ""), "changes": ""},
+                "heme": {"content": assessments.get("heme", ""), "changes": ""},
+                "specialty": {"content": assessments.get("specialty", ""), "changes": ""},
+                "nursing": {"content": assessments.get("nursing", ""), "changes": ""},
+                "lines": {"content": assessments.get("items", ""), "changes": ""},
+                "skin": {"content": assessments.get("skin", ""), "changes": ""},
+                "items": {"content": ""},
+            },
+            "recommendation": {
+                "critical_first": [],
+                "tasks": [],
+                "pending": [],
+                "escalation": [],
+            },
+        }
+
         return {
             "handover_type": handover_type,
             "patient_id": context.patient_id,
             "time_window": context.time_window,
             "data_snapshot_at": context.data_snapshot_at,
-            "sections": {},
+            "sections": sections,
             "evidence": [],
-            "missing_data": ["*"],
+            "missing_data": ["AI_SERVICE_UNAVAILABLE"],
             "ai_generated_fields": [],
             "conflicts": [],
             "status": "draft",
+            "ai_status": "unavailable",
         }
 
     # ── Change Detection ────────────────────────────────────────────
