@@ -51,6 +51,189 @@ def _now() -> str:
     return datetime.now(API_TZ).isoformat()
 
 
+# ── Context Preview (Diagnostic) ────────────────────────────────────
+
+@router.get("/patients/{patient_id}/context-preview")
+async def context_preview(
+    patient_id: str,
+    db: DbDep,
+    cfg: ConfigDep,
+    shift_code: Optional[str] = Query(None, description="Shift code or 'auto'"),
+    start: Optional[str] = Query(None, description="ISO datetime start"),
+    end: Optional[str] = Query(None, description="ISO datetime end"),
+):
+    """Diagnostic endpoint: preview handover context data for a patient.
+
+    Shows which data sources are available, empty, or failed.
+    Controlled by permission — production should not expose raw queries.
+    """
+    shift_svc = ShiftService(db, cfg)
+    context_svc = HandoverContextService(db)
+
+    # Resolve time window
+    if start and end:
+        time_start = _parse_iso_datetime(start).astimezone(API_TZ).replace(tzinfo=None)
+        time_end = _parse_iso_datetime(end).astimezone(API_TZ).replace(tzinfo=None)
+        shift_info = {"code": "custom", "name": "自定义时间窗口", "source": "request"}
+    else:
+        try:
+            resolved = await shift_svc.resolve_shift(shift_code or "auto")
+        except Exception as exc:
+            raise _map_shift_error(exc)
+        now = datetime.now(API_TZ)
+        time_start = resolved.start.astimezone(API_TZ).replace(tzinfo=None)
+        time_end = min(now, resolved.end).astimezone(API_TZ).replace(tzinfo=None)
+        shift_info = {
+            "code": resolved.code,
+            "name": resolved.name,
+            "start_time": resolved.start_time,
+            "end_time": resolved.end_time,
+            "source": resolved.source,
+        }
+
+    # Build context
+    try:
+        context = await context_svc.build(patient_id, time_start, time_end, shift_info)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Context build failed: {exc}")
+
+    # Check patient resolution
+    patient_found = bool(context.patient and context.patient.get("name"))
+    identity_resolution = {
+        "matched": patient_found,
+        "patient_name": context.patient.get("name", ""),
+        "match_type": "mongo_id" if patient_found else "not_found",
+    }
+
+    # Assess each data source
+    sources = {}
+    missing = []
+    failed = []
+    warnings = []
+
+    # Vitals
+    vital_count = len(context.vitals) if context.vitals else 0
+    sources["vitals"] = {
+        "status": "available" if vital_count > 0 else "empty",
+        "count": vital_count,
+        "source": context.vitals[0].get("source", "") if context.vitals else "",
+    }
+    if vital_count == 0:
+        missing.append("vitals")
+
+    # Labs
+    lab_count = len(context.labs) if context.labs else 0
+    sources["labs"] = {"status": "available" if lab_count > 0 else "empty", "count": lab_count, "source": "VI_ICU_EXAM_ITEM"}
+    if lab_count == 0:
+        missing.append("labs")
+
+    # IO
+    io_keys = len(context.io) if context.io else 0
+    sources["io"] = {"status": "available" if io_keys > 0 else "empty", "count": io_keys, "source": "bedside"}
+
+    # Medications
+    pump_count = len(context.pumps) if context.pumps else 0
+    sources["medications"] = {"status": "available" if pump_count > 0 else "empty", "count": pump_count, "source": "medication_given/infusion"}
+
+    # Ventilator
+    vent_keys = len(context.airway_vent) if context.airway_vent else 0
+    sources["ventilator"] = {"status": "available" if vent_keys > 0 else "empty", "count": vent_keys, "source": "ventilator/respiratory"}
+
+    # Lines
+    line_count = len(context.lines) if context.lines else 0
+    sources["lines"] = {"status": "available" if line_count > 0 else "empty", "count": line_count, "source": "tubeExe/bedside"}
+
+    # Assessments
+    assess_keys = sum(1 for v in (context.assessments or {}).values() if v)
+    sources["assessments"] = {"status": "available" if assess_keys > 0 else "empty", "count": assess_keys, "source": "score"}
+
+    # Events
+    event_count = len(context.events) if context.events else 0
+    sources["events"] = {"status": "available" if event_count > 0 else "empty", "count": event_count, "source": "nursing_record"}
+
+    # Orders
+    order_count = len(context.pending_orders) if context.pending_orders else 0
+    sources["orders"] = {"status": "available" if order_count > 0 else "empty", "count": order_count, "source": "orders"}
+
+    # Alerts
+    alert_count = len(context.alerts) if context.alerts else 0
+    sources["alerts"] = {"status": "available" if alert_count > 0 else "empty", "count": alert_count, "source": "alert_records"}
+
+    if not patient_found:
+        warnings.append(f"Patient not found for id={patient_id}")
+
+    return {
+        "patient": context.patient,
+        "identity_resolution": identity_resolution,
+        "shift": shift_info,
+        "time_window": {"start": time_start.isoformat(), "end": time_end.isoformat()},
+        "sources": sources,
+        "context_summary": {
+            "vitals_count": vital_count,
+            "labs_count": lab_count,
+            "io_keys": io_keys,
+            "medications_count": pump_count,
+            "ventilator_keys": vent_keys,
+            "lines_count": line_count,
+            "assessments_keys": assess_keys,
+            "events_count": event_count,
+            "orders_count": order_count,
+            "alerts_count": alert_count,
+        },
+        "missing_sources": missing,
+        "failed_sources": failed,
+        "warnings": warnings,
+        "data_snapshot_at": context.data_snapshot_at,
+    }
+
+
+# ── Shift Diagnostics ───────────────────────────────────────────────
+
+@router.get("/shifts")
+async def list_shifts(db: DbDep, cfg: ConfigDep, refresh: bool = Query(False)):
+    """List all configured shifts with diagnostic info."""
+    shift_svc = ShiftService(db, cfg)
+    try:
+        config = await shift_svc.list_shifts(force_refresh=refresh)
+    except Exception as exc:
+        raise _map_shift_error(exc)
+
+    items = config.get("items", [])
+    raw_count = config.get("raw_count", 0)
+    valid_count = len(items)
+    invalid_count = raw_count - valid_count
+
+    return {
+        "shifts": items,
+        "raw_count": raw_count,
+        "valid_count": valid_count,
+        "invalid_count": invalid_count,
+        "source": config.get("source", ""),
+        "loaded_at": str(config.get("loaded_at", "")),
+    }
+
+
+@router.get("/shifts/current")
+async def get_current_shift(db: DbDep, cfg: ConfigDep):
+    """Get the current active shift."""
+    shift_svc = ShiftService(db, cfg)
+    try:
+        resolved = await shift_svc.resolve_shift("auto")
+    except Exception as exc:
+        raise _map_shift_error(exc)
+
+    return {
+        "code": resolved.code,
+        "name": resolved.name,
+        "start_time": resolved.start_time,
+        "end_time": resolved.end_time,
+        "scheduled_start": resolved.start.isoformat(),
+        "scheduled_end": resolved.end.isoformat(),
+        "source": resolved.source,
+    }
+    return datetime.now(API_TZ).isoformat()
+
+
 # ── Shared shift-error → HTTP mapping ────────────────────────────────
 
 def _map_shift_error(exc: Exception) -> HTTPException:
