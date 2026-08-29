@@ -19,6 +19,7 @@ from app.services.handover.audit_service import HandoverAuditService
 from app.services.handover.brief_renderer import HandoverBriefRenderer
 from app.services.handover.context_service import HandoverContextService
 from app.services.handover.generation_service import HandoverGenerationService
+from app.services.handover.summary_service import ShiftSummaryService
 from app.services.handover.schemas import (
     AcknowledgeRequest,
     ConfirmRequest,
@@ -786,3 +787,51 @@ async def get_forced_alerts(
             "source": source,
         },
     }
+
+
+# ── Shift Summary (全病区交班总结) ──────────────────────────────────
+
+@router.get("/shifts/current/summary")
+async def get_current_summary(
+    db: DbDep,
+    cfg: ConfigDep,
+    dept_code: str = Query("", description="Department code"),
+):
+    """Get the current shift summary for a department."""
+    summary_svc = ShiftSummaryService(db, cfg)
+    try:
+        summary = await summary_svc.generate(dept_code=dept_code, shift_code="auto")
+    except Exception as exc:
+        logger.exception("Failed to generate shift summary")
+        raise HTTPException(status_code=500, detail=f"生成班次总结失败: {exc}")
+
+    return {"code": 0, "summary": summary.model_dump()}
+
+
+@router.post("/shifts/current/generate")
+async def generate_summary(
+    db: DbDep,
+    cfg: ConfigDep,
+    dept_code: str = Query("", description="Department code"),
+    operator: str = Query("", description="Operator identity"),
+):
+    """Generate and persist a shift summary."""
+    summary_svc = ShiftSummaryService(db, cfg)
+    try:
+        summary = await summary_svc.generate(
+            dept_code=dept_code, shift_code="auto", operator=operator
+        )
+    except Exception as exc:
+        logger.exception("Failed to generate shift summary")
+        raise HTTPException(status_code=500, detail=f"生成班次总结失败: {exc}")
+
+    return {"code": 0, "summary": summary.model_dump()}
+
+
+@router.get("/shifts/{summary_id}")
+async def get_summary(summary_id: str, db: DbDep):
+    """Get a specific shift summary by ID."""
+    doc = await db.col("shift_handover_summaries").find_one({"summary_id": summary_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="班次总结不存在")
+    return {"code": 0, "summary": serialize_doc(doc)}

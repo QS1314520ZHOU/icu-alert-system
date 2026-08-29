@@ -230,6 +230,77 @@ class RejectRequest(BaseModel):
     reason: str = ""
 
 
+# ── Shift Handover Summary (全病区交班总结) ─────────────────────────
+
+class ShiftHandoverSummary(BaseModel):
+    """Full-ward shift handover summary document."""
+    summary_id: str = ""
+    dept_code: str = ""
+    dept_name: str = ""
+    shift_code: str = ""
+    shift_name: str = ""
+    scheduled_start: str = ""
+    scheduled_end: str = ""
+    data_start: str = ""
+    data_end: str = ""
+
+    # Patient counts
+    patient_count: int = 0
+    completed_patient_count: int = 0
+    draft_patient_count: int = 0
+    submitted_patient_count: int = 0
+    acknowledged_patient_count: int = 0
+    critical_patient_count: int = 0
+
+    # Movement
+    new_admission_count: int = 0
+    transfer_in_count: int = 0
+    transfer_out_count: int = 0
+    death_count: int = 0
+
+    # Alerts and tasks
+    high_priority_alert_count: int = 0
+    unclosed_alert_count: int = 0
+    critical_value_count: int = 0
+    pending_order_count: int = 0
+    pending_task_count: int = 0
+    overdue_task_count: int = 0
+
+    # Life support
+    vasoactive_patient_count: int = 0
+    ventilator_patient_count: int = 0
+    crrt_patient_count: int = 0
+    isolation_patient_count: int = 0
+    high_risk_line_count: int = 0
+
+    # Patient lists
+    patients: list[dict[str, Any]] = Field(default_factory=list)
+    priority_items: list[dict[str, Any]] = Field(default_factory=list)
+    department_changes: list[dict[str, Any]] = Field(default_factory=list)
+    handover_tasks: list[dict[str, Any]] = Field(default_factory=list)
+
+    # Data quality
+    missing_sources: list[str] = Field(default_factory=list)
+    failed_sources: list[str] = Field(default_factory=list)
+    quality: dict[str, Any] = Field(default_factory=dict)
+
+    # Summary text
+    deterministic_summary: str = ""
+    ai_summary: str = ""
+
+    # Status
+    status: str = "draft"  # draft | submitted | acknowledged | returned
+
+    # Audit
+    created_by: str = ""
+    created_at: str = ""
+    submitted_by: str = ""
+    submitted_at: str = ""
+    acknowledged_by: str = ""
+    acknowledged_at: str = ""
+    revision: int = 1
+
+
 # ── Context Model (input to LLM) ──────────────────────────────────────
 
 class HandoverContext(BaseModel):
