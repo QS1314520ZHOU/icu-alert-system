@@ -21,12 +21,7 @@
     <div v-else class="no-forced">无强制确认项</div>
 
     <div class="ack-actions">
-      <a-input
-        v-model:value="operator"
-        placeholder="签收人姓名"
-        size="small"
-        style="width: 160px"
-      />
+      <span class="operator-label">签收人：{{ operator || '未登录' }}</span>
       <a-button
         type="primary"
         :disabled="!canAcknowledge"
@@ -51,9 +46,11 @@ import { computed, ref } from 'vue'
 import {
   Checkbox as ACheckbox,
   CheckboxGroup as ACheckboxGroup,
-  Input as AInput,
   Button as AButton,
 } from 'ant-design-vue'
+import { useAuthStore } from '../../stores/auth'
+
+const authStore = useAuthStore()
 
 const props = defineProps<{
   forcedItems: Array<{
@@ -72,14 +69,14 @@ const emit = defineEmits<{
   'update:forcedItems': [items: any[]]
 }>()
 
-const operator = ref('')
+const operator = computed(() => authStore.effectiveUserId || authStore.userName || '')
 const checkedIds = ref<(string | number | boolean)[]>(
   props.forcedItems.filter((f) => f.confirmed).map((f) => f.item_id)
 )
 
 const confirmedCount = computed(() => checkedIds.value.length)
 const canAcknowledge = computed(
-  () => operator.value.trim() && confirmedCount.value === props.forcedItems.length
+  () => operator.value && confirmedCount.value === props.forcedItems.length
 )
 
 function onCheckChange(ids: (string | number | boolean)[]) {
@@ -127,5 +124,12 @@ function onCheckChange(ids: (string | number | boolean)[]) {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.operator-label {
+  font-size: 13px;
+  color: var(--text-secondary, #5F6B7A);
+  padding: 4px 8px;
+  background: var(--bg-elevated, #F4F7FB);
+  border-radius: 4px;
 }
 </style>
