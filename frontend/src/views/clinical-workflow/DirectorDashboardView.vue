@@ -12,7 +12,7 @@
           :key="`night-${e.patient_id}`"
           type="button"
           class="event-row"
-          @click="ctx.openStory(e.patient_id)"
+          @click="ctx.openEvidence(e.patient_id, 'risk', { title: `${e.bed || ''}床 昨夜事件` })"
         >
           <span class="event-bed">{{ e.bed || '--' }}床</span>
           <span class="event-name">{{ e.name || '患者' }}</span>
@@ -74,6 +74,7 @@
         >
           <strong>{{ row.scanner_name || row.name }}</strong>
           <span>PPV {{ ctx.pct(row.ppv) }} · 覆盖 {{ ctx.pct(row.override_rate) }}</span>
+          <button type="button" class="scanner-detail-btn" @click.stop="ctx.openEvidence(ctx.firstPatientId(), 'rule_noise', { contextId: row.scanner_name || row.name, title: `规则噪声：${row.scanner_name || row.name}` })">详情</button>
         </div>
       </div>
       <div v-else class="empty-hint">暂无需人工复核的规则</div>
@@ -87,7 +88,7 @@
       <div class="section-header">
         <span class="section-label stable">典型病例</span>
       </div>
-      <button type="button" class="case-row" @click="ctx.openStory(typicalCase.patient_id)">
+      <button type="button" class="case-row" @click="ctx.openEvidence(typicalCase.patient_id, 'risk', { title: `${typicalCase.bed || ''}床 典型病例` })">
         <span class="case-bed">{{ typicalCase.bed || '--' }}床</span>
         <span class="case-name">{{ typicalCase.name || '患者' }}</span>
         <span :class="['risk-badge', ctx.riskTone(typicalCase.risk_score)]">风险 {{ typicalCase.risk_score || 0 }}</span>
@@ -231,6 +232,17 @@ const roleBars = computed(() => {
 }
 .scanner-row strong { font-size: 13px; color: var(--text-primary); }
 .scanner-row span { font-size: 12px; color: var(--text-secondary); }
+.scanner-detail-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 11px;
+  color: var(--color-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.scanner-detail-btn:hover { background: var(--color-primary-bg); }
 
 .link-btn {
   display: block;

@@ -89,6 +89,19 @@
         </div>
       </a-spin>
     </a-drawer>
+
+    <!-- 证据抽屉 -->
+    <ClinicalEvidenceDrawer
+      :open="ctx.evidenceDrawer.value.open"
+      :patient-id="ctx.evidenceDrawer.value.patientId"
+      :context-type="ctx.evidenceDrawer.value.contextType"
+      :context-id="ctx.evidenceDrawer.value.contextId"
+      :organ-system="ctx.evidenceDrawer.value.organSystem"
+      :title="ctx.evidenceDrawer.value.title"
+      include-ai
+      @close="ctx.closeEvidence()"
+    />
+  </div>
   </div>
 </template>
 
@@ -106,6 +119,7 @@ import OrderClosureView from './clinical-workflow/OrderClosureView.vue'
 import NursingTasksView from './clinical-workflow/NursingTasksView.vue'
 import SpecialTreatmentsView from './clinical-workflow/SpecialTreatmentsView.vue'
 import DirectorDashboardView from './clinical-workflow/DirectorDashboardView.vue'
+import ClinicalEvidenceDrawer from '../components/evidence/ClinicalEvidenceDrawer.vue'
 
 const ctx = useClinicalWorkflow()
 

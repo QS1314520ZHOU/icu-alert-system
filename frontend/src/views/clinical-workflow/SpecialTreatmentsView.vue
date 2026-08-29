@@ -49,7 +49,7 @@
           :key="`wean-${row.patient_id}`"
           type="button"
           class="light-row"
-          @click="ctx.showVisualPatient(row, 'weaning')"
+          @click="ctx.openEvidence(row.patient_id, 'weaning', { title: `${row.bed || ''}床 撤机评估证据` })"
         >
           <strong>{{ row.bed || '--' }}床</strong>
           <i v-for="light in row.lights" :key="light.label" :class="light.ok ? 'ok' : 'bad'" :title="light.label" />
@@ -70,7 +70,7 @@
           :key="`discharge-${row.patient_id}`"
           type="button"
           class="light-row"
-          @click="ctx.showVisualPatient(row, 'discharge')"
+          @click="ctx.openEvidence(row.patient_id, 'discharge', { title: `${row.bed || ''}床 转出评估证据` })"
         >
           <strong>{{ row.bed || '--' }}床</strong>
           <span class="light-percent">{{ row.percent || 0 }}%</span>
@@ -92,7 +92,7 @@
           :key="`${item.time}-${item.title}`"
           type="button"
           class="rescue-row"
-          @click="ctx.applySignalFilter('rescue')"
+          @click="ctx.openEvidence(item.patient_id || ctx.firstPatientId(), 'risk', { title: '抢救事件证据' })"
         >
           <i class="rescue-dot" />
           <span>{{ item.title }}</span>
@@ -113,7 +113,7 @@
           :key="`family-${card.patient_id}`"
           type="button"
           class="family-card"
-          @click="ctx.showVisualPatient(card, 'family')"
+          @click="ctx.openEvidence(card.patient_id, 'risk', { title: `${card.bed || ''}床 家属沟通证据` })"
         >
           <strong>{{ card.bed || '--' }}床</strong>
           <em>{{ card.readiness || 0 }}%</em>

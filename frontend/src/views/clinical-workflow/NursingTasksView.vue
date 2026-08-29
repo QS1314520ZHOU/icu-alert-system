@@ -18,7 +18,7 @@
           :key="item.key"
           type="button"
           :class="['omission-cell', item.status === 'todo' ? 'is-todo' : 'is-ok']"
-          @click="ctx.applySignalFilter(item.key)"
+          @click="ctx.openEvidence(ctx.firstPatientId(), 'nursing', { contextId: item.key, title: `护理漏项：${item.label}` })"
         >
           <i>{{ item.status === 'todo' ? '!' : '✓' }}</i>
           <span>{{ item.label }}</span>
@@ -43,7 +43,7 @@
             <strong>{{ task.bed || '--' }}床 {{ task.name || '' }} · {{ task.title }}</strong>
             <p>{{ task.detail }}</p>
           </div>
-          <button type="button" class="nursing-action" @click="ctx.openStory(task.patient_id)">事件</button>
+          <button type="button" class="nursing-action" @click="ctx.openEvidence(task.patient_id, 'nursing', { title: `${task.bed || ''}床 护理任务` })">证据</button>
         </div>
       </div>
       <div v-else class="empty-hint">暂无护理高优先级待办</div>
@@ -61,7 +61,7 @@
           :key="`radar-${item.patient_id}-${item.title}`"
           type="button"
           class="radar-row"
-          @click="ctx.openStory(item.patient_id)"
+          @click="ctx.openEvidence(item.patient_id, 'nursing', { title: `护理雷达：${item.displayTitle || item.title}` })"
         >
           <strong>{{ item.displayTitle || item.title }}</strong>
           <span>{{ item.action || '查看' }}</span>

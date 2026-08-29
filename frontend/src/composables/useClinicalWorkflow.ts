@@ -59,6 +59,16 @@ export function useClinicalWorkflow() {
   const activeStoryMode = ref<'story' | 'handoff'>('story')
   const featureDetail = ref<any>(null)
   const featureTaskId = ref('')
+
+  // 证据抽屉状态
+  const evidenceDrawer = ref({
+    open: false,
+    patientId: '',
+    contextType: 'risk' as string,
+    contextId: '',
+    organSystem: '',
+    title: '',
+  })
   const treatmentRecommendation = ref<any>(null)
   const treatmentLoading = ref(false)
   const expandedFeatureKeys = ref(new Set<string>())
@@ -379,11 +389,43 @@ export function useClinicalWorkflow() {
     return [patientLine, ...checklist, detail].filter(Boolean)
   }
 
+  // 打开证据抽屉
+  function openEvidence(patientId: string, contextType: string, opts?: { contextId?: string; organSystem?: string; title?: string }) {
+    const id = String(patientId || firstPatientId())
+    if (!id) {
+      message.warning('缺少患者ID，无法加载证据')
+      return
+    }
+    evidenceDrawer.value = {
+      open: true,
+      patientId: id,
+      contextType,
+      contextId: opts?.contextId || '',
+      organSystem: opts?.organSystem || '',
+      title: opts?.title || '',
+    }
+  }
+
+  function closeEvidence() {
+    evidenceDrawer.value.open = false
+  }
+
   async function showFeatureDetail(item: any, feature: any) {
     const mode = String(feature?.detailMode || item?.kind || 'story')
     const patientId = String(item?.patient_id || firstPatientId())
     if (patientId) selectPatient(patientId, mode === 'story' ? 'story' : 'handoff')
     else selectedPatient.value = { patient_id: '', name: '暂无患者', bed: '--' }
+
+    // 打开证据抽屉而非静态 checklist
+    const contextTypeMap: Record<string, string> = {
+      story: 'risk', rounding: 'vitals', nursing: 'nursing',
+      order_gap: 'order', discharge: 'discharge', family: 'risk',
+      medication: 'order', preview: 'risk', weaning: 'weaning',
+    }
+    openEvidence(patientId, contextTypeMap[mode] || 'risk', {
+      title: `${feature?.title || '临床任务'}：${shortTaskText(item?.title || '任务详情', 24)}`,
+    })
+
     featureDetail.value = {
       owner: feature?.owner,
       title: `${feature?.title || '临床任务'}：${shortTaskText(item?.title || '任务详情', 24)}`,
@@ -440,6 +482,17 @@ export function useClinicalWorkflow() {
 
   function showVisualPatient(row: any, mode: string) {
     const patientId = String(row?.patient_id || firstPatientId())
+
+    // 直接打开证据抽屉
+    const contextTypeMap: Record<string, string> = {
+      order_gap: 'order', weaning: 'weaning', discharge: 'discharge', family: 'risk',
+    }
+    openEvidence(patientId, contextTypeMap[mode] || 'risk', {
+      title: `${row?.bed || ''}床 ${({
+        order_gap: '医嘱闭环', weaning: '撤机评估', discharge: '转出评估', family: '家属沟通',
+      } as Record<string, string>)[mode] || '临床任务'}`,
+    })
+
     const feature = {
       owner: 'ICU',
       title: ({
@@ -568,6 +621,7 @@ export function useClinicalWorkflow() {
     treatmentLoading,
     expandedFeatureKeys,
     activeSignalFilter,
+    evidenceDrawer,
     // 核心数据
     cards,
     priorityQueue,
@@ -633,6 +687,8 @@ export function useClinicalWorkflow() {
     closeCurrentFeatureTask,
     openExistingTask,
     showVisualPatient,
+    openEvidence,
+    closeEvidence,
     loadHome,
     loadTreatmentRecommendation,
   }

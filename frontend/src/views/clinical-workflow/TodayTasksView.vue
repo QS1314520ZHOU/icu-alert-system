@@ -12,7 +12,7 @@
           :key="p.patient_id"
           type="button"
           class="patient-row"
-          @click="ctx.openStory(p.patient_id)"
+          @click="ctx.openEvidence(p.patient_id, 'risk', { title: `${p.bed || ''}床 ${p.name || ''} 风险证据` })"
         >
           <span class="patient-bed">{{ p.bed || '--' }}床</span>
           <span class="patient-name">{{ p.name || '未知' }}</span>
@@ -35,7 +35,7 @@
           :key="`${t.patient_id}-${t.title}`"
           type="button"
           class="task-row"
-          @click="ctx.openStory(t.patient_id)"
+          @click="ctx.openEvidence(t.patient_id, 'order', { title: `${t.bed || ''}床 未闭环任务` })"
         >
           <span class="task-bed">{{ t.bed || '--' }}床</span>
           <span class="task-title">{{ ctx.shortTaskText(t.title || '待处理', 24) }}</span>
@@ -56,7 +56,7 @@
           :key="`timeout-${t.patient_id}-${t.title}`"
           type="button"
           class="task-row warn"
-          @click="ctx.openStory(t.patient_id)"
+          @click="ctx.openEvidence(t.patient_id, 'risk', { title: `${t.bed || ''}床 即将超时` })"
         >
           <span class="task-bed">{{ t.bed || '--' }}床</span>
           <span class="task-title">{{ ctx.shortTaskText(t.title || '超时任务', 24) }}</span>
@@ -78,7 +78,7 @@
         >
           <span class="event-bed">{{ e.bed || '--' }}床</span>
           <span class="event-text">{{ ctx.clinicalText(e.headline || e.summary || '临床事件') }}</span>
-          <button type="button" class="event-action" @click="ctx.openStory(e.patient_id)">查看</button>
+          <button type="button" class="event-action" @click="ctx.openEvidence(e.patient_id, 'risk', { title: `${e.bed || ''}床 重大事件` })">查看</button>
         </div>
       </div>
       <div v-else class="empty-hint">暂无重大事件</div>

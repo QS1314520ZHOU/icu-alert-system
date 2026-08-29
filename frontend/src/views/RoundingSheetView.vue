@@ -190,7 +190,7 @@
                       :key="item.key"
                       type="button"
                       :class="['organ-chip', `sev-${item.severity}`, { active: activeSystemTab === item.systemKey }]"
-                      @click="activeSystemTab = item.systemKey"
+                      @click="handleOrganChipClick(item)"
                     >
                       <strong>{{ item.label }}</strong>
                       <span>{{ item.count }} 条 · {{ severityText(item.severity) }}</span>
@@ -284,6 +284,18 @@
         </template>
       </main>
     </section>
+
+    <!-- 证据抽屉 -->
+    <ClinicalEvidenceDrawer
+      :open="evidenceDrawer.open"
+      :patient-id="evidenceDrawer.patientId"
+      :context-type="evidenceDrawer.contextType"
+      :context-id="evidenceDrawer.contextId"
+      :organ-system="evidenceDrawer.organSystem"
+      :title="evidenceDrawer.title"
+      include-ai
+      @close="closeEvidence()"
+    />
   </div>
 </template>
 
@@ -307,6 +319,7 @@ import {
 } from 'ant-design-vue'
 import OrganHeatmapFigure from '../components/common/OrganHeatmapFigure.vue'
 import VoiceRounding from '../components/VoiceRounding.vue'
+import ClinicalEvidenceDrawer from '../components/evidence/ClinicalEvidenceDrawer.vue'
 import { ClinicalTimeline } from '../components/charts'
 import type { TimelineEvent } from '../components/charts'
 import { getDepartments, postClinicalTask } from '../api'
@@ -577,6 +590,38 @@ function handleOrganClick(organKey: string) {
   selectedOrgan.value = organKey
   const systemKey = organToSystemMap[organKey]
   if (systemKey) activeSystemTab.value = systemKey
+}
+
+// 证据抽屉状态
+const evidenceDrawer = ref({
+  open: false,
+  patientId: '',
+  contextType: 'organ_system' as string,
+  contextId: '',
+  organSystem: '',
+  title: '',
+})
+
+function handleOrganChipClick(item: any) {
+  activeSystemTab.value = item.systemKey
+  // 映射 systemKey 到 organ system
+  const organMap: Record<string, string> = {
+    respiratory: 'respiratory', circulatory: 'circulatory',
+    renal: 'renal', hepatic: 'hepatic', neurologic: 'neurologic',
+    coagulation: 'coagulation', infection: 'infection', nutrition: 'nutrition',
+  }
+  evidenceDrawer.value = {
+    open: true,
+    patientId: activePatient.value?.patient_id || '',
+    contextType: 'organ_system',
+    contextId: '',
+    organSystem: organMap[item.systemKey] || 'respiratory',
+    title: `${item.label} 证据链`,
+  }
+}
+
+function closeEvidence() {
+  evidenceDrawer.value.open = false
 }
 function requestParams() {
   const params: { dept?: string; dept_code?: string; limit: number } = { limit: 300 }

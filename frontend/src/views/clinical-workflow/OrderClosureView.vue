@@ -13,7 +13,7 @@
           :key="`lane-${lane.patient_id}`"
           type="button"
           class="swimlane-row"
-          @click="ctx.showVisualPatient(lane, 'order_gap')"
+          @click="ctx.openEvidence(lane.patient_id, 'order', { title: `${lane.bed || ''}床 医嘱闭环证据` })"
         >
           <strong>{{ lane.bed || '--' }}床</strong>
           <span

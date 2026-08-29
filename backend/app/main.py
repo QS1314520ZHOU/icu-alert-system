@@ -56,6 +56,7 @@ from app.routers.ws import router as ws_router
 from app.routers.auth import router as auth_router
 from app.routers.notifications import router as notifications_router
 from app.routers.monitoring import router as monitoring_router
+from app.routers.clinical_evidence import router as clinical_evidence_router
 from app.repositories import connect as mongo_connect, disconnect as mongo_disconnect
 from app.cache import connect as redis_connect, disconnect as redis_disconnect
 from app.seed_data import seed_diseases
@@ -342,6 +343,7 @@ app.include_router(ws_router)
 app.include_router(auth_router)
 app.include_router(notifications_router)
 app.include_router(monitoring_router)
+app.include_router(clinical_evidence_router)
 
 STATIC_DIR = str(static_dir())
 
