@@ -101,6 +101,8 @@ const navTabs = computed(() => {
     { key: 'treatment', icon: '💊', label: '治疗与护理', to: `${base}/treatment` },
     { key: 'alerts', icon: '🚨', label: '预警与决策', to: `${base}/alerts`, badge: alertCount > 0 ? alertCount : undefined },
     { key: 'documents', icon: '📑', label: '文书与AI', to: `${base}/documents` },
+    { key: 'intelligence', icon: '🤖', label: 'AI分析', to: `${base}/intelligence` },
+    { key: 'followup', icon: '📋', label: '随访管理', to: `${base}/followup` },
   ]
 })
 
