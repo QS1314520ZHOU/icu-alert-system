@@ -790,5 +790,15 @@ export const getWaveformEvents = (patientId: string, params: { channel: string; 
 // 健康检查
 export const healthCheck = () => api.get('/health')
 
+
+// ---- Knowledge / RAG (embed evidence view) ----
+export const getPatientRAGSearch = (patientId: string, params?: Record<string, any>) =>
+  api.get(`/api/patients/${patientId}/rag-search`, { params })
+
+export const getPatientKnowledgeRecommendations = (patientId: string, params?: Record<string, any>) =>
+  api.get(`/api/patients/${patientId}/knowledge-recommendations`, { params })
+
 export default api
+
+
 

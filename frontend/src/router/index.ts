@@ -17,6 +17,18 @@ const routeComponents = {
   patientDocuments: () => import('../views/patient-detail/PatientDocumentsView.vue'),
   patientIntelligence: () => import('../views/patient-detail/PatientIntelligenceView.vue'),
   patientFollowup: () => import('../views/patient-detail/PatientFollowupView.vue'),
+  // Embed layout & modules
+  embedLayout: () => import('../views/embed/EmbedLayout.vue'),
+  embedRiskPrediction: () => import('../views/embed/risk-prediction/RiskPredictionView.vue'),
+  embedSimilarCases: () => import('../views/embed/similar-cases/SimilarCasesView.vue'),
+  embedCausalInference: () => import('../views/embed/causal-inference/CausalInferenceView.vue'),
+  embedWhatIf: () => import('../views/embed/what-if/WhatIfView.vue'),
+  embedIntegratedRisk: () => import('../views/embed/integrated-risk/IntegratedRiskView.vue'),
+  embedDiseaseTrajectory: () => import('../views/embed/disease-trajectory/DiseaseTrajectoryView.vue'),
+  embedEvidence: () => import('../views/embed/evidence/EvidenceView.vue'),
+  embedDecisionAssistants: () => import('../views/embed/decision-assistants/DecisionAssistantsView.vue'),
+  // Tool wrapper (loads iframe container)
+  patientModuleFrame: () => import('../components/PatientModuleFrame.vue'),
   handoverOverview: () => import('../views/handover/HandoverOverview.vue'),
   handoverPatients: () => import('../views/handover/HandoverPatients.vue'),
   handoverPatientIsbar: () => import('../views/handover/HandoverPatientIsbar.vue'),
@@ -60,6 +72,15 @@ const routeComponents = {
   mobileTasks: () => import('../mobile/MobileTasks.vue'),
   mobileConsult: () => import('../mobile/MobileConsult.vue'),
   mobileMe: () => import('../mobile/MobileMe.vue'),
+  sakiLayout: () => import('../views/saki/SAKILayout.vue'),
+  sakiOverview: () => import('../views/saki/SAKIOverview.vue'),
+  sakiCaseList: () => import('../views/saki/SAKICaseList.vue'),
+  sakiCaseDetail: () => import('../views/saki/SAKICaseDetail.vue'),
+  sakiCohortBuilder: () => import('../views/saki/SAKICohortBuilder.vue'),
+  sakiAnalysis: () => import('../views/saki/SAKIAnalysis.vue'),
+  sakiCharts: () => import('../views/saki/SAKICharts.vue'),
+  sakiQuality: () => import('../views/saki/SAKIQuality.vue'),
+  sakiFieldMapping: () => import('../views/saki/SAKIFieldMapping.vue'),
 } as const
 
 export function preloadRouteComponent(key: keyof typeof routeComponents) {
@@ -169,7 +190,36 @@ const router = createRouter({
           component: routeComponents.patientFollowup,
           meta: { title: '随访管理', useAntdTheme: true },
         },
+        // 新增：独立工具模块路由（使用 PatientModuleFrame 加载 iframe）
+        {
+          path: 'tool/:moduleKey',
+          name: 'patient-tool',
+          component: () => import('../views/patient-detail/PatientToolView.vue'),
+          meta: { title: '工具模块', useAntdTheme: true },
+        },
       ],
+    },
+    // Embed 路由（iframe 内加载的独立模块页面）
+    {
+      path: '/embed/patient/:patientId',
+      component: routeComponents.embedLayout,
+      meta: { title: '嵌入模块', embed: true },
+      children: [
+        { path: '', redirect: (to: any) => `/embed/patient/${to.params.patientId}/risk-prediction` },
+        { path: 'risk-prediction', name: 'embed-risk-prediction', component: routeComponents.embedRiskPrediction, meta: { title: '风险预测', moduleKey: 'risk-prediction' } },
+        { path: 'similar-cases', name: 'embed-similar-cases', component: routeComponents.embedSimilarCases, meta: { title: '相似病例', moduleKey: 'similar-cases' } },
+        { path: 'causal-inference', name: 'embed-causal-inference', component: routeComponents.embedCausalInference, meta: { title: '因果推断', moduleKey: 'causal-inference' } },
+        { path: 'what-if', name: 'embed-what-if', component: routeComponents.embedWhatIf, meta: { title: 'What-if模拟', moduleKey: 'what-if' } },
+        { path: 'integrated-risk', name: 'embed-integrated-risk', component: routeComponents.embedIntegratedRisk, meta: { title: '综合风险', moduleKey: 'integrated-risk' } },
+        { path: 'disease-trajectory', name: 'embed-disease-trajectory', component: routeComponents.embedDiseaseTrajectory, meta: { title: '病程推演', moduleKey: 'disease-trajectory' } },
+        { path: 'evidence', name: 'embed-evidence', component: routeComponents.embedEvidence, meta: { title: '循证证据', moduleKey: 'evidence' } },
+        { path: 'decision-assistants', name: 'embed-decision-assistants', component: routeComponents.embedDecisionAssistants, meta: { title: '专项决策', moduleKey: 'decision-assistants' } },
+      ],
+    },
+    // 旧路由兼容跳转
+    {
+      path: '/patient/:id/intelligence',
+      redirect: (to: any) => ({ path: `/patient/${to.params.id}/tool/risk-prediction`, query: to.query }),
     },
     {
       path: '/bigscreen',
@@ -385,6 +435,22 @@ const router = createRouter({
         },
       ],
     },
+        {
+      path: '/disease-center/saki',
+      component: routeComponents.sakiLayout,
+      meta: { title: 'S-AKI 单病种科研中心', useAntdTheme: true },
+      children: [
+        { path: '', redirect: '/disease-center/saki/overview' },
+        { path: 'overview', name: 'saki-overview', component: routeComponents.sakiOverview, meta: { title: 'S-AKI 总览', useAntdTheme: true } },
+        { path: 'cases', name: 'saki-cases', component: routeComponents.sakiCaseList, meta: { title: 'S-AKI 病例库', useAntdTheme: true } },
+        { path: 'cases/:caseId', name: 'saki-case-detail', component: routeComponents.sakiCaseDetail, meta: { title: 'S-AKI 病例详情', useAntdTheme: true } },
+        { path: 'cohorts', name: 'saki-cohorts', component: routeComponents.sakiCohortBuilder, meta: { title: 'S-AKI 队列构建', useAntdTheme: true } },
+        { path: 'analysis', name: 'saki-analysis', component: routeComponents.sakiAnalysis, meta: { title: 'S-AKI 统计分析', useAntdTheme: true } },
+        { path: 'charts', name: 'saki-charts', component: routeComponents.sakiCharts, meta: { title: 'S-AKI 图表', useAntdTheme: true } },
+        { path: 'quality', name: 'saki-quality', component: routeComponents.sakiQuality, meta: { title: 'S-AKI 数据质量', useAntdTheme: true } },
+        { path: 'field-mapping', name: 'saki-field-mapping', component: routeComponents.sakiFieldMapping, meta: { title: 'S-AKI 字段映射', useAntdTheme: true } },
+      ],
+    },
     {
       path: '/m',
       component: routeComponents.mobileLayout,
@@ -464,3 +530,5 @@ router.beforeEach((to, _from, next) => {
 })
 
 export default router
+
+

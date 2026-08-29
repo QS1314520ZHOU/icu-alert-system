@@ -249,7 +249,7 @@
 
               <section class="ai-box">
                 <div class="section-title">智能关注点</div>
-                <a-empty v-if="!aiPoints.length" description="点击“生成关注点”获取查房提示" />
+                <a-empty v-if="!aiPoints.length" description="点击【生成关注点】获取查房提示" />
                 <article v-for="(point, idx) in aiPoints" :key="idx" class="focus-card">
                   <div class="focus-head">
                     <a-tag :color="focusColor(point.risk_level)">{{ riskText(point.risk_level) || point.risk_level }}</a-tag>
@@ -1515,3 +1515,4 @@ html[data-theme='light'] .rounding-page :deep(.ant-empty-description) {
   .patient-card { grid-template-columns: 24px 50px minmax(0, 1fr); }
 }
 </style>
+

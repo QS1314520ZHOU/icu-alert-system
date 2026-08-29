@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  mongodb-test:
+    image: mongo:7
+    container_name: icu-saki-mongo-test
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: icu_alert_saki_test
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: icu-saki-api-test
+    ports:
+      - "8001:8000"
+    environment:
+      - SMARTCARE_DB_HOST=mongodb-test
+      - SMARTCARE_DB_PORT=27017
+      - SMARTCARE_DB_NAME=icu_alert_saki_test
+      - DATACENTER_DB_HOST=mongodb-test
+      - DATACENTER_DB_PORT=27017
+      - DATACENTER_DB_NAME=icu_alert_saki_test
+      - APP_ENV=testing
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+    command: >
+      sh -c "
+        pip install -r requirements.txt &&
+        python -c 'from app.main import app; print(\"API ready\")'
+      "

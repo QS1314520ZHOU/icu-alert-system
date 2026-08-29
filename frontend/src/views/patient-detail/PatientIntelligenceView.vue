@@ -78,7 +78,7 @@
               <div class="causal-raw" v-html="causalResult.raw_analysis"></div>
             </CollapseSection>
           </div>
-          <a-empty v-else-if="!causalLoading" description="点击"生成分析"获取因果推理" :image-style="{ height: '40px' }" />
+          <a-empty v-else-if="!causalLoading" description='点击"生成分析"获取因果推理' :image-style="{ height: '40px' }" />
         </section>
       </a-tab-pane>
     </a-tabs>
@@ -289,3 +289,4 @@ onMounted(() => {
   color: #333;
 }
 </style>
+

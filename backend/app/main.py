@@ -51,6 +51,7 @@ from app.routers.handover import router as handover_router
 from app.routers.quality import router as quality_router
 from app.routers.voice_rounding import router as voice_rounding_router
 from app.routers.disease_center import router as disease_center_router
+from app.routers.saki import router as saki_router
 from app.routers.ws import router as ws_router
 from app.routers.auth import router as auth_router
 from app.routers.notifications import router as notifications_router
@@ -335,6 +336,7 @@ app.include_router(clinical_documents_router)
 app.include_router(handover_router)
 app.include_router(quality_router)
 app.include_router(disease_center_router)
+app.include_router(saki_router)
 app.include_router(waveforms_router)
 app.include_router(ws_router)
 app.include_router(auth_router)
@@ -387,3 +389,5 @@ if os.path.exists(STATIC_DIR):
         if suffix:
             raise HTTPException(status_code=404, detail=f"Static asset not found: {full_path}")
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
