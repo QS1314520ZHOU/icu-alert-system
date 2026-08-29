@@ -1,7 +1,13 @@
 <template>
   <div class="risk-prediction">
+    <!-- 模型不可用时的提示 -->
+    <div v-if="!modelAvailable" class="rp-model-unavailable">
+      <span class="rp-model-unavailable__icon">ℹ️</span>
+      <span class="rp-model-unavailable__text">{{ modelUnavailableReason }}</span>
+    </div>
+
     <!-- 风险指标卡行 -->
-    <div class="rp-overview-row">
+    <div v-if="riskCards.length" class="rp-overview-row">
       <div v-for="card in riskCards" :key="card.key" class="rp-risk-card" :class="`rp-risk-card--${card.level}`">
         <div class="rp-risk-card__header">
           <span class="rp-risk-card__label">{{ card.label }}</span>
@@ -29,32 +35,68 @@
     <div class="rp-chart-row">
       <div class="rp-chart-card rp-chart-card--wide">
         <h3 class="rp-chart-title">风险趋势</h3>
-        <ClinicalChart :option="trendChartOption" :loading="loading" :height="280" :updated-at="updatedAt" show-toolbar />
+        <div v-if="trendChartOption">
+          <ClinicalChart :option="trendChartOption" :loading="loading" :height="280" :updated-at="updatedAt" show-toolbar />
+        </div>
+        <div v-else-if="!loading" class="rp-chart-empty">
+          <span>暂无风险趋势数据</span>
+        </div>
       </div>
     </div>
 
     <div class="rp-chart-row">
       <div class="rp-chart-card">
         <h3 class="rp-chart-title">器官风险</h3>
-        <ClinicalChart :option="organChartOption" :loading="loading" :height="260" />
+        <div v-if="organChartOption">
+          <ClinicalChart :option="organChartOption" :loading="loading" :height="260" />
+        </div>
+        <div v-else-if="!loading" class="rp-chart-empty">
+          <span v-if="!modelAvailable">当前无模型器官风险数据</span>
+          <span v-else>暂无器官风险数据</span>
+        </div>
       </div>
       <div class="rp-chart-card">
         <h3 class="rp-chart-title">特征贡献</h3>
-        <ClinicalChart :option="contributorChartOption" :loading="loading" :height="260" />
+        <div v-if="contributorChartOption">
+          <ClinicalChart :option="contributorChartOption" :loading="loading" :height="260" />
+        </div>
+        <div v-else-if="!loading" class="rp-chart-empty">
+          <span>当前无模型贡献度数据</span>
+        </div>
       </div>
     </div>
 
-    <!-- 模型信息 -->
-    <div class="rp-info-row">
+    <!-- 规则估算信息（模型不可用时） -->
+    <div v-if="!modelAvailable && ruleInfo" class="rp-info-row">
+      <div class="rp-info-card">
+        <h3 class="rp-info-title">规则估算信息</h3>
+        <div class="rp-model-info">
+          <div v-if="ruleInfo.rule_name" class="rp-model-row"><span>规则名称</span><span>{{ ruleInfo.rule_name }}</span></div>
+          <div v-if="ruleInfo.trigger_indicator" class="rp-model-row"><span>触发指标</span><span>{{ ruleInfo.trigger_indicator }}</span></div>
+          <div v-if="ruleInfo.threshold" class="rp-model-row"><span>阈值</span><span>{{ ruleInfo.threshold }}</span></div>
+          <div v-if="ruleInfo.rule_version" class="rp-model-row"><span>规则版本</span><span>{{ ruleInfo.rule_version }}</span></div>
+          <div v-if="ruleInfo.data_time" class="rp-model-row"><span>数据时间</span><span>{{ formatTime(ruleInfo.data_time) }}</span></div>
+          <div v-if="ruleInfo.evidence" class="rp-model-row"><span>支持证据</span><span>{{ ruleInfo.evidence }}</span></div>
+        </div>
+      </div>
+      <div class="rp-info-card">
+        <h3 class="rp-info-title">安全声明</h3>
+        <p class="rp-safety-notice">{{ safetyNotice }}</p>
+        <p class="rp-updated">预测时间：{{ updatedAt }}</p>
+      </div>
+    </div>
+
+    <!-- 模型信息（模型可用时） -->
+    <div v-else-if="modelAvailable" class="rp-info-row">
       <div class="rp-info-card">
         <h3 class="rp-info-title">模型信息</h3>
         <div class="rp-model-info">
           <div class="rp-model-row"><span>预测来源</span><span>{{ displayLabel }}</span></div>
-          <div class="rp-model-row"><span>模型名称</span><span>{{ modelMeta.model_name || '—' }}</span></div>
-          <div class="rp-model-row"><span>模型版本</span><span>{{ modelMeta.model_version || '—' }}</span></div>
-          <div class="rp-model-row"><span>校准版本</span><span>{{ modelMeta.calibration_version || '—' }}</span></div>
-          <div class="rp-model-row"><span>模型状态</span><span :class="modelMeta.model_available ? 'rp-status-ok' : 'rp-status-warn'">{{ modelMeta.model_status || '—' }}</span></div>
-          <div v-if="modelMeta.fallback_used" class="rp-model-row"><span>降级原因</span><span class="rp-status-warn">{{ modelMeta.fallback_reason || '使用规则兜底' }}</span></div>
+          <div class="rp-model-row"><span>模型名称</span><span>{{ modelNameDisplay }}</span></div>
+          <div class="rp-model-row"><span>模型版本</span><span>{{ modelVersionDisplay }}</span></div>
+          <div class="rp-model-row"><span>校准版本</span><span>{{ calibrationVersionDisplay }}</span></div>
+          <div class="rp-model-row"><span>模型状态</span><span :class="modelStatusClass">{{ modelStatusDisplay }}</span></div>
+          <div v-if="modelMeta.fallback_used" class="rp-model-row"><span>降级原因</span><span class="rp-status-warn">{{ fallbackReasonDisplay }}</span></div>
         </div>
       </div>
       <div class="rp-info-card">
@@ -65,10 +107,10 @@
     </div>
 
     <!-- AI解释折叠区 -->
-    <details class="rp-ai-explanation">
+    <details v-if="topContributors.length" class="rp-ai-explanation">
       <summary>AI解释与证据（{{ topContributors.length }}个因素）</summary>
       <div class="rp-ai-content">
-        <div v-if="topContributors.length" class="rp-contributors-list">
+        <div class="rp-contributors-list">
           <div v-for="(c, idx) in topContributors" :key="idx" class="rp-contributor-item">
             <span class="rp-contributor-rank">{{ idx + 1 }}</span>
             <span class="rp-contributor-name">{{ c.feature || c.name || '' }}</span>
@@ -77,7 +119,6 @@
             </span>
           </div>
         </div>
-        <p v-else class="rp-no-contributors">暂无特征贡献数据</p>
         <p class="rp-ai-disclaimer">⚠ 以上为模型输入特征的贡献度分析，不代表因果关系。预测结果仅供临床决策参考，不替代医生判断。</p>
       </div>
     </details>
@@ -85,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEmbedBridge } from '../../../composables/useEmbedBridge'
 import { getAiRiskForecast } from '../../../api'
@@ -101,6 +142,35 @@ const { sendUpdateTitle, sendReportError } = useEmbedBridge({
   onPatientContextChanged: () => loadData(),
   onRefresh: () => loadData(),
 })
+
+// ── 模型状态中文映射 ────────────────────────────────
+
+const MODEL_STATUS_MAP: Record<string, string> = {
+  unknown: '未提供',
+  weight_missing: '模型权重未加载',
+  model_missing: '预测模型未部署',
+  not_ready: '模型尚未就绪',
+  unavailable: '当前不可用',
+  pending: '计算中',
+  fallback: '当前使用规则评估',
+  ready: '就绪',
+  available: '可用',
+  loaded: '已加载',
+}
+
+const FALLBACK_REASON_MAP: Record<string, string> = {
+  weight_missing: '模型权重文件缺失',
+  model_missing: '预测模型未部署',
+  not_ready: '模型初始化未完成',
+  unavailable: '模型服务不可用',
+  timeout: '模型推理超时',
+  error: '模型推理出错',
+}
+
+function formatTime(t: string) {
+  if (!t) return ''
+  try { return new Date(t).toLocaleString('zh-CN') } catch { return t }
+}
 
 // ── 数据 ─────────────────────────────────────────
 
@@ -118,19 +188,89 @@ const updatedAt = computed(() => {
 
 const modelMeta = computed(() => rawData.value?.model_meta || {})
 
+/** Is the AI model actually available (has valid weights) */
+const modelAvailable = computed(() => {
+  const status = String(modelMeta.value.model_status || '').toLowerCase()
+  if (['weight_missing', 'model_missing', 'not_ready', 'unavailable', 'unknown', 'pending'].includes(status)) return false
+  if (modelMeta.value.model_available === false) return false
+  return true
+})
+
+/** Reason for model unavailability */
+const modelUnavailableReason = computed(() => {
+  const raw = String(modelMeta.value.model_status || modelMeta.value.fallback_reason || '').toLowerCase()
+  if (modelMeta.value.fallback_reason) {
+    return FALLBACK_REASON_MAP[raw] || `当前使用规则评估：${modelMeta.value.fallback_reason}`
+  }
+  const mapped = MODEL_STATUS_MAP[raw]
+  if (mapped) return `模型状态：${mapped}，当前显示规则估算风险`
+  return '当前使用规则估算风险'
+})
+
+const modelNameDisplay = computed(() => {
+  const v = modelMeta.value.model_name
+  if (!v || v === 'unknown' || v === 'null') return '未加载'
+  return v
+})
+
+const modelVersionDisplay = computed(() => {
+  const v = modelMeta.value.model_version
+  if (!v || v === 'unknown' || v === 'null') return '未加载'
+  return v
+})
+
+const calibrationVersionDisplay = computed(() => {
+  const v = modelMeta.value.calibration_version
+  if (!v || v === 'unknown' || v === 'null') return '未加载'
+  return v
+})
+
+const modelStatusDisplay = computed(() => {
+  const raw = String(modelMeta.value.model_status || '').toLowerCase()
+  return MODEL_STATUS_MAP[raw] || modelMeta.value.model_status || '未提供'
+})
+
+const modelStatusClass = computed(() => {
+  const raw = String(modelMeta.value.model_status || '').toLowerCase()
+  if (['ready', 'available', 'loaded'].includes(raw)) return 'rp-status-ok'
+  return 'rp-status-warn'
+})
+
+const fallbackReasonDisplay = computed(() => {
+  const raw = String(modelMeta.value.fallback_reason || '').toLowerCase()
+  return FALLBACK_REASON_MAP[raw] || modelMeta.value.fallback_reason || '使用规则兜底'
+})
+
+/** Rule-based estimation info */
+const ruleInfo = computed(() => rawData.value?.rule_info || null)
+
 const horizonProbabilities = computed(() => rawData.value?.horizon_probabilities || [])
+
+/** Safely convert probability to percent (0-100), handling scale issues */
+function toPercent(value: any): number {
+  if (value == null || value === '') return 0
+  const n = Number(value)
+  if (!isFinite(n)) return 0
+  // If value is already in 0-100 range, use as-is
+  if (n > 1 && n <= 100) return Math.round(n)
+  // If value is in 0-1 range, multiply by 100
+  if (n >= 0 && n <= 1) return Math.round(n * 100)
+  // If value is > 100, cap at 100
+  if (n > 100) return 100
+  return 0
+}
 
 const riskCards = computed(() => {
   const hps = horizonProbabilities.value
-  if (!hps.length && !rawData.value?.current_probability) return []
+  if (!hps.length && rawData.value?.current_probability == null) return []
   const cards = []
   if (rawData.value?.current_probability != null) {
-    const v = Math.round((rawData.value.current_probability || 0) * 100)
+    const v = toPercent(rawData.value.current_probability)
     cards.push({ key: 'current', label: '当前风险', value: v, change: null, horizon: '当前', level: getRiskLevel(v) })
   }
   for (const hp of hps) {
-    const v = Math.round((hp.probability || 0) * 100)
-    const prev = hp.previous_probability != null ? Math.round(hp.previous_probability * 100) : null
+    const v = toPercent(hp.probability)
+    const prev = hp.previous_probability != null ? toPercent(hp.previous_probability) : null
     cards.push({
       key: `h${hp.horizon_hours || hp.horizon}`,
       label: `${hp.horizon_hours || hp.horizon}h恶化风险`,
@@ -156,10 +296,9 @@ const trendChartOption = computed(() => {
   if (!all.length) return null
 
   const xData = all.map((p: any) => p.time || p.t || '')
-  const yData = all.map((p: any) => Math.round((p.probability || p.value || 0) * 100))
+  const yData = all.map((p: any) => toPercent(p.probability || p.value))
   const isHistory = all.map((_: any, i: number) => i < history.length)
 
-  // 阈值线
   const thresholds = rawData.value?.threshold_bands || []
 
   return {
@@ -188,7 +327,7 @@ const trendChartOption = computed(() => {
       ...(thresholds.length ? [{
         name: '高风险阈值',
         type: 'line',
-        data: xData.map(() => Math.round((thresholds[0]?.value || 0.6) * 100)),
+        data: xData.map(() => toPercent(thresholds[0]?.value || 0.6)),
         lineStyle: { color: '#DC2626', type: 'dotted', width: 1 },
         symbol: 'none',
       }] : []),
@@ -209,8 +348,11 @@ const organChartOption = computed(() => {
 
   const data = keys.map(k => ({
     name: labels[k] || k,
-    value: Math.round((scores[k]?.score || scores[k] || 0) * 100),
+    value: toPercent(scores[k]?.score ?? scores[k]),
   })).sort((a, b) => b.value - a.value)
+
+  // Don't show chart if all values are0
+  if (data.every(d => d.value === 0)) return null
 
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -239,7 +381,9 @@ const contributorChartOption = computed(() => {
     name: c.feature || c.name || '',
     value: Math.abs(c.weight || c.impact || 0),
     direction: c.direction || (c.weight > 0 ? 1 : -1),
-  }))
+  })).filter(d => d.value > 0)
+
+  if (!data.length) return null
 
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -285,6 +429,20 @@ onMounted(() => {
 <style scoped>
 .risk-prediction { display: flex; flex-direction: column; gap: 16px; }
 
+.rp-model-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #EFF6FF;
+  border: 1px solid #BDDEFF;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1E40AF;
+}
+
+.rp-model-unavailable__icon { font-size: 16px; }
+
 .rp-overview-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 
 .rp-risk-card { background: #fff; border-radius: 8px; padding: 14px 16px; border: 1px solid #DCE3EC; transition: box-shadow 0.2s; }
@@ -323,6 +481,15 @@ onMounted(() => {
 .rp-chart-card { background: #fff; border-radius: 8px; padding: 16px; border: 1px solid #DCE3EC; }
 .rp-chart-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #182230; }
 
+.rp-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  font-size: 13px;
+  color: #94A3B8;
+}
+
 .rp-info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .rp-info-card { background: #fff; border-radius: 8px; padding: 16px; border: 1px solid #DCE3EC; }
 .rp-info-title { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
@@ -351,4 +518,3 @@ onMounted(() => {
 
 @media (max-width: 1200px) { .rp-chart-row { grid-template-columns: 1fr; } .rp-info-row { grid-template-columns: 1fr; } }
 </style>
-
