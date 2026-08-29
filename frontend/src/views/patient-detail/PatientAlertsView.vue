@@ -117,7 +117,7 @@ const {
   personalizedThresholdRecord,
 } = usePatientDetail()
 
-const patientId = computed(() => String(route.params.id || ''))
+const patientId = computed(() => String(route.params.patientId || route.params.id || ''))
 
 const severityFilter = ref<string | undefined>(undefined)
 const domainFilter = ref<string | undefined>(undefined)

@@ -77,7 +77,7 @@ let _currentPatientId: string | null = null
 
 export function usePatientDetail() {
   const route = useRoute()
-  const patientId = String(route.params.id || '')
+  const patientId = String(route.params.patientId || route.params.id || '')
 
   // 切换患者时重置
   if (_instance && _currentPatientId !== patientId) {
@@ -1143,7 +1143,7 @@ function _createPatientDetail(_initialPatientId: string) {
   // ═══════════════════════════════════════════
 
   async function loadDetailPage() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     await Promise.allSettled([
       (async () => { try { const res = await getPatientDetail(patientId); patient.value = res.data.patient || null } catch (e) { console.error('加载患者失败', e) } })(),
@@ -1158,7 +1158,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadAlerts() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     try {
       const res = await getPatientAlerts(patientId)
@@ -1171,7 +1171,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadClinicalSummary() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     clinicalSummaryLoading.value = true
     try {
@@ -1182,7 +1182,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadSepsisBundleStatus() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     try {
       const res = await getPatientSepsisBundleStatus(patientId)
@@ -1192,7 +1192,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadWeaningStatus() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     try {
       const res = await getPatientWeaningStatus(patientId)
@@ -1201,7 +1201,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadClinicalTrialMatches() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     trialMatchLoading.value = true; trialMatchError.value = ''
     try {
@@ -1213,7 +1213,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadTrend() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     try {
       const res = await getPatientVitalsTrend(patientId, trendWindow.value)
@@ -1223,7 +1223,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadWaveform() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     waveformLoading.value = true
     try {
@@ -1257,21 +1257,21 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function loadLabs() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId || labsLoaded.value) return
     try { const res = await getPatientLabs(patientId); labs.value = res.data.exams || []; labsLoaded.value = true }
     catch (e) { console.warn('检验数据加载较慢', e) }
   }
 
   async function loadDrugs() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId || drugsLoaded.value) return
     try { const res = await getPatientDrugs(patientId); drugs.value = res.data.records || []; drugsLoaded.value = true }
     catch (e) { console.warn('用药数据加载较慢', e) }
   }
 
   async function loadAssessments() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId || assessmentsLoaded.value) return
     try { const res = await getPatientAssessments(patientId); assessments.value = res.data.records || []; assessmentsLoaded.value = true }
     catch (e) { console.warn('评估数据加载较慢', e) }
@@ -1280,7 +1280,7 @@ function _createPatientDetail(_initialPatientId: string) {
   async function loadSbtTimeline(force = false) {
     if (sbtTimelineLoading.value) return
     if (sbtTimelineLoaded.value && !force) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     sbtTimelineLoading.value = true; sbtTimelineError.value = ''
     try {
@@ -1297,7 +1297,7 @@ function _createPatientDetail(_initialPatientId: string) {
   async function loadSimilarCaseReview(force = false) {
     if (similarCaseLoading.value) return
     if (similarCaseLoaded.value && !force) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     similarCaseLoading.value = true; similarCaseError.value = ''
     try {
@@ -1315,7 +1315,7 @@ function _createPatientDetail(_initialPatientId: string) {
   async function loadPersonalizedThresholds(force = false) {
     if (personalizedThresholdLoading.value) return
     if (personalizedThresholdRecord.value && !force) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     personalizedThresholdLoading.value = true; personalizedThresholdError.value = ''
     try {
@@ -1333,7 +1333,7 @@ function _createPatientDetail(_initialPatientId: string) {
   // ─── AI loaders ───
   async function loadAiLab() {
     if (aiLabLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     aiLabError.value = ''; aiLabLoading.value = true
     try {
@@ -1346,7 +1346,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadAiRules() {
     if (aiRuleLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     aiRuleError.value = ''; aiRuleLoading.value = true
     try {
@@ -1365,7 +1365,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadAiRisk() {
     if (aiRiskLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     aiRiskError.value = ''; aiRiskLoading.value = true
     try {
@@ -1379,7 +1379,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadIntegratedRisk(refresh = false) {
     if (integratedRiskLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     integratedRiskError.value = ''; integratedRiskLoading.value = true
     try {
@@ -1394,7 +1394,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadMetabolicPhase(refresh = false) {
     if (metabolicPhaseLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     metabolicPhaseError.value = ''; metabolicPhaseLoading.value = true
     try {
@@ -1409,7 +1409,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadBetaBlockerAdvisor(refresh = false) {
     if (betaBlockerAdvisorLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     betaBlockerAdvisorError.value = ''; betaBlockerAdvisorLoading.value = true
     try {
@@ -1422,7 +1422,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadFibrinolysis(refresh = false) {
     if (fibrinolysisLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     fibrinolysisError.value = ''; fibrinolysisLoading.value = true
     try {
@@ -1435,7 +1435,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadPronePosition(refresh = false) {
     if (pronePositionLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     pronePositionError.value = ''; pronePositionLoading.value = true
     try {
@@ -1448,7 +1448,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadPicsRisk(refresh = false) {
     if (picsRiskLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     picsRiskError.value = ''; picsRiskLoading.value = true
     try {
@@ -1461,7 +1461,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function loadAiHandoff() {
     if (aiHandoffLoading.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     aiHandoffError.value = ''; aiHandoffLoading.value = true
     try {
@@ -1586,7 +1586,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function submitSepsisBundleReview() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     sepsisBundleSubmitting.value = true
     try {
@@ -1611,7 +1611,7 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   async function submitSepsisBundleExecution() {
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     sepsisBundleSubmitting.value = true
     try {
@@ -1644,7 +1644,7 @@ function _createPatientDetail(_initialPatientId: string) {
 
   async function submitPersonalizedThresholdReview(record: any, status: 'approved' | 'rejected', meta: { reviewer?: string; review_comment?: string }) {
     if (personalizedThresholdReviewing.value) return
-    const patientId = String(route.params.id || '')
+    const patientId = String(route.params.patientId || route.params.id || '')
     const recordId = String(record?._id || '')
     if (!patientId || !recordId) return
     personalizedThresholdReviewing.value = true
@@ -1736,7 +1736,7 @@ function _createPatientDetail(_initialPatientId: string) {
     offIntegratedRiskWs = onAlertMessage((msg: any) => {
       if (String(msg?.type || '') !== 'integrated_risk_report') return
       const payload = msg?.data || {}
-      const patientId = String(route.params.id || '')
+      const patientId = String(route.params.patientId || route.params.id || '')
       if (!patientId || String(payload?.patient_id || '') !== patientId) return
       integratedRiskReport.value = payload; integratedRiskError.value = ''
     })

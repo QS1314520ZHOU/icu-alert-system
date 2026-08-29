@@ -102,7 +102,7 @@ const {
   loadAiRisk, aiRiskOrganRows,
 } = usePatientDetail()
 
-const patientId = computed(() => String(route.params.id || ''))
+const patientId = computed(() => String(route.params.patientId || route.params.id || ''))
 const activeTab = ref('digital-twin')
 
 // 复用 composable 的器官评估行

@@ -66,6 +66,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useHostBridge } from '../composables/useHostBridge'
 import { getModuleByKey, isIframeModule } from '../config/patientModuleRegistry'
+import { canAccessPatientModule } from '../config/featureFlags'
+import { useAuthStore } from '../stores/auth'
 
 const props = defineProps<{
   moduleKey: string
@@ -89,9 +91,23 @@ const noPermission = ref(false)
 const isFullscreen = ref(false)
 const lastUpdated = ref('')
 
+const auth = useAuthStore()
+
 const module = computed(() => getModuleByKey(props.moduleKey))
 const moduleTitle = computed(() => module.value?.title || props.moduleKey)
+
+// Permission check
+const hasPermission = computed(() => {
+  if (!module.value) return true  // Unknown module — allow (will fail on iframe load)
+  const userRole = String(auth.role || '').toLowerCase()
+  return canAccessPatientModule(props.moduleKey, {
+    featureFlag: module.value.featureFlag,
+    requiredRoles: module.value.requiredRoles,
+  }, userRole)
+})
+
 const iframeSrc = computed(() => {
+  if (!hasPermission.value) return ''
   if (!module.value || !isIframeModule(props.moduleKey)) return ''
   return module.value.iframeUrl(props.patientId)
 })
@@ -171,14 +187,20 @@ function onIframeError() {
 
 // ── 监听 ─────────────────────────────────────────
 
-watch(() => props.patientId, () => {
-  loading.value = true
-  error.value = ''
-})
+// Check permission on mount and when module changes
+watch([hasPermission, () => props.moduleKey], () => {
+  noPermission.value = !hasPermission.value
+  if (hasPermission.value) {
+    loading.value = true
+    error.value = ''
+  }
+}, { immediate: true })
 
-watch(() => props.moduleKey, () => {
-  loading.value = true
-  error.value = ''
+watch(() => props.patientId, () => {
+  if (hasPermission.value) {
+    loading.value = true
+    error.value = ''
+  }
 })
 </script>
 

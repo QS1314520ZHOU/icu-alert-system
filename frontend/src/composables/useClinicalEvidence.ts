@@ -26,17 +26,20 @@ export function useClinicalEvidence() {
     (evidence.value?.missing_data?.length ?? 0) > 0,
   )
 
+  /** 证据完整率（0~1），来源于 confidence.evidence_completeness */
   const confidenceLevel = computed(() => {
-    const c = evidence.value?.confidence ?? 0
+    const c = evidence.value?.confidence?.evidence_completeness
+    if (c == null) return 'unknown'
     if (c >= 0.9) return 'high'
     if (c >= 0.7) return 'medium'
     if (c >= 0.4) return 'low'
     return 'very-low'
   })
 
-  const confidencePercent = computed(() =>
-    Math.round((evidence.value?.confidence ?? 0) * 100),
-  )
+  const confidencePercent = computed(() => {
+    const c = evidence.value?.confidence?.evidence_completeness
+    return c != null ? Math.round(c * 100) : null
+  })
 
   const severityColor = computed(() => {
     const map: Record<string, string> = {

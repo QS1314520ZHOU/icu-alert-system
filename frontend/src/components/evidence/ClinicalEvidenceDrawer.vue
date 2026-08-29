@@ -75,7 +75,10 @@
             <span v-if="evidence.ai_analysis" class="ev-badge-ai">AI</span>
             <span class="ev-toggle">{{ expanded.ai ? '▾' : '▸' }}</span>
           </div>
-          <AiEvidenceAnalysis v-if="expanded.ai" :ai-analysis="evidence.ai_analysis" />
+          <div v-if="expanded.ai">
+            <AiEvidenceAnalysis v-if="evidence.ai_analysis" :ai-analysis="evidence.ai_analysis" />
+            <div v-else class="ev-empty-hint">尚未生成 AI 分析</div>
+          </div>
         </section>
 
         <!-- 7. 临床闭环时间线 -->
@@ -283,6 +286,17 @@ watch(
 .ev-badge-ai {
   padding: 1px 5px;
   border-radius: 4px;
+  background: #7C3AED;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.ev-empty-hint {
+  text-align: center;
+  padding: 16px 20px;
+  color: var(--text-tertiary, #9CA3AF);
+  font-size: 13px;
+}
   background: #7C3AED;
   color: #fff;
   font-size: 9px;

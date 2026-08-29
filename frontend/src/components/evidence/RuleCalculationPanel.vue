@@ -12,10 +12,10 @@
       <p v-if="ruleCalc.description" class="calc-desc">{{ ruleCalc.description }}</p>
       <p v-if="ruleCalc.statistical_scope" class="calc-scope">统计口径：{{ ruleCalc.statistical_scope }}</p>
 
-      <!-- 灯号展示（撤机/转出） -->
+      <!-- 灯号展示（撤机/转出）三态：pass / fail / unavailable -->
       <div v-if="ruleCalc.lights?.length" class="calc-lights">
-        <div v-for="(light, idx) in ruleCalc.lights" :key="idx" :class="['light-item', light.ok ? 'ok' : 'bad']">
-          <i>{{ light.ok ? '✓' : '✗' }}</i>
+        <div v-for="(light, idx) in ruleCalc.lights" :key="idx" :class="['light-item', lightStatus(light)]">
+          <i>{{ lightIcon(light) }}</i>
           <span>{{ light.label }}</span>
         </div>
       </div>
@@ -26,7 +26,8 @@
           <span class="item-label">{{ item.label || item.name || `项目${idx + 1}` }}</span>
           <span v-if="item.score != null" class="item-score">{{ item.score }}分</span>
           <span v-if="item.value != null" class="item-value">{{ item.value }}</span>
-          <span v-if="item.ok != null" :class="['item-status', item.ok ? 'ok' : 'bad']">{{ item.ok ? '通过' : '未通过' }}</span>
+          <span v-if="item.status === 'unavailable' || (item.ok == null && item.status == null)" class="item-status unavailable">不可计算</span>
+          <span v-else-if="item.ok != null" :class="['item-status', item.ok ? 'ok' : 'bad']">{{ item.ok ? '通过' : '未通过' }}</span>
           <span v-if="item.description" class="item-desc">{{ item.description }}</span>
         </div>
       </div>
@@ -40,6 +41,16 @@ import type { RuleCalculation } from '../../api/clinicalEvidence'
 defineProps<{
   ruleCalc: RuleCalculation | null
 }>()
+
+function lightStatus(light: { ok?: boolean | null; status?: string }): string {
+  if (light.status === 'unavailable' || light.ok == null) return 'unavailable'
+  return light.status || (light.ok ? 'ok' : 'bad')
+}
+
+function lightIcon(light: { ok?: boolean | null; status?: string }): string {
+  if (light.status === 'unavailable' || light.ok == null) return '—'
+  return light.ok ? '✓' : '✗'
+}
 
 function scoreTypeLabel(type: string): string {
   const map: Record<string, string> = {
@@ -105,6 +116,7 @@ function formatTime(t: string): string {
 }
 .light-item.ok { background: #DCFCE7; color: #166534; }
 .light-item.bad { background: #FEF2F2; color: #991B1B; }
+.light-item.unavailable { background: #F3F4F6; color: #9CA3AF; }
 .light-item i { font-style: normal; font-weight: 700; }
 
 .calc-items {
@@ -131,6 +143,7 @@ function formatTime(t: string): string {
 }
 .item-status.ok { background: #DCFCE7; color: #166534; }
 .item-status.bad { background: #FEF2F2; color: #991B1B; }
+.item-status.unavailable { background: #F3F4F6; color: #9CA3AF; }
 .item-desc { font-size: 11px; color: var(--text-tertiary, #9CA3AF); }
 .calc-empty {
   text-align: center;

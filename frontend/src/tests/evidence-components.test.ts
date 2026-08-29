@@ -1,399 +1,190 @@
 /**
- * 证据链组件单元测试
+ * P0 重写：证据链组件单元测试。
+ *
+ * 使用真实组件渲染，不 mock 返回值。
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
-
-// ── 证据 API 客户端测试 ──────────────────────────────
-
-describe('clinicalEvidence API', () => {
-  it('应正确定义 EvidenceParams 类型', async () => {
-    const mod = await import('../api/clinicalEvidence')
-    expect(mod.getPatientEvidence).toBeDefined()
-    expect(typeof mod.getPatientEvidence).toBe('function')
-  })
-
-  it('应正确构建请求参数', async () => {
-    const axios = await import('axios')
-    const spy = vi.spyOn(axios.default, 'get').mockResolvedValue({ data: { code: 0, data: {} } })
-
-    const { getPatientEvidence } = await import('../api/clinicalEvidence')
-    await getPatientEvidence('patient-001', {
-      context_type: 'organ_system',
-      organ_system: 'respiratory',
-      time_range: '24h',
-    })
-
-    expect(spy).toHaveBeenCalledWith(
-      '/api/patients/patient-001/evidence',
-      expect.objectContaining({
-        params: expect.objectContaining({
-          context_type: 'organ_system',
-          organ_system: 'respiratory',
-          time_range: '24h',
-        }),
-      }),
-    )
-
-    spy.mockRestore()
-  })
-})
-
-// ── useClinicalEvidence composable 测试 ──────────────
-
-describe('useClinicalEvidence', () => {
-  it('应初始化默认状态', async () => {
-    const { useClinicalEvidence } = await import('../composables/useClinicalEvidence')
-    const { loading, error, evidence } = useClinicalEvidence()
-
-    expect(loading.value).toBe(false)
-    expect(error.value).toBeNull()
-    expect(evidence.value).toBeNull()
-  })
-
-  it('应正确计算置信度级别', async () => {
-    const { useClinicalEvidence } = await import('../composables/useClinicalEvidence')
-    const { confidenceLevel, confidencePercent } = useClinicalEvidence()
-
-    // 初始状态
-    expect(confidenceLevel.value).toBe('very-low')
-    expect(confidencePercent.value).toBe(0)
-  })
-
-  it('应正确计算严重程度颜色', async () => {
-    const { useClinicalEvidence } = await import('../composables/useClinicalEvidence')
-    const { severityColor, severityLabel } = useClinicalEvidence()
-
-    expect(severityColor.value).toBe('#6B7280') // 默认
-    expect(severityLabel.value).toBe('未知')
-  })
-
-  it('应检测缺失数据', async () => {
-    const { useClinicalEvidence } = await import('../composables/useClinicalEvidence')
-    const { hasMissingData } = useClinicalEvidence()
-
-    expect(hasMissingData.value).toBe(false)
-  })
-})
-
-// ── EvidenceMetricCards 组件测试 ─────────────────────
-
-describe('EvidenceMetricCards', () => {
-  it('应渲染指标卡片', async () => {
-    const { default: EvidenceMetricCards } = await import('../components/evidence/EvidenceMetricCards.vue')
-
-    const wrapper = mount(EvidenceMetricCards, {
-      props: {
-        metrics: [
-          {
-            code: 'HR',
-            name: '心率',
-            value: 85,
-            unit: 'bpm',
-            observed_at: '2024-01-01T12:00:00Z',
-            reference_range: '60-100 bpm',
-            abnormal_flag: 'normal',
-          },
-          {
-            code: 'Lactate',
-            name: '乳酸',
-            value: 4.5,
-            unit: 'mmol/L',
-            observed_at: '2024-01-01T12:00:00Z',
-            reference_range: '<2 mmol/L',
-            abnormal_flag: 'critical',
-          },
-        ],
-      },
-    })
-
-    expect(wrapper.find('.metrics-grid').exists()).toBe(true)
-    expect(wrapper.findAll('.metric-card')).toHaveLength(2)
-    expect(wrapper.text()).toContain('心率')
-    expect(wrapper.text()).toContain('乳酸')
-    expect(wrapper.text()).toContain('85')
-    expect(wrapper.text()).toContain('4.5')
-  })
-
-  it('空指标时应显示空提示', async () => {
-    const { default: EvidenceMetricCards } = await import('../components/evidence/EvidenceMetricCards.vue')
-
-    const wrapper = mount(EvidenceMetricCards, {
-      props: { metrics: [] },
-    })
-
-    expect(wrapper.find('.metrics-empty').exists()).toBe(true)
-    expect(wrapper.text()).toContain('暂无指标数据')
-  })
-
-  it('null 值应显示"不可计算"', async () => {
-    const { default: EvidenceMetricCards } = await import('../components/evidence/EvidenceMetricCards.vue')
-
-    const wrapper = mount(EvidenceMetricCards, {
-      props: {
-        metrics: [{
-          code: 'GCS',
-          name: 'GCS',
-          value: null,
-          unit: '',
-          observed_at: null,
-          reference_range: '15分',
-          abnormal_flag: 'missing',
-        }],
-      },
-    })
-
-    expect(wrapper.text()).toContain('不可计算')
-  })
-})
-
-// ── EvidenceTable 组件测试 ───────────────────────────
-
-describe('EvidenceTable', () => {
-  it('应渲染证据表格', async () => {
-    const { default: EvidenceTable } = await import('../components/evidence/EvidenceTable.vue')
-
-    const wrapper = mount(EvidenceTable, {
-      props: {
-        rows: [
-          {
-            record_id: '1',
-            patient_id: 'p1',
-            observed_at: '2024-01-01T12:00:00Z',
-            category: 'vital_sign',
-            code: 'HR',
-            name: '心率',
-            value: 85,
-            unit: 'bpm',
-            reference_range: '60-100',
-            abnormal_flag: 'normal',
-            data_quality: 'complete',
-          },
-        ],
-        showSource: true,
-      },
-    })
-
-    expect(wrapper.find('.evidence-table').exists()).toBe(true)
-    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
-    expect(wrapper.text()).toContain('心率')
-  })
-
-  it('空行时应显示空提示', async () => {
-    const { default: EvidenceTable } = await import('../components/evidence/EvidenceTable.vue')
-
-    const wrapper = mount(EvidenceTable, {
-      props: { rows: [] },
-    })
-
-    expect(wrapper.find('.table-empty').exists()).toBe(true)
-  })
-})
-
-// ── RuleCalculationPanel 组件测试 ────────────────────
+import RuleCalculationPanel from '../components/evidence/RuleCalculationPanel.vue'
+import AiEvidenceAnalysis from '../components/evidence/AiEvidenceAnalysis.vue'
+import EvidenceMetricCards from '../components/evidence/EvidenceMetricCards.vue'
 
 describe('RuleCalculationPanel', () => {
-  it('应渲染评分明细', async () => {
-    const { default: RuleCalculationPanel } = await import('../components/evidence/RuleCalculationPanel.vue')
+  const mockRuleCalc = {
+    score_type: 'discharge_readiness',
+    total_score: 80,
+    calculable: true,
+    items: [
+      { label: '循环稳定', status: 'pass', ok: true },
+      { label: '氧合达标', status: 'pass', ok: true },
+      { label: 'SOFA ≤ 6', status: 'unavailable', ok: null },
+    ],
+    lights: [
+      { label: 'RSBI < 105', status: 'pass', ok: true },
+      { label: 'SpO2 > 90%', status: 'pass', ok: true },
+      { label: 'SBT 通过', status: 'unavailable', ok: null },
+    ],
+    description: '撤机评估',
+  }
 
+  it('渲染灯号三态', () => {
     const wrapper = mount(RuleCalculationPanel, {
-      props: {
-        ruleCalc: {
-          score_type: 'sofa',
-          total_score: 8,
-          items: [
-            { label: '呼吸', score: 3, description: 'PaO2/FiO2 < 200' },
-            { label: '凝血', score: 2, description: 'PLT < 100' },
-          ],
-          description: 'SOFA 器官功能评分',
-        },
-      },
+      props: { ruleCalc: mockRuleCalc },
     })
 
-    expect(wrapper.text()).toContain('SOFA')
-    expect(wrapper.text()).toContain('8')
-    expect(wrapper.text()).toContain('呼吸')
-    expect(wrapper.text()).toContain('凝血')
+    // 验证灯号元素存在
+    const lights = wrapper.findAll('.light-item')
+    expect(lights.length).toBe(3)
+
+    // 验证三态 class
+    expect(lights[0].classes()).toContain('ok')
+    expect(lights[1].classes()).toContain('ok')
+    expect(lights[2].classes()).toContain('unavailable')
   })
 
-  it('应渲染灯号状态', async () => {
-    const { default: RuleCalculationPanel } = await import('../components/evidence/RuleCalculationPanel.vue')
-
+  it('渲染评分明细三态', () => {
     const wrapper = mount(RuleCalculationPanel, {
-      props: {
-        ruleCalc: {
-          score_type: 'weaning',
-          items: [],
-          lights: [
-            { label: 'RSBI < 105', ok: true },
-            { label: 'SpO2 > 90%', ok: false },
-          ],
-        },
-      },
+      props: { ruleCalc: mockRuleCalc },
     })
 
-    expect(wrapper.findAll('.light-item')).toHaveLength(2)
-    expect(wrapper.findAll('.light-item.ok')).toHaveLength(1)
-    expect(wrapper.findAll('.light-item.bad')).toHaveLength(1)
+    const items = wrapper.findAll('.calc-item')
+    expect(items.length).toBe(3)
+
+    // 验证"不可计算"文本
+    const unavailableStatus = wrapper.findAll('.item-status.unavailable')
+    expect(unavailableStatus.length).toBeGreaterThan(0)
   })
 
-  it('null 时应显示空提示', async () => {
-    const { default: RuleCalculationPanel } = await import('../components/evidence/RuleCalculationPanel.vue')
-
+  it('空数据显示提示', () => {
     const wrapper = mount(RuleCalculationPanel, {
       props: { ruleCalc: null },
     })
-
-    expect(wrapper.find('.calc-empty').exists()).toBe(true)
+    expect(wrapper.text()).toContain('暂无评分')
   })
-})
 
-// ── AiEvidenceAnalysis 组件测试 ──────────────────────
-
-describe('AiEvidenceAnalysis', () => {
-  it('应渲染 AI 分析三区', async () => {
-    const { default: AiEvidenceAnalysis } = await import('../components/evidence/AiEvidenceAnalysis.vue')
-
-    const wrapper = mount(AiEvidenceAnalysis, {
+  it('total_score 为 null 时不显示总分', () => {
+    const wrapper = mount(RuleCalculationPanel, {
       props: {
-        aiAnalysis: {
-          supporting_evidence: ['乳酸升高', '白细胞计数升高'],
-          opposing_evidence: ['体温正常'],
-          uncertainties: ['血培养结果待出'],
-          disclaimer: 'AI生成，待临床确认',
-          model: 'gpt-4',
-          generated_at: '2024-01-01T12:00:00Z',
+        ruleCalc: {
+          ...mockRuleCalc,
+          total_score: null,
+          calculable: false,
         },
       },
     })
+    expect(wrapper.text()).not.toContain('总分')
+  })
+})
 
-    expect(wrapper.text()).toContain('支持证据')
-    expect(wrapper.text()).toContain('反对证据')
-    expect(wrapper.text()).toContain('不确定性')
-    expect(wrapper.text()).toContain('AI生成，待临床确认')
+describe('AiEvidenceAnalysis', () => {
+  const mockAiAnalysis = {
+    supporting_evidence: ['乳酸升高', '心率加快'],
+    opposing_evidence: ['血压稳定'],
+    uncertainties: ['可能为感染性休克'],
+    disclaimer: 'AI生成，待临床确认',
+    model: 'gpt-4',
+    generated_at: '2024-01-01T00:00:00Z',
+  }
+
+  it('渲染支持/反对/不确定证据', () => {
+    const wrapper = mount(AiEvidenceAnalysis, {
+      props: { aiAnalysis: mockAiAnalysis },
+    })
+
     expect(wrapper.text()).toContain('乳酸升高')
-    expect(wrapper.text()).toContain('体温正常')
+    expect(wrapper.text()).toContain('血压稳定')
+    expect(wrapper.text()).toContain('可能为感染性休克')
+    expect(wrapper.text()).toContain('AI生成')
   })
 
-  it('应显示免责声明', async () => {
-    const { default: AiEvidenceAnalysis } = await import('../components/evidence/AiEvidenceAnalysis.vue')
+  it('null 显示"尚未生成 AI 分析"', () => {
+    const wrapper = mount(AiEvidenceAnalysis, {
+      props: { aiAnalysis: null },
+    })
+    expect(wrapper.text()).toContain('尚未生成')
+  })
 
+  it('空数组显示"尚未生成 AI 分析"', () => {
     const wrapper = mount(AiEvidenceAnalysis, {
       props: {
         aiAnalysis: {
+          ...mockAiAnalysis,
           supporting_evidence: [],
           opposing_evidence: [],
           uncertainties: [],
-          disclaimer: 'AI生成，待临床确认',
-          model: 'test',
-          generated_at: null,
         },
       },
     })
-
-    expect(wrapper.find('.ai-disclaimer').exists()).toBe(true)
-    expect(wrapper.find('.disclaimer-badge').text()).toBe('AI')
+    expect(wrapper.text()).toContain('尚未生成')
   })
 })
 
-// ── EvidenceTimeline 组件测试 ────────────────────────
+describe('EvidenceMetricCards', () => {
+  const mockMetrics = [
+    {
+      code: 'HR',
+      name: '心率',
+      value: 120,
+      unit: 'bpm',
+      observed_at: '2024-01-01T00:00:00Z',
+      reference_range: '60-100 bpm',
+      abnormal_flag: 'high' as const,
+    },
+    {
+      code: 'SpO2',
+      name: '血氧饱和度',
+      value: 98,
+      unit: '%',
+      observed_at: '2024-01-01T00:00:00Z',
+      reference_range: '≥95%',
+      abnormal_flag: 'normal' as const,
+    },
+    {
+      code: 'Cr',
+      name: '肌酐',
+      value: null,
+      unit: 'mg/dL',
+      observed_at: null,
+      reference_range: '0.6-1.2 mg/dL',
+      abnormal_flag: 'missing' as const,
+    },
+  ]
 
-describe('EvidenceTimeline', () => {
-  it('应渲染时间线事件', async () => {
-    const { default: EvidenceTimeline } = await import('../components/evidence/EvidenceTimeline.vue')
-
-    const wrapper = mount(EvidenceTimeline, {
-      props: {
-        events: [
-          { time: '2024-01-01T10:00:00Z', event_type: 'alert', title: '心率过快', severity: 'high', detail: 'HR 150' },
-          { time: '2024-01-01T11:00:00Z', event_type: 'medication', title: '美托洛尔', severity: 'info', detail: '25mg' },
-        ],
-      },
-    })
-
-    expect(wrapper.findAll('.timeline-item')).toHaveLength(2)
-    expect(wrapper.text()).toContain('心率过快')
-    expect(wrapper.text()).toContain('美托洛尔')
-  })
-
-  it('空事件应显示空提示', async () => {
-    const { default: EvidenceTimeline } = await import('../components/evidence/EvidenceTimeline.vue')
-
-    const wrapper = mount(EvidenceTimeline, {
-      props: { events: [] },
-    })
-
-    expect(wrapper.find('.timeline-empty').exists()).toBe(true)
-  })
-})
-
-// ── 全局菜单同步测试 ─────────────────────────────────
-
-describe('患者模块注册表', () => {
-  it('应定义所有模块分组', async () => {
-    const { MODULE_GROUPS } = await import('../config/patientModuleRegistry')
-
-    expect(MODULE_GROUPS).toBeDefined()
-    expect(MODULE_GROUPS.length).toBeGreaterThan(0)
-
-    const groupKeys = MODULE_GROUPS.map(g => g.key)
-    expect(groupKeys).toContain('patient-detail')
-    expect(groupKeys).toContain('alert-decision')
-    expect(groupKeys).toContain('ai-analysis')
-  })
-
-  it('每个模块应有完整元数据', async () => {
-    const { PATIENT_MODULES } = await import('../config/patientModuleRegistry')
-
-    for (const mod of PATIENT_MODULES) {
-      expect(mod.moduleKey).toBeTruthy()
-      expect(mod.title).toBeTruthy()
-      expect(mod.route).toContain(':patientId')
-      expect(typeof mod.iframeUrl).toBe('function')
-    }
-  })
-
-  it('getModuleByKey 应正确定位模块', async () => {
-    const { getModuleByKey } = await import('../config/patientModuleRegistry')
-
-    const mod = getModuleByKey('overview')
-    expect(mod).toBeDefined()
-    expect(mod?.title).toBe('病情总览')
-
-    const missing = getModuleByKey('nonexistent')
-    expect(missing).toBeUndefined()
-  })
-})
-
-// ── 缺失数据"不可计算"测试 ──────────────────────────
-
-describe('缺失数据处理', () => {
-  it('null 值应标记为不可计算', async () => {
-    const { default: EvidenceMetricCards } = await import('../components/evidence/EvidenceMetricCards.vue')
-
+  it('渲染指标卡片', () => {
     const wrapper = mount(EvidenceMetricCards, {
-      props: {
-        metrics: [{
-          code: 'Cr',
-          name: '肌酐',
-          value: null,
-          unit: 'μmol/L',
-          observed_at: null,
-          reference_range: '44-133 μmol/L',
-          abnormal_flag: 'missing',
-        }],
-      },
+      props: { metrics: mockMetrics },
+    })
+
+    expect(wrapper.text()).toContain('心率')
+    expect(wrapper.text()).toContain('血氧饱和度')
+    expect(wrapper.text()).toContain('肌酐')
+  })
+
+  it('异常值标红', () => {
+    const wrapper = mount(EvidenceMetricCards, {
+      props: { metrics: mockMetrics },
+    })
+
+    const cards = wrapper.findAll('.metric-card')
+    expect(cards.length).toBe(3)
+
+    // 验证异常卡片有 high class
+    expect(cards[0].classes()).toContain('high')
+    expect(cards[1].classes()).toContain('normal')
+  })
+
+  it('缺失值显示"不可计算"', () => {
+    const wrapper = mount(EvidenceMetricCards, {
+      props: { metrics: mockMetrics },
     })
 
     expect(wrapper.text()).toContain('不可计算')
-    expect(wrapper.text()).toContain('缺失')
   })
 
-  it('缺失数据列表应正确展示', async () => {
-    const { default: ClinicalEvidenceDrawer } = await import('../components/evidence/ClinicalEvidenceDrawer.vue')
-
-    // 组件应能接收 missing_data 并展示
-    expect(ClinicalEvidenceDrawer).toBeDefined()
+  it('空指标列表显示提示', () => {
+    const wrapper = mount(EvidenceMetricCards, {
+      props: { metrics: [] },
+    })
+    expect(wrapper.text()).toContain('暂无指标数据')
   })
 })

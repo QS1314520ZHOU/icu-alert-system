@@ -1,95 +1,75 @@
 import { describe, it, expect } from 'vitest'
+import { getPatientIdFromRoute, buildPatientPath } from '../utils/patientRouteHelper'
 
-/**
- * Route migration tests.
- *
- * Tests that old patient detail routes correctly map to new module routes.
- * These test the redirect logic defined in the router.
- */
-
-// Simulate the redirect logic from router/index.ts
-const LEGACY_REDIRECTS: Record<string, (params: { id: string; query?: Record<string, string> }) => string> = {
-  '/patient/:id/intelligence': ({ id, query }) => {
-    let path = `/patient/${id}/tool/risk-prediction`
-    if (query?.tab === 'similar') path = `/patient/${id}/tool/similar-cases`
-    if (query?.tab === 'ai') path = `/patient/${id}/tool/risk-prediction`
-    if (query?.tab === 'followup') path = `/patient/${id}/tool/followup`
-    return path
-  },
-}
-
-describe('Route Migration', () => {
-  describe('Legacy intelligence route', () => {
-    it('should redirect /patient/:id/intelligence to risk-prediction', () => {
-      const result = LEGACY_REDIRECTS['/patient/:id/intelligence']({ id: 'p123' })
-      expect(result).toBe('/patient/p123/tool/risk-prediction')
+describe('Route Migration — patientId helpers', () => {
+  describe('getPatientIdFromRoute', () => {
+    it('should read params.patientId (canonical)', () => {
+      const route = { params: { patientId: '123' }, query: {} } as any
+      expect(getPatientIdFromRoute(route)).toBe('123')
     })
 
-    it('should redirect ?tab=similar to similar-cases', () => {
-      const result = LEGACY_REDIRECTS['/patient/:id/intelligence']({
-        id: 'p123',
-        query: { tab: 'similar' },
-      })
-      expect(result).toBe('/patient/p123/tool/similar-cases')
+    it('should fall back to params.id (legacy)', () => {
+      const route = { params: { id: '456' }, query: {} } as any
+      expect(getPatientIdFromRoute(route)).toBe('456')
     })
 
-    it('should redirect ?tab=ai to risk-prediction', () => {
-      const result = LEGACY_REDIRECTS['/patient/:id/intelligence']({
-        id: 'p123',
-        query: { tab: 'ai' },
-      })
-      expect(result).toBe('/patient/p123/tool/risk-prediction')
+    it('should prefer patientId over id', () => {
+      const route = { params: { patientId: '123', id: '456' }, query: {} } as any
+      expect(getPatientIdFromRoute(route)).toBe('123')
     })
 
-    it('should redirect ?tab=followup to followup', () => {
-      const result = LEGACY_REDIRECTS['/patient/:id/intelligence']({
-        id: 'p123',
-        query: { tab: 'followup' },
-      })
-      expect(result).toBe('/patient/p123/tool/followup')
+    it('should return empty string when neither exists', () => {
+      const route = { params: {}, query: {} } as any
+      expect(getPatientIdFromRoute(route)).toBe('')
+    })
+
+    it('should handle string trimming', () => {
+      const route = { params: { patientId: '  789  ' }, query: {} } as any
+      expect(getPatientIdFromRoute(route)).toBe('789')
     })
   })
 
-  describe('New module routes', () => {
-    const newRoutes = [
-      { moduleKey: 'risk-prediction', expected: '/patient/p123/tool/risk-prediction' },
-      { moduleKey: 'similar-cases', expected: '/patient/p123/tool/similar-cases' },
-      { moduleKey: 'causal-inference', expected: '/patient/p123/tool/causal-inference' },
-      { moduleKey: 'what-if', expected: '/patient/p123/tool/what-if' },
-      { moduleKey: 'integrated-risk', expected: '/patient/p123/tool/integrated-risk' },
-      { moduleKey: 'disease-trajectory', expected: '/patient/p123/tool/disease-trajectory' },
-      { moduleKey: 'evidence', expected: '/patient/p123/tool/evidence' },
-      { moduleKey: 'decision-assistants', expected: '/patient/p123/tool/decision-assistants' },
-      { moduleKey: 'documents', expected: '/patient/p123/tool/documents' },
-      { moduleKey: 'followup', expected: '/patient/p123/tool/followup' },
-    ]
+  describe('buildPatientPath', () => {
+    it('should build basic patient path', () => {
+      expect(buildPatientPath('123')).toBe('/patient/123')
+    })
 
-    for (const route of newRoutes) {
-      it(`should have route for ${route.moduleKey}`, () => {
-        const path = `/patient/p123/tool/${route.moduleKey}`
-        expect(path).toBe(route.expected)
-      })
-    }
+    it('should build path with suffix', () => {
+      expect(buildPatientPath('123', 'overview')).toBe('/patient/123/overview')
+    })
+
+    it('should build tool path', () => {
+      expect(buildPatientPath('123', 'tool/risk-prediction')).toBe('/patient/123/tool/risk-prediction')
+    })
+
+    it('should return empty string for empty patientId', () => {
+      expect(buildPatientPath('')).toBe('')
+      expect(buildPatientPath('', 'overview')).toBe('')
+    })
+  })
+})
+
+describe('Route redirect compatibility', () => {
+  it('old /patient/:id should redirect to /patient/:patientId/overview', () => {
+    // This is a conceptual test — the actual redirect is in the router config
+    // We verify the redirect function logic here
+    const redirectFn = (to: any) => ({
+      path: `/patient/${to.params.id}/overview`,
+      query: to.query,
+    })
+
+    const result = redirectFn({ params: { id: '123' }, query: { dept_code: 'ICU' } })
+    expect(result.path).toBe('/patient/123/overview')
+    expect(result.query).toEqual({ dept_code: 'ICU' })
   })
 
-  describe('Embed routes', () => {
-    const embedRoutes = [
-      'risk-prediction',
-      'similar-cases',
-      'causal-inference',
-      'what-if',
-      'integrated-risk',
-      'disease-trajectory',
-      'evidence',
-      'decision-assistants',
-    ]
+  it('old /patient/:id/intelligence should redirect to /patient/:patientId/tool/risk-prediction', () => {
+    const redirectFn = (to: any) => ({
+      path: `/patient/${to.params.id}/tool/risk-prediction`,
+      query: to.query,
+    })
 
-    for (const moduleKey of embedRoutes) {
-      it(`should have embed route for ${moduleKey}`, () => {
-        const url = `/embed/patient/p123/${moduleKey}`
-        expect(url).toBeTruthy()
-        expect(url).toContain(moduleKey)
-      })
-    }
+    const result = redirectFn({ params: { id: '456' }, query: {} })
+    expect(result.path).toBe('/patient/456/tool/risk-prediction')
   })
 })

@@ -17,19 +17,25 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PatientModuleFrame from '../../components/PatientModuleFrame.vue'
+import { getPatientIdFromRoute } from '../../utils/patientRouteHelper'
+import { useNavigationContext } from '../../navigation/useNavigationContext'
+import { buildContextQuery } from '../../navigation/routeContext'
 
 const route = useRoute()
 const router = useRouter()
+const navCtx = useNavigationContext()
 
 const moduleKey = computed(() => String(route.params.moduleKey || ''))
-const patientId = computed(() => String(route.params.id || ''))
+const patientId = computed(() => getPatientIdFromRoute(route))
 
 function onNavigateModule(targetModuleKey: string) {
-  router.push(`/patient/${patientId.value}/tool/${targetModuleKey}`)
+  const query = buildContextQuery(route.query)
+  router.push({ path: `/patient/${patientId.value}/tool/${targetModuleKey}`, query })
 }
 
 function onNavigatePatient(targetPatientId: string) {
-  router.push(`/patient/${targetPatientId}/tool/${moduleKey.value}`)
+  const query = buildContextQuery(route.query)
+  router.push({ path: `/patient/${targetPatientId}/tool/${moduleKey.value}`, query })
 }
 
 function onUpdateTitle(title: string) {

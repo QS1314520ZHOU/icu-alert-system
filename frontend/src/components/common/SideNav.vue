@@ -16,105 +16,225 @@
     </div>
 
     <nav class="side-nav__menu">
-      <!-- 主要导航组 -->
-      <div v-for="group in mainNavGroups" :key="group.key" class="side-nav__group">
-        <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
-        <router-link
-          v-for="item in group.items"
-          :key="item.key"
-          :to="item.path"
-          :class="['side-nav__item', { 'side-nav__item--active': isActive(item.path) }]"
-          :title="item.label"
-        >
-          <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-          <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
-        </router-link>
-      </div>
-
-      <!-- 更多菜单 -->
-      <div class="side-nav__group">
-        <div v-if="!collapsed" class="side-nav__group-label">更多</div>
-        <a-dropdown
-          v-if="collapsed"
-          :trigger="['click']"
-          placement="bottomRight"
-          overlay-class-name="side-nav__more-dropdown"
-        >
-          <button class="side-nav__item side-nav__more-trigger" title="更多">
-            <span class="side-nav__icon" v-html="iconSvg('more')"></span>
+      <!-- ═══ 患者模式：返回按钮 + 患者模块 ═══ -->
+      <template v-if="isPatientMode">
+        <!-- 返回患者列表 -->
+        <div class="side-nav__group">
+          <button
+            class="side-nav__item side-nav__back-btn"
+            @click="handleBackToPatients"
+            title="返回患者列表"
+          >
+            <span class="side-nav__icon" v-html="iconSvg('arrow-left')"></span>
+            <span v-if="!collapsed" class="side-nav__label">返回患者列表</span>
           </button>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item v-for="item in moreItems" :key="item.key">
-                <router-link :to="item.path" class="side-nav__more-item">
-                  <span v-html="iconSvg(item.icon)"></span>
-                  <span>{{ item.label }}</span>
-                </router-link>
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
+        </div>
 
-        <template v-else>
+        <!-- 患者模块分组 -->
+        <div v-for="group in patientNavGroups" :key="group.key" class="side-nav__group">
+          <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
+          <template v-for="item in group.items" :key="item.key">
+            <!-- 可展开的子组（如"患者智能分析"） -->
+            <template v-if="item.children && item.children.length > 0">
+              <button
+                :class="['side-nav__item', 'side-nav__expandable', { 'side-nav__item--expanded': expandedGroups.has(item.key) }]"
+                @click="toggleExpandGroup(item.key)"
+                :title="item.label"
+              >
+                <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+                <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+                <span v-if="!collapsed" class="side-nav__expand-arrow">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M4 4.5L6 6.5L8 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+              <template v-if="expandedGroups.has(item.key) && !collapsed">
+                <router-link
+                  v-for="child in item.children"
+                  :key="child.key"
+                  :to="getPatientItemPath(child)"
+                  :class="['side-nav__item', 'side-nav__item--sub', { 'side-nav__item--active': isActiveRoute(getPatientItemPath(child)) }]"
+                  :title="child.label"
+                >
+                  <span class="side-nav__icon" v-html="iconSvg(child.icon)"></span>
+                  <span class="side-nav__label">{{ child.label }}</span>
+                </router-link>
+              </template>
+            </template>
+            <!-- 普通菜单项 -->
+            <router-link
+              v-else
+              :to="getPatientItemPath(item)"
+              :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(getPatientItemPath(item)) }]"
+              :title="item.label"
+            >
+              <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+              <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+            </router-link>
+          </template>
+        </div>
+      </template>
+
+      <!-- ═══ 全局模式：标准导航 ═══ -->
+      <template v-else>
+        <div v-for="group in mainNavGroups" :key="group.key" class="side-nav__group">
+          <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
           <router-link
-            v-for="item in visibleMoreItems"
+            v-for="item in group.items"
             :key="item.key"
             :to="item.path"
-            :class="['side-nav__item', { 'side-nav__item--active': isActive(item.path) }]"
+            :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
             :title="item.label"
           >
             <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-            <span class="side-nav__label">{{ item.label }}</span>
+            <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
           </router-link>
+        </div>
 
-          <button
-            v-if="moreItems.length > maxVisibleMoreItems"
-            class="side-nav__item side-nav__expand-btn"
-            @click="showAllMore = !showAllMore"
+        <!-- 更多菜单 -->
+        <div class="side-nav__group">
+          <div v-if="!collapsed" class="side-nav__group-label">更多</div>
+          <a-dropdown
+            v-if="collapsed"
+            :trigger="['click']"
+            placement="bottomRight"
+            overlay-class-name="side-nav__more-dropdown"
           >
-            <span class="side-nav__icon" v-html="iconSvg(showAllMore ? 'chevron-up' : 'chevron-down')"></span>
-            <span class="side-nav__label">{{ showAllMore ? '收起' : `展开 ${moreItems.length - maxVisibleMoreItems} 项` }}</span>
-          </button>
-        </template>
-      </div>
+            <button class="side-nav__item side-nav__more-trigger" title="更多">
+              <span class="side-nav__icon" v-html="iconSvg('more')"></span>
+            </button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item v-for="item in moreItems" :key="item.key">
+                  <router-link :to="item.path" class="side-nav__more-item">
+                    <span v-html="iconSvg(item.icon)"></span>
+                    <span>{{ item.label }}</span>
+                  </router-link>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+
+          <template v-else>
+            <router-link
+              v-for="item in visibleMoreItems"
+              :key="item.key"
+              :to="item.path"
+              :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
+              :title="item.label"
+            >
+              <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+              <span class="side-nav__label">{{ item.label }}</span>
+            </router-link>
+
+            <button
+              v-if="moreItems.length > maxVisibleMoreItems"
+              class="side-nav__item side-nav__expand-btn"
+              @click="showAllMore = !showAllMore"
+            >
+              <span class="side-nav__icon" v-html="iconSvg(showAllMore ? 'chevron-up' : 'chevron-down')"></span>
+              <span class="side-nav__label">{{ showAllMore ? '收起' : `展开 ${moreItems.length - maxVisibleMoreItems} 项` }}</span>
+            </button>
+          </template>
+        </div>
+      </template>
     </nav>
   </aside>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { navGroups, moreMenuItems } from '../../config/roleHomeConfig'
+import { usePatientContext } from '../../stores/patientContext'
+import { useAuthStore } from '../../stores/auth'
+import { resolveNavigation } from '../../navigation/navigationResolver'
+import { useAppNavigation } from '../../navigation/useAppNavigation'
+import type { NavItem } from '../../navigation/navigationTypes'
 
 const route = useRoute()
+const router = useRouter()
+const patientCtx = usePatientContext()
+const auth = useAuthStore()
+const { navigateBack } = useAppNavigation()
+
 const STORAGE_KEY = 'side-nav-collapsed'
 const collapsed = ref(localStorage.getItem(STORAGE_KEY) === 'true')
 const showAllMore = ref(false)
 const maxVisibleMoreItems = 3
+const expandedGroups = ref(new Set<string>())
 
-// 主要导航组（今日工作、患者、预警与任务）
+// ── Navigation mode ──
+const navigationMode = computed(() => (route.meta?.navigationMode as string) || 'global')
+const isPatientMode = computed(() => navigationMode.value === 'patient')
+
+// ── Patient navigation ──
+const patientNav = computed(() => {
+  return resolveNavigation({
+    mode: 'patient',
+    role: auth.role,
+  })
+})
+
+// Convert flat patient nav groups into structured groups with expandable children
+const patientNavGroups = computed(() => {
+  return patientNav.value.groups.map(group => ({
+    key: group.key,
+    label: group.label,
+    items: group.items.map(item => ({
+      ...item,
+      children: item.children || [],
+    })),
+  }))
+})
+
+function getPatientItemPath(item: NavItem): string {
+  const patientId = patientCtx.activePatientId
+  if (!patientId) return '/patients'
+
+  // If the item has a path template, substitute patientId
+  if (item.path) {
+    return item.path.replace(':patientId', patientId)
+  }
+  // Default to tool route
+  return `/patient/${patientId}/tool/${item.key}`
+}
+
+// ── Global navigation ──
 const mainNavGroups = computed(() => navGroups.filter(g => g.key !== 'more'))
-
-// 更多菜单项
 const moreItems = computed(() => moreMenuItems)
 
-// 可见的更多菜单项
 const visibleMoreItems = computed(() => {
-  if (showAllMore.value) {
-    return moreItems.value
-  }
+  if (showAllMore.value) return moreItems.value
   return moreItems.value.slice(0, maxVisibleMoreItems)
 })
 
+// ── Actions ──
 function toggleCollapse() {
   collapsed.value = !collapsed.value
   localStorage.setItem(STORAGE_KEY, String(collapsed.value))
 }
 
-function isActive(path: string) {
+function toggleExpandGroup(groupKey: string) {
+  const set = new Set(expandedGroups.value)
+  if (set.has(groupKey)) {
+    set.delete(groupKey)
+  } else {
+    set.add(groupKey)
+  }
+  expandedGroups.value = set
+}
+
+function handleBackToPatients() {
+  navigateBack()
+}
+
+function isActiveRoute(path: string): boolean {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
+// ── SVG icons ──
 function iconSvg(icon: string) {
   const svgs: Record<string, string> = {
     stethoscope: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>',
@@ -137,6 +257,9 @@ function iconSvg(icon: string) {
     more: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
     'chevron-down': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
     'chevron-up': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>',
+    'arrow-left': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>',
+    alert: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    'trending-up': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
   }
   return svgs[icon] || '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/></svg>'
 }
@@ -251,6 +374,7 @@ function iconSvg(icon: string) {
   cursor: pointer;
   background: transparent;
   border: none;
+  border-left: 3px solid transparent;
   width: 100%;
   text-align: left;
 }
@@ -265,6 +389,34 @@ function iconSvg(icon: string) {
   border-left-color: var(--sidebar-item-active-border, #2563EB);
   color: var(--sidebar-text-active, #18212B);
   font-weight: 600;
+}
+
+.side-nav__item--sub {
+  padding-left: 48px;
+  font-size: 12px;
+}
+
+.side-nav__expandable {
+  position: relative;
+}
+
+.side-nav__expand-arrow {
+  margin-left: auto;
+  opacity: 0.5;
+  transition: transform 0.2s;
+}
+
+.side-nav__item--expanded .side-nav__expand-arrow {
+  transform: rotate(180deg);
+}
+
+.side-nav__back-btn {
+  color: var(--color-primary, #2563EB);
+  font-weight: 500;
+}
+
+.side-nav__back-btn:hover {
+  background: rgba(37, 99, 235, 0.06);
 }
 
 .side-nav__icon {
@@ -332,6 +484,14 @@ function iconSvg(icon: string) {
 
 .side-nav--collapsed .side-nav__expand-btn {
   display: none;
+}
+
+.side-nav--collapsed .side-nav__expand-arrow {
+  display: none;
+}
+
+.side-nav--collapsed .side-nav__item--sub {
+  padding-left: 0;
 }
 
 /* 更多下拉菜单样式 */

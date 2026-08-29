@@ -65,7 +65,9 @@ let contextTimer: number | null = null
 let lastContextKey = ''
 
 const currentPatientId = computed(() => {
-  if (route.name === 'patient-detail') return String(route.params.id || '')
+  // Use patientId param (canonical) with fallback to id (legacy)
+  if (route.params.patientId) return String(route.params.patientId)
+  if (route.params.id) return String(route.params.id)
   return String(route.query.patient_id || route.query.patientId || '')
 })
 

@@ -70,17 +70,19 @@ export interface RuleCalculationItem {
   name?: string
   score?: number
   value?: number | string
-  ok?: boolean
+  ok?: boolean | null
+  status?: 'pass' | 'fail' | 'unavailable'
   description?: string
 }
 
 export interface RuleCalculation {
   score_type: string
-  total_score?: number
+  total_score?: number | null
+  calculable?: boolean
   items: RuleCalculationItem[]
   calc_time?: string
   description?: string
-  lights?: { label: string; ok: boolean }[]
+  lights?: { label: string; ok: boolean | null; status?: 'pass' | 'fail' | 'unavailable' }[]
   statistical_scope?: string
 }
 
@@ -91,6 +93,10 @@ export interface AiAnalysis {
   disclaimer: string
   model: string
   generated_at: string | null
+  data_cutoff_at?: string | null
+  patient_id?: string
+  context_type?: string
+  context_id?: string | null
 }
 
 export interface TimelineEvent {
@@ -117,10 +123,17 @@ export interface Provenance {
   data_sources: string[]
 }
 
+export interface Confidence {
+  evidence_completeness: number | null
+  rule_reliability: number | null
+  model_probability: number | null
+}
+
 export interface EvidenceResponse {
   conclusion: string
   severity: 'critical' | 'high' | 'warning' | 'info' | 'stable'
-  confidence: number
+  calculable: boolean
+  confidence: Confidence
   generated_at: string
   data_cutoff_at: string
   metrics: EvidenceMetric[]

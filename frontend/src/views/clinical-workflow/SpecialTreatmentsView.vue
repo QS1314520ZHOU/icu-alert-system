@@ -73,7 +73,7 @@
           @click="ctx.openEvidence(row.patient_id, 'discharge', { title: `${row.bed || ''}床 转出评估证据` })"
         >
           <strong>{{ row.bed || '--' }}床</strong>
-          <span class="light-percent">{{ row.percent || 0 }}%</span>
+          <span class="light-percent">{{ row.percent != null ? row.percent + '%' : '不可计算' }}</span>
           <i v-for="light in row.lights" :key="light.label" :class="light.ok ? 'ok' : 'bad'" :title="light.label" />
         </button>
       </div>

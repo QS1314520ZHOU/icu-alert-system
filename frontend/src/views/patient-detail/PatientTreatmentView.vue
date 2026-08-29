@@ -167,7 +167,7 @@ const {
   fmtTime, alertTypeText, normalizeSeverity,
 } = usePatientDetail()
 
-const patientId = computed(() => String(route.params.id || ''))
+const patientId = computed(() => String(route.params.patientId || route.params.id || ''))
 
 // ---- 出入量 ----
 const fluidBalanceSummary = computed(() => {

@@ -54,25 +54,37 @@ export const useAuthStore = defineStore('auth', () => {
     if (userId.value || userName.value) setOperatorIdentity(userId.value || userName.value)
   }
 
+  /**
+   * Sync identity from route query parameters.
+   *
+   * Rules:
+   * - Identity (userId, userName) from URL is used as FALLBACK only —
+   *   if we already have a session identity, URL params don't overwrite it.
+   * - dept_code from URL is accepted if present, but NEVER cleared if absent.
+   * - role from URL is accepted if present, but NEVER cleared if absent.
+   * - URL params are for legacy system compatibility, not as auth source.
+   */
   function hydrateFromQuery(query: LocationQuery) {
     const nextUserId = firstQuery(query, ['user_id', 'userId'])
     const nextUserName = firstQuery(query, ['userName', 'useName', 'username'])
     const nextRole = firstQuery(query, ['role'])
     const nextDept = firstQuery(query, ['dept'])
     const nextDeptCode = firstQuery(query, ['dept_code', 'deptCode'])
-    const incomingUser = nextUserId || nextUserName
-    const currentUser = userId.value || userName.value
-    if (incomingUser && incomingUser !== currentUser) {
-      role.value = ''
-      dept.value = ''
-      deptCode.value = ''
+
+    // Identity: only set from URL if no session identity exists
+    if (!userId.value && !userName.value) {
+      if (nextUserId) userId.value = nextUserId
+      if (nextUserName) userName.value = nextUserName
+      if (!nextUserId && nextUserName) userId.value = nextUserName
     }
-    if (nextUserId) userId.value = nextUserId
-    if (nextUserName) userName.value = nextUserName
-    if (!nextUserId && nextUserName) userId.value = nextUserName
+
+    // Role: accept from URL if present, don't clear if absent
     if (nextRole) role.value = nextRole
+
+    // Department: accept from URL if present, NEVER clear if absent
     if (nextDept) dept.value = nextDept
     if (nextDeptCode) deptCode.value = nextDeptCode
+
     persist()
   }
 

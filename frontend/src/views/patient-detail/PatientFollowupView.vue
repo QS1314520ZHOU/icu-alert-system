@@ -97,7 +97,7 @@ const LongTermFollowupTab = defineAsyncComponent(() => import('../../components/
 const route = useRoute()
 const { patient } = usePatientDetail()
 
-const patientId = computed(() => String(route.params.id || ''))
+const patientId = computed(() => String(route.params.patientId || route.params.id || ''))
 const activeTab = ref('pics')
 
 // ── Tasks ───────────────────────────────────────────────

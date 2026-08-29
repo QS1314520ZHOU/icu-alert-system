@@ -1,6 +1,7 @@
 <template>
   <div class="ai-evidence">
-    <div v-if="!aiAnalysis" class="ai-empty">未启用AI分析</div>
+    <div v-if="!aiAnalysis" class="ai-empty">尚未生成 AI 分析</div>
+    <div v-else-if="isEmpty" class="ai-empty">尚未生成 AI 分析</div>
     <template v-else>
       <!-- 支持证据 -->
       <div class="ai-section">
@@ -55,11 +56,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { AiAnalysis } from '../../api/clinicalEvidence'
 
-defineProps<{
+const props = defineProps<{
   aiAnalysis: AiAnalysis | null
 }>()
+
+const isEmpty = computed(() => {
+  if (!props.aiAnalysis) return true
+  const a = props.aiAnalysis
+  return !a.supporting_evidence?.length && !a.opposing_evidence?.length && !a.uncertainties?.length
+})
 </script>
 
 <style scoped>

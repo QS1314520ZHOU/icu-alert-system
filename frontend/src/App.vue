@@ -1,7 +1,10 @@
 <template>
   <component :is="themeWrapperComponent" v-bind="themeWrapperProps">
     <div class="root" :class="[isMobileRoute ? 'theme-light' : `theme-${themeMode}`, { 'root--mobile': isMobileRoute }]">
-      <template v-if="isMobileRoute">
+      <template v-if="isEmbedRoute">
+        <router-view />
+      </template>
+      <template v-else-if="isMobileRoute">
         <router-view />
       </template>
       <template v-else>
@@ -43,6 +46,7 @@
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { usePatientContext } from './stores/patientContext'
 import { getClinicalAccount } from './api'
 import { preloadCoreRouteComponents } from './router'
 import AiPulseFloater from './components/AiPulseFloater.vue'
@@ -74,6 +78,7 @@ function firstRouteQuery(...keys: string[]) {
 const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'username', 'user_id', 'userId'))
 const isBootMobilePath = typeof window !== 'undefined' && (window.location.pathname === '/m' || window.location.pathname.startsWith('/m/'))
 const isMobileRoute = computed(() => Boolean(route.meta?.mobile) || (route.path === '/' && isBootMobilePath))
+const isEmbedRoute = computed(() => Boolean(route.meta?.embed))
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
   if (!antThemeReady.value || !antTheme.value) return undefined
@@ -207,6 +212,8 @@ onMounted(() => {
   preloadCoreRouteComponents()
   operatorIdentity.value = getOperatorIdentity()
   syncOperatorFromRoute()
+  // Restore patient context from sessionStorage
+  try { usePatientContext().restoreFromSession() } catch {}
   tick()
   t = setInterval(tick, 1000)
 })
