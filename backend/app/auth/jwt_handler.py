@@ -120,7 +120,7 @@ async def get_current_user(
                 allowed_depts=user_record.get("allowed_depts", []),
                 allowed_wards=user_record.get("allowed_wards", []),
                 permissions=user_record.get("permissions", []),
-                is_active=True,
+                is_active=user_record.get("is_active", True),
             )
     except Exception as exc:
         logger.warning("从数据库加载用户失败，使用JWT降级: %s", exc)
