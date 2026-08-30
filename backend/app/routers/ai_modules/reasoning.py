@@ -8,7 +8,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app import runtime
-from app.auth import get_current_user, require_patient_access
+from app.auth import User, get_current_user, require_patient_access
 from app.config import get_config
 from app.alert_engine.scanner_beta_blocker_advisor import BetaBlockerAdvisorScanner
 from app.alert_engine.scanner_fibrinolysis_monitor import FibrinolysisMonitorScanner
@@ -160,23 +160,20 @@ def _normalize_organ_scores(organ_scores: dict, default_scale: str = "percent_0_
 @router.get("/api/ai/risk-forecast/{patient_id}")
 async def ai_risk_forecast(
     patient_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """患者风险预测接口。
 
     认证与授权：
-    - 匿名请求 → 401 Unauthorized
+    - 匿名请求 → 401 Unauthorized（get_current_user 处理）
+    - 用户停用 → 401 Unauthorized
     - 无权访问患者 → 403 Forbidden
     - 无效患者ID → 400 Bad Request
     - 患者不存在 → 404 Not Found
     - 模型不可用 → 200 + calculable=false（非错误，是有意降级）
     - 服务异常 → 503 Service Unavailable
     """
-    # 验证认证
-    if not current_user or not current_user.get("username"):
-        raise HTTPException(status_code=401, detail="未认证")
-
-    # 患者访问授权检查（内部会处理 400/403/404）
+    # 患者访问授权检查（内部会处理 400/401/403/404）
     await require_patient_access(
         current_user=current_user,
         patient_id=patient_id,

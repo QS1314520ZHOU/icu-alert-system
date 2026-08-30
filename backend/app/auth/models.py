@@ -26,6 +26,8 @@ class User(BaseModel):
     role: UserRole
     dept: str = ""  # 用户所属科室
     allowed_depts: list[str] = Field(default_factory=list)  # 授权访问的科室列表
+    allowed_wards: list[str] = Field(default_factory=list)  # 授权访问的病区列表
+    permissions: list[str] = Field(default_factory=list)  # 功能权限列表
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -59,3 +61,7 @@ class TokenPayload(BaseModel):
     role: str
     type: str
     exp: datetime
+    dept: str = ""
+    allowed_depts: list[str] = Field(default_factory=list)
+    allowed_wards: list[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)

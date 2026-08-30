@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -11,6 +12,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.auth.models import User, UserRole, TokenPayload
+
+logger = logging.getLogger("icu-auth")
 
 # 配置
 SECRET_KEY = "icu-alert-system-secret-key-change-in-production"
@@ -79,7 +82,10 @@ def verify_token(token: str) -> Optional[TokenPayload]:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> User:
-    """获取当前用户。"""
+    """获取当前用户。
+
+    优先从数据库加载用户信息（确保权限最新），JWT payload 作为降级来源。
+    """
     token = credentials.credentials
     payload = verify_token(token)
 
@@ -96,19 +102,41 @@ async def get_current_user(
             detail="无效的令牌类型",
         )
 
-    # TODO: 从数据库获取用户信息
-    # 这里返回模拟用户，dept 从 JWT payload 中读取
-    user = User(
+    # 从数据库加载用户信息（确保权限、科室等字段最新）
+    try:
+        from app import runtime
+        user_record = await runtime.db.col("users").find_one({
+            "username": payload.sub,
+            "is_active": True,
+        })
+
+        if user_record:
+            return User(
+                id=str(user_record["_id"]),
+                username=user_record["username"],
+                email=user_record.get("email", ""),
+                role=UserRole(user_record.get("role", payload.role)),
+                dept=user_record.get("dept", ""),
+                allowed_depts=user_record.get("allowed_depts", []),
+                allowed_wards=user_record.get("allowed_wards", []),
+                permissions=user_record.get("permissions", []),
+                is_active=True,
+            )
+    except Exception as exc:
+        logger.warning("从数据库加载用户失败，使用JWT降级: %s", exc)
+
+    # 降级：使用 JWT payload 构建用户（数据库不可用时）
+    return User(
         id=payload.sub,
         username=payload.sub,
         email=f"{payload.sub}@hospital.com",
         role=UserRole(payload.role),
-        dept=getattr(payload, "dept", "") or "",
-        allowed_depts=getattr(payload, "allowed_depts", []) or [],
+        dept=payload.dept or "",
+        allowed_depts=payload.allowed_depts or [],
+        allowed_wards=payload.allowed_wards or [],
+        permissions=payload.permissions or [],
         is_active=True,
     )
-
-    return user
 
 
 def require_role(*roles: UserRole):
@@ -131,13 +159,16 @@ async def require_patient_access(
 ):
     """检查用户是否有权访问指定患者。
 
-    授权维度：
+    授权逻辑（按优先级）：
     1. 管理员 (admin) → 全部患者
-    2. 用户科室 (dept) 与患者科室 (hisDept/dept) 匹配
-    3. 用户授权科室列表 (allowed_depts) 包含患者科室
-    4. 用户关联病区包含患者病区
+    2. 功能权限检查：用户必须具有指定 permission
+    3. 科室匹配：用户科室 == 患者科室
+    4. 授权科室列表：患者科室 ∈ 用户 allowed_depts
+    5. 授权病区列表：患者病区 ∈ 用户 allowed_wards
 
     Raises:
+        HTTPException(400): 无效患者ID
+        HTTPException(401): 用户未激活
         HTTPException(403): 无权访问
         HTTPException(404): 患者不存在
     """
@@ -147,9 +178,20 @@ async def require_patient_access(
     if db is None:
         db = runtime.db
 
+    # 用户未激活
+    if not current_user.is_active:
+        raise HTTPException(status_code=401, detail="用户账号已停用")
+
     # 管理员拥有全部权限
     if current_user.role == UserRole.ADMIN:
         return True
+
+    # 功能权限检查
+    if permission and permission not in (current_user.permissions or []):
+        # 如果用户没有任何权限配置，则跳过权限检查（向后兼容）
+        # 如果用户有权限配置但缺少所需权限，则拒绝
+        if current_user.permissions:
+            raise HTTPException(status_code=403, detail="缺少所需功能权限")
 
     try:
         pid = ObjectId(patient_id)
@@ -166,20 +208,20 @@ async def require_patient_access(
     patient_dept = patient.get("hisDept") or patient.get("dept") or ""
     patient_ward = patient.get("hisWard") or patient.get("ward") or ""
 
-    # 检查科室权限
+    # 科室匹配：用户科室 == 患者科室
     user_dept = current_user.dept or ""
-    user_allowed_depts = current_user.allowed_depts or []
-
-    # 用户科室匹配
     if user_dept and patient_dept and user_dept == patient_dept:
         return True
 
-    # 用户授权科室列表匹配
+    # 授权科室列表：患者科室 ∈ 用户 allowed_depts
+    user_allowed_depts = current_user.allowed_depts or []
     if user_allowed_depts and patient_dept and patient_dept in user_allowed_depts:
         return True
 
-    # 无权访问
-    raise HTTPException(
-        status_code=403,
-        detail=f"无权访问该患者数据：患者科室({patient_dept})不在授权范围内",
-    )
+    # 授权病区列表：患者病区 ∈ 用户 allowed_wards
+    user_allowed_wards = current_user.allowed_wards or []
+    if user_allowed_wards and patient_ward and patient_ward in user_allowed_wards:
+        return True
+
+    # 无权访问（不泄漏患者科室信息）
+    raise HTTPException(status_code=403, detail="无权访问该患者数据")
