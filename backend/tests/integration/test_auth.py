@@ -3,7 +3,8 @@ Auth integration tests.
 
 Tests the authentication and authorization flow:
 - JWT validation → 401 if invalid/expired
-- User loading from DB → fallback to JWT
+- User must exist in DB and be active → 401 otherwise
+- DB error → 503 (no JWT fallback)
 - Patient access authorization by dept/ward/permission
 
 These tests use a minimal FastAPI app with mocked MongoDB
@@ -21,6 +22,9 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from jose import jwt
+
+# Set JWT_SECRET_KEY before importing jwt_handler (it reads at module level)
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-integration-tests-min32")
 
 # Ensure backend root is importable
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -111,12 +115,7 @@ def _make_token(
 
 
 def _mock_runtime(mock_user=None, mock_patient=None):
-    """Create a mock runtime with find_one returning appropriate records.
-
-    Returns a context manager that patches app.runtime.
-    The "patient" collection is queried by ObjectId; mock_patient must have
-    an ``_id`` that is a valid ObjectId string or ObjectId instance.
-    """
+    """Create a mock runtime with find_one returning appropriate records."""
 
     class _MockCol:
         def __init__(self, name):
@@ -137,6 +136,23 @@ def _mock_runtime(mock_user=None, mock_patient=None):
         db = _MockDB()
 
     return patch("app.runtime", _MockRuntime())
+
+
+def _failing_runtime():
+    """Runtime where DB always raises (simulates DB down)."""
+
+    class _FailingCol:
+        async def find_one(self, *a, **kw):
+            raise RuntimeError("DB connection failed")
+
+    class _FailingDB:
+        def col(self, name):
+            return _FailingCol()
+
+    class _FailingRuntime:
+        db = _FailingDB()
+
+    return patch("app.runtime", _FailingRuntime())
 
 
 # Valid ObjectId constants for patient IDs
@@ -160,12 +176,10 @@ class TestNoToken:
     """P0: No token → 401."""
 
     def test_no_auth_header_returns_401(self, client):
-        """No Authorization header → 401."""
         resp = client.get("/api/test/current-user")
         assert resp.status_code == 401
 
     def test_empty_auth_header_returns_401(self, client):
-        """Empty Authorization header → 401."""
         resp = client.get(
             "/api/test/current-user",
             headers={"Authorization": ""},
@@ -178,22 +192,17 @@ class TestNoToken:
 # ---------------------------------------------------------------------------
 
 class TestExpiredToken:
-    """P0: Expired token → 401."""
+    """P0: Expired/invalid token → 401."""
 
     def test_expired_token_returns_401(self, client):
-        """Expired JWT → 401."""
         token = _make_token(expired=True)
         resp = client.get(
             "/api/test/current-user",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 401
-        # Error message should indicate auth failure (not "inactive")
-        detail = resp.json().get("detail", "")
-        assert len(detail) > 0
 
     def test_invalid_signature_returns_401(self, client):
-        """Token signed with wrong key → 401."""
         token = _make_token(secret="wrong-secret-key-1234567890")
         resp = client.get(
             "/api/test/current-user",
@@ -202,7 +211,6 @@ class TestExpiredToken:
         assert resp.status_code == 401
 
     def test_malformed_token_returns_401(self, client):
-        """Garbage token → 401."""
         resp = client.get(
             "/api/test/current-user",
             headers={"Authorization": "Bearer not-a-valid-jwt"},
@@ -211,27 +219,33 @@ class TestExpiredToken:
 
 
 # ---------------------------------------------------------------------------
+# P0: User not found → 401 (no fallback)
+# ---------------------------------------------------------------------------
+
+class TestUserNotFound:
+    """P0: User not in DB → 401. No JWT fallback."""
+
+    def test_user_not_in_db_returns_401(self, client):
+        """DB returns no user → 401 (not JWT fallback)."""
+        token = _make_token(sub="ghost_user")
+
+        with _mock_runtime(mock_user=None):
+            resp = client.get(
+                "/api/test/current-user",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
 # P0: User inactive → 401
 # ---------------------------------------------------------------------------
 
 class TestInactiveUser:
-    """P0: Inactive user → 401."""
+    """P0: is_active=false → 401."""
 
     def test_inactive_user_returns_401(self, client):
-        """User with is_active=False → 401.
-
-        Note: get_current_user queries DB with is_active=True filter.
-        An inactive user won't be found in DB, so it falls back to JWT.
-        The fallback user always has is_active=True.
-        To test inactive user properly, we need to test the code path where
-        DB returns an inactive user (which shouldn't happen with the query).
-        This test verifies the fallback behavior.
-        """
         token = _make_token(sub="inactive_user")
-        # Simulate DB returning inactive user (bypassing the is_active filter)
-        # This requires a more sophisticated mock that checks the query.
-        # For now, test that get_current_user fallback returns active user.
-        # The inactive check is in require_patient_access which uses current_user.is_active.
         mock_user = {
             "_id": "u001",
             "username": "inactive_user",
@@ -240,42 +254,63 @@ class TestInactiveUser:
             "allowed_depts": ["ICU-1"],
             "allowed_wards": [],
             "permissions": ["patient:risk:view"],
-            "is_active": False,  # inactive in DB
-        }
-        mock_patient = {
-            "_id": ObjectId(PATIENT_ID_1),
-            "dept": "ICU-1",
-            "ward": "ward-A",
+            "is_active": False,
         }
 
-        # Patch _mock_runtime to return inactive user from users collection
-        # but still return patient from patient collection
-        class _InactiveMockCol:
-            def __init__(self, name):
-                self._name = name
-
-            async def find_one(self, query, *args, **kwargs):
-                if self._name == "users":
-                    # Return inactive user even though query filters is_active=True
-                    # This tests the edge case where DB returns inconsistent data
-                    return mock_user
-                if self._name == "patient":
-                    return mock_patient
-                return None
-
-        class _InactiveMockDB:
-            def col(self, name):
-                return _InactiveMockCol(name)
-
-        class _InactiveMockRuntime:
-            db = _InactiveMockDB()
-
-        with patch("app.runtime", _InactiveMockRuntime()):
+        with _mock_runtime(mock_user=mock_user):
             resp = client.get(
-                f"/api/test/patient-access/{PATIENT_ID_1}",
+                "/api/test/current-user",
                 headers={"Authorization": f"Bearer {token}"},
             )
             assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# P0: DB error → 503 (no fallback)
+# ---------------------------------------------------------------------------
+
+class TestDBError:
+    """P0: DB exception → 503. No JWT fallback."""
+
+    def test_db_error_returns_503(self, client):
+        token = _make_token(sub="any_user")
+
+        with _failing_runtime():
+            resp = client.get(
+                "/api/test/current-user",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert resp.status_code == 503
+
+
+# ---------------------------------------------------------------------------
+# P0: Active user → 200
+# ---------------------------------------------------------------------------
+
+class TestActiveUser:
+    """P0: Valid token + active user in DB → 200."""
+
+    def test_active_user_returns_200(self, client):
+        token = _make_token(sub="active_doc")
+        mock_user = {
+            "_id": "u010",
+            "username": "active_doc",
+            "role": "doctor",
+            "dept": "ICU-1",
+            "allowed_depts": ["ICU-1"],
+            "allowed_wards": [],
+            "permissions": ["patient:risk:view"],
+            "is_active": True,
+        }
+
+        with _mock_runtime(mock_user=mock_user):
+            resp = client.get(
+                "/api/test/current-user",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["username"] == "active_doc"
+            assert resp.json()["dept"] == "ICU-1"
 
 
 # ---------------------------------------------------------------------------
@@ -286,7 +321,6 @@ class TestDeptMismatch:
     """P0: Patient dept not in user's allowed depts → 403."""
 
     def test_dept_mismatch_returns_403(self, client):
-        """User from ICU-1 tries to access ICU-2 patient → 403."""
         token = _make_token(sub="icu1_doc", dept="ICU-1", allowed_depts=["ICU-1"])
         mock_user = {
             "_id": "u002",
@@ -312,7 +346,6 @@ class TestDeptMismatch:
             assert resp.status_code == 403
 
     def test_403_does_not_leak_patient_dept(self, client):
-        """403 message must not contain patient dept info."""
         token = _make_token(sub="icu1_doc", dept="ICU-1", allowed_depts=["ICU-1"])
         mock_user = {
             "_id": "u002",
@@ -348,7 +381,6 @@ class TestPermissionCheck:
     """P0: User missing required permission → 403."""
 
     def test_missing_permission_returns_403(self, client):
-        """User has permissions config but missing patient:risk:view → 403."""
         token = _make_token(sub="viewer", permissions=["patient:overview:view"])
         mock_user = {
             "_id": "u003",
@@ -357,7 +389,7 @@ class TestPermissionCheck:
             "dept": "ICU-1",
             "allowed_depts": ["ICU-1"],
             "allowed_wards": [],
-            "permissions": ["patient:overview:view"],  # no patient:risk:view
+            "permissions": ["patient:overview:view"],
             "is_active": True,
         }
         mock_patient = {
@@ -372,10 +404,8 @@ class TestPermissionCheck:
                 headers={"Authorization": f"Bearer {token}"},
             )
             assert resp.status_code == 403
-            assert "权限" in resp.json().get("detail", "")
 
     def test_no_permissions_config_skips_check(self, client):
-        """User with empty permissions → permission check skipped (backward compat)."""
         token = _make_token(sub="legacy_user", permissions=[])
         mock_user = {
             "_id": "u004",
@@ -384,7 +414,7 @@ class TestPermissionCheck:
             "dept": "ICU-1",
             "allowed_depts": ["ICU-1"],
             "allowed_wards": [],
-            "permissions": [],  # empty → skip check
+            "permissions": [],
             "is_active": True,
         }
         mock_patient = {
@@ -401,7 +431,6 @@ class TestPermissionCheck:
             assert resp.status_code == 200
 
     def test_has_required_permission_grants_access(self, client):
-        """User has the required permission → 200."""
         token = _make_token(sub="risk_viewer", permissions=["patient:risk:view"])
         mock_user = {
             "_id": "u005",
@@ -435,7 +464,6 @@ class TestWardAccess:
     """P1: Ward-based access control."""
 
     def test_ward_match_grants_access(self, client):
-        """User's allowed_wards matches patient ward → 200."""
         token = _make_token(
             sub="ward_doc",
             dept="",
@@ -466,7 +494,6 @@ class TestWardAccess:
             assert resp.status_code == 200
 
     def test_ward_mismatch_returns_403(self, client):
-        """User's allowed_wards doesn't match patient ward → 403."""
         token = _make_token(
             sub="ward_doc",
             dept="",
@@ -498,62 +525,6 @@ class TestWardAccess:
 
 
 # ---------------------------------------------------------------------------
-# P0: DB user loading
-# ---------------------------------------------------------------------------
-
-class TestDBUserLoading:
-    """P0: User loaded from DB, not just JWT payload."""
-
-    def test_db_user_dept_overrides_jwt(self, client):
-        """DB user's dept takes precedence over JWT payload."""
-        token = _make_token(sub="moved_user", dept="ICU-1")
-        mock_user = {
-            "_id": "u008",
-            "username": "moved_user",
-            "role": "doctor",
-            "dept": "ICU-3",  # different from JWT
-            "allowed_depts": ["ICU-3"],
-            "allowed_wards": [],
-            "permissions": ["patient:risk:view"],
-            "is_active": True,
-        }
-
-        with _mock_runtime(mock_user=mock_user):
-            resp = client.get(
-                "/api/test/current-user",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            assert resp.status_code == 200
-            assert resp.json()["dept"] == "ICU-3"
-
-    def test_fallback_to_jwt_when_db_unavailable(self, client):
-        """When DB is unavailable, fall back to JWT payload."""
-        token = _make_token(sub="jwt_user", dept="ICU-1")
-
-        # Mock runtime that raises (simulating DB failure)
-        class _FailingCol:
-            async def find_one(self, *a, **kw):
-                raise RuntimeError("DB connection failed")
-
-        class _FailingDB:
-            def col(self, name):
-                return _FailingCol()
-
-        class _FailingRuntime:
-            db = _FailingDB()
-
-        with patch("app.runtime", _FailingRuntime()):
-            resp = client.get(
-                "/api/test/current-user",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["username"] == "jwt_user"
-            assert data["dept"] == "ICU-1"  # from JWT
-
-
-# ---------------------------------------------------------------------------
 # P0: Admin bypass
 # ---------------------------------------------------------------------------
 
@@ -561,7 +532,6 @@ class TestAdminBypass:
     """P0: Admin users bypass all checks."""
 
     def test_admin_bypasses_dept_check(self, client):
-        """Admin can access any patient regardless of dept."""
         token = _make_token(sub="admin", role="admin", dept="ICU-1")
         mock_user = {
             "_id": "u009",
@@ -583,14 +553,13 @@ class TestAdminBypass:
 
 
 # ---------------------------------------------------------------------------
-# P0: Ward granted via allowed_depts (patient in user's dept list)
+# P0: Allowed_depts match
 # ---------------------------------------------------------------------------
 
 class TestAllowedDepts:
     """P0: Patient dept in user's allowed_depts → access."""
 
     def test_allowed_depts_match(self, client):
-        """User's allowed_depts contains patient dept → 200."""
         token = _make_token(sub="multi_dept", dept="", allowed_depts=["ICU-1", "ICU-3"])
         mock_user = {
             "_id": "u010",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -15,8 +16,13 @@ from app.auth.models import User, UserRole, TokenPayload
 
 logger = logging.getLogger("icu-auth")
 
-# 配置
-SECRET_KEY = "icu-alert-system-secret-key-change-in-production"
+# 配置：从环境变量读取，未配置时拒绝启动
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET_KEY 环境变量未配置。"
+        "请在 .env 文件中设置一个高强度密钥（至少 32 字符）。"
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -84,7 +90,8 @@ async def get_current_user(
 ) -> User:
     """获取当前用户。
 
-    优先从数据库加载用户信息（确保权限最新），JWT payload 作为降级来源。
+    从数据库加载用户信息。用户不存在或未激活返回 401，数据库异常返回 503。
+    不允许 JWT 降级——所有用户信息必须来自数据库。
     """
     token = credentials.credentials
     payload = verify_token(token)
@@ -102,39 +109,40 @@ async def get_current_user(
             detail="无效的令牌类型",
         )
 
-    # 从数据库加载用户信息（确保权限、科室等字段最新）
+    # 从数据库加载用户——不允许降级
     try:
         from app import runtime
         user_record = await runtime.db.col("users").find_one({
             "username": payload.sub,
-            "is_active": True,
         })
-
-        if user_record:
-            return User(
-                id=str(user_record["_id"]),
-                username=user_record["username"],
-                email=user_record.get("email", ""),
-                role=UserRole(user_record.get("role", payload.role)),
-                dept=user_record.get("dept", ""),
-                allowed_depts=user_record.get("allowed_depts", []),
-                allowed_wards=user_record.get("allowed_wards", []),
-                permissions=user_record.get("permissions", []),
-                is_active=user_record.get("is_active", True),
-            )
     except Exception as exc:
-        logger.warning("从数据库加载用户失败，使用JWT降级: %s", exc)
+        logger.error("数据库查询用户失败: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="认证服务暂时不可用",
+        )
 
-    # 降级：使用 JWT payload 构建用户（数据库不可用时）
+    if not user_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户不存在",
+        )
+
+    if not user_record.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户账号已停用",
+        )
+
     return User(
-        id=payload.sub,
-        username=payload.sub,
-        email=f"{payload.sub}@hospital.com",
-        role=UserRole(payload.role),
-        dept=payload.dept or "",
-        allowed_depts=payload.allowed_depts or [],
-        allowed_wards=payload.allowed_wards or [],
-        permissions=payload.permissions or [],
+        id=str(user_record["_id"]),
+        username=user_record["username"],
+        email=user_record.get("email", ""),
+        role=UserRole(user_record.get("role", payload.role)),
+        dept=user_record.get("dept", ""),
+        allowed_depts=user_record.get("allowed_depts", []),
+        allowed_wards=user_record.get("allowed_wards", []),
+        permissions=user_record.get("permissions", []),
         is_active=True,
     )
 

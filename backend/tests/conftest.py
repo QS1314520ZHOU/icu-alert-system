@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 import pytest
+
+# JWT_SECRET_KEY is required at import time by jwt_handler.
+# Set a test default before any app module is imported.
+os.environ.setdefault("JWT_SECRET_KEY", "test-key-for-unit-tests-only-min32chars")
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
