@@ -114,6 +114,10 @@ class FakeDB:
 
     def insert(self, collection: str, doc_id: str, doc: dict):
         """测试辅助：插入文档。"""
+        # 确保集合已初始化
+        if collection not in self._stores:
+            self._stores[collection] = {}
+            self._collections[collection] = FakeCollection(collection, self._stores[collection])
         doc["_id"] = doc_id
         self._stores[collection][doc_id] = doc
 
