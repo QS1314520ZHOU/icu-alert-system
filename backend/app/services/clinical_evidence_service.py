@@ -647,7 +647,7 @@ async def _build_rule_noise_evidence(db, patient_id: str, rule_id: str | None, s
     ]
 
     rule_stats = []
-    async for doc in db.col("alert_records").aggregate(pipeline):
+    async for doc in await db.col("alert_records").aggregate(pipeline):
         total = doc.get("count", 0)
         confirmed = doc.get("confirmed", 0)
         overridden = doc.get("overridden", 0)
@@ -833,7 +833,7 @@ async def _query_metrics(db, patient_id: str, codes: list[str], since: datetime)
             }},
         ]
         try:
-            async for doc in db.col("bedside").aggregate(pipeline_vital):
+            async for doc in await db.col("bedside").aggregate(pipeline_vital):
                 code = doc.get("_id", "")
                 value = doc.get("latest_value")
                 metrics.append(_build_metric_entry(code, value, doc))
@@ -860,7 +860,7 @@ async def _query_metrics(db, patient_id: str, codes: list[str], since: datetime)
             }},
         ]
         try:
-            async for doc in db.col("labResult").aggregate(pipeline_lab):
+            async for doc in await db.col("labResult").aggregate(pipeline_lab):
                 code = doc.get("_id", "")
                 value = doc.get("latest_value")
                 metrics.append(_build_metric_entry(code, value, doc))

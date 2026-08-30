@@ -220,18 +220,8 @@ const modelAvailable = computed(() => {
 /** Can the risk be calculated (model available AND probability is valid) */
 const calculable = computed(() => rawData.value?.calculable === true)
 
-/** Is this a model prediction (trained_model) */
-const isModelPrediction = computed(() => rawData.value?.prediction_source === 'trained_model')
-
 /** Is this a rule estimate (rule_estimate) */
 const isRuleEstimate = computed(() => rawData.value?.prediction_source === 'rule_estimate')
-
-/** Risk level from backend */
-const riskLevel = computed(() => {
-  const level = rawData.value?.risk_level
-  if (!level || level === 'unavailable' || level === 'unknown') return null
-  return level
-})
 
 /** Reason for model unavailability */
 const modelUnavailableReason = computed(() => {
@@ -439,9 +429,9 @@ const organChartOption = computed<EChartsOption | null>(() => {
     series: [{
       type: 'bar',
       data: data.map(d => ({
-        value: d.value,
+        value: d.value ?? 0,
         itemStyle: {
-          color: d.value >= 80 ? '#991B1B' : d.value >= 60 ? '#DC2626' : d.value >= 40 ? '#F59E0B' : '#16A34A',
+          color: (d.value ?? 0) >= 80 ? '#991B1B' : (d.value ?? 0) >= 60 ? '#DC2626' : (d.value ?? 0) >= 40 ? '#F59E0B' : '#16A34A',
           borderRadius: [0, 3, 3, 0],
         },
       })),

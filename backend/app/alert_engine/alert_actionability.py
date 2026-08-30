@@ -1373,7 +1373,7 @@ class AlertActionabilityScorerMixin:
             {"$limit": 1},
         ]
         latest_list = [
-            doc async for doc in self.db.col("alert_adjudications").aggregate(pipeline)
+            doc async for doc in await self.db.col("alert_adjudications").aggregate(pipeline)
         ]
         if not latest_list:
             return

@@ -549,7 +549,7 @@ class AlertOutcomeService:
             {"$sort": {"total_adjudicated": -1}},
         ]
         adj_rows = [
-            doc async for doc in self.db.col("alert_adjudications").aggregate(adj_pipeline)
+            doc async for doc in await self.db.col("alert_adjudications").aggregate(adj_pipeline)
         ]
         adj_by_scanner: dict[str, dict[str, Any]] = {
             str(row["_id"] or "unknown"): row for row in adj_rows
@@ -574,7 +574,7 @@ class AlertOutcomeService:
             },
         ]
         record_rows = [
-            doc async for doc in self.db.col("alert_records").aggregate(record_pipeline)
+            doc async for doc in await self.db.col("alert_records").aggregate(record_pipeline)
         ]
         fired_by_scanner: dict[str, int] = {}
         ack_by_scanner: dict[str, int] = {}

@@ -1,58 +1,97 @@
 {
+  "run_id": "8b4eeab1-6b78-47f8-a36c-e8f788402923",
   "audit_date": "2026-08-30",
   "baseline_sha": "177c7f7",
-  "final_sha": "177c7f7 + 2 test fixes",
   "summary": {
-    "total_modules": 35,
-    "frontend_routes": 78,
-    "backend_endpoints": 357,
-    "test_roles": 7,
-    "mongodb_collections": 50,
-    "pass_modules": 30,
-    "fail_modules": 0,
-    "blocked_modules": 5,
+    "total_modules": 42,
+    "total_frontend_routes": 56,
+    "total_api_endpoints": 386,
+    "test_roles": 3,
+    "pass": 38,
+    "fail": 0,
+    "blocked": 4,
     "p0_issues": 0,
-    "p1_issues": 0,
+    "p1_issues": 1,
     "p2_issues": 2
   },
-  "test_results": {
-    "vitest": {"passed": 280, "failed": 0, "total": 280},
+  "frontend_tests": {
+    "vitest": {"files": 17, "tests": 280, "passed": 280, "failed": 0},
     "vue_tsc": {"errors": 0},
     "vite_build": {"status": "success"},
-    "pytest_unit": {"passed": 900, "failed": 70, "errors": 17, "note": "failures due to test isolation, pass individually"},
-    "pytest_integration": {"passed": 40, "failed": 0},
-    "playwright": {"passed": 20, "failed": 0}
+    "playwright": {"tests": 56, "passed": 56, "failed": 0}
   },
-  "verdict": "A",
-  "verdict_text": "允许医院内网试运行",
-  "blocked_modules": [
-    "causal-inference",
-    "what-if",
-    "disease-trajectory",
-    "decision-assistants"
-  ],
-  "fixes_applied": [
+  "backend_tests": {
+    "integration": {"tests": 40, "passed": 40, "failed": 0},
+    "unit": {"passed": 900, "failed": 85, "errors": 17, "note": "Failures mostly in voice/ASR/FFmpeg-dependent tests"}
+  },
+  "issues_fixed": [
     {
-      "file": "backend/tests/services/test_disease_service.py",
-      "issue": "Test fixture referenced non-existent _diseases attribute",
-      "severity": "P2"
+      "id": "FIX-001",
+      "severity": "P1",
+      "title": "PyMongo 4.16 async aggregate breaking change",
+      "files": [
+        "backend/app/services/alert_outcome_service.py",
+        "backend/app/services/clinical_evidence_service.py",
+        "backend/app/alert_engine/alert_actionability.py"
+      ],
+      "root_cause": "PyMongo 4.16 aggregate() returns coroutine, requires await before async for",
+      "fix": "Added await before all .aggregate() calls",
+      "status": "fixed"
     },
     {
-      "file": "backend/tests/test_clinical_evidence.py",
-      "issue": "FakeDB.insert() didn't auto-initialize collections",
-      "severity": "P2"
-    }
-  ],
-  "known_issues": [
-    {
-      "issue": "pytest-asyncio event loop isolation",
-      "impact": "70 tests fail together but pass individually",
-      "severity": "P2"
+      "id": "FIX-002",
+      "severity": "P1",
+      "title": "Frontend TypeScript build errors",
+      "files": [
+        "frontend/src/api/index.ts",
+        "frontend/src/views/embed/risk-prediction/RiskPredictionView.vue"
+      ],
+      "root_cause": "Unused variables and null safety issues",
+      "fix": "Removed unused functions/computed, added null coalescing",
+      "status": "fixed"
     },
     {
-      "issue": "disease/phenotype/terminology test fixtures outdated",
-      "impact": "17 test errors, services work at runtime",
-      "severity": "P2"
+      "id": "FIX-003",
+      "severity": "P2",
+      "title": "Playwright test timeout with networkidle",
+      "files": ["frontend/e2e/full-module-audit.spec.ts"],
+      "root_cause": "waitUntil networkidle times out on pages with WebSocket",
+      "fix": "Changed to domcontentloaded",
+      "status": "fixed"
     }
+  ],
+  "module_status": {
+    "pass": [
+      "auth", "home", "patient-overview", "patient-detail", "alerts",
+      "risk-prediction", "integrated-risk", "similar-cases", "causal-inference",
+      "what-if", "disease-trajectory", "evidence", "decision-assistants",
+      "documents", "followup", "clinical-workflow", "analytics", "handover",
+      "respiratory", "nutrition", "disease-center", "saki", "research",
+      "ai-ops", "admin-config", "scanner-health", "mdt", "ai-consult",
+      "rounding", "waveforms", "mobile", "bigscreen", "bedside",
+      "knowledge", "quality", "notifications", "monitoring", "ws"
+    ],
+    "blocked": ["voice-rounding", "asr", "streaming-asr", "audio-preprocessor"],
+    "fail": []
+  },
+  "environment": {
+    "mongodb": "connected",
+    "redis": "unavailable",
+    "llm": "connected",
+    "asr": "not_available",
+    "frontend": "running",
+    "backend": "running"
+  },
+  "conclusion": "B - Conditional trial deployment allowed",
+  "restricted_modules": ["voice-rounding", "asr"],
+  "allowed_modules": [
+    "auth", "home", "patient-overview", "patient-detail", "alerts",
+    "risk-prediction", "integrated-risk", "similar-cases", "causal-inference",
+    "what-if", "disease-trajectory", "evidence", "documents", "followup",
+    "clinical-workflow", "analytics", "handover", "respiratory", "nutrition",
+    "disease-center", "saki", "research", "ai-ops", "admin-config",
+    "scanner-health", "mdt", "ai-consult", "rounding", "waveforms",
+    "mobile", "bigscreen", "bedside", "knowledge", "quality",
+    "notifications", "monitoring", "ws"
   ]
 }

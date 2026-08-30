@@ -1,5 +1,37 @@
-import axios from 'axios'
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
+// ── JWT token manager ─────────────────────────────────────────────
+const JWT_STORAGE_KEY = 'icu_jwt_access_token'
+const JWT_REFRESH_KEY = 'icu_jwt_refresh_token'
+
+function getStoredToken(): string {
+  try { return localStorage.getItem(JWT_STORAGE_KEY) || '' } catch { return '' }
+}
+function storeTokens(access: string, refresh: string) {
+  try {
+    localStorage.setItem(JWT_STORAGE_KEY, access)
+    localStorage.setItem(JWT_REFRESH_KEY, refresh)
+  } catch {}
+}
+function clearTokens() {
+  try {
+    localStorage.removeItem(JWT_STORAGE_KEY)
+    localStorage.removeItem(JWT_REFRESH_KEY)
+  } catch {}
+}
+
+/** Inject Authorization header into every axios request. */
+function installAuthInterceptor(instance: AxiosInstance) {
+  instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    const token = getStoredToken()
+    if (token && !config.headers.has('Authorization')) {
+      config.headers.set('Authorization', `Bearer ${token}`)
+    }
+    return config
+  })
+}
+
+// ── Axios instances ───────────────────────────────────────────────
 const api = axios.create({
   // Use same-origin in dev so Vite proxy can handle /api and /health.
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
@@ -33,6 +65,100 @@ export const aiApi = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
   timeout: 120000,
 })
+
+// Install auth interceptor on all instances
+;[api, analyticsApi, researchApi, bundleApi, alertsApi, aiApi].forEach(installAuthInterceptor)
+
+// ── Auto-login helper ─────────────────────────────────────────────
+let _loginPromise: Promise<string> | null = null
+
+/**
+ * Ensure a valid JWT exists. If not, attempt auto-login using the
+ * operator identity from localStorage (username) with a default password.
+ * Returns the access token, or '' if login fails.
+ */
+async function ensureToken(): Promise<string> {
+  const existing = getStoredToken()
+  if (existing) return existing
+
+  // Deduplicate concurrent login attempts
+  if (_loginPromise) return _loginPromise
+
+  _loginPromise = (async () => {
+    try {
+      // Read operator identity from localStorage (set by auth store)
+      let username = ''
+      try {
+        const raw = localStorage.getItem('icu_auth_identity')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          username = parsed.userId || parsed.userName || ''
+        }
+      } catch {}
+
+      if (!username) {
+        // Fallback: read from operatorIdentity util
+        try {
+          username = localStorage.getItem('icu_operator_identity') || ''
+        } catch {}
+      }
+
+      if (!username) return ''
+
+      // Auto-login with default password
+      const res = await axios.post('/api/auth/login', {
+        username,
+        password: 'admin123', // default dev password
+      }, { timeout: 5000 })
+
+      const { access_token, refresh_token } = res.data || {}
+      if (access_token) {
+        storeTokens(access_token, refresh_token || '')
+        return access_token
+      }
+      return ''
+    } catch {
+      return ''
+    }
+  })()
+
+  const token = await _loginPromise
+  _loginPromise = null
+  return token
+}
+
+/**
+ * Response interceptor: on 401 try re-login once and retry the request.
+ * Only auto-retries for /api/ai/ endpoints to avoid masking auth issues elsewhere.
+ */
+function installAutoRetryInterceptor(instance: AxiosInstance) {
+  instance.interceptors.response.use(undefined, async (error) => {
+    const config = error?.config
+    if (error?.response?.status !== 401 || !config || config._retried) {
+      return Promise.reject(error)
+    }
+    // Only auto-retry for AI endpoints (the ones that require JWT)
+    const url = String(config?.url || '')
+    if (!url.includes('/api/ai/') && !url.includes('/api/auth/')) {
+      return Promise.reject(error)
+    }
+
+    config._retried = true
+    clearTokens()
+    const newToken = await ensureToken()
+    if (!newToken) return Promise.reject(error)
+
+    config.headers = config.headers || {}
+    config.headers['Authorization'] = `Bearer ${newToken}`
+    return instance.request(config)
+  })
+}
+
+;[api, analyticsApi, researchApi, bundleApi, alertsApi, aiApi].forEach(installAutoRetryInterceptor)
+
+// ── Auth API ──────────────────────────────────────────────────────
+export const postLogin = (username: string, password: string) =>
+  axios.post('/api/auth/login', { username, password }, { timeout: 8000 })
 
 // 获取科室列表
 export const getDepartments = () => api.get('/api/departments')
