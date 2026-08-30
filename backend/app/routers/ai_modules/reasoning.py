@@ -408,19 +408,84 @@ async def ai_clinical_reasoning(patient_id: str, refresh: bool = Query(default=F
         return {"code": 0, "plan": None, "error": f"个体化诊疗推理异常: {str(exc)[:120]}"}
 
 
+def _ensure_list(value):
+    """确保值为列表，否则返回空列表。"""
+    return value if isinstance(value, list) else []
+
+
+def _normalize_causal_chain(value):
+    """标准化 causal_chain 字段，兼容旧 MongoDB 结构。"""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        for key in ("nodes", "chain", "items"):
+            if isinstance(value.get(key), list):
+                return value[key]
+    # 字符串形式的因果链保持原样，前端做降级文本展示
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return []
+
+
+def _normalize_organ_status(value):
+    """标准化 organ_status 字段，兼容对象映射格式。"""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        return [
+            {"organ": organ, **(detail if isinstance(detail, dict) else {"status": detail})}
+            for organ, detail in value.items()
+        ]
+    return []
+
+
+def _normalize_report_schema(report: dict) -> dict:
+    """标准化报告 schema，确保所有数组字段为列表。"""
+    report["organ_status"] = _normalize_organ_status(report.get("organ_status"))
+    report["causal_chain"] = _normalize_causal_chain(report.get("causal_chain"))
+    report["top_actions"] = _ensure_list(report.get("top_actions") or report.get("top3_actions"))
+    report["evidence"] = _ensure_list(report.get("evidence"))
+    report["schema_version"] = "2.0"
+    return report
+
+
 @router.get("/api/ai/integrated-risk/{patient_id}")
-async def ai_integrated_risk_report(patient_id: str, refresh: bool = Query(default=False)):
+async def ai_integrated_risk_report(
+    patient_id: str,
+    refresh: bool = Query(default=False),
+    current_user: User = Depends(get_current_user),
+):
+    """综合风险报告接口。
+
+    认证与授权：
+    - 匿名请求 → 401 Unauthorized（get_current_user 处理）
+    - 用户停用 → 401 Unauthorized
+    - 无权访问患者 → 403 Forbidden
+    - 无效患者ID → 400 Bad Request
+    - 患者不存在 → 404 Not Found
+    - AI额度耗尽 → 503 Service Unavailable
+    - 服务异常 → 503 Service Unavailable
+    - 成功但无报告 → 200 + report=null + status="empty"
+    """
+    # 患者访问授权检查（内部会处理 400/401/403/404）
+    await require_patient_access(
+        current_user=current_user,
+        patient_id=patient_id,
+        permission="patient:risk:view",
+    )
+
+    # 验证患者ID格式
     try:
         pid = ObjectId(patient_id)
     except Exception:
-        return {"code": 400, "message": "无效患者ID"}
+        raise HTTPException(status_code=400, detail="无效患者ID")
 
     if runtime.db is None:
-        return {"code": 0, "report": None, "error": "数据库服务未就绪"}
+        raise HTTPException(status_code=503, detail="数据库服务未就绪")
 
-    patient = await runtime.db.col("patient").find_one({"_id": pid})
+    patient = await runtime.db.col("patient").find_one({"_id": pid}, {"_id": 1})
     if not patient:
-        return {"code": 404, "message": "患者不存在"}
+        raise HTTPException(status_code=404, detail="患者不存在")
 
     try:
         record = None
@@ -431,17 +496,46 @@ async def ai_integrated_risk_report(patient_id: str, refresh: bool = Query(defau
             )
         if not record:
             if runtime.alert_engine is None:
-                return {"code": 0, "report": None, "error": "预警引擎未就绪，无法生成综合风险报告"}
-            scanner = IntegratedRiskReasoningScanner(runtime.alert_engine)
-            reports = await scanner.scan(str(pid))
-            record = reports[0] if reports else await runtime.db.col("integrated_risk_reports").find_one(
-                {"patient_id": str(pid)},
-                sort=[("created_at", -1)],
-            )
-        return {"code": 0, "report": serialize_doc(record) if record else None}
+                return {"code": 0, "report": None, "status": "empty", "error": "预警引擎未就绪，无法生成综合风险报告"}
+            try:
+                scanner = IntegratedRiskReasoningScanner(runtime.alert_engine)
+                reports = await scanner.scan(str(pid))
+                record = reports[0] if reports else None
+            except Exception as scan_exc:
+                scan_msg = str(scan_exc).lower()
+                # LLM 额度耗尽
+                if "429" in scan_msg or "quota" in scan_msg or "rate limit" in scan_msg:
+                    # 尝试返回历史报告
+                    stale_record = await runtime.db.col("integrated_risk_reports").find_one(
+                        {"patient_id": str(pid)},
+                        sort=[("created_at", -1)],
+                    )
+                    if stale_record:
+                        normalized = _normalize_report_schema(serialize_doc(stale_record))
+                        normalized["stale"] = True
+                        normalized["generation_status"] = "llm_quota_exhausted"
+                        return {"code": 0, "report": normalized, "status": "stale"}
+                    raise HTTPException(
+                        status_code=503,
+                        detail="AI服务额度不足，暂时无法生成综合风险报告",
+                    )
+                # 其他扫描异常，尝试返回历史报告
+                logger.warning("integrated risk scanner degraded patient_id=%s error=%s", patient_id, str(scan_exc)[:160])
+                record = await runtime.db.col("integrated_risk_reports").find_one(
+                    {"patient_id": str(pid)},
+                    sort=[("created_at", -1)],
+                )
+
+        if not record:
+            return {"code": 0, "report": None, "status": "empty"}
+
+        normalized = _normalize_report_schema(serialize_doc(record))
+        return {"code": 0, "report": normalized}
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("AI integrated risk error: %s", exc)
-        return {"code": 0, "report": None, "error": f"综合风险推理异常: {str(exc)[:120]}"}
+        raise HTTPException(status_code=503, detail="综合风险服务暂时不可用")
 
 
 @router.get("/api/ai/metabolic-phase/{patient_id}")
