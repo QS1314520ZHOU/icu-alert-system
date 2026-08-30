@@ -97,12 +97,14 @@ async def get_current_user(
         )
 
     # TODO: 从数据库获取用户信息
-    # 这里返回模拟用户
+    # 这里返回模拟用户，dept 从 JWT payload 中读取
     user = User(
         id=payload.sub,
         username=payload.sub,
         email=f"{payload.sub}@hospital.com",
         role=UserRole(payload.role),
+        dept=getattr(payload, "dept", "") or "",
+        allowed_depts=getattr(payload, "allowed_depts", []) or [],
         is_active=True,
     )
 
@@ -119,3 +121,65 @@ def require_role(*roles: UserRole):
             )
         return current_user
     return role_checker
+
+
+async def require_patient_access(
+    current_user: User,
+    patient_id: str,
+    db=None,
+    permission: str = "patient:view",
+):
+    """检查用户是否有权访问指定患者。
+
+    授权维度：
+    1. 管理员 (admin) → 全部患者
+    2. 用户科室 (dept) 与患者科室 (hisDept/dept) 匹配
+    3. 用户授权科室列表 (allowed_depts) 包含患者科室
+    4. 用户关联病区包含患者病区
+
+    Raises:
+        HTTPException(403): 无权访问
+        HTTPException(404): 患者不存在
+    """
+    from bson import ObjectId
+    from app import runtime
+
+    if db is None:
+        db = runtime.db
+
+    # 管理员拥有全部权限
+    if current_user.role == UserRole.ADMIN:
+        return True
+
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="无效患者ID")
+
+    patient = await db.col("patient").find_one(
+        {"_id": pid},
+        {"hisDept": 1, "dept": 1, "hisWard": 1, "ward": 1},
+    )
+    if not patient:
+        raise HTTPException(status_code=404, detail="患者不存在")
+
+    patient_dept = patient.get("hisDept") or patient.get("dept") or ""
+    patient_ward = patient.get("hisWard") or patient.get("ward") or ""
+
+    # 检查科室权限
+    user_dept = current_user.dept or ""
+    user_allowed_depts = current_user.allowed_depts or []
+
+    # 用户科室匹配
+    if user_dept and patient_dept and user_dept == patient_dept:
+        return True
+
+    # 用户授权科室列表匹配
+    if user_allowed_depts and patient_dept and patient_dept in user_allowed_depts:
+        return True
+
+    # 无权访问
+    raise HTTPException(
+        status_code=403,
+        detail=f"无权访问该患者数据：患者科室({patient_dept})不在授权范围内",
+    )

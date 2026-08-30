@@ -24,6 +24,8 @@ class User(BaseModel):
     username: str
     email: str
     role: UserRole
+    dept: str = ""  # 用户所属科室
+    allowed_depts: list[str] = Field(default_factory=list)  # 授权访问的科室列表
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

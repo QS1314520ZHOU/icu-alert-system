@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime
 
 from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app import runtime
-from app.auth import get_current_user
+from app.auth import get_current_user, require_patient_access
 from app.config import get_config
 from app.alert_engine.scanner_beta_blocker_advisor import BetaBlockerAdvisorScanner
 from app.alert_engine.scanner_fibrinolysis_monitor import FibrinolysisMonitorScanner
@@ -104,20 +105,37 @@ def _fallback_fibrinolysis_record(patient: dict, patient_id: str, error: str | N
     }
 
 
+VALID_SCALES = {"probability_0_1", "percent_0_100"}
+
+
 def _validate_scaled_value(value, scale: str | None):
-    """校验带量纲的风险值，确保数值在合理范围内。"""
+    """校验带量纲的风险值，确保数值在合理范围内。
+
+    - 未知量纲 (None, "unknown", etc.) → 返回 None
+    - 超出范围 → 返回 None
+    - 非有限数字 → 返回 None
+    """
     if value is None:
         return None
+
+    # 明确拒绝未知量纲
+    if scale not in VALID_SCALES:
+        return None
+
     try:
         value = float(value)
     except (TypeError, ValueError):
         return None
-    if not __import__("math").isfinite(value):
+
+    if not math.isfinite(value):
         return None
+
     if scale == "probability_0_1" and not 0 <= value <= 1:
         return None
+
     if scale == "percent_0_100" and not 0 <= value <= 100:
         return None
+
     return value
 
 
@@ -148,6 +166,7 @@ async def ai_risk_forecast(
 
     认证与授权：
     - 匿名请求 → 401 Unauthorized
+    - 无权访问患者 → 403 Forbidden
     - 无效患者ID → 400 Bad Request
     - 患者不存在 → 404 Not Found
     - 模型不可用 → 200 + calculable=false（非错误，是有意降级）
@@ -156,6 +175,13 @@ async def ai_risk_forecast(
     # 验证认证
     if not current_user or not current_user.get("username"):
         raise HTTPException(status_code=401, detail="未认证")
+
+    # 患者访问授权检查（内部会处理 400/403/404）
+    await require_patient_access(
+        current_user=current_user,
+        patient_id=patient_id,
+        permission="patient:risk:view",
+    )
 
     # 验证患者ID格式
     try:
@@ -200,9 +226,17 @@ async def ai_risk_forecast(
     if not risk_level or risk_level == "unknown":
         risk_level = "unavailable"
 
-    # 模型不可用时明确标记 calculable=false
+    # 计算 calculable：区分模型预测和规则估算
     model_available = model_meta.get("model_available", False)
-    calculable = model_available and current_probability is not None
+    is_model_prediction = prediction_source == "trained_model"
+    is_rule_estimate = prediction_source == "rule_estimate"
+
+    if is_model_prediction:
+        calculable = model_available and current_probability is not None
+    elif is_rule_estimate:
+        calculable = current_probability is not None
+    else:
+        calculable = False
 
     # 为 horizon_probabilities 添加 scale 并校验值
     horizon_probs = forecast.get("horizon_probabilities") or []
@@ -244,6 +278,8 @@ async def ai_risk_forecast(
         "current_probability": current_probability,
         "probability_scale": probability_scale,
         "calculable": calculable,
+        "is_model_prediction": is_model_prediction,
+        "is_rule_estimate": is_rule_estimate,
         "horizon_probabilities": horizon_probs,
         "risk_curve": forecast.get("risk_curve") or [],
         "history_risk_curve": forecast.get("history_risk_curve") or [],

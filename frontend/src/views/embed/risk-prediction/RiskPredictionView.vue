@@ -195,7 +195,10 @@ function normalizeStatus(raw: unknown): string {
 const loading = ref(false)
 const rawData = ref<any>(null)
 
-const displayLabel = computed(() => rawData.value?.display_label || '风险预测')
+const displayLabel = computed(() => {
+  if (isRuleEstimate.value) return '规则估算风险，非AI模型预测'
+  return rawData.value?.display_label || '风险预测'
+})
 const safetyNotice = computed(() => rawData.value?.safety_notice || '预测结果仅供临床决策支持，不替代医生判断')
 
 const updatedAt = computed(() => {
@@ -215,11 +218,13 @@ const modelAvailable = computed(() => {
 })
 
 /** Can the risk be calculated (model available AND probability is valid) */
-const calculable = computed(() => {
-  if (rawData.value?.calculable === false) return false
-  if (!modelAvailable.value) return false
-  return rawData.value?.current_probability != null
-})
+const calculable = computed(() => rawData.value?.calculable === true)
+
+/** Is this a model prediction (trained_model) */
+const isModelPrediction = computed(() => rawData.value?.prediction_source === 'trained_model')
+
+/** Is this a rule estimate (rule_estimate) */
+const isRuleEstimate = computed(() => rawData.value?.prediction_source === 'rule_estimate')
 
 /** Risk level from backend */
 const riskLevel = computed(() => {
