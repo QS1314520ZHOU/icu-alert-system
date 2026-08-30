@@ -124,19 +124,54 @@ async def ai_risk_forecast(patient_id: str):
         )
         model_meta = forecast.get("model_meta") or {}
         prediction_source = forecast.get("prediction_source") or model_meta.get("prediction_source") or "unknown"
+
+        # ── 量纲标注：明确区分 probability_0_1 和 percent_0_100 ──
+        # trained_model 使用 0-1 概率，rule_estimate 使用 0-100 评分
+        probability_scale = (
+            "probability_0_1" if prediction_source == "trained_model"
+            else "percent_0_100" if prediction_source == "rule_estimate"
+            else None
+        )
+
+        # 为 horizon_probabilities 添加 scale
+        horizon_probs = forecast.get("horizon_probabilities") or []
+        for hp in horizon_probs:
+            if isinstance(hp, dict) and "scale" not in hp:
+                hp["scale"] = probability_scale
+
+        # 为 history_risk_curve / forecast_risk_curve 添加 scale
+        for curve_key in ("history_risk_curve", "forecast_risk_curve"):
+            curve = forecast.get(curve_key) or []
+            for point in curve:
+                if isinstance(point, dict) and "scale" not in point:
+                    point["scale"] = probability_scale
+
+        # 为 threshold_bands 添加 scale
+        threshold_bands = forecast.get("threshold_bands") or []
+        for band in threshold_bands:
+            if isinstance(band, dict) and "scale" not in band:
+                band["scale"] = probability_scale
+
+        # 为 organ_risk_scores 添加 scale（器官风险使用 0-100）
+        organ_scores = forecast.get("organ_risk_scores") or {}
+        for key, val in organ_scores.items():
+            if isinstance(val, dict) and "scale" not in val:
+                val["scale"] = "percent_0_100"
+
         return {
             "code": 0,
             "risk_summary": forecast.get("summary") or "",
             "risk_level": forecast.get("risk_level") or "low",
             "current_probability": forecast.get("current_probability") or 0,
-            "horizon_probabilities": forecast.get("horizon_probabilities") or [],
+            "probability_scale": probability_scale,
+            "horizon_probabilities": horizon_probs,
             "risk_curve": forecast.get("risk_curve") or [],
             "history_risk_curve": forecast.get("history_risk_curve") or [],
             "forecast_risk_curve": forecast.get("forecast_risk_curve") or [],
-            "threshold_bands": forecast.get("threshold_bands") or [],
+            "threshold_bands": threshold_bands,
             "high_risk_zone": forecast.get("high_risk_zone") or {},
             "top_contributors": forecast.get("top_contributors") or [],
-            "organ_risk_scores": forecast.get("organ_risk_scores") or {},
+            "organ_risk_scores": organ_scores,
             "organ_risk_curves": forecast.get("organ_risk_curves") or {},
             "model_meta": model_meta,
             # ── unified contract fields ──

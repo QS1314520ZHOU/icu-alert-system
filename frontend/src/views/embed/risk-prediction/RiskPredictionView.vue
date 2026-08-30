@@ -267,6 +267,12 @@ const hasScaleMissing = computed(() => {
   const history = rawData.value?.history_risk_curve || []
   const forecast = rawData.value?.forecast_risk_curve || []
   if ([...history, ...forecast].some((p: any) => (p.probability ?? p.value) != null && !p.scale)) return true
+  // 检查器官风险
+  const organs = Object.values(rawData.value?.organ_risk_scores || {})
+  if (organs.some((item: any) => (item?.score ?? item) != null && !item?.scale)) return true
+  // 检查阈值
+  const thresholds = rawData.value?.threshold_bands || []
+  if (thresholds.some((item: any) => item?.value != null && !item?.scale)) return true
   return false
 })
 

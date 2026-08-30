@@ -23,9 +23,9 @@
             <div class="topbar__right">
               <label class="operator-pill" title="用于记录告警查看 / 确认操作人">
                 <span class="operator-pill__label">操作人</span>
-                <span v-if="operatorDisplayName || routeUserName" class="operator-pill__name">{{ operatorDisplayName || routeUserName }}</span>
+                <span v-if="operatorDisplayName" class="operator-pill__name">{{ operatorDisplayName }}</span>
                 <input
-                  v-if="!operatorDisplayName && !routeUserName"
+                  v-else
                   v-model.trim="operatorIdentity"
                   class="operator-pill__input"
                   type="text"
@@ -70,16 +70,6 @@ let t: any
 const THEME_KEY = 'icu_theme_mode'
 let operatorResolveSeq = 0
 const operatorNameCache = new Map<string, string>()
-function firstRouteQuery(...keys: string[]) {
-  for (const key of keys) {
-    const value = route.query[key]
-    const text = String(Array.isArray(value) ? value[0] : value || '').trim()
-    if (text) return text
-  }
-  return ''
-}
-
-const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'username', 'user_id', 'userId'))
 const isBootMobilePath = typeof window !== 'undefined' && (window.location.pathname === '/m' || window.location.pathname.startsWith('/m/'))
 const isMobileRoute = computed(() => Boolean(route.meta?.mobile) || (route.path === '/' && isBootMobilePath))
 const isEmbedRoute = computed(() => Boolean(route.meta?.embed))
@@ -165,12 +155,9 @@ function syncOperatorFromRoute() {
 /**
  * 解析操作人显示名称。
  * 安全要求：userId/role/dept_code 必须来自登录会话，不得从 URL 读取。
- * URL 中的 userName 仅作为显示名称的降级来源。
  */
 async function resolveOperatorDisplayName() {
-  const authUserName = String(auth.userId || auth.userName || '').trim()
-  const displayHint = routeUserName.value || '' // URL 仅用于显示名降级
-  const userName = authUserName || displayHint
+  const userName = String(auth.userId || auth.userName || '').trim()
   const deptCode = String(auth.deptCode || '').trim()
   const dept = String(auth.dept || '').trim()
   const role = String(auth.role || '').trim()

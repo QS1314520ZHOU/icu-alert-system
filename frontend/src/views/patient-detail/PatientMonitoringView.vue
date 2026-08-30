@@ -40,6 +40,11 @@
         <div v-if="waveformLoading" class="loading-placeholder">
           <a-spin />
         </div>
+        <div v-else-if="waveformError" class="waveform-error">
+          <span class="waveform-error__icon">⚠️</span>
+          <span class="waveform-error__text">{{ waveformError }}</span>
+          <button class="waveform-empty__btn" @click="loadWaveform">重试</button>
+        </div>
         <div v-else-if="waveformPoints.length" class="waveform-chart-container">
           <WaveformChart
             :points="waveformPoints"
@@ -91,7 +96,7 @@ import WaveformChart from './components/WaveformChart.vue'
 const {
   trendWindow, trendPoints, trendLoaded, loadTrend,
   waveformHours, waveformSelectedChannel, waveformChannels,
-  waveformPoints, waveformLoading,
+  waveformPoints, waveformLoading, waveformError,
   labs, labsLoaded, loadLabs, loadWaveform,
   forecastMeta, fmtTime,
 } = usePatientDetail()
@@ -181,6 +186,28 @@ onMounted(() => {
   padding: 40px 20px;
   gap: 8px;
   text-align: center;
+}
+
+.waveform-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 8px;
+  text-align: center;
+  background: #FFF7ED;
+  border: 1px solid #FDBA74;
+  border-radius: 6px;
+}
+
+.waveform-error__icon {
+  font-size: 24px;
+}
+
+.waveform-error__text {
+  font-size: 13px;
+  color: #9A3412;
 }
 
 .waveform-empty__icon {
