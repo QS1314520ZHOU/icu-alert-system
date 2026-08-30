@@ -1,7 +1,11 @@
 <template>
   <component :is="themeWrapperComponent" v-bind="themeWrapperProps">
     <div class="root" :class="[isMobileRoute ? 'theme-light' : `theme-${themeMode}`, { 'root--mobile': isMobileRoute }]">
-      <template v-if="isEmbedRoute">
+      <template v-if="isEmbedRoute || (isInIframe && route.path.startsWith('/embed/'))">
+        <router-view />
+      </template>
+      <template v-else-if="isInIframe">
+        <!-- iframe 内非 embed 路由：不渲染完整 shell -->
         <router-view />
       </template>
       <template v-else-if="isMobileRoute">
@@ -79,6 +83,7 @@ const routeUserName = computed(() => firstRouteQuery('userName', 'useName', 'use
 const isBootMobilePath = typeof window !== 'undefined' && (window.location.pathname === '/m' || window.location.pathname.startsWith('/m/'))
 const isMobileRoute = computed(() => Boolean(route.meta?.mobile) || (route.path === '/' && isBootMobilePath))
 const isEmbedRoute = computed(() => Boolean(route.meta?.embed))
+const isInIframe = typeof window !== 'undefined' && window.self !== window.top
 const routeNeedsAntdTheme = computed(() => Boolean(route.meta?.useAntdTheme))
 const themeConfig = computed(() => {
   if (!antThemeReady.value || !antTheme.value) return undefined
@@ -208,6 +213,11 @@ watch(() => [route.query.userName, route.query.useName, route.query.username, ro
 }, { immediate: true })
 
 onMounted(() => {
+  // 运行时 iframe 保护：阻止完整 App Shell 在 iframe 中渲染
+  if (window.self !== window.top && !route.path.startsWith('/embed/')) {
+    console.warn('[App] Blocked full App Shell inside iframe, redirecting to embed route')
+    // 不渲染完整 shell，让 embed 路由接管
+  }
   initTheme()
   preloadCoreRouteComponents()
   operatorIdentity.value = getOperatorIdentity()

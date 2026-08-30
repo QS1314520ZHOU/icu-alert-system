@@ -770,7 +770,7 @@ function _createPatientDetail(_initialPatientId: string) {
       met: '✓ 符合', not_met: '✗ 不符合', unknown: '? 待确认',
       not_excluded: '⚠ 未排除', supported: '✓ 可排除',
     }
-    return map[String(status ?? '')] ?? String(status ?? '—')
+    return map[String(status ?? '')] ?? '—'
   }
 
   function fmtBP(v: any) {
@@ -815,7 +815,7 @@ function _createPatientDetail(_initialPatientId: string) {
       workflow_reminder: '流程提醒', quality_gap: '质控缺项',
       data_quality: '数据质量', ai_advisory: 'AI建议', unknown: '未分类',
     }
-    return map[String(raw || '').toLowerCase()] || ''
+    return map[String(raw || '').toLowerCase()] || '未分类'
   }
 
   function alertPriorityLabel(raw: any) {
@@ -828,17 +828,17 @@ function _createPatientDetail(_initialPatientId: string) {
       rule: '规则', trained_model: '模型', heuristic: '启发式',
       llm: 'LLM', manual: '人工', device_native: '设备', hybrid: '混合',
     }
-    return map[String(raw || '').toLowerCase()] || ''
+    return map[String(raw || '').toLowerCase()] || '未知来源'
   }
 
   function alertTypeText(raw: any) {
     const t = String(raw || '')
     if (!t) return ''
     const map: Record<string, string> = {
-      lab_threshold: '检验阈值', trend_analysis: '趋势恶化', sofa: 'SOFA',
-      qsofa: 'qSOFA', septic_shock: '脓毒性休克', ards: 'ARDS',
+      lab_threshold: '检验阈值', trend_analysis: '趋势恶化', sofa: 'SOFA评分',
+      qsofa: 'qSOFA评分', septic_shock: '脓毒性休克', ards: 'ARDS',
       ards_oxygenation_screen: 'ARDS氧合筛查', ventilator_lung_injury_risk: '肺保护通气偏离',
-      aki: 'AKI', dic: 'DIC', gi_bleeding: '消化道出血', gcs_drop: 'GCS下降',
+      aki: '急性肾损伤', dic: 'DIC', gi_bleeding: '消化道出血', gcs_drop: 'GCS下降',
       hit: 'HIT', nephrotoxicity: '肾毒性', sedation: '镇静风险', qt_risk: 'QT风险',
       af_afl_new_onset: '新发房颤/房扑', brady_hypotension: '心动过缓合并低压',
       qtc_prolonged: 'QTc明显延长', opioid_high_dose_resp_risk: '阿片高剂量呼吸抑制风险',
@@ -854,11 +854,11 @@ function _createPatientDetail(_initialPatientId: string) {
       vte_immobility_no_prophylaxis: '制动无VTE预防', nutrition_start_delay: '营养启动延迟',
       nutrition_calorie_not_reached: '热卡未达标', nutrition_feeding_intolerance: '喂养不耐受',
       nutrition_refeeding_risk: '再喂养风险', multi_organ_deterioration_trend: '多器官恶化趋势',
-      liberation_bundle: 'eCASH / ABCDEF 解放束', icu_aw_risk: 'ICU 获得性衰弱高风险',
+      liberation_bundle: 'eCASH解放束', icu_aw_risk: 'ICU获得性衰弱高风险',
       early_mobility_recommendation: '早期活动推荐', pe_suspected: '肺栓塞检测',
-      pe_wells_high: '肺栓塞 Wells 评分', post_extubation_failure_risk: '拔管后呼吸衰竭风险',
+      pe_wells_high: '肺栓塞Wells评分', post_extubation_failure_risk: '拔管后呼吸衰竭风险',
     }
-    return map[t] || t.split('_').join(' ')
+    return map[t] || '临床预警'
   }
 
   function alertCategoryText(raw: any) {
@@ -873,7 +873,7 @@ function _createPatientDetail(_initialPatientId: string) {
       device_management: '装置管理', bundle: '解放束', hemodynamic: '血流动力学',
       crrt: 'CRRT', dose_adjustment: '剂量调整',
     }
-    return map[t] || t.split('_').join(' ')
+    return map[t] || '其他'
   }
 
   function labFlag(item: any) {
@@ -913,14 +913,14 @@ function _createPatientDetail(_initialPatientId: string) {
     if (v === 'warning' || v === 'warn') return '中'
     if (v === 'medium' || v === '中') return '中'
     if (v === 'low' || v === '低') return '低'
-    return v || '—'
+    return '—'
   }
   function feedbackOutcomeText(raw: any) {
     const v = String(raw || '').toLowerCase()
     if (v === 'confirmed') return '采纳'
     if (v === 'dismissed') return '忽略'
     if (v === 'inaccurate') return '不准确'
-    return String(raw || '—')
+    return '—'
   }
   function aiRiskOrganRows(item: any) {
     const organ = item?.extra?.organ_assessment
@@ -1123,7 +1123,7 @@ function _createPatientDetail(_initialPatientId: string) {
     if (v === 'institutional') return '院内SOP/制度'
     if (v === 'external') return '外部指南'
     if (v === 'local') return '本地资料'
-    return v || '未知'
+    return '未知'
   }
 
   function readTrendLegendSelection() {
@@ -1231,17 +1231,18 @@ function _createPatientDetail(_initialPatientId: string) {
         getWaveformChannels(patientId, { hours: waveformHours.value }),
         waveformSelectedChannel.value
           ? getWaveformSegments(patientId, { channel: waveformSelectedChannel.value, hours: waveformHours.value })
-          : Promise.resolve({ data: { segments: [] } }),
+          : Promise.resolve({ data: { rows: [] } }),
       ])
-      waveformChannels.value = channelsRes.data?.channels || []
+      // 后端返回 { rows: [...] } 格式
+      waveformChannels.value = channelsRes.data?.rows || channelsRes.data?.channels || []
       if (!waveformSelectedChannel.value && waveformChannels.value.length) {
-        waveformSelectedChannel.value = waveformChannels.value[0]?.key || ''
+        waveformSelectedChannel.value = waveformChannels.value[0]?.channel || waveformChannels.value[0]?.key || ''
         if (waveformSelectedChannel.value) {
           const segRes = await getWaveformSegments(patientId, { channel: waveformSelectedChannel.value, hours: waveformHours.value })
-          waveformPoints.value = segRes.data?.segments || []
+          waveformPoints.value = segRes.data?.rows || segRes.data?.segments || []
         }
       } else {
-        waveformPoints.value = segmentsRes.data?.segments || []
+        waveformPoints.value = segmentsRes.data?.rows || segmentsRes.data?.segments || []
       }
       // Load QC and events if channel selected
       if (waveformSelectedChannel.value) {

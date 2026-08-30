@@ -121,13 +121,37 @@
 
     <!-- 知识库文档 -->
     <div class="ev-card">
-      <h3 class="ev-card-title">可用知识库 ({{ documents.length }})</h3>
-      <div v-if="docsLoading" class="ev-skeleton">
+      <h3 class="ev-card-title">可用知识库 ({{ indexedDocuments.length }}/{{ documents.length }})</h3>
+      <!-- 加载中 -->
+      <div v-if="docsState === 'loading'" class="ev-skeleton">
         <div class="ev-skeleton-row"></div>
         <div class="ev-skeleton-row ev-skeleton-row--short"></div>
       </div>
-      <div v-else-if="documents.length" class="ev-docs-grid">
-        <div v-for="doc in documents" :key="doc.id || doc.filename || doc.name" class="ev-doc-item">
+      <!-- 权限不足 -->
+      <div v-else-if="docsState === 'forbidden'" class="ev-empty-docs">
+        <span class="ev-empty-icon">🔒</span>
+        <span class="ev-empty-title">当前账号无权访问临床知识库</span>
+      </div>
+      <!-- 接口错误 -->
+      <div v-else-if="docsState === 'error'" class="ev-error">
+        <span class="ev-error__icon">⚠</span>
+        <span class="ev-error__text">{{ docsError }}</span>
+        <button class="ev-retry-btn" @click="loadData">重试</button>
+      </div>
+      <!-- 无知识库 -->
+      <div v-else-if="docsState === 'empty'" class="ev-empty-docs">
+        <span class="ev-empty-icon">📚</span>
+        <span class="ev-empty-title">当前没有配置可用知识库</span>
+      </div>
+      <!-- 全部未索引 -->
+      <div v-else-if="docsState === 'unindexed'" class="ev-empty-docs">
+        <span class="ev-empty-icon">📦</span>
+        <span class="ev-empty-title">知识库已配置，但尚未完成索引</span>
+        <span class="ev-empty-desc">当前无法用于循证检索。配置文档数：{{ documents.length }}，待索引：{{ unindexedDocuments.length }}</span>
+      </div>
+      <!-- 部分或全部已索引 -->
+      <div v-else class="ev-docs-grid">
+        <div v-for="doc in indexedDocuments" :key="doc.id || doc.filename || doc.name" class="ev-doc-item">
           <span class="ev-doc-icon">📄</span>
           <div class="ev-doc-info">
             <span class="ev-doc-name">{{ doc.title || doc.name || doc.filename || '未命名文档' }}</span>
@@ -146,11 +170,17 @@
             </div>
           </div>
         </div>
-      </div>
-      <div v-else class="ev-empty-docs">
-        <span class="ev-empty-icon">📚</span>
-        <span class="ev-empty-title">暂无可用知识库</span>
-        <span class="ev-empty-desc">知识库可能未完成索引、无访问权限或接口异常</span>
+        <!-- 未索引文档折叠区 -->
+        <details v-if="unindexedDocuments.length > 0" class="ev-unindexed-section">
+          <summary>未完成索引的知识库 ({{ unindexedDocuments.length }})</summary>
+          <div v-for="doc in unindexedDocuments" :key="doc.id || doc.filename || doc.name" class="ev-doc-item ev-doc-item--unindexed">
+            <span class="ev-doc-icon">📄</span>
+            <div class="ev-doc-info">
+              <span class="ev-doc-name">{{ doc.title || doc.name || doc.filename || '未命名文档' }}</span>
+              <span class="ev-doc-chunks">可检索片段：0</span>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -179,6 +209,8 @@ const { sendUpdateTitle, sendReportError } = useEmbedBridge({
 const loading = ref(false)
 const docsLoading = ref(false)
 const loadError = ref('')
+const docsError = ref('')
+const docsForbidden = ref(false)
 const plan = ref<any>(null)
 const documents = ref<any[]>([])
 const clinicalQuestion = ref('')
@@ -189,6 +221,31 @@ const reasoningState = computed<'loading' | 'success' | 'empty' | 'error'>(() =>
   if (loading.value) return 'loading'
   if (loadError.value) return 'error'
   if (!plan.value) return 'empty'
+  return 'success'
+})
+
+/** 已索引的文档（chunk_count > 0） */
+const indexedDocuments = computed(() =>
+  documents.value.filter(doc => Number(doc.chunk_count ?? doc.document_count ?? 0) > 0)
+)
+
+/** 未索引的文档（chunk_count === 0） */
+const unindexedDocuments = computed(() =>
+  documents.value.filter(doc => Number(doc.chunk_count ?? doc.document_count ?? 0) === 0)
+)
+
+/** 所有文档都未索引 */
+const allDocumentsUnindexed = computed(() =>
+  documents.value.length > 0 && indexedDocuments.value.length === 0
+)
+
+/** 知识库状态：loading | success | empty | unindexed | forbidden | error */
+const docsState = computed(() => {
+  if (docsLoading.value) return 'loading'
+  if (docsForbidden.value) return 'forbidden'
+  if (docsError.value) return 'error'
+  if (documents.value.length === 0) return 'empty'
+  if (allDocumentsUnindexed.value) return 'unindexed'
   return 'success'
 })
 
@@ -206,20 +263,22 @@ function statusLabel(status: string): string {
     disabled: '未启用',
     pending: '待索引',
   }
-  return map[status] || status
+  return map[status] || '状态未知'
 }
 
 async function loadData() {
   if (!patientId.value || loading.value) return
   loading.value = true
   loadError.value = ''
+  docsError.value = ''
+  docsForbidden.value = false
   try {
     const [reasoningRes, docsRes] = await Promise.allSettled([
       getAiClinicalReasoning(patientId.value),
       getKnowledgeDocuments(),
     ])
 
-    // 临床推理计划
+    // 临床推理计划（独立于知识库）
     if (reasoningRes.status === 'fulfilled') {
       const data = reasoningRes.value.data || {}
       plan.value = data.plan || null
@@ -234,11 +293,20 @@ async function loadData() {
       loadError.value = reasoningRes.reason?.message || '加载临床推理失败'
     }
 
-    // 知识库文档
+    // 知识库文档（独立于推理）
     docsLoading.value = true
     if (docsRes.status === 'fulfilled') {
       const data = docsRes.value.data || {}
       documents.value = data.documents || data.items || []
+    } else {
+      const err = docsRes.reason
+      const status = err?.response?.status
+      if (status === 401) docsError.value = '登录状态已失效，请重新登录'
+      else if (status === 403) { docsError.value = '当前账号无权访问临床知识库'; docsForbidden.value = true }
+      else if (status === 404) docsError.value = '知识库服务未配置'
+      else if (status >= 500) docsError.value = '知识库加载失败，请稍后重试'
+      else docsError.value = err?.message || '知识库加载失败'
+      documents.value = []
     }
   } catch (e: any) {
     loadError.value = e?.message || '加载循证数据失败'
@@ -435,4 +503,20 @@ onMounted(() => {
 }
 
 .ev-disclaimer { padding: 10px 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; font-size: 12px; color: #92400E; }
+
+.ev-unindexed-section {
+  margin-top: 8px;
+  border: 1px solid #E8EEF5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ev-unindexed-section summary {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #94A3B8;
+  cursor: pointer;
+  background: #F8FAFC;
+}
+.ev-unindexed-section summary:hover { background: #F0F5FF; }
+.ev-doc-item--unindexed { opacity: 0.6; }
 </style>

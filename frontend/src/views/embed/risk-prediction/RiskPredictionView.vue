@@ -173,6 +173,11 @@ function formatTime(t: string) {
   try { return new Date(t).toLocaleString('zh-CN') } catch { return t }
 }
 
+/** 标准化状态字符串：小写、去空格 */
+function normalizeStatus(raw: unknown): string {
+  return String(raw || '').toLowerCase().trim()
+}
+
 // ── 数据 ─────────────────────────────────────────
 
 const loading = ref(false)
@@ -191,44 +196,45 @@ const modelMeta = computed(() => rawData.value?.model_meta || {})
 
 /** Is the AI model actually available (has valid weights) */
 const modelAvailable = computed(() => {
-  const status = String(modelMeta.value.model_status || '').toLowerCase()
-  if (['weight_missing', 'model_missing', 'not_ready', 'unavailable', 'unknown', 'pending'].includes(status)) return false
   if (modelMeta.value.model_available === false) return false
+  const status = normalizeStatus(modelMeta.value.model_status)
+  if (['weight_missing', 'model_missing', 'not_ready', 'unavailable', 'unknown', 'pending', ''].includes(status)) return false
   return true
 })
 
 /** Reason for model unavailability */
 const modelUnavailableReason = computed(() => {
-  const raw = String(modelMeta.value.model_status || modelMeta.value.fallback_reason || '').toLowerCase()
-  if (modelMeta.value.fallback_reason) {
-    return FALLBACK_REASON_MAP[raw] || `当前使用规则评估：${modelMeta.value.fallback_reason}`
+  const statusRaw = normalizeStatus(modelMeta.value.model_status)
+  const fallbackRaw = normalizeStatus(modelMeta.value.fallback_reason)
+  if (fallbackRaw) {
+    return FALLBACK_REASON_MAP[fallbackRaw] || '模型当前不可用，使用规则评估'
   }
-  const mapped = MODEL_STATUS_MAP[raw]
+  const mapped = MODEL_STATUS_MAP[statusRaw]
   if (mapped) return `模型状态：${mapped}，当前显示规则估算风险`
   return '当前使用规则估算风险'
 })
 
 const modelNameDisplay = computed(() => {
   const v = modelMeta.value.model_name
-  if (!v || v === 'unknown' || v === 'null') return '未加载'
-  return v
+  if (!v || v === 'unknown' || v === 'null' || v === 'none') return '未加载'
+  return String(v)
 })
 
 const modelVersionDisplay = computed(() => {
   const v = modelMeta.value.model_version
-  if (!v || v === 'unknown' || v === 'null') return '未加载'
-  return v
+  if (!v || v === 'unknown' || v === 'null' || v === 'none') return '未加载'
+  return String(v)
 })
 
 const calibrationVersionDisplay = computed(() => {
   const v = modelMeta.value.calibration_version
-  if (!v || v === 'unknown' || v === 'null') return '未加载'
-  return v
+  if (!v || v === 'unknown' || v === 'null' || v === 'none') return '未加载'
+  return String(v)
 })
 
 const modelStatusDisplay = computed(() => {
-  const raw = String(modelMeta.value.model_status || '').toLowerCase()
-  return MODEL_STATUS_MAP[raw] || modelMeta.value.model_status || '未提供'
+  const raw = normalizeStatus(modelMeta.value.model_status)
+  return MODEL_STATUS_MAP[raw] || '状态异常，请联系管理员'
 })
 
 const modelStatusClass = computed(() => {
@@ -238,8 +244,8 @@ const modelStatusClass = computed(() => {
 })
 
 const fallbackReasonDisplay = computed(() => {
-  const raw = String(modelMeta.value.fallback_reason || '').toLowerCase()
-  return FALLBACK_REASON_MAP[raw] || modelMeta.value.fallback_reason || '使用规则兜底'
+  const raw = normalizeStatus(modelMeta.value.fallback_reason)
+  return FALLBACK_REASON_MAP[raw] || '模型当前不可用'
 })
 
 /** Rule-based estimation info */
@@ -247,18 +253,33 @@ const ruleInfo = computed(() => rawData.value?.rule_info || null)
 
 const horizonProbabilities = computed(() => rawData.value?.horizon_probabilities || [])
 
-/** Safely convert probability to percent (0-100), handling scale issues */
-function toPercent(value: any): number {
-  if (value == null || value === '') return 0
+/**
+ * 显式量纲转换：将风险值转为百分数 (0-100)。
+ * 后端应返回 scale 字段标明量纲；缺少 scale 时使用保守推断。
+ * 禁止：猜测量纲、截断超限值、null 显示为 0%。
+ */
+function toPercent(value: unknown, scale?: string): number | null {
+  if (value == null || value === '') return null
   const n = Number(value)
-  if (!isFinite(n)) return 0
-  // If value is already in 0-100 range, use as-is
-  if (n > 1 && n <= 100) return Math.round(n)
-  // If value is in 0-1 range, multiply by 100
+  if (!Number.isFinite(n)) return null
+
+  // 显式 scale 优先
+  if (scale === 'probability_0_1') {
+    if (n < 0 || n > 1) return null
+    return Math.round(n * 100)
+  }
+  if (scale === 'percent_0_100') {
+    if (n < 0 || n > 100) return null
+    return Math.round(n)
+  }
+
+  // 无显式 scale 时的保守推断：
+  // 如果值在 0-1 之间（含 1），视为概率
   if (n >= 0 && n <= 1) return Math.round(n * 100)
-  // If value is > 100, cap at 100
-  if (n > 100) return 100
-  return 0
+  // 如果值在 1-100 之间，视为百分数
+  if (n > 1 && n <= 100) return Math.round(n)
+  // 超出合理范围，不显示
+  return null
 }
 
 const riskCards = computed(() => {
@@ -266,12 +287,13 @@ const riskCards = computed(() => {
   if (!hps.length && rawData.value?.current_probability == null) return []
   const cards = []
   if (rawData.value?.current_probability != null) {
-    const v = toPercent(rawData.value.current_probability)
-    cards.push({ key: 'current', label: '当前风险', value: v, change: null, horizon: '当前', level: getRiskLevel(v) })
+    const v = toPercent(rawData.value.current_probability, rawData.value?.probability_scale)
+    if (v != null) cards.push({ key: 'current', label: '当前风险', value: v, change: null, horizon: '当前', level: getRiskLevel(v) })
   }
   for (const hp of hps) {
-    const v = toPercent(hp.probability)
-    const prev = hp.previous_probability != null ? toPercent(hp.previous_probability) : null
+    const v = toPercent(hp.probability, hp.scale)
+    if (v == null) continue
+    const prev = hp.previous_probability != null ? toPercent(hp.previous_probability, hp.scale) : null
     cards.push({
       key: `h${hp.horizon_hours || hp.horizon}`,
       label: `${hp.horizon_hours || hp.horizon}h恶化风险`,
@@ -297,7 +319,7 @@ const trendChartOption = computed<any>(() => {
   if (!all.length) return null
 
   const xData = all.map((p: any) => p.time || p.t || '')
-  const yData = all.map((p: any) => toPercent(p.probability || p.value))
+  const yData = all.map((p: any) => toPercent(p.probability ?? p.value, p.scale) ?? 0)
   const isHistory = all.map((_: any, i: number) => i < history.length)
 
   const thresholds = rawData.value?.threshold_bands || []
@@ -325,10 +347,10 @@ const trendChartOption = computed<any>(() => {
         lineStyle: { width: 2, type: 'dashed' },
         areaStyle: { color: 'rgba(37,99,235,0.04)' },
       },
-      ...(thresholds.length ? [{
+      ...(thresholds.length && thresholds[0]?.value != null ? [{
         name: '高风险阈值',
         type: 'line',
-        data: xData.map(() => toPercent(thresholds[0]?.value || 0.6)),
+        data: xData.map(() => toPercent(thresholds[0]?.value, thresholds[0]?.scale) ?? 0),
         lineStyle: { color: '#DC2626', type: 'dotted', width: 1 },
         symbol: 'none',
       }] : []),
@@ -346,14 +368,15 @@ const organChartOption = computed<EChartsOption | null>(() => {
     renal: '肾脏', coagulation: '凝血', hepatic: '肝脏',
     neurological: '神经', neurologic: '神经', infection: '感染',
   }
+  const ORGAN_LABEL_FALLBACK = '其他器官系统'
 
   const data = keys.map(k => ({
-    name: labels[k] || k,
-    value: toPercent(scores[k]?.score ?? scores[k]),
-  })).sort((a, b) => b.value - a.value)
+    name: labels[k] || ORGAN_LABEL_FALLBACK,
+    value: toPercent(scores[k]?.score ?? scores[k], scores[k]?.scale) ?? 0,
+  })).filter(d => d.value > 0).sort((a, b) => b.value - a.value)
 
-  // Don't show chart if all values are0
-  if (data.every(d => d.value === 0)) return null
+  // Don't show chart if no valid data
+  if (!data.length) return null
 
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },

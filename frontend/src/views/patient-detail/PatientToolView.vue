@@ -1,6 +1,8 @@
 <template>
   <div class="patient-tool-view">
+    <!-- embed 模块：通过 iframe 加载 -->
     <PatientModuleFrame
+      v-if="isEmbedModule"
       :module-key="moduleKey"
       :patient-id="patientId"
       :show-toolbar="true"
@@ -10,6 +12,10 @@
       @error="onError"
       @ready="onReady"
     />
+    <!-- native 模块：直接渲染（不应走到这里，由独立路由处理） -->
+    <div v-else class="patient-tool-native-fallback">
+      <p>模块 "{{ moduleKey }}" 为原生模块，请通过专用路由访问。</p>
+    </div>
   </div>
 </template>
 
@@ -17,6 +23,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PatientModuleFrame from '../../components/PatientModuleFrame.vue'
+import { isIframeModule } from '../../config/patientModuleRegistry'
 import { getPatientIdFromRoute } from '../../utils/patientRouteHelper'
 import { buildContextQuery } from '../../navigation/routeContext'
 
@@ -25,6 +32,7 @@ const router = useRouter()
 
 const moduleKey = computed(() => String(route.params.moduleKey || ''))
 const patientId = computed(() => getPatientIdFromRoute(route))
+const isEmbedModule = computed(() => isIframeModule(moduleKey.value))
 
 function onNavigateModule(targetModuleKey: string) {
   const query = buildContextQuery(route.query)

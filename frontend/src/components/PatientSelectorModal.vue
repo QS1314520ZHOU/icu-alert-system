@@ -43,7 +43,7 @@
           @click="onSelectPatient(p)"
         >
           <span class="selector-item__bed">{{ p.bed || '-' }}床</span>
-          <span class="selector-item__name">{{ maskName(p.name || p.patient_name || '未知') }}</span>
+          <span class="selector-item__name">{{ p.masked_name || p.display_name_masked || maskName(p.name || p.patient_name || '未知') }}</span>
           <span class="selector-item__meta">
             {{ p.gender || '' }} {{ p.age ? p.age + '岁' : '' }}
           </span>
@@ -54,10 +54,10 @@
         </button>
       </div>
 
-      <!-- 空状态 -->
+      <!-- 空状态：区分无患者 vs 搜索无结果 -->
       <div v-else class="selector-empty">
         <span v-if="searchQuery">未找到匹配患者</span>
-        <span v-else>暂无可用患者数据，请确认患者列表或联系管理员</span>
+        <span v-else>暂无可访问患者，请联系管理员确认权限</span>
       </div>
     </div>
   </a-modal>
@@ -90,7 +90,7 @@ const filteredPatients = computed(() => {
   if (!searchQuery.value) return patients.value
   const q = searchQuery.value.toLowerCase()
   return patients.value.filter(p => {
-    const name = maskName(p.name || p.patient_name || '').toLowerCase()
+    const name = (p.masked_name || p.display_name_masked || maskName(p.name || p.patient_name || '')).toLowerCase()
     const bed = String(p.bed || '').toLowerCase()
     const id = String(p._id || p.id || '').toLowerCase()
     return name.includes(q) || bed.includes(q) || id.includes(q)
@@ -113,23 +113,26 @@ function riskLabel(level: string): string {
     low: '低风险',
     stable: '稳定',
   }
-  return map[level] || level || ''
+  return map[level] || ''
 }
 
 async function loadPatients() {
   loading.value = true
   loadError.value = ''
   try {
-    const params: any = {}
+    const params: Record<string, string> = {}
     if (navCtx.deptCode.value) params.dept_code = navCtx.deptCode.value
     else if (auth.deptCode) params.dept_code = auth.deptCode
     const res = await getPatients(params)
     const raw = res.data?.patients || res.data || []
-    // Filter out patients without access
-    patients.value = Array.isArray(raw) ? raw : []
+    // 后端已按登录用户角色/科室/权限过滤，前端只做格式校验
+    patients.value = Array.isArray(raw) ? raw.filter((p: any) => p && (p._id || p.id)) : []
   } catch (err: any) {
     console.error('[PatientSelectorModal] Failed to load patients:', err)
-    loadError.value = err?.message || '加载患者列表失败，请检查网络后重试'
+    const status = err?.response?.status
+    if (status === 401) loadError.value = '登录状态已失效，请重新登录'
+    else if (status === 403) loadError.value = '当前账号无权访问患者列表'
+    else loadError.value = err?.message || '加载患者列表失败，请检查网络后重试'
     patients.value = []
   } finally {
     loading.value = false
@@ -157,7 +160,7 @@ watch(() => props.open, (isOpen) => {
     loadError.value = ''
     loadPatients()
   }
-})
+}, { immediate: true })
 </script>
 
 <style scoped>
