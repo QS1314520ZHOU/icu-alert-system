@@ -9,6 +9,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { usePatientContext } from '../stores/patientContext'
 import { buildContextQuery, getOriginRoute } from './routeContext'
 import { buildPatientPath } from '../utils/patientRouteHelper'
+import { getModuleByKey, getModuleRoute } from '../config/patientModuleRegistry'
 
 /** Global state for patient selector modal */
 const showPatientSelector = ref(false)
@@ -32,6 +33,7 @@ export function useAppNavigation() {
   /**
    * Navigate to a patient module (tool or native page).
    * If no active patient, opens the patient selector modal.
+   * Uses registry to determine correct route for all modules.
    */
   function navigateToModule(moduleKey: string) {
     const patientId = patientCtx.activePatientId
@@ -42,16 +44,21 @@ export function useAppNavigation() {
       return
     }
 
-    // Check if it's a native page (overview, monitoring, treatment, alerts)
-    const nativePages = ['overview', 'monitoring', 'treatment', 'alerts']
-    if (nativePages.includes(moduleKey)) {
-      navigateToPatient(patientId, moduleKey)
+    navigateResolvedModule(patientId, moduleKey)
+  }
+
+  /**
+   * Resolve and navigate to the correct route for a module using the registry.
+   */
+  function navigateResolvedModule(patientId: string, moduleKey: string) {
+    const module = getModuleByKey(moduleKey)
+    if (!module) {
+      // Fallback: unknown module → overview
+      navigateToPatient(patientId, 'overview')
       return
     }
 
-    // Otherwise it's a tool module
-    const path = buildPatientPath(patientId, `tool/${moduleKey}`)
-    if (!path) return
+    const path = getModuleRoute(moduleKey, patientId)
     const query = buildContextQuery(route.query)
     router.push({ path, query })
   }
@@ -76,18 +83,9 @@ export function useAppNavigation() {
       sessionStorage.setItem(key, patientId)
     } catch {}
 
-    // Navigate to the module
+    // Navigate using registry-based resolution
     if (moduleKey) {
-      const nativePages = ['overview', 'monitoring', 'treatment', 'alerts']
-      if (nativePages.includes(moduleKey)) {
-        navigateToPatient(patientId, moduleKey)
-      } else {
-        const path = buildPatientPath(patientId, `tool/${moduleKey}`)
-        if (path) {
-          const query = buildContextQuery(route.query)
-          router.push({ path, query })
-        }
-      }
+      navigateResolvedModule(patientId, moduleKey)
     } else {
       navigateToPatient(patientId, 'overview')
     }

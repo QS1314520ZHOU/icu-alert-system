@@ -6,6 +6,12 @@
       <span class="rp-model-unavailable__text">{{ modelUnavailableReason }}</span>
     </div>
 
+    <!-- 量纲缺失警告 -->
+    <div v-if="hasScaleMissing" class="rp-model-unavailable" style="background: #FFFBEB; border-color: #FDE68A; color: #92400E;">
+      <span class="rp-model-unavailable__icon">⚠️</span>
+      <span class="rp-model-unavailable__text">风险值量纲缺失，当前无法展示部分数据。请联系管理员确认后端返回的 scale 字段。</span>
+    </div>
+
     <!-- 风险指标卡行 -->
     <div v-if="riskCards.length" class="rp-overview-row">
       <div v-for="card in riskCards" :key="card.key" class="rp-risk-card" :class="`rp-risk-card--${card.level}`">
@@ -253,32 +259,39 @@ const ruleInfo = computed(() => rawData.value?.rule_info || null)
 
 const horizonProbabilities = computed(() => rawData.value?.horizon_probabilities || [])
 
+/** 是否存在量纲缺失的数据（有值但无 scale） */
+const hasScaleMissing = computed(() => {
+  const hps = horizonProbabilities.value
+  if (rawData.value?.current_probability != null && !rawData.value?.probability_scale) return true
+  if (hps.some((hp: any) => hp.probability != null && !hp.scale)) return true
+  const history = rawData.value?.history_risk_curve || []
+  const forecast = rawData.value?.forecast_risk_curve || []
+  if ([...history, ...forecast].some((p: any) => (p.probability ?? p.value) != null && !p.scale)) return true
+  return false
+})
+
 /**
  * 显式量纲转换：将风险值转为百分数 (0-100)。
- * 后端应返回 scale 字段标明量纲；缺少 scale 时使用保守推断。
+ * 后端必须返回 scale 字段标明量纲；缺少 scale 时返回 null，禁止猜测量纲。
  * 禁止：猜测量纲、截断超限值、null 显示为 0%。
  */
-function toPercent(value: unknown, scale?: string): number | null {
+function toPercent(
+  value: unknown,
+  scale: 'probability_0_1' | 'percent_0_100' | string | undefined,
+): number | null {
   if (value == null || value === '') return null
   const n = Number(value)
   if (!Number.isFinite(n)) return null
 
-  // 显式 scale 优先
   if (scale === 'probability_0_1') {
-    if (n < 0 || n > 1) return null
-    return Math.round(n * 100)
-  }
-  if (scale === 'percent_0_100') {
-    if (n < 0 || n > 100) return null
-    return Math.round(n)
+    return n >= 0 && n <= 1 ? Math.round(n * 100) : null
   }
 
-  // 无显式 scale 时的保守推断：
-  // 如果值在 0-1 之间（含 1），视为概率
-  if (n >= 0 && n <= 1) return Math.round(n * 100)
-  // 如果值在 1-100 之间，视为百分数
-  if (n > 1 && n <= 100) return Math.round(n)
-  // 超出合理范围，不显示
+  if (scale === 'percent_0_100') {
+    return n >= 0 && n <= 100 ? Math.round(n) : null
+  }
+
+  // 缺少显式 scale：不猜测，返回 null
   return null
 }
 
@@ -318,15 +331,22 @@ const trendChartOption = computed<any>(() => {
   const all = [...history, ...forecast]
   if (!all.length) return null
 
+  // 只保留有显式 scale 的数据点，null 表示量纲缺失
+  const yData = all.map((p: any) => toPercent(p.probability ?? p.value, p.scale))
   const xData = all.map((p: any) => p.time || p.t || '')
-  const yData = all.map((p: any) => toPercent(p.probability ?? p.value, p.scale) ?? 0)
   const isHistory = all.map((_: any, i: number) => i < history.length)
 
+  // 如果所有数据点都为 null（全部量纲缺失），不展示图表
+  if (yData.every((v: number | null) => v == null)) return null
+
   const thresholds = rawData.value?.threshold_bands || []
+  const thresholdValue = thresholds.length && thresholds[0]?.value != null
+    ? toPercent(thresholds[0]?.value, thresholds[0]?.scale)
+    : null
 
   return {
     tooltip: { trigger: 'axis' },
-    legend: { data: ['历史风险', '预测风险', '高风险阈值'], top: 0 },
+    legend: { data: ['历史风险', '预测风险', ...(thresholdValue != null ? ['高风险阈值'] : [])], top: 0 },
     grid: { left: 12, right: 16, top: 40, bottom: 30, containLabel: true },
     xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 11 } },
     yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
@@ -334,23 +354,25 @@ const trendChartOption = computed<any>(() => {
       {
         name: '历史风险',
         type: 'line',
-        data: yData.map((v: number, i: number) => isHistory[i] ? v : null),
+        data: yData.map((v: number | null, i: number) => isHistory[i] ? v : null),
         smooth: true,
         lineStyle: { width: 2 },
         areaStyle: { color: 'rgba(37,99,235,0.08)' },
+        connectNulls: false,
       },
       {
         name: '预测风险',
         type: 'line',
-        data: yData.map((v: number, i: number) => !isHistory[i] ? v : null),
+        data: yData.map((v: number | null, i: number) => !isHistory[i] ? v : null),
         smooth: true,
         lineStyle: { width: 2, type: 'dashed' },
         areaStyle: { color: 'rgba(37,99,235,0.04)' },
+        connectNulls: false,
       },
-      ...(thresholds.length && thresholds[0]?.value != null ? [{
+      ...(thresholdValue != null ? [{
         name: '高风险阈值',
         type: 'line',
-        data: xData.map(() => toPercent(thresholds[0]?.value, thresholds[0]?.scale) ?? 0),
+        data: xData.map(() => thresholdValue),
         lineStyle: { color: '#DC2626', type: 'dotted', width: 1 },
         symbol: 'none',
       }] : []),
@@ -370,10 +392,10 @@ const organChartOption = computed<EChartsOption | null>(() => {
   }
   const ORGAN_LABEL_FALLBACK = '其他器官系统'
 
-  const data = keys.map(k => ({
-    name: labels[k] || ORGAN_LABEL_FALLBACK,
-    value: toPercent(scores[k]?.score ?? scores[k], scores[k]?.scale) ?? 0,
-  })).filter(d => d.value > 0).sort((a, b) => b.value - a.value)
+  const data = keys.map(k => {
+    const v = toPercent(scores[k]?.score ?? scores[k], scores[k]?.scale)
+    return { name: labels[k] || ORGAN_LABEL_FALLBACK, value: v }
+  }).filter(d => d.value != null && d.value > 0).sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
 
   // Don't show chart if no valid data
   if (!data.length) return null

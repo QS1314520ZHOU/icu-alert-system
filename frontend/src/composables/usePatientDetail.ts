@@ -132,6 +132,7 @@ function _createPatientDetail(_initialPatientId: string) {
   const waveformQc = ref<any>(null)
   const waveformEvents = ref<any[]>([])
   const waveformLoading = ref(false)
+  const waveformError = ref('')
   const labs = ref<any[]>([])
   const drugs = ref<any[]>([])
   const assessments = ref<any[]>([])
@@ -1226,6 +1227,7 @@ function _createPatientDetail(_initialPatientId: string) {
     const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId) return
     waveformLoading.value = true
+    waveformError.value = ''
     try {
       const [channelsRes, segmentsRes] = await Promise.all([
         getWaveformChannels(patientId, { hours: waveformHours.value }),
@@ -1253,7 +1255,14 @@ function _createPatientDetail(_initialPatientId: string) {
         waveformQc.value = qcRes.data?.qc || null
         waveformEvents.value = eventsRes.data?.events || []
       }
-    } catch (e) { console.warn('波形数据加载失败', e) }
+    } catch (e: any) {
+      const status = e?.response?.status
+      if (status === 401 || status === 403) waveformError.value = '无权访问波形数据'
+      else if (status === 404) waveformError.value = '波形服务未配置'
+      else if (status >= 500) waveformError.value = '波形服务异常，请稍后重试'
+      else waveformError.value = e?.message || '波形数据加载失败'
+      console.warn('波形数据加载失败', e)
+    }
     finally { waveformLoading.value = false }
   }
 
@@ -1696,7 +1705,7 @@ function _createPatientDetail(_initialPatientId: string) {
     selectedBodyOrgan.value = 'respiratory'; focusedAlertTypes.value = []
     trendPoints.value = []; trendLoaded.value = false
     waveformSelectedChannel.value = ''; waveformChannels.value = []; waveformPoints.value = []
-    waveformQc.value = null; waveformEvents.value = []; waveformLoading.value = false
+    waveformQc.value = null; waveformEvents.value = []; waveformLoading.value = false; waveformError.value = ''
     labs.value = []; drugs.value = []; assessments.value = []
     labsLoaded.value = false; drugsLoaded.value = false; assessmentsLoaded.value = false
     alerts.value = []; trialMatches.value = []; trialMatchLoading.value = false; trialMatchError.value = ''
@@ -1806,7 +1815,7 @@ function _createPatientDetail(_initialPatientId: string) {
     // Trend / Waveform / Labs / Drugs / Assessments
     trendWindow, trendPoints, trendLoaded,
     waveformHours, waveformSelectedChannel, waveformChannels, waveformPoints,
-    waveformQc, waveformEvents, waveformLoading,
+    waveformQc, waveformEvents, waveformLoading, waveformError,
     labs, drugs, assessments, labsLoaded, drugsLoaded, assessmentsLoaded,
     drugColumns, assessmentColumns, drugTableRows, assessmentTableRows,
 

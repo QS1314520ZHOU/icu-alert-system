@@ -150,18 +150,30 @@ function onOperatorIdentityChange() {
   operatorIdentity.value = setOperatorIdentity(operatorIdentity.value)
 }
 
+/**
+ * 从认证存储同步操作人身份。
+ * 安全要求：操作人身份不得来自 URL 参数，必须来自登录会话/JWT。
+ */
 function syncOperatorFromRoute() {
-  const normalized = routeUserName.value
-  if (normalized) {
-    operatorIdentity.value = setOperatorIdentity(normalized)
+  const authUserId = String(auth.userId || auth.userName || '').trim()
+  if (authUserId) {
+    operatorIdentity.value = setOperatorIdentity(authUserId)
   }
+  // URL 中的 userName 仅用于显示，不写入 operator identity
 }
 
+/**
+ * 解析操作人显示名称。
+ * 安全要求：userId/role/dept_code 必须来自登录会话，不得从 URL 读取。
+ * URL 中的 userName 仅作为显示名称的降级来源。
+ */
 async function resolveOperatorDisplayName() {
-  const userName = routeUserName.value || auth.effectiveUserId || operatorIdentity.value
-  const deptCode = String(route.query.dept_code || route.query.deptCode || auth.deptCode || '').trim()
-  const dept = String(route.query.dept || route.query.department || auth.dept || '').trim()
-  const role = String(route.query.role || route.query.userRole || auth.role || '').trim()
+  const authUserName = String(auth.userId || auth.userName || '').trim()
+  const displayHint = routeUserName.value || '' // URL 仅用于显示名降级
+  const userName = authUserName || displayHint
+  const deptCode = String(auth.deptCode || '').trim()
+  const dept = String(auth.dept || '').trim()
+  const role = String(auth.role || '').trim()
   const cacheKey = [userName, role, deptCode, dept].join('|')
   const seq = ++operatorResolveSeq
   if (!userName) {
@@ -169,16 +181,15 @@ async function resolveOperatorDisplayName() {
     return
   }
 
-  // 账号识别先用地址栏工号即时展示，后台姓名查询只做增强，避免卡住首页/工作台渲染。
   operatorDisplayName.value = operatorNameCache.get(cacheKey) || auth.userName || userName
   if (operatorNameCache.has(cacheKey)) return
 
   try {
     const { data } = await getClinicalAccount({
       userName,
-      role: role || auth.role || undefined,
-      dept_code: deptCode || auth.deptCode || undefined,
-      dept: dept || auth.dept || undefined,
+      role: role || undefined,
+      dept_code: deptCode || undefined,
+      dept: dept || undefined,
     })
     if (seq !== operatorResolveSeq) return
     const account = data?.account || {}
@@ -186,7 +197,6 @@ async function resolveOperatorDisplayName() {
     operatorNameCache.set(cacheKey, displayName)
     operatorDisplayName.value = displayName
   } catch {
-    // 静默降级：接口慢/超时时继续显示地址栏账号，不再影响页面可用性。
     if (seq === operatorResolveSeq) operatorDisplayName.value = userName
   }
 }
@@ -207,7 +217,9 @@ watch(routeNeedsAntdTheme, (needs) => {
   if (needs) void ensureAntdTheme()
 }, { immediate: true })
 
-watch(() => [route.query.userName, route.query.useName, route.query.username, route.query.user_id, route.query.userId, route.query.dept_code, route.query.deptCode, route.query.dept, route.query.department], () => {
+// 操作人身份仅从认证存储同步，不监听 URL 参数变化
+// URL 参数变更不影响操作人身份和角色解析
+watch(() => [auth.userId, auth.userName], () => {
   syncOperatorFromRoute()
   void resolveOperatorDisplayName()
 }, { immediate: true })

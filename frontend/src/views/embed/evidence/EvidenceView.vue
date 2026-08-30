@@ -217,6 +217,9 @@ const clinicalQuestion = ref('')
 const patientContext = ref<{ name?: string; bed?: string; dept?: string; age?: number | string }>({})
 const dataCutoffTime = ref('')
 
+/** 请求序号：防止切换患者时旧请求覆盖新数据 */
+let requestSeq = 0
+
 const reasoningState = computed<'loading' | 'success' | 'empty' | 'error'>(() => {
   if (loading.value) return 'loading'
   if (loadError.value) return 'error'
@@ -268,15 +271,27 @@ function statusLabel(status: string): string {
 
 async function loadData() {
   if (!patientId.value || loading.value) return
+  const seq = ++requestSeq
+  const currentPatientId = patientId.value
+
   loading.value = true
+  docsLoading.value = true
   loadError.value = ''
   docsError.value = ''
   docsForbidden.value = false
+  // 清空上一位患者数据，防止切换时短暂展示旧数据
+  plan.value = null
+  documents.value = []
+  patientContext.value = {}
+  dataCutoffTime.value = ''
   try {
     const [reasoningRes, docsRes] = await Promise.allSettled([
-      getAiClinicalReasoning(patientId.value),
+      getAiClinicalReasoning(currentPatientId),
       getKnowledgeDocuments(),
     ])
+
+    // 如果患者已切换，丢弃旧请求结果
+    if (seq !== requestSeq || currentPatientId !== patientId.value) return
 
     // 临床推理计划（独立于知识库）
     if (reasoningRes.status === 'fulfilled') {
@@ -294,7 +309,6 @@ async function loadData() {
     }
 
     // 知识库文档（独立于推理）
-    docsLoading.value = true
     if (docsRes.status === 'fulfilled') {
       const data = docsRes.value.data || {}
       documents.value = data.documents || data.items || []
@@ -309,11 +323,14 @@ async function loadData() {
       documents.value = []
     }
   } catch (e: any) {
+    if (seq !== requestSeq) return
     loadError.value = e?.message || '加载循证数据失败'
     sendReportError('LOAD_FAILED', e?.message || '加载循证数据失败')
   } finally {
-    loading.value = false
-    docsLoading.value = false
+    if (seq === requestSeq) {
+      loading.value = false
+      docsLoading.value = false
+    }
   }
 }
 

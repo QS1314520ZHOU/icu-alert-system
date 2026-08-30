@@ -53,6 +53,8 @@ async def _mongodb_available() -> bool:
 async def db():
     global _client, _db
     if not await _mongodb_available():
+        if os.environ.get("REQUIRE_MONGODB_INTEGRATION") == "1":
+            pytest.fail("MongoDB 集成测试环境不可用，REQUIRE_MONGODB_INTEGRATION=1")
         pytest.skip("MongoDB 不可用，跳过集成测试")
     _client = AsyncIOMotorClient(TEST_URI, serverSelectionTimeoutMS=5000)
     _db = _client[TEST_DB]
