@@ -4,9 +4,10 @@ import logging
 from datetime import datetime
 
 from bson import ObjectId
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app import runtime
+from app.auth import get_current_user
 from app.config import get_config
 from app.alert_engine.scanner_beta_blocker_advisor import BetaBlockerAdvisorScanner
 from app.alert_engine.scanner_fibrinolysis_monitor import FibrinolysisMonitorScanner
@@ -103,16 +104,69 @@ def _fallback_fibrinolysis_record(patient: dict, patient_id: str, error: str | N
     }
 
 
+def _validate_scaled_value(value, scale: str | None):
+    """校验带量纲的风险值，确保数值在合理范围内。"""
+    if value is None:
+        return None
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not __import__("math").isfinite(value):
+        return None
+    if scale == "probability_0_1" and not 0 <= value <= 1:
+        return None
+    if scale == "percent_0_100" and not 0 <= value <= 100:
+        return None
+    return value
+
+
+def _normalize_organ_scores(organ_scores: dict, default_scale: str = "percent_0_100") -> dict:
+    """标准化器官风险分数，确保每个条目都有 score 和 scale 字段。"""
+    normalized = {}
+    for key, val in organ_scores.items():
+        if isinstance(val, dict):
+            normalized[key] = {
+                **val,
+                "score": _validate_scaled_value(val.get("score"), val.get("scale") or default_scale),
+                "scale": val.get("scale") or default_scale,
+            }
+        elif isinstance(val, (int, float)):
+            normalized[key] = {
+                "score": _validate_scaled_value(val, default_scale),
+                "scale": default_scale,
+            }
+    return normalized
+
+
 @router.get("/api/ai/risk-forecast/{patient_id}")
-async def ai_risk_forecast(patient_id: str):
+async def ai_risk_forecast(
+    patient_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """患者风险预测接口。
+
+    认证与授权：
+    - 匿名请求 → 401 Unauthorized
+    - 无效患者ID → 400 Bad Request
+    - 患者不存在 → 404 Not Found
+    - 模型不可用 → 200 + calculable=false（非错误，是有意降级）
+    - 服务异常 → 503 Service Unavailable
+    """
+    # 验证认证
+    if not current_user or not current_user.get("username"):
+        raise HTTPException(status_code=401, detail="未认证")
+
+    # 验证患者ID格式
     try:
         pid = ObjectId(patient_id)
     except Exception:
-        return {"code": 400, "message": "无效患者ID"}
+        raise HTTPException(status_code=400, detail="无效患者ID")
 
+    # 查询患者
     patient = await runtime.db.col("patient").find_one({"_id": pid})
     if not patient:
-        return {"code": 404, "message": "患者不存在"}
+        raise HTTPException(status_code=404, detail="患者不存在")
 
     try:
         forecast = await runtime.alert_engine._build_temporal_risk_forecast(
@@ -122,88 +176,111 @@ async def ai_risk_forecast(patient_id: str):
             horizons=(4, 8, 12),
             include_history=True,
         )
-        model_meta = forecast.get("model_meta") or {}
-        prediction_source = forecast.get("prediction_source") or model_meta.get("prediction_source") or "unknown"
-
-        # ── 量纲标注：明确区分 probability_0_1 和 percent_0_100 ──
-        # trained_model 使用 0-1 概率，rule_estimate 使用 0-100 评分
-        probability_scale = (
-            "probability_0_1" if prediction_source == "trained_model"
-            else "percent_0_100" if prediction_source == "rule_estimate"
-            else None
-        )
-
-        # 为 horizon_probabilities 添加 scale
-        horizon_probs = forecast.get("horizon_probabilities") or []
-        for hp in horizon_probs:
-            if isinstance(hp, dict) and "scale" not in hp:
-                hp["scale"] = probability_scale
-
-        # 为 history_risk_curve / forecast_risk_curve 添加 scale
-        for curve_key in ("history_risk_curve", "forecast_risk_curve"):
-            curve = forecast.get(curve_key) or []
-            for point in curve:
-                if isinstance(point, dict) and "scale" not in point:
-                    point["scale"] = probability_scale
-
-        # 为 threshold_bands 添加 scale
-        threshold_bands = forecast.get("threshold_bands") or []
-        for band in threshold_bands:
-            if isinstance(band, dict) and "scale" not in band:
-                band["scale"] = probability_scale
-
-        # 为 organ_risk_scores 添加 scale（器官风险使用 0-100）
-        organ_scores = forecast.get("organ_risk_scores") or {}
-        for key, val in organ_scores.items():
-            if isinstance(val, dict) and "scale" not in val:
-                val["scale"] = "percent_0_100"
-
-        return {
-            "code": 0,
-            "risk_summary": forecast.get("summary") or "",
-            "risk_level": forecast.get("risk_level") or "low",
-            "current_probability": forecast.get("current_probability") or 0,
-            "probability_scale": probability_scale,
-            "horizon_probabilities": horizon_probs,
-            "risk_curve": forecast.get("risk_curve") or [],
-            "history_risk_curve": forecast.get("history_risk_curve") or [],
-            "forecast_risk_curve": forecast.get("forecast_risk_curve") or [],
-            "threshold_bands": threshold_bands,
-            "high_risk_zone": forecast.get("high_risk_zone") or {},
-            "top_contributors": forecast.get("top_contributors") or [],
-            "organ_risk_scores": organ_scores,
-            "organ_risk_curves": forecast.get("organ_risk_curves") or {},
-            "model_meta": model_meta,
-            # ── unified contract fields ──
-            "prediction_source": prediction_source,
-            "model_available": model_meta.get("model_available", False),
-            "model_loaded": model_meta.get("model_loaded", False),
-            "model_name": model_meta.get("model_name", ""),
-            "model_version": model_meta.get("model_version", ""),
-            "model_status": model_meta.get("model_status", ""),
-            "local_validation_status": model_meta.get("local_validation_status", ""),
-            "calibration_version": model_meta.get("calibration_version", ""),
-            "fallback_used": model_meta.get("fallback_used", False),
-            "fallback_reason": model_meta.get("fallback_reason", ""),
-            "display_label": (
-                "模型预测风险" if prediction_source == "trained_model"
-                else "规则估算风险" if prediction_source == "rule_estimate"
-                else "模型当前不可用" if prediction_source == "unavailable"
-                else "风险预测"
-            ),
-            "safety_notice": (
-                "模型预测结果仅供临床决策支持，不替代医生判断"
-                if prediction_source == "trained_model"
-                else "当前风险指数由临床规则计算，非AI模型预测，仅供临床参考"
-                if prediction_source == "rule_estimate"
-                else "AI模型当前不可用，系统无法提供模型预测"
-                if prediction_source == "unavailable"
-                else "预测来源未知，请核实数据来源后使用"
-            ),
-        }
     except Exception as exc:
         logger.error("AI risk forecast error: %s", exc)
-        return {"code": 0, "risk_summary": "", "error": f"AI服务异常: {str(exc)[:100]}"}
+        raise HTTPException(status_code=503, detail="风险服务暂时不可用")
+
+    model_meta = forecast.get("model_meta") or {}
+    prediction_source = forecast.get("prediction_source") or model_meta.get("prediction_source") or "unknown"
+
+    # ── 量纲标注：明确区分 probability_0_1 和 percent_0_100 ──
+    # trained_model 使用 0-1 概率，rule_estimate 使用 0-100 评分
+    probability_scale = (
+        "probability_0_1" if prediction_source == "trained_model"
+        else "percent_0_100" if prediction_source == "rule_estimate"
+        else None
+    )
+
+    # 处理 current_probability：禁止 or 0 兜底
+    raw_probability = forecast.get("current_probability")
+    current_probability = _validate_scaled_value(raw_probability, probability_scale)
+
+    # 处理 risk_level：禁止 or "low" 兜底
+    risk_level = forecast.get("risk_level")
+    if not risk_level or risk_level == "unknown":
+        risk_level = "unavailable"
+
+    # 模型不可用时明确标记 calculable=false
+    model_available = model_meta.get("model_available", False)
+    calculable = model_available and current_probability is not None
+
+    # 为 horizon_probabilities 添加 scale 并校验值
+    horizon_probs = forecast.get("horizon_probabilities") or []
+    for hp in horizon_probs:
+        if isinstance(hp, dict):
+            if "scale" not in hp:
+                hp["scale"] = probability_scale
+            if "probability" in hp:
+                hp["probability"] = _validate_scaled_value(hp["probability"], hp.get("scale"))
+
+    # 为 history_risk_curve / forecast_risk_curve 添加 scale 并校验值
+    for curve_key in ("history_risk_curve", "forecast_risk_curve"):
+        curve = forecast.get(curve_key) or []
+        for point in curve:
+            if isinstance(point, dict):
+                if "scale" not in point:
+                    point["scale"] = probability_scale
+                if "probability" in point:
+                    point["probability"] = _validate_scaled_value(point["probability"], point.get("scale"))
+                if "value" in point:
+                    point["value"] = _validate_scaled_value(point["value"], point.get("scale"))
+
+    # 为 threshold_bands 添加 scale 并校验值
+    threshold_bands = forecast.get("threshold_bands") or []
+    for band in threshold_bands:
+        if isinstance(band, dict):
+            if "scale" not in band:
+                band["scale"] = probability_scale
+            if "value" in band:
+                band["value"] = _validate_scaled_value(band["value"], band.get("scale"))
+
+    # 标准化 organ_risk_scores（处理数字型和字典型）
+    organ_scores = _normalize_organ_scores(forecast.get("organ_risk_scores") or {})
+
+    return {
+        "code": 0,
+        "risk_summary": forecast.get("summary") or "",
+        "risk_level": risk_level,
+        "current_probability": current_probability,
+        "probability_scale": probability_scale,
+        "calculable": calculable,
+        "horizon_probabilities": horizon_probs,
+        "risk_curve": forecast.get("risk_curve") or [],
+        "history_risk_curve": forecast.get("history_risk_curve") or [],
+        "forecast_risk_curve": forecast.get("forecast_risk_curve") or [],
+        "threshold_bands": threshold_bands,
+        "high_risk_zone": forecast.get("high_risk_zone") or {},
+        "top_contributors": forecast.get("top_contributors") or [],
+        "organ_risk_scores": organ_scores,
+        "organ_risk_curves": forecast.get("organ_risk_curves") or {},
+        "model_meta": model_meta,
+        # ── unified contract fields ──
+        "prediction_source": prediction_source,
+        "model_available": model_available,
+        "model_loaded": model_meta.get("model_loaded", False),
+        "model_name": model_meta.get("model_name", ""),
+        "model_version": model_meta.get("model_version", ""),
+        "model_status": model_meta.get("model_status", ""),
+        "local_validation_status": model_meta.get("local_validation_status", ""),
+        "calibration_version": model_meta.get("calibration_version", ""),
+        "fallback_used": model_meta.get("fallback_used", False),
+        "fallback_reason": model_meta.get("fallback_reason", ""),
+        "display_label": (
+            "模型预测风险" if prediction_source == "trained_model"
+            else "规则估算风险" if prediction_source == "rule_estimate"
+            else "模型当前不可用" if prediction_source == "unavailable"
+            else "风险预测"
+        ),
+        "safety_notice": (
+            "模型预测结果仅供临床决策支持，不替代医生判断"
+            if prediction_source == "trained_model"
+            else "当前风险指数由临床规则计算，非AI模型预测，仅供临床参考"
+            if prediction_source == "rule_estimate"
+            else "AI模型当前不可用，系统无法提供模型预测"
+            if prediction_source == "unavailable"
+            else "预测来源未知，请核实数据来源后使用"
+        ),
+    }
 
 
 @router.get("/api/ai/proactive-management/{patient_id}")

@@ -6,6 +6,12 @@
       <span class="rp-model-unavailable__text">{{ modelUnavailableReason }}</span>
     </div>
 
+    <!-- 风险无法计算时的提示 -->
+    <div v-else-if="!calculable" class="rp-model-unavailable" style="background: #FEF3C7; border-color: #F59E0B; color: #92400E;">
+      <span class="rp-model-unavailable__icon">⚠️</span>
+      <span class="rp-model-unavailable__text">当前无法评估风险等级，数据不足或模型未返回有效结果。</span>
+    </div>
+
     <!-- 量纲缺失警告 -->
     <div v-if="hasScaleMissing" class="rp-model-unavailable" style="background: #FFFBEB; border-color: #FDE68A; color: #92400E;">
       <span class="rp-model-unavailable__icon">⚠️</span>
@@ -206,6 +212,20 @@ const modelAvailable = computed(() => {
   const status = normalizeStatus(modelMeta.value.model_status)
   if (['weight_missing', 'model_missing', 'not_ready', 'unavailable', 'unknown', 'pending', ''].includes(status)) return false
   return true
+})
+
+/** Can the risk be calculated (model available AND probability is valid) */
+const calculable = computed(() => {
+  if (rawData.value?.calculable === false) return false
+  if (!modelAvailable.value) return false
+  return rawData.value?.current_probability != null
+})
+
+/** Risk level from backend */
+const riskLevel = computed(() => {
+  const level = rawData.value?.risk_level
+  if (!level || level === 'unavailable' || level === 'unknown') return null
+  return level
 })
 
 /** Reason for model unavailability */

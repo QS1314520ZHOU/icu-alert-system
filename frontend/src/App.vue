@@ -24,15 +24,7 @@
               <label class="operator-pill" title="用于记录告警查看 / 确认操作人">
                 <span class="operator-pill__label">操作人</span>
                 <span v-if="operatorDisplayName" class="operator-pill__name">{{ operatorDisplayName }}</span>
-                <input
-                  v-else
-                  v-model.trim="operatorIdentity"
-                  class="operator-pill__input"
-                  type="text"
-                  maxlength="48"
-                  placeholder="请输入工号/姓名"
-                  @change="onOperatorIdentityChange"
-                />
+                <span v-else class="operator-pill__unauthenticated">未登录</span>
               </label>
               <span class="topbar__clock">{{ now }}</span>
             </div>
@@ -134,10 +126,6 @@ function initTheme() {
   themeMode.value = 'light'
   localStorage.setItem(THEME_KEY, 'light')
   applyTheme(themeMode.value)
-}
-
-function onOperatorIdentityChange() {
-  operatorIdentity.value = setOperatorIdentity(operatorIdentity.value)
 }
 
 /**
@@ -266,15 +254,14 @@ onUnmounted(() => clearInterval(t))
 }
 .operator-pill__label { color: var(--color-text-secondary, #667085); font-size: 12px; }
 .operator-pill__name { font-weight: 600; color: var(--color-text-primary, #18212B); }
-.operator-pill__input {
-  width: 110px; background: transparent; border: none; outline: none;
-  font-weight: 600; color: var(--color-text-primary, #18212B); font-size: 12px;
+.operator-pill__unauthenticated {
+  font-weight: 500; color: var(--color-text-tertiary, #94A3B8); font-size: 12px;
+  font-style: italic;
 }
 
 @media (max-width: 920px) {
   .topbar__brand { display: none; }
   .topbar__clock { display: none; }
   .operator-pill__label { display: none; }
-  .operator-pill__input { width: 88px; }
 }
 </style>
