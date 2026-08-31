@@ -60,6 +60,7 @@ const cachedViews = ref(['DiseaseCenterOverview'])
 
 const navTabs = computed(() => [
   { key: 'overview', icon: '📊', label: '总览', to: '/disease-center/overview' },
+  { key: 'cases', icon: '🩺', label: '病例中心', to: '/disease-center/cases' },
   { key: 'diseases', icon: '📁', label: '病种目录', to: '/disease-center/diseases' },
   { key: 'terminology', icon: '🔤', label: '术语编码', to: '/disease-center/terminology' },
   { key: 'scores', icon: '📈', label: '评分规则', to: '/disease-center/scores' },
@@ -167,13 +168,13 @@ const navTabs = computed(() => [
 }
 
 .btn--primary {
-  background: var(--color-primary, #2563EB);
+  background: var(--color-primary, #1D6F63);
   color: #fff;
-  border-color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary, #1D6F63);
 }
 
 .btn--primary:hover {
-  background: #1D4FD8;
+  background: var(--color-primary-hover, #195C52);
 }
 
 .btn--outline {
@@ -217,13 +218,13 @@ const navTabs = computed(() => [
 }
 
 .nav-item:hover {
-  color: #1890ff;
-  background: #f0f7ff;
+  color: var(--color-primary, #1D6F63);
+  background: rgba(29, 111, 99, 0.06);
 }
 
 .nav-item--active {
-  color: #1890ff;
-  border-bottom-color: #1890ff;
+  color: var(--color-primary, #1D6F63);
+  border-bottom-color: var(--color-primary, #1D6F63);
   font-weight: 600;
 }
 

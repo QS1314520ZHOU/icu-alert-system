@@ -24,6 +24,9 @@ export default defineConfig(({ mode }) => {
       // In restricted Windows environments, Vite's safe realpath optimization may attempt
       // to spawn `net use` and fail with EPERM. Preserving symlinks avoids that path.
       preserveSymlinks: true,
+      alias: {
+        '@': '/src',
+      },
     },
     build: {
       rollupOptions: {

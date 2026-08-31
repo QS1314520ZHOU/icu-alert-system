@@ -94,6 +94,48 @@ async def _create_indexes():
     await db.audit_events.create_index("resource_id")
     await db.audit_events.create_index("timestamp")
 
+    # 病种病例集合索引
+    await db.disease_cases.create_index("patient_id")
+    await db.disease_cases.create_index("disease_id")
+    await db.disease_cases.create_index("disease_code")
+    await db.disease_cases.create_index("status")
+    await db.disease_cases.create_index("created_at")
+    # 去重索引：同一患者+同一病种的活动病例唯一
+    await db.disease_cases.create_index(
+        [("patient_id", 1), ("disease_code", 1), ("status", 1)],
+        name="idx_patient_disease_active",
+    )
+
+    # 病例证据集合索引
+    await db.case_evidence.create_index("case_id")
+    await db.case_evidence.create_index("patient_id")
+    await db.case_evidence.create_index("evidence_type")
+    await db.case_evidence.create_index("observed_at")
+
+    # 临床确认记录集合索引
+    await db.clinical_confirmations.create_index("case_id")
+    await db.clinical_confirmations.create_index("patient_id")
+    await db.clinical_confirmations.create_index("created_at")
+
+    # 路径实例集合索引
+    await db.pathway_instances.create_index("case_id")
+    await db.pathway_instances.create_index("patient_id")
+    await db.pathway_instances.create_index("disease_id")
+    await db.pathway_instances.create_index("status")
+
+    # 路径任务集合索引
+    await db.pathway_tasks.create_index("instance_id")
+    await db.pathway_tasks.create_index("case_id")
+    await db.pathway_tasks.create_index("execution_status")
+
+    # 病种关系集合索引
+    await db.disease_relations.create_index("source_id")
+    await db.disease_relations.create_index("target_id")
+
+    # 临床路径定义集合索引
+    await db.clinical_pathways.create_index("disease_id")
+    await db.clinical_pathways.create_index("status")
+
     logger.info("数据库索引创建完成")
 
 

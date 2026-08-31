@@ -202,6 +202,9 @@ export interface ClinicalPathway {
 export const getPathway = (diseaseId: string) =>
   api.get<ClinicalPathway>(`/api/disease-center/diseases/${diseaseId}/pathway`)
 
+/** 获取病种临床路径（别名） */
+export const getDiseasePathway = getPathway
+
 /** 创建临床路径 */
 export const createPathway = (pathway: Partial<ClinicalPathway>) =>
   api.post<ClinicalPathway>('/api/disease-center/pathways', pathway)
@@ -649,3 +652,255 @@ export const getAuditEvents = (params?: {
   resource_id?: string
   limit?: number
 }) => api.get<AuditEvent[]>('/api/disease-center/audit', { params })
+
+
+// ===== 仪表盘 =====
+
+export interface DashboardData {
+  disease_count?: number
+  disease_total?: number
+  today_new?: number
+  today_new_cases?: number
+  pending_review?: number
+  pathway_active?: number
+  active_cases?: number
+  quality_trend?: Array<{ date: string; value: number }>
+  risk_distribution?: Array<{ _id: string; count: number }>
+  case_trend?: Array<{ _id: string; total: number; confirmed: number; excluded: number }>
+}
+
+export interface DiseaseDashboardData {
+  disease: { id: string; name: string; code: string; status: string; version: string }
+  total_cases: number
+  status_counts: Record<string, number>
+  pending_review: number
+  today_new: number
+  risk_distribution: Array<{ _id: string; count: number }>
+  trend: Array<{ _id: string; total: number; confirmed: number; excluded: number }>
+  overdue_pathways: number
+}
+
+export interface FunnelData {
+  total_screened: number
+  screen_positive: number
+  pending_review: number
+  confirmed: number
+  pathway_active: number
+  completed: number
+  excluded: number
+  stages: Array<{ label: string; count: number }>
+}
+
+/** 获取总览仪表盘 */
+export const getDashboard = () =>
+  api.get<DashboardData>('/api/disease-center/dashboard')
+
+/** 获取单病种仪表盘 */
+export const getDiseaseDashboard = (diseaseId: string) =>
+  api.get<DiseaseDashboardData>(`/api/disease-center/diseases/${diseaseId}/dashboard`)
+
+/** 获取筛查漏斗 */
+export const getDiseaseFunnel = (diseaseId: string) =>
+  api.get<FunnelData>(`/api/disease-center/diseases/${diseaseId}/funnel`)
+
+/** 获取全局漏斗数据 */
+export const getGlobalFunnel = () =>
+  api.get<FunnelData>('/api/disease-center/funnel')
+
+/** 获取结局分析 */
+export const getDiseaseOutcomes = (diseaseId: string) =>
+  api.get<Record<string, any>>(`/api/disease-center/diseases/${diseaseId}/outcomes`)
+
+/** 获取质控趋势 */
+export const getDiseaseQualityTrend = (diseaseId: string, days?: number) =>
+  api.get<Array<{ date: string; score: number; issues_count: number }>>(
+    `/api/disease-center/diseases/${diseaseId}/quality/trend`,
+    { params: { days } }
+  )
+
+/** 获取未达标原因 */
+export const getDiseaseQualityFailures = (diseaseId: string) =>
+  api.get<any[]>(`/api/disease-center/diseases/${diseaseId}/quality/failures`)
+
+
+// ===== 病例中心 =====
+
+export type CaseStatus =
+  | 'screening' | 'screen_positive' | 'pending_review'
+  | 'confirmed' | 'excluded' | 'pathway_active'
+  | 'completed' | 'transferred' | 'deceased'
+
+export interface DiseaseCase {
+  id: string
+  patient_id: string
+  patient_name: string
+  bed: string
+  dept: string
+  disease_id: string
+  disease_code: string
+  disease_name: string
+  status: CaseStatus
+  scanner_id: string
+  rule_id: string
+  rule_version: string
+  screening_score: number | null
+  confidence: number | null
+  risk_level: string
+  clinical_summary: Record<string, any>
+  first_detected_at: string | null
+  last_evaluated_at: string | null
+  screen_positive_at: string | null
+  confirmed_by: string
+  confirmed_at: string | null
+  confirm_reason: string
+  excluded_by: string
+  excluded_at: string | null
+  exclude_reason: string
+  pathway_instance_id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CaseListResponse {
+  items: DiseaseCase[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface CaseEvidence {
+  id: string
+  patient_id: string
+  case_id: string
+  disease_code: string
+  evidence_type: string
+  source_collection: string
+  source_record_id: string
+  source_field: string
+  raw_value: any
+  raw_unit: string
+  normalized_value: number | null
+  normalized_unit: string
+  observed_at: string | null
+  rule_id: string
+  rule_version: string
+  threshold: number | null
+  threshold_operator: string
+  matched: boolean
+  confidence: number
+  quality_flags: string[]
+  explanation: string
+  created_at: string
+}
+
+export interface EvidenceCompleteness {
+  total_evidence: number
+  matched_evidence: number
+  completeness_ratio: number | null
+  by_type: Record<string, { total: number; matched: number; quality_issues: number }>
+}
+
+export interface TimelineItem {
+  type: 'evidence' | 'confirmation'
+  id: string
+  timestamp: string | null
+  data: Record<string, any>
+}
+
+export interface PathwayInstanceData {
+  instance: Record<string, any>
+  tasks: Array<Record<string, any>>
+}
+
+export interface ConfirmRequest {
+  operator_id: string
+  operator_name?: string
+  reason?: string
+  clinical_note?: string
+}
+
+export interface ExcludeRequest {
+  operator_id: string
+  operator_name?: string
+  reason?: string
+  clinical_note?: string
+}
+
+export interface RecalculateRequest {
+  operator_id?: string
+  operator_name?: string
+  reason?: string
+}
+
+export interface CompleteTaskRequest {
+  operator_id: string
+  actual_value?: number
+  note?: string
+}
+
+/** 获取病种病例列表 */
+export const getDiseaseCases = (diseaseId: string, params?: {
+  status?: string
+  patient_id?: string
+  dept?: string
+  risk_level?: string
+  date_from?: string
+  date_to?: string
+  page?: number
+  page_size?: number
+  sort_by?: string
+  sort_order?: number
+}) => api.get<CaseListResponse>(`/api/disease-center/diseases/${diseaseId}/cases`, { params })
+
+/** 获取全部病例列表（跨病种） */
+export const getAllCases = (params?: {
+  disease_id?: string
+  status?: string
+  patient_id?: string
+  page?: number
+  page_size?: number
+}) => api.get<CaseListResponse>('/api/disease-center/diseases/cases', { params })
+
+/** 获取病例详情 */
+export const getCaseDetail = (caseId: string) =>
+  api.get<DiseaseCase>(`/api/disease-center/cases/${caseId}`)
+
+/** 获取病例证据链 */
+export const getCaseEvidence = (caseId: string, params?: {
+  evidence_type?: string
+  matched?: boolean
+  skip?: number
+  limit?: number
+}) => api.get<CaseEvidence[]>(`/api/disease-center/cases/${caseId}/evidence`, { params })
+
+/** 获取证据完整度 */
+export const getEvidenceCompleteness = (caseId: string) =>
+  api.get<EvidenceCompleteness>(`/api/disease-center/cases/${caseId}/evidence/completeness`)
+
+/** 获取病例时间线 */
+export const getCaseTimeline = (caseId: string) =>
+  api.get<TimelineItem[]>(`/api/disease-center/cases/${caseId}/timeline`)
+
+/** 获取病例路径 */
+export const getCasePathway = (caseId: string) =>
+  api.get<PathwayInstanceData | null>(`/api/disease-center/cases/${caseId}/pathway`)
+
+/** 获取病例质量评估 */
+export const getCaseQuality = (caseId: string) =>
+  api.get<Record<string, any>>(`/api/disease-center/cases/${caseId}/quality`)
+
+/** 医生确认病例 */
+export const confirmCase = (caseId: string, data: ConfirmRequest) =>
+  api.post<DiseaseCase>(`/api/disease-center/cases/${caseId}/confirm`, data)
+
+/** 医生排除病例 */
+export const excludeCase = (caseId: string, data: ExcludeRequest) =>
+  api.post<DiseaseCase>(`/api/disease-center/cases/${caseId}/exclude`, data)
+
+/** 重新计算病例 */
+export const recalculateCase = (caseId: string, data?: RecalculateRequest) =>
+  api.post<DiseaseCase>(`/api/disease-center/cases/${caseId}/recalculate`, data || {})
+
+/** 完成路径任务 */
+export const completeCaseTask = (caseId: string, taskId: string, data: CompleteTaskRequest) =>
+  api.post<Record<string, any>>(`/api/disease-center/cases/${caseId}/tasks/${taskId}/complete`, data)

@@ -19,6 +19,8 @@ from app.repositories import (
     DiseaseRepository,
     ReviewRepository,
     AuditRepository,
+    DiseaseRelationRepository,
+    PathwayRepository,
 )
 
 
@@ -26,10 +28,8 @@ from app.repositories import (
 _disease_repo = DiseaseRepository()
 _review_repo = ReviewRepository()
 _audit_repo = AuditRepository()
-
-# 病种关系和临床路径（暂时使用内存存储）
-_relations: dict[str, DiseaseRelation] = {}
-_pathways: dict[str, ClinicalPathway] = {}
+_relation_repo = DiseaseRelationRepository()
+_pathway_repo = PathwayRepository()
 
 
 def _generate_id() -> str:
@@ -225,27 +225,28 @@ async def reject_review(review_id: str, reviewer_id: str, comment: str) -> Revie
 
 async def list_relations(disease_id: str) -> list[DiseaseRelation]:
     """获取病种关系列表。"""
-    return [r for r in _relations.values() if r.source_id == disease_id or r.target_id == disease_id]
+    relations = await _relation_repo.find_by_disease(disease_id)
+    return [DiseaseRelation(**r) for r in relations]
 
 
 async def create_relation(relation: DiseaseRelation) -> DiseaseRelation:
     """创建病种关系。"""
     relation.id = _generate_id()
-    _relations[relation.id] = relation
+    await _relation_repo.create(relation.model_dump())
     return relation
 
 
 async def delete_relation(relation_id: str) -> bool:
     """删除病种关系。"""
-    if relation_id in _relations:
-        del _relations[relation_id]
-        return True
-    return False
+    return await _relation_repo.delete(relation_id)
 
 
 async def get_pathway(disease_id: str) -> Optional[ClinicalPathway]:
     """获取临床路径。"""
-    return _pathways.get(disease_id)
+    pathway = await _pathway_repo.find_by_disease(disease_id)
+    if pathway:
+        return ClinicalPathway(**pathway)
+    return None
 
 
 async def create_pathway(pathway: ClinicalPathway) -> ClinicalPathway:
@@ -253,22 +254,23 @@ async def create_pathway(pathway: ClinicalPathway) -> ClinicalPathway:
     pathway.id = _generate_id()
     pathway.created_at = datetime.utcnow()
     pathway.updated_at = datetime.utcnow()
-    _pathways[pathway.disease_id] = pathway
+    await _pathway_repo.create(pathway.model_dump())
     return pathway
 
 
 async def update_pathway(disease_id: str, updates: dict[str, Any]) -> Optional[ClinicalPathway]:
     """更新临床路径。"""
-    pathway = _pathways.get(disease_id)
-    if not pathway:
+    existing = await _pathway_repo.find_by_disease(disease_id)
+    if not existing:
         return None
 
-    for key, value in updates.items():
-        if hasattr(pathway, key):
-            setattr(pathway, key, value)
+    pathway_id = existing.get("id", "")
+    await _pathway_repo.update(pathway_id, updates)
 
-    pathway.updated_at = datetime.utcnow()
-    return pathway
+    updated = await _pathway_repo.find_by_id(pathway_id)
+    if updated:
+        return ClinicalPathway(**updated)
+    return None
 
 
 async def list_reviews(status: Optional[str] = None) -> list[ReviewTask]:

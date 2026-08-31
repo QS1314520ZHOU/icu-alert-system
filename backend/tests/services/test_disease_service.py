@@ -8,28 +8,14 @@ from app.models.disease_center import DiseaseDefinition, DiseaseStatus
 @pytest.fixture(autouse=True)
 async def clear_storage():
     """每个测试前清空存储。"""
-    # 清空内存存储（关系和路径）
-    disease_service._relations.clear()
-    disease_service._pathways.clear()
     # 清空 MongoDB 仓储（如果可用）
-    try:
-        repo = disease_service._disease_repo
-        if hasattr(repo, 'delete_all'):
-            await repo.delete_all()
-    except Exception:
-        pass
-    try:
-        repo = disease_service._review_repo
-        if hasattr(repo, 'delete_all'):
-            await repo.delete_all()
-    except Exception:
-        pass
-    try:
-        repo = disease_service._audit_repo
-        if hasattr(repo, 'delete_all'):
-            await repo.delete_all()
-    except Exception:
-        pass
+    for repo_attr in ['_disease_repo', '_review_repo', '_audit_repo', '_relation_repo', '_pathway_repo']:
+        try:
+            repo = getattr(disease_service, repo_attr, None)
+            if repo and hasattr(repo, 'delete_all'):
+                await repo.delete_all()
+        except Exception:
+            pass
     yield
 
 

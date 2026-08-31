@@ -435,3 +435,58 @@ class AuditRepository(MongoRepository):
             "resource_type": resource_type,
             "resource_id": resource_id
         }, sort=[("timestamp", -1)])
+
+
+class DiseaseRelationRepository(MongoRepository):
+    """病种关系仓储。"""
+
+    def __init__(self):
+        super().__init__("disease_relations")
+
+    async def find_by_id(self, relation_id: str) -> Optional[dict[str, Any]]:
+        """根据 ID 查询关系。"""
+        return await self.find_one({"id": relation_id})
+
+    async def find_by_disease(self, disease_id: str) -> list[dict[str, Any]]:
+        """查询病种的所有关系。"""
+        return await self.find_many({
+            "$or": [
+                {"source_id": disease_id},
+                {"target_id": disease_id},
+            ]
+        })
+
+    async def create(self, relation: dict[str, Any]) -> str:
+        """创建关系。"""
+        relation["created_at"] = datetime.utcnow()
+        return await self.insert_one(relation)
+
+    async def delete(self, relation_id: str) -> bool:
+        """删除关系。"""
+        return await self.delete_one({"id": relation_id})
+
+
+class PathwayRepository(MongoRepository):
+    """临床路径定义仓储。"""
+
+    def __init__(self):
+        super().__init__("clinical_pathways")
+
+    async def find_by_id(self, pathway_id: str) -> Optional[dict[str, Any]]:
+        """根据 ID 查询路径。"""
+        return await self.find_one({"id": pathway_id})
+
+    async def find_by_disease(self, disease_id: str) -> Optional[dict[str, Any]]:
+        """根据病种查询路径。"""
+        return await self.find_one({"disease_id": disease_id})
+
+    async def create(self, pathway: dict[str, Any]) -> str:
+        """创建路径。"""
+        pathway["created_at"] = datetime.utcnow()
+        pathway["updated_at"] = datetime.utcnow()
+        return await self.insert_one(pathway)
+
+    async def update(self, pathway_id: str, updates: dict[str, Any]) -> bool:
+        """更新路径。"""
+        updates["updated_at"] = datetime.utcnow()
+        return await self.update_one({"id": pathway_id}, updates)
