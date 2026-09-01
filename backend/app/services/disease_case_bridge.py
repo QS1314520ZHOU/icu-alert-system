@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -14,7 +13,6 @@ from typing import Any, Optional
 
 from app.models.disease_center import (
     DiseaseCaseStatus,
-    EvidenceType,
     ConfirmationAction,
     compute_evidence_hash,
 )
@@ -36,6 +34,15 @@ _pathway_repo = PathwayInstanceRepository()
 _task_repo = PathwayTaskRepository()
 
 
+# Alert severity → DiseaseCase risk_level 映射
+ALERT_TO_CASE_RISK: dict[str, str] = {
+    "info": "low",
+    "warning": "warning",
+    "high": "high",
+    "critical": "critical",
+}
+
+
 def _gen_id() -> str:
     return str(uuid.uuid4())
 
@@ -45,6 +52,7 @@ def _now() -> datetime:
 
 
 async def upsert_case_from_scanner(
+    *,
     patient_id: str,
     disease_code: str,
     encounter_id: str = "",
@@ -73,17 +81,11 @@ async def upsert_case_from_scanner(
     """
     now = _now()
 
-    create_fields = {
+    create_fields: dict[str, Any] = {
         "id": _gen_id(),
         "status": DiseaseCaseStatus.SCREENING,
         "disease_id": disease_id,
         "disease_name": disease_name,
-        "scanner_id": scanner_id,
-        "rule_id": rule_id,
-        "rule_version": rule_version,
-        "patient_name": patient_name,
-        "bed": bed,
-        "dept": dept,
         "created_by": "scanner",
     }
 
@@ -143,59 +145,65 @@ async def upsert_case_from_scanner(
         update_fields=update_fields,
     )
 
-    # 关联 Alert ID
+    # 关联 Alert ID（使用 $addToSet 防止并发覆盖）
     if source_alert_id:
         alert_ids = result.get("source_alert_ids", [])
         if source_alert_id not in alert_ids:
-            await _case_repo.update(result["id"], {
-                "source_alert_ids": alert_ids + [source_alert_id]
-            })
-            result["source_alert_ids"] = alert_ids + [source_alert_id]
+            from app.repositories.mongodb import get_database
+            db = await get_database()
+            await db["disease_cases"].update_one(
+                {"id": result["id"]},
+                {"$addToSet": {"source_alert_ids": source_alert_id}},
+            )
+            if source_alert_id not in result.get("source_alert_ids", []):
+                result.setdefault("source_alert_ids", []).append(source_alert_id)
 
     return result
 
 
 async def add_or_update_evidence(
+    *,
     case_id: str,
     patient_id: str,
+    disease_code: str = "",
     evidence_type: str,
+    feature_name: str = "",
     raw_value: Any,
+    raw_unit: str = "",
+    normalized_value: Any = None,
+    normalized_unit: str = "",
     observed_at: datetime,
     source_collection: str = "",
     source_record_id: str = "",
     source_field: str = "",
-    raw_unit: str = "",
-    normalized_value: Optional[float] = None,
-    normalized_unit: str = "",
     rule_id: str = "",
     rule_version: str = "",
-    threshold: Optional[float] = None,
-    threshold_operator: str = "",
+    criterion: Optional[dict[str, Any]] = None,
     matched: bool = False,
     confidence: float = 1.0,
     quality_flags: Optional[list[str]] = None,
     explanation: str = "",
-    disease_code: str = "",
-    feature_name: str = "",
-    criterion: Optional[dict[str, Any]] = None,
-    guideline_source: str = "",
-    guideline_version: str = "",
-    guideline_reference: str = "",
     baseline_value: Any = None,
     baseline_source: str = "",
     baseline_confidence: Optional[float] = None,
     aggregation_method: str = "",
     time_window: Optional[dict[str, Any]] = None,
+    threshold: Optional[float] = None,
+    threshold_operator: str = "",
 ) -> str:
     """添加或更新病例证据（幂等）。
 
     使用 evidence_hash 实现幂等写入。
     """
+    # 确保 observed_at 是 timezone-aware
+    if observed_at and observed_at.tzinfo is None:
+        observed_at = observed_at.replace(tzinfo=timezone.utc)
+
     evidence_hash = compute_evidence_hash(
         case_id, source_collection, source_record_id, rule_id, rule_version
     )
 
-    evidence_data = {
+    evidence_data: dict[str, Any] = {
         "id": _gen_id(),
         "patient_id": patient_id,
         "case_id": case_id,
@@ -220,9 +228,6 @@ async def add_or_update_evidence(
         "evidence_hash": evidence_hash,
         "feature_name": feature_name,
         "criterion": criterion or {},
-        "guideline_source": guideline_source,
-        "guideline_version": guideline_version,
-        "guideline_reference": guideline_reference,
         "baseline_value": baseline_value,
         "baseline_source": baseline_source,
         "baseline_confidence": baseline_confidence,
@@ -234,72 +239,89 @@ async def add_or_update_evidence(
 
 
 async def mark_screen_positive(
+    *,
     case_id: str,
+    risk_level: str = "warning",
     screening_score: Optional[float] = None,
     confidence: Optional[float] = None,
-    risk_level: str = "warning",
     clinical_summary: Optional[dict[str, Any]] = None,
+    source_alert_id: str = "",
 ) -> dict[str, Any]:
     """标记病例为筛查阳性。
 
     仅当病例处于 screening 状态时转换。
+    使用统一状态服务进行转换。
     """
+    from app.services.case_state_service import transition_case
+
     case = await _case_repo.find_by_id(case_id)
     if not case:
         raise ValueError(f"病例不存在: {case_id}")
 
     current = case.get("status", "")
-    if current == DiseaseCaseStatus.SCREENING:
-        now = _now()
-        updates = {
-            "status": DiseaseCaseStatus.SCREEN_POSITIVE,
-            "screen_positive_at": now,
-            "updated_at": now,
-        }
-        if screening_score is not None:
-            updates["screening_score"] = screening_score
-        if confidence is not None:
-            updates["confidence"] = confidence
-        if risk_level:
-            updates["risk_level"] = risk_level
-        if clinical_summary:
-            updates["clinical_summary"] = clinical_summary
+    if current != DiseaseCaseStatus.SCREENING:
+        return case
 
-        await _case_repo.update(case_id, updates)
-        case.update(updates)
+    extra_updates: dict[str, Any] = {}
+    if risk_level:
+        extra_updates["risk_level"] = risk_level
+    if screening_score is not None:
+        extra_updates["screening_score"] = screening_score
+    if confidence is not None:
+        extra_updates["confidence"] = confidence
+    if clinical_summary:
+        extra_updates["clinical_summary"] = clinical_summary
+
+    case = await transition_case(
+        case_id=case_id,
+        new_status=DiseaseCaseStatus.SCREEN_POSITIVE,
+        operator_id="system",
+        operator_name="扫描器",
+        action=ConfirmationAction.STATUS_CHANGE,
+        extra_updates=extra_updates,
+    )
+
+    # 自动进入 pending_review
+    case = await transition_case(
+        case_id=case_id,
+        new_status=DiseaseCaseStatus.PENDING_REVIEW,
+        operator_id="system",
+        operator_name="扫描器",
+        action=ConfirmationAction.STATUS_CHANGE,
+    )
 
     return case
 
 
 async def move_to_pending_review(case_id: str) -> dict[str, Any]:
     """将筛查阳性病例移至待临床确认。"""
+    from app.services.case_state_service import transition_case
+
     case = await _case_repo.find_by_id(case_id)
     if not case:
         raise ValueError(f"病例不存在: {case_id}")
 
     current = case.get("status", "")
-    if current == DiseaseCaseStatus.SCREEN_POSITIVE:
-        now = _now()
-        updates = {
-            "status": DiseaseCaseStatus.PENDING_REVIEW,
-            "updated_at": now,
-        }
-        await _case_repo.update(case_id, updates)
-        case.update(updates)
+    if current != DiseaseCaseStatus.SCREEN_POSITIVE:
+        return case
 
-    return case
+    return await transition_case(
+        case_id=case_id,
+        new_status=DiseaseCaseStatus.PENDING_REVIEW,
+        operator_id="system",
+        operator_name="扫描器",
+        action=ConfirmationAction.STATUS_CHANGE,
+    )
 
 
 async def sync_alert_reference(case_id: str, alert_id: str) -> None:
-    """将旧 Alert ID 关联到 DiseaseCase。"""
-    case = await _case_repo.find_by_id(case_id)
-    if not case:
-        return
-
-    alert_ids = case.get("source_alert_ids", [])
-    if alert_id not in alert_ids:
-        alert_ids.append(alert_id)
-        await _case_repo.update(case_id, {"source_alert_ids": alert_ids})
+    """将旧 Alert ID 关联到 DiseaseCase（使用 $addToSet 防止并发覆盖）。"""
+    from app.repositories.mongodb import get_database
+    db = await get_database()
+    await db["disease_cases"].update_one(
+        {"id": case_id},
+        {"$addToSet": {"source_alert_ids": alert_id}},
+    )
 
 
 async def reopen_on_new_evidence(
@@ -311,6 +333,8 @@ async def reopen_on_new_evidence(
 
     保留原排除记录。
     """
+    from app.services.case_state_service import reopen_case
+
     case = await _case_repo.find_by_id(case_id)
     if not case:
         raise ValueError(f"病例不存在: {case_id}")
@@ -327,32 +351,16 @@ async def reopen_on_new_evidence(
     if new_evidence_hash == old_hash:
         return case
 
-    now = _now()
-    updates = {
-        "status": DiseaseCaseStatus.REOPENED,
-        "reopened_at": now,
+    case = await reopen_case(
+        case_id=case_id,
+        operator_id="system",
+        operator_name="扫描器",
+        reason=reason,
+    )
+
+    await _case_repo.update(case_id, {
         "last_evidence_hash": new_evidence_hash,
-        "last_material_change_at": now,
-        "updated_at": now,
-    }
-
-    await _case_repo.update(case_id, updates)
-    case.update(updates)
-
-    # 记录重开事件
-    from app.repositories import ConfirmationRepository
-    confirm_repo = ConfirmationRepository()
-    await confirm_repo.create({
-        "id": _gen_id(),
-        "case_id": case_id,
-        "patient_id": case.get("patient_id", ""),
-        "action": ConfirmationAction.STATUS_CHANGE,
-        "previous_status": current,
-        "new_status": DiseaseCaseStatus.REOPENED,
-        "operator_id": "system",
-        "operator_name": "扫描器",
-        "reason": reason,
-        "created_at": now,
+        "last_material_change_at": _now(),
     })
 
     return case
@@ -378,11 +386,11 @@ async def sync_pathway_from_bundle(
     instance = await _pathway_repo.find_by_case(case_id)
     if not instance:
         instance_id = _gen_id()
-        instance_data = {
+        instance_data: dict[str, Any] = {
             "id": instance_id,
             "case_id": case_id,
             "patient_id": patient_id,
-            "pathway_id": f"sepsis_hour1_bundle",
+            "pathway_id": "sepsis_hour1_bundle",
             "disease_id": disease_id,
             "disease_code": disease_code,
             "status": "active",
@@ -400,20 +408,19 @@ async def sync_pathway_from_bundle(
 
     instance_id = instance["id"]
 
+    # 一次查询现有任务，构建字典
+    existing_tasks = await _task_repo.find_by_instance(instance_id)
+    existing_by_key: dict[str, dict[str, Any]] = {
+        t["task_key"]: t for t in existing_tasks if t.get("task_key")
+    }
+
     # 同步任务
     for element in bundle_elements:
         task_key = element.get("key", "")
         if not task_key:
             continue
 
-        # 查找现有任务
-        existing_tasks = await _task_repo.find_by_instance(instance_id)
-        existing_task = next(
-            (t for t in existing_tasks if t.get("task_key") == task_key),
-            None
-        )
-
-        task_data = {
+        task_data: dict[str, Any] = {
             "task_key": task_key,
             "name": element.get("label", task_key),
             "description": element.get("description", ""),
@@ -426,6 +433,7 @@ async def sync_pathway_from_bundle(
             "actual_unit": element.get("actual_unit", ""),
         }
 
+        existing_task = existing_by_key.get(task_key)
         if existing_task:
             await _task_repo.update(existing_task["id"], task_data)
         else:
@@ -443,6 +451,7 @@ async def sync_pathway_from_bundle(
 
 
 async def add_conclusion(
+    *,
     case_id: str,
     patient_id: str,
     conclusion_code: str,
@@ -467,7 +476,7 @@ async def add_conclusion(
             await _conclusion_repo.supersede(c["id"], "")
 
     conclusion_id = _gen_id()
-    conclusion_data = {
+    conclusion_data: dict[str, Any] = {
         "id": conclusion_id,
         "case_id": case_id,
         "patient_id": patient_id,

@@ -119,6 +119,8 @@ async def transition_case(
     # 设置特定状态的时间戳
     if new_status == DiseaseCaseStatus.SCREEN_POSITIVE:
         updates["screen_positive_at"] = now
+    elif new_status == DiseaseCaseStatus.PENDING_REVIEW:
+        updates["pending_review_at"] = now
     elif new_status == DiseaseCaseStatus.CONFIRMED:
         updates["confirmed_at"] = now
         updates["confirmed_by"] = operator_id
@@ -175,7 +177,6 @@ async def confirm_case(
     current = case.get("status", "")
     if current not in (
         DiseaseCaseStatus.PENDING_REVIEW,
-        DiseaseCaseStatus.EXCLUDED,
         DiseaseCaseStatus.RECONSIDERATION_PENDING,
     ):
         raise StateTransitionError(f"当前状态 {current} 不允许确认")
@@ -216,7 +217,6 @@ async def exclude_case(
     if current not in (
         DiseaseCaseStatus.SCREEN_POSITIVE,
         DiseaseCaseStatus.PENDING_REVIEW,
-        DiseaseCaseStatus.CONFIRMED,
         DiseaseCaseStatus.RECONSIDERATION_PENDING,
     ):
         raise StateTransitionError(f"当前状态 {current} 不允许排除")

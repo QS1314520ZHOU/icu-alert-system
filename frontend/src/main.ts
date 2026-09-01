@@ -88,8 +88,27 @@ async function bootstrap() {
   ])
 
   const app = createApp(App)
-  app.use(createPinia())
+  const pinia = createPinia()
+  app.use(pinia)
   app.use(router)
+
+  // 初始化认证（必须在组件挂载前完成）
+  try {
+    const { useAuthStore } = await import('./stores/auth')
+    const { setTokenProvider } = await import('./api/http')
+    const authStore = useAuthStore()
+
+    // 注入 Token 提供者到 HTTP 客户端
+    setTokenProvider({
+      getAccessToken: () => authStore.accessToken,
+    })
+
+    // 初始化 iframe 认证
+    await authStore.initAuth()
+  } catch (err) {
+    console.warn('[Bootstrap] Auth init failed:', err)
+  }
+
   await router.isReady()
   app.mount('#app')
   document.documentElement.classList.remove('boot-mobile')

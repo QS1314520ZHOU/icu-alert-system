@@ -94,24 +94,33 @@ class AkiScanner(BaseScanner):
                 add_or_update_evidence,
                 mark_screen_positive,
                 upsert_case_from_scanner,
+                ALERT_TO_CASE_RISK,
             )
 
-            alert_id = str(alert.get("_id"))
+            alert_id = str(alert.get("_id", ""))
             aki_stage = stage.get("stage", 0)
 
             # 1. 创建/更新 DiseaseCase
             case = await upsert_case_from_scanner(
-                db=self.engine.db,
-                patient_doc=patient_doc,
+                patient_id=patient_id,
                 disease_code="AKI",
                 disease_name="急性肾损伤",
                 encounter_id=patient_id,  # AKI 无独立 encounter，用 patient_id
-                alert_id=alert_id,
+                patient_name=patient_doc.get("name", ""),
+                bed=patient_doc.get("hisBed", ""),
+                dept=patient_doc.get("dept", ""),
+                scanner_id="aki",
+                rule_id=f"AKI_STAGE_{aki_stage}",
+                rule_version="KDIGO_v2012",
+                risk_level=ALERT_TO_CASE_RISK.get(severity, "warning"),
+                screening_score=stage.get("current"),
+                confidence=stage.get("ratio"),
+                source_alert_id=alert_id,
             )
             if not case:
                 return
 
-            case_id = str(case["_id"])
+            case_id = str(case["id"])
 
             # 2. 添加肌酐证据
             current_value = stage.get("current")
@@ -120,32 +129,55 @@ class AkiScanner(BaseScanner):
 
             if current_value is not None:
                 await add_or_update_evidence(
-                    db=self.engine.db,
                     case_id=case_id,
-                    source_collection="lab_report",
-                    source_record_id=f"{patient_id}_cr_latest",
+                    patient_id=patient_id,
+                    disease_code="AKI",
                     evidence_type="lab_value",
                     feature_name="creatinine",
-                    value=current_value,
-                    unit="μmol/L",
-                    occurred_at=stage.get("time") or datetime.now(timezone.utc),
+                    raw_value=current_value,
+                    raw_unit="μmol/L",
+                    observed_at=stage.get("time") or datetime.now(timezone.utc),
+                    source_collection="lab_report",
+                    source_record_id=f"{patient_id}_cr_{stage.get('time', '')}",
+                    source_field="creatinine",
                     rule_id=f"AKI_STAGE_{aki_stage}",
                     rule_version="KDIGO_v2012",
-                    metadata={
-                        "baseline": baseline,
-                        "ratio": ratio,
-                        "aki_stage": aki_stage,
-                    },
+                    matched=True,
+                    confidence=ratio or 1.0,
+                    baseline_value=baseline,
+                    baseline_source="historical",
+                    explanation=f"肌酐 {current_value} μmol/L，基线 {baseline} μmol/L，比值 {ratio}",
                 )
 
-            # 3. 标记筛阳
-            severity = {1: "warning", 2: "high", 3: "critical"}.get(aki_stage, "warning")
+            # 3. 添加基线肌酐证据（如果有）
+            if baseline is not None:
+                await add_or_update_evidence(
+                    case_id=case_id,
+                    patient_id=patient_id,
+                    disease_code="AKI",
+                    evidence_type="lab_value",
+                    feature_name="creatinine_baseline",
+                    raw_value=baseline,
+                    raw_unit="μmol/L",
+                    observed_at=datetime.now(timezone.utc),
+                    source_collection="lab_report",
+                    source_record_id=f"{patient_id}_cr_baseline",
+                    source_field="creatinine",
+                    rule_id=f"AKI_STAGE_{aki_stage}",
+                    rule_version="KDIGO_v2012",
+                    matched=True,
+                    confidence=1.0,
+                    explanation=f"基线肌酐 {baseline} μmol/L",
+                )
+
+            # 4. 标记筛阳（会自动进入 pending_review）
             await mark_screen_positive(
-                db=self.engine.db,
                 case_id=case_id,
-                severity=severity,
-                alert_id=alert_id,
+                risk_level=ALERT_TO_CASE_RISK.get(severity, "warning"),
+                screening_score=stage.get("current"),
+                confidence=ratio,
+                source_alert_id=alert_id,
             )
 
         except Exception as e:
-            logger.warning("AKI DiseaseCase bridge failed: %s", e)
+            logger.error("AKI DiseaseCase bridge failed: %s", e, exc_info=True)

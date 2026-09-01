@@ -7,19 +7,36 @@
 
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
-// ── Token 获取 ────────────────────────────────────
+// ── Token Provider（避免循环依赖） ────────────────
 
 /**
- * 从 auth store 获取当前访问令牌。
- * 延迟导入避免循环依赖。
+ * Token 提供者接口。
+ * 由 auth store 注入，避免循环依赖。
+ */
+export interface TokenProvider {
+  getAccessToken(): string
+}
+
+let _tokenProvider: TokenProvider | null = null
+
+/**
+ * 注入 Token 提供者（由 auth store 调用）。
+ */
+export function setTokenProvider(provider: TokenProvider): void {
+  _tokenProvider = provider
+}
+
+/**
+ * 获取当前访问令牌。
  */
 function getAccessToken(): string {
-  try {
-    // 优先从 iframe auth 获取
-    const { getAccessToken: getIframeToken } = require('../auth/iframeAuth')
-    const iframeToken = getIframeToken()
-    if (iframeToken) return iframeToken
-  } catch {}
+  // 优先使用注入的 provider
+  if (_tokenProvider) {
+    try {
+      const token = _tokenProvider.getAccessToken()
+      if (token) return token
+    } catch {}
+  }
 
   // 回退到 localStorage
   try {
@@ -130,6 +147,9 @@ function installAutoRetryInterceptor(instance: AxiosInstance) {
 
         const newToken = getAccessToken()
         if (!newToken) {
+          // 刷新失败，reject 队列中的所有请求
+          refreshQueue.forEach(cb => cb(''))
+          refreshQueue = []
           throw new Error('Token refresh failed')
         }
 

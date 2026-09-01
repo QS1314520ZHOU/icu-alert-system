@@ -85,7 +85,7 @@ async def get_current_user(
     raise HTTPException(status_code=401, detail="无效的认证令牌")
 
 
-async def require_role(*roles: str):
+def require_role(*roles: str):
     """要求用户具有指定角色之一。"""
     async def checker(
         current_user: CurrentUser = Depends(get_current_user),
@@ -100,7 +100,7 @@ async def require_role(*roles: str):
     return checker
 
 
-async def require_permission(permission: str):
+def require_permission(permission: str):
     """要求用户具有指定权限。"""
     async def checker(
         current_user: CurrentUser = Depends(get_current_user),
@@ -115,13 +115,28 @@ async def require_permission(permission: str):
 
 
 def check_patient_access(user: CurrentUser, patient_dept: str, encounter_id: str = "") -> bool:
-    """检查用户是否有权访问指定科室的患者。"""
+    """检查用户是否有权访问指定科室的患者。
+
+    默认拒绝策略：
+    - admin 和拥有 patient:read:any / case:manage:any 权限的用户可访问所有
+    - 其他用户必须 department_ids 包含患者科室
+    - department_ids 为空时拒绝（除非有全院权限）
+    - researcher 只能访问脱敏数据，不能访问原始临床数据
+    """
+    # 全院权限
     if "admin" in user.roles:
         return True
+    if "patient:read:any" in user.permissions or "case:manage:any" in user.permissions:
+        return True
+
+    # researcher 不能直接访问临床数据
     if "researcher" in user.roles:
-        return True  # 研究人员可访问脱敏数据
+        return False
+
+    # 未配置科室限制 → 拒绝
     if not user.department_ids:
-        return True  # 未配置科室限制则允许
+        return False
+
     return patient_dept in user.department_ids
 
 

@@ -61,7 +61,6 @@ VALID_TRANSITIONS: dict[str, list[str]] = {
     ],
     DiseaseCaseStatus.EXCLUDED: [
         DiseaseCaseStatus.REOPENED,  # 新证据重开
-        DiseaseCaseStatus.SCREENING,
     ],
     DiseaseCaseStatus.PATHWAY_ACTIVE: [
         DiseaseCaseStatus.COMPLETED,
@@ -147,6 +146,7 @@ class DiseaseCase(BaseModel):
     first_detected_at: Optional[datetime] = None
     last_evaluated_at: Optional[datetime] = None
     screen_positive_at: Optional[datetime] = None
+    pending_review_at: Optional[datetime] = None
 
     # 医生确认
     confirmed_by: str = ""

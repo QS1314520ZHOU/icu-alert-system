@@ -97,7 +97,8 @@ class CaseRepository(MongoRepository):
             },
         }
 
-        result = await self.collection.find_one_and_update(
+        collection = await self.get_collection()
+        result = await collection.find_one_and_update(
             filter_query,
             update_ops,
             upsert=True,
@@ -506,21 +507,34 @@ class EvidenceRepository(MongoRepository):
         """根据 evidence_hash 幂等写入证据。
 
         如果已存在相同 hash 的证据，更新；否则创建。
+        使用 $setOnInsert 保护 id 和 created_at 不被覆盖。
         """
         evidence_hash = evidence.get("evidence_hash", "")
         if not evidence_hash:
             return await self.create(evidence)
 
         now = _now()
-        evidence["created_at"] = now
+        evidence_id = evidence.get("id", "")
 
-        result = await self.collection.find_one_and_update(
+        # 分离 mutable 和 immutable 字段
+        mutable_fields = {k: v for k, v in evidence.items() if k not in ("id", "evidence_hash", "created_at")}
+        mutable_fields["updated_at"] = now
+
+        collection = await self.get_collection()
+        result = await collection.find_one_and_update(
             {"evidence_hash": evidence_hash},
-            {"$set": {**evidence, "updated_at": now}},
+            {
+                "$set": mutable_fields,
+                "$setOnInsert": {
+                    "id": evidence_id,
+                    "evidence_hash": evidence_hash,
+                    "created_at": now,
+                },
+            },
             upsert=True,
             return_document=True,
         )
-        return result.get("id", "")
+        return result.get("id", evidence_id)
 
     async def create_many(self, evidences: list[dict[str, Any]]) -> list[str]:
         """批量创建证据。"""

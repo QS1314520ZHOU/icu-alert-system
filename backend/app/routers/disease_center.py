@@ -51,6 +51,12 @@ class ExcludeRequest(BaseModel):
     exclude_type: str = "other"  # false_positive, data_error, disease_change, differential, other
 
 
+class ConfirmCaseRequest(BaseModel):
+    """医生确认请求。"""
+    reason: str = ""
+    clinical_note: str = ""
+
+
 class RecalculateRequest(BaseModel):
     """重新计算请求。"""
     reason: str = "手动触发重新计算"
@@ -732,11 +738,15 @@ async def list_disease_cases(
 
 
 @router.get("/cases/{case_id}")
-async def get_case(case_id: str):
+async def get_case(case_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """获取病例详情。"""
     case = await case_service.get_case(case_id)
     if case is None:
         raise HTTPException(404, "病例不存在")
+    # 患者授权检查
+    patient_dept = case.get("dept", "")
+    if not check_patient_access(current_user, patient_dept):
+        raise HTTPException(403, "无权访问该患者的病例")
     return case
 
 
@@ -811,22 +821,28 @@ async def get_case_conclusions(case_id: str):
 @router.post("/cases/{case_id}/confirm")
 async def confirm_case_endpoint(
     case_id: str,
-    reason: str = "",
-    clinical_note: str = "",
+    req: ConfirmCaseRequest,
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """医生确认病例（纳入）。
 
     操作者身份从 JWT 令牌获取，不信任前端传入。
     """
+    # 患者授权检查
+    case = await case_service.get_case(case_id)
+    if case is None:
+        raise HTTPException(404, "病例不存在")
+    patient_dept = case.get("dept", "")
+    if not check_patient_access(current_user, patient_dept):
+        raise HTTPException(403, "无权操作该患者的病例")
     try:
         return await confirm_case(
             case_id,
             operator_id=current_user.user_id,
             operator_name=current_user.user_name or current_user.user_id,
             operator_role=current_user.role,
-            reason=reason,
-            clinical_note=clinical_note,
+            reason=req.reason,
+            clinical_note=req.clinical_note,
         )
     except StateTransitionError as e:
         raise HTTPException(400, str(e))
@@ -846,6 +862,13 @@ async def exclude_case_endpoint(
 
     排除必须填写原因。操作者身份从 JWT 令牌获取。
     """
+    # 患者授权检查
+    case = await case_service.get_case(case_id)
+    if case is None:
+        raise HTTPException(404, "病例不存在")
+    patient_dept = case.get("dept", "")
+    if not check_patient_access(current_user, patient_dept):
+        raise HTTPException(403, "无权操作该患者的病例")
     try:
         return await exclude_case(
             case_id,

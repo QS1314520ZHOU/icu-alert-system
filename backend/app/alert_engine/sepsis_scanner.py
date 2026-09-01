@@ -116,14 +116,9 @@ class SepsisScanner(BaseScanner):
                     )
                     if alert:
                         triggered += 1
-                        await self._bridge_to_disease_case(
-                            patient_doc, pid_str, alert, "SEPSIS_QSOFA",
-                            evidence_features=[{
-                                "source_record_id": f"{pid_str}_qsofa",
-                                "feature_name": "qsofa",
-                                "value": qsofa,
-                                "metadata": {"sbp": sbp, "rr": rr, "gcs": gcs, "infection_verdict": infection_verdict},
-                            }],
+                        # qSOFA 单独阳性不生成脓毒症结论，只写入证据
+                        await self._bridge_qsofa_evidence(
+                            patient_doc, pid_str, alert, qsofa, sbp, rr, gcs, infection_verdict,
                         )
 
             # ---- SOFA 预警（不可称"脓毒症确认"） ----
@@ -151,19 +146,28 @@ class SepsisScanner(BaseScanner):
                     )
                     if alert:
                         triggered += 1
-                        await self._bridge_to_disease_case(
-                            patient_doc, pid_str, alert, "SEPSIS_SOFA",
-                            evidence_features=[{
-                                "source_record_id": f"{pid_str}_sofa",
-                                "feature_name": "sofa_delta",
-                                "value": delta,
-                                "metadata": {"sofa_score": sofa["score"], "infection_verdict": infection_verdict},
-                            }],
-                        )
+                        # 只有感染支持时才生成脓毒症病例
+                        if infection_verdict in ("supported", "possible"):
+                            await self._bridge_sepsis_case(
+                                patient_doc, pid_str, alert, "SEPSIS_SOFA",
+                                evidence_features=[{
+                                    "source_record_id": f"{pid_str}_sofa",
+                                    "feature_name": "sofa_delta",
+                                    "raw_value": delta,
+                                    "raw_unit": "score",
+                                    "metadata": {"sofa_score": sofa["score"], "infection_verdict": infection_verdict},
+                                }],
+                                conclusion_code="SEPSIS_SCREEN_POSITIVE",
+                                conclusion_label="脓毒症筛查阳性",
+                                infection_verdict=infection_verdict,
+                            )
+                        else:
+                            # 感染不支持，只写入器官功能异常证据
+                            await self._bridge_organ_dysfunction(
+                                patient_doc, pid_str, alert, delta, sofa, infection_verdict,
+                            )
 
             # ---- 脓毒症筛查下的休克/低灌注评估（必须结合感染证据） ----
-            # 升压药 + 乳酸≥2 + 感染支持 → 可能脓毒性休克表型，需临床确认
-            # 感染不支持时 → 通用 SHOCK_HYPOPERFUSION_SCREEN（非脓毒症特异性）
             lactate_value = None
             if sofa and isinstance(sofa.get("labs"), dict):
                 lac_entry = sofa["labs"].get("lac")
@@ -175,7 +179,6 @@ class SepsisScanner(BaseScanner):
             vasopressor_active = await self.engine._has_vasopressor(pid)
 
             if vasopressor_active and lactate_value is not None and lactate_value >= 2:
-                # 感染证据区分：supported/possible → 脓毒性休克表型；unknown/not_supported → 通用休克筛查
                 infection_supported = infection_verdict in ("supported", "possible")
                 shock_rule_id = "SEPSIS_SHOCK" if infection_supported else "SHOCK_HYPOPERFUSION_SCREEN"
                 shock_name = (
@@ -220,18 +223,22 @@ class SepsisScanner(BaseScanner):
                     )
                     if alert:
                         triggered += 1
-                        await self._bridge_to_disease_case(
-                            patient_doc, pid_str, alert, shock_rule_id,
-                            evidence_features=[
-                                {
-                                    "source_record_id": f"{pid_str}_lactate",
-                                    "feature_name": "lactate",
-                                    "value": lactate_value,
-                                    "unit": "mmol/L",
-                                    "metadata": {"vasopressor": True, "map": map_value, "infection_verdict": infection_verdict},
-                                },
-                            ],
-                        )
+                        if infection_supported:
+                            await self._bridge_sepsis_case(
+                                patient_doc, pid_str, alert, shock_rule_id,
+                                evidence_features=[
+                                    {
+                                        "source_record_id": f"{pid_str}_lactate",
+                                        "feature_name": "lactate",
+                                        "raw_value": lactate_value,
+                                        "raw_unit": "mmol/L",
+                                        "metadata": {"vasopressor": True, "map": map_value, "infection_verdict": infection_verdict},
+                                    },
+                                ],
+                                conclusion_code="SEPTIC_SHOCK_SCREEN",
+                                conclusion_label="可能脓毒性休克表型，待临床确认",
+                                infection_verdict=infection_verdict,
+                            )
 
             # ---- 休克/低灌注评估 ----
             shock = await self.engine._assess_shock_hypoperfusion(
@@ -287,56 +294,210 @@ class SepsisScanner(BaseScanner):
         if triggered > 0:
             self.engine._log_info("脓毒症预警", triggered)
 
-    async def _bridge_to_disease_case(
+    async def _bridge_qsofa_evidence(
+        self, patient_doc: dict, pid_str: str, alert: dict,
+        qsofa: int, sbp: float, rr: float, gcs: float,
+        infection_verdict: str,
+    ) -> None:
+        """qSOFA 单独阳性：只写入风险证据，不生成脓毒症结论。"""
+        try:
+            from app.services.disease_case_bridge import (
+                add_or_update_evidence,
+                upsert_case_from_scanner,
+                ALERT_TO_CASE_RISK,
+            )
+
+            alert_id = str(alert.get("_id", ""))
+            severity = alert.get("severity", "warning")
+
+            case = await upsert_case_from_scanner(
+                patient_id=pid_str,
+                disease_code="SEPSIS",
+                disease_name="脓毒症",
+                encounter_id=pid_str,
+                patient_name=patient_doc.get("name", ""),
+                bed=patient_doc.get("hisBed", ""),
+                dept=patient_doc.get("dept", ""),
+                scanner_id="sepsis",
+                rule_id="SEPSIS_QSOFA",
+                rule_version="Sepsis_v2",
+                risk_level=ALERT_TO_CASE_RISK.get(severity, "warning"),
+                screening_score=float(qsofa),
+                source_alert_id=alert_id,
+            )
+            if not case:
+                return
+
+            case_id = str(case["id"])
+
+            # 写入 qSOFA 证据
+            await add_or_update_evidence(
+                case_id=case_id,
+                patient_id=pid_str,
+                disease_code="SEPSIS",
+                evidence_type="clinical_score",
+                feature_name="qsofa",
+                raw_value=qsofa,
+                raw_unit="score",
+                observed_at=datetime.now(timezone.utc),
+                source_collection="vital_signs",
+                source_record_id=f"{pid_str}_qsofa_{alert_id}",
+                source_field="qsofa",
+                rule_id="SEPSIS_QSOFA",
+                rule_version="Sepsis_v2",
+                matched=True,
+                confidence=1.0,
+                explanation=f"qSOFA={qsofa}（SBP={sbp}, RR={rr}, GCS={gcs}），感染证据: {infection_verdict}",
+            )
+
+            # 不调用 mark_screen_positive，不生成脓毒症结论
+            # qSOFA 单独阳性只是风险提示
+
+        except Exception as e:
+            logger.error("qSOFA bridge failed: %s", e, exc_info=True)
+
+    async def _bridge_organ_dysfunction(
+        self, patient_doc: dict, pid_str: str, alert: dict,
+        delta: float, sofa: dict, infection_verdict: str,
+    ) -> None:
+        """SOFA 升高但感染不支持：只写入器官功能异常证据。"""
+        try:
+            from app.services.disease_case_bridge import (
+                add_or_update_evidence,
+                upsert_case_from_scanner,
+                ALERT_TO_CASE_RISK,
+            )
+
+            alert_id = str(alert.get("_id", ""))
+            severity = alert.get("severity", "high")
+
+            case = await upsert_case_from_scanner(
+                patient_id=pid_str,
+                disease_code="SEPSIS",
+                disease_name="脓毒症",
+                encounter_id=pid_str,
+                patient_name=patient_doc.get("name", ""),
+                bed=patient_doc.get("hisBed", ""),
+                dept=patient_doc.get("dept", ""),
+                scanner_id="sepsis",
+                rule_id="SEPSIS_SOFA",
+                rule_version="Sepsis_v2",
+                risk_level=ALERT_TO_CASE_RISK.get(severity, "warning"),
+                screening_score=sofa.get("score"),
+                source_alert_id=alert_id,
+            )
+            if not case:
+                return
+
+            case_id = str(case["id"])
+
+            await add_or_update_evidence(
+                case_id=case_id,
+                patient_id=pid_str,
+                disease_code="SEPSIS",
+                evidence_type="clinical_score",
+                feature_name="sofa_delta",
+                raw_value=delta,
+                raw_unit="score",
+                observed_at=datetime.now(timezone.utc),
+                source_collection="clinical_assessment",
+                source_record_id=f"{pid_str}_sofa_{alert_id}",
+                source_field="sofa",
+                rule_id="SEPSIS_SOFA",
+                rule_version="Sepsis_v2",
+                matched=True,
+                confidence=1.0,
+                explanation=f"SOFA Δ={delta}（总分={sofa.get('score')}），感染证据: {infection_verdict}。器官功能异常，非脓毒症确诊。",
+            )
+
+            # 不生成脓毒症结论，不进入 pending_review
+
+        except Exception as e:
+            logger.error("Organ dysfunction bridge failed: %s", e, exc_info=True)
+
+    async def _bridge_sepsis_case(
         self, patient_doc: dict, pid_str: str, alert: dict,
         rule_id: str, evidence_features: list[dict],
+        conclusion_code: str, conclusion_label: str,
+        infection_verdict: str,
     ) -> None:
-        """将脓毒症预警桥接到病种中心 DiseaseCase + CaseEvidence。"""
+        """脓毒症筛查阳性或可能脓毒性休克：创建病例、证据、结论，进入 pending_review。"""
         try:
             from app.services.disease_case_bridge import (
                 add_or_update_evidence,
                 mark_screen_positive,
                 upsert_case_from_scanner,
+                add_conclusion,
+                ALERT_TO_CASE_RISK,
             )
 
-            alert_id = str(alert.get("_id"))
+            alert_id = str(alert.get("_id", ""))
+            severity = alert.get("severity", "warning")
 
             case = await upsert_case_from_scanner(
-                db=self.engine.db,
-                patient_doc=patient_doc,
+                patient_id=pid_str,
                 disease_code="SEPSIS",
                 disease_name="脓毒症",
                 encounter_id=pid_str,
-                alert_id=alert_id,
+                patient_name=patient_doc.get("name", ""),
+                bed=patient_doc.get("hisBed", ""),
+                dept=patient_doc.get("dept", ""),
+                scanner_id="sepsis",
+                rule_id=rule_id,
+                rule_version="Sepsis_v2",
+                risk_level=ALERT_TO_CASE_RISK.get(severity, "warning"),
+                screening_score=alert.get("value"),
+                source_alert_id=alert_id,
             )
             if not case:
                 return
 
-            case_id = str(case["_id"])
+            case_id = str(case["id"])
 
+            # 写入证据
+            evidence_ids: list[str] = []
             for feat in evidence_features:
-                await add_or_update_evidence(
-                    db=self.engine.db,
+                eid = await add_or_update_evidence(
                     case_id=case_id,
+                    patient_id=pid_str,
+                    disease_code="SEPSIS",
+                    evidence_type=feat.get("evidence_type", "clinical_score"),
+                    feature_name=feat["feature_name"],
+                    raw_value=feat["raw_value"],
+                    raw_unit=feat.get("raw_unit", ""),
+                    observed_at=feat.get("observed_at") or datetime.now(timezone.utc),
                     source_collection=feat.get("source_collection", "vital_signs"),
                     source_record_id=feat["source_record_id"],
-                    evidence_type=feat.get("evidence_type", "lab_value"),
-                    feature_name=feat["feature_name"],
-                    value=feat["value"],
-                    unit=feat.get("unit"),
-                    occurred_at=feat.get("occurred_at") or datetime.now(timezone.utc),
+                    source_field=feat.get("source_field", ""),
                     rule_id=rule_id,
                     rule_version="Sepsis_v2",
-                    metadata=feat.get("metadata"),
+                    matched=True,
+                    confidence=1.0,
+                    explanation=feat.get("explanation", ""),
                 )
+                evidence_ids.append(eid)
 
-            severity = alert.get("severity", "warning")
-            await mark_screen_positive(
-                db=self.engine.db,
+            # 添加结论
+            await add_conclusion(
                 case_id=case_id,
-                severity=severity,
-                alert_id=alert_id,
+                patient_id=pid_str,
+                conclusion_code=conclusion_code,
+                conclusion_label=conclusion_label,
+                conclusion_level="screening",
+                supporting_evidence_ids=evidence_ids,
+                rule_id=rule_id,
+                rule_version="Sepsis_v2",
+                confidence=0.7,
+                detail={"infection_verdict": infection_verdict},
+            )
+
+            # 标记筛阳（会自动进入 pending_review）
+            await mark_screen_positive(
+                case_id=case_id,
+                risk_level=ALERT_TO_CASE_RISK.get(severity, "warning"),
+                screening_score=alert.get("value"),
+                source_alert_id=alert_id,
             )
 
         except Exception as e:
-            logger.warning("Sepsis DiseaseCase bridge failed: %s", e)
+            logger.error("Sepsis case bridge failed: %s", e, exc_info=True)
