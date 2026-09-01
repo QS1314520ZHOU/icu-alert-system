@@ -99,8 +99,13 @@ function installAuthInterceptor(instance: AxiosInstance) {
 
 // ── 响应拦截器 ────────────────────────────────────
 
+type RefreshWaiter = {
+  resolve: (token: string) => void
+  reject: (error: Error) => void
+}
+
 let isRefreshing = false
-let refreshQueue: Array<(token: string) => void> = []
+let refreshWaiters: RefreshWaiter[] = []
 
 /**
  * 401 处理流程：
@@ -128,10 +133,17 @@ function installAutoRetryInterceptor(instance: AxiosInstance) {
 
       if (isRefreshing) {
         // 等待刷新完成
-        return new Promise((resolve) => {
-          refreshQueue.push((token: string) => {
-            config.headers['Authorization'] = `Bearer ${token}`
-            resolve(instance.request(config))
+        return new Promise((resolve, reject) => {
+          refreshWaiters.push({
+            resolve: (token: string) => {
+              if (!token) {
+                reject(new Error('Token refresh failed'))
+                return
+              }
+              config.headers['Authorization'] = `Bearer ${token}`
+              resolve(instance.request(config))
+            },
+            reject: (err: Error) => reject(err),
           })
         })
       }
@@ -139,28 +151,27 @@ function installAutoRetryInterceptor(instance: AxiosInstance) {
       isRefreshing = true
 
       try {
-        // 尝试通过 iframe auth 刷新
+        // 通过 iframe auth 刷新 Token（真正 await）
         const { refreshToken } = await import('../auth/iframeAuth')
-        // refreshToken 内部会向宿主请求新 Token
-        // 等待一小段时间让 Token 更新
-        await new Promise(resolve => setTimeout(resolve, 500))
+        const newToken = await refreshToken()
 
-        const newToken = getAccessToken()
         if (!newToken) {
-          // 刷新失败，reject 队列中的所有请求
-          refreshQueue.forEach(cb => cb(''))
-          refreshQueue = []
+          // 刷新失败，reject 所有等待者
+          refreshWaiters.forEach(w => w.reject(new Error('Token refresh failed')))
+          refreshWaiters = []
           throw new Error('Token refresh failed')
         }
 
-        // 重放队列中的请求
-        refreshQueue.forEach(cb => cb(newToken))
-        refreshQueue = []
+        // 成功，resolve 所有等待者
+        refreshWaiters.forEach(w => w.resolve(newToken))
+        refreshWaiters = []
 
         config.headers['Authorization'] = `Bearer ${newToken}`
         return instance.request(config)
       } catch (err) {
-        refreshQueue = []
+        // 刷新失败，reject 所有等待者
+        refreshWaiters.forEach(w => w.reject(err instanceof Error ? err : new Error(String(err))))
+        refreshWaiters = []
         return Promise.reject(error)
       } finally {
         isRefreshing = false

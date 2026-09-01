@@ -822,12 +822,14 @@ export interface PathwayInstanceData {
 }
 
 export interface ConfirmRequest {
-  reason?: string
+  action?: 'confirm' | 'reject'
+  reason: string
   clinical_note?: string
 }
 
 export interface ExcludeRequest {
   reason: string
+  exclude_type: 'clinical_judgment' | 'data_error' | 'self_discharge' | 'death' | 'transfer' | 'other'
   clinical_note?: string
 }
 
@@ -909,21 +911,50 @@ export const completeCaseTask = (caseId: string, taskId: string, data: CompleteT
 
 // ===== 病例级AI =====
 
+export interface AIClaim {
+  claim: string
+  evidence_ids?: string[]
+  knowledge_reference_ids?: string[]
+  confidence_level?: 'low' | 'moderate' | 'high'
+}
+
+export interface AIMissingItem {
+  description: string
+  priority?: 'low' | 'medium' | 'high'
+  suggested_action?: string
+}
+
+export interface AISuggestedAssessment {
+  assessment: string
+  rationale?: string
+  priority?: 'low' | 'medium' | 'high'
+}
+
+export interface AICaseInsight {
+  case_id?: string
+  summary?: string
+  core_problems?: AIClaim[]
+  supporting_evidence?: AIClaim[]
+  contradicting_evidence?: AIClaim[]
+  missing_information?: AIMissingItem[]
+  suggested_assessments?: AISuggestedAssessment[]
+  risk_level?: 'low' | 'medium' | 'high' | 'critical' | 'unknown'
+  uncertainty?: 'low' | 'moderate' | 'high'
+  generation_mode?: 'llm' | 'rule_fallback'
+}
+
 export interface CaseAiSummary {
   success: boolean
-  data?: {
-    summary: string
-    core_problems: string[]
-    risk_assessment: string
-    key_evidence: string[]
-    recommendations: string[]
-    confidence: number
-  }
+  data?: AICaseInsight
   error?: string
   model?: string
   usage?: Record<string, any>
 }
 
-/** 获取病例AI分析摘要 */
+/** 获取已保存的病例AI分析摘要（只读，不触发LLM） */
 export const getCaseAiSummary = (caseId: string) =>
   api.get<CaseAiSummary>(`/api/disease-center/cases/${caseId}/ai-summary`)
+
+/** 触发LLM生成病例AI分析摘要 */
+export const generateCaseAiSummary = (caseId: string) =>
+  api.post<CaseAiSummary>(`/api/disease-center/cases/${caseId}/ai-summary/generate`)

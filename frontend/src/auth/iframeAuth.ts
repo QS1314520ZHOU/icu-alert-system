@@ -316,31 +316,103 @@ function scheduleTokenRefresh(): void {
 
 /**
  * 刷新 Token。
+ *
+ * 在 iframe 模式下，向宿主请求新 Token 并等待响应。
+ * 返回新 Token 或抛出异常。
  */
-async function refreshToken(): Promise<void> {
-  if (authState.value.status === 'refreshing') return
+export async function refreshToken(): Promise<string> {
+  if (authState.value.status === 'refreshing') {
+    // 等待当前刷新完成
+    return new Promise((resolve, reject) => {
+      const check = setInterval(() => {
+        if (authState.value.status !== 'refreshing') {
+          clearInterval(check)
+          if (authState.value.accessToken) {
+            resolve(authState.value.accessToken)
+          } else {
+            reject(new Error('Token refresh failed'))
+          }
+        }
+      }, 100)
+      // 超时
+      setTimeout(() => {
+        clearInterval(check)
+        reject(new Error('Token refresh timeout'))
+      }, AUTH_REQUEST_TIMEOUT)
+    })
+  }
 
+  const previousStatus = authState.value.status
   authState.value.status = 'refreshing'
 
   try {
     if (isIframe()) {
-      // 向宿主请求新 Token
-      const targetOrigin = getAllowedOrigins()[0] || '*'
-      const message = createEmbedMessage(AUTH_REQUEST_TYPE as any, {
-        requestId: generateId(),
-        nonce: generateId(),
-        timestamp: Date.now(),
-        action: 'refresh',
+      // 向宿主请求新 Token 并等待响应
+      return new Promise((resolve, reject) => {
+        const requestId = generateId()
+        const nonce = generateId()
+
+        const timeout = setTimeout(() => {
+          authState.value.status = 'expired'
+          authState.value.error = 'Token 刷新超时'
+          pendingResolve = null
+          reject(new Error('Token refresh timeout'))
+        }, AUTH_REQUEST_TIMEOUT)
+
+        // 临时保存旧的 pendingResolve
+        const oldPendingResolve = pendingResolve
+
+        pendingResolve = (payload: HostAuthPayload | null) => {
+          clearTimeout(timeout)
+          pendingResolve = null
+
+          if (payload?.accessToken) {
+            authState.value.accessToken = payload.accessToken
+            authState.value.status = 'authenticated'
+            if (payload.expiresAt) {
+              authState.value.expiresAt = new Date(payload.expiresAt).getTime()
+              scheduleTokenRefresh()
+            }
+            resolve(payload.accessToken)
+          } else if (payload?.authorizationCode) {
+            exchangeAuthorizationCode(payload.authorizationCode, payload)
+              .then(() => resolve(authState.value.accessToken))
+              .catch(reject)
+          } else {
+            authState.value.status = 'expired'
+            authState.value.error = '宿主未提供新的Token'
+            reject(new Error('No token from host'))
+          }
+        }
+
+        const targetOrigin = getAllowedOrigins()[0] || '*'
+        const message = createEmbedMessage(AUTH_REQUEST_TYPE as any, {
+          requestId,
+          nonce,
+          timestamp: Date.now(),
+          action: 'refresh',
+        })
+
+        authState.value.requestId = requestId
+        authState.value.nonce = nonce
+
+        try {
+          window.parent.postMessage(message, targetOrigin)
+        } catch (err) {
+          clearTimeout(timeout)
+          pendingResolve = null
+          authState.value.status = 'expired'
+          reject(err)
+        }
       })
-      window.parent.postMessage(message, targetOrigin)
     } else {
       // 非 iframe 环境，尝试使用 refresh token
-      const refreshToken = localStorage.getItem('icu_jwt_refresh_token')
-      if (refreshToken) {
+      const rt = localStorage.getItem('icu_jwt_refresh_token')
+      if (rt) {
         const response = await fetch('/api/auth/refresh', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
+          body: JSON.stringify({ refresh_token: rt }),
         })
 
         if (response.ok) {
@@ -351,16 +423,18 @@ async function refreshToken(): Promise<void> {
             authState.value.expiresAt = new Date(data.expires_at).getTime()
             scheduleTokenRefresh()
           }
-          return
+          return data.access_token
         }
       }
       authState.value.status = 'expired'
       authState.value.error = 'Token 已过期，请重新认证'
+      throw new Error('Token expired')
     }
   } catch (err) {
     console.error('[IframeAuth] Token refresh failed:', err)
     authState.value.status = 'expired'
     authState.value.error = 'Token 刷新失败'
+    throw err
   }
 }
 

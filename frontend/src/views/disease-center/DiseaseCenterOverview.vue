@@ -98,6 +98,28 @@
       </a-table>
       <a-empty v-if="!pendingLoading && pendingCases.length === 0" description="暂无待临床确认病例" />
     </div>
+
+    <!-- 快速确认对话框 -->
+    <a-modal
+      v-model:open="confirmModalVisible"
+      title="确认纳入病例"
+      @ok="handleConfirmSubmit"
+      @cancel="confirmModalVisible = false"
+      :confirm-loading="confirmLoading"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="患者 ID">
+          <a-input :value="confirmTarget?.patient_id" disabled />
+        </a-form-item>
+        <a-form-item label="确认原因" required>
+          <a-textarea
+            v-model:value="confirmReason"
+            placeholder="请输入确认原因（必填）"
+            :rows="3"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -302,15 +324,37 @@ function goCaseDetail(caseId: string) {
   router.push({ name: 'disease-center-case-detail', params: { caseId } })
 }
 
-async function handleConfirm(record: DiseaseCase) {
+// 确认对话框状态
+const confirmModalVisible = ref(false)
+const confirmLoading = ref(false)
+const confirmTarget = ref<DiseaseCase | null>(null)
+const confirmReason = ref('')
+
+function handleConfirm(record: DiseaseCase) {
+  confirmTarget.value = record
+  confirmReason.value = ''
+  confirmModalVisible.value = true
+}
+
+async function handleConfirmSubmit() {
+  if (!confirmReason.value.trim()) {
+    message.warning('请输入确认原因')
+    return
+  }
+  if (!confirmTarget.value) return
+  confirmLoading.value = true
   try {
-    await confirmCase(record.id, {
-      reason: '总览页快速确认纳入',
+    await confirmCase(confirmTarget.value.id, {
+      action: 'confirm',
+      reason: confirmReason.value.trim(),
     })
     message.success('已确认纳入')
+    confirmModalVisible.value = false
     loadPendingCases()
   } catch (err: any) {
     message.error('确认失败: ' + (err.message || '未知错误'))
+  } finally {
+    confirmLoading.value = false
   }
 }
 

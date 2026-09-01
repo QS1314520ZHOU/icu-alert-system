@@ -51,6 +51,21 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _build_active_case_key(
+    tenant_id: str,
+    hospital_id: str,
+    patient_id: str,
+    encounter_id: str,
+    disease_code: str,
+    episode_no: int,
+) -> str:
+    """构建活动病例唯一键。
+
+    用于 MongoDB 唯一索引，防止并发创建重复活动病例。
+    """
+    return f"{tenant_id}:{hospital_id}:{patient_id}:{encounter_id}:{disease_code}:{episode_no}"
+
+
 async def upsert_case_from_scanner(
     *,
     patient_id: str,
@@ -70,16 +85,26 @@ async def upsert_case_from_scanner(
     confidence: Optional[float] = None,
     clinical_summary: Optional[dict[str, Any]] = None,
     source_alert_id: str = "",
+    tenant_id: str = "",
+    hospital_id: str = "",
 ) -> dict[str, Any]:
     """从扫描器创建或更新病种病例。
 
     使用 MongoDB 原子 upsert 防止并发重复。
     去重维度：patient_id + encounter_id + disease_code + episode_no
+    活动病例使用 active_case_key 唯一索引保证并发安全。
 
     Returns:
         病例字典，包含 id 字段
     """
     now = _now()
+
+    # 构建活动病例唯一键
+    active_case_key = ""
+    if encounter_id:
+        active_case_key = _build_active_case_key(
+            tenant_id, hospital_id, patient_id, encounter_id, disease_code, episode_no
+        )
 
     create_fields: dict[str, Any] = {
         "id": _gen_id(),
@@ -87,6 +112,7 @@ async def upsert_case_from_scanner(
         "disease_id": disease_id,
         "disease_name": disease_name,
         "created_by": "scanner",
+        "active_case_key": active_case_key,
     }
 
     update_fields: dict[str, Any] = {

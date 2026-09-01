@@ -121,6 +121,11 @@ class DiseaseCase(BaseModel):
     encounter_id: str = ""      # 住院/就诊 ID
     episode_no: int = 1         # 同一住院内的事件序号
 
+    # 活动病例唯一键（用于并发安全去重）
+    # 格式: tenant_id:hospital_id:patient_id:encounter_id:disease_code:episode_no
+    # 病例终结时清空，重开时重建
+    active_case_key: str = ""
+
     # 病种关联
     disease_id: str = ""
     disease_code: str

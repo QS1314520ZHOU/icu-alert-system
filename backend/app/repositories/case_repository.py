@@ -190,6 +190,40 @@ class CaseRepository(MongoRepository):
             updates.update(extra)
         return await self.update_one({"id": case_id}, updates)
 
+    async def transition_status_atomic(
+        self,
+        case_id: str,
+        expected_status: str,
+        new_status: str,
+        extra_updates: Optional[dict[str, Any]] = None,
+    ) -> Optional[dict[str, Any]]:
+        """原子状态转换（Compare-And-Set）。
+
+        只有当病例当前状态等于 expected_status 时才更新为 new_status。
+        返回更新后的病例文档，如果状态不匹配则返回 None。
+
+        这保证了并发安全：两个并发请求只有一个能成功。
+        """
+        now = _now()
+        updates: dict[str, Any] = {
+            "status": new_status,
+            "updated_at": now,
+        }
+        if extra_updates:
+            updates.update(extra_updates)
+
+        collection = await self.get_collection()
+        from pymongo import ReturnDocument
+        result = await collection.find_one_and_update(
+            {
+                "id": case_id,
+                "status": expected_status,
+            },
+            {"$set": updates},
+            return_document=ReturnDocument.AFTER,
+        )
+        return result
+
     async def count_by_status(self, disease_id: Optional[str] = None) -> dict[str, int]:
         """按状态统计病例数。"""
         match_stage: dict[str, Any] = {}

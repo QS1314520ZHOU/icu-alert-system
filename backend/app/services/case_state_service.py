@@ -39,6 +39,11 @@ class StateTransitionError(Exception):
     pass
 
 
+class StateTransitionConflict(Exception):
+    """状态转换并发冲突（CAS失败）。"""
+    pass
+
+
 class PermissionDeniedError(Exception):
     """权限不足。"""
     pass
@@ -76,14 +81,18 @@ async def transition_case(
     task_id: str = "",
     task_type: str = "",
 ) -> dict[str, Any]:
-    """执行病例状态转换。
+    """执行病例状态转换（原子CAS）。
 
-    验证转换合法性，记录不可变事件日志。
+    使用 MongoDB find_one_and_update 实现原子 Compare-And-Set：
+    只有当病例当前状态等于预期状态时才执行更新。
+    并发请求中只有一个能成功，其余返回 StateTransitionConflict。
 
     Raises:
-        StateTransitionError: 非法状态转换
+        StateTransitionError: 非法状态转换或病例不存在
+        StateTransitionConflict: 并发状态冲突
         PermissionDeniedError: 权限不足
     """
+    # 先查询当前状态用于合法性验证和事件日志
     case = await _case_repo.find_by_id(case_id)
     if not case:
         raise StateTransitionError(f"病例不存在: {case_id}")
@@ -102,19 +111,16 @@ async def transition_case(
         ConfirmationAction.EXCLUDE: "exclude",
         ConfirmationAction.RECALCULATE: "recalculate",
         ConfirmationAction.TASK_COMPLETE: "complete_task",
-        ConfirmationAction.STATUS_CHANGE: "confirm",
+        ConfirmationAction.STATUS_CHANGE: "system-transition",
     }
-    required_permission = action_map.get(action, "confirm")
+    required_permission = action_map.get(action, "system-transition")
     if operator_role and not check_permission(operator_role, required_permission):
         raise PermissionDeniedError(
             f"角色 {operator_role} 无权执行 {required_permission} 操作"
         )
 
     now = _now()
-    updates: dict[str, Any] = {
-        "status": new_status,
-        "updated_at": now,
-    }
+    updates: dict[str, Any] = {}
 
     # 设置特定状态的时间戳
     if new_status == DiseaseCaseStatus.SCREEN_POSITIVE:
@@ -132,12 +138,34 @@ async def transition_case(
     elif new_status == DiseaseCaseStatus.COMPLETED:
         updates["resolved_at"] = now
     elif new_status == DiseaseCaseStatus.PATHWAY_ACTIVE:
-        pass  # pathway_started_at 由路径服务设置
+        updates["pathway_started_at"] = now
 
     if extra_updates:
         updates.update(extra_updates)
 
-    await _case_repo.update(case_id, updates)
+    # 终结状态清空 active_case_key，允许同一去重键创建新病例
+    if new_status in (
+        DiseaseCaseStatus.COMPLETED,
+        DiseaseCaseStatus.EXCLUDED,
+        DiseaseCaseStatus.TRANSFERRED,
+        DiseaseCaseStatus.DECEASED,
+    ):
+        updates["active_case_key"] = ""
+
+    # 重开时需要重建 active_case_key（由调用方负责设置）
+
+    # 原子CAS：只有当前状态匹配时才更新
+    updated_case = await _case_repo.transition_status_atomic(
+        case_id=case_id,
+        expected_status=current_status,
+        new_status=new_status,
+        extra_updates=updates,
+    )
+
+    if updated_case is None:
+        raise StateTransitionConflict(
+            f"病例状态已被其他用户修改（当前状态可能已非 {current_status}），请刷新后重试"
+        )
 
     # 记录不可变事件日志
     await _confirm_repo.create({
@@ -157,8 +185,7 @@ async def transition_case(
         "created_at": now,
     })
 
-    case.update(updates)
-    return case
+    return updated_case
 
 
 async def confirm_case(

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -28,6 +28,7 @@ from app.services.case_state_service import (
     exclude_case,
     recalculate_case,
     StateTransitionError,
+    StateTransitionConflict,
     PermissionDeniedError,
 )
 from app.services.clinical_scoring_service import (
@@ -47,14 +48,17 @@ router = APIRouter(prefix="/api/disease-center", tags=["病种中心"])
 
 class ExcludeRequest(BaseModel):
     """医生排除请求。"""
-    reason: str  # 必填
+    reason: str = Field(min_length=1, description="排除原因（必填）")
     clinical_note: str = ""
-    exclude_type: str = "other"  # false_positive, data_error, disease_change, differential, other
+    exclude_type: Literal[
+        "false_positive", "data_error", "disease_change",
+        "differential", "duplicate", "other",
+    ] = "other"
 
 
 class ConfirmCaseRequest(BaseModel):
     """医生确认请求。"""
-    reason: str = ""
+    reason: str = Field(default="", min_length=1, description="确认理由（必填）")
     clinical_note: str = ""
 
 
@@ -758,8 +762,15 @@ async def get_case_evidence(
     matched: Optional[bool] = None,
     skip: int = 0,
     limit: int = 200,
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """获取病例证据链。"""
+    # 患者授权检查
+    case = await case_service.get_case(case_id)
+    if case is None:
+        raise HTTPException(404, "病例不存在")
+    if not check_patient_access(current_user, case.get("dept", "")):
+        raise HTTPException(403, "无权访问该患者的病例")
     return await case_service.get_case_evidence(
         case_id, evidence_type=evidence_type, matched=matched,
         skip=skip, limit=limit,
@@ -767,20 +778,44 @@ async def get_case_evidence(
 
 
 @router.get("/cases/{case_id}/evidence/completeness")
-async def get_evidence_completeness(case_id: str):
+async def get_evidence_completeness(
+    case_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """获取病例证据完整度。"""
+    case = await case_service.get_case(case_id)
+    if case is None:
+        raise HTTPException(404, "病例不存在")
+    if not check_patient_access(current_user, case.get("dept", "")):
+        raise HTTPException(403, "无权访问该患者的病例")
     return await case_service.get_evidence_completeness(case_id)
 
 
 @router.get("/cases/{case_id}/timeline")
-async def get_case_timeline(case_id: str):
+async def get_case_timeline(
+    case_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """获取病例时间线。"""
+    case = await case_service.get_case(case_id)
+    if case is None:
+        raise HTTPException(404, "病例不存在")
+    if not check_patient_access(current_user, case.get("dept", "")):
+        raise HTTPException(403, "无权访问该患者的病例")
     return await case_service.get_case_timeline(case_id)
 
 
 @router.get("/cases/{case_id}/pathway")
-async def get_case_pathway(case_id: str):
+async def get_case_pathway(
+    case_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """获取病例路径实例。"""
+    case = await case_service.get_case(case_id)
+    if case is None:
+        raise HTTPException(404, "病例不存在")
+    if not check_patient_access(current_user, case.get("dept", "")):
+        raise HTTPException(403, "无权访问该患者的病例")
     instance = await case_service.get_pathway_instance(case_id)
     if instance is None:
         return None
@@ -792,11 +827,16 @@ async def get_case_pathway(case_id: str):
 
 
 @router.get("/cases/{case_id}/quality")
-async def get_case_quality(case_id: str):
+async def get_case_quality(
+    case_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """获取病例质量评估。"""
     case = await case_service.get_case(case_id)
     if case is None:
         raise HTTPException(404, "病例不存在")
+    if not check_patient_access(current_user, case.get("dept", "")):
+        raise HTTPException(403, "无权访问该患者的病例")
 
     completeness = await case_service.get_evidence_completeness(case_id)
     confirmations = await case_service.get_confirmation_history(case_id)
@@ -811,8 +851,16 @@ async def get_case_quality(case_id: str):
 
 
 @router.get("/cases/{case_id}/conclusions")
-async def get_case_conclusions(case_id: str):
+async def get_case_conclusions(
+    case_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """获取病例临床结论。"""
+    case = await case_service.get_case(case_id)
+    if case is None:
+        raise HTTPException(404, "病例不存在")
+    if not check_patient_access(current_user, case.get("dept", "")):
+        raise HTTPException(403, "无权访问该患者的病例")
     from app.repositories import ConclusionRepository
     repo = ConclusionRepository()
     conclusions = await repo.find_by_case(case_id, current_only=True)
@@ -845,6 +893,8 @@ async def confirm_case_endpoint(
             reason=req.reason,
             clinical_note=req.clinical_note,
         )
+    except StateTransitionConflict as e:
+        raise HTTPException(409, str(e))
     except StateTransitionError as e:
         raise HTTPException(400, str(e))
     except PermissionDeniedError as e:
@@ -880,6 +930,8 @@ async def exclude_case_endpoint(
             clinical_note=req.clinical_note,
             exclude_type=req.exclude_type,
         )
+    except StateTransitionConflict as e:
+        raise HTTPException(409, str(e))
     except StateTransitionError as e:
         raise HTTPException(400, str(e))
     except PermissionDeniedError as e:
@@ -937,22 +989,41 @@ async def get_case_ai_summary(
     case_id: str,
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    """获取病例AI分析摘要。
+    """获取病例AI分析摘要（只读，不触发LLM调用）。"""
+    case = await case_service.get_case(case_id)
+    if not case:
+        raise HTTPException(404, "病例不存在")
+    if not check_patient_access(current_user, case.get("dept", "")):
+        raise HTTPException(403, "无权访问该患者的病例")
 
-    使用项目已有的LLM配置生成病例分析。
-    """
+    # GET只返回已保存的结果，不触发LLM
+    from app.repositories.mongodb import get_database
+    db = await get_database()
+    saved = await db["case_ai_insights"].find_one(
+        {"case_id": case_id},
+        sort=[("generated_at", -1)],
+    )
+    if not saved:
+        return {"success": False, "error": "尚未生成AI摘要", "data": None}
+    saved.pop("_id", None)
+    return {"success": True, "data": saved}
+
+
+@router.post("/cases/{case_id}/ai-summary/generate")
+async def generate_case_ai_summary_endpoint(
+    case_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """触发病例AI摘要生成（调用LLM）。"""
     try:
-        # 获取病例信息
         case = await case_service.get_case(case_id)
         if not case:
             raise HTTPException(404, "病例不存在")
-
-        # 检查患者访问权限
-        if not check_patient_access(current_user, case.get("patient_id", "")):
+        if not check_patient_access(current_user, case.get("dept", "")):
             raise HTTPException(403, "无权访问该患者的病例")
 
         # 获取证据链
-        evidence_list = await case_service.get_case_evidence(case_id, limit=20)
+        evidence_list = await case_service.get_case_evidence(case_id, limit=30)
 
         # 获取临床结论
         from app.repositories import ConclusionRepository
@@ -966,6 +1037,19 @@ async def get_case_ai_summary(
             evidence_list=evidence_list,
             conclusions=conclusions,
         )
+
+        # 持久化结果
+        if result.get("success") and result.get("data"):
+            from app.repositories.mongodb import get_database
+            from datetime import datetime, timezone
+            db = await get_database()
+            doc = {
+                **result["data"],
+                "case_id": case_id,
+                "generated_at": datetime.now(timezone.utc),
+                "operator_id": current_user.user_id,
+            }
+            await db["case_ai_insights"].insert_one(doc)
 
         return result
 

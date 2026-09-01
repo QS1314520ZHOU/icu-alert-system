@@ -112,6 +112,13 @@ async def _create_indexes():
         [("patient_id", 1), ("encounter_id", 1), ("disease_code", 1), ("episode_no", 1)],
         name="idx_dedup_key",
     )
+    # 活动病例唯一键：防止并发创建重复活动病例
+    await db.disease_cases.create_index(
+        [("active_case_key", 1)],
+        unique=True,
+        sparse=True,
+        name="uq_disease_case_active_key",
+    )
 
     # 病例证据集合索引
     await db.case_evidence.create_index("case_id")
@@ -149,6 +156,10 @@ async def _create_indexes():
     # 临床路径定义集合索引
     await db.clinical_pathways.create_index("disease_id")
     await db.clinical_pathways.create_index("status")
+
+    # AI 病例洞察集合索引
+    await db.case_ai_insights.create_index("case_id")
+    await db.case_ai_insights.create_index("generated_at")
 
     logger.info("数据库索引创建完成")
 
