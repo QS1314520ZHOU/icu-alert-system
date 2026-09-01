@@ -179,7 +179,7 @@ const evidenceTypes = [
 
 const completenessScore = computed(() => {
   if (!completeness.value) return 0
-  return completeness.value.completeness ?? completeness.value.score ?? 0
+  return completeness.value.completeness_ratio ?? 0
 })
 
 const completenessList = computed(() => {
@@ -276,10 +276,10 @@ function formatTime(t?: string | null) {
 async function loadEvidence() {
   loading.value = true
   try {
-    evidenceList.value = await getCaseEvidence(props.caseId, {
+    evidenceList.value = (await getCaseEvidence(props.caseId, {
       evidence_type: filterType.value,
       matched: filterMatched.value,
-    })
+    })).data
   } catch {
     evidenceList.value = []
   } finally {
@@ -289,7 +289,7 @@ async function loadEvidence() {
 
 async function loadCompleteness() {
   try {
-    completeness.value = await getEvidenceCompleteness(props.caseId)
+    completeness.value = (await getEvidenceCompleteness(props.caseId)).data
   } catch {
     completeness.value = null
   }

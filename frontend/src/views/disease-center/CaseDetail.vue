@@ -349,7 +349,7 @@ function goBack() {
 async function loadCase() {
   loading.value = true
   try {
-    caseData.value = await getCaseDetail(caseId.value)
+    caseData.value = (await getCaseDetail(caseId.value)).data
   } catch (err: any) {
     message.error('加载病例失败: ' + (err.message || '未知错误'))
   } finally {
@@ -433,7 +433,7 @@ async function generateAiSummary() {
   aiLoading.value = true
   aiError.value = ''
   try {
-    const result = await generateCaseAiSummary(caseId.value)
+    const result = (await generateCaseAiSummary(caseId.value)).data
     if (result.success && result.data) {
       aiSummary.value = result.data
       aiModel.value = result.model || ''
@@ -449,7 +449,7 @@ async function generateAiSummary() {
 
 async function loadExistingAiSummary() {
   try {
-    const result = await getCaseAiSummary(caseId.value)
+    const result = (await getCaseAiSummary(caseId.value)).data
     if (result.success && result.data) {
       aiSummary.value = result.data
       aiModel.value = result.model || ''

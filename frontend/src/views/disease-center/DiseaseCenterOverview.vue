@@ -345,7 +345,7 @@ async function handleConfirmSubmit() {
 async function loadDashboard() {
   kpiLoading.value = true
   try {
-    dashboard.value = await getDashboard()
+    dashboard.value = (await getDashboard()).data
   } catch {
     // dashboard may not be fully implemented yet
   } finally {
@@ -355,7 +355,7 @@ async function loadDashboard() {
 
 async function loadFunnel() {
   try {
-    funnelData.value = await getGlobalFunnel()
+    funnelData.value = (await getGlobalFunnel()).data
   } catch {
     // funnel optional
   }
@@ -369,7 +369,7 @@ async function loadPendingCases() {
       page: 1,
       page_size: 5,
     })
-    pendingCases.value = res.items || []
+    pendingCases.value = res.data.items || []
   } catch {
     pendingCases.value = []
   } finally {

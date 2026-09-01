@@ -205,7 +205,7 @@ function canComplete(record: any) {
 async function handleComplete(record: any) {
   try {
     await completeCaseTask(props.caseId, record.id || record.task_id, {
-      completion_note: '医生标记完成',
+      note: '医生标记完成',
     })
     message.success('任务已标记完成')
     loadPathway()
@@ -217,7 +217,7 @@ async function handleComplete(record: any) {
 async function loadPathway() {
   loading.value = true
   try {
-    pathwayData.value = await getCasePathway(props.caseId)
+    pathwayData.value = (await getCasePathway(props.caseId)).data
     tasks.value = pathwayData.value?.tasks || []
   } catch {
     pathwayData.value = null

@@ -122,7 +122,7 @@ function getConfidenceClass(confidence?: number | null) {
 async function loadQuality() {
   loading.value = true
   try {
-    qualityData.value = await getCaseQuality(props.caseId)
+    qualityData.value = (await getCaseQuality(props.caseId)).data
   } catch {
     qualityData.value = null
   } finally {

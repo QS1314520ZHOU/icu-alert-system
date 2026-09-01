@@ -274,7 +274,7 @@ function handleCaseTableChange(pag: any) {
 // --- Data loading ---
 async function loadDisease() {
   try {
-    disease.value = await getDiseaseDetail(diseaseId.value)
+    disease.value = (await getDiseaseDetail(diseaseId.value)).data
   } catch {
     // disease not found
   }
@@ -282,7 +282,7 @@ async function loadDisease() {
 
 async function loadDashboard() {
   try {
-    dashData.value = await getDiseaseDashboard(diseaseId.value)
+    dashData.value = (await getDiseaseDashboard(diseaseId.value)).data
   } catch {
     // dashboard may not be available
   }
@@ -295,8 +295,8 @@ async function loadCases() {
       page: casePage.value,
       page_size: casePageSize.value,
     })
-    caseList.value = res.items || []
-    caseTotal.value = res.total || 0
+    caseList.value = res.data.items || []
+    caseTotal.value = res.data.total || 0
   } catch {
     caseList.value = []
   } finally {
@@ -306,7 +306,7 @@ async function loadCases() {
 
 async function loadPathway() {
   try {
-    pathway.value = await getDiseasePathway(diseaseId.value)
+    pathway.value = (await getDiseasePathway(diseaseId.value)).data
   } catch {
     pathway.value = null
   }

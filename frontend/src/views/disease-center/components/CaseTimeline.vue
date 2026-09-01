@@ -132,7 +132,7 @@ function formatTime(t?: string | null) {
 async function loadTimeline() {
   loading.value = true
   try {
-    timeline.value = await getCaseTimeline(props.caseId)
+    timeline.value = (await getCaseTimeline(props.caseId)).data
   } catch {
     timeline.value = []
   } finally {

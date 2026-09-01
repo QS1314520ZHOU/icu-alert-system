@@ -212,7 +212,7 @@ function getRiskClass(level: string) {
 async function loadDiseases() {
   try {
     const res = await getDiseases()
-    diseases.value = res
+    diseases.value = res.data
   } catch {
     // diseases list optional
   }
@@ -228,8 +228,8 @@ async function loadCases() {
       page: currentPage.value,
       page_size: pageSize.value,
     })
-    cases.value = res.items || []
-    total.value = res.total || 0
+    cases.value = res.data.items || []
+    total.value = res.data.total || 0
   } catch (err: any) {
     message.error('加载病例失败: ' + (err.message || '未知错误'))
   } finally {
