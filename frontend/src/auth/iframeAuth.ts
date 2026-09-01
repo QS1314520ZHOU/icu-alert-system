@@ -13,7 +13,6 @@ import {
   createEmbedMessage,
   isHostMessage,
   isDuplicateRequestId,
-  validateHostPayload,
   type HostMessage,
 } from '../config/postMessageProtocol'
 
@@ -36,6 +35,10 @@ export interface HostAuthPayload {
   authorizationCode?: string
   /** 令牌过期时间（ISO 8601） */
   expiresAt?: string
+  /** 宿主返回的请求 ID（用于关联请求-响应） */
+  requestId?: string
+  /** 一次性随机数（防重放） */
+  nonce?: string
   /** 用户展示信息（仅用于界面显示，不作为认证依据） */
   userDisplay?: {
     userName?: string
@@ -342,7 +345,6 @@ export async function refreshToken(): Promise<string> {
     })
   }
 
-  const previousStatus = authState.value.status
   authState.value.status = 'refreshing'
 
   try {
@@ -358,9 +360,6 @@ export async function refreshToken(): Promise<string> {
           pendingResolve = null
           reject(new Error('Token refresh timeout'))
         }, AUTH_REQUEST_TIMEOUT)
-
-        // 临时保存旧的 pendingResolve
-        const oldPendingResolve = pendingResolve
 
         pendingResolve = (payload: HostAuthPayload | null) => {
           clearTimeout(timeout)
@@ -455,7 +454,7 @@ function handleMessage(event: MessageEvent): void {
   // 去重
   if (isDuplicateRequestId(data.requestId)) return
 
-  switch (data.type) {
+  switch (data.type as string) {
     case AUTH_RESPONSE_TYPE:
       handleAuthResponse(data as HostMessage<HostAuthPayload>)
       break
@@ -493,7 +492,7 @@ function handleHostLogout(): void {
 /**
  * 处理宿主切换用户。
  */
-function handleHostUserChanged(payload: any): void {
+function handleHostUserChanged(_payload: any): void {
   clearAuthState()
   authState.value.status = 'initializing'
   // 重新请求认证

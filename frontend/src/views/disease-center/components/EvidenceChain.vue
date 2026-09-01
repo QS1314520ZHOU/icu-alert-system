@@ -184,10 +184,10 @@ const completenessScore = computed(() => {
 
 const completenessList = computed(() => {
   if (!completeness.value?.by_type) return []
-  return Object.entries(completeness.value.by_type).map(([k, v]) => ({
+  return Object.entries(completeness.value.by_type).map(([k, v]: [string, { total: number; matched: number; quality_issues: number }]) => ({
     label: getEvidenceTypeLabel(k),
     value: v,
-    color: v > 0 ? 'var(--color-success)' : 'var(--color-text-tertiary)',
+    color: v.total > 0 ? 'var(--color-success)' : 'var(--color-text-tertiary)',
   }))
 })
 

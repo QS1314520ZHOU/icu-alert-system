@@ -102,7 +102,7 @@
               <p v-if="pathway.description" class="pathway-desc">{{ pathway.description }}</p>
               <div v-if="pathway.tasks && pathway.tasks.length > 0" class="pathway-tasks">
                 <div v-for="(task, idx) in pathway.tasks" :key="idx" class="pathway-task-item">
-                  <span class="task-idx">{{ idx + 1 }}</span>
+                  <span class="task-idx">{{ Number(idx) + 1 }}</span>
                   <span class="task-name">{{ task.name || task.task_id }}</span>
                   <a-tag v-if="task.time_limit_hours" size="small">
                     {{ task.time_limit_hours }}h 时限
@@ -135,7 +135,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
 import VChart from 'vue-echarts'
 import {
   getDiseaseDetail,

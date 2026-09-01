@@ -134,7 +134,7 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 
 const diseaseOptions = computed(() =>
-  diseases.value.map(d => ({ id: d.id, name: d.name }))
+  diseases.value.map((d: Disease) => ({ id: d.id, name: d.name }))
 )
 
 const statusOptions = [

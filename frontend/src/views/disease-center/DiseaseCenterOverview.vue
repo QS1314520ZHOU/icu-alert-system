@@ -134,7 +134,7 @@ import {
   getAllCases,
   confirmCase,
 } from '@/api/diseaseCenter'
-import type { DashboardData, DiseaseCase, FunnelData, QualityMetrics } from '@/api/diseaseCenter'
+import type { DashboardData, DiseaseCase, FunnelData } from '@/api/diseaseCenter'
 
 const router = useRouter()
 
@@ -284,23 +284,6 @@ const statusOption = computed(() => {
         name: labelMap[k] || k,
         value: v,
       })),
-    }],
-  }
-})
-
-// --- Case Trend ---
-const caseTrendOption = computed(() => {
-  const d = dashboard.value
-  const trend = d?.case_trend
-  if (!trend || trend.length === 0) return null
-  return {
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: trend.map((t: any) => t._id) },
-    yAxis: { type: 'value', name: '病例数' },
-    series: [{
-      type: 'bar',
-      data: trend.map((t: any) => t.total),
-      itemStyle: { color: '#1D6F63', borderRadius: [4, 4, 0, 0] },
     }],
   }
 })

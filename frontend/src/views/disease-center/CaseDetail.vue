@@ -249,7 +249,7 @@ import {
   getCaseAiSummary,
   generateCaseAiSummary,
 } from '@/api/diseaseCenter'
-import type { DiseaseCase, CaseAiSummary, AICaseInsight } from '@/api/diseaseCenter'
+import type { DiseaseCase, AICaseInsight } from '@/api/diseaseCenter'
 import EvidenceChain from './components/EvidenceChain.vue'
 import CaseTimeline from './components/CaseTimeline.vue'
 import PathwayExecution from './components/PathwayExecution.vue'
