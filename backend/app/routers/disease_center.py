@@ -37,6 +37,7 @@ from app.services.clinical_scoring_service import (
     evaluate_score,
     run_test_case,
 )
+from app.services.case_ai_service import generate_case_ai_summary
 
 router = APIRouter(prefix="/api/disease-center", tags=["病种中心"])
 
@@ -929,3 +930,46 @@ async def complete_case_task(
         raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(500, f"完成任务失败: {e}")
+
+
+@router.get("/cases/{case_id}/ai-summary")
+async def get_case_ai_summary(
+    case_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """获取病例AI分析摘要。
+
+    使用项目已有的LLM配置生成病例分析。
+    """
+    try:
+        # 获取病例信息
+        case = await case_service.get_case(case_id)
+        if not case:
+            raise HTTPException(404, "病例不存在")
+
+        # 检查患者访问权限
+        if not check_patient_access(current_user, case.get("patient_id", "")):
+            raise HTTPException(403, "无权访问该患者的病例")
+
+        # 获取证据链
+        evidence_list = await case_service.get_case_evidence(case_id, limit=20)
+
+        # 获取临床结论
+        from app.repositories import ConclusionRepository
+        conclusion_repo = ConclusionRepository()
+        conclusions = await conclusion_repo.find_by_case(case_id, current_only=True)
+
+        # 生成AI摘要
+        from app.services.case_ai_service import generate_case_ai_summary
+        result = await generate_case_ai_summary(
+            case_data=case,
+            evidence_list=evidence_list,
+            conclusions=conclusions,
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"生成AI摘要失败: {e}")

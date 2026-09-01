@@ -57,6 +57,51 @@
           </div>
         </div>
 
+        <!-- AI 摘要 -->
+        <div class="ai-summary-section">
+          <div class="ai-summary-header">
+            <span class="ai-summary-title">AI 病例分析</span>
+            <a-button
+              size="small"
+              :loading="aiLoading"
+              @click="generateAiSummary"
+            >
+              {{ aiSummary ? '重新分析' : '生成分析' }}
+            </a-button>
+          </div>
+          <div v-if="aiSummary" class="ai-summary-content">
+            <div class="ai-summary-text">{{ aiSummary.summary }}</div>
+            <div v-if="aiSummary.core_problems?.length" class="ai-section">
+              <div class="ai-section-title">核心问题</div>
+              <ul>
+                <li v-for="(problem, idx) in aiSummary.core_problems" :key="idx">{{ problem }}</li>
+              </ul>
+            </div>
+            <div v-if="aiSummary.risk_assessment" class="ai-section">
+              <div class="ai-section-title">风险评估</div>
+              <a-tag :color="getRiskColor(aiSummary.risk_assessment)">{{ aiSummary.risk_assessment }}</a-tag>
+            </div>
+            <div v-if="aiSummary.key_evidence?.length" class="ai-section">
+              <div class="ai-section-title">关键证据</div>
+              <ul>
+                <li v-for="(ev, idx) in aiSummary.key_evidence" :key="idx">{{ ev }}</li>
+              </ul>
+            </div>
+            <div v-if="aiSummary.recommendations?.length" class="ai-section">
+              <div class="ai-section-title">建议</div>
+              <ul>
+                <li v-for="(rec, idx) in aiSummary.recommendations" :key="idx">{{ rec }}</li>
+              </ul>
+            </div>
+            <div class="ai-meta">
+              <span>置信度: {{ (aiSummary.confidence * 100).toFixed(0) }}%</span>
+              <span v-if="aiModel">模型: {{ aiModel }}</span>
+            </div>
+          </div>
+          <div v-else-if="aiError" class="ai-error">{{ aiError }}</div>
+          <div v-else-if="!aiLoading" class="ai-placeholder">点击"生成分析"获取AI辅助诊断建议</div>
+        </div>
+
         <!-- Tabs -->
         <a-tabs v-model:activeKey="activeTab" type="card">
           <a-tab-pane key="evidence" tab="证据链">
@@ -86,8 +131,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { getCaseDetail, confirmCase, excludeCase } from '@/api/diseaseCenter'
-import type { DiseaseCase } from '@/api/diseaseCenter'
+import { getCaseDetail, confirmCase, excludeCase, getCaseAiSummary } from '@/api/diseaseCenter'
+import type { DiseaseCase, CaseAiSummary } from '@/api/diseaseCenter'
 import EvidenceChain from './components/EvidenceChain.vue'
 import CaseTimeline from './components/CaseTimeline.vue'
 import PathwayExecution from './components/PathwayExecution.vue'
@@ -100,6 +145,12 @@ const caseId = computed(() => route.params.caseId as string)
 const caseData = ref<DiseaseCase | null>(null)
 const loading = ref(false)
 const activeTab = ref('evidence')
+
+// AI 摘要状态
+const aiLoading = ref(false)
+const aiSummary = ref<CaseAiSummary['data'] | null>(null)
+const aiModel = ref<string>('')
+const aiError = ref<string>('')
 
 const statusColor = computed(() => {
   const s = caseData.value?.status
@@ -195,6 +246,34 @@ async function handleExclude() {
   }
 }
 
+async function generateAiSummary() {
+  aiLoading.value = true
+  aiError.value = ''
+  try {
+    const result = await getCaseAiSummary(caseId.value)
+    if (result.success && result.data) {
+      aiSummary.value = result.data
+      aiModel.value = result.model || ''
+    } else {
+      aiError.value = result.error || 'AI分析失败'
+    }
+  } catch (err: any) {
+    aiError.value = 'AI分析请求失败: ' + (err.message || '未知错误')
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+function getRiskColor(risk: string) {
+  const map: Record<string, string> = {
+    critical: 'red',
+    high: 'orange',
+    medium: 'yellow',
+    low: 'green',
+  }
+  return map[risk] || 'default'
+}
+
 onMounted(() => {
   loadCase()
 })
@@ -252,5 +331,87 @@ onMounted(() => {
 
 .risk-low {
   color: var(--color-success, #16845B);
+}
+
+/* AI 摘要样式 */
+.ai-summary-section {
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px;
+}
+
+.ai-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ai-summary-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary, #18212B);
+}
+
+.ai-summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-summary-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-primary, #18212B);
+  padding: 12px;
+  background: var(--color-bg-subtle, #F9FAFB);
+  border-radius: 8px;
+}
+
+.ai-section {
+  padding: 8px 0;
+}
+
+.ai-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #667085);
+  margin-bottom: 6px;
+}
+
+.ai-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.ai-section li {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-primary, #18212B);
+}
+
+.ai-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #667085);
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border, #E3E7EC);
+}
+
+.ai-error {
+  color: var(--color-error, #D92D20);
+  font-size: 13px;
+  padding: 8px;
+  background: var(--color-error-light, #FEF3F2);
+  border-radius: 6px;
+}
+
+.ai-placeholder {
+  color: var(--color-text-secondary, #667085);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px;
 }
 </style>

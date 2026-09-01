@@ -906,3 +906,24 @@ export const recalculateCase = (caseId: string, data?: RecalculateRequest) =>
 /** 完成路径任务 */
 export const completeCaseTask = (caseId: string, taskId: string, data: CompleteTaskRequest) =>
   api.post<Record<string, any>>(`/api/disease-center/cases/${caseId}/tasks/${taskId}/complete`, data)
+
+// ===== 病例级AI =====
+
+export interface CaseAiSummary {
+  success: boolean
+  data?: {
+    summary: string
+    core_problems: string[]
+    risk_assessment: string
+    key_evidence: string[]
+    recommendations: string[]
+    confidence: number
+  }
+  error?: string
+  model?: string
+  usage?: Record<string, any>
+}
+
+/** 获取病例AI分析摘要 */
+export const getCaseAiSummary = (caseId: string) =>
+  api.get<CaseAiSummary>(`/api/disease-center/cases/${caseId}/ai-summary`)
