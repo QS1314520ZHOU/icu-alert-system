@@ -1,8 +1,8 @@
 """病例管理服务。
 
 核心业务逻辑：
-- 病例 CRUD 与去重（同一患者+同一病种=同一活动病例）
-- 状态机流转
+- 病例 CRUD 与去重（patient_id + encounter_id + disease_code + episode_no）
+- 状态机流转（通过 CaseStateService 统一管理）
 - 医生确认/排除
 - 证据链查询
 - 路径实例管理
@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.models.disease_center import (
@@ -49,6 +49,10 @@ _disease_repo = DiseaseRepository()
 
 def _gen_id() -> str:
     return str(uuid.uuid4())
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # =========================================================================
@@ -107,17 +111,25 @@ async def find_or_create_case(
     patient_name: str = "",
     bed: str = "",
     dept: str = "",
+    encounter_id: str = "",
+    episode_no: int = 1,
 ) -> dict[str, Any]:
     """查找或创建病例（去重）。
 
-    同一患者 + 同一病种 = 同一活动病例。
+    去重维度：patient_id + encounter_id + disease_code + episode_no
     如果已有活动病例，更新评估时间；否则创建新病例。
     """
-    existing = await _case_repo.find_active_by_patient_disease(
-        patient_id, disease_code
-    )
+    now = _now()
 
-    now = datetime.utcnow()
+    # 优先使用新的去重键
+    if encounter_id:
+        existing = await _case_repo.find_active_by_dedup_key(
+            patient_id, encounter_id, disease_code, episode_no
+        )
+    else:
+        existing = await _case_repo.find_active_by_patient_disease(
+            patient_id, disease_code
+        )
 
     if existing:
         # 更新现有病例的评估时间
@@ -138,6 +150,8 @@ async def find_or_create_case(
         "patient_name": patient_name,
         "bed": bed,
         "dept": dept,
+        "encounter_id": encounter_id,
+        "episode_no": episode_no,
         "disease_id": disease_id,
         "disease_code": disease_code,
         "disease_name": disease_name,
@@ -154,68 +168,8 @@ async def find_or_create_case(
 
 
 # =========================================================================
-# 状态机
+# 状态机（委托给 CaseStateService）
 # =========================================================================
-
-
-async def transition_case(
-    case_id: str,
-    new_status: str,
-    operator_id: str = "system",
-    operator_name: str = "",
-    reason: str = "",
-    extra_updates: Optional[dict[str, Any]] = None,
-) -> dict[str, Any]:
-    """执行病例状态转换。
-
-    验证转换合法性，记录确认日志。
-    """
-    case = await _case_repo.find_by_id(case_id)
-    if not case:
-        raise ValueError(f"病例不存在: {case_id}")
-
-    current_status = case.get("status", "")
-    if not can_transition(current_status, new_status):
-        raise ValueError(
-            f"非法状态转换: {current_status} → {new_status}"
-        )
-
-    now = datetime.utcnow()
-    updates = {
-        "status": new_status,
-        "updated_at": now,
-    }
-
-    # 设置特定状态的时间戳
-    if new_status == DiseaseCaseStatus.SCREEN_POSITIVE:
-        updates["screen_positive_at"] = now
-    elif new_status == DiseaseCaseStatus.CONFIRMED:
-        updates["confirmed_at"] = now
-        updates["confirmed_by"] = operator_id
-    elif new_status == DiseaseCaseStatus.EXCLUDED:
-        updates["excluded_at"] = now
-        updates["excluded_by"] = operator_id
-
-    if extra_updates:
-        updates.update(extra_updates)
-
-    await _case_repo.update(case_id, updates)
-
-    # 记录确认日志
-    await _confirm_repo.create({
-        "id": _gen_id(),
-        "case_id": case_id,
-        "patient_id": case.get("patient_id", ""),
-        "action": ConfirmationAction.STATUS_CHANGE,
-        "previous_status": current_status,
-        "new_status": new_status,
-        "operator_id": operator_id,
-        "operator_name": operator_name,
-        "reason": reason,
-    })
-
-    case.update(updates)
-    return case
 
 
 async def update_case_screening_result(
@@ -228,7 +182,7 @@ async def update_case_screening_result(
 ) -> None:
     """更新病例筛查结果（由扫描器调用）。"""
     updates: dict[str, Any] = {
-        "last_evaluated_at": datetime.utcnow(),
+        "last_evaluated_at": _now(),
     }
     if screening_score is not None:
         updates["screening_score"] = screening_score
@@ -242,143 +196,6 @@ async def update_case_screening_result(
         updates["rule_version"] = rule_version
 
     await _case_repo.update(case_id, updates)
-
-
-# =========================================================================
-# 医生确认/排除
-# =========================================================================
-
-
-async def confirm_case(
-    case_id: str,
-    operator_id: str,
-    operator_name: str = "",
-    reason: str = "",
-    clinical_note: str = "",
-) -> dict[str, Any]:
-    """医生确认病例。"""
-    case = await _case_repo.find_by_id(case_id)
-    if not case:
-        raise ValueError(f"病例不存在: {case_id}")
-
-    current = case.get("status", "")
-    # 允许从 pending_review 或 excluded 确认
-    if current not in (DiseaseCaseStatus.PENDING_REVIEW, DiseaseCaseStatus.EXCLUDED):
-        raise ValueError(f"当前状态 {current} 不允许确认")
-
-    now = datetime.utcnow()
-    await _case_repo.update(case_id, {
-        "status": DiseaseCaseStatus.CONFIRMED,
-        "confirmed_at": now,
-        "confirmed_by": operator_id,
-        "confirm_reason": reason,
-        "updated_at": now,
-    })
-
-    await _confirm_repo.create({
-        "id": _gen_id(),
-        "case_id": case_id,
-        "patient_id": case.get("patient_id", ""),
-        "action": ConfirmationAction.CONFIRM,
-        "previous_status": current,
-        "new_status": DiseaseCaseStatus.CONFIRMED,
-        "operator_id": operator_id,
-        "operator_name": operator_name,
-        "reason": reason,
-        "clinical_note": clinical_note,
-    })
-
-    case["status"] = DiseaseCaseStatus.CONFIRMED
-    case["confirmed_at"] = now
-    case["confirmed_by"] = operator_id
-    return case
-
-
-async def exclude_case(
-    case_id: str,
-    operator_id: str,
-    operator_name: str = "",
-    reason: str = "",
-    clinical_note: str = "",
-) -> dict[str, Any]:
-    """医生排除病例。"""
-    case = await _case_repo.find_by_id(case_id)
-    if not case:
-        raise ValueError(f"病例不存在: {case_id}")
-
-    current = case.get("status", "")
-    if current not in (
-        DiseaseCaseStatus.SCREEN_POSITIVE,
-        DiseaseCaseStatus.PENDING_REVIEW,
-        DiseaseCaseStatus.CONFIRMED,
-    ):
-        raise ValueError(f"当前状态 {current} 不允许排除")
-
-    now = datetime.utcnow()
-    await _case_repo.update(case_id, {
-        "status": DiseaseCaseStatus.EXCLUDED,
-        "excluded_at": now,
-        "excluded_by": operator_id,
-        "exclude_reason": reason,
-        "updated_at": now,
-    })
-
-    await _confirm_repo.create({
-        "id": _gen_id(),
-        "case_id": case_id,
-        "patient_id": case.get("patient_id", ""),
-        "action": ConfirmationAction.EXCLUDE,
-        "previous_status": current,
-        "new_status": DiseaseCaseStatus.EXCLUDED,
-        "operator_id": operator_id,
-        "operator_name": operator_name,
-        "reason": reason,
-        "clinical_note": clinical_note,
-    })
-
-    case["status"] = DiseaseCaseStatus.EXCLUDED
-    case["excluded_at"] = now
-    case["excluded_by"] = operator_id
-    return case
-
-
-async def recalculate_case(
-    case_id: str,
-    operator_id: str = "system",
-    operator_name: str = "",
-    reason: str = "手动触发重新计算",
-) -> dict[str, Any]:
-    """触发病例重新计算。"""
-    case = await _case_repo.find_by_id(case_id)
-    if not case:
-        raise ValueError(f"病例不存在: {case_id}")
-
-    # 重置为 screening 状态，等待扫描器重新评估
-    current = case.get("status", "")
-    now = datetime.utcnow()
-    await _case_repo.update(case_id, {
-        "status": DiseaseCaseStatus.SCREENING,
-        "screening_score": None,
-        "confidence": None,
-        "risk_level": "",
-        "last_evaluated_at": now,
-        "updated_at": now,
-    })
-
-    await _confirm_repo.create({
-        "id": _gen_id(),
-        "case_id": case_id,
-        "patient_id": case.get("patient_id", ""),
-        "action": ConfirmationAction.RECALCULATE,
-        "previous_status": current,
-        "new_status": DiseaseCaseStatus.SCREENING,
-        "operator_id": operator_id,
-        "operator_name": operator_name,
-        "reason": reason,
-    })
-
-    case["status"] = DiseaseCaseStatus.SCREENING
-    return case
 
 
 # =========================================================================
@@ -470,7 +287,7 @@ async def complete_task(
     if not task:
         raise ValueError(f"任务不存在: {task_id}")
 
-    now = datetime.utcnow()
+    now = _now()
     is_late = False
     due = task.get("due_at")
     if due and isinstance(due, datetime) and now > due:
@@ -577,6 +394,12 @@ async def get_dashboard_data() -> dict[str, Any]:
     # 近 30 天病例趋势
     trend_30d = await _case_repo.get_case_trend(days=30)
 
+    # 漏斗数据
+    funnel = await _case_repo.get_funnel_data()
+
+    # 质量指标
+    quality = await _case_repo.get_quality_metrics()
+
     return {
         "disease_count": disease_count,
         "disease_total": disease_count,
@@ -588,6 +411,8 @@ async def get_dashboard_data() -> dict[str, Any]:
         "status_counts": status_counts,
         "risk_distribution": risk_dist,
         "case_trend": trend_30d,
+        "funnel": funnel,
+        "quality_metrics": quality,
     }
 
 
@@ -617,6 +442,12 @@ async def get_disease_dashboard(disease_id: str) -> dict[str, Any]:
     # 路径超时
     overdue = await _pathway_repo.count_active_overdue(disease_id=disease_id)
 
+    # 漏斗
+    funnel = await _case_repo.get_funnel_data(disease_id=disease_id)
+
+    # 质量指标
+    quality = await _case_repo.get_quality_metrics(disease_id=disease_id)
+
     return {
         "disease": {
             "id": disease.get("id"),
@@ -632,40 +463,14 @@ async def get_disease_dashboard(disease_id: str) -> dict[str, Any]:
         "risk_distribution": risk_dist,
         "trend": trend,
         "overdue_pathways": overdue,
+        "funnel": funnel,
+        "quality_metrics": quality,
     }
 
 
 async def get_funnel_data(disease_id: str) -> dict[str, Any]:
-    """获取筛查漏斗数据。"""
-    status_counts = await _case_repo.count_by_status(disease_id=disease_id)
-
-    screening = status_counts.get("screening", 0)
-    screen_positive = status_counts.get("screen_positive", 0)
-    pending_review = status_counts.get("pending_review", 0)
-    confirmed = status_counts.get("confirmed", 0)
-    pathway_active = status_counts.get("pathway_active", 0)
-    completed = status_counts.get("completed", 0)
-    excluded = status_counts.get("excluded", 0)
-
-    total_screened = screening + screen_positive + pending_review + confirmed + pathway_active + completed + excluded
-
-    return {
-        "total_screened": total_screened,
-        "screen_positive": screen_positive + pending_review + confirmed + pathway_active + completed,
-        "pending_review": pending_review + confirmed + pathway_active + completed,
-        "confirmed": confirmed + pathway_active + completed,
-        "pathway_active": pathway_active + completed,
-        "completed": completed,
-        "excluded": excluded,
-        "stages": [
-            {"label": "筛查总数", "count": total_screened},
-            {"label": "筛查阳性", "count": screen_positive + pending_review + confirmed + pathway_active + completed},
-            {"label": "待医生确认", "count": pending_review + confirmed + pathway_active + completed},
-            {"label": "已确认", "count": confirmed + pathway_active + completed},
-            {"label": "路径执行中", "count": pathway_active + completed},
-            {"label": "已完成", "count": completed},
-        ],
-    }
+    """获取筛查漏斗数据（按"曾到达该阶段"统计）。"""
+    return await _case_repo.get_funnel_data(disease_id=disease_id if disease_id else None)
 
 
 # =========================================================================

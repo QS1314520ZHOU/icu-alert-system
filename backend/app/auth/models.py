@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Optional
 
@@ -14,6 +14,9 @@ class UserRole(StrEnum):
     ADMIN = "admin"
     DOCTOR = "doctor"
     NURSE = "nurse"
+    HEAD_NURSE = "head_nurse"
+    CHARGE_NURSE = "charge_nurse"
+    DIRECTOR = "director"
     RESEARCHER = "researcher"
     VIEWER = "viewer"
 
@@ -29,8 +32,8 @@ class User(BaseModel):
     allowed_wards: list[str] = Field(default_factory=list)  # 授权访问的病区列表
     permissions: list[str] = Field(default_factory=list)  # 功能权限列表
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class UserCreate(BaseModel):

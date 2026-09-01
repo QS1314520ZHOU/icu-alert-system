@@ -1,11 +1,19 @@
-"""病例和证据仓储 - MongoDB 实现。"""
+"""病例和证据仓储 - MongoDB 实现。
+
+去重维度：patient_id + encounter_id + disease_code + episode_no
+使用 MongoDB 原子 upsert 防止并发重复。
+"""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.repositories.mongodb import MongoRepository
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class CaseRepository(MongoRepository):
@@ -21,7 +29,7 @@ class CaseRepository(MongoRepository):
     async def find_active_by_patient_disease(
         self, patient_id: str, disease_code: str
     ) -> Optional[dict[str, Any]]:
-        """查找患者的活动病例（去重）。
+        """查找患者的活动病例（兼容旧去重逻辑）。
 
         同一患者 + 同一病种 = 同一活动病例。
         排除已终结状态：completed, transferred, deceased。
@@ -31,6 +39,71 @@ class CaseRepository(MongoRepository):
             "disease_code": disease_code,
             "status": {"$nin": ["completed", "transferred", "deceased"]},
         })
+
+    async def find_active_by_dedup_key(
+        self,
+        patient_id: str,
+        encounter_id: str,
+        disease_code: str,
+        episode_no: int = 1,
+    ) -> Optional[dict[str, Any]]:
+        """根据完整去重键查找活动病例。"""
+        return await self.find_one({
+            "patient_id": patient_id,
+            "encounter_id": encounter_id,
+            "disease_code": disease_code,
+            "episode_no": episode_no,
+            "status": {"$nin": ["completed", "transferred", "deceased"]},
+        })
+
+    async def upsert_case(
+        self,
+        patient_id: str,
+        encounter_id: str,
+        disease_code: str,
+        episode_no: int,
+        create_fields: dict[str, Any],
+        update_fields: dict[str, Any],
+    ) -> dict[str, Any]:
+        """原子 upsert 病例，防止并发重复创建。
+
+        使用 findOneAndUpdate 实现原子操作：
+        - 如果存在匹配的活动病例，更新并返回
+        - 如果不存在，创建新病例
+        """
+        now = _now()
+        filter_query = {
+            "patient_id": patient_id,
+            "encounter_id": encounter_id,
+            "disease_code": disease_code,
+            "episode_no": episode_no,
+            "status": {"$nin": ["completed", "transferred", "deceased"]},
+        }
+
+        update_ops = {
+            "$set": {
+                **update_fields,
+                "updated_at": now,
+                "last_evaluated_at": now,
+            },
+            "$setOnInsert": {
+                **create_fields,
+                "patient_id": patient_id,
+                "encounter_id": encounter_id,
+                "disease_code": disease_code,
+                "episode_no": episode_no,
+                "created_at": now,
+                "first_detected_at": now,
+            },
+        }
+
+        result = await self.collection.find_one_and_update(
+            filter_query,
+            update_ops,
+            upsert=True,
+            return_document=True,
+        )
+        return result
 
     async def find_all(
         self,
@@ -94,13 +167,14 @@ class CaseRepository(MongoRepository):
 
     async def create(self, case: dict[str, Any]) -> str:
         """创建病例。"""
-        case["created_at"] = datetime.utcnow()
-        case["updated_at"] = datetime.utcnow()
+        now = _now()
+        case["created_at"] = now
+        case["updated_at"] = now
         return await self.insert_one(case)
 
     async def update(self, case_id: str, updates: dict[str, Any]) -> bool:
         """更新病例。"""
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = _now()
         return await self.update_one({"id": case_id}, updates)
 
     async def update_status(
@@ -109,7 +183,7 @@ class CaseRepository(MongoRepository):
         """更新病例状态。"""
         updates: dict[str, Any] = {
             "status": new_status,
-            "updated_at": datetime.utcnow(),
+            "updated_at": _now(),
         }
         if extra:
             updates.update(extra)
@@ -129,9 +203,18 @@ class CaseRepository(MongoRepository):
         return {r["_id"]: r["count"] for r in results if r["_id"]}
 
     async def count_today_new(self, disease_id: Optional[str] = None) -> int:
-        """统计今日新增病例。"""
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        query: dict[str, Any] = {"created_at": {"$gte": today_start}}
+        """统计今日新增病例（按医院本地时区）。"""
+        from app.config import get_config
+        import zoneinfo
+
+        cfg = get_config()
+        tz_name = cfg.hospital_timezone if hasattr(cfg, 'hospital_timezone') else "Asia/Shanghai"
+        tz = zoneinfo.ZoneInfo(tz_name)
+        now_local = datetime.now(tz)
+        today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start_utc = today_start_local.astimezone(timezone.utc)
+
+        query: dict[str, Any] = {"created_at": {"$gte": today_start_utc}}
         if disease_id:
             query["disease_id"] = disease_id
         return await self.count(query)
@@ -161,9 +244,16 @@ class CaseRepository(MongoRepository):
         disease_id: Optional[str] = None,
         days: int = 30,
     ) -> list[dict[str, Any]]:
-        """获取近 N 天病例识别趋势。"""
+        """获取近 N 天病例趋势（按医院本地时区统计）。"""
         from datetime import timedelta
-        start = datetime.utcnow() - timedelta(days=days)
+        import zoneinfo
+        from app.config import get_config
+
+        cfg = get_config()
+        tz_name = cfg.hospital_timezone if hasattr(cfg, 'hospital_timezone') else "Asia/Shanghai"
+        tz = zoneinfo.ZoneInfo(tz_name)
+
+        start = _now() - timedelta(days=days)
 
         match_stage: dict[str, Any] = {"created_at": {"$gte": start}}
         if disease_id:
@@ -174,20 +264,190 @@ class CaseRepository(MongoRepository):
             {
                 "$group": {
                     "_id": {
-                        "$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}
+                        "$dateToString": {
+                            "format": "%Y-%m-%d",
+                            "date": "$created_at",
+                            "timezone": tz_name,
+                        }
                     },
                     "total": {"$sum": 1},
+                    "screen_positive": {
+                        "$sum": {"$cond": [
+                            {"$ne": ["$screen_positive_at", None]}, 1, 0
+                        ]}
+                    },
                     "confirmed": {
-                        "$sum": {"$cond": [{"$eq": ["$status", "confirmed"]}, 1, 0]}
+                        "$sum": {"$cond": [
+                            {"$ne": ["$confirmed_at", None]}, 1, 0
+                        ]}
                     },
                     "excluded": {
-                        "$sum": {"$cond": [{"$eq": ["$status", "excluded"]}, 1, 0]}
+                        "$sum": {"$cond": [
+                            {"$ne": ["$excluded_at", None]}, 1, 0
+                        ]}
+                    },
+                    "pathway_started": {
+                        "$sum": {"$cond": [
+                            {"$ne": ["$pathway_instance_id", ""]}, 1, 0
+                        ]}
                     },
                 }
             },
             {"$sort": {"_id": 1}},
         ]
         return await self.aggregate(pipeline)
+
+    async def get_funnel_data(
+        self,
+        disease_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """获取筛查漏斗数据（按"曾到达该阶段"统计）。
+
+        不是当前状态计数，而是检查时间戳字段是否存在。
+        """
+        match_stage: dict[str, Any] = {}
+        if disease_id:
+            match_stage["disease_id"] = disease_id
+
+        pipeline = [
+            {"$match": match_stage},
+            {
+                "$group": {
+                    "_id": None,
+                    "total_screened": {"$sum": 1},
+                    "ever_screen_positive": {
+                        "$sum": {"$cond": [
+                            {"$ne": ["$screen_positive_at", None]}, 1, 0
+                        ]}
+                    },
+                    "ever_pending_review": {
+                        "$sum": {"$cond": [
+                            {"$in": ["$status", ["pending_review", "confirmed", "pathway_active", "completed", "reconsideration_pending"]]}, 1, 0
+                        ]}
+                    },
+                    "ever_confirmed": {
+                        "$sum": {"$cond": [
+                            {"$ne": ["$confirmed_at", None]}, 1, 0
+                        ]}
+                    },
+                    "ever_pathway_active": {
+                        "$sum": {"$cond": [
+                            {"$ne": ["$pathway_instance_id", ""]}, 1, 0
+                        ]}
+                    },
+                    "ever_completed": {
+                        "$sum": {"$cond": [
+                            {"$ne": ["$resolved_at", None]}, 1, 0
+                        ]}
+                    },
+                    "ever_excluded": {
+                        "$sum": {"$cond": [
+                            {"$ne": ["$excluded_at", None]}, 1, 0
+                        ]}
+                    },
+                }
+            },
+        ]
+
+        results = await self.aggregate(pipeline)
+        if not results:
+            return {
+                "total_screened": 0,
+                "screen_positive": 0,
+                "pending_review": 0,
+                "confirmed": 0,
+                "pathway_active": 0,
+                "completed": 0,
+                "excluded": 0,
+                "stages": [],
+            }
+
+        r = results[0]
+        return {
+            "total_screened": r["total_screened"],
+            "screen_positive": r["ever_screen_positive"],
+            "pending_review": r["ever_pending_review"],
+            "confirmed": r["ever_confirmed"],
+            "pathway_active": r["ever_pathway_active"],
+            "completed": r["ever_completed"],
+            "excluded": r["ever_excluded"],
+            "stages": [
+                {"label": "已筛查", "count": r["total_screened"]},
+                {"label": "筛查阳性", "count": r["ever_screen_positive"]},
+                {"label": "待临床确认", "count": r["ever_pending_review"]},
+                {"label": "临床已确认", "count": r["ever_confirmed"]},
+                {"label": "路径已启动", "count": r["ever_pathway_active"]},
+                {"label": "路径已完成", "count": r["ever_completed"]},
+            ],
+        }
+
+    async def get_quality_metrics(
+        self,
+        disease_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """获取质量指标。"""
+        match_stage: dict[str, Any] = {}
+        if disease_id:
+            match_stage["disease_id"] = disease_id
+
+        pipeline = [
+            {"$match": match_stage},
+            {
+                "$group": {
+                    "_id": None,
+                    "total": {"$sum": 1},
+                    "ever_screen_positive": {
+                        "$sum": {"$cond": [{"$ne": ["$screen_positive_at", None]}, 1, 0]}
+                    },
+                    "ever_confirmed": {
+                        "$sum": {"$cond": [{"$ne": ["$confirmed_at", None]}, 1, 0]}
+                    },
+                    "ever_excluded": {
+                        "$sum": {"$cond": [{"$ne": ["$excluded_at", None]}, 1, 0]}
+                    },
+                    "ever_pathway": {
+                        "$sum": {"$cond": [{"$ne": ["$pathway_instance_id", ""]}, 1, 0]}
+                    },
+                    "ever_completed": {
+                        "$sum": {"$cond": [{"$ne": ["$resolved_at", None]}, 1, 0]}
+                    },
+                }
+            },
+        ]
+
+        results = await self.aggregate(pipeline)
+        if not results:
+            return {}
+
+        r = results[0]
+        total = r["total"]
+        screen_positive = r["ever_screen_positive"]
+        confirmed = r["ever_confirmed"]
+        excluded = r["ever_excluded"]
+
+        def _metric(numerator: int, denominator: int, definition: str) -> dict:
+            return {
+                "numerator": numerator,
+                "denominator": denominator,
+                "value": round(numerator / denominator * 100, 1) if denominator > 0 else 0,
+                "unit": "%",
+                "definition": definition,
+            }
+
+        return {
+            "confirmation_rate": _metric(
+                confirmed, screen_positive, "临床确认病例/筛查阳性病例"
+            ),
+            "exclusion_rate": _metric(
+                excluded, screen_positive, "排除病例/筛查阳性病例"
+            ),
+            "pathway_start_rate": _metric(
+                r["ever_pathway"], confirmed, "路径启动/临床确认病例"
+            ),
+            "pathway_completion_rate": _metric(
+                r["ever_completed"], r["ever_pathway"], "路径完成/路径启动病例"
+            ),
+        }
 
 
 class EvidenceRepository(MongoRepository):
@@ -199,6 +459,10 @@ class EvidenceRepository(MongoRepository):
     async def find_by_id(self, evidence_id: str) -> Optional[dict[str, Any]]:
         """根据 ID 查询证据。"""
         return await self.find_one({"id": evidence_id})
+
+    async def find_by_hash(self, evidence_hash: str) -> Optional[dict[str, Any]]:
+        """根据哈希查询证据（幂等检查）。"""
+        return await self.find_one({"evidence_hash": evidence_hash})
 
     async def find_by_case(
         self,
@@ -235,12 +499,32 @@ class EvidenceRepository(MongoRepository):
 
     async def create(self, evidence: dict[str, Any]) -> str:
         """创建证据。"""
-        evidence["created_at"] = datetime.utcnow()
+        evidence["created_at"] = _now()
         return await self.insert_one(evidence)
+
+    async def upsert_by_hash(self, evidence: dict[str, Any]) -> str:
+        """根据 evidence_hash 幂等写入证据。
+
+        如果已存在相同 hash 的证据，更新；否则创建。
+        """
+        evidence_hash = evidence.get("evidence_hash", "")
+        if not evidence_hash:
+            return await self.create(evidence)
+
+        now = _now()
+        evidence["created_at"] = now
+
+        result = await self.collection.find_one_and_update(
+            {"evidence_hash": evidence_hash},
+            {"$set": {**evidence, "updated_at": now}},
+            upsert=True,
+            return_document=True,
+        )
+        return result.get("id", "")
 
     async def create_many(self, evidences: list[dict[str, Any]]) -> list[str]:
         """批量创建证据。"""
-        now = datetime.utcnow()
+        now = _now()
         for e in evidences:
             e["created_at"] = now
         return await self.insert_many(evidences)
@@ -321,7 +605,7 @@ class ConfirmationRepository(MongoRepository):
 
     async def create(self, confirmation: dict[str, Any]) -> str:
         """创建确认记录（不可变）。"""
-        confirmation["created_at"] = datetime.utcnow()
+        confirmation["created_at"] = confirmation.get("created_at", _now())
         return await self.insert_one(confirmation)
 
 
@@ -350,18 +634,19 @@ class PathwayInstanceRepository(MongoRepository):
 
     async def create(self, instance: dict[str, Any]) -> str:
         """创建路径实例。"""
-        instance["created_at"] = datetime.utcnow()
-        instance["updated_at"] = datetime.utcnow()
+        now = _now()
+        instance["created_at"] = now
+        instance["updated_at"] = now
         return await self.insert_one(instance)
 
     async def update(self, instance_id: str, updates: dict[str, Any]) -> bool:
         """更新路径实例。"""
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = _now()
         return await self.update_one({"id": instance_id}, updates)
 
     async def count_active_overdue(self, disease_id: Optional[str] = None) -> int:
         """统计超时的活动路径实例数。"""
-        now = datetime.utcnow()
+        now = _now()
         query: dict[str, Any] = {
             "status": "active",
             "deadline_1h": {"$lt": now},
@@ -399,13 +684,14 @@ class PathwayTaskRepository(MongoRepository):
 
     async def create(self, task: dict[str, Any]) -> str:
         """创建任务。"""
-        task["created_at"] = datetime.utcnow()
-        task["updated_at"] = datetime.utcnow()
+        now = _now()
+        task["created_at"] = now
+        task["updated_at"] = now
         return await self.insert_one(task)
 
     async def create_many(self, tasks: list[dict[str, Any]]) -> list[str]:
         """批量创建任务。"""
-        now = datetime.utcnow()
+        now = _now()
         for t in tasks:
             t["created_at"] = now
             t["updated_at"] = now
@@ -413,7 +699,7 @@ class PathwayTaskRepository(MongoRepository):
 
     async def update(self, task_id: str, updates: dict[str, Any]) -> bool:
         """更新任务。"""
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = _now()
         return await self.update_one({"id": task_id}, updates)
 
     async def complete_task(
@@ -424,7 +710,7 @@ class PathwayTaskRepository(MongoRepository):
         note: str = "",
     ) -> bool:
         """完成任务。"""
-        now = datetime.utcnow()
+        now = _now()
         updates: dict[str, Any] = {
             "execution_status": "completed",
             "completed_at": now,
@@ -436,3 +722,31 @@ class PathwayTaskRepository(MongoRepository):
         if note:
             updates["review_note"] = note
         return await self.update_one({"id": task_id}, updates)
+
+
+class ConclusionRepository(MongoRepository):
+    """临床结论仓储。"""
+
+    def __init__(self):
+        super().__init__("clinical_conclusions")
+
+    async def find_by_case(
+        self, case_id: str, current_only: bool = True
+    ) -> list[dict[str, Any]]:
+        """查询病例的临床结论。"""
+        query: dict[str, Any] = {"case_id": case_id}
+        if current_only:
+            query["superseded_at"] = None
+        return await self.find_many(query, sort=[("generated_at", -1)])
+
+    async def create(self, conclusion: dict[str, Any]) -> str:
+        """创建临床结论。"""
+        conclusion["created_at"] = _now()
+        return await self.insert_one(conclusion)
+
+    async def supersede(self, conclusion_id: str, new_conclusion_id: str) -> bool:
+        """标记旧结论被取代。"""
+        return await self.update_one(
+            {"id": conclusion_id},
+            {"superseded_at": _now(), "superseded_by": new_conclusion_id},
+        )

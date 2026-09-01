@@ -5,7 +5,7 @@ export type NavItemKey =
   | 'research-workbench' | 'research-export' | 'clinical-trials'
   | 'mdt' | 'respiratory-dashboard' | 'nutrition-support'
   | 'ai-ops' | 'runtime-config' | 'academic-research' | 'handover'
-  | 'disease-center'
+  | 'disease-center' | 'voice-correction-review'
 
 export type NavGroup = {
   key: string
@@ -22,13 +22,13 @@ export type NavGroup = {
 /**
  * 重新组织的导航结构 - 按临床工作流组织
  *
- * 一级导航只保留6个：
+ * 一级导航分组：
  * 1. 今日工作 - 角色首页
  * 2. 患者 - 患者总览和详情
  * 3. 预警与任务 - 预警中心和工作台
- * 4. 交接班 - 交接班功能
- * 5. AI 助手 - AI问诊和查房
- * 6. 更多 - 其他功能
+ * 4. 临床知识 - 病种中心
+ * 5. 科研 - 学术科研、临床试验、科研工作台、科研导出
+ * 6. 更多 - MDT、呼吸治疗、营养支持、质控分析、大屏、AI运营、管理配置
  */
 export const navGroups: NavGroup[] = [
   {
@@ -66,6 +66,16 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    key: 'research',
+    label: '科研',
+    items: [
+      { key: 'academic-research',lines: ['学术','科研'],   label: '学术科研',   icon: 'book',         path: '/academic-research' },
+      { key: 'clinical-trials',  lines: ['临床','试验'],   label: '临床试验',   icon: 'calendar',     path: '/clinical-trials' },
+      { key: 'research-workbench',lines: ['科研','工作台'],label: '科研工作台', icon: 'flask',        path: '/research-workbench' },
+      { key: 'research-export',  lines: ['科研','导出'],   label: '科研导出',   icon: 'chart',        path: '/research-export' },
+    ],
+  },
+  {
     key: 'more',
     label: '更多',
     items: [
@@ -73,8 +83,10 @@ export const navGroups: NavGroup[] = [
       { key: 'respiratory-dashboard',lines: ['呼吸','治疗'],label: '呼吸治疗', icon: 'lungs',       path: '/respiratory-dashboard' },
       { key: 'nutrition-support',lines: ['营养','支持'],   label: '营养支持',   icon: 'apple',        path: '/nutrition-support' },
       { key: 'analytics',      lines: ['质控','分析'],    label: '质控分析',   icon: 'chart',        path: '/analytics' },
-      { key: 'research-workbench',lines: ['科研','工作台'],label: '科研工作台', icon: 'flask',       path: '/research-workbench' },
+      { key: 'bigscreen',      lines: ['护士站','大屏'],  label: '护士站大屏', icon: 'grid',         path: '/bigscreen' },
       { key: 'ai-ops',         lines: ['AI','运营'],      label: 'AI运营',     icon: 'cpu',          path: '/ai-ops' },
+      { key: 'scanner-health', lines: ['规则','健康'],    label: '规则健康',   icon: 'alert',        path: '/admin/scanner-health' },
+      { key: 'voice-correction-review',lines: ['语音','纠错'],label: '语音纠错',icon: 'sparkles',    path: '/admin/voice-correction-review' },
       { key: 'runtime-config', lines: ['配置','中心'],    label: '配置中心',   icon: 'settings',     path: '/admin/runtime-config' },
     ],
   },
@@ -122,7 +134,9 @@ export const moreMenuItems = [
   { key: 'respiratory-dashboard', label: '呼吸治疗', icon: 'lungs', path: '/respiratory-dashboard' },
   { key: 'nutrition-support', label: '营养支持', icon: 'apple', path: '/nutrition-support' },
   { key: 'analytics', label: '质控分析', icon: 'chart', path: '/analytics' },
-  { key: 'research-workbench', label: '科研工作台', icon: 'flask', path: '/research-workbench' },
+  { key: 'bigscreen', label: '护士站大屏', icon: 'grid', path: '/bigscreen' },
   { key: 'ai-ops', label: 'AI运营', icon: 'cpu', path: '/ai-ops' },
+  { key: 'scanner-health', label: '规则健康', icon: 'alert', path: '/admin/scanner-health' },
+  { key: 'voice-correction-review', label: '语音纠错', icon: 'sparkles', path: '/admin/voice-correction-review' },
   { key: 'runtime-config', label: '配置中心', icon: 'settings', path: '/admin/runtime-config' },
 ]

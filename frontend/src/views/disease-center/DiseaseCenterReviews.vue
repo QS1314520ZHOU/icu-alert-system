@@ -4,7 +4,7 @@
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-value">{{ stats.pending }}</div>
-        <div class="stat-label">待审核</div>
+        <div class="stat-label">待临床确认</div>
       </div>
       <div class="stat-card stat-card--info">
         <div class="stat-value">{{ stats.reviewing }}</div>
@@ -111,8 +111,8 @@ const stats = ref({ pending: 3, reviewing: 2, approved: 12, rejected: 1 })
 // 标签
 const tabs = computed(() => [
   { key: 'all', label: '全部', count: reviews.value.length },
-  { key: 'pending', label: '待审核', count: stats.value.pending },
-  { key: 'reviewing', label: '审核中', count: stats.value.reviewing },
+  { key: 'pending', label: '待临床确认', count: stats.value.pending },
+  { key: 'reviewing', label: '确认中', count: stats.value.reviewing },
   { key: 'approved', label: '已通过', count: stats.value.approved },
   { key: 'rejected', label: '已拒绝', count: stats.value.rejected },
 ])
@@ -157,13 +157,13 @@ function resourceTypeText(type: string) {
 
 // 状态文本
 function statusText(status: string) {
-  const map: Record<string, string> = { pending: '待审核', reviewing: '审核中', approved: '已通过', rejected: '已拒绝', changes_requested: '需修改' }
+  const map: Record<string, string> = { pending: '待临床确认', reviewing: '确认中', approved: '已通过', rejected: '已拒绝', changes_requested: '需修改' }
   return map[status] || status
 }
 
 // 状态标签
 function statusLabel(status: string) {
-  const map: Record<string, string> = { pending: '待审核', reviewing: '审核中', approved: '已通过', rejected: '已拒绝' }
+  const map: Record<string, string> = { pending: '待临床确认', reviewing: '确认中', approved: '已通过', rejected: '已拒绝' }
   return map[status] || ''
 }
 

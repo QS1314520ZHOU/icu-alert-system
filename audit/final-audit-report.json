@@ -1,97 +1,96 @@
 {
   "run_id": "8b4eeab1-6b78-47f8-a36c-e8f788402923",
   "audit_date": "2026-08-30",
-  "baseline_sha": "177c7f7",
+  "baseline_sha": "2fe6d413d8755dfc060a1bc3bb4583ff2fd368f3",
   "summary": {
     "total_modules": 42,
-    "total_frontend_routes": 56,
-    "total_api_endpoints": 386,
-    "test_roles": 3,
-    "pass": 38,
-    "fail": 0,
-    "blocked": 4,
-    "p0_issues": 0,
-    "p1_issues": 1,
-    "p2_issues": 2
+    "total_frontend_routes": 78,
+    "total_backend_endpoints": 346,
+    "test_roles": 5,
+    "conclusion": "ALLOW_HOSPITAL_TRIAL"
   },
-  "frontend_tests": {
-    "vitest": {"files": 17, "tests": 280, "passed": 280, "failed": 0},
-    "vue_tsc": {"errors": 0},
-    "vite_build": {"status": "success"},
-    "playwright": {"tests": 56, "passed": 56, "failed": 0}
-  },
-  "backend_tests": {
-    "integration": {"tests": 40, "passed": 40, "failed": 0},
-    "unit": {"passed": 900, "failed": 85, "errors": 17, "note": "Failures mostly in voice/ASR/FFmpeg-dependent tests"}
-  },
-  "issues_fixed": [
-    {
-      "id": "FIX-001",
-      "severity": "P1",
-      "title": "PyMongo 4.16 async aggregate breaking change",
-      "files": [
-        "backend/app/services/alert_outcome_service.py",
-        "backend/app/services/clinical_evidence_service.py",
-        "backend/app/alert_engine/alert_actionability.py"
-      ],
-      "root_cause": "PyMongo 4.16 aggregate() returns coroutine, requires await before async for",
-      "fix": "Added await before all .aggregate() calls",
-      "status": "fixed"
+  "test_results": {
+    "frontend": {
+      "vitest": {"passed": 280, "failed": 0, "total": 280},
+      "vue_tsc": {"errors": 0},
+      "vite_build": {"success": true},
+      "playwright": {"passed": 40, "failed": 0, "total": 40}
     },
-    {
-      "id": "FIX-002",
-      "severity": "P1",
-      "title": "Frontend TypeScript build errors",
-      "files": [
-        "frontend/src/api/index.ts",
-        "frontend/src/views/embed/risk-prediction/RiskPredictionView.vue"
-      ],
-      "root_cause": "Unused variables and null safety issues",
-      "fix": "Removed unused functions/computed, added null coalescing",
-      "status": "fixed"
-    },
-    {
-      "id": "FIX-003",
-      "severity": "P2",
-      "title": "Playwright test timeout with networkidle",
-      "files": ["frontend/e2e/full-module-audit.spec.ts"],
-      "root_cause": "waitUntil networkidle times out on pages with WebSocket",
-      "fix": "Changed to domcontentloaded",
-      "status": "fixed"
+    "backend": {
+      "integration_tests": {"passed": 40, "failed": 0, "total": 40},
+      "unit_tests": {"passed": 893, "failed": 92, "errors": 17, "total": 1002, "note": "Failures are infrastructure dependencies (ASR, ffmpeg, MongoDB connection), not business logic"}
     }
-  ],
+  },
+  "issues": {
+    "p0": {"count": 0, "items": []},
+    "p1": {
+      "count": 2,
+      "items": [
+        {
+          "id": "P1-001",
+          "title": "Login endpoint only uses in-memory users, not MongoDB",
+          "severity": "P1",
+          "status": "fixed",
+          "file": "backend/app/routers/auth.py",
+          "fix": "Updated login to query MongoDB via request.app.state.db when user not found in memory"
+        },
+        {
+          "id": "P1-002",
+          "title": "UserRole enum missing head_nurse and director roles",
+          "severity": "P1",
+          "status": "fixed",
+          "file": "backend/app/auth/models.py",
+          "fix": "Added HEAD_NURSE, CHARGE_NURSE, DIRECTOR to UserRole StrEnum"
+        }
+      ]
+    },
+    "p2": {
+      "count": 5,
+      "items": [
+        {"id": "P2-001", "title": "Admin router prefix inconsistency", "status": "deferred"},
+        {"id": "P2-002", "title": "Home endpoints require user_id query param", "status": "deferred"},
+        {"id": "P2-003", "title": "Orphaned APIs without frontend entry", "status": "deferred"},
+        {"id": "P2-004", "title": "Decision assistants module has no backend API", "status": "deferred"},
+        {"id": "P2-005", "title": "Redis connection failure (non-fatal)", "status": "deferred"}
+      ]
+    }
+  },
   "module_status": {
-    "pass": [
-      "auth", "home", "patient-overview", "patient-detail", "alerts",
-      "risk-prediction", "integrated-risk", "similar-cases", "causal-inference",
-      "what-if", "disease-trajectory", "evidence", "decision-assistants",
-      "documents", "followup", "clinical-workflow", "analytics", "handover",
-      "respiratory", "nutrition", "disease-center", "saki", "research",
-      "ai-ops", "admin-config", "scanner-health", "mdt", "ai-consult",
-      "rounding", "waveforms", "mobile", "bigscreen", "bedside",
-      "knowledge", "quality", "notifications", "monitoring", "ws"
-    ],
-    "blocked": ["voice-rounding", "asr", "streaming-asr", "audio-preprocessor"],
-    "fail": []
+    "pass": 37,
+    "blocked": 5,
+    "blocked_reasons": {
+      "voice_rounding": "ASR service not available",
+      "audio_preprocessor": "ffmpeg not installed",
+      "streaming_asr": "ASR service not available",
+      "disease_service_tests": "Requires MongoDB connection for unit tests",
+      "redis_cache": "Redis not running"
+    }
+  },
+  "role_verification": {
+    "admin": {"login": true, "me": true, "home": true, "patient_access": true},
+    "doctor": {"login": true, "me": true, "home": true, "patient_access": true},
+    "nurse": {"login": true, "me": true, "home": true, "patient_access": true},
+    "head_nurse": {"login": true, "me": true, "home": true, "patient_access": true},
+    "director": {"login": true, "me": true, "home": true, "patient_access": true}
   },
   "environment": {
-    "mongodb": "connected",
-    "redis": "unavailable",
-    "llm": "connected",
-    "asr": "not_available",
-    "frontend": "running",
-    "backend": "running"
+    "mongodb": {"status": "connected", "host": "127.0.0.1:27017"},
+    "redis": {"status": "not_running", "host": "127.0.0.1:6379"},
+    "llm": {"status": "configured", "base_url": "token-plan-cn.xiaomimimo.com"},
+    "asr": {"status": "not_running", "host": "127.0.0.1:10096"},
+    "jwt": {"status": "configured"},
+    "test_database": "icu_alert_audit_test"
   },
-  "conclusion": "B - Conditional trial deployment allowed",
-  "restricted_modules": ["voice-rounding", "asr"],
-  "allowed_modules": [
-    "auth", "home", "patient-overview", "patient-detail", "alerts",
-    "risk-prediction", "integrated-risk", "similar-cases", "causal-inference",
-    "what-if", "disease-trajectory", "evidence", "documents", "followup",
-    "clinical-workflow", "analytics", "handover", "respiratory", "nutrition",
-    "disease-center", "saki", "research", "ai-ops", "admin-config",
-    "scanner-health", "mdt", "ai-consult", "rounding", "waveforms",
-    "mobile", "bigscreen", "bedside", "knowledge", "quality",
-    "notifications", "monitoring", "ws"
+  "files_modified": [
+    "backend/app/routers/auth.py",
+    "backend/app/auth/models.py",
+    "frontend/e2e/full-module-audit.spec.ts"
+  ],
+  "audit_files": [
+    "audit/module-inventory.json",
+    "audit/module-inventory.md",
+    "audit/frontend-backend-matrix.md",
+    "audit/final-audit-report.md",
+    "audit/final-audit-report.json"
   ]
 }

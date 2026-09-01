@@ -76,101 +76,82 @@
         </div>
       </template>
 
-      <!-- ═══ 全局模式：统一由 resolveNavigation 生成 ═══ -->
+      <!-- ═══ 全局模式：统一由 resolveNavigation 生成，所有分组可折叠 ═══ -->
       <template v-else>
         <template v-for="group in globalNavGroups" :key="group.key">
-          <!-- AI 智能分析组：可展开/折叠 -->
-          <div v-if="group.key === 'ai-intelligence'" class="side-nav__group">
+          <div class="side-nav__group">
+            <!-- 分组标题：点击折叠/展开 -->
             <button
               v-if="!collapsed"
               class="side-nav__group-label side-nav__group-label--toggle"
-              @click="toggleAiGlobal"
+              @click="toggleGroupCollapse(group.key)"
             >
               {{ group.label }}
-              <span class="side-nav__toggle-arrow" :class="{ 'side-nav__toggle-arrow--open': aiGlobalExpanded }">▸</span>
+              <span class="side-nav__toggle-arrow" :class="{ 'side-nav__toggle-arrow--open': isGroupExpanded(group.key) }">▸</span>
             </button>
+            <!-- 收起态：点击展开该组 -->
             <button
               v-else
               class="side-nav__item"
               :title="group.label"
-              @click="toggleAiGlobal"
+              @click="toggleGroupCollapse(group.key)"
             >
-              <span class="side-nav__icon" v-html="iconSvg('brain')"></span>
+              <span class="side-nav__icon" v-html="iconSvg(groupIcon(group.key))"></span>
             </button>
-            <div v-show="aiGlobalExpanded">
-              <button
-                v-for="item in group.items"
-                :key="item.key"
-                class="side-nav__item"
-                :title="item.label"
-                @click="onGlobalAiClick(item.key)"
-              >
-                <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-                <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
-              </button>
-            </div>
-          </div>
 
-          <!-- 更多组：折叠态用 dropdown -->
-          <div v-else-if="group.key === 'more'" class="side-nav__group">
-            <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
-            <a-dropdown
-              v-if="collapsed"
-              :trigger="['click']"
-              placement="bottomRight"
-              overlay-class-name="side-nav__more-dropdown"
-            >
-              <button class="side-nav__item side-nav__more-trigger" :title="group.label">
-                <span class="side-nav__icon" v-html="iconSvg('more')"></span>
-              </button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item v-for="item in group.items" :key="item.key">
-                    <router-link :to="item.path" class="side-nav__more-item">
-                      <span v-html="iconSvg(item.icon)"></span>
-                      <span>{{ item.label }}</span>
-                    </router-link>
-                  </a-menu-item>
-                </a-menu>
+            <!-- 组内菜单项 -->
+            <div v-show="isGroupExpanded(group.key)">
+              <!-- AI 智能分析组：点击需要选患者 -->
+              <template v-if="group.key === 'ai-intelligence'">
+                <button
+                  v-for="item in group.items"
+                  :key="item.key"
+                  class="side-nav__item"
+                  :title="item.label"
+                  @click="onGlobalAiClick(item.key)"
+                >
+                  <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+                  <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+                </button>
               </template>
-            </a-dropdown>
 
-            <template v-else>
-              <router-link
-                v-for="item in visibleMoreItems(group.items)"
-                :key="item.key"
-                :to="item.path"
-                :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
-                :title="item.label"
-              >
-                <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-                <span class="side-nav__label">{{ item.label }}</span>
-              </router-link>
+              <!-- 更多组：折叠态侧边栏用 dropdown -->
+              <template v-else-if="group.key === 'more' && collapsed">
+                <a-dropdown
+                  :trigger="['click']"
+                  placement="bottomRight"
+                  overlay-class-name="side-nav__more-dropdown"
+                >
+                  <button class="side-nav__item side-nav__more-trigger" title="更多">
+                    <span class="side-nav__icon" v-html="iconSvg('more')"></span>
+                  </button>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item v-for="item in group.items" :key="item.key">
+                        <router-link :to="item.path" class="side-nav__more-item">
+                          <span v-html="iconSvg(item.icon)"></span>
+                          <span>{{ item.label }}</span>
+                        </router-link>
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </template>
 
-              <button
-                v-if="group.items.length > maxVisibleMoreItems"
-                class="side-nav__item side-nav__expand-btn"
-                @click="showAllMore = !showAllMore"
-              >
-                <span class="side-nav__icon" v-html="iconSvg(showAllMore ? 'chevron-up' : 'chevron-down')"></span>
-                <span class="side-nav__label">{{ showAllMore ? '收起' : `展开 ${group.items.length - maxVisibleMoreItems} 项` }}</span>
-              </button>
-            </template>
-          </div>
-
-          <!-- 普通组 -->
-          <div v-else class="side-nav__group">
-            <div v-if="!collapsed" class="side-nav__group-label">{{ group.label }}</div>
-            <router-link
-              v-for="item in group.items"
-              :key="item.key"
-              :to="item.path"
-              :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
-              :title="item.label"
-            >
-              <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-              <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
-            </router-link>
+              <!-- 普通组 / 更多组展开态 -->
+              <template v-else>
+                <router-link
+                  v-for="item in group.items"
+                  :key="item.key"
+                  :to="item.path"
+                  :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
+                  :title="item.label"
+                >
+                  <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+                  <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+                </router-link>
+              </template>
+            </div>
           </div>
         </template>
       </template>
@@ -209,10 +190,30 @@ const {
 } = useAppNavigation()
 
 const STORAGE_KEY = 'side-nav-collapsed'
+const GROUP_STORAGE_KEY = 'side-nav-collapsed-groups'
 const collapsed = ref(localStorage.getItem(STORAGE_KEY) === 'true')
-const showAllMore = ref(false)
-const maxVisibleMoreItems = 3
 const expandedGroups = ref(new Set<string>())
+
+// ── 全局分组折叠状态（默认全部收起） ──
+function loadCollapsedGroups(): Set<string> {
+  try {
+    const saved = localStorage.getItem(GROUP_STORAGE_KEY)
+    if (saved) return new Set(JSON.parse(saved))
+  } catch {}
+  // 默认全部收起
+  return new Set(['today', 'patients', 'alerts', 'clinical-knowledge', 'research', 'more', 'ai-intelligence'])
+}
+const collapsedGlobalGroups = ref(loadCollapsedGroups())
+function toggleGroupCollapse(key: string) {
+  const set = new Set(collapsedGlobalGroups.value)
+  if (set.has(key)) set.delete(key)
+  else set.add(key)
+  collapsedGlobalGroups.value = set
+  localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify([...set]))
+}
+function isGroupExpanded(key: string) {
+  return !collapsedGlobalGroups.value.has(key)
+}
 
 // ── Navigation mode ──
 const navigationMode = computed(() => (route.meta?.navigationMode as string) || 'global')
@@ -258,23 +259,26 @@ const globalResolved = computed(() => {
   })
 })
 
-// All global groups except 'ai-intelligence' (handled separately for expand/collapse)
+// All global groups — each group is collapsible via toggleGroupCollapse
 const globalNavGroups = computed(() => globalResolved.value.groups)
 
 // ── AI Intelligence in global mode ──
-const aiGlobalExpanded = ref(false)
-
-function toggleAiGlobal() {
-  aiGlobalExpanded.value = !aiGlobalExpanded.value
-}
-
 function onGlobalAiClick(moduleKey: string) {
   navToModule(moduleKey)
 }
 
-function visibleMoreItems(items: NavItem[]) {
-  if (showAllMore.value) return items
-  return items.slice(0, maxVisibleMoreItems)
+// ── 分组图标映射（收起态显示） ──
+function groupIcon(key: string): string {
+  const map: Record<string, string> = {
+    today: 'stethoscope',
+    patients: 'users',
+    alerts: 'alert',
+    'clinical-knowledge': 'database',
+    research: 'flask',
+    more: 'more',
+    'ai-intelligence': 'brain',
+  }
+  return map[key] || 'more'
 }
 
 // ── Actions ──
@@ -539,15 +543,6 @@ function iconSvg(icon: string) {
   border-left: 3px solid transparent;
 }
 
-.side-nav__expand-btn {
-  color: var(--sidebar-group-label, #667085);
-  font-size: 12px;
-}
-
-.side-nav__expand-btn:hover {
-  color: var(--sidebar-text-active, #18212B);
-}
-
 .side-nav__more-item {
   display: flex;
   align-items: center;
@@ -577,10 +572,6 @@ function iconSvg(icon: string) {
 
 .side-nav--collapsed .side-nav__brand {
   justify-content: center;
-}
-
-.side-nav--collapsed .side-nav__expand-btn {
-  display: none;
 }
 
 .side-nav--collapsed .side-nav__expand-arrow {

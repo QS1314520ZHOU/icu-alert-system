@@ -11,12 +11,23 @@
       </div>
     </div>
 
+    <!-- 质量指标行 -->
+    <div class="kpi-row" v-if="qualityMetrics">
+      <div v-for="qm in qualityCards" :key="qm.key" class="kpi-card">
+        <div class="kpi-content">
+          <span class="kpi-value">{{ qm.value }}</span>
+          <span class="kpi-label">{{ qm.label }}</span>
+        </div>
+        <span class="kpi-icon" :style="{ background: qm.iconBg }">{{ qm.icon }}</span>
+      </div>
+    </div>
+
     <!-- 图表行 -->
     <div class="chart-row">
       <div class="chart-card">
         <div class="chart-title">
           <span>病例漏斗</span>
-          <span class="chart-subtitle">筛查 → 阳性 → 待审 → 确诊 → 路径 → 完成</span>
+          <span class="chart-subtitle">筛查 → 阳性 → 待确认 → 纳入 → 路径 → 完成</span>
         </div>
         <v-chart v-if="funnelOption" :option="funnelOption" :style="{ height: '300px' }" autoresize />
         <a-empty v-else description="暂无漏斗数据" />
@@ -54,7 +65,7 @@
     <!-- 待审病例 -->
     <div class="section-card">
       <div class="section-header">
-        <span class="section-title">待审病例</span>
+        <span class="section-title">待临床确认病例</span>
         <a-button type="link" @click="goCases">查看全部 →</a-button>
       </div>
       <a-table
@@ -75,7 +86,7 @@
             </a-tag>
           </template>
           <template v-if="column.key === 'status'">
-            <a-tag color="var(--color-primary-light)">待审核</a-tag>
+            <a-tag color="var(--color-primary-light)">待临床确认</a-tag>
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
@@ -85,7 +96,7 @@
           </template>
         </template>
       </a-table>
-      <a-empty v-if="!pendingLoading && pendingCases.length === 0" description="暂无待审病例" />
+      <a-empty v-if="!pendingLoading && pendingCases.length === 0" description="暂无待临床确认病例" />
     </div>
   </div>
 </template>
@@ -101,7 +112,7 @@ import {
   getAllCases,
   confirmCase,
 } from '@/api/diseaseCenter'
-import type { DashboardData, DiseaseCase, FunnelData } from '@/api/diseaseCenter'
+import type { DashboardData, DiseaseCase, FunnelData, QualityMetrics } from '@/api/diseaseCenter'
 
 const router = useRouter()
 
@@ -119,15 +130,29 @@ const kpiCards = computed(() => {
     return [
       { key: 'diseases', label: '疾病数', value: '-', icon: '📁', iconBg: 'rgba(29,111,99,0.1)' },
       { key: 'today', label: '今日新增', value: '-', icon: '🆕', iconBg: 'rgba(59,130,246,0.1)' },
-      { key: 'pending', label: '待审核', value: '-', icon: '⏳', iconBg: 'rgba(217,45,32,0.1)' },
+      { key: 'pending', label: '待临床确认', value: '-', icon: '⏳', iconBg: 'rgba(217,45,32,0.1)' },
       { key: 'active', label: '路径执行中', value: '-', icon: '🚀', iconBg: 'rgba(22,132,91,0.1)' },
     ]
   }
   return [
     { key: 'diseases', label: '疾病数', value: d.disease_count ?? d.disease_total ?? 0, icon: '📁', iconBg: 'rgba(29,111,99,0.1)' },
     { key: 'today', label: '今日新增', value: d.today_new ?? d.today_new_cases ?? 0, icon: '🆕', iconBg: 'rgba(59,130,246,0.1)' },
-    { key: 'pending', label: '待审核', value: d.pending_review ?? 0, icon: '⏳', iconBg: 'rgba(217,45,32,0.1)' },
+    { key: 'pending', label: '待临床确认', value: d.pending_review ?? 0, icon: '⏳', iconBg: 'rgba(217,45,32,0.1)' },
     { key: 'active', label: '路径执行中', value: d.pathway_active ?? d.active_cases ?? 0, icon: '🚀', iconBg: 'rgba(22,132,91,0.1)' },
+  ]
+})
+
+const qualityMetrics = computed(() => dashboard.value?.quality_metrics ?? null)
+
+const qualityCards = computed(() => {
+  const q = qualityMetrics.value
+  if (!q) return []
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`
+  return [
+    { key: 'confirm_rate', label: '纳入确认率', value: pct(q.confirmation_rate), icon: '✅', iconBg: 'rgba(22,132,91,0.1)' },
+    { key: 'exclude_rate', label: '排除率', value: pct(q.exclusion_rate), icon: '❌', iconBg: 'rgba(217,45,32,0.1)' },
+    { key: 'pathway_start', label: '路径启动率', value: pct(q.pathway_start_rate), icon: '📋', iconBg: 'rgba(59,130,246,0.1)' },
+    { key: 'pathway_complete', label: '路径完成率', value: pct(q.pathway_completion_rate), icon: '🏁', iconBg: 'rgba(22,132,91,0.1)' },
   ]
 })
 
@@ -219,11 +244,13 @@ const statusOption = computed(() => {
   const labelMap: Record<string, string> = {
     screening: '筛查中',
     screen_positive: '筛查阳性',
-    pending_review: '待审核',
-    confirmed: '已确诊',
+    pending_review: '待临床确认',
+    confirmed: '已纳入确认',
     excluded: '已排除',
     pathway_active: '路径执行中',
     completed: '已完成',
+    reconsideration_pending: '待复核',
+    reopened: '已重新打开',
   }
   return {
     tooltip: { trigger: 'item' },
@@ -278,10 +305,9 @@ function goCaseDetail(caseId: string) {
 async function handleConfirm(record: DiseaseCase) {
   try {
     await confirmCase(record.id, {
-      operator_id: 'current_user',
-      reason: '总览页快速确认',
+      reason: '总览页快速确认纳入',
     })
-    message.success('已确认')
+    message.success('已确认纳入')
     loadPendingCases()
   } catch (err: any) {
     message.error('确认失败: ' + (err.message || '未知错误'))

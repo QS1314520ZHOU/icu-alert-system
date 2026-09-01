@@ -6,7 +6,7 @@ PathwayTask: 路径中的具体任务项（Bundle 元素）
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Optional
 
@@ -73,7 +73,7 @@ class PathwayInstance(BaseModel):
     current_node_id: str = ""
 
     # 时间管理
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     deadline_1h: Optional[datetime] = None
     deadline_3h: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -83,8 +83,8 @@ class PathwayInstance(BaseModel):
     completion_ratio: Optional[float] = None
 
     # 元数据
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class PathwayTask(BaseModel):
@@ -133,5 +133,5 @@ class PathwayTask(BaseModel):
     condition_evidence: list[str] = Field(default_factory=list)
 
     # 元数据
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

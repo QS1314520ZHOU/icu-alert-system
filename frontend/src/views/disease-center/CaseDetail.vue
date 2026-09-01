@@ -14,7 +14,7 @@
             size="small"
             @click="handleConfirm"
           >
-            确认诊断
+            确认纳入
           </a-button>
           <a-button
             v-if="caseData?.status === 'pending_review'"
@@ -52,7 +52,7 @@
             <span class="info-value">{{ formatTime(caseData.first_detected_at) }}</span>
           </div>
           <div class="info-card">
-            <span class="info-label">确诊时间</span>
+            <span class="info-label">临床确认时间</span>
             <span class="info-value">{{ formatTime(caseData.confirmed_at) }}</span>
           </div>
         </div>
@@ -111,6 +111,8 @@ const statusColor = computed(() => {
     excluded: 'default',
     pathway_active: 'var(--color-primary)',
     completed: 'var(--color-success)',
+    reconsideration_pending: 'orange',
+    reopened: 'orange',
   }
   return map[s || ''] || 'default'
 })
@@ -120,11 +122,13 @@ const statusLabel = computed(() => {
   const map: Record<string, string> = {
     screening: '筛查中',
     screen_positive: '筛查阳性',
-    pending_review: '待审核',
-    confirmed: '已确诊',
+    pending_review: '待临床确认',
+    confirmed: '已纳入确认',
     excluded: '已排除',
     pathway_active: '路径执行中',
     completed: '已完成',
+    reconsideration_pending: '待复核',
+    reopened: '已重新打开',
   }
   return map[s || ''] || s || '未知'
 })
@@ -170,10 +174,9 @@ async function loadCase() {
 async function handleConfirm() {
   try {
     await confirmCase(caseId.value, {
-      operator_id: 'current_user',
-      reason: '病例详情页确认',
+      reason: '病例详情页确认纳入',
     })
-    message.success('已确认')
+    message.success('已确认纳入')
     loadCase()
   } catch (err: any) {
     message.error('确认失败: ' + (err.message || '未知错误'))
@@ -183,7 +186,6 @@ async function handleConfirm() {
 async function handleExclude() {
   try {
     await excludeCase(caseId.value, {
-      operator_id: 'current_user',
       reason: '病例详情页排除',
     })
     message.success('已排除')

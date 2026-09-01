@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Optional
 
@@ -55,4 +55,4 @@ class ClinicalConfirmation(BaseModel):
     changes: dict[str, Any] = Field(default_factory=dict)
 
     # 时间戳（不可变）
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

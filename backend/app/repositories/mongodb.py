@@ -100,10 +100,17 @@ async def _create_indexes():
     await db.disease_cases.create_index("disease_code")
     await db.disease_cases.create_index("status")
     await db.disease_cases.create_index("created_at")
-    # 去重索引：同一患者+同一病种的活动病例唯一
+    await db.disease_cases.create_index("encounter_id")
+    await db.disease_cases.create_index("source_alert_ids")
+    # 去重索引：同一患者+同一病种的活动病例唯一（兼容旧逻辑）
     await db.disease_cases.create_index(
         [("patient_id", 1), ("disease_code", 1), ("status", 1)],
         name="idx_patient_disease_active",
+    )
+    # 新去重索引：patient_id + encounter_id + disease_code + episode_no
+    await db.disease_cases.create_index(
+        [("patient_id", 1), ("encounter_id", 1), ("disease_code", 1), ("episode_no", 1)],
+        name="idx_dedup_key",
     )
 
     # 病例证据集合索引
@@ -111,6 +118,13 @@ async def _create_indexes():
     await db.case_evidence.create_index("patient_id")
     await db.case_evidence.create_index("evidence_type")
     await db.case_evidence.create_index("observed_at")
+    await db.case_evidence.create_index("evidence_hash", unique=True, sparse=True)
+
+    # 临床结论集合索引
+    await db.clinical_conclusions.create_index("case_id")
+    await db.clinical_conclusions.create_index("patient_id")
+    await db.clinical_conclusions.create_index("conclusion_code")
+    await db.clinical_conclusions.create_index([("case_id", 1), ("superseded_at", 1)])
 
     # 临床确认记录集合索引
     await db.clinical_confirmations.create_index("case_id")

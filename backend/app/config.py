@@ -6,6 +6,7 @@ import os
 import sys
 import yaml
 from urllib.parse import quote_plus
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -83,11 +84,21 @@ class Settings(BaseSettings):
     ASR_LLM_API_KEY: str = ""
     ASR_LLM_MODEL: str = ""
 
+    # Hospital
+    HOSPITAL_TIMEZONE: str = "Asia/Shanghai"
+
     # Security
     SECRET_KEY: str = "change-me-in-production"
     CORS_ALLOWED_ORIGINS: str = ""
     WEBSOCKET_TOKENS: str = ""
     WEBSOCKET_REQUIRE_TOKEN: bool | None = None
+
+    @field_validator("WEBSOCKET_REQUIRE_TOKEN", mode="before")
+    @classmethod
+    def _empty_str_to_none(cls, v):
+        if v == "":
+            return None
+        return v
     WS_TOKEN_SECRET: str = ""
     WS_TOKEN_ALGORITHM: str = ""
 
@@ -282,6 +293,17 @@ class AppConfig:
             return env_alg
         security_cfg = self.yaml_cfg.get("security", {})
         return str(security_cfg.get("ws_token_algorithm") or "HS256").strip() or "HS256"
+
+    @property
+    def hospital_timezone(self) -> str:
+        """医院时区，默认 Asia/Shanghai。"""
+        env_tz = str(self.settings.HOSPITAL_TIMEZONE or "").strip()
+        if env_tz:
+            return env_tz
+        yaml_tz = str(self.yaml_cfg.get("hospital", {}).get("timezone", "")).strip()
+        if yaml_tz:
+            return yaml_tz
+        return "Asia/Shanghai"
 
 
 # 单例

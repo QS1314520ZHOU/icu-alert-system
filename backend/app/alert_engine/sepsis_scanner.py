@@ -10,11 +10,14 @@ qSOFA 不能单独作为确诊依据，也不能单独触发完整治疗 Bundle�
 
 from __future__ import annotations
 
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 
 from app.utils.clinical import _extract_param
 
 from .scanners import BaseScanner, ScannerSpec
+
+logger = logging.getLogger(__name__)
 
 
 class SepsisScanner(BaseScanner):
@@ -113,6 +116,15 @@ class SepsisScanner(BaseScanner):
                     )
                     if alert:
                         triggered += 1
+                        await self._bridge_to_disease_case(
+                            patient_doc, pid_str, alert, "SEPSIS_QSOFA",
+                            evidence_features=[{
+                                "source_record_id": f"{pid_str}_qsofa",
+                                "feature_name": "qsofa",
+                                "value": qsofa,
+                                "metadata": {"sbp": sbp, "rr": rr, "gcs": gcs, "infection_verdict": infection_verdict},
+                            }],
+                        )
 
             # ---- SOFA 预警（不可称"脓毒症确认"） ----
             if sofa_triggered:
@@ -139,6 +151,15 @@ class SepsisScanner(BaseScanner):
                     )
                     if alert:
                         triggered += 1
+                        await self._bridge_to_disease_case(
+                            patient_doc, pid_str, alert, "SEPSIS_SOFA",
+                            evidence_features=[{
+                                "source_record_id": f"{pid_str}_sofa",
+                                "feature_name": "sofa_delta",
+                                "value": delta,
+                                "metadata": {"sofa_score": sofa["score"], "infection_verdict": infection_verdict},
+                            }],
+                        )
 
             # ---- 脓毒症筛查下的休克/低灌注评估（必须结合感染证据） ----
             # 升压药 + 乳酸≥2 + 感染支持 → 可能脓毒性休克表型，需临床确认
@@ -199,6 +220,18 @@ class SepsisScanner(BaseScanner):
                     )
                     if alert:
                         triggered += 1
+                        await self._bridge_to_disease_case(
+                            patient_doc, pid_str, alert, shock_rule_id,
+                            evidence_features=[
+                                {
+                                    "source_record_id": f"{pid_str}_lactate",
+                                    "feature_name": "lactate",
+                                    "value": lactate_value,
+                                    "unit": "mmol/L",
+                                    "metadata": {"vasopressor": True, "map": map_value, "infection_verdict": infection_verdict},
+                                },
+                            ],
+                        )
 
             # ---- 休克/低灌注评估 ----
             shock = await self.engine._assess_shock_hypoperfusion(
@@ -253,3 +286,57 @@ class SepsisScanner(BaseScanner):
 
         if triggered > 0:
             self.engine._log_info("脓毒症预警", triggered)
+
+    async def _bridge_to_disease_case(
+        self, patient_doc: dict, pid_str: str, alert: dict,
+        rule_id: str, evidence_features: list[dict],
+    ) -> None:
+        """将脓毒症预警桥接到病种中心 DiseaseCase + CaseEvidence。"""
+        try:
+            from app.services.disease_case_bridge import (
+                add_or_update_evidence,
+                mark_screen_positive,
+                upsert_case_from_scanner,
+            )
+
+            alert_id = str(alert.get("_id"))
+
+            case = await upsert_case_from_scanner(
+                db=self.engine.db,
+                patient_doc=patient_doc,
+                disease_code="SEPSIS",
+                disease_name="脓毒症",
+                encounter_id=pid_str,
+                alert_id=alert_id,
+            )
+            if not case:
+                return
+
+            case_id = str(case["_id"])
+
+            for feat in evidence_features:
+                await add_or_update_evidence(
+                    db=self.engine.db,
+                    case_id=case_id,
+                    source_collection=feat.get("source_collection", "vital_signs"),
+                    source_record_id=feat["source_record_id"],
+                    evidence_type=feat.get("evidence_type", "lab_value"),
+                    feature_name=feat["feature_name"],
+                    value=feat["value"],
+                    unit=feat.get("unit"),
+                    occurred_at=feat.get("occurred_at") or datetime.now(timezone.utc),
+                    rule_id=rule_id,
+                    rule_version="Sepsis_v2",
+                    metadata=feat.get("metadata"),
+                )
+
+            severity = alert.get("severity", "warning")
+            await mark_screen_positive(
+                db=self.engine.db,
+                case_id=case_id,
+                severity=severity,
+                alert_id=alert_id,
+            )
+
+        except Exception as e:
+            logger.warning("Sepsis DiseaseCase bridge failed: %s", e)

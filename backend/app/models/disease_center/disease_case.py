@@ -1,12 +1,13 @@
 """病种病例模型。
 
 扫描器检出的临床病例，支持状态机流转和医生确认/排除。
-同一患者 + 同一病种 = 同一活动病例（去重）。
+去重维度：patient_id + encounter_id + disease_code + episode_no
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+import hashlib
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Optional
 
@@ -18,8 +19,9 @@ class DiseaseCaseStatus(StrEnum):
 
     状态流转：
       screening → screen_positive → pending_review → confirmed → pathway_active → completed
-                                  ↘ excluded（医生排除）
-      screening → screen_positive → screening（重新计算，证据变化）
+                                  ↘ excluded
+      confirmed → reconsideration_pending → excluded 或 confirmed
+      completed/excluded → reopened（仅满足新证据条件）
     """
     SCREENING = "screening"
     SCREEN_POSITIVE = "screen_positive"
@@ -30,9 +32,11 @@ class DiseaseCaseStatus(StrEnum):
     COMPLETED = "completed"
     TRANSFERRED = "transferred"
     DECEASED = "deceased"
+    RECONSIDERATION_PENDING = "reconsideration_pending"
+    REOPENED = "reopened"
 
 
-# 允许的状态转换
+# 允许的状态转换（统一状态机）
 VALID_TRANSITIONS: dict[str, list[str]] = {
     DiseaseCaseStatus.SCREENING: [
         DiseaseCaseStatus.SCREEN_POSITIVE,
@@ -53,9 +57,10 @@ VALID_TRANSITIONS: dict[str, list[str]] = {
         DiseaseCaseStatus.COMPLETED,
         DiseaseCaseStatus.TRANSFERRED,
         DiseaseCaseStatus.DECEASED,
+        DiseaseCaseStatus.RECONSIDERATION_PENDING,
     ],
     DiseaseCaseStatus.EXCLUDED: [
-        DiseaseCaseStatus.PENDING_REVIEW,  # 新证据重新触发
+        DiseaseCaseStatus.REOPENED,  # 新证据重开
         DiseaseCaseStatus.SCREENING,
     ],
     DiseaseCaseStatus.PATHWAY_ACTIVE: [
@@ -63,9 +68,19 @@ VALID_TRANSITIONS: dict[str, list[str]] = {
         DiseaseCaseStatus.TRANSFERRED,
         DiseaseCaseStatus.DECEASED,
     ],
-    DiseaseCaseStatus.COMPLETED: [],
+    DiseaseCaseStatus.COMPLETED: [
+        DiseaseCaseStatus.REOPENED,  # 新发事件重开
+    ],
     DiseaseCaseStatus.TRANSFERRED: [],
     DiseaseCaseStatus.DECEASED: [],
+    DiseaseCaseStatus.RECONSIDERATION_PENDING: [
+        DiseaseCaseStatus.CONFIRMED,  # 重新确认
+        DiseaseCaseStatus.EXCLUDED,   # 排除
+    ],
+    DiseaseCaseStatus.REOPENED: [
+        DiseaseCaseStatus.SCREENING,  # 重新进入筛查
+        DiseaseCaseStatus.SCREEN_POSITIVE,
+    ],
 }
 
 
@@ -75,11 +90,23 @@ def can_transition(current: str, target: str) -> bool:
     return target in allowed
 
 
+def compute_evidence_hash(
+    case_id: str,
+    source_collection: str,
+    source_record_id: str,
+    rule_id: str,
+    rule_version: str,
+) -> str:
+    """计算证据唯一哈希，用于幂等写入。"""
+    raw = f"{case_id}:{source_collection}:{source_record_id}:{rule_id}:{rule_version}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
 class DiseaseCase(BaseModel):
     """病种病例。
 
     由扫描器自动创建或医生手动创建，支持：
-    - 自动筛查与去重（同一患者+同一病种=同一活动病例）
+    - 自动筛查与去重（patient_id + encounter_id + disease_code + episode_no）
     - 状态机流转
     - 医生确认/排除
     - 临床路径关联
@@ -90,6 +117,10 @@ class DiseaseCase(BaseModel):
     patient_name: str = ""
     bed: str = ""
     dept: str = ""
+
+    # 去重维度
+    encounter_id: str = ""      # 住院/就诊 ID
+    episode_no: int = 1         # 同一住院内的事件序号
 
     # 病种关联
     disease_id: str = ""
@@ -112,7 +143,7 @@ class DiseaseCase(BaseModel):
     # 临床摘要（结构化，由扫描器填充）
     clinical_summary: dict[str, Any] = Field(default_factory=dict)
 
-    # 时间戳
+    # 时间戳（timezone-aware UTC）
     first_detected_at: Optional[datetime] = None
     last_evaluated_at: Optional[datetime] = None
     screen_positive_at: Optional[datetime] = None
@@ -130,9 +161,17 @@ class DiseaseCase(BaseModel):
     # 路径关联
     pathway_instance_id: str = ""
 
+    # 病例生命周期
+    resolved_at: Optional[datetime] = None
+    reopened_at: Optional[datetime] = None
+    suppressed_until: Optional[datetime] = None
+    last_evidence_hash: str = ""
+    last_material_change_at: Optional[datetime] = None
+    source_alert_ids: list[str] = Field(default_factory=list)
+
     # 元数据
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_by: str = "system"
 
     def is_active(self) -> bool:
@@ -149,4 +188,5 @@ class DiseaseCase(BaseModel):
             DiseaseCaseStatus.PENDING_REVIEW,
             DiseaseCaseStatus.CONFIRMED,
             DiseaseCaseStatus.PATHWAY_ACTIVE,
+            DiseaseCaseStatus.RECONSIDERATION_PENDING,
         )

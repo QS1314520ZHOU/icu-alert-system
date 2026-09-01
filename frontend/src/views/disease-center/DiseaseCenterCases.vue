@@ -118,11 +118,13 @@ const diseaseOptions = computed(() =>
 const statusOptions = [
   { value: 'screening', label: '筛查中' },
   { value: 'screen_positive', label: '筛查阳性' },
-  { value: 'pending_review', label: '待审核' },
-  { value: 'confirmed', label: '已确诊' },
+  { value: 'pending_review', label: '待临床确认' },
+  { value: 'confirmed', label: '已纳入确认' },
   { value: 'excluded', label: '已排除' },
   { value: 'pathway_active', label: '路径执行中' },
   { value: 'completed', label: '已完成' },
+  { value: 'reconsideration_pending', label: '待复核' },
+  { value: 'reopened', label: '已重新打开' },
 ]
 
 const columns = [
@@ -132,7 +134,7 @@ const columns = [
   { title: '风险等级', key: 'risk_level', dataIndex: 'risk_level', width: 100 },
   { title: '筛查时间', dataIndex: 'first_detected_at', width: 170,
     customRender: ({ text }: { text: string }) => text ? new Date(text).toLocaleString('zh-CN') : '-' },
-  { title: '确诊时间', dataIndex: 'confirmed_at', width: 170,
+  { title: '临床确认时间', dataIndex: 'confirmed_at', width: 170,
     customRender: ({ text }: { text: string }) => text ? new Date(text).toLocaleString('zh-CN') : '-' },
   { title: '操作', key: 'actions', width: 120, fixed: 'right' as const },
 ]
@@ -154,16 +156,20 @@ const statusColorMap: Record<string, string> = {
   excluded: 'default',
   pathway_active: 'var(--color-primary)',
   completed: 'var(--color-success)',
+  reconsideration_pending: 'orange',
+  reopened: 'orange',
 }
 
 const statusLabelMap: Record<string, string> = {
   screening: '筛查中',
   screen_positive: '筛查阳性',
-  pending_review: '待审核',
-  confirmed: '已确诊',
+  pending_review: '待临床确认',
+  confirmed: '已纳入确认',
   excluded: '已排除',
   pathway_active: '路径执行中',
   completed: '已完成',
+  reconsideration_pending: '待复核',
+  reopened: '已重新打开',
 }
 
 function getStatusColor(status: string) {
@@ -227,10 +233,9 @@ function goCaseDetail(caseId: string) {
 async function handleConfirm(record: DiseaseCase) {
   try {
     await confirmCase(record.id, {
-      operator_id: 'current_user',
-      reason: '工作台快速确认',
+      reason: '工作台快速确认纳入',
     })
-    message.success('已确认')
+    message.success('已确认纳入')
     loadCases()
   } catch (err: any) {
     message.error('确认失败: ' + (err.message || '未知错误'))

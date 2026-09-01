@@ -1,13 +1,19 @@
-"""病种中心 API 路由。"""
+"""病种中心 API 路由。
+
+所有写操作接口使用 get_current_user 依赖。
+后端不信任任何前端传入的操作者身份。
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.auth.dependencies import get_current_user, check_patient_access
+from app.auth.iframe_auth import CurrentUser
 from app.services import (
     disease_service,
     terminology_service,
@@ -17,6 +23,13 @@ from app.services import (
     ai_service,
 )
 from app.services import case_service
+from app.services.case_state_service import (
+    confirm_case,
+    exclude_case,
+    recalculate_case,
+    StateTransitionError,
+    PermissionDeniedError,
+)
 from app.services.clinical_scoring_service import (
     health_check,
     list_scoring_systems,
@@ -31,49 +44,22 @@ router = APIRouter(prefix="/api/disease-center", tags=["病种中心"])
 # ===== 请求/响应模型 =====
 
 
-class ConfirmRequest(BaseModel):
-    """医生确认请求。"""
-    operator_id: str
-    operator_name: str = ""
-    reason: str = ""
-    clinical_note: str = ""
-
-
 class ExcludeRequest(BaseModel):
     """医生排除请求。"""
-    operator_id: str
-    operator_name: str = ""
-    reason: str = ""
+    reason: str  # 必填
     clinical_note: str = ""
+    exclude_type: str = "other"  # false_positive, data_error, disease_change, differential, other
 
 
 class RecalculateRequest(BaseModel):
     """重新计算请求。"""
-    operator_id: str = "system"
-    operator_name: str = ""
     reason: str = "手动触发重新计算"
 
 
 class CompleteTaskRequest(BaseModel):
     """完成任务请求。"""
-    operator_id: str
     actual_value: Optional[float] = None
     note: str = ""
-
-
-class CaseListParams(BaseModel):
-    """病例列表查询参数。"""
-    disease_id: Optional[str] = None
-    status: Optional[str] = None
-    patient_id: Optional[str] = None
-    dept: Optional[str] = None
-    risk_level: Optional[str] = None
-    date_from: Optional[datetime] = None
-    date_to: Optional[datetime] = None
-    page: int = 1
-    page_size: int = 50
-    sort_by: str = "last_evaluated_at"
-    sort_order: int = -1
 
 
 # ===== 评分系统 =====
@@ -153,7 +139,7 @@ async def get_disease(disease_id: str):
 
 
 @router.post("/diseases")
-async def create_disease(disease: dict[str, Any]):
+async def create_disease(disease: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """创建病种。"""
     try:
         from app.models.disease_center import DiseaseDefinition
@@ -164,7 +150,7 @@ async def create_disease(disease: dict[str, Any]):
 
 
 @router.put("/diseases/{disease_id}")
-async def update_disease(disease_id: str, updates: dict[str, Any]):
+async def update_disease(disease_id: str, updates: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """更新病种。"""
     try:
         disease = await disease_service.update_disease(disease_id, updates)
@@ -176,7 +162,7 @@ async def update_disease(disease_id: str, updates: dict[str, Any]):
 
 
 @router.delete("/diseases/{disease_id}")
-async def delete_disease(disease_id: str):
+async def delete_disease(disease_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """删除病种。"""
     try:
         success = await disease_service.delete_disease(disease_id)
@@ -188,10 +174,10 @@ async def delete_disease(disease_id: str):
 
 
 @router.post("/diseases/{disease_id}/submit-review")
-async def submit_disease_review(disease_id: str, submitter_id: str):
+async def submit_disease_review(disease_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """提交病种审核。"""
     try:
-        review = await disease_service.submit_review(disease_id, submitter_id)
+        review = await disease_service.submit_review(disease_id, current_user.user_id)
         return review
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -207,7 +193,7 @@ async def list_disease_relations(disease_id: str):
 
 
 @router.post("/relations")
-async def create_relation(relation: dict[str, Any]):
+async def create_relation(relation: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """创建病种关系。"""
     try:
         from app.models.disease_center import DiseaseRelation
@@ -218,7 +204,7 @@ async def create_relation(relation: dict[str, Any]):
 
 
 @router.delete("/relations/{relation_id}")
-async def delete_relation(relation_id: str):
+async def delete_relation(relation_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """删除病种关系。"""
     success = await disease_service.delete_relation(relation_id)
     if not success:
@@ -239,7 +225,7 @@ async def get_pathway(disease_id: str):
 
 
 @router.post("/pathways")
-async def create_pathway(pathway: dict[str, Any]):
+async def create_pathway(pathway: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """创建临床路径。"""
     try:
         from app.models.disease_center import ClinicalPathway
@@ -250,7 +236,7 @@ async def create_pathway(pathway: dict[str, Any]):
 
 
 @router.put("/diseases/{disease_id}/pathway")
-async def update_pathway(disease_id: str, updates: dict[str, Any]):
+async def update_pathway(disease_id: str, updates: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """更新临床路径。"""
     pathway = await disease_service.update_pathway(disease_id, updates)
     if pathway is None:
@@ -288,7 +274,7 @@ async def get_terminology(term_id: str):
 
 
 @router.post("/terminology")
-async def create_terminology(terminology: dict[str, Any]):
+async def create_terminology(terminology: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """创建术语。"""
     try:
         from app.models.disease_center import Terminology
@@ -299,7 +285,7 @@ async def create_terminology(terminology: dict[str, Any]):
 
 
 @router.put("/terminology/{term_id}")
-async def update_terminology(term_id: str, updates: dict[str, Any]):
+async def update_terminology(term_id: str, updates: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """更新术语。"""
     term = await terminology_service.update_terminology(term_id, updates)
     if term is None:
@@ -308,7 +294,7 @@ async def update_terminology(term_id: str, updates: dict[str, Any]):
 
 
 @router.delete("/terminology/{term_id}")
-async def delete_terminology(term_id: str):
+async def delete_terminology(term_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """删除术语。"""
     success = await terminology_service.delete_terminology(term_id)
     if not success:
@@ -317,7 +303,7 @@ async def delete_terminology(term_id: str):
 
 
 @router.post("/terminology/import")
-async def import_terminology_batch(terms: list[dict[str, Any]]):
+async def import_terminology_batch(terms: list[dict[str, Any]], current_user: CurrentUser = Depends(get_current_user)):
     """批量导入术语。"""
     return await terminology_service.import_batch(terms)
 
@@ -352,7 +338,7 @@ async def get_phenotype(phenotype_id: str):
 
 
 @router.post("/phenotypes")
-async def create_phenotype(phenotype: dict[str, Any]):
+async def create_phenotype(phenotype: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """创建表型规则。"""
     try:
         from app.models.disease_center import PhenotypeRule
@@ -363,7 +349,7 @@ async def create_phenotype(phenotype: dict[str, Any]):
 
 
 @router.put("/phenotypes/{phenotype_id}")
-async def update_phenotype(phenotype_id: str, updates: dict[str, Any]):
+async def update_phenotype(phenotype_id: str, updates: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """更新表型规则。"""
     phenotype = await phenotype_service.update_phenotype(phenotype_id, updates)
     if phenotype is None:
@@ -372,7 +358,7 @@ async def update_phenotype(phenotype_id: str, updates: dict[str, Any]):
 
 
 @router.delete("/phenotypes/{phenotype_id}")
-async def delete_phenotype(phenotype_id: str):
+async def delete_phenotype(phenotype_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """删除表型规则。"""
     success = await phenotype_service.delete_phenotype(phenotype_id)
     if not success:
@@ -381,7 +367,7 @@ async def delete_phenotype(phenotype_id: str):
 
 
 @router.post("/phenotypes/validate")
-async def validate_phenotype(phenotype: dict[str, Any]):
+async def validate_phenotype(phenotype: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """验证表型规则逻辑。"""
     try:
         from app.models.disease_center import PhenotypeRule
@@ -410,19 +396,19 @@ async def get_review(review_id: str):
 
 
 @router.post("/reviews/{review_id}/approve")
-async def approve_review(review_id: str, reviewer_id: str):
+async def approve_review(review_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """通过审核。"""
     try:
-        return await disease_service.approve_review(review_id, reviewer_id)
+        return await disease_service.approve_review(review_id, current_user.user_id)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
 
 @router.post("/reviews/{review_id}/reject")
-async def reject_review(review_id: str, reviewer_id: str, comment: str):
+async def reject_review(review_id: str, comment: str, current_user: CurrentUser = Depends(get_current_user)):
     """拒绝审核。"""
     try:
-        return await disease_service.reject_review(review_id, reviewer_id, comment)
+        return await disease_service.reject_review(review_id, current_user.user_id, comment)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -456,7 +442,7 @@ async def get_offline_package(package_id: str):
 
 
 @router.post("/offline-packages")
-async def create_offline_package(package: dict[str, Any]):
+async def create_offline_package(package: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """创建离线包。"""
     try:
         from app.models.disease_center import OfflinePackage
@@ -467,7 +453,7 @@ async def create_offline_package(package: dict[str, Any]):
 
 
 @router.post("/offline-packages/{package_id}/build")
-async def build_offline_package(package_id: str):
+async def build_offline_package(package_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """构建离线包。"""
     try:
         package = await offline_service.build_package(package_id)
@@ -479,7 +465,7 @@ async def build_offline_package(package_id: str):
 
 
 @router.post("/offline-packages/{package_id}/publish")
-async def publish_offline_package(package_id: str):
+async def publish_offline_package(package_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """发布离线包。"""
     try:
         package = await offline_service.publish_package(package_id)
@@ -491,7 +477,7 @@ async def publish_offline_package(package_id: str):
 
 
 @router.delete("/offline-packages/{package_id}")
-async def delete_offline_package(package_id: str):
+async def delete_offline_package(package_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """删除离线包。"""
     success = await offline_service.delete_package(package_id)
     if not success:
@@ -533,7 +519,7 @@ async def get_quality_trend(disease_id: str, days: int = 30):
 
 
 @router.post("/quality/check/{disease_id}")
-async def run_quality_check(disease_id: str):
+async def run_quality_check(disease_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """运行质量检查。"""
     return await quality_service.run_quality_check(disease_id)
 
@@ -568,7 +554,7 @@ async def get_ai_proposal(proposal_id: str):
 
 
 @router.post("/ai/proposals")
-async def create_ai_proposal(proposal: dict[str, Any]):
+async def create_ai_proposal(proposal: dict[str, Any], current_user: CurrentUser = Depends(get_current_user)):
     """创建 AI 提案。"""
     try:
         return await ai_service.create_proposal(**proposal)
@@ -577,18 +563,18 @@ async def create_ai_proposal(proposal: dict[str, Any]):
 
 
 @router.post("/ai/proposals/{proposal_id}/approve")
-async def approve_ai_proposal(proposal_id: str, reviewer_id: str):
+async def approve_ai_proposal(proposal_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """通过 AI 提案。"""
-    proposal = await ai_service.approve_proposal(proposal_id, reviewer_id)
+    proposal = await ai_service.approve_proposal(proposal_id, current_user.user_id)
     if proposal is None:
         raise HTTPException(404, "AI 提案不存在")
     return proposal
 
 
 @router.post("/ai/proposals/{proposal_id}/reject")
-async def reject_ai_proposal(proposal_id: str, reviewer_id: str, reason: str):
+async def reject_ai_proposal(proposal_id: str, reason: str, current_user: CurrentUser = Depends(get_current_user)):
     """拒绝 AI 提案。"""
-    proposal = await ai_service.reject_proposal(proposal_id, reviewer_id, reason)
+    proposal = await ai_service.reject_proposal(proposal_id, current_user.user_id, reason)
     if proposal is None:
         raise HTTPException(404, "AI 提案不存在")
     return proposal
@@ -622,7 +608,9 @@ async def get_disease_dashboard(disease_id: str):
 async def get_global_funnel():
     """获取全局筛查漏斗数据。"""
     try:
-        return await case_service.get_funnel_data("")
+        from app.repositories import CaseRepository
+        repo = CaseRepository()
+        return await repo.get_funnel_data()
     except Exception as e:
         raise HTTPException(500, f"获取漏斗数据失败: {e}")
 
@@ -631,7 +619,9 @@ async def get_global_funnel():
 async def get_disease_funnel(disease_id: str):
     """获取筛查漏斗数据。"""
     try:
-        return await case_service.get_funnel_data(disease_id)
+        from app.repositories import CaseRepository
+        repo = CaseRepository()
+        return await repo.get_funnel_data(disease_id=disease_id)
     except Exception as e:
         raise HTTPException(500, f"获取漏斗数据失败: {e}")
 
@@ -665,6 +655,17 @@ async def get_disease_quality_failures(disease_id: str):
     """获取未达标原因。"""
     # TODO: 实现未达标原因分析
     return []
+
+
+@router.get("/diseases/{disease_id}/quality/metrics")
+async def get_disease_quality_metrics(disease_id: str):
+    """获取病种质量指标。"""
+    try:
+        from app.repositories import CaseRepository
+        repo = CaseRepository()
+        return await repo.get_quality_metrics(disease_id=disease_id)
+    except Exception as e:
+        raise HTTPException(500, f"获取质量指标失败: {e}")
 
 
 # ===== 病例中心 =====
@@ -798,63 +799,106 @@ async def get_case_quality(case_id: str):
     }
 
 
+@router.get("/cases/{case_id}/conclusions")
+async def get_case_conclusions(case_id: str):
+    """获取病例临床结论。"""
+    from app.repositories import ConclusionRepository
+    repo = ConclusionRepository()
+    conclusions = await repo.find_by_case(case_id, current_only=True)
+    return [c for c in conclusions]
+
+
 @router.post("/cases/{case_id}/confirm")
-async def confirm_case(case_id: str, req: ConfirmRequest):
-    """医生确认病例。"""
+async def confirm_case_endpoint(
+    case_id: str,
+    reason: str = "",
+    clinical_note: str = "",
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """医生确认病例（纳入）。
+
+    操作者身份从 JWT 令牌获取，不信任前端传入。
+    """
     try:
-        return await case_service.confirm_case(
+        return await confirm_case(
             case_id,
-            operator_id=req.operator_id,
-            operator_name=req.operator_name,
-            reason=req.reason,
-            clinical_note=req.clinical_note,
+            operator_id=current_user.user_id,
+            operator_name=current_user.user_name or current_user.user_id,
+            operator_role=current_user.role,
+            reason=reason,
+            clinical_note=clinical_note,
         )
-    except ValueError as e:
+    except StateTransitionError as e:
         raise HTTPException(400, str(e))
+    except PermissionDeniedError as e:
+        raise HTTPException(403, str(e))
     except Exception as e:
         raise HTTPException(500, f"确认失败: {e}")
 
 
 @router.post("/cases/{case_id}/exclude")
-async def exclude_case(case_id: str, req: ExcludeRequest):
-    """医生排除病例。"""
+async def exclude_case_endpoint(
+    case_id: str,
+    req: ExcludeRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """医生排除病例。
+
+    排除必须填写原因。操作者身份从 JWT 令牌获取。
+    """
     try:
-        return await case_service.exclude_case(
+        return await exclude_case(
             case_id,
-            operator_id=req.operator_id,
-            operator_name=req.operator_name,
+            operator_id=current_user.user_id,
+            operator_name=current_user.user_name or current_user.user_id,
+            operator_role=current_user.role,
             reason=req.reason,
             clinical_note=req.clinical_note,
+            exclude_type=req.exclude_type,
         )
-    except ValueError as e:
+    except StateTransitionError as e:
         raise HTTPException(400, str(e))
+    except PermissionDeniedError as e:
+        raise HTTPException(403, str(e))
     except Exception as e:
         raise HTTPException(500, f"排除失败: {e}")
 
 
 @router.post("/cases/{case_id}/recalculate")
-async def recalculate_case(case_id: str, req: RecalculateRequest):
+async def recalculate_case_endpoint(
+    case_id: str,
+    req: RecalculateRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """触发病例重新计算。"""
     try:
-        return await case_service.recalculate_case(
+        return await recalculate_case(
             case_id,
-            operator_id=req.operator_id,
-            operator_name=req.operator_name,
+            operator_id=current_user.user_id,
+            operator_name=current_user.user_name or current_user.user_id,
+            operator_role=current_user.role,
             reason=req.reason,
         )
-    except ValueError as e:
+    except StateTransitionError as e:
         raise HTTPException(400, str(e))
+    except PermissionDeniedError as e:
+        raise HTTPException(403, str(e))
     except Exception as e:
         raise HTTPException(500, f"重新计算失败: {e}")
 
 
 @router.post("/cases/{case_id}/tasks/{task_id}/complete")
-async def complete_case_task(case_id: str, task_id: str, req: CompleteTaskRequest):
+async def complete_case_task(
+    case_id: str,
+    task_id: str,
+    req: CompleteTaskRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """完成路径任务。"""
     try:
         return await case_service.complete_task(
             task_id,
-            operator_id=req.operator_id,
+            operator_id=current_user.user_id,
             actual_value=req.actual_value,
             note=req.note,
         )

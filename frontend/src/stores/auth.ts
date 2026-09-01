@@ -1,6 +1,20 @@
+/**
+ * 认证状态管理
+ *
+ * 整合 iframe 宿主认证与本地认证。
+ * 优先使用宿主 Token，本地认证作为开发/测试回退。
+ */
+
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { LocationQuery } from 'vue-router'
+import {
+  initIframeAuth,
+  useIframeAuth,
+  getAccessToken,
+  isAuthenticated as isIframeAuthenticated,
+  type IframeAuthStatus,
+} from '../auth/iframeAuth'
 import { getOperatorIdentity, setOperatorIdentity } from '../utils/operatorIdentity'
 import { usePatientContext } from './patientContext'
 
@@ -48,11 +62,106 @@ export const useAuthStore = defineStore('auth', () => {
   const dept = ref(String(stored.dept || '').trim())
   const deptCode = ref(String(stored.deptCode || '').trim())
 
+  // iframe 认证状态
+  const iframeAuthStatus = ref<IframeAuthStatus>('initializing')
+  const iframeAuthError = ref<string | null>(null)
+  const iframeInitialized = ref(false)
+
   const effectiveUserId = computed(() => userId.value || userName.value || getOperatorIdentity())
+
+  /**
+   * 是否已认证（iframe 认证或本地认证）。
+   */
+  const isAuthenticated = computed(() => {
+    if (iframeInitialized.value) {
+      return isIframeAuthenticated()
+    }
+    // 回退：本地有用户标识即视为已认证
+    return !!userId.value || !!userName.value
+  })
+
+  /**
+   * 获取当前访问令牌。
+   */
+  const accessToken = computed(() => {
+    if (iframeInitialized.value) {
+      return getAccessToken()
+    }
+    // 回退：从 localStorage 读取
+    try {
+      return localStorage.getItem('icu_jwt_access_token') || ''
+    } catch {
+      return ''
+    }
+  })
 
   function persist() {
     writeStored({ userId: userId.value, userName: userName.value, role: role.value, dept: dept.value, deptCode: deptCode.value })
     if (userId.value || userName.value) setOperatorIdentity(userId.value || userName.value)
+  }
+
+  /**
+   * 初始化 iframe 认证。
+   * 应在应用启动时调用一次。
+   */
+  async function initAuth(): Promise<void> {
+    try {
+      const state = await initIframeAuth()
+      iframeInitialized.value = true
+      iframeAuthStatus.value = state.status
+      iframeAuthError.value = state.error
+
+      // 如果 iframe 认证成功，同步用户信息
+      if (state.status === 'authenticated') {
+        if (state.userId) userId.value = state.userId
+        if (state.userName) userName.value = state.userName
+        if (state.role) role.value = state.role
+        if (state.dept) dept.value = state.dept
+        persist()
+      }
+
+      // 监听 iframe 认证状态变化
+      const iframeAuth = useIframeAuth()
+      watch(iframeAuth, (newState) => {
+        iframeAuthStatus.value = newState.status
+        iframeAuthError.value = newState.error
+
+        if (newState.status === 'authenticated') {
+          if (newState.userId) userId.value = newState.userId
+          if (newState.userName) userName.value = newState.userName
+          if (newState.role) role.value = newState.role
+          if (newState.dept) dept.value = newState.dept
+          persist()
+        }
+
+        if (newState.status === 'unauthorized' || newState.status === 'expired') {
+          // 宿主退出或 Token 过期，清除敏感数据
+          clearSensitiveData()
+        }
+      })
+    } catch (err) {
+      console.warn('[AuthStore] Iframe auth init failed, falling back to local auth:', err)
+      iframeAuthStatus.value = 'error'
+    }
+  }
+
+  /**
+   * 清除敏感数据（宿主退出或切换用户时）。
+   */
+  function clearSensitiveData(): void {
+    // 清除患者上下文
+    try {
+      usePatientContext().clearAllSessionData()
+    } catch {
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i)
+          if (key && key.startsWith('icu_active_patient_id')) {
+            sessionStorage.removeItem(key)
+          }
+        }
+      } catch {}
+    }
   }
 
   /**
@@ -102,8 +211,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   function cleanIdentityQuery(query: LocationQuery) {
     const next: Record<string, any> = { ...query }
-    // 保留地址栏身份参数，供跨页面导航和刷新后快速识别当前账号。
-    // 仅去掉兼容旧拼写产生的重复项，避免首页进入临床工作台时 userName 丢失。
     if (next.user_id) delete next.userId
     if (next.userName) delete next.useName
     if (next.userName) delete next.username
@@ -121,42 +228,17 @@ export const useAuthStore = defineStore('auth', () => {
     deptCode.value = ''
     persist()
     setOperatorIdentity('')
-    // 清除患者上下文 sessionStorage（所有用户作用域的 key）
-    try {
-      usePatientContext().clearAllSessionData()
-    } catch {
-      // Fallback: 直接清理
-      try {
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-          const key = sessionStorage.key(i)
-          if (key && key.startsWith('icu_active_patient_id')) {
-            sessionStorage.removeItem(key)
-          }
-        }
-      } catch {}
-    }
+    clearSensitiveData()
   }
 
   /**
-   * 切换科室：更新 dept/deptCode 并清除患者上下文（避免跨科室数据泄漏）。
+   * 切换科室：更新 dept/deptCode 并清除患者上下文。
    */
   function switchDepartment(newDept: string, newDeptCode: string) {
     dept.value = newDept
     deptCode.value = newDeptCode
     persist()
-    // 科室切换后清除患者上下文
-    try {
-      usePatientContext().clearAllSessionData()
-    } catch {
-      try {
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-          const key = sessionStorage.key(i)
-          if (key && key.startsWith('icu_active_patient_id')) {
-            sessionStorage.removeItem(key)
-          }
-        }
-      } catch {}
-    }
+    clearSensitiveData()
   }
 
   /**
@@ -170,20 +252,27 @@ export const useAuthStore = defineStore('auth', () => {
     deptCode.value = ''
     persist()
     setOperatorIdentity(newUserId || newUserName)
-    // 用户切换后清除患者上下文
-    try {
-      usePatientContext().clearAllSessionData()
-    } catch {
-      try {
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-          const key = sessionStorage.key(i)
-          if (key && key.startsWith('icu_active_patient_id')) {
-            sessionStorage.removeItem(key)
-          }
-        }
-      } catch {}
-    }
+    clearSensitiveData()
   }
 
-  return { userId, userName, role, dept, deptCode, effectiveUserId, hydrateFromQuery, updateAccount, cleanIdentityQuery, logout, switchDepartment, switchUser }
+  return {
+    userId,
+    userName,
+    role,
+    dept,
+    deptCode,
+    effectiveUserId,
+    isAuthenticated,
+    accessToken,
+    iframeAuthStatus,
+    iframeAuthError,
+    iframeInitialized,
+    initAuth,
+    hydrateFromQuery,
+    updateAccount,
+    cleanIdentityQuery,
+    logout,
+    switchDepartment,
+    switchUser,
+  }
 })

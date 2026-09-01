@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import logging
+from datetime import datetime, timezone
+
 from .scanners import BaseScanner, ScannerSpec
+
+logger = logging.getLogger(__name__)
 
 
 class AkiScanner(BaseScanner):
@@ -74,6 +79,73 @@ class AkiScanner(BaseScanner):
             )
             if alert:
                 triggered += 1
+                # Bridge to DiseaseCase
+                await self._bridge_to_disease_case(patient_doc, patient_id, stage, alert)
 
         if triggered > 0:
             self.engine._log_info("AKI预警", triggered)
+
+    async def _bridge_to_disease_case(
+        self, patient_doc: dict, patient_id: str, stage: dict, alert: dict
+    ) -> None:
+        """将 AKI 预警桥接到病种中心 DiseaseCase + CaseEvidence。"""
+        try:
+            from app.services.disease_case_bridge import (
+                add_or_update_evidence,
+                mark_screen_positive,
+                upsert_case_from_scanner,
+            )
+
+            alert_id = str(alert.get("_id"))
+            aki_stage = stage.get("stage", 0)
+
+            # 1. 创建/更新 DiseaseCase
+            case = await upsert_case_from_scanner(
+                db=self.engine.db,
+                patient_doc=patient_doc,
+                disease_code="AKI",
+                disease_name="急性肾损伤",
+                encounter_id=patient_id,  # AKI 无独立 encounter，用 patient_id
+                alert_id=alert_id,
+            )
+            if not case:
+                return
+
+            case_id = str(case["_id"])
+
+            # 2. 添加肌酐证据
+            current_value = stage.get("current")
+            baseline = stage.get("baseline")
+            ratio = stage.get("ratio")
+
+            if current_value is not None:
+                await add_or_update_evidence(
+                    db=self.engine.db,
+                    case_id=case_id,
+                    source_collection="lab_report",
+                    source_record_id=f"{patient_id}_cr_latest",
+                    evidence_type="lab_value",
+                    feature_name="creatinine",
+                    value=current_value,
+                    unit="μmol/L",
+                    occurred_at=stage.get("time") or datetime.now(timezone.utc),
+                    rule_id=f"AKI_STAGE_{aki_stage}",
+                    rule_version="KDIGO_v2012",
+                    metadata={
+                        "baseline": baseline,
+                        "ratio": ratio,
+                        "aki_stage": aki_stage,
+                    },
+                )
+
+            # 3. 标记筛阳
+            severity = {1: "warning", 2: "high", 3: "critical"}.get(aki_stage, "warning")
+            await mark_screen_positive(
+                db=self.engine.db,
+                case_id=case_id,
+                severity=severity,
+                alert_id=alert_id,
+            )
+
+        except Exception as e:
+            logger.warning("AKI DiseaseCase bridge failed: %s", e)

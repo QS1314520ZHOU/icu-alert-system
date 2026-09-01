@@ -656,6 +656,13 @@ export const getAuditEvents = (params?: {
 
 // ===== 仪表盘 =====
 
+export interface QualityMetrics {
+  confirmation_rate: number
+  exclusion_rate: number
+  pathway_start_rate: number
+  pathway_completion_rate: number
+}
+
 export interface DashboardData {
   disease_count?: number
   disease_total?: number
@@ -664,8 +671,10 @@ export interface DashboardData {
   pending_review?: number
   pathway_active?: number
   active_cases?: number
+  quality_metrics?: QualityMetrics
   quality_trend?: Array<{ date: string; value: number }>
   risk_distribution?: Array<{ _id: string; count: number }>
+  status_counts?: Record<string, number>
   case_trend?: Array<{ _id: string; total: number; confirmed: number; excluded: number }>
 }
 
@@ -813,27 +822,20 @@ export interface PathwayInstanceData {
 }
 
 export interface ConfirmRequest {
-  operator_id: string
-  operator_name?: string
   reason?: string
   clinical_note?: string
 }
 
 export interface ExcludeRequest {
-  operator_id: string
-  operator_name?: string
-  reason?: string
+  reason: string
   clinical_note?: string
 }
 
 export interface RecalculateRequest {
-  operator_id?: string
-  operator_name?: string
   reason?: string
 }
 
 export interface CompleteTaskRequest {
-  operator_id: string
   actual_value?: number
   note?: string
 }

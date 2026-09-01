@@ -28,7 +28,7 @@
                 <span class="overview-value">{{ dashData?.today_new ?? '-' }}</span>
               </div>
               <div class="overview-card">
-                <span class="overview-label">待审核</span>
+                <span class="overview-label">待临床确认</span>
                 <span class="overview-value">{{ dashData?.pending_review ?? '-' }}</span>
               </div>
               <div class="overview-card">
@@ -245,8 +245,9 @@ function getCaseStatusColor(status: string) {
 
 function getCaseStatusLabel(status: string) {
   const map: Record<string, string> = {
-    screening: '筛查中', screen_positive: '筛查阳性', pending_review: '待审核',
-    confirmed: '已确诊', excluded: '已排除', pathway_active: '路径执行中', completed: '已完成',
+    screening: '筛查中', screen_positive: '筛查阳性', pending_review: '待临床确认',
+    confirmed: '已纳入确认', excluded: '已排除', pathway_active: '路径执行中', completed: '已完成',
+    reconsideration_pending: '待复核', reopened: '已重新打开',
   }
   return map[status] || status
 }
