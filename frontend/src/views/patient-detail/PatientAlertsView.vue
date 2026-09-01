@@ -1,126 +1,145 @@
-<template>
-  <div class="alerts-layout">
-    <aside class="alerts-sidebar">
-      <section class="alerts-section">
-        <div class="section-header">
-          <h3>活跃预警</h3>
-          <div class="alert-filters">
-            <a-select v-model:value="severityFilter" size="small" style="width: 100px;" allow-clear placeholder="严重程度">
-              <a-select-option value="critical">危急</a-select-option>
-              <a-select-option value="high">高风险</a-select-option>
-              <a-select-option value="warning">预警</a-select-option>
-            </a-select>
-            <a-select v-model:value="domainFilter" size="small" style="width: 120px;" allow-clear placeholder="领域">
-              <a-select-option v-for="d in domains" :key="d.value" :value="d.value">{{ d.label }}</a-select-option>
-            </a-select>
-            <a-button size="small" @click="loadAlerts">刷新</a-button>
-          </div>
+﻿<template>
+  <div class="alerts-page">
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <h2 class="page-title">
+          <span class="title-dot"></span>
+          临床预警
+        </h2>
+        <span class="alert-count" v-if="filteredAlerts.length">{{ filteredAlerts.length }} 条活跃</span>
+        <span class="alert-count alert-count--ok" v-else>暂无活跃预警</span>
+      </div>
+
+      <div class="toolbar-right">
+        <!-- 严重程度筛选 -->
+        <div class="seg-filter">
+          <button
+            v-for="s in severityOptions"
+            :key="s.value"
+            :class="['seg-btn', { active: severityFilter === s.value }]"
+            @click="severityFilter = severityFilter === s.value ? undefined : s.value"
+          >
+            <span class="seg-dot" :class="`seg-dot--${s.value}`"></span>
+            {{ s.label }}
+          </button>
         </div>
-        <div v-if="filteredAlerts.length" class="alerts-list">
-          <div v-for="alert in filteredAlerts" :key="alert._id" class="alert-card" :class="alertCardClass(alert)">
-            <div class="alert-header">
-              <span class="alert-severity-badge" :class="severityBadgeClass(alert)">{{ severityShort(alert) }}</span>
-              <span class="alert-type">{{ alertTypeText(alert.alert_type) }}</span>
-              <span class="alert-domain">{{ alertDomainLabel(alert.domain) }}</span>
-              <span class="alert-time">{{ fmtTime(alert.created_at) }}</span>
-            </div>
-            <div class="alert-body">
-              <p class="alert-description">{{ alert.description || alert.extra?.description || '' }}</p>
-              <div class="alert-value">
-                <span class="value-label">当前值：</span>
-                <span class="value-text">{{ formatAlertValue(alert) }}</span>
-              </div>
-              <div v-if="alert.extra?.evidence" class="alert-evidence">
-                <span class="evidence-label">证据：</span>
-                <span>{{ alert.extra.evidence }}</span>
-              </div>
-            </div>
-            <div class="alert-actions">
-              <a-button size="small" @click="acknowledgeAlert(alert)">确认</a-button>
-              <a-button size="small" @click="acknowledgeAlert(alert, 'resolved')">标记解决</a-button>
-              <a-button v-if="alert.evidence_chunks?.length" size="small" type="link" @click="openEvidence(alert)">查看证据</a-button>
-            </div>
+
+        <!-- 领域筛选 -->
+        <select v-model="domainFilter" class="field-select">
+          <option value="">全部领域</option>
+          <option v-for="d in domains" :key="d.value" :value="d.value">{{ d.label }}</option>
+        </select>
+
+        <!-- 刷新 -->
+        <button class="icon-btn" @click="handleRefresh" :disabled="alertsLoading" title="刷新数据">
+          <span :class="{ spinning: alertsLoading }">↻</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 预警列表 -->
+    <div class="alerts-content">
+      <template v-if="filteredAlerts.length">
+        <div
+          v-for="alert in filteredAlerts"
+          :key="alert._id"
+          :class="['alert-row', `alert-row--${normalizeSeverity(alert.severity)}`]"
+        >
+          <!-- 左侧：严重等级标记 -->
+          <div class="row-severity">
+            <span class="sev-badge" :class="`sev-${normalizeSeverity(alert.severity)}`">
+              {{ severityShort(alert) }}
+            </span>
           </div>
-        </div>
-        <a-empty v-else description="暂无活跃预警" :image-style="{ height: '40px' }" />
-      </section>
-    </aside>
-    <main class="alerts-main">
-      <CollapseSection>
-        <template #title><h3 style="margin:0;font-size:15px;font-weight:600">AI风险预测</h3></template>
-        <template #extra><a-button size="small" @click="loadAiRisk" :loading="aiRiskLoading">刷新</a-button></template>
-        <div v-if="aiRiskForecast" class="ai-risk-detail">
-          <div class="risk-summary"><p>{{ aiRiskText || '暂无风险摘要' }}</p></div>
-          <div v-if="aiRiskOrganRows(aiRiskForecast).length" class="organ-assessment">
-            <h4>器官评估</h4>
-            <div class="organ-grid">
-              <div v-for="organ in aiRiskOrganRows(aiRiskForecast)" :key="organ.key" class="organ-item">
-                <span class="organ-name">{{ organ.label }}</span>
-                <span class="organ-status" :class="organStatusClass(organ)">{{ organ.status_text }}</span>
-                <p v-if="organ.evidence" class="organ-evidence">{{ organ.evidence }}</p>
-              </div>
+
+          <!-- 中间：核心信息 -->
+          <div class="row-body">
+            <div class="row-top">
+              <span class="row-type">{{ alertTypeText(alert) }}</span>
+              <span class="row-domain" :class="`dom-${alert.domain}`">{{ alertDomainLabel(alert.domain) }}</span>
+              <span class="row-time">{{ fmtTime(alert.created_at) }}</span>
             </div>
-          </div>
-        </div>
-        <a-empty v-else-if="!aiRiskLoading" description="暂无AI风险预测" :image-style="{ height: '40px' }" />
-      </CollapseSection>
-      <CollapseSection>
-        <template #title><h3 style="margin:0;font-size:15px;font-weight:600">综合风险报告</h3></template>
-        <template #extra><a-button size="small" @click="loadIntegratedRisk(true)" :loading="integratedRiskLoading">刷新</a-button></template>
-        <div v-if="integratedRiskReport" class="integrated-risk">
-          <div class="risk-report-summary">
-            <p v-if="integratedRiskReport.summary">{{ integratedRiskReport.summary }}</p>
-            <p v-if="integratedRiskReport.causal_chain" class="causal-chain">因果链：{{ integratedRiskReport.causal_chain }}</p>
-            <p v-if="integratedRiskReport.deterioration_forecast" class="deterioration-forecast">恶化预判：{{ integratedRiskReport.deterioration_forecast }}</p>
-          </div>
-        </div>
-        <a-empty v-else-if="!integratedRiskLoading" description="暂无综合风险报告" :image-style="{ height: '40px' }" />
-      </CollapseSection>
-      <CollapseSection v-if="personalizedThresholdRecord">
-        <template #title><h3 style="margin:0;font-size:15px;font-weight:600">个性化阈值</h3></template>
-        <template #extra><a-tag :color="personalizedThresholdRecord.status === 'approved' ? 'success' : 'warning'">{{ personalizedThresholdRecord.status === 'approved' ? '已审核' : '待审核' }}</a-tag></template>
-        <div class="threshold-detail">
-          <p v-if="personalizedThresholdRecord.summary">{{ personalizedThresholdRecord.summary }}</p>
-          <div v-if="personalizedThresholdRecord.parameters?.length" class="threshold-params">
-            <div v-for="param in personalizedThresholdRecord.parameters" :key="param.name || param.parameter" class="threshold-param">
-              <span class="param-name">{{ param.name || param.parameter }}</span>
-              <span class="param-range">{{ param.lower }} ~ {{ param.upper }}</span>
+            <p class="row-desc">{{ alert.description || alert.extra?.description || '—' }}</p>
+            <div class="row-values">
+              <span v-if="formatAlertValue(alert)" class="row-val">
+                当前 <strong>{{ formatAlertValue(alert) }}</strong>
+              </span>
+              <span v-if="alert.extra?.threshold" class="row-val row-val--dim">
+                阈值 {{ alert.extra.threshold }}
+              </span>
+              <span v-if="alert.extra?.evidence" class="row-evidence">{{ alert.extra.evidence }}</span>
             </div>
           </div>
+
+          <!-- 右侧：操作 -->
+          <div class="row-actions">
+            <button class="action-btn" @click="handleAcknowledge(alert)">确认</button>
+            <button class="action-btn action-btn--ghost" @click="handleAcknowledge(alert, 'resolved')">解决</button>
+            <button v-if="alert.evidence_chunks?.length" class="action-btn action-btn--link" @click="openEvidenceDrawer && openEvidenceDrawer({ title: alertTypeText(alert) })">证据</button>
+          </div>
         </div>
-      </CollapseSection>
-      <section class="alerts-section">
-        <div class="section-header"><h3>数字孪生诊疗推理</h3></div>
-        <Suspense>
-          <DigitalTwinTab :patient-id="patientId" :patient="patient" />
-          <template #fallback><div class="loading-placeholder"><a-spin /></div></template>
-        </Suspense>
-      </section>
-    </main>
+      </template>
+
+      <!-- 空状态 -->
+      <div v-else class="empty-state">
+        <div class="empty-icon">✓</div>
+        <p class="empty-text">所有预警已处理</p>
+        <p class="empty-hint">当前无活跃风险指标</p>
+      </div>
+    </div>
+
+    <!-- 底部提示 -->
+    <div class="footer-tip">
+      <span>需要更深入的风险分析？</span>
+      <router-link :to="`/patient/${patientId}/tool/risk-prediction`">风险预测</router-link>
+      <span>·</span>
+      <router-link :to="`/patient/${patientId}/tool/integrated-risk`">综合风险</router-link>
+    </div>
   </div>
 </template>
+
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue'
-import CollapseSection from '../../components/common/CollapseSection.vue'
+import { ref, computed } from 'vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 
-const DigitalTwinTab = defineAsyncComponent(() => import('../../components/patient-detail/DigitalTwinTab.vue'))
-
 const {
-  patient, alerts, aiRiskForecast, aiRiskText, aiRiskLoading,
-  integratedRiskReport, integratedRiskLoading,
-  loadAlerts, loadAiRisk, loadIntegratedRisk,
-  acknowledgeAlert, openEvidence,
+  alerts,
+  loadAlerts, acknowledgeAlert,
   normalizeSeverity, alertDomainLabel,
   alertTypeText, formatAlertValue, fmtTime,
-  aiRiskOrganRows, route,
-  personalizedThresholdRecord,
+  route,
 } = usePatientDetail()
 
 const patientId = computed(() => String(route.params.patientId || route.params.id || ''))
 
+// 证据抽屉（由父布局注入）
+import { inject } from 'vue'
+const openEvidenceDrawer = inject<(opts: { title: string }) => void>('openEvidenceDrawer')
+const alertsLoading = ref(false)
+
+async function handleRefresh() {
+  alertsLoading.value = true
+  try {
+    await loadAlerts()
+  } finally {
+    alertsLoading.value = false
+  }
+}
+
+async function handleAcknowledge(alert: any, status?: string) {
+  await acknowledgeAlert(alert, status)
+}
+
+// ── 筛选 ──
 const severityFilter = ref<string | undefined>(undefined)
-const domainFilter = ref<string | undefined>(undefined)
+const domainFilter = ref('')
+
+const severityOptions = [
+  { value: 'critical', label: '危急' },
+  { value: 'high', label: '高风险' },
+  { value: 'warning', label: '预警' },
+]
 
 const domains = [
   { value: 'physiologic_alarm', label: '生理危急' },
@@ -139,276 +158,449 @@ const filteredAlerts = computed(() => {
     result = result.filter((a: any) => String(a.domain || '') === domainFilter.value)
   }
   return result.sort((a: any, b: any) => {
-    const severityOrder: Record<string, number> = { critical: 0, high: 1, warning: 2 }
-    const sa = severityOrder[normalizeSeverity(a.severity)] ?? 3
-    const sb = severityOrder[normalizeSeverity(b.severity)] ?? 3
+    const order: Record<string, number> = { critical: 0, high: 1, warning: 2 }
+    const sa = order[normalizeSeverity(a.severity)] ?? 3
+    const sb = order[normalizeSeverity(b.severity)] ?? 3
     if (sa !== sb) return sa - sb
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 })
 
-function alertCardClass(alert: any) {
-  const sev = normalizeSeverity(alert.severity)
-  return `alert-${sev}`
-}
-
-function severityBadgeClass(alert: any) {
-  const sev = normalizeSeverity(alert.severity)
-  return `badge-${sev}`
-}
-
 function severityShort(alert: any) {
   const sev = normalizeSeverity(alert.severity)
-  if (sev === 'critical') return '危急'
+  if (sev === 'critical') return '危'
   if (sev === 'high') return '高'
   return '预'
-}
-
-function organStatusClass(organ: any) {
-  const status = String(organ.status_text || '').toLowerCase()
-  if (status.includes('衰竭') || status.includes('failure')) return 'organ-critical'
-  if (status.includes('受损') || status.includes('impaired')) return 'organ-warning'
-  return 'organ-normal'
 }
 </script>
 
 <style scoped>
-.alerts-layout {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.alerts-sidebar {
-  position: sticky;
-  top: 120px;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
-}
-
-.alerts-main {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.alerts-view {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-@media (max-width: 960px) {
-  .alerts-layout {
-    grid-template-columns: 1fr;
-  }
-  .alerts-sidebar {
-    position: static;
-    max-height: none;
-  }
-}
-
-.alerts-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  padding: 16px 20px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.section-header h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.alert-filters {
-  display: flex;
-  gap: 8px;
-}
-
-.alerts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: calc(100vh - 280px);
-  overflow-y: auto;
-}
-
-.alert-card {
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  padding: 12px;
-  border-left: 3px solid #d9d9d9;
-}
-
-.alert-critical { border-left-color: #ff4d4f; }
-.alert-high { border-left-color: #fa8c16; }
-.alert-warning { border-left-color: #faad14; }
-
-.alert-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.alert-severity-badge {
-  flex-shrink: 0;
-  padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.badge-critical { background: #ff4d4f; }
-.badge-high { background: #fa8c16; }
-.badge-warning { background: #faad14; }
-
-.alert-type {
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-}
-
-.alert-domain {
-  font-size: 11px;
-  color: #999;
-  padding: 1px 6px;
-  background: #f5f5f5;
-  border-radius: 4px;
-}
-
-.alert-time {
-  margin-left: auto;
-  font-size: 11px;
-  color: #999;
-}
-
-.alert-body {
-  margin-bottom: 8px;
-}
-
-.alert-description {
-  margin: 0 0 6px;
-  font-size: 13px;
-  color: #666;
-  line-height: 1.5;
-}
-
-.alert-value {
-  font-size: 12px;
-  color: #333;
-}
-
-.value-label {
-  color: #999;
-}
-
-.value-text {
-  font-weight: 600;
-}
-
-.alert-evidence {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #666;
-}
-
-.evidence-label {
-  font-weight: 600;
-}
-
-.alert-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* AI Risk */
-.ai-risk-detail {
+/* ── 页面 ──────────────────────────────────── */
+.alerts-page {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.risk-summary p {
-  margin: 0;
-  font-size: 13px;
-  color: #333;
-  line-height: 1.6;
+/* ── 工具栏 ────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #E3E7EC;
+  border-radius: 8px;
 }
 
-.organ-assessment h4 {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-}
-
-.organ-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+.toolbar-left {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.organ-item {
-  padding: 10px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  background: #fafbfc;
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #18212B;
 }
 
-.organ-name {
+.title-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger, #D92D20);
+}
+
+.alert-count {
   font-size: 12px;
-  color: #666;
+  color: #667085;
+  padding: 2px 8px;
+  background: #F1F3F5;
+  border-radius: 4px;
   font-weight: 500;
 }
 
-.organ-status {
-  display: block;
+.alert-count--ok {
+  background: var(--color-normal-bg, #E8F7F0);
+  color: var(--color-normal, #12A66A);
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── 分段筛选 ──────────────────────────────── */
+.seg-filter {
+  display: flex;
+  border: 1px solid #E3E7EC;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: none;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  color: #667085;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-right: 1px solid #E3E7EC;
+}
+
+.seg-btn:last-child {
+  border-right: none;
+}
+
+.seg-btn:hover {
+  background: #F1F3F5;
+}
+
+.seg-btn.active {
+  background: #18212B;
+  color: #fff;
+}
+
+.seg-btn.active .seg-dot {
+  background: #fff;
+}
+
+.seg-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.seg-dot--critical { background: #D92D20; }
+.seg-dot--high { background: #F79009; }
+.seg-dot--warning { background: #E5B700; }
+
+/* ── 领域选择 ──────────────────────────────── */
+.field-select {
+  padding: 4px 8px;
+  border: 1px solid #E3E7EC;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #18212B;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+}
+
+.field-select:focus {
+  border-color: var(--color-primary, #2563EB);
+}
+
+/* ── 刷新按钮 ──────────────────────────────── */
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E3E7EC;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  color: #667085;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: #F1F3F5;
+  color: #18212B;
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinning {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── 预警行 ────────────────────────────────── */
+.alerts-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alert-row {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid #E3E7EC;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.alert-row:hover {
+  border-color: #CBD5E1;
+}
+
+.alert-row--critical {
+  border-left: 3px solid #D92D20;
+}
+
+.alert-row--high {
+  border-left: 3px solid #F79009;
+}
+
+.alert-row--warning {
+  border-left: 3px solid #E5B700;
+}
+
+/* 严重等级标记 */
+.row-severity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 8px 0;
+}
+
+.sev-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sev-critical { background: #D92D20; }
+.sev-high { background: #F79009; }
+.sev-warning { background: #E5B700; color: #713F12; }
+
+/* 核心信息 */
+.row-body {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-type {
+  font-size: 13px;
+  font-weight: 600;
+  color: #18212B;
+}
+
+.row-domain {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.dom-physiologic_alarm { background: #FEF2F2; color: #991B1B; }
+.dom-clinical_risk { background: #FFFBEB; color: #92400E; }
+.dom-workflow_reminder { background: #EFF6FF; color: #1E40AF; }
+.dom-quality_gap { background: #F5F3FF; color: #5B21B6; }
+.dom-ai_advisory { background: #F0FDF4; color: #166534; }
+
+.row-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: #94A3B8;
+  font-family: 'Rajdhani', monospace;
+  white-space: nowrap;
+}
+
+.row-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #667085;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-values {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.row-val {
+  font-size: 12px;
+  color: #475569;
+}
+
+.row-val strong {
+  font-family: 'Rajdhani', monospace;
   font-size: 14px;
   font-weight: 700;
-  margin: 4px 0;
+  color: #18212B;
 }
 
-.organ-critical { color: #ff4d4f; }
-.organ-warning { color: #fa8c16; }
-.organ-normal { color: #52c41a; }
+.row-val--dim {
+  color: #94A3B8;
+}
 
-.organ-evidence {
-  margin: 0;
+.row-evidence {
   font-size: 11px;
-  color: #999;
-  line-height: 1.4;
+  color: #94A3B8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.integrated-risk {
-  max-height: 400px;
-  overflow: auto;
+/* 操作按钮 */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  flex-shrink: 0;
 }
 
-.risk-report-data {
-  font-size: 11px;
-  color: #666;
-  background: #fafafa;
-  padding: 8px;
+.action-btn {
+  height: 26px;
+  padding: 0 10px;
   border-radius: 4px;
-  white-space: pre-wrap;
+  border: 1px solid #E3E7EC;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #18212B;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.action-btn:hover {
+  background: #F1F3F5;
+  border-color: #CBD5E1;
+}
+
+.action-btn--ghost {
+  border: none;
+  color: #667085;
+}
+
+.action-btn--ghost:hover {
+  color: #18212B;
+}
+
+.action-btn--link {
+  border: none;
+  color: var(--color-primary, #2563EB);
+  padding: 0 6px;
+}
+
+.action-btn--link:hover {
+  background: var(--color-primary-bg, rgba(37, 99, 235, 0.06));
+}
+
+/* ── 空状态 ────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 16px;
+  background: #fff;
+  border: 1px dashed #E3E7EC;
+  border-radius: 8px;
+}
+
+.empty-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-normal-bg, #E8F7F0);
+  color: var(--color-normal, #12A66A);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.empty-text {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #18212B;
+}
+
+.empty-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #94A3B8;
+}
+
+/* ── 底部提示 ──────────────────────────────── */
+.footer-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #94A3B8;
+  background: #F8FAFC;
+  border-radius: 6px;
+  border: 1px solid #F1F3F5;
+}
+
+.footer-tip a {
+  color: var(--color-primary, #2563EB);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footer-tip a:hover {
+  text-decoration: underline;
+}
+
+/* ── 响应式 ────────────────────────────────── */
+@media (max-width: 768px) {
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .toolbar-right {
+    flex-wrap: wrap;
+  }
+
+  .row-actions {
+    flex-direction: column;
+    padding: 4px 8px;
+  }
 }
 </style>
-
-
-
-
-
-
-

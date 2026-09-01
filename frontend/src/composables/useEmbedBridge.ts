@@ -33,6 +33,11 @@ export interface EmbedBridgeOptions {
   onHostReady?: () => void
 }
 
+/** 是否在 iframe 内运行 */
+function isInIframe(): boolean {
+  try { return window.self !== window.top } catch { return true }
+}
+
 export function useEmbedBridge(options: EmbedBridgeOptions) {
   const {
     moduleKey,
@@ -49,6 +54,9 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
   const patientId = ref('')
   const themeMode = ref<'light' | 'dark'>('light')
 
+  // 非 iframe 环境（直接渲染模式）：跳过所有 postMessage 逻辑
+  const inIframe = isInIframe()
+
   // ── 消息处理 ────────────────────────────────────
 
   function handleMessage(event: MessageEvent) {
@@ -63,7 +71,6 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
 
     // 逐类型 payload schema 校验
     if (!validateHostPayload(data.type, data.payload)) {
-      console.warn('[EmbedBridge] Rejected invalid payload for type:', data.type)
       return
     }
 
@@ -71,7 +78,6 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
       case 'HOST_READY':
         hostReady.value = true
         onHostReady?.()
-        // 回复 EMBED_READY
         sendEmbedReady()
         break
 
@@ -102,11 +108,10 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
   // ── 发送消息 ────────────────────────────────────
 
   function postToHost(message: EmbedMessage) {
+    if (!inIframe) return // 直接渲染模式，无需 postMessage
     try {
       window.parent.postMessage(message, targetOrigin)
-    } catch (err) {
-      console.warn('[EmbedBridge] Failed to post message:', err)
-    }
+    } catch {}
   }
 
   function sendEmbedReady() {
@@ -163,13 +168,20 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
   // ── 生命周期 ────────────────────────────────────
 
   onMounted(() => {
-    window.addEventListener('message', handleMessage)
-    // 主动发送 EMBED_READY
-    sendEmbedReady()
+    if (inIframe) {
+      window.addEventListener('message', handleMessage)
+      sendEmbedReady()
+    } else {
+      // 直接渲染模式：无需握手，立即就绪
+      hostReady.value = true
+      onHostReady?.()
+    }
   })
 
   onBeforeUnmount(() => {
-    window.removeEventListener('message', handleMessage)
+    if (inIframe) {
+      window.removeEventListener('message', handleMessage)
+    }
   })
 
   return {

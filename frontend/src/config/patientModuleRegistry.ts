@@ -122,7 +122,7 @@ export const PATIENT_MODULES: PatientModule[] = [
     description: '因果DAG、倾向匹配、效应估计',
     badge: 'ai',
     featureFlag: 'ai-causal-inference',
-    requiredRoles: ['doctor', 'director'],
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director', 'researcher'],
   },
   {
     moduleKey: 'what-if',
@@ -134,7 +134,7 @@ export const PATIENT_MODULES: PatientModule[] = [
     description: '治疗情景模拟、参数调整、风险比较',
     badge: 'ai',
     featureFlag: 'ai-what-if',
-    requiredRoles: ['doctor'],
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director'],
   },
   {
     moduleKey: 'disease-trajectory',
@@ -146,7 +146,7 @@ export const PATIENT_MODULES: PatientModule[] = [
     description: '病程时间轴、状态转移、未来路径预测',
     badge: 'ai',
     featureFlag: 'ai-disease-trajectory',
-    requiredRoles: ['doctor', 'director'],
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director'],
   },
   {
     moduleKey: 'evidence',

@@ -140,6 +140,29 @@ async def list_diseases(
     return await disease_service.list_diseases(status, category, limit)
 
 
+@router.get("/diseases/cases")
+async def list_all_cases(
+    disease_id: Optional[str] = None,
+    status: Optional[str] = None,
+    patient_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """获取全部病例列表（跨病种）。"""
+    skip = (page - 1) * page_size
+    try:
+        cases, total = await case_service.list_cases(
+            disease_id=disease_id,
+            status=status,
+            patient_id=patient_id,
+            skip=skip,
+            limit=page_size,
+        )
+        return {"items": cases, "total": total, "page": page, "page_size": page_size}
+    except Exception as e:
+        raise HTTPException(500, f"获取病例列表失败: {e}")
+
+
 @router.get("/diseases/{disease_id}")
 async def get_disease(disease_id: str):
     """获取病种详情。"""
@@ -682,27 +705,6 @@ async def get_disease_quality_metrics(disease_id: str):
 # ===== 病例中心 =====
 
 
-@router.get("/diseases/cases")
-async def list_all_cases(
-    disease_id: Optional[str] = None,
-    status: Optional[str] = None,
-    patient_id: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-):
-    """获取全部病例列表（跨病种）。"""
-    skip = (page - 1) * page_size
-    try:
-        cases, total = await case_service.list_cases(
-            disease_id=disease_id,
-            status=status,
-            patient_id=patient_id,
-            skip=skip,
-            limit=page_size,
-        )
-        return {"items": cases, "total": total, "page": page, "page_size": page_size}
-    except Exception as e:
-        raise HTTPException(500, f"获取病例列表失败: {e}")
 
 
 @router.get("/diseases/{disease_id}/cases")
@@ -740,6 +742,29 @@ async def list_disease_cases(
         "page": page,
         "page_size": page_size,
     }
+
+
+@router.get("/cases")
+async def list_cases_root(
+    disease_id: Optional[str] = None,
+    status: Optional[str] = None,
+    patient_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """获取全部病例列表（跨病种）。"""
+    skip = (page - 1) * page_size
+    try:
+        cases, total = await case_service.list_cases(
+            disease_id=disease_id,
+            status=status,
+            patient_id=patient_id,
+            skip=skip,
+            limit=page_size,
+        )
+        return {"items": cases, "total": total, "page": page, "page_size": page_size}
+    except Exception as e:
+        raise HTTPException(500, f"获取病例列表失败: {e}")
 
 
 @router.get("/cases/{case_id}")

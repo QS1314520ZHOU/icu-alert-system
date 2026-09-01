@@ -174,8 +174,29 @@ export function usePatientDetail() {
   function saveTrendLegendSelection(sel: Record<string, boolean>) { trendLegendSelected.value = sel || {}; try { localStorage.setItem(trendLegendStorageKey.value, JSON.stringify(sel)) } catch {} }
   function handoffPlainText() { const s = aiHandoff.value || {}; return [`Illness severity: ${s.illness_severity || '—'}`, `Patient summary: ${s.patient_summary || '—'}`, `Confidence: ${s.confidence_level || '—'}`].join('\n') }
   async function copyHandoffSummary() { if (!aiHandoff.value) return; try { await navigator.clipboard.writeText(handoffPlainText()); message.success('\u4EA4\u73ED\u6458\u8981\u5DF2\u590D\u5236') } catch {} }
-  function alertTypeText(raw: any) { const t = String(raw || ''); const m: Record<string, string> = { lab_threshold: 'lab', sofa: 'SOFA', qsofa: 'qSOFA', weaning: 'weaning', ai_risk: 'AI', liberation_bundle: 'eCASH' }; return m[t] || t.split('_').join(' ') }
-  function formatAlertValue(a: any) { return a?.value ?? '—' }
+  function alertTypeText(a: any) {
+      if (!a) return '';
+      const name = String(a.name || '').trim();
+      const ruleId = String(a.rule_id || '').trim();
+      const alertType = String(a.alert_type || '').trim();
+      const typeMap: Record<string, string> = { lab_threshold: 'lab', sofa: 'SOFA', qsofa: 'qSOFA', weaning: 'weaning', ai_risk: 'AI', liberation_bundle: 'eCASH' };
+      const mapped = typeMap[alertType] || alertType.split('_').join(' ');
+      if (name) return name;
+      if (mapped && mapped !== 'undefined') return mapped;
+      if (ruleId) return ruleId.replace(/_/g, ' ');
+      return '预警';
+    }
+  function formatAlertValue(a: any) {
+      if (!a) return '';
+      const parts: string[] = [];
+      const param = String(a.parameter || '').trim();
+      const val = a.value;
+      const cond = String(a.condition || '').trim();
+      if (param && val != null) parts.push(param + ' ' + val);
+      else if (val != null) parts.push(String(val));
+      if (cond) parts.push(cond);
+      return parts.join(' ') || '';
+    }
   function aiRiskOrganRows(item: any) { const organ = item?.extra?.organ_assessment; const organLabels: Record<string, string> = { respiratory: '呼吸', cardiovascular: '循环', renal: '肾脏', hepatic: '肝脏', coagulation: '凝血', neurological: '神经' }; const statusLabels: Record<string, string> = { normal: '正常', impaired: '受损', failure: '衰竭' }; if (!organ || typeof organ !== 'object') return []; return Object.entries(organ).map(([key, val]: [string, any]) => ({ key, label: organLabels[key] || key, status_text: statusLabels[String(val?.status || '').toLowerCase()] || String(val?.status || '—'), evidence: String(val?.evidence || ''), confidence_level: normalizeConfidenceLevel(val?.confidence_level) })).filter((x) => x.label) }
   function formatDrugName(record: any) { return record?.drugName || record?.orderName || record?.drugSpec || '—' }
   function formatDose(record: any) { const dose = record?.dose; const unit = record?.doseUnit; if (dose == null || dose === '') return '—'; return unit ? `${dose}${unit}` : String(dose) }

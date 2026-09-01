@@ -5,9 +5,21 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
+
+
+def _convert_objectid(doc: Any) -> Any:
+    """递归将文档中的 ObjectId 转换为字符串。"""
+    if isinstance(doc, ObjectId):
+        return str(doc)
+    if isinstance(doc, dict):
+        return {k: _convert_objectid(v) for k, v in doc.items()}
+    if isinstance(doc, list):
+        return [_convert_objectid(item) for item in doc]
+    return doc
 
 # 全局数据库连接
 _client: Optional[AsyncIOMotorClient] = None
@@ -178,7 +190,8 @@ class MongoRepository:
     async def find_one(self, query: dict[str, Any]) -> Optional[dict[str, Any]]:
         """查询单个文档。"""
         collection = await self.get_collection()
-        return await collection.find_one(query)
+        doc = await collection.find_one(query)
+        return _convert_objectid(doc) if doc else None
 
     async def find_many(
         self,
@@ -194,7 +207,8 @@ class MongoRepository:
         if sort:
             cursor = cursor.sort(sort)
 
-        return await cursor.to_list(length=limit)
+        docs = await cursor.to_list(length=limit)
+        return [_convert_objectid(doc) for doc in docs]
 
     async def insert_one(self, document: dict[str, Any]) -> str:
         """插入单个文档。"""
@@ -234,4 +248,5 @@ class MongoRepository:
         """聚合查询。"""
         collection = await self.get_collection()
         cursor = collection.aggregate(pipeline)
-        return await cursor.to_list(length=1000)
+        docs = await cursor.to_list(length=1000)
+        return [_convert_objectid(doc) for doc in docs]

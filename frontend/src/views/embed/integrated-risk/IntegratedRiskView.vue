@@ -1,52 +1,61 @@
 <template>
   <div class="integrated-risk">
-    <!-- 加载中 -->
-    <div v-if="loading" class="ir-state-bar ir-state--loading">
-      <span class="ir-state-icon">⏳</span>
-      <span>正在分析综合风险……</span>
+    <!-- 状态栏 -->
+    <div v-if="loading" class="ir-state ir-state--loading">
+      <span class="ir-state__icon">⏳</span>
+      <span class="ir-state__text">正在分析综合风险……</span>
     </div>
-
-    <!-- 错误 -->
-    <div v-else-if="loadError" class="ir-state-bar ir-state--error">
-      <span class="ir-state-icon">⚠️</span>
-      <span>{{ loadError }}</span>
+    <div v-else-if="loadError" class="ir-state ir-state--error">
+      <span class="ir-state__icon">⚠️</span>
+      <span class="ir-state__text">{{ loadError }}</span>
       <button class="ir-retry-btn" @click="loadData">重试</button>
     </div>
-
-    <!-- 空数据 -->
-    <div v-else-if="!report" class="ir-state-bar ir-state--empty">
-      <span class="ir-state-icon">📭</span>
-      <span>暂无可用综合风险报告</span>
+    <div v-else-if="!report" class="ir-state ir-state--empty">
+      <span class="ir-state__icon">📭</span>
+      <span class="ir-state__text">暂无可用综合风险报告</span>
     </div>
 
     <!-- 成功：展示报告 -->
     <template v-else>
       <!-- 过期报告提示 -->
-      <div v-if="report.stale" class="ir-state-bar ir-state--warning">
-        <span class="ir-state-icon">ℹ️</span>
-        <span>当前展示最近一次综合风险报告，AI服务额度不足，暂时无法更新。</span>
+      <div v-if="report.stale" class="ir-state ir-state--warning">
+        <span class="ir-state__icon">ℹ️</span>
+        <span class="ir-state__text">当前展示最近一次综合风险报告，AI服务额度不足，暂时无法更新。</span>
       </div>
 
-      <!-- 态势结论 -->
-      <div class="ir-situation-bar">
-        <span class="ir-situation-icon" :class="`ir-situation--${riskLevel}`">●</span>
-        <span class="ir-situation-text">{{ situationText || '综合风险分析完成' }}</span>
-        <span class="ir-situation-time">{{ updatedAt }}</span>
-      </div>
+      <!-- 态势结论 + 器官状态 -->
+      <div class="ir-overview-row">
+        <!-- 态势结论 -->
+        <div class="ir-situation-card">
+          <div class="ir-card-header">
+            <span class="ir-situation-dot" :class="`ir-dot--${riskLevel}`" />
+            <h3 class="ir-card-title">风险态势</h3>
+            <span class="ir-card-time">{{ updatedAt }}</span>
+          </div>
+          <p class="ir-situation-text">{{ situationText || '综合风险分析完成' }}</p>
+        </div>
 
-      <!-- 多器官状态图 -->
-      <div v-if="organs.length" class="ir-organs-row">
-        <div v-for="organ in organs" :key="organ.key" class="ir-organ-card" :class="`ir-organ--${organ.status}`">
-          <div class="ir-organ-icon">{{ organ.icon }}</div>
-          <span class="ir-organ-name">{{ organ.label }}</span>
-          <span class="ir-organ-status">{{ organ.statusText }}</span>
+        <!-- 多器官状态图 -->
+        <div v-if="organs.length" class="ir-organs-card">
+          <div class="ir-card-header">
+            <h3 class="ir-card-title">多器官状态</h3>
+          </div>
+          <div class="ir-organs-grid">
+            <div v-for="organ in organs" :key="organ.key" class="ir-organ-item" :class="`ir-organ--${organ.status}`">
+              <span class="ir-organ-icon">{{ organ.icon }}</span>
+              <span class="ir-organ-name">{{ organ.label }}</span>
+              <span class="ir-organ-status">{{ organ.statusText }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- 因果链 -->
-      <div v-if="causalChain.length" class="ir-section">
-        <h3 class="ir-section-title">风险因果链</h3>
-        <div class="ir-causal-chain">
+      <div v-if="causalChain.length || causalChainText" class="ir-section">
+        <div class="ir-section-header">
+          <h3 class="ir-section-title">🔗 风险因果链</h3>
+        </div>
+        <div v-if="causalChain.length" class="ir-causal-chain">
           <div v-for="(node, idx) in causalChain" :key="idx" class="ir-chain-node" :class="`ir-chain--${node.level}`">
             <div class="ir-chain-content">
               <span class="ir-chain-label">{{ node.label }}</span>
@@ -56,29 +65,30 @@
             <span v-if="Number(idx) < causalChain.length - 1" class="ir-chain-arrow">→</span>
           </div>
         </div>
-      </div>
-
-      <!-- 因果链为纯文本时的降级展示 -->
-      <div v-else-if="causalChainText" class="ir-section">
-        <h3 class="ir-section-title">风险因果链</h3>
-        <p class="ir-causal-text">{{ causalChainText }}</p>
+        <p v-else class="ir-causal-text">{{ causalChainText }}</p>
       </div>
 
       <!-- 行动建议 -->
       <div v-if="topActions.length" class="ir-section">
-        <h3 class="ir-section-title">Top 3 行动建议</h3>
-        <div class="ir-actions-grid">
-          <div v-for="(action, idx) in topActions" :key="idx" class="ir-action-card" :class="`ir-action--${action.priority}`">
-            <span class="ir-action-priority">{{ action.priorityLabel }}</span>
-            <span class="ir-action-text">{{ action.text }}</span>
-            <span class="ir-action-evidence">{{ action.evidence }}</span>
+        <div class="ir-section-header">
+          <h3 class="ir-section-title">📋 Top 3 行动建议</h3>
+        </div>
+        <div class="ir-actions-list">
+          <div v-for="(action, idx) in topActions" :key="idx" class="ir-action-item" :class="`ir-action--${action.priority}`">
+            <div class="ir-action-badge">{{ action.priorityLabel }}</div>
+            <div class="ir-action-content">
+              <p class="ir-action-text">{{ action.text }}</p>
+              <p v-if="action.evidence" class="ir-action-evidence">{{ action.evidence }}</p>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- 证据链 -->
       <div v-if="evidenceList.length" class="ir-section">
-        <h3 class="ir-section-title">原始告警证据</h3>
+        <div class="ir-section-header">
+          <h3 class="ir-section-title">📊 原始告警证据</h3>
+        </div>
         <div class="ir-evidence-list">
           <div v-for="(ev, idx) in evidenceList" :key="idx" class="ir-evidence-item">
             <span class="ir-evidence-time">{{ ev.time }}</span>
@@ -283,112 +293,143 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 4px;
 }
 
 /* ── 状态栏 ── */
-.ir-state-bar {
+.ir-state {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 20px 24px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--border, #DCE3EC);
+  padding: 16px 20px;
+  border-radius: 10px;
   font-size: 14px;
 }
 
-.ir-state-icon { font-size: 18px; }
+.ir-state__icon { font-size: 18px; }
 
-.ir-state--loading { color: var(--text-secondary, #52606D); }
-.ir-state--error { color: #991B1B; background: #FEF2F2; border-color: #FECACA; }
-.ir-state--empty { color: var(--text-tertiary, #94A3B8); }
-.ir-state--warning { color: #92400E; background: #FFFBEB; border-color: #FDE68A; }
+.ir-state--loading { background: #F8FAFC; color: #52606D; border: 1px solid #E8EEF5; }
+.ir-state--error { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
+.ir-state--empty { background: #F8FAFC; color: #94A3B8; border: 1px solid #E8EEF5; }
+.ir-state--warning { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
 
 .ir-retry-btn {
   margin-left: auto;
-  padding: 4px 16px;
+  padding: 6px 16px;
   border: 1px solid #DCE3EC;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #fff;
   cursor: pointer;
   font-size: 13px;
+  transition: all 0.2s;
 }
-.ir-retry-btn:hover { background: #F8FAFC; }
+.ir-retry-btn:hover { background: #F8FAFC; border-color: #94A3B8; }
+
+/* ── 概览行：态势 + 器官状态 ── */
+.ir-overview-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.ir-situation-card,
+.ir-organs-card,
+.ir-section {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #E8EEF5;
+  overflow: hidden;
+}
+
+.ir-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #F0F4F8;
+}
+
+.ir-card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #182230;
+}
+
+.ir-card-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.ir-situation-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ir-dot--critical { background: #991B1B; }
+.ir-dot--high { background: #DC2626; }
+.ir-dot--warning { background: #F59E0B; }
+.ir-dot--normal { background: #16A34A; }
+
+.ir-situation-text {
+  margin: 0;
+  padding: 18px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: #334155;
+}
+
+/* ── 器官状态 ── */
+.ir-organs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+.ir-organ-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  background: #F8FAFC;
+  border-radius: 8px;
+  border: 1px solid #E8EEF5;
+  transition: all 0.2s;
+}
+
+.ir-organ--normal { border-bottom: 3px solid #16A34A; }
+.ir-organ--impaired { border-bottom: 3px solid #F59E0B; background: #FFFBEB; }
+.ir-organ--failure { border-bottom: 3px solid #DC2626; background: #FEF2F2; }
+
+.ir-organ-icon { font-size: 28px; }
+.ir-organ-name { font-size: 12px; color: #64748B; font-weight: 500; }
+.ir-organ-status { font-size: 13px; font-weight: 600; color: #182230; }
+
+/* ── 通用 section ── */
+.ir-section-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #F0F4F8;
+}
+
+.ir-section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #182230;
+}
 
 .ir-causal-text {
   font-size: 13px;
   line-height: 1.6;
-  color: var(--text-secondary, #52606D);
+  color: #52606D;
   margin: 0;
-}
-
-/* ── 态势结论 ── */
-.ir-situation-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--border, #DCE3EC);
-}
-
-.ir-situation-icon { font-size: 10px; }
-.ir-situation--critical { color: #991B1B; }
-.ir-situation--high { color: #DC2626; }
-.ir-situation--warning { color: #F59E0B; }
-.ir-situation--normal { color: #16A34A; }
-
-.ir-situation-text {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.ir-situation-time {
-  font-size: 11px;
-  color: var(--text-tertiary, #94A3B8);
-}
-
-/* ── 器官状态 ── */
-.ir-organs-row {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
-}
-
-.ir-organ-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 14px 10px;
-  text-align: center;
-  border: 1px solid var(--border, #DCE3EC);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.ir-organ--normal { border-bottom: 3px solid #16A34A; }
-.ir-organ--impaired { border-bottom: 3px solid #F59E0B; }
-.ir-organ--failure { border-bottom: 3px solid #DC2626; }
-
-.ir-organ-icon { font-size: 24px; }
-.ir-organ-name { font-size: 12px; color: var(--text-secondary, #52606D); }
-.ir-organ-status { font-size: 13px; font-weight: 600; }
-
-/* ── 通用 section ── */
-.ir-section {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px 20px;
-  border: 1px solid var(--border, #DCE3EC);
-}
-
-.ir-section-title {
-  margin: 0 0 14px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 16px 18px;
 }
 
 /* ── 因果链 ── */
@@ -396,20 +437,21 @@ onMounted(() => {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
+  padding: 16px 18px;
 }
 
 .ir-chain-node {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .ir-chain-content {
-  padding: 10px 14px;
-  border-radius: 6px;
+  padding: 10px 16px;
+  border-radius: 8px;
   background: #F8FAFC;
-  border: 1px solid var(--border, #DCE3EC);
+  border: 1px solid #E8EEF5;
   text-align: center;
 }
 
@@ -427,98 +469,118 @@ onMounted(() => {
   display: block;
   font-size: 12px;
   font-weight: 600;
+  color: #334155;
 }
 
 .ir-chain-time {
   display: block;
   font-size: 10px;
-  color: var(--text-tertiary, #94A3B8);
+  color: #94A3B8;
+  margin-top: 2px;
 }
 
 .ir-chain-metric {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--primary, #2563EB);
-  font-family: var(--font-digit, monospace);
+  color: #2563EB;
+  font-family: 'Rajdhani', monospace;
+  margin-top: 4px;
 }
 
 .ir-chain-arrow {
-  font-size: 16px;
-  color: var(--text-tertiary, #94A3B8);
+  font-size: 18px;
+  color: #CBD5E1;
   margin: 0 2px;
 }
 
 /* ── 行动建议 ── */
-.ir-actions-grid {
+.ir-actions-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.ir-action-card {
-  display: grid;
-  grid-template-columns: 60px 1fr auto;
   gap: 12px;
-  align-items: center;
-  padding: 12px 14px;
-  border-radius: 6px;
-  background: #F8FAFC;
-  border: 1px solid var(--border, #DCE3EC);
+  padding: 16px 18px;
 }
 
-.ir-action--critical { border-left: 3px solid #991B1B; }
-.ir-action--high { border-left: 3px solid #DC2626; }
-.ir-action--medium { border-left: 3px solid #F59E0B; }
-.ir-action--low { border-left: 3px solid #16A34A; }
+.ir-action-item {
+  display: flex;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #F8FAFC;
+  border: 1px solid #E8EEF5;
+}
 
-.ir-action-priority {
+.ir-action--critical { border-left: 4px solid #991B1B; }
+.ir-action--high { border-left: 4px solid #DC2626; }
+.ir-action--medium { border-left: 4px solid #F59E0B; }
+.ir-action--low { border-left: 4px solid #16A34A; }
+
+.ir-action-badge {
+  flex-shrink: 0;
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
   background: #E8EEF5;
-  text-align: center;
+  color: #475569;
+  height: fit-content;
 }
 
-.ir-action--critical .ir-action-priority { background: #FEF2F2; color: #991B1B; }
-.ir-action--high .ir-action-priority { background: #FEF2F2; color: #DC2626; }
+.ir-action--critical .ir-action-badge { background: #FEF2F2; color: #991B1B; }
+.ir-action--high .ir-action-badge { background: #FEF2F2; color: #DC2626; }
+.ir-action--medium .ir-action-badge { background: #FFFBEB; color: #92400E; }
+
+.ir-action-content {
+  flex: 1;
+  min-width: 0;
+}
 
 .ir-action-text {
+  margin: 0;
   font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
 }
 
 .ir-action-evidence {
-  font-size: 11px;
-  color: var(--text-tertiary, #94A3B8);
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #94A3B8;
+  line-height: 1.4;
 }
 
 /* ── 证据 ── */
 .ir-evidence-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  padding: 0 18px 12px;
 }
 
 .ir-evidence-item {
   display: grid;
   grid-template-columns: 80px 80px 1fr;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid #F0F0F0;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #F0F4F8;
   font-size: 12px;
+  align-items: center;
 }
 
+.ir-evidence-item:last-child { border-bottom: none; }
+
 .ir-evidence-time {
-  color: var(--text-tertiary, #94A3B8);
-  font-family: var(--font-mono, monospace);
+  color: #94A3B8;
+  font-family: 'Rajdhani', monospace;
+  font-size: 13px;
 }
 
 .ir-evidence-type {
   font-weight: 500;
-  padding: 1px 6px;
-  border-radius: 3px;
+  padding: 3px 8px;
+  border-radius: 4px;
   text-align: center;
+  font-size: 11px;
 }
 
 .ir-ev--critical { background: #FEF2F2; color: #991B1B; }
@@ -526,7 +588,19 @@ onMounted(() => {
 .ir-ev--warning { background: #FFFBEB; color: #92400E; }
 .ir-ev--info { background: #EFF6FF; color: #1E40AF; }
 
+.ir-evidence-text {
+  color: #475569;
+  line-height: 1.4;
+}
+
+/* ── 响应式 ── */
 @media (max-width: 1200px) {
-  .ir-organs-row { grid-template-columns: repeat(3, 1fr); }
+  .ir-overview-row { grid-template-columns: 1fr; }
+  .ir-organs-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .ir-organs-grid { grid-template-columns: repeat(2, 1fr); }
+  .ir-evidence-item { grid-template-columns: 1fr; gap: 4px; }
 }
 </style>

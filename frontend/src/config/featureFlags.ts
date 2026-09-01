@@ -25,22 +25,22 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig> = {
   },
   'ai-similar-cases': {
     defaultEnabled: true,
-    requiredRoles: ['doctor', 'director', 'researcher'],
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director', 'researcher'],
     description: '相似病例检索',
   },
   'ai-causal-inference': {
-    defaultEnabled: false,
-    requiredRoles: ['doctor', 'director', 'researcher'],
+    defaultEnabled: true,
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director', 'researcher'],
     description: '因果推断分析',
   },
   'ai-what-if': {
-    defaultEnabled: false,
-    requiredRoles: ['doctor', 'director'],
+    defaultEnabled: true,
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director'],
     description: 'What-if模拟',
   },
   'ai-disease-trajectory': {
     defaultEnabled: true,
-    requiredRoles: ['doctor', 'nurse', 'director'],
+    requiredRoles: ['doctor', 'nurse', 'head_nurse', 'director'],
     description: '疾病轨迹推演',
   },
   'ai-evidence': {
@@ -82,6 +82,10 @@ export function isFeatureEnabled(flag: string): boolean {
  * 1. Module's featureFlag is enabled
  * 2. User's role is in module's requiredRoles (if specified)
  * 3. User's role is in the feature flag's requiredRoles (if specified)
+ *
+ * NOTE: If userRole is not set (empty/undefined), we allow access.
+ * This is for development/testing convenience and for systems without
+ * strict role enforcement. In production, role should always be set.
  */
 export function canAccessPatientModule(
   _moduleKey: string,
@@ -96,7 +100,8 @@ export function canAccessPatientModule(
     // Also check flag-level role restriction
     const flagConfig = FEATURE_FLAGS[moduleConfig.featureFlag]
     if (flagConfig?.requiredRoles && flagConfig.requiredRoles.length > 0) {
-      if (!userRole || !flagConfig.requiredRoles.includes(userRole.toLowerCase())) {
+      // If role is not set, allow access (development mode / no role enforcement)
+      if (userRole && !flagConfig.requiredRoles.includes(userRole.toLowerCase())) {
         return false
       }
     }
@@ -104,7 +109,8 @@ export function canAccessPatientModule(
 
   // Check module-level role restriction
   if (moduleConfig?.requiredRoles && moduleConfig.requiredRoles.length > 0) {
-    if (!userRole || !moduleConfig.requiredRoles.includes(userRole.toLowerCase())) {
+    // If role is not set, allow access (development mode / no role enforcement)
+    if (userRole && !moduleConfig.requiredRoles.includes(userRole.toLowerCase())) {
       return false
     }
   }

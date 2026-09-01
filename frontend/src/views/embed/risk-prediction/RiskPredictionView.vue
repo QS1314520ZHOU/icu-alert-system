@@ -1,118 +1,153 @@
 <template>
   <div class="risk-prediction">
-    <!-- 模型不可用时的提示 -->
-    <div v-if="!modelAvailable" class="rp-model-unavailable">
-      <span class="rp-model-unavailable__icon">ℹ️</span>
-      <span class="rp-model-unavailable__text">{{ modelUnavailableReason }}</span>
-    </div>
-
-    <!-- 风险无法计算时的提示 -->
-    <div v-else-if="!calculable" class="rp-model-unavailable" style="background: #FEF3C7; border-color: #F59E0B; color: #92400E;">
-      <span class="rp-model-unavailable__icon">⚠️</span>
-      <span class="rp-model-unavailable__text">当前无法评估风险等级，数据不足或模型未返回有效结果。</span>
-    </div>
-
-    <!-- 量纲缺失警告 -->
-    <div v-if="hasScaleMissing" class="rp-model-unavailable" style="background: #FFFBEB; border-color: #FDE68A; color: #92400E;">
-      <span class="rp-model-unavailable__icon">⚠️</span>
-      <span class="rp-model-unavailable__text">风险值量纲缺失，当前无法展示部分数据。请联系管理员确认后端返回的 scale 字段。</span>
-    </div>
-
-    <!-- 风险指标卡行 -->
-    <div v-if="riskCards.length" class="rp-overview-row">
-      <div v-for="card in riskCards" :key="card.key" class="rp-risk-card" :class="`rp-risk-card--${card.level}`">
-        <div class="rp-risk-card__header">
-          <span class="rp-risk-card__label">{{ card.label }}</span>
-          <span class="rp-risk-card__source">{{ displayLabel }}</span>
-        </div>
-        <div class="rp-risk-card__value-row">
-          <div class="rp-risk-ring">
-            <svg viewBox="0 0 36 36">
-              <path class="rp-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              <path class="rp-ring-fill" :class="`rp-ring-fill--${card.level}`" :stroke-dasharray="`${card.value}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            </svg>
-            <span class="rp-ring-value">{{ card.value }}%</span>
-          </div>
-          <div class="rp-risk-card__meta">
-            <span v-if="card.change != null" class="rp-risk-change" :class="card.change > 0 ? 'rp-change-up' : card.change < 0 ? 'rp-change-down' : ''">
-              {{ card.change > 0 ? '↑' : card.change < 0 ? '↓' : '—' }}{{ Math.abs(card.change) }}%
-            </span>
-            <span class="rp-risk-horizon">{{ card.horizon }}</span>
-          </div>
-        </div>
+    <!-- 状态提示区 -->
+    <div class="rp-alerts">
+      <div v-if="!modelAvailable" class="rp-alert rp-alert--info">
+        <span class="rp-alert__icon">ℹ️</span>
+        <span class="rp-alert__text">{{ modelUnavailableReason }}</span>
+      </div>
+      <div v-else-if="!calculable" class="rp-alert rp-alert--warning">
+        <span class="rp-alert__icon">⚠️</span>
+        <span class="rp-alert__text">当前无法评估风险等级，数据不足或模型未返回有效结果。</span>
+      </div>
+      <div v-if="hasScaleMissing" class="rp-alert rp-alert--warning">
+        <span class="rp-alert__icon">⚠️</span>
+        <span class="rp-alert__text">风险值量纲缺失，当前无法展示部分数据。请联系管理员确认后端返回的 scale 字段。</span>
       </div>
     </div>
 
-    <!-- 图表行：趋势 + 器官风险 -->
-    <div class="rp-chart-row">
-      <div class="rp-chart-card rp-chart-card--wide">
-        <h3 class="rp-chart-title">风险趋势</h3>
-        <div v-if="trendChartOption">
-          <ClinicalChart :option="trendChartOption" :loading="loading" :height="280" :updated-at="updatedAt" show-toolbar />
+    <!-- 主内容区：左侧风险概览 + 右侧趋势图 -->
+    <div class="rp-main-layout">
+      <!-- 左侧：风险指标卡片 -->
+      <div class="rp-overview-panel">
+        <div class="rp-panel-header">
+          <h3 class="rp-panel-title">风险概览</h3>
+          <span class="rp-panel-badge">{{ displayLabel }}</span>
         </div>
-        <div v-else-if="!loading" class="rp-chart-empty">
-          <span>暂无风险趋势数据</span>
+        <div v-if="riskCards.length" class="rp-risk-cards">
+          <div v-for="card in riskCards" :key="card.key" class="rp-risk-card" :class="`rp-risk-card--${card.level}`">
+            <div class="rp-risk-card__ring">
+              <svg viewBox="0 0 36 36">
+                <path class="rp-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path class="rp-ring-fill" :class="`rp-ring-fill--${card.level}`" :stroke-dasharray="`${card.value}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <span class="rp-ring-value">{{ card.value }}%</span>
+            </div>
+            <div class="rp-risk-card__info">
+              <span class="rp-risk-card__label">{{ card.label }}</span>
+              <div class="rp-risk-card__meta">
+                <span v-if="card.change != null" class="rp-risk-change" :class="card.change > 0 ? 'rp-change-up' : card.change < 0 ? 'rp-change-down' : ''">
+                  {{ card.change > 0 ? '↑' : card.change < 0 ? '↓' : '—' }}{{ Math.abs(card.change) }}%
+                </span>
+                <span class="rp-risk-horizon">{{ card.horizon }}</span>
+              </div>
+            </div>
+          </div>
         </div>
+        <div v-else class="rp-empty-state">暂无风险数据</div>
+      </div>
+
+      <!-- 右侧：趋势图 -->
+      <div class="rp-trend-panel">
+        <div class="rp-panel-header">
+          <h3 class="rp-panel-title">风险趋势</h3>
+          <span v-if="updatedAt" class="rp-panel-time">更新于 {{ updatedAt }}</span>
+        </div>
+        <div v-if="trendChartOption" class="rp-chart-container">
+          <ClinicalChart :option="trendChartOption" :loading="loading" :height="240" show-toolbar />
+        </div>
+        <div v-else-if="!loading" class="rp-empty-state">暂无风险趋势数据</div>
       </div>
     </div>
 
-    <div class="rp-chart-row">
+    <!-- 图表行：器官风险 + 特征贡献 -->
+    <div class="rp-charts-row">
       <div class="rp-chart-card">
-        <h3 class="rp-chart-title">器官风险</h3>
-        <div v-if="organChartOption">
-          <ClinicalChart :option="organChartOption" :loading="loading" :height="260" />
+        <div class="rp-panel-header">
+          <h3 class="rp-panel-title">器官风险</h3>
         </div>
-        <div v-else-if="!loading" class="rp-chart-empty">
+        <div v-if="organChartOption" class="rp-chart-container">
+          <ClinicalChart :option="organChartOption" :loading="loading" :height="220" />
+        </div>
+        <div v-else-if="!loading" class="rp-empty-state">
           <span v-if="!modelAvailable">当前无模型器官风险数据</span>
           <span v-else>暂无器官风险数据</span>
         </div>
       </div>
       <div class="rp-chart-card">
-        <h3 class="rp-chart-title">特征贡献</h3>
-        <div v-if="contributorChartOption">
-          <ClinicalChart :option="contributorChartOption" :loading="loading" :height="260" />
+        <div class="rp-panel-header">
+          <h3 class="rp-panel-title">特征贡献</h3>
         </div>
-        <div v-else-if="!loading" class="rp-chart-empty">
-          <span>当前无模型贡献度数据</span>
+        <div v-if="contributorChartOption" class="rp-chart-container">
+          <ClinicalChart :option="contributorChartOption" :loading="loading" :height="220" />
         </div>
+        <div v-else-if="!loading" class="rp-empty-state">当前无模型贡献度数据</div>
       </div>
     </div>
 
-    <!-- 规则估算信息（模型不可用时） -->
-    <div v-if="!modelAvailable && ruleInfo" class="rp-info-row">
+    <!-- 信息区：模型信息/规则信息 + 安全声明 -->
+    <div class="rp-info-row">
       <div class="rp-info-card">
-        <h3 class="rp-info-title">规则估算信息</h3>
-        <div class="rp-model-info">
-          <div v-if="ruleInfo.rule_name" class="rp-model-row"><span>规则名称</span><span>{{ ruleInfo.rule_name }}</span></div>
-          <div v-if="ruleInfo.trigger_indicator" class="rp-model-row"><span>触发指标</span><span>{{ ruleInfo.trigger_indicator }}</span></div>
-          <div v-if="ruleInfo.threshold" class="rp-model-row"><span>阈值</span><span>{{ ruleInfo.threshold }}</span></div>
-          <div v-if="ruleInfo.rule_version" class="rp-model-row"><span>规则版本</span><span>{{ ruleInfo.rule_version }}</span></div>
-          <div v-if="ruleInfo.data_time" class="rp-model-row"><span>数据时间</span><span>{{ formatTime(ruleInfo.data_time) }}</span></div>
-          <div v-if="ruleInfo.evidence" class="rp-model-row"><span>支持证据</span><span>{{ ruleInfo.evidence }}</span></div>
+        <div class="rp-panel-header">
+          <h3 class="rp-panel-title">{{ !modelAvailable && ruleInfo ? '规则估算信息' : '模型信息' }}</h3>
+        </div>
+        <div v-if="!modelAvailable && ruleInfo" class="rp-info-grid">
+          <div v-if="ruleInfo.rule_name" class="rp-info-item">
+            <span class="rp-info-label">规则名称</span>
+            <span class="rp-info-value">{{ ruleInfo.rule_name }}</span>
+          </div>
+          <div v-if="ruleInfo.trigger_indicator" class="rp-info-item">
+            <span class="rp-info-label">触发指标</span>
+            <span class="rp-info-value">{{ ruleInfo.trigger_indicator }}</span>
+          </div>
+          <div v-if="ruleInfo.threshold" class="rp-info-item">
+            <span class="rp-info-label">阈值</span>
+            <span class="rp-info-value">{{ ruleInfo.threshold }}</span>
+          </div>
+          <div v-if="ruleInfo.rule_version" class="rp-info-item">
+            <span class="rp-info-label">规则版本</span>
+            <span class="rp-info-value">{{ ruleInfo.rule_version }}</span>
+          </div>
+          <div v-if="ruleInfo.data_time" class="rp-info-item">
+            <span class="rp-info-label">数据时间</span>
+            <span class="rp-info-value">{{ formatTime(ruleInfo.data_time) }}</span>
+          </div>
+          <div v-if="ruleInfo.evidence" class="rp-info-item">
+            <span class="rp-info-label">支持证据</span>
+            <span class="rp-info-value">{{ ruleInfo.evidence }}</span>
+          </div>
+        </div>
+        <div v-else-if="modelAvailable" class="rp-info-grid">
+          <div class="rp-info-item">
+            <span class="rp-info-label">预测来源</span>
+            <span class="rp-info-value">{{ displayLabel }}</span>
+          </div>
+          <div class="rp-info-item">
+            <span class="rp-info-label">模型名称</span>
+            <span class="rp-info-value">{{ modelNameDisplay }}</span>
+          </div>
+          <div class="rp-info-item">
+            <span class="rp-info-label">模型版本</span>
+            <span class="rp-info-value">{{ modelVersionDisplay }}</span>
+          </div>
+          <div class="rp-info-item">
+            <span class="rp-info-label">校准版本</span>
+            <span class="rp-info-value">{{ calibrationVersionDisplay }}</span>
+          </div>
+          <div class="rp-info-item">
+            <span class="rp-info-label">模型状态</span>
+            <span class="rp-info-value" :class="modelStatusClass">{{ modelStatusDisplay }}</span>
+          </div>
+          <div v-if="modelMeta.fallback_used" class="rp-info-item">
+            <span class="rp-info-label">降级原因</span>
+            <span class="rp-info-value rp-status-warn">{{ fallbackReasonDisplay }}</span>
+          </div>
         </div>
       </div>
       <div class="rp-info-card">
-        <h3 class="rp-info-title">安全声明</h3>
-        <p class="rp-safety-notice">{{ safetyNotice }}</p>
-        <p class="rp-updated">预测时间：{{ updatedAt }}</p>
-      </div>
-    </div>
-
-    <!-- 模型信息（模型可用时） -->
-    <div v-else-if="modelAvailable" class="rp-info-row">
-      <div class="rp-info-card">
-        <h3 class="rp-info-title">模型信息</h3>
-        <div class="rp-model-info">
-          <div class="rp-model-row"><span>预测来源</span><span>{{ displayLabel }}</span></div>
-          <div class="rp-model-row"><span>模型名称</span><span>{{ modelNameDisplay }}</span></div>
-          <div class="rp-model-row"><span>模型版本</span><span>{{ modelVersionDisplay }}</span></div>
-          <div class="rp-model-row"><span>校准版本</span><span>{{ calibrationVersionDisplay }}</span></div>
-          <div class="rp-model-row"><span>模型状态</span><span :class="modelStatusClass">{{ modelStatusDisplay }}</span></div>
-          <div v-if="modelMeta.fallback_used" class="rp-model-row"><span>降级原因</span><span class="rp-status-warn">{{ fallbackReasonDisplay }}</span></div>
+        <div class="rp-panel-header">
+          <h3 class="rp-panel-title">安全声明</h3>
         </div>
-      </div>
-      <div class="rp-info-card">
-        <h3 class="rp-info-title">安全声明</h3>
         <p class="rp-safety-notice">{{ safetyNotice }}</p>
         <p class="rp-updated">预测时间：{{ updatedAt }}</p>
       </div>
@@ -120,18 +155,24 @@
 
     <!-- AI解释折叠区 -->
     <details v-if="topContributors.length" class="rp-ai-explanation">
-      <summary>AI解释与证据（{{ topContributors.length }}个因素）</summary>
+      <summary class="rp-ai-summary">
+        <span class="rp-ai-summary__icon">🤖</span>
+        <span>AI解释与证据（{{ topContributors.length }}个因素）</span>
+      </summary>
       <div class="rp-ai-content">
         <div class="rp-contributors-list">
           <div v-for="(c, idx) in topContributors" :key="idx" class="rp-contributor-item">
-            <span class="rp-contributor-rank">{{ Number(idx) + 1 }}</span>
+            <span class="rp-contributor-rank" :class="c.direction > 0 ? 'rp-rank-up' : 'rp-rank-down'">{{ Number(idx) + 1 }}</span>
             <span class="rp-contributor-name">{{ c.feature || c.name || '' }}</span>
             <span class="rp-contributor-impact" :class="c.direction > 0 ? 'rp-change-up' : 'rp-change-down'">
               {{ c.direction > 0 ? '↑' : '↓' }}{{ (Math.abs(c.impact || c.weight || 0) * 100).toFixed(1) }}%
             </span>
           </div>
         </div>
-        <p class="rp-ai-disclaimer">⚠ 以上为模型输入特征的贡献度分析，不代表因果关系。预测结果仅供临床决策参考，不替代医生判断。</p>
+        <div class="rp-ai-disclaimer">
+          <span class="rp-ai-disclaimer__icon">⚠️</span>
+          <span>以上为模型输入特征的贡献度分析，不代表因果关系。预测结果仅供临床决策参考，不替代医生判断。</span>
+        </div>
       </div>
     </details>
   </div>
@@ -494,94 +535,354 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.risk-prediction { display: flex; flex-direction: column; gap: 16px; }
+.risk-prediction {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px;
+}
 
-.rp-model-unavailable {
+/* ── 状态提示 ── */
+.rp-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rp-alert {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #EFF6FF;
-  border: 1px solid #BDDEFF;
+  gap: 10px;
+  padding: 12px 16px;
   border-radius: 8px;
   font-size: 13px;
+}
+
+.rp-alert--info {
+  background: #EFF6FF;
+  border: 1px solid #BDDEFF;
   color: #1E40AF;
 }
 
-.rp-model-unavailable__icon { font-size: 16px; }
+.rp-alert--warning {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+}
 
-.rp-overview-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.rp-alert__icon { font-size: 16px; }
 
-.rp-risk-card { background: #fff; border-radius: 8px; padding: 14px 16px; border: 1px solid #DCE3EC; transition: box-shadow 0.2s; }
-.rp-risk-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+/* ── 主布局：左侧风险概览 + 右侧趋势图 ── */
+.rp-main-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  min-height: 300px;
+}
+
+.rp-overview-panel,
+.rp-trend-panel,
+.rp-chart-card,
+.rp-info-card {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #E8EEF5;
+  overflow: hidden;
+}
+
+.rp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #F0F4F8;
+}
+
+.rp-panel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #182230;
+}
+
+.rp-panel-badge {
+  font-size: 11px;
+  color: #64748B;
+  background: #F1F5F9;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.rp-panel-time {
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+/* ── 风险指标卡片 ── */
+.rp-risk-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.rp-risk-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: #F8FAFC;
+  border-radius: 8px;
+  border: 1px solid #E8EEF5;
+  transition: all 0.2s;
+}
+
+.rp-risk-card:hover {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
 .rp-risk-card--critical { border-left: 3px solid #991B1B; }
 .rp-risk-card--high { border-left: 3px solid #DC2626; }
 .rp-risk-card--medium { border-left: 3px solid #F59E0B; }
 .rp-risk-card--low { border-left: 3px solid #16A34A; }
 .rp-risk-card--stable { border-left: 3px solid #16A34A; }
 
-.rp-risk-card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.rp-risk-card__label { font-size: 12px; font-weight: 500; color: #52606D; }
-.rp-risk-card__source { font-size: 10px; color: #94A3B8; max-width: 80px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-risk-card__ring {
+  width: 52px;
+  height: 52px;
+  position: relative;
+  flex-shrink: 0;
+}
 
-.rp-risk-card__value-row { display: flex; align-items: center; gap: 12px; }
+.rp-risk-card__ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
 
-.rp-risk-ring { width: 56px; height: 56px; position: relative; }
-.rp-risk-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.rp-ring-bg { fill: none; stroke: #E8EEF5; stroke-width: 3; }
-.rp-ring-fill { fill: none; stroke-width: 3; stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
+.rp-ring-bg { fill: none; stroke: #E8EEF5; stroke-width: 3.5; }
+.rp-ring-fill { fill: none; stroke-width: 3.5; stroke-linecap: round; transition: stroke-dasharray 0.6s ease; }
 .rp-ring-fill--stable, .rp-ring-fill--low { stroke: #16A34A; }
 .rp-ring-fill--medium { stroke: #F59E0B; }
 .rp-ring-fill--high { stroke: #DC2626; }
 .rp-ring-fill--critical { stroke: #991B1B; }
 
-.rp-ring-value { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; font-family: 'Rajdhani', monospace; color: #182230; }
-
-.rp-risk-card__meta { display: flex; flex-direction: column; gap: 4px; }
-.rp-risk-change { font-size: 12px; font-weight: 600; }
-.rp-change-up { color: #DC2626; }
-.rp-change-down { color: #16A34A; }
-.rp-risk-horizon { font-size: 10px; color: #94A3B8; }
-
-.rp-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.rp-chart-card--wide { grid-column: 1 / -1; }
-.rp-chart-card { background: #fff; border-radius: 8px; padding: 16px; border: 1px solid #DCE3EC; }
-.rp-chart-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #182230; }
-
-.rp-chart-empty {
+.rp-ring-value {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 120px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Rajdhani', monospace;
+  color: #182230;
+}
+
+.rp-risk-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-risk-card__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+  margin-bottom: 4px;
+}
+
+.rp-risk-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rp-risk-change {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Rajdhani', monospace;
+}
+
+.rp-change-up { color: #DC2626; }
+.rp-change-down { color: #16A34A; }
+
+.rp-risk-horizon {
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+/* ── 图表区 ── */
+.rp-chart-container {
+  padding: 12px;
+}
+
+.rp-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.rp-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
   font-size: 13px;
   color: #94A3B8;
 }
 
-.rp-info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.rp-info-card { background: #fff; border-radius: 8px; padding: 16px; border: 1px solid #DCE3EC; }
-.rp-info-title { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
-.rp-model-info { display: flex; flex-direction: column; gap: 8px; }
-.rp-model-row { display: flex; justify-content: space-between; font-size: 12px; }
-.rp-model-row span:first-child { color: #52606D; }
-.rp-model-row span:last-child { font-weight: 500; color: #182230; }
+/* ── 信息区 ── */
+.rp-info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.rp-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+
+.rp-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rp-info-label {
+  font-size: 11px;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.rp-info-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #182230;
+}
+
 .rp-status-ok { color: #16A34A; }
 .rp-status-warn { color: #F59E0B; }
 
-.rp-safety-notice { margin: 0; font-size: 13px; line-height: 1.6; color: #52606D; }
-.rp-updated { margin: 8px 0 0; font-size: 11px; color: #94A3B8; }
+.rp-safety-notice {
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #52606D;
+}
 
-.rp-ai-explanation { background: #fff; border-radius: 8px; border: 1px solid #DCE3EC; }
-.rp-ai-explanation summary { padding: 12px 16px; font-size: 13px; font-weight: 600; cursor: pointer; color: #52606D; }
-.rp-ai-content { padding: 0 16px 16px; }
+.rp-updated {
+  margin: 0;
+  padding: 0 16px 12px;
+  font-size: 11px;
+  color: #94A3B8;
+}
 
-.rp-contributors-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.rp-contributor-item { display: grid; grid-template-columns: 24px 1fr 60px; gap: 8px; padding: 6px 8px; background: #F8FAFC; border-radius: 4px; font-size: 12px; align-items: center; }
-.rp-contributor-rank { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; background: #E8EEF5; border-radius: 50%; font-size: 10px; font-weight: 600; }
-.rp-contributor-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rp-contributor-impact { text-align: right; font-weight: 600; font-family: 'Rajdhani', monospace; }
+/* ── AI解释区 ── */
+.rp-ai-explanation {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #E8EEF5;
+  overflow: hidden;
+}
 
-.rp-no-contributors { font-size: 13px; color: #94A3B8; text-align: center; padding: 16px; }
-.rp-ai-disclaimer { margin-top: 12px; padding: 8px 12px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; font-size: 12px; color: #92400E; }
+.rp-ai-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #52606D;
+  list-style: none;
+}
 
-@media (max-width: 1200px) { .rp-chart-row { grid-template-columns: 1fr; } .rp-info-row { grid-template-columns: 1fr; } }
+.rp-ai-summary::-webkit-details-marker { display: none; }
+
+.rp-ai-summary__icon { font-size: 16px; }
+
+.rp-ai-content {
+  padding: 0 18px 18px;
+}
+
+.rp-contributors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.rp-contributor-item {
+  display: grid;
+  grid-template-columns: 28px 1fr 70px;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #F8FAFC;
+  border-radius: 6px;
+  font-size: 12px;
+  align-items: center;
+}
+
+.rp-contributor-rank {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.rp-rank-up { background: #FEF2F2; color: #DC2626; }
+.rp-rank-down { background: #F0FDF4; color: #16A34A; }
+
+.rp-contributor-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #334155;
+}
+
+.rp-contributor-impact {
+  text-align: right;
+  font-weight: 600;
+  font-family: 'Rajdhani', monospace;
+  font-size: 13px;
+}
+
+.rp-ai-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400E;
+  line-height: 1.5;
+}
+
+.rp-ai-disclaimer__icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 1200px) {
+  .rp-main-layout {
+    grid-template-columns: 1fr;
+  }
+  .rp-charts-row,
+  .rp-info-row {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

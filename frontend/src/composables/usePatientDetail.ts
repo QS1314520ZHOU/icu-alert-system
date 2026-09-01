@@ -1220,7 +1220,7 @@ function _createPatientDetail(_initialPatientId: string) {
       const res = await getPatientVitalsTrend(patientId, trendWindow.value)
       trendPoints.value = res.data.points || []
       trendLoaded.value = true
-    } catch (e) { console.warn('趋势数据加载较慢', e) }
+    } catch { /* 趋势数据加载失败，UI 已处理 */ }
   }
 
   async function loadWaveform() {
@@ -1261,7 +1261,7 @@ function _createPatientDetail(_initialPatientId: string) {
       else if (status === 404) waveformError.value = '波形服务未配置'
       else if (status >= 500) waveformError.value = '波形服务异常，请稍后重试'
       else waveformError.value = e?.message || '波形数据加载失败'
-      console.warn('波形数据加载失败', e)
+      /* 波形数据加载失败，已设置 waveformError */
     }
     finally { waveformLoading.value = false }
   }
@@ -1270,21 +1270,21 @@ function _createPatientDetail(_initialPatientId: string) {
     const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId || labsLoaded.value) return
     try { const res = await getPatientLabs(patientId); labs.value = res.data.exams || []; labsLoaded.value = true }
-    catch (e) { console.warn('检验数据加载较慢', e) }
+    catch { /* 检验数据加载失败 */ }
   }
 
   async function loadDrugs() {
     const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId || drugsLoaded.value) return
     try { const res = await getPatientDrugs(patientId); drugs.value = res.data.records || []; drugsLoaded.value = true }
-    catch (e) { console.warn('用药数据加载较慢', e) }
+    catch { /* 用药数据加载失败 */ }
   }
 
   async function loadAssessments() {
     const patientId = String(route.params.patientId || route.params.id || '')
     if (!patientId || assessmentsLoaded.value) return
     try { const res = await getPatientAssessments(patientId); assessments.value = res.data.records || []; assessmentsLoaded.value = true }
-    catch (e) { console.warn('评估数据加载较慢', e) }
+    catch { /* 评估数据加载失败 */ }
   }
 
   async function loadSbtTimeline(force = false) {
@@ -1336,7 +1336,7 @@ function _createPatientDetail(_initialPatientId: string) {
       personalizedThresholdRecord.value = latestRes.data?.record || null
       personalizedThresholdHistory.value = Array.isArray(historyRes.data?.rows) ? historyRes.data.rows : []
       personalizedThresholdApprovedRecord.value = personalizedThresholdHistory.value.find((r: any) => String(r?.status || '').toLowerCase() === 'approved') || null
-    } catch (e) { console.warn('个性化阈值加载较慢', e) }
+    } catch { /* 个性化阈值加载失败 */ }
     finally { personalizedThresholdLoading.value = false }
   }
 

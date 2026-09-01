@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="patient-detail-layout" :class="{ 'layout-compact': densityMode === 'compact' }">
     <!-- 顶部患者上下文条 -->
     <header class="layout-context-bar">
@@ -27,6 +27,7 @@
     <!-- 安全条 -->
     <div v-if="safetyItems.length" class="safety-strip">
       <span v-for="item in safetyItems" :key="item.key" :class="['safety-tag', `safety-${item.level}`]">
+        <span class="safety-icon">{{ item.level === 'danger' ? '✕' : item.level === 'warning' ? '⚠' : 'ℹ' }}</span>
         {{ item.text }}
       </span>
     </div>
@@ -256,23 +257,47 @@ onBeforeUnmount(() => { cleanupLifecycle() })
 
 .safety-strip {
   display: flex;
-  gap: 8px;
-  padding: 4px 20px;
-  background: #FFFBEB;
-  border-bottom: 1px solid #FDE68A;
+  gap: 10px;
+  padding: 6px 20px;
+  background: #FFFDF7;
+  border-bottom: 1px solid #F3E8D0;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .safety-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 20px;
   font-weight: 500;
+  line-height: 1.4;
 }
 
-.safety-danger { background: #FEF2F2; color: #991B1B; }
-.safety-warning { background: #FFFBEB; color: #92400E; }
-.safety-info { background: #EFF6FF; color: #1E40AF; }
+.safety-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.safety-danger {
+  background: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid rgba(220, 38, 38, 0.15);
+}
+
+.safety-warning {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid rgba(217, 119, 6, 0.15);
+}
+
+.safety-info {
+  background: #EFF6FF;
+  color: #1E40AF;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
 
 /* ── 主内容区 ────────────────────────────────── */
 

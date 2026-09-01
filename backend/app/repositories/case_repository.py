@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from app.repositories.mongodb import MongoRepository
+from app.repositories.mongodb import MongoRepository, _convert_objectid
 
 
 def _now() -> datetime:
@@ -104,7 +104,7 @@ class CaseRepository(MongoRepository):
             upsert=True,
             return_document=True,
         )
-        return result
+        return _convert_objectid(result)
 
     async def find_all(
         self,
@@ -222,7 +222,7 @@ class CaseRepository(MongoRepository):
             {"$set": updates},
             return_document=ReturnDocument.AFTER,
         )
-        return result
+        return _convert_objectid(result) if result else None
 
     async def count_by_status(self, disease_id: Optional[str] = None) -> dict[str, int]:
         """按状态统计病例数。"""
@@ -568,6 +568,7 @@ class EvidenceRepository(MongoRepository):
             upsert=True,
             return_document=True,
         )
+        result = _convert_objectid(result) if result else {}
         return result.get("id", evidence_id)
 
     async def create_many(self, evidences: list[dict[str, Any]]) -> list[str]:
