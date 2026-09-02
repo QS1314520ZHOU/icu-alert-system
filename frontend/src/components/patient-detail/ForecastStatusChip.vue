@@ -121,7 +121,7 @@ const indicatorDetails = computed(() => {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.16);
-  background: var(--bg-surface), 0.78);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;

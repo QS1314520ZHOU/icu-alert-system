@@ -710,7 +710,7 @@ function regionGroupClass(key: string, severity: string) {
   max-width: 156px;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.96);
+  background: var(--bg-surface);
   border: 1px solid rgba(110,231,249,.22);
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(10px);
@@ -740,7 +740,7 @@ function regionGroupClass(key: string, severity: string) {
   min-height: 20px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
   border: 1px solid rgba(84, 181, 222, 0.18);
   color: var(--text-primary);
   font-size: 10px;
@@ -758,7 +758,7 @@ function regionGroupClass(key: string, severity: string) {
   max-width: 128px;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
   border: 1px solid rgba(104, 193, 229, 0.22);
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(10px);
@@ -796,7 +796,7 @@ function regionGroupClass(key: string, severity: string) {
   max-width: 118px;
   padding: 6px 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.96);
+  background: var(--bg-surface);
   border: 1px solid rgba(84, 181, 222, 0.18);
   backdrop-filter: blur(10px);
 }
@@ -842,7 +842,7 @@ function regionGroupClass(key: string, severity: string) {
   max-width: none;
   padding: 2px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.68);
+  background: var(--bg-surface);
   border: 1px solid rgba(104, 193, 229, 0.26);
   box-shadow: var(--card-shadow);
   backdrop-filter: none;

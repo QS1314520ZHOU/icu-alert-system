@@ -131,7 +131,7 @@ const filteredRows = computed(() => {
   padding: 0 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.16);
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   color: var(--text-primary);
   outline: none;
 }
@@ -143,7 +143,7 @@ const filteredRows = computed(() => {
 .table-kpi {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
 }
 .table-kpi span,
@@ -170,7 +170,7 @@ const filteredRows = computed(() => {
   padding: 22px;
   border-radius: var(--card-radius);
   border: 1px dashed rgba(80,199,255,.18);
-  background: var(--bg-surface),.52);
+  background: var(--bg-surface);
 }
 .table-wrap :deep(.ant-table) {
   background: transparent;
@@ -180,29 +180,29 @@ const filteredRows = computed(() => {
   overflow: hidden;
 }
 .table-wrap :deep(.ant-table-thead > tr > th) {
-  background: var(--bg-surface),.82);
+  background: var(--bg-surface);
   color: var(--accent);
   border-bottom-color: rgba(80,199,255,.1);
   font-size: 12px;
   font-weight: 700;
 }
 .table-wrap :deep(.ant-table-tbody > tr > td) {
-  background: var(--bg-surface),.6);
+  background: var(--bg-surface);
   color: var(--text-primary);
   border-bottom-color: rgba(80,199,255,.08);
   font-size: 12px;
 }
 .table-wrap :deep(.ant-table-tbody > tr:hover > td) {
-  background: var(--bg-surface),.42) !important;
+  background: var(--bg-surface) !important;
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item),
 .table-wrap :deep(.ant-pagination .ant-pagination-prev),
 .table-wrap :deep(.ant-pagination .ant-pagination-next) {
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   border-color: rgba(80,199,255,.14);
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item-active) {
-  background: var(--bg-surface) 0%, rgba(7,63,86,.98) 100%);
+  background: var(--bg-surface);
   border-color: rgba(110,231,249,.28);
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item a),
@@ -230,7 +230,7 @@ html[data-theme='light'] .table-kpi small,
 html[data-theme='light'] .table-empty span,
 html[data-theme='light'] .table-search { color: var(--text-secondary); }
 html[data-theme='light'] .table-search input {
-  background: var(--bg-surface), rgba(247,250,253,0.98));
+  background: var(--bg-surface);
   color: var(--text-secondary);
   border-color: rgba(187,204,220,0.72);
   box-shadow: var(--card-shadow);
@@ -242,9 +242,7 @@ html[data-theme='light'] .table-search input:focus {
 }
 html[data-theme='light'] .table-kpi,
 html[data-theme='light'] .table-empty {
-  background:
-    var(--bg-surface), rgba(96,165,250,0) 42%),
-    var(--bg-surface), rgba(243,248,253,.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
   box-shadow: var(--card-shadow);
 }
@@ -253,7 +251,7 @@ html[data-theme='light'] .table-empty strong { color: var(--text-secondary); }
 html[data-theme='light'] .table-wrap :deep(.ant-table) {
   color: var(--text-secondary);
   border-color: rgba(187,204,220,0.72);
-  background: var(--bg-surface), rgba(248,251,255,0.98));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .table-wrap :deep(.ant-table-container) {
@@ -270,11 +268,11 @@ html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr:hover > td) { b
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-prev),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-next) {
-  background: var(--bg-surface), rgba(243,248,252,0.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
   box-shadow: var(--card-shadow);
 }
-html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface), rgba(29,78,216,.98)); border-color: rgba(59,130,246,0.28); }
+html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface); border-color: rgba(59,130,246,0.28); }
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item a),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-prev button),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-next button) { color: var(--text-secondary); }

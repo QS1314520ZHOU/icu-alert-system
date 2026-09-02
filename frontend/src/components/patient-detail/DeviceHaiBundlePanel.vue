@@ -192,7 +192,7 @@ function fOleyHoursText(value: any) {
   margin-bottom: 16px;
   padding: 14px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.14);
   box-shadow: var(--card-shadow);
 }
@@ -235,7 +235,7 @@ function fOleyHoursText(value: any) {
 }
 .device-hai-panel__action {
   border: 1px solid rgba(110,231,249,.28);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
 }
@@ -249,7 +249,7 @@ function fOleyHoursText(value: any) {
   gap: 10px;
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
 }
 .device-hai-panel__card.is-warning,
@@ -260,7 +260,7 @@ function fOleyHoursText(value: any) {
 .device-hai-panel__badge.is-critical { border-color: rgba(244,63,94,.28); }
 .device-hai-panel__badge {
   border: 1px solid rgba(80,199,255,.14);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
 }
@@ -270,7 +270,7 @@ function fOleyHoursText(value: any) {
   gap: 8px;
 }
 .device-hai-panel__chip {
-  background: var(--bg-surface), 0.92);
+  background: var(--bg-surface);
   border: 1px solid rgba(104, 193, 229, 0.18);
 }
 .device-hai-panel__summary {
@@ -293,7 +293,7 @@ function fOleyHoursText(value: any) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(104, 193, 229, 0.14);
-  background: var(--bg-surface), 0.92);
+  background: var(--bg-surface);
   cursor: pointer;
   text-align: left;
 }
@@ -347,7 +347,7 @@ function fOleyHoursText(value: any) {
   }
 }
 html[data-theme='light'] .device-hai-panel {
-  background: var(--bg-surface) 0%, rgba(239,246,250,.98) 100%);
+  background: var(--bg-surface);
   border-color: rgba(130, 170, 194, 0.24);
 }
 html[data-theme='light'] .device-hai-panel__title,

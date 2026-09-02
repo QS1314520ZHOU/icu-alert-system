@@ -438,17 +438,17 @@ onMounted(() => { void loadRows() })
 
 <style scoped>
 .scanner-health-page { display: grid; gap: 16px; font-family: var(--app-display-font); }
-.scanner-health-filter,.scanner-health-panel { border: 1px solid rgba(80,199,255,.12); background: var(--bg-surface) 0%, var(--bg-surface) 100%); }
+.scanner-health-filter,.scanner-health-panel { border: 1px solid rgba(80,199,255,.12); background: var(--bg-surface); }
 .scanner-health-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .scanner-health-label,.muted { color: var(--text-secondary); font-size: 12px; }
-.scanner-health-notice { padding: 10px 12px; border-radius: var(--card-radius); border: 1px solid rgba(251,191,36,.22); background: var(--bg-surface),.42); color: var(--warning-soft); font-size: 12px; }
+.scanner-health-notice { padding: 10px 12px; border-radius: var(--card-radius); border: 1px solid rgba(251,191,36,.22); background: var(--bg-surface); color: var(--warning-soft); font-size: 12px; }
 .scanner-health-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .admin-quality-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .quality-list { display: grid; gap: 8px; }
-.quality-list button { display: grid; gap: 4px; width: 100%; text-align: left; border: 1px solid rgba(125,167,214,.14); border-radius: var(--card-radius); background: var(--bg-surface),.64); color: var(--text-primary); padding: 9px 10px; }
+.quality-list button { display: grid; gap: 4px; width: 100%; text-align: left; border: 1px solid rgba(125,167,214,.14); border-radius: var(--card-radius); background: var(--bg-surface); color: var(--text-primary); padding: 9px 10px; }
 .quality-list strong { color: var(--text-primary); font-size: 12px; }
 .quality-list span { color: var(--text-secondary); font-size: 11px; }
-.scanner-health-kpi { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface), var(--bg-surface)); }
+.scanner-health-kpi { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface); }
 .scanner-health-kpi.is-red { border-color: rgba(251,113,133,.28); }
 .scanner-health-kpi span { display: block; color: var(--text-secondary); font-size: 12px; }
 .scanner-health-kpi strong { display: block; margin-top: 8px; color: var(--text-primary); font-size: 28px; }
@@ -458,25 +458,25 @@ onMounted(() => { void loadRows() })
 .mdro-list button { display: grid; gap: 4px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid rgba(251,191,36,.22); border-radius: var(--card-radius); background: rgba(251,191,36,.08); color: var(--text-primary); cursor: pointer; }
 .mdro-list strong { color: var(--text-primary); font-size: 13px; }
 .mdro-list span,.mdro-list small { color: var(--text-secondary); font-size: 12px; }
-.scanner-command-card { min-width: 0; padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface), transparent 32%), var(--bg-surface); }
+.scanner-command-card { min-width: 0; padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface); }
 .scanner-command-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
 .scanner-command-head span { color: var(--text-secondary); font-size: 12px; }
 .scanner-command-head strong { color: var(--text-primary); font-size: 18px; }
 .scanner-light-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-.scanner-light { display: grid; gap: 4px; min-height: 58px; padding: 8px; border: 1px solid rgba(52,211,153,.22); border-radius: var(--card-radius); color: #d1fae5; background: var(--bg-surface),.18); cursor: pointer; }
-.scanner-light.is-yellow { border-color: rgba(251,191,36,.28); color: var(--warning-soft); background: var(--bg-surface),.22); }
-.scanner-light.is-red { border-color: rgba(251,113,133,.34); color: var(--danger-soft); background: var(--bg-surface),.28); }
+.scanner-light { display: grid; gap: 4px; min-height: 58px; padding: 8px; border: 1px solid rgba(52,211,153,.22); border-radius: var(--card-radius); color: #d1fae5; background: var(--bg-surface); cursor: pointer; }
+.scanner-light.is-yellow { border-color: rgba(251,191,36,.28); color: var(--warning-soft); background: var(--bg-surface); }
+.scanner-light.is-red { border-color: rgba(251,113,133,.34); color: var(--danger-soft); background: var(--bg-surface); }
 .scanner-light b,.scanner-light span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scanner-light b { font-size: 12px; }
 .scanner-light span { color: currentColor; opacity: .75; font-size: 11px; }
 .scanner-task-list { display: grid; gap: 8px; }
-.scanner-task { display: grid; gap: 4px; padding: 10px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); color: inherit; background: var(--bg-surface),.28); text-align: left; cursor: pointer; }
+.scanner-task { display: grid; gap: 4px; padding: 10px; border: 1px solid rgba(125,211,252,.14); border-radius: var(--card-radius); color: inherit; background: var(--bg-surface); text-align: left; cursor: pointer; }
 .scanner-task.prio-high { border-color: rgba(251,113,133,.34); }
 .scanner-task strong { color: var(--text-primary); font-size: 13px; }
 .scanner-task span,.scanner-empty { color: var(--text-secondary); font-size: 12px; }
 .scanner-empty { min-height: 110px; display: grid; place-content: center; border: 1px dashed rgba(125,211,252,.16); border-radius: var(--card-radius); }
 .scanner-focus { display: grid; gap: 10px; }
-.scanner-focus div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: var(--card-radius); background: var(--bg-surface),.28); }
+.scanner-focus div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .scanner-focus span { color: var(--text-secondary); }
 .scanner-focus b { color: var(--text-primary); }
 .scanner-focus p { margin: 0; color: var(--text-primary); line-height: 1.55; }
@@ -485,13 +485,13 @@ onMounted(() => { void loadRows() })
 .runtime-cell small { color: var(--text-secondary); font-size: 11px; }
 .scanner-name-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text-primary); }
 .scanner-name-cell small { color: #6aa7bd; font-size: 11px; }
-.review-tag { padding: 2px 8px; border-radius: var(--card-radius); color: var(--danger-soft); border: 1px solid rgba(251,113,133,.28); background: var(--bg-surface),.38); font-size: 11px; }
+.review-tag { padding: 2px 8px; border-radius: var(--card-radius); color: var(--danger-soft); border: 1px solid rgba(251,113,133,.28); background: var(--bg-surface); font-size: 11px; }
 .drift-pill { display: inline-flex; min-width: 42px; justify-content: center; padding: 3px 10px; border-radius: var(--card-radius); border: 1px solid rgba(52,211,153,.24); color: var(--success); }
 .drift-pill.is-yellow { border-color: rgba(251,191,36,.28); color: var(--warning-soft); }
 .drift-pill.is-red { border-color: rgba(251,113,133,.28); color: var(--danger-soft); }
 .drift-pill.is-unknown { border-color: rgba(148,163,184,.24); color: var(--text-secondary); }
 .override-list { display: flex; gap: 6px; flex-wrap: wrap; }
-.override-chip { border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface),.82); color: var(--text-primary); border-radius: var(--card-radius); padding: 4px 8px; cursor: pointer; font-size: 12px; }
+.override-chip { border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface); color: var(--text-primary); border-radius: var(--card-radius); padding: 4px 8px; cursor: pointer; font-size: 12px; }
 html[data-theme='light'] .scanner-health-page { color: var(--text-primary); }
 html[data-theme='light'] .scanner-health-filter,
 html[data-theme='light'] .scanner-health-panel,

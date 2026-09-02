@@ -125,7 +125,7 @@ function formatDate(value: any) {
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: var(--card-radius);
   cursor: pointer;
-  background: var(--bg-surface), 0.78);
+  background: var(--bg-surface);
 }
 .session-card.is-active {
   border-color: var(--chart-1);
@@ -158,7 +158,7 @@ function formatDate(value: any) {
   color: var(--text-secondary);
   font-size: 12px;
   font-style: normal;
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
 }
 .drawer-empty {
   color: var(--text-secondary);

@@ -126,7 +126,7 @@ function fmt(value: any) {
   padding: 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.16);
-  background: var(--bg-surface), 0.78);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .summary-head {
@@ -157,7 +157,7 @@ function fmt(value: any) {
 .refresh-btn {
   flex: 0 0 auto;
   border: 1px solid rgba(125, 211, 252, 0.2);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   color: var(--text-primary);
   border-radius: var(--card-radius);
   padding: 6px 12px;
@@ -178,7 +178,7 @@ function fmt(value: any) {
   padding: 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.12);
-  background: var(--bg-surface), 0.62);
+  background: var(--bg-surface);
 }
 .metric-item span {
   display: block;
@@ -224,7 +224,7 @@ function fmt(value: any) {
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.14);
   border-left: 3px solid rgba(148, 163, 184, 0.7);
-  background: var(--bg-surface), 0.68);
+  background: var(--bg-surface);
 }
 .problem-head {
   display: flex;
@@ -284,11 +284,11 @@ function fmt(value: any) {
 .risk-critical,
 .risk-high {
   border-left-color: var(--danger-soft);
-  background: var(--bg-surface), 0.26);
+  background: var(--bg-surface);
 }
 .risk-warning {
   border-left-color: var(--warning);
-  background: var(--bg-surface), 0.26);
+  background: var(--bg-surface);
 }
 .risk-info {
   border-left-color: var(--chart-1);
@@ -308,7 +308,7 @@ function fmt(value: any) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.12);
-  background: var(--bg-surface), 0.58);
+  background: var(--bg-surface);
 }
 .summary-empty.small {
   padding: 8px;

@@ -133,18 +133,18 @@ function formatLabValue(value: any): string {
   font-size: 11px;
   padding: 4px 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   color: #ccefff;
   border: 1px solid rgba(80,199,255,.12);
 }
 .lab-item.lab-high {
   color: #ffb1bd;
-  background: var(--bg-surface),.92);
+  background: var(--bg-surface);
   border-color: rgba(248,113,113,.24);
 }
 .lab-item.lab-low {
   color: #8cdfff;
-  background: var(--bg-surface),.9);
+  background: var(--bg-surface);
   border-color: rgba(56,189,248,.24);
 }
 .acid-base-card {
@@ -152,7 +152,7 @@ function formatLabValue(value: any): string {
   padding: 10px 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.14);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .acid-base-head,
 .acid-base-summary,
@@ -190,7 +190,7 @@ function formatLabValue(value: any): string {
   font-size: 12px;
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.58);
+  background: var(--bg-surface);
   border: 1px dashed rgba(80,199,255,.14);
 }
 

@@ -169,7 +169,7 @@ onUnmounted(() => {
   overflow: hidden;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103, 232, 249, 0.18);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
   padding: 14px 14px 13px 18px;
   color: var(--text-primary);
@@ -197,7 +197,7 @@ onUnmounted(() => {
   padding: 0 9px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103, 232, 249, 0.16);
-  background: var(--bg-surface), 0.88);
+  background: var(--bg-surface);
   color: var(--accent);
   font-size: 11px;
   font-weight: 800;
@@ -207,7 +207,7 @@ onUnmounted(() => {
   height: 26px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.58);
+  background: var(--bg-surface);
   color: #b8d5e1;
   cursor: pointer;
 }
@@ -269,7 +269,7 @@ onUnmounted(() => {
   overflow: auto;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103, 232, 249, 0.16);
-  background: var(--bg-surface), 0.98);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
   padding: 12px;
 }
@@ -290,7 +290,7 @@ onUnmounted(() => {
   padding: 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103, 232, 249, 0.12);
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   cursor: pointer;
 }
 .pulse-history__item span { color: var(--accent); font-size: 10px; }
@@ -298,9 +298,7 @@ onUnmounted(() => {
 .pulse-history__item em { color: var(--text-secondary); font-size: 11px; font-style: normal; }
 html[data-theme='light'] .pulse-card {
   border-color: rgba(59, 130, 246, 0.2);
-  background:
-    var(--bg-surface), transparent 38%),
-    var(--bg-surface), rgba(248, 251, 255, 0.98));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
   color: var(--text-primary);
 }

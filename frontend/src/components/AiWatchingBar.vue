@@ -139,7 +139,7 @@ onUnmounted(() => {
   padding: 6px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
 }
@@ -151,7 +151,7 @@ onUnmounted(() => {
   padding: 0 8px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103, 232, 249, 0.16);
-  background: var(--bg-surface), 0.86);
+  background: var(--bg-surface);
   color: var(--accent);
   font-size: 11px;
   font-weight: 900;
@@ -191,7 +191,7 @@ onUnmounted(() => {
 .watching-panel {
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
   padding: 12px;
   box-shadow: var(--card-shadow);
 }
@@ -206,7 +206,7 @@ onUnmounted(() => {
   padding: 8px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.1);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
 }
 .watching-stats span {
   color: var(--accent);
@@ -228,7 +228,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 9px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   border: 1px solid rgba(80, 199, 255, 0.1);
 }
 .finding-headline {

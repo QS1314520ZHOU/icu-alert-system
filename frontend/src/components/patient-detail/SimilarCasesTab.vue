@@ -231,7 +231,7 @@ function outcomeTone(raw: any) {
   padding: 0 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.16);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
@@ -260,14 +260,14 @@ function outcomeTone(raw: any) {
   padding: 4px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
 }
 
 .profile-chip {
   gap: 8px;
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
 }
 
 .profile-chip-dot {
@@ -289,9 +289,7 @@ function outcomeTone(raw: any) {
 .case-card {
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background:
-    var(--bg-surface), rgba(34, 211, 238, 0) 30%),
-    var(--bg-surface) 0%, rgba(4, 12, 22, 0.98) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 
@@ -354,22 +352,22 @@ function outcomeTone(raw: any) {
 }
 
 .outcome-seg--green {
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: #7cf1d3;
 }
 
 .outcome-seg--yellow {
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: var(--warning);
 }
 
 .outcome-seg--red {
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: var(--danger-soft);
 }
 
 .outcome-seg--blue {
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: var(--accent);
 }
 
@@ -439,10 +437,10 @@ function outcomeTone(raw: any) {
   font-weight: 700;
 }
 
-.case-outcome-pill.tone-green { color: #6ee7b7; background: var(--bg-surface), 0.9); border-color: rgba(45, 212, 191, 0.22); }
-.case-outcome-pill.tone-yellow { color: var(--warning); background: var(--bg-surface), 0.9); border-color: rgba(251, 191, 36, 0.22); }
-.case-outcome-pill.tone-red { color: var(--danger-soft); background: var(--bg-surface), 0.9); border-color: rgba(251, 113, 133, 0.22); }
-.case-outcome-pill.tone-blue { color: var(--accent); background: var(--bg-surface), 0.9); border-color: rgba(56, 189, 248, 0.22); }
+.case-outcome-pill.tone-green { color: #6ee7b7; background: var(--bg-surface); border-color: rgba(45, 212, 191, 0.22); }
+.case-outcome-pill.tone-yellow { color: var(--warning); background: var(--bg-surface); border-color: rgba(251, 191, 36, 0.22); }
+.case-outcome-pill.tone-red { color: var(--danger-soft); background: var(--bg-surface); border-color: rgba(251, 113, 133, 0.22); }
+.case-outcome-pill.tone-blue { color: var(--accent); background: var(--bg-surface); border-color: rgba(56, 189, 248, 0.22); }
 
 .case-meta-row {
   display: flex;
@@ -455,7 +453,7 @@ function outcomeTone(raw: any) {
   padding: 10px 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
   text-align: right;
 }
 
@@ -487,12 +485,12 @@ function outcomeTone(raw: any) {
   line-height: 1.6;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.7);
+  background: var(--bg-surface);
   border: 1px solid rgba(71, 196, 255, 0.1);
 }
 
 .match-chip {
-  background: var(--bg-surface), 0.88);
+  background: var(--bg-surface);
   color: #b8f4ff;
 }
 
@@ -508,7 +506,7 @@ function outcomeTone(raw: any) {
   padding: 24px 16px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.12);
-  background: var(--bg-surface), 0.92);
+  background: var(--bg-surface);
   color: var(--accent);
   font-size: 13px;
   text-align: center;
@@ -521,7 +519,7 @@ function outcomeTone(raw: any) {
 .similar-soft-notice {
   color: var(--warning);
   border: 1px solid rgba(250, 204, 21, 0.2);
-  background: var(--bg-surface), 0.34);
+  background: var(--bg-surface);
 }
 
 .similar-soft-notice {
@@ -532,9 +530,7 @@ function outcomeTone(raw: any) {
 }
 }
 html[data-theme='light'] .similar-wrap {
-  background:
-    var(--bg-surface), rgba(59, 130, 246, 0) 34%),
-    var(--bg-surface) 0%, rgba(245,249,253,.98) 100%);
+  background: var(--bg-surface);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .similar-head,

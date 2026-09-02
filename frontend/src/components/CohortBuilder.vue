@@ -516,7 +516,7 @@ watch(
 .cb-mask {
   position: fixed;
   inset: 0;
-  background: var(--bg-surface), 0.6);
+  background: var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -558,7 +558,7 @@ watch(
   color: #9ceeff;
 }
 .cb-section {
-  background: var(--bg-surface), 0.58);
+  background: var(--bg-surface);
   border: 1px solid rgba(0, 210, 210, 0.15);
   border-radius: var(--card-radius);
   padding: 16px;
@@ -620,7 +620,7 @@ watch(
 .filter-row :deep(.ant-input-number),
 .filter-row :deep(.ant-input),
 .cb-footer :deep(.ant-input) {
-  background: var(--bg-surface), 0.3) !important;
+  background: var(--bg-surface) !important;
   border-color: rgba(0, 210, 210, 0.24) !important;
 }
 .filter-row :deep(.ant-select-selection-item),
@@ -665,7 +665,7 @@ watch(
   margin-bottom: 12px;
 }
 .demo-grid div {
-  background: var(--bg-surface), 0.2);
+  background: var(--bg-surface);
   border-radius: var(--card-radius);
   padding: 10px;
   color: var(--text-secondary);
@@ -699,7 +699,7 @@ watch(
   border-top: 1px solid var(--border-color);
   position: sticky;
   bottom: 0;
-  background: var(--bg-surface), 0.95);
+  background: var(--bg-surface);
   backdrop-filter: blur(6px);
   padding-bottom: 4px;
 }

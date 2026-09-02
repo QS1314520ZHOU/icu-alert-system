@@ -62,11 +62,11 @@ const opportunityChips = computed(() => { const readiness = oppAlert.value?.extr
 .mobility-pill { padding: 10px 14px; border-radius: var(--card-radius); background: rgba(10, 61, 87, 0.54); color: var(--accent); border: 1px solid rgba(125, 211, 252, 0.16); }
 .mobility-grid,.mobility-list { display: grid; gap: 12px; }
 .mobility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.mobility-card,.mobility-row { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125, 211, 252, 0.12); background: var(--bg-surface), var(--bg-surface)); }
+.mobility-card,.mobility-row { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(125, 211, 252, 0.12); background: var(--bg-surface); }
 .mobility-card-title { color: var(--text-primary); font-size: 15px; font-weight: 800; }
 .mobility-card-main,.mobility-row-main { margin-top: 10px; color: var(--text-primary); line-height: 1.6; }
 .mobility-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.mobility-chip { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface), 0.92); color: var(--text-primary); font-size: 12px; border: 1px solid rgba(125, 211, 252, 0.12); }
+.mobility-chip { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface); color: var(--text-primary); font-size: 12px; border: 1px solid rgba(125, 211, 252, 0.12); }
 .mobility-row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; align-items: start; }
 .mobility-row strong { color: var(--text-primary); }
 .mobility-empty { padding: 24px; text-align: center; color: var(--text-secondary); border: 1px dashed rgba(125, 211, 252, 0.2); border-radius: var(--card-radius); }
@@ -76,7 +76,7 @@ const opportunityChips = computed(() => { const readiness = oppAlert.value?.extr
 html[data-theme='light'] .mobility-title { color: var(--text-secondary); }
 html[data-theme='light'] .mobility-sub, html[data-theme='light'] .mobility-card-meta, html[data-theme='light'] .mobility-row-time { color: var(--text-secondary); }
 html[data-theme='light'] .mobility-pill { background: rgba(59,130,246,0.1); color: var(--brand); border-color: rgba(59,130,246,0.28); }
-html[data-theme='light'] .mobility-card, html[data-theme='light'] .mobility-row { background: var(--bg-surface), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .mobility-card, html[data-theme='light'] .mobility-row { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
 html[data-theme='light'] .mobility-card-title { color: var(--brand); }
 html[data-theme='light'] .mobility-card-main, html[data-theme='light'] .mobility-row-main { color: var(--text-secondary); }
 html[data-theme='light'] .mobility-chip { background: var(--bg-surface); color: var(--text-secondary); border-color: rgba(187,204,220,0.72); }

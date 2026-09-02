@@ -2258,9 +2258,7 @@ onMounted(() => {
   position: relative;
   isolation: isolate;
   padding: 16px 22px 24px;
-  background:
-    var(--bg-surface), rgba(34, 211, 238, 0) 28%),
-    var(--bg-surface);
+  background: var(--bg-surface);
   min-height: 100%;
   font-family: var(--app-display-font);
 }
@@ -2270,17 +2268,14 @@ onMounted(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    var(--bg-surface) 1px, transparent 1px),
-    var(--bg-surface) 1px, transparent 1px);
+  background: var(--bg-surface);
   background-size: 28px 28px;
   opacity: 0.26;
   z-index: -1;
 }
 
 .filter-card {
-  background:
-    var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(80, 199, 255, 0.16);
   margin-bottom: 16px;
   border-radius: var(--card-radius);
@@ -2308,7 +2303,7 @@ onMounted(() => {
 }
 
 .filter-card :deep(.ant-segmented) {
-  background: var(--bg-surface), 0.78);
+  background: var(--bg-surface);
   border: 1px solid rgba(80, 199, 255, 0.14);
 }
 
@@ -2318,13 +2313,13 @@ onMounted(() => {
 }
 
 .filter-card :deep(.ant-segmented-item-selected) {
-  background: var(--bg-surface) 0%, rgba(7, 63, 86, 0.98) 100%);
+  background: var(--bg-surface);
   color: var(--text-primary);
   box-shadow: var(--card-shadow);
 }
 
 .filter-card :deep(.ant-input-number) {
-  background: var(--bg-surface), 0.78);
+  background: var(--bg-surface);
   border-color: rgba(80, 199, 255, 0.14);
 }
 
@@ -2333,7 +2328,7 @@ onMounted(() => {
 }
 
 .filter-card :deep(.ant-btn) {
-  background: var(--bg-surface) 0%, rgba(7, 63, 86, 0.98) 100%);
+  background: var(--bg-surface);
   border-color: rgba(110, 231, 249, 0.28);
   color: var(--text-primary);
   font-weight: 600;
@@ -2346,7 +2341,7 @@ onMounted(() => {
   padding: 0 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(251, 113, 133, 0.22);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: #ffcad5;
   font-size: 12px;
   font-weight: 700;
@@ -2389,9 +2384,7 @@ onMounted(() => {
   margin-bottom: 16px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background:
-    var(--bg-surface), rgba(34, 211, 238, 0) 36%),
-    var(--bg-surface) 0%, rgba(4, 12, 22, 0.98) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 
@@ -2434,7 +2427,7 @@ onMounted(() => {
   padding: 10px 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.16);
-  background: var(--bg-surface), 0.76);
+  background: var(--bg-surface);
 }
 
 .hero-chip__label {
@@ -2479,9 +2472,7 @@ onMounted(() => {
   padding: 14px 16px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.14);
-  background:
-    var(--bg-surface), rgba(34, 211, 238, 0) 38%),
-    var(--bg-surface) 0%, rgba(4, 12, 22, 0.98) 100%);
+  background: var(--bg-surface);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -2518,9 +2509,7 @@ onMounted(() => {
   padding: 12px 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80, 199, 255, 0.14);
-  background:
-    var(--bg-surface), rgba(34, 211, 238, 0) 32%),
-    var(--bg-surface) 0%, rgba(4, 12, 22, 0.98) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 
@@ -2529,23 +2518,23 @@ onMounted(() => {
   position: absolute;
   inset: auto 0 0 0;
   height: 2px;
-  background: var(--bg-surface), rgba(34, 211, 238, 0.5), rgba(34, 211, 238, 0.08));
+  background: var(--bg-surface);
 }
 
 .kpi-tile--risk::after {
-  background: var(--bg-surface), rgba(251, 90, 122, 0.56), rgba(251, 90, 122, 0.08));
+  background: var(--bg-surface);
 }
 
 .kpi-tile--bundle::after {
-  background: var(--bg-surface), rgba(45, 212, 191, 0.56), rgba(45, 212, 191, 0.08));
+  background: var(--bg-surface);
 }
 
 .kpi-tile--weaning::after {
-  background: var(--bg-surface), rgba(59, 130, 246, 0.58), rgba(59, 130, 246, 0.08));
+  background: var(--bg-surface);
 }
 
 .kpi-tile--weaning-high::after {
-  background: var(--bg-surface), rgba(245, 158, 11, 0.58), rgba(245, 158, 11, 0.08));
+  background: var(--bg-surface);
 }
 
 .kpi-head {
@@ -2592,9 +2581,7 @@ onMounted(() => {
 }
 
 .panel {
-  background:
-    var(--bg-surface), rgba(34, 211, 238, 0) 30%),
-    var(--bg-surface) 0%, rgba(4, 12, 22, 0.98) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(80, 199, 255, 0.14);
   min-height: 420px;
   border-radius: var(--card-radius);
@@ -2604,7 +2591,7 @@ onMounted(() => {
 .panel :deep(.ant-card-head) {
   min-height: 50px;
   border-bottom: 1px solid rgba(80, 199, 255, 0.1);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
 }
 
 .panel :deep(.ant-card-head-title) {
@@ -2661,7 +2648,7 @@ onMounted(() => {
   min-height: 34px;
   padding: 6px 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.78);
+  background: var(--bg-surface);
   border: 1px solid rgba(79, 182, 219, 0.18);
 }
 
@@ -2698,9 +2685,7 @@ onMounted(() => {
 .focus-panel {
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.14);
-  background:
-    var(--bg-surface), rgba(34, 211, 238, 0) 38%),
-    var(--bg-surface) 0%, rgba(4, 12, 22, 0.98) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 
@@ -2764,7 +2749,7 @@ onMounted(() => {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103, 232, 249, 0.14);
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   color: #bdf7ff;
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -2781,7 +2766,7 @@ onMounted(() => {
   padding: 12px 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.12);
-  background: var(--bg-surface), 0.68);
+  background: var(--bg-surface);
 }
 
 .focus-item__label {
@@ -2812,7 +2797,7 @@ onMounted(() => {
   padding: 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.12);
-  background: var(--bg-surface), 0.68);
+  background: var(--bg-surface);
 }
 
 .insight-label {
@@ -2922,7 +2907,7 @@ onMounted(() => {
   height: 10px;
   border-radius: var(--card-radius);
   overflow: hidden;
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   border: 1px solid rgba(79, 182, 219, 0.14);
 }
 
@@ -2941,7 +2926,7 @@ onMounted(() => {
   padding: 12px 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.12);
-  background: var(--bg-surface), 0.68);
+  background: var(--bg-surface);
 }
 
 .insight-line__label {
@@ -2976,7 +2961,7 @@ onMounted(() => {
   padding: 12px 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.12);
-  background: var(--bg-surface), 0.68);
+  background: var(--bg-surface);
 }
 
 .summary-card--hero {
@@ -3023,7 +3008,7 @@ onMounted(() => {
   padding: 12px 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79, 182, 219, 0.12);
-  background: var(--bg-surface), 0.68);
+  background: var(--bg-surface);
 }
 
 .advice-card__index {
@@ -3031,7 +3016,7 @@ onMounted(() => {
   place-items: center;
   min-height: 40px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   border: 1px solid rgba(103, 232, 249, 0.14);
   color: var(--accent);
   font-size: 16px;
@@ -3134,7 +3119,7 @@ onMounted(() => {
 }
 
 .rank-table :deep(.ant-table-thead > tr > th) {
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   color: var(--accent);
   border-bottom-color: rgba(80, 199, 255, 0.1);
   font-size: 12px;
@@ -3150,7 +3135,7 @@ onMounted(() => {
 }
 
 .rank-table :deep(.ant-table-tbody > tr:hover > td) {
-  background: var(--bg-surface), 0.42) !important;
+  background: var(--bg-surface) !important;
 }
 
 .rank-table :deep(.ant-table-placeholder) {
@@ -3295,7 +3280,7 @@ html[data-theme='light'] .action-tile__meta {
   color: var(--brand);
 }
 html[data-theme='light'] .kpi-tile::after {
-  background: var(--bg-surface), rgba(37, 99, 235, 0.28), rgba(37, 99, 235, 0.04));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .focus-panel__badge,
 html[data-theme='light'] .hero-chip,

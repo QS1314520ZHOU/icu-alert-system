@@ -319,7 +319,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   min-height: 30px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.14);
   color: var(--text-primary);
   font-size: 12px;
@@ -351,7 +351,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   min-height: 24px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.1);
   color: var(--text-secondary);
   font-size: 11px;
@@ -565,7 +565,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   padding: 10px 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.16);
-  background: var(--bg-surface),.96);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
   color: var(--text-primary);
   pointer-events: none;
@@ -630,7 +630,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   width: 100%;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
   text-align: left;
   cursor: pointer;
@@ -680,7 +680,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 .device-map-card__empty {
   padding: 14px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   border: 1px dashed rgba(80,199,255,.16);
 }
 html[data-theme='light'] .device-map-card__title,

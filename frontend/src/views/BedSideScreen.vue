@@ -355,9 +355,7 @@ watch(patientId, async (nextId, prevId) => {
 /* ── 根容器 ────────────────────────────── */
 .bedside-screen {
   min-height: 100vh;
-  background:
-    var(--bg-surface), transparent 34%),
-    var(--bg-surface);
+  background: var(--bg-surface);
   color: #e8eaf0;
   font-family: var(--app-display-font);
   display: flex;
@@ -572,7 +570,7 @@ watch(patientId, async (nextId, prevId) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-surface),0.6);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
   padding: 8px 16px;
@@ -587,9 +585,7 @@ watch(patientId, async (nextId, prevId) => {
 }
 .speech-badge__icon { font-size: 1rem; font-weight: 800; }
 html[data-theme='light'] .bedside-screen {
-  background:
-    var(--bg-surface), transparent 34%),
-    var(--bg-surface);
+  background: var(--bg-surface);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .bedside-screen.level-critical { background: var(--danger-bg); }

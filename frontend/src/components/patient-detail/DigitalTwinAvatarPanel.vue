@@ -221,7 +221,7 @@ const metricBadges = computed(() => {
   padding: 10px 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
 }
 .twin-avatar-panel__metric.is-warning { border-color: rgba(245,158,11,.22); }
 .twin-avatar-panel__metric.is-high { border-color: rgba(249,115,22,.24); }

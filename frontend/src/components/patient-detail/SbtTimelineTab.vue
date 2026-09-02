@@ -229,7 +229,7 @@ function parsedRawContent(row: any) {
   padding: 0 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.16);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
@@ -244,9 +244,7 @@ function parsedRawContent(row: any) {
 .sbt-card {
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background:
-    var(--bg-surface), rgba(34,211,238,0) 30%),
-    var(--bg-surface) 0%, rgba(4,12,22,.98) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .sbt-kpi-card {
@@ -275,7 +273,7 @@ function parsedRawContent(row: any) {
   padding: 24px 16px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface),.92);
+  background: var(--bg-surface);
   color: var(--accent);
   font-size: 13px;
   text-align: center;
@@ -292,10 +290,7 @@ function parsedRawContent(row: any) {
   padding: 16px 18px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103,232,249,.2);
-  background:
-    var(--bg-surface), rgba(34,211,238,0) 34%),
-    var(--bg-surface), rgba(59,130,246,0) 42%),
-    var(--bg-surface) 0%, rgba(4,15,24,.99) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .sbt-decision-card__head {
@@ -325,7 +320,7 @@ function parsedRawContent(row: any) {
   padding: 0 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(103,232,249,.2);
-  background: var(--bg-surface),.8);
+  background: var(--bg-surface);
   color: #d8fbff;
   font-size: 11px;
   font-weight: 700;
@@ -346,7 +341,7 @@ function parsedRawContent(row: any) {
   padding: 12px 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface),.74);
+  background: var(--bg-surface);
 }
 .sbt-decision-card__label {
   color: var(--accent);
@@ -449,13 +444,13 @@ function parsedRawContent(row: any) {
 }
 .sbt-result-pill--passed { color: var(--sev-normal-text); background: var(--sev-normal-bg); border-color: var(--sev-normal-border); }
 .sbt-result-pill--failed { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
-.sbt-result-pill--documented { color: var(--accent); background: var(--bg-surface),.9); border-color: rgba(56,189,248,.22); }
+.sbt-result-pill--documented { color: var(--accent); background: var(--bg-surface); border-color: rgba(56,189,248,.22); }
 .sbt-score-box {
   min-width: 88px;
   padding: 8px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.14);
-  background: var(--bg-surface),.86);
+  background: var(--bg-surface);
   text-align: right;
 }
 .sbt-score-box span {
@@ -482,7 +477,7 @@ function parsedRawContent(row: any) {
   padding: 4px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79,182,219,.18);
-  background: var(--bg-surface),.82);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
 }
@@ -529,7 +524,7 @@ function parsedRawContent(row: any) {
   padding: 12px 14px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
 }
 .sbt-raw-section {
   display: grid;
@@ -551,15 +546,13 @@ function parsedRawContent(row: any) {
   padding: 6px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, 0.14);
-  background: var(--bg-surface), 0.92);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
   line-height: 1.4;
 }
 html[data-theme='light'] .sbt-wrap {
-  background:
-    var(--bg-surface), rgba(59, 130, 246, 0) 34%),
-    var(--bg-surface) 0%, rgba(245,249,253,.98) 100%);
+  background: var(--bg-surface);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .sbt-head,
@@ -606,7 +599,7 @@ html[data-theme='light'] .sbt-kpi-card,
 html[data-theme='light'] .sbt-card,
 html[data-theme='light'] .sbt-decision-card,
 html[data-theme='light'] .sbt-raw-card {
-  background: var(--bg-surface), rgba(242,247,252,0.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .sbt-empty {

@@ -149,7 +149,7 @@ const summaryCards = computed(() => {
 .summary-card {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
 }
 .summary-card span,
@@ -171,7 +171,7 @@ const summaryCards = computed(() => {
 .chart-panel {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
   box-shadow: var(--card-shadow);
 }
@@ -183,7 +183,7 @@ const summaryCards = computed(() => {
   font-size: 12px;
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.58);
+  background: var(--bg-surface);
   border: 1px dashed rgba(80,199,255,.14);
 }
 .trend-tab :deep(.ant-radio-group) {
@@ -193,7 +193,7 @@ const summaryCards = computed(() => {
 .trend-tab :deep(.ant-radio-button-wrapper) {
   border-radius: 6px !important;
   border: 1px solid rgba(80,199,255,.14) !important;
-  background: var(--bg-surface),.78) !important;
+  background: var(--bg-surface) !important;
   color: var(--accent) !important;
 }
 .trend-tab :deep(.ant-radio-button-wrapper::before) {
@@ -206,7 +206,7 @@ const summaryCards = computed(() => {
   font-weight: 600;
 }
 .trend-tab :deep(.ant-btn) {
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   border-color: rgba(80,199,255,.14);
   color: var(--text-primary);
 }
@@ -227,9 +227,7 @@ html[data-theme='light'] .summary-card small,
 html[data-theme='light'] .trend-tab .tab-empty { color: #5f7690; }
 html[data-theme='light'] .summary-card,
 html[data-theme='light'] .trend-tab .chart-panel {
-  background:
-    var(--bg-surface), rgba(56,189,248,0) 40%),
-    var(--bg-surface) 0%, rgba(243,248,253,.98) 100%);
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,.72);
   box-shadow: var(--card-shadow);
 }
@@ -240,7 +238,7 @@ html[data-theme='light'] .trend-tab .tab-empty {
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper) {
   border-color: rgba(187,204,220,.72) !important;
-  background: var(--bg-surface), rgba(239,245,250,.98)) !important;
+  background: var(--bg-surface) !important;
   color: #56718d !important;
   box-shadow: var(--card-shadow);
 }
@@ -251,7 +249,7 @@ html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper-checked) {
   font-weight: 600;
 }
 html[data-theme='light'] .trend-tab :deep(.ant-btn) {
-  background: var(--bg-surface), rgba(241,246,251,.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,.72);
   color: var(--text-secondary);
   box-shadow: var(--card-shadow);

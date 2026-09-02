@@ -130,7 +130,7 @@ const organTooltips = computed(() =>
   gap: 12px;
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.14);
   box-shadow: var(--card-shadow);
 }
@@ -172,7 +172,7 @@ const organTooltips = computed(() =>
   font-size: 12px;
 }
 .body-map-panel__pill {
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.14);
   color: var(--text-primary);
 }
@@ -192,7 +192,7 @@ const organTooltips = computed(() =>
   width: 100%;
   text-align: left;
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface), 0.7);
+  background: var(--bg-surface);
   border-radius: var(--card-radius);
   min-height: 82px;
   padding: 11px 12px;
@@ -215,7 +215,7 @@ const organTooltips = computed(() =>
   padding: 9px 12px;
   border-radius: var(--card-radius);
   border: 1px dashed rgba(80,199,255,.14);
-  background: var(--bg-surface), 0.5);
+  background: var(--bg-surface);
 }
 .body-map-panel__row-meta,
 .body-map-panel__hint {
@@ -225,7 +225,7 @@ const organTooltips = computed(() =>
 }
 .body-map-panel__badge {
   border: 1px solid rgba(80,199,255,.14);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
   color: var(--text-primary);
 }
 .body-map-panel__badge.is-warning { color: var(--warning-soft); border-color: rgba(245,158,11,.22); }
@@ -233,7 +233,7 @@ const organTooltips = computed(() =>
 .body-map-panel__badge.is-critical { color: var(--danger-soft); border-color: rgba(244,63,94,.24); }
 .body-map-panel__action {
   border: 1px solid rgba(110,231,249,.28);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
 }
@@ -263,7 +263,7 @@ const organTooltips = computed(() =>
   }
 }
 html[data-theme='light'] .body-map-panel {
-  background: var(--bg-surface) 0%, rgba(239,246,250,.98) 100%);
+  background: var(--bg-surface);
   border-color: rgba(130, 170, 194, 0.24);
 }
 html[data-theme='light'] .body-map-panel__title,
@@ -287,7 +287,7 @@ html[data-theme='light'] .body-map-panel__actions {
   border-color: rgba(130, 170, 194, 0.32);
 }
 html[data-theme='light'] .body-map-panel__action {
-  background: var(--bg-surface) 0%, rgba(29,78,216,.98) 100%);
+  background: var(--bg-surface);
   border-color: rgba(59,130,246,.28);
   color: var(--text-primary);
 }

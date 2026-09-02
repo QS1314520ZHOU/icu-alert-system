@@ -96,7 +96,7 @@ onMounted(async () => {
   padding: 22px;
   border: 1px solid rgba(125, 211, 252, 0.16);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.82);
+  background: var(--bg-surface);
 }
 .redirect-copy {
   display: grid;
@@ -131,7 +131,7 @@ onMounted(async () => {
 }
 .quick-card.primary {
   border-color: rgba(34, 211, 238, 0.42);
-  background: var(--bg-surface), rgba(19, 56, 80, 0.78));
+  background: var(--bg-surface);
 }
 .quick-card b {
   font-size: 18px;
@@ -143,9 +143,7 @@ onMounted(async () => {
 }
 
 html[data-theme='light'] .home-redirect {
-  background:
-    var(--bg-surface), transparent 28%),
-    var(--bg-surface), transparent 30%);
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .redirect-panel {
   background: rgba(255, 255, 255, 0.96);

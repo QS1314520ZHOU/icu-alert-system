@@ -87,19 +87,19 @@ const showOpsCards = false
 </script>
 
 <style scoped>
-.workbench-shell { display: grid; gap: 12px; padding: 14px; border-radius: var(--card-radius); border: 1px solid rgba(71, 145, 191, 0.18); background: var(--bg-surface), transparent 36%), var(--bg-surface) 0%, rgba(6, 17, 30, 0.98) 58%, rgba(4, 12, 24, 0.99) 100%); box-shadow: var(--card-shadow); }
+.workbench-shell { display: grid; gap: 12px; padding: 14px; border-radius: var(--card-radius); border: 1px solid rgba(71, 145, 191, 0.18); background: var(--bg-surface); box-shadow: var(--card-shadow); }
 .workbench-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .workbench-kicker,.ops-kicker { color: var(--accent); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; }
 .workbench-title { margin: 4px 0 0; color: var(--text-primary); font-size: 18px; font-weight: 800; }
 .workbench-sub { display: none; }
-.runtime-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--card-radius); border: 1px solid rgba(93, 226, 231, 0.2); color: #dffcff; background: var(--bg-surface), 0.54); }
+.runtime-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--card-radius); border: 1px solid rgba(93, 226, 231, 0.2); color: #dffcff; background: var(--bg-surface); }
 .runtime-pill-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: var(--card-shadow); }
 .runtime-pill--green { color: var(--chart-2); }
 .runtime-pill--yellow { color: var(--warning); }
 .runtime-pill--red { color: var(--danger); }
 .runtime-pill--cyan { color: var(--accent); }
 .workbench-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.topic-card { padding: 12px; border-radius: var(--card-radius); border: 1px solid rgba(110, 231, 249, 0.12); background: var(--bg-surface), var(--bg-surface)); text-align: left; color: inherit; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.topic-card { padding: 12px; border-radius: var(--card-radius); border: 1px solid rgba(110, 231, 249, 0.12); background: var(--bg-surface); text-align: left; color: inherit; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .topic-card:hover { transform: translateY(-2px); border-color: rgba(125, 211, 252, 0.34); box-shadow: var(--card-shadow); }
 .topic-card--emerald { border-color: rgba(52, 211, 153, 0.2); }
 .topic-card--amber { border-color: rgba(251, 191, 36, 0.2); }
@@ -113,16 +113,14 @@ const showOpsCards = false
 .topic-card-main,.ops-main { margin-top: 8px; color: var(--text-primary); font-size: 12px; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .topic-card-count { padding: 4px 8px; border-radius: var(--card-radius); background: rgba(10, 61, 87, 0.54); color: var(--accent); font-size: 11px; white-space: nowrap; }
 .topic-chip-row,.ops-chip-row,.ops-bullet-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.topic-chip,.ops-chip,.ops-bullet { min-height: 24px; max-width: 100%; padding: 0 9px; border-radius: var(--card-radius); border: 1px solid rgba(125, 211, 252, 0.14); color: var(--text-primary); background: var(--bg-surface), 0.92); font-size: 11px; line-height: 1.3; display: inline-flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topic-chip,.ops-chip,.ops-bullet { min-height: 24px; max-width: 100%; padding: 0 9px; border-radius: var(--card-radius); border: 1px solid rgba(125, 211, 252, 0.14); color: var(--text-primary); background: var(--bg-surface); font-size: 11px; line-height: 1.3; display: inline-flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ops-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.ops-card { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(93, 226, 231, 0.12); background: var(--bg-surface), var(--bg-surface)); }
+.ops-card { padding: 16px; border-radius: var(--card-radius); border: 1px solid rgba(93, 226, 231, 0.12); background: var(--bg-surface); }
 .ops-card strong { color: var(--text-primary); font-size: 15px; }
 .ops-link { margin-top: 14px; border: none; background: transparent; color: var(--chart-1); cursor: pointer; padding: 0; font-size: 13px; letter-spacing: .04em; }
 html[data-theme='light'] .workbench-shell {
   border-color: rgba(187, 204, 220, 0.72);
-  background:
-    var(--bg-surface), transparent 38%),
-    var(--bg-surface) 0%, rgba(245, 249, 253, 0.98) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .workbench-kicker,
@@ -159,7 +157,7 @@ html[data-theme='light'] .ops-link { color: var(--brand); }
 
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .workbench-shell {
-  background: var(--bg-surface), rgba(242,247,252,0.98));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .runtime-pill {
   background: rgba(243,248,252,0.96);
@@ -168,7 +166,7 @@ html[data-theme='light'] .runtime-pill {
 }
 html[data-theme='light'] .topic-card,
 html[data-theme='light'] .ops-card {
-  background: var(--bg-surface), rgba(242,247,252,0.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .topic-card-title,

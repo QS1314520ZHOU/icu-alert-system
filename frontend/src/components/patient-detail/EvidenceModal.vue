@@ -91,14 +91,12 @@ const emit = defineEmits<{
 .evidence-panel {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   padding: 14px;
   box-shadow: var(--card-shadow);
 }
 .evidence-panel--overview {
-  background:
-    var(--bg-surface), rgba(34,211,238,0) 32%),
-    var(--bg-surface) 0%, rgba(6,17,29,.88) 100%);
+  background: var(--bg-surface);
 }
 .panel-title {
   margin-bottom: 10px;
@@ -121,7 +119,7 @@ const emit = defineEmits<{
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.14);
-  background: var(--bg-surface),.86);
+  background: var(--bg-surface);
   color: var(--accent);
   font-size: 11px;
   letter-spacing: .08em;
@@ -135,7 +133,7 @@ const emit = defineEmits<{
 }
 .evidence-chip--warn {
   color: var(--warning);
-  background: var(--bg-surface),.5);
+  background: var(--bg-surface);
   border-color: rgba(245,158,11,.22);
 }
 .evidence-meta-grid {
@@ -166,7 +164,7 @@ const emit = defineEmits<{
   display: inline-block;
   padding: 6px 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.9);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
   color: #c6f6ff;
   font-size: 11px;
@@ -179,7 +177,7 @@ const emit = defineEmits<{
   line-height: 1.75;
   max-height: 52vh;
   overflow: auto;
-  background: var(--bg-surface),.9);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
   padding: 16px;
@@ -189,7 +187,7 @@ const emit = defineEmits<{
 .evidence-modal-related {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   padding: 14px;
 }
 .ai-risk-evidence-list {
@@ -217,7 +215,7 @@ const emit = defineEmits<{
 
 /* Light mode overrides */
 html[data-theme='light'] .evidence-panel { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
-html[data-theme='light'] .evidence-panel--overview { background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%); }
+html[data-theme='light'] .evidence-panel--overview { background: var(--bg-surface); }
 html[data-theme='light'] .panel-title { color: var(--brand); }
 html[data-theme='light'] .evidence-chip { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
 html[data-theme='light'] .evidence-chip--soft { color: var(--text-secondary); }

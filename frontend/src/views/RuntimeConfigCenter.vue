@@ -356,7 +356,7 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 
 <style scoped>
 .runtime-page { display: grid; gap: 12px; padding: 14px; font-family: var(--app-display-font); }
-.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface),.92); border-radius: var(--card-radius); }
+.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid rgba(125,211,252,.14); background: var(--bg-surface); border-radius: var(--card-radius); }
 .runtime-header { display: flex; justify-content: space-between; gap: 16px; padding: 16px; }
 .runtime-header span, .runtime-header p, .panel-toolbar span, .metric-card span, .table-row span, .sub-panel h3 { color: var(--text-secondary); }
 .runtime-header h1 { margin: 2px 0; color: var(--text-primary); font-size: 26px; }
@@ -372,7 +372,7 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .panel-toolbar h2, .panel-toolbar h3 { margin: 0; color: var(--text-primary); }
 .panel-toolbar.slim { margin-top: 4px; }
 .metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface),.26); padding: 12px; }
+.metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface); padding: 12px; }
 
 /* 配置完整度环 */
 .overview-ring-row {
@@ -407,11 +407,11 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 }
 .metric-card strong { display: block; color: var(--text-primary); font-size: 24px; }
 .overview-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
-.overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface),.22); color: var(--text-primary); padding: 12px; cursor: pointer; }
+.overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: var(--card-radius); background: var(--bg-surface); color: var(--text-primary); padding: 12px; cursor: pointer; }
 .overview-actions span, .chip-grid small { display: block; color: var(--text-secondary); font-size: 11px; }
 .dense-table { display: grid; gap: 6px; overflow-x: auto; }
-.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: var(--card-radius); background: var(--bg-surface),.22); border: 1px solid rgba(125,211,252,.08); color: var(--text-primary); }
-.table-head { color: var(--accent); font-weight: 900; background: var(--bg-surface),.45); }
+.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: var(--card-radius); background: var(--bg-surface); border: 1px solid rgba(125,211,252,.08); color: var(--text-primary); }
+.table-head { color: var(--accent); font-weight: 900; background: var(--bg-surface); }
 .module-table .table-row { grid-template-columns: 90px 220px 1fr; }
 .provider-table .table-row { grid-template-columns: 70px 210px 130px 180px 1fr 90px 80px; }
 .threshold-table .table-row { grid-template-columns: 1.2fr .8fr 1fr .8fr 1fr 1fr .8fr; }
@@ -425,7 +425,7 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .filter-bar { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip-grid button { min-height: 32px; padding: 0 10px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.16); background: var(--bg-surface),.3); color: var(--text-primary); cursor: pointer; }
+.chip-grid button { min-height: 32px; padding: 0 10px; border-radius: var(--card-radius); border: 1px solid rgba(125,211,252,.16); background: var(--bg-surface); color: var(--text-primary); cursor: pointer; }
 .chip-grid button.active { background: rgba(34,211,238,.16); border-color: rgba(103,232,249,.38); color: var(--text-primary); }
 .stack { display: grid; gap: 6px; }
 .condition-edit { display: grid; grid-template-columns: 82px 1fr; gap: 6px; }
