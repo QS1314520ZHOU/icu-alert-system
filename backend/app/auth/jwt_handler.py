@@ -16,14 +16,19 @@ from app.auth.models import User, UserRole, TokenPayload
 
 logger = logging.getLogger("icu-auth")
 
-# 配置：从环境变量读取，未配置时拒绝启动
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "").strip()
-if not SECRET_KEY:
-    raise RuntimeError(
-        "JWT_SECRET_KEY 环境变量未配置。"
-        "请在 .env 文件中设置一个高强度密钥（至少 32 字符）。"
-    )
+# 配置：从环境变量读取，未配置时延迟报错（允许 import 阶段无 .env）
+_SECRET_KEY_RAW = os.environ.get("JWT_SECRET_KEY", "").strip()
 ALGORITHM = "HS256"
+
+
+def _get_secret_key() -> str:
+    """延迟校验 JWT_SECRET_KEY，首次使用时才报错。"""
+    if not _SECRET_KEY_RAW:
+        raise RuntimeError(
+            "JWT_SECRET_KEY 环境变量未配置。"
+            "请在 .env 文件中设置一个高强度密钥（至少 32 字符）。"
+        )
+    return _SECRET_KEY_RAW
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
@@ -56,7 +61,7 @@ def create_access_token(
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire, "type": "access"})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, _get_secret_key(), algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -72,14 +77,14 @@ def create_refresh_token(
         expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
     to_encode.update({"exp": expire, "type": "refresh"})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, _get_secret_key(), algorithm=ALGORITHM)
     return encoded_jwt
 
 
 def verify_token(token: str) -> Optional[TokenPayload]:
     """验证令牌。"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _get_secret_key(), algorithms=[ALGORITHM])
         return TokenPayload(**payload)
     except JWTError:
         return None
