@@ -742,14 +742,14 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 
 <style scoped>
 .twin-shell { display: grid; gap: 16px; }
-.twin-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; padding: 18px; border-radius: var(--card-radius); border: 1px solid rgba(71,145,191,.18); background: var(--bg-surface), transparent 36%), var(--bg-surface) 0%, rgba(6,17,30,.98) 58%, rgba(4,12,24,.99) 100%); }
+.twin-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; padding: 18px; border-radius: var(--card-radius); border: 1px solid rgba(71,145,191,.18); background: var(--bg-surface); }
 .twin-kicker { color: var(--accent); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; }
 .twin-title { margin: 6px 0 0; color: var(--text-primary); font-size: 24px; font-weight: 800; }
 .twin-sub { margin: 8px 0 0; color: #8ab5ca; font-size: 13px; max-width: 760px; }
-.twin-refresh { border: 1px solid rgba(110,231,249,.24); background: var(--bg-surface),.84); color: var(--text-primary); border-radius: var(--card-radius); padding: 10px 16px; cursor: pointer; }
+.twin-refresh { border: 1px solid rgba(110,231,249,.24); background: var(--bg-surface); color: var(--text-primary); border-radius: var(--card-radius); padding: 10px 16px; cursor: pointer; }
 .twin-refresh:disabled { opacity: .6; cursor: default; }
 .twin-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.twin-kpi,.loop-card,.twin-card { border-radius: var(--card-radius); border: 1px solid rgba(81,163,201,.16); background: var(--bg-surface), var(--bg-surface)); box-shadow: var(--card-shadow); }
+.twin-kpi,.loop-card,.twin-card { border-radius: var(--card-radius); border: 1px solid rgba(81,163,201,.16); background: var(--bg-surface); box-shadow: var(--card-shadow); }
 .twin-kpi { padding: 16px; display: grid; gap: 6px; }
 .twin-kpi span,.loop-label,.card-sub,.intervention-meta,.causal-meta,.mdt-meta { color: #7ea8bc; font-size: 12px; }
 .twin-kpi strong,.loop-value,.card-title,.intervention-title,.mdt-title { color: var(--text-primary); }
@@ -769,7 +769,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .risk-badge.is-medium,.status-pill.is-pending { background: rgba(56,189,248,.16); color: var(--chart-1); }
 .risk-badge.is-low,.status-pill.is-dismissed { background: rgba(52,211,153,.16); color: var(--success); }
 .curve-list,.intervention-list,.causal-list,.mdt-grid,.conflict-list,.causal-guidelines { display: grid; gap: 10px; }
-.curve-row,.causal-item,.mdt-item,.intervention-item,.conflict-item { padding: 12px; border-radius: var(--card-radius); background: var(--bg-surface),.8); border: 1px solid rgba(77,152,188,.12); }
+.curve-row,.causal-item,.mdt-item,.intervention-item,.conflict-item { padding: 12px; border-radius: var(--card-radius); background: var(--bg-surface); border: 1px solid rgba(77,152,188,.12); }
 .curve-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; color: #d8eff8; font-size: 12px; }
 .curve-bar { height: 8px; border-radius: var(--card-radius); background: rgba(43,85,108,.36); overflow: hidden; }
 .curve-fill { height: 100%; border-radius: inherit; background: var(--bg-surface); }
@@ -790,7 +790,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .timeline-dot--accent { background: var(--chart-2); }
 .timeline-dot--info { background: var(--brand); }
 .timeline-dot--neutral { background: var(--text-secondary); }
-.timeline-line { position: absolute; top: 44px; right: 17px; bottom: -12px; width: 1px; background: var(--bg-surface), rgba(110,231,249,0)); }
+.timeline-line { position: absolute; top: 44px; right: 17px; bottom: -12px; width: 1px; background: var(--bg-surface); }
 .timeline-card { display: grid; gap: 8px; }
 .timeline-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .timeline-card-title { color: #edf9ff; font-size: 14px; font-weight: 700; line-height: 1.5; }
@@ -804,7 +804,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .bullet-list { margin: 0; padding-left: 18px; color: #d7edf7; display: grid; gap: 8px; }
 .bullet-list.compact { gap: 6px; }
 .summary-panel,.empty-panel,.error-panel,.effect-box { padding: 12px 14px; border-radius: var(--card-radius); line-height: 1.75; }
-.summary-panel,.empty-panel { background: var(--bg-surface),.78); color: #d5edf8; border: 1px solid rgba(79,153,191,.12); box-shadow: var(--card-shadow); }
+.summary-panel,.empty-panel { background: var(--bg-surface); color: #d5edf8; border: 1px solid rgba(79,153,191,.12); box-shadow: var(--card-shadow); }
 .conflict-title { color: var(--warning-soft); font-size: 13px; font-weight: 700; }
 .conflict-meta { margin-top: 6px; color: var(--chart-1); font-size: 12px; line-height: 1.6; }
 .conflict-title { color: var(--warning-soft); font-size: 13px; font-weight: 700; }
@@ -815,9 +815,9 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .conflict-meta { margin-top: 6px; color: var(--chart-1); font-size: 12px; line-height: 1.6; }
 .chip-row,.action-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .info-chip,.cause-chip,.mini-btn { border-radius: var(--card-radius); min-height: 30px; padding: 0 12px; font-size: 12px; line-height: 1.4; display: inline-flex; align-items: center; }
-.info-chip { background: var(--bg-surface),.92); color: var(--text-primary); border: 1px solid rgba(125,211,252,.14); }
-.info-chip--muted { opacity: .72; background: var(--bg-surface),.55); color: #8bb5c7; }
-.cause-chip,.mini-btn { cursor: pointer; border: 1px solid rgba(81,163,201,.16); background: var(--bg-surface),.86); color: var(--text-primary); }
+.info-chip { background: var(--bg-surface); color: var(--text-primary); border: 1px solid rgba(125,211,252,.14); }
+.info-chip--muted { opacity: .72; background: var(--bg-surface); color: #8bb5c7; }
+.cause-chip,.mini-btn { cursor: pointer; border: 1px solid rgba(81,163,201,.16); background: var(--bg-surface); color: var(--text-primary); }
 .cause-chip.active { background: rgba(34,211,238,.16); border-color: rgba(110,231,249,.3); box-shadow: var(--card-shadow); }
 .mini-btn--soft { background: rgba(20,184,166,.14); }
 .mini-btn--ghost { background: rgba(244,63,94,.12); }
@@ -828,7 +828,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .mdt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .error-panel { background: rgba(127,29,29,.22); border: 1px solid rgba(248,113,113,.26); color: var(--danger-soft); }
 .whatif-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
-.whatif-chart,.whatif-drawer { display: grid; gap: 12px; padding: 12px; border-radius: var(--card-radius); background: var(--bg-surface),.78); border: 1px solid rgba(79,153,191,.12); }
+.whatif-chart,.whatif-drawer { display: grid; gap: 12px; padding: 12px; border-radius: var(--card-radius); background: var(--bg-surface); border: 1px solid rgba(79,153,191,.12); }
 .whatif-axis,.whatif-legend { display: flex; justify-content: space-between; gap: 10px; color: var(--text-secondary); font-size: 11px; }
 .whatif-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .legend-sample { display: inline-block; width: 28px; height: 0; border-radius: 999px; }
@@ -840,7 +840,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 .whatif-track i,.whatif-track .band { position: absolute; left: 0; top: 50%; display: block; transform: translateY(-50%); pointer-events: none; }
 .actual-line { height: 3px; border-radius: var(--card-radius); background: var(--bg-surface); }
 .baseline-line { height: 0; border-top: 2px dashed #15558D; }
-.whatif-line { height: 3px; border-radius: var(--card-radius); background: repeating-var(--bg-surface); }
+.whatif-line { height: 3px; border-radius: var(--card-radius); background: repeating-linear-gradient(var(--bg-surface), var(--bg-surface)); }
 .whatif-line.degraded { border-top-color: var(--text-secondary); filter: grayscale(1); }
 .band { height: 18px; border-radius: var(--card-radius); opacity: .22; }
 .band80 { background: var(--danger); }
@@ -854,7 +854,7 @@ watch(() => props.patientId, () => { digitalTwin.value = null; riskForecast.valu
 /* Light mode overrides */
 html[data-theme='light'] .twin-sub { color: var(--text-secondary); }
 html[data-theme='light'] .twin-refresh { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); color: var(--text-secondary); }
-html[data-theme='light'] .twin-kpi, html[data-theme='light'] .loop-card, html[data-theme='light'] .twin-card { background: var(--bg-surface), rgba(242,247,252,0.98)); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .twin-kpi, html[data-theme='light'] .loop-card, html[data-theme='light'] .twin-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
 html[data-theme='light'] .twin-kpi span, html[data-theme='light'] .loop-label, html[data-theme='light'] .card-sub, html[data-theme='light'] .intervention-meta, html[data-theme='light'] .causal-meta, html[data-theme='light'] .mdt-meta { color: var(--text-secondary); }
 html[data-theme='light'] .twin-kpi strong, html[data-theme='light'] .loop-value, html[data-theme='light'] .card-title, html[data-theme='light'] .intervention-title, html[data-theme='light'] .mdt-title { color: var(--text-secondary); }
 html[data-theme='light'] .loop-step { background: rgba(59,130,246,0.1); color: var(--brand); }
@@ -870,7 +870,7 @@ html[data-theme='light'] .overview-item span, html[data-theme='light'] .overview
 html[data-theme='light'] .overview-item strong { color: var(--text-secondary); }
 html[data-theme='light'] .timeline-time { color: var(--text-secondary); }
 html[data-theme='light'] .timeline-dot { border-color: rgba(255,255,255,0.8); }
-html[data-theme='light'] .timeline-line { background: var(--bg-surface), rgba(59,130,246,0)); }
+html[data-theme='light'] .timeline-line { background: var(--bg-surface); }
 html[data-theme='light'] .timeline-card-title { color: var(--text-secondary); }
 html[data-theme='light'] .timeline-card-sub, html[data-theme='light'] .timeline-card-meta { color: var(--text-secondary); }
 html[data-theme='light'] .timeline-source.is-neutral { background: rgba(187,204,220,0.3); color: var(--text-secondary); }
@@ -890,7 +890,7 @@ html[data-theme='light'] .error-panel { background: rgba(254,226,226,0.8); borde
 
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .twin-head {
-  background: var(--bg-surface), rgba(242,247,252,0.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .twin-kicker,

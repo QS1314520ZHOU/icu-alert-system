@@ -340,7 +340,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface), .78);
+  background: var(--bg-surface);
   color: var(--text-primary);
 }
 
@@ -349,7 +349,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   padding: 0 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface), .78);
+  background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
 }
@@ -363,7 +363,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   padding: 20px;
   text-align: center;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .58);
+  background: var(--bg-surface);
   color: var(--text-secondary);
 }
 
@@ -380,7 +380,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 .overview-card {
   padding: 16px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
 }
 
@@ -416,7 +416,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .section {
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
   padding: 16px;
@@ -563,13 +563,13 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   align-items: center;
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .overdue-item:hover {
-  background: var(--bg-surface), .9);
+  background: var(--bg-surface);
 }
 
 .overdue-item.severity-critical {
@@ -634,7 +634,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 .comparison-item {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .comparison-header {

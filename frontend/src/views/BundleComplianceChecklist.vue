@@ -170,7 +170,7 @@ button {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface), .78);
+  background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
   font-size: 12px;
@@ -182,7 +182,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   padding: 16px;
   text-align: center;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .58);
+  background: var(--bg-surface);
   color: var(--text-secondary);
 }
 
@@ -197,7 +197,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .bundle-card {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
   cursor: pointer;
   transition: border-color .2s;
@@ -245,7 +245,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .bundle-detail {
-  background: var(--bg-surface), .74);
+  background: var(--bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
   border-radius: var(--card-radius);
   padding: 12px;
@@ -272,7 +272,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   align-items: center;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 
 .item-row.green { border-left: 3px solid #1A9C5B; }
@@ -326,7 +326,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   justify-content: space-between;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .4);
+  background: var(--bg-surface);
 }
 
 .bundle-note span {

@@ -274,7 +274,7 @@ const byDept = computed(() =>
     : patients.value.filter(p => p.dept === curDept.value)
 )
 
-const filteredPatients = computed(() => byDept.value)
+const filteredPatients = computed(() => showList.value)
 
 const quickFilters = [
   { key: 'all', label: '全部' },
@@ -429,11 +429,17 @@ const severitySections = computed(() => {
   ].filter((section) => section.rows.length > 0)
 })
 
-/* ── 统计 ── */
-const criticalCount = computed(() => byDept.value.filter(p => p.alertLevel === 'critical').length)
-const warningCount = computed(() => byDept.value.filter(p => ['warning', 'high'].includes(p.alertLevel)).length)
+/* ── 统计（不含 alert 筛选，反映其他筛选条件下的各级别数量） ── */
+const filteredByOther = computed(() => {
+  let ls = byDept.value
+  if (rescueOnly.value) ls = ls.filter(p => p.hasRescueRisk)
+  if (tagFilter.value) ls = ls.filter(p => (p.clinicalTags || []).some((t: any) => t.tag === tagFilter.value))
+  return ls
+})
+const criticalCount = computed(() => filteredByOther.value.filter(p => p.alertLevel === 'critical').length)
+const warningCount = computed(() => filteredByOther.value.filter(p => ['warning', 'high'].includes(p.alertLevel)).length)
 const normalCount = computed(() =>
-  byDept.value.filter(p => p.alertLevel === 'normal').length
+  filteredByOther.value.filter(p => p.alertLevel === 'normal').length
 )
 
 
@@ -907,10 +913,15 @@ watch(
   { immediate: true }
 )
 
-watch([alertFilter, tagFilter, rescueOnly, domainFilter, priorityFilter], () => {
+// 服务端筛选：重新加载
+watch([domainFilter, priorityFilter], () => {
   syncOverviewQuery()
-  // 域/优先级变化时重新加载
   load({ silent: false })
+})
+
+// 客户端筛选：只同步 URL，不重新加载
+watch([alertFilter, tagFilter, rescueOnly], () => {
+  syncOverviewQuery()
 })
 
 onMounted(() => { iv = setInterval(() => load({ silent: true }), 60000) })

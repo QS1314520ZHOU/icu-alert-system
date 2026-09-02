@@ -230,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { getPhenotypeRules, getDiseases, type PhenotypeRule, type Disease } from '../../api/diseaseCenter'
 
@@ -410,7 +410,10 @@ async function loadRules() {
   error.value = null
 
   try {
-    const { data } = await getPhenotypeRules({ disease_id: selectedDisease.value || undefined })
+    const { data } = await getPhenotypeRules({
+      disease_id: selectedDisease.value || undefined,
+      status: selectedStatus.value || undefined,
+    })
     rules.value = Array.isArray(data) ? data : []
   } catch (e: any) {
     error.value = e?.message || '获取表型规则失败，请稍后重试'
@@ -431,6 +434,11 @@ onMounted(async () => {
   }
 
   await loadRules()
+})
+
+// 筛选变化时自动重载
+watch([selectedDisease, selectedStatus], () => {
+  loadRules()
 })
 </script>
 

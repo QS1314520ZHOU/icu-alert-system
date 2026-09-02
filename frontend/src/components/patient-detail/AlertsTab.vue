@@ -911,10 +911,10 @@ function prettyClinicalText(raw: any) {
   const text = String(raw || '').trim()
   if (!text) return ''
   return text
-    .replace(/\\s+/g, ' ')
-    .replace(/([；;。])(?=\\S)/g, ' ')
-    .replace(/，(?=\\S{12,})/g, '， ')
-    .replace(/\\s+([，。；：])/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/([；;。])(?=\S)/g, '$1 ')
+    .replace(/，(?=\S{12,})/g, '， ')
+    .replace(/\s+([，。；：])/g, '$1')
     .trim()
 }
 
@@ -1592,7 +1592,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border: 1px solid rgba(80,199,255,.14);
   border-radius: var(--card-radius);
   padding: 16px;
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .modi-head {
@@ -1623,7 +1623,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
   padding: 10px 12px;
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   text-align: right;
 }
 .modi-kpi > span {
@@ -1657,7 +1657,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border: 1px solid rgba(80,199,255,.14);
   border-radius: var(--card-radius);
   padding: 14px;
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .organ-focus-suite__head,
 .organ-focus-card__head {
@@ -1683,7 +1683,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
 }
@@ -1697,7 +1697,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
   padding: 10px;
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 .organ-focus-card.sev-high {
@@ -1738,7 +1738,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 10px;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.08);
   cursor: pointer;
 }
@@ -1758,7 +1758,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
   padding: 12px;
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .suite-section-head {
   display: flex;
@@ -1779,7 +1779,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 2px 8px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface), .76);
+  background: var(--bg-surface);
 }
 .chain-summary {
   color: var(--text-primary);
@@ -1800,7 +1800,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(78, 188, 255, .18);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 11px;
 }
@@ -1812,14 +1812,14 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(55, 199, 147, .16);
-  background: var(--bg-surface), .6);
+  background: var(--bg-surface);
 }
 .context-snapshot {
   margin-top: 10px;
   padding: 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   display: grid;
   gap: 8px;
 }
@@ -1828,7 +1828,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(251, 113, 133, .16);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   display: grid;
   gap: 8px;
 }
@@ -1845,7 +1845,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 18px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.86);
+  background: var(--bg-surface);
   border: 1px solid rgba(251, 113, 133, 0.18);
   color: var(--danger-soft);
   font-size: 9px;
@@ -1882,13 +1882,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 8px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(96, 165, 250, 0.18);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 10px;
 }
 .post-extub-chip--warn {
   border-color: rgba(251, 146, 60, 0.2);
-  background: var(--bg-surface), 0.76);
+  background: var(--bg-surface);
   color: #ffd8b4;
 }
 .context-head {
@@ -1934,11 +1934,11 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface), .84);
+  background: var(--bg-surface);
 }
 .context-chip--lab {
   border-color: rgba(96, 165, 250, .18);
-  background: var(--bg-surface), .9);
+  background: var(--bg-surface);
 }
 .context-chip-label {
   color: var(--accent);
@@ -1959,7 +1959,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(245, 158, 11, .2);
-  background: var(--bg-surface), .66);
+  background: var(--bg-surface);
 }
 .context-badge-name {
   color: var(--warning-soft);
@@ -1980,7 +1980,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
   padding: 10px;
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 .group-card.sev-high {
   border-color: rgba(249, 115, 22, .3);
@@ -2031,7 +2031,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 10px;
   padding: 6px 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.08);
 }
 .group-alert-name {
@@ -2049,9 +2049,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 16px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.14);
-  background:
-    var(--bg-surface), rgba(59,130,246,0) 30%),
-    var(--bg-surface) 0%, rgba(4,12,22,.98) 100%);
+  background: var(--bg-surface);
   display: grid;
   gap: 10px;
 }
@@ -2078,7 +2076,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.14);
-  background: var(--bg-surface),.86);
+  background: var(--bg-surface);
   text-align: right;
 }
 .weaning-brief-score span {
@@ -2120,12 +2118,12 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 4px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(79,182,219,.18);
-  background: var(--bg-surface),.82);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
 }
 .weaning-evidence-chip {
-  background: var(--bg-surface),.72);
+  background: var(--bg-surface);
 }
 .weaning-sbt-pill.is-passed { color: var(--chart-2); border-color: rgba(52,211,153,.26); }
 .weaning-sbt-pill.is-failed { color: var(--danger); border-color: rgba(251,113,133,.26); }
@@ -2178,13 +2176,11 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border-left: 5px solid #E8901C;
   border-radius: var(--card-radius);
   padding: 14px 18px;
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .alert-body--rescue {
-  background:
-    var(--bg-surface), rgba(251, 113, 133, 0) 26%),
-    var(--bg-surface) 0%, rgba(6, 13, 24, .99) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .alert-card.sev-high .alert-body { border-left-color: var(--warning); }
@@ -2262,7 +2258,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   height: 18px;
   padding: 0 7px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.88);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
   color: #73d9ee;
   font-size: 10px;
@@ -2280,15 +2276,14 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 9px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.12);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   display: grid;
   gap: 6px;
 }
 .alert-explanation--rescue {
   padding: 12px;
   border-color: rgba(251, 113, 133, .16);
-  background:
-    var(--bg-surface) 0%, var(--bg-surface) 22%, rgba(7, 20, 34, .96) 100%);
+  background: var(--bg-surface);
 }
 .rescue-headline {
   display: flex;
@@ -2305,7 +2300,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 20px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .9);
+  background: var(--bg-surface);
   border: 1px solid rgba(251, 113, 133, .18);
   color: var(--danger-soft);
   font-size: 10px;
@@ -2329,18 +2324,18 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 10px 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(80,199,255,.08);
-  background: var(--bg-surface), .5);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .explanation-block--summary {
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border-color: rgba(251, 113, 133, .18);
 }
 .explanation-block--evidence {
-  background: var(--bg-surface), .72);
+  background: var(--bg-surface);
 }
 .explanation-block--suggestion {
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border-color: rgba(55, 199, 147, .16);
 }
 .explanation-tag {
@@ -2393,7 +2388,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(96, 165, 250, .18);
-  background: var(--bg-surface), .9);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
   line-height: 1.4;
@@ -2404,13 +2399,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(94, 234, 212, .16);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .threshold-brief {
   margin: 0 0 18px;
   padding: 16px 18px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(96, 214, 255, 0.18);
   box-shadow: var(--card-shadow);
 }
@@ -2464,7 +2459,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   border-radius: var(--card-radius);
   font-size: 12px;
   border: 1px solid rgba(96, 214, 255, 0.18);
-  background: var(--bg-surface), 0.9);
+  background: var(--bg-surface);
   color: #8de7f7;
 }
 .threshold-status-pill.is-approved {
@@ -2484,7 +2479,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .threshold-card {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   border: 1px solid rgba(96, 214, 255, 0.12);
 }
 .threshold-card-name {
@@ -2554,7 +2549,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(74, 222, 128, .18);
-  background: var(--bg-surface), .52);
+  background: var(--bg-surface);
 }
 .reasoning-tag {
   display: inline-flex;
@@ -2562,7 +2557,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 18px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .84);
+  background: var(--bg-surface);
   border: 1px solid rgba(94, 234, 212, .18);
   color: var(--success);
   font-size: 9px;
@@ -2587,19 +2582,19 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .reasoning-brief-confidence.is-high,
 .reasoning-confidence-pill.is-high {
   color: var(--success);
-  background: var(--bg-surface), .62);
+  background: var(--bg-surface);
   border-color: rgba(74, 222, 128, .24);
 }
 .reasoning-brief-confidence.is-medium,
 .reasoning-confidence-pill.is-medium {
   color: var(--warning-soft);
-  background: var(--bg-surface), .68);
+  background: var(--bg-surface);
   border-color: rgba(251, 191, 36, .22);
 }
 .reasoning-brief-confidence.is-low,
 .reasoning-confidence-pill.is-low {
   color: var(--danger-soft);
-  background: var(--bg-surface), .62);
+  background: var(--bg-surface);
   border-color: rgba(248, 113, 113, .22);
 }
 .reasoning-chip-row {
@@ -2615,7 +2610,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(94, 234, 212, .14);
-  background: var(--bg-surface), .64);
+  background: var(--bg-surface);
   color: #d7fffb;
   font-size: 11px;
 }
@@ -2673,7 +2668,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .reasoning-group-card {
   border-radius: var(--card-radius);
   border: 1px solid rgba(94, 234, 212, .12);
-  background: var(--bg-surface), .78);
+  background: var(--bg-surface);
   padding: 10px;
 }
 .reasoning-group-label {
@@ -2699,13 +2694,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 4px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(56, 189, 248, 0.22);
-  background: var(--bg-surface), 0.72);
+  background: var(--bg-surface);
   color: #c8ecff;
   font-size: 12px;
 }
 .alert-action-chip--ok {
   border-color: rgba(34, 197, 94, 0.28);
-  background: var(--bg-surface), 0.7);
+  background: var(--bg-surface);
   color: #c7f9d4;
   display: inline-flex;
   align-items: center;
@@ -2739,7 +2734,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(34, 197, 94, 0.18);
-  background: var(--bg-surface), 0.52);
+  background: var(--bg-surface);
   color: var(--success);
   font-size: 12px;
 }
@@ -2834,7 +2829,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .ai-risk-feedback { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-risk-feedback :deep(.ant-btn) {
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   border-color: rgba(80,199,255,.14);
   color: var(--text-primary);
 }
@@ -2923,7 +2918,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   font-size: 12px;
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.58);
+  background: var(--bg-surface);
   border: 1px dashed rgba(80,199,255,.14);
 }
 
@@ -2985,8 +2980,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 
 /* Light mode overrides */
-html[data-theme='light'] .modi-panel { background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
-html[data-theme='light'] .organ-focus-suite { background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .modi-panel { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .organ-focus-suite { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .modi-title { color: var(--text-secondary); }
 html[data-theme='light'] .organ-focus-suite__title,
 html[data-theme='light'] .organ-focus-card__name { color: var(--text-secondary); }
@@ -3015,7 +3010,7 @@ html[data-theme='light'] .group-alert-item {
 html[data-theme='light'] .group-pill.sev-warning { color: var(--warning); background: rgba(254,243,199,0.98); border-color: rgba(245,158,11,0.28); }
 html[data-theme='light'] .group-pill.sev-high { color: var(--danger); background: rgba(255,237,213,0.98); border-color: rgba(251,146,60,0.28); }
 html[data-theme='light'] .group-pill.sev-critical { color: var(--danger-strong); background: rgba(255,241,242,0.98); border-color: rgba(251,113,133,0.28); }
-html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: var(--bg-surface); border-color: rgba(187,204,220,.72); }
 html[data-theme='light'] .weaning-brief-title, html[data-theme='light'] .reasoning-brief-title, html[data-theme='light'] .threshold-brief-title { color: var(--text-secondary); }
 html[data-theme='light'] .weaning-brief-sub, html[data-theme='light'] .reasoning-brief-sub, html[data-theme='light'] .threshold-brief-sub { color: var(--text-secondary); }
 html[data-theme='light'] .weaning-brief-main, html[data-theme='light'] .reasoning-brief-main, html[data-theme='light'] .threshold-brief-main { color: var(--text-secondary); }
@@ -3023,16 +3018,14 @@ html[data-theme='light'] .weaning-chip, html[data-theme='light'] .reasoning-chip
 html[data-theme='light'] .weaning-evidence-chip { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,.72); color: var(--text-secondary); }
 html[data-theme='light'] .weaning-sbt-meta { color: var(--text-secondary); }
 html[data-theme='light'] .weaning-sbt-meta--risk { color: var(--danger); }
-html[data-theme='light'] .alert-card { background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .alert-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
 html[data-theme='light'] .alert-body {
-  background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%);
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .alert-body--rescue {
-  background:
-    var(--bg-surface), rgba(248, 113, 113, 0) 34%),
-    var(--bg-surface) 0%, rgba(254,242,242,.98) 100%);
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .alert-time { color: var(--text-secondary); }
 html[data-theme='light'] .alert-line { background: rgba(187,204,220,0.4); }
@@ -3055,9 +3048,7 @@ html[data-theme='light'] .alert-explanation {
 }
 html[data-theme='light'] .alert-explanation--rescue {
   border-color: rgba(248,113,113,0.22);
-  background:
-    var(--bg-surface), rgba(248, 113, 113, 0) 34%),
-    var(--bg-surface) 0%, rgba(254,242,242,.98) 100%);
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .rescue-headline {
   border-bottom-color: rgba(248,113,113,0.2);
@@ -3076,14 +3067,14 @@ html[data-theme='light'] .explanation-block {
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .explanation-block--summary {
-  background: var(--bg-surface) 0%, rgba(255,241,242,.99) 100%);
+  background: var(--bg-surface);
   border-color: rgba(248,113,113,0.22);
 }
 html[data-theme='light'] .explanation-block--evidence {
   background: var(--bg-surface);
 }
 html[data-theme='light'] .explanation-block--suggestion {
-  background: var(--bg-surface) 0%, rgba(236,253,243,.99) 100%);
+  background: var(--bg-surface);
   border-color: rgba(74,222,128,.2);
 }
 html[data-theme='light'] .explanation-label { color: var(--brand); }
@@ -3123,7 +3114,7 @@ html[data-theme='light'] .threshold-card-reason { color: var(--text-secondary); 
 html[data-theme='light'] .modi-panel,
 html[data-theme='light'] .organ-focus-suite,
 html[data-theme='light'] .alert-explanation {
-  background: var(--bg-surface), rgba(242,247,252,0.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .modi-kpi,
@@ -3186,7 +3177,7 @@ html[data-theme='light'] .group-alert-item {
 html[data-theme='light'] .organ-focus-card__item span,
 html[data-theme='light'] .group-alert-name { color: var(--text-primary); }
 html[data-theme='light'] .post-extub-panel {
-  background: var(--bg-surface), rgba(255,255,255,0.98));
+  background: var(--bg-surface);
   border-color: rgba(248,113,113,0.22);
 }
 html[data-theme='light'] .alert-meta > span {

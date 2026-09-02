@@ -169,10 +169,77 @@ const canProceed = computed(() => question.value.exposure && question.value.outc
 const matchResult = ref({ total: 0, matched: 0, excluded: 0 })
 const effectResult = ref({ ate: '', ate_ci: '', att: '', att_ci: '' })
 
+// Chart refs
+const dagRef = ref<HTMLElement | null>(null)
+const psDistRef = ref<HTMLElement | null>(null)
+const lovePlotRef = ref<HTMLElement | null>(null)
+
 function nextStep() {
   if (currentStep.value < steps.length - 1) {
     currentStep.value++
+    if (currentStep.value === 1) renderDag()
+    if (currentStep.value === 2) renderMatchCharts()
     if (currentStep.value === 3) loadResults()
+  }
+}
+
+function renderDag() {
+  if (!dagRef.value) return
+  const exp = question.value.exposure || '暴露'
+  const out = question.value.outcome || '结局'
+  dagRef.value.innerHTML = `
+    <svg width="100%" height="100%" viewBox="0 0 500 300">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
+        </marker>
+      </defs>
+      <!-- Exposure -->
+      <rect x="30" y="120" width="120" height="50" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="2"/>
+      <text x="90" y="150" text-anchor="middle" fill="#e0f2fe" font-size="13">${exp}</text>
+      <!-- Outcome -->
+      <rect x="350" y="120" width="120" height="50" rx="8" fill="#3b1f2b" stroke="#f87171" stroke-width="2"/>
+      <text x="410" y="150" text-anchor="middle" fill="#fecdd3" font-size="13">${out}</text>
+      <!-- Confounders -->
+      <rect x="180" y="20" width="140" height="40" rx="8" fill="#1e3b2f" stroke="#34d399" stroke-width="1.5"/>
+      <text x="250" y="45" text-anchor="middle" fill="#a7f3d0" font-size="12">年龄 / 基础疾病</text>
+      <rect x="180" y="240" width="140" height="40" rx="8" fill="#1e3b2f" stroke="#34d399" stroke-width="1.5"/>
+      <text x="250" y="265" text-anchor="middle" fill="#a7f3d0" font-size="12">病情严重程度</text>
+      <!-- Arrows: confounders → exposure -->
+      <line x1="200" y1="60" x2="140" y2="120" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
+      <line x1="200" y1="240" x2="140" y2="170" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
+      <!-- Arrows: confounders → outcome -->
+      <line x1="300" y1="60" x2="360" y2="120" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
+      <line x1="300" y1="240" x2="360" y2="170" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
+      <!-- Arrow: exposure → outcome -->
+      <line x1="150" y1="145" x2="348" y2="145" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#arrow)"/>
+      <text x="250" y="135" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">因果效应?</text>
+    </svg>
+  `
+}
+
+function renderMatchCharts() {
+  // Propensity score distribution placeholder
+  if (psDistRef.value) {
+    psDistRef.value.innerHTML = `
+      <div style="display:flex;align-items:flex-end;gap:3px;height:100%;padding:12px 8px;">
+        ${[8,15,28,42,55,60,52,38,22,12,6,3].map((h) => `<div style="flex:1;background:linear-gradient(to top,rgba(96,165,250,.7),rgba(96,165,250,.3));height:${h}%;border-radius:3px 3px 0 0;"></div>`).join('')}
+      </div>
+    `
+  }
+  // Love Plot placeholder
+  if (lovePlotRef.value) {
+    lovePlotRef.value.innerHTML = `
+      <div style="padding:12px;font-size:12px;color:var(--text-secondary);">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#34d399;"></span> 匹配前 SMD
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#60a5fa;"></span> 匹配后 SMD
+        </div>
+        <div style="margin-top:8px;border-left:2px dashed #f87171;padding-left:8px;color:#f87171;font-size:11px;">阈值 0.1</div>
+      </div>
+    `
   }
 }
 

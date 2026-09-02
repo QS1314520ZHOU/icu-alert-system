@@ -596,7 +596,8 @@ async function loadForcedAlerts() {
 
 async function onSelectHistory(item: Record<string, any>) {
   currentHandover.value = item
-  editableSections.value = JSON.parse(JSON.stringify(item.sections || {}))
+  const loaded = JSON.parse(JSON.stringify(item.sections || {}))
+  editableSections.value = mergePatientFacts(loaded, activePatient.value?.raw)
 }
 
 function onSectionsUpdate(sections: Record<string, any>) {
@@ -613,6 +614,8 @@ function onBriefModeChange(mode: string) {
   if (currentHandover.value?.handover_id) {
     getHandoverBrief(currentHandover.value.handover_id, mode as any).then((res) => {
       briefData.value = res.data?.brief || { mode, blocks: [] }
+    }).catch(() => {
+      briefData.value = { mode, blocks: [] }
     })
   }
 }

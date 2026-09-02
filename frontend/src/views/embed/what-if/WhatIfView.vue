@@ -75,7 +75,7 @@
             <span class="wi-risk-arrow">→</span>
             <div class="wi-risk-after">
               <span class="wi-risk-label-sm">模拟后风险</span>
-              <span class="wi-risk-num" :class="riskChangeClass">{{ simulationResult.simulatedRisk }}%</span>
+              <span class="wi-risk-num" :class="riskChangeClass">{{ simulationResult.simulatedRisk != null ? simulationResult.simulatedRisk + '%' : '—' }}</span>
             </div>
           </div>
           <div class="wi-risk-diff" :class="riskChangeClass">
@@ -268,7 +268,7 @@ function resetControls() {
 }
 
 function addScenario() {
-  if (simulationResult.value) {
+  if (simulationResult.value?.simulatedRisk != null) {
     scenarios.value.push({ risk: simulationResult.value.simulatedRisk })
   }
 }

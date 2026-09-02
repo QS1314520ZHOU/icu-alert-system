@@ -697,6 +697,8 @@ async function loadSummary() {
     summary.value = res.data?.summary || null
     activeSystemTab.value = pickInitialSystemTab()
     buildEditableDraft()
+  } catch {
+    summary.value = null
   } finally {
     summaryLoading.value = false
   }
@@ -730,23 +732,6 @@ function buildEditableDraft() {
   })
   editableDraft.value = icuRows.join('\n')
   versionHistory.value = [{ id: 'icu-template', label: `版本1：ICU系统初稿 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` }]
-  return
-  const rows: string[] = []
-  rows.push(`查房患者：${activePatient.value?.bed_no || '--'}床 ${activePatient.value?.name || ''}`)
-  rows.push(`夜间/近${hours.value}小时事件：`)
-  ;(summary.value.night_events || summary.value.recent_events || []).slice(0, 6).forEach((item: any) => rows.push(`- ${fmt(item.time)} ${item.title || item.event || item.name || '事件'}`))
-  rows.push('未处理预警：')
-  ;(summary.value.unhandled_alerts || summary.value.completion?.tasks || []).slice(0, 6).forEach((item: any) => rows.push(`- ${item.title || item.action || '待处理事项'}`))
-  rows.push('今日问题清单：')
-  ;(summary.value.clinical_priorities || []).slice(0, 6).forEach((item: any, idx: number) => rows.push(`${idx + 1}. ${item.title || '临床问题'}`))
-  rows.push('按系统分类：')
-  systemTabs.forEach((system) => {
-    const assess = systemAssessment(system.key)
-    const events = summary.value?.systems?.[system.key] || []
-    rows.push(`${system.label}：${assess?.headline || events[0]?.title || '暂无明确问题'}；待复评：${events.length ? `${events.length}项事件` : '常规复评'}`)
-  })
-  editableDraft.value = rows.join('\n')
-  versionHistory.value = [{ id: 'ai', label: `版本1：AI/系统初稿 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` }]
 }
 
 async function loadVersionHistory() {
@@ -810,9 +795,7 @@ onMounted(() => {
   min-height: calc(100vh - 76px);
   padding: 20px;
   color: var(--text-main);
-  background:
-    var(--bg-surface), transparent 32%),
-    var(--bg-surface), transparent 30%);
+  background: var(--bg-surface);
 }
 .rounding-hero {
   display: flex;
@@ -822,7 +805,7 @@ onMounted(() => {
   padding: 18px;
   border: 1px solid rgba(80,199,255,.16);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .eyebrow {
@@ -848,13 +831,13 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 14px;
   border: 1px solid rgba(125,167,214,.14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .76);
+  background: var(--bg-surface);
 }
 .metric-card span, .metric-card small { display: block; color: var(--text-secondary); }
 .metric-card strong { display: block; margin: 4px 0; color: var(--text-primary); font-size: 30px; line-height: 1; }
-.metric-card--cyan { background: var(--bg-surface), var(--bg-surface)); }
-.metric-card--red { background: var(--bg-surface), var(--bg-surface)); }
-.metric-card--orange { background: var(--bg-surface), var(--bg-surface)); }
+.metric-card--cyan { background: var(--bg-surface); }
+.metric-card--red { background: var(--bg-surface); }
+.metric-card--orange { background: var(--bg-surface); }
 .rounding-layout {
   display: grid;
   grid-template-columns: minmax(360px, .78fr) minmax(0, 1.45fr);
@@ -863,7 +846,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 .census-panel, .summary-panel {
   border: 1px solid rgba(80,199,255,.14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .9);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .census-panel { padding: 14px; }
@@ -904,14 +887,14 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 12px;
   border: 1px solid rgba(125,167,214,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .58);
+  background: var(--bg-surface);
   cursor: pointer;
   transition: transform .15s ease, border-color .15s ease, background .15s ease;
 }
 .patient-card:hover, .patient-card.active {
   transform: translateY(-1px);
   border-color: rgba(103,232,249,.42);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
 }
 .patient-card.active {
   box-shadow: inset 3px 0 0 var(--brand), var(--card-shadow);
@@ -923,7 +906,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   height: 16px;
   border: 1px solid rgba(103,232,249,.28);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .8);
+  background: var(--bg-surface);
 }
 .select-dot input:checked + span {
   background: var(--brand);
@@ -972,7 +955,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 12px;
   border: 1px solid rgba(125,167,214,.14);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .26);
+  background: var(--bg-surface);
 }
 .quick-strip span, .trend-card span, .digest-grid span { display: block; color: var(--text-secondary); }
 .quick-strip strong, .trend-card strong, .digest-grid strong { display: block; margin-top: 4px; color: var(--text-primary); font-size: 24px; }
@@ -1006,9 +989,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 14px;
   border: 1px solid rgba(103,232,249,.14);
   border-radius: var(--card-radius);
-  background:
-    var(--bg-surface), var(--bg-surface)),
-    var(--bg-surface), transparent 34%);
+  background: var(--bg-surface);
 }
 .digest-headline {
   margin-bottom: 12px;
@@ -1019,7 +1000,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 .briefing-side {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .24);
+  background: var(--bg-surface);
 }
 .action-grid {
   display: grid;
@@ -1032,7 +1013,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   border: 1px solid rgba(125,211,252,.16);
   border-radius: var(--card-radius);
   color: inherit;
-  background: var(--bg-surface), .28);
+  background: var(--bg-surface);
   text-align: left;
   cursor: pointer;
   transition: transform .16s ease, border-color .16s ease;
@@ -1089,7 +1070,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 .priority-section {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .42);
+  background: var(--bg-surface);
 }
 .priority-grid {
   display: grid;
@@ -1171,16 +1152,14 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 14px;
   border: 1px solid rgba(103,232,249,.14);
   border-radius: var(--card-radius);
-  background:
-    var(--bg-surface), var(--bg-surface)),
-    var(--bg-surface), transparent 36%);
+  background: var(--bg-surface);
 }
 .bodymap-visual {
   display: grid;
   place-items: center;
   min-height: 360px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .2);
+  background: var(--bg-surface);
   overflow: hidden;
 }
 .bodymap-side {
@@ -1204,7 +1183,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 10px 12px;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125,167,214,.14);
-  background: var(--bg-surface), .28);
+  background: var(--bg-surface);
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
@@ -1214,7 +1193,7 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 .organ-chip.active {
   transform: translateY(-1px);
   border-color: rgba(103,232,249,.42);
-  background: var(--bg-surface), .55);
+  background: var(--bg-surface);
 }
 .organ-chip span {
   color: var(--text-secondary);
@@ -1222,17 +1201,17 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 }
 .organ-chip.sev-warning { border-color: rgba(251,191,36,.24); }
 .organ-chip.sev-high { border-color: rgba(251,146,60,.34); }
-.organ-chip.sev-critical { border-color: rgba(244,63,94,.42); background: var(--bg-surface), .34); }
+.organ-chip.sev-critical { border-color: rgba(244,63,94,.42); background: var(--bg-surface); }
 .bodymap-note {
   padding: 10px 12px;
   border-radius: var(--card-radius);
   color: var(--text-secondary);
-  background: var(--bg-surface), .26);
+  background: var(--bg-surface);
 }
 .trend-section, .ai-box {
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .42);
+  background: var(--bg-surface);
 }
 
 .timeline-section {
@@ -1247,14 +1226,14 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   border: 1px solid rgba(125,167,214,.16);
   border-radius: var(--card-radius);
   padding: 12px;
-  background: var(--bg-surface),.72);
+  background: var(--bg-surface);
 }
 .editable-rounding textarea {
   width: 100%;
   resize: vertical;
   border-radius: var(--card-radius);
   border: 1px solid rgba(125,211,252,.16);
-  background: var(--bg-surface),.94);
+  background: var(--bg-surface);
   color: var(--text-primary);
   padding: 10px 12px;
   line-height: 1.7;
@@ -1269,20 +1248,20 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
 .version-row span {
   padding: 4px 8px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.5);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 12px;
 }
 .system-tabs {
   padding: 4px 10px 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface), .18);
+  background: var(--bg-surface);
 }
 .assessment-card {
   display: grid;
   gap: 8px;
   margin-bottom: 14px;
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
 }
 .assessment-card div {
   display: flex;
@@ -1306,23 +1285,18 @@ h1 { margin-top: 4px; font-size: 26px; color: var(--text-primary); }
   padding: 12px;
   border: 1px solid rgba(125,167,214,.16);
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.72);
+  background: var(--bg-surface);
 }
 
 html[data-theme='light'] .rounding-page {
   color: var(--text-primary);
-  background:
-    var(--bg-surface), transparent 32%),
-    var(--bg-surface), transparent 30%),
-    var(--bg-surface), rgba(247, 250, 252, .98));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .rounding-hero,
 html[data-theme='light'] .census-panel,
 html[data-theme='light'] .summary-panel {
   border-color: rgba(203, 213, 225, .88);
-  background:
-    var(--bg-surface), transparent 38%),
-    var(--bg-surface), rgba(244, 249, 253, .98));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .eyebrow,
@@ -1384,28 +1358,20 @@ html[data-theme='light'] .bodymap-visual,
 html[data-theme='light'] .organ-chip,
 html[data-theme='light'] .bodymap-note {
   border-color: rgba(203, 213, 225, .82);
-  background:
-    var(--bg-surface), transparent 38%),
-    var(--bg-surface), rgba(244, 249, 253, .98));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .metric-card--cyan {
   border-color: rgba(14, 165, 233, .22);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(235, 248, 252, .98));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .metric-card--red {
   border-color: rgba(251, 113, 133, .24);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(255, 241, 242, .96));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .metric-card--orange {
   border-color: rgba(245, 158, 11, .26);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(255, 251, 235, .96));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .metric-card span,
 html[data-theme='light'] .metric-card small {
@@ -1419,9 +1385,7 @@ html[data-theme='light'] .patient-card.active,
 html[data-theme='light'] .organ-chip:hover,
 html[data-theme='light'] .organ-chip.active {
   border-color: rgba(14, 165, 233, .38);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(232, 247, 252, .98));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .patient-card.active {
@@ -1467,9 +1431,7 @@ html[data-theme='light'] .trend-section,
 html[data-theme='light'] .ai-box,
 html[data-theme='light'] .system-tabs {
   border: 1px solid rgba(203, 213, 225, .82);
-  background:
-    var(--bg-surface), transparent 40%),
-    var(--bg-surface), rgba(241, 248, 253, .96));
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .digest-headline {
@@ -1512,14 +1474,10 @@ html[data-theme='light'] .question-list em {
 }
 html[data-theme='light'] .organ-chip.sev-critical {
   border-color: rgba(251, 113, 133, .34);
-  background:
-    var(--bg-surface), transparent 42%),
-    var(--bg-surface), rgba(255, 241, 242, .96));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .assessment-card {
-  background:
-    var(--bg-surface), transparent 38%),
-    var(--bg-surface), rgba(244, 249, 253, .98));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .rounding-page :deep(.ant-input),
 html[data-theme='light'] .rounding-page :deep(.ant-select-selector) {

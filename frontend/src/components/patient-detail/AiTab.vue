@@ -1284,7 +1284,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   padding: 10px 12px;
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .ai-service-dot {
   width: 10px;
@@ -1320,7 +1320,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 12px;
 }
 .ai-card {
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.14);
   min-height: 520px;
   box-shadow: var(--card-shadow);
@@ -1363,12 +1363,12 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .ai-card :deep(.ant-pagination .ant-pagination-item),
 .ai-card :deep(.ant-pagination .ant-pagination-prev),
 .ai-card :deep(.ant-pagination .ant-pagination-next) {
-  background: var(--bg-surface),.78) !important;
+  background: var(--bg-surface) !important;
   border-color: rgba(80,199,255,.14) !important;
   color: var(--text-primary) !important;
 }
 .ai-card :deep(.ant-pagination .ant-pagination-item-active) {
-  background: var(--bg-surface) 0%, rgba(7,63,86,.98) 100%) !important;
+  background: var(--bg-surface) !important;
   border-color: rgba(110,231,249,.28) !important;
 }
 .ai-card :deep(.ant-pagination .ant-pagination-item-active a) {
@@ -1399,7 +1399,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .ai-rich :deep(p) { margin: 0; }
 .ai-rich :deep(code) {
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
   padding: 1px 5px;
@@ -1420,9 +1420,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   padding: 13px 14px;
   border: 1px solid rgba(103, 232, 249, .18);
   border-radius: var(--card-radius);
-  background:
-    var(--bg-surface), transparent 36%),
-    var(--bg-surface), rgba(7, 20, 34, .94));
+  background: var(--bg-surface);
 }
 .lab-summary-kicker {
   display: block;
@@ -1456,7 +1454,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   padding: 11px 12px;
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface), var(--bg-surface));
+  background: var(--bg-surface);
 }
 .lab-abnormal-head {
   display: flex;
@@ -1498,7 +1496,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   padding: 12px;
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.72);
+  background: var(--bg-surface);
 }
 .lab-summary-section--action {
   border-color: rgba(34, 211, 238, .18);
@@ -1528,7 +1526,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .kb-chunk-item {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.72);
+  background: var(--bg-surface);
   padding: 10px 12px;
 }
 .handoff-wrap p,
@@ -1547,7 +1545,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .wb-kpi {
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.88);
+  background: var(--bg-surface);
   padding: 8px 10px;
   display: grid;
   gap: 4px;
@@ -1566,7 +1564,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .ai-workbench-section {
   border: 1px solid rgba(80,199,255,.1);
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.78);
+  background: var(--bg-surface);
   padding: 10px 12px;
   margin-top: 8px;
 }
@@ -1591,7 +1589,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .summary-section {
   border: 1px solid rgba(80,199,255,.08);
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.62);
+  background: var(--bg-surface);
   padding: 8px 10px;
 }
 .summary-label {
@@ -1606,22 +1604,21 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   border: 1px solid rgba(80,199,255,.12);
   border-radius: var(--card-radius);
   padding: 10px 12px;
-  background:
-    var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 .summary-conclusion--low {
   border-color: rgba(52,211,153,.18);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .summary-conclusion--warning {
   border-color: rgba(250,204,21,.2);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .summary-conclusion--high,
 .summary-conclusion--critical {
   border-color: rgba(251,90,122,.22);
-  background: var(--bg-surface) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface);
 }
 .summary-conclusion-label {
   color: #91ecff;
@@ -1648,7 +1645,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   min-height: 28px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  background: var(--bg-surface),.92);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.14);
   color: var(--text-primary);
   font-size: 11px;
@@ -1741,7 +1738,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-surface),.92);
+  background: var(--bg-surface);
   border: 1px solid rgba(80,199,255,.14);
   color: #90ecff;
   font-size: 11px;
@@ -1826,13 +1823,13 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   min-width: 920px;
 }
 .ai-rule-table :deep(.ant-table-thead > tr > th) {
-  background: var(--bg-surface),.82);
+  background: var(--bg-surface);
   color: var(--accent);
   border-bottom-color: rgba(80,199,255,.1);
   white-space: nowrap;
 }
 .ai-rule-table :deep(.ant-table-tbody > tr > td) {
-  background: var(--bg-surface),.72);
+  background: var(--bg-surface);
   color: var(--text-primary);
   border-bottom-color: rgba(80,199,255,.08);
   white-space: nowrap;
@@ -1971,10 +1968,10 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   }
 }
 
-html[data-theme='light'] .ai-service-bar { background: var(--bg-surface) 0%, rgba(231,241,249,0.98) 100%); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-service-bar { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .ai-service-text { color: var(--text-secondary); }
 html[data-theme='light'] .ai-service-detail { color: var(--text-secondary); }
-html[data-theme='light'] .ai-card { background: var(--bg-surface) 0%, rgba(242,247,252,0.98) 100%); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .ai-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
 html[data-theme='light'] .ai-card :deep(.ant-card-head) { border-bottom-color: rgba(187,204,220,0.72); }
 html[data-theme='light'] .ai-card :deep(.ant-card-head-title) { color: var(--brand); }
 html[data-theme='light'] .ai-card-note, html[data-theme='light'] .ai-empty { color: var(--text-secondary); }
@@ -1983,7 +1980,7 @@ html[data-theme='light'] .ai-card :deep(.ant-select-selector),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-prev),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-next) { background: rgba(243, 248, 252, 0.96) !important; border-color: rgba(187, 204, 220, 0.72) !important; color: var(--text-secondary) !important; }
-html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface) 0%, rgba(29,78,216,.98) 100%) !important; border-color: rgba(59,130,246,.28) !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface) !important; border-color: rgba(59,130,246,.28) !important; }
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active a) { color: var(--text-primary) !important; }
 html[data-theme='light'] .ai-rich { color: var(--text-secondary); }
 html[data-theme='light'] .ai-rich :deep(h4) { color: var(--text-secondary); }
@@ -2030,7 +2027,7 @@ html[data-theme='light'] .ai-evidence-link { color: var(--brand); }
 html[data-theme='light'] .ai-evidence-link:hover { color: var(--brand); }
 html[data-theme='light'] .ai-fallback-note {
   border-color: rgba(217, 119, 6, .34);
-  background: var(--bg-surface), rgba(254, 243, 199, .86));
+  background: var(--bg-surface);
   color: var(--warning);
   font-weight: 650;
 }
@@ -2055,7 +2052,7 @@ html[data-theme='light'] .ai-risk-card .summary-chip {
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .ai-service-bar,
 html[data-theme='light'] .ai-card {
-  background: var(--bg-surface), rgba(242,247,252,0.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .ai-card :deep(.ant-btn),
@@ -2066,14 +2063,14 @@ html[data-theme='light'] .ai-card :deep(.ant-input) {
   color: var(--text-secondary) !important;
 }
 html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active) {
-  background: var(--bg-surface), rgba(29,78,216,0.98));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active a) { color: var(--text-primary) !important; }
 html[data-theme='light'] .ai-rich { color: var(--text-secondary); }
 html[data-theme='light'] .ai-rich :deep(h4) { color: var(--text-primary); }
 html[data-theme='light'] .ai-rich :deep(code) { background: rgba(241,246,251,0.98); color: var(--text-primary); }
 html[data-theme='light'] .lab-summary-hero {
-  background: var(--bg-surface), rgba(255,255,255,0.98));
+  background: var(--bg-surface);
 }
 html[data-theme='light'] .lab-summary-kicker,
 html[data-theme='light'] .lab-section-title,
@@ -2087,7 +2084,7 @@ html[data-theme='light'] .lab-summary-badge,
 html[data-theme='light'] .lab-value-line,
 html[data-theme='light'] .ai-fallback-note { color: var(--warning); }
 html[data-theme='light'] .lab-abnormal-card {
-  background: var(--bg-surface), rgba(255,255,255,0.98));
+  background: var(--bg-surface);
   border-color: rgba(245,158,11,0.22);
 }
 html[data-theme='light'] .lab-abnormal-head { color: var(--warning); }
@@ -2119,7 +2116,7 @@ html[data-theme='light'] .summary-conclusion,
 html[data-theme='light'] .summary-conclusion--low,
 html[data-theme='light'] .summary-conclusion--warning,
 html[data-theme='light'] .summary-conclusion--high {
-  background: var(--bg-surface), rgba(242,247,252,0.98));
+  background: var(--bg-surface);
   border-color: rgba(187,204,220,0.72);
 }
 html[data-theme='light'] .summary-conclusion-label { color: var(--text-secondary); }

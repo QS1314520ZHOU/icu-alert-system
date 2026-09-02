@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 
 const props = defineProps<{
   points: any[]
@@ -83,6 +83,13 @@ const legendItems = computed(() => {
 })
 
 const visibleKeys = ref<Set<string>>(new Set())
+
+// 异步数据到达后同步 visibleKeys
+watch(legendItems, (items) => {
+  if (items.length && visibleKeys.value.size === 0) {
+    items.forEach(item => visibleKeys.value.add(item.key))
+  }
+}, { immediate: true })
 
 const chartLines = computed(() => {
   if (!props.points.length) return []
@@ -126,17 +133,16 @@ function toggleLegend(key: string) {
 }
 
 onMounted(() => {
-  // 默认显示所有
-  legendItems.value.forEach(item => visibleKeys.value.add(item.key))
-
-  // 监听resize
-  const observer = new ResizeObserver(entries => {
-    for (const entry of entries) {
-      chartWidth.value = entry.contentRect.width
-    }
+  // 监听resize — 用 nextTick 确保 v-else 分支已渲染
+  nextTick(() => {
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        chartWidth.value = entry.contentRect.width
+      }
+    })
+    if (chartRef.value) observer.observe(chartRef.value)
+    onUnmounted(() => observer.disconnect())
   })
-  if (chartRef.value) observer.observe(chartRef.value)
-  onUnmounted(() => observer.disconnect())
 })
 </script>
 
