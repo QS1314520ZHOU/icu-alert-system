@@ -20,15 +20,16 @@ export type NavGroup = {
 }
 
 /**
- * 重新组织的导航结构 - 按临床工作流组织
+ * 重新组织的导航结构 - 按临床工作流组织（一级入口控制在 6 组）
  *
  * 一级导航分组：
  * 1. 今日工作 - 角色首页
- * 2. 患者 - 患者总览和详情
- * 3. 预警与任务 - 预警中心和工作台
- * 4. 临床知识 - 病种中心
- * 5. 科研 - 学术科研、临床试验、科研工作台、科研导出
- * 6. 更多 - MDT、呼吸治疗、营养支持、质控分析、大屏、AI运营、管理配置
+ * 2. 患者 - 患者总览、临床工作台
+ * 3. 交接班 - 智能交接班
+ * 4. AI 助手 - AI问诊（患者智能分析模块由 navigationResolver 追加到此组）
+ * 5. 临床知识 - 病种中心
+ * 6. 更多 - 查房、科研、MDT、呼吸、营养、质控、大屏、运营、管理配置
+ *    （更多组内容以 moreMenuItems 为准，resolver 会过滤本文件的 more 组）
  */
 export const navGroups: NavGroup[] = [
   {
@@ -50,12 +51,17 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    key: 'alerts',
-    label: '预警与任务',
+    key: 'handover',
+    label: '交接班',
     items: [
       { key: 'handover',       lines: ['智能','交接班'], label: '智能交接班', icon: 'exchange',     path: '/handover' },
+    ],
+  },
+  {
+    key: 'ai',
+    label: 'AI 助手',
+    items: [
       { key: 'ai-consult',     lines: ['AI','问诊'],     label: 'AI问诊',     icon: 'sparkles',     path: '/ai-consult' },
-      { key: 'rounding-sheet', lines: ['智能','查房'],   label: '智能查房',   icon: 'clipboard',    path: '/rounding-sheet' },
     ],
   },
   {
@@ -63,31 +69,6 @@ export const navGroups: NavGroup[] = [
     label: '临床知识',
     items: [
       { key: 'disease-center', lines: ['病种', '中心'], label: '病种中心', icon: 'database', path: '/disease-center' },
-    ],
-  },
-  {
-    key: 'research',
-    label: '科研',
-    items: [
-      { key: 'academic-research',lines: ['学术','科研'],   label: '学术科研',   icon: 'book',         path: '/academic-research' },
-      { key: 'clinical-trials',  lines: ['临床','试验'],   label: '临床试验',   icon: 'calendar',     path: '/clinical-trials' },
-      { key: 'research-workbench',lines: ['科研','工作台'],label: '科研工作台', icon: 'flask',        path: '/research-workbench' },
-      { key: 'research-export',  lines: ['科研','导出'],   label: '科研导出',   icon: 'chart',        path: '/research-export' },
-    ],
-  },
-  {
-    key: 'more',
-    label: '更多',
-    items: [
-      { key: 'mdt',            lines: ['MDT','会诊'],     label: 'MDT会诊',    icon: 'network',      path: '/mdt' },
-      { key: 'respiratory-dashboard',lines: ['呼吸','治疗'],label: '呼吸治疗', icon: 'lungs',       path: '/respiratory-dashboard' },
-      { key: 'nutrition-support',lines: ['营养','支持'],   label: '营养支持',   icon: 'apple',        path: '/nutrition-support' },
-      { key: 'analytics',      lines: ['质控','分析'],    label: '质控分析',   icon: 'chart',        path: '/analytics' },
-      { key: 'bigscreen',      lines: ['护士站','大屏'],  label: '护士站大屏', icon: 'grid',         path: '/bigscreen' },
-      { key: 'ai-ops',         lines: ['AI','运营'],      label: 'AI运营',     icon: 'cpu',          path: '/ai-ops' },
-      { key: 'scanner-health', lines: ['规则','健康'],    label: '规则健康',   icon: 'alert',        path: '/admin/scanner-health' },
-      { key: 'voice-correction-review',lines: ['语音','纠错'],label: '语音纠错',icon: 'sparkles',    path: '/admin/voice-correction-review' },
-      { key: 'runtime-config', lines: ['配置','中心'],    label: '配置中心',   icon: 'settings',     path: '/admin/runtime-config' },
     ],
   },
 ]
@@ -126,10 +107,15 @@ export const roleHomeConfig = {
 }
 
 /**
- * "更多"菜单中的项目
+ * "更多"菜单中的项目（一级导航唯一的低频入口聚合点）
  * 这些项目在侧边栏收起时显示在"更多"下拉菜单中
  */
 export const moreMenuItems = [
+  { key: 'rounding-sheet', label: '智能查房', icon: 'clipboard', path: '/rounding-sheet' },
+  { key: 'academic-research', label: '学术科研', icon: 'book', path: '/academic-research' },
+  { key: 'clinical-trials', label: '临床试验', icon: 'calendar', path: '/clinical-trials' },
+  { key: 'research-workbench', label: '科研工作台', icon: 'flask', path: '/research-workbench' },
+  { key: 'research-export', label: '科研导出', icon: 'chart', path: '/research-export' },
   { key: 'mdt', label: 'MDT会诊', icon: 'network', path: '/mdt' },
   { key: 'respiratory-dashboard', label: '呼吸治疗', icon: 'lungs', path: '/respiratory-dashboard' },
   { key: 'nutrition-support', label: '营养支持', icon: 'apple', path: '/nutrition-support' },

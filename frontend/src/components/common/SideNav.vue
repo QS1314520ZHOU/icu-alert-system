@@ -101,18 +101,28 @@
 
             <!-- 组内菜单项 -->
             <div v-show="isGroupExpanded(group.key)">
-              <!-- AI 智能分析组：点击需要选患者 -->
-              <template v-if="group.key === 'ai-intelligence'">
-                <button
-                  v-for="item in group.items"
-                  :key="item.key"
-                  class="side-nav__item"
-                  :title="item.label"
-                  @click="onGlobalAiClick(item.key)"
-                >
-                  <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
-                  <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
-                </button>
+              <!-- AI 助手组：AI问诊为路由链接，患者智能分析模块点击选患者 -->
+              <template v-if="group.key === 'ai'">
+                <template v-for="item in group.items" :key="item.key">
+                  <router-link
+                    v-if="item.key === 'ai-consult'"
+                    :to="item.path"
+                    :class="['side-nav__item', { 'side-nav__item--active': isActiveRoute(item.path) }]"
+                    :title="item.label"
+                  >
+                    <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+                    <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+                  </router-link>
+                  <button
+                    v-else
+                    class="side-nav__item"
+                    :title="item.label"
+                    @click="onGlobalAiClick(item.key)"
+                  >
+                    <span class="side-nav__icon" v-html="iconSvg(item.icon)"></span>
+                    <span v-if="!collapsed" class="side-nav__label">{{ item.label }}</span>
+                  </button>
+                </template>
               </template>
 
               <!-- 更多组：折叠态侧边栏用 dropdown -->
@@ -191,18 +201,19 @@ const {
 } = useAppNavigation()
 
 const STORAGE_KEY = 'side-nav-collapsed'
-const GROUP_STORAGE_KEY = 'side-nav-collapsed-groups'
+// v2：分组结构调整（alerts/research 撤销，新增 handover/ai），旧存储键作废
+const GROUP_STORAGE_KEY = 'side-nav-collapsed-groups-v2'
 const collapsed = ref(localStorage.getItem(STORAGE_KEY) === 'true')
 const expandedGroups = ref(new Set<string>())
 
-// ── 全局分组折叠状态（默认全部收起） ──
+// ── 全局分组折叠状态（默认只展开"今日工作"） ──
 function loadCollapsedGroups(): Set<string> {
   try {
     const saved = localStorage.getItem(GROUP_STORAGE_KEY)
     if (saved) return new Set(JSON.parse(saved))
   } catch {}
-  // 默认全部收起
-  return new Set(['today', 'patients', 'alerts', 'clinical-knowledge', 'research', 'more', 'ai-intelligence'])
+  // 默认除今日工作外全部收起
+  return new Set(['patients', 'handover', 'ai', 'clinical-knowledge', 'more'])
 }
 const collapsedGlobalGroups = ref(loadCollapsedGroups())
 function toggleGroupCollapse(key: string) {
@@ -273,11 +284,10 @@ function groupIcon(key: string): string {
   const map: Record<string, string> = {
     today: 'stethoscope',
     patients: 'users',
-    alerts: 'alert',
+    handover: 'exchange',
+    ai: 'brain',
     'clinical-knowledge': 'database',
-    research: 'flask',
     more: 'more',
-    'ai-intelligence': 'brain',
   }
   return map[key] || 'more'
 }
@@ -521,7 +531,7 @@ function iconSvg(icon: string) {
 }
 
 .side-nav__back-btn:hover {
-  background: rgba(37, 99, 235, 0.06);
+  background: var(--color-primary-bg);
 }
 
 .side-nav__icon {

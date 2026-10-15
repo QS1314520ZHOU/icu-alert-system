@@ -30,7 +30,7 @@ export function resolveNavigation(opts: NavigationResolveOptions): ResolvedNavig
 /**
  * Resolve global navigation (non-patient pages).
  * Returns role-filtered navGroups from roleHomeConfig,
- * plus a "患者智能分析" group with AI modules from patientModuleRegistry.
+ * plus patient AI-analysis modules appended to the "AI 助手" group.
  */
 function resolveGlobalNavigation(role?: string): ResolvedNavigation {
   const filteredGroups: NavGroup[] = globalNavGroups
@@ -57,18 +57,24 @@ function resolveGlobalNavigation(role?: string): ResolvedNavigation {
   )
 
   if (accessibleAiModules.length > 0) {
-    // Find the "患者" group to insert AI modules after it
-    const patientGroupIndex = filteredGroups.findIndex(g => g.key === 'patients')
-    const aiGroup: NavGroup = {
-      key: 'ai-intelligence',
-      label: '患者智能分析',
-      items: accessibleAiModules.map(mod => moduleToNavItem(mod)),
-    }
-
-    if (patientGroupIndex >= 0) {
-      filteredGroups.splice(patientGroupIndex + 1, 0, aiGroup)
+    const aiItems = accessibleAiModules.map(mod => moduleToNavItem(mod))
+    const aiGroup = filteredGroups.find(g => g.key === 'ai')
+    if (aiGroup) {
+      // "AI 助手"组已存在（roleHomeConfig）：追加患者智能分析模块
+      aiGroup.items.push(...aiItems)
     } else {
-      filteredGroups.push(aiGroup)
+      // 兜底：无 AI 组时在"患者"组后插入
+      const patientGroupIndex = filteredGroups.findIndex(g => g.key === 'patients')
+      const newAiGroup: NavGroup = {
+        key: 'ai',
+        label: 'AI 助手',
+        items: aiItems,
+      }
+      if (patientGroupIndex >= 0) {
+        filteredGroups.splice(patientGroupIndex + 1, 0, newAiGroup)
+      } else {
+        filteredGroups.push(newAiGroup)
+      }
     }
   }
 
