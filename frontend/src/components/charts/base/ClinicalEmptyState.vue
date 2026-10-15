@@ -62,7 +62,7 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   padding: 24px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
   text-align: center;
 }
 
@@ -87,30 +87,30 @@ defineEmits<{
 .clinical-empty__meta {
   font-size: 12px;
   margin-top: 8px;
-  color: var(--color-text-disabled, #B6BEC9);
+  color: var(--color-text-tertiary);
 }
 
 .clinical-empty__impact {
   font-size: 12px;
   margin-top: 6px;
-  color: var(--color-warning, #E5B700);
+  color: var(--color-warning, var(--color-warning-soft));
   font-weight: 500;
 }
 
 .clinical-empty__action {
   margin-top: 16px;
   padding: 6px 16px;
-  border: 1px solid var(--color-border, #DCE5EF);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--color-bg-surface, #fff);
-  color: var(--color-text-primary, #17233D);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .clinical-empty__action:hover {
-  border-color: var(--color-primary, #1677FF);
-  color: var(--color-primary, #1677FF);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 </style>

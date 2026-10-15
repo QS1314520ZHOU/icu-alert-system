@@ -117,20 +117,20 @@ function qualityLabel(q: string): string {
   color: var(--text-primary, #182230);
 }
 .col-time { white-space: nowrap; color: var(--text-tertiary, #9CA3AF); }
-.col-value.flag-critical { color: #DC2626; font-weight: 700; }
-.col-value.flag-high { color: #EA580C; font-weight: 600; }
-.col-value.flag-low { color: #D97706; font-weight: 600; }
+.col-value.flag-critical { color: var(--color-danger); font-weight: 700; }
+.col-value.flag-high { color: var(--color-high-risk); font-weight: 600; }
+.col-value.flag-low { color: var(--color-warning); font-weight: 600; }
 .flag-tag {
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 4px;
   font-weight: 600;
 }
-.flag-tag.flag-critical { background: #DC2626; color: #fff; }
-.flag-tag.flag-high { background: #EA580C; color: #fff; }
-.flag-tag.flag-low { background: #D97706; color: #fff; }
-.flag-tag.flag-normal { background: #DCFCE7; color: #166534; }
-.flag-tag.flag-missing { background: #F3F4F6; color: #6B7280; }
+.flag-tag.flag-critical { background: var(--color-danger); color: var(--color-text-inverse); }
+.flag-tag.flag-high { background: var(--color-high-risk); color: var(--color-text-inverse); }
+.flag-tag.flag-low { background: var(--color-warning); color: var(--color-text-inverse); }
+.flag-tag.flag-normal { background: var(--color-normal-bg); color: var(--color-success); }
+.flag-tag.flag-missing { background: var(--color-bg-inset); color: var(--color-text-secondary); }
 .table-pagination {
   display: flex;
   justify-content: center;
@@ -143,7 +143,7 @@ function qualityLabel(q: string): string {
   padding: 2px 10px;
   border: 1px solid var(--color-border, #E5E7EB);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-bg-surface);
   cursor: pointer;
   font-size: 12px;
 }

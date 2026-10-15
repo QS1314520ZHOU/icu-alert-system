@@ -109,7 +109,7 @@ function refreshStatus() {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 8px;
   border: 1px solid var(--color-border, #E3E7EC);
   padding: 16px;
@@ -144,7 +144,7 @@ function refreshStatus() {
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 6px;
   position: relative;
 }
@@ -154,18 +154,18 @@ function refreshStatus() {
 }
 
 .step--running {
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-primary);
 }
 
 .step--completed {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
+  background: var(--color-normal-bg);
+  border: 1px solid var(--color-normal-border);
 }
 
 .step--failed {
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
+  background: var(--color-critical-bg);
+  border: 1px solid var(--color-critical-border);
 }
 
 .step-icon {
@@ -179,23 +179,23 @@ function refreshStatus() {
 }
 
 .step--pending .step-icon {
-  background: #d9d9d9;
-  color: #999;
+  background: var(--color-bg-inset);
+  color: var(--color-text-tertiary);
 }
 
 .step--running .step-icon {
-  background: #1890ff;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .step--completed .step-icon {
-  background: #52c41a;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .step--failed .step-icon {
-  background: #ff4d4f;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
 }
 
 .step-content {
@@ -210,12 +210,12 @@ function refreshStatus() {
 
 .step-description {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .step-duration {
   font-size: 11px;
-  color: #999;
+  color: var(--color-text-tertiary);
   margin-top: 4px;
 }
 
@@ -225,12 +225,12 @@ function refreshStatus() {
   top: 100%;
   height: 8px;
   width: 2px;
-  background: #d9d9d9;
+  background: var(--color-bg-inset);
 }
 
 .build-log {
   width: 300px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
   padding: 12px;
 }
@@ -250,24 +250,24 @@ function refreshStatus() {
 
 .log-entry {
   padding: 4px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .log-time {
-  color: #999;
+  color: var(--color-text-tertiary);
   margin-right: 8px;
 }
 
-.log--info .log-message { color: #333; }
-.log--warning .log-message { color: #faad14; }
-.log--error .log-message { color: #ff4d4f; }
-.log--success .log-message { color: #52c41a; }
+.log--info .log-message { color: var(--color-text-primary); }
+.log--warning .log-message { color: var(--color-warning); }
+.log--error .log-message { color: var(--color-danger); }
+.log--success .log-message { color: var(--color-success); }
 
 .build-stats {
   display: flex;
   gap: 24px;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
 }
 
@@ -279,13 +279,13 @@ function refreshStatus() {
 
 .stat-label {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
   margin-bottom: 4px;
 }
 
 .stat-value {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 </style>

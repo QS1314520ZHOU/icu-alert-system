@@ -181,7 +181,7 @@ watch(() => props.open, (isOpen) => {
 .selector-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--color-border, #DCE3EC);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 13px;
   outline: none;
@@ -190,13 +190,13 @@ watch(() => props.open, (isOpen) => {
 }
 
 .selector-input:focus {
-  border-color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
 }
 
 .selector-loading {
   padding: 24px;
   text-align: center;
-  color: var(--text-secondary, #52606D);
+  color: var(--text-secondary, var(--color-text-secondary));
   font-size: 13px;
   display: flex;
   align-items: center;
@@ -207,7 +207,7 @@ watch(() => props.open, (isOpen) => {
 .selector-error {
   padding: 24px;
   text-align: center;
-  color: var(--color-error, #DC2626);
+  color: var(--color-error, var(--color-danger));
   font-size: 13px;
   display: flex;
   flex-direction: column;
@@ -220,21 +220,21 @@ watch(() => props.open, (isOpen) => {
 }
 
 .selector-error__text {
-  color: var(--text-secondary, #52606D);
+  color: var(--text-secondary, var(--color-text-secondary));
 }
 
 .selector-retry-btn {
   padding: 4px 16px;
-  border: 1px solid var(--color-border, #DCE3EC);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-bg-surface);
   font-size: 12px;
   cursor: pointer;
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
 }
 
 .selector-retry-btn:hover {
-  background: var(--color-bg-hover, #F0F6FF);
+  background: var(--color-bg-hover, var(--color-primary-bg));
 }
 
 .selector-list {
@@ -261,25 +261,25 @@ watch(() => props.open, (isOpen) => {
 }
 
 .selector-item:hover {
-  background: var(--color-bg-hover, #F0F6FF);
+  background: var(--color-bg-hover, var(--color-primary-bg));
 }
 
 .selector-item__bed {
   min-width: 40px;
   font-weight: 600;
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
   font-size: 12px;
 }
 
 .selector-item__name {
   font-weight: 600;
-  color: var(--text-primary, #182230);
+  color: var(--text-primary, var(--color-text-primary));
   flex: 1;
 }
 
 .selector-item__meta {
   font-size: 12px;
-  color: var(--text-tertiary, #94A3B8);
+  color: var(--text-tertiary, var(--color-text-tertiary));
 }
 
 .selector-item__risk {
@@ -289,24 +289,24 @@ watch(() => props.open, (isOpen) => {
   border-radius: 3px;
 }
 
-.risk-critical { background: #FEF2F2; color: #991B1B; }
-.risk-high { background: #FEF2F2; color: #DC2626; }
-.risk-medium { background: #FFFBEB; color: #92400E; }
-.risk-warning { background: #FFFBEB; color: #92400E; }
-.risk-low, .risk-stable { background: #F0FDF4; color: #16A34A; }
+.risk-critical { background: var(--color-critical-bg); color: var(--color-critical); }
+.risk-high { background: var(--color-critical-bg); color: var(--color-danger); }
+.risk-medium { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.risk-warning { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.risk-low, .risk-stable { background: var(--color-normal-bg); color: var(--color-normal); }
 
 .selector-item__dept {
   font-size: 11px;
-  color: var(--text-tertiary, #94A3B8);
+  color: var(--text-tertiary, var(--color-text-tertiary));
   padding: 1px 6px;
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
   border-radius: 3px;
 }
 
 .selector-empty {
   padding: 32px;
   text-align: center;
-  color: var(--text-tertiary, #94A3B8);
+  color: var(--text-tertiary, var(--color-text-tertiary));
   font-size: 13px;
 }
 </style>

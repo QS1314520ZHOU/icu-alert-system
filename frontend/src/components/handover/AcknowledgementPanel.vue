@@ -107,7 +107,7 @@ function onCheckChange(ids: (string | number | boolean)[]) {
 }
 .forced-header {
   font-size: 13px;
-  color: #f59e0b;
+  color: var(--color-warning);
   margin-bottom: 6px;
   font-weight: 600;
 }

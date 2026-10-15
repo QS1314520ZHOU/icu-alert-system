@@ -121,8 +121,8 @@ function handleClick() {
 <style scoped>
 .metric-card {
   position: relative;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E5E7EB);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 10px);
   padding: 14px 16px;
   min-height: 116px;
@@ -134,16 +134,16 @@ function handleClick() {
 
 .metric-card--clickable { cursor: pointer; }
 .metric-card--clickable:hover {
-  border-color: var(--color-primary, #2563EB);
-  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 状态色左侧条 */
-.metric-card--critical  { border-left: 3px solid var(--color-critical, #991B1B); }
-.metric-card--high-risk { border-left: 3px solid var(--color-danger, #DC2626); }
-.metric-card--warning   { border-left: 3px solid var(--color-warning, #D97706); }
-.metric-card--normal    { border-left: 3px solid var(--color-success, #16A34A); }
-.metric-card--info      { border-left: 3px solid var(--color-primary, #2563EB); }
+.metric-card--critical  { border-left: 3px solid var(--color-critical); }
+.metric-card--high-risk { border-left: 3px solid var(--color-danger); }
+.metric-card--warning   { border-left: 3px solid var(--color-warning); }
+.metric-card--normal    { border-left: 3px solid var(--color-success, var(--color-normal)); }
+.metric-card--info      { border-left: 3px solid var(--color-primary); }
 
 .metric-card__header {
   display: flex;
@@ -154,16 +154,16 @@ function handleClick() {
 .metric-card__label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-secondary, #4B5563);
+  color: var(--color-text-secondary);
 }
 
 .metric-card__status-icon {
   font-size: 16px;
 }
-.metric-card--critical .metric-card__status-icon { color: var(--color-critical, #991B1B); }
-.metric-card--high-risk .metric-card__status-icon { color: var(--color-danger, #DC2626); }
-.metric-card--warning .metric-card__status-icon { color: var(--color-warning, #D97706); }
-.metric-card--normal .metric-card__status-icon { color: var(--color-success, #16A34A); }
+.metric-card--critical .metric-card__status-icon { color: var(--color-critical); }
+.metric-card--high-risk .metric-card__status-icon { color: var(--color-danger); }
+.metric-card--warning .metric-card__status-icon { color: var(--color-warning); }
+.metric-card--normal .metric-card__status-icon { color: var(--color-success, var(--color-normal)); }
 
 .metric-card__value-row {
   display: flex;
@@ -176,14 +176,14 @@ function handleClick() {
   font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif;
   font-weight: 700;
   line-height: 1.15;
-  color: var(--color-text-primary, #111827);
+  color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
 .metric-card__unit {
   font-size: 12px;
-  color: var(--color-text-tertiary, #9CA3AF);
+  color: var(--color-text-tertiary);
 }
 
 .metric-card__footer {
@@ -193,17 +193,17 @@ function handleClick() {
   font-size: 12px;
 }
 
-.metric-card__trend--up { color: #D92D20; }
-.metric-card__trend--down { color: #12A66A; }
-.metric-card__trend--flat { color: #98A2B3; }
+.metric-card__trend--up { color: var(--color-danger); }
+.metric-card__trend--down { color: var(--color-normal); }
+.metric-card__trend--flat { color: var(--color-unknown); }
 
 .metric-card__change {
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
 }
 
 .metric-card__time {
   font-size: 11px;
-  color: var(--color-text-disabled, #B6BEC9);
+  color: var(--color-text-tertiary);
   margin-top: 2px;
 }
 

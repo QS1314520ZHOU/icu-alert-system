@@ -192,7 +192,7 @@ h2 {
   font-weight: 600;
 }
 .doc-status-value.is-done {
-  color: #10b981;
+  color: var(--color-success);
 }
 
 /* 标签与成员 */

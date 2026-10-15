@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="citation-textarea">
     <div
       v-if="!editing"
@@ -123,7 +123,7 @@ function alertTypeLabel(type: string) {
 }
 .ct-display {
   padding: 6px 10px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   font-size: 13px;
@@ -166,28 +166,28 @@ function alertTypeLabel(type: string) {
 }
 .ct-tooltip-source {
   font-size: 12px;
-  color: #595959;
+  color: var(--color-text-secondary);
 }
 
 /* ================= Dark Theme Overrides ================= */
 :global(html[data-theme='dark']) .ct-display {
-  border-color: rgba(125, 167, 214, 0.14);
+  border-color: var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
 }
 :global(html[data-theme='dark']) :deep(.cite) {
-  background: rgba(34, 211, 238, 0.15);
+  background: var(--color-primary-bg);
   color: var(--brand);
 }
 :global(html[data-theme='dark']) :deep(.cite:hover) {
   background: var(--brand);
-  color: #07111d;
+  color: var(--color-text-primary);
 }
 :global(html[data-theme='dark']) .ct-tooltip-ref {
   color: var(--brand);
 }
 :global(html[data-theme='dark']) .ct-tooltip-source {
-  color: #7f93ab;
+  color: var(--color-text-tertiary);
 }
 </style>
 

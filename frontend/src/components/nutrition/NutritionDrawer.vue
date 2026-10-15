@@ -235,14 +235,14 @@ defineEmits<{
 }
 .drawer-kpis article {
   padding: 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .drawer-kpis span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .drawer-kpis strong {
   display: block;
@@ -250,7 +250,7 @@ defineEmits<{
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: var(--text-metric-key, 24px);
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .target-card {
@@ -258,20 +258,20 @@ defineEmits<{
   gap: 12px;
   margin-bottom: 16px;
   padding: 14px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .target-card span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .target-card strong {
   display: block;
   margin: 4px 0 6px;
   font-size: var(--text-body, 14px);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .loop-grid {
@@ -283,26 +283,26 @@ defineEmits<{
 .loop-grid article {
   min-height: 80px;
   padding: 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .loop-grid span,
 .loop-grid small {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .loop-grid strong {
   display: block;
   margin: 4px 0;
   font-size: var(--text-card-title, 14px);
   font-weight: 650;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
-.loop-grid .level-danger { border-color: var(--color-danger, #D92D20); border-left: 3px solid var(--color-danger); }
-.loop-grid .level-warn { border-color: var(--color-warning, #B54708); border-left: 3px solid var(--color-warning); }
-.loop-grid .level-stable { border-left: 3px solid var(--color-success, #16845B); }
+.loop-grid .level-danger { border-color: var(--color-danger); border-left: 3px solid var(--color-danger); }
+.loop-grid .level-warn { border-color: var(--color-warning); border-left: 3px solid var(--color-warning); }
+.loop-grid .level-stable { border-left: 3px solid var(--color-success); }
 
 .rx-card {
   display: grid;
@@ -311,33 +311,33 @@ defineEmits<{
   align-items: stretch;
   margin-bottom: 16px;
   padding: 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
-.rx-card.level-danger { border-color: var(--color-danger, #D92D20); }
-.rx-card.level-warn { border-color: var(--color-warning, #B54708); }
+.rx-card.level-danger { border-color: var(--color-danger); }
+.rx-card.level-warn { border-color: var(--color-warning); }
 .rx-card div {
   padding: 10px;
   border-radius: var(--radius-sm, 4px);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 .rx-card span,
-.rx-card small { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #667085); }
+.rx-card small { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-secondary); }
 .rx-card strong {
   display: block;
   margin: 4px 0;
   font-size: var(--text-body, 14px);
   font-weight: 650;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .rx-card button {
   min-width: 80px;
-  border: 1px solid var(--color-primary, #2563EB);
+  border: 1px solid var(--color-primary);
   border-radius: var(--radius-button, 6px);
   padding: 8px 12px;
-  color: var(--color-primary, #2563EB);
-  background: var(--color-bg-surface, #fff);
+  color: var(--color-primary);
+  background: var(--color-bg-surface);
   font-weight: 600;
   font-size: var(--text-body, 14px);
   cursor: pointer;
@@ -355,9 +355,9 @@ defineEmits<{
 .chart-grid article {
   min-height: 120px;
   padding: 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .chart-head {
   display: flex;
@@ -366,13 +366,13 @@ defineEmits<{
 }
 .chart-head span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .chart-head strong {
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .spark-bars {
@@ -385,7 +385,7 @@ defineEmits<{
   flex: 1;
   min-height: 6px;
   border-radius: 4px 4px 0 0;
-  background: var(--color-primary, #2563EB);
+  background: var(--color-primary);
   opacity: 0.7;
 }
 
@@ -393,7 +393,7 @@ defineEmits<{
   position: relative;
   height: 70px;
   border-radius: var(--radius-sm, 4px);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
   overflow: hidden;
 }
 .glucose-line i {
@@ -402,7 +402,7 @@ defineEmits<{
   height: 6px;
   margin-left: -3px;
   border-radius: 50%;
-  background: var(--color-primary, #2563EB);
+  background: var(--color-primary);
 }
 
 .risk-lights {
@@ -413,19 +413,19 @@ defineEmits<{
 }
 .risk-lights span {
   padding: 3px 8px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-tag, 4px);
   font-size: var(--text-label, 12px);
-  color: var(--color-text-secondary, #667085);
-  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
 }
 .risk-lights span.hot {
-  border-color: var(--color-danger, #D92D20);
-  color: var(--color-danger, #D92D20);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
   background: var(--color-danger-bg, rgba(217,45,32,0.08));
 }
 .risk-lights span.muted {
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .lab-grid {
@@ -436,25 +436,25 @@ defineEmits<{
 }
 .lab-grid article {
   padding: 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .lab-grid span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .lab-grid strong {
   display: block;
   margin: 2px 0;
   font-size: var(--text-card-title, 14px);
   font-weight: 650;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .lab-grid small {
   font-size: 11px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .order-list,
@@ -470,22 +470,22 @@ defineEmits<{
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .order-list b {
   font-size: var(--text-caption, 12px);
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
   font-weight: 600;
 }
 .order-list span {
   font-size: var(--text-body, 14px);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .order-list small {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .task-list article {
@@ -494,15 +494,15 @@ defineEmits<{
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .task-list b,
 .task-list span { display: block; }
-.task-list b { font-size: var(--text-body, 14px); color: var(--color-text-primary, #18212B); }
+.task-list b { font-size: var(--text-body, 14px); color: var(--color-text-primary); }
 .task-list span,
-.task-list small { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #667085); }
+.task-list small { font-size: var(--text-caption, 12px); color: var(--color-text-secondary); }
 .task-list article.closed { opacity: 0.6; }
 
 .action-list button {
@@ -512,24 +512,24 @@ defineEmits<{
   align-items: center;
   width: 100%;
   padding: 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
   text-align: left;
   cursor: pointer;
   font-family: inherit;
   color: inherit;
 }
-.action-list button:hover { background: var(--color-bg-surface-secondary, #F1F3F5); }
-.action-list .ai-action { border-color: var(--color-primary, #2563EB); }
+.action-list button:hover { background: var(--color-bg-surface-secondary); }
+.action-list .ai-action { border-color: var(--color-primary); }
 .action-list strong {
   font-size: var(--text-body, 14px);
   font-weight: 600;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .action-list span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .ai-card {
@@ -537,29 +537,29 @@ defineEmits<{
   gap: 10px;
   margin-top: 16px;
   padding: 14px;
-  border: 1px solid var(--color-primary, #2563EB);
+  border: 1px solid var(--color-primary);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .ai-card__head {
   display: flex;
   justify-content: space-between;
   gap: 10px;
 }
-.ai-card__head strong { font-size: var(--text-card-title, 14px); color: var(--color-primary, #2563EB); }
-.ai-card__head span { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #667085); }
-.ai-card p { margin: 0; font-size: var(--text-body, 14px); color: var(--color-text-primary, #18212B); }
-.ai-text { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #667085); white-space: pre-wrap; line-height: 1.5; }
+.ai-card__head strong { font-size: var(--text-card-title, 14px); color: var(--color-primary); }
+.ai-card__head span { font-size: var(--text-caption, 12px); color: var(--color-text-secondary); }
+.ai-card p { margin: 0; font-size: var(--text-body, 14px); color: var(--color-text-primary); }
+.ai-text { font-size: var(--text-caption, 12px); color: var(--color-text-secondary); white-space: pre-wrap; line-height: 1.5; }
 .ai-advice-list { display: grid; gap: 6px; }
-.ai-advice-list article { padding: 8px; border: 1px solid var(--color-border, #E3E7EC); border-radius: var(--radius-sm, 4px); background: var(--color-bg-surface-secondary, #F1F3F5); }
-.ai-advice-list b { display: block; margin-bottom: 2px; font-size: var(--text-body, 14px); color: var(--color-primary, #2563EB); }
-.ai-advice-list span { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #667085); }
+.ai-advice-list article { padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm, 4px); background: var(--color-bg-surface-secondary); }
+.ai-advice-list b { display: block; margin-bottom: 2px; font-size: var(--text-body, 14px); color: var(--color-primary); }
+.ai-advice-list span { font-size: var(--text-caption, 12px); color: var(--color-text-secondary); }
 
 .drawer-empty {
   padding: 20px;
   text-align: center;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 1024px) {

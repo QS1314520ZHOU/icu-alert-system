@@ -78,7 +78,7 @@ defineEmits<{
 }
 .mdt-step__check {
   margin-left: auto;
-  color: #10b981;
+  color: var(--color-success);
   font-size: 14px;
 }
 .mdt-step.is-active {
@@ -87,15 +87,15 @@ defineEmits<{
 }
 .mdt-step.is-active .mdt-step__index {
   background: var(--brand);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 .mdt-step.is-active .mdt-step__title {
   color: var(--text-primary);
   font-weight: 600;
 }
 .mdt-step.is-done .mdt-step__index {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  background: var(--color-normal-border);
+  color: var(--color-success);
 }
 .mdt-step.is-done .mdt-step__title {
   color: var(--text-primary);

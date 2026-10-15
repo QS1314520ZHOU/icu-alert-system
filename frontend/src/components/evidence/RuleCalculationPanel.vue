@@ -114,9 +114,9 @@ function formatTime(t: string): string {
   font-size: 12px;
   font-weight: 500;
 }
-.light-item.ok { background: #DCFCE7; color: #166534; }
-.light-item.bad { background: #FEF2F2; color: #991B1B; }
-.light-item.unavailable { background: #F3F4F6; color: #9CA3AF; }
+.light-item.ok { background: var(--color-normal-bg); color: var(--color-success); }
+.light-item.bad { background: var(--color-critical-bg); color: var(--color-critical); }
+.light-item.unavailable { background: var(--color-bg-inset); color: var(--color-text-tertiary); }
 .light-item i { font-style: normal; font-weight: 700; }
 
 .calc-items {
@@ -141,9 +141,9 @@ function formatTime(t: string): string {
   border-radius: 4px;
   font-weight: 600;
 }
-.item-status.ok { background: #DCFCE7; color: #166534; }
-.item-status.bad { background: #FEF2F2; color: #991B1B; }
-.item-status.unavailable { background: #F3F4F6; color: #9CA3AF; }
+.item-status.ok { background: var(--color-normal-bg); color: var(--color-success); }
+.item-status.bad { background: var(--color-critical-bg); color: var(--color-critical); }
+.item-status.unavailable { background: var(--color-bg-inset); color: var(--color-text-tertiary); }
 .item-desc { font-size: 11px; color: var(--text-tertiary, #9CA3AF); }
 .calc-empty {
   text-align: center;

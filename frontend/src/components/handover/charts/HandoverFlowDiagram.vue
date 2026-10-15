@@ -41,10 +41,10 @@ function stepClass(step: FlowStep) {
 }
 </script>
 
-<style scoped>
-.handover-flow { background: #fff; border-radius: 8px; border: 1px solid #DCE5EF; padding: 16px; }
+<style<style scoped>>
+.handover-flow { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .flow-header { margin-bottom: 12px; }
-.flow-title { font-size: 14px; font-weight: 600; color: #17233D; margin: 0; }
+.flow-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }
 
 .flow-steps { display: flex; align-items: flex-start; gap: 4px; overflow-x: auto; padding-bottom: 8px; }
 .flow-step {
@@ -53,20 +53,20 @@ function stepClass(step: FlowStep) {
 }
 .step-dot {
   width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: #fff; background: #98A2B3;
+  font-size: 12px; font-weight: 600; color: var(--color-bg-surface); background: var(--color-unknown);
 }
-.flow-step--done .step-dot { background: #12A66A; }
-.flow-step--current .step-dot { background: #2E90FA; box-shadow: 0 0 0 3px rgba(46,144,250,0.2); }
-.flow-step--blocked .step-dot { background: #D92D20; }
+.flow-step--done .step-dot { background: var(--color-normal); }
+.flow-step--current .step-dot { background: var(--color-info); box-shadow: 0 0 0 3px var(--color-info-bg); }
+.flow-step--blocked .step-dot { background: var(--color-danger); }
 
-.step-label { font-size: 11px; color: #17233D; margin-top: 4px; text-align: center; }
-.step-meta { font-size: 10px; color: #5F6B7A; }
-.step-time { font-size: 10px; color: #8A94A6; }
-.step-blocked { font-size: 10px; color: #D92D20; font-weight: 500; }
+.step-label { font-size: 11px; color: var(--color-text-primary); margin-top: 4px; text-align: center; }
+.step-meta { font-size: 10px; color: var(--color-text-secondary); }
+.step-time { font-size: 10px; color: var(--color-text-tertiary); }
+.step-blocked { font-size: 10px; color: var(--color-danger); font-weight: 500; }
 
 .step-arrow {
-  position: absolute; right: -12px; top: 10px; color: #98A2B3; font-size: 14px;
+  position: absolute; right: -12px; top: 10px; color: var(--color-unknown); font-size: 14px;
 }
 
-.flow-caption { font-size: 12px; color: #8A94A6; margin-top: 12px; border-top: 1px solid #F0F3F7; padding-top: 8px; }
+.flow-caption { font-size: 12px; color: var(--color-text-tertiary); margin-top: 12px; border-top: 1px solid var(--color-divider); padding-top: 8px; }
 </style>

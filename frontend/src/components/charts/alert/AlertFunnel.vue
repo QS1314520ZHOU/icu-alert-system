@@ -128,8 +128,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .alert-funnel {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #DCE5EF);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -141,6 +141,6 @@ onBeforeUnmount(() => {
 .alert-funnel__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 </style>

@@ -148,7 +148,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 8px;
   border: 1px solid var(--color-border, #E3E7EC);
   padding: 16px;
@@ -174,7 +174,7 @@ onMounted(() => {
 .graph-container {
   flex: 1;
   min-height: 400px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -200,13 +200,13 @@ onMounted(() => {
 
 .edge-label {
   font-size: 10px;
-  fill: #666;
+  fill: var(--color-text-secondary);
   pointer-events: none;
 }
 
 .node-detail {
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
 }
 
@@ -219,7 +219,7 @@ onMounted(() => {
 .node-detail p {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .node-metadata {
@@ -236,10 +236,10 @@ onMounted(() => {
 
 .metadata-key {
   font-weight: 500;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .metadata-value {
-  color: #666;
+  color: var(--color-text-secondary);
 }
 </style>

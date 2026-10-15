@@ -98,10 +98,10 @@ onMounted(() => { nextTick(render) })
 watch(() => props.patients, () => nextTick(render), { deep: true })
 </script>
 
-<style scoped>
-.patient-risk-ranking { background: #fff; border-radius: 8px; border: 1px solid #DCE5EF; padding: 16px; }
+<style<style scoped>>
+.patient-risk-ranking { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .ranking-header { margin-bottom: 8px; }
-.ranking-title { font-size: 14px; font-weight: 600; color: #17233D; margin: 0; }
+.ranking-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }
 .ranking-chart { width: 100%; height: 280px; }
-.ranking-caption { font-size: 12px; color: #8A94A6; margin-top: 8px; border-top: 1px solid #F0F3F7; padding-top: 8px; }
+.ranking-caption { font-size: 12px; color: var(--color-text-tertiary); margin-top: 8px; border-top: 1px solid var(--color-divider); padding-top: 8px; }
 </style>

@@ -168,7 +168,7 @@ onUnmounted(() => {
   width: 320px;
   overflow: hidden;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103, 232, 249, 0.18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   box-shadow: var(--card-shadow);
   padding: 14px 14px 13px 18px;
@@ -196,7 +196,7 @@ onUnmounted(() => {
   min-height: 22px;
   padding: 0 9px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103, 232, 249, 0.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--accent);
   font-size: 11px;
@@ -205,10 +205,10 @@ onUnmounted(() => {
 .pulse-icon-btn {
   width: 26px;
   height: 26px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  color: #b8d5e1;
+  color: var(--color-text-tertiary);
   cursor: pointer;
 }
 .pulse-card__headline {
@@ -230,7 +230,7 @@ onUnmounted(() => {
 }
 .pulse-primary {
   min-height: 30px;
-  border: 1px solid rgba(34, 211, 238, 0.32);
+  border: 1px solid var(--color-accent);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -243,7 +243,7 @@ onUnmounted(() => {
   width: 52px;
   height: 52px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103, 232, 249, 0.24);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
@@ -268,7 +268,7 @@ onUnmounted(() => {
   max-height: 420px;
   overflow: auto;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103, 232, 249, 0.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   box-shadow: var(--card-shadow);
   padding: 12px;
@@ -289,7 +289,7 @@ onUnmounted(() => {
   margin-top: 8px;
   padding: 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103, 232, 249, 0.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   cursor: pointer;
 }
@@ -297,19 +297,19 @@ onUnmounted(() => {
 .pulse-history__item strong { color: var(--text-primary); font-size: 12px; line-height: 1.45; }
 .pulse-history__item em { color: var(--text-secondary); font-size: 11px; font-style: normal; }
 html[data-theme='light'] .pulse-card {
-  border-color: rgba(59, 130, 246, 0.2);
+  border-color: var(--color-border);
   background: var(--bg-surface);
   box-shadow: var(--card-shadow);
   color: var(--text-primary);
 }
 html[data-theme='light'] .pulse-source {
-  border-color: rgba(59, 130, 246, 0.18);
-  background: rgba(239, 246, 255, 0.98);
+  border-color: var(--color-border);
+  background: var(--color-primary-bg);
   color: var(--brand);
 }
 html[data-theme='light'] .pulse-icon-btn {
-  border-color: rgba(148, 163, 184, 0.26);
-  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--color-border);
+  background: var(--bg-surface);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .pulse-card__headline,
@@ -322,18 +322,18 @@ html[data-theme='light'] .pulse-history__item em {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .pulse-primary {
-  border-color: rgba(37, 99, 235, 0.32);
+  border-color: var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
 }
 html[data-theme='light'] .pulse-fab {
-  border-color: rgba(37, 99, 235, 0.22);
+  border-color: var(--color-border);
   background: var(--bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .pulse-history {
-  border-color: rgba(148, 163, 184, 0.24);
-  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--color-border);
+  background: var(--color-bg-surface);
   box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .pulse-history__head span,
@@ -341,8 +341,8 @@ html[data-theme='light'] .pulse-history__empty {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .pulse-history__item {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(248, 251, 255, 0.98);
+  border-color: var(--color-border);
+  background: var(--color-bg-surface-secondary);
 }
 html[data-theme='light'] .pulse-history__item span {
   color: var(--brand);

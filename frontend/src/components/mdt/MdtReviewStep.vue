@@ -214,7 +214,7 @@ h2 {
   line-height: 1.6;
 }
 .review-summary-card.is-warning {
-  border-color: rgba(245, 158, 11, 0.3);
+  border-color: var(--color-warning-soft-border);
 }
 
 /* 专科紧凑列表 */
@@ -272,20 +272,20 @@ h2 {
   font-weight: 600;
 }
 .priority-tag.priority-critical {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 .priority-tag.priority-high {
-  background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 .priority-tag.priority-medium {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 .priority-tag.priority-low {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 .conflict-tag {
   display: inline-flex;
@@ -293,8 +293,8 @@ h2 {
   height: 22px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
   font-size: 11px;
   font-weight: 600;
 }

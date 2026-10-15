@@ -87,57 +87,57 @@ const deliriumCard = computed(() => pickCard(['delirium'], '谵妄筛查'))
 <style scoped>
 .bundle-tab { display: grid; gap: 14px; }
 .bundle-hero,.bundle-list-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
-.bundle-title { color: var(--text-primary); font-size: 22px; font-weight: 800; }
-.bundle-sub,.bundle-list-sub,.domain-meta,.bundle-alert-head span { color: var(--text-secondary); font-size: 12px; }
-.bundle-score-box { min-width: 110px; padding: 12px 14px; border-radius: var(--card-radius); border: 1px solid rgba(52, 211, 153, 0.22); background: var(--bg-surface); color: var(--success); }
-.bundle-score-box span { display: block; font-size: 11px; }
-.bundle-score-box strong { font-size: 22px; }
+.bundle-title { color: var(--text-primary); font-size: var(--text-page-title); font-weight: 700; }
+.bundle-sub,.bundle-list-sub,.domain-meta,.bundle-alert-head span { color: var(--text-secondary); font-size: var(--text-caption); }
+.bundle-score-box { min-width: 110px; padding: 12px 14px; border-radius: var(--card-radius); border: 1px solid var(--color-border); background: var(--bg-surface); color: var(--success); }
+.bundle-score-box span { display: block; font-size: var(--text-label); }
+.bundle-score-box strong { font-size: var(--text-metric-key); font-variant-numeric: tabular-nums; }
 .bundle-light-row,.domain-grid,.bundle-alert-list { display: grid; gap: 12px; }
 .bundle-light-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .domain-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .bundle-alert-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.bundle-light,.domain-card,.bundle-alert-card { padding: 14px; border-radius: var(--card-radius); border: 1px solid rgba(125, 211, 252, 0.12); background: var(--bg-surface); }
+.bundle-light,.domain-card,.bundle-alert-card { padding: 14px; border-radius: var(--card-radius); border: 1px solid var(--color-border); background: var(--bg-surface); }
 .bundle-light { display: flex; gap: 12px; align-items: center; }
-.bundle-light-key { width: 34px; height: 34px; border-radius: var(--card-radius); display: grid; place-items: center; font-weight: 800; background: var(--bg-surface); color: var(--text-primary); }
-.bundle-light--green { border-color: rgba(52, 211, 153, 0.22); }
-.bundle-light--yellow { border-color: rgba(251, 191, 36, 0.22); }
-.bundle-light--red { border-color: rgba(251, 113, 133, 0.22); }
-.domain-title,.bundle-list-title { color: var(--text-primary); font-size: 15px; font-weight: 800; }
+.bundle-light-key { width: 34px; height: 34px; border-radius: var(--card-radius); display: grid; place-items: center; font-weight: 700; background: var(--bg-surface); color: var(--text-primary); }
+.bundle-light--green { border-color: var(--color-border); }
+.bundle-light--yellow { border-color: var(--color-border); }
+.bundle-light--red { border-color: var(--color-border); }
+.domain-title,.bundle-list-title { color: var(--text-primary); font-size: var(--text-section-title); font-weight: 700; }
 .domain-main,.bundle-alert-main { margin-top: 10px; color: var(--text-primary); line-height: 1.6; }
 .domain-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.domain-chip,.bundle-list-count { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface); color: var(--accent); font-size: 12px; border: 1px solid rgba(125, 211, 252, 0.12); }
+.domain-chip,.bundle-list-count { padding: 6px 10px; border-radius: var(--card-radius); background: var(--bg-surface); color: var(--accent); font-size: var(--text-caption); border: 1px solid var(--color-border); }
 .bundle-alert-head { display: flex; justify-content: space-between; gap: 12px; }
 .bundle-alert-head strong { color: var(--text-primary); }
-.bundle-alert-foot { margin-top: 10px; color: var(--chart-1); font-size: 12px; }
-.bundle-empty { padding: 24px; border-radius: var(--card-radius); text-align: center; color: var(--text-secondary); border: 1px dashed rgba(125, 211, 252, 0.2); }
+.bundle-alert-foot { margin-top: 10px; color: var(--chart-1); font-size: var(--text-caption); }
+.bundle-empty { padding: 24px; border-radius: var(--card-radius); text-align: center; color: var(--text-secondary); border: 1px dashed var(--color-border); }
 @media (max-width: 960px) { .bundle-light-row,.domain-grid,.bundle-alert-list { grid-template-columns: 1fr; } }
 
 /* Light mode overrides */
 html[data-theme='light'] .bundle-title { color: var(--text-secondary); }
 html[data-theme='light'] .bundle-sub, html[data-theme='light'] .bundle-list-sub, html[data-theme='light'] .domain-meta, html[data-theme='light'] .bundle-alert-head span { color: var(--text-secondary); }
-html[data-theme='light'] .bundle-score-box { background: rgba(16,185,129,.14); border-color: rgba(16,185,129,.3); color: var(--chart-2); }
-html[data-theme='light'] .bundle-light, html[data-theme='light'] .domain-card, html[data-theme='light'] .bundle-alert-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
-html[data-theme='light'] .bundle-light-key { background: rgba(243,248,252,0.96); color: var(--text-secondary); border: 1px solid rgba(187,204,220,0.72); }
-html[data-theme='light'] .bundle-light--green { border-color: rgba(16,185,129,.3); }
-html[data-theme='light'] .bundle-light--yellow { border-color: rgba(245,158,11,.3); }
-html[data-theme='light'] .bundle-light--red { border-color: rgba(239,68,68,.3); }
+html[data-theme='light'] .bundle-score-box { background: var(--color-normal-bg); border-color: var(--color-normal-border); color: var(--chart-2); }
+html[data-theme='light'] .bundle-light, html[data-theme='light'] .domain-card, html[data-theme='light'] .bundle-alert-card { background: var(--bg-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm); }
+html[data-theme='light'] .bundle-light-key { background: var(--color-bg-surface); color: var(--text-secondary); border: 1px solid var(--color-border); }
+html[data-theme='light'] .bundle-light--green { border-color: var(--color-normal-border); }
+html[data-theme='light'] .bundle-light--yellow { border-color: var(--color-high-risk-border); }
+html[data-theme='light'] .bundle-light--red { border-color: var(--color-critical-border); }
 html[data-theme='light'] .domain-title, html[data-theme='light'] .bundle-list-title { color: var(--brand); }
 html[data-theme='light'] .domain-main, html[data-theme='light'] .bundle-alert-main { color: var(--text-secondary); }
-html[data-theme='light'] .domain-chip, html[data-theme='light'] .bundle-list-count { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
+html[data-theme='light'] .domain-chip, html[data-theme='light'] .bundle-list-count { background: var(--bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
 html[data-theme='light'] .bundle-alert-head strong { color: var(--text-secondary); }
 html[data-theme='light'] .bundle-alert-foot { color: var(--text-secondary); }
-html[data-theme='light'] .bundle-empty { color: var(--text-secondary); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .bundle-empty { color: var(--text-secondary); border-color: var(--color-border); }
 
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .bundle-light,
 html[data-theme='light'] .domain-card,
 html[data-theme='light'] .bundle-alert-card {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .bundle-light-key {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .bundle-title,
@@ -151,8 +151,8 @@ html[data-theme='light'] .bundle-alert-head span,
 html[data-theme='light'] .bundle-alert-foot,
 html[data-theme='light'] .bundle-empty { color: var(--text-secondary); }
 html[data-theme='light'] .bundle-score-box {
-  background: rgba(236,253,245,0.98);
-  border-color: rgba(16,185,129,0.28);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--success);
 }
 </style>

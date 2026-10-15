@@ -9,20 +9,20 @@
       >
         <defs>
           <radialGradient :id="svgDefId('bg-fill')" cx="50%" cy="22%" r="80%">
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--bg-0" offset="0%" stop-color="#12213a" />
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--bg-58" offset="58%" stop-color="#0a1628" />
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--bg-100" offset="100%" stop-color="#08111f" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--bg-0" offset="0%" stop-color="var(--color-text-primary)" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--bg-58" offset="58%" stop-color="var(--color-text-primary)" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--bg-100" offset="100%" stop-color="var(--color-text-primary)" />
           </radialGradient>
 
           <linearGradient :id="svgDefId('body-fill')" x1="0" y1="0" x2="0" y2="1">
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--body-0" offset="0%" stop-color="#93f7ff" stop-opacity="0.30" />
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--body-45" offset="45%" stop-color="#74e4ef" stop-opacity="0.22" />
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--body-100" offset="100%" stop-color="#4ab8ca" stop-opacity="0.14" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--body-0" offset="0%" stop-color="var(--color-info-bg)" stop-opacity="0.30" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--body-45" offset="45%" stop-color="var(--color-info-border)" stop-opacity="0.22" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--body-100" offset="100%" stop-color="var(--color-accent)" stop-opacity="0.14" />
           </linearGradient>
 
           <linearGradient :id="svgDefId('body-core')" x1="0" y1="0" x2="0" y2="1">
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--core-0" offset="0%" stop-color="#d8feff" stop-opacity="0.11" />
-            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--core-100" offset="100%" stop-color="#8aefff" stop-opacity="0.02" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--core-0" offset="0%" stop-color="var(--color-info-bg)" stop-opacity="0.11" />
+            <stop class="organ-heatmap__svg-stop organ-heatmap__svg-stop--core-100" offset="100%" stop-color="var(--color-info-border)" stop-opacity="0.02" />
           </linearGradient>
 
           <filter :id="svgDefId('body-glow')" x="-26%" y="-10%" width="152%" height="130%">
@@ -638,14 +638,14 @@ function handleOrganClick(key: BodyMapOrganKey) {
 }
 
 .organ-heatmap__svg-label {
-  fill: rgba(236, 251, 255, .96);
+  fill: var(--color-text-inverse);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .04em;
 }
 
 .organ-heatmap__svg-status {
-  fill: rgba(146, 207, 221, .88);
+  fill: var(--color-text-tertiary);
   font-size: 10px;
   font-weight: 600;
 }
@@ -664,39 +664,39 @@ html[data-theme='light'] .organ-heatmap__svg {
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--bg-0 {
-  stop-color: #f7fbff !important;
+  stop-color: var(--color-bg-surface) !important;
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--bg-58 {
-  stop-color: #ecf4fb !important;
+  stop-color: var(--color-bg-surface) !important;
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--bg-100 {
-  stop-color: #e5eef8 !important;
+  stop-color: var(--color-bg-surface-secondary) !important;
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--body-0 {
-  stop-color: #5ec7e5 !important;
+  stop-color: var(--color-info-border) !important;
   stop-opacity: 0.2 !important;
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--body-45 {
-  stop-color: #47b8da !important;
+  stop-color: var(--color-accent) !important;
   stop-opacity: 0.16 !important;
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--body-100 {
-  stop-color: #2e94bf !important;
+  stop-color: var(--color-accent) !important;
   stop-opacity: 0.1 !important;
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--core-0 {
-  stop-color: #d5ecfa !important;
+  stop-color: var(--color-info-bg) !important;
   stop-opacity: 0.32 !important;
 }
 
 html[data-theme='light'] .organ-heatmap__svg-stop--core-100 {
-  stop-color: #95c9e8 !important;
+  stop-color: var(--color-info-border) !important;
   stop-opacity: 0.08 !important;
 }
 
@@ -721,11 +721,11 @@ html[data-theme='light'] .organ-heatmap__organ {
 }
 
 html[data-theme='light'] .organ-heatmap__svg-label {
-  fill: #264763;
+  fill: var(--color-text-primary);
 }
 
 html[data-theme='light'] .organ-heatmap__svg-status {
-  fill: #5a7a93;
+  fill: var(--color-text-secondary);
 }
 
 html[data-theme='light'] .organ-heatmap__svg-connector {

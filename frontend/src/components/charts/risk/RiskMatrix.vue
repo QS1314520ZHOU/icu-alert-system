@@ -175,8 +175,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .risk-matrix {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #DCE5EF);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -191,14 +191,14 @@ onBeforeUnmount(() => {
 .risk-matrix__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .risk-matrix__legend {
   display: flex;
   gap: 12px;
   font-size: 11px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .risk-matrix__legend-item {

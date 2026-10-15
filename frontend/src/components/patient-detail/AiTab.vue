@@ -1282,7 +1282,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 8px;
   margin-bottom: 12px;
   padding: 10px 12px;
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
 }
@@ -1290,7 +1290,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   width: 10px;
   height: 10px;
   border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .ai-service-dot.is-green {
   color: var(--chart-2);
@@ -1305,14 +1305,14 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   background: var(--danger);
 }
 .ai-service-text {
-  color: #e6f6ff;
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: .06em;
 }
 .ai-service-detail {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .ai-grid {
   display: grid;
@@ -1321,17 +1321,17 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .ai-card {
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   min-height: 520px;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
   border-radius: var(--card-radius);
 }
 .ai-card :deep(.ant-card-head) {
-  border-bottom: 1px solid rgba(80,199,255,.1);
+  border-bottom: 1px solid var(--color-divider);
 }
 .ai-card :deep(.ant-card-head-title) {
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--text-body);
   letter-spacing: .12em;
   text-transform: uppercase;
 }
@@ -1355,7 +1355,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   flex-wrap: wrap;
 }
 .ai-card-note {
-  font-size: 11px;
+  font-size: var(--text-label);
   color: var(--text-secondary);
 }
 .ai-card :deep(.ant-btn),
@@ -1364,25 +1364,25 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .ai-card :deep(.ant-pagination .ant-pagination-prev),
 .ai-card :deep(.ant-pagination .ant-pagination-next) {
   background: var(--bg-surface) !important;
-  border-color: rgba(80,199,255,.14) !important;
+  border-color: var(--color-border) !important;
   color: var(--text-primary) !important;
 }
 .ai-card :deep(.ant-pagination .ant-pagination-item-active) {
   background: var(--bg-surface) !important;
-  border-color: rgba(110,231,249,.28) !important;
+  border-color: var(--color-border) !important;
 }
 .ai-card :deep(.ant-pagination .ant-pagination-item-active a) {
   color: var(--text-primary) !important;
 }
 .ai-empty {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   padding: 8px 2px;
 }
 .ai-rich {
   margin-top: 2px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.8;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1393,17 +1393,17 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .ai-rich :deep(h4) {
   margin: 12px 0 6px;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   color: var(--text-primary);
   font-weight: 700;
 }
 .ai-rich :deep(p) { margin: 0; }
 .ai-rich :deep(code) {
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 1px 5px;
-  color: #eaffff;
+  color: var(--color-text-primary);
 }
 .lab-summary-board {
   display: grid;
@@ -1418,7 +1418,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 12px;
   align-items: center;
   padding: 13px 14px;
-  border: 1px solid rgba(103, 232, 249, .18);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
 }
@@ -1426,23 +1426,23 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   display: block;
   margin-bottom: 4px;
   color: var(--accent);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--text-label);
+  font-weight: 700;
   letter-spacing: .16em;
 }
 .lab-summary-hero strong {
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--text-section-title);
   line-height: 1.35;
 }
 .lab-summary-badge {
   flex: none;
   padding: 5px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(251, 191, 36, .28);
-  background: rgba(120, 83, 14, .22);
-  color: var(--warning-soft);
-  font-size: 11px;
+  border: 1px solid var(--color-border);
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning);
+  font-size: var(--text-label);
   font-weight: 700;
 }
 .lab-abnormal-grid {
@@ -1452,7 +1452,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .lab-abnormal-card {
   padding: 11px 12px;
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
 }
@@ -1461,30 +1461,30 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   align-items: center;
   gap: 7px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .lab-abnormal-head strong {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .lab-marker {
   width: 8px;
   height: 8px;
   border-radius: var(--card-radius);
   background: var(--danger);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .lab-value-line {
   margin-top: 7px;
-  color: var(--warning-soft);
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--color-warning);
+  font-size: var(--text-body);
+  font-weight: 700;
   line-height: 1.45;
 }
 .lab-abnormal-card p {
   margin: 7px 0 0;
-  color: #9fb5d0;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   line-height: 1.55;
 }
 .lab-summary-columns {
@@ -1494,18 +1494,18 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .lab-summary-section {
   padding: 12px;
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
 }
 .lab-summary-section--action {
-  border-color: rgba(34, 211, 238, .18);
+  border-color: var(--color-border);
 }
 .lab-section-title {
   margin-bottom: 8px;
   color: var(--accent);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--text-caption);
+  font-weight: 700;
   letter-spacing: .08em;
 }
 .lab-clean-list,
@@ -1513,7 +1513,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   margin: 0;
   padding-left: 18px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.65;
 }
 .lab-clean-list li + li,
@@ -1524,7 +1524,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .handoff-wrap,
 .kb-doc-meta,
 .kb-chunk-item {
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   padding: 10px 12px;
@@ -1533,7 +1533,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .ai-risk-card p,
 .kb-doc-meta p {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   margin: 0 0 6px;
 }
 .workbench-kpis {
@@ -1543,7 +1543,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   margin-bottom: 10px;
 }
 .wb-kpi {
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   padding: 8px 10px;
@@ -1552,17 +1552,17 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .wb-kpi span {
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--text-label);
   letter-spacing: .1em;
   text-transform: uppercase;
 }
 .wb-kpi strong {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.35;
 }
 .ai-workbench-section {
-  border: 1px solid rgba(80,199,255,.1);
+  border: 1px solid var(--color-divider);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   padding: 10px 12px;
@@ -1570,7 +1570,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .ai-workbench-title {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -1578,7 +1578,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 }
 .workbench-text {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.7;
   white-space: pre-wrap;
 }
@@ -1587,7 +1587,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 8px;
 }
 .summary-section {
-  border: 1px solid rgba(80,199,255,.08);
+  border: 1px solid var(--color-divider);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   padding: 8px 10px;
@@ -1595,34 +1595,34 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .summary-label {
   margin-bottom: 4px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
 .summary-conclusion {
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 10px 12px;
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .summary-conclusion--low {
-  border-color: rgba(52,211,153,.18);
+  border-color: var(--color-border);
   background: var(--bg-surface);
 }
 .summary-conclusion--warning {
-  border-color: rgba(250,204,21,.2);
+  border-color: var(--color-border);
   background: var(--bg-surface);
 }
 .summary-conclusion--high,
 .summary-conclusion--critical {
-  border-color: rgba(251,90,122,.22);
+  border-color: var(--color-border);
   background: var(--bg-surface);
 }
 .summary-conclusion-label {
-  color: #91ecff;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -1630,7 +1630,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .summary-conclusion-text {
   margin-top: 6px;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--text-section-title);
   line-height: 1.5;
   font-weight: 700;
 }
@@ -1646,14 +1646,14 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   padding: 0 10px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-label);
   line-height: 1.4;
 }
 .summary-order {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.7;
   padding-left: 12px;
   position: relative;
@@ -1664,19 +1664,19 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   left: 0;
   top: 0;
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--text-label);
   letter-spacing: .12em;
 }
 .summary-text {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.65;
 }
 .summary-list {
   margin: 0;
   padding-left: 16px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 .summary-list li + li {
@@ -1688,7 +1688,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   display: grid;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.65;
 }
 .workbench-list:has(.action-item) {
@@ -1709,10 +1709,10 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   width: 22px;
   height: 22px;
   border-radius: var(--card-radius);
-  background: rgba(56, 189, 248, 0.16);
-  border: 1px solid rgba(56, 189, 248, 0.34);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
   color: var(--accent);
-  font-weight: 800;
+  font-weight: 700;
 }
 .action-text {
   min-width: 0;
@@ -1739,11 +1739,12 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   align-items: center;
   justify-content: center;
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.14);
-  color: #90ecff;
-  font-size: 11px;
-  font-weight: 800;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
+  font-weight: 700;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .ai-footnote-row {
   display: flex;
@@ -1751,8 +1752,8 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 6px;
 }
 .workbench-flag {
-  color: var(--danger-soft);
-  font-size: 12px;
+  color: var(--color-danger);
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 .risk-curve-head {
@@ -1763,15 +1764,15 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   flex-wrap: wrap;
 }
 .curve-meta {
-  color: #86a9c8;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   letter-spacing: .12em;
 }
 .risk-curve-chart {
   height: 220px;
 }
 .handoff-warning {
-  color: var(--danger-soft) !important;
+  color: var(--color-danger) !important;
 }
 .kb-browser {
   display: grid;
@@ -1782,7 +1783,7 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   flex-wrap: wrap;
   gap: 8px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .kb-overridden { color: var(--warning); }
 .kb-chunk-list {
@@ -1795,18 +1796,18 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   color: var(--text-secondary);
   font-weight: 700;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .kb-chunk-content {
   white-space: pre-wrap;
   color: var(--text-secondary);
   line-height: 1.65;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .ai-rule-wrap {
   max-height: 62vh;
   overflow: auto;
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
 }
 .ai-rule-table {
@@ -1825,13 +1826,13 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
 .ai-rule-table :deep(.ant-table-thead > tr > th) {
   background: var(--bg-surface);
   color: var(--accent);
-  border-bottom-color: rgba(80,199,255,.1);
+  border-bottom-color: var(--color-divider);
   white-space: nowrap;
 }
 .ai-rule-table :deep(.ant-table-tbody > tr > td) {
   background: var(--bg-surface);
   color: var(--text-primary);
-  border-bottom-color: rgba(80,199,255,.08);
+  border-bottom-color: var(--color-divider);
   white-space: nowrap;
 }
 .ai-rule-table :deep(.ant-table-tbody > tr > td:nth-child(1)),
@@ -1861,17 +1862,17 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   line-height: 1.6;
 }
 .ai-error {
-  color: var(--danger-soft);
-  font-size: 11px;
+  color: var(--color-danger);
+  font-size: var(--text-label);
   margin-top: 6px;
 }
 .ai-fallback-note {
   padding: 9px 10px;
-  border: 1px solid rgba(251, 191, 36, .22);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
-  color: var(--warning-soft);
-  background: rgba(120, 83, 14, .18);
-  font-size: 12px;
+  color: var(--color-warning);
+  background: var(--color-warning-soft-bg);
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 
@@ -1885,10 +1886,10 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 4px;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  background: rgba(251, 191, 36, 0.16);
-  border: 1px solid rgba(251, 191, 36, 0.28);
-  color: #b45309;
-  font-size: 12px;
+  background: var(--color-warning-soft-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-warning);
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 .forecast-rule-badge {
@@ -1897,10 +1898,10 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 4px;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  color: #64748b;
-  font-size: 12px;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 .forecast-unavailable-badge {
@@ -1909,10 +1910,10 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 4px;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  background: rgba(239, 68, 68, 0.10);
-  border: 1px solid rgba(239, 68, 68, 0.22);
-  color: #dc2626;
-  font-size: 12px;
+  background: var(--color-critical-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-danger);
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 .forecast-unknown-badge {
@@ -1921,15 +1922,15 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   gap: 4px;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  background: rgba(148, 163, 184, 0.10);
-  border: 1px solid rgba(148, 163, 184, 0.20);
-  color: #94a3b8;
-  font-size: 12px;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-tertiary);
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 .curve-safety-notice {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-label);
   color: var(--text-secondary);
   font-style: italic;
   margin-top: 4px;
@@ -1968,65 +1969,65 @@ const picsPsychologicalScore = computed(() => picsAssessment.value?.dimensions?.
   }
 }
 
-html[data-theme='light'] .ai-service-bar { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-service-bar { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .ai-service-text { color: var(--text-secondary); }
 html[data-theme='light'] .ai-service-detail { color: var(--text-secondary); }
-html[data-theme='light'] .ai-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
-html[data-theme='light'] .ai-card :deep(.ant-card-head) { border-bottom-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .ai-card { background: var(--bg-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm); }
+html[data-theme='light'] .ai-card :deep(.ant-card-head) { border-bottom-color: var(--color-border); }
 html[data-theme='light'] .ai-card :deep(.ant-card-head-title) { color: var(--brand); }
 html[data-theme='light'] .ai-card-note, html[data-theme='light'] .ai-empty { color: var(--text-secondary); }
 html[data-theme='light'] .ai-card :deep(.ant-btn),
 html[data-theme='light'] .ai-card :deep(.ant-select-selector),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item),
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-prev),
-html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-next) { background: rgba(243, 248, 252, 0.96) !important; border-color: rgba(187, 204, 220, 0.72) !important; color: var(--text-secondary) !important; }
-html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface) !important; border-color: rgba(59,130,246,.28) !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-next) { background: var(--color-bg-surface) !important; border-color: var(--color-border) !important; color: var(--text-secondary) !important; }
+html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface) !important; border-color: var(--color-border) !important; }
 html[data-theme='light'] .ai-card :deep(.ant-pagination .ant-pagination-item-active a) { color: var(--text-primary) !important; }
 html[data-theme='light'] .ai-rich { color: var(--text-secondary); }
 html[data-theme='light'] .ai-rich :deep(h4) { color: var(--text-secondary); }
-html[data-theme='light'] .ai-rich :deep(code) { background: rgba(243,248,252,.96); border-color: rgba(187,204,220,.72); color: var(--text-secondary); }
-html[data-theme='light'] .lab-summary-hero { background: var(--bg-surface); border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .ai-rich :deep(code) { background: var(--color-bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
+html[data-theme='light'] .lab-summary-hero { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .lab-summary-hero strong { color: var(--text-secondary); }
-html[data-theme='light'] .lab-summary-badge { background: rgba(254,243,199,.72); border-color: rgba(217,119,6,.25); color: var(--warning); }
-html[data-theme='light'] .lab-abnormal-card, html[data-theme='light'] .lab-summary-section { background: var(--bg-surface); border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .lab-summary-badge { background: var(--color-warning-soft-bg); border-color: var(--color-border); color: var(--warning); }
+html[data-theme='light'] .lab-abnormal-card, html[data-theme='light'] .lab-summary-section { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .lab-abnormal-head, html[data-theme='light'] .lab-abnormal-head strong { color: var(--text-secondary); }
 html[data-theme='light'] .lab-value-line { color: var(--warning); }
 html[data-theme='light'] .lab-abnormal-card p, html[data-theme='light'] .lab-clean-list, html[data-theme='light'] .lab-action-list { color: var(--text-secondary); }
-html[data-theme='light'] .ai-risk-card, html[data-theme='light'] .handoff-wrap, html[data-theme='light'] .kb-doc-meta, html[data-theme='light'] .kb-chunk-item { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
+html[data-theme='light'] .ai-risk-card, html[data-theme='light'] .handoff-wrap, html[data-theme='light'] .kb-doc-meta, html[data-theme='light'] .kb-chunk-item { border-color: var(--color-border); background: var(--color-bg-surface); }
 html[data-theme='light'] .handoff-wrap p, html[data-theme='light'] .ai-risk-card p, html[data-theme='light'] .kb-doc-meta p { color: var(--text-secondary); }
-html[data-theme='light'] .wb-kpi { border-color: rgba(187,204,220,.72); background: var(--bg-surface); }
+html[data-theme='light'] .wb-kpi { border-color: var(--color-border); background: var(--bg-surface); }
 html[data-theme='light'] .wb-kpi span { color: var(--text-secondary); }
 html[data-theme='light'] .wb-kpi strong { color: var(--text-secondary); }
-html[data-theme='light'] .ai-workbench-section { border-color: rgba(187,204,220,.72); background: var(--bg-surface); }
+html[data-theme='light'] .ai-workbench-section { border-color: var(--color-border); background: var(--bg-surface); }
 html[data-theme='light'] .ai-workbench-title { color: var(--brand); }
 html[data-theme='light'] .workbench-text { color: var(--text-secondary); }
-html[data-theme='light'] .summary-section { border-color: rgba(187,204,220,.72); background: rgba(243,248,252,0.96); }
+html[data-theme='light'] .summary-section { border-color: var(--color-border); background: var(--color-bg-surface); }
 html[data-theme='light'] .summary-label { color: var(--text-secondary); }
-html[data-theme='light'] .summary-conclusion { border-color: rgba(187,204,220,.72); background: var(--bg-surface); box-shadow: var(--card-shadow); }
-html[data-theme='light'] .summary-conclusion--low { border-color: rgba(5,150,105,.28); background: rgba(209,250,229,.6); }
-html[data-theme='light'] .summary-conclusion--warning { border-color: rgba(217,119,6,.28); background: rgba(254,243,199,.6); }
-html[data-theme='light'] .summary-conclusion--high, html[data-theme='light'] .summary-conclusion--critical { border-color: rgba(220,38,38,.28); background: rgba(254,226,226,.6); }
+html[data-theme='light'] .summary-conclusion { border-color: var(--color-border); background: var(--bg-surface); box-shadow: var(--shadow-sm); }
+html[data-theme='light'] .summary-conclusion--low { border-color: var(--color-border); background: var(--color-normal-bg); }
+html[data-theme='light'] .summary-conclusion--warning { border-color: var(--color-border); background: var(--color-warning-soft-bg); }
+html[data-theme='light'] .summary-conclusion--high, html[data-theme='light'] .summary-conclusion--critical { border-color: var(--color-border); background: var(--color-critical-bg); }
 html[data-theme='light'] .summary-conclusion-label { color: var(--text-secondary); }
 html[data-theme='light'] .summary-conclusion-text { color: var(--brand); }
-html[data-theme='light'] .summary-chip { background: var(--bg-surface); border-color: rgba(187,204,220,.72); color: var(--text-secondary); }
+html[data-theme='light'] .summary-chip { background: var(--bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
 html[data-theme='light'] .summary-order { color: var(--text-secondary); }
 html[data-theme='light'] .summary-order::before { color: var(--brand); }
 html[data-theme='light'] .summary-text, html[data-theme='light'] .summary-list, html[data-theme='light'] .workbench-list { color: var(--text-secondary); }
-html[data-theme='light'] .isbar-code { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--brand); }
+html[data-theme='light'] .isbar-code { background: var(--bg-surface); border-color: var(--color-border); color: var(--brand); }
 html[data-theme='light'] .workbench-flag { color: var(--danger); }
 html[data-theme='light'] .curve-meta { color: var(--text-secondary); }
 html[data-theme='light'] .kb-status { color: var(--text-secondary); }
 html[data-theme='light'] .kb-overridden { color: var(--warning); }
 html[data-theme='light'] .kb-chunk-title { color: var(--text-secondary); }
 html[data-theme='light'] .kb-chunk-content { color: var(--text-secondary); }
-html[data-theme='light'] .ai-rule-wrap { border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .ai-rule-wrap { border-color: var(--color-border); }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: var(--bg-surface); }
-html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) { background: var(--bg-surface); color: var(--text-secondary); border-bottom-color: rgba(187,204,220,.72); }
-html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) { background: var(--bg-surface); color: var(--text-secondary); border-bottom-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) { background: var(--bg-surface); color: var(--text-secondary); border-bottom-color: var(--color-border); }
+html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) { background: var(--bg-surface); color: var(--text-secondary); border-bottom-color: var(--color-border); }
 html[data-theme='light'] .ai-evidence-link { color: var(--brand); }
 html[data-theme='light'] .ai-evidence-link:hover { color: var(--brand); }
 html[data-theme='light'] .ai-fallback-note {
-  border-color: rgba(217, 119, 6, .34);
+  border-color: var(--color-high-risk-border);
   background: var(--bg-surface);
   color: var(--warning);
   font-weight: 650;
@@ -2034,17 +2035,17 @@ html[data-theme='light'] .ai-fallback-note {
 html[data-theme='light'] .ai-risk-card .wb-kpi span,
 html[data-theme='light'] .ai-risk-card .ai-workbench-title {
   color: var(--brand);
-  font-weight: 800;
+  font-weight: 700;
 }
 html[data-theme='light'] .ai-risk-card .summary-text,
 html[data-theme='light'] .ai-risk-card .summary-list,
 html[data-theme='light'] .ai-risk-card .workbench-text,
 html[data-theme='light'] .ai-risk-card p {
-  color: #2f4f6f;
+  color: var(--color-accent);
 }
 html[data-theme='light'] .ai-risk-card .summary-chip {
   background: var(--bg-surface);
-  border-color: rgba(59, 130, 246, .24);
+  border-color: var(--color-border);
   color: var(--text-secondary);
   font-weight: 600;
 }
@@ -2053,13 +2054,13 @@ html[data-theme='light'] .ai-risk-card .summary-chip {
 html[data-theme='light'] .ai-service-bar,
 html[data-theme='light'] .ai-card {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .ai-card :deep(.ant-btn),
 html[data-theme='light'] .ai-card :deep(.ant-select-selector),
 html[data-theme='light'] .ai-card :deep(.ant-input) {
-  background: rgba(241,246,251,0.98) !important;
-  border-color: rgba(187,204,220,0.72) !important;
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
   color: var(--text-secondary) !important;
 }
 html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active) {
@@ -2068,7 +2069,7 @@ html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active) {
 html[data-theme='light'] .ai-card :deep(.ant-pagination-item-active a) { color: var(--text-primary) !important; }
 html[data-theme='light'] .ai-rich { color: var(--text-secondary); }
 html[data-theme='light'] .ai-rich :deep(h4) { color: var(--text-primary); }
-html[data-theme='light'] .ai-rich :deep(code) { background: rgba(241,246,251,0.98); color: var(--text-primary); }
+html[data-theme='light'] .ai-rich :deep(code) { background: var(--color-bg-surface); color: var(--text-primary); }
 html[data-theme='light'] .lab-summary-hero {
   background: var(--bg-surface);
 }
@@ -2085,7 +2086,7 @@ html[data-theme='light'] .lab-value-line,
 html[data-theme='light'] .ai-fallback-note { color: var(--warning); }
 html[data-theme='light'] .lab-abnormal-card {
   background: var(--bg-surface);
-  border-color: rgba(245,158,11,0.22);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .lab-abnormal-head { color: var(--warning); }
 html[data-theme='light'] .lab-summary-section,
@@ -2093,8 +2094,8 @@ html[data-theme='light'] .ai-risk-card,
 html[data-theme='light'] .handoff-wrap,
 html[data-theme='light'] .kb-doc-meta,
 html[data-theme='light'] .kb-chunk-item {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .lab-clean-list,
 html[data-theme='light'] .lab-action-list,
@@ -2103,27 +2104,27 @@ html[data-theme='light'] .summary-text,
 html[data-theme='light'] .summary-list,
 html[data-theme='light'] .workbench-list { color: var(--text-primary); }
 html[data-theme='light'] .wb-kpi {
-  background: rgba(241,246,251,0.98);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .wb-kpi span { color: var(--text-secondary); }
 html[data-theme='light'] .ai-workbench-section,
 html[data-theme='light'] .summary-section {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .summary-conclusion,
 html[data-theme='light'] .summary-conclusion--low,
 html[data-theme='light'] .summary-conclusion--warning,
 html[data-theme='light'] .summary-conclusion--high {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .summary-conclusion-label { color: var(--text-secondary); }
 html[data-theme='light'] .summary-chip,
 html[data-theme='light'] .isbar-code {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--text-primary);
 }
 html[data-theme='light'] .action-rank,
@@ -2143,7 +2144,7 @@ html[data-theme='light'] .ai-service-detail,
 html[data-theme='light'] .ai-empty { color: var(--text-secondary); }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table) { background: var(--bg-surface); }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table-thead > tr > th) {
-  background: rgba(241,246,251,0.98);
+  background: var(--color-bg-surface);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .ai-rule-table :deep(.ant-table-tbody > tr > td) {

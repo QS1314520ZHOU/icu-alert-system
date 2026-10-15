@@ -215,33 +215,33 @@ function outcomeTone(raw: any) {
 
 .similar-title {
   color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 800;
+  font-size: var(--text-section-title);
+  font-weight: 700;
   letter-spacing: 0.04em;
 }
 
 .similar-sub {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 
 .similar-refresh {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .similar-refresh:hover {
-  border-color: rgba(103, 232, 249, 0.34);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-info-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-strip,
@@ -259,10 +259,10 @@ function outcomeTone(raw: any) {
   min-height: 28px;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 
 .profile-chip {
@@ -275,7 +275,7 @@ function outcomeTone(raw: any) {
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .kpi-strip {
@@ -288,9 +288,9 @@ function outcomeTone(raw: any) {
 .outcome-board,
 .case-card {
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .kpi-card {
@@ -302,7 +302,7 @@ function outcomeTone(raw: any) {
 .kpi-card > span,
 .section-title {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -310,15 +310,16 @@ function outcomeTone(raw: any) {
 
 .kpi-card > strong {
   color: var(--text-primary);
-  font-size: 28px;
+  font-size: var(--text-metric-key);
   line-height: 1;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-card > small,
 .section-desc {
-  color: #86adc0;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
 }
 
 .outcome-board {
@@ -344,7 +345,7 @@ function outcomeTone(raw: any) {
   min-width: 0;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.12);
+  border: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -353,7 +354,7 @@ function outcomeTone(raw: any) {
 
 .outcome-seg--green {
   background: var(--bg-surface);
-  color: #7cf1d3;
+  color: var(--color-success);
 }
 
 .outcome-seg--yellow {
@@ -363,7 +364,7 @@ function outcomeTone(raw: any) {
 
 .outcome-seg--red {
   background: var(--bg-surface);
-  color: var(--danger-soft);
+  color: var(--color-danger);
 }
 
 .outcome-seg--blue {
@@ -372,14 +373,15 @@ function outcomeTone(raw: any) {
 }
 
 .outcome-seg-label {
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
 }
 
 .outcome-seg-value {
-  font-size: 26px;
+  font-size: var(--text-metric-key);
   line-height: 1;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .case-list {
@@ -407,8 +409,8 @@ function outcomeTone(raw: any) {
 }
 
 .case-rank {
-  color: #61dff2;
-  font-size: 10px;
+  color: var(--color-accent);
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: 0.16em;
 }
@@ -422,7 +424,7 @@ function outcomeTone(raw: any) {
 
 .case-name {
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--text-section-title);
   line-height: 1.2;
 }
 
@@ -433,14 +435,14 @@ function outcomeTone(raw: any) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid transparent;
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
 }
 
-.case-outcome-pill.tone-green { color: #6ee7b7; background: var(--bg-surface); border-color: rgba(45, 212, 191, 0.22); }
-.case-outcome-pill.tone-yellow { color: var(--warning); background: var(--bg-surface); border-color: rgba(251, 191, 36, 0.22); }
-.case-outcome-pill.tone-red { color: var(--danger-soft); background: var(--bg-surface); border-color: rgba(251, 113, 133, 0.22); }
-.case-outcome-pill.tone-blue { color: var(--accent); background: var(--bg-surface); border-color: rgba(56, 189, 248, 0.22); }
+.case-outcome-pill.tone-green { color: var(--color-success); background: var(--bg-surface); border-color: var(--color-border); }
+.case-outcome-pill.tone-yellow { color: var(--warning); background: var(--bg-surface); border-color: var(--color-border); }
+.case-outcome-pill.tone-red { color: var(--color-danger); background: var(--bg-surface); border-color: var(--color-border); }
+.case-outcome-pill.tone-blue { color: var(--accent); background: var(--bg-surface); border-color: var(--color-border); }
 
 .case-meta-row {
   display: flex;
@@ -452,7 +454,7 @@ function outcomeTone(raw: any) {
   min-width: 110px;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   text-align: right;
 }
@@ -460,38 +462,39 @@ function outcomeTone(raw: any) {
 .score-label {
   display: block;
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--text-label);
   letter-spacing: 0.12em;
 }
 
 .score-value {
   display: block;
   color: var(--text-primary);
-  font-size: 30px;
+  font-size: var(--text-metric-key);
   line-height: 1;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .score-sub {
   display: block;
   margin-top: 4px;
-  color: #8db5c9;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
 }
 
 .case-diagnosis {
-  color: #d9f2ff;
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
   line-height: 1.6;
   padding: 10px 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(71, 196, 255, 0.1);
+  border: 1px solid var(--color-divider);
 }
 
 .match-chip {
   background: var(--bg-surface);
-  color: #b8f4ff;
+  color: var(--color-text-secondary);
 }
 
 .case-foot {
@@ -499,33 +502,33 @@ function outcomeTone(raw: any) {
   flex-wrap: wrap;
   gap: 10px 18px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 
 .similar-empty {
   padding: 24px 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--text-body);
   text-align: center;
 }
 
 .similar-empty--error {
-  color: var(--danger-soft);
-  border-color: rgba(251, 113, 133, 0.18);
+  color: var(--color-danger);
+  border-color: var(--color-border);
 .similar-empty--warn,
 .similar-soft-notice {
   color: var(--warning);
-  border: 1px solid rgba(250, 204, 21, 0.2);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 
 .similar-soft-notice {
   padding: 12px 14px;
   border-radius: var(--card-radius);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 }
@@ -543,9 +546,9 @@ html[data-theme='light'] .case-diagnosis,
 html[data-theme='light'] .match-chip,
 html[data-theme='light'] .similar-empty,
 html[data-theme='light'] .similar-soft-notice {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.96);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .similar-title,
 html[data-theme='light'] .outcome-seg-value,
@@ -562,18 +565,18 @@ html[data-theme='light'] .case-foot {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .similar-refresh {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.96);
+  border-color: var(--color-border);
+  background: var(--color-bg-surface);
   color: var(--brand);
 }
-html[data-theme='light'] .outcome-seg--green { background: rgba(220, 252, 231, 0.98); color: var(--success); }
-html[data-theme='light'] .outcome-seg--yellow { background: rgba(254, 243, 199, 0.98); color: var(--warning); }
-html[data-theme='light'] .outcome-seg--red { background: rgba(255, 241, 242, 0.98); color: var(--danger-strong); }
-html[data-theme='light'] .outcome-seg--blue { background: rgba(219, 234, 254, 0.98); color: var(--brand); }
-html[data-theme='light'] .case-outcome-pill.tone-green { color: var(--success); background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.28); }
-html[data-theme='light'] .case-outcome-pill.tone-yellow { color: var(--warning); background: rgba(254, 243, 199, 0.98); border-color: rgba(245, 158, 11, 0.28); }
-html[data-theme='light'] .case-outcome-pill.tone-red { color: var(--danger-strong); background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.28); }
-html[data-theme='light'] .case-outcome-pill.tone-blue { color: var(--brand); background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
+html[data-theme='light'] .outcome-seg--green { background: var(--color-normal-bg); color: var(--success); }
+html[data-theme='light'] .outcome-seg--yellow { background: var(--color-warning-soft-bg); color: var(--warning); }
+html[data-theme='light'] .outcome-seg--red { background: var(--color-bg-surface); color: var(--color-danger); }
+html[data-theme='light'] .outcome-seg--blue { background: var(--color-primary-bg); color: var(--brand); }
+html[data-theme='light'] .case-outcome-pill.tone-green { color: var(--success); background: var(--color-normal-bg); border-color: var(--color-border); }
+html[data-theme='light'] .case-outcome-pill.tone-yellow { color: var(--warning); background: var(--color-warning-soft-bg); border-color: var(--color-border); }
+html[data-theme='light'] .case-outcome-pill.tone-red { color: var(--color-danger); background: var(--color-bg-surface); border-color: var(--color-border); }
+html[data-theme='light'] .case-outcome-pill.tone-blue { color: var(--brand); background: var(--color-primary-bg); border-color: var(--color-border); }
 
 @media (max-width: 1200px) {
   .kpi-strip {

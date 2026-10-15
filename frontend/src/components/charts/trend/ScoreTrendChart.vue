@@ -169,8 +169,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .score-trend {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #DCE5EF);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
 .score-trend__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .score-trend__current {
@@ -203,6 +203,6 @@ onBeforeUnmount(() => {
 
 .score-trend__score-label {
   font-size: 12px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
 }
 </style>

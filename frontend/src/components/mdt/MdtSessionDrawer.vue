@@ -108,7 +108,7 @@ function formatDate(value: any) {
 .drawer-input {
   width: 100%;
   min-height: 38px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 0 10px;
   color: var(--text-secondary);
@@ -122,7 +122,7 @@ function formatDate(value: any) {
 }
 .session-card {
   padding: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   cursor: pointer;
   background: var(--bg-surface);
@@ -144,7 +144,7 @@ function formatDate(value: any) {
 }
 .session-card p {
   margin: 8px 0;
-  color: rgba(203, 213, 225, 0.74);
+  color: var(--color-text-tertiary);
   line-height: 1.45;
 }
 .session-tags {

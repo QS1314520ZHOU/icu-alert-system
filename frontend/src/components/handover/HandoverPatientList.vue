@@ -113,7 +113,7 @@ const filteredPatients = computed(() => {
 }
 .patient-card.active {
   border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.08);
+  background: var(--color-info-bg);
 }
 .card-top {
   display: flex;
@@ -129,7 +129,7 @@ const filteredPatients = computed(() => {
   height: 22px;
   border-radius: 4px;
   background: var(--accent);
-  color: #fff;
+  color: var(--color-text-inverse);
   font-size: 12px;
   font-weight: 700;
 }

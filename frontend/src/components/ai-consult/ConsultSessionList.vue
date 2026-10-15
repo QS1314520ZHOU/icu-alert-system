@@ -69,8 +69,8 @@ function formatRelativeTime(time: string | number | Date): string {
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-right: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface, #FFFFFF);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
 }
 
 .consult-sessions__header {
@@ -78,13 +78,13 @@ function formatRelativeTime(time: string | number | Date): string {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border, #E3E7EC);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .consult-sessions__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .consult-sessions__list {
@@ -96,7 +96,7 @@ function formatRelativeTime(time: string | number | Date): string {
 .consult-sessions__empty {
   padding: 24px 16px;
   text-align: center;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: 13px;
 }
 
@@ -109,18 +109,18 @@ function formatRelativeTime(time: string | number | Date): string {
 }
 
 .consult-sessions__item:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 
 .consult-sessions__item.is-active {
   background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  border-left: 3px solid var(--color-primary, #2563EB);
+  border-left: 3px solid var(--color-primary);
 }
 
 .consult-sessions__label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -132,7 +132,7 @@ function formatRelativeTime(time: string | number | Date): string {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .consult-sessions__patient {
@@ -153,7 +153,7 @@ function formatRelativeTime(time: string | number | Date): string {
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: 16px;
   cursor: pointer;
   border-radius: 4px;
@@ -167,7 +167,7 @@ function formatRelativeTime(time: string | number | Date): string {
 
 .consult-sessions__delete:hover {
   background: var(--color-danger-bg, rgba(217, 45, 32, 0.08));
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
 }
 
 @media (max-width: 390px) {

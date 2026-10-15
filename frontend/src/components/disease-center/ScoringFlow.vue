@@ -168,7 +168,7 @@ function resetFlow() {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 8px;
   border: 1px solid var(--color-border, #E3E7EC);
   padding: 16px;
@@ -198,7 +198,7 @@ function resetFlow() {
 
 .flow-stage {
   flex: 1;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -208,8 +208,8 @@ function resetFlow() {
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: #e6f7ff;
-  border-bottom: 1px solid #91d5ff;
+  background: var(--color-primary-bg);
+  border-bottom: 1px solid var(--color-primary);
 }
 
 .stage-number {
@@ -218,8 +218,8 @@ function resetFlow() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1890ff;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
@@ -241,7 +241,7 @@ function resetFlow() {
 .input-label {
   font-size: 12px;
   font-weight: 500;
-  color: #666;
+  color: var(--color-text-secondary);
   margin-bottom: 4px;
 }
 
@@ -253,14 +253,14 @@ function resetFlow() {
 .form-input {
   flex: 1;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 13px;
 }
 
 .input-unit {
   font-size: 12px;
-  color: #999;
+  color: var(--color-text-tertiary);
   line-height: 32px;
 }
 
@@ -270,14 +270,14 @@ function resetFlow() {
   justify-content: center;
   gap: 8px;
   padding: 24px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #ddd;
-  border-top-color: #1890ff;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -297,19 +297,20 @@ function resetFlow() {
   flex-direction: column;
   align-items: center;
   padding: 16px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 4px;
 }
 
 .total-label {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .total-value {
-  font-size: 36px;
+  font-size: var(--text-metric-key);
   font-weight: 700;
-  color: #1890ff;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary);
 }
 
 .result-components {
@@ -322,18 +323,18 @@ function resetFlow() {
   display: flex;
   justify-content: space-between;
   padding: 8px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 4px;
 }
 
 .component-name {
   font-size: 13px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .component-score {
   font-weight: 600;
-  color: #1890ff;
+  color: var(--color-primary);
 }
 
 .empty-state {
@@ -341,7 +342,7 @@ function resetFlow() {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  color: #999;
+  color: var(--color-text-tertiary);
   font-size: 13px;
 }
 
@@ -358,23 +359,23 @@ function resetFlow() {
 }
 
 .severity--low {
-  background: #f6ffed;
-  color: #52c41a;
+  background: var(--color-normal-bg);
+  color: var(--color-success);
 }
 
 .severity--medium {
-  background: #fffbe6;
-  color: #faad14;
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning);
 }
 
 .severity--high {
-  background: #fff2f0;
-  color: #ff4d4f;
+  background: var(--color-critical-bg);
+  color: var(--color-danger);
 }
 
 .severity--critical {
-  background: #ff4d4f;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
 }
 
 .severity-label {
@@ -384,7 +385,7 @@ function resetFlow() {
 
 .interpretation-text {
   font-size: 13px;
-  color: #333;
+  color: var(--color-text-primary);
   line-height: 1.5;
 }
 
@@ -397,13 +398,13 @@ function resetFlow() {
 
 .missing-label {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .missing-tag {
   padding: 4px 8px;
-  background: #fff2f0;
-  color: #ff4d4f;
+  background: var(--color-critical-bg);
+  color: var(--color-danger);
   border-radius: 4px;
   font-size: 12px;
 }

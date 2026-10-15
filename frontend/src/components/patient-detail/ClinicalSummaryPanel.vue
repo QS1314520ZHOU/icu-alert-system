@@ -125,9 +125,9 @@ function fmt(value: any) {
   gap: 14px;
   padding: 14px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, 0.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .summary-head {
   display: flex;
@@ -144,24 +144,24 @@ function fmt(value: any) {
 .eyebrow,
 .title-block small,
 .section-bar span {
-  color: #8fb2c5;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 600;
   letter-spacing: 0;
 }
 .summary-head strong {
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: var(--text-section-title);
   line-height: 1.25;
 }
 .refresh-btn {
   flex: 0 0 auto;
-  border: 1px solid rgba(125, 211, 252, 0.2);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
   border-radius: var(--card-radius);
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   cursor: pointer;
 }
 .refresh-btn:disabled {
@@ -177,18 +177,18 @@ function fmt(value: any) {
   min-height: 64px;
   padding: 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, 0.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .metric-item span {
   display: block;
   margin-bottom: 6px;
-  color: #91b7c8;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
 }
 .metric-item strong {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -205,7 +205,7 @@ function fmt(value: any) {
 }
 .section-bar strong {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .section-bar.compact {
   margin-top: 2px;
@@ -222,8 +222,8 @@ function fmt(value: any) {
   min-height: 178px;
   padding: 10px 10px 10px 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, 0.14);
-  border-left: 3px solid rgba(148, 163, 184, 0.7);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-info-border);
   background: var(--bg-surface);
 }
 .problem-head {
@@ -239,14 +239,14 @@ function fmt(value: any) {
   width: 22px;
   height: 22px;
   border-radius: var(--card-radius);
-  background: rgba(59, 130, 246, 0.2);
+  background: var(--color-primary-bg);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .problem-head strong {
   display: block;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.35;
 }
 .problem-head em,
@@ -255,7 +255,7 @@ function fmt(value: any) {
 .summary-empty,
 .safety {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-style: normal;
 }
 .problem-card dl {
@@ -267,23 +267,23 @@ function fmt(value: any) {
 .problem-card dt,
 .problem-card dd {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.55;
 }
 .problem-card dt {
-  color: #7fa6b8;
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 .problem-card dd {
-  color: #c7dde8;
+  color: var(--color-text-primary);
 }
 .problem-foot {
   padding-top: 8px;
-  border-top: 1px solid rgba(125, 211, 252, 0.1);
+  border-top: 1px solid var(--color-divider);
 }
 .risk-critical,
 .risk-high {
-  border-left-color: var(--danger-soft);
+  border-left-color: var(--color-danger);
   background: var(--bg-surface);
 }
 .risk-warning {
@@ -307,15 +307,15 @@ function fmt(value: any) {
 .safety {
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, 0.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .summary-empty.small {
   padding: 8px;
 }
 .safety {
-  border-color: rgba(14, 116, 144, 0.18);
-  background: rgba(8, 145, 178, 0.1);
+  border-color: var(--color-border);
+  background: var(--color-info-bg);
   color: var(--accent);
 }
 html[data-theme='light'] .clinical-summary,
@@ -324,7 +324,7 @@ html[data-theme='light'] .worse-grid span,
 html[data-theme='light'] .summary-empty,
 html[data-theme='light'] .problem-card,
 html[data-theme='light'] .safety {
-  border-color: rgba(187, 204, 220, 0.72);
+  border-color: var(--color-border);
   background: var(--bg-surface);
 }
 html[data-theme='light'] .summary-head strong,
@@ -346,36 +346,36 @@ html[data-theme='light'] .section-bar span {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .safety {
-  color: #15558D;
-  border-color: rgba(21, 85, 141, 0.18);
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(232, 243, 255, 0.92));
+  color: var(--color-primary);
+  border-color: var(--color-border);
+  background: var(--color-primary-bg);
 }
 
 /* === Additional light-mode overrides === */
 html[data-theme='light'] .metric-item {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .metric-item span { color: var(--text-secondary); }
 html[data-theme='light'] .metric-item strong { color: var(--text-primary); }
 html[data-theme='light'] .refresh-btn {
-  background: rgba(241,246,251,0.98);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--brand);
 }
 html[data-theme='light'] .risk-critical,
 html[data-theme='light'] .risk-high {
-  background: rgba(254,226,226,0.6);
-  color: var(--danger-strong);
+  background: var(--color-critical-bg);
+  color: var(--color-danger);
 }
 html[data-theme='light'] .risk-warning {
-  background: rgba(254,243,199,0.6);
+  background: var(--color-warning-soft-bg);
   color: var(--warning);
 }
 html[data-theme='light'] .worse-grid span,
 html[data-theme='light'] .summary-empty {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 
 @media (max-width: 1180px) {

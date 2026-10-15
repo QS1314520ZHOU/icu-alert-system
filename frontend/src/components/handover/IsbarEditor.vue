@@ -294,8 +294,8 @@ watch(() => props.sections, (val) => {
   border-radius: 4px;
 }
 .status-draft { background: var(--bg-elevated, #1e293b); color: var(--text-secondary); }
-.status-submitted { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-.status-acknowledged { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.status-submitted { background: var(--color-warning-bg); color: var(--color-warning); }
+.status-acknowledged { background: var(--color-normal-border); color: var(--color-success); }
 
 .section-grid {
   display: flex;
@@ -319,7 +319,7 @@ watch(() => props.sections, (val) => {
 }
 .field-row.source-ai :deep(.ant-input),
 .field-row.source-ai :deep(textarea) {
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
   border-width: 2px;
 }
 .field-row.source-modified :deep(.ant-input),
@@ -328,8 +328,8 @@ watch(() => props.sections, (val) => {
 }
 
 .critical-section {
-  background: rgba(239, 68, 68, 0.06);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-critical-border);
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 12px;
@@ -337,7 +337,7 @@ watch(() => props.sections, (val) => {
 .critical-title {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #ef4444;
+  color: var(--color-danger);
 }
 .critical-item {
   margin-bottom: 6px;

@@ -76,16 +76,16 @@ h1 {
   font-size: 12px;
 }
 .header-tag.tone-critical {
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  border-color: var(--color-critical-border);
+  color: var(--color-danger);
 }
 .header-tag.tone-warning {
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #f59e0b;
+  border-color: var(--color-warning-soft-border);
+  color: var(--color-warning);
 }
 .header-tag.tone-soft {
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  border-color: var(--color-normal-border);
+  color: var(--color-success);
 }
 @media (max-width: 720px) {
   .mdt-header {

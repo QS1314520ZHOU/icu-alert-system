@@ -55,9 +55,9 @@ function toggle() {
 
 <style scoped>
 .collapse-panel {
-  border: 1px solid rgba(125,167,214,.15);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: rgba(255,255,255,.04);
+  background: var(--bg-surface);
   margin-bottom: 8px;
   overflow: hidden;
 }
@@ -70,15 +70,15 @@ function toggle() {
   user-select: none;
   font-size: 13px;
   font-weight: 600;
-  color: #dce6f0;
+  color: var(--color-text-inverse);
   transition: background .15s;
 }
 .collapse-panel__header:hover {
-  background: rgba(255,255,255,.04);
+  background: var(--color-bg-surface-secondary);
 }
 .collapse-panel__chevron {
   font-size: 10px;
-  color: #8fa3b8;
+  color: var(--color-text-tertiary);
   flex: 0 0 12px;
 }
 .collapse-panel__title {
@@ -89,51 +89,51 @@ function toggle() {
   border-radius: 10px;
   font-size: 11px;
   font-weight: 700;
-  background: rgba(45,140,255,.18);
-  color: #6da5ff;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 .collapse-panel__digest {
   flex: 1;
   font-weight: 400;
   font-size: 12px;
-  color: #7f93ab;
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .collapse-panel__body {
   padding: 0 12px 12px;
-  border-top: 1px solid rgba(125,167,214,.08);
+  border-top: 1px solid var(--color-divider);
 }
-.collapse-panel--danger .collapse-panel__badge { background: rgba(217,52,43,.2); color: #ff6b6b; }
-.collapse-panel--warn .collapse-panel__badge { background: rgba(255,170,0,.2); color: #ffb347; }
-.collapse-panel--info .collapse-panel__badge { background: rgba(45,140,255,.18); color: #6da5ff; }
+.collapse-panel--danger .collapse-panel__badge { background: var(--color-danger-bg); color: var(--color-danger); }
+.collapse-panel--warn .collapse-panel__badge { background: var(--color-warning-bg); color: var(--color-warning); }
+.collapse-panel--info .collapse-panel__badge { background: var(--color-primary-bg); color: var(--color-primary); }
 
 /* Light theme overrides */
 html[data-theme='light'] .collapse-panel {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface-secondary);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .collapse-panel__header {
-  color: #1a2332;
+  color: var(--color-text-primary);
 }
 html[data-theme='light'] .collapse-panel__header:hover {
-  background: rgba(226,240,234,0.5);
+  background: var(--color-bg-inset);
 }
 html[data-theme='light'] .collapse-panel__chevron {
-  color: #6b7f96;
+  color: var(--color-text-secondary);
 }
 html[data-theme='light'] .collapse-panel__badge {
-  background: rgba(45,140,255,.12);
-  color: #1d6f63;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 html[data-theme='light'] .collapse-panel__digest {
-  color: #66766b;
+  color: var(--color-text-secondary);
 }
 html[data-theme='light'] .collapse-panel__body {
-  border-top-color: rgba(187,204,220,0.4);
+  border-top-color: var(--color-divider);
 }
-html[data-theme='light'] .collapse-panel--danger .collapse-panel__badge { background: rgba(248,113,113,.15); color: #dc2626; }
-html[data-theme='light'] .collapse-panel--warn .collapse-panel__badge { background: rgba(245,158,11,.15); color: #d97706; }
-html[data-theme='light'] .collapse-panel--info .collapse-panel__badge { background: rgba(45,140,255,.12); color: #2563eb; }
+html[data-theme='light'] .collapse-panel--danger .collapse-panel__badge { background: var(--color-danger-bg); color: var(--color-danger); }
+html[data-theme='light'] .collapse-panel--warn .collapse-panel__badge { background: var(--color-warning-bg); color: var(--color-warning); }
+html[data-theme='light'] .collapse-panel--info .collapse-panel__badge { background: var(--color-primary-bg); color: var(--color-primary); }
 </style>

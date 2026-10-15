@@ -824,7 +824,7 @@ function formatTime(raw: any): string {
 .panel,
 .legacy-shell {
   background: var(--bg-surface);
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
 }
 
 .dw-header {
@@ -963,7 +963,7 @@ function formatTime(raw: any): string {
 .support-item {
   min-height: 76px;
   padding: 8px;
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
 }
@@ -1079,7 +1079,7 @@ function formatTime(raw: any): string {
 .risk-card,
 .goal-item,
 .trend-item {
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   padding: 7px;
@@ -1195,7 +1195,7 @@ function formatTime(raw: any): string {
 }
 
 .risk-actions button {
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--color-border-strong);
   background: var(--bg-surface);
   border-radius: var(--card-radius);
   padding: 3px 7px;
@@ -1229,7 +1229,7 @@ function formatTime(raw: any): string {
   word-break: break-word;
   color: var(--text-primary);
   background: var(--bg-surface);
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 8px 10px;
   font-family: inherit;

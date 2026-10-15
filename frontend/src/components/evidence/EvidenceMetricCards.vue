@@ -55,9 +55,9 @@ function formatValue(v: number | string | null | undefined): string {
   border: 1px solid var(--color-border, #E5E7EB);
   background: var(--bg-surface, #fff);
 }
-.metric-card.flag-critical { border-color: #DC2626; background: #FEF2F2; }
-.metric-card.flag-high { border-color: #EA580C; background: #FFF7ED; }
-.metric-card.flag-low { border-color: #D97706; background: #FFFBEB; }
+.metric-card.flag-critical { border-color: var(--color-danger); background: var(--color-critical-bg); }
+.metric-card.flag-high { border-color: var(--color-high-risk); background: var(--color-warning-soft-bg); }
+.metric-card.flag-low { border-color: var(--color-warning); background: var(--color-warning-soft-bg); }
 .metric-header {
   display: flex;
   justify-content: space-between;
@@ -71,11 +71,11 @@ function formatValue(v: number | string | null | undefined): string {
   border-radius: 4px;
   font-weight: 600;
 }
-.metric-flag.flag-critical { background: #DC2626; color: #fff; }
-.metric-flag.flag-high { background: #EA580C; color: #fff; }
-.metric-flag.flag-low { background: #D97706; color: #fff; }
-.metric-flag.flag-normal { background: #DCFCE7; color: #166534; }
-.metric-flag.flag-missing { background: #F3F4F6; color: #6B7280; }
+.metric-flag.flag-critical { background: var(--color-danger); color: var(--color-text-inverse); }
+.metric-flag.flag-high { background: var(--color-high-risk); color: var(--color-text-inverse); }
+.metric-flag.flag-low { background: var(--color-warning); color: var(--color-text-inverse); }
+.metric-flag.flag-normal { background: var(--color-normal-bg); color: var(--color-success); }
+.metric-flag.flag-missing { background: var(--color-bg-inset); color: var(--color-text-secondary); }
 .metric-value-row {
   display: flex;
   align-items: baseline;

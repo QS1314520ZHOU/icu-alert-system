@@ -634,9 +634,9 @@ onUnmounted(() => {
 <style scoped>
 .voice-rounding {
   padding: 16px;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--border-color, var(--color-border));
   border-radius: 8px;
-  background: var(--card-bg, #fff);
+  background: var(--card-bg, var(--color-bg-surface));
 }
 
 .vr-controls {
@@ -665,30 +665,30 @@ onUnmounted(() => {
 }
 
 .vr-btn--start {
-  background: #1976d2;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .vr-btn--stop {
-  background: #d32f2f;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
 }
 
 .vr-btn--confirm {
-  background: #2e7d32;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .vr-btn--cancel {
   background: transparent;
-  color: #666;
-  border: 1px solid #ccc;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .vr-btn--retry {
   background: transparent;
-  color: #1976d2;
-  border: 1px solid #1976d2;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
 }
 
 .vr-icon {
@@ -699,7 +699,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #d32f2f;
+  color: var(--color-danger);
   font-size: 13px;
 }
 
@@ -707,7 +707,7 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #d32f2f;
+  background: var(--color-danger);
   animation: vr-pulse 1s infinite;
 }
 
@@ -717,13 +717,13 @@ onUnmounted(() => {
 }
 
 .vr-loading {
-  color: #1976d2;
+  color: var(--color-primary);
   font-size: 13px;
 }
 
 .vr-dev-info {
   font-size: 12px;
-  color: #999;
+  color: var(--color-text-tertiary);
   margin-left: auto;
 }
 
@@ -733,20 +733,20 @@ onUnmounted(() => {
 
 .vr-dev-info pre {
   font-size: 11px;
-  background: #f5f5f5;
+  background: var(--color-bg-inset);
   padding: 4px 8px;
   border-radius: 4px;
   margin-top: 4px;
 }
 
 .vr-timeout-warn {
-  color: #e65100;
-  background: #fff3e0;
+  color: var(--color-warning);
+  background: var(--color-high-risk-bg);
   padding: 8px 12px;
   border-radius: 6px;
   margin-bottom: 12px;
   font-size: 13px;
-  border-left: 3px solid #e65100;
+  border-left: 3px solid var(--color-warning);
 }
 
 .vr-result {
@@ -754,13 +754,13 @@ onUnmounted(() => {
 }
 
 .vr-warn {
-  color: #b00020;
-  background: #fff3f3;
+  color: var(--color-danger);
+  background: var(--color-critical-bg);
   padding: 10px 12px;
   border-radius: 6px;
   margin-bottom: 12px;
   font-size: 13px;
-  border-left: 3px solid #b00020;
+  border-left: 3px solid var(--color-danger);
 }
 
 .vr-warn ul {
@@ -776,23 +776,23 @@ onUnmounted(() => {
 
 /* 高风险：药名、剂量、数值 */
 .vr-suspect--high {
-  color: #b00020;
+  color: var(--color-danger);
   font-weight: 600;
 }
 
 /* 中风险：单位不确定 */
 .vr-suspect--medium {
-  color: #e65100;
+  color: var(--color-warning);
 }
 
 /* 低风险：低置信度、方言 */
 .vr-suspect--low {
-  color: #f9a825;
+  color: var(--color-warning);
 }
 
 /* 其他 */
 .vr-suspect--other {
-  color: #757575;
+  color: var(--color-text-secondary);
 }
 
 .vr-suspect-term {
@@ -805,8 +805,8 @@ onUnmounted(() => {
 }
 
 .vr-degraded {
-  color: #795548;
-  background: #fff8e1;
+  color: var(--color-text-secondary);
+  background: var(--color-warning-soft-bg);
   padding: 8px 12px;
   border-radius: 6px;
   margin-bottom: 12px;
@@ -814,13 +814,13 @@ onUnmounted(() => {
 }
 
 .vr-processing-info {
-  color: #999;
+  color: var(--color-text-tertiary);
   font-size: 12px;
   margin-bottom: 8px;
 }
 
 .vr-hint {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 13px;
   margin-bottom: 8px;
 }
@@ -830,7 +830,7 @@ onUnmounted(() => {
   font-size: 15px;
   line-height: 1.6;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   resize: vertical;
   font-family: inherit;
@@ -838,8 +838,8 @@ onUnmounted(() => {
 
 .vr-edit-area:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: var(--color-primary-bg) 0 0 0 2px;
 }
 
 .vr-actions {
@@ -852,7 +852,7 @@ onUnmounted(() => {
 .vr-raw-details {
   margin-top: 16px;
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .vr-raw-details summary {
@@ -863,14 +863,14 @@ onUnmounted(() => {
 .vr-raw-text {
   margin-top: 8px;
   padding: 8px;
-  background: #f5f5f5;
+  background: var(--color-bg-inset);
   border-radius: 4px;
 }
 
 .vr-raw-label {
   font-weight: 600;
   margin-bottom: 4px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .vr-raw-text pre {
@@ -882,13 +882,13 @@ onUnmounted(() => {
 }
 
 .vr-error {
-  color: #b00020;
-  background: #fff3f3;
+  color: var(--color-danger);
+  background: var(--color-critical-bg);
   padding: 12px;
   border-radius: 6px;
   margin-top: 12px;
   font-size: 13px;
-  border-left: 3px solid #b00020;
+  border-left: 3px solid var(--color-danger);
 }
 
 .vr-error p {
@@ -897,8 +897,8 @@ onUnmounted(() => {
 
 /* Live caption (streaming mode) */
 .vr-live-caption {
-  background: #f0f7ff;
-  border: 1px solid #bbdefb;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-info-border);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
@@ -906,7 +906,7 @@ onUnmounted(() => {
 
 .vr-live-label {
   font-size: 12px;
-  color: #1976d2;
+  color: var(--color-primary);
   margin: 0 0 8px;
   font-weight: 600;
 }
@@ -918,24 +918,24 @@ onUnmounted(() => {
 }
 
 .vr-committed {
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .vr-partial {
-  color: #1976d2;
-  background: #e3f2fd;
+  color: var(--color-primary);
+  background: var(--color-info-bg);
   padding: 1px 4px;
   border-radius: 3px;
 }
 
 .vr-live-status {
   font-size: 13px;
-  color: #1976d2;
+  color: var(--color-primary);
   margin-top: 8px;
 }
 
 .vr-stream-error {
-  color: #b00020;
+  color: var(--color-danger);
   font-size: 13px;
   margin-top: 8px;
 }

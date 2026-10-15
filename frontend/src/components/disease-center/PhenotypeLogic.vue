@@ -146,7 +146,7 @@ function saveLogic() {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 8px;
   border: 1px solid var(--color-border, #E3E7EC);
   padding: 16px;
@@ -177,7 +177,7 @@ function saveLogic() {
 .logic-canvas {
   flex: 1;
   min-height: 300px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
   padding: 16px;
   display: flex;
@@ -191,29 +191,29 @@ function saveLogic() {
 }
 
 .node-card {
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 6px;
-  border: 2px solid #ddd;
+  border: 2px solid var(--color-border);
   overflow: hidden;
 }
 
-.node-card--AND { border-color: #1890ff; }
-.node-card--OR { border-color: #52c41a; }
-.node-card--NOT { border-color: #ff4d4f; }
+.node-card--AND { border-color: var(--color-primary); }
+.node-card--OR { border-color: var(--color-success); }
+.node-card--NOT { border-color: var(--color-danger); }
 .node-card--gt,
 .node-card--lt,
 .node-card--gte,
-.node-card--lte { border-color: #faad14; }
+.node-card--lte { border-color: var(--color-warning); }
 .node-card--eq,
-.node-card--neq { border-color: #722ed1; }
+.node-card--neq { border-color: var(--color-ai); }
 
 .node-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  background: var(--color-bg-surface-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .node-operator {
@@ -234,26 +234,26 @@ function saveLogic() {
 .node-input .form-input {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 12px;
 }
 
 .node-footer {
   padding: 8px 12px;
-  background: #f8f9fa;
-  border-top: 1px solid #eee;
+  background: var(--color-bg-surface-secondary);
+  border-top: 1px solid var(--color-border);
 }
 
 .node-output {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .validation-result {
   width: 280px;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
 }
 
@@ -265,13 +265,13 @@ function saveLogic() {
 }
 
 .validation-status.valid {
-  background: #f6ffed;
-  color: #52c41a;
+  background: var(--color-normal-bg);
+  color: var(--color-success);
 }
 
 .validation-status.invalid {
-  background: #fff2f0;
-  color: #ff4d4f;
+  background: var(--color-critical-bg);
+  color: var(--color-danger);
 }
 
 .validation-errors,
@@ -289,12 +289,12 @@ function saveLogic() {
 }
 
 .error-item {
-  background: #fff2f0;
-  color: #ff4d4f;
+  background: var(--color-critical-bg);
+  color: var(--color-danger);
 }
 
 .warning-item {
-  background: #fffbe6;
-  color: #faad14;
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning);
 }
 </style>

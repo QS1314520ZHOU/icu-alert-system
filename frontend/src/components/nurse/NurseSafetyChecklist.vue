@@ -47,9 +47,9 @@ function rateClass(item: { completed: number; total: number; tone?: string }) {
   display: grid;
   gap: 10px;
   padding: var(--card-padding, 16px);
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 
 .panel-head {
@@ -61,12 +61,12 @@ function rateClass(item: { completed: number; total: number; tone?: string }) {
 .panel-head strong {
   font-size: var(--text-card-title, 14px);
   font-weight: var(--text-card-title-weight, 650);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .panel-head span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .checklist-items {
@@ -95,10 +95,10 @@ function rateClass(item: { completed: number; total: number; tone?: string }) {
   flex-shrink: 0;
 }
 
-.tone-bar.tone-green { background: var(--color-success, #16845B); }
-.tone-bar.tone-yellow { background: var(--color-warning, #B54708); }
-.tone-bar.tone-red { background: var(--color-danger, #D92D20); }
-.tone-bar.tone-neutral { background: var(--color-border, #E3E7EC); }
+.tone-bar.tone-green { background: var(--color-success); }
+.tone-bar.tone-yellow { background: var(--color-warning); }
+.tone-bar.tone-red { background: var(--color-danger); }
+.tone-bar.tone-neutral { background: var(--color-border, var(--color-bg-inset)); }
 
 .checklist-row__info {
   min-width: 0;
@@ -109,12 +109,12 @@ function rateClass(item: { completed: number; total: number; tone?: string }) {
 .checklist-row__info strong {
   font-size: var(--text-body, 14px);
   font-weight: 500;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .checklist-row__info span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .checklist-rate {
@@ -123,14 +123,14 @@ function rateClass(item: { completed: number; total: number; tone?: string }) {
   flex-shrink: 0;
 }
 
-.checklist-rate.is-success { color: var(--color-success, #16845B); }
-.checklist-rate.is-warning { color: var(--color-warning, #B54708); }
-.checklist-rate.is-danger { color: var(--color-danger, #D92D20); }
+.checklist-rate.is-success { color: var(--color-success); }
+.checklist-rate.is-warning { color: var(--color-warning); }
+.checklist-rate.is-danger { color: var(--color-danger); }
 
 .empty-hint {
   padding: 16px;
   text-align: center;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 </style>

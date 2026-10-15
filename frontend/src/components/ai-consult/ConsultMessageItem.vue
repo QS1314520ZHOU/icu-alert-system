@@ -157,15 +157,15 @@ function priorityLabel(index: number): string {
 }
 
 .consult-msg__bubble--user {
-  background: var(--color-primary, #2563EB);
-  color: #FFFFFF;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border-bottom-right-radius: 4px;
 }
 
 .consult-msg__bubble--assistant {
-  background: var(--color-bg-surface, #FFFFFF);
-  color: var(--color-text-primary, #18212B);
-  border: 1px solid var(--color-border, #E3E7EC);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   border-bottom-left-radius: 4px;
 }
 
@@ -183,27 +183,27 @@ function priorityLabel(index: number): string {
   font-size: 11px;
   font-weight: 600;
   background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
 }
 
 .consult-msg__intent-tag.is-circulatory {
   background: var(--color-danger-bg, rgba(217, 45, 32, 0.08));
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
 }
 
 .consult-msg__intent-tag.is-respiratory {
   background: var(--color-warning-bg, rgba(181, 71, 8, 0.08));
-  color: var(--color-warning, #B54708);
+  color: var(--color-warning);
 }
 
 .consult-msg__intent-tag.is-infection {
-  background: rgba(168, 85, 247, 0.08);
-  color: #7C3AED;
+  background: var(--color-ai-light);
+  color: var(--color-ai);
 }
 
 .consult-msg__intent-tag.is-clarify {
   background: var(--color-warning-bg, rgba(181, 71, 8, 0.08));
-  color: var(--color-warning, #B54708);
+  color: var(--color-warning);
 }
 
 /* Risk banner */
@@ -211,7 +211,7 @@ function priorityLabel(index: number): string {
   padding: 6px 10px;
   margin-bottom: 8px;
   background: var(--color-danger-bg, rgba(217, 45, 32, 0.08));
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
   border-radius: var(--radius-md, 6px);
   font-size: 12px;
   font-weight: 600;
@@ -220,7 +220,7 @@ function priorityLabel(index: number): string {
 /* Sections */
 .consult-msg__section {
   margin-bottom: 8px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
   overflow: hidden;
 }
@@ -230,7 +230,7 @@ function priorityLabel(index: number): string {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
   cursor: pointer;
   user-select: none;
 }
@@ -239,17 +239,17 @@ function priorityLabel(index: number): string {
   flex: 1;
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .consult-msg__section-count {
   font-size: 11px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .consult-msg__section-arrow {
   transition: transform 0.15s;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .consult-msg__section-arrow.is-open {
@@ -267,7 +267,7 @@ function priorityLabel(index: number): string {
   padding: 4px 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 /* Priority dots */
@@ -285,17 +285,17 @@ function priorityLabel(index: number): string {
 
 .consult-msg__priority.is-p1 {
   background: var(--color-danger-bg, rgba(217, 45, 32, 0.08));
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
 }
 
 .consult-msg__priority.is-p2 {
   background: var(--color-warning-bg, rgba(181, 71, 8, 0.08));
-  color: var(--color-warning, #B54708);
+  color: var(--color-warning);
 }
 
 .consult-msg__priority.is-p3 {
   background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
 }
 
 /* Text */

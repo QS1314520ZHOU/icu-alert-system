@@ -140,7 +140,7 @@ label {
 }
 .step-hint {
   margin-top: 6px;
-  color: #f59e0b;
+  color: var(--color-warning);
   font-size: 12px;
 }
 .patient-brief {
@@ -208,14 +208,14 @@ label {
 }
 .organ-pill.is-critical,
 .organ-pill.is-high {
-  border-color: rgba(239, 68, 68, 0.3);
+  border-color: var(--color-critical-border);
 }
 .organ-pill.is-critical b,
 .organ-pill.is-high b {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 .organ-pill.is-warning b {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 @media (max-width: 980px) {
   .patient-step-grid {

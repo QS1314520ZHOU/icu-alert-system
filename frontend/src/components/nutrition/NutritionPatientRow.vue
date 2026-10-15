@@ -65,9 +65,9 @@ const tone = computed(() => props.tone || 'stable')
   gap: 12px;
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -75,10 +75,10 @@ const tone = computed(() => props.tone || 'stable')
   color: inherit;
 }
 .nutr-row:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 .nutr-row.selected {
-  border-color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
   background: var(--color-primary-bg, rgba(37,99,235,0.08));
 }
 
@@ -88,11 +88,11 @@ const tone = computed(() => props.tone || 'stable')
   align-self: stretch;
   border-radius: 2px;
   flex-shrink: 0;
-  background: var(--color-border, #E3E7EC);
+  background: var(--color-border, var(--color-bg-inset));
 }
-.nutr-row.tone-danger .nutr-row__rail { background: var(--color-danger, #D92D20); }
-.nutr-row.tone-warn .nutr-row__rail { background: var(--color-warning, #B54708); }
-.nutr-row.tone-stable .nutr-row__rail { background: var(--color-success, #16845B); }
+.nutr-row.tone-danger .nutr-row__rail { background: var(--color-danger); }
+.nutr-row.tone-warn .nutr-row__rail { background: var(--color-warning); }
+.nutr-row.tone-stable .nutr-row__rail { background: var(--color-success); }
 
 /* 床号 */
 .nutr-row__bed {
@@ -104,7 +104,7 @@ const tone = computed(() => props.tone || 'stable')
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: 18px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   line-height: 1.2;
 }
 
@@ -118,7 +118,7 @@ const tone = computed(() => props.tone || 'stable')
   display: block;
   font-size: var(--text-body, 14px);
   font-weight: 600;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -126,7 +126,7 @@ const tone = computed(() => props.tone || 'stable')
 .nutr-row__route {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 /* 达标率 */
@@ -141,20 +141,20 @@ const tone = computed(() => props.tone || 'stable')
   align-items: center;
   padding: 4px 8px;
   border-radius: var(--radius-sm, 4px);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
   min-width: 48px;
 }
 .nutr-row__metric i {
   font-size: 11px;
   font-style: normal;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   line-height: 1.3;
 }
 .nutr-row__metric strong {
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   line-height: 1.2;
 }
 
@@ -175,19 +175,19 @@ const tone = computed(() => props.tone || 'stable')
 }
 .nutr-row__tag.tag-stable {
   background: var(--color-success-bg, rgba(22,132,91,0.08));
-  color: var(--color-success, #16845B);
+  color: var(--color-success);
 }
 .nutr-row__tag.tag-warn {
   background: var(--color-warning-bg, rgba(181,71,8,0.08));
-  color: var(--color-warning, #B54708);
+  color: var(--color-warning);
 }
 .nutr-row__tag.tag-danger {
   background: var(--color-danger-bg, rgba(217,45,32,0.08));
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
 }
 .nutr-row__tag.tag-muted {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  color: var(--color-text-secondary, #667085);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
 }
 
 /* 当前问题 */
@@ -202,9 +202,9 @@ const tone = computed(() => props.tone || 'stable')
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.nutr-row__issue-text.issue-danger { color: var(--color-danger, #D92D20); }
-.nutr-row__issue-text.issue-warn { color: var(--color-warning, #B54708); }
-.nutr-row__issue-text.issue-stable { color: var(--color-text-secondary, #667085); }
+.nutr-row__issue-text.issue-danger { color: var(--color-danger); }
+.nutr-row__issue-text.issue-warn { color: var(--color-warning); }
+.nutr-row__issue-text.issue-stable { color: var(--color-text-secondary); }
 
 /* 动作按钮 */
 .nutr-row__action {

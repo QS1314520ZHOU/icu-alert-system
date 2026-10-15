@@ -82,9 +82,9 @@ const isEmpty = computed(() => {
   font-weight: 600;
   margin-bottom: 6px;
 }
-.ai-section-header.supporting { background: #DCFCE7; color: #166534; }
-.ai-section-header.opposing { background: #FEF2F2; color: #991B1B; }
-.ai-section-header.uncertain { background: #FEF3C7; color: #92400E; }
+.ai-section-header.supporting { background: var(--color-normal-bg); color: var(--color-success); }
+.ai-section-header.opposing { background: var(--color-critical-bg); color: var(--color-critical); }
+.ai-section-header.uncertain { background: var(--color-warning-soft-bg); color: var(--color-warning); }
 .ai-icon {
   width: 18px;
   height: 18px;
@@ -103,9 +103,9 @@ const isEmpty = computed(() => {
   line-height: 1.6;
   border-left: 3px solid;
 }
-.ai-item.supporting { border-color: #16A34A; background: #F0FDF4; }
-.ai-item.opposing { border-color: #DC2626; background: #FEF2F2; }
-.ai-item.uncertain { border-color: #D97706; background: #FFFBEB; }
+.ai-item.supporting { border-color: var(--color-success); background: var(--color-normal-bg); }
+.ai-item.opposing { border-color: var(--color-danger); background: var(--color-critical-bg); }
+.ai-item.uncertain { border-color: var(--color-warning); background: var(--color-warning-soft-bg); }
 .ai-list-empty {
   font-size: 12px;
   color: var(--text-tertiary, #9CA3AF);
@@ -117,7 +117,7 @@ const isEmpty = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 6px;
-  background: #F3F4F6;
+  background: var(--color-bg-inset);
   font-size: 11px;
   color: var(--text-secondary, #6B7280);
   margin-top: 8px;
@@ -125,8 +125,8 @@ const isEmpty = computed(() => {
 .disclaimer-badge {
   padding: 1px 6px;
   border-radius: 4px;
-  background: #7C3AED;
-  color: #fff;
+  background: var(--color-ai);
+  color: var(--color-text-inverse);
   font-size: 10px;
   font-weight: 700;
 }

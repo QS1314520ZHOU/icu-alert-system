@@ -103,13 +103,13 @@ const filteredRows = computed(() => {
 }
 .table-title {
   color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 800;
+  font-size: var(--text-section-title);
+  font-weight: 700;
 }
 .table-sub {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .table-actions {
   display: flex;
@@ -120,7 +120,7 @@ const filteredRows = computed(() => {
   display: grid;
   gap: 6px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -130,7 +130,7 @@ const filteredRows = computed(() => {
   min-height: 36px;
   padding: 0 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
   outline: none;
@@ -144,21 +144,21 @@ const filteredRows = computed(() => {
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
 }
 .table-kpi span,
 .table-kpi small,
 .table-empty span {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .table-kpi strong,
 .table-empty strong {
   display: block;
   margin-top: 6px;
   color: var(--text-primary);
-  font-size: 22px;
-  font-weight: 800;
+  font-size: var(--text-page-title);
+  font-weight: 700;
 }
 .table-kpi small {
   display: block;
@@ -169,28 +169,28 @@ const filteredRows = computed(() => {
   gap: 6px;
   padding: 22px;
   border-radius: var(--card-radius);
-  border: 1px dashed rgba(80,199,255,.18);
+  border: 1px dashed var(--color-border);
   background: var(--bg-surface);
 }
 .table-wrap :deep(.ant-table) {
   background: transparent;
   color: var(--text-primary);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   overflow: hidden;
 }
 .table-wrap :deep(.ant-table-thead > tr > th) {
   background: var(--bg-surface);
   color: var(--accent);
-  border-bottom-color: rgba(80,199,255,.1);
-  font-size: 12px;
+  border-bottom-color: var(--color-divider);
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .table-wrap :deep(.ant-table-tbody > tr > td) {
   background: var(--bg-surface);
   color: var(--text-primary);
-  border-bottom-color: rgba(80,199,255,.08);
-  font-size: 12px;
+  border-bottom-color: var(--color-divider);
+  font-size: var(--text-caption);
 }
 .table-wrap :deep(.ant-table-tbody > tr:hover > td) {
   background: var(--bg-surface) !important;
@@ -199,11 +199,11 @@ const filteredRows = computed(() => {
 .table-wrap :deep(.ant-pagination .ant-pagination-prev),
 .table-wrap :deep(.ant-pagination .ant-pagination-next) {
   background: var(--bg-surface);
-  border-color: rgba(80,199,255,.14);
+  border-color: var(--color-border);
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item-active) {
   background: var(--bg-surface);
-  border-color: rgba(110,231,249,.28);
+  border-color: var(--color-border);
 }
 .table-wrap :deep(.ant-pagination .ant-pagination-item a),
 .table-wrap :deep(.ant-pagination .ant-pagination-prev button),
@@ -232,27 +232,27 @@ html[data-theme='light'] .table-search { color: var(--text-secondary); }
 html[data-theme='light'] .table-search input {
   background: var(--bg-surface);
   color: var(--text-secondary);
-  border-color: rgba(187,204,220,0.72);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
-html[data-theme='light'] .table-search input::placeholder { color: #93a5b7; }
+html[data-theme='light'] .table-search input::placeholder { color: var(--color-text-tertiary); }
 html[data-theme='light'] .table-search input:focus {
-  border-color: rgba(59,130,246,0.4);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-info-border);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .table-kpi,
 html[data-theme='light'] .table-empty {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .table-kpi strong,
 html[data-theme='light'] .table-empty strong { color: var(--text-secondary); }
 html[data-theme='light'] .table-wrap :deep(.ant-table) {
   color: var(--text-secondary);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .table-wrap :deep(.ant-table-container) {
   border-radius: var(--card-radius);
@@ -260,19 +260,19 @@ html[data-theme='light'] .table-wrap :deep(.ant-table-container) {
 html[data-theme='light'] .table-wrap :deep(.ant-table-thead > tr > th) {
   background: var(--bg-surface);
   color: var(--text-secondary);
-  border-bottom-color: rgba(187,204,220,0.72);
+  border-bottom-color: var(--color-border);
 }
-html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr > td) { background: var(--bg-surface); color: var(--text-secondary); border-bottom-color: rgba(187,204,220,0.72); }
-html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr:nth-child(even) > td) { background: rgba(248,251,255,0.92); }
-html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr:hover > td) { background: rgba(231,241,249,0.96) !important; }
+html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr > td) { background: var(--bg-surface); color: var(--text-secondary); border-bottom-color: var(--color-border); }
+html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr:nth-child(even) > td) { background: var(--color-bg-surface); }
+html[data-theme='light'] .table-wrap :deep(.ant-table-tbody > tr:hover > td) { background: var(--color-bg-surface) !important; }
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-prev),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-next) {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
-html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface); border-color: rgba(59,130,246,0.28); }
+html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item-active) { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-item a),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-prev button),
 html[data-theme='light'] .table-wrap :deep(.ant-pagination .ant-pagination-next button) { color: var(--text-secondary); }

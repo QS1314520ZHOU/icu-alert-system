@@ -131,8 +131,8 @@ const organTooltips = computed(() =>
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.14);
-  box-shadow: var(--card-shadow);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 .body-map-panel__head,
 .body-map-panel__row-top,
@@ -144,7 +144,7 @@ const organTooltips = computed(() =>
 }
 .body-map-panel__kicker {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -152,7 +152,7 @@ const organTooltips = computed(() =>
 .body-map-panel__title {
   margin-top: 4px;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--text-section-title);
   font-weight: 700;
 }
 .body-map-panel__stats {
@@ -169,11 +169,11 @@ const organTooltips = computed(() =>
   min-height: 30px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .body-map-panel__pill {
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   color: var(--text-primary);
 }
 .body-map-panel__grid {
@@ -191,7 +191,7 @@ const organTooltips = computed(() =>
 .body-map-panel__row {
   width: 100%;
   text-align: left;
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   border-radius: var(--card-radius);
   min-height: 82px;
@@ -202,43 +202,43 @@ const organTooltips = computed(() =>
 .body-map-panel__row:hover,
 .body-map-panel__row.is-active {
   transform: translateY(-1px);
-  border-color: rgba(110,231,249,.28);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 .body-map-panel__row strong {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .body-map-panel__actions {
   grid-column: 1 / -1;
   margin-top: 2px;
   padding: 9px 12px;
   border-radius: var(--card-radius);
-  border: 1px dashed rgba(80,199,255,.14);
+  border: 1px dashed var(--color-border);
   background: var(--bg-surface);
 }
 .body-map-panel__row-meta,
 .body-map-panel__hint {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 .body-map-panel__badge {
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
 }
-.body-map-panel__badge.is-warning { color: var(--warning-soft); border-color: rgba(245,158,11,.22); }
-.body-map-panel__badge.is-high { color: var(--warning-soft); border-color: rgba(249,115,22,.24); }
-.body-map-panel__badge.is-critical { color: var(--danger-soft); border-color: rgba(244,63,94,.24); }
+.body-map-panel__badge.is-warning { color: var(--color-warning); border-color: var(--color-border); }
+.body-map-panel__badge.is-high { color: var(--color-warning); border-color: var(--color-border); }
+.body-map-panel__badge.is-critical { color: var(--color-danger); border-color: var(--color-border); }
 .body-map-panel__action {
-  border: 1px solid rgba(110,231,249,.28);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
 }
 .body-map-panel--compact .body-map-panel__title {
-  font-size: 15px;
+  font-size: var(--text-section-title);
 }
 .body-map-panel--compact .body-map-panel__grid {
   grid-template-columns: 1fr;
@@ -264,7 +264,7 @@ const organTooltips = computed(() =>
 }
 html[data-theme='light'] .body-map-panel {
   background: var(--bg-surface);
-  border-color: rgba(130, 170, 194, 0.24);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .body-map-panel__title,
 html[data-theme='light'] .body-map-panel__row strong {
@@ -278,22 +278,22 @@ html[data-theme='light'] .body-map-panel__hint {
 html[data-theme='light'] .body-map-panel__row,
 html[data-theme='light'] .body-map-panel__pill,
 html[data-theme='light'] .body-map-panel__badge {
-  background: rgba(255,255,255,.94);
-  border-color: rgba(130, 170, 194, 0.24);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .body-map-panel__actions {
-  background: rgba(255,255,255,.9);
-  border-color: rgba(130, 170, 194, 0.32);
+  background: var(--color-bg-surface);
+  border-color: var(--color-info-border);
 }
 html[data-theme='light'] .body-map-panel__action {
   background: var(--bg-surface);
-  border-color: rgba(59,130,246,.28);
+  border-color: var(--color-border);
   color: var(--text-primary);
 }
 html[data-theme='light'] .body-map-panel__row:hover,
 html[data-theme='light'] .body-map-panel__row.is-active {
-  border-color: rgba(59,130,246,.3);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-info-border);
+  box-shadow: var(--shadow-sm);
 }
 </style>

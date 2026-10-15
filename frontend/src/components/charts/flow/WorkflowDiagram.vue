@@ -79,8 +79,8 @@ const progressText = computed(() => {
 
 <style scoped>
 .workflow-diagram {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #DCE5EF);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -95,15 +95,15 @@ const progressText = computed(() => {
 .workflow-diagram__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .workflow-diagram__progress {
   font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface-secondary);
   padding: 2px 8px;
-  border-radius: 100px;
+  border-radius: 999px;
 }
 
 .workflow-diagram__body--horizontal {
@@ -127,50 +127,50 @@ const progressText = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 6px;
-  border: 1px solid var(--color-border, #DCE5EF);
-  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
   min-width: 100px;
   transition: all 0.2s;
 }
 
 .workflow-node--clickable { cursor: pointer; }
-.workflow-node--clickable:hover { border-color: var(--color-primary, #1677FF); }
+.workflow-node--clickable:hover { border-color: var(--color-primary); }
 
-.workflow-node--completed { border-color: #12A66A; background: #E8F7F0; }
-.workflow-node--running { border-color: #1677FF; background: #EAF4FF; }
-.workflow-node--failed { border-color: #D92D20; background: #FEECEB; }
-.workflow-node--warning { border-color: #F79009; background: #FFF3E0; }
-.workflow-node--blocked { border-color: #D92D20; background: #FEECEB; }
+.workflow-node--completed { border-color: var(--color-normal); background: var(--color-normal-bg); }
+.workflow-node--running { border-color: var(--color-primary); background: var(--color-info-bg); }
+.workflow-node--failed { border-color: var(--color-danger); background: var(--color-critical-bg); }
+.workflow-node--warning { border-color: var(--color-high-risk); background: var(--color-high-risk-bg); }
+.workflow-node--blocked { border-color: var(--color-danger); background: var(--color-critical-bg); }
 
 .workflow-node__icon { font-size: 16px; flex-shrink: 0; }
-.workflow-node--completed .workflow-node__icon { color: #12A66A; }
-.workflow-node--running .workflow-node__icon { color: #1677FF; }
-.workflow-node--failed .workflow-node__icon { color: #D92D20; }
-.workflow-node--warning .workflow-node__icon { color: #F79009; }
-.workflow-node--pending .workflow-node__icon { color: #8A94A6; }
+.workflow-node--completed .workflow-node__icon { color: var(--color-normal); }
+.workflow-node--running .workflow-node__icon { color: var(--color-primary); }
+.workflow-node--failed .workflow-node__icon { color: var(--color-danger); }
+.workflow-node--warning .workflow-node__icon { color: var(--color-high-risk); }
+.workflow-node--pending .workflow-node__icon { color: var(--color-text-tertiary); }
 
 .workflow-node__name {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
   white-space: nowrap;
 }
 
 .workflow-node__assignee {
   font-size: 11px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
 }
 
 .workflow-node__time {
   font-size: 10px;
-  color: var(--color-text-disabled, #B6BEC9);
+  color: var(--color-text-tertiary);
 }
 
 .workflow-connector {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-border, #DCE5EF);
+  color: var(--color-border);
   font-size: 12px;
   flex-shrink: 0;
   padding: 0 4px;

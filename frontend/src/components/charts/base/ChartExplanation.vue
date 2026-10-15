@@ -47,10 +47,10 @@ defineProps<{
   padding: 8px 12px;
   margin-top: 8px;
   border-radius: 6px;
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
   font-size: 12px;
   line-height: 1.6;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .chart-explanation__content {
@@ -62,7 +62,7 @@ defineProps<{
 .chart-explanation__icon {
   flex-shrink: 0;
   margin-top: 2px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
 }
 
 .chart-explanation__text {
@@ -81,7 +81,7 @@ defineProps<{
 
 .chart-explanation__finding {
   margin: 4px 0 0;
-  color: var(--color-warning, #E5B700);
+  color: var(--color-warning, var(--color-warning-soft));
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -93,12 +93,12 @@ defineProps<{
   gap: 12px;
   margin-top: 6px;
   font-size: 11px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
   flex-wrap: wrap;
 }
 
 .chart-explanation__link {
-  color: var(--color-primary, #1677FF);
+  color: var(--color-primary);
   text-decoration: none;
 }
 

@@ -138,7 +138,7 @@ onUnmounted(() => {
   gap: 10px;
   padding: 6px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
@@ -150,7 +150,7 @@ onUnmounted(() => {
   min-height: 24px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103, 232, 249, 0.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--accent);
   font-size: 11px;
@@ -169,7 +169,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 .watching-text {
-  color: #bfeaf3;
+  color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 1.4;
   white-space: nowrap;
@@ -180,9 +180,9 @@ onUnmounted(() => {
   min-width: 22px;
   height: 22px;
   border-radius: var(--card-radius);
-  background: rgba(251, 90, 122, 0.18);
-  border: 1px solid rgba(251, 90, 122, 0.24);
-  color: var(--danger-soft);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-critical-border);
+  color: var(--color-danger);
   text-align: center;
   line-height: 20px;
   font-size: 11px;
@@ -190,7 +190,7 @@ onUnmounted(() => {
 }
 .watching-panel {
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   padding: 12px;
   box-shadow: var(--card-shadow);
@@ -205,7 +205,7 @@ onUnmounted(() => {
   gap: 4px;
   padding: 8px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.1);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .watching-stats span {
@@ -229,7 +229,7 @@ onUnmounted(() => {
   padding: 9px 10px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80, 199, 255, 0.1);
+  border: 1px solid var(--color-border);
 }
 .finding-headline {
   color: var(--text-primary);
@@ -239,8 +239,8 @@ onUnmounted(() => {
 .watching-findings button {
   min-height: 28px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(34, 211, 238, 0.28);
-  background: rgba(8, 145, 178, 0.18);
+  border: 1px solid var(--color-border);
+  background: var(--color-primary-bg);
   color: var(--accent);
   cursor: pointer;
   white-space: nowrap;
@@ -289,7 +289,7 @@ html[data-theme='light'] .watching-stats strong {
 }
 html[data-theme='light'] .watching-icon {
   background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.16);
+  border-color: var(--color-border);
   color: var(--brand);
 }
 @media (max-width: 860px) {

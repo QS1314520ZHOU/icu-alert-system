@@ -37,7 +37,7 @@ const organStateMap = computed(() => {
 <style scoped>
 .twin-body-panel {
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 </style>

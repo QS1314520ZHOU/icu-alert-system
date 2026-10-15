@@ -108,8 +108,8 @@ function formatTime(time: string): string {
 
 <style scoped>
 .clinical-timeline {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #DCE5EF);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -126,7 +126,7 @@ function formatTime(time: string): string {
 .clinical-timeline__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .clinical-timeline__filters {
@@ -171,7 +171,7 @@ function formatTime(time: string): string {
 }
 
 .clinical-timeline__event:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 
 .clinical-timeline__marker {
@@ -187,14 +187,14 @@ function formatTime(time: string): string {
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 2px solid var(--color-bg-surface, #fff);
-  box-shadow: 0 0 0 1px var(--color-border, #DCE5EF);
+  border: 2px solid var(--color-bg-surface);
+  box-shadow: var(--color-border) 0 0 0 1px;
 }
 
 .clinical-timeline__line {
   flex: 1;
   width: 2px;
-  background: var(--color-border, #DCE5EF);
+  background: var(--color-border, var(--color-bg-inset));
   margin: 2px 0;
 }
 
@@ -205,14 +205,14 @@ function formatTime(time: string): string {
 
 .clinical-timeline__time {
   font-size: 11px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
   font-family: 'Rajdhani', monospace;
 }
 
 .clinical-timeline__label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -229,13 +229,13 @@ function formatTime(time: string): string {
 
 .clinical-timeline__desc {
   font-size: 12px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   margin-top: 2px;
 }
 
 .clinical-timeline__source {
   font-size: 11px;
-  color: var(--color-text-disabled, #B6BEC9);
+  color: var(--color-text-tertiary);
   margin-top: 2px;
 }
 </style>

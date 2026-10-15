@@ -193,8 +193,8 @@ function fOleyHoursText(value: any) {
   padding: 14px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.14);
-  box-shadow: var(--card-shadow);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 .device-hai-panel__head,
 .device-hai-panel__card-head {
@@ -205,7 +205,7 @@ function fOleyHoursText(value: any) {
 }
 .device-hai-panel__kicker {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -213,16 +213,16 @@ function fOleyHoursText(value: any) {
 .device-hai-panel__title,
 .device-hai-panel__card-title {
   color: var(--text-primary);
-  font-weight: 800;
+  font-weight: 700;
 }
-.device-hai-panel__title { margin-top: 4px; font-size: 18px; }
-.device-hai-panel__card-title { font-size: 15px; }
+.device-hai-panel__title { margin-top: 4px; font-size: var(--text-section-title); }
+.device-hai-panel__card-title { font-size: var(--text-section-title); }
 .device-hai-panel__card-sub,
 .device-hai-panel__summary,
 .device-hai-panel__list,
 .device-hai-panel__chip {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .device-hai-panel__action,
 .device-hai-panel__badge,
@@ -234,7 +234,7 @@ function fOleyHoursText(value: any) {
   border-radius: var(--card-radius);
 }
 .device-hai-panel__action {
-  border: 1px solid rgba(110,231,249,.28);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
@@ -250,19 +250,19 @@ function fOleyHoursText(value: any) {
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
 }
 .device-hai-panel__card.is-warning,
-.device-hai-panel__badge.is-warning { border-color: rgba(245,158,11,.22); }
+.device-hai-panel__badge.is-warning { border-color: var(--color-border); }
 .device-hai-panel__card.is-high,
-.device-hai-panel__badge.is-high { border-color: rgba(249,115,22,.24); }
+.device-hai-panel__badge.is-high { border-color: var(--color-border); }
 .device-hai-panel__card.is-critical,
-.device-hai-panel__badge.is-critical { border-color: rgba(244,63,94,.28); }
+.device-hai-panel__badge.is-critical { border-color: var(--color-border); }
 .device-hai-panel__badge {
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .device-hai-panel__metric-row {
   display: flex;
@@ -271,7 +271,7 @@ function fOleyHoursText(value: any) {
 }
 .device-hai-panel__chip {
   background: var(--bg-surface);
-  border: 1px solid rgba(104, 193, 229, 0.18);
+  border: 1px solid var(--color-border);
 }
 .device-hai-panel__summary {
   line-height: 1.6;
@@ -282,7 +282,7 @@ function fOleyHoursText(value: any) {
 }
 .device-hai-panel__alert-title {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .device-hai-panel__alert-item {
@@ -292,19 +292,19 @@ function fOleyHoursText(value: any) {
   gap: 10px;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(104, 193, 229, 0.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   cursor: pointer;
   text-align: left;
 }
 .device-hai-panel__alert-item span {
-  color: #d8ebf4;
-  font-size: 11px;
+  color: var(--color-text-primary);
+  font-size: var(--text-label);
   line-height: 1.5;
 }
 .device-hai-panel__alert-item small {
-  color: #7fa0b3;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   white-space: nowrap;
 }
 .device-hai-panel__list {
@@ -323,12 +323,12 @@ function fOleyHoursText(value: any) {
 }
 .device-hai-panel__card.is-clickable:hover {
   transform: translateY(-1px);
-  box-shadow: var(--card-shadow);
-  border-color: rgba(110,231,249,.24);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--color-border);
 }
 .device-hai-panel__link,
 .device-hai-panel__empty {
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .device-hai-panel__link {
   border: 0;
@@ -339,7 +339,7 @@ function fOleyHoursText(value: any) {
   font-weight: 700;
 }
 .device-hai-panel__empty {
-  color: #64889a;
+  color: var(--color-text-secondary);
 }
 @media (max-width: 980px) {
   .device-hai-panel__grid {
@@ -348,7 +348,7 @@ function fOleyHoursText(value: any) {
 }
 html[data-theme='light'] .device-hai-panel {
   background: var(--bg-surface);
-  border-color: rgba(130, 170, 194, 0.24);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .device-hai-panel__title,
 html[data-theme='light'] .device-hai-panel__card-title {
@@ -366,17 +366,17 @@ html[data-theme='light'] .device-hai-panel__card,
 html[data-theme='light'] .device-hai-panel__badge,
 html[data-theme='light'] .device-hai-panel__chip,
 html[data-theme='light'] .device-hai-panel__alert-item {
-  background: rgba(255,255,255,.94);
-  border-color: rgba(130, 170, 194, 0.24);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .device-hai-panel__alert-title,
 html[data-theme='light'] .device-hai-panel__alert-item span {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .device-hai-panel__link {
-  color: #1f6f94;
+  color: var(--color-accent);
 }
 html[data-theme='light'] .device-hai-panel__empty {
-  color: #7b93a7;
+  color: var(--color-text-secondary);
 }
 </style>

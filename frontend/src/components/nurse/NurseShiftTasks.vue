@@ -169,9 +169,9 @@ function handleAction(action: string) {
   display: grid;
   gap: 10px;
   padding: var(--card-padding, 16px);
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 
 .panel-head {
@@ -183,12 +183,12 @@ function handleAction(action: string) {
 .panel-head strong {
   font-size: var(--text-card-title, 14px);
   font-weight: var(--text-card-title-weight, 650);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .panel-head span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 /* 筛选 */
@@ -204,24 +204,24 @@ function handleAction(action: string) {
   gap: 4px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-tag, 4px);
   background: transparent;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: var(--text-caption, 12px);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .filter-chip:hover {
-  border-color: var(--color-primary, #2563EB);
-  color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .filter-chip.active {
   background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  border-color: var(--color-primary, #2563EB);
-  color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   font-weight: 500;
 }
 
@@ -233,13 +233,13 @@ function handleAction(action: string) {
   justify-content: center;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
   font-size: 10px;
   font-weight: 600;
 }
 
 .filter-chip.active .filter-count {
-  background: rgba(37, 99, 235, 0.15);
+  background: var(--color-primary-bg);
 }
 
 /* 任务列表 */
@@ -260,7 +260,7 @@ function handleAction(action: string) {
 }
 
 .task-row:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 
 .task-row__left {
@@ -278,11 +278,11 @@ function handleAction(action: string) {
   flex-shrink: 0;
 }
 
-.status-dot.is-overdue { background: var(--color-danger, #D92D20); }
-.status-dot.is-due { background: var(--color-warning, #B54708); }
-.status-dot.is-soon { background: var(--color-primary, #2563EB); }
-.status-dot.is-future { background: var(--color-border, #E3E7EC); }
-.status-dot.is-done { background: var(--color-success, #16845B); }
+.status-dot.is-overdue { background: var(--color-danger); }
+.status-dot.is-due { background: var(--color-warning); }
+.status-dot.is-soon { background: var(--color-primary); }
+.status-dot.is-future { background: var(--color-border, var(--color-bg-inset)); }
+.status-dot.is-done { background: var(--color-success); }
 
 .task-row__info {
   min-width: 0;
@@ -293,7 +293,7 @@ function handleAction(action: string) {
 .task-row__info strong {
   font-size: var(--text-body, 14px);
   font-weight: 500;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -301,16 +301,16 @@ function handleAction(action: string) {
 
 .task-row__info span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .task-row__action {
   font-size: var(--text-caption, 12px);
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
-.task-row.is-overdue .task-row__info strong { color: var(--color-danger, #D92D20); }
+.task-row.is-overdue .task-row__info strong { color: var(--color-danger); }
 .task-row.is-overdue { background: var(--color-danger-bg, rgba(217, 45, 32, 0.04)); }
 .task-row.is-done { opacity: 0.6; }
 
@@ -318,7 +318,7 @@ function handleAction(action: string) {
   padding: 20px;
   text-align: center;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 /* 抽屉 */
@@ -336,8 +336,8 @@ function handleAction(action: string) {
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  background: var(--color-bg-surface, #fff);
-  box-shadow: var(--shadow-xl);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-lg);
   overflow: auto;
 }
 
@@ -346,13 +346,13 @@ function handleAction(action: string) {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border, #E3E7EC);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .drawer-head strong {
   font-size: var(--text-section-title, 16px);
   font-weight: var(--text-section-title-weight, 650);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .drawer-close {
@@ -362,14 +362,14 @@ function handleAction(action: string) {
   place-items: center;
   border: none;
   background: transparent;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: 16px;
   cursor: pointer;
   border-radius: var(--radius-md, 6px);
 }
 
 .drawer-close:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 
 .drawer-body {
@@ -386,7 +386,7 @@ function handleAction(action: string) {
 
 .drawer-meta span {
   font-size: var(--text-body, 14px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .drawer-status {
@@ -406,14 +406,14 @@ function handleAction(action: string) {
 
 .drawer-desc {
   font-size: var(--text-body, 14px);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   line-height: var(--text-body-line-height, 1.5);
   margin: 0;
 }
 
 .drawer-actions {
   padding: 16px 20px;
-  border-top: 1px solid var(--color-border, #E3E7EC);
+  border-top: 1px solid var(--color-border);
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -425,37 +425,37 @@ function handleAction(action: string) {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-button, 6px);
-  background: var(--color-bg-surface, #fff);
-  color: var(--color-text-primary, #18212B);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   font-size: var(--text-body, 14px);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .action-btn:hover {
-  border-color: var(--color-primary, #2563EB);
-  color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .action-btn.primary {
-  background: var(--color-primary, #2563EB);
-  border-color: var(--color-primary, #2563EB);
-  color: #fff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .action-btn.primary:hover {
-  background: var(--color-primary-hover, #1D4ED8);
+  background: var(--color-primary-hover, var(--color-primary));
 }
 
 .action-btn.subtle {
   border-color: transparent;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .action-btn.subtle:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  color: var(--color-text-primary, #18212B);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
 }
 </style>

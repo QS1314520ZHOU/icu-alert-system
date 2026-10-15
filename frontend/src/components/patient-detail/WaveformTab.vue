@@ -105,25 +105,25 @@ const emptyText = computed(() => {
 .tab-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .toolbar-left { display: flex; gap: 8px; flex-wrap: wrap; }
 .waveform-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, .9fr); gap: 12px; }
-.chart-panel, .side-panel { padding: 12px; border-radius: var(--card-radius); background: var(--bg-surface); border: 1px solid rgba(80,199,255,.12); }
+.chart-panel, .side-panel { padding: 12px; border-radius: var(--card-radius); background: var(--bg-surface); border: 1px solid var(--color-border); }
 .chart-wrap { height: 360px; }
 .side-panel { display: grid; gap: 10px; }
-.side-block { display: grid; gap: 8px; border: 1px solid rgba(80,199,255,.10); border-radius: var(--card-radius); padding: 10px; background: var(--bg-surface); }
-.side-title { color: var(--accent); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
-.qc-pill { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 4px 10px; border-radius: var(--card-radius); border: 1px solid rgba(80,199,255,.14); color: var(--text-primary); }
-.qc-pill.is-good { border-color: rgba(16,185,129,.28); color: #6ee7b7; }
-.qc-pill.is-fair { border-color: rgba(245,158,11,.28); color: var(--warning); }
-.qc-pill.is-poor { border-color: rgba(239,68,68,.28); color: var(--danger-soft); }
-.side-list { margin: 0; padding-left: 18px; color: #cfe4ff; font-size: 12px; line-height: 1.6; }
-.side-empty, .tab-empty { color: var(--accent); font-size: 12px; }
-.waveform-tab :deep(.ant-btn), .waveform-tab :deep(.ant-select-selector), .waveform-tab :deep(.ant-radio-button-wrapper) { background: var(--bg-surface) !important; border-color: rgba(80,199,255,.14) !important; color: var(--text-primary) !important; }
+.side-block { display: grid; gap: 8px; border: 1px solid var(--color-divider); border-radius: var(--card-radius); padding: 10px; background: var(--bg-surface); }
+.side-title { color: var(--accent); font-size: var(--text-label); letter-spacing: .08em; text-transform: uppercase; }
+.qc-pill { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 4px 10px; border-radius: var(--card-radius); border: 1px solid var(--color-border); color: var(--text-primary); }
+.qc-pill.is-good { border-color: var(--color-border); color: var(--color-success); }
+.qc-pill.is-fair { border-color: var(--color-border); color: var(--warning); }
+.qc-pill.is-poor { border-color: var(--color-border); color: var(--color-danger); }
+.side-list { margin: 0; padding-left: 18px; color: var(--color-text-secondary); font-size: var(--text-caption); line-height: 1.6; }
+.side-empty, .tab-empty { color: var(--accent); font-size: var(--text-caption); }
+.waveform-tab :deep(.ant-btn), .waveform-tab :deep(.ant-select-selector), .waveform-tab :deep(.ant-radio-button-wrapper) { background: var(--bg-surface) !important; border-color: var(--color-border) !important; color: var(--text-primary) !important; }
 .waveform-tab :deep(.ant-radio-button-wrapper-checked) { background: var(--bg-surface) !important; }
 html[data-theme='light'] .waveform-tab .chart-panel,
 html[data-theme='light'] .waveform-tab .side-panel,
 html[data-theme='light'] .waveform-tab .side-block {
-  border-color: rgba(187, 204, 220, 0.72);
+  border-color: var(--color-border);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .waveform-tab .side-title {
   color: var(--text-secondary);
@@ -135,29 +135,29 @@ html[data-theme='light'] .waveform-tab .tab-empty {
 }
 html[data-theme='light'] .waveform-tab .qc-pill {
   background: var(--bg-surface);
-  border-color: rgba(187, 204, 220, 0.72);
+  border-color: var(--color-border);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .waveform-tab .qc-pill.is-good {
   color: var(--success);
-  border-color: rgba(16, 185, 129, 0.28);
-  background: rgba(220, 252, 231, 0.9);
+  border-color: var(--color-border);
+  background: var(--color-normal-bg);
 }
 html[data-theme='light'] .waveform-tab .qc-pill.is-fair {
   color: var(--warning);
-  border-color: rgba(245, 158, 11, 0.28);
-  background: rgba(254, 243, 199, 0.9);
+  border-color: var(--color-border);
+  background: var(--color-warning-soft-bg);
 }
 html[data-theme='light'] .waveform-tab .qc-pill.is-poor {
   color: var(--danger);
-  border-color: rgba(239, 68, 68, 0.28);
-  background: rgba(254, 226, 226, 0.92);
+  border-color: var(--color-border);
+  background: var(--color-critical-bg);
 }
 html[data-theme='light'] .waveform-tab :deep(.ant-btn),
 html[data-theme='light'] .waveform-tab :deep(.ant-select-selector),
 html[data-theme='light'] .waveform-tab :deep(.ant-radio-button-wrapper) {
-  background: rgba(241, 246, 251, 0.98) !important;
-  border-color: rgba(187, 204, 220, 0.72) !important;
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
   color: var(--text-secondary) !important;
 }
 html[data-theme='light'] .waveform-tab :deep(.ant-select-selection-placeholder) {
@@ -165,7 +165,7 @@ html[data-theme='light'] .waveform-tab :deep(.ant-select-selection-placeholder) 
 }
 html[data-theme='light'] .waveform-tab :deep(.ant-radio-button-wrapper-checked) {
   background: var(--bg-surface) !important;
-  border-color: rgba(59, 130, 246, 0.32) !important;
+  border-color: var(--color-info-border) !important;
   color: var(--text-primary) !important;
 }
 @media (max-width: 980px) { .waveform-grid { grid-template-columns: 1fr; } }

@@ -243,11 +243,11 @@ watch(
   font-size: 12px;
   font-weight: 700;
 }
-.ev-severity.sev-critical { background: #DC2626; color: #fff; }
-.ev-severity.sev-high { background: #EA580C; color: #fff; }
-.ev-severity.sev-warning { background: #D97706; color: #fff; }
-.ev-severity.sev-info { background: #2563EB; color: #fff; }
-.ev-severity.sev-stable { background: #16A34A; color: #fff; }
+.ev-severity.sev-critical { background: var(--color-danger); color: var(--color-text-inverse); }
+.ev-severity.sev-high { background: var(--color-high-risk); color: var(--color-text-inverse); }
+.ev-severity.sev-warning { background: var(--color-warning); color: var(--color-text-inverse); }
+.ev-severity.sev-info { background: var(--color-primary); color: var(--color-text-inverse); }
+.ev-severity.sev-stable { background: var(--color-success); color: var(--color-text-inverse); }
 .ev-confidence {
   display: flex;
   align-items: center;
@@ -286,8 +286,8 @@ watch(
 .ev-badge-ai {
   padding: 1px 5px;
   border-radius: 4px;
-  background: #7C3AED;
-  color: #fff;
+  background: var(--color-ai);
+  color: var(--color-text-inverse);
   font-size: 10px;
   font-weight: 700;
 }
@@ -309,7 +309,7 @@ watch(
 .prov-value { color: var(--text-primary, #182230); }
 
 /* 缺失 */
-.missing-title { color: #D97706 !important; }
+.missing-title { color: var(--color-warning) !important; }
 .missing-body { display: grid; gap: 6px; margin-top: 8px; }
 .missing-item {
   display: flex;
@@ -317,10 +317,10 @@ watch(
   align-items: baseline;
   padding: 6px 10px;
   border-radius: 4px;
-  background: #FFFBEB;
+  background: var(--color-warning-soft-bg);
   font-size: 12px;
 }
-.missing-item strong { color: #92400E; }
+.missing-item strong { color: var(--color-warning); }
 .missing-item span { color: var(--text-secondary, #6B7280); }
 .missing-item em { color: var(--text-tertiary, #9CA3AF); font-style: normal; margin-left: auto; }
 

@@ -142,14 +142,14 @@ const labelPoints = computed(() =>
 }
 .organ-radar__value-line {
   fill: none;
-  stroke: #15558D;
+  stroke: var(--color-primary);
   stroke-width: 2;
 }
 .organ-radar__value-dot {
-  fill: #7dd3fc;
+  fill: var(--color-info-border);
 }
 .organ-radar__label {
-  fill: #8fb8ca;
+  fill: var(--color-text-tertiary);
   font-size: 10px;
   dominant-baseline: middle;
 }
@@ -161,6 +161,6 @@ html[data-theme='light'] .organ-radar__axis {
   stroke: rgba(123, 164, 189, 0.24);
 }
 html[data-theme='light'] .organ-radar__label {
-  fill: #56748d;
+  fill: var(--color-text-secondary);
 }
 </style>

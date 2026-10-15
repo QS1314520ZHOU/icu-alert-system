@@ -124,7 +124,7 @@ function formatRange(min: any, max: any) {
 .cp-card {
   padding: 9px 10px;
   background: var(--bg-surface);
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
 }
 
@@ -148,7 +148,7 @@ function formatRange(min: any, max: any) {
   margin-top: 6px;
   color: var(--text-muted);
   line-height: 1.55;
-  border-top: 1px dashed #edf1f7;
+  border-top: 1px dashed var(--color-border);
   padding-top: 6px;
 }
 

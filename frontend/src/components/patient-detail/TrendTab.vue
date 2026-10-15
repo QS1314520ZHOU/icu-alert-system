@@ -139,7 +139,7 @@ const summaryCards = computed(() => {
 }
 .toolbar-hint {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .summary-grid {
   display: grid;
@@ -150,19 +150,19 @@ const summaryCards = computed(() => {
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
 }
 .summary-card span,
 .summary-card small {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .summary-card strong {
   display: block;
   margin-top: 6px;
   color: var(--text-primary);
-  font-size: 20px;
-  font-weight: 800;
+  font-size: var(--text-page-title);
+  font-weight: 700;
 }
 .summary-card small {
   display: block;
@@ -172,27 +172,27 @@ const summaryCards = computed(() => {
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
-  box-shadow: var(--card-shadow);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 .chart-wrap {
   height: 360px;
 }
 .tab-empty {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-caption);
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px dashed rgba(80,199,255,.14);
+  border: 1px dashed var(--color-border);
 }
 .trend-tab :deep(.ant-radio-group) {
   display: inline-flex;
   gap: 6px;
 }
 .trend-tab :deep(.ant-radio-button-wrapper) {
-  border-radius: 6px !important;
-  border: 1px solid rgba(80,199,255,.14) !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--color-border) !important;
   background: var(--bg-surface) !important;
   color: var(--accent) !important;
 }
@@ -200,14 +200,14 @@ const summaryCards = computed(() => {
   display: none !important;
 }
 .trend-tab :deep(.ant-radio-button-wrapper-checked) {
-  background: #E8F3FF !important;
-  color: #15558D !important;
-  border-color: #15558D !important;
+  background: var(--color-primary-bg) !important;
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
   font-weight: 600;
 }
 .trend-tab :deep(.ant-btn) {
   background: var(--bg-surface);
-  border-color: rgba(80,199,255,.14);
+  border-color: var(--color-border);
   color: var(--text-primary);
 }
 @media (max-width: 920px) {
@@ -224,34 +224,34 @@ const summaryCards = computed(() => {
 html[data-theme='light'] .toolbar-hint,
 html[data-theme='light'] .summary-card span,
 html[data-theme='light'] .summary-card small,
-html[data-theme='light'] .trend-tab .tab-empty { color: #5f7690; }
+html[data-theme='light'] .trend-tab .tab-empty { color: var(--color-text-secondary); }
 html[data-theme='light'] .summary-card,
 html[data-theme='light'] .trend-tab .chart-panel {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,.72);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .summary-card strong { color: var(--text-secondary); }
 html[data-theme='light'] .trend-tab .tab-empty {
-  background: rgba(238,245,252,.92);
-  border-color: rgba(153,183,206,.5);
+  background: var(--color-bg-surface);
+  border-color: var(--color-info-border);
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper) {
-  border-color: rgba(187,204,220,.72) !important;
+  border-color: var(--color-border) !important;
   background: var(--bg-surface) !important;
-  color: #56718d !important;
-  box-shadow: var(--card-shadow);
+  color: var(--color-text-secondary) !important;
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .trend-tab :deep(.ant-radio-button-wrapper-checked) {
-  background: #E8F3FF !important;
-  color: #15558D !important;
-  border-color: #15558D !important;
+  background: var(--color-primary-bg) !important;
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
   font-weight: 600;
 }
 html[data-theme='light'] .trend-tab :deep(.ant-btn) {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,.72);
+  border-color: var(--color-border);
   color: var(--text-secondary);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 </style>

@@ -78,11 +78,11 @@ function handoverStatusLabel(status?: string) {
 }
 </script>
 
-<style scoped>
+<style<style scoped>>
 .bed-risk-matrix {
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #DCE5EF;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
   padding: 16px;
 }
 .matrix-header {
@@ -91,15 +91,15 @@ function handoverStatusLabel(status?: string) {
   align-items: center;
   margin-bottom: 12px;
 }
-.matrix-title { font-size: 14px; font-weight: 600; color: #17233D; margin: 0; }
-.matrix-legend { display: flex; gap: 12px; font-size: 12px; color: #5F6B7A; }
+.matrix-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }
+.matrix-legend { display: flex; gap: 12px; font-size: 12px; color: var(--color-text-secondary); }
 .legend-item { display: flex; align-items: center; gap: 4px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot--critical { background: #D92D20; }
-.dot--high { background: #F79009; }
-.dot--medium { background: #E5B700; }
-.dot--stable { background: #12A66A; }
-.dot--nodata { background: #98A2B3; }
+.dot--critical { background: var(--color-danger); }
+.dot--high { background: var(--color-high-risk); }
+.dot--medium { background: var(--color-warning-soft); }
+.dot--stable { background: var(--color-normal); }
+.dot--nodata { background: var(--color-unknown); }
 
 .matrix-grid {
   display: grid;
@@ -107,32 +107,32 @@ function handoverStatusLabel(status?: string) {
   gap: 8px;
 }
 .bed-cell {
-  border: 2px solid #DCE5EF;
-  border-radius: 6px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 8px;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
   min-height: 80px;
 }
-.bed-cell:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-.bed-cell--critical { border-color: #D92D20; background: #FEF3F2; }
-.bed-cell--high { border-color: #F79009; background: #FFFAEB; }
-.bed-cell--medium { border-color: #E5B700; background: #FEFBE8; }
-.bed-cell--stable { border-color: #12A66A; background: #ECFDF3; }
-.bed-cell--nodata { border-color: #98A2B3; background: #F9FAFB; }
+.bed-cell:hover { box-shadow: var(--card-shadow); }
+.bed-cell--critical { border-color: var(--color-danger); background: var(--color-danger-bg); }
+.bed-cell--high { border-color: var(--color-high-risk); background: var(--color-warning-bg); }
+.bed-cell--medium { border-color: var(--color-warning-soft); background: var(--color-warning-soft-bg); }
+.bed-cell--stable { border-color: var(--color-normal); background: var(--color-normal-bg); }
+.bed-cell--nodata { border-color: var(--color-unknown); background: var(--color-bg-page); }
 
-.bed-number { font-size: 12px; font-weight: 600; color: #17233D; }
-.bed-name { font-size: 12px; color: #5F6B7A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bed-number { font-size: 12px; font-weight: 600; color: var(--color-text-primary); }
+.bed-name { font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bed-icons { display: flex; gap: 4px; margin-top: 4px; }
 .icon-tag {
   font-size: 10px; font-weight: 600; padding: 1px 4px; border-radius: 3px;
   line-height: 1.2;
 }
-.icon-tag--vent { background: #E6F4FF; color: #2E90FA; }
-.icon-tag--vaso { background: #FEF3F2; color: #D92D20; }
-.icon-tag--crrt { background: #F4F0FF; color: #7A5AF8; }
-.icon-tag--alert { background: #FEF3F2; color: #D92D20; }
-.bed-status { font-size: 10px; color: #8A94A6; margin-top: 4px; }
+.icon-tag--vent { background: var(--color-info-bg); color: var(--color-info); }
+.icon-tag--vaso { background: var(--color-danger-bg); color: var(--color-danger); }
+.icon-tag--crrt { background: var(--color-ai-light); color: var(--color-ai); }
+.icon-tag--alert { background: var(--color-danger-bg); color: var(--color-danger); }
+.bed-status { font-size: 10px; color: var(--color-text-tertiary); margin-top: 4px; }
 
-.matrix-caption { font-size: 12px; color: #8A94A6; margin-top: 12px; border-top: 1px solid #F0F3F7; padding-top: 8px; }
+.matrix-caption { font-size: 12px; color: var(--color-text-tertiary); margin-top: 12px; border-top: 1px solid var(--color-divider); padding-top: 8px; }
 </style>

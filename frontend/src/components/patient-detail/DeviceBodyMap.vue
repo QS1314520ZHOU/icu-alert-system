@@ -302,7 +302,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 }
 .device-map-card__kicker {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -310,7 +310,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 .device-map-card__title {
   margin-top: 4px;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--text-section-title);
   font-weight: 700;
 }
 .device-map-card__count {
@@ -320,9 +320,9 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   padding: 0 10px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .device-map-card__legend {
   display: flex;
@@ -338,8 +338,8 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   gap: 6px;
 }
 .device-map-card__legend-label {
-  color: #6fbfd4;
-  font-size: 11px;
+  color: var(--color-accent);
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .08em;
 }
@@ -352,27 +352,27 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   padding: 0 8px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.1);
+  border: 1px solid var(--color-divider);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .device-map-card__legend-item--risk.is-warning,
 .device-map-card__legend-item--risk.is-high,
 .device-map-card__legend-item--risk.is-critical {
-  border-color: rgba(80,199,255,.12);
+  border-color: var(--color-border);
 }
 .device-map-card__legend-shape {
   width: 11px;
   height: 11px;
   background: var(--legend-color);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__risk-dot {
   width: 10px;
   height: 10px;
   border-radius: var(--card-radius);
   background: var(--risk-color);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__legend-shape.shape-circle { border-radius: var(--card-radius); }
 .device-map-card__legend-shape.shape-square { border-radius: var(--card-radius); }
@@ -384,7 +384,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-bottom: 10px solid var(--legend-color);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__legend-shape.shape-pill { width: 13px; border-radius: var(--card-radius); }
 .device-map-card__legend-shape.shape-hex {
@@ -395,7 +395,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   width: 12px;
   height: 12px;
   background: transparent;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__legend-shape.shape-cross::before,
 .device-map-card__legend-shape.shape-cross::after {
@@ -431,7 +431,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   width: min(100%, 230px);
 }
 .device-map-card__figure :deep(.organ-heatmap__svg) {
-  filter: drop-shadow(0 0 14px rgba(99, 233, 255, 0.16));
+  filter: none;
 }
 .device-map-card__marker {
   position: absolute;
@@ -477,7 +477,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   height: 16px;
   background: var(--marker-color);
   border: 2px solid var(--marker-ring);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
   transition: box-shadow .18s ease, opacity .18s ease, transform .18s ease;
 }
 .device-map-card__marker.shape-circle .device-map-card__marker-dot { border-radius: var(--card-radius); }
@@ -492,7 +492,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   border-top: 0;
   border-radius: 0;
   background: transparent;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
   position: relative;
 }
 .device-map-card__marker.shape-triangle .device-map-card__marker-dot::after {
@@ -502,7 +502,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   top: 2px;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-bottom: 12px solid rgba(7,20,34,.92);
+  border-bottom: 12px solid var(--color-info-border);
 }
 .device-map-card__marker.shape-pill .device-map-card__marker-dot { border-radius: var(--card-radius); width: 18px; }
 .device-map-card__marker.shape-hex .device-map-card__marker-dot {
@@ -512,7 +512,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   position: relative;
   background: transparent;
   border: none;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__marker.shape-cross .device-map-card__marker-dot::before,
 .device-map-card__marker.shape-cross .device-map-card__marker-dot::after {
@@ -522,7 +522,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   margin: auto;
   background: var(--marker-color);
   border: 2px solid var(--marker-ring);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__marker.shape-cross .device-map-card__marker-dot::before {
   width: 16px;
@@ -556,7 +556,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   opacity: 1;
 }
 .device-map-card__marker.is-active .device-map-card__marker-dot {
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__tooltip {
   position: absolute;
@@ -564,9 +564,9 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   max-width: 220px;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
   color: var(--text-primary);
   pointer-events: none;
 }
@@ -589,23 +589,23 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 }
 .device-map-card__tooltip-head strong {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .device-map-card__tooltip-head span,
 .device-map-card__tooltip-meta {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .device-map-card__tooltip-body {
   margin-top: 6px;
-  color: #d9f6ff;
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 .device-map-card__tooltip-meta {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(80,199,255,.1);
+  border-top: 1px solid var(--color-divider);
 }
 .device-map-card__list {
   display: grid;
@@ -620,7 +620,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 }
 .device-map-card__list::-webkit-scrollbar-thumb {
   border-radius: var(--card-radius);
-  background: rgba(80,199,255,.18);
+  background: var(--color-info-bg);
 }
 .device-map-card__list::-webkit-scrollbar-track {
   background: transparent;
@@ -631,7 +631,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   padding: 10px 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   text-align: left;
   cursor: pointer;
   position: relative;
@@ -645,21 +645,21 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   bottom: 10px;
   width: 3px;
   border-radius: var(--card-radius);
-  background: var(--item-accent, rgba(80,199,255,.24));
+  background: var(--item-accent, var(--color-info-bg));
   opacity: .7;
 }
-.device-map-card__item.is-warning { border-color: rgba(245,158,11,.22); }
-.device-map-card__item.is-high { border-color: rgba(249,115,22,.24); }
-.device-map-card__item.is-critical { border-color: rgba(244,63,94,.28); }
+.device-map-card__item.is-warning { border-color: var(--color-border); }
+.device-map-card__item.is-high { border-color: var(--color-border); }
+.device-map-card__item.is-critical { border-color: var(--color-border); }
 .device-map-card__item:hover,
 .device-map-card__item.is-active {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--item-ring) 58%, rgba(80,199,255,.14));
-  box-shadow: var(--card-shadow);
+  border-color: color-mix(in srgb, var(--item-ring) 58%, var(--color-border));
+  box-shadow: var(--shadow-sm);
 }
 .device-map-card__item strong {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .device-map-card__item-tags {
   display: flex;
@@ -671,7 +671,7 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
 .device-map-card__item-meta,
 .device-map-card__empty {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .device-map-card__item-meta {
   margin-top: 6px;
@@ -681,33 +681,33 @@ function resolveMarkerAnchor(item: { key: string; label: string; kind: BodyMapDe
   padding: 14px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px dashed rgba(80,199,255,.16);
+  border: 1px dashed var(--color-border);
 }
 html[data-theme='light'] .device-map-card__title,
 html[data-theme='light'] .device-map-card__item strong {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__legend-label {
-  color: #4c7088;
+  color: var(--color-text-secondary);
 }
 html[data-theme='light'] .device-map-card__legend-item,
 html[data-theme='light'] .device-map-card__item-tags span {
-  background: rgba(255,255,255,.94);
-  border-color: rgba(130, 170, 194, 0.24);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__list::-webkit-scrollbar-thumb {
-  background: rgba(130, 170, 194, 0.5);
+  background: var(--color-info-bg);
 }
 html[data-theme='light'] .device-map-card__count,
 html[data-theme='light'] .device-map-card__item,
 html[data-theme='light'] .device-map-card__empty {
-  background: rgba(255,255,255,.94);
-  border-color: rgba(130, 170, 194, 0.24);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .device-map-card__item.is-active,
 html[data-theme='light'] .device-map-card__item:hover {
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .device-map-card__count {
   color: var(--text-secondary);
@@ -719,12 +719,12 @@ html[data-theme='light'] .device-map-card__kicker {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__figure :deep(.organ-heatmap__svg) {
-  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.12));
+  filter: none;
 }
 html[data-theme='light'] .device-map-card__tooltip {
-  background: rgba(255,255,255,.98);
-  border-color: rgba(130, 170, 194, 0.34);
-  box-shadow: var(--card-shadow);
+  background: var(--color-bg-surface);
+  border-color: var(--color-info-border);
+  box-shadow: var(--shadow-sm);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__tooltip-head strong {
@@ -738,7 +738,7 @@ html[data-theme='light'] .device-map-card__tooltip-body {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .device-map-card__tooltip-meta {
-  border-top-color: rgba(130, 170, 194, 0.2);
+  border-top-color: var(--color-border);
 }
 @media (max-width: 680px) {
   .device-map-card__legend {

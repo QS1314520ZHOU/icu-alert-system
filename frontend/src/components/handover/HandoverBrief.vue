@@ -106,7 +106,7 @@ const modeOptions = [
   border-bottom: 1px solid var(--border-color, #334155);
 }
 .brief-block.urgent {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--color-danger-bg);
   border-left: 3px solid var(--danger, #ef4444);
   padding-left: 10px;
   border-radius: 4px;

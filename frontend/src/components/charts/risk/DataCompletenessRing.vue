@@ -93,7 +93,7 @@ onBeforeUnmount(() => chart.value?.dispose())
 
 .completeness-ring__label {
   font-size: 12px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   text-align: center;
 }
 </style>

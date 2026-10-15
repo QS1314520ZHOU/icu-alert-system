@@ -139,7 +139,7 @@ function getActionName(action: string): string {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 8px;
   border: 1px solid var(--color-border, #E3E7EC);
   padding: 16px;
@@ -174,7 +174,7 @@ function getActionName(action: string): string {
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 6px;
   position: relative;
 }
@@ -184,13 +184,13 @@ function getActionName(action: string): string {
 }
 
 .step--active {
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-primary);
 }
 
 .step--completed {
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
+  background: var(--color-normal-bg);
+  border: 1px solid var(--color-normal-border);
 }
 
 .step--skipped {
@@ -217,18 +217,18 @@ function getActionName(action: string): string {
 }
 
 .step--pending .step-number {
-  background: #d9d9d9;
-  color: #999;
+  background: var(--color-bg-inset);
+  color: var(--color-text-tertiary);
 }
 
 .step--active .step-number {
-  background: #1890ff;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .step--completed .step-number {
-  background: #52c41a;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .step-content {
@@ -243,22 +243,22 @@ function getActionName(action: string): string {
 
 .step-description {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
   margin-bottom: 4px;
 }
 
 .step-assignee {
   font-size: 12px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .assignee-label {
-  color: #999;
+  color: var(--color-text-tertiary);
 }
 
 .step-time {
   font-size: 11px;
-  color: #999;
+  color: var(--color-text-tertiary);
   margin-top: 4px;
 }
 
@@ -267,13 +267,13 @@ function getActionName(action: string): string {
   right: -16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #d9d9d9;
+  color: var(--color-bg-inset);
   font-size: 18px;
 }
 
 .review-history {
   width: 300px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
   padding: 12px;
 }
@@ -306,19 +306,19 @@ function getActionName(action: string): string {
 }
 
 .icon--approve {
-  background: #52c41a;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .icon--reject {
-  background: #ff4d4f;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
 }
 
 .icon--submit,
 .icon--request_changes {
-  background: #1890ff;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .history-content {
@@ -332,21 +332,21 @@ function getActionName(action: string): string {
 
 .history-user {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .history-time {
   font-size: 11px;
-  color: #999;
+  color: var(--color-text-tertiary);
 }
 
 .history-comment {
   margin-top: 4px;
   padding: 8px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 4px;
   font-size: 12px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .workflow-actions {

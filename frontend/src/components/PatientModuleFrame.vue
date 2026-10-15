@@ -281,14 +281,14 @@ watch(() => props.patientId, () => {
   position: relative;
   width: 100%;
   min-height: 400px;
-  background: var(--page-bg, #F4F7FB);
+  background: var(--page-bg, var(--color-bg-surface-secondary));
 }
 
 .module-frame--fullscreen {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: #fff;
+  background: var(--color-bg-surface);
 }
 
 .module-frame__iframe {
@@ -324,7 +324,7 @@ watch(() => props.patientId, () => {
 .skeleton-header {
   height: 24px;
   width: 40%;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: var(--color-bg-inset);
   background-size: 200% 100%;
   animation: skeleton-pulse 1.5s infinite;
   border-radius: 4px;
@@ -333,7 +333,7 @@ watch(() => props.patientId, () => {
 .skeleton-row {
   height: 16px;
   width: 100%;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: var(--color-bg-inset);
   background-size: 200% 100%;
   animation: skeleton-pulse 1.5s infinite;
   border-radius: 4px;
@@ -350,7 +350,7 @@ watch(() => props.patientId, () => {
 
 .skeleton-card {
   height: 120px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: var(--color-bg-inset);
   background-size: 200% 100%;
   animation: skeleton-pulse 1.5s infinite;
   border-radius: 8px;
@@ -363,7 +363,7 @@ watch(() => props.patientId, () => {
 
 .frame-loading-text {
   font-size: 13px;
-  color: var(--text-secondary, #52606D);
+  color: var(--text-secondary, var(--color-text-secondary));
 }
 
 /* Error state */
@@ -385,13 +385,13 @@ watch(() => props.patientId, () => {
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary, #182230);
+  color: var(--text-primary, var(--color-text-primary));
 }
 
 .frame-error-desc {
   margin: 0 0 20px;
   font-size: 13px;
-  color: var(--text-secondary, #52606D);
+  color: var(--text-secondary, var(--color-text-secondary));
 }
 
 .frame-error-actions {
@@ -403,25 +403,25 @@ watch(() => props.patientId, () => {
   padding: 6px 16px;
   font-size: 13px;
   border-radius: 6px;
-  border: 1px solid var(--border, #DCE3EC);
-  background: #fff;
-  color: var(--text-primary, #182230);
+  border: 1px solid var(--border, var(--color-border));
+  background: var(--color-bg-surface);
+  color: var(--text-primary, var(--color-text-primary));
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .frame-btn:hover {
-  background: var(--hover-bg, #F0F6FF);
+  background: var(--hover-bg, var(--color-primary-bg));
 }
 
 .frame-btn--primary {
-  background: var(--primary, #2563EB);
-  color: #fff;
-  border-color: var(--primary, #2563EB);
+  background: var(--primary, var(--color-primary));
+  color: var(--color-text-inverse);
+  border-color: var(--primary, var(--color-primary));
 }
 
 .frame-btn--primary:hover {
-  background: var(--primary-hover, #3B82F6);
+  background: var(--primary-hover, var(--color-primary-hover));
 }
 
 /* Toolbar */
@@ -430,8 +430,8 @@ watch(() => props.patientId, () => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: #fff;
-  border-bottom: 1px solid var(--border, #DCE3EC);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--border, var(--color-border));
 }
 
 .frame-toolbar__left {
@@ -443,17 +443,17 @@ watch(() => props.patientId, () => {
 .frame-toolbar__title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary, #182230);
+  color: var(--text-primary, var(--color-text-primary));
 }
 
 .frame-toolbar__time {
   font-size: 11px;
-  color: var(--text-tertiary, #94A3B8);
+  color: var(--text-tertiary, var(--color-text-tertiary));
 }
 
 .frame-toolbar__dirty {
   font-size: 11px;
-  color: #D97706;
+  color: var(--color-warning);
   font-weight: 600;
 }
 
@@ -470,7 +470,7 @@ watch(() => props.patientId, () => {
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--text-secondary, #52606D);
+  color: var(--text-secondary, var(--color-text-secondary));
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
@@ -478,7 +478,7 @@ watch(() => props.patientId, () => {
 }
 
 .frame-icon-btn:hover {
-  background: var(--hover-bg, #F0F6FF);
-  color: var(--primary, #2563EB);
+  background: var(--hover-bg, var(--color-primary-bg));
+  color: var(--primary, var(--color-primary));
 }
 </style>

@@ -239,7 +239,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 8px;
   border: 1px solid var(--color-border, #E3E7EC);
   padding: 16px;
@@ -270,7 +270,7 @@ onMounted(() => {
 .pathway-canvas {
   flex: 1;
   min-height: 400px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -291,7 +291,7 @@ onMounted(() => {
 .node-editor {
   width: 280px;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--color-bg-surface-secondary);
   border-radius: 4px;
 }
 
@@ -310,7 +310,7 @@ onMounted(() => {
   margin-bottom: 4px;
   font-size: 12px;
   font-weight: 500;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .form-input,
@@ -318,7 +318,7 @@ onMounted(() => {
 .form-textarea {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 13px;
 }

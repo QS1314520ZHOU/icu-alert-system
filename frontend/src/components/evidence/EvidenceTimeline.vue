@@ -57,14 +57,14 @@ function formatTime(t: string | null): string {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 2px solid var(--color-border);
   z-index: 1;
 }
-.timeline-dot.severity-critical { background: #DC2626; }
-.timeline-dot.severity-high { background: #EA580C; }
-.timeline-dot.severity-warning { background: #D97706; }
-.timeline-dot.severity-info { background: #2563EB; }
-.timeline-dot.severity-stable { background: #16A34A; }
+.timeline-dot.severity-critical { background: var(--color-danger); }
+.timeline-dot.severity-high { background: var(--color-high-risk); }
+.timeline-dot.severity-warning { background: var(--color-warning); }
+.timeline-dot.severity-info { background: var(--color-primary); }
+.timeline-dot.severity-stable { background: var(--color-success); }
 .timeline-line {
   position: absolute;
   left: -16px;
@@ -88,11 +88,11 @@ function formatTime(t: string | null): string {
   border-radius: 4px;
   font-weight: 600;
 }
-.timeline-type.type-alert { background: #FEF2F2; color: #991B1B; }
-.timeline-type.type-medication { background: #EFF6FF; color: #1E40AF; }
-.timeline-type.type-nursing { background: #F0FDF4; color: #166534; }
-.timeline-type.type-order { background: #F5F3FF; color: #5B21B6; }
-.timeline-type.type-assessment { background: #FFFBEB; color: #92400E; }
+.timeline-type.type-alert { background: var(--color-critical-bg); color: var(--color-critical); }
+.timeline-type.type-medication { background: var(--color-primary-bg); color: var(--color-primary); }
+.timeline-type.type-nursing { background: var(--color-normal-bg); color: var(--color-success); }
+.timeline-type.type-order { background: var(--color-ai-light); color: var(--color-ai); }
+.timeline-type.type-assessment { background: var(--color-warning-soft-bg); color: var(--color-warning); }
 .timeline-time { font-size: 11px; color: var(--text-tertiary, #9CA3AF); }
 .timeline-title { font-size: 13px; color: var(--text-primary, #182230); font-weight: 500; }
 .timeline-detail { font-size: 12px; color: var(--text-secondary, #6B7280); margin-top: 2px; }

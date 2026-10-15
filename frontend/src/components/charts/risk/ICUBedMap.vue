@@ -122,8 +122,8 @@ function getVitalColor(type: string, value: number): string {
 
 <style scoped>
 .bed-map {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #DCE5EF);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -140,14 +140,14 @@ function getVitalColor(type: string, value: number): string {
 .bed-map__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .bed-map__summary {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .bed-map__stat {
@@ -162,23 +162,23 @@ function getVitalColor(type: string, value: number): string {
   border-radius: 50%;
 }
 
-.bed-map__dot--critical { background: #D92D20; }
-.bed-map__dot--high { background: #F79009; }
-.bed-map__dot--normal { background: #12A66A; }
-.bed-map__dot--empty { background: #D0D5DD; }
+.bed-map__dot--critical { background: var(--color-danger); }
+.bed-map__dot--high { background: var(--color-high-risk); }
+.bed-map__dot--normal { background: var(--color-normal); }
+.bed-map__dot--empty { background: var(--color-border-strong); }
 
 .bed-card {
   position: relative;
-  border: 1px solid var(--color-border, #DCE5EF);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 10px 12px;
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
   overflow: hidden;
   transition: all 0.2s;
 }
 
 .bed-card--clickable { cursor: pointer; }
-.bed-card--clickable:hover { box-shadow: 0 4px 12px rgba(16,24,40,0.10); }
+.bed-card--clickable:hover { box-shadow: var(--shadow-md); }
 
 .bed-card__rail {
   position: absolute;
@@ -188,10 +188,10 @@ function getVitalColor(type: string, value: number): string {
   height: 3px;
 }
 
-.bed-card--critical .bed-card__rail { background: #D92D20; }
-.bed-card--high .bed-card__rail { background: #F79009; }
-.bed-card--normal .bed-card__rail { background: #12A66A; }
-.bed-card--empty { border-style: dashed; border-color: #D0D5DD; }
+.bed-card--critical .bed-card__rail { background: var(--color-danger); }
+.bed-card--high .bed-card__rail { background: var(--color-high-risk); }
+.bed-card--normal .bed-card__rail { background: var(--color-normal); }
+.bed-card--empty { border-style: dashed; border-color: var(--color-border-strong); }
 
 .bed-card__header {
   display: flex;
@@ -203,12 +203,12 @@ function getVitalColor(type: string, value: number): string {
 .bed-card__bedno {
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .bed-card__alerts {
   font-size: 11px;
-  color: #D92D20;
+  color: var(--color-danger);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -224,12 +224,12 @@ function getVitalColor(type: string, value: number): string {
 .bed-card__name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .bed-card__age {
   font-size: 11px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
 }
 
 .bed-card__vitals {
@@ -246,19 +246,19 @@ function getVitalColor(type: string, value: number): string {
 
 .bed-card__vital-label {
   font-size: 10px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
 }
 
 .bed-card__vital-value {
   font-family: 'Rajdhani', sans-serif;
   font-size: 14px;
   font-weight: 700;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary);
 }
 
 .bed-card__device {
   font-size: 10px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary);
   margin-top: 4px;
   display: flex;
   align-items: center;
@@ -267,7 +267,7 @@ function getVitalColor(type: string, value: number): string {
 
 .bed-card__empty {
   font-size: 12px;
-  color: var(--color-text-disabled, #B6BEC9);
+  color: var(--color-text-tertiary);
   text-align: center;
   padding: 12px 0;
 }

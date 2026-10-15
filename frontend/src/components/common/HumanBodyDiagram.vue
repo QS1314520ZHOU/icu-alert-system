@@ -4,34 +4,34 @@
       <svg viewBox="0 0 260 580" class="human-body__svg" aria-hidden="true">
         <defs>
           <linearGradient :id="svgDefId('body-shell-fill')" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#28607b" stop-opacity="0.22" />
-            <stop offset="55%" stop-color="#0f273a" stop-opacity="0.84" />
-            <stop offset="100%" stop-color="#06121f" stop-opacity="0.96" />
+            <stop offset="0%" stop-color="var(--color-text-secondary)" stop-opacity="0.22" />
+            <stop offset="55%" stop-color="var(--color-text-primary)" stop-opacity="0.84" />
+            <stop offset="100%" stop-color="var(--color-text-primary)" stop-opacity="0.96" />
           </linearGradient>
           <linearGradient :id="svgDefId('body-core-fill')" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#91e4ff" stop-opacity="0.1" />
-            <stop offset="100%" stop-color="#1e5574" stop-opacity="0.02" />
+            <stop offset="0%" stop-color="var(--color-info-bg)" stop-opacity="0.1" />
+            <stop offset="100%" stop-color="var(--color-accent)" stop-opacity="0.02" />
           </linearGradient>
 
           <radialGradient :id="svgDefId('heat-gradient-normal')" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#d9fff5" stop-opacity="0.95" />
-            <stop offset="30%" stop-color="#1A9C5B" stop-opacity="0.7" />
-            <stop offset="100%" stop-color="#1A9C5B" stop-opacity="0" />
+            <stop offset="0%" stop-color="var(--color-normal-bg)" stop-opacity="0.95" />
+            <stop offset="30%" stop-color="var(--color-success)" stop-opacity="0.7" />
+            <stop offset="100%" stop-color="var(--color-success)" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-warning')" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#fff8cc" stop-opacity="0.95" />
-            <stop offset="30%" stop-color="#FFF7E8" stop-opacity="0.75" />
-            <stop offset="100%" stop-color="#E8901C" stop-opacity="0" />
+            <stop offset="0%" stop-color="var(--color-warning-soft-bg)" stop-opacity="0.95" />
+            <stop offset="30%" stop-color="var(--color-warning-soft-bg)" stop-opacity="0.75" />
+            <stop offset="100%" stop-color="var(--color-warning)" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-high')" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#fff0dc" stop-opacity="0.95" />
-            <stop offset="30%" stop-color="#A65A0C" stop-opacity="0.78" />
-            <stop offset="100%" stop-color="#E8901C" stop-opacity="0" />
+            <stop offset="0%" stop-color="var(--color-high-risk-bg)" stop-opacity="0.95" />
+            <stop offset="30%" stop-color="var(--color-warning)" stop-opacity="0.78" />
+            <stop offset="100%" stop-color="var(--color-warning)" stop-opacity="0" />
           </radialGradient>
           <radialGradient :id="svgDefId('heat-gradient-critical')" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#ffe0e7" stop-opacity="1" />
-            <stop offset="30%" stop-color="#D9342B" stop-opacity="0.82" />
-            <stop offset="100%" stop-color="#D9342B" stop-opacity="0" />
+            <stop offset="0%" stop-color="var(--color-critical-bg)" stop-opacity="1" />
+            <stop offset="30%" stop-color="var(--color-danger)" stop-opacity="0.82" />
+            <stop offset="100%" stop-color="var(--color-danger)" stop-opacity="0" />
           </radialGradient>
 
           <filter :id="svgDefId('body-outer-glow')" x="-30%" y="-10%" width="160%" height="140%">
@@ -698,7 +698,7 @@ function regionGroupClass(key: string, severity: string) {
   opacity: 1;
 }
 .human-body__region-group.is-selected {
-  filter: drop-shadow(0 0 10px rgba(110, 231, 249, 0.24));
+  filter: none;
 }
 .human-body__region-group.is-pulse .human-body__heat-core,
 .human-body__region-group.is-pulse .human-body__heat {
@@ -711,7 +711,7 @@ function regionGroupClass(key: string, severity: string) {
   padding: 10px 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(110,231,249,.22);
+  border: 1px solid var(--color-border);
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(10px);
   transform: translate(-50%, -50%);
@@ -741,13 +741,13 @@ function regionGroupClass(key: string, severity: string) {
   padding: 0 8px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(84, 181, 222, 0.18);
+  border: 1px solid var(--color-border);
   color: var(--text-primary);
   font-size: 10px;
 }
-.human-body__tooltip-sev.is-warning { color: var(--warning-soft); border-color: rgba(245,158,11,.22); }
-.human-body__tooltip-sev.is-high { color: var(--warning-soft); border-color: rgba(249,115,22,.24); }
-.human-body__tooltip-sev.is-critical { color: var(--danger-soft); border-color: rgba(244,63,94,.24); }
+.human-body__tooltip-sev.is-warning { color: var(--color-warning); border-color: var(--color-warning-soft-border); }
+.human-body__tooltip-sev.is-high { color: var(--color-warning); border-color: var(--color-high-risk-border); }
+.human-body__tooltip-sev.is-critical { color: var(--color-danger); border-color: var(--color-critical-border); }
 .human-body__badge,
 .human-body__device {
   position: absolute;
@@ -759,7 +759,7 @@ function regionGroupClass(key: string, severity: string) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(104, 193, 229, 0.22);
+  border: 1px solid var(--color-border);
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(10px);
 }
@@ -779,9 +779,9 @@ function regionGroupClass(key: string, severity: string) {
   color: var(--text-primary);
   font-size: 14px;
 }
-.human-body__badge.is-warning { border-color: rgba(245, 158, 11, 0.32); }
-.human-body__badge.is-high { border-color: rgba(249, 115, 22, 0.38); }
-.human-body__badge.is-critical { border-color: rgba(244, 63, 94, 0.4); }
+.human-body__badge.is-warning { border-color: var(--color-warning-soft-border); }
+.human-body__badge.is-high { border-color: var(--color-high-risk-border); }
+.human-body__badge.is-critical { border-color: var(--color-critical-border); }
 .human-body__trend {
   font-weight: 700;
 }
@@ -797,12 +797,12 @@ function regionGroupClass(key: string, severity: string) {
   padding: 6px 8px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(84, 181, 222, 0.18);
+  border: 1px solid var(--color-border);
   backdrop-filter: blur(10px);
 }
-.human-body__device.is-warning { border-color: rgba(245, 158, 11, 0.34); }
-.human-body__device.is-high { border-color: rgba(249, 115, 22, 0.36); }
-.human-body__device.is-critical { border-color: rgba(244, 63, 94, 0.42); box-shadow: var(--card-shadow); }
+.human-body__device.is-warning { border-color: var(--color-warning-soft-border); }
+.human-body__device.is-high { border-color: var(--color-high-risk-border); }
+.human-body__device.is-critical { border-color: var(--color-critical-border); box-shadow: var(--card-shadow); }
 .human-body__device.is-blink {
   animation: body-device-blink 1.15s ease-in-out infinite;
 }
@@ -843,7 +843,7 @@ function regionGroupClass(key: string, severity: string) {
   padding: 2px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(104, 193, 229, 0.26);
+  border: 1px solid var(--color-border);
   box-shadow: var(--card-shadow);
   backdrop-filter: none;
 }
@@ -882,7 +882,7 @@ function regionGroupClass(key: string, severity: string) {
 }
 .human-body__legend-dot.is-normal { background: var(--chart-2); color: var(--chart-2); }
 .human-body__legend-dot.is-warning { background: var(--warning); color: var(--warning); }
-.human-body__legend-dot.is-high { background: var(--warning); color: #E8901C; }
+.human-body__legend-dot.is-high { background: var(--warning); color: var(--color-warning); }
 .human-body__legend-dot.is-critical { background: var(--danger-strong); color: var(--danger-strong); }
 @keyframes body-device-blink {
   0%, 100% { box-shadow: var(--card-shadow); }
@@ -916,16 +916,16 @@ html[data-theme='light'] .human-body__device-link.is-high { stroke: rgba(234, 88
 html[data-theme='light'] .human-body__device-link.is-critical { stroke: rgba(225, 29, 72, 0.62); }
 html[data-theme='light'] .human-body__badge,
 html[data-theme='light'] .human-body__device {
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(118, 164, 193, 0.24);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .human-body--compact .human-body__device {
-  background: rgba(255, 255, 255, 0.86);
-  border-color: rgba(118, 164, 193, 0.34);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .human-body__tooltip {
-  background: rgba(255,255,255,.96);
-  border-color: rgba(130,170,194,.24);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .human-body__badge-top strong,
 html[data-theme='light'] .human-body__tooltip-head strong,

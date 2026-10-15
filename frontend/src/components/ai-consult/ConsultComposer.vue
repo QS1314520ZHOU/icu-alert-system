@@ -51,8 +51,8 @@ defineExpose({ focus })
 <style scoped>
 .consult-composer {
   padding: 12px 16px;
-  border-top: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface, #FFFFFF);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
 }
 
 .consult-composer__input-wrap {
@@ -66,10 +66,10 @@ defineExpose({ focus })
   min-height: 40px;
   max-height: 120px;
   padding: 8px 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #FFFFFF);
-  color: var(--color-text-primary, #18212B);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   font-size: 14px;
   font-family: inherit;
   line-height: 1.5;
@@ -79,21 +79,21 @@ defineExpose({ focus })
 
 .consult-composer__textarea:focus {
   outline: none;
-  border-color: var(--color-primary, #2563EB);
-  box-shadow: 0 0 0 2px var(--color-primary-bg, rgba(37, 99, 235, 0.08));
+  border-color: var(--color-primary);
+  box-shadow: var(--color-primary-bg) 0 0 0 2px;
 }
 
 .consult-composer__textarea:disabled {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  color: var(--color-text-secondary, #667085);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 
 .consult-composer__send {
   height: 40px;
   padding: 0 16px;
-  background: var(--color-primary, #2563EB);
-  color: #FFFFFF;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: var(--radius-md, 6px);
   font-size: 14px;
@@ -104,7 +104,7 @@ defineExpose({ focus })
 }
 
 .consult-composer__send:hover:not(:disabled) {
-  background: var(--color-primary-hover, #1D4ED8);
+  background: var(--color-primary-hover, var(--color-primary));
 }
 
 .consult-composer__send:disabled {
@@ -115,7 +115,7 @@ defineExpose({ focus })
 .consult-composer__hint {
   margin-top: 6px;
   font-size: 12px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 390px) {

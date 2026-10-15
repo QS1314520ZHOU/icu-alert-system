@@ -41,8 +41,8 @@ defineEmits<{
   align-items: center;
   height: 32px;
   padding: 0 12px;
-  background: var(--color-bg-surface, #FFFFFF);
-  color: var(--color-primary, #2563EB);
+  background: var(--color-bg-surface);
+  color: var(--color-primary);
   border: 1px solid var(--color-primary-bg, rgba(37, 99, 235, 0.08));
   border-radius: var(--radius-md, 6px);
   font-size: 13px;
@@ -54,7 +54,7 @@ defineEmits<{
 
 .consult-quick-tasks__btn:hover:not(:disabled) {
   background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  border-color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
 }
 
 .consult-quick-tasks__btn:disabled {

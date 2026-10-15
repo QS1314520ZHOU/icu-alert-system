@@ -120,29 +120,29 @@ const indicatorDetails = computed(() => {
   gap: 7px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80, 199, 255, 0.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
   cursor: pointer;
 }
-.forecast-chip--ready { border-color: rgba(52, 211, 153, 0.28); color: var(--success); }
-.forecast-chip--fallback { border-color: rgba(251, 191, 36, 0.28); color: var(--warning-soft); }
-.forecast-chip--error { border-color: rgba(148, 163, 184, 0.24); color: var(--text-secondary); }
+.forecast-chip--ready { border-color: var(--color-border); color: var(--success); }
+.forecast-chip--fallback { border-color: var(--color-border); color: var(--color-warning); }
+.forecast-chip--error { border-color: var(--color-border); color: var(--text-secondary); }
 .forecast-dot {
   width: 7px;
   height: 7px;
   border-radius: var(--card-radius);
   background: currentColor;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .forecast-chip b {
   padding: 2px 6px;
   border-radius: var(--card-radius);
-  background: rgba(251, 191, 36, 0.14);
-  color: var(--warning-soft);
-  font-size: 10px;
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning);
+  font-size: var(--text-label);
 }
 .forecast-popover {
   display: grid;
@@ -154,7 +154,7 @@ const indicatorDetails = computed(() => {
   justify-content: space-between;
   gap: 14px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .forecast-popover strong {
   color: var(--text-primary);
@@ -165,23 +165,23 @@ const indicatorDetails = computed(() => {
   margin: 4px 0;
 }
 .forecast-popover-section-title {
-  font-size: 11px;
-  color: #9ca3af;
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
   font-weight: 600;
   display: block !important;
 }
 .forecast-indicator-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--text-label);
   gap: 12px;
 }
 .forecast-indicator-code {
-  color: #374151;
+  color: var(--color-text-primary);
   font-weight: 500;
 }
 .forecast-indicator-count {
-  color: #6b7280;
+  color: var(--color-text-secondary);
 }
 .forecast-indicator-warn {
   color: var(--warning);
@@ -189,49 +189,49 @@ const indicatorDetails = computed(() => {
 }
 
 html[data-theme='light'] .forecast-chip {
-  background: rgba(255, 255, 251, 0.96);
-  border-color: rgba(55, 89, 78, 0.16);
-  color: #24463f;
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
+  color: var(--color-accent);
 }
 
 html[data-theme='light'] .forecast-chip--ready {
-  background: rgba(236, 253, 245, 0.96);
-  border-color: rgba(15, 118, 110, 0.28);
-  color: #0f766e;
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
+  color: var(--color-accent);
 }
 
 html[data-theme='light'] .forecast-chip--fallback {
-  background: #fff4d6;
-  border-color: rgba(180, 83, 9, 0.34);
-  color: #8a4b08;
+  background: var(--color-warning-soft-bg);
+  border-color: var(--color-high-risk-border);
+  color: var(--color-warning);
 }
 
 html[data-theme='light'] .forecast-chip--error {
-  background: #f7faf8;
-  border-color: rgba(91, 108, 101, 0.22);
-  color: #4a5f58;
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
 }
 
 html[data-theme='light'] .forecast-chip b {
-  background: rgba(180, 83, 9, 0.12);
-  color: #7c3f04;
-  border: 1px solid rgba(180, 83, 9, 0.18);
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning);
+  border: 1px solid var(--color-border);
 }
 
 html[data-theme='light'] .forecast-popover div {
-  color: #526760;
+  color: var(--color-text-secondary);
 }
 
 html[data-theme='light'] .forecast-popover strong,
 html[data-theme='light'] .forecast-indicator-code {
-  color: #233f38;
+  color: var(--color-text-secondary);
 }
 
 html[data-theme='light'] .forecast-indicator-count {
-  color: #526760;
+  color: var(--color-text-secondary);
 }
 
 html[data-theme='light'] .forecast-indicator-warn {
-  color: #8a4b08;
+  color: var(--color-warning);
 }
 </style>

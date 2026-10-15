@@ -148,14 +148,14 @@ defineEmits<{
 }
 .drawer-metrics article {
   padding: 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .drawer-metrics span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .drawer-metrics strong {
   display: block;
@@ -163,16 +163,16 @@ defineEmits<{
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: var(--text-metric-key, 24px);
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .forecast-card {
   display: grid;
   gap: 10px;
   padding: 14px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .forecast-card__head {
   display: flex;
@@ -183,11 +183,11 @@ defineEmits<{
 .forecast-card__head span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .forecast-card__head strong {
   font-size: var(--text-card-title, 14px);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .forecast-grid {
   display: flex;
@@ -197,24 +197,24 @@ defineEmits<{
   flex: 1;
   padding: 8px 10px;
   border-radius: var(--radius-sm, 4px);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 .forecast-grid span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .forecast-grid strong {
   display: block;
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .forecast-card p {
   margin: 0;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .airway-tools {
@@ -226,9 +226,9 @@ defineEmits<{
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .airway-plan-card__head {
   display: flex;
@@ -240,16 +240,16 @@ defineEmits<{
 .airway-plan-grid span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .airway-plan-card strong,
 .airway-plan-grid strong {
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .airway-plan-card p {
   margin: 0;
   font-size: var(--text-body, 14px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .airway-plan-grid {
   display: grid;
@@ -260,14 +260,14 @@ defineEmits<{
   min-width: 0;
   padding: 10px;
   border-radius: var(--radius-sm, 4px);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 
 .drawer-empty {
   padding: 24px;
   text-align: center;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 768px) {

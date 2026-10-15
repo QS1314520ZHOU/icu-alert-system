@@ -1589,11 +1589,11 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 <style scoped>
 .modi-panel {
   margin-bottom: 16px;
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 16px;
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .modi-head {
   display: flex;
@@ -1604,15 +1604,15 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .modi-title {
   color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--text-section-title);
+  font-weight: 700;
   letter-spacing: .06em;
 }
 .modi-sub,
 .modi-organs {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .modi-kpi-group {
   display: grid;
@@ -1620,7 +1620,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 8px;
 }
 .modi-kpi {
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 10px 12px;
   background: var(--bg-surface);
@@ -1629,13 +1629,14 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .modi-kpi > span {
   display: block;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   letter-spacing: .08em;
 }
 .modi-kpi > strong {
   color: var(--text-primary);
-  font-size: 20px;
+  font-size: var(--text-metric-normal);
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .modi-chart {
   height: 300px;
@@ -1654,7 +1655,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .organ-focus-suite {
   margin-bottom: 16px;
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 14px;
   background: var(--bg-surface);
@@ -1668,13 +1669,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .organ-focus-suite__title {
   color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--text-section-title);
+  font-weight: 700;
 }
 .organ-focus-suite__sub {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .organ-focus-suite__pill {
   display: inline-flex;
@@ -1682,10 +1683,10 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 28px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .organ-focus-suite__grid {
   margin-top: 12px;
@@ -1694,23 +1695,23 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 10px;
 }
 .organ-focus-card {
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 10px;
   background: var(--bg-surface);
   transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 .organ-focus-card.sev-high {
-  border-color: rgba(249, 115, 22, .3);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-high-risk-border);
+  box-shadow: var(--shadow-sm);
 }
 .organ-focus-card.sev-critical {
-  border-color: rgba(244, 63, 94, .3);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-critical-border);
+  box-shadow: var(--shadow-sm);
 }
 .organ-focus-card.is-active {
-  border-color: rgba(110,231,249,.28);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 .organ-focus-card--flash {
@@ -1718,13 +1719,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .organ-focus-card__name {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .organ-focus-card__meta {
   margin-top: 3px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .organ-focus-card__list {
   margin-top: 10px;
@@ -1739,23 +1740,23 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 8px 10px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.08);
+  border: 1px solid var(--color-divider);
   cursor: pointer;
 }
 .organ-focus-card__item span {
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-label);
   line-height: 1.4;
   text-align: left;
 }
 .organ-focus-card__item small {
-  color: #7da7c4;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   flex: 0 0 auto;
 }
 .composite-chain-card,
 .composite-group-section {
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 12px;
   background: var(--bg-surface);
@@ -1769,21 +1770,21 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .suite-tag {
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--text-label);
   letter-spacing: .12em;
 }
 .suite-code {
-  color: #a7d8ff;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   letter-spacing: .08em;
   padding: 2px 8px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .chain-summary {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.7;
   font-weight: 600;
 }
@@ -1799,26 +1800,26 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 24px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(78, 188, 255, .18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .chain-suggestion {
   margin-top: 10px;
-  color: #9fe8ba;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   line-height: 1.6;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(55, 199, 147, .16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .context-snapshot {
   margin-top: 10px;
   padding: 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   display: grid;
   gap: 8px;
@@ -1827,7 +1828,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   margin-top: 10px;
   padding: 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(251, 113, 133, .16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   display: grid;
   gap: 8px;
@@ -1846,9 +1847,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 8px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(251, 113, 133, 0.18);
-  color: var(--danger-soft);
-  font-size: 9px;
+  border: 1px solid var(--color-border);
+  color: var(--color-danger);
+  font-size: var(--text-label);
   letter-spacing: .12em;
 }
 .post-extub-pill {
@@ -1858,15 +1859,15 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 8px;
   border-radius: var(--card-radius);
   border: 1px solid transparent;
-  font-size: 9px;
+  font-size: var(--text-label);
   font-weight: 700;
 }
 .post-extub-pill.sev-warning { color: var(--sev-warning-text); background: var(--sev-warning-bg); border-color: var(--sev-warning-border); }
 .post-extub-pill.sev-high { color: var(--sev-high-text); background: var(--sev-high-bg); border-color: var(--sev-high-border); }
 .post-extub-pill.sev-critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .post-extub-main {
-  color: var(--danger-bg);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   line-height: 1.5;
   font-weight: 700;
 }
@@ -1881,15 +1882,15 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 20px;
   padding: 0 8px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(96, 165, 250, 0.18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: var(--text-label);
 }
 .post-extub-chip--warn {
-  border-color: rgba(251, 146, 60, 0.2);
+  border-color: var(--color-border);
   background: var(--bg-surface);
-  color: #ffd8b4;
+  color: var(--color-text-secondary);
 }
 .context-head {
   display: flex;
@@ -1899,13 +1900,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   flex-wrap: wrap;
 }
 .context-tag {
-  color: #72e4f7;
-  font-size: 10px;
+  color: var(--color-accent);
+  font-size: var(--text-label);
   letter-spacing: .12em;
 }
 .context-time {
-  color: #83abc4;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
 }
 .context-row {
   display: grid;
@@ -1914,8 +1915,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   align-items: flex-start;
 }
 .context-row-label {
-  color: #8ed8ee;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   letter-spacing: .1em;
   padding-top: 6px;
   text-transform: uppercase;
@@ -1933,23 +1934,24 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 28px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .context-chip--lab {
-  border-color: rgba(96, 165, 250, .18);
+  border-color: var(--color-border);
   background: var(--bg-surface);
 }
 .context-chip-label {
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--text-label);
   letter-spacing: .08em;
 }
 .context-chip-value {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .context-badge {
   display: inline-flex;
@@ -1958,18 +1960,19 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 28px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(245, 158, 11, .2);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .context-badge-name {
-  color: var(--warning-soft);
-  font-size: 11px;
+  color: var(--color-warning);
+  font-size: var(--text-label);
   font-weight: 700;
 }
 .context-badge-dose {
-  color: var(--warning-soft);
-  font-size: 11px;
+  color: var(--color-warning);
+  font-size: var(--text-label);
   font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .group-grid {
   display: grid;
@@ -1977,18 +1980,18 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 10px;
 }
 .group-card {
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 10px;
   background: var(--bg-surface);
 }
 .group-card.sev-high {
-  border-color: rgba(249, 115, 22, .3);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-high-risk-border);
+  box-shadow: var(--shadow-sm);
 }
 .group-card.sev-critical {
-  border-color: rgba(244, 63, 94, .3);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-critical-border);
+  box-shadow: var(--shadow-sm);
 }
 .group-card-head {
   display: flex;
@@ -1998,13 +2001,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .group-name {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .group-sub {
   margin-top: 3px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .group-pill {
   display: inline-flex;
@@ -2012,7 +2015,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 20px;
   border-radius: var(--card-radius);
   padding: 0 8px;
-  font-size: 10px;
+  font-size: var(--text-label);
   font-weight: 700;
   border: 1px solid transparent;
 }
@@ -2032,23 +2035,23 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 6px 8px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.08);
+  border: 1px solid var(--color-divider);
 }
 .group-alert-name {
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-label);
   line-height: 1.4;
 }
 .group-alert-time {
-  color: #7fb6d6;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   white-space: nowrap;
 }
 .weaning-brief {
   margin-bottom: 16px;
   padding: 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   display: grid;
   gap: 10px;
@@ -2061,7 +2064,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .weaning-brief-title {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -2069,35 +2072,36 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .weaning-brief-sub {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .weaning-brief-score {
   min-width: 86px;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   text-align: right;
 }
 .weaning-brief-score span {
   display: block;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .weaning-brief-score strong {
   display: block;
   color: var(--text-primary);
-  font-size: 24px;
+  font-size: var(--text-metric-normal);
   line-height: 1;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
-.weaning-brief-score.sev-critical { border-color: rgba(251,113,133,.34); }
-.weaning-brief-score.sev-high { border-color: rgba(251,146,60,.3); }
-.weaning-brief-score.sev-warning { border-color: rgba(245,158,11,.26); }
-.weaning-brief-score.sev-stable { border-color: rgba(34,197,94,.24); }
+.weaning-brief-score.sev-critical { border-color: var(--color-critical-border); }
+.weaning-brief-score.sev-high { border-color: var(--color-high-risk-border); }
+.weaning-brief-score.sev-warning { border-color: var(--color-border); }
+.weaning-brief-score.sev-stable { border-color: var(--color-border); }
 .weaning-brief-main {
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--text-section-title);
   font-weight: 700;
   line-height: 1.35;
 }
@@ -2117,20 +2121,20 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 30px;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(79,182,219,.18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .weaning-evidence-chip {
   background: var(--bg-surface);
 }
-.weaning-sbt-pill.is-passed { color: var(--chart-2); border-color: rgba(52,211,153,.26); }
-.weaning-sbt-pill.is-failed { color: var(--danger); border-color: rgba(251,113,133,.26); }
-.weaning-sbt-pill.is-documented { color: var(--chart-1); border-color: rgba(56,189,248,.24); }
+.weaning-sbt-pill.is-passed { color: var(--chart-2); border-color: var(--color-border); }
+.weaning-sbt-pill.is-failed { color: var(--danger); border-color: var(--color-border); }
+.weaning-sbt-pill.is-documented { color: var(--chart-1); border-color: var(--color-border); }
 .weaning-sbt-meta--risk {
-  color: #E8901C;
-  border-color: rgba(251,146,60,.24);
+  color: var(--color-warning);
+  border-color: var(--color-border);
 }
 .alert-feed {
   display: grid;
@@ -2152,7 +2156,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 8px;
 }
 .alert-time {
-  font-size: 10px;
+  font-size: var(--text-label);
   color: var(--accent);
   letter-spacing: .08em;
   writing-mode: vertical-rl;
@@ -2172,30 +2176,30 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   background: var(--bg-surface);
 }
 .alert-body {
-  border: 1px solid rgba(80,199,255,.12);
-  border-left: 5px solid #E8901C;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-warning);
   border-radius: var(--card-radius);
   padding: 14px 18px;
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .alert-body--rescue {
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .alert-card.sev-high .alert-body { border-left-color: var(--warning); }
-.alert-card.sev-critical .alert-body { border-left-color: var(--danger-strong); }
+.alert-card.sev-critical .alert-body { border-left-color: var(--color-danger); }
 .alert-card.sev-high .alert-body--rescue {
-  border-color: rgba(249,115,22,.18);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 .alert-card.sev-critical .alert-body--rescue {
-  border-color: rgba(244,63,94,.2);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
-.alert-dot.sev-warning { background: var(--warning); box-shadow: var(--card-shadow); }
-.alert-dot.sev-high { background: var(--warning); box-shadow: var(--card-shadow); }
-.alert-dot.sev-critical { background: var(--danger-strong); box-shadow: var(--card-shadow); }
+.alert-dot.sev-warning { background: var(--warning); box-shadow: var(--shadow-sm); }
+.alert-dot.sev-high { background: var(--warning); box-shadow: var(--shadow-sm); }
+.alert-dot.sev-critical { background: var(--color-danger); box-shadow: var(--shadow-sm); }
 .alert-head {
   display: flex;
   justify-content: space-between;
@@ -2203,12 +2207,12 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 12px;
 }
 @keyframes organ-focus-flash {
-  0%, 100% { box-shadow: var(--card-shadow); }
-  50% { box-shadow: var(--card-shadow); }
+  0%, 100% { box-shadow: var(--shadow-sm); }
+  50% { box-shadow: var(--shadow-sm); }
 }
 @keyframes alert-card-flash {
-  0%, 100% { box-shadow: var(--card-shadow); }
-  50% { box-shadow: var(--card-shadow); }
+  0%, 100% { box-shadow: var(--shadow-sm); }
+  50% { box-shadow: var(--shadow-sm); }
 }
 .alert-title-row {
   display: flex;
@@ -2219,7 +2223,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .alert-title {
   margin: 0;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 700;
   line-height: 1.25;
 }
@@ -2229,7 +2233,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   height: 20px;
   border-radius: var(--card-radius);
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .08em;
   border: 1px solid transparent;
@@ -2239,12 +2243,13 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .alert-pill.sev-critical { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
 .alert-value {
   font-family: 'Rajdhani', 'JetBrains Mono', 'Consolas', monospace;
-  font-size: 18px;
+  font-size: var(--text-section-title);
   line-height: 1.2;
   color: var(--text-primary);
-  font-weight: 800;
+  font-weight: 700;
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .alert-terminal-line {
   margin-top: 8px;
@@ -2259,14 +2264,14 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 7px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
-  color: #73d9ee;
-  font-size: 10px;
+  border: 1px solid var(--color-border);
+  color: var(--color-accent);
+  font-size: var(--text-label);
   letter-spacing: .1em;
 }
 .terminal-id {
-  color: #a9c7dd;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-family: 'JetBrains Mono', 'Consolas', monospace;
   line-height: 1.4;
   word-break: break-all;
@@ -2275,14 +2280,14 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   margin-top: 10px;
   padding: 9px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   display: grid;
   gap: 6px;
 }
 .alert-explanation--rescue {
   padding: 12px;
-  border-color: rgba(251, 113, 133, .16);
+  border-color: var(--color-border);
   background: var(--bg-surface);
 }
 .rescue-headline {
@@ -2292,7 +2297,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 10px;
   flex-wrap: wrap;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(251, 113, 133, .12);
+  border-bottom: 1px solid var(--color-border);
 }
 .rescue-headline-tag {
   display: inline-flex;
@@ -2301,14 +2306,14 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 8px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(251, 113, 133, .18);
-  color: var(--danger-soft);
-  font-size: 10px;
+  border: 1px solid var(--color-border);
+  color: var(--color-danger);
+  font-size: var(--text-label);
   letter-spacing: .12em;
 }
 .rescue-headline-main {
-  color: var(--danger-bg);
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
   font-weight: 700;
 }
 .explanation-grid {
@@ -2323,43 +2328,43 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 6px;
   padding: 10px 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.08);
+  border: 1px solid var(--color-divider);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .explanation-block--summary {
   background: var(--bg-surface);
-  border-color: rgba(251, 113, 133, .18);
+  border-color: var(--color-border);
 }
 .explanation-block--evidence {
   background: var(--bg-surface);
 }
 .explanation-block--suggestion {
   background: var(--bg-surface);
-  border-color: rgba(55, 199, 147, .16);
+  border-color: var(--color-border);
 }
 .explanation-tag {
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--text-label);
   letter-spacing: .14em;
   text-transform: uppercase;
 }
 .explanation-label {
-  color: #90e7ff;
-  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
 }
 .explanation-text {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.8;
   white-space: pre-wrap;
 }
 .explanation-text--summary {
-  color: var(--danger-bg);
-  font-size: 15px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-section-title);
   line-height: 1.65;
   font-weight: 700;
 }
@@ -2371,7 +2376,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   margin: 0;
   padding-left: 18px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.75;
   display: grid;
   gap: 6px;
@@ -2387,10 +2392,10 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 26px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(96, 165, 250, .18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 .reasoning-brief,
@@ -2398,7 +2403,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   margin-top: 10px;
   padding: 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(94, 234, 212, .16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .threshold-brief {
@@ -2406,8 +2411,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 16px 18px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(96, 214, 255, 0.18);
-  box-shadow: var(--card-shadow);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 .threshold-brief-head,
 .threshold-action-row,
@@ -2422,7 +2427,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .threshold-brief-title {
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: var(--text-section-title);
   font-weight: 700;
 }
 .threshold-brief-sub,
@@ -2444,8 +2449,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  color: #b8d9e5;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 .threshold-approved-note strong {
   color: var(--success);
@@ -2457,18 +2462,18 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   align-items: center;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  font-size: 12px;
-  border: 1px solid rgba(96, 214, 255, 0.18);
+  font-size: var(--text-caption);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  color: #8de7f7;
+  color: var(--color-text-secondary);
 }
 .threshold-status-pill.is-approved {
   color: var(--success);
-  border-color: rgba(102, 214, 151, 0.28);
+  border-color: var(--color-border);
 }
 .threshold-status-pill.is-rejected {
-  color: #ffb7b7;
-  border-color: rgba(255, 133, 133, 0.24);
+  color: var(--color-danger);
+  border-color: var(--color-border);
 }
 .threshold-grid {
   display: grid;
@@ -2480,7 +2485,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(96, 214, 255, 0.12);
+  border: 1px solid var(--color-border);
 }
 .threshold-card-name {
   color: var(--text-primary);
@@ -2488,26 +2493,26 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .threshold-card-main {
   margin-top: 10px;
-  color: #c9edf7;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 .threshold-card-reason {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 .threshold-card-main em {
   color: var(--text-secondary);
   font-style: normal;
   margin-left: 4px;
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .threshold-action-row {
   margin-top: 14px;
   justify-content: flex-end;
 }
 .threshold-empty--error {
-  color: #ffb7b7;
+  color: var(--color-danger);
 }
 .reasoning-brief {
   margin-bottom: 16px;
@@ -2521,34 +2526,34 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   flex-wrap: wrap;
 }
 .reasoning-brief-title {
-  color: #dffcf8;
-  font-size: 15px;
-  font-weight: 800;
+  color: var(--color-text-primary);
+  font-size: var(--text-section-title);
+  font-weight: 700;
   letter-spacing: .06em;
 }
 .reasoning-brief-sub,
 .reasoning-group-meta {
   margin-top: 4px;
-  color: #8bbab5;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 .reasoning-brief-main,
 .reasoning-summary {
   margin-top: 10px;
-  color: #effffb;
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
   line-height: 1.7;
   font-weight: 700;
 }
 .reasoning-brief-urgent,
 .reasoning-urgent {
   margin-top: 10px;
-  color: #b9ffd8;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   line-height: 1.6;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(74, 222, 128, .18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .reasoning-tag {
@@ -2558,9 +2563,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 8px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px solid rgba(94, 234, 212, .18);
+  border: 1px solid var(--color-border);
   color: var(--success);
-  font-size: 9px;
+  font-size: var(--text-label);
   letter-spacing: .12em;
 }
 .reasoning-brief-confidence,
@@ -2573,7 +2578,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 0 10px;
   border-radius: var(--card-radius);
   border: 1px solid transparent;
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
 }
 .reasoning-brief-confidence > span {
@@ -2583,19 +2588,19 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .reasoning-confidence-pill.is-high {
   color: var(--success);
   background: var(--bg-surface);
-  border-color: rgba(74, 222, 128, .24);
+  border-color: var(--color-border);
 }
 .reasoning-brief-confidence.is-medium,
 .reasoning-confidence-pill.is-medium {
-  color: var(--warning-soft);
+  color: var(--color-warning);
   background: var(--bg-surface);
-  border-color: rgba(251, 191, 36, .22);
+  border-color: var(--color-border);
 }
 .reasoning-brief-confidence.is-low,
 .reasoning-confidence-pill.is-low {
-  color: var(--danger-soft);
+  color: var(--color-danger);
   background: var(--bg-surface);
-  border-color: rgba(248, 113, 113, .22);
+  border-color: var(--color-border);
 }
 .reasoning-chip-row {
   margin-top: 10px;
@@ -2609,17 +2614,17 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-height: 24px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(94, 234, 212, .14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  color: #d7fffb;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
 }
 .reasoning-section {
   margin-top: 12px;
 }
 .reasoning-section-title {
-  color: #88e7d8;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   letter-spacing: .08em;
   margin-bottom: 8px;
 }
@@ -2629,7 +2634,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 10px;
   align-items: flex-start;
   padding: 8px 0;
-  border-top: 1px solid rgba(148, 163, 184, .1);
+  border-top: 1px solid var(--color-divider);
 }
 .reasoning-action:first-of-type {
   border-top: 0;
@@ -2638,26 +2643,26 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-width: 30px;
   height: 24px;
   border-radius: var(--card-radius);
-  background: rgba(13, 148, 136, .16);
-  border: 1px solid rgba(94, 234, 212, .16);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-border);
   color: var(--success);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--text-label);
+  font-weight: 700;
 }
 .reasoning-action-main {
-  color: #effcf9;
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
   font-weight: 700;
   line-height: 1.5;
 }
 .reasoning-action-why,
 .reasoning-group-reason {
   margin-top: 4px;
-  color: #a8c9c5;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 .reasoning-group-grid {
@@ -2667,20 +2672,20 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .reasoning-group-card {
   border-radius: var(--card-radius);
-  border: 1px solid rgba(94, 234, 212, .12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   padding: 10px;
 }
 .reasoning-group-label {
-  color: #dffcf8;
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .reasoning-list {
   margin: 0;
   padding-left: 18px;
-  color: #e5f7f3;
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
   line-height: 1.7;
 }
 .alert-action-row {
@@ -2693,21 +2698,21 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .alert-action-chip {
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(56, 189, 248, 0.22);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  color: #c8ecff;
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 .alert-action-chip--ok {
-  border-color: rgba(34, 197, 94, 0.28);
+  border-color: var(--color-border);
   background: var(--bg-surface);
-  color: #c7f9d4;
+  color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 .ack-disposition-badge {
-  font-size: 11px;
+  font-size: var(--text-label);
   opacity: 0.85;
   letter-spacing: 0.02em;
 }
@@ -2718,7 +2723,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   margin-top: 2px;
 }
 .ack-disposition-bar .ant-btn {
-  font-size: 11px !important;
+  font-size: var(--text-label) !important;
   height: 22px !important;
   padding: 0 8px !important;
   border-radius: 999px !important;
@@ -2733,10 +2738,10 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   margin-top: 8px;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(34, 197, 94, 0.18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--success);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .alert-meta {
   margin-top: 8px;
@@ -2745,7 +2750,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 6px;
 }
 .alert-meta > span {
-  font-size: 11px;
+  font-size: var(--text-label);
   color: var(--text-secondary);
   padding: 2px 8px;
   border-radius: var(--card-radius);
@@ -2754,7 +2759,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .alert-rule {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--text-secondary);
   font-family: 'JetBrains Mono', 'Consolas', monospace;
 }
@@ -2769,7 +2774,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  font-size: 11px;
+  font-size: var(--text-label);
   color: var(--container-alt-text);
   background: var(--container-alt-bg);
   border: 1px solid var(--container-alt-border);
@@ -2777,12 +2782,12 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 6px 8px;
 }
 .detail-label { color: var(--accent); }
-.detail-value { color: #e5e7eb; font-weight: 600; }
+.detail-value { color: var(--color-text-primary); font-weight: 600; }
 .alert-extra {
   margin-top: 10px;
   white-space: pre-wrap;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-label);
   line-height: 1.4;
   background: var(--container-dark-bg);
   border: 1px solid var(--container-dark-border);
@@ -2791,8 +2796,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 .alert-extra--muted {
   white-space: normal;
-  font-size: 12px;
-  color: #9eb2cc;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   background: var(--container-alt-bg);
 }
 .ai-risk-panel {
@@ -2820,17 +2825,17 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   min-width: 240px;
 }
 .ai-risk-summary strong,
-.ai-risk-card strong { color: #eef4ff; }
+.ai-risk-card strong { color: var(--color-text-primary); }
 .ai-risk-summary span,
 .ai-risk-card p {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   margin: 0;
 }
 .ai-risk-feedback { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-risk-feedback :deep(.ant-btn) {
   background: var(--bg-surface);
-  border-color: rgba(80,199,255,.14);
+  border-color: var(--color-border);
   color: var(--text-primary);
 }
 .ai-risk-organ-grid {
@@ -2851,10 +2856,10 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   gap: 8px;
   align-items: center;
 }
-.ai-risk-organ-name { color: #d9e8ff; font-weight: 700; }
+.ai-risk-organ-name { color: var(--color-text-primary); font-weight: 700; }
 .ai-risk-organ-status,
 .ai-risk-organ-conf,
-.ai-risk-organ-evidence { font-size: 11px; }
+.ai-risk-organ-evidence { font-size: var(--text-label); }
 .ai-risk-organ-status { color: var(--chart-1); }
 .ai-risk-organ-evidence { margin-top: 6px; color: var(--text-secondary); line-height: 1.5; }
 .ai-risk-organ-conf { margin-top: 6px; color: var(--text-secondary); }
@@ -2865,8 +2870,8 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   padding: 10px 12px;
 }
 .ai-risk-section-title {
-  color: #dbe9ff;
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -2876,9 +2881,9 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   display: grid;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
-.ai-risk-list-warning { color: var(--danger-soft); }
+.ai-risk-list-warning { color: var(--color-danger); }
 .ai-risk-list-hallucination { list-style: none; padding-left: 0; }
 .hallucination-pill {
   display: inline-flex;
@@ -2915,11 +2920,11 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 .ai-confidence-high { opacity: 1; }
 .tab-empty {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-caption);
   padding: 12px;
   border-radius: var(--card-radius);
   background: var(--bg-surface);
-  border: 1px dashed rgba(80,199,255,.14);
+  border: 1px dashed var(--color-border);
 }
 
 @media (max-width: 980px) {
@@ -2932,7 +2937,7 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
   }
   .alert-value {
     text-align: left;
-    font-size: 16px;
+    font-size: var(--text-section-title);
   }
   .alert-time {
     writing-mode: initial;
@@ -2980,132 +2985,132 @@ async function acknowledgeAlertWithReason(item: any, disposition?: string) {
 }
 
 /* Light mode overrides */
-html[data-theme='light'] .modi-panel { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
-html[data-theme='light'] .organ-focus-suite { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .modi-panel { background: var(--bg-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm); }
+html[data-theme='light'] .organ-focus-suite { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .modi-title { color: var(--text-secondary); }
 html[data-theme='light'] .organ-focus-suite__title,
 html[data-theme='light'] .organ-focus-card__name { color: var(--text-secondary); }
 html[data-theme='light'] .modi-sub, html[data-theme='light'] .modi-organs { color: var(--text-secondary); }
 html[data-theme='light'] .organ-focus-suite__sub, html[data-theme='light'] .organ-focus-card__meta, html[data-theme='light'] .organ-focus-card__item small { color: var(--text-secondary); }
-html[data-theme='light'] .modi-kpi { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); }
+html[data-theme='light'] .modi-kpi { background: var(--color-bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .modi-kpi > span { color: var(--text-secondary); }
 html[data-theme='light'] .modi-kpi > strong { color: var(--brand); }
-html[data-theme='light'] .organ-focus-suite__pill, html[data-theme='light'] .organ-focus-card, html[data-theme='light'] .organ-focus-card__item { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .organ-focus-suite__pill, html[data-theme='light'] .organ-focus-card, html[data-theme='light'] .organ-focus-card__item { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .organ-focus-card__item span { color: var(--text-secondary); }
-html[data-theme='light'] .composite-chain-card, html[data-theme='light'] .composite-group-section { background: rgba(243, 248, 252, 0.96); border-color: rgba(187, 204, 220, 0.72); }
+html[data-theme='light'] .composite-chain-card, html[data-theme='light'] .composite-group-section { background: var(--color-bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .suite-tag { color: var(--brand); }
-html[data-theme='light'] .suite-code { background: var(--bg-surface); border-color: rgba(187, 204, 220, 0.72); color: var(--brand); }
+html[data-theme='light'] .suite-code { background: var(--bg-surface); border-color: var(--color-border); color: var(--brand); }
 html[data-theme='light'] .chain-summary { color: var(--text-secondary); }
-html[data-theme='light'] .chain-chip { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
-html[data-theme='light'] .chain-suggestion { background: rgba(231,241,249,0.96); color: #1e3a8a; border-left-color: var(--brand); }
-html[data-theme='light'] .group-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .chain-chip { background: var(--bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
+html[data-theme='light'] .chain-suggestion { background: var(--color-bg-surface); color: var(--color-primary); border-left-color: var(--brand); }
+html[data-theme='light'] .group-card { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .group-name { color: var(--text-secondary); }
 html[data-theme='light'] .group-sub { color: var(--text-secondary); }
 html[data-theme='light'] .group-alert-name { color: var(--text-secondary); }
 html[data-theme='light'] .group-alert-time { color: var(--text-secondary); }
 html[data-theme='light'] .group-alert-item {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
-html[data-theme='light'] .group-pill.sev-warning { color: var(--warning); background: rgba(254,243,199,0.98); border-color: rgba(245,158,11,0.28); }
-html[data-theme='light'] .group-pill.sev-high { color: var(--danger); background: rgba(255,237,213,0.98); border-color: rgba(251,146,60,0.28); }
-html[data-theme='light'] .group-pill.sev-critical { color: var(--danger-strong); background: rgba(255,241,242,0.98); border-color: rgba(251,113,133,0.28); }
-html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: var(--bg-surface); border-color: rgba(187,204,220,.72); }
+html[data-theme='light'] .group-pill.sev-warning { color: var(--warning); background: var(--color-warning-soft-bg); border-color: var(--color-border); }
+html[data-theme='light'] .group-pill.sev-high { color: var(--danger); background: var(--color-warning-soft-bg); border-color: var(--color-border); }
+html[data-theme='light'] .group-pill.sev-critical { color: var(--color-danger); background: var(--color-bg-surface); border-color: var(--color-border); }
+html[data-theme='light'] .weaning-brief, html[data-theme='light'] .reasoning-brief, html[data-theme='light'] .threshold-brief { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .weaning-brief-title, html[data-theme='light'] .reasoning-brief-title, html[data-theme='light'] .threshold-brief-title { color: var(--text-secondary); }
 html[data-theme='light'] .weaning-brief-sub, html[data-theme='light'] .reasoning-brief-sub, html[data-theme='light'] .threshold-brief-sub { color: var(--text-secondary); }
 html[data-theme='light'] .weaning-brief-main, html[data-theme='light'] .reasoning-brief-main, html[data-theme='light'] .threshold-brief-main { color: var(--text-secondary); }
-html[data-theme='light'] .weaning-chip, html[data-theme='light'] .reasoning-chip, html[data-theme='light'] .threshold-meta-chip { background: var(--bg-surface); border-color: rgba(187,204,220,.72); color: var(--text-secondary); }
-html[data-theme='light'] .weaning-evidence-chip { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,.72); color: var(--text-secondary); }
+html[data-theme='light'] .weaning-chip, html[data-theme='light'] .reasoning-chip, html[data-theme='light'] .threshold-meta-chip { background: var(--bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
+html[data-theme='light'] .weaning-evidence-chip { background: var(--color-bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
 html[data-theme='light'] .weaning-sbt-meta { color: var(--text-secondary); }
 html[data-theme='light'] .weaning-sbt-meta--risk { color: var(--danger); }
-html[data-theme='light'] .alert-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); box-shadow: var(--card-shadow); }
+html[data-theme='light'] .alert-card { background: var(--bg-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm); }
 html[data-theme='light'] .alert-body {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .alert-body--rescue {
   background: var(--bg-surface);
 }
 html[data-theme='light'] .alert-time { color: var(--text-secondary); }
-html[data-theme='light'] .alert-line { background: rgba(187,204,220,0.4); }
+html[data-theme='light'] .alert-line { background: var(--color-info-bg); }
 html[data-theme='light'] .alert-title { color: var(--text-secondary); }
 html[data-theme='light'] .alert-value { color: var(--brand); }
 html[data-theme='light'] .terminal-tag {
   color: var(--text-secondary);
-  background: rgba(243,248,252,0.98);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .terminal-id { color: var(--text-secondary); }
-html[data-theme='light'] .post-extub-panel { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
+html[data-theme='light'] .post-extub-panel { border-color: var(--color-border); background: var(--color-bg-surface); }
 html[data-theme='light'] .post-extub-tag { color: var(--brand); }
 html[data-theme='light'] .post-extub-main { color: var(--text-secondary); }
-html[data-theme='light'] .post-extub-chip { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); color: var(--text-secondary); }
-html[data-theme='light'] .post-extub-chip--warn { background: rgba(254,243,199,0.96); border-color: rgba(245,158,11,0.28); color: var(--warning); }
+html[data-theme='light'] .post-extub-chip { background: var(--bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
+html[data-theme='light'] .post-extub-chip--warn { background: var(--color-warning-soft-bg); border-color: var(--color-border); color: var(--warning); }
 html[data-theme='light'] .alert-explanation {
-  border-color: rgba(187,204,220,0.72);
-  background: rgba(243,248,252,0.96);
+  border-color: var(--color-border);
+  background: var(--color-bg-surface);
 }
 html[data-theme='light'] .alert-explanation--rescue {
-  border-color: rgba(248,113,113,0.22);
+  border-color: var(--color-border);
   background: var(--bg-surface);
 }
 html[data-theme='light'] .rescue-headline {
-  border-bottom-color: rgba(248,113,113,0.2);
+  border-bottom-color: var(--color-border);
 }
 html[data-theme='light'] .rescue-headline-tag {
-  color: var(--danger-strong);
-  background: rgba(255,241,242,0.98);
-  border-color: rgba(251,113,133,0.28);
+  color: var(--color-danger);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .rescue-headline-main {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .explanation-block {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .explanation-block--summary {
   background: var(--bg-surface);
-  border-color: rgba(248,113,113,0.22);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .explanation-block--evidence {
   background: var(--bg-surface);
 }
 html[data-theme='light'] .explanation-block--suggestion {
   background: var(--bg-surface);
-  border-color: rgba(74,222,128,.2);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .explanation-label { color: var(--brand); }
 html[data-theme='light'] .explanation-text, html[data-theme='light'] .explanation-list { color: var(--text-secondary); }
 html[data-theme='light'] .explanation-text--summary { color: var(--text-secondary); }
 html[data-theme='light'] .explanation-text--suggestion { color: var(--success); }
-html[data-theme='light'] .reasoning-card { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
+html[data-theme='light'] .reasoning-card { border-color: var(--color-border); background: var(--color-bg-surface); }
 html[data-theme='light'] .reasoning-tag { color: var(--brand); }
 html[data-theme='light'] .reasoning-summary { color: var(--text-secondary); }
-html[data-theme='light'] .reasoning-section-title { color: var(--text-secondary); border-bottom-color: rgba(187,204,220,0.72); }
-html[data-theme='light'] .reasoning-rank { background: rgba(59,130,246,0.1); color: var(--brand); }
+html[data-theme='light'] .reasoning-section-title { color: var(--text-secondary); border-bottom-color: var(--color-border); }
+html[data-theme='light'] .reasoning-rank { background: var(--color-primary-bg); color: var(--brand); }
 html[data-theme='light'] .reasoning-action-main { color: var(--text-secondary); }
 html[data-theme='light'] .reasoning-action-why { color: var(--text-secondary); }
-html[data-theme='light'] .reasoning-group-card { background: var(--bg-surface); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .reasoning-group-card { background: var(--bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .reasoning-group-label { color: var(--text-secondary); }
 html[data-theme='light'] .reasoning-group-reason { color: var(--text-secondary); }
 html[data-theme='light'] .reasoning-group-meta { color: var(--text-secondary); }
 html[data-theme='light'] .reasoning-list li { color: var(--text-secondary); }
-html[data-theme='light'] .context-snapshot { border-color: rgba(187,204,220,0.72); background: var(--bg-surface); }
+html[data-theme='light'] .context-snapshot { border-color: var(--color-border); background: var(--bg-surface); }
 html[data-theme='light'] .context-tag { color: var(--brand); }
 html[data-theme='light'] .context-time { color: var(--text-secondary); }
 html[data-theme='light'] .context-row-label { color: var(--text-secondary); }
-html[data-theme='light'] .context-chip { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .context-chip { background: var(--color-bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .context-chip-label { color: var(--text-secondary); }
 html[data-theme='light'] .context-chip-value { color: var(--text-secondary); }
-html[data-theme='light'] .context-badge { background: rgba(243,248,252,0.96); border-color: rgba(187,204,220,0.72); }
+html[data-theme='light'] .context-badge { background: var(--color-bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .context-badge-name { color: var(--text-secondary); }
 html[data-theme='light'] .context-badge-dose { color: var(--brand); }
-html[data-theme='light'] .alert-action-chip { background: var(--bg-surface); border-color: rgba(187, 204, 220, 0.72); color: var(--text-secondary); }
-html[data-theme='light'] .alert-rule { background: rgba(243,248,252,0.96); color: var(--text-secondary); }
-html[data-theme='light'] .threshold-card { border-color: rgba(187,204,220,0.72); background: rgba(243,248,252,0.96); }
+html[data-theme='light'] .alert-action-chip { background: var(--bg-surface); border-color: var(--color-border); color: var(--text-secondary); }
+html[data-theme='light'] .alert-rule { background: var(--color-bg-surface); color: var(--text-secondary); }
+html[data-theme='light'] .threshold-card { border-color: var(--color-border); background: var(--color-bg-surface); }
 html[data-theme='light'] .threshold-card-name { color: var(--text-secondary); }
 html[data-theme='light'] .threshold-card-main span { color: var(--text-secondary); }
 html[data-theme='light'] .threshold-card-reason { color: var(--text-secondary); background: var(--bg-surface); }
@@ -3115,7 +3120,7 @@ html[data-theme='light'] .modi-panel,
 html[data-theme='light'] .organ-focus-suite,
 html[data-theme='light'] .alert-explanation {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .modi-kpi,
 html[data-theme='light'] .organ-focus-suite__pill,
@@ -3123,12 +3128,12 @@ html[data-theme='light'] .weaning-brief-score,
 html[data-theme='light'] .weaning-chip,
 html[data-theme='light'] .post-extub-chip,
 html[data-theme='light'] .context-chip--lab {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--text-primary);
 }
 html[data-theme='light'] .post-extub-chip--warn {
-  background: rgba(254,243,199,0.96);
+  background: var(--color-warning-soft-bg);
   color: var(--warning);
 }
 html[data-theme='light'] .modi-title,
@@ -3152,52 +3157,52 @@ html[data-theme='light'] .alert-value,
 html[data-theme='light'] .post-extub-tag { color: var(--text-primary); }
 html[data-theme='light'] .composite-chain-card,
 html[data-theme='light'] .composite-group-section {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .suite-tag { color: var(--brand); }
 html[data-theme='light'] .suite-code {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
   color: var(--brand);
 }
 html[data-theme='light'] .chain-summary,
 html[data-theme='light'] .chain-chip { color: var(--text-primary); }
 html[data-theme='light'] .chain-suggestion {
-  background: rgba(236,253,243,0.96);
+  background: var(--color-bg-surface);
   color: var(--success);
 }
 html[data-theme='light'] .organ-focus-card,
 html[data-theme='light'] .organ-focus-card__item,
 html[data-theme='light'] .group-card,
 html[data-theme='light'] .group-alert-item {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .organ-focus-card__item span,
 html[data-theme='light'] .group-alert-name { color: var(--text-primary); }
 html[data-theme='light'] .post-extub-panel {
   background: var(--bg-surface);
-  border-color: rgba(248,113,113,0.22);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .alert-meta > span {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .detail-label { color: var(--text-secondary); }
 html[data-theme='light'] .detail-value { color: var(--text-primary); }
 html[data-theme='light'] .ai-risk-summary,
 html[data-theme='light'] .ai-risk-card {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .ai-risk-card strong,
 html[data-theme='light'] .ai-risk-summary { color: var(--text-primary); }
 html[data-theme='light'] .ai-risk-card p { color: var(--text-secondary); }
 html[data-theme='light'] .ai-risk-organ {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .ai-risk-organ-name { color: var(--text-primary); }
 html[data-theme='light'] .ai-risk-organ-status { color: var(--brand); }
@@ -3205,7 +3210,7 @@ html[data-theme='light'] .ai-risk-organ-evidence,
 html[data-theme='light'] .ai-risk-organ-conf { color: var(--text-secondary); }
 html[data-theme='light'] .ai-risk-section {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .ai-risk-section-title { color: var(--text-primary); }
 html[data-theme='light'] .ai-risk-list { color: var(--text-primary); }
@@ -3215,8 +3220,8 @@ html[data-theme='light'] .ai-evidence-link:hover { color: var(--brand); }
 html[data-theme='light'] .ai-evidence-popover { color: var(--text-primary); }
 html[data-theme='light'] .tab-empty { color: var(--text-secondary); }
 html[data-theme='light'] .threshold-status-pill {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .threshold-status-pill.is-approved { color: var(--chart-2); }
@@ -3225,35 +3230,35 @@ html[data-theme='light'] .threshold-status-pill.is-rejected { color: var(--dange
 .alert-card--collapsed .alert-body { padding-bottom: 8px; }
 .alert-head--clickable { cursor: pointer; user-select: none; }
 .alert-head--clickable:hover { opacity: 0.92; }
-.alert-chevron { font-size: 10px; color: #8fa3b8; flex: 0 0 12px; }
+.alert-chevron { font-size: var(--text-label); color: var(--color-text-secondary); flex: 0 0 12px; }
 .alert-count {
-  padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 800;
-  background: rgba(45,140,255,.14); color: #2d8cff;
+  padding: 1px 7px; border-radius: var(--radius-md); font-size: var(--text-label); font-weight: 700;
+  background: var(--color-primary-bg); color: var(--color-primary);
 }
-.alert-open-dot { width: 7px; height: 7px; border-radius: 50%; background: #d9342b; flex-shrink: 0; }
+.alert-open-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-danger); flex-shrink: 0; }
 .alert-digest {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 4px 0 2px; font-size: 12px; color: var(--txt-sub, #7f93ab);
+  padding: 4px 0 2px; font-size: var(--text-caption); color: var(--color-text-secondary);
 }
 .digest-txt { flex: 1 1 240px; min-width: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .digest-span { font-variant-numeric: tabular-nums; opacity: .8; }
 .digest-ops { display: flex; gap: 6px; }
 .alert-action-chip {
-  padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;
-  background: rgba(45,140,255,.1); color: #6da5ff;
+  padding: 2px 8px; border-radius: var(--radius-md); font-size: var(--text-label); font-weight: 600;
+  background: var(--color-primary-bg); color: var(--color-primary);
 }
 .alert-action-chip--ok {
-  background: rgba(34,197,94,.12); color: #22c55e;
+  background: var(--color-normal-bg); color: var(--color-normal);
 }
 .group-history { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
-.group-history-tag { font-size: 10px; font-weight: 700; color: #6b7f96; letter-spacing: .08em; }
+.group-history-tag { font-size: var(--text-label); font-weight: 700; color: var(--color-text-secondary); letter-spacing: .08em; }
 .group-history-item {
-  border: 1px solid rgba(125,167,214,.2); background: transparent;
-  border-radius: 5px; padding: 2px 8px; font-size: 11px;
-  color: #9fb6cd; cursor: pointer;
+  border: 1px solid var(--color-border); background: transparent;
+  border-radius: var(--radius-md); padding: 2px 8px; font-size: var(--text-label);
+  color: var(--color-text-secondary); cursor: pointer;
 }
-.group-history-item:hover { background: rgba(125,167,214,.1); color: #e8f0f8; }
+.group-history-item:hover { background: var(--color-info-bg); color: var(--color-text-primary); }
 </style>
 
 

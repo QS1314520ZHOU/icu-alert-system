@@ -44,17 +44,17 @@ onMounted(() => {
 
 <style scoped>
 .collapse-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
   transition: border-color 0.2s;
 }
 .collapse-section:hover {
-  border-color: #d9d9d9;
+  border-color: var(--color-border);
 }
 .collapse-section.is-open {
-  border-color: #1890ff30;
+  border-color: var(--color-primary);
 }
 
 .collapse-header {
@@ -67,7 +67,7 @@ onMounted(() => {
   transition: background 0.15s;
 }
 .collapse-header:hover {
-  background: #fafafa;
+  background: var(--color-bg-inset);
 }
 
 .collapse-header-left {
@@ -78,7 +78,7 @@ onMounted(() => {
 
 .collapse-arrow {
   font-size: 12px;
-  color: #999;
+  color: var(--color-text-tertiary);
   transition: transform 0.2s;
   flex-shrink: 0;
   width: 14px;

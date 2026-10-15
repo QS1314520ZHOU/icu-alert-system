@@ -42,29 +42,29 @@ function statusClass(status: string) {
 }
 </script>
 
-<style scoped>
-.data-completeness { background: #fff; border-radius: 8px; border: 1px solid #DCE5EF; padding: 16px; }
+<style<style scoped>>
+.data-completeness { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .completeness-header { margin-bottom: 12px; }
-.completeness-title { font-size: 14px; font-weight: 600; color: #17233D; margin: 0; }
+.completeness-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }
 
 .completeness-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .completeness-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 6px; border: 1px solid #DCE5EF;
+  padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border);
   font-size: 12px;
 }
-.completeness-item--available { border-color: #12A66A; background: #ECFDF3; }
-.completeness-item--empty { border-color: #98A2B3; background: #F9FAFB; }
-.completeness-item--stale { border-color: #F79009; background: #FFFAEB; }
-.completeness-item--failed { border-color: #D92D20; background: #FEF3F2; }
+.completeness-item--available { border-color: var(--color-normal); background: var(--color-normal-bg); }
+.completeness-item--empty { border-color: var(--color-unknown); background: var(--color-bg-page); }
+.completeness-item--stale { border-color: var(--color-high-risk); background: var(--color-warning-bg); }
+.completeness-item--failed { border-color: var(--color-danger); background: var(--color-danger-bg); }
 
-.item-label { flex: 1; color: #17233D; font-weight: 500; }
-.item-count { color: #5F6B7A; }
+.item-label { flex: 1; color: var(--color-text-primary); font-weight: 500; }
+.item-count { color: var(--color-text-secondary); }
 .status-icon { font-size: 14px; font-weight: 600; }
-.status-icon--ok { color: #12A66A; }
-.status-icon--empty { color: #98A2B3; }
-.status-icon--stale { color: #F79009; }
-.status-icon--fail { color: #D92D20; }
+.status-icon--ok { color: var(--color-normal); }
+.status-icon--empty { color: var(--color-unknown); }
+.status-icon--stale { color: var(--color-high-risk); }
+.status-icon--fail { color: var(--color-danger); }
 
-.completeness-caption { font-size: 12px; color: #8A94A6; margin-top: 12px; border-top: 1px solid #F0F3F7; padding-top: 8px; }
+.completeness-caption { font-size: 12px; color: var(--color-text-tertiary); margin-top: 12px; border-top: 1px solid var(--color-divider); padding-top: 8px; }
 </style>

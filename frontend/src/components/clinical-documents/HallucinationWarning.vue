@@ -38,7 +38,7 @@ defineProps<{ warnings: string[] }>()
 .hw-item {
   font-size: 13px;
   line-height: 1.7;
-  color: #d48806;
+  color: var(--color-warning);
 }
 
 /* ================= Dark Theme Overrides ================= */

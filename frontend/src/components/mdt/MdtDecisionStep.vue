@@ -208,7 +208,7 @@ h2 {
   margin-right: 2px;
 }
 .stat-item.is-done b {
-  color: #10b981;
+  color: var(--color-success);
 }
 
 /* 决议列表 */
@@ -225,14 +225,14 @@ h2 {
 }
 .decision-card.status-pending_confirmation,
 .decision-card.status-needs_revision {
-  border-left: 3px solid #f59e0b;
+  border-left: 3px solid var(--color-warning);
 }
 .decision-card.status-completed {
-  border-left: 3px solid #10b981;
+  border-left: 3px solid var(--color-success);
 }
 .decision-card.status-doctor_confirmed,
 .decision-card.status-pending {
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid var(--color-primary);
 }
 .decision-card__header {
   margin-bottom: 10px;
@@ -258,14 +258,14 @@ h2 {
   font-weight: 600;
   flex-shrink: 0;
 }
-.status-tag.status-pending_confirmation { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.status-tag.status-doctor_confirmed { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.status-tag.status-pending { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.status-tag.status-in_progress { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
-.status-tag.status-completed { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.status-tag.status-rejected { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-.status-tag.status-needs_revision { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.status-tag.status-dismissed { background: rgba(107, 114, 128, 0.1); color: #6b7280; }
+.status-tag.status-pending_confirmation { background: var(--color-warning-bg); color: var(--color-warning); }
+.status-tag.status-doctor_confirmed { background: var(--color-primary-bg); color: var(--color-primary); }
+.status-tag.status-pending { background: var(--color-primary-bg); color: var(--color-primary); }
+.status-tag.status-in_progress { background: var(--color-ai-light); color: var(--color-ai); }
+.status-tag.status-completed { background: var(--color-success-bg); color: var(--color-success); }
+.status-tag.status-rejected { background: var(--color-danger-bg); color: var(--color-danger); }
+.status-tag.status-needs_revision { background: var(--color-warning-bg); color: var(--color-warning); }
+.status-tag.status-dismissed { background: var(--color-border); color: var(--color-text-secondary); }
 
 /* 字段 */
 .decision-card__fields {

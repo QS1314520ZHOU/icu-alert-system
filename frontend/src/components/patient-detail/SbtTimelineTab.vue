@@ -215,23 +215,23 @@ function parsedRawContent(row: any) {
 }
 .sbt-title {
   color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 800;
+  font-size: var(--text-section-title);
+  font-weight: 700;
   letter-spacing: .04em;
 }
 .sbt-sub {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .sbt-refresh {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.16);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 700;
   cursor: pointer;
 }
@@ -243,9 +243,9 @@ function parsedRawContent(row: any) {
 .sbt-kpi-card,
 .sbt-card {
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .sbt-kpi-card {
   padding: 12px 14px;
@@ -254,33 +254,34 @@ function parsedRawContent(row: any) {
 }
 .sbt-kpi-card > span {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
 }
 .sbt-kpi-card > strong {
   color: var(--text-primary);
-  font-size: 26px;
+  font-size: var(--text-metric-key);
   line-height: 1;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .sbt-kpi-card > small {
-  color: #86adc0;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
 }
 .sbt-empty {
   padding: 24px 16px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--text-body);
   text-align: center;
 }
 .sbt-empty--error {
-  color: var(--danger-soft);
-  border-color: rgba(251,113,133,.18);
+  color: var(--color-danger);
+  border-color: var(--color-border);
 }
 .sbt-content { display: grid; gap: 12px; }
 .sbt-timeline { display: grid; gap: 12px; }
@@ -289,9 +290,9 @@ function parsedRawContent(row: any) {
   gap: 14px;
   padding: 16px 18px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103,232,249,.2);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--shadow-sm);
 }
 .sbt-decision-card__head {
   display: flex;
@@ -302,15 +303,15 @@ function parsedRawContent(row: any) {
 }
 .sbt-decision-card__eyebrow {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .18em;
   text-transform: uppercase;
 }
 .sbt-decision-card__title {
   color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 800;
+  font-size: var(--text-section-title);
+  font-weight: 700;
   letter-spacing: .04em;
 }
 .sbt-decision-card__badge {
@@ -319,15 +320,15 @@ function parsedRawContent(row: any) {
   min-height: 28px;
   padding: 0 12px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(103,232,249,.2);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
-  color: #d8fbff;
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 700;
 }
 .sbt-decision-card__main {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--text-section-title);
   line-height: 1.8;
 }
 .sbt-decision-card__grid {
@@ -340,19 +341,19 @@ function parsedRawContent(row: any) {
   gap: 8px;
   padding: 12px 14px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .sbt-decision-card__label {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
 .sbt-decision-card__item strong {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.65;
 }
 .sbt-decision-card__actions {
@@ -362,7 +363,7 @@ function parsedRawContent(row: any) {
 }
 .sbt-decision-card__actions-title {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -373,7 +374,7 @@ function parsedRawContent(row: any) {
   display: grid;
   gap: 6px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.7;
 }
 .sbt-timeline-item {
@@ -390,7 +391,7 @@ function parsedRawContent(row: any) {
 }
 .sbt-time {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   writing-mode: vertical-rl;
   transform: rotate(180deg);
 }
@@ -399,9 +400,9 @@ function parsedRawContent(row: any) {
   height: 10px;
   border-radius: 50%;
 }
-.sbt-dot--passed { background: var(--success); box-shadow: var(--card-shadow); }
-.sbt-dot--failed { background: var(--danger); box-shadow: var(--card-shadow); }
-.sbt-dot--documented { background: var(--chart-1); box-shadow: var(--card-shadow); }
+.sbt-dot--passed { background: var(--success); box-shadow: var(--shadow-sm); }
+.sbt-dot--failed { background: var(--danger); box-shadow: var(--shadow-sm); }
+.sbt-dot--documented { background: var(--chart-1); box-shadow: var(--shadow-sm); }
 .sbt-line {
   width: 2px;
   flex: 1 1 auto;
@@ -409,8 +410,8 @@ function parsedRawContent(row: any) {
   background: var(--bg-surface);
 }
 .sbt-card { padding: 14px; display: grid; gap: 10px; }
-.sbt-passed .sbt-card { border-color: rgba(34,197,94,.2); }
-.sbt-failed .sbt-card { border-color: rgba(251,90,122,.2); }
+.sbt-passed .sbt-card { border-color: var(--color-border); }
+.sbt-failed .sbt-card { border-color: var(--color-border); }
 .sbt-card-head {
   display: flex;
   align-items: flex-start;
@@ -425,12 +426,12 @@ function parsedRawContent(row: any) {
 }
 .sbt-card-title {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--text-section-title);
 }
 .sbt-card-sub {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .sbt-result-pill {
   display: inline-flex;
@@ -438,32 +439,33 @@ function parsedRawContent(row: any) {
   min-height: 24px;
   padding: 0 10px;
   border-radius: var(--card-radius);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   border: 1px solid transparent;
 }
 .sbt-result-pill--passed { color: var(--sev-normal-text); background: var(--sev-normal-bg); border-color: var(--sev-normal-border); }
 .sbt-result-pill--failed { color: var(--sev-critical-text); background: var(--sev-critical-bg); border-color: var(--sev-critical-border); }
-.sbt-result-pill--documented { color: var(--accent); background: var(--bg-surface); border-color: rgba(56,189,248,.22); }
+.sbt-result-pill--documented { color: var(--accent); background: var(--bg-surface); border-color: var(--color-border); }
 .sbt-score-box {
   min-width: 88px;
   padding: 8px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   text-align: right;
 }
 .sbt-score-box span {
   display: block;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
 }
 .sbt-score-box strong {
   display: block;
   color: var(--text-primary);
-  font-size: 24px;
+  font-size: var(--text-metric-normal);
   line-height: 1;
   font-family: 'Rajdhani', 'SF Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .sbt-chip-row {
   display: flex;
@@ -476,10 +478,10 @@ function parsedRawContent(row: any) {
   min-height: 30px;
   padding: 4px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(79,182,219,.18);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .sbt-record-grid {
   display: grid;
@@ -491,7 +493,7 @@ function parsedRawContent(row: any) {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  font-size: 11px;
+  font-size: var(--text-label);
   color: var(--container-alt-text);
   background: var(--container-alt-bg);
   border: 1px solid var(--container-alt-border);
@@ -505,7 +507,7 @@ function parsedRawContent(row: any) {
 }
 .sbt-record-label { color: var(--accent); }
 .sbt-record-value {
-  color: #e5e7eb;
+  color: var(--color-text-primary);
   font-weight: 600;
   text-align: right;
   max-width: 68%;
@@ -523,7 +525,7 @@ function parsedRawContent(row: any) {
   width: 100%;
   padding: 12px 14px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
 .sbt-raw-section {
@@ -532,7 +534,7 @@ function parsedRawContent(row: any) {
 }
 .sbt-raw-label {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -545,10 +547,10 @@ function parsedRawContent(row: any) {
 .sbt-raw-chip {
   padding: 6px 10px;
   border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, 0.14);
+  border: 1px solid var(--color-border);
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 html[data-theme='light'] .sbt-wrap {
@@ -565,9 +567,9 @@ html[data-theme='light'] .sbt-record-item,
 html[data-theme='light'] .sbt-raw-card,
 html[data-theme='light'] .sbt-raw-chip,
 html[data-theme='light'] .sbt-empty {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.96);
-  box-shadow: var(--card-shadow);
+  border-color: var(--color-border);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-sm);
 }
 html[data-theme='light'] .sbt-title,
 html[data-theme='light'] .sbt-decision-card__title,
@@ -585,13 +587,13 @@ html[data-theme='light'] .sbt-decision-card__label {
   color: var(--text-secondary);
 }
 html[data-theme='light'] .sbt-refresh {
-  border-color: rgba(187, 204, 220, 0.72);
-  background: rgba(241, 246, 251, 0.98);
+  border-color: var(--color-border);
+  background: var(--color-bg-surface);
   color: var(--brand);
 }
-html[data-theme='light'] .sbt-result-pill--passed { color: var(--success); background: rgba(220, 252, 231, 0.98); border-color: rgba(16, 185, 129, 0.28); }
-html[data-theme='light'] .sbt-result-pill--failed { color: var(--danger-strong); background: rgba(255, 241, 242, 0.98); border-color: rgba(251, 113, 133, 0.28); }
-html[data-theme='light'] .sbt-result-pill--documented { color: var(--brand); background: rgba(219, 234, 254, 0.98); border-color: rgba(59, 130, 246, 0.28); }
+html[data-theme='light'] .sbt-result-pill--passed { color: var(--success); background: var(--color-normal-bg); border-color: var(--color-border); }
+html[data-theme='light'] .sbt-result-pill--failed { color: var(--color-danger); background: var(--color-bg-surface); border-color: var(--color-border); }
+html[data-theme='light'] .sbt-result-pill--documented { color: var(--brand); background: var(--color-primary-bg); border-color: var(--color-border); }
 html[data-theme='light'] .sbt-line { background: var(--bg-surface); }
 
 /* === Additional light-mode overrides === */
@@ -600,22 +602,22 @@ html[data-theme='light'] .sbt-card,
 html[data-theme='light'] .sbt-decision-card,
 html[data-theme='light'] .sbt-raw-card {
   background: var(--bg-surface);
-  border-color: rgba(187,204,220,0.72);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .sbt-empty {
-  background: rgba(243,248,252,0.96);
+  background: var(--color-bg-surface);
   color: var(--text-secondary);
 }
 html[data-theme='light'] .sbt-decision-card__badge,
 html[data-theme='light'] .sbt-decision-card__item,
 html[data-theme='light'] .sbt-chip,
 html[data-theme='light'] .sbt-raw-chip {
-  background: rgba(243,248,252,0.96);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .sbt-score-box {
-  background: rgba(241,246,251,0.98);
-  border-color: rgba(187,204,220,0.72);
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
 }
 html[data-theme='light'] .sbt-title,
 html[data-theme='light'] .sbt-decision-card__title,

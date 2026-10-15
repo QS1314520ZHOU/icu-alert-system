@@ -274,7 +274,7 @@ function confidenceLabel(confidence: string) {
   align-items: center;
   min-height: 50px;
   padding: 7px 8px;
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   text-align: left;
@@ -288,7 +288,7 @@ function confidenceLabel(confidence: string) {
 
 .system-nav-item.tone-critical,
 .system-nav-item.tone-high {
-  border-left: 4px solid #f97316;
+  border-left: 4px solid var(--color-high-risk);
 }
 
 .system-nav-item span {
@@ -315,7 +315,7 @@ function confidenceLabel(confidence: string) {
 .system-card {
   min-height: 0;
   background: var(--bg-surface);
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   padding: 10px;
 }
@@ -363,7 +363,7 @@ function confidenceLabel(confidence: string) {
 .system-card-head select,
 .statement-group-head button,
 .delete-btn {
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   color: var(--text-secondary);
@@ -406,7 +406,7 @@ function confidenceLabel(confidence: string) {
 
 .statement-group {
   min-width: 0;
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   padding: 8px;
@@ -433,22 +433,22 @@ function confidenceLabel(confidence: string) {
 }
 
 .statement {
-  border: 1px solid #edf1f7;
+  border: 1px solid var(--color-border);
   border-radius: var(--card-radius);
   background: var(--bg-surface);
   padding: 7px;
 }
 
 .statement.kind-fact {
-  border-left: 4px solid #1677ff;
+  border-left: 4px solid var(--color-primary);
 }
 
 .statement.kind-inference {
-  border-left: 4px solid #d97706;
+  border-left: 4px solid var(--color-warning);
 }
 
 .statement.kind-recommendation {
-  border-left: 4px solid #1A9C5B;
+  border-left: 4px solid var(--color-success);
 }
 
 .statement-meta {
@@ -470,7 +470,7 @@ function confidenceLabel(confidence: string) {
   width: 100%;
   min-height: 42px;
   resize: vertical;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--card-radius);
   padding: 6px 8px;
   color: var(--text-primary);

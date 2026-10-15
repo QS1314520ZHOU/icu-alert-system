@@ -135,8 +135,8 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 .clinical-chart__spinner {
   width: 28px;
   height: 28px;
-  border: 3px solid #E8EEF5;
-  border-top-color: #2563EB;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: chart-spin 0.8s linear infinite;
 }
@@ -164,7 +164,7 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 
 .clinical-chart__empty-text {
   font-size: 13px;
-  color: #94A3B8;
+  color: var(--color-text-tertiary);
 }
 
 /* Error */
@@ -185,20 +185,20 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 
 .clinical-chart__error-text {
   font-size: 13px;
-  color: #DC2626;
+  color: var(--color-danger);
 }
 
 .clinical-chart__retry {
   padding: 4px 12px;
   font-size: 12px;
-  border: 1px solid #DCE3EC;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-bg-surface);
   cursor: pointer;
 }
 
 .clinical-chart__retry:hover {
-  background: #F0F6FF;
+  background: var(--color-primary-bg);
 }
 
 /* Toolbar */
@@ -231,8 +231,8 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 }
 
 .clinical-chart__tool-btn:hover {
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Description */
@@ -243,10 +243,10 @@ function downloadDataUrl(dataUrl: string, filename: string) {
   right: 8px;
   padding: 8px 12px;
   background: rgba(255,255,255,0.95);
-  border: 1px solid #E8EEF5;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 12px;
-  color: #52606D;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   z-index: 4;
 }
@@ -257,7 +257,7 @@ function downloadDataUrl(dataUrl: string, filename: string) {
   bottom: 2px;
   right: 8px;
   font-size: 10px;
-  color: #94A3B8;
+  color: var(--color-text-tertiary);
   z-index: 1;
 }
 </style>

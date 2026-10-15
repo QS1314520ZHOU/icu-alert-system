@@ -45,24 +45,24 @@ const label = computed(() => {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 100px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .freshness-badge--fresh {
-  background: #E8F7F0;
-  color: #12A66A;
+  background: var(--color-normal-bg);
+  color: var(--color-normal);
 }
 
 .freshness-badge--stale {
-  background: #FFF9D8;
-  color: #E5B700;
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning-soft);
 }
 
 .freshness-badge--expired {
-  background: #FEECEB;
-  color: #D92D20;
+  background: var(--color-critical-bg);
+  color: var(--color-danger);
 }
 </style>

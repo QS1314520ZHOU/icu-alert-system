@@ -233,7 +233,7 @@ function alertTypeLabel(type: string) {
 .cp-section {
   margin-bottom: 14px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #edf1f7;
+  border-bottom: 1px solid var(--color-border);
 }
 .cp-section-title {
   font-size: 12px;
@@ -290,7 +290,7 @@ function alertTypeLabel(type: string) {
 }
 .cp-event-chip {
   background: var(--danger-bg);
-  color: #b42318;
+  color: var(--color-danger-hover);
   padding: 2px 8px;
   border-radius: var(--card-radius);
   font-size: 11px;
