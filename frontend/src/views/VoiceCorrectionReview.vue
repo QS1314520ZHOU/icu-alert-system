@@ -97,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton } from 'ant-design-vue'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
@@ -210,7 +211,7 @@ onMounted(loadCandidates)
 }
 .vcr-header p {
   margin: 0;
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 14px;
 }
 .header-actions {
@@ -218,28 +219,28 @@ onMounted(loadCandidates)
   gap: 8px;
 }
 .vcr-error {
-  background: #fff3f3;
-  border-left: 3px solid #d32f2f;
+  background: var(--color-danger-bg);
+  border-left: 3px solid var(--color-danger);
   padding: 12px;
   margin-bottom: 16px;
   border-radius: 4px;
 }
 .vcr-drug-warning {
-  background: #fff8e1;
-  border: 2px solid #ff6f00;
+  background: var(--color-warning-soft-bg);
+  border: 2px solid var(--color-warning);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 24px;
 }
 .vcr-drug-warning h2 {
   margin: 0 0 8px;
-  color: #e65100;
+  color: var(--color-warning);
   font-size: 16px;
 }
 .vcr-drug-warning p {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #795548;
+  color: var(--color-warning);
 }
 .vcr-table {
   width: 100%;
@@ -249,35 +250,35 @@ onMounted(loadCandidates)
 .vcr-table th {
   text-align: left;
   padding: 8px 6px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--color-border);
   font-weight: 600;
   white-space: nowrap;
 }
 .vcr-table td {
   padding: 6px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-bg-inset);
 }
 .vcr-row-drug {
-  background: #fff3e0;
+  background: var(--color-warning-soft-bg);
 }
 .vcr-table code {
-  background: #f5f5f5;
+  background: var(--color-bg-surface-secondary);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 12px;
 }
 .vcr-highlight {
   font-weight: 700;
-  color: #1976d2;
+  color: var(--color-primary);
 }
 .vcr-category-select {
   padding: 2px 4px;
   font-size: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
 }
 .vcr-empty {
-  color: #999;
+  color: var(--color-text-tertiary);
   text-align: center;
   padding: 40px;
 }
@@ -292,13 +293,13 @@ onMounted(loadCandidates)
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .vcr-feedback-ok {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #a5d6a7;
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-normal-border);
 }
 .vcr-feedback-err {
-  background: #ffebee;
-  color: #c62828;
-  border: 1px solid #ef9a9a;
+  background: var(--color-critical-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-critical-border);
 }
 </style>

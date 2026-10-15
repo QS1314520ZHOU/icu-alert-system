@@ -38,7 +38,7 @@
                   {{ item.data?.raw_unit || '' }}
                 </span>
                 <span v-if="item.data?.matched" class="timeline-matched">
-                  <a-tag color="var(--color-success-light)" size="small">匹配规则</a-tag>
+                  <a-tag color="#52c41a" size="small">匹配规则</a-tag>
                 </span>
               </template>
 
@@ -63,6 +63,7 @@
 </template>
 
 <script setup lang="ts">
+import { Empty as AEmpty, Spin as ASpin, Tag as ATag, Timeline as ATimeline, TimelineItem as ATimelineItem } from 'ant-design-vue'
 import { ref, onMounted, watch } from 'vue'
 import { getCaseTimeline } from '@/api/diseaseCenter'
 import type { TimelineItem } from '@/api/diseaseCenter'
@@ -92,8 +93,8 @@ function getTimelineTypeLabel(item: TimelineItem) {
 }
 
 function getTagColor(item: TimelineItem) {
-  if (item.type === 'confirmation') return 'var(--color-primary-light)'
-  return 'default'
+  if (item.type === 'confirmation') return '#1677ff'
+  return '#d9d9d9'
 }
 
 function getEvidenceTypeLabel(type?: string) {
@@ -149,65 +150,17 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.case-timeline {
-  padding: 8px 0;
-}
+<style scoped>.case-timeline { padding: 8px 0 }
+.timeline-loading { display: flex; justify-content: center; padding: 40px 0 }
+.timeline-dot { font-size: 12px }
+.timeline-content { padding-left: 8px }
+.timeline-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px }
+.timeline-time { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
+.timeline-body { display: flex; flex-direction: column; gap: 4px }
+.timeline-label { font-size: var(--text-body, 13px); font-weight: 500; color: var(--color-text-primary, #111827) }
+.timeline-value { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563) }
+.timeline-matched { margin-top: 2px }
+.timeline-reason { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.timeline-operator { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
-.timeline-loading {
-  display: flex;
-  justify-content: center;
-  padding: 40px 0;
-}
-
-.timeline-dot {
-  font-size: 12px;
-}
-
-.timeline-content {
-  padding-left: 8px;
-}
-
-.timeline-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.timeline-time {
-  font-size: 12px;
-  color: var(--color-text-tertiary, #98A2B3);
-}
-
-.timeline-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.timeline-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-primary, #18212B);
-}
-
-.timeline-value {
-  font-size: 13px;
-  color: var(--color-text-secondary, #667085);
-}
-
-.timeline-matched {
-  margin-top: 2px;
-}
-
-.timeline-reason {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-}
-
-.timeline-operator {
-  font-size: 12px;
-  color: var(--color-text-tertiary, #98A2B3);
-}
 </style>

@@ -1,55 +1,44 @@
 <template>
   <section class="head-nurse-home">
-    <header class="home-top ds-card">
-      <div class="home-title">
-        <strong>护士长质控</strong>
-        <span>护士长 · {{ home?.account?.dept || '科室待识别' }}</span>
-      </div>
-      <div class="top-meta">
-        <span>{{ accountName }}</span>
-        <span>{{ home?.account?.dept || '科室待识别' }}</span>
-        <span>{{ shiftText }}</span>
-        <span>{{ clock }}</span>
-        <button type="button" @click="load">刷新</button>
-      </div>
-    </header>
+    <PageHeader title="护士长质控" :subtitle="`护士长 · ${home?.account?.dept || '科室待识别'}`">
+      <template #actions>
+        <span class="top-meta">{{ accountName }}</span>
+        <span class="top-meta">{{ shiftText }}</span>
+        <span class="top-meta">{{ clock }}</span>
+        <a-button size="small" @click="load">刷新</a-button>
+      </template>
+    </PageHeader>
 
-    <div v-if="loading" class="empty">正在汇总全科床位、护理负荷 and 质控数据...</div>
-    <div v-else-if="error" class="empty danger">{{ error }}</div>
+    <LoadingState v-if="loading" message="正在汇总全科床位、护理负荷 and 质控数据..." />
+    <ErrorState v-else-if="error" :description="error" />
     <template v-else>
-      <section class="start-guide ds-card">
+      <section class="start-guide">
         <div>
           <span>护士长看板</span>
           <strong>先看全科床位，再看护理负荷，最后追踪评估依从和质控事件。</strong>
         </div>
-        <button type="button" @click="showOnboarding = true">查看3步引导</button>
+        <a-button size="small" @click="showOnboarding = true">查看3步引导</a-button>
       </section>
 
-      <section class="summary-cards">
-        <article v-for="item in summaryCards" :key="item.key" :class="['summary-card', 'ds-card', 'ds-kpi', kpiToneClass(item.tone)]">
-          <div class="ds-kpi-icon">
-            <TeamOutlined v-if="item.key === 'beds'" />
-            <ClockCircleOutlined v-else-if="item.key === 'handover'" />
-            <CheckCircleOutlined v-else-if="item.key === 'compliance'" />
-            <BellOutlined v-else-if="item.key === 'alerts'" />
-          </div>
-          <div>
-            <span class="ds-kpi-label">{{ item.label }}</span>
-            <strong class="ds-kpi-num">{{ item.value }}</strong>
-            <em>{{ item.hint }}</em>
-          </div>
-        </article>
-      </section>
+      <MetricStrip
+        :metrics="summaryCards.map((c) => ({
+          label: c.label,
+          value: c.value,
+          variant: c.tone === 'red' ? 'danger' : c.tone === 'yellow' ? 'warning' : c.tone === 'green' ? 'success' : 'info',
+          trend: 'stable',
+          trendValue: c.hint,
+        }))"
+      />
 
       <!-- 依从性看板入口 -->
-      <section class="compliance-entry ds-card" @click="showCompliance = !showCompliance">
+      <section class="compliance-entry" @click="showCompliance = !showCompliance">
         <div class="entry-content">
           <strong>护理依从性看板</strong>
           <span>查看评估/翻身/CAM-ICU/早期活动依从率时间线、逾期TOP床位和班次对比</span>
         </div>
-        <button type="button">
+        <a-button size="small">
           {{ showCompliance ? '收起看板' : '展开看板' }}
-        </button>
+        </a-button>
       </section>
 
       <!-- 依从性看板 -->
@@ -109,7 +98,7 @@
               </i>
             </article>
           </div>
-          <div v-if="!heatmap.length" class="empty small">暂无护理记录数据。</div>
+          <EmptyState v-if="!heatmap.length" description="暂无护理记录数据。" />
         </section>
 
         <!-- 评估依从 -->
@@ -132,7 +121,7 @@
               <span>{{ item.compliance_rate }}% ({{ item.overdue }}/{{ item.total }} 逾期)</span>
             </article>
           </div>
-          <div v-if="!(assessmentCompliance.by_type || []).length" class="empty small">暂无评估提醒数据。</div>
+          <EmptyState v-if="!(assessmentCompliance.by_type || []).length" description="暂无评估提醒数据。" />
         </section>
 
         <!-- 告警处置 -->
@@ -180,7 +169,7 @@
               </div>
             </article>
           </div>
-          <div v-if="!qualityEvents.length" class="empty small">本班暂无未闭环质控事件。</div>
+          <EmptyState v-if="!qualityEvents.length" description="本班暂无未闭环质控事件。" />
           <div class="quality-row">
             <span>跌倒 {{ qualitySummary.falls || 0 }}</span>
             <span>压疮 {{ qualitySummary.pressure_ulcers || 0 }}</span>
@@ -205,7 +194,7 @@
               </div>
             </article>
           </div>
-          <div v-if="!scannerRows.length" class="empty small">暂无规则健康数据。</div>
+          <EmptyState v-if="!scannerRows.length" description="暂无规则健康数据。" />
         </section>
 
         <!-- 流程任务逾期TOP床位 -->
@@ -231,7 +220,7 @@
           </div>
           <div class="event-list">
             <article v-for="item in escalationP2toP1.slice(0, 10)" :key="item._id || item.created_at" class="event-item ds-list-item">
-              <i class="ds-dot" style="background:#f97316"></i>
+              <i class="ds-dot event-dot--escalation"></i>
               <div>
                 <strong>{{ item.bed || '--' }}床 {{ item.patient_name || '--' }}</strong>
                 <span>{{ item.name || item.rule_id }} · {{ fmt(item.created_at) }}</span>
@@ -248,7 +237,7 @@
           </div>
           <div class="event-list">
             <article v-for="item in qualityGaps.slice(0, 10)" :key="item._id || item.created_at" class="event-item ds-list-item">
-              <i class="ds-dot" style="background:#ca8a04"></i>
+              <i class="ds-dot event-dot--gap"></i>
               <div>
                 <strong>{{ item.bed || '--' }}床 {{ item.patient_name || '--' }}</strong>
                 <span>{{ item.name || item.rule_id }} · {{ item.alert_type ? formatAlertTypeLabel(item.alert_type) : '' }}</span>
@@ -265,7 +254,7 @@
           </div>
           <div class="event-list">
             <article v-for="item in workflowEscalated.slice(0, 10)" :key="item._id || item.created_at" class="event-item ds-list-item">
-              <i class="ds-dot" style="background:#fb5a7a"></i>
+              <i class="ds-dot event-dot--escalated"></i>
               <div>
                 <strong>{{ item.bed || '--' }}床 {{ item.patient_name || '--' }}</strong>
                 <span>{{ item.name || item.rule_id }} · {{ item.priority }} · {{ fmt(item.created_at) }}</span>
@@ -279,7 +268,7 @@
         <div class="onboarding-card">
           <div class="panel-head">
             <strong>护士长看板3步用法</strong>
-            <button type="button" @click="dismissOnboarding">知道了</button>
+            <a-button size="small" @click="dismissOnboarding">知道了</a-button>
           </div>
           <ol>
             <li><b>先看全科床位</b><span>确认在科患者和床位分布，关注待交接床位。</span></li>
@@ -293,6 +282,7 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton } from 'ant-design-vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getHeadNurseHome } from '../api'
@@ -300,8 +290,8 @@ import { useAuthStore } from '../stores/auth'
 import { roleHomeConfig } from '../config/roleHomeConfig'
 import ComplianceDashboard from './ComplianceDashboard.vue'
 import BundleComplianceChecklist from './BundleComplianceChecklist.vue'
-import { BellOutlined, CheckCircleOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons-vue'
 import { formatAlertTypeLabel } from '../utils/displayLabels'
+import { PageHeader, MetricStrip, LoadingState, ErrorState, EmptyState } from '../components/common/design-system'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -419,14 +409,6 @@ function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }
 
-function kpiToneClass(tone: any) {
-  const key = String(tone || '').toLowerCase()
-  if (key === 'red' || key === 'danger') return 'is-danger'
-  if (key === 'yellow' || key === 'warning') return 'is-warning'
-  if (key === 'green' || key === 'success') return 'is-success'
-  return 'is-brand'
-}
-
 function bedDotClass(row: any) {
   const key = String(row?.risk_level || row?.severity || row?.status || '').toLowerCase()
   if (['critical', 'danger', 'red', '危急'].includes(key)) return 'is-critical'
@@ -497,21 +479,30 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 
 <style scoped>
 .head-nurse-home {
-  padding: 14px 14px 80px;
+  padding: var(--page-padding);
+  padding-bottom: 80px;
   display: grid;
-  gap: 12px;
+  gap: var(--section-gap);
 }
 
+/* ── 头部辅助信息 ── */
+.top-meta {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 引导横幅 ── */
 .start-guide {
   min-height: 66px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid rgba(34, 211, 238, .22);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  gap: var(--element-gap-lg);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
 .start-guide div {
@@ -520,84 +511,32 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 }
 
 .start-guide span {
-  color: var(--accent);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 
 .start-guide strong {
-  color: var(--text-primary);
-  font-size: 15px;
+  color: var(--color-text-primary);
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
 }
 
-.home-top {
-  min-height: 72px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 14px;
-  border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-}
-
-.home-title,
-.home-top div {
-  display: grid;
-  gap: 4px;
-}
-
-.home-top span,
-.panel-head span,
-.empty,
-.summary-card span,
-.summary-card em {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.home-top strong {
-  color: var(--text-primary);
-  font-size: 20px;
-}
-
-.top-meta {
-  display: flex !important;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: flex-end;
-  text-align: right;
-  color: var(--text-muted);
-}
-
-button {
-  min-height: 44px;
-  border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 0 12px;
-  cursor: pointer;
-}
-
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--card-gap);
-}
-
+/* ── 依从性看板入口 ── */
 .compliance-entry {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 14px;
-  border: 1px solid rgba(34, 211, 238, .22);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
   cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.compliance-entry:hover {
+  border-color: var(--color-border-strong);
 }
 
 .entry-content {
@@ -606,55 +545,26 @@ button {
 }
 
 .entry-content strong {
-  color: var(--text-primary);
-  font-size: 15px;
+  color: var(--color-text-primary);
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
 }
 
 .entry-content span {
-  color: var(--accent);
-  font-size: 12px;
-}
-
-.compliance-entry button {
-  min-height: 36px;
-  padding: 0 12px;
-  white-space: nowrap;
-}
-
-.summary-card {
-  min-height: 86px;
-  padding: 14px;
-  border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-}
-
-.summary-card .ds-kpi-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-}
-
-.summary-card .ds-kpi-num {
-  font-size: 26px;
-  line-height: 1;
-}
-
-.summary-card em {
-  display: block;
-  margin-top: 3px;
-  font-style: normal;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
 }
 
 .bundle-panel {
-  padding: 16px;
+  padding: var(--card-padding);
 }
 
 .head-nurse-grid {
   min-height: 560px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .panel {
@@ -663,10 +573,10 @@ button {
   display: grid;
   align-content: start;
   gap: 10px;
-  padding: 12px;
-  border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
 .panel-head {
@@ -677,8 +587,14 @@ button {
 }
 
 .panel-head strong {
-  color: var(--text-primary);
-  font-size: 15px;
+  color: var(--color-text-primary);
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
+}
+
+.panel-head span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 
 .bed-cloud {
@@ -695,12 +611,11 @@ button {
   align-content: center;
   gap: 3px;
   padding: 9px 12px 9px 30px;
-  border: 1px solid rgba(124, 160, 184, .22);
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(248, 252, 255, .98), rgba(239, 248, 251, .92));
-  color: var(--text-primary);
-  box-shadow: 0 6px 18px rgba(35, 84, 112, .06);
-  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .bed-cloud span::before {
@@ -710,15 +625,13 @@ button {
   top: 9px;
   bottom: 9px;
   width: 3px;
-  border-radius: 0 4px 4px 0;
-  background: #9ec8d6;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-border-strong);
 }
 
 .bed-cloud span:hover {
-  border-color: rgba(38, 139, 171, .28);
-  background: linear-gradient(180deg, #ffffff, #eef9fb);
-  box-shadow: 0 10px 24px rgba(35, 84, 112, .1);
-  transform: translateY(-1px);
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
 }
 
 .bed-cloud .ds-dot {
@@ -728,21 +641,20 @@ button {
   transform: translateY(-50%);
   width: 9px;
   height: 9px;
-  border: 2px solid rgba(255, 255, 255, .92);
-  box-shadow: 0 0 0 2px rgba(123, 153, 171, .18);
+  border: 2px solid var(--color-bg-surface);
 }
 
 .bed-cloud span b {
-  color: #123044;
-  font-size: 15px;
+  color: var(--color-text-primary);
+  font-size: var(--text-section-title);
   line-height: 1.1;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .bed-cloud span em {
   min-width: 0;
-  color: #587084;
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
   font-style: normal;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -750,14 +662,14 @@ button {
 }
 
 .pending-handover {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(125, 211, 252, .14);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-divider);
 }
 
 .pending-handover strong {
-  color: var(--warning-soft);
-  font-size: 13px;
+  color: var(--color-warning);
+  font-size: var(--text-body);
   display: block;
   margin-bottom: 6px;
 }
@@ -770,10 +682,10 @@ button {
 
 .handover-list span {
   padding: 4px 8px;
-  border-radius: var(--card-radius);
-  background: rgba(245, 158, 11, .15);
-  color: var(--warning-soft);
-  font-size: 12px;
+  border-radius: 999px;
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning);
+  font-size: var(--text-caption);
 }
 
 .workload-summary {
@@ -782,21 +694,21 @@ button {
 }
 
 .workload-summary span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 
 .workload-summary i {
   height: 8px;
-  border-radius: var(--card-radius);
-  background: rgba(148, 163, 184, .25);
+  border-radius: 999px;
+  background: var(--color-bg-inset);
   overflow: hidden;
 }
 
 .workload-summary b {
   display: block;
   height: 100%;
-  background: var(--chart-1);
+  background: var(--chart-color-1);
 }
 
 .heatmap {
@@ -807,12 +719,17 @@ button {
 
 .heatmap article {
   padding: 8px 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   min-width: 150px;
   display: grid;
   gap: 8px;
+}
+
+.heatmap article strong {
+  font-size: var(--text-body);
 }
 
 .heatmap i {
@@ -826,19 +743,19 @@ button {
   width: 10px;
   min-height: 8px;
   border-radius: 3px 3px 0 0;
-  background: var(--chart-1);
+  background: var(--chart-color-1);
 }
 
 .density-high {
-  border: 1px solid rgba(239, 68, 68, .6);
+  border: 1px solid var(--color-critical-border);
 }
 
 .density-medium {
-  border: 1px solid rgba(245, 158, 11, .55);
+  border: 1px solid var(--color-high-risk-border);
 }
 
 .density-low {
-  border: 1px solid rgba(52, 211, 153, .45);
+  border: 1px solid var(--color-normal-border);
 }
 
 .compliance-summary {
@@ -848,8 +765,8 @@ button {
 }
 
 .compliance-summary span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 
 .compliance-list {
@@ -863,33 +780,34 @@ button {
   gap: 8px;
   align-items: center;
   padding: 8px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
 }
 
 .compliance-item strong {
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
 }
 
 .compliance-item span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   text-align: right;
 }
 
 .compliance-bar {
   height: 6px;
-  border-radius: var(--card-radius);
-  background: rgba(148, 163, 184, .25);
+  border-radius: 999px;
+  background: var(--color-bg-inset);
   overflow: hidden;
 }
 
 .compliance-bar i {
   display: block;
   height: 100%;
-  background: var(--chart-2);
-  border-radius: var(--card-radius);
+  background: var(--chart-color-2);
+  border-radius: 999px;
 }
 
 .alert-stats {
@@ -900,25 +818,28 @@ button {
 
 .stat-item {
   padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
 }
 
 .stat-item span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   display: block;
 }
 
 .stat-item strong {
-  color: var(--text-primary);
-  font-size: 20px;
+  color: var(--color-text-primary);
+  font-size: var(--text-metric-normal);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
   display: block;
   margin-top: 4px;
 }
 
 .text-warning {
-  color: var(--warning-soft) !important;
+  color: var(--color-warning) !important;
 }
 
 .event-list {
@@ -932,36 +853,43 @@ button {
   gap: 8px;
   align-items: start;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
 }
 
 .event-item:hover {
-  background: var(--bg-surface-2);
+  background: var(--color-bg-surface-secondary);
 }
 
 .event-item strong {
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
 }
 
 .event-item span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 
-.ds-badge {
-  border-radius: 4px;
-  padding: 2px 8px;
-  font-size: 12px;
-  line-height: 18px;
-  border: 0;
+.event-item .ds-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-top: 5px;
 }
 
-.ds-badge--danger { background: #FFECE8; color: #D9342B; }
-.ds-badge--warning { background: #FFF7E8; color: #A65A0C; }
-.ds-badge--success { background: #E8FFEA; color: #1A9C5B; }
-.ds-badge--info { background: #E8F3FF; color: #15558D; }
+.event-dot--escalation {
+  background: var(--color-warning);
+}
+
+.event-dot--gap {
+  background: var(--color-warning-soft);
+}
+
+.event-dot--escalated {
+  background: var(--color-danger);
+}
 
 :global(.ai-pulse-root) {
   z-index: 120;
@@ -976,10 +904,11 @@ button {
 
 .quality-row span {
   padding: 8px 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .scanner-list {
@@ -991,13 +920,14 @@ button {
   display: grid;
   gap: 4px;
   padding: 8px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
 }
 
 .scanner-item strong {
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
 }
 
 .scanner-stats {
@@ -1007,22 +937,9 @@ button {
 }
 
 .scanner-stats span {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.empty {
-  padding: 14px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-}
-
-.empty.small {
-  padding: 10px;
-}
-
-.empty.danger {
-  color: var(--danger-soft);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .onboarding-mask {
@@ -1031,7 +948,7 @@ button {
   z-index: 400;
   display: grid;
   place-items: center;
-  background: var(--bg-surface);
+  background: rgba(17, 24, 39, 0.4);
   padding: 16px;
 }
 
@@ -1039,11 +956,11 @@ button {
   width: min(560px, 100%);
   display: grid;
   gap: 12px;
-  padding: 16px;
-  border: 1px solid rgba(125, 211, 252, .24);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-lg);
 }
 
 .onboarding-card ol {
@@ -1054,7 +971,7 @@ button {
 }
 
 .onboarding-card li {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .onboarding-card li b {
@@ -1063,13 +980,17 @@ button {
 
 .onboarding-card li span {
   display: block;
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   margin-top: 4px;
 }
 
+/* 面板内空态保持紧凑 */
+.panel :deep(.empty-state) {
+  padding: 24px 16px;
+}
+
 @media (max-width: 1024px) {
-  .summary-cards,
   .head-nurse-grid {
     grid-template-columns: 1fr;
   }
@@ -1079,115 +1000,5 @@ button {
   .alert-stats {
     grid-template-columns: 1fr;
   }
-}
-
-/* Light theme */
-html[data-theme='light'] .head-nurse-home {
-  background: var(--bg-base);
-}
-
-html[data-theme='light'] .home-top,
-html[data-theme='light'] .start-guide,
-html[data-theme='light'] .panel,
-html[data-theme='light'] .summary-card {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: var(--card-shadow);
-}
-
-html[data-theme='light'] .home-top strong,
-html[data-theme='light'] .start-guide strong,
-html[data-theme='light'] .panel-head strong,
-html[data-theme='light'] .summary-card strong {
-  color: var(--text-primary);
-}
-
-html[data-theme='light'] .home-top span,
-html[data-theme='light'] .start-guide span,
-html[data-theme='light'] .panel-head span,
-html[data-theme='light'] .empty,
-html[data-theme='light'] .summary-card span,
-html[data-theme='light'] .summary-card em {
-  color: var(--text-secondary);
-}
-
-html[data-theme='light'] .bed-cloud span {
-  background: linear-gradient(180deg, #ffffff, #f1f9fb);
-  border-color: rgba(99, 137, 158, 0.2);
-  box-shadow: 0 6px 18px rgba(44, 95, 122, 0.06);
-}
-
-html[data-theme='light'] .bed-cloud span:hover {
-  background: linear-gradient(180deg, #ffffff, #eaf7fa);
-  border-color: rgba(22, 123, 156, 0.26);
-}
-
-html[data-theme='light'] .bed-cloud span b {
-  color: #123044;
-}
-
-html[data-theme='light'] .bed-cloud span em {
-  color: #587084;
-}
-
-html[data-theme='light'] .bed-cloud .ds-dot.is-muted {
-  background: #7fa6b8;
-}
-
-html[data-theme='light'] .bed-cloud .ds-dot.is-warn {
-  background: #d9902f;
-  box-shadow: 0 0 0 2px rgba(217, 144, 47, 0.2);
-}
-
-html[data-theme='light'] .bed-cloud .ds-dot.is-critical {
-  background: #d65045;
-  box-shadow: 0 0 0 2px rgba(214, 80, 69, 0.2);
-}
-
-html[data-theme='light'] .heatmap article,
-html[data-theme='light'] .compliance-item,
-html[data-theme='light'] .stat-item,
-html[data-theme='light'] .event-item,
-html[data-theme='light'] .scanner-item,
-html[data-theme='light'] .quality-row span,
-html[data-theme='light'] .handover-list span {
-  background: var(--bg-surface);
-  border-color: rgba(145, 176, 199, 0.26);
-}
-
-html[data-theme='light'] button {
-  background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.18);
-  color: var(--brand);
-}
-
-html[data-theme='light'] button:hover {
-  background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.3);
-}
-
-html[data-theme='light'] .empty.danger {
-  color: var(--danger);
-  background: var(--danger-bg);
-  border-color: rgba(239, 68, 68, 0.18);
-}
-
-html[data-theme='light'] .onboarding-card {
-  background: var(--bg-surface);
-  border-color: rgba(145, 176, 199, 0.32);
-}
-
-html[data-theme='light'] .onboarding-card li {
-  color: var(--text-primary);
-}
-
-html[data-theme='light'] .onboarding-card li span {
-  color: var(--text-secondary);
-}
-html[data-theme='light'] .nurse-home,
-html[data-theme='light'] .doctor-home,
-html[data-theme='light'] .director-home,
-html[data-theme='light'] .head-nurse-home {
-  padding-bottom: 80px;
 }
 </style>

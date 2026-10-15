@@ -33,6 +33,7 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton, Select as ASelect, SelectOption as ASelectOption, Table as ATable, Tag as ATag } from 'ant-design-vue'
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getSakiCases } from '../../api/saki'
@@ -88,5 +89,5 @@ onMounted(loadCases)
 
 <style scoped>
 .saki-case-list { display: flex; flex-direction: column; gap: 16px; }
-.filter-bar { display: flex; gap: 12px; align-items: center; background: #fff; padding: 12px 16px; border-radius: 8px; }
+.filter-bar { display: flex; gap: 12px; align-items: center; background: var(--color-bg-surface); border: 1px solid var(--color-border); padding: 12px 16px; border-radius: var(--radius-lg); }
 </style>

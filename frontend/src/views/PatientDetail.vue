@@ -499,8 +499,8 @@ watch(() => router.currentRoute.value.query, (query) => {
   justify-content: center;
   height: 36px;
   padding: 0 16px;
-  background: var(--color-primary, #2563EB);
-  color: #FFFFFF;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: var(--radius-button, 6px);
   font-size: 14px;
@@ -510,6 +510,6 @@ watch(() => router.currentRoute.value.query, (query) => {
 }
 
 .pd-action-btn:hover {
-  background: var(--color-primary-hover, #1D4ED8);
+  background: var(--color-primary-hover, var(--color-primary));
 }
 </style>

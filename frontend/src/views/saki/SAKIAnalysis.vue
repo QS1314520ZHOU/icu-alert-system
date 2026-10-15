@@ -118,10 +118,10 @@ const runAnalysis = async (type: string) => {
 <style scoped>
 .saki-analysis { display: flex; flex-direction: column; gap: 16px; }
 .analysis-form { margin-bottom: 12px; }
-.result-panel { background: #fff; border-radius: 8px; padding: 16px; }
-.result-panel.error { color: #ff4d4f; }
-.stat-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.stat-table th, .stat-table td { border: 1px solid #f0f0f0; padding: 6px 10px; text-align: left; }
-.stat-table th { background: #fafafa; }
-.disclaimer { text-align: center; font-size: 12px; color: #faad14; padding: 8px; background: #fffbe6; border-radius: 6px; }
+.result-panel { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; font-variant-numeric: tabular-nums; }
+.result-panel.error { color: var(--color-danger); }
+.stat-table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
+.stat-table th, .stat-table td { border-bottom: 1px solid var(--color-divider); padding: 8px 10px; text-align: left; }
+.stat-table th { background: var(--color-bg-surface-secondary); font-size: var(--text-caption); font-weight: var(--text-table-header-weight); color: var(--color-text-secondary); }
+.disclaimer { text-align: center; font-size: var(--text-caption); color: var(--color-warning); padding: 8px; background: var(--color-warning-soft-bg); border: 1px solid var(--color-warning-soft-border); border-radius: var(--radius-md); }
 </style>

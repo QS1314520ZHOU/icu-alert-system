@@ -85,13 +85,13 @@ const nursingRadar = computed(() => {
 <style scoped>
 .nursing-tasks {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 .task-section {
-  padding: 16px;
-  border-radius: var(--card-radius);
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 .section-header {
   display: flex;
@@ -100,16 +100,16 @@ const nursingRadar = computed(() => {
   margin-bottom: 12px;
 }
 .section-label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: var(--text-card-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
   padding: 3px 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-tag);
 }
-.section-label.warning { background: rgba(232,144,28,.15); color: var(--color-warning); }
-.section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
-.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
-.section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
+.section-label.warning { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.section-label.danger { background: var(--color-critical-bg); color: var(--color-danger); }
+.section-label.info { background: var(--color-primary-bg); color: var(--color-primary); }
+.section-count { font-size: var(--text-body); color: var(--color-text-secondary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 
 .completion-bar {
   display: flex;
@@ -121,7 +121,7 @@ const nursingRadar = computed(() => {
   flex: 1;
   height: 8px;
   border-radius: 999px;
-  background: var(--color-border);
+  background: var(--color-bg-inset);
   overflow: hidden;
 }
 .completion-fill {
@@ -131,10 +131,11 @@ const nursingRadar = computed(() => {
   transition: width .3s ease;
 }
 .completion-text {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
   color: var(--color-success);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .omission-grid {
@@ -148,26 +149,26 @@ const nursingRadar = computed(() => {
   place-items: center;
   gap: 3px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  color: var(--text-primary);
-  background: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-secondary);
   cursor: pointer;
 }
-.omission-cell:hover { border-color: rgba(103,232,249,.32); }
+.omission-cell:hover { border-color: var(--color-primary-hover); }
 .omission-cell i {
   width: 20px;
   height: 20px;
   display: grid;
   place-items: center;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-tag);
   font-style: normal;
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-caption);
 }
-.omission-cell span { font-size: 12px; }
-.omission-cell.is-ok i { color: #052e24; background: var(--color-success); }
-.omission-cell.is-todo { border-color: rgba(251,191,36,.34); background: rgba(113,63,18,.2); }
-.omission-cell.is-todo i { color: #451a03; background: var(--color-warning); }
+.omission-cell span { font-size: var(--text-caption); }
+.omission-cell.is-ok i { color: var(--color-text-inverse); background: var(--color-success); }
+.omission-cell.is-todo { border-color: var(--color-warning-soft-border); background: var(--color-warning-soft-bg); }
+.omission-cell.is-todo i { color: var(--color-text-inverse); background: var(--color-warning); }
 
 .nursing-list { display: grid; gap: 8px; }
 .nursing-row {
@@ -177,20 +178,20 @@ const nursingRadar = computed(() => {
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 .nursing-info { flex: 1; min-width: 0; }
-.nursing-info strong { display: block; color: var(--text-primary); font-size: 13px; }
-.nursing-info p { margin: 4px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.nursing-info strong { display: block; color: var(--color-text-primary); font-size: var(--text-body); }
+.nursing-info p { margin: 4px 0 0; color: var(--color-text-secondary); font-size: var(--text-caption); line-height: 1.4; }
 .nursing-action {
   flex: 0 0 auto;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-md);
   padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  color: var(--color-primary);
   background: transparent;
   cursor: pointer;
 }
@@ -204,21 +205,21 @@ const nursingRadar = computed(() => {
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: var(--color-primary-bg);
-  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
 }
-.radar-row:hover { border-color: rgba(103,232,249,.32); }
-.radar-row strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.radar-row span { font-size: 12px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+.radar-row:hover { border-color: var(--color-primary-hover); }
+.radar-row strong { font-size: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radar-row span { font-size: var(--text-caption); color: var(--color-primary); font-weight: var(--weight-bold); white-space: nowrap; }
 
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
 }
 
 @media (max-width: 1024px) {

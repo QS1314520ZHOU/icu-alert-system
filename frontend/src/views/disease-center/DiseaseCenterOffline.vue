@@ -108,7 +108,9 @@
         </div>
         <div class="modal__footer">
           <button class="btn btn--outline" @click="showUpload = false">取消</button>
-          <button class="btn btn--primary" @click="uploadPackage">上传并验证</button>
+          <button class="btn btn--primary" :disabled="uploading" @click="uploadPackage">
+            {{ uploading ? '登记中...' : '上传并验证' }}
+          </button>
         </div>
       </div>
     </div>
@@ -116,13 +118,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { getOfflinePackages } from '../../api/diseaseCenter'
+import {
+  getOfflinePackages,
+  createOfflinePackage,
+  buildOfflinePackage,
+  publishOfflinePackage,
+} from '../../api/diseaseCenter'
 
 // 状态
 const showUpload = ref(false)
 const uploadForm = ref({ type: 'icd', signature: '' })
+const selectedFile = ref<File | null>(null)
+const uploading = ref(false)
 
 // 包数据
 interface OfflinePackage {
@@ -168,62 +177,100 @@ function formatFileSize(bytes: number): string {
 
 // 状态文本
 function statusText(status: string) {
-  const map: Record<string, string> = { draft: '草稿', validating: '验证中', published: '已发布', deprecated: '已废弃', rollback: '已回滚' }
+  const map: Record<string, string> = { draft: '草稿', validating: '验证中', building: '构建中', built: '已构建', published: '已发布', deprecated: '已废弃', rollback: '已回滚' }
   return map[status] || status
 }
 
 // 验证包
-function verifyPackage(pkg: OfflinePackage) {
-  message.info(`正在验证 ${pkg.name}...`)
-  // TODO: 实现验证逻辑
+function verifyPackage(_pkg: OfflinePackage) {
+  message.info('后端暂未提供离线包验证接口')
 }
 
-// 发布包
+// 发布包（后端要求先构建再发布）
 function publishPackage(pkg: OfflinePackage) {
   Modal.confirm({
     title: '发布确认',
-    content: `确认发布 ${pkg.name} ${pkg.version}？`,
+    content: `确认发布 ${pkg.name} ${pkg.version}？将先构建再发布。`,
     okText: '确认',
     cancelText: '取消',
-    onOk() {
-      // TODO: 调用发布API
-      message.success('发布成功')
+    async onOk() {
+      try {
+        await buildOfflinePackage(pkg.id)
+        await publishOfflinePackage(pkg.id)
+        message.success('发布成功')
+        await loadPackages()
+      } catch (e: any) {
+        message.error('发布失败: ' + (e?.message || '未知错误'))
+        throw e
+      }
     },
   })
 }
 
 // 回滚包
-function rollbackPackage(pkg: OfflinePackage) {
-  Modal.confirm({
-    title: '回滚确认',
-    content: `确认回滚 ${pkg.name} 到上一版本？`,
-    okText: '确认',
-    cancelText: '取消',
-    onOk() {
-      // TODO: 实现回滚逻辑
-      message.info('回滚功能开发中')
-    },
-  })
+function rollbackPackage(_pkg: OfflinePackage) {
+  message.info('后端暂未提供离线包回滚接口')
 }
 
 // 差异预览
-function previewDiff(_pkg: OfflinePackage) {
-  message.info('差异预览功能开发中')
+function previewDiff(pkg: OfflinePackage) {
+  const rows: Array<[string, string]> = [
+    ['包名称', pkg.name],
+    ['包版本', pkg.version || '-'],
+    ['源版本', pkg.source_version || '-'],
+    ['状态', statusText(pkg.status)],
+    ['SHA-256', pkg.sha256 || '-'],
+    ['差异摘要', pkg.diff_summary || '暂无差异摘要数据'],
+    ['影响摘要', pkg.impact_summary || '暂无影响摘要数据'],
+  ]
+  Modal.info({
+    title: `差异预览 - ${pkg.name}`,
+    content: () =>
+      h(
+        'div',
+        rows.map(([k, v]) =>
+          h('div', { style: 'display:flex;gap:8px;margin-bottom:6px;' }, [
+            h('span', { style: 'min-width:70px;color:#667085;flex-shrink:0;' }, k),
+            h('span', { style: 'word-break:break-all;' }, v),
+          ])
+        )
+      ),
+    okText: '关闭',
+    width: 520,
+  })
 }
 
 // 文件选择
 function onFileSelect(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
+  selectedFile.value = file || null
   if (file) {
     message.info(`已选择文件: ${file.name}`)
   }
 }
 
-// 上传包
-function uploadPackage() {
-  // TODO: 实现上传逻辑
-  message.info('上传功能开发中')
-  showUpload.value = false
+// 上传包（登记包信息）
+async function uploadPackage() {
+  if (!selectedFile.value) {
+    message.warning('请先选择文件')
+    return
+  }
+  uploading.value = true
+  try {
+    await createOfflinePackage({
+      name: selectedFile.value.name,
+      package_type: uploadForm.value.type,
+      signature: uploadForm.value.signature || '',
+    })
+    showUpload.value = false
+    selectedFile.value = null
+    message.success('离线包信息已登记（后端暂无文件传输接口，文件内容未上传）')
+    await loadPackages()
+  } catch (e: any) {
+    message.error('登记失败: ' + (e?.message || '未知错误'))
+  } finally {
+    uploading.value = false
+  }
 }
 
 // 加载数据
@@ -248,204 +295,78 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.offline-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+<style scoped>.offline-page { display: flex; flex-direction: column; gap: 20px }
 
-/* 工具栏 */
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 20px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #E3E7EC);
-}
+/* 工具栏 */ .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
+.toolbar__title { font-size: var(--text-section-title, 15px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 }
+.toolbar__hint { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); margin-top: 2px }
 
-.toolbar__title { font-size: 16px; font-weight: 600; color: var(--color-text-primary, #18212B); margin: 0; }
-.toolbar__hint { font-size: 13px; color: var(--color-text-secondary, #667085); margin-top: 2px; }
+/* 包网格 */ .packages-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px }
 
-/* 包网格 */
-.packages-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 16px;
-}
+/* 包卡片 */ .package-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); overflow: hidden; transition: all 0.15s }
+.package-card:hover { border-color: var(--color-primary, #2563EB) }
+.package-header { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
+.package-icon { font-size: 28px }
+.package-info { flex: 1; min-width: 0 }
+.package-name { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 }
+.package-type { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 
-/* 包卡片 */
-.package-card {
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  overflow: hidden;
-  transition: all 0.15s;
-}
+/* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
+.status-badge--published { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1) }
+.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1) }
+.status-badge--deprecated { color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8) }
+.package-body { padding: 16px }
 
-.package-card:hover {
-  border-color: var(--color-primary, #2563EB);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
-}
+/* 版本信息 */ .package-versions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px }
+.version-item { display: flex; flex-direction: column; gap: 2px }
+.version-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.version-value { font-size: var(--text-body, 13px); font-weight: 500; color: var(--color-text-primary, #111827); font-family: 'SF Mono', 'Consolas', monospace }
 
-.package-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
+/* 元数据 */ .package-meta { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--color-divider, #F0F2F5) }
+.meta-item { display: flex; align-items: center; gap: 8px }
+.meta-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); min-width: 60px }
+.meta-value { font-size: var(--text-caption, 12px); color: var(--color-text-primary, #111827) }
+.meta-value--code { font-family: 'SF Mono', 'Consolas', monospace; font-size: var(--text-caption, 12px); padding: 1px 4px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-tag, 4px) }
 
-.package-icon { font-size: 28px; }
-.package-info { flex: 1; min-width: 0; }
-.package-name { font-size: 14px; font-weight: 600; color: var(--color-text-primary, #18212B); margin: 0; }
-.package-type { font-size: 12px; color: var(--color-text-secondary, #667085); }
+/* 操作栏 */ .package-footer { display: flex; gap: 8px; padding: 12px 16px; background: var(--color-bg-surface-secondary, #F1F4F8); border-top: 1px solid var(--color-divider, #F0F2F5) }
 
-/* 状态徽章 */
-.status-badge { display: inline-flex; padding: 2px 8px; font-size: 11px; font-weight: 500; border-radius: 4px; }
-.status-badge--published { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1); }
-.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1); }
-.status-badge--deprecated { color: var(--color-text-secondary, #667085); background: var(--color-bg-surface-secondary, #F1F3F5); }
+/* 空卡片 */ .empty-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 60px 40px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px dashed var(--color-border, #E5E7EB); grid-column: 1 / -1 }
+.empty-icon { font-size: 48px; opacity: 0.4 }
+.empty-text { font-size: var(--text-section-title, 15px); font-weight: 500; color: var(--color-text-primary, #111827) }
+.empty-hint { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563) }
 
-.package-body { padding: 16px; }
+/* 弹窗 */ .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000 }
+.modal { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); width: 480px; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden }
+.modal__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
+.modal__title { font-size: var(--text-section-title, 15px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 }
+.modal__close { background: transparent; border: none; color: var(--color-text-secondary, #4B5563); cursor: pointer; padding: 4px; border-radius: var(--radius-tag, 4px) }
+.modal__close:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
+.modal__body { padding: 20px; display: flex; flex-direction: column; gap: 16px }
 
-/* 版本信息 */
-.package-versions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
-}
+/* 上传区域 */ .upload-area { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 20px; border: 2px dashed var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; position: relative }
+.upload-area:hover { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.02) }
+.upload-text { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827); margin: 0 }
+.upload-hint { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin: 0 }
+.upload-input { position: absolute; inset: 0; opacity: 0; cursor: pointer }
+.modal__footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--color-divider, #F0F2F5) }
 
-.version-item { display: flex; flex-direction: column; gap: 2px; }
-.version-label { font-size: 11px; color: var(--color-text-secondary, #667085); }
-.version-value { font-size: 13px; font-weight: 500; color: var(--color-text-primary, #18212B); font-family: 'SF Mono', 'Consolas', monospace; }
+/* 表单 */ .form-item { display: flex; flex-direction: column; gap: 6px }
+.form-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-weight: 500 }
+.form-input, .form-select { padding: 8px 12px; font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); outline: none }
+.form-input:focus, .form-select:focus { border-color: var(--color-primary, #2563EB) }
 
-/* 元数据 */
-.package-meta { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
-.meta-item { display: flex; align-items: center; gap: 8px; }
-.meta-label { font-size: 11px; color: var(--color-text-secondary, #667085); min-width: 60px; }
-.meta-value { font-size: 12px; color: var(--color-text-primary, #18212B); }
-.meta-value--code { font-family: 'SF Mono', 'Consolas', monospace; font-size: 11px; padding: 1px 4px; background: var(--color-bg-surface-secondary, #F1F3F5); border-radius: 3px; }
-
-/* 操作栏 */
-.package-footer {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border-top: 1px solid #f0f0f0;
-}
-
-/* 空卡片 */
-.empty-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px 40px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px dashed var(--color-border, #E3E7EC);
-  grid-column: 1 / -1;
-}
-
-.empty-icon { font-size: 48px; opacity: 0.4; }
-.empty-text { font-size: 16px; font-weight: 500; color: var(--color-text-primary, #18212B); }
-.empty-hint { font-size: 13px; color: var(--color-text-secondary, #667085); }
-
-/* 弹窗 */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: #fff;
-  border-radius: 12px;
-  width: 480px;
-  max-width: 90vw;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.modal__title { font-size: 16px; font-weight: 600; color: var(--color-text-primary, #18212B); margin: 0; }
-
-.modal__close { background: transparent; border: none; color: var(--color-text-secondary, #667085); cursor: pointer; padding: 4px; border-radius: 4px; }
-.modal__close:hover { background: var(--color-bg-surface-secondary, #F1F3F5); }
-
-.modal__body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-
-/* 上传区域 */
-.upload-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 40px 20px;
-  border: 2px dashed var(--color-border, #E3E7EC);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-  position: relative;
-}
-
-.upload-area:hover { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.02); }
-
-.upload-text { font-size: 14px; color: var(--color-text-primary, #18212B); margin: 0; }
-.upload-hint { font-size: 12px; color: var(--color-text-secondary, #667085); margin: 0; }
-
-.upload-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.modal__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 20px;
-  border-top: 1px solid #f0f0f0;
-}
-
-/* 表单 */
-.form-item { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; color: var(--color-text-secondary, #667085); font-weight: 500; }
-.form-input, .form-select { padding: 8px 12px; font-size: 13px; border: 1px solid var(--color-border, #D0D5DD); border-radius: 6px; background: #fff; color: var(--color-text-primary, #18212B); outline: none; }
-.form-input:focus, .form-select:focus { border-color: var(--color-primary, #2563EB); }
-
-/* 按钮 */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; white-space: nowrap; }
-.btn--sm { padding: 4px 10px; font-size: 12px; }
-.btn--outline { background: #fff; color: var(--color-text-primary, #18212B); border-color: var(--color-border, #D0D5DD); }
-.btn--outline:hover { background: var(--color-bg-surface-secondary, #F9FAFB); border-color: #B0B8C4; }
-.btn--primary { background: var(--color-primary, #2563EB); color: #fff; border-color: var(--color-primary, #2563EB); }
-.btn--primary:hover { background: #1D4FD8; }
+/* 按钮 */ .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; font-size: var(--text-body, 13px); font-weight: 500; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent; white-space: nowrap }
+.btn--sm { padding: 4px 10px; font-size: var(--text-caption, 12px) }
+.btn--outline { background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); border-color: var(--color-border, #E5E7EB) }
+.btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border-strong, #D1D5DB) }
+.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 
 /* 响应式 */
-@media (max-width: 768px) {
-  .packages-grid { grid-template-columns: 1fr; }
-  .toolbar { flex-direction: column; align-items: flex-start; }
+
+@media (max-width: 768px) {.packages-grid { grid-template-columns: 1fr }
+.toolbar { flex-direction: column; align-items: flex-start }
+
 }
+
 </style>

@@ -2,43 +2,54 @@
   <div class="disease-cases-page">
     <!-- 筛选区 -->
     <div class="filter-bar">
-      <a-select
-        v-model:value="filterDisease"
-        placeholder="筛选病种"
-        allow-clear
-        style="width: 180px"
-        @change="handleFilter"
-      >
-        <a-select-option v-for="d in diseaseOptions" :key="d.id" :value="d.id">
-          {{ d.name }}
-        </a-select-option>
-      </a-select>
+      <!-- 疾病筛选 chips -->
+      <div class="filter-section">
+        <span class="filter-label">疾病筛查</span>
+        <div class="chip-group">
+          <span
+            v-for="d in diseaseConditions"
+            :key="d.code"
+            :class="['filter-chip', { active: filterDiseaseCode === d.code }]"
+            :style="filterDiseaseCode === d.code ? { background: d.color + '18', borderColor: d.color, color: d.color } : {}"
+            @click="toggleDiseaseChip(d.code)"
+          >
+            <i class="chip-dot" :style="{ background: d.color }"></i>
+            {{ d.label }}
+          </span>
+        </div>
+      </div>
 
-      <a-select
-        v-model:value="filterStatus"
-        placeholder="病例状态"
-        allow-clear
-        style="width: 150px"
-        @change="handleFilter"
-      >
-        <a-select-option v-for="s in statusOptions" :key="s.value" :value="s.value">
-          {{ s.label }}
-        </a-select-option>
-      </a-select>
+      <!-- 状态筛选 chips -->
+      <div class="filter-section">
+        <span class="filter-label">病例状态</span>
+        <div class="chip-group">
+          <span
+            v-for="s in statusOptions"
+            :key="s.value"
+            :class="['filter-chip', { active: filterStatus === s.value }]"
+            :style="filterStatus === s.value ? { background: s.color + '18', borderColor: s.color, color: s.color } : {}"
+            @click="toggleStatusChip(s.value)"
+          >
+            <i class="chip-dot" :style="{ background: s.color }"></i>
+            {{ s.label }}
+          </span>
+        </div>
+      </div>
 
-      <a-input-search
-        v-model:value="searchText"
-        placeholder="搜索患者 ID"
-        style="width: 220px"
-        @search="handleFilter"
-      />
-
-      <div class="filter-spacer" />
-
-      <a-button @click="handleFilter">
-        <template #icon><ReloadOutlined /></template>
-        刷新
-      </a-button>
+      <!-- 搜索 + 刷新 -->
+      <div class="filter-actions">
+        <a-input-search
+          v-model:value="searchText"
+          placeholder="搜索患者 ID"
+          style="width: 220px"
+          @search="handleFilter"
+          allow-clear
+        />
+        <a-button @click="handleFilter">
+          <template #icon><ReloadOutlined /></template>
+          刷新
+        </a-button>
+      </div>
     </div>
 
     <!-- 病例表格 -->
@@ -57,8 +68,8 @@
         </template>
 
         <template v-if="column.key === 'disease_name'">
-          <a-tag color="var(--color-primary-light, #e6f7f5)">
-            <span style="color: var(--color-primary)">{{ record.disease_name || record.disease_code }}</span>
+          <a-tag color="var(--color-primary-bg, #EFF6FF)">
+            <span style="color: var(--color-primary, #2563EB)">{{ record.disease_name || record.disease_code }}</span>
           </a-tag>
         </template>
 
@@ -117,36 +128,53 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
-import { getDiseases, getAllCases, confirmCase } from '@/api/diseaseCenter'
-import type { DiseaseCase, Disease } from '@/api/diseaseCenter'
+import { getAllCases, confirmCase } from '@/api/diseaseCenter'
+import type { DiseaseCase } from '@/api/diseaseCenter'
 
 const router = useRouter()
 
 // --- filter state ---
-const filterDisease = ref<string | undefined>(undefined)
+const filterDiseaseCode = ref('')
 const filterStatus = ref<string | undefined>(undefined)
+
+// 8个疾病筛查条件（code 需与后端 disease_code / 种子数据完全一致）
+const diseaseConditions = [
+  { code: 'PE', label: '肺栓塞', color: '#D92D20' },
+  { code: 'SAP', label: '重症急性胰腺炎', color: '#DC6803' },
+  { code: 'MODS', label: '多器官功能障碍综合征', color: '#F04438' },
+  { code: 'DIC', label: '弥散性血管内凝血', color: '#B42318' },
+  { code: 'SEPTIC_SHOCK', label: '感染性休克', color: '#E04F1A' },
+  { code: 'AKI', label: '急性肾损伤', color: '#93370D' },
+  { code: 'ARDS', label: '急性呼吸窘迫综合征', color: '#B54708' },
+  { code: 'SEPSIS', label: '脓毒症', color: '#C4320A' },
+]
+
+function toggleDiseaseChip(code: string) {
+  filterDiseaseCode.value = filterDiseaseCode.value === code ? '' : code
+  handleFilter()
+}
+
+function toggleStatusChip(value: string) {
+  filterStatus.value = filterStatus.value === value ? undefined : value
+  handleFilter()
+}
 const searchText = ref('')
 const loading = ref(false)
 const cases = ref<DiseaseCase[]>([])
-const diseases = ref<Disease[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-const diseaseOptions = computed(() =>
-  diseases.value.map((d: Disease) => ({ id: d.id, name: d.name }))
-)
-
 const statusOptions = [
-  { value: 'screening', label: '筛查中' },
-  { value: 'screen_positive', label: '筛查阳性' },
-  { value: 'pending_review', label: '待临床确认' },
-  { value: 'confirmed', label: '已纳入确认' },
-  { value: 'excluded', label: '已排除' },
-  { value: 'pathway_active', label: '路径执行中' },
-  { value: 'completed', label: '已完成' },
-  { value: 'reconsideration_pending', label: '待复核' },
-  { value: 'reopened', label: '已重新打开' },
+  { value: 'screening', label: '筛查中', color: '#667085' },
+  { value: 'screen_positive', label: '筛查阳性', color: '#DC6803' },
+  { value: 'pending_review', label: '待临床确认', color: '#2563EB' },
+  { value: 'confirmed', label: '已纳入确认', color: '#16845B' },
+  { value: 'excluded', label: '已排除', color: '#98A2B3' },
+  { value: 'pathway_active', label: '路径执行中', color: '#1D6F63' },
+  { value: 'completed', label: '已完成', color: '#0D7C66' },
+  { value: 'reconsideration_pending', label: '待复核', color: '#B54708' },
+  { value: 'reopened', label: '已重新打开', color: '#F04438' },
 ]
 
 const columns = [
@@ -171,15 +199,15 @@ const pagination = computed(() => ({
 
 // --- helpers ---
 const statusColorMap: Record<string, string> = {
-  screening: 'default',
-  screen_positive: 'orange',
-  pending_review: 'var(--color-primary-light)',
-  confirmed: 'var(--color-success-light)',
-  excluded: 'default',
-  pathway_active: 'var(--color-primary)',
-  completed: 'var(--color-success)',
-  reconsideration_pending: 'orange',
-  reopened: 'orange',
+  screening: '#d9d9d9',
+  screen_positive: '#faad14',
+  pending_review: '#1677ff',
+  confirmed: '#52c41a',
+  excluded: '#d9d9d9',
+  pathway_active: '#1677ff',
+  completed: '#389e0d',
+  reconsideration_pending: '#fa8c16',
+  reopened: '#fa541c',
 }
 
 const statusLabelMap: Record<string, string> = {
@@ -195,7 +223,7 @@ const statusLabelMap: Record<string, string> = {
 }
 
 function getStatusColor(status: string) {
-  return statusColorMap[status] || 'default'
+  return statusColorMap[status] || '#d9d9d9'
 }
 
 function getStatusLabel(status: string) {
@@ -209,20 +237,11 @@ function getRiskClass(level: string) {
 }
 
 // --- data loading ---
-async function loadDiseases() {
-  try {
-    const res = await getDiseases()
-    diseases.value = res.data
-  } catch {
-    // diseases list optional
-  }
-}
-
 async function loadCases() {
   loading.value = true
   try {
     const res = await getAllCases({
-      disease_id: filterDisease.value,
+      disease_code: filterDiseaseCode.value || undefined,
       status: filterStatus.value,
       patient_id: searchText.value || undefined,
       page: currentPage.value,
@@ -287,52 +306,41 @@ async function handleConfirmSubmit() {
 }
 
 onMounted(() => {
-  loadDiseases()
   loadCases()
 })
 </script>
 
-<style scoped>
-.disease-cases-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+<style scoped>.disease-cases-page { display: flex; flex-direction: column; gap: 16px }
+.filter-bar { display: flex; flex-direction: column; gap: 14px; padding: 16px; background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-lg, 10px) }
+.filter-section { display: flex; align-items: flex-start; gap: 10px }
+.filter-label { flex-shrink: 0; min-width: 64px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); line-height: 28px }
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px }
+.filter-chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-secondary, #4B5563); font-size: var(--text-caption, 12px); font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap }
+.filter-chip:hover { border-color: var(--color-primary, #2563EB); color: var(--color-primary, #2563EB) }
+.filter-chip.active { font-weight: 600 }
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0 }
+.filter-actions { display: flex; align-items: center; gap: 10px }
+.risk-high { color: var(--color-danger, #D92D20); font-weight: 600 }
+.risk-medium { color: var(--color-warning, #B54708); font-weight: 500 }
+.risk-low { color: var(--color-success, #16845B) }
+:deep(.ant-table) { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px) }
+:deep(.ant-tag) { border-radius: var(--radius-md, 6px) }
 
-.filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 12px);
-}
 
-.filter-spacer {
-  flex: 1;
+/* ── 表格规范 §7 ── */
+:deep(.ant-table-thead > tr > th) {
+  background: var(--color-bg-surface-secondary, #F1F4F8);
+  color: var(--color-text-secondary, #4B5563);
+  font-size: var(--text-label, 12px);
+  font-weight: var(--text-table-header-weight, 600);
 }
-
-.risk-high {
-  color: var(--color-error, #D92D20);
-  font-weight: 600;
+:deep(.ant-table-thead > tr > th::before) { display: none !important }
+:deep(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid var(--color-divider, #F0F2F5);
+  font-size: var(--text-table, 13px);
+  color: var(--color-text-primary, #111827);
 }
-
-.risk-medium {
-  color: var(--color-warning, #DC6803);
-  font-weight: 500;
-}
-
-.risk-low {
-  color: var(--color-success, #16845B);
-}
-
-:deep(.ant-table) {
-  background: var(--color-bg-surface, #fff);
-  border-radius: var(--radius-lg, 12px);
-}
-
-:deep(.ant-tag) {
-  border-radius: var(--radius-md, 8px);
-}
+:deep(.ant-table-tbody > tr:hover > td) { background: var(--color-bg-inset, #E9EEF5) }
+:deep(.ant-table-tbody > tr > td) { font-variant-numeric: tabular-nums }
+:deep(.ant-table-pagination) { margin-bottom: 0 !important }
 </style>

@@ -21,7 +21,8 @@
           <line v-for="i in 5" :key="`grid-${i}`"
             :x1="0" :y1="i * (chartHeight / 6)"
             :x2="chartWidth" :y2="i * (chartHeight / 6)"
-            stroke="#f0f0f0" stroke-width="1"
+            class="grid-line"
+            stroke-width="1"
           />
           <!-- 数据线 -->
           <polyline
@@ -45,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import { Empty as AEmpty, Spin as ASpin } from 'ant-design-vue'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 
 const props = defineProps<{
@@ -151,6 +153,10 @@ onMounted(() => {
   min-height: 200px;
 }
 
+.trend-svg .grid-line {
+  stroke: var(--color-divider);
+}
+
 .chart-loading {
   display: flex;
   flex-direction: column;
@@ -158,7 +164,7 @@ onMounted(() => {
   justify-content: center;
   gap: 8px;
   padding: 40px 0;
-  color: #999;
+  color: var(--color-text-tertiary);
 }
 
 .chart-content {
@@ -178,8 +184,8 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
   transition: opacity 0.2s;
 }
 
@@ -206,11 +212,11 @@ onMounted(() => {
 .chart-info {
   display: flex;
   gap: 16px;
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
 }
 
 .info-forecast {
-  color: #1890ff;
+  color: var(--color-primary);
 }
 </style>

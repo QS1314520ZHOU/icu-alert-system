@@ -20,24 +20,24 @@
    ============================================ */
 :root {
   /* 页面标题 */
-  --text-page-title: 24px;
+  --text-page-title: 20px;
   --text-page-title-weight: 700;
 
   /* 页面副标题 */
-  --text-page-subtitle: 14px;
+  --text-page-subtitle: 13px;
   --text-page-subtitle-weight: 400;
 
   /* 区域标题 */
-  --text-section-title: 16px;
-  --text-section-title-weight: 650;
+  --text-section-title: 15px;
+  --text-section-title-weight: 600;
 
   /* 卡片标题 */
-  --text-card-title: 14px;
-  --text-card-title-weight: 650;
+  --text-card-title: 13px;
+  --text-card-title-weight: 600;
 
   /* 正文 */
-  --text-body: 14px;
-  --text-body-line-height: 1.5;
+  --text-body: 13px;
+  --text-body-line-height: 1.55;
   --text-body-weight: 400;
 
   /* 辅助文字 */
@@ -53,13 +53,13 @@
   --text-table: 13px;
   --text-table-header-weight: 600;
 
-  /* 指标数字 */
+  /* 指标数字（tabular-nums 见 .metric-number） */
   --text-metric-normal: 20px;
-  --text-metric-key: 24px;
+  --text-metric-key: 26px;
   --text-metric-monitor: 28px;  /* 医疗监护核心值最大 */
 
   /* 禁止出现的字号 */
-  /* 普通页面禁止 32px 以上大数字 */
+  /* 普通页面禁止 32px 以上大数字（BigScreen/BedSideScreen 豁免） */
   /* 普通模块标题禁止超过 28px */
   /* 移动端正文字禁止小于 14px */
 }
@@ -78,28 +78,44 @@
    颜色系统 - 浅色临床工作台
    ============================================ */
 :root {
-  /* 页面背景 */
-  --color-bg-page: #F6F7F9;
+  /* 页面背景（冷灰蓝） */
+  --color-bg-page: #F6F8FB;
 
   /* 主要表面 */
   --color-bg-surface: #FFFFFF;
 
   /* 次级表面 */
-  --color-bg-surface-secondary: #F1F3F5;
+  --color-bg-surface-secondary: #F1F4F8;
+
+  /* hover/进度槽浅底 */
+  --color-bg-inset: #E9EEF5;
 
   /* 主要文字 */
-  --color-text-primary: #18212B;
+  --color-text-primary: #111827;
 
   /* 次级文字 */
-  --color-text-secondary: #667085;
+  --color-text-secondary: #4B5563;
+
+  /* 三级文字 */
+  --color-text-tertiary: #9CA3AF;
 
   /* 边框 */
-  --color-border: #E3E7EC;
+  --color-border: #E5E7EB;
+  --color-border-strong: #D1D5DB;
+  --color-divider: #F0F2F5;
 
   /* 主操作蓝 */
   --color-primary: #2563EB;
-  --color-primary-hover: #1D4ED8;
-  --color-primary-bg: rgba(37, 99, 235, 0.08);
+  --color-primary-hover: #3B82F6;
+  --color-primary-bg: #EFF6FF;
+
+  /* 辅助青色 - 数据、趋势 */
+  --color-accent: #0891B2;
+  --accent: #0891B2;
+
+  /* AI紫 - AI生成内容 */
+  --color-ai: #7C3AED;
+  --color-ai-light: #F5F3FF;
 
   /* 危急红 - 需要立即干预 */
   --color-danger: #D92D20;
@@ -146,9 +162,7 @@
   --color-info-bg: #EAF4FF;
   --color-info-border: #84CAFF;
 
-  /* AI紫色 - AI生成内容 */
-  --color-ai: #6E5AE6;
-  --color-ai-light: #F0EDFF;
+  /* AI紫色 - AI生成内容（定义见上方 --color-ai） */
 
   /* 未知/缺失灰 */
   --color-unknown: #98A2B3;
@@ -215,7 +229,7 @@
   /* 普通圆角 */
   --radius-sm: 4px;
   --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-lg: 10px;
 
   /* 大容器圆角 */
   --radius-xl: 10px;
@@ -308,6 +322,8 @@
   font-family: var(--font-digit);
   font-weight: 700;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .metric-number--normal {

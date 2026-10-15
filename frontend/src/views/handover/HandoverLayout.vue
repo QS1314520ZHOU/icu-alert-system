@@ -12,6 +12,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #F4F7FB;
+  background: var(--color-bg-page);
 }
 </style>

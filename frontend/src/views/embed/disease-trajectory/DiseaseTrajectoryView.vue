@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEmbedBridge } from '../../../composables/useEmbedBridge'
 import { getAiRiskForecast } from '../../../api'
@@ -199,43 +199,43 @@ onMounted(() => {
   sendUpdateTitle('疾病轨迹')
   loadData()
 })
+
+// 直接渲染模式下组件会被复用：切换患者时路由参数变化需手动重载
+watch(patientId, (id, prev) => {
+  if (id && id !== prev) loadData()
+})
 </script>
 
-<style scoped>
-.disease-trajectory { display: flex; flex-direction: column; gap: 14px; }
+<style scoped>.disease-trajectory { display: flex; flex-direction: column; gap: 14px }
+.dt-window-selector { display: flex; align-items: center; gap: 8px; background: var(--color-bg-surface, #FFFFFF); padding: 10px 14px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
+.dt-window-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-weight: 500 }
+.dt-window-btn { padding: 4px 12px; border-radius: var(--radius-tag, 4px); border: 1px solid var(--color-border, #E5E7EB); background: var(--color-bg-surface, #FFFFFF); font-size: var(--text-caption, 12px); cursor: pointer; transition: all 0.15s }
+.dt-window-btn--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.dt-timeline-card, .dt-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 16px; border: 1px solid var(--color-border, #E5E7EB) }
+.dt-card-title { margin: 0 0 12px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.dt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.dt-paths-list { display: flex; flex-direction: column; gap: 10px }
+.dt-path-item { display: flex; flex-direction: column; gap: 4px }
+.dt-path-header { display: flex; align-items: center; gap: 6px }
+.dt-path-icon { font-size: 10px }
+.dt-path--stable { color: var(--color-normal, #12A66A) }
+.dt-path--warning { color: var(--color-warning, #B54708) }
+.dt-path--high { color: var(--color-danger, #D92D20) }
+.dt-path--critical { color: var(--color-critical, #D92D20) }
+.dt-path-name { font-size: var(--text-caption, 12px); font-weight: 500 }
+.dt-path-prob { font-size: var(--text-body, 13px); font-weight: 700; font-family: 'Rajdhani', monospace; margin-left: auto }
+.dt-path-bar { height: 4px; background: var(--color-bg-inset, #E9EEF5); border-radius: var(--radius-tag, 4px); overflow: hidden }
+.dt-path-fill { height: 100%; border-radius: var(--radius-tag, 4px); transition: width 0.4s ease }
+.dt-fill--stable { background: var(--color-normal, #12A66A) }
+.dt-fill--warning { background: var(--color-warning, #B54708) }
+.dt-fill--high { background: var(--color-danger, #D92D20) }
+.dt-fill--critical { background: var(--color-critical, #D92D20) }
+.dt-path-desc { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
+.dt-empty { text-align: center; padding: 24px; color: var(--color-text-tertiary, #9CA3AF); font-size: var(--text-body, 13px) }
+.dt-disclaimer { padding: 10px 16px; background: var(--color-warning-soft-bg, #FFF9D8); border: 1px solid var(--color-warning-soft-border, #FFE58F); border-radius: var(--radius-md, 6px); font-size: var(--text-caption, 12px); color: var(--color-warning, #B54708) }
 
-.dt-window-selector { display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px 14px; border-radius: 8px; border: 1px solid #DCE3EC; }
-.dt-window-label { font-size: 12px; color: #52606D; font-weight: 500; }
-.dt-window-btn { padding: 4px 12px; border-radius: 4px; border: 1px solid #DCE3EC; background: #fff; font-size: 12px; cursor: pointer; transition: all 0.15s; }
-.dt-window-btn--active { background: #2563EB; color: #fff; border-color: #2563EB; }
+@media (max-width: 1200px) {.dt-row { grid-template-columns: 1fr }
+ }
 
-.dt-timeline-card, .dt-card { background: #fff; border-radius: 8px; padding: 16px; border: 1px solid #DCE3EC; }
-.dt-card-title { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: #182230; }
-
-.dt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-.dt-paths-list { display: flex; flex-direction: column; gap: 10px; }
-.dt-path-item { display: flex; flex-direction: column; gap: 4px; }
-.dt-path-header { display: flex; align-items: center; gap: 6px; }
-.dt-path-icon { font-size: 10px; }
-.dt-path--stable { color: #16A34A; }
-.dt-path--warning { color: #F59E0B; }
-.dt-path--high { color: #DC2626; }
-.dt-path--critical { color: #991B1B; }
-.dt-path-name { font-size: 12px; font-weight: 500; }
-.dt-path-prob { font-size: 13px; font-weight: 700; font-family: 'Rajdhani', monospace; margin-left: auto; }
-.dt-path-bar { height: 4px; background: #E8EEF5; border-radius: 2px; overflow: hidden; }
-.dt-path-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
-.dt-fill--stable { background: #16A34A; }
-.dt-fill--warning { background: #F59E0B; }
-.dt-fill--high { background: #DC2626; }
-.dt-fill--critical { background: #991B1B; }
-.dt-path-desc { font-size: 11px; color: #94A3B8; }
-
-.dt-empty { text-align: center; padding: 24px; color: #94A3B8; font-size: 13px; }
-
-.dt-disclaimer { padding: 10px 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; font-size: 12px; color: #92400E; }
-
-@media (max-width: 1200px) { .dt-row { grid-template-columns: 1fr; } }
 </style>
 

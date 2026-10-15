@@ -3,16 +3,16 @@
     <!-- 概览行 -->
     <div class="sc-overview-row">
       <div class="sc-stat-card">
-        <span class="sc-stat-value">{{ summary.matched_cases || 0 }}</span>
         <span class="sc-stat-label">匹配病例</span>
+        <span class="sc-stat-value">{{ summary.matched_cases || 0 }}</span>
       </div>
       <div class="sc-stat-card">
         <span class="sc-stat-value">{{ avgSimilarity }}%</span>
         <span class="sc-stat-label">平均相似度</span>
       </div>
       <div class="sc-stat-card">
-        <span class="sc-stat-value">{{ summary.data_range || '—' }}</span>
         <span class="sc-stat-label">数据范围</span>
+        <span class="sc-stat-value">{{ summary.data_range || '—' }}</span>
       </div>
       <div class="sc-stat-card">
         <span class="sc-stat-value">{{ comparabilityScore }}%</span>
@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEmbedBridge } from '../../../composables/useEmbedBridge'
 import { getPatientSimilarCaseOutcomes } from '../../../api'
@@ -159,201 +159,56 @@ onMounted(() => {
   sendUpdateTitle('相似病例')
   loadData()
 })
+
+// 直接渲染模式下组件会被复用：切换患者时路由参数变化需手动重载
+watch(patientId, (id, prev) => {
+  if (id && id !== prev) loadData()
+})
 </script>
 
-<style scoped>
-.similar-cases {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+<style scoped>.similar-cases { display: flex; flex-direction: column; gap: 16px }
+.sc-overview-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px }
+.sc-stat-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 14px 16px; border: 1px solid var(--color-border, #E5E7EB); display: flex; flex-direction: column; align-items: center; gap: 4px }
+.sc-stat-value  {  font-size: var(--text-metric-key, 26px); font-weight: 700; font-family: var(--font-digit, monospace); color: var(--color-primary, #2563EB) ; font-variant-numeric: tabular-nums }
+.sc-stat-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.sc-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.sc-chart-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 16px; border: 1px solid var(--color-border, #E5E7EB) }
+.sc-chart-title { margin: 0 0 12px; font-size: var(--text-body, 13px); font-weight: 600 }
+.sc-chart-area { height: 260px }
+
+/* 结局 */ .sc-outcome-grid { display: flex; flex-direction: column; gap: 12px; padding: 8px 0 }
+.sc-outcome-item { display: grid; grid-template-columns: 1fr 80px 50px; align-items: center; gap: 8px }
+.sc-outcome-bar { height: 8px; background: var(--color-bg-inset, #E9EEF5); border-radius: var(--radius-tag, 4px); overflow: hidden }
+.sc-outcome-fill { height: 100%; border-radius: var(--radius-tag, 4px); transition: width 0.6s ease }
+.sc-outcome-fill--good { background: var(--color-normal, #12A66A) }
+.sc-outcome-fill--warn { background: var(--color-warning, #B54708) }
+.sc-outcome-fill--bad { background: var(--color-danger, #D92D20) }
+.sc-outcome-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.sc-outcome-value  {  font-size: var(--text-body, 13px); font-weight: 600; font-family: var(--font-digit, monospace); text-align: right ; font-variant-numeric: tabular-nums }
+
+/* 病例卡片 */ .sc-section-title { margin: 0 0 12px; font-size: var(--text-body, 13px); font-weight: 600 }
+.sc-cases-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px }
+.sc-case-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); overflow: hidden }
+.sc-case-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--color-bg-surface-secondary, #F1F4F8); border-bottom: 1px solid var(--color-border, #E5E7EB) }
+.sc-case-id { font-size: var(--text-body, 13px); font-weight: 600; font-family: var(--font-mono, monospace) }
+.sc-case-similarity  {  font-size: var(--text-body, 13px); font-weight: 700; font-family: var(--font-digit, monospace) ; font-variant-numeric: tabular-nums }
+.sc-sim-high { color: var(--color-normal, #12A66A) }
+.sc-sim-medium { color: var(--color-warning, #B54708) }
+.sc-sim-low { color: var(--color-text-tertiary, #9CA3AF) }
+.sc-case-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px }
+.sc-case-row { display: flex; justify-content: space-between; font-size: var(--text-caption, 12px) }
+.sc-case-row span:first-child { color: var(--color-text-secondary, #4B5563) }
+.sc-case-row span:last-child { font-weight: 500 }
+.sc-outcome-good { color: var(--color-normal, #12A66A) }
+.sc-outcome-bad { color: var(--color-danger, #D92D20) }
+.sc-case-footer { display: flex; gap: 8px; padding: 8px 14px 12px }
+.sc-case-btn { flex: 1; padding: 6px; font-size: var(--text-caption, 12px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF); cursor: pointer; transition: all 0.15s }
+.sc-case-btn:hover { background: var(--color-primary-bg, #EFF6FF); border-color: var(--color-primary, #2563EB); color: var(--color-primary, #2563EB) }
+
+@media (max-width: 1200px) {.sc-chart-row { grid-template-columns: 1fr }
+.sc-overview-row { grid-template-columns: repeat(2, 1fr) }
+
 }
 
-.sc-overview-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-.sc-stat-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid var(--border, #DCE3EC);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.sc-stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  font-family: var(--font-digit, monospace);
-  color: var(--primary, #2563EB);
-}
-
-.sc-stat-label {
-  font-size: 12px;
-  color: var(--text-secondary, #52606D);
-}
-
-.sc-chart-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.sc-chart-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid var(--border, #DCE3EC);
-}
-
-.sc-chart-title {
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.sc-chart-area {
-  height: 260px;
-}
-
-/* 结局 */
-.sc-outcome-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 8px 0;
-}
-
-.sc-outcome-item {
-  display: grid;
-  grid-template-columns: 1fr 80px 50px;
-  align-items: center;
-  gap: 8px;
-}
-
-.sc-outcome-bar {
-  height: 8px;
-  background: #E8EEF5;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.sc-outcome-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.6s ease;
-}
-
-.sc-outcome-fill--good { background: #16A34A; }
-.sc-outcome-fill--warn { background: #F59E0B; }
-.sc-outcome-fill--bad { background: #DC2626; }
-
-.sc-outcome-label {
-  font-size: 12px;
-  color: var(--text-secondary, #52606D);
-}
-
-.sc-outcome-value {
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-digit, monospace);
-  text-align: right;
-}
-
-/* 病例卡片 */
-.sc-section-title {
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.sc-cases-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-}
-
-.sc-case-card {
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--border, #DCE3EC);
-  overflow: hidden;
-}
-
-.sc-case-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  background: #F8FAFC;
-  border-bottom: 1px solid var(--border, #DCE3EC);
-}
-
-.sc-case-id {
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-mono, monospace);
-}
-
-.sc-case-similarity {
-  font-size: 13px;
-  font-weight: 700;
-  font-family: var(--font-digit, monospace);
-}
-
-.sc-sim-high { color: #16A34A; }
-.sc-sim-medium { color: #F59E0B; }
-.sc-sim-low { color: #94A3B8; }
-
-.sc-case-body {
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.sc-case-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-}
-
-.sc-case-row span:first-child { color: var(--text-secondary, #52606D); }
-.sc-case-row span:last-child { font-weight: 500; }
-
-.sc-outcome-good { color: #16A34A; }
-.sc-outcome-bad { color: #DC2626; }
-
-.sc-case-footer {
-  display: flex;
-  gap: 8px;
-  padding: 8px 14px 12px;
-}
-
-.sc-case-btn {
-  flex: 1;
-  padding: 6px;
-  font-size: 12px;
-  border: 1px solid var(--border, #DCE3EC);
-  border-radius: 4px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.sc-case-btn:hover {
-  background: var(--primary-light, #EFF6FF);
-  border-color: var(--primary, #2563EB);
-  color: var(--primary, #2563EB);
-}
-
-@media (max-width: 1200px) {
-  .sc-chart-row { grid-template-columns: 1fr; }
-  .sc-overview-row { grid-template-columns: repeat(2, 1fr); }
-}
 </style>
 

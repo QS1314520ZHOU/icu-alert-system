@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton, RadioButton as ARadioButton, RadioGroup as ARadioGroup } from 'ant-design-vue'
 import { computed } from 'vue'
 import { usePatientDetail } from '../../../composables/usePatientDetail'
 
@@ -88,7 +89,7 @@ function spo2Tone(v: any) { if (v == null) return 'default'; return v < 88 ? 'cr
 }
 
 .back-btn {
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .patient-identity {
@@ -99,26 +100,26 @@ function spo2Tone(v: any) { if (v == null) return 'default'; return v < 88 ? 'cr
 
 .patient-name {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-page-title);
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .patient-meta {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
 }
 
 .meta-bed {
   font-weight: 600;
-  color: #1890ff;
+  color: var(--color-primary);
 }
 
 .meta-sep {
-  color: #d9d9d9;
+  color: var(--color-border-strong);
 }
 
 .header-right {
@@ -137,24 +138,25 @@ function spo2Tone(v: any) { if (v == null) return 'default'; return v < 88 ? 'cr
   flex-direction: column;
   align-items: center;
   padding: 4px 10px;
-  border-radius: 6px;
-  background: #fafbfc;
-  border: 1px solid #f0f0f0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  border: 1px solid var(--color-divider);
 }
 
 .qv-label {
-  font-size: 10px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
   font-weight: 500;
 }
 
 .qv-value {
-  font-size: 16px;
+  font-size: var(--text-section-title);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
-.qv-critical .qv-value { color: #ff4d4f; }
-.qv-warning .qv-value { color: #faad14; }
-.qv-normal .qv-value { color: #52c41a; }
+.qv-critical .qv-value { color: var(--color-danger); }
+.qv-warning .qv-value { color: var(--color-warning); }
+.qv-normal .qv-value { color: var(--color-normal); }
 </style>

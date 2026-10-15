@@ -1,5 +1,6 @@
 <template>
   <div class="followup-layout">
+    <PageHeader title="随访管理" subtitle="PICS 长期随访与出院后计划" />
     <a-tabs v-model:activeKey="activeTab" type="card">
       <!-- PICS 长期随访 -->
       <a-tab-pane key="pics" tab="PICS 长期随访">
@@ -82,6 +83,8 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton, Empty as AEmpty, Spin as ASpin, TabPane as ATabPane, Tabs as ATabs, Tag as ATag } from 'ant-design-vue'
+import { PageHeader } from '../../components/common/design-system'
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePatientDetail } from '../../composables/usePatientDetail'
@@ -225,9 +228,9 @@ onMounted(() => {
 }
 
 .followup-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
 }
 
@@ -240,9 +243,9 @@ onMounted(() => {
 
 .section-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .task-list, .referral-list {
@@ -252,10 +255,10 @@ onMounted(() => {
 }
 
 .task-card, .referral-card {
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
   padding: 12px;
-  background: #fafbfc;
+  background: var(--color-bg-surface-secondary);
 }
 
 .task-header, .referral-header {
@@ -266,21 +269,21 @@ onMounted(() => {
 }
 
 .task-type, .referral-type {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .task-time, .referral-time {
   margin-left: auto;
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
 }
 
 .task-desc, .referral-reason {
   margin: 0 0 8px;
-  font-size: 13px;
-  color: #666;
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 

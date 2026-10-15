@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEmbedBridge } from '../../../composables/useEmbedBridge'
 import { getAiIntegratedRiskReport } from '../../../api'
@@ -286,321 +286,94 @@ onMounted(() => {
   sendUpdateTitle('综合风险')
   loadData()
 })
+
+// 直接渲染模式下组件会被复用：切换患者时路由参数变化需手动重载
+watch(patientId, (id, prev) => {
+  if (id && id !== prev) loadData()
+})
 </script>
 
-<style scoped>
-.integrated-risk {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 4px;
-}
+<style scoped>.integrated-risk { display: flex; flex-direction: column; gap: 16px; padding: 4px }
 
-/* ── 状态栏 ── */
-.ir-state {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 20px;
-  border-radius: 10px;
-  font-size: 14px;
-}
+/* ── 状态栏 ── */ .ir-state { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-radius: var(--radius-lg, 10px); font-size: var(--text-body, 13px) }
+.ir-state__icon { font-size: 18px }
+.ir-state--loading { background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-secondary, #4B5563); border: 1px solid var(--color-border, #E5E7EB) }
+.ir-state--error { background: var(--color-critical-bg, #FEECEB); color: var(--color-critical, #D92D20); border: 1px solid var(--color-critical-border, #FDA29B) }
+.ir-state--empty { background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-tertiary, #9CA3AF); border: 1px solid var(--color-border, #E5E7EB) }
+.ir-state--warning { background: var(--color-warning-soft-bg, #FFF9D8); color: var(--color-warning, #B54708); border: 1px solid var(--color-warning-soft-border, #FFE58F) }
+.ir-retry-btn { margin-left: auto; padding: 6px 16px; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); background: var(--color-bg-surface, #FFFFFF); cursor: pointer; font-size: var(--text-body, 13px); transition: all 0.2s }
+.ir-retry-btn:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border-strong, #D1D5DB) }
 
-.ir-state__icon { font-size: 18px; }
+/* ── 概览行：态势 + 器官状态 ── */ .ir-overview-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.ir-situation-card, .ir-organs-card, .ir-section { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); overflow: hidden }
+.ir-card-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--color-border, #E5E7EB) }
+.ir-card-title { margin: 0; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.ir-card-time { margin-left: auto; font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
+.ir-situation-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0 }
+.ir-dot--critical { background: var(--color-critical, #D92D20) }
+.ir-dot--high { background: var(--color-danger, #D92D20) }
+.ir-dot--warning { background: var(--color-warning, #B54708) }
+.ir-dot--normal { background: var(--color-normal, #12A66A) }
+.ir-situation-text { margin: 0; padding: 18px; font-size: var(--text-section-title, 15px); font-weight: 500; line-height: 1.6; color: var(--color-text-secondary, #4B5563) }
 
-.ir-state--loading { background: #F8FAFC; color: #52606D; border: 1px solid #E8EEF5; }
-.ir-state--error { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
-.ir-state--empty { background: #F8FAFC; color: #94A3B8; border: 1px solid #E8EEF5; }
-.ir-state--warning { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+/* ── 器官状态 ── */ .ir-organs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px }
+.ir-organ-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB); transition: all 0.2s }
+.ir-organ--normal { border-bottom: 3px solid var(--color-normal, #12A66A) }
+.ir-organ--impaired { border-bottom: 3px solid var(--color-warning, #B54708); background: var(--color-warning-soft-bg, #FFF9D8) }
+.ir-organ--failure { border-bottom: 3px solid var(--color-danger, #D92D20); background: var(--color-critical-bg, #FEECEB) }
+.ir-organ-icon { font-size: 28px }
+.ir-organ-name { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); font-weight: 500 }
+.ir-organ-status { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 
-.ir-retry-btn {
-  margin-left: auto;
-  padding: 6px 16px;
-  border: 1px solid #DCE3EC;
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-.ir-retry-btn:hover { background: #F8FAFC; border-color: #94A3B8; }
+/* ── 通用 section ── */ .ir-section-header { padding: 14px 18px; border-bottom: 1px solid var(--color-border, #E5E7EB) }
+.ir-section-title { margin: 0; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.ir-causal-text { font-size: var(--text-body, 13px); line-height: 1.6; color: var(--color-text-secondary, #4B5563); margin: 0; padding: 16px 18px }
 
-/* ── 概览行：态势 + 器官状态 ── */
-.ir-overview-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
+/* ── 因果链 ── */ .ir-causal-chain { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 16px 18px }
+.ir-chain-node { display: flex; align-items: center; gap: 6px }
+.ir-chain-content { padding: 10px 16px; border-radius: var(--radius-md, 6px); background: var(--color-bg-surface-secondary, #F1F4F8); border: 1px solid var(--color-border, #E5E7EB); text-align: center }
+.ir-chain--danger .ir-chain-content { background: var(--color-critical-bg, #FEECEB); border-color: var(--color-critical-border, #FDA29B) }
+.ir-chain--warning .ir-chain-content { background: var(--color-warning-soft-bg, #FFF9D8); border-color: var(--color-warning-soft-border, #FFE58F) }
+.ir-chain-label { display: block; font-size: var(--text-caption, 12px); font-weight: 600; color: var(--color-text-secondary, #4B5563) }
+.ir-chain-time { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); margin-top: 2px }
+.ir-chain-metric { display: block; font-size: var(--text-caption, 12px); font-weight: 600; color: var(--color-primary, #2563EB); font-family: 'Rajdhani', monospace; margin-top: 4px }
+.ir-chain-arrow { font-size: var(--text-section-title, 15px); color: var(--color-text-tertiary, #9CA3AF); margin: 0 2px }
 
-.ir-situation-card,
-.ir-organs-card,
-.ir-section {
-  background: #fff;
-  border-radius: 10px;
-  border: 1px solid #E8EEF5;
-  overflow: hidden;
-}
+/* ── 行动建议 ── */ .ir-actions-list { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px }
+.ir-action-item { display: flex; gap: 14px; padding: 14px 16px; border-radius: var(--radius-md, 6px); background: var(--color-bg-surface-secondary, #F1F4F8); border: 1px solid var(--color-border, #E5E7EB) }
+.ir-action--critical { border-left: 4px solid var(--color-critical, #D92D20) }
+.ir-action--high { border-left: 4px solid var(--color-danger, #D92D20) }
+.ir-action--medium { border-left: 4px solid var(--color-warning, #B54708) }
+.ir-action--low { border-left: 4px solid var(--color-normal, #12A66A) }
+.ir-action-badge { flex-shrink: 0; font-size: var(--text-caption, 12px); font-weight: 600; padding: 4px 10px; border-radius: var(--radius-md, 6px); background: var(--color-bg-inset, #E9EEF5); color: var(--color-text-secondary, #4B5563); height: fit-content }
+.ir-action--critical .ir-action-badge { background: var(--color-critical-bg, #FEECEB); color: var(--color-critical, #D92D20) }
+.ir-action--high .ir-action-badge { background: var(--color-critical-bg, #FEECEB); color: var(--color-danger, #D92D20) }
+.ir-action--medium .ir-action-badge { background: var(--color-warning-soft-bg, #FFF9D8); color: var(--color-warning, #B54708) }
+.ir-action-content { flex: 1; min-width: 0 }
+.ir-action-text { margin: 0; font-size: var(--text-body, 13px); line-height: 1.5; color: var(--color-text-secondary, #4B5563) }
+.ir-action-evidence { margin: 6px 0 0; font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); line-height: 1.4 }
 
-.ir-card-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 18px;
-  border-bottom: 1px solid #F0F4F8;
-}
-
-.ir-card-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #182230;
-}
-
-.ir-card-time {
-  margin-left: auto;
-  font-size: 11px;
-  color: #94A3B8;
-}
-
-.ir-situation-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.ir-dot--critical { background: #991B1B; }
-.ir-dot--high { background: #DC2626; }
-.ir-dot--warning { background: #F59E0B; }
-.ir-dot--normal { background: #16A34A; }
-
-.ir-situation-text {
-  margin: 0;
-  padding: 18px;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.6;
-  color: #334155;
-}
-
-/* ── 器官状态 ── */
-.ir-organs-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding: 16px;
-}
-
-.ir-organ-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 10px;
-  background: #F8FAFC;
-  border-radius: 8px;
-  border: 1px solid #E8EEF5;
-  transition: all 0.2s;
-}
-
-.ir-organ--normal { border-bottom: 3px solid #16A34A; }
-.ir-organ--impaired { border-bottom: 3px solid #F59E0B; background: #FFFBEB; }
-.ir-organ--failure { border-bottom: 3px solid #DC2626; background: #FEF2F2; }
-
-.ir-organ-icon { font-size: 28px; }
-.ir-organ-name { font-size: 12px; color: #64748B; font-weight: 500; }
-.ir-organ-status { font-size: 13px; font-weight: 600; color: #182230; }
-
-/* ── 通用 section ── */
-.ir-section-header {
-  padding: 14px 18px;
-  border-bottom: 1px solid #F0F4F8;
-}
-
-.ir-section-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #182230;
-}
-
-.ir-causal-text {
-  font-size: 13px;
-  line-height: 1.6;
-  color: #52606D;
-  margin: 0;
-  padding: 16px 18px;
-}
-
-/* ── 因果链 ── */
-.ir-causal-chain {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 16px 18px;
-}
-
-.ir-chain-node {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ir-chain-content {
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: #F8FAFC;
-  border: 1px solid #E8EEF5;
-  text-align: center;
-}
-
-.ir-chain--danger .ir-chain-content {
-  background: #FEF2F2;
-  border-color: #FECACA;
-}
-
-.ir-chain--warning .ir-chain-content {
-  background: #FFFBEB;
-  border-color: #FDE68A;
-}
-
-.ir-chain-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #334155;
-}
-
-.ir-chain-time {
-  display: block;
-  font-size: 10px;
-  color: #94A3B8;
-  margin-top: 2px;
-}
-
-.ir-chain-metric {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #2563EB;
-  font-family: 'Rajdhani', monospace;
-  margin-top: 4px;
-}
-
-.ir-chain-arrow {
-  font-size: 18px;
-  color: #CBD5E1;
-  margin: 0 2px;
-}
-
-/* ── 行动建议 ── */
-.ir-actions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px 18px;
-}
-
-.ir-action-item {
-  display: flex;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 8px;
-  background: #F8FAFC;
-  border: 1px solid #E8EEF5;
-}
-
-.ir-action--critical { border-left: 4px solid #991B1B; }
-.ir-action--high { border-left: 4px solid #DC2626; }
-.ir-action--medium { border-left: 4px solid #F59E0B; }
-.ir-action--low { border-left: 4px solid #16A34A; }
-
-.ir-action-badge {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: #E8EEF5;
-  color: #475569;
-  height: fit-content;
-}
-
-.ir-action--critical .ir-action-badge { background: #FEF2F2; color: #991B1B; }
-.ir-action--high .ir-action-badge { background: #FEF2F2; color: #DC2626; }
-.ir-action--medium .ir-action-badge { background: #FFFBEB; color: #92400E; }
-
-.ir-action-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.ir-action-text {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #334155;
-}
-
-.ir-action-evidence {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: #94A3B8;
-  line-height: 1.4;
-}
-
-/* ── 证据 ── */
-.ir-evidence-list {
-  display: flex;
-  flex-direction: column;
-  padding: 0 18px 12px;
-}
-
-.ir-evidence-item {
-  display: grid;
-  grid-template-columns: 80px 80px 1fr;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #F0F4F8;
-  font-size: 12px;
-  align-items: center;
-}
-
-.ir-evidence-item:last-child { border-bottom: none; }
-
-.ir-evidence-time {
-  color: #94A3B8;
-  font-family: 'Rajdhani', monospace;
-  font-size: 13px;
-}
-
-.ir-evidence-type {
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 11px;
-}
-
-.ir-ev--critical { background: #FEF2F2; color: #991B1B; }
-.ir-ev--high { background: #FEF2F2; color: #DC2626; }
-.ir-ev--warning { background: #FFFBEB; color: #92400E; }
-.ir-ev--info { background: #EFF6FF; color: #1E40AF; }
-
-.ir-evidence-text {
-  color: #475569;
-  line-height: 1.4;
-}
+/* ── 证据 ── */ .ir-evidence-list { display: flex; flex-direction: column; padding: 0 18px 12px }
+.ir-evidence-item { display: grid; grid-template-columns: 80px 80px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--color-border, #E5E7EB); font-size: var(--text-caption, 12px); align-items: center }
+.ir-evidence-item:last-child { border-bottom: none }
+.ir-evidence-time { color: var(--color-text-tertiary, #9CA3AF); font-family: 'Rajdhani', monospace; font-size: var(--text-body, 13px) }
+.ir-evidence-type { font-weight: 500; padding: 3px 8px; border-radius: var(--radius-tag, 4px); text-align: center; font-size: var(--text-caption, 12px) }
+.ir-ev--critical { background: var(--color-critical-bg, #FEECEB); color: var(--color-critical, #D92D20) }
+.ir-ev--high { background: var(--color-critical-bg, #FEECEB); color: var(--color-danger, #D92D20) }
+.ir-ev--warning { background: var(--color-warning-soft-bg, #FFF9D8); color: var(--color-warning, #B54708) }
+.ir-ev--info { background: var(--color-primary-bg, #EFF6FF); color: var(--color-primary, #2563EB) }
+.ir-evidence-text { color: var(--color-text-secondary, #4B5563); line-height: 1.4 }
 
 /* ── 响应式 ── */
-@media (max-width: 1200px) {
-  .ir-overview-row { grid-template-columns: 1fr; }
-  .ir-organs-grid { grid-template-columns: repeat(3, 1fr); }
+
+@media (max-width: 1200px) {.ir-overview-row { grid-template-columns: 1fr }
+.ir-organs-grid { grid-template-columns: repeat(3, 1fr) }
+
 }
 
-@media (max-width: 768px) {
-  .ir-organs-grid { grid-template-columns: repeat(2, 1fr); }
-  .ir-evidence-item { grid-template-columns: 1fr; gap: 4px; }
+@media (max-width: 768px) {.ir-organs-grid { grid-template-columns: repeat(2, 1fr) }
+.ir-evidence-item { grid-template-columns: 1fr; gap: 4px }
+
 }
+
 </style>

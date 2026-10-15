@@ -1,5 +1,6 @@
 <template>
   <div class="intelligence-layout">
+    <PageHeader title="智能研判" subtitle="数字孪生与 AI 研判结论" />
     <a-tabs v-model:activeKey="activeTab" type="card">
       <!-- 数字孪生 -->
       <a-tab-pane key="digital-twin" tab="数字孪生">
@@ -86,6 +87,8 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton, Empty as AEmpty, Spin as ASpin, TabPane as ATabPane, Tabs as ATabs, Tag as ATag } from 'ant-design-vue'
+import { PageHeader } from '../../components/common/design-system'
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePatientDetail } from '../../composables/usePatientDetail'
@@ -152,9 +155,9 @@ onMounted(() => {
 }
 
 .intel-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
 }
 
@@ -167,9 +170,9 @@ onMounted(() => {
 
 .section-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 /* Risk Forecast */
@@ -181,14 +184,14 @@ onMounted(() => {
 
 .risk-summary p {
   margin: 0;
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   line-height: 1.6;
 }
 
 .organ-assessment h4 {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
 }
 
@@ -200,44 +203,44 @@ onMounted(() => {
 
 .organ-item {
   padding: 10px 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  background: #fafbfc;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
 .organ-name {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
 .organ-status {
   display: block;
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 700;
   margin: 4px 0;
 }
 
-.organ-critical { border-left: 3px solid #ff4d4f; }
-.organ-critical .organ-status { color: #ff4d4f; }
-.organ-warning { border-left: 3px solid #fa8c16; }
-.organ-warning .organ-status { color: #fa8c16; }
-.organ-normal { border-left: 3px solid #52c41a; }
-.organ-normal .organ-status { color: #52c41a; }
+.organ-critical { border-left: 3px solid var(--color-danger); }
+.organ-critical .organ-status { color: var(--color-danger); }
+.organ-warning { border-left: 3px solid var(--color-high-risk); }
+.organ-warning .organ-status { color: var(--color-high-risk); }
+.organ-normal { border-left: 3px solid var(--color-normal); }
+.organ-normal .organ-status { color: var(--color-normal); }
 
 .organ-evidence {
   margin: 4px 0 0;
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
   line-height: 1.4;
 }
 
 .risk-raw-data {
-  font-size: 11px;
-  color: #666;
-  background: #fafafa;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface-secondary);
   padding: 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-tag);
   white-space: pre-wrap;
   max-height: 300px;
   overflow: auto;
@@ -252,19 +255,19 @@ onMounted(() => {
 
 .causal-detail h4 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .causal-chain p {
   margin: 0;
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   line-height: 1.6;
   padding: 10px;
-  background: #f6f8fa;
-  border-radius: 6px;
+  background: var(--color-bg-surface-secondary);
+  border-radius: var(--radius-md);
 }
 
 .causal-suggestions ul {
@@ -273,8 +276,8 @@ onMounted(() => {
 }
 
 .causal-suggestions li {
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   line-height: 1.8;
 }
 
@@ -285,9 +288,9 @@ onMounted(() => {
 }
 
 .causal-raw {
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.6;
-  color: #333;
+  color: var(--color-text-primary);
 }
 </style>
 

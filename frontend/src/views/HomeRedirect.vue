@@ -1,11 +1,11 @@
 <template>
   <section class="home-redirect">
     <div class="redirect-panel">
-      <div class="redirect-copy">
-        <span>{{ resolving ? '正在识别角色' : '从这里开始' }}</span>
-        <strong>ICU 上班第一屏</strong>
-        <p>{{ hint }}</p>
-      </div>
+      <PageHeader title="ICU 上班第一屏" :subtitle="hint">
+        <template #actions>
+          <span class="redirect-status">{{ resolving ? '正在识别角色' : '从这里开始' }}</span>
+        </template>
+      </PageHeader>
       <div class="quick-start-grid">
         <button type="button" class="quick-card primary" @click="goDoctor">
           <b>我是医生</b>
@@ -33,6 +33,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getClinicalAccount } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { PageHeader } from '../components/common/design-system'
 
 const route = useRoute()
 const router = useRouter()
@@ -87,87 +88,69 @@ onMounted(async () => {
   min-height: calc(100vh - 128px);
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: var(--space-6, 24px);
+  background: var(--color-bg-page);
 }
+
 .redirect-panel {
   width: min(780px, 100%);
   display: grid;
-  gap: 18px;
-  padding: 22px;
-  border: 1px solid rgba(125, 211, 252, 0.16);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  gap: 0;
+  padding: var(--space-6, 24px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
-.redirect-copy {
-  display: grid;
-  gap: 8px;
+
+.redirect-status {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
 }
-.redirect-copy span,
-.redirect-copy p {
-  color: #93adc0;
-  margin: 0;
-}
-.redirect-copy strong {
-  color: var(--text-primary);
-  font-size: 26px;
-}
+
 .quick-start-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--element-gap-lg, 12px);
 }
+
 .quick-card {
   min-height: 112px;
   display: grid;
   align-content: center;
-  gap: 8px;
+  gap: var(--space-2, 8px);
   text-align: left;
-  border: 1px solid rgba(125, 211, 252, 0.18);
-  border-radius: var(--card-radius);
-  background: rgba(19, 56, 80, 0.78);
-  color: #e9fbff;
-  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  padding: var(--space-4, 16px);
   cursor: pointer;
-}
-.quick-card.primary {
-  border-color: rgba(34, 211, 238, 0.42);
-  background: var(--bg-surface);
-}
-.quick-card b {
-  font-size: 18px;
-}
-.quick-card span {
-  color: #a8c7d8;
-  font-size: 13px;
-  line-height: 1.55;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-html[data-theme='light'] .home-redirect {
-  background: var(--bg-surface);
+.quick-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
 }
-html[data-theme='light'] .redirect-panel {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: var(--card-shadow);
+
+.quick-card.primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
 }
-html[data-theme='light'] .redirect-copy span,
-html[data-theme='light'] .redirect-copy p,
-html[data-theme='light'] .quick-card span {
-  color: var(--text-secondary);
+
+.quick-card b {
+  font-size: var(--text-section-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
 }
-html[data-theme='light'] .redirect-copy strong,
-html[data-theme='light'] .quick-card b {
-  color: var(--text-primary);
+
+.quick-card span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+  line-height: var(--text-body-line-height);
 }
-html[data-theme='light'] .quick-card {
-  background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.14);
-  color: var(--brand);
-}
-html[data-theme='light'] .quick-card.primary {
-  background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.24);
-}
+
 @media (max-width: 700px) {
   .quick-start-grid {
     grid-template-columns: 1fr;

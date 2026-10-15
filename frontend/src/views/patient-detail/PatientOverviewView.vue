@@ -1,5 +1,6 @@
 <template>
   <div class="overview-view">
+    <PageHeader title="患者概览" subtitle="风险、生命体征与核心临床信息总览" />
     <!-- 主风险区：只展开1条最严重预警 -->
     <PatientPrimaryRisk
       :alert="primaryAlert"
@@ -123,6 +124,8 @@
 </template>
 
 <script setup lang="ts">
+import { Empty as AEmpty, Spin as ASpin, Tag as ATag } from 'ant-design-vue'
+import { PageHeader } from '../../components/common/design-system'
 import { computed, ref } from 'vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import PatientPrimaryRisk from './components/PatientPrimaryRisk.vue'
@@ -332,9 +335,9 @@ const eventTypeFilters = [
 }
 
 .overview-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
 }
 
@@ -347,14 +350,14 @@ const eventTypeFilters = [
 
 .section-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .section-meta {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
 }
 
 /* Vitals grid */
@@ -369,33 +372,34 @@ const eventTypeFilters = [
   flex-direction: column;
   align-items: center;
   padding: 12px 8px;
-  border-radius: 6px;
-  background: #fafbfc;
-  border: 1px solid #f0f0f0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  border: 1px solid var(--color-divider);
 }
 
 .vital-label {
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
   font-weight: 500;
   text-transform: uppercase;
 }
 
 .vital-value {
-  font-size: 22px;
+  font-size: var(--text-metric-normal);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
   line-height: 1.2;
 }
 
 .vital-unit {
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
 }
 
-.vital-critical .vital-value { color: #ff4d4f; }
-.vital-warning .vital-value { color: #faad14; }
-.vital-normal .vital-value { color: #52c41a; }
+.vital-critical .vital-value { color: var(--color-danger); }
+.vital-warning .vital-value { color: var(--color-warning); }
+.vital-normal .vital-value { color: var(--color-normal); }
 
 /* Clinical summary */
 .top-risks {
@@ -409,48 +413,48 @@ const eventTypeFilters = [
   align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 6px;
-  background: #fafafa;
-  border-left: 3px solid #d9d9d9;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  border-left: 3px solid var(--color-border-strong);
 }
 
-.risk-critical { border-left-color: #ff4d4f; background: #fff1f0; }
-.risk-high { border-left-color: #fa8c16; background: #fff7e6; }
-.risk-warning, .risk-warn { border-left-color: #faad14; background: #fffbe6; }
+.risk-critical { border-left-color: var(--color-danger); background: var(--color-critical-bg); }
+.risk-high { border-left-color: var(--color-high-risk); background: var(--color-high-risk-bg); }
+.risk-warning, .risk-warn { border-left-color: var(--color-warning); background: var(--color-warning-soft-bg); }
 
 .risk-index {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #d9d9d9;
-  color: #fff;
-  font-size: 12px;
+  background: var(--color-border-strong);
+  color: var(--color-text-inverse);
+  font-size: var(--text-label);
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.risk-critical .risk-index { background: #ff4d4f; }
-.risk-high .risk-index { background: #fa8c16; }
-.risk-warning .risk-index, .risk-warn .risk-index { background: #faad14; }
+.risk-critical .risk-index { background: var(--color-danger); }
+.risk-high .risk-index { background: var(--color-high-risk); }
+.risk-warning .risk-index, .risk-warn .risk-index { background: var(--color-warning); }
 
 .risk-text {
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   line-height: 1.5;
 }
 
 .worsening {
   margin-top: 8px;
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
 }
 
 .worsening-label {
   font-weight: 600;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 /* Bundle */
@@ -462,15 +466,15 @@ const eventTypeFilters = [
 
 .bundle-conclusion {
   margin: 0;
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
 }
 
 .bundle-meta {
   display: flex;
   gap: 16px;
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
 }
 
 /* Organs grid */
@@ -482,9 +486,9 @@ const eventTypeFilters = [
 
 .organ-card {
   padding: 10px 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  background: #fafbfc;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
 .organ-header {
@@ -495,28 +499,28 @@ const eventTypeFilters = [
 }
 
 .organ-label {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .organ-status {
-  font-size: 11px;
+  font-size: var(--text-caption);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-tag);
   font-weight: 500;
 }
 
-.organ-normal { background: #f6ffed; color: #52c41a; }
-.organ-caution { background: #fffbe6; color: #faad14; }
-.organ-warning { background: #fff7e6; color: #fa8c16; }
-.organ-critical { background: #fff1f0; color: #ff4d4f; }
-.organ-unknown { background: #f5f5f5; color: #999; }
+.organ-normal { background: var(--color-normal-bg); color: var(--color-normal); }
+.organ-caution { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.organ-warning { background: var(--color-high-risk-bg); color: var(--color-high-risk); }
+.organ-critical { background: var(--color-critical-bg); color: var(--color-danger); }
+.organ-unknown { background: var(--color-bg-surface-secondary); color: var(--color-text-tertiary); }
 
 .organ-evidence {
   margin: 0;
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
   line-height: 1.4;
 }
 
@@ -532,25 +536,25 @@ const eventTypeFilters = [
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border-radius: 6px;
-  background: #fafafa;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
 .action-priority {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-tag);
 }
 
-.priority-critical { background: #fff1f0; color: #ff4d4f; }
-.priority-high { background: #fff7e6; color: #fa8c16; }
-.priority-default { background: #f0f7ff; color: #1890ff; }
+.priority-critical { background: var(--color-critical-bg); color: var(--color-danger); }
+.priority-high { background: var(--color-high-risk-bg); color: var(--color-high-risk); }
+.priority-default { background: var(--color-primary-bg); color: var(--color-primary); }
 
 .action-text {
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
 }
 </style>
 

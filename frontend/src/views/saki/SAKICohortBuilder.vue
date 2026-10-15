@@ -94,8 +94,8 @@ onMounted(loadCohorts)
 
 <style scoped>
 .saki-cohort-builder { display: flex; flex-direction: column; gap: 16px; }
-.builder-panel { background: #fff; border-radius: 8px; padding: 16px; }
-.builder-panel h3 { margin: 0 0 12px; }
-.cohorts-list { background: #fff; border-radius: 8px; padding: 16px; }
-.cohorts-list h3 { margin: 0 0 12px; }
+.builder-panel { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; }
+.builder-panel h3 { margin: 0 0 12px; font-size: var(--text-section-title); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
+.cohorts-list { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; }
+.cohorts-list h3 { margin: 0 0 12px; font-size: var(--text-section-title); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
 </style>

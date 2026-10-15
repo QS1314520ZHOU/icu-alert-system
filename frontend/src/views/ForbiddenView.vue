@@ -1,26 +1,32 @@
 <template>
   <div class="forbidden-page">
     <div class="forbidden-card">
-      <div class="forbidden-icon">🔒</div>
-      <h1 class="forbidden-title">403 — 权限不足</h1>
-      <p class="forbidden-desc">您没有权限访问此页面或模块。</p>
-      <p class="forbidden-hint">
-        如需访问，请联系管理员开通相应权限。
-      </p>
-      <div class="forbidden-actions">
-        <button class="forbidden-btn forbidden-btn--primary" @click="goBack">
-          返回上一页
-        </button>
-        <router-link to="/patients" class="forbidden-btn">
-          返回患者列表
-        </router-link>
-      </div>
+      <ErrorState title="权限不足" description="您没有权限访问此页面或模块。">
+        <template #icon>
+          <span class="forbidden-icon" aria-hidden="true">🔒</span>
+        </template>
+        <template #action>
+          <p class="forbidden-hint">
+            如需访问，请联系管理员开通相应权限。
+          </p>
+          <div class="forbidden-actions">
+            <a-button type="primary" @click="goBack">
+              返回上一页
+            </a-button>
+            <router-link to="/patients" class="forbidden-link">
+              返回患者列表
+            </router-link>
+          </div>
+        </template>
+      </ErrorState>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Button as AButton } from 'ant-design-vue'
 import { useAppNavigation } from '../navigation/useAppNavigation'
+import { ErrorState } from '../components/common/design-system'
 
 const { navigateBack } = useAppNavigation()
 
@@ -35,74 +41,49 @@ function goBack() {
   align-items: center;
   justify-content: center;
   min-height: 60vh;
-  padding: 24px;
+  padding: var(--space-6, 24px);
+  background: var(--color-bg-page);
 }
 
 .forbidden-card {
   text-align: center;
   max-width: 420px;
-  padding: 48px 32px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.forbidden-card :deep(.error-state__title) {
+  font-size: var(--text-page-title);
+  font-weight: var(--text-page-title-weight);
 }
 
 .forbidden-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.forbidden-title {
-  margin: 0 0 12px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-text-primary, #18212B);
-}
-
-.forbidden-desc {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: var(--color-text-secondary, #52606D);
+  font-size: 40px;
+  line-height: 1;
 }
 
 .forbidden-hint {
-  margin: 0 0 24px;
-  font-size: 13px;
-  color: var(--color-text-tertiary, #94A3B8);
+  margin: 0 0 var(--space-4, 16px);
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
 }
 
 .forbidden-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--element-gap-lg, 12px);
   justify-content: center;
-}
-
-.forbidden-btn {
-  display: inline-flex;
   align-items: center;
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #DCE3EC);
-  background: #fff;
-  color: var(--color-text-primary, #18212B);
+}
+
+.forbidden-link {
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--color-primary);
   text-decoration: none;
-  cursor: pointer;
-  transition: all 0.15s;
 }
 
-.forbidden-btn:hover {
-  background: var(--color-bg-hover, #F0F6FF);
-}
-
-.forbidden-btn--primary {
-  background: var(--color-primary, #2563EB);
-  color: #fff;
-  border-color: var(--color-primary, #2563EB);
-}
-
-.forbidden-btn--primary:hover {
-  background: var(--color-primary-hover, #3B82F6);
+.forbidden-link:hover {
+  color: var(--color-primary-hover);
 }
 </style>

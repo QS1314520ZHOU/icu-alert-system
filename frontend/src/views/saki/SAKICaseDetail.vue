@@ -54,7 +54,7 @@
         <a-tag v-for="f in caseData.risk_factors" :key="f.factor" color="orange" style="margin:2px">
           {{ f.factor }} ({{ f.source }})
         </a-tag>
-        <span v-if="!caseData.risk_factors?.length" style="color:#bbb">未识别到危险因素</span>
+        <span v-if="!caseData.risk_factors?.length" class="muted">未识别到危险因素</span>
       </div>
 
       <!-- 审核 -->
@@ -70,7 +70,7 @@
       </div>
     </div>
   </div>
-  <div v-else class="empty-state">加载中...</div>
+  <LoadingState v-else message="加载中..." />
 </template>
 
 <script setup lang="ts">
@@ -78,6 +78,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { getSakiCaseDetail, reviewSakiCase } from '../../api/saki'
+import { LoadingState } from '../../components/common/design-system'
 
 const route = useRoute()
 const caseData = ref<any>(null)
@@ -112,11 +113,11 @@ onMounted(loadCase)
 
 <style scoped>
 .saki-case-detail { display: flex; flex-direction: column; gap: 16px; }
-.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.card h3 { margin: 0 0 8px; font-size: 14px; color: #1a1a2e; }
-.card p { margin: 4px 0; font-size: 13px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.card { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; }
+.card h3 { margin: 0 0 8px; font-size: var(--text-card-title); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
+.card p { margin: 4px 0; font-size: var(--text-body); color: var(--color-text-primary); }
 .full-width { grid-column: 1 / -1; }
 .review-actions { display: flex; gap: 8px; margin-top: 8px; }
-.empty-state { text-align: center; padding: 60px; color: #bbb; }
+.muted { color: var(--color-text-tertiary); }
 </style>

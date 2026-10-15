@@ -90,13 +90,13 @@ function runRounding(item: any) {
 <style scoped>
 .order-closure {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 .task-section {
-  padding: 16px;
-  border-radius: var(--card-radius);
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 .section-header {
   display: flex;
@@ -105,17 +105,17 @@ function runRounding(item: any) {
   margin-bottom: 8px;
 }
 .section-label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: var(--text-card-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
   padding: 3px 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-tag);
 }
-.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
-.section-label.warning { background: rgba(232,144,28,.15); color: var(--color-warning); }
-.section-label.high { background: rgba(251,146,60,.15); color: #b96b12; }
-.section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
-.section-hint { margin: 0 0 12px; font-size: 12px; color: var(--text-secondary); }
+.section-label.info { background: var(--color-primary-bg); color: var(--color-primary); }
+.section-label.warning { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.section-label.high { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.section-count { font-size: var(--text-body); color: var(--color-text-secondary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+.section-hint { margin: 0 0 12px; font-size: var(--text-caption); color: var(--color-text-secondary); }
 
 .swimlane-list { display: grid; gap: 6px; }
 .swimlane-row {
@@ -125,24 +125,24 @@ function runRounding(item: any) {
   gap: 6px;
   align-items: center;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-md);
   padding: 8px;
-  color: var(--text-primary);
-  background: var(--color-primary-bg);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-secondary);
   cursor: pointer;
 }
-.swimlane-row:hover { border-color: rgba(103,232,249,.32); }
-.swimlane-row strong { font-size: 12px; }
+.swimlane-row:hover { border-color: var(--color-primary-hover); }
+.swimlane-row strong { font-size: var(--text-caption); }
 .swimlane-row span {
   padding: 5px 4px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-tag);
   text-align: center;
-  color: var(--text-secondary);
-  background: var(--color-border);
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-inset);
+  font-size: var(--text-label);
 }
-.swimlane-row .is-done { color: var(--color-success); background: rgba(20,184,166,.22); }
-.swimlane-row .is-todo { color: var(--color-warning); background: rgba(113,63,18,.28); }
+.swimlane-row .is-done { color: var(--color-success); background: var(--color-success-bg); }
+.swimlane-row .is-todo { color: var(--color-warning); background: var(--color-warning-soft-bg); }
 
 .gap-list { display: grid; gap: 8px; }
 .gap-row {
@@ -152,20 +152,20 @@ function runRounding(item: any) {
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 .gap-info { flex: 1; min-width: 0; }
-.gap-info strong { display: block; color: var(--text-primary); font-size: 13px; }
-.gap-info p { margin: 4px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.gap-info strong { display: block; color: var(--color-text-primary); font-size: var(--text-body); }
+.gap-info p { margin: 4px 0 0; color: var(--color-text-secondary); font-size: var(--text-caption); line-height: 1.4; }
 .gap-action {
   flex: 0 0 auto;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-md);
   padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  color: var(--color-primary);
   background: transparent;
   cursor: pointer;
 }
@@ -173,8 +173,8 @@ function runRounding(item: any) {
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
 }
 
 @media (max-width: 1024px) {

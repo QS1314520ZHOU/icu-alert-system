@@ -1,5 +1,6 @@
 <template>
   <div class="pd-decision">
+    <PageHeader title="决策支持" subtitle="临床决策路径与决策建议" />
     <!-- Sub-navigation -->
     <nav class="pd-sub-nav" role="tablist">
       <button
@@ -90,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import { PageHeader } from '../../components/common/design-system'
 import { ref, defineAsyncComponent } from 'vue'
 
 const PatientAlertsTab = defineAsyncComponent(() => import('../../components/patient-detail/AlertsTab.vue'))
@@ -173,8 +175,8 @@ const tabs = [
   align-items: center;
   gap: 4px;
   padding: 8px 12px;
-  background: var(--color-bg-surface, #FFFFFF);
-  border: 1px solid var(--color-border, #E3E7EC);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
   overflow-x: auto;
 }
@@ -186,8 +188,8 @@ const tabs = [
   border: 1px solid transparent;
   border-radius: var(--radius-md, 6px);
   background: transparent;
-  color: var(--color-text-secondary, #667085);
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -195,20 +197,20 @@ const tabs = [
 }
 
 .pd-sub-btn:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  color: var(--color-text-primary, #18212B);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
 }
 
 .pd-sub-btn.is-active {
-  background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  border-color: var(--color-primary, #2563EB);
-  color: var(--color-primary, #2563EB);
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .pd-sub-content {
-  background: var(--color-bg-surface, #FFFFFF);
-  border: 1px solid var(--color-border, #E3E7EC);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
   padding: var(--card-padding, 16px);
 }
@@ -221,7 +223,7 @@ const tabs = [
 
   .pd-sub-btn {
     padding: 6px 10px;
-    font-size: 12px;
+    font-size: var(--text-label);
   }
 }
 </style>

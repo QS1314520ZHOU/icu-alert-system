@@ -141,13 +141,13 @@ const roleBars = computed(() => {
 <style scoped>
 .director-dashboard {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 .task-section {
-  padding: 16px;
-  border-radius: var(--card-radius);
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 .section-header {
   display: flex;
@@ -156,18 +156,18 @@ const roleBars = computed(() => {
   margin-bottom: 12px;
 }
 .section-label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: var(--text-card-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
   padding: 3px 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-tag);
 }
-.section-label.high { background: rgba(251,146,60,.15); color: #b96b12; }
-.section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
-.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
-.section-label.warning { background: rgba(232,144,28,.15); color: var(--color-warning); }
-.section-label.stable { background: rgba(26,156,91,.15); color: var(--color-success); }
-.section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
+.section-label.high { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.section-label.danger { background: var(--color-critical-bg); color: var(--color-danger); }
+.section-label.info { background: var(--color-primary-bg); color: var(--color-primary); }
+.section-label.warning { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.section-label.stable { background: var(--color-success-bg); color: var(--color-success); }
+.section-count { font-size: var(--text-body); color: var(--color-text-secondary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 
 .event-list { display: grid; gap: 6px; }
 .event-row {
@@ -177,16 +177,16 @@ const roleBars = computed(() => {
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: var(--color-primary-bg);
-  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
 }
-.event-row:hover { border-color: rgba(103,232,249,.32); }
-.event-bed { font-size: 13px; font-weight: 700; color: var(--accent); }
-.event-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.event-alert { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-row:hover { border-color: var(--color-primary-hover); background: var(--color-primary-bg); }
+.event-bed { font-size: var(--text-body); font-weight: var(--weight-bold); color: var(--color-primary); }
+.event-name { font-size: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-alert { font-size: var(--text-caption); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .metric-row {
   display: grid;
@@ -195,13 +195,13 @@ const roleBars = computed(() => {
 }
 .metric-item {
   padding: 12px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: var(--color-primary-bg);
+  background: var(--color-bg-surface-secondary);
   text-align: center;
 }
-.metric-item span { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-.metric-item strong { display: block; font-size: 24px; color: var(--text-primary); font-weight: 700; }
+.metric-item span { display: block; font-size: var(--text-caption); color: var(--color-text-secondary); margin-bottom: 4px; }
+.metric-item strong { display: block; font-size: var(--text-metric-normal); color: var(--color-text-primary); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
 
 .role-bars { display: grid; gap: 8px; }
 .role-bar-row {
@@ -210,15 +210,15 @@ const roleBars = computed(() => {
   gap: 10px;
   align-items: center;
 }
-.role-label { font-size: 12px; color: var(--text-secondary); }
+.role-label { font-size: var(--text-caption); color: var(--color-text-secondary); }
 .role-track {
   height: 8px;
   border-radius: 999px;
-  background: var(--color-border);
+  background: var(--color-bg-inset);
   overflow: hidden;
 }
 .role-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
-.role-value { font-size: 12px; color: var(--text-primary); font-weight: 700; text-align: right; }
+.role-value { font-size: var(--text-caption); color: var(--color-text-primary); font-weight: var(--weight-bold); text-align: right; font-variant-numeric: tabular-nums; }
 
 .scanner-list { display: grid; gap: 6px; }
 .scanner-row {
@@ -227,17 +227,17 @@ const roleBars = computed(() => {
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
-.scanner-row strong { font-size: 13px; color: var(--text-primary); }
-.scanner-row span { font-size: 12px; color: var(--text-secondary); }
+.scanner-row strong { font-size: var(--text-body); color: var(--color-text-primary); }
+.scanner-row span { font-size: var(--text-caption); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
 .scanner-detail-btn {
   padding: 2px 8px;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: #fff;
-  font-size: 11px;
+  border-radius: var(--radius-tag);
+  background: var(--color-bg-surface);
+  font-size: var(--text-label);
   color: var(--color-primary);
   cursor: pointer;
   white-space: nowrap;
@@ -251,9 +251,9 @@ const roleBars = computed(() => {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--color-primary);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
 }
 
@@ -264,34 +264,35 @@ const roleBars = computed(() => {
   align-items: center;
   padding: 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: var(--color-primary-bg);
-  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
   width: 100%;
 }
-.case-row:hover { border-color: rgba(103,232,249,.32); }
-.case-bed { font-size: 13px; font-weight: 700; color: var(--accent); }
-.case-name { font-size: 13px; }
+.case-row:hover { border-color: var(--color-primary-hover); background: var(--color-primary-bg); }
+.case-bed { font-size: var(--text-body); font-weight: var(--weight-bold); color: var(--color-primary); }
+.case-name { font-size: var(--text-body); }
 .risk-badge {
   display: inline-grid;
   place-items: center;
   min-width: 56px;
   height: 24px;
-  border-radius: var(--card-radius);
-  font-size: 12px;
-  font-weight: 700;
+  border-radius: var(--radius-tag);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
 }
-.risk-high { background: rgba(127,29,29,.36); color: #f87171; }
-.risk-mid { background: rgba(113,63,18,.32); color: #fbbf24; }
-.risk-low { background: rgba(30,64,175,.24); color: #60a5fa; }
+.risk-high { background: var(--color-critical-bg); color: var(--color-danger); }
+.risk-mid { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.risk-low { background: var(--color-primary-bg); color: var(--color-primary); }
 
 .empty-hint {
   padding: 20px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
 }
 
 @media (max-width: 1024px) {

@@ -139,12 +139,13 @@ watch(() => [props.deptCode, props.dept], () => { void load() })
 }
 
 .bundle-header strong {
-  color: var(--text-primary);
-  font-size: 15px;
+  color: var(--color-text-primary);
+  font-size: var(--text-page-title);
+  font-weight: var(--text-page-title-weight);
 }
 
 .bundle-header span {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 
@@ -158,20 +159,20 @@ watch(() => [props.deptCode, props.dept], () => { void load() })
   font-size: 18px;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
 }
 
-.overall-score.green { color: var(--chart-2); background: rgba(52, 211, 153, .15); }
-.overall-score.yellow { color: var(--warning); background: rgba(251, 191, 36, .15); }
-.overall-score.red { color: var(--danger); background: rgba(239, 68, 68, .15); }
+.overall-score.green { color: var(--chart-2); background: var(--color-success-bg); }
+.overall-score.yellow { color: var(--warning); background: var(--color-warning-soft-bg); }
+.overall-score.red { color: var(--danger); background: var(--color-danger-bg); }
 
 button {
   min-height: 32px;
   padding: 0 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   cursor: pointer;
   font-size: 12px;
 }
@@ -181,9 +182,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .loading, .error {
   padding: 16px;
   text-align: center;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
 }
 
 .error { color: var(--danger-soft); }
@@ -196,16 +197,16 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 
 .bundle-card {
   padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
   cursor: pointer;
   transition: border-color .2s;
 }
 
-.bundle-card.green { border-color: rgba(52, 211, 153, .34); }
-.bundle-card.yellow { border-color: rgba(245, 158, 11, .42); }
-.bundle-card.red { border-color: rgba(239, 68, 68, .42); }
+.bundle-card.green { border-color: var(--color-normal-border); }
+.bundle-card.yellow { border-color: var(--color-warning-soft-border); }
+.bundle-card.red { border-color: var(--color-critical-border); }
 
 .card-top {
   display: flex;
@@ -215,7 +216,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .card-top strong {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 13px;
 }
 
@@ -235,19 +236,19 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .card-bottom span {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
 }
 
 .expand-icon {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 10px;
 }
 
 .bundle-detail {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   padding: 12px;
 }
 
@@ -256,7 +257,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 .detail-header strong {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 14px;
 }
 
@@ -271,29 +272,29 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
-.item-row.green { border-left: 3px solid #1A9C5B; }
-.item-row.yellow { border-left: 3px solid #E8901C; }
-.item-row.red { border-left: 3px solid #D9342B; }
+.item-row.green { border-left: 3px solid var(--color-success); }
+.item-row.yellow { border-left: 3px solid var(--color-warning); }
+.item-row.red { border-left: 3px solid var(--color-danger); }
 
 .item-name {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 12px;
 }
 
 .bar-track {
   height: 8px;
-  border-radius: var(--card-radius);
-  background: rgba(148, 163, 184, .15);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   transition: width .3s ease;
 }
 
@@ -317,7 +318,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .rate.red { color: var(--danger); }
 
 .detail {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 10px;
 }
 
@@ -325,12 +326,12 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   display: flex;
   justify-content: space-between;
   padding: 8px 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
 .bundle-note span {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 10px;
 }
 
@@ -339,30 +340,30 @@ html[data-theme='light'] .bundle-header strong,
 html[data-theme='light'] .card-top strong,
 html[data-theme='light'] .detail-header strong,
 html[data-theme='light'] .item-name {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 html[data-theme='light'] .bundle-card,
 html[data-theme='light'] .bundle-detail {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(145, 176, 199, 0.32);
+  background: var(--color-bg-surface-secondary);
+  border-color: var(--color-border);
 }
 
 html[data-theme='light'] .item-row {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 
 html[data-theme='light'] .loading,
 html[data-theme='light'] .error {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
 }
 
 html[data-theme='light'] .error { color: var(--danger); }
 
 html[data-theme='light'] button {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
   border-color: rgba(37, 99, 235, 0.18);
-  color: var(--brand);
+  color: var(--color-primary);
 }
 </style>

@@ -136,9 +136,9 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
 }
 .task-section {
   padding: 16px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 .section-header {
   display: flex;
@@ -147,16 +147,16 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   margin-bottom: 12px;
 }
 .section-label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: var(--text-card-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
   padding: 3px 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-tag);
 }
-.section-label.info { background: rgba(21,85,141,.15); color: var(--color-primary); }
-.section-label.stable { background: rgba(26,156,91,.15); color: var(--color-success); }
-.section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
-.section-count { font-size: 13px; color: var(--text-secondary); font-weight: 700; }
+.section-label.info { background: var(--color-primary-bg); color: var(--color-primary); }
+.section-label.stable { background: var(--color-success-bg); color: var(--color-success); }
+.section-label.danger { background: var(--color-critical-bg); color: var(--color-danger); }
+.section-count { font-size: 13px; color: var(--color-text-secondary); font-weight: 700; }
 
 .antibiotic-stats {
   display: grid;
@@ -166,9 +166,9 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
 }
 .antibiotic-stats span {
   padding: 6px 8px;
-  border-radius: var(--card-radius);
-  color: var(--text-primary);
-  background: var(--color-primary-bg);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-secondary);
   text-align: center;
   font-size: 12px;
   font-weight: 700;
@@ -187,7 +187,7 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   align-items: end;
   gap: 4px;
   border: 0;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   background: transparent;
   cursor: pointer;
 }
@@ -196,7 +196,7 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   min-height: 6px;
   align-self: end;
   border-radius: 999px 999px 4px 4px;
-  background: var(--accent);
+  background: var(--color-primary);
 }
 .antibiotic-bar span { font-size: 10px; }
 
@@ -207,18 +207,18 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   gap: 8px;
   padding: 8px 10px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: var(--color-primary-bg);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
   cursor: pointer;
 }
-.antibiotic-task.prio-high { border-color: rgba(251,113,133,.34); }
+.antibiotic-task.prio-high { border-color: var(--color-critical-border); }
 .antibiotic-task strong, .antibiotic-task span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
 }
-.antibiotic-task strong { color: var(--text-primary); }
+.antibiotic-task strong { color: var(--color-text-primary); }
 .antibiotic-task span { color: var(--color-success); }
 
 .light-list { display: grid; gap: 6px; }
@@ -229,22 +229,22 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   gap: 7px;
   align-items: center;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   padding: 9px;
-  color: var(--text-primary);
-  background: var(--color-primary-bg);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-secondary);
   cursor: pointer;
 }
-.light-row:hover { border-color: rgba(103,232,249,.32); }
+.light-row:hover { border-color: var(--color-primary-hover); }
 .light-row strong { font-size: 12px; }
 .light-percent { color: var(--color-success); font-size: 12px; font-weight: 700; text-align: center; }
 .light-row i {
   height: 14px;
-  border-radius: var(--card-radius);
-  background: var(--text-secondary);
+  border-radius: var(--radius-lg);
+  background: var(--color-text-secondary);
 }
 .light-row i.ok { background: var(--color-success); }
-.light-row i.bad { background: #D9342B; }
+.light-row i.bad { background: var(--color-danger); }
 
 .rescue-list { display: grid; gap: 6px; }
 .rescue-row {
@@ -255,15 +255,15 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   padding: 6px 0;
   border: 0;
   background: transparent;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
 }
 .rescue-dot {
   width: 10px;
   height: 10px;
-  border-radius: var(--card-radius);
-  background: var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
 }
 .rescue-row span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -277,24 +277,24 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
   grid-template-columns: 48px minmax(0, 1fr);
   gap: 6px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   padding: 10px;
-  color: var(--text-primary);
-  background: var(--color-primary-bg);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-secondary);
   cursor: pointer;
   text-align: left;
 }
-.family-card:hover { border-color: rgba(103,232,249,.32); }
+.family-card:hover { border-color: var(--color-primary-hover); }
 .family-card strong {
   grid-column: 1 / -1;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 12px;
 }
 .family-card em {
   display: grid;
   place-items: center;
-  border-radius: var(--card-radius);
-  color: #052e24;
+  border-radius: var(--radius-lg);
+  color: var(--color-text-inverse);
   background: var(--color-success);
   font-style: normal;
   font-size: 12px;
@@ -302,16 +302,16 @@ defineProps<{ ctx: ReturnType<typeof import('../../composables/useClinicalWorkfl
 }
 .family-card span {
   padding: 4px 6px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   text-align: center;
-  background: var(--color-primary-bg);
+  background: var(--color-bg-surface-secondary);
   font-size: 11px;
 }
 
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 13px;
 }
 

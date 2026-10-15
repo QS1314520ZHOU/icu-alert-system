@@ -17,13 +17,17 @@
         </tr>
       </tbody>
     </table>
-    <div v-else class="empty">点击"加载映射"查看字段映射配置</div>
+    <div v-else class="empty-wrap">
+      <EmptyState description="点击「加载映射」查看字段映射配置" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Button as AButton, Tag as ATag } from 'ant-design-vue'
 import { ref } from 'vue'
 import { getFieldMappings } from '../../api/saki'
+import { EmptyState } from '../../components/common/design-system'
 
 const loading = ref(false)
 const mappings = ref<any[]>([])
@@ -36,8 +40,8 @@ const loadMappings = async () => {
 
 <style scoped>
 .saki-field-mapping { display: flex; flex-direction: column; gap: 16px; }
-.mapping-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
-.mapping-table th, .mapping-table td { border: 1px solid #f0f0f0; padding: 8px 12px; text-align: left; font-size: 13px; }
-.mapping-table th { background: #fafafa; font-weight: 600; }
-.empty { text-align: center; padding: 60px; color: #bbb; background: #fff; border-radius: 8px; }
+.mapping-table { width: 100%; border-collapse: collapse; background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+.mapping-table th, .mapping-table td { border-bottom: 1px solid var(--color-divider); padding: 8px 12px; text-align: left; font-size: var(--text-table); }
+.mapping-table th { background: var(--color-bg-surface-secondary); font-size: var(--text-caption); font-weight: var(--text-table-header-weight); color: var(--color-text-secondary); }
+.empty-wrap { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
 </style>

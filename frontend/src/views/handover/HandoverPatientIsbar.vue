@@ -368,26 +368,26 @@ onMounted(() => {
 
 /* Left sidebar */
 .isbar-sidebar {
-  border-right: 1px solid #DCE5EF;
-  background: #F9FAFB;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-page);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.sidebar-search { padding: 12px; border-bottom: 1px solid #DCE5EF; }
+.sidebar-search { padding: 12px; border-bottom: 1px solid var(--color-border); }
 .patient-list { flex: 1; overflow-y: auto; }
 .patient-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #F0F3F7;
+  padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--color-bg-surface-secondary);
   font-size: 13px;
 }
-.patient-item:hover { background: #E6F4FF; }
-.patient-item--active { background: #E6F4FF; border-left: 3px solid #1677FF; }
-.patient-bed { font-weight: 600; color: #17233D; min-width: 32px; }
-.patient-name { flex: 1; color: #5F6B7A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.patient-item:hover { background: var(--color-primary-bg); }
+.patient-item--active { background: var(--color-primary-bg); border-left: 3px solid var(--color-primary); }
+.patient-bed { font-weight: 600; color: var(--color-text-primary); min-width: 32px; }
+.patient-name { flex: 1; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .patient-badge { font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
-.patient-badge--critical { background: #FEF3F2; color: #D92D20; }
-.patient-badge--vent { background: #E6F4FF; color: #2E90FA; }
+.patient-badge--critical { background: var(--color-danger-bg); color: var(--color-danger); }
+.patient-badge--vent { background: var(--color-primary-bg); color: var(--color-info); }
 
 /* Main editor */
 .isbar-main {
@@ -397,7 +397,7 @@ onMounted(() => {
 .empty-hint {
   text-align: center;
   padding: 80px 0;
-  color: #8A94A6;
+  color: var(--color-text-tertiary);
   font-size: 16px;
 }
 .isbar-toolbar {
@@ -407,35 +407,35 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 .toolbar-patient { display: flex; align-items: center; gap: 8px; }
-.toolbar-bed { font-size: 16px; font-weight: 600; color: #17233D; }
-.toolbar-name { font-size: 14px; color: #5F6B7A; }
+.toolbar-bed { font-size: 16px; font-weight: 600; color: var(--color-text-primary); }
+.toolbar-name { font-size: 14px; color: var(--color-text-secondary); }
 .toolbar-actions { display: flex; gap: 8px; }
 
 /* Right evidence panel */
 .isbar-evidence {
-  border-left: 1px solid #DCE5EF;
-  background: #F9FAFB;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-bg-page);
   overflow-y: auto;
   position: relative;
 }
 .isbar-evidence--collapsed { width: 40px; }
 .evidence-toggle {
   position: absolute; top: 8px; right: 8px; z-index: 1;
-  font-size: 11px; color: #2E90FA; cursor: pointer; padding: 2px 6px;
-  background: #E6F4FF; border-radius: 4px;
+  font-size: 11px; color: var(--color-info); cursor: pointer; padding: 2px 6px;
+  background: var(--color-primary-bg); border-radius: 4px;
 }
 
 .diagnostic-content { padding: 8px; font-size: 12px; }
-.diag-item { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #F0F3F7; }
-.diag-label { color: #5F6B7A; }
-.diag-ok { color: #12A66A; font-weight: 500; }
-.diag-warn { color: #F79009; font-weight: 500; }
-.diag-fail { color: #D92D20; font-weight: 500; }
-.diag-hint { color: #8A94A6; text-align: center; padding: 20px 0; }
+.diag-item { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--color-bg-surface-secondary); }
+.diag-label { color: var(--color-text-secondary); }
+.diag-ok { color: var(--color-success); font-weight: 500; }
+.diag-warn { color: var(--color-warning); font-weight: 500; }
+.diag-fail { color: var(--color-danger); font-weight: 500; }
+.diag-hint { color: var(--color-text-tertiary); text-align: center; padding: 20px 0; }
 
 @media (max-width: 1024px) {
   .isbar-page { grid-template-columns: 1fr; }
   .isbar-sidebar { display: none; }
-  .isbar-evidence { position: fixed; bottom: 0; left: 0; right: 0; height: 50vh; z-index: 100; border-top: 1px solid #DCE5EF; }
+  .isbar-evidence { position: fixed; bottom: 0; left: 0; right: 0; height: 50vh; z-index: 100; border-top: 1px solid var(--color-border); }
 }
 </style>

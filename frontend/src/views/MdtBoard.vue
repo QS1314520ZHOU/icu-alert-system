@@ -309,7 +309,7 @@ onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
   gap: 14px;
   min-height: calc(100vh - 88px);
   padding: 16px;
-  background: var(--bg-base);
+  background: var(--color-bg-page);
 }
 
 /* 可视化概览行 */
@@ -320,9 +320,9 @@ onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
 }
 
 .mdt-viz-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--card-radius);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
 }
 
@@ -330,7 +330,7 @@ onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .mdt-viz-chart {
@@ -362,21 +362,21 @@ onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
   font-weight: 700;
 }
 
-.mdt-viz-stat__value--pending { color: #F79009; }
-.mdt-viz-stat__value--progress { color: #2563EB; }
-.mdt-viz-stat__value--done { color: #12B76A; }
-.mdt-viz-stat__value--dismissed { color: #8C8C8C; }
+.mdt-viz-stat__value--pending { color: var(--color-warning); }
+.mdt-viz-stat__value--progress { color: var(--color-primary); }
+.mdt-viz-stat__value--done { color: var(--color-success); }
+.mdt-viz-stat__value--dismissed { color: var(--color-text-tertiary); }
 
 .mdt-viz-stat__label {
   display: block;
   font-size: 11px;
-  color: #8C8C8C;
+  color: var(--color-text-tertiary);
   margin-top: 2px;
 }
 .mdt-hero {
-  border: 1px solid var(--border-color);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
   box-shadow: var(--card-shadow);
 }
 .mdt-hero :deep(.ant-card-body) {
@@ -399,9 +399,9 @@ onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
 .error-box {
   padding: 10px 14px;
   border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: var(--card-radius);
-  background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-danger);
   font-size: 13px;
 }
 @media (max-width: 1280px) {

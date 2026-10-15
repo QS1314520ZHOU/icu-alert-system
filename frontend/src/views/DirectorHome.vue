@@ -1,45 +1,34 @@
 <template>
   <section class="director-home">
-    <header class="home-top ds-card">
-      <div class="home-title">
-        <strong>主任首页</strong>
-        <span>科主任 · {{ home?.account?.dept || '科室待识别' }}</span>
-      </div>
-      <div class="top-meta">
-        <span>{{ accountName }}</span>
-        <span>{{ home?.account?.dept || '科室待识别' }}</span>
-        <span>{{ shiftText }}</span>
-        <span>{{ clock }}</span>
-        <button type="button" @click="load">刷新</button>
-      </div>
-    </header>
+    <PageHeader title="主任首页" :subtitle="`科主任 · ${home?.account?.dept || '科室待识别'}`">
+      <template #actions>
+        <span class="top-meta">{{ accountName }}</span>
+        <span class="top-meta">{{ shiftText }}</span>
+        <span class="top-meta">{{ clock }}</span>
+        <a-button size="small" @click="load">刷新</a-button>
+      </template>
+    </PageHeader>
 
-    <div v-if="loading" class="empty">正在汇总科室质控、KPI和科研数据...</div>
-    <div v-else-if="error" class="empty danger">{{ error }}</div>
+    <LoadingState v-if="loading" message="正在汇总科室质控、KPI和科研数据..." />
+    <ErrorState v-else-if="error" :description="error" />
     <template v-else>
-      <section class="start-guide ds-card">
+      <section class="start-guide">
         <div>
           <span>主任看板</span>
           <strong>先看科室概览，再看质控大屏，最后追踪KPI和科研动态。</strong>
         </div>
-        <button type="button" @click="showOnboarding = true">查看3步引导</button>
+        <a-button size="small" @click="showOnboarding = true">查看3步引导</a-button>
       </section>
 
-      <section class="summary-cards">
-        <article v-for="item in summaryCards" :key="item.key" :class="['summary-card', 'ds-card', 'ds-kpi', kpiToneClass(item.tone)]">
-          <div class="ds-kpi-icon">
-            <TeamOutlined v-if="item.key === 'beds'" />
-            <BellOutlined v-else-if="item.key === 'alerts' || item.key === 'ai'" />
-            <ClockCircleOutlined v-else-if="item.key === 'research'" />
-            <CheckCircleOutlined v-else />
-          </div>
-          <div>
-            <span class="ds-kpi-label">{{ item.label }}</span>
-            <strong class="ds-kpi-num">{{ item.value }}</strong>
-            <em>{{ item.hint }}</em>
-          </div>
-        </article>
-      </section>
+      <MetricStrip
+        :metrics="summaryCards.map((c) => ({
+          label: c.label,
+          value: c.value,
+          variant: c.tone === 'red' ? 'danger' : c.tone === 'yellow' ? 'warning' : c.tone === 'green' ? 'success' : 'info',
+          trend: 'stable',
+          trendValue: c.hint,
+        }))"
+      />
 
       <!-- Bundle 合规核查 -->
       <section class="panel bundle-panel">
@@ -78,7 +67,7 @@
                 <b>{{ doc.managed_beds }} 床</b>
               </article>
             </div>
-            <div v-if="!(overview.doctors || []).length" class="empty small">暂无医生分管数据。</div>
+            <EmptyState v-if="!(overview.doctors || []).length" description="暂无医生分管数据。" />
           </div>
         </section>
 
@@ -202,8 +191,8 @@
               <span>{{ item.status }} · {{ fmt(item.created_at) }}</span>
             </article>
           </div>
-          <div v-if="!(researchSummary.recent_exports || []).length" class="empty small">暂无科研任务。</div>
-          <button class="full-btn" type="button" @click="$router.push({ path: '/academic-research', query: route.query })">进入科研工作台</button>
+          <EmptyState v-if="!(researchSummary.recent_exports || []).length" description="暂无科研任务。" />
+          <a-button class="full-btn" type="primary" @click="$router.push({ path: '/academic-research', query: route.query })">进入科研工作台</a-button>
         </section>
 
         <!-- 角色分布 -->
@@ -248,8 +237,8 @@
               </div>
             </article>
           </div>
-          <div v-if="!scannerRows.length" class="empty small">暂无规则健康数据。</div>
-          <button class="full-btn" type="button" @click="$router.push({ path: '/admin/scanner-health', query: route.query })">查看规则健康详情</button>
+          <EmptyState v-if="!scannerRows.length" description="暂无规则健康数据。" />
+          <a-button class="full-btn" type="primary" @click="$router.push({ path: '/admin/scanner-health', query: route.query })">查看规则健康详情</a-button>
         </section>
       </main>
 
@@ -257,7 +246,7 @@
         <div class="onboarding-card">
           <div class="panel-head">
             <strong>主任看板3步用法</strong>
-            <button type="button" @click="dismissOnboarding">知道了</button>
+            <a-button size="small" @click="dismissOnboarding">知道了</a-button>
           </div>
           <ol>
             <li><b>先看科室概览</b><span>确认床位使用率和医护人员分布。</span></li>
@@ -271,12 +260,14 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton } from 'ant-design-vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getDirectorHome } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { roleHomeConfig } from '../config/roleHomeConfig'
 import BundleComplianceChecklist from './BundleComplianceChecklist.vue'
+import { PageHeader, MetricStrip, LoadingState, ErrorState, EmptyState } from '../components/common/design-system'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -338,14 +329,6 @@ function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }
 
-function kpiToneClass(tone: any) {
-  const key = String(tone || '').toLowerCase()
-  if (key === 'red' || key === 'danger') return 'is-danger'
-  if (key === 'yellow' || key === 'warning') return 'is-warning'
-  if (key === 'green' || key === 'success') return 'is-success'
-  return 'is-brand'
-}
-
 function tick() {
   clock.value = new Date().toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
@@ -401,21 +384,30 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 
 <style scoped>
 .director-home {
-  padding: 14px;
+  padding: var(--page-padding);
+  padding-bottom: 80px;
   display: grid;
-  gap: 12px;
+  gap: var(--section-gap);
 }
 
+/* ── 头部辅助信息 ── */
+.top-meta {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 引导横幅 ── */
 .start-guide {
   min-height: 66px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid rgba(34, 211, 238, .22);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  gap: var(--element-gap-lg);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
 .start-guide div {
@@ -424,120 +416,29 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 }
 
 .start-guide span {
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 
 .start-guide strong {
-  color: var(--text-primary);
-  font-size: 15px;
-}
-
-.home-top {
-  min-height: 72px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 14px;
-  border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-}
-
-.home-top div {
-  display: grid;
-  gap: 4px;
-}
-
-.home-top span {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.panel-head span,
-.empty,
-.summary-card span,
-.summary-card em {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.home-top strong {
-  color: var(--text-primary);
-  font-size: 20px;
-}
-
-.top-meta {
-  display: flex !important;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-button {
-  min-height: 44px;
-  border-radius: var(--card-radius);
-  border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  padding: 0 12px;
-  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
 }
 
 .full-btn {
   width: 100%;
 }
 
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.summary-card {
-  min-height: 86px;
-  display: grid;
-  align-content: center;
-  gap: 4px;
-  padding: 12px;
-  border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-}
-
-.summary-card strong {
-  color: var(--text-primary);
-  font-size: 26px;
-  line-height: 1;
-}
-
-.summary-card.is-red {
-  border-color: rgba(239, 68, 68, .42);
-}
-
-.summary-card.is-yellow {
-  border-color: rgba(245, 158, 11, .42);
-}
-
-.summary-card.is-green {
-  border-color: rgba(52, 211, 153, .34);
-}
-
-.summary-card.is-blue {
-  border-color: rgba(56, 189, 248, .34);
-}
-
 .bundle-panel {
-  padding: 16px;
+  padding: var(--card-padding);
 }
 
 .director-grid {
   min-height: 560px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .panel {
@@ -546,10 +447,10 @@ button {
   display: grid;
   align-content: start;
   gap: 10px;
-  padding: 12px;
-  border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
 .panel-head {
@@ -560,8 +461,14 @@ button {
 }
 
 .panel-head strong {
-  color: var(--text-primary);
-  font-size: 15px;
+  color: var(--color-text-primary);
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
+}
+
+.panel-head span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
 }
 
 .overview-stats {
@@ -572,41 +479,46 @@ button {
 
 .overview-item {
   padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
   text-align: center;
 }
 
 .overview-item span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   display: block;
 }
 
 .overview-item strong {
-  color: var(--text-primary);
-  font-size: 24px;
+  color: var(--color-text-primary);
+  font-size: var(--text-metric-key);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
   display: block;
   margin-top: 4px;
 }
 
 .overview-item em {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   font-style: normal;
+  font-variant-numeric: tabular-nums;
 }
 
 .doctor-list {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(125, 211, 252, .14);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-divider);
 }
 
 .doctor-list strong {
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .doctor-grid {
@@ -620,31 +532,34 @@ button {
   justify-content: space-between;
   align-items: center;
   padding: 6px 8px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
 }
 
 .doctor-item span {
-  color: var(--text-primary);
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
 }
 
 .doctor-item b {
-  color: var(--chart-1);
-  font-size: 12px;
+  color: var(--chart-color-1);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .quality-section,
 .adoption-section {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .quality-section strong,
 .adoption-section strong {
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .quality-grid {
@@ -655,20 +570,23 @@ button {
 
 .quality-item {
   padding: 8px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
   text-align: center;
 }
 
 .quality-item span {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   display: block;
 }
 
 .quality-item b {
-  color: var(--text-primary);
-  font-size: 18px;
+  color: var(--color-text-primary);
+  font-size: var(--text-metric-normal);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
   display: block;
   margin-top: 4px;
 }
@@ -680,8 +598,9 @@ button {
 }
 
 .adoption-stats span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-grid {
@@ -690,10 +609,11 @@ button {
 }
 
 .kpi-section strong {
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .kpi-items {
@@ -704,27 +624,31 @@ button {
 
 .kpi-item {
   padding: 8px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
   text-align: center;
 }
 
 .kpi-item span {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   display: block;
 }
 
 .kpi-item b {
-  color: var(--text-primary);
-  font-size: 16px;
+  color: var(--color-text-primary);
+  font-size: var(--text-metric-normal);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
   display: block;
   margin-top: 4px;
 }
 
 .text-warning {
-  color: var(--warning-soft) !important;
+  color: var(--color-warning) !important;
 }
+
 
 .research-stats {
   display: grid;
@@ -734,20 +658,23 @@ button {
 
 .research-item {
   padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
   text-align: center;
 }
 
 .research-item span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   display: block;
 }
 
 .research-item b {
-  color: var(--text-primary);
-  font-size: 20px;
+  color: var(--color-text-primary);
+  font-size: var(--text-metric-normal);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
   display: block;
   margin-top: 4px;
 }
@@ -761,18 +688,21 @@ button {
   display: grid;
   gap: 2px;
   padding: 8px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
 }
 
 .research-export strong {
-  color: var(--text-primary);
-  font-size: 12px;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
 }
 
 .research-export span {
-  color: var(--text-secondary);
-  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .role-grid {
@@ -783,20 +713,23 @@ button {
 
 .role-item {
   padding: 10px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
   text-align: center;
 }
 
 .role-item span {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   display: block;
 }
 
 .role-item b {
-  color: var(--text-primary);
-  font-size: 20px;
+  color: var(--color-text-primary);
+  font-size: var(--text-metric-normal);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
   display: block;
   margin-top: 4px;
 }
@@ -810,13 +743,14 @@ button {
   display: grid;
   gap: 4px;
   padding: 8px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg-surface);
 }
 
 .scanner-item strong {
-  color: var(--text-primary);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--text-body);
 }
 
 .scanner-stats {
@@ -826,22 +760,9 @@ button {
 }
 
 .scanner-stats span {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.empty {
-  padding: 14px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-}
-
-.empty.small {
-  padding: 10px;
-}
-
-.empty.danger {
-  color: var(--danger-soft);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .onboarding-mask {
@@ -850,7 +771,7 @@ button {
   z-index: 400;
   display: grid;
   place-items: center;
-  background: var(--bg-surface);
+  background: rgba(17, 24, 39, 0.4);
   padding: 16px;
 }
 
@@ -858,11 +779,11 @@ button {
   width: min(560px, 100%);
   display: grid;
   gap: 12px;
-  padding: 16px;
-  border: 1px solid rgba(125, 211, 252, .24);
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-  box-shadow: var(--card-shadow);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-lg);
 }
 
 .onboarding-card ol {
@@ -873,7 +794,7 @@ button {
 }
 
 .onboarding-card li {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .onboarding-card li b {
@@ -882,13 +803,17 @@ button {
 
 .onboarding-card li span {
   display: block;
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
   margin-top: 4px;
 }
 
+/* 面板内空态保持紧凑 */
+.panel :deep(.empty-state) {
+  padding: 24px 16px;
+}
+
 @media (max-width: 1024px) {
-  .summary-cards,
   .director-grid {
     grid-template-columns: 1fr;
   }
@@ -900,77 +825,5 @@ button {
   .role-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-}
-
-/* Light theme */
-html[data-theme='light'] .director-home {
-  background: var(--bg-base);
-}
-
-html[data-theme='light'] .home-top,
-html[data-theme='light'] .start-guide,
-html[data-theme='light'] .panel,
-html[data-theme='light'] .summary-card {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: var(--card-shadow);
-}
-
-html[data-theme='light'] .home-top strong,
-html[data-theme='light'] .start-guide strong,
-html[data-theme='light'] .panel-head strong,
-html[data-theme='light'] .summary-card strong {
-  color: var(--text-primary);
-}
-
-html[data-theme='light'] .home-top span,
-html[data-theme='light'] .start-guide span,
-html[data-theme='light'] .panel-head span,
-html[data-theme='light'] .empty,
-html[data-theme='light'] .summary-card span,
-html[data-theme='light'] .summary-card em {
-  color: var(--text-secondary);
-}
-
-html[data-theme='light'] .overview-item,
-html[data-theme='light'] .quality-item,
-html[data-theme='light'] .kpi-item,
-html[data-theme='light'] .research-item,
-html[data-theme='light'] .role-item,
-html[data-theme='light'] .doctor-item,
-html[data-theme='light'] .scanner-item,
-html[data-theme='light'] .research-export {
-  background: var(--bg-surface);
-  border-color: rgba(145, 176, 199, 0.26);
-}
-
-html[data-theme='light'] button {
-  background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.18);
-  color: var(--brand);
-}
-
-html[data-theme='light'] button:hover {
-  background: var(--bg-surface);
-  border-color: rgba(37, 99, 235, 0.3);
-}
-
-html[data-theme='light'] .empty.danger {
-  color: var(--danger);
-  background: var(--danger-bg);
-  border-color: rgba(239, 68, 68, 0.18);
-}
-
-html[data-theme='light'] .onboarding-card {
-  background: var(--bg-surface);
-  border-color: rgba(145, 176, 199, 0.32);
-}
-
-html[data-theme='light'] .onboarding-card li {
-  color: var(--text-primary);
-}
-
-html[data-theme='light'] .onboarding-card li span {
-  color: var(--text-secondary);
 }
 </style>

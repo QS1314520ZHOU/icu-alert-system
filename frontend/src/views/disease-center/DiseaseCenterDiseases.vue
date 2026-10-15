@@ -208,9 +208,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
-import { getDiseases, type Disease } from '../../api/diseaseCenter'
+import { ref, computed, onMounted, h } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { getDiseases, updateDisease, type Disease } from '../../api/diseaseCenter'
 
 // 扩展病种类型
 interface DiseaseExtended extends Disease {
@@ -294,8 +294,82 @@ function selectDisease(disease: DiseaseExtended) {
 
 // 编辑病种
 function editDisease() {
-  // TODO: 实现编辑功能
-  message.info('编辑功能开发中')
+  if (!selectedDisease.value) return
+  const disease = selectedDisease.value
+  const form = {
+    name: disease.name,
+    english_name: disease.english_name || '',
+    description: disease.description || '',
+  }
+  const inputStyle =
+    'width:100%;padding:6px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;'
+  const labelStyle = 'display:block;font-size:12px;color:#667085;margin-bottom:4px;'
+  Modal.confirm({
+    title: '编辑病种',
+    content: () =>
+      h('div', [
+        h('div', { style: 'margin-bottom:10px;' }, [
+          h('label', { style: labelStyle }, '病种名称'),
+          h('input', {
+            value: form.name,
+            placeholder: '输入病种名称',
+            style: inputStyle,
+            onInput: (e: Event) => {
+              form.name = (e.target as HTMLInputElement).value
+            },
+          }),
+        ]),
+        h('div', { style: 'margin-bottom:10px;' }, [
+          h('label', { style: labelStyle }, '英文名称'),
+          h('input', {
+            value: form.english_name,
+            placeholder: '输入英文名称（可选）',
+            style: inputStyle,
+            onInput: (e: Event) => {
+              form.english_name = (e.target as HTMLInputElement).value
+            },
+          }),
+        ]),
+        h('div', {}, [
+          h('label', { style: labelStyle }, '定义描述'),
+          h('textarea', {
+            value: form.description,
+            rows: 4,
+            placeholder: '输入病种定义描述（可选）',
+            style: inputStyle + 'resize:vertical;',
+            onInput: (e: Event) => {
+              form.description = (e.target as HTMLTextAreaElement).value
+            },
+          }),
+        ]),
+      ]),
+    okText: '保存',
+    cancelText: '取消',
+    async onOk() {
+      if (!form.name.trim()) {
+        message.warning('请填写病种名称')
+        throw new Error('name required')
+      }
+      try {
+        const res = await updateDisease(disease.id, {
+          name: form.name.trim(),
+          english_name: form.english_name.trim(),
+          description: form.description,
+        })
+        message.success('病种已更新')
+        await onSearch()
+        const fresh = diseases.value.find((d) => d.id === disease.id)
+        if (fresh) {
+          selectedDisease.value = fresh
+        } else {
+          selectedDisease.value = { ...disease, ...res.data }
+        }
+      } catch (e: any) {
+        message.error('保存失败: ' + (e?.message || '未知错误'))
+        throw e
+      }
+    },
+  })
 }
 
 // 搜索
@@ -334,137 +408,103 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.diseases-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+<style scoped>.diseases-page { display: flex; flex-direction: column; gap: 16px }
 
-/* 筛选栏 */
-.filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #E3E7EC);
-}
+/* 筛选栏 */ .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
+.search-box { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px) }
+.search-icon { color: var(--color-text-secondary, #4B5563); flex-shrink: 0 }
+.search-input { flex: 1; border: none; background: transparent; outline: none; font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827) }
+.search-input::placeholder { color: var(--color-text-tertiary, #9CA3AF) }
+.filter-group { display: flex; gap: 8px }
+.filter-select { padding: 8px 12px; font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); cursor: pointer; min-width: 100px }
 
-.search-box {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: 6px;
-}
+/* 三栏布局 */ .content-grid { display: grid; grid-template-columns: 180px 1fr 340px; gap: 16px; min-height: 600px }
 
-.search-icon { color: var(--color-text-secondary, #667085); flex-shrink: 0; }
-.search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 13px; color: var(--color-text-primary, #18212B); }
-.search-input::placeholder { color: var(--color-text-tertiary, #98A2B3); }
+/* 面板 */ .panel { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); display: flex; flex-direction: column; overflow: hidden }
+.panel__header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
+.panel__title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 }
+.panel__count { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.panel__body { flex: 1; overflow-y: auto; padding: 12px }
 
-.filter-group { display: flex; gap: 8px; }
-.filter-select { padding: 8px 12px; font-size: 13px; border: 1px solid var(--color-border, #D0D5DD); border-radius: 6px; background: #fff; color: var(--color-text-primary, #18212B); cursor: pointer; min-width: 100px; }
+/* 分类树 */ .category-tree { display: flex; flex-direction: column; gap: 2px }
+.tree-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s }
+.tree-item:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
+.tree-item--active { background: rgba(37, 99, 235, 0.08); color: var(--color-primary, #2563EB) }
+.tree-item__icon { font-size: 16px }
+.tree-item__name { flex: 1; font-size: var(--text-body, 13px); font-weight: 500 }
+.tree-item__count { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8); padding: 1px 6px; border-radius: var(--radius-lg, 10px) }
+.tree-item--active .tree-item__count { background: rgba(37, 99, 235, 0.15); color: var(--color-primary, #2563EB) }
 
-/* 三栏布局 */
-.content-grid {
-  display: grid;
-  grid-template-columns: 180px 1fr 340px;
-  gap: 16px;
-  min-height: 600px;
-}
+/* 病种列表 */ .disease-list { display: flex; flex-direction: column; gap: 4px }
+.disease-item { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent }
+.disease-item:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border, #E5E7EB) }
+.disease-item--active { background: rgba(37, 99, 235, 0.06); border-color: rgba(37, 99, 235, 0.2) }
+.disease-item__main { display: flex; flex-direction: column; gap: 4px }
+.disease-item__name { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.disease-item__codes { display: flex; gap: 6px; flex-wrap: wrap }
+.code-tag { font-size: var(--text-caption, 12px); font-family: 'SF Mono', 'Consolas', monospace; padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-secondary, #4B5563) }
+.disease-item__meta { display: flex; align-items: center; gap: 8px }
+.meta-version { font-size: var(--text-caption, 12px); font-family: 'SF Mono', 'Consolas', monospace; color: var(--color-text-secondary, #4B5563) }
+.meta-rules { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
-/* 面板 */
-.panel { background: #fff; border-radius: 8px; border: 1px solid var(--color-border, #E3E7EC); display: flex; flex-direction: column; overflow: hidden; }
-.panel__header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
-.panel__title { font-size: 14px; font-weight: 600; color: var(--color-text-primary, #18212B); margin: 0; }
-.panel__count { font-size: 12px; color: var(--color-text-secondary, #667085); }
-.panel__body { flex: 1; overflow-y: auto; padding: 12px; }
+/* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
+.status-badge--published { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1) }
+.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1) }
+.status-badge--review, .status-badge--review_pending, .status-badge--reviewing { color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.1) }
+.status-badge--approved { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1) }
+.status-badge--validating { color: var(--color-ai, #6E5AE6); background: var(--color-ai-light, #F0EDFF) }
+.status-badge--changes_requested { color: var(--color-danger, #D92D20); background: var(--color-warning-bg, rgba(181, 71, 8, 0.08)) }
+.status-badge--deprecated, .status-badge--archived { color: var(--color-text-tertiary, #9CA3AF); background: var(--color-unknown-bg, #F2F4F7) }
 
-/* 分类树 */
-.category-tree { display: flex; flex-direction: column; gap: 2px; }
-.tree-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
-.tree-item:hover { background: var(--color-bg-surface-secondary, #F1F3F5); }
-.tree-item--active { background: rgba(37, 99, 235, 0.08); color: var(--color-primary, #2563EB); }
-.tree-item__icon { font-size: 16px; }
-.tree-item__name { flex: 1; font-size: 13px; font-weight: 500; }
-.tree-item__count { font-size: 11px; color: var(--color-text-secondary, #667085); background: var(--color-bg-surface-secondary, #F1F3F5); padding: 1px 6px; border-radius: 10px; }
-.tree-item--active .tree-item__count { background: rgba(37, 99, 235, 0.15); color: var(--color-primary, #2563EB); }
+/* 病种详情 */ .disease-detail { display: flex; flex-direction: column; gap: 20px }
+.detail-section { display: flex; flex-direction: column; gap: 10px }
+.section-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0; padding-bottom: 6px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
+.detail-row { display: flex; align-items: center; gap: 12px }
+.detail-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); min-width: 70px }
+.detail-value { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827); font-weight: 500 }
+.detail-value--name { font-size: var(--text-section-title, 15px); font-weight: 600 }
+.detail-value--code { font-family: 'SF Mono', 'Consolas', monospace; font-size: var(--text-caption, 12px); padding: 1px 6px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-tag, 4px) }
+.detail-desc { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); line-height: 1.6; margin: 0; padding: 10px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
 
-/* 病种列表 */
-.disease-list { display: flex; flex-direction: column; gap: 4px; }
-.disease-item { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
-.disease-item:hover { background: var(--color-bg-surface-secondary, #F9FAFB); border-color: var(--color-border, #E3E7EC); }
-.disease-item--active { background: rgba(37, 99, 235, 0.06); border-color: rgba(37, 99, 235, 0.2); }
-.disease-item__main { display: flex; flex-direction: column; gap: 4px; }
-.disease-item__name { font-size: 13px; font-weight: 600; color: var(--color-text-primary, #18212B); }
-.disease-item__codes { display: flex; gap: 6px; flex-wrap: wrap; }
-.code-tag { font-size: 11px; font-family: 'SF Mono', 'Consolas', monospace; padding: 1px 6px; border-radius: 3px; background: var(--color-bg-surface-secondary, #F1F3F5); color: var(--color-text-secondary, #667085); }
-.disease-item__meta { display: flex; align-items: center; gap: 8px; }
-.meta-version { font-size: 11px; font-family: 'SF Mono', 'Consolas', monospace; color: var(--color-text-secondary, #667085); }
-.meta-rules { font-size: 11px; color: var(--color-text-tertiary, #98A2B3); }
+/* 同义词 */ .synonym-list { display: flex; flex-wrap: wrap; gap: 6px }
+.synonym-tag { display: inline-flex; padding: 3px 8px; font-size: var(--text-caption, 12px); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-primary, #111827); border: 1px solid var(--color-border, #E5E7EB) }
 
-/* 状态徽章 */
-.status-badge { display: inline-flex; padding: 2px 8px; font-size: 11px; font-weight: 500; border-radius: 4px; }
-.status-badge--published { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1); }
-.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1); }
-.status-badge--review { color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.1); }
+/* 分期 */ .stage-list { display: flex; flex-direction: column; gap: 6px }
+.stage-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--radius-md, 6px); background: var(--color-bg-surface-secondary, #F1F4F8) }
+.stage-name { font-size: var(--text-caption, 12px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.stage-desc { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 
-/* 病种详情 */
-.disease-detail { display: flex; flex-direction: column; gap: 20px; }
-.detail-section { display: flex; flex-direction: column; gap: 10px; }
-.section-title { font-size: 13px; font-weight: 600; color: var(--color-text-primary, #18212B); margin: 0; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
-.detail-row { display: flex; align-items: center; gap: 12px; }
-.detail-label { font-size: 12px; color: var(--color-text-secondary, #667085); min-width: 70px; }
-.detail-value { font-size: 13px; color: var(--color-text-primary, #18212B); font-weight: 500; }
-.detail-value--name { font-size: 15px; font-weight: 600; }
-.detail-value--code { font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; padding: 1px 6px; background: var(--color-bg-surface-secondary, #F1F3F5); border-radius: 3px; }
-.detail-desc { font-size: 13px; color: var(--color-text-secondary, #667085); line-height: 1.6; margin: 0; padding: 10px; background: var(--color-bg-surface-secondary, #F9FAFB); border-radius: 6px; }
+/* 关联 */ .related-list { display: flex; flex-direction: column; gap: 6px }
+.related-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8) }
+.related-icon { font-size: 14px }
+.related-name { font-size: var(--text-caption, 12px); color: var(--color-text-primary, #111827) }
 
-/* 同义词 */
-.synonym-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.synonym-tag { display: inline-flex; padding: 3px 8px; font-size: 12px; border-radius: 4px; background: var(--color-bg-surface-secondary, #F1F3F5); color: var(--color-text-primary, #18212B); border: 1px solid var(--color-border, #E3E7EC); }
+/* 按钮 */ .btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent }
+.btn--sm { padding: 3px 8px; font-size: var(--text-caption, 12px) }
+.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 
-/* 分期 */
-.stage-list { display: flex; flex-direction: column; gap: 6px; }
-.stage-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; background: var(--color-bg-surface-secondary, #F9FAFB); }
-.stage-name { font-size: 12px; font-weight: 600; color: var(--color-text-primary, #18212B); }
-.stage-desc { font-size: 12px; color: var(--color-text-secondary, #667085); }
+/* 加载和空状态 */ .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite }
 
-/* 关联 */
-.related-list { display: flex; flex-direction: column; gap: 6px; }
-.related-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; background: var(--color-bg-surface-secondary, #F9FAFB); }
-.related-icon { font-size: 14px; }
-.related-name { font-size: 12px; color: var(--color-text-primary, #18212B); }
-
-/* 按钮 */
-.btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
-.btn--sm { padding: 3px 8px; font-size: 11px; }
-.btn--primary { background: var(--color-primary, #2563EB); color: #fff; border-color: var(--color-primary, #2563EB); }
-.btn--primary:hover { background: #1D4FD8; }
-
-/* 加载和空状态 */
-.loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center; }
-.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E3E7EC); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.empty-icon { font-size: 32px; opacity: 0.6; }
-.empty-text { font-size: 14px; font-weight: 500; color: var(--color-text-primary, #18212B); }
+@keyframes spin {to { transform: rotate(360deg) }
+ }
+.empty-icon { font-size: 32px; opacity: 0.6 }
+.empty-text { font-size: var(--text-body, 13px); font-weight: 500; color: var(--color-text-primary, #111827) }
 
 /* 响应式 */
-@media (max-width: 1024px) {
-  .content-grid { grid-template-columns: 1fr 300px; }
-  .panel--left { display: none; }
+
+@media (max-width: 1024px) {.content-grid { grid-template-columns: 1fr 300px }
+.panel--left { display: none }
+
 }
 
-@media (max-width: 768px) {
-  .filter-bar { flex-direction: column; }
-  .filter-group { width: 100%; }
-  .filter-select { flex: 1; }
-  .content-grid { grid-template-columns: 1fr; }
-  .panel--right { display: none; }
+@media (max-width: 768px) {.filter-bar { flex-direction: column }
+.filter-group { width: 100% }
+.filter-select { flex: 1 }
+.content-grid { grid-template-columns: 1fr }
+.panel--right { display: none }
+
 }
+
 </style>

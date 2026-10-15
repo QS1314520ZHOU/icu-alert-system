@@ -73,7 +73,7 @@
           <h3 class="panel__title">{{ selectedRule ? '编辑规则' : '新建规则' }}</h3>
           <div v-if="selectedRule" class="header-actions">
             <button class="btn btn--sm btn--outline" @click="testRule">测试</button>
-            <button class="btn btn--sm btn--primary" @click="saveRule">保存</button>
+            <button class="btn btn--sm btn--primary" :disabled="saving" @click="saveRule">保存</button>
           </div>
         </div>
         <div class="panel__body">
@@ -205,20 +205,20 @@
 
             <!-- 底部操作栏 -->
             <div class="editor-actions">
-              <button class="btn btn--outline" @click="validateRule">
+              <button class="btn btn--outline" :disabled="validating" @click="validateRule">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                Schema检查
+                {{ validating ? '检查中...' : 'Schema检查' }}
               </button>
               <button class="btn btn--outline" @click="testRule">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 测试病例
               </button>
-              <button class="btn btn--outline" @click="aiCheck">
+              <button class="btn btn--outline" :disabled="aiChecking" @click="aiCheck">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></svg>
-                AI检查
+                {{ aiChecking ? '检查中...' : 'AI检查' }}
               </button>
               <div class="actions-right">
-                <button class="btn btn--outline" @click="saveDraft">保存草稿</button>
+                <button class="btn btn--outline" :disabled="saving" @click="saveDraft">保存草稿</button>
                 <button class="btn btn--primary" @click="submitReview">提交审核</button>
               </div>
             </div>
@@ -230,9 +230,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { message } from 'ant-design-vue'
-import { getPhenotypeRules, getDiseases, type PhenotypeRule, type Disease } from '../../api/diseaseCenter'
+import { ref, computed, onMounted, watch, h } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import {
+  getPhenotypeRules,
+  getDiseases,
+  createPhenotypeRule,
+  updatePhenotypeRule,
+  validatePhenotypeRule,
+  type PhenotypeRule,
+  type Disease,
+} from '../../api/diseaseCenter'
+import { postAiConsultChat } from '../../api'
 
 // 状态
 const loading = ref(false)
@@ -368,40 +377,123 @@ function createRule() {
   }
 }
 
+// 保存状态
+const saving = ref(false)
+const validating = ref(false)
+const aiChecking = ref(false)
+
+function buildPayload(statusOverride?: string): Partial<PhenotypeRule> {
+  return {
+    name: editForm.value.name,
+    disease_id: editForm.value.disease_id,
+    version: editForm.value.version,
+    status: statusOverride || editForm.value.status,
+    description: editForm.value.description,
+    dsl: editForm.value.dsl,
+  }
+}
+
+// 保存规则（新建或更新）
+async function persistRule(statusOverride?: string) {
+  if (!editForm.value.name.trim()) {
+    message.warning('请填写规则名称')
+    return
+  }
+  saving.value = true
+  try {
+    const payload = buildPayload(statusOverride)
+    const res = selectedRule.value
+      ? await updatePhenotypeRule(selectedRule.value.id, payload)
+      : await createPhenotypeRule(payload)
+    if (statusOverride) editForm.value.status = statusOverride
+    message.success(
+      statusOverride === 'draft' ? '草稿已保存' : selectedRule.value ? '规则已保存' : '规则已创建'
+    )
+    await loadRules()
+    const savedId = res.data?.id || selectedRule.value?.id
+    const target = savedId ? rules.value.find((r) => r.id === savedId) : undefined
+    if (target) {
+      selectRule(target)
+    } else if (!selectedRule.value) {
+      isCreating.value = true
+    }
+  } catch (e: any) {
+    message.error(e?.message || '保存失败，请稍后重试')
+  } finally {
+    saving.value = false
+  }
+}
+
 // 保存规则
 function saveRule() {
-  // TODO: 实现保存逻辑
-  message.info('保存功能开发中')
+  persistRule()
 }
 
 // 保存草稿
 function saveDraft() {
-  // TODO: 实现保存草稿逻辑
-  message.success('草稿已保存')
+  persistRule('draft')
 }
 
 // 提交审核
 function submitReview() {
-  // TODO: 实现提交审核逻辑
-  message.success('已提交审核')
+  message.info('后端暂未提供表型规则提交审核接口')
 }
 
 // 测试规则
 function testRule() {
-  // TODO: 实现测试逻辑
-  message.info('测试功能开发中')
+  message.info('后端暂未提供表型规则测试接口')
 }
 
 // Schema检查
-function validateRule() {
-  // TODO: 实现Schema检查逻辑
-  message.success('Schema检查通过')
+async function validateRule() {
+  if (!editForm.value.name.trim()) {
+    message.warning('请填写规则名称后再检查')
+    return
+  }
+  validating.value = true
+  try {
+    const { data } = await validatePhenotypeRule(buildPayload())
+    if (data.valid) {
+      if (data.warnings?.length) {
+        message.warning(`Schema检查通过，但有警告：${data.warnings.join('；')}`)
+      } else {
+        message.success('Schema检查通过')
+      }
+    } else {
+      message.error(`Schema检查未通过：${(data.errors || []).join('；')}`)
+    }
+  } catch (e: any) {
+    message.error(e?.message || 'Schema检查失败，请稍后重试')
+  } finally {
+    validating.value = false
+  }
 }
 
 // AI检查
-function aiCheck() {
-  // TODO: 实现AI检查逻辑
-  message.info('AI检查功能开发中')
+async function aiCheck() {
+  aiChecking.value = true
+  try {
+    const { data } = await postAiConsultChat({
+      message:
+        `请检查以下表型规则是否存在逻辑冲突或缺失：\n` +
+        `规则名称：${editForm.value.name || '(未命名)'}\n` +
+        `逻辑说明：${generateExplanation()}\n` +
+        `DSL：${JSON.stringify(editForm.value.dsl)}`,
+      mode: 'clinical',
+      history: [],
+    })
+    const reply = data.reply || data.message || 'AI 未返回检查结果'
+    Modal.info({
+      title: 'AI 检查结果',
+      content: () => h('div', { innerHTML: reply, style: 'max-height:60vh;overflow:auto;' }),
+      okText: '知道了',
+      width: 560,
+    })
+  } catch (e: any) {
+    message.error(e?.message || 'AI检查失败，请稍后重试')
+  } finally {
+    aiChecking.value = false
+  }
 }
 
 // 加载规则
@@ -442,129 +534,97 @@ watch([selectedDisease, selectedStatus], () => {
 })
 </script>
 
-<style scoped>
-.phenotypes-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+<style scoped>.phenotypes-page { display: flex; flex-direction: column; gap: 16px }
 
-/* 工具栏 */
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #E3E7EC);
-}
+/* 工具栏 */ .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
+.toolbar__left, .toolbar__right { display: flex; align-items: center; gap: 8px }
+.filter-select { padding: 8px 12px; font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); cursor: pointer; min-width: 120px }
 
-.toolbar__left, .toolbar__right { display: flex; align-items: center; gap: 8px; }
+/* 内容区 */ .content-grid { display: grid; grid-template-columns: 300px 1fr; gap: 16px; min-height: 600px }
 
-.filter-select { padding: 8px 12px; font-size: 13px; border: 1px solid var(--color-border, #D0D5DD); border-radius: 6px; background: #fff; color: var(--color-text-primary, #18212B); cursor: pointer; min-width: 120px; }
+/* 面板 */ .panel { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); display: flex; flex-direction: column; overflow: hidden }
+.panel__header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
+.panel__title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 }
+.panel__count { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.panel__body { flex: 1; overflow-y: auto; padding: 12px }
+.header-actions { display: flex; gap: 8px }
 
-/* 内容区 */
-.content-grid {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 16px;
-  min-height: 600px;
-}
+/* 规则列表 */ .rule-list { display: flex; flex-direction: column; gap: 8px }
+.rule-card { padding: 12px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB); cursor: pointer; transition: all 0.15s }
+.rule-card:hover { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.02) }
+.rule-card--active { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.06) }
+.rule-card__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px }
+.rule-card__name { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.rule-card__meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px }
+.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: rgba(37, 99, 235, 0.08); color: var(--color-primary, #2563EB) }
+.meta-version { font-size: var(--text-caption, 12px); font-family: 'SF Mono', 'Consolas', monospace; color: var(--color-text-secondary, #4B5563) }
+.rule-card__preview { display: flex; align-items: center; gap: 8px }
+.preview-op { font-size: var(--text-caption, 12px); font-weight: 600; padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-primary, #111827) }
+.preview-count { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
-/* 面板 */
-.panel { background: #fff; border-radius: 8px; border: 1px solid var(--color-border, #E3E7EC); display: flex; flex-direction: column; overflow: hidden; }
-.panel__header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
-.panel__title { font-size: 14px; font-weight: 600; color: var(--color-text-primary, #18212B); margin: 0; }
-.panel__count { font-size: 12px; color: var(--color-text-secondary, #667085); }
-.panel__body { flex: 1; overflow-y: auto; padding: 12px; }
+/* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
+.status-badge--active { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1) }
+.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1) }
+.status-badge--disabled { color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8) }
 
-.header-actions { display: flex; gap: 8px; }
+/* 编辑器 */ .editor-content { display: flex; flex-direction: column; gap: 20px }
+.editor-section { display: flex; flex-direction: column; gap: 12px }
+.section-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0; padding-bottom: 6px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
 
-/* 规则列表 */
-.rule-list { display: flex; flex-direction: column; gap: 8px; }
-.rule-card { padding: 12px; border-radius: 6px; border: 1px solid var(--color-border, #E3E7EC); cursor: pointer; transition: all 0.15s; }
-.rule-card:hover { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.02); }
-.rule-card--active { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.06); }
-.rule-card__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.rule-card__name { font-size: 13px; font-weight: 600; color: var(--color-text-primary, #18212B); }
-.rule-card__meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.meta-tag { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(37, 99, 235, 0.08); color: var(--color-primary, #2563EB); }
-.meta-version { font-size: 11px; font-family: 'SF Mono', 'Consolas', monospace; color: var(--color-text-secondary, #667085); }
-.rule-card__preview { display: flex; align-items: center; gap: 8px; }
-.preview-op { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 3px; background: var(--color-bg-surface-secondary, #F1F3F5); color: var(--color-text-primary, #18212B); }
-.preview-count { font-size: 11px; color: var(--color-text-tertiary, #98A2B3); }
+/* 表单 */ .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px }
+.form-item { display: flex; flex-direction: column; gap: 4px }
+.form-item--full { grid-column: 1 / -1 }
+.form-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-weight: 500 }
+.form-input, .form-select, .form-textarea { padding: 8px 12px; font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); outline: none; transition: border-color 0.15s }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--color-primary, #2563EB) }
+.form-textarea { resize: vertical; min-height: 60px }
 
-/* 状态徽章 */
-.status-badge { display: inline-flex; padding: 2px 8px; font-size: 11px; font-weight: 500; border-radius: 4px; }
-.status-badge--active { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1); }
-.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1); }
-.status-badge--disabled { color: var(--color-text-secondary, #667085); background: var(--color-bg-surface-secondary, #F1F3F5); }
+/* 逻辑编辑器 */ .logic-editor { display: flex; flex-direction: column; gap: 16px }
+.logic-operator { display: flex; flex-direction: column; gap: 8px }
+.operator-tabs { display: flex; gap: 4px }
+.op-tab { padding: 6px 16px; font-size: var(--text-body, 13px); font-weight: 500; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); cursor: pointer; transition: all 0.15s }
+.op-tab:hover { border-color: var(--color-primary, #2563EB) }
+.op-tab--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.operator-hint { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 
-/* 编辑器 */
-.editor-content { display: flex; flex-direction: column; gap: 20px; }
-.editor-section { display: flex; flex-direction: column; gap: 12px; }
-.section-title { font-size: 13px; font-weight: 600; color: var(--color-text-primary, #18212B); margin: 0; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+/* 条件列表 */ .conditions-list { display: flex; flex-direction: column; gap: 12px }
+.condition-item { border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); overflow: hidden }
+.condition-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border-bottom: 1px solid var(--color-border, #E5E7EB) }
+.condition-index { font-size: var(--text-caption, 12px); font-weight: 600; color: var(--color-text-secondary, #4B5563); min-width: 24px }
+.condition-type { flex: 1; padding: 4px 8px; font-size: var(--text-caption, 12px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF) }
+.condition-body { padding: 12px; display: flex; flex-direction: column; gap: 10px }
+.condition-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
+.btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: var(--radius-tag, 4px); cursor: pointer; transition: all 0.15s; background: transparent; color: var(--color-text-secondary, #4B5563) }
+.btn-icon:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
+.btn-icon--danger:hover { color: var(--color-danger, #D92D20); background: rgba(217, 45, 32, 0.08) }
 
-/* 表单 */
-.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.form-item { display: flex; flex-direction: column; gap: 4px; }
-.form-item--full { grid-column: 1 / -1; }
-.form-label { font-size: 12px; color: var(--color-text-secondary, #667085); font-weight: 500; }
-.form-input, .form-select, .form-textarea { padding: 8px 12px; font-size: 13px; border: 1px solid var(--color-border, #D0D5DD); border-radius: 6px; background: #fff; color: var(--color-text-primary, #18212B); outline: none; transition: border-color 0.15s; }
-.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--color-primary, #2563EB); }
-.form-textarea { resize: vertical; min-height: 60px; }
+/* 自然语言解释 */ .nl-explanation { padding: 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
+.nl-text { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827); margin: 0; line-height: 1.6 }
 
-/* 逻辑编辑器 */
-.logic-editor { display: flex; flex-direction: column; gap: 16px; }
-.logic-operator { display: flex; flex-direction: column; gap: 8px; }
-.operator-tabs { display: flex; gap: 4px; }
-.op-tab { padding: 6px 16px; font-size: 13px; font-weight: 500; border: 1px solid var(--color-border, #D0D5DD); border-radius: 4px; background: #fff; color: var(--color-text-primary, #18212B); cursor: pointer; transition: all 0.15s; }
-.op-tab:hover { border-color: var(--color-primary, #2563EB); }
-.op-tab--active { background: var(--color-primary, #2563EB); color: #fff; border-color: var(--color-primary, #2563EB); }
-.operator-hint { font-size: 12px; color: var(--color-text-secondary, #667085); }
+/* 操作栏 */ .editor-actions { display: flex; align-items: center; gap: 8px; padding-top: 16px; border-top: 1px solid var(--color-divider, #F0F2F5) }
+.actions-right { margin-left: auto; display: flex; gap: 8px }
 
-/* 条件列表 */
-.conditions-list { display: flex; flex-direction: column; gap: 12px; }
-.condition-item { border: 1px solid var(--color-border, #E3E7EC); border-radius: 6px; overflow: hidden; }
-.condition-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-bg-surface-secondary, #F9FAFB); border-bottom: 1px solid var(--color-border, #E3E7EC); }
-.condition-index { font-size: 12px; font-weight: 600; color: var(--color-text-secondary, #667085); min-width: 24px; }
-.condition-type { flex: 1; padding: 4px 8px; font-size: 12px; border: 1px solid var(--color-border, #D0D5DD); border-radius: 4px; background: #fff; }
-.condition-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-.condition-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+/* 按钮 */ .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; font-size: var(--text-body, 13px); font-weight: 500; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent; white-space: nowrap }
+.btn--sm { padding: 4px 10px; font-size: var(--text-caption, 12px) }
+.btn--outline { background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); border-color: var(--color-border, #E5E7EB) }
+.btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border-strong, #D1D5DB) }
+.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
+.btn--block { width: 100% }
 
-.btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.15s; background: transparent; color: var(--color-text-secondary, #667085); }
-.btn-icon:hover { background: var(--color-bg-surface-secondary, #F1F3F5); }
-.btn-icon--danger:hover { color: var(--color-danger, #D92D20); background: rgba(217, 45, 32, 0.08); }
+/* 加载和空状态 */ .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite }
 
-/* 自然语言解释 */
-.nl-explanation { padding: 12px; background: var(--color-bg-surface-secondary, #F9FAFB); border-radius: 6px; border: 1px solid var(--color-border, #E3E7EC); }
-.nl-text { font-size: 13px; color: var(--color-text-primary, #18212B); margin: 0; line-height: 1.6; }
-
-/* 操作栏 */
-.editor-actions { display: flex; align-items: center; gap: 8px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
-.actions-right { margin-left: auto; display: flex; gap: 8px; }
-
-/* 按钮 */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; white-space: nowrap; }
-.btn--sm { padding: 4px 10px; font-size: 12px; }
-.btn--outline { background: #fff; color: var(--color-text-primary, #18212B); border-color: var(--color-border, #D0D5DD); }
-.btn--outline:hover { background: var(--color-bg-surface-secondary, #F9FAFB); border-color: #B0B8C4; }
-.btn--primary { background: var(--color-primary, #2563EB); color: #fff; border-color: var(--color-primary, #2563EB); }
-.btn--primary:hover { background: #1D4FD8; }
-.btn--block { width: 100%; }
-
-/* 加载和空状态 */
-.loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center; }
-.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E3E7EC); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.empty-icon { font-size: 32px; opacity: 0.6; }
-.empty-text { font-size: 14px; font-weight: 500; color: var(--color-text-primary, #18212B); }
+@keyframes spin {to { transform: rotate(360deg) }
+ }
+.empty-icon { font-size: 32px; opacity: 0.6 }
+.empty-text { font-size: var(--text-body, 13px); font-weight: 500; color: var(--color-text-primary, #111827) }
 
 /* 响应式 */
-@media (max-width: 1024px) {
-  .content-grid { grid-template-columns: 1fr; }
-  .panel--list { max-height: 300px; }
+
+@media (max-width: 1024px) {.content-grid { grid-template-columns: 1fr }
+.panel--list { max-height: 300px }
+
 }
+
 </style>

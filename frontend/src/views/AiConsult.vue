@@ -956,8 +956,8 @@ onBeforeUnmount(() => {
 .ai-consult__sidebar {
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #e5e6eb);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
   overflow: hidden;
 }
@@ -967,13 +967,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 12px 8px;
-  border-bottom: 1px solid var(--color-border, #e5e6eb);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .sidebar-title {
   font-size: var(--text-body-sm, 13px);
   font-weight: 600;
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
 }
 
 .session-list {
@@ -985,7 +985,7 @@ onBeforeUnmount(() => {
 .session-empty {
   padding: 24px 12px;
   text-align: center;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: var(--text-caption, 12px);
 }
 
@@ -998,17 +998,17 @@ onBeforeUnmount(() => {
 }
 
 .session-item:hover {
-  background: var(--color-bg-surface-secondary, #f7f8fa);
+  background: var(--color-bg-surface-secondary);
 }
 
 .session-item.is-active {
-  background: var(--color-primary-bg, #eff6ff);
-  border-left: 2px solid var(--color-primary, #2563eb);
+  background: var(--color-primary-bg);
+  border-left: 2px solid var(--color-primary);
 }
 
 .session-item__label {
   font-size: var(--text-body-sm, 13px);
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1020,7 +1020,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-top: 2px;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .session-item__patient {
@@ -1045,7 +1045,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: 14px;
   cursor: pointer;
   border-radius: 4px;
@@ -1058,16 +1058,16 @@ onBeforeUnmount(() => {
 }
 
 .session-item__delete:hover {
-  background: var(--color-danger-bg, #fef2f2);
-  color: var(--color-danger, #d92d20);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 /* ── 中栏：对话区 ── */
 .ai-consult__chat {
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #e5e6eb);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
   overflow: hidden;
 }
@@ -1103,20 +1103,20 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-lg, 8px);
   font-size: var(--text-body, 14px);
   line-height: 1.7;
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .chat-bubble.is-user {
-  background: var(--color-primary, #2563eb);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border-bottom-right-radius: 4px;
 }
 
 .chat-bubble.is-assistant {
-  background: var(--color-bg-surface-secondary, #f7f8fa);
-  border: 1px solid var(--color-border, #e5e6eb);
+  background: var(--color-bg-surface-secondary);
+  border: 1px solid var(--color-border);
   border-bottom-left-radius: 4px;
 }
 
@@ -1124,7 +1124,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 /* 意图标签 */
@@ -1146,33 +1146,33 @@ onBeforeUnmount(() => {
 }
 
 .intent-tag.is-judge {
-  color: var(--color-primary, #2563eb);
-  border-color: var(--color-primary-bg, #eff6ff);
-  background: var(--color-primary-bg, #eff6ff);
+  color: var(--color-primary);
+  border-color: var(--color-primary-bg);
+  background: var(--color-primary-bg);
 }
 
 .intent-tag.is-risk {
-  color: var(--color-danger, #d92d20);
-  border-color: var(--color-danger-bg, #fef2f2);
-  background: var(--color-danger-bg, #fef2f2);
+  color: var(--color-danger);
+  border-color: var(--color-danger-bg);
+  background: var(--color-danger-bg);
 }
 
 .intent-tag.is-exam {
-  color: #2563eb;
-  border-color: #eff6ff;
-  background: #eff6ff;
+  color: var(--color-primary);
+  border-color: var(--color-primary-bg);
+  background: var(--color-primary-bg);
 }
 
 .intent-tag.is-action {
-  color: var(--color-warning, #d97706);
-  border-color: var(--color-warning-bg, #fffbeb);
-  background: var(--color-warning-bg, #fffbeb);
+  color: var(--color-warning);
+  border-color: var(--color-warning-bg, var(--color-warning-soft-bg));
+  background: var(--color-warning-bg, var(--color-warning-soft-bg));
 }
 
 .intent-tag.is-clarify {
-  color: var(--color-success, #059669);
-  border-color: var(--color-success-bg, #ecfdf5);
-  background: var(--color-success-bg, #ecfdf5);
+  color: var(--color-success);
+  border-color: var(--color-success-bg);
+  background: var(--color-success-bg);
 }
 
 /* 高风险警告 */
@@ -1180,15 +1180,15 @@ onBeforeUnmount(() => {
   padding: 6px 10px;
   margin-bottom: 8px;
   border-radius: 4px;
-  background: var(--color-danger-bg, #fef2f2);
-  color: var(--color-danger, #d92d20);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   font-size: var(--text-caption, 12px);
   font-weight: 600;
 }
 
 /* 结构化区块 */
 .section-block {
-  border: 1px solid var(--color-border, #e5e6eb);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
   margin-bottom: 8px;
   overflow: hidden;
@@ -1199,7 +1199,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background: var(--color-bg-surface-secondary, #f7f8fa);
+  background: var(--color-bg-surface-secondary);
   cursor: pointer;
   user-select: none;
 }
@@ -1207,18 +1207,18 @@ onBeforeUnmount(() => {
 .section-block__title {
   font-size: var(--text-body-sm, 13px);
   font-weight: 600;
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
 }
 
 .section-block__count {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   margin-left: auto;
   margin-right: 4px;
 }
 
 .section-block__arrow {
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   transition: transform 0.2s;
 }
 
@@ -1233,7 +1233,7 @@ onBeforeUnmount(() => {
 .section-block__line {
   font-size: var(--text-body, 14px);
   line-height: 1.7;
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
   padding: 2px 0;
   display: flex;
   align-items: flex-start;
@@ -1242,45 +1242,45 @@ onBeforeUnmount(() => {
 
 /* 区块类型颜色 */
 .section-block.is-risk {
-  border-color: rgba(217, 45, 32, 0.2);
+  border-color: var(--color-critical-border);
 }
 .section-block.is-risk .section-block__header {
-  background: var(--color-danger-bg, #fef2f2);
+  background: var(--color-danger-bg);
 }
 .section-block.is-risk .section-block__title {
-  color: var(--color-danger, #d92d20);
+  color: var(--color-danger);
 }
 
 .section-block.is-action {
-  border-color: rgba(217, 119, 6, 0.2);
+  border-color: var(--color-critical-border);
 }
 .section-block.is-action .section-block__header {
-  background: var(--color-warning-bg, #fffbeb);
+  background: var(--color-warning-bg, var(--color-warning-soft-bg));
 }
 .section-block.is-action .section-block__title {
-  color: var(--color-warning, #d97706);
+  color: var(--color-warning);
 }
 
 .section-block.is-exam {
   border-color: rgba(37, 99, 235, 0.2);
 }
 .section-block.is-exam .section-block__header {
-  background: #eff6ff;
+  background: var(--color-primary-bg);
 }
 .section-block.is-exam .section-block__title {
-  color: #2563eb;
+  color: var(--color-primary);
 }
 
 .section-block.is-safety .section-block__header {
-  background: var(--color-warning-bg, #fffbeb);
+  background: var(--color-warning-bg, var(--color-warning-soft-bg));
 }
 .section-block.is-safety .section-block__title {
-  color: var(--color-warning, #d97706);
+  color: var(--color-warning);
 }
 
 .section-block.is-evidence,
 .section-block.is-uncertain {
-  border-color: var(--color-border, #e5e6eb);
+  border-color: var(--color-border);
 }
 
 /* 优先级标记 */
@@ -1297,18 +1297,18 @@ onBeforeUnmount(() => {
 }
 
 .priority-dot.is-p1 {
-  background: #dc2626;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
 }
 
 .priority-dot.is-p2 {
-  background: #d97706;
-  color: #fff;
+  background: var(--color-warning);
+  color: var(--color-text-inverse);
 }
 
 .priority-dot.is-p3 {
-  background: #2563eb;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 /* 操作栏 */
@@ -1317,23 +1317,23 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--color-border, #e5e6eb);
+  border-top: 1px solid var(--color-border);
 }
 
 .chat-action-btn {
   padding: 2px 8px;
-  border: 1px solid var(--color-border, #e5e6eb);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   background: transparent;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: var(--text-caption, 12px);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .chat-action-btn:hover {
-  background: var(--color-bg-surface-secondary, #f7f8fa);
-  color: var(--color-text-primary, #18212b);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
 }
 
 /* 段落 */
@@ -1346,13 +1346,13 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   border: 1px solid rgba(5, 150, 105, 0.2);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-success-bg, #ecfdf5);
+  background: var(--color-success-bg);
 }
 
 .autonomous-trace__title {
   font-size: var(--text-caption, 12px);
   font-weight: 700;
-  color: var(--color-success, #059669);
+  color: var(--color-success);
   margin-bottom: 6px;
 }
 
@@ -1361,11 +1361,11 @@ onBeforeUnmount(() => {
   grid-template-columns: 72px 1fr;
   gap: 8px;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
 }
 
 .autonomous-trace__row strong {
-  color: var(--color-success, #059669);
+  color: var(--color-success);
 }
 
 /* 空状态 */
@@ -1376,7 +1376,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .chat-empty__icon {
@@ -1392,16 +1392,16 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   padding: 8px 16px;
-  border-top: 1px solid var(--color-border, #e5e6eb);
+  border-top: 1px solid var(--color-border);
 }
 
 .quick-task-btn {
   flex: 1;
   padding: 6px 12px;
-  border: 1px solid var(--color-border, #e5e6eb);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
   background: transparent;
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
   font-size: var(--text-body-sm, 13px);
   cursor: pointer;
   transition: all 0.15s;
@@ -1409,9 +1409,9 @@ onBeforeUnmount(() => {
 }
 
 .quick-task-btn:hover:not(:disabled) {
-  background: var(--color-primary-bg, #eff6ff);
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .quick-task-btn:disabled {
@@ -1422,29 +1422,29 @@ onBeforeUnmount(() => {
 /* ── 输入区 ── */
 .composer {
   padding: 12px 16px;
-  border-top: 1px solid var(--color-border, #e5e6eb);
+  border-top: 1px solid var(--color-border);
 }
 
 .composer-input {
   width: 100%;
   resize: none;
-  border: 1px solid var(--color-border, #e5e6eb);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
   padding: 10px 12px;
   font-size: var(--text-body, 14px);
   line-height: 1.6;
-  color: var(--color-text-primary, #18212b);
-  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
   outline: none;
   transition: border-color 0.15s;
 }
 
 .composer-input::placeholder {
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .composer-input:focus {
-  border-color: var(--color-primary, #2563eb);
+  border-color: var(--color-primary);
 }
 
 .composer-footer {
@@ -1456,7 +1456,7 @@ onBeforeUnmount(() => {
 
 .composer-hint {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 /* ── 右栏：患者上下文 ── */
@@ -1468,8 +1468,8 @@ onBeforeUnmount(() => {
 }
 
 .ctx-card {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #e5e6eb);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
   overflow: hidden;
 }
@@ -1478,9 +1478,9 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   font-size: var(--text-body-sm, 13px);
   font-weight: 600;
-  color: var(--color-text-primary, #18212b);
-  background: var(--color-bg-surface-secondary, #f7f8fa);
-  border-bottom: 1px solid var(--color-border, #e5e6eb);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .ctx-card__body {
@@ -1489,7 +1489,7 @@ onBeforeUnmount(() => {
 
 .ctx-empty {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
@@ -1502,7 +1502,7 @@ onBeforeUnmount(() => {
 
 .ctx-patient__name {
   font-size: var(--text-body-sm, 13px);
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1510,7 +1510,7 @@ onBeforeUnmount(() => {
 
 /* 患者状态摘要 */
 .ctx-card--status {
-  border-left: 3px solid var(--color-ai, #6E5AE6);
+  border-left: 3px solid var(--color-ai);
 }
 
 .ctx-status-grid {
@@ -1528,14 +1528,14 @@ onBeforeUnmount(() => {
 
 .ctx-status-label {
   font-size: 11px;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .ctx-status-value {
   font-family: 'Rajdhani', sans-serif;
   font-size: 18px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
 }
 
 .ctx-cited {
@@ -1557,24 +1557,24 @@ onBeforeUnmount(() => {
 }
 
 .ctx-cited__tag.is-exam {
-  color: #2563eb;
-  background: #eff6ff;
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
 }
 
 .ctx-cited__tag.is-risk {
-  color: #d92d20;
-  background: #fef2f2;
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
 }
 
 .ctx-cited__text {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-primary, #18212b);
+  color: var(--color-text-primary);
   line-height: 1.5;
 }
 
 .ctx-range {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
@@ -1584,7 +1584,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: 6px;
   padding: 10px 12px;
-  background: var(--color-warning-bg, #fffbeb);
+  background: var(--color-warning-bg, var(--color-warning-soft-bg));
   border: 1px solid rgba(217, 119, 6, 0.2);
   border-radius: var(--radius-lg, 8px);
 }
@@ -1596,7 +1596,7 @@ onBeforeUnmount(() => {
 
 .ctx-safety__text {
   font-size: var(--text-caption, 12px);
-  color: var(--color-warning, #d97706);
+  color: var(--color-warning);
   line-height: 1.5;
 }
 

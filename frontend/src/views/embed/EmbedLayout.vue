@@ -78,33 +78,40 @@ watch(() => route.meta?.title, (title) => {
 <style scoped>
 .embed-layout {
   min-height: 100vh;
-  background: var(--page-bg, #F4F7FB);
+  background: var(--color-bg-page, #F6F8FB);
   font-family: var(--font-primary, 'Microsoft YaHei', sans-serif);
-  color: var(--text-primary, #182230);
+  color: var(--color-text-primary, #111827);
 }
 
+/* 暗色主题：在 embed 容器作用域内覆写标准设计令牌，子视图自动适配 */
 .embed-layout--dark {
-  --page-bg: #0F172A;
-  --text-primary: #E2E8F0;
-  --text-secondary: #94A3B8;
-  --text-tertiary: #64748B;
-  --border: #1E293B;
-  --card-bg: #1E293B;
-  --primary: #3B82F6;
-  background: #0F172A;
-  color: #E2E8F0;
+  --color-bg-page: #0F172A;
+  --color-bg-surface: #1E293B;
+  --color-bg-surface-secondary: #1E293B;
+  --color-bg-inset: #334155;
+  --color-text-primary: #E2E8F0;
+  --color-text-secondary: #94A3B8;
+  --color-text-tertiary: #64748B;
+  --color-border: #334155;
+  --color-border-strong: #475569;
+  --color-divider: #1E293B;
+  --color-primary: #3B82F6;
+  --color-primary-hover: #60A5FA;
+  --color-primary-bg: rgba(59, 130, 246, 0.14);
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
 }
 
 .embed-breadcrumbs {
   padding: 8px 24px;
-  font-size: 12px;
-  color: var(--text-tertiary, #94A3B8);
-  border-bottom: 1px solid var(--border, #DCE3EC);
-  background: var(--card-bg, #fff);
+  font-size: var(--text-caption, 12px);
+  color: var(--color-text-tertiary, #9CA3AF);
+  border-bottom: 1px solid var(--color-border, #E5E7EB);
+  background: var(--color-bg-surface, #FFFFFF);
 }
 
 .embed-crumb--last {
-  color: var(--text-primary, #182230);
+  color: var(--color-text-primary, #111827);
   font-weight: 500;
 }
 
@@ -125,13 +132,13 @@ watch(() => route.meta?.title, (title) => {
   justify-content: space-between;
   padding: 8px 24px;
   font-size: 11px;
-  color: var(--text-tertiary, #94A3B8);
-  border-top: 1px solid var(--border, #DCE3EC);
-  background: var(--card-bg, #fff);
+  color: var(--color-text-tertiary, #9CA3AF);
+  border-top: 1px solid var(--color-border, #E5E7EB);
+  background: var(--color-bg-surface, #FFFFFF);
 }
 
 .embed-disclaimer {
-  color: var(--warning, #F59E0B);
+  color: var(--color-warning, #B54708);
 }
 
 .embed-model-version {

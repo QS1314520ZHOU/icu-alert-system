@@ -1,5 +1,7 @@
 <template>
   <div class="overview">
+    <PageHeader title="患者总览" subtitle="在科患者风险分层、科室与标签快速筛选" />
+
     <!-- ====== 顶部信息带 ====== -->
     <header class="top-bar">
       <div class="summary-row">
@@ -56,7 +58,7 @@
               :class="['chip', { chosen: tagFilter === ts.tag }]"
               :style="tagFilter === ts.tag ? { background: ts.color + '33', color: ts.color } : {}"
               @click="tagFilter = tagFilter === ts.tag ? '' : ts.tag">
-          <i class="chip-symbol" :style="{ background: ts.color || '#15558D' }">{{ tagSymbol(ts) }}</i>
+          <i class="chip-symbol" :style="{ background: ts.color || 'var(--color-primary)' }">{{ tagSymbol(ts) }}</i>
           {{ ts.label }}
           <b>{{ ts.count }}</b>
         </span>
@@ -116,10 +118,7 @@
     </section>
 
     <!-- ====== 加载态 ====== -->
-    <div v-if="loading" class="loader">
-      <div class="loader-ring"></div>
-      <p>正在加载患者数据…</p>
-    </div>
+    <LoadingState v-if="loading" message="正在加载患者数据…" />
 
     <!-- ====== 风险分区 ====== -->
     <section v-else-if="severitySections.length" class="lane-stack">
@@ -167,15 +166,14 @@
       </article>
     </section>
 
-    <div v-else class="overview-empty">
-      当前筛选下暂无患者
-    </div>
+    <EmptyState v-else description="当前筛选下暂无患者" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth'
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
+import { PageHeader, LoadingState, EmptyState } from '../components/common/design-system'
 import { useRoute, useRouter } from 'vue-router'
 import { getDepartments, getPatients, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig, getBatchVitals, getPatientBedcardBatch } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
@@ -681,22 +679,26 @@ async function hydrateBundleStatuses(items: any[]) {
     item.bundleStatus = item.bundleStatus || { lights: {} }
   }
 
-  for (const batch of chunkItems(targetItems, 24)) {
-    if (token !== bundleRequestToken) return
-    try {
-      const statusRes = await getPatientBundleStatuses(batch.map((item: any) => item._id))
-      if (token !== bundleRequestToken) return
-      const statuses = statusRes.data?.statuses || {}
-      for (const item of batch) {
-        item.bundleStatus = statuses[String(item._id)] || item.bundleStatus || { lights: {} }
-      }
-      syncOverviewCacheSnapshot()
-    } catch {
+  const batches = chunkItems(targetItems, 24)
+  const results = await Promise.allSettled(
+    batches.map((batch: any[]) => getPatientBundleStatuses(batch.map((item: any) => item._id)))
+  )
+  if (token !== bundleRequestToken) return
+  for (let i = 0; i < batches.length; i++) {
+    const r = results[i]!
+    const batch = batches[i]!
+    if (r.status !== 'fulfilled') {
       for (const item of batch) {
         item.bundleStatus = item.bundleStatus || { lights: {} }
       }
+      continue
+    }
+    const statuses = (r as PromiseFulfilledResult<any>).value?.data?.statuses || {}
+    for (const item of batch) {
+      item.bundleStatus = statuses[String(item._id)] || item.bundleStatus || { lights: {} }
     }
   }
+  syncOverviewCacheSnapshot()
 }
 
 async function hydrateForecastPreview(items: any[]) {
@@ -706,14 +708,13 @@ async function hydrateForecastPreview(items: any[]) {
     return
   }
   try {
-    try {
-      const cfgRes = await getRuntimeConfig()
-      trajectoryConfig.value = cfgRes.data?.trajectory_forecast || trajectoryConfig.value
-    } catch {
-      trajectoryConfig.value = trajectoryConfig.value
-    }
+    // Use cached config or defaults immediately — don't wait for runtime-config
     const codes = Array.isArray(trajectoryConfig.value?.default_codes) && trajectoryConfig.value.default_codes.length ? trajectoryConfig.value.default_codes.join(',') : 'HR,MAP,SBP,DBP,SpO2,RR,Temp,EtCO2'
     const horizon = Number(trajectoryConfig.value?.horizon_hours || 6)
+    // Fire runtime-config in background to update cache for next load
+    getRuntimeConfig().then(cfgRes => {
+      trajectoryConfig.value = cfgRes.data?.trajectory_forecast || trajectoryConfig.value
+    }).catch(() => {})
     const res = await getPatientVitalsForecast(String(first._id), { codes, horizon_hours: horizon }, undefined, 15000)
     const data = res.data || {}
     const topRisk = Array.isArray(data.threshold_risks) && data.threshold_risks.length ? data.threshold_risks[0] : null
@@ -939,10 +940,10 @@ onUnmounted(() => {
 <style scoped>
 .overview {
   position: relative;
-  background: var(--bg-base, #F6F7F9);
+  background: var(--bg-base);
   padding: 24px;
   min-height: 100%;
-  color: var(--text-main, #18212B);
+  color: var(--text-main);
   font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 .top-bar {
@@ -951,8 +952,8 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface, #FFFFFF);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
   border-radius: var(--radius-lg, 8px);
 }
 .summary-row {
@@ -963,83 +964,89 @@ onUnmounted(() => {
 }
 .sum-block {
   display: flex;
+  font-variant-numeric: tabular-nums;
   align-items: center;
   gap: 8px;
   min-height: 40px;
   padding: 8px 12px;
-  border-radius: 6px;
-  background: var(--color-bg-surface, #FFFFFF);
-  border: 1px solid var(--color-border, #E3E7EC);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   transition: all 0.2s;
 }
 .sum-block.clickable { cursor: pointer; }
 .sum-block.clickable:hover {
-  border-color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
 }
 .sum-block.chosen {
-  background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  border-color: var(--color-primary, #2563EB);
+  background: var(--color-primary-bg);
+  font-variant-numeric: tabular-nums;
+  border-color: var(--color-primary);
 }
 .sum-val {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-main, #18212B);
   font-variant-numeric: tabular-nums;
+  font-size: var(--text-metric-normal);
+  font-weight: 700;
+  color: var(--text-main);
 }
 .sum-lbl {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 .sum-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dot-crit { background: var(--color-danger, #D92D20); }
-.dot-warn { background: var(--color-warning, #B54708); }
-.dot-ok { background: var(--color-success, #16845B); }
-.sum-divider { width: 1px; height: 24px; background: var(--color-border, #E3E7EC); margin: 0 4px; }
+.dot-crit { background: var(--color-danger); }
+.dot-warn { background: var(--color-warning); }
+.dot-ok { background: var(--color-success); }
+.sum-divider { width: 1px; height: 24px; background: var(--color-border); margin: 0 4px; }
 .sum-sync {
   display: inline-flex;
+  font-variant-numeric: tabular-nums;
   align-items: center;
   gap: 6px;
   min-height: 32px;
   padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
 }
 .sum-sync-dot {
   width: 6px;
+  font-variant-numeric: tabular-nums;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-success, #16845B);
+  background: var(--color-success);
   animation: blink 1.1s infinite;
 }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
 .dept-nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
 .dept-pill {
-  background: var(--color-bg-surface, #FFFFFF);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: 6px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 6px 12px;
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
   font-weight: 500;
 }
-.dept-pill i { font-style: normal; font-size: 12px; opacity: 0.7; margin-left: 4px; font-weight: 600; }
+.dept-pill i { font-style: normal; font-size: var(--text-label); opacity: 0.7; margin-left: 4px; font-weight: 600; }
 .dept-pill:hover {
-  color: var(--color-text-primary, #18212B);
-  border-color: var(--color-primary, #2563EB);
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
 }
 .dept-pill.active {
-  background: var(--color-primary, #2563EB);
-  border-color: var(--color-primary, #2563EB);
-  color: #FFFFFF;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 .dept-pill.active i { opacity: 0.8; color: rgba(255,255,255,0.8); }
 
@@ -1048,11 +1055,11 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px; padding: 4px 10px; border-radius: 4px;
-  background: var(--color-bg-surface, #FFFFFF);
-  color: var(--color-text-secondary, #667085);
+  font-size: var(--text-label); padding: 4px 10px; border-radius: var(--radius-tag);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   transition: all 0.15s;
   white-space: nowrap;
   font-weight: 500;
@@ -1060,36 +1067,36 @@ onUnmounted(() => {
 .chip-symbol {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
+  border-radius: var(--radius-tag);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #FFFFFF;
-  font-size: 12px;
+  color: var(--color-text-inverse);
+  font-size: var(--text-label);
   font-style: normal;
   font-weight: 700;
   line-height: 1;
 }
 .chip-symbol--rescue {
-  background: var(--color-danger, #D92D20);
+  background: var(--color-danger);
 }
-.chip:hover { border-color: var(--color-primary, #2563EB); }
+.chip:hover { border-color: var(--color-primary); }
 .chip.chosen {
-  border-color: var(--color-primary, #2563EB);
-  background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 .chip b { font-weight: 600; margin-left: 2px; }
 .chip--rescue {
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
   border-color: rgba(217, 45, 32, 0.2);
 }
 .chip--rescue:hover {
-  border-color: var(--color-danger, #D92D20);
+  border-color: var(--color-danger);
 }
 .chip--rescue.chosen {
-  background: var(--color-danger-bg, rgba(217, 45, 32, 0.08));
-  border-color: var(--color-danger, #D92D20);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
 }
 
 .filter-summary {
@@ -1100,8 +1107,8 @@ onUnmounted(() => {
 }
 
 .filter-summary__label {
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 500;
 }
 
@@ -1110,28 +1117,28 @@ onUnmounted(() => {
   align-items: center;
   min-height: 26px;
   padding: 0 8px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  color: var(--color-text-primary, #18212B);
-  font-size: 12px;
+  border-radius: var(--radius-tag);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
+  font-size: var(--text-label);
 }
 
 .filter-summary__clear {
   min-height: 26px;
   padding: 0 8px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface, #FFFFFF);
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  border-radius: var(--radius-tag);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .filter-summary__clear:hover {
-  color: var(--color-danger, #D92D20);
-  border-color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 .forecast-strip {
   display: flex;
@@ -1139,28 +1146,28 @@ onUnmounted(() => {
   gap: 8px;
   flex-wrap: wrap;
   padding: 8px 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: 6px;
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 .forecast-strip span {
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 600;
 }
 .forecast-strip strong {
-  color: var(--text-main, #18212B);
-  font-size: 13px;
+  color: var(--text-main);
+  font-size: var(--text-body);
 }
 .forecast-strip em {
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-style: normal;
 }
 .forecast-strip small {
   margin-left: auto;
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   white-space: nowrap;
 }
 
@@ -1169,40 +1176,40 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 6px;
   padding: 12px 16px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: 6px;
-  background: var(--color-bg-surface, #FFFFFF);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
   margin-bottom: 16px;
 }
 .quick-filter-btn {
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface, #FFFFFF);
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
 .quick-filter-btn:hover {
-  border-color: var(--color-primary, #2563EB);
-  color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 .quick-filter-btn.active {
-  border-color: var(--color-primary, #2563EB);
-  background: var(--color-primary, #2563EB);
-  color: #FFFFFF;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
-.filter-sep { display:inline-block;width:1px;height:20px;background:var(--color-border,#E3E7EC);margin:0 4px;vertical-align:middle; }
+.filter-sep { display:inline-block;width:1px;height:20px;background:var(--color-border);margin:0 4px;vertical-align:middle; }
 .quick-filter-select {
   display:inline-flex;align-items:center;min-height:32px;padding:0 10px;
-  border-radius:6px;border:1px solid var(--color-border,#E3E7EC);
-  background:var(--color-bg-surface,#FFFFFF);color:var(--text-main,#18212B);font-size:12px;
+  border-radius: var(--radius-md);border:1px solid var(--color-border);
+  background:var(--color-bg-surface);color:var(--text-main);font-size: var(--text-label);
   cursor:pointer;outline:none;
 }
-.quick-filter-select:focus { border-color:var(--color-primary,#2563EB); }
+.quick-filter-select:focus { border-color:var(--color-primary); }
 
 .loader {
   display: flex;
@@ -1210,12 +1217,12 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 50vh;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   gap: 14px;
 }
 .loader-ring {
-  width: 36px; height: 36px; border: 3px solid var(--color-border, #E3E7EC);
-  border-top-color: var(--color-primary, #2563EB); border-radius: 50%;
+  width: 36px; height: 36px; border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary); border-radius: 50%;
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg) } }
@@ -1230,8 +1237,8 @@ onUnmounted(() => {
   gap: 12px;
   padding: 16px;
   border-radius: var(--radius-lg, 8px);
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface, #FFFFFF);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
 }
 .lane-panel::before {
   content: '';
@@ -1240,9 +1247,9 @@ onUnmounted(() => {
   height: 3px;
   border-radius: 8px 8px 0 0;
 }
-.lane-panel--critical::before { background: var(--color-danger, #D92D20); }
-.lane-panel--warning::before { background: var(--color-warning, #B54708); }
-.lane-panel--normal::before { background: var(--color-success, #16845B); }
+.lane-panel--critical::before { background: var(--color-danger); }
+.lane-panel--warning::before { background: var(--color-warning); }
+.lane-panel--normal::before { background: var(--color-success); }
 .lane-head {
   display: flex;
   align-items: flex-start;
@@ -1255,59 +1262,65 @@ onUnmounted(() => {
   gap: 2px;
 }
 .lane-title {
-  color: var(--text-main, #18212B);
-  font-size: 15px;
+  color: var(--text-main);
+  font-size: var(--text-section-title);
   font-weight: 600;
 }
 .lane-meta {
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   line-height: 1.5;
 }
 .lane-stat-row {
   display: flex;
+  font-variant-numeric: tabular-nums;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 4px;
 }
 .lane-stat-chip {
   display: inline-flex;
+  font-variant-numeric: tabular-nums;
   align-items: center;
   min-height: 20px;
   padding: 0 6px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  border-radius: var(--radius-tag);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 500;
 }
 .lane-count {
   display: inline-flex;
+  font-variant-numeric: tabular-nums;
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 6px;
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-  border: 1px solid var(--color-border, #E3E7EC);
-  color: var(--text-main, #18212B);
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--text-main);
+  font-size: var(--text-body);
   font-weight: 600;
 }
 .lane-count--critical {
-  background: var(--color-danger-bg, rgba(217, 45, 32, 0.08));
+  background: var(--color-danger-bg);
+  font-variant-numeric: tabular-nums;
   border-color: rgba(217, 45, 32, 0.2);
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger);
 }
 .lane-count--warning {
-  background: var(--color-warning-bg, rgba(181, 71, 8, 0.08));
+  background: var(--color-warning-bg);
+  font-variant-numeric: tabular-nums;
   border-color: rgba(181, 71, 8, 0.2);
-  color: var(--color-warning, #B54708);
+  color: var(--color-warning);
 }
 .lane-count--normal {
-  background: var(--color-success-bg, rgba(22, 132, 91, 0.08));
+  background: var(--color-success-bg);
+  font-variant-numeric: tabular-nums;
   border-color: rgba(22, 132, 91, 0.2);
-  color: var(--color-success, #16845B);
+  color: var(--color-success);
 }
 .lane-grid {
   display: grid;
@@ -1323,19 +1336,19 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface-secondary);
 }
 .lane-brief__label {
-  color: var(--color-text-secondary, #667085);
-  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
   font-weight: 500;
   flex: 0 0 auto;
 }
 .lane-brief__text {
-  color: var(--text-main, #18212B);
-  font-size: 13px;
+  color: var(--text-main);
+  font-size: var(--text-body);
   line-height: 1.45;
 }
 .lane-brief__list {
@@ -1349,25 +1362,25 @@ onUnmounted(() => {
   gap: 6px;
   min-height: 24px;
   padding: 0 8px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  background: var(--color-bg-surface, #FFFFFF);
-  color: var(--text-main, #18212B);
-  font-size: 12px;
+  border-radius: var(--radius-tag);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--text-main);
+  font-size: var(--text-label);
 }
 .lane-brief__chip strong {
-  color: var(--text-main, #18212B);
-  font-size: 12px;
+  color: var(--text-main);
+  font-size: var(--text-label);
 }
 .overview-empty {
   min-height: 200px;
   display: grid;
   place-items: center;
-  border: 1px dashed var(--color-border, #E3E7EC);
-  border-radius: 8px;
-  color: var(--color-text-secondary, #667085);
-  background: var(--color-bg-surface, #FFFFFF);
-  font-size: 14px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
+  font-size: var(--text-body);
 }
 
 
@@ -1385,11 +1398,13 @@ onUnmounted(() => {
 }
 .sum-block {
   min-width: 0;
+  font-variant-numeric: tabular-nums;
   justify-content: center;
   clip-path: none;
 }
 .sum-divider {
   display: none;
+  font-variant-numeric: tabular-nums;
 }
 .dept-nav {
   scrollbar-width: thin;
@@ -1410,7 +1425,7 @@ onUnmounted(() => {
   border-radius: var(--card-radius);
 }
 .lane-panel::before {
-  border-radius: 14px 14px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 .lane-head {
   display: grid;
@@ -1457,7 +1472,7 @@ onUnmounted(() => {
     padding: 14px;
   }
   .lane-title {
-    font-size: 16px;
+    font-size: var(--text-section-title);
   }
   .lane-grid {
     grid-template-columns: minmax(0, 1fr);

@@ -231,7 +231,7 @@ onMounted(() => {
 
 <style scoped>
 .handover-overview {
-  padding: 24px;
+  padding: var(--page-padding, 24px);
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -240,7 +240,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .header-left {
@@ -250,57 +250,64 @@ onMounted(() => {
 }
 
 .page-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #17233D;
+  font-size: var(--text-page-title);
+  font-weight: var(--text-page-title-weight);
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .dept-name {
-  font-size: 14px;
-  color: #5F6B7A;
+  font-size: var(--text-page-subtitle);
+  color: var(--color-text-secondary);
 }
 
 .shift-badge {
-  background: #E6F4FF;
-  color: #1677FF;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
   padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-tag);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
 }
 
 .stats-row {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-  border: 1px solid #DCE5EF;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--color-border);
 }
 
 .stat-value {
-  font-size: 28px;
-  font-weight: 600;
-  color: #17233D;
+  font-size: var(--text-metric-key);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  line-height: 1.2;
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #5F6B7A;
-  margin-top: 4px;
+  order: -1;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
 }
 
-.stat-card--critical .stat-value { color: #D92D20; }
-.stat-card--warning .stat-value { color: #F79009; }
-.stat-card--info .stat-value { color: #2E90FA; }
-.stat-card--alert .stat-value { color: #D92D20; }
-.stat-card--task .stat-value { color: #F79009; }
+.stat-card--critical .stat-value { color: var(--color-danger); }
+.stat-card--warning .stat-value { color: var(--color-warning); }
+.stat-card--info .stat-value { color: var(--color-info); }
+.stat-card--alert .stat-value { color: var(--color-danger); }
+.stat-card--task .stat-value { color: var(--color-warning); }
 
 .summary-card, .priority-card, .life-support-row, .charts-row {
   margin-bottom: 16px;
@@ -315,21 +322,21 @@ onMounted(() => {
 .summary-text {
   font-size: 14px;
   line-height: 1.8;
-  color: #17233D;
+  color: var(--color-text-primary);
 }
 
 .ai-summary-text {
   font-size: 14px;
   line-height: 1.8;
-  color: #6E5AE6;
+  color: var(--color-ai);
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px dashed #DCE5EF;
+  border-top: 1px dashed var(--color-border);
 }
 
 .summary-meta {
   font-size: 12px;
-  color: #8A94A6;
+  color: var(--color-text-tertiary);
   margin-top: 12px;
 }
 
@@ -345,14 +352,15 @@ onMounted(() => {
 }
 
 .ls-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #17233D;
+  font-size: var(--text-metric-normal);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
 }
 
 .ls-label {
-  font-size: 12px;
-  color: #5F6B7A;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 768px) {

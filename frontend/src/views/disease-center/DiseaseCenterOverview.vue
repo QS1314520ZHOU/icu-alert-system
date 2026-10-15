@@ -4,8 +4,8 @@
     <div class="kpi-row">
       <div v-for="kpi in kpiCards" :key="kpi.key" class="kpi-card">
         <div class="kpi-content">
-          <span class="kpi-value">{{ kpi.value }}</span>
           <span class="kpi-label">{{ kpi.label }}</span>
+          <span class="kpi-value">{{ kpi.value }}</span>
         </div>
         <span class="kpi-icon" :style="{ background: kpi.iconBg }">{{ kpi.icon }}</span>
       </div>
@@ -15,8 +15,8 @@
     <div class="kpi-row" v-if="qualityMetrics">
       <div v-for="qm in qualityCards" :key="qm.key" class="kpi-card">
         <div class="kpi-content">
-          <span class="kpi-value">{{ qm.value }}</span>
           <span class="kpi-label">{{ qm.label }}</span>
+          <span class="kpi-value">{{ qm.value }}</span>
         </div>
         <span class="kpi-icon" :style="{ background: qm.iconBg }">{{ qm.icon }}</span>
       </div>
@@ -81,12 +81,12 @@
             <a @click="goCaseDetail(record.id)">{{ record.patient_id }}</a>
           </template>
           <template v-if="column.key === 'disease_name'">
-            <a-tag color="var(--color-primary-light, #e6f7f5)">
-              <span style="color: var(--color-primary)">{{ record.disease_name || record.disease_code }}</span>
+            <a-tag color="var(--color-primary-bg, #EFF6FF)">
+              <span style="color: var(--color-primary, #2563EB)">{{ record.disease_name || record.disease_code }}</span>
             </a-tag>
           </template>
           <template v-if="column.key === 'status'">
-            <a-tag color="var(--color-primary-light)">待临床确认</a-tag>
+            <a-tag color="var(--color-primary, #2563EB)">待临床确认</a-tag>
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
@@ -384,120 +384,44 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.disease-overview-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+<style scoped>.disease-overview-page { display: flex; flex-direction: column; gap: 20px }
+
+/* KPI */ .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px }
+.kpi-card { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-lg, 10px); }
+.kpi-content { display: flex; flex-direction: column; gap: 4px }
+.kpi-value  {  font-size: var(--text-metric-key, 26px); font-weight: 700; color: var(--color-text-primary, #111827); line-height: 1.2 ; font-variant-numeric: tabular-nums }
+.kpi-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.kpi-icon { width: 48px; height: 48px; border-radius: var(--radius-lg, 10px); display: flex; align-items: center; justify-content: center; font-size: 20px }
+
+/* Charts */ .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.chart-card { background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-lg, 10px); padding: 16px }
+.chart-title { display: flex; align-items: center; gap: 8px; font-size: var(--text-section-title, 15px); font-weight: 600; color: var(--color-text-primary, #111827); margin-bottom: 12px }
+.chart-subtitle { font-size: var(--text-caption, 12px); font-weight: 400; color: var(--color-text-secondary, #4B5563) }
+
+/* Section */ .section-card { background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-lg, 10px); padding: 16px }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px }
+.section-title { font-size: var(--text-section-title, 15px); font-weight: 600; color: var(--color-text-primary, #111827) }
+
+@media (max-width: 768px) {.kpi-row { grid-template-columns: repeat(2, 1fr) }
+.chart-row { grid-template-columns: 1fr }
+
 }
 
-/* KPI */
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
 
-.kpi-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 12px);
-  transition: box-shadow 0.2s;
+/* ── 表格规范 §7 ── */
+:deep(.ant-table-thead > tr > th) {
+  background: var(--color-bg-surface-secondary, #F1F4F8);
+  color: var(--color-text-secondary, #4B5563);
+  font-size: var(--text-label, 12px);
+  font-weight: var(--text-table-header-weight, 600);
 }
-
-.kpi-card:hover {
-  box-shadow: var(--shadow-md);
+:deep(.ant-table-thead > tr > th::before) { display: none !important }
+:deep(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid var(--color-divider, #F0F2F5);
+  font-size: var(--text-table, 13px);
+  color: var(--color-text-primary, #111827);
 }
-
-.kpi-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.kpi-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--color-text-primary, #18212B);
-  line-height: 1.2;
-}
-
-.kpi-label {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-}
-
-.kpi-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg, 12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-}
-
-/* Charts */
-.chart-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.chart-card {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-}
-
-.chart-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-  margin-bottom: 12px;
-}
-
-.chart-subtitle {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--color-text-secondary, #667085);
-}
-
-/* Section */
-.section-card {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-}
-
-@media (max-width: 768px) {
-  .kpi-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .chart-row {
-    grid-template-columns: 1fr;
-  }
-}
+:deep(.ant-table-tbody > tr:hover > td) { background: var(--color-bg-inset, #E9EEF5) }
+:deep(.ant-table-tbody > tr > td) { font-variant-numeric: tabular-nums }
+:deep(.ant-table-pagination) { margin-bottom: 0 !important }
 </style>

@@ -2,8 +2,8 @@
   <div class="saki-overview">
     <div class="metrics-row">
       <div class="metric-card" v-for="m in metrics" :key="m.label">
-        <div class="metric-value" :style="{ color: m.color }">{{ m.value }}</div>
         <div class="metric-label">{{ m.label }}</div>
+        <div class="metric-value" :style="{ color: m.color }">{{ m.value }}</div>
       </div>
     </div>
 
@@ -11,12 +11,12 @@
       <div class="chart-panel">
         <h3>AKI 分期分布</h3>
         <v-chart v-if="stageOption" :option="stageOption" style="height:280px" autoresize />
-        <div v-else class="empty-state">暂无数据</div>
+        <EmptyState v-else description="暂无数据" />
       </div>
       <div class="chart-panel">
         <h3>科室分布</h3>
         <v-chart v-if="deptOption" :option="deptOption" style="height:280px" autoresize />
-        <div v-else class="empty-state">暂无数据</div>
+        <EmptyState v-else description="暂无数据" />
       </div>
     </div>
 
@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import { Table as ATable, Tag as ATag } from 'ant-design-vue'
 import { ref, onMounted } from 'vue'
 import { use } from 'echarts/core'
 import { PieChart, BarChart } from 'echarts/charts'
@@ -49,6 +50,7 @@ import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { getSakiCaseStatistics, getSakiCases } from '../../api/saki'
+import { EmptyState } from '../../components/common/design-system'
 
 use([CanvasRenderer, PieChart, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
 
@@ -106,14 +108,13 @@ onMounted(async () => {
 
 <style scoped>
 .saki-overview { display: flex; flex-direction: column; gap: 20px; }
-.metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.metric-card { background: #fff; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.metric-value { font-size: 28px; font-weight: 700; }
-.metric-label { font-size: 13px; color: #8c8c8c; margin-top: 4px; }
-.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.chart-panel { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.chart-panel h3 { margin: 0 0 12px; font-size: 15px; color: #1a1a2e; }
+.metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.metric-card { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 14px 16px; text-align: left; }
+.metric-label { font-size: var(--text-caption); font-weight: var(--weight-medium); color: var(--color-text-secondary); }
+.metric-value { font-size: var(--text-metric-key); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.chart-panel { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; }
+.chart-panel h3 { margin: 0 0 12px; font-size: var(--text-section-title); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
 .full-width { grid-column: 1 / -1; }
-.empty-state { text-align: center; padding: 40px; color: #bbb; }
-.disclaimer-banner { text-align: center; padding: 10px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; font-size: 12px; color: #ad6800; }
+.disclaimer-banner { text-align: center; padding: 10px; background: var(--color-warning-soft-bg); border: 1px solid var(--color-warning-soft-border); border-radius: var(--radius-md); font-size: var(--text-caption); color: var(--color-warning); }
 </style>

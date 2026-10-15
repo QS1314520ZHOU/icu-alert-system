@@ -53,7 +53,39 @@
     <section v-if="currentStep === 1" class="ci-section">
       <h3 class="ci-section-title">因果DAG</h3>
       <div class="ci-dag-area">
-        <div ref="dagRef" class="ci-dag-chart"></div>
+        <div class="ci-dag-chart">
+          <svg viewBox="0 0 520 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="因果DAG">
+            <defs>
+              <marker id="ci-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
+              </marker>
+            </defs>
+            <path
+              v-for="(edge, i) in dagEdges"
+              :key="`edge-${i}`"
+              :d="edge.path"
+              fill="none"
+              :stroke="edgeColor(edge.kind)"
+              :stroke-width="edge.kind === 'effect' ? 2.5 : 1.5"
+              :stroke-dasharray="edge.kind === 'toOutcome' ? '4 3' : undefined"
+              :opacity="edge.kind === 'effect' ? 1 : 0.6"
+              marker-end="url(#ci-arrow)"
+            />
+            <text v-if="hasEffectEdge" x="260" y="142" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">因果效应?</text>
+            <g v-for="node in dagNodes" :key="node.id">
+              <rect
+                :x="node.x" :y="node.y" :width="node.w" :height="node.h" rx="8"
+                :fill="nodeFill(node.kind)" :stroke="nodeStroke(node.kind)" :stroke-width="node.kind === 'confounder' ? 1.5 : 2"
+              />
+              <text
+                :x="node.x + node.w / 2" :y="node.y + node.h / 2 + 4"
+                text-anchor="middle" :fill="nodeTextFill(node.kind)"
+                :font-size="node.kind === 'confounder' ? 12 : 13"
+              >{{ shortLabel(node.label, node.kind) }}</text>
+            </g>
+            <text v-if="!dagNodes.length" x="260" y="150" text-anchor="middle" fill="#94A3B8" font-size="13">暂无因果结构数据</text>
+          </svg>
+        </div>
       </div>
       <div class="ci-dag-legend">
         <span class="ci-legend-item"><span class="ci-dot ci-dot--exposure"></span>暴露</span>
@@ -69,12 +101,12 @@
       <h3 class="ci-section-title">匹配与平衡</h3>
       <div class="ci-chart-grid">
         <div class="ci-chart-card">
-          <h4>倾向评分分布</h4>
-          <div ref="psDistRef" class="ci-chart-area"></div>
+          <h4>候选原因后验概率</h4>
+          <ClinicalChart :option="posteriorChartOption" :loading="loadingAnalysis" :height="200" empty-text="暂无候选原因数据" />
         </div>
         <div class="ci-chart-card">
-          <h4>Love Plot</h4>
-          <div ref="lovePlotRef" class="ci-chart-area"></div>
+          <h4>先验 vs 后验概率</h4>
+          <ClinicalChart :option="priorPosteriorChartOption" :loading="loadingAnalysis" :height="200" empty-text="暂无证据更新数据" />
         </div>
       </div>
       <div class="ci-flow-diagram">
@@ -90,7 +122,7 @@
     <!-- Step 4: 因果效应 -->
     <section v-if="currentStep === 3" class="ci-section">
       <h3 class="ci-section-title">因果效应估计</h3>
-      <div class="ci-disclaimer" style="background:#fff7e6;border:1px solid #ffe58f;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#ad6800">
+      <div class="ci-disclaimer ci-disclaimer--inline">
         ⚠ 当前为探索性分析结果，不等同于正式因果推断。ATE/ATT 基于观察性数据的近似估计，不可直接用于临床决策。
       </div>
       <div class="ci-effect-cards">
@@ -133,8 +165,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import type { EChartsOption } from 'echarts'
 import { useEmbedBridge } from '../../../composables/useEmbedBridge'
 import { postAiCausalAnalysis } from '../../../api'
+import ClinicalChart from '../../../components/charts/base/ClinicalChart.vue'
 
 const route = useRoute()
 const patientId = computed(() => String(route.params.patientId || ''))
@@ -166,91 +200,182 @@ const exposureOptions = [
 
 const canProceed = computed(() => question.value.exposure && question.value.outcome)
 
+const OUTCOME_LABELS: Record<string, string> = {
+  mortality: '死亡率',
+  aki_progression: 'AKI进展',
+  ventilator_days: '机械通气天数',
+  icu_los: 'ICU住院天数',
+}
+
+const loadingAnalysis = ref(false)
+const analysis = ref<any>(null)
 const matchResult = ref({ total: 0, matched: 0, excluded: 0 })
 const effectResult = ref({ ate: '', ate_ci: '', att: '', att_ci: '' })
-
-// Chart refs
-const dagRef = ref<HTMLElement | null>(null)
-const psDistRef = ref<HTMLElement | null>(null)
-const lovePlotRef = ref<HTMLElement | null>(null)
 
 function nextStep() {
   if (currentStep.value < steps.length - 1) {
     currentStep.value++
-    if (currentStep.value === 1) renderDag()
-    if (currentStep.value === 2) renderMatchCharts()
-    if (currentStep.value === 3) loadResults()
+    // DAG 与图表都依赖 causal-analysis 返回的候选原因/概率数据
+    if (currentStep.value === 1 || currentStep.value === 3) loadResults()
   }
 }
 
-function renderDag() {
-  if (!dagRef.value) return
-  const exp = question.value.exposure || '暴露'
-  const out = question.value.outcome || '结局'
-  dagRef.value.innerHTML = `
-    <svg width="100%" height="100%" viewBox="0 0 500 300">
-      <defs>
-        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
-        </marker>
-      </defs>
-      <!-- Exposure -->
-      <rect x="30" y="120" width="120" height="50" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="2"/>
-      <text x="90" y="150" text-anchor="middle" fill="#e0f2fe" font-size="13">${exp}</text>
-      <!-- Outcome -->
-      <rect x="350" y="120" width="120" height="50" rx="8" fill="#3b1f2b" stroke="#f87171" stroke-width="2"/>
-      <text x="410" y="150" text-anchor="middle" fill="#fecdd3" font-size="13">${out}</text>
-      <!-- Confounders -->
-      <rect x="180" y="20" width="140" height="40" rx="8" fill="#1e3b2f" stroke="#34d399" stroke-width="1.5"/>
-      <text x="250" y="45" text-anchor="middle" fill="#a7f3d0" font-size="12">年龄 / 基础疾病</text>
-      <rect x="180" y="240" width="140" height="40" rx="8" fill="#1e3b2f" stroke="#34d399" stroke-width="1.5"/>
-      <text x="250" y="265" text-anchor="middle" fill="#a7f3d0" font-size="12">病情严重程度</text>
-      <!-- Arrows: confounders → exposure -->
-      <line x1="200" y1="60" x2="140" y2="120" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
-      <line x1="200" y1="240" x2="140" y2="170" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
-      <!-- Arrows: confounders → outcome -->
-      <line x1="300" y1="60" x2="360" y2="120" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
-      <line x1="300" y1="240" x2="360" y2="170" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrow)" opacity=".6"/>
-      <!-- Arrow: exposure → outcome -->
-      <line x1="150" y1="145" x2="348" y2="145" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#arrow)"/>
-      <text x="250" y="135" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">因果效应?</text>
-    </svg>
-  `
+// ── 因果 DAG：由 candidate_causes 动态构建分层布局 ──
+
+interface CandidateCause {
+  cause_key?: string
+  label?: string
+  prior?: number
+  posterior?: number
 }
 
-function renderMatchCharts() {
-  // Propensity score distribution placeholder
-  if (psDistRef.value) {
-    psDistRef.value.innerHTML = `
-      <div style="display:flex;align-items:flex-end;gap:3px;height:100%;padding:12px 8px;">
-        ${[8,15,28,42,55,60,52,38,22,12,6,3].map((h) => `<div style="flex:1;background:linear-gradient(to top,rgba(96,165,250,.7),rgba(96,165,250,.3));height:${h}%;border-radius:3px 3px 0 0;"></div>`).join('')}
-      </div>
-    `
-  }
-  // Love Plot placeholder
-  if (lovePlotRef.value) {
-    lovePlotRef.value.innerHTML = `
-      <div style="padding:12px;font-size:12px;color:var(--text-secondary);">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-          <span style="width:8px;height:8px;border-radius:50%;background:#34d399;"></span> 匹配前 SMD
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="width:8px;height:8px;border-radius:50%;background:#60a5fa;"></span> 匹配后 SMD
-        </div>
-        <div style="margin-top:8px;border-left:2px dashed #f87171;padding-left:8px;color:#f87171;font-size:11px;">阈值 0.1</div>
-      </div>
-    `
-  }
+interface DagNode {
+  id: string
+  label: string
+  x: number
+  y: number
+  w: number
+  h: number
+  kind: 'exposure' | 'outcome' | 'confounder'
 }
+
+interface DagEdge {
+  path: string
+  kind: 'toExposure' | 'toOutcome' | 'effect'
+}
+
+const candidateCauses = computed<CandidateCause[]>(() => {
+  const rows = analysis.value?.candidate_causes
+  return Array.isArray(rows) ? rows : []
+})
+
+const exposureLabel = computed(() =>
+  String(analysis.value?.finding_label || analysis.value?.abnormal_finding || question.value.exposure || '暴露'))
+
+const outcomeLabel = computed(() =>
+  OUTCOME_LABELS[question.value.outcome] || question.value.outcome || '结局')
+
+const dagNodes = computed<DagNode[]>(() => {
+  const nodes: DagNode[] = []
+  const causes = candidateCauses.value.slice(0, 4)
+  const n = causes.length
+  if (n > 0) {
+    const h = 36
+    const gap = (300 - n * h) / (n + 1)
+    causes.forEach((cause, i) => {
+      nodes.push({
+        id: `cause-${i}`,
+        label: String(cause.label || cause.cause_key || '候选原因'),
+        x: 10,
+        y: gap * (i + 1) + h * i,
+        w: 140,
+        h,
+        kind: 'confounder',
+      })
+    })
+  }
+  nodes.push({ id: 'exposure', label: exposureLabel.value, x: 195, y: 125, w: 130, h: 50, kind: 'exposure' })
+  nodes.push({ id: 'outcome', label: outcomeLabel.value, x: 380, y: 125, w: 130, h: 50, kind: 'outcome' })
+  return nodes
+})
+
+const dagEdges = computed<DagEdge[]>(() => {
+  const edges: DagEdge[] = []
+  for (const node of dagNodes.value) {
+    if (node.kind !== 'confounder') continue
+    const cy = node.y + node.h / 2
+    edges.push({ kind: 'toExposure', path: `M ${node.x + node.w} ${cy} L 195 150` })
+    // 绕开中间的暴露节点：上方原因从顶部绕行，下方原因从底部绕行
+    const ctrlY = cy < 150 ? Math.max(cy - 30, 20) : Math.min(cy + 30, 280)
+    edges.push({ kind: 'toOutcome', path: `M ${node.x + node.w} ${cy} Q 290 ${ctrlY} 380 150` })
+  }
+  edges.push({ kind: 'effect', path: 'M 325 150 L 378 150' })
+  return edges
+})
+
+const hasEffectEdge = computed(() => dagNodes.value.length >= 2)
+
+function nodeFill(kind: DagNode['kind']) {
+  return kind === 'exposure' ? '#1e3a5f' : kind === 'outcome' ? '#3b1f2b' : '#1e3b2f'
+}
+function nodeStroke(kind: DagNode['kind']) {
+  return kind === 'exposure' ? '#60a5fa' : kind === 'outcome' ? '#f87171' : '#34d399'
+}
+function nodeTextFill(kind: DagNode['kind']) {
+  return kind === 'exposure' ? '#e0f2fe' : kind === 'outcome' ? '#fecdd3' : '#a7f3d0'
+}
+function edgeColor(kind: DagEdge['kind']) {
+  return kind === 'effect' ? '#fbbf24' : kind === 'toOutcome' ? '#f87171' : '#60a5fa'
+}
+function shortLabel(label: string, kind: DagNode['kind']) {
+  const max = kind === 'confounder' ? 11 : 9
+  return label.length > max ? `${label.slice(0, max - 1)}…` : label
+}
+
+// ── 图表：候选原因 prior/posterior（真实贝叶斯估计） ──
+
+function toPercent(value: unknown): number {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 0
+  return Math.round(Math.min(100, Math.max(0, n <= 1 ? n * 100 : n)))
+}
+
+/** 候选原因后验概率（替换原倾向评分直方图） */
+const posteriorChartOption = computed<EChartsOption | null>(() => {
+  const rows = candidateCauses.value
+    .map(c => ({ name: String(c.label || c.cause_key || ''), value: toPercent(c.posterior) }))
+    .filter(r => r.name)
+  if (!rows.length) return null
+  rows.sort((a, b) => a.value - b.value)
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 8, right: 44, top: 8, bottom: 8, containLabel: true },
+    xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
+    yAxis: { type: 'category', data: rows.map(r => r.name), axisLabel: { fontSize: 11 } },
+    series: [{
+      type: 'bar',
+      data: rows.map(r => r.value),
+      barWidth: 14,
+      itemStyle: { borderRadius: [0, 3, 3, 0] },
+      label: { show: true, position: 'right', fontSize: 11, formatter: '{c}%' },
+    }],
+  }
+})
+
+/** 先验 vs 后验对比（替换原 Love Plot 的前后对比语义） */
+const priorPosteriorChartOption = computed<EChartsOption | null>(() => {
+  const rows = candidateCauses.value
+    .map(c => ({
+      name: String(c.label || c.cause_key || ''),
+      prior: toPercent(c.prior),
+      posterior: toPercent(c.posterior),
+    }))
+    .filter(r => r.name)
+  if (!rows.length) return null
+  rows.sort((a, b) => a.posterior - b.posterior)
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['先验概率', '后验概率'], top: 0 },
+    grid: { left: 8, right: 16, top: 32, bottom: 8, containLabel: true },
+    xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
+    yAxis: { type: 'category', data: rows.map(r => r.name), axisLabel: { fontSize: 11 } },
+    series: [
+      { name: '先验概率', type: 'bar', data: rows.map(r => r.prior), barWidth: 8, itemStyle: { borderRadius: [0, 3, 3, 0] } },
+      { name: '后验概率', type: 'bar', data: rows.map(r => r.posterior), barWidth: 8, itemStyle: { borderRadius: [0, 3, 3, 0] } },
+    ],
+  }
+})
 
 async function loadResults() {
-  if (!patientId.value) return
+  if (!patientId.value || loadingAnalysis.value || analysis.value) return
+  loadingAnalysis.value = true
   try {
     const res = await postAiCausalAnalysis(patientId.value, {
       abnormal_finding: question.value.exposure,
       outcome: question.value.outcome,
     })
-    const data = res.data?.data || res.data || {}
+    const data = res.data?.analysis || res.data?.data || res.data || {}
+    analysis.value = data
     effectResult.value = {
       ate: data.ate || '—',
       ate_ci: data.ate_ci || '',
@@ -264,6 +389,8 @@ async function loadResults() {
     }
   } catch (e: any) {
     sendReportError('LOAD_FAILED', e?.message || '因果分析失败')
+  } finally {
+    loadingAnalysis.value = false
   }
 }
 
@@ -272,274 +399,56 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.causal-inference {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+<style scoped>.causal-inference { display: flex; flex-direction: column; gap: 20px }
+.ci-steps { display: flex; gap: 4px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-md, 6px); padding: 12px 16px; border: 1px solid var(--color-border, #E5E7EB) }
+.ci-step { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); color: var(--color-text-tertiary, #9CA3AF); flex: 1; justify-content: center }
+.ci-step--active { background: var(--color-primary-bg, #EFF6FF); color: var(--color-primary, #2563EB); font-weight: 600 }
+.ci-step--done { color: var(--color-normal, #12A66A) }
+.ci-step-num { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--color-border, #E5E7EB); font-size: 11px; font-weight: 600 }
+.ci-step--active .ci-step-num { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
+.ci-step--done .ci-step-num { background: var(--color-normal, #12A66A); color: var(--color-text-inverse, #FFFFFF) }
+.ci-section { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 20px; border: 1px solid var(--color-border, #E5E7EB) }
+.ci-section-title { margin: 0 0 16px; font-size: var(--text-section-title, 15px); font-weight: 600 }
+.ci-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px }
+.ci-form-item label { display: block; font-size: var(--text-caption, 12px); font-weight: 500; color: var(--color-text-secondary, #4B5563); margin-bottom: 4px }
+.ci-select { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); background: var(--color-bg-surface, #FFFFFF) }
+.ci-btn { padding: 8px 20px; border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); font-weight: 500; cursor: pointer; border: 1px solid var(--color-border, #E5E7EB); background: var(--color-bg-surface, #FFFFFF); transition: all 0.15s }
+.ci-btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.ci-btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
+.ci-btn:disabled { opacity: 0.5; cursor: not-allowed }
+.ci-dag-area { margin-bottom: 12px }
+.ci-dag-chart { height: 300px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
+.ci-dag-legend { display: flex; gap: 16px; margin-bottom: 16px }
+.ci-legend-item { display: flex; align-items: center; gap: 6px; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.ci-dot { width: 10px; height: 10px; border-radius: 50% }
+.ci-dot--exposure { background: var(--color-primary, #2563EB) }
+.ci-dot--outcome { background: var(--color-critical, #D92D20) }
+.ci-dot--confounder { background: var(--color-warning, #B54708) }
+.ci-dot--mediator { background: var(--color-accent, #0891B2) }
+.ci-chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px }
+.ci-chart-card { background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px); padding: 12px }
+.ci-chart-card h4 { margin: 0 0 8px; font-size: var(--text-body, 13px); font-weight: 600 }
+.ci-chart-area { height: 220px }
+.ci-flow-diagram { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px }
+.ci-flow-node { padding: 10px 20px; background: var(--color-primary-bg, #EFF6FF); border: 1px solid var(--color-primary, #2563EB); border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); font-weight: 500 }
+.ci-flow-node--included { background: var(--color-normal-bg, #E8F7F0); border-color: var(--color-normal, #12A66A) }
+.ci-flow-node--excluded { background: var(--color-critical-bg, #FEECEB); border-color: var(--color-danger, #D92D20) }
+.ci-flow-arrow { font-size: var(--text-section-title, 15px); color: var(--color-text-tertiary, #9CA3AF) }
+.ci-effect-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px }
+.ci-effect-card { background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-lg, 10px); padding: 16px; text-align: center; border: 1px solid var(--color-border, #E5E7EB) }
+.ci-effect-label { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin-bottom: 8px }
+.ci-effect-value  {  display: block; font-size: var(--text-metric-key, 26px); font-weight: 700; font-family: var(--font-digit, monospace); color: var(--color-primary, #2563EB) ; font-variant-numeric: tabular-nums }
+.ci-effect-ci { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); margin-top: 4px }
+.ci-disclaimer { background: var(--color-warning-soft-bg, #FFF9D8); border: 1px solid var(--color-warning-soft-border, #FFE58F); border-radius: var(--radius-md, 6px); padding: 16px; margin-top: 16px }
+.ci-disclaimer--inline { margin: 0 0 12px; padding: 8px 12px; font-size: var(--text-caption, 12px); color: var(--color-warning, #B54708) }
+
+.ci-disclaimer h4 { margin: 0 0 8px; font-size: var(--text-body, 13px); color: var(--color-warning, #B54708) }
+.ci-disclaimer ul { margin: 0; padding-left: 20px; font-size: var(--text-body, 13px); color: var(--color-warning, #B54708); line-height: 1.8 }
+
+@media (max-width: 1200px) {.ci-chart-grid { grid-template-columns: 1fr }
+.ci-form-grid { grid-template-columns: 1fr }
+
 }
 
-.ci-steps {
-  display: flex;
-  gap: 4px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px 16px;
-  border: 1px solid var(--border, #DCE3EC);
-}
-
-.ci-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--text-tertiary, #94A3B8);
-  flex: 1;
-  justify-content: center;
-}
-
-.ci-step--active {
-  background: var(--primary-light, #EFF6FF);
-  color: var(--primary, #2563EB);
-  font-weight: 600;
-}
-
-.ci-step--done {
-  color: var(--normal, #16A34A);
-}
-
-.ci-step-num {
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--border, #DCE3EC);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.ci-step--active .ci-step-num {
-  background: var(--primary, #2563EB);
-  color: #fff;
-}
-
-.ci-step--done .ci-step-num {
-  background: var(--normal, #16A34A);
-  color: #fff;
-}
-
-.ci-section {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid var(--border, #DCE3EC);
-}
-
-.ci-section-title {
-  margin: 0 0 16px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.ci-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.ci-form-item label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary, #52606D);
-  margin-bottom: 4px;
-}
-
-.ci-select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border, #DCE3EC);
-  border-radius: 6px;
-  font-size: 13px;
-  background: #fff;
-}
-
-.ci-btn {
-  padding: 8px 20px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--border, #DCE3EC);
-  background: #fff;
-  transition: all 0.15s;
-}
-
-.ci-btn--primary {
-  background: var(--primary, #2563EB);
-  color: #fff;
-  border-color: var(--primary, #2563EB);
-}
-
-.ci-btn--primary:hover {
-  background: var(--primary-hover, #3B82F6);
-}
-
-.ci-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ci-dag-area {
-  margin-bottom: 12px;
-}
-
-.ci-dag-chart {
-  height: 300px;
-  background: #F8FAFC;
-  border-radius: 6px;
-}
-
-.ci-dag-legend {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.ci-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-secondary, #52606D);
-}
-
-.ci-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.ci-dot--exposure { background: var(--primary, #2563EB); }
-.ci-dot--outcome { background: var(--critical, #991B1B); }
-.ci-dot--confounder { background: var(--warning, #F59E0B); }
-.ci-dot--mediator { background: var(--accent, #0891B2); }
-
-.ci-chart-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.ci-chart-card {
-  background: #F8FAFC;
-  border-radius: 6px;
-  padding: 12px;
-}
-
-.ci-chart-card h4 {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.ci-chart-area {
-  height: 220px;
-}
-
-.ci-flow-diagram {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.ci-flow-node {
-  padding: 10px 20px;
-  background: #EFF6FF;
-  border: 1px solid var(--primary, #2563EB);
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.ci-flow-node--included { background: #F0FDF4; border-color: #16A34A; }
-.ci-flow-node--excluded { background: #FEF2F2; border-color: #DC2626; }
-
-.ci-flow-arrow {
-  font-size: 18px;
-  color: var(--text-tertiary, #94A3B8);
-}
-
-.ci-effect-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.ci-effect-card {
-  background: #F8FAFC;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-  border: 1px solid var(--border, #DCE3EC);
-}
-
-.ci-effect-label {
-  display: block;
-  font-size: 12px;
-  color: var(--text-secondary, #52606D);
-  margin-bottom: 8px;
-}
-
-.ci-effect-value {
-  display: block;
-  font-size: 28px;
-  font-weight: 700;
-  font-family: var(--font-digit, monospace);
-  color: var(--primary, #2563EB);
-}
-
-.ci-effect-ci {
-  display: block;
-  font-size: 12px;
-  color: var(--text-tertiary, #94A3B8);
-  margin-top: 4px;
-}
-
-.ci-disclaimer {
-  background: #FFFBEB;
-  border: 1px solid #FDE68A;
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 16px;
-}
-
-.ci-disclaimer h4 {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: #92400E;
-}
-
-.ci-disclaimer ul {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 13px;
-  color: #92400E;
-  line-height: 1.8;
-}
-
-@media (max-width: 1200px) {
-  .ci-chart-grid { grid-template-columns: 1fr; }
-  .ci-form-grid { grid-template-columns: 1fr; }
-}
 </style>
 

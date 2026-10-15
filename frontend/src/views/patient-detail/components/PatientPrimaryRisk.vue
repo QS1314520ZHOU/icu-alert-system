@@ -154,15 +154,15 @@ const otherAlerts = computed(() => {
 .alert-card {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #E3E7EC;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   margin-bottom: 12px;
 }
 
 .alert-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 /* ── 左侧色条 ──────────────────────────────── */
@@ -172,22 +172,22 @@ const otherAlerts = computed(() => {
   align-items: center;
 }
 
-.risk-critical .card-rail { background: #FEF2F2; }
-.risk-high .card-rail { background: #FFF7ED; }
-.risk-warning .card-rail { background: #FFFBEB; }
-.risk-none .card-rail { background: #F8FAFC; }
+.risk-critical .card-rail { background: var(--color-critical-bg); }
+.risk-high .card-rail { background: var(--color-high-risk-bg); }
+.risk-warning .card-rail { background: var(--color-warning-soft-bg); }
+.risk-none .card-rail { background: var(--color-bg-surface-secondary); }
 
 .rail-badge {
   padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-tag);
+  font-size: var(--text-label);
   font-weight: 700;
 }
 
-.rail-critical { background: #D92D20; color: #fff; }
-.rail-high { background: #F79009; color: #fff; }
-.rail-warning { background: #E5B700; color: #713F12; }
-.rail-none { background: #E2E8F0; color: #64748B; }
+.rail-critical { background: var(--color-danger); color: var(--color-text-inverse); }
+.rail-high { background: var(--color-high-risk); color: var(--color-text-inverse); }
+.rail-warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.rail-none { background: var(--color-border); color: var(--color-text-secondary); }
 
 /* ── 主体 ──────────────────────────────────── */
 .card-body {
@@ -212,14 +212,14 @@ const otherAlerts = computed(() => {
 
 .card-title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   font-weight: 700;
-  color: #18212B;
+  color: var(--color-text-primary);
 }
 
 .card-domain {
-  font-size: 12px;
-  color: #94A3B8;
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
 }
 
 /* 数值 chip */
@@ -230,35 +230,37 @@ const otherAlerts = computed(() => {
 
 .metric-chip {
   display: inline-flex;
+  font-variant-numeric: tabular-nums;
   align-items: baseline;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 4px;
-  background: #F1F3F5;
+  border-radius: var(--radius-tag);
+  background: var(--color-bg-surface-secondary);
 }
 
 .mc-label {
-  font-size: 11px;
-  color: #94A3B8;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
 }
 
 .mc-value {
   font-family: 'Rajdhani', monospace;
-  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-section-title);
   font-weight: 700;
-  color: #18212B;
+  color: var(--color-text-primary);
 }
 
-.mc--critical { background: #FEF2F2; }
-.mc--critical .mc-value { color: #D92D20; }
-.mc--warning { background: #FFFBEB; }
-.mc--warning .mc-value { color: #B8860B; }
-.mc--normal { background: #F0FDF4; }
-.mc--normal .mc-value { color: #12A66A; }
+.mc--critical { background: var(--color-critical-bg); }
+.mc--critical .mc-value { color: var(--color-danger); }
+.mc--warning { background: var(--color-warning-soft-bg); }
+.mc--warning .mc-value { color: var(--color-warning); }
+.mc--normal { background: var(--color-normal-bg); }
+.mc--normal .mc-value { color: var(--color-normal); }
 
 /* AI badge */
 .ai-badge {
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 
@@ -272,8 +274,8 @@ const otherAlerts = computed(() => {
 .abtn {
   height: 28px;
   padding: 0 12px;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-label);
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
@@ -281,33 +283,33 @@ const otherAlerts = computed(() => {
 }
 
 .abtn--primary {
-  background: var(--color-danger, #D92D20);
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
 }
 
 .abtn--primary:hover {
-  background: var(--color-danger-hover, #B42318);
+  background: var(--color-danger-hover);
 }
 
 .risk-high .abtn--primary {
-  background: var(--color-high-risk, #F79009);
+  background: var(--color-high-risk);
 }
 
 .abtn--link {
   background: transparent;
-  color: #667085;
-  border-color: #E3E7EC;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
 }
 
 .abtn--link:hover {
-  background: #F1F3F5;
+  background: var(--color-bg-surface-secondary);
 }
 
 /* 描述 */
 .card-desc {
   margin: 0;
-  font-size: 12px;
-  color: #667085;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -320,10 +322,10 @@ const otherAlerts = computed(() => {
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  border-radius: 4px;
-  background: #FFFBEB;
-  font-size: 11px;
-  color: #92400E;
+  border-radius: var(--radius-tag);
+  background: var(--color-warning-soft-bg);
+  font-size: var(--text-caption);
+  color: var(--color-warning);
   width: fit-content;
 }
 
@@ -334,10 +336,10 @@ const otherAlerts = computed(() => {
   justify-content: center;
   gap: 4px;
   padding: 6px 16px;
-  font-size: 12px;
-  color: var(--color-primary, #2563EB);
+  font-size: var(--text-label);
+  color: var(--color-primary);
   cursor: pointer;
-  border-top: 1px solid #E3E7EC;
+  border-top: 1px solid var(--color-border);
 }
 
 .card-expand:hover {
@@ -367,9 +369,9 @@ const otherAlerts = computed(() => {
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
-  border-radius: 4px;
-  background: #F8FAFC;
-  font-size: 12px;
+  border-radius: var(--radius-tag);
+  background: var(--color-bg-surface-secondary);
+  font-size: var(--text-label);
 }
 
 .other-dot {
@@ -379,22 +381,22 @@ const otherAlerts = computed(() => {
   flex-shrink: 0;
 }
 
-.dot-critical { background: #D92D20; }
-.dot-high { background: #F79009; }
-.dot-warning { background: #E5B700; }
-.dot-low, .dot-stable { background: #12A66A; }
+.dot-critical { background: var(--color-danger); }
+.dot-high { background: var(--color-high-risk); }
+.dot-warning { background: var(--color-warning-soft); }
+.dot-low, .dot-stable { background: var(--color-normal); }
 
 .other-val {
   font-family: 'Rajdhani', monospace;
   font-weight: 700;
-  font-size: 13px;
-  color: #18212B;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
 }
 
 .other-time {
   margin-left: auto;
-  color: #94A3B8;
-  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-caption);
 }
 
 /* ── 响应式 ────────────────────────────────── */

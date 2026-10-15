@@ -702,18 +702,18 @@ function initEmptySections(): Record<string, any> {
 .handover-workbench {
   display: flex;
   height: calc(100vh - 56px);
-  background: var(--bg-base);
-  color: var(--text-main);
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
 }
 
 /* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
   width: 280px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border-color, #334155);
+  border-right: 1px solid var(--border-color, var(--color-text-secondary));
   display: flex;
   flex-direction: column;
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 .sidebar-header {
   padding: 12px;
@@ -725,14 +725,14 @@ function initEmptySections(): Record<string, any> {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: var(--text-main);
+  color: var(--color-text-primary);
 }
 .dept-locked {
   font-size: 13px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--color-primary);
   padding: 4px 8px;
-  background: rgba(56, 189, 248, 0.08);
+  background: var(--color-bg-surface-secondary);
   border-radius: 6px;
   white-space: nowrap;
   overflow: hidden;
@@ -745,7 +745,7 @@ function initEmptySections(): Record<string, any> {
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-bg-inset);
 }
 
 .shift-stat {
@@ -760,15 +760,15 @@ function initEmptySections(): Record<string, any> {
   line-height: 1.2;
 }
 
-.shift-stat__value--critical { color: #E05252; }
-.shift-stat__value--draft { color: #F79009; }
-.shift-stat__value--done { color: #12B76A; }
-.shift-stat__value--total { color: #2563EB; }
+.shift-stat__value--critical { color: var(--color-danger); }
+.shift-stat__value--draft { color: var(--color-warning); }
+.shift-stat__value--done { color: var(--color-success); }
+.shift-stat__value--total { color: var(--color-primary); }
 
 .shift-stat__label {
   display: block;
   font-size: 11px;
-  color: #8c8c8c;
+  color: var(--color-text-tertiary);
   margin-top: 2px;
 }
 
@@ -786,7 +786,7 @@ function initEmptySections(): Record<string, any> {
   align-items: center;
   justify-content: center;
   height: 500px;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 .placeholder-icon {
   font-size: 72px;
@@ -799,7 +799,7 @@ function initEmptySections(): Record<string, any> {
 }
 .placeholder-sub {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   margin-top: 8px;
   opacity: 0.75;
 }
@@ -811,7 +811,7 @@ function initEmptySections(): Record<string, any> {
   justify-content: space-between;
   margin-bottom: 16px;
   padding: 12px 20px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
@@ -824,8 +824,8 @@ function initEmptySections(): Record<string, any> {
 .banner-bed {
   font-size: 14px;
   font-weight: 700;
-  background: var(--accent);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   padding: 3px 12px;
   border-radius: 8px;
   white-space: nowrap;
@@ -838,16 +838,16 @@ function initEmptySections(): Record<string, any> {
   border-radius: 10px;
   white-space: nowrap;
 }
-.banner-critical { background: #fef2f2; color: #dc2626; }
+.banner-critical { background: var(--color-danger-bg); color: var(--color-danger); }
 .banner-diagnosis {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.banner-meta { font-size: 12px; color: var(--text-secondary); }
+.banner-meta { font-size: 12px; color: var(--color-text-secondary); }
 .toolbar-actions {
   display: flex;
   gap: 6px;
@@ -883,7 +883,7 @@ function initEmptySections(): Record<string, any> {
   gap: 16px;
 }
 .editor-col :deep(.ant-collapse-item) {
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   border: none;
@@ -893,12 +893,12 @@ function initEmptySections(): Record<string, any> {
   font-size: 14px;
   font-weight: 600;
   padding: 14px 18px;
-  border-left: 4px solid var(--accent);
-  background: #fafbfc;
+  border-left: 4px solid var(--color-primary);
+  background: var(--color-bg-surface);
   align-items: center;
 }
 .editor-col :deep(.ant-collapse-content) {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--color-bg-inset);
 }
 .editor-col :deep(.ant-collapse-content-box) {
   padding: 16px 18px;
@@ -910,7 +910,7 @@ function initEmptySections(): Record<string, any> {
 }
 .editor-col :deep(.field-row label) {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-weight: 500;
   display: block;
   margin-bottom: 4px;
@@ -919,13 +919,13 @@ function initEmptySections(): Record<string, any> {
 .editor-col :deep(.ant-select-selector),
 .editor-col :deep(textarea.ant-input) {
   border-radius: 6px;
-  border-color: #e2e8f0;
+  border-color: var(--color-border);
   transition: border-color 0.2s;
 }
 .editor-col :deep(.ant-input:focus),
 .editor-col :deep(textarea.ant-input:focus),
 .editor-col :deep(.ant-select-focused .ant-select-selector) {
-  border-color: var(--accent);
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12);
 }
 
@@ -942,7 +942,7 @@ function initEmptySections(): Record<string, any> {
   align-items: center;
   gap: 10px;
   padding: 14px 20px;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
@@ -950,7 +950,7 @@ function initEmptySections(): Record<string, any> {
 /* ── Panel cards ──────────────────────────────────────────── */
 .panel-col :deep(.ant-card),
 .panel-col :deep(> div) {
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
@@ -958,10 +958,10 @@ function initEmptySections(): Record<string, any> {
   border-radius: 10px;
 }
 .panel-col :deep(.ant-alert-error) {
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid var(--color-danger);
 }
 .panel-col :deep(.ant-alert-warning) {
-  border-left: 4px solid #f59e0b;
+  border-left: 4px solid var(--color-warning);
 }
 
 /* ── Responsive ───────────────────────────────────────────── */

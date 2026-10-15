@@ -8,34 +8,24 @@
       <template #actions>
         <span class="page-meta">{{ accountName }}</span>
         <span class="page-meta">{{ shiftText }}</span>
-        <button class="refresh-btn" @click="load">刷新</button>
+        <a-button size="small" @click="load">刷新</a-button>
       </template>
     </PageHeader>
 
     <!-- 加载/错误状态 -->
     <LoadingState v-if="loading" message="正在读取本班数据..." />
-    <ErrorState v-else-if="error" :message="error" />
+    <ErrorState v-else-if="error" :description="error" />
 
     <template v-else>
       <!-- KPI 摘要条 -->
-      <div class="kpi-strip">
-        <div class="kpi-item">
-          <span class="kpi-label">我的床位</span>
-          <strong class="kpi-value">{{ sortedBeds.length }}</strong>
-        </div>
-        <div class="kpi-item" :class="{ 'is-alert': criticalAlerts.length > 0 }">
-          <span class="kpi-label">危急风险</span>
-          <strong class="kpi-value">{{ criticalAlerts.length }}</strong>
-        </div>
-        <div class="kpi-item" :class="{ 'is-alert': overdueCount > 0 }">
-          <span class="kpi-label">逾期任务</span>
-          <strong class="kpi-value">{{ overdueCount }}</strong>
-        </div>
-        <div class="kpi-item">
-          <span class="kpi-label">工作负荷</span>
-          <strong class="kpi-value">{{ workload.used_minutes || 0 }}/{{ workload.estimated_minutes || 0 }}分</strong>
-        </div>
-      </div>
+      <MetricStrip
+        :metrics="[
+          { label: '我的床位', value: sortedBeds.length, unit: '人' },
+          { label: '危急风险', value: criticalAlerts.length, unit: '项', variant: criticalAlerts.length > 0 ? 'danger' : 'success' },
+          { label: '逾期任务', value: overdueCount, unit: '项', variant: overdueCount > 0 ? 'warning' : 'success' },
+          { label: '工作负荷', value: `${workload.used_minutes || 0}/${workload.estimated_minutes || 0}`, unit: '分' },
+        ]"
+      />
 
       <!-- 主内容区 -->
       <div class="main-grid">
@@ -105,7 +95,7 @@
         <div class="onboarding-card">
           <div class="onboarding-head">
             <strong>护士首页 3 步用法</strong>
-            <button @click="dismissOnboarding">知道了</button>
+            <a-button size="small" @click="dismissOnboarding">知道了</a-button>
           </div>
           <ol>
             <li>
@@ -128,13 +118,14 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton } from 'ant-design-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { postNurseHandoffGenerate } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useNurseHome } from '../composables/useNurseHome'
 import { roleHomeConfig } from '../config/roleHomeConfig'
-import { PageHeader, LoadingState, ErrorState } from '../components/common/design-system'
+import { PageHeader, LoadingState, ErrorState, MetricStrip } from '../components/common/design-system'
 import { ICUBedMap } from '../components/charts'
 import type { BedInfo } from '../components/charts'
 import NurseShiftTasks from '../components/nurse/NurseShiftTasks.vue'
@@ -289,134 +280,32 @@ watch(
 
 <style scoped>
 .nurse-home {
-  padding: var(--page-padding, 24px);
+  padding: var(--page-padding);
   padding-bottom: 80px;
   display: grid;
-  gap: var(--section-gap, 24px);
+  gap: var(--section-gap);
   max-width: 1400px;
   margin: 0 auto;
 }
 
-/* ── 页面头部 ── */
-.page-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.page-top__left {
-  display: grid;
-  gap: 4px;
-}
-
-.page-top__title {
-  font-size: var(--text-page-title, 24px);
-  font-weight: var(--text-page-title-weight, 700);
-  color: var(--color-text-primary, #18212B);
-  margin: 0;
-  line-height: 1.3;
-}
-
-.page-top__subtitle {
-  font-size: var(--text-page-subtitle, 14px);
-  color: var(--color-text-secondary, #667085);
-}
-
-.page-top__right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.page-top__meta {
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
-}
-
-.refresh-btn {
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-button, 6px);
-  background: var(--color-bg-surface, #fff);
-  color: var(--color-text-primary, #18212B);
-  font-size: var(--text-caption, 12px);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.refresh-btn:hover {
-  border-color: var(--color-primary, #2563EB);
-  color: var(--color-primary, #2563EB);
-}
-
-/* ── 状态消息 ── */
-.state-msg {
-  padding: 40px;
-  text-align: center;
-  font-size: var(--text-body, 14px);
-  color: var(--color-text-secondary, #667085);
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 8px);
-}
-
-.state-msg.is-danger {
-  color: var(--color-danger, #D92D20);
-  background: var(--color-danger-bg);
-  border-color: rgba(217, 45, 32, 0.2);
-}
-
-/* ── KPI 摘要条 ── */
-.kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--element-gap, 8px);
-}
-
-.kpi-item {
-  display: grid;
-  gap: 4px;
-  padding: var(--card-padding, 16px);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 8px);
-  background: var(--color-bg-surface, #fff);
-}
-
-.kpi-label {
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
-}
-
-.kpi-value {
-  font-size: var(--text-metric-normal, 20px);
-  font-weight: var(--weight-bold, 700);
-  color: var(--color-text-primary, #18212B);
-  line-height: 1;
-}
-
-.kpi-item.is-alert {
-  border-color: rgba(217, 45, 32, 0.3);
-}
-
-.kpi-item.is-alert .kpi-value {
-  color: var(--color-danger, #D92D20);
+/* ── 页面头部辅助信息 ── */
+.page-meta {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
 }
 
 /* ── 主内容区 ── */
 .main-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--section-gap, 24px);
+  gap: var(--section-gap);
   align-items: start;
 }
 
 .col-left,
 .col-right {
   display: grid;
-  gap: var(--element-gap-lg, 12px);
+  gap: var(--element-gap-lg);
   align-content: start;
 }
 
@@ -424,14 +313,14 @@ watch(
 .panel {
   display: grid;
   gap: 10px;
-  padding: var(--card-padding, 16px);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 8px);
-  background: var(--color-bg-surface, #fff);
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
 .panel--critical {
-  border-color: rgba(217, 45, 32, 0.25);
+  border-color: var(--color-critical-border);
 }
 
 .panel-head {
@@ -441,14 +330,14 @@ watch(
 }
 
 .panel-head strong {
-  font-size: var(--text-card-title, 14px);
-  font-weight: var(--text-card-title-weight, 650);
-  color: var(--color-text-primary, #18212B);
+  font-size: var(--text-card-title);
+  font-weight: var(--text-card-title-weight);
+  color: var(--color-text-primary);
 }
 
 .panel-head span {
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
 }
 
 .badge-danger {
@@ -458,86 +347,11 @@ watch(
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 10px;
+  border-radius: 999px;
   background: var(--color-danger-bg);
-  color: var(--color-danger, #D92D20);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-/* ── 床位网格 ── */
-.bed-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-}
-
-.bed-card {
-  position: relative;
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px 10px 28px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-md, 6px);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.bed-card:hover {
-  border-color: var(--color-primary, #2563EB);
-  background: var(--color-bg-surface-secondary, #F1F3F5);
-}
-
-.bed-dot {
-  position: absolute;
-  left: 10px;
-  top: 14px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.bed-dot.is-critical { background: var(--color-danger, #D92D20); }
-.bed-dot.is-warn { background: var(--color-warning, #B54708); }
-.bed-dot.is-muted { background: var(--color-border, #E3E7EC); }
-
-.bed-card__top {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-.bed-card__top strong {
-  font-size: var(--text-body, 14px);
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-}
-
-.bed-card__name {
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bed-card__badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: var(--color-warning-bg);
-  color: var(--color-warning, #B54708);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.empty-hint {
-  padding: 20px;
-  text-align: center;
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-danger);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
 }
 
 /* ── 告警列表 ── */
@@ -561,16 +375,15 @@ watch(
 }
 
 .alert-dot.dot-p0 {
-  background: var(--color-danger, #D92D20);
-  box-shadow: 0 0 4px rgba(217, 45, 32, 0.4);
+  background: var(--color-danger);
 }
 
 .alert-dot.dot-p1 {
-  background: var(--color-warning, #B54708);
+  background: var(--color-warning);
 }
 
 .alert-dot.dot-p2 {
-  background: var(--color-border, #E3E7EC);
+  background: var(--color-border-strong);
 }
 
 .alert-row__info {
@@ -581,22 +394,22 @@ watch(
 }
 
 .alert-row__info strong {
-  font-size: var(--text-body, 14px);
+  font-size: var(--text-body);
   font-weight: 500;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 
 .alert-row__info span {
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .alert-row small {
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
@@ -607,7 +420,7 @@ watch(
   z-index: 400;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(17, 24, 39, 0.4);
   padding: 16px;
 }
 
@@ -616,9 +429,10 @@ watch(
   display: grid;
   gap: 16px;
   padding: 24px;
-  border-radius: var(--radius-xl, 10px);
-  background: var(--color-bg-surface, #fff);
-  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-lg);
 }
 
 .onboarding-head {
@@ -628,20 +442,9 @@ watch(
 }
 
 .onboarding-head strong {
-  font-size: var(--text-section-title, 16px);
-  font-weight: var(--text-section-title-weight, 650);
-  color: var(--color-text-primary, #18212B);
-}
-
-.onboarding-head button {
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-button, 6px);
-  background: transparent;
-  color: var(--color-text-secondary, #667085);
-  font-size: var(--text-caption, 12px);
-  cursor: pointer;
+  font-size: var(--text-section-title);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-text-primary);
 }
 
 .onboarding-card ol {
@@ -652,21 +455,26 @@ watch(
 }
 
 .onboarding-card li {
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   line-height: 1.5;
 }
 
 .onboarding-card li b {
   display: block;
-  font-size: var(--text-body, 14px);
-  font-weight: 600;
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
 }
 
 .onboarding-card li span {
   display: block;
-  font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   margin-top: 2px;
+}
+
+/* ── 面板内空态保持紧凑 ── */
+.panel :deep(.empty-state) {
+  padding: 24px 16px;
 }
 
 /* ── 响应式 ── */
@@ -674,34 +482,12 @@ watch(
   .main-grid {
     grid-template-columns: 1fr;
   }
-
-  .kpi-strip {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 @media (max-width: 640px) {
   .nurse-home {
     padding: 16px;
     padding-bottom: 60px;
-  }
-
-  .page-top {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .page-top__right {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .kpi-strip {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .bed-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 }
 </style>

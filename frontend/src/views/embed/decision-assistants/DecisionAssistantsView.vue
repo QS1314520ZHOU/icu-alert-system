@@ -36,67 +36,15 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.decision-assistants {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-}
+<style scoped>.decision-assistants { display: flex; align-items: center; justify-content: center; min-height: 400px }
+.da-not-connected { text-align: center; padding: 48px 32px; max-width: 480px }
+.da-icon { font-size: 48px; margin-bottom: 16px }
+.da-title { margin: 0 0 8px; font-size: var(--text-page-title, 20px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.da-message { margin: 0 0 8px; font-size: var(--text-section-title, 15px); font-weight: 500; color: var(--color-warning, #B54708) }
+.da-detail { margin: 0 0 24px; font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); line-height: 1.5 }
+.da-features { text-align: left; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px); padding: 16px 20px; border: 1px solid var(--color-border, #E5E7EB) }
+.da-features-title { margin: 0 0 8px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-secondary, #4B5563) }
+.da-features-list { margin: 0; padding-left: 20px; font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); line-height: 1.8 }
 
-.da-not-connected {
-  text-align: center;
-  padding: 48px 32px;
-  max-width: 480px;
-}
-
-.da-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.da-title {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 600;
-  color: #182230;
-}
-
-.da-message {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 500;
-  color: #F59E0B;
-}
-
-.da-detail {
-  margin: 0 0 24px;
-  font-size: 14px;
-  color: #52606D;
-  line-height: 1.5;
-}
-
-.da-features {
-  text-align: left;
-  background: #F8FAFC;
-  border-radius: 8px;
-  padding: 16px 20px;
-  border: 1px solid #E8EEF5;
-}
-
-.da-features-title {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #52606D;
-}
-
-.da-features-list {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 13px;
-  color: #52606D;
-  line-height: 1.8;
-}
 </style>
 

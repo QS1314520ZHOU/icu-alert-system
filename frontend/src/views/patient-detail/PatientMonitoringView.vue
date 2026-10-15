@@ -1,5 +1,6 @@
 <template>
   <div class="monitoring-view">
+    <PageHeader title="监护监测" subtitle="生命体征趋势、检验结果与波形监测" />
     <!-- 生命体征趋势 -->
     <section class="monitoring-section">
       <div class="section-header">
@@ -86,6 +87,7 @@
 </template>
 
 <script setup lang="ts">
+import { PageHeader } from '../../components/common/design-system'
 import { onMounted } from 'vue'
 import { RadioGroup as ARadioGroup, RadioButton as ARadioButton } from 'ant-design-vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
@@ -138,9 +140,9 @@ onMounted(() => {
 }
 
 .monitoring-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
 }
 
@@ -153,9 +155,9 @@ onMounted(() => {
 
 .section-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .trend-chart-placeholder {
@@ -196,9 +198,9 @@ onMounted(() => {
   padding: 40px 20px;
   gap: 8px;
   text-align: center;
-  background: #FFF7ED;
-  border: 1px solid #FDBA74;
-  border-radius: 6px;
+  background: var(--color-high-risk-bg);
+  border: 1px solid var(--color-high-risk-border);
+  border-radius: var(--radius-md);
 }
 
 .waveform-error__icon {
@@ -206,8 +208,8 @@ onMounted(() => {
 }
 
 .waveform-error__text {
-  font-size: 13px;
-  color: #9A3412;
+  font-size: var(--text-body);
+  color: var(--color-warning);
 }
 
 .waveform-empty__icon {
@@ -216,29 +218,29 @@ onMounted(() => {
 }
 
 .waveform-empty__title {
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: var(--text-primary, #182230);
+  color: var(--text-primary);
 }
 
 .waveform-empty__desc {
-  font-size: 12px;
-  color: var(--text-tertiary, #94A3B8);
+  font-size: var(--text-label);
+  color: var(--text-tertiary);
 }
 
 .waveform-empty__btn {
   margin-top: 8px;
   padding: 4px 16px;
-  border: 1px solid var(--color-border, #DCE3EC);
-  border-radius: 4px;
-  background: #fff;
-  font-size: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-tag);
+  background: var(--color-bg-surface);
+  font-size: var(--text-label);
   cursor: pointer;
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
 }
 
 .waveform-empty__btn:hover {
-  background: var(--color-bg-hover, #F0F6FF);
+  background: var(--color-bg-hover);
 }
 
 /* Labs */
@@ -250,9 +252,9 @@ onMounted(() => {
 
 .lab-card {
   padding: 10px 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  background: #fafbfc;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
 .lab-header {
@@ -263,13 +265,13 @@ onMounted(() => {
 }
 
 .lab-name {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
 .lab-flag {
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
@@ -280,24 +282,25 @@ onMounted(() => {
 }
 
 .lab-value {
-  font-size: 20px;
+  font-size: var(--text-metric-normal);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .lab-unit {
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
 }
 
 .lab-time {
-  font-size: 10px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
   margin-top: 4px;
 }
 
-.lab-high .lab-value { color: #ff4d4f; }
-.lab-high .lab-flag { color: #ff4d4f; }
-.lab-low .lab-value { color: #1890ff; }
-.lab-low .lab-flag { color: #1890ff; }
+.lab-high .lab-value { color: var(--color-danger); }
+.lab-high .lab-flag { color: var(--color-danger); }
+.lab-low .lab-value { color: var(--color-primary); }
+.lab-low .lab-flag { color: var(--color-primary); }
 </style>

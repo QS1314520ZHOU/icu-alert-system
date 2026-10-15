@@ -326,8 +326,9 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .dashboard-header strong {
-  color: var(--text-primary);
-  font-size: 18px;
+  color: var(--color-text-primary);
+  font-size: var(--text-page-title);
+  font-weight: var(--text-page-title-weight);
 }
 
 .header-actions {
@@ -338,19 +339,19 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 .header-actions select {
   min-height: 36px;
   padding: 0 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
 }
 
 .header-actions button {
   min-height: 36px;
   padding: 0 12px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(125, 211, 252, .2);
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 
@@ -362,9 +363,9 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 .loading, .error, .empty {
   padding: 20px;
   text-align: center;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
 }
 
 .error {
@@ -379,46 +380,47 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .overview-card {
   padding: 16px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
 }
 
 .overview-card span {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 12px;
   display: block;
 }
 
 .overview-card strong {
-  color: var(--text-primary);
-  font-size: 28px;
+  color: var(--color-text-primary);
+  font-size: var(--text-metric-key);
+  font-variant-numeric: tabular-nums;
   display: block;
   margin: 8px 0 4px;
 }
 
 .overview-card em {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
   font-style: normal;
 }
 
 .overview-card.good {
-  border-color: rgba(52, 211, 153, .34);
+  border-color: var(--color-normal-border);
 }
 
 .overview-card.warn {
-  border-color: rgba(245, 158, 11, .42);
+  border-color: var(--color-warning-soft-border);
 }
 
 .overview-card.bad {
-  border-color: rgba(239, 68, 68, .42);
+  border-color: var(--color-critical-border);
 }
 
 .section {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
   border: 1px solid rgba(125, 211, 252, .14);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   padding: 16px;
 }
 
@@ -430,12 +432,12 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .section-header strong {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 15px;
 }
 
 .section-header span {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 
@@ -455,7 +457,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   content: '';
   width: 12px;
   height: 12px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
 }
 
 .legend-item.good::before {
@@ -471,7 +473,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .legend-item.empty::before {
-  background: rgba(148, 163, 184, .25);
+  background: var(--color-bg-surface-secondary);
 }
 
 .heatmap-container {
@@ -490,14 +492,14 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .heatmap-label {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
   display: flex;
   align-items: center;
 }
 
 .heatmap-type-label {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
   text-align: center;
   padding: 4px;
@@ -511,7 +513,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .heatmap-hour {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -519,7 +521,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .heatmap-cell {
   padding: 8px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   text-align: center;
   font-size: 12px;
   font-weight: 600;
@@ -532,23 +534,23 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .heatmap-cell.good {
-  background: rgba(52, 211, 153, .3);
+  background: var(--color-success-bg);
   color: var(--chart-2);
 }
 
 .heatmap-cell.warn {
-  background: rgba(251, 191, 36, .3);
+  background: var(--color-warning-soft-bg);
   color: var(--warning);
 }
 
 .heatmap-cell.bad {
-  background: rgba(239, 68, 68, .3);
+  background: var(--color-danger-bg);
   color: var(--danger);
 }
 
 .heatmap-cell.empty {
-  background: rgba(148, 163, 184, .1);
-  color: rgba(148, 163, 184, .5);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-tertiary);
 }
 
 .overdue-list {
@@ -562,36 +564,36 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   gap: 12px;
   align-items: center;
   padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .overdue-item:hover {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 
 .overdue-item.severity-critical {
-  border-left: 3px solid #D9342B;
+  border-left: 3px solid var(--color-danger);
 }
 
 .overdue-item.severity-high {
-  border-left: 3px solid #f97316;
+  border-left: 3px solid var(--color-warning);
 }
 
 .overdue-item.severity-warning {
-  border-left: 3px solid #eab308;
+  border-left: 3px solid var(--color-warning);
 }
 
 .overdue-bed strong {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 16px;
   display: block;
 }
 
 .overdue-bed span {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 
@@ -602,7 +604,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .overdue-count {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 13px;
 }
 
@@ -614,14 +616,14 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .type-tag {
   padding: 2px 6px;
-  border-radius: var(--card-radius);
-  background: rgba(125, 211, 252, .15);
-  color: var(--text-secondary);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
 }
 
 .overdue-time {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
   text-align: right;
 }
@@ -633,8 +635,8 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .comparison-item {
   padding: 12px;
-  border-radius: var(--card-radius);
-  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
 .comparison-header {
@@ -645,12 +647,12 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .comparison-header strong {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 14px;
 }
 
 .interval {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
 }
 
@@ -668,33 +670,33 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .bar-label {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
 }
 
 .bar-track {
   height: 20px;
-  border-radius: var(--card-radius);
-  background: rgba(148, 163, 184, .15);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   transition: width 0.3s ease;
 }
 
 .bar-fill.current {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 
 .bar-fill.previous {
-  background: rgba(148, 163, 184, .4);
+  background: var(--color-bg-surface-secondary);
 }
 
 .bar-value {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 12px;
   text-align: right;
 }
@@ -705,7 +707,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .comparison-stats span {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
 }
 
@@ -743,55 +745,55 @@ html[data-theme='light'] .comparison-header strong,
 html[data-theme='light'] .overdue-bed strong,
 html[data-theme='light'] .overdue-count,
 html[data-theme='light'] .bar-value {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 html[data-theme='light'] .overview-card,
 html[data-theme='light'] .section {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(145, 176, 199, 0.32);
+  background: var(--color-bg-surface-secondary);
+  border-color: var(--color-border);
 }
 
 html[data-theme='light'] .overdue-item,
 html[data-theme='light'] .comparison-item {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 
 html[data-theme='light'] .header-actions select,
 html[data-theme='light'] .header-actions button {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
   border-color: rgba(37, 99, 235, 0.18);
-  color: var(--brand);
+  color: var(--color-primary);
 }
 
 html[data-theme='light'] .heatmap-cell.good {
-  background: rgba(52, 211, 153, .2);
+  background: var(--color-success-bg);
   color: var(--chart-2);
 }
 
 html[data-theme='light'] .heatmap-cell.warn {
-  background: rgba(251, 191, 36, .2);
+  background: var(--color-warning-soft-bg);
   color: var(--warning);
 }
 
 html[data-theme='light'] .heatmap-cell.bad {
-  background: rgba(239, 68, 68, .2);
+  background: var(--color-danger-bg);
   color: var(--danger);
 }
 
 html[data-theme='light'] .bar-fill.current {
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 
 html[data-theme='light'] .bar-fill.previous {
-  background: rgba(148, 163, 184, .3);
+  background: var(--color-bg-surface-secondary);
 }
 
 html[data-theme='light'] .loading,
 html[data-theme='light'] .error,
 html[data-theme='light'] .empty {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
 }
 
 html[data-theme='light'] .error {

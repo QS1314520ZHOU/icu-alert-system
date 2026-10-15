@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import { Empty as AEmpty, Spin as ASpin, Tag as ATag } from 'ant-design-vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { getCaseQuality } from '@/api/diseaseCenter'
 
@@ -92,13 +93,13 @@ function getScoreClass(score?: number | null) {
 
 function getRiskColor(risk?: string) {
   const map: Record<string, string> = {
-    critical: 'var(--color-error)',
-    high: 'var(--color-error-light)',
-    medium: 'var(--color-warning-light)',
-    low: 'var(--color-success-light)',
-    none: 'default',
+    critical: '#ff4d4f',
+    high: '#ff4d4f',
+    medium: '#faad14',
+    low: '#52c41a',
+    none: '#d9d9d9',
   }
-  return map[risk || ''] || 'default'
+  return map[risk || ''] || '#d9d9d9'
 }
 
 function getRiskLabel(risk?: string) {
@@ -139,97 +140,22 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.case-quality {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+<style scoped>.case-quality { display: flex; flex-direction: column; gap: 16px }
+.quality-loading { display: flex; justify-content: center; padding: 40px 0 }
 
-.quality-loading {
-  display: flex;
-  justify-content: center;
-  padding: 40px 0;
-}
+/* Overview */ .quality-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px }
+.quality-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
+.quality-card-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.quality-card-value  {  font-size: var(--text-metric-normal, 20px); font-weight: 700; color: var(--color-text-primary, #111827) ; font-variant-numeric: tabular-nums }
+.score-high { color: var(--color-success, #16845B) }
+.score-medium { color: var(--color-warning, #B54708) }
+.score-low { color: var(--color-danger, #D92D20) }
 
-/* Overview */
-.quality-overview {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-}
+/* Type distribution */ .quality-section { padding: 12px 16px; background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px) }
+.section-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 0 12px }
+.type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px }
+.type-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-sm, 4px) }
+.type-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.type-count { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 
-.quality-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border-radius: var(--radius-md, 8px);
-}
-
-.quality-card-label {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-}
-
-.quality-card-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text-primary, #18212B);
-}
-
-.score-high {
-  color: var(--color-success, #16845B);
-}
-
-.score-medium {
-  color: var(--color-warning, #DC6803);
-}
-
-.score-low {
-  color: var(--color-error, #D92D20);
-}
-
-/* Type distribution */
-.quality-section {
-  padding: 12px 16px;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-md, 8px);
-}
-
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-  margin: 0 0 12px;
-}
-
-.type-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-}
-
-.type-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 10px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border-radius: var(--radius-sm, 6px);
-}
-
-.type-label {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-}
-
-.type-count {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-}
 </style>

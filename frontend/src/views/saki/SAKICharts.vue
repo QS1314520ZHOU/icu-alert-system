@@ -6,7 +6,7 @@
         <div v-if="trajectoryData && trajectoryData.trajectories?.length" class="chart-container">
           <v-chart :option="trajectoryOption" style="height:400px" autoresize />
         </div>
-        <div v-else class="empty">暂无肌酐轨迹数据</div>
+        <div v-else class="empty-wrap"><EmptyState description="暂无肌酐轨迹数据" /></div>
       </a-tab-pane>
 
       <a-tab-pane key="forest" tab="森林图">
@@ -14,7 +14,7 @@
         <div v-if="forestData?.forest_data?.length" class="chart-container">
           <v-chart :option="forestOption" style="height:400px" autoresize />
         </div>
-        <div v-else class="empty">暂无森林图数据</div>
+        <div v-else class="empty-wrap"><EmptyState description="暂无森林图数据" /></div>
       </a-tab-pane>
 
       <a-tab-pane key="outcomes" tab="结局分布">
@@ -22,13 +22,14 @@
         <div v-if="outcomesData" class="chart-container">
           <v-chart :option="outcomesOption" style="height:300px" autoresize />
         </div>
-        <div v-else class="empty">暂无结局数据</div>
+        <div v-else class="empty-wrap"><EmptyState description="暂无结局数据" /></div>
       </a-tab-pane>
     </a-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Button as AButton, TabPane as ATabPane, Tabs as ATabs } from 'ant-design-vue'
 import { ref, computed } from 'vue'
 import { use } from 'echarts/core'
 import { LineChart, BarChart } from 'echarts/charts'
@@ -36,6 +37,7 @@ import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { runCreatinineTrajectory, runForest, runOutcomes } from '../../api/saki'
+import { EmptyState } from '../../components/common/design-system'
 
 use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
 
@@ -103,6 +105,6 @@ const loadOutcomes = async () => {
 
 <style scoped>
 .saki-charts { display: flex; flex-direction: column; gap: 16px; }
-.chart-container { background: #fff; border-radius: 8px; padding: 16px; }
-.empty { text-align: center; padding: 60px; color: #bbb; background: #fff; border-radius: 8px; }
+.chart-container { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; }
+.empty-wrap { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
 </style>

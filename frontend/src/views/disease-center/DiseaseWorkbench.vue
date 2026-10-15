@@ -95,7 +95,7 @@
             <div v-if="pathway" class="pathway-info">
               <div class="pathway-header">
                 <span class="pathway-name">{{ pathway.name }}</span>
-                <a-tag :color="pathway.status === 'published' ? 'var(--color-success)' : 'default'">
+                <a-tag :color="pathway.status === 'published' ? '#52c41a' : '#d9d9d9'">
                   {{ pathway.status === 'published' ? '已发布' : pathway.status }}
                 </a-tag>
               </div>
@@ -133,6 +133,7 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton, Empty as AEmpty, PageHeader as APageHeader, Space as ASpace, Spin as ASpin, TabPane as ATabPane, Table as ATable, Tabs as ATabs, Tag as ATag } from 'ant-design-vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import VChart from 'vue-echarts'
@@ -235,11 +236,17 @@ const trendOption = computed(() => {
 // --- Helpers ---
 function getCaseStatusColor(status: string) {
   const map: Record<string, string> = {
-    screening: 'default', screen_positive: 'orange', pending_review: 'var(--color-primary-light)',
-    confirmed: 'var(--color-success-light)', excluded: 'default',
-    pathway_active: 'var(--color-primary)', completed: 'var(--color-success)',
+    screening: '#d9d9d9',
+    screen_positive: '#faad14',
+    pending_review: '#1677ff',
+    confirmed: '#52c41a',
+    excluded: '#d9d9d9',
+    pathway_active: '#1677ff',
+    completed: '#389e0d',
+    reconsideration_pending: '#fa8c16',
+    reopened: '#fa541c',
   }
-  return map[status] || 'default'
+  return map[status] || '#d9d9d9'
 }
 
 function getCaseStatusLabel(status: string) {
@@ -327,155 +334,51 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.disease-workbench {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+<style scoped>.disease-workbench { display: flex; flex-direction: column; gap: 16px }
+.workbench-content { background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-lg, 10px); padding: 16px }
+.tab-placeholder { min-height: 400px; display: flex; align-items: center; justify-content: center }
+
+/* Overview */ .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px }
+.overview-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
+.overview-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.overview-value  {  font-size: var(--text-metric-key, 26px); font-weight: 700; color: var(--color-text-primary, #111827) ; font-variant-numeric: tabular-nums }
+.value-warning { color: var(--color-danger, #D92D20) }
+.overview-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.chart-card { padding: 12px; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px) }
+.chart-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin-bottom: 8px }
+
+/* Risk classes */ .risk-high { color: var(--color-danger, #D92D20); font-weight: 600 }
+.risk-medium { color: var(--color-warning, #B54708); font-weight: 500 }
+.risk-low { color: var(--color-success, #16845B) }
+
+/* Pathway */ .pathway-info { padding: 12px }
+.pathway-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px }
+.pathway-name { font-size: var(--text-section-title, 15px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.pathway-desc { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); margin-bottom: 12px }
+.pathway-tasks { display: flex; flex-direction: column; gap: 8px }
+.pathway-task-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-sm, 4px) }
+.task-idx { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-radius: 50%; font-size: var(--text-caption, 12px); font-weight: 600; flex-shrink: 0 }
+.task-name { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827) }
+
+@media (max-width: 768px) {.overview-charts { grid-template-columns: 1fr }
+
 }
 
-.workbench-content {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-}
 
-.tab-placeholder {
-  min-height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ── 表格规范 §7 ── */
+:deep(.ant-table-thead > tr > th) {
+  background: var(--color-bg-surface-secondary, #F1F4F8);
+  color: var(--color-text-secondary, #4B5563);
+  font-size: var(--text-label, 12px);
+  font-weight: var(--text-table-header-weight, 600);
 }
-
-/* Overview */
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+:deep(.ant-table-thead > tr > th::before) { display: none !important }
+:deep(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid var(--color-divider, #F0F2F5);
+  font-size: var(--text-table, 13px);
+  color: var(--color-text-primary, #111827);
 }
-
-.overview-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 16px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border-radius: var(--radius-md, 8px);
-}
-
-.overview-label {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-}
-
-.overview-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--color-text-primary, #18212B);
-}
-
-.value-warning {
-  color: var(--color-error, #D92D20);
-}
-
-.overview-charts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.chart-card {
-  padding: 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-md, 8px);
-}
-
-.chart-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-  margin-bottom: 8px;
-}
-
-/* Risk classes */
-.risk-high {
-  color: var(--color-error, #D92D20);
-  font-weight: 600;
-}
-
-.risk-medium {
-  color: var(--color-warning, #DC6803);
-  font-weight: 500;
-}
-
-.risk-low {
-  color: var(--color-success, #16845B);
-}
-
-/* Pathway */
-.pathway-info {
-  padding: 12px;
-}
-
-.pathway-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.pathway-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-}
-
-.pathway-desc {
-  font-size: 13px;
-  color: var(--color-text-secondary, #667085);
-  margin-bottom: 12px;
-}
-
-.pathway-tasks {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pathway-task-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border-radius: var(--radius-sm, 6px);
-}
-
-.task-idx {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary, #1D6F63);
-  color: #fff;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.task-name {
-  font-size: 13px;
-  color: var(--color-text-primary, #18212B);
-}
-
-@media (max-width: 768px) {
-  .overview-charts {
-    grid-template-columns: 1fr;
-  }
-}
+:deep(.ant-table-tbody > tr:hover > td) { background: var(--color-bg-inset, #E9EEF5) }
+:deep(.ant-table-tbody > tr > td) { font-variant-numeric: tabular-nums }
+:deep(.ant-table-pagination) { margin-bottom: 0 !important }
 </style>

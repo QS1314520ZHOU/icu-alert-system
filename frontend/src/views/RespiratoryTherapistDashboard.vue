@@ -296,7 +296,7 @@ onBeforeUnmount(() => {
 .resp-page {
   min-height: calc(100vh - 76px);
   padding: var(--page-padding, 24px);
-  background: var(--color-bg-page, #F6F7F9);
+  background: var(--color-bg-page);
 }
 
 /* 头部 */
@@ -317,7 +317,7 @@ onBeforeUnmount(() => {
   padding: 2px 10px;
   border-radius: var(--radius-tag, 4px);
   font-size: var(--text-caption, 12px);
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary);
   background: var(--color-primary-bg, rgba(37,99,235,0.08));
 }
 .resp-header__right {
@@ -338,8 +338,8 @@ onBeforeUnmount(() => {
 }
 
 .resp-viz-card {
-  background: #fff;
-  border: 1px solid #e8e8e8;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 14px 16px;
 }
@@ -348,7 +348,7 @@ onBeforeUnmount(() => {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .resp-viz-chart {
@@ -366,7 +366,7 @@ onBeforeUnmount(() => {
 .resp-viz-ring-label {
   margin-top: 8px;
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--color-text-tertiary);
 }
 
 /* 加载状态 */
@@ -398,7 +398,7 @@ onBeforeUnmount(() => {
 }
 .section-count {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .resp-queue__list {
   display: flex;
@@ -420,30 +420,30 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .sbt-row__bed {
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   min-width: 36px;
 }
 .sbt-row__name {
   font-size: var(--text-body, 14px);
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   min-width: 60px;
 }
 .sbt-row__score {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .sbt-row__reason {
   flex: 1;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -460,9 +460,9 @@ onBeforeUnmount(() => {
   justify-content: center;
   align-items: center;
   min-height: 120px;
-  border: 1px dashed var(--color-border, #E3E7EC);
+  border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg, 8px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: var(--text-body, 14px);
 }
 
@@ -474,10 +474,10 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-card {
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
   padding: var(--card-padding, 16px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .sidebar-card__head {
   display: flex;
@@ -486,17 +486,17 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding-bottom: 10px;
   margin-bottom: 10px;
-  border-bottom: 1px solid var(--color-border, #E3E7EC);
+  border-bottom: 1px solid var(--color-border);
 }
 .sidebar-card__title {
   font-size: var(--text-card-title, 14px);
   font-weight: 650;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   margin: 0;
 }
 .sidebar-card__count {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .sidebar-card__list {
@@ -510,14 +510,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
   transition: border-color 0.15s;
 }
-.sidebar-item.tone-danger { border-left: 3px solid var(--color-danger, #D92D20); }
-.sidebar-item.tone-warning { border-left: 3px solid var(--color-warning, #B54708); }
-.sidebar-item.tone-info { border-left: 3px solid var(--color-primary, #2563EB); }
+.sidebar-item.tone-danger { border-left: 3px solid var(--color-danger); }
+.sidebar-item.tone-warning { border-left: 3px solid var(--color-warning); }
+.sidebar-item.tone-info { border-left: 3px solid var(--color-primary); }
 
 .sidebar-item__content {
   flex: 1;
@@ -527,7 +527,7 @@ onBeforeUnmount(() => {
   display: block;
   font-size: var(--text-body, 14px);
   font-weight: 600;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -535,7 +535,7 @@ onBeforeUnmount(() => {
 .sidebar-item__content span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -545,7 +545,7 @@ onBeforeUnmount(() => {
   padding: 16px;
   text-align: center;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 /* 闭环进度 */
@@ -559,14 +559,14 @@ onBeforeUnmount(() => {
 .progress-row:last-child { margin-bottom: 0; }
 .progress-row span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   min-width: 56px;
 }
 .progress-row strong {
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   min-width: 40px;
   text-align: right;
 }
@@ -574,13 +574,13 @@ onBeforeUnmount(() => {
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
   overflow: hidden;
 }
 .progress-bar__fill {
   height: 100%;
   border-radius: 3px;
-  background: var(--color-success, #16845B);
+  background: var(--color-success);
   transition: width 0.3s ease;
 }
 

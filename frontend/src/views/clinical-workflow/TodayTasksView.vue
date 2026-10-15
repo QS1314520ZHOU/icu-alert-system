@@ -132,9 +132,9 @@ const recentEvents = computed(() => {
 }
 .task-section {
   padding: 16px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  background: var(--bg-surface);
+  background: var(--color-bg-surface);
 }
 .section-header {
   display: flex;
@@ -145,17 +145,17 @@ const recentEvents = computed(() => {
 .section-label {
   font-size: 14px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   padding: 3px 10px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
 }
-.section-label.danger { background: rgba(217,52,43,.15); color: #D9342B; }
+.section-label.danger { background: var(--color-critical-bg); color: var(--color-danger); }
 .section-label.warning { background: var(--color-warning-bg); color: var(--color-warning); }
-.section-label.high { background: rgba(251,146,60,.15); color: #b96b12; }
+.section-label.high { background: var(--color-warning-soft-bg); color: var(--color-warning); }
 .section-label.info { background: var(--color-primary-bg); color: var(--color-primary); }
 .section-count {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 .patient-list, .task-list, .event-list {
@@ -169,28 +169,28 @@ const recentEvents = computed(() => {
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
-  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
 }
-.patient-row:hover { border-color: rgba(103,232,249,.32); }
-.patient-bed { font-size: 13px; font-weight: 700; color: var(--accent); }
+.patient-row:hover { border-color: var(--color-primary-hover); }
+.patient-bed { font-size: 13px; font-weight: 700; color: var(--color-primary); }
 .patient-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .risk-badge {
   display: inline-grid;
   place-items: center;
   min-width: 32px;
   height: 24px;
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   font-size: 12px;
   font-weight: 700;
 }
-.risk-high { background: rgba(127,29,29,.36); color: #f87171; }
-.risk-mid { background: rgba(113,63,18,.32); color: #fbbf24; }
-.risk-low { background: rgba(30,64,175,.24); color: #60a5fa; }
-.patient-alert { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.risk-high { background: var(--color-critical-bg); color: var(--color-danger); }
+.risk-mid { background: var(--color-warning-soft-bg); color: var(--color-warning); }
+.risk-low { background: var(--color-primary-bg); color: var(--color-primary); }
+.patient-alert { font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .task-row {
   display: grid;
@@ -199,15 +199,15 @@ const recentEvents = computed(() => {
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
-  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
   text-align: left;
 }
-.task-row:hover { border-color: rgba(103,232,249,.32); }
-.task-row.warn { border-color: rgba(251,191,36,.24); }
-.task-bed { font-size: 13px; font-weight: 700; color: var(--accent); }
+.task-row:hover { border-color: var(--color-primary-hover); }
+.task-row.warn { border-color: var(--color-warning-soft-border); }
+.task-bed { font-size: 13px; font-weight: 700; color: var(--color-primary); }
 .task-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .event-row {
@@ -217,18 +217,18 @@ const recentEvents = computed(() => {
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  background: rgba(14,116,144,.06);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-secondary);
 }
-.event-bed { font-size: 13px; font-weight: 700; color: var(--accent); }
-.event-text { font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-bed { font-size: 13px; font-weight: 700; color: var(--color-primary); }
+.event-text { font-size: 13px; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-action {
   border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-lg);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--color-primary);
   background: transparent;
   cursor: pointer;
 }
@@ -236,7 +236,7 @@ const recentEvents = computed(() => {
 .empty-hint {
   padding: 24px;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 13px;
 }
 

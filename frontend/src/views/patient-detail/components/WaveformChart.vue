@@ -127,7 +127,7 @@ const chartOption = computed<EChartsOption | null>(() => {
 .waveform-chart__info {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-tertiary, #94A3B8);
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
 }
 </style>

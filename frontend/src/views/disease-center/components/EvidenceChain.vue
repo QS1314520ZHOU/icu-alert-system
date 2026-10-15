@@ -108,7 +108,7 @@
                   <span v-else>-</span>
                 </span>
                 <a-tag
-                  :color="evidence.matched ? 'var(--color-success-light)' : 'default'"
+                  :color="evidence.matched ? '#52c41a' : '#d9d9d9'"
                   size="small"
                 >
                   {{ evidence.matched ? '匹配' : '不匹配' }}
@@ -150,6 +150,7 @@
 </template>
 
 <script setup lang="ts">
+import { Empty as AEmpty, Progress as AProgress, Select as ASelect, SelectOption as ASelectOption, Spin as ASpin, Tag as ATag } from 'ant-design-vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { getCaseEvidence, getEvidenceCompleteness } from '@/api/diseaseCenter'
 import type { CaseEvidence, EvidenceCompleteness } from '@/api/diseaseCenter'
@@ -162,7 +163,8 @@ const loading = ref(false)
 const evidenceList = ref<CaseEvidence[]>([])
 const completeness = ref<EvidenceCompleteness | null>(null)
 const filterType = ref<string | undefined>(undefined)
-const filterMatched = ref<boolean | undefined>(undefined)
+// antd Select 的 SelectValue 不接受 boolean，模板 v-model:value 需要 any 兼容
+const filterMatched = ref<any>(undefined)
 
 const evidenceTypes = [
   { value: 'vital_sign', label: '生命体征' },
@@ -178,15 +180,17 @@ const evidenceTypes = [
 ]
 
 const completenessScore = computed(() => {
-  if (!completeness.value) return 0
-  return completeness.value.completeness_ratio ?? 0
+  const ratio = completeness.value?.completeness_ratio
+  if (ratio === null || ratio === undefined) return 0
+  // 后端返回 0~1 比值，转成百分比整数
+  return Math.round(ratio * 100)
 })
 
 const completenessList = computed(() => {
   if (!completeness.value?.by_type) return []
-  return Object.entries(completeness.value.by_type).map(([k, v]: [string, { total: number; matched: number; quality_issues: number }]) => ({
+  return Object.entries(completeness.value.by_type).map(([k, v]) => ({
     label: getEvidenceTypeLabel(k),
-    value: v,
+    value: `${v.matched}/${v.total}`,
     color: v.total > 0 ? 'var(--color-success)' : 'var(--color-text-tertiary)',
   }))
 })
@@ -195,7 +199,7 @@ const completenessColor = computed(() => {
   const s = completenessScore.value
   if (s >= 80) return 'var(--color-success)'
   if (s >= 50) return 'var(--color-warning)'
-  return 'var(--color-error)'
+  return '#D92D20'
 })
 
 // --- helpers ---
@@ -222,9 +226,9 @@ function getStageLabel(evidence: CaseEvidence) {
 }
 
 function getStageColor(evidence: CaseEvidence) {
-  if (evidence.matched) return 'var(--color-success-light)'
-  if (evidence.normalized_value !== null) return 'var(--color-primary-light)'
-  return 'default'
+  if (evidence.matched) return '#52c41a'
+  if (evidence.normalized_value !== null) return '#1677ff'
+  return '#d9d9d9'
 }
 
 function getNodeStatusClass(evidence: CaseEvidence) {
@@ -241,16 +245,16 @@ function getConfidenceClass(confidence: number) {
 
 function getFlagColor(flag: string) {
   const map: Record<string, string> = {
-    normal: 'default',
-    missing: 'var(--color-error-light)',
-    stale: 'var(--color-warning-light)',
-    conflict: 'var(--color-error-light)',
-    low_confidence: 'var(--color-warning-light)',
-    unit_mismatch: 'var(--color-warning-light)',
-    outlier: 'var(--color-warning-light)',
-    manual_override: 'var(--color-primary-light)',
+    normal: '#d9d9d9',
+    missing: '#ff4d4f',
+    stale: '#faad14',
+    conflict: '#ff4d4f',
+    low_confidence: '#faad14',
+    unit_mismatch: '#faad14',
+    outlier: '#faad14',
+    manual_override: '#1677ff',
   }
-  return map[flag] || 'default'
+  return map[flag] || '#d9d9d9'
 }
 
 function getFlagLabel(flag: string) {
@@ -310,209 +314,45 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.evidence-chain {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+<style scoped>.evidence-chain { display: flex; flex-direction: column; gap: 16px }
+.chain-loading { display: flex; justify-content: center; padding: 40px 0 }
 
-.chain-loading {
-  display: flex;
-  justify-content: center;
-  padding: 40px 0;
-}
+/* Completeness */ .completeness-bar { padding: 12px 16px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
+.completeness-header { display: flex; justify-content: space-between; margin-bottom: 8px }
+.completeness-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.completeness-score { font-size: var(--text-body, 13px); font-weight: 700; color: var(--color-primary, #2563EB) }
+.completeness-detail { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px }
+.completeness-item { display: flex; align-items: center; gap: 4px; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.dot { width: 6px; height: 6px; border-radius: 50% }
 
-/* Completeness */
-.completeness-bar {
-  padding: 12px 16px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border-radius: var(--radius-md, 8px);
-}
+/* Filter */ .chain-filter { display: flex; gap: 8px }
 
-.completeness-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
+/* Chain Nodes */ .chain-nodes { display: flex; flex-direction: column; gap: 0 }
+.chain-node { display: flex; gap: 12px; min-height: 80px }
+.node-connector { display: flex; flex-direction: column; align-items: center; width: 20px; flex-shrink: 0 }
+.connector-line { flex: 1; width: 2px; background: var(--color-border, #E5E7EB) }
+.connector-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-border, #E5E7EB); flex-shrink: 0 }
+.dot-matched { background: var(--color-success, #16845B) }
+.dot-missing { background: var(--color-danger, #D92D20) }
+.dot-normal { background: var(--color-primary, #2563EB) }
+.node-content { flex: 1; padding: 8px 12px; background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); margin-bottom: 8px }
+.node-stage { display: flex; align-items: center; gap: 8px; margin-bottom: 8px }
+.node-time { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
-.completeness-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-}
+/* Pipeline */ .chain-pipeline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0 }
+.pipeline-step { display: flex; flex-direction: column; gap: 2px; min-width: 80px }
+.step-label { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
+.step-value { font-size: var(--text-body, 13px); font-weight: 500; color: var(--color-text-primary, #111827) }
+.step-unit { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-weight: 400 }
+.step-source { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
+.pipeline-arrow { color: var(--color-text-tertiary, #9CA3AF); font-size: var(--text-body, 13px) }
 
-.completeness-score {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-primary, #1D6F63);
-}
+/* Confidence */ .confidence-high { color: var(--color-success, #16845B) }
+.confidence-medium { color: var(--color-warning, #B54708) }
+.confidence-low { color: var(--color-danger, #D92D20) }
 
-.completeness-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 8px;
-}
+/* Explanation */ .node-explanation { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); padding: 6px 0; border-top: 1px dashed var(--color-border, #E5E7EB); margin-top: 6px }
 
-.completeness-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-}
+/* Quality flags */ .node-flags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px }
 
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-/* Filter */
-.chain-filter {
-  display: flex;
-  gap: 8px;
-}
-
-/* Chain Nodes */
-.chain-nodes {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.chain-node {
-  display: flex;
-  gap: 12px;
-  min-height: 80px;
-}
-
-.node-connector {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 20px;
-  flex-shrink: 0;
-}
-
-.connector-line {
-  flex: 1;
-  width: 2px;
-  background: var(--color-border, #E3E7EC);
-}
-
-.connector-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-border, #E3E7EC);
-  flex-shrink: 0;
-}
-
-.dot-matched {
-  background: var(--color-success, #16845B);
-}
-
-.dot-missing {
-  background: var(--color-error, #D92D20);
-}
-
-.dot-normal {
-  background: var(--color-primary, #1D6F63);
-}
-
-.node-content {
-  flex: 1;
-  padding: 8px 12px;
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-md, 8px);
-  margin-bottom: 8px;
-}
-
-.node-stage {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.node-time {
-  font-size: 12px;
-  color: var(--color-text-tertiary, #98A2B3);
-}
-
-/* Pipeline */
-.chain-pipeline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 8px 0;
-}
-
-.pipeline-step {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 80px;
-}
-
-.step-label {
-  font-size: 11px;
-  color: var(--color-text-tertiary, #98A2B3);
-}
-
-.step-value {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-primary, #18212B);
-}
-
-.step-unit {
-  font-size: 11px;
-  color: var(--color-text-secondary, #667085);
-  font-weight: 400;
-}
-
-.step-source {
-  font-size: 11px;
-  color: var(--color-text-tertiary, #98A2B3);
-}
-
-.pipeline-arrow {
-  color: var(--color-text-tertiary, #98A2B3);
-  font-size: 14px;
-}
-
-/* Confidence */
-.confidence-high {
-  color: var(--color-success, #16845B);
-}
-
-.confidence-medium {
-  color: var(--color-warning, #DC6803);
-}
-
-.confidence-low {
-  color: var(--color-error, #D92D20);
-}
-
-/* Explanation */
-.node-explanation {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-  padding: 6px 0;
-  border-top: 1px dashed var(--color-border, #E3E7EC);
-  margin-top: 6px;
-}
-
-/* Quality flags */
-.node-flags {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
 </style>

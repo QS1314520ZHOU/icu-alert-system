@@ -1,60 +1,31 @@
 <template>
   <section class="role-home doctor-home">
-    <!-- 紧凑头部：只保留身份和时钟 -->
-    <header class="home-header">
-      <div class="header-identity">
-        <strong>{{ accountName }}</strong>
-        <span class="header-dept">{{ home?.account?.dept || '科室待识别' }}</span>
-        <span class="header-shift">{{ shiftText }}</span>
-      </div>
-      <div class="header-actions">
+    <!-- 页面头部：身份、班次、时钟与刷新 -->
+    <PageHeader title="医生首页" :subtitle="`${home?.account?.dept || '科室待识别'} · ${shiftText}`">
+      <template #actions>
+        <span class="header-meta">{{ accountName }}</span>
         <span class="header-clock">{{ clock }}</span>
-        <button type="button" class="btn-refresh" @click="load">刷新</button>
-      </div>
-    </header>
+        <a-button size="small" @click="load">刷新</a-button>
+      </template>
+    </PageHeader>
 
     <!-- 加载态 -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
-      <span>正在加载...</span>
-    </div>
+    <LoadingState v-if="loading" message="正在加载..." />
 
     <!-- 错误态 -->
-    <div v-else-if="error" class="error-state">{{ error }}</div>
+    <ErrorState v-else-if="error" :description="error" />
 
     <!-- 主内容 -->
     <template v-else>
       <!-- 关键指标卡 -->
-      <div class="kpi-metrics">
-        <ClinicalMetricCard
-          label="ICU在科患者"
-          :value="sortedFocusPatients.length"
-          unit="人"
-          value-size="key"
-          :change-text="`较昨日${focusPatientsDelta >= 0 ? '+' : ''}${focusPatientsDelta}`"
-        />
-        <ClinicalMetricCard
-          label="危急患者"
-          :value="criticalCount"
-          unit="人"
-          status="critical"
-          value-size="key"
-        />
-        <ClinicalMetricCard
-          label="未签收告警"
-          :value="unackedAlertCount"
-          unit="条"
-          :status="unackedAlertCount > 0 ? 'high-risk' : 'normal'"
-          value-size="key"
-        />
-        <ClinicalMetricCard
-          label="即将超时"
-          :value="timeoutItems.length"
-          unit="项"
-          :status="timeoutItems.length > 0 ? 'warning' : 'normal'"
-          value-size="key"
-        />
-      </div>
+      <MetricStrip
+        :metrics="[
+          { label: 'ICU在科患者', value: sortedFocusPatients.length, unit: '人', trend: 'stable', trendValue: `较昨日${focusPatientsDelta >= 0 ? '+' : ''}${focusPatientsDelta}` },
+          { label: '危急患者', value: criticalCount, unit: '人', variant: 'danger' },
+          { label: '未签收告警', value: unackedAlertCount, unit: '条', variant: unackedAlertCount > 0 ? 'warning' : 'success' },
+          { label: '即将超时', value: timeoutItems.length, unit: '项', variant: timeoutItems.length > 0 ? 'warning' : 'success' },
+        ]"
+      />
 
       <!-- 昨夜AI摘要：一句话自然语言 -->
       <section v-if="aiSummary" class="ai-summary" @click="$router.push({ path: '/clinical-workflow', query: route.query })">
@@ -105,8 +76,8 @@
               <div class="patient-meta">
                 <em :class="['risk-badge', badgeClass(item.risk_level)]">{{ riskLabel(item.risk_level) }}</em>
                 <span class="next-action" v-if="item.next_action">{{ item.next_action }}</span>
-                <button type="button" class="btn-enter" @click.stop="goPatient(item.patient_id)">进入</button>
-                <button type="button" class="btn-more" @click.stop="togglePatientMenu(item.patient_id)">⋯</button>
+                <a-button size="small" type="primary" @click.stop="goPatient(item.patient_id)">进入</a-button>
+                <a-button size="small" class="btn-more" @click.stop="togglePatientMenu(item.patient_id)">⋯</a-button>
               </div>
               <!-- 更多操作菜单 -->
               <div v-if="openMenuId === item.patient_id" class="patient-menu" @click.stop>
@@ -115,7 +86,7 @@
                 <button type="button" @click="goPatientTab(item.patient_id, 'documents')">病历文书</button>
               </div>
             </article>
-            <div v-if="!sortedFocusPatients.length" class="empty-state">{{ doctorEmptyText }}</div>
+            <EmptyState v-if="!sortedFocusPatients.length" :description="doctorEmptyText" />
           </div>
         </section>
 
@@ -136,9 +107,9 @@
                 <strong>{{ item.title || item.detail || '临床任务' }}</strong>
                 <span class="task-bed">{{ displayBed(item.bed_label || item.bed) }} · {{ item.module_label || item.module || '临床' }}</span>
               </div>
-              <button type="button" class="btn-task" @click.stop="goTask(item)">处理</button>
+              <a-button size="small" @click.stop="goTask(item)">处理</a-button>
             </article>
-            <div v-if="!pendingTasks.length" class="empty-state">暂无待办</div>
+            <EmptyState v-if="!pendingTasks.length" description="暂无待办" />
           </div>
         </section>
 
@@ -153,7 +124,7 @@
               <span class="change-text">{{ change.text }}</span>
             </article>
           </div>
-          <div v-else class="empty-state">昨夜无重要变化</div>
+          <EmptyState v-else description="昨夜无重要变化" />
         </section>
 
         <!-- 4. 即将超时事项 -->
@@ -168,10 +139,10 @@
                 <strong>{{ item.title }}</strong>
                 <span class="timeout-deadline">{{ item.deadline }}</span>
               </div>
-              <button type="button" class="btn-task" @click.stop="goTask(item)">处理</button>
+              <a-button size="small" @click.stop="goTask(item)">处理</a-button>
             </article>
           </div>
-          <div v-else class="empty-state">暂无超时风险</div>
+          <EmptyState v-else description="暂无超时风险" />
         </section>
       </main>
 
@@ -189,12 +160,14 @@
 </template>
 
 <script setup lang="ts">
+import { Button as AButton } from 'ant-design-vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDoctorHome } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { formatRiskLevelLabel } from '../utils/displayLabels'
-import { ClinicalMetricCard, RiskMatrix, AlertFunnel } from '../components/charts'
+import { PageHeader, MetricStrip, LoadingState, ErrorState, EmptyState } from '../components/common/design-system'
+import { RiskMatrix, AlertFunnel } from '../components/charts'
 import type { MatrixPatient } from '../components/charts'
 import type { FunnelStage } from '../components/charts'
 
@@ -501,20 +474,34 @@ function cleanDuplicateIdentityQuery() {
 </script>
 
 <style scoped>
-/* ─── KPI指标卡 ──────────────────────────────────────────────────────────── */
-.kpi-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
+/* ─── 布局 ─────────────────────────────────────────────────────────────────── */
+.role-home {
+  padding: var(--page-padding);
+  padding-bottom: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--element-gap-lg);
+  min-height: 100vh;
+  background: var(--color-bg-page);
 }
 
-/* ─── 可视化行 ──────────────────────────────────────────────────────────── */
+/* ─── 头部辅助文字 ─────────────────────────────────────────────────────────── */
+.header-meta {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+.header-clock {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── 可视化行 ─────────────────────────────────────────────────────────────── */
 .viz-row {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 14px;
 }
 
 .viz-matrix,
@@ -522,146 +509,37 @@ function cleanDuplicateIdentityQuery() {
   min-width: 0;
 }
 
-@media (max-width: 1200px) {
-  .viz-row {
-    grid-template-columns: 1fr;
-  }
-  .kpi-metrics {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .kpi-metrics {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ─── 基础变量 ─────────────────────────────────────────────────────────────── */
-.role-home {
-  --spacing-xs: 8px;
-  --spacing-sm: 12px;
-  --spacing-md: 16px;
-  --spacing-lg: 20px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --text-xs: 12px;
-  --text-sm: 13px;
-  --text-base: 14px;
-  --text-lg: 16px;
-  --text-xl: 18px;
-  --color-text-primary: var(--text-primary, #1a1a2e);
-  --color-text-secondary: var(--text-secondary, #6b7280);
-  --color-text-muted: var(--text-muted, #9ca3af);
-  --color-bg: var(--bg-base, #f8fafc);
-  --color-surface: var(--bg-surface, #ffffff);
-  --color-border: var(--border-color, rgba(145, 176, 199, 0.2));
-  --color-brand: var(--brand, #2563eb);
-  --color-danger: var(--danger, #ef4444);
-  --color-warning: var(--warning, #f59e0b);
-  --color-success: var(--success, #10b981);
-}
-
-/* ─── 布局 ─────────────────────────────────────────────────────────────────── */
-.role-home {
-  padding: var(--spacing-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  min-height: 100vh;
-  background: var(--color-bg);
-}
-
-/* ─── 头部 ─────────────────────────────────────────────────────────────────── */
-.home-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
-
-.header-identity {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.header-identity strong {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.header-dept,
-.header-shift {
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  padding: 2px 8px;
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.header-clock {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.btn-refresh {
-  padding: 6px 12px;
-  font-size: var(--text-xs);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-brand);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-refresh:hover {
-  background: var(--color-bg);
-}
-
 /* ─── AI 摘要条 ─────────────────────────────────────────────────────────────── */
 .ai-summary {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: var(--radius-md);
-  border: 1px solid #bae6fd;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-ai-light);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.15s;
 }
 
 .ai-summary:hover {
-  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  border-color: var(--color-ai);
 }
 
 .ai-summary-icon {
-  font-size: var(--text-lg);
+  font-size: var(--text-section-title);
 }
 
 .ai-summary-text {
   flex: 1;
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   color: var(--color-text-primary);
-  line-height: 1.5;
+  line-height: var(--text-body-line-height);
 }
 
 .ai-summary-link {
-  font-size: var(--text-xs);
-  color: var(--color-brand);
+  font-size: var(--text-caption);
+  color: var(--color-ai);
   white-space: nowrap;
 }
 
@@ -669,14 +547,14 @@ function cleanDuplicateIdentityQuery() {
 .doctor-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-sm);
+  gap: 14px;
   flex: 1;
 }
 
 /* ─── 面板通用 ─────────────────────────────────────────────────────────────────── */
 .panel {
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -687,22 +565,22 @@ function cleanDuplicateIdentityQuery() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .panel-head strong {
-  font-size: var(--text-base);
-  font-weight: 600;
+  font-size: var(--text-card-title);
+  font-weight: var(--text-card-title-weight);
   color: var(--color-text-primary);
 }
 
 .panel-count {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   color: var(--color-text-secondary);
   padding: 2px 8px;
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface-secondary);
+  border-radius: 999px;
 }
 
 /* ─── 重点患者列表 ─────────────────────────────────────────────────────────────── */
@@ -717,14 +595,14 @@ function cleanDuplicateIdentityQuery() {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .patient-row:hover {
-  background: var(--color-bg);
+  background: var(--color-bg-inset);
 }
 
 .patient-row:last-child {
@@ -739,27 +617,27 @@ function cleanDuplicateIdentityQuery() {
 .patient-bed-name {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-bottom: 4px;
 }
 
 .bed-num {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-brand);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary);
   padding: 2px 6px;
-  background: #eff6ff;
-  border-radius: var(--radius-sm);
+  background: var(--color-primary-bg);
+  border-radius: var(--radius-tag);
 }
 
 .patient-name {
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   font-weight: 500;
   color: var(--color-text-primary);
 }
 
 .patient-issue {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   color: var(--color-text-secondary);
   line-height: 1.4;
   display: -webkit-box;
@@ -771,42 +649,42 @@ function cleanDuplicateIdentityQuery() {
 .patient-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: var(--spacing-sm);
+  gap: var(--space-2);
+  margin-left: var(--space-3);
   flex-shrink: 0;
 }
 
 .risk-badge {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   font-style: normal;
   white-space: nowrap;
 }
 
 .risk-badge--danger {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .risk-badge--warning {
-  background: #fffbeb;
-  color: #d97706;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .risk-badge--success {
-  background: #f0fdf4;
-  color: #16a34a;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .risk-badge--info {
-  background: #eff6ff;
-  color: #2563eb;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .next-action {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   color: var(--color-text-secondary);
   max-width: 80px;
   overflow: hidden;
@@ -814,66 +692,35 @@ function cleanDuplicateIdentityQuery() {
   white-space: nowrap;
 }
 
-.btn-enter {
-  padding: 4px 12px;
-  font-size: var(--text-xs);
-  font-weight: 500;
-  border: 1px solid var(--color-brand);
-  border-radius: var(--radius-sm);
-  background: var(--color-brand);
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-enter:hover {
-  background: #1d4ed8;
-}
-
-.btn-more {
-  padding: 4px 8px;
-  font-size: var(--text-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  line-height: 1;
-}
-
-.btn-more:hover {
-  background: var(--color-bg);
-}
-
 /* ─── 患者操作菜单 ─────────────────────────────────────────────────────────────── */
 .patient-menu {
   position: absolute;
-  right: var(--spacing-md);
+  right: var(--space-4);
   top: 100%;
   z-index: 100;
   display: flex;
   flex-direction: column;
   min-width: 120px;
-  background: var(--color-surface);
+  background: var(--color-bg-surface);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 
 .patient-menu button {
-  padding: 8px 12px;
-  font-size: var(--text-xs);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-caption);
   text-align: left;
   border: none;
   background: none;
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .patient-menu button:hover {
-  background: var(--color-bg);
+  background: var(--color-bg-inset);
 }
 
 /* ─── 待办列表 ─────────────────────────────────────────────────────────────────── */
@@ -887,14 +734,14 @@ function cleanDuplicateIdentityQuery() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .task-row:hover {
-  background: var(--color-bg);
+  background: var(--color-bg-inset);
 }
 
 .task-row:last-child {
@@ -908,45 +755,33 @@ function cleanDuplicateIdentityQuery() {
 
 .task-main strong {
   display: block;
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   font-weight: 500;
   color: var(--color-text-primary);
   margin-bottom: 2px;
 }
 
 .task-bed {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   color: var(--color-text-secondary);
 }
 
-.btn-task {
-  padding: 4px 12px;
-  font-size: var(--text-xs);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-brand);
-  cursor: pointer;
-  transition: all 0.2s;
+.task-row :deep(.ant-btn),
+.timeout-row :deep(.ant-btn) {
   flex-shrink: 0;
-  margin-left: var(--spacing-sm);
-}
-
-.btn-task:hover {
-  background: #eff6ff;
 }
 
 /* ─── 昨夜变化 ─────────────────────────────────────────────────────────────────── */
 .changes-list {
-  padding: var(--spacing-sm) 0;
+  padding: var(--space-3) 0;
 }
 
 .change-row {
   display: flex;
   align-items: flex-start;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .change-row:last-child {
@@ -961,21 +796,21 @@ function cleanDuplicateIdentityQuery() {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 
 .change-icon.up {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .change-icon.warn {
-  background: #fffbeb;
-  color: #d97706;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .change-text {
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   color: var(--color-text-primary);
   line-height: 1.4;
 }
@@ -990,14 +825,14 @@ function cleanDuplicateIdentityQuery() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .timeout-row:hover {
-  background: #fef2f2;
+  background: var(--color-danger-bg);
 }
 
 .timeout-row:last-child {
@@ -1011,14 +846,14 @@ function cleanDuplicateIdentityQuery() {
 
 .timeout-main strong {
   display: block;
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   font-weight: 500;
   color: var(--color-text-primary);
   margin-bottom: 2px;
 }
 
 .timeout-deadline {
-  font-size: var(--text-xs);
+  font-size: var(--text-caption);
   color: var(--color-danger);
   font-weight: 500;
 }
@@ -1027,89 +862,57 @@ function cleanDuplicateIdentityQuery() {
 .quality-bar {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: #fffbeb;
-  border-radius: var(--radius-md);
-  border: 1px solid #fde68a;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-warning-soft-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-warning-soft-border);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.15s;
 }
 
 .quality-bar:hover {
-  background: #fef3c7;
+  border-color: var(--color-warning);
 }
 
 .quality-icon {
-  font-size: var(--text-lg);
+  font-size: var(--text-section-title);
 }
 
 .quality-bar span:nth-child(2) {
   flex: 1;
-  font-size: var(--text-sm);
-  color: #92400e;
+  font-size: var(--text-body);
+  color: var(--color-warning);
 }
 
 .quality-link {
-  font-size: var(--text-xs);
-  color: #d97706;
+  font-size: var(--text-caption);
+  color: var(--color-warning);
   white-space: nowrap;
 }
 
 .quality-ok {
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-body);
   color: var(--color-text-secondary);
   text-align: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
 }
 
-/* ─── 空状态 ─────────────────────────────────────────────────────────────────── */
-.empty-state {
-  padding: var(--spacing-lg);
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
-/* ─── 加载态 ─────────────────────────────────────────────────────────────────── */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
-  padding: 60px 0;
-  color: var(--color-text-secondary);
-}
-
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ─── 错误态 ─────────────────────────────────────────────────────────────────── */
-.error-state {
-  padding: var(--spacing-md);
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--color-danger);
-  background: #fef2f2;
-  border-radius: var(--radius-md);
-  border: 1px solid #fecaca;
+/* ─── 面板内空态保持紧凑 ───────────────────────────────────────────────────────── */
+.panel :deep(.empty-state) {
+  padding: 24px 16px;
 }
 
 /* ─── 响应式 ─────────────────────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .viz-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1024px) {
   .doctor-grid {
     grid-template-columns: 1fr;
@@ -1123,27 +926,12 @@ function cleanDuplicateIdentityQuery() {
 
 @media (max-width: 768px) {
   .role-home {
-    padding: var(--spacing-sm);
-  }
-
-  .home-header {
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    align-items: flex-start;
-  }
-
-  .header-identity {
-    flex-wrap: wrap;
-  }
-
-  .header-actions {
-    width: 100%;
-    justify-content: space-between;
+    padding: var(--space-3);
   }
 
   .patient-row {
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: var(--space-3);
   }
 
   .patient-meta {
@@ -1151,36 +939,5 @@ function cleanDuplicateIdentityQuery() {
     width: 100%;
     justify-content: flex-start;
   }
-}
-
-/* ─── 主题适配 ─────────────────────────────────────────────────────────────────── */
-html[data-theme='light'] .role-home {
-  background: var(--bg-base);
-}
-
-html[data-theme='light'] .home-header,
-html[data-theme='light'] .panel {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(145, 176, 199, 0.32);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-html[data-theme='light'] .ai-summary {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-color: #bae6fd;
-}
-
-html[data-theme='light'] .quality-bar {
-  background: #fffbeb;
-  border-color: #fde68a;
-}
-
-html[data-theme='light'] .btn-enter {
-  background: #2563eb;
-  border-color: #2563eb;
-}
-
-html[data-theme='light'] .btn-enter:hover {
-  background: #1d4ed8;
 }
 </style>

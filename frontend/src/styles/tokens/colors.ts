@@ -29,27 +29,27 @@ export const AI_ACTIVE = '#6D28D9'
 
 // ── 页面背景与表面 ────────────────────────────────
 
-export const PAGE_BG = '#F4F7FB'
-export const SIDEBAR_BG = '#0F1F33'
-export const SIDEBAR_TEXT = '#94A3B8'
-export const SIDEBAR_TEXT_ACTIVE = '#FFFFFF'
-export const SIDEBAR_HOVER = 'rgba(255,255,255,0.06)'
+export const PAGE_BG = '#F6F8FB'
+export const SIDEBAR_BG = '#FFFFFF'
+export const SIDEBAR_TEXT = '#4B5563'
+export const SIDEBAR_TEXT_ACTIVE = '#2563EB'
+export const SIDEBAR_HOVER = 'rgba(37, 99, 235, 0.06)'
 export const CARD_BG = '#FFFFFF'
-export const HOVER_BG = '#F0F6FF'
+export const HOVER_BG = '#EFF6FF'
 export const SELECTED_BG = '#DBEAFE'
 
 // ── 文字 ──────────────────────────────────────────
 
-export const TEXT_PRIMARY = '#182230'
-export const TEXT_SECONDARY = '#52606D'
-export const TEXT_TERTIARY = '#94A3B8'
-export const TEXT_DISABLED = '#94A3B8'
+export const TEXT_PRIMARY = '#111827'
+export const TEXT_SECONDARY = '#4B5563'
+export const TEXT_TERTIARY = '#9CA3AF'
+export const TEXT_DISABLED = '#9CA3AF'
 export const TEXT_INVERSE = '#FFFFFF'
 
 // ── 边框与分割线 ──────────────────────────────────
 
-export const BORDER = '#DCE3EC'
-export const DIVIDER = '#E8EEF5'
+export const BORDER = '#E5E7EB'
+export const DIVIDER = '#F0F2F5'
 export const BORDER_FOCUS = '#2563EB'
 
 // ── 临床状态色 ────────────────────────────────────

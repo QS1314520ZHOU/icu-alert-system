@@ -1,5 +1,6 @@
 <template>
   <div class="documents-view">
+    <PageHeader title="临床文档" subtitle="病历文档完整性与文书审阅" />
     <section class="doc-overview-row">
       <div class="doc-overview-card">
         <h4>数据完整性</h4>
@@ -34,7 +35,7 @@
         </div>
         <div v-if="metabolicPhaseRecord || metabolicPhaseLoading" class="ai-card">
           <h4>代谢阶段</h4>
-          <a-button size="small" @click="loadMetabolicPhase" :loading="metabolicPhaseLoading" style="margin-bottom:8px">刷新</a-button>
+          <a-button size="small" @click="loadMetabolicPhase(true)" :loading="metabolicPhaseLoading" style="margin-bottom:8px">刷新</a-button>
           <div v-if="metabolicPhaseLoading" class="ai-loading"><a-spin size="small" /></div>
           <div v-else-if="metabolicPhaseRecord" class="ai-content">
             <p>阶段：{{ metabolicPhaseRecord.phase || metabolicPhaseRecord.stage || '—' }}</p>
@@ -44,7 +45,7 @@
         </div>
         <div v-if="betaBlockerAdvisorRecord || betaBlockerAdvisorLoading" class="ai-card">
           <h4>β受体阻滞剂建议</h4>
-          <a-button size="small" @click="loadBetaBlockerAdvisor" :loading="betaBlockerAdvisorLoading" style="margin-bottom:8px">刷新</a-button>
+          <a-button size="small" @click="loadBetaBlockerAdvisor(true)" :loading="betaBlockerAdvisorLoading" style="margin-bottom:8px">刷新</a-button>
           <div v-if="betaBlockerAdvisorLoading" class="ai-loading"><a-spin size="small" /></div>
           <div v-else-if="betaBlockerAdvisorRecord" class="ai-content">
             <p>建议：{{ betaBlockerAdvisorRecord.recommendation || betaBlockerAdvisorRecord.summary || '—' }}</p>
@@ -53,7 +54,7 @@
         </div>
         <div v-if="fibrinolysisRecord || fibrinolysisLoading" class="ai-card">
           <h4>溶栓评估</h4>
-          <a-button size="small" @click="loadFibrinolysis" :loading="fibrinolysisLoading" style="margin-bottom:8px">刷新</a-button>
+          <a-button size="small" @click="loadFibrinolysis(true)" :loading="fibrinolysisLoading" style="margin-bottom:8px">刷新</a-button>
           <div v-if="fibrinolysisLoading" class="ai-loading"><a-spin size="small" /></div>
           <div v-else-if="fibrinolysisRecord" class="ai-content">
             <p>评估：{{ fibrinolysisRecord.recommendation || fibrinolysisRecord.summary || '—' }}</p>
@@ -62,7 +63,7 @@
         </div>
         <div v-if="pronePositionRecord || pronePositionLoading" class="ai-card">
           <h4>俯卧位建议</h4>
-          <a-button size="small" @click="loadPronePosition" :loading="pronePositionLoading" style="margin-bottom:8px">刷新</a-button>
+          <a-button size="small" @click="loadPronePosition(true)" :loading="pronePositionLoading" style="margin-bottom:8px">刷新</a-button>
           <div v-if="pronePositionLoading" class="ai-loading"><a-spin size="small" /></div>
           <div v-else-if="pronePositionRecord" class="ai-content">
             <p>建议：{{ pronePositionRecord.recommendation || pronePositionRecord.summary || '—' }}</p>
@@ -71,7 +72,7 @@
         </div>
         <div v-if="picsRiskRecord || picsRiskLoading" class="ai-card">
           <h4>PICS风险评估</h4>
-          <a-button size="small" @click="loadPicsRisk" :loading="picsRiskLoading" style="margin-bottom:8px">刷新</a-button>
+          <a-button size="small" @click="loadPicsRisk(true)" :loading="picsRiskLoading" style="margin-bottom:8px">刷新</a-button>
           <div v-if="picsRiskLoading" class="ai-loading"><a-spin size="small" /></div>
           <div v-else-if="picsRiskRecord" class="ai-content">
             <p>风险等级：{{ picsRiskRecord.risk_level || picsRiskRecord.level || '—' }}</p>
@@ -142,6 +143,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import { Button as AButton, Empty as AEmpty, Spin as ASpin, Table as ATable, Tag as ATag } from 'ant-design-vue'
+import { PageHeader } from '../../components/common/design-system'
 import { computed } from 'vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
@@ -267,23 +270,23 @@ function selectKnowledgeDoc(doc: any) {
 }
 
 .doc-overview-card {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px;
 }
 
 .doc-overview-card h4 {
   margin: 0 0 12px;
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .doc-overview-hint {
   margin: 8px 0 0;
-  font-size: 12px;
-  color: #8c8c8c;
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
   text-align: center;
 }
 
@@ -294,9 +297,9 @@ function selectKnowledgeDoc(doc: any) {
 }
 
 .documents-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
 }
 
@@ -309,9 +312,9 @@ function selectKnowledgeDoc(doc: any) {
 
 .section-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .loading-placeholder {
@@ -347,17 +350,17 @@ function selectKnowledgeDoc(doc: any) {
 }
 
 .ai-card {
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
   padding: 12px;
-  background: #fafbfc;
+  background: var(--color-bg-surface-secondary);
 }
 
 .ai-card h4 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .ai-loading {
@@ -367,14 +370,14 @@ function selectKnowledgeDoc(doc: any) {
 }
 
 .ai-content {
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   line-height: 1.6;
 }
 
 .ai-error {
-  font-size: 12px;
-  color: #ff4d4f;
+  font-size: var(--text-label);
+  color: var(--color-danger);
 }
 
 /* Handoff */
@@ -392,14 +395,14 @@ function selectKnowledgeDoc(doc: any) {
 .handoff-row {
   display: flex;
   gap: 8px;
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
 }
 
 .handoff-label {
   flex-shrink: 0;
   font-weight: 600;
-  color: #666;
+  color: var(--color-text-secondary);
   min-width: 90px;
 }
 
@@ -416,8 +419,8 @@ function selectKnowledgeDoc(doc: any) {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
 }
 
 /* Similar cases */
@@ -426,8 +429,8 @@ function selectKnowledgeDoc(doc: any) {
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
-  font-size: 13px;
-  color: #666;
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
 }
 
 .cases-list {
@@ -438,9 +441,9 @@ function selectKnowledgeDoc(doc: any) {
 
 .case-item {
   padding: 10px 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  background: #fafbfc;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
 .case-header {
@@ -451,33 +454,33 @@ function selectKnowledgeDoc(doc: any) {
 }
 
 .case-id {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .case-similarity {
-  font-size: 12px;
-  color: #1890ff;
+  font-size: var(--text-label);
+  color: var(--color-primary);
 }
 
 .case-summary {
   margin: 0 0 4px;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
 .case-outcome {
-  font-size: 12px;
+  font-size: var(--text-label);
 }
 
 .outcome-label {
-  color: #999;
+  color: var(--color-text-tertiary);
 }
 
-.outcome-death { color: #ff4d4f; font-weight: 600; }
-.outcome-survival { color: #52c41a; font-weight: 600; }
+.outcome-death { color: var(--color-danger); font-weight: 600; }
+.outcome-survival { color: var(--color-normal); font-weight: 600; }
 
 /* Knowledge */
 .knowledge-actions {
@@ -496,34 +499,57 @@ function selectKnowledgeDoc(doc: any) {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .knowledge-item:hover {
-  background: #f0f7ff;
-  border-color: #1890ff;
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
 }
 
 .knowledge-item.active {
-  background: #e6f7ff;
-  border-color: #1890ff;
+  background: var(--color-info-bg);
+  border-color: var(--color-primary);
 }
 
 .doc-title {
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   font-weight: 500;
 }
 
 .doc-scope {
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
   padding: 1px 6px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  background: var(--color-bg-surface-secondary);
+  border-radius: var(--radius-tag);
+}
+/* ── 表格规范（DESIGN §7）── */
+.documents-view :deep(.ant-table) {
+  font-variant-numeric: tabular-nums;
+}
+
+.documents-view :deep(.ant-table-thead > tr > th) {
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  border-bottom-color: var(--color-border);
+}
+
+.documents-view :deep(.ant-table-tbody > tr > td) {
+  height: 44px;
+  font-size: var(--text-table);
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-divider);
+}
+
+.documents-view :deep(.ant-table-tbody > tr:hover > td) {
+  background: var(--color-bg-inset);
 }
 </style>
 

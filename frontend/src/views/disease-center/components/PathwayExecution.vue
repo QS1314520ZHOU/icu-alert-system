@@ -141,14 +141,14 @@ function getStatusLabel(status?: string) {
 
 function getApplicabilityColor(app?: string) {
   const map: Record<string, string> = {
-    required: 'var(--color-error-light)',
-    conditional: 'var(--color-warning-light)',
-    individualized: 'var(--color-primary-light)',
-    not_applicable: 'default',
-    contraindicated: 'var(--color-error-light)',
-    review_pending: 'var(--color-warning-light)',
+    required: '#ff4d4f',
+    conditional: '#faad14',
+    individualized: '#1677ff',
+    not_applicable: '#d9d9d9',
+    contraindicated: '#ff4d4f',
+    review_pending: '#faad14',
   }
-  return map[app || ''] || 'default'
+  return map[app || ''] || '#d9d9d9'
 }
 
 function getApplicabilityLabel(app?: string) {
@@ -165,16 +165,16 @@ function getApplicabilityLabel(app?: string) {
 
 function getExecStatusColor(status?: string) {
   const map: Record<string, string> = {
-    pending: 'default',
-    in_progress: 'var(--color-primary-light)',
-    completed: 'var(--color-success-light)',
-    completed_late: 'var(--color-warning-light)',
-    overdue: 'var(--color-error-light)',
-    skipped: 'default',
-    cancelled: 'default',
-    not_applicable: 'default',
+    pending: '#d9d9d9',
+    in_progress: '#1677ff',
+    completed: '#52c41a',
+    completed_late: '#faad14',
+    overdue: '#ff4d4f',
+    skipped: '#d9d9d9',
+    cancelled: '#d9d9d9',
+    not_applicable: '#d9d9d9',
   }
-  return map[status || ''] || 'default'
+  return map[status || ''] || '#d9d9d9'
 }
 
 function getExecStatusLabel(status?: string) {
@@ -236,94 +236,40 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.pathway-execution {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+<style scoped>.pathway-execution { display: flex; flex-direction: column; gap: 16px }
+.pathway-loading { display: flex; justify-content: center; padding: 40px 0 }
 
-.pathway-loading {
-  display: flex;
-  justify-content: center;
-  padding: 40px 0;
-}
+/* Overview */ .pathway-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; padding: 12px 16px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
+.overview-item { display: flex; flex-direction: column; gap: 4px }
+.overview-label { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
+.overview-value { font-size: var(--text-body, 13px); font-weight: 500; color: var(--color-text-primary, #111827) }
+.compliance-high { color: var(--color-success, #16845B) }
+.compliance-medium { color: var(--color-warning, #B54708) }
+.compliance-low { color: var(--color-danger, #D92D20) }
 
-/* Overview */
-.pathway-overview {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--color-bg-surface-secondary, #F9FAFB);
-  border-radius: var(--radius-md, 8px);
-}
+/* Tasks */ .task-list { background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); padding: 12px }
+.task-header { display: flex; justify-content: space-between; margin-bottom: 12px }
+.task-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
+.task-count { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
+.condition-yes { color: var(--color-success, #16845B); font-weight: 500 }
+.condition-no { color: var(--color-danger, #D92D20); font-weight: 500 }
+.condition-na { color: var(--color-text-tertiary, #9CA3AF) }
 
-.overview-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 
-.overview-label {
-  font-size: 12px;
-  color: var(--color-text-tertiary, #98A2B3);
+/* ── 表格规范 §7 ── */
+:deep(.ant-table-thead > tr > th) {
+  background: var(--color-bg-surface-secondary, #F1F4F8);
+  color: var(--color-text-secondary, #4B5563);
+  font-size: var(--text-label, 12px);
+  font-weight: var(--text-table-header-weight, 600);
 }
-
-.overview-value {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-primary, #18212B);
+:deep(.ant-table-thead > tr > th::before) { display: none !important }
+:deep(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid var(--color-divider, #F0F2F5);
+  font-size: var(--text-table, 13px);
+  color: var(--color-text-primary, #111827);
 }
-
-.compliance-high {
-  color: var(--color-success, #16845B);
-}
-
-.compliance-medium {
-  color: var(--color-warning, #DC6803);
-}
-
-.compliance-low {
-  color: var(--color-error, #D92D20);
-}
-
-/* Tasks */
-.task-list {
-  background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #E3E7EC);
-  border-radius: var(--radius-md, 8px);
-  padding: 12px;
-}
-
-.task-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.task-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-primary, #18212B);
-}
-
-.task-count {
-  font-size: 12px;
-  color: var(--color-text-secondary, #667085);
-}
-
-.condition-yes {
-  color: var(--color-success, #16845B);
-  font-weight: 500;
-}
-
-.condition-no {
-  color: var(--color-error, #D92D20);
-  font-weight: 500;
-}
-
-.condition-na {
-  color: var(--color-text-tertiary, #98A2B3);
-}
+:deep(.ant-table-tbody > tr:hover > td) { background: var(--color-bg-inset, #E9EEF5) }
+:deep(.ant-table-tbody > tr > td) { font-variant-numeric: tabular-nums }
+:deep(.ant-table-pagination) { margin-bottom: 0 !important }
 </style>

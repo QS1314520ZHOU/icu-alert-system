@@ -344,7 +344,7 @@ onBeforeUnmount(() => {
 .nutr-page {
   min-height: calc(100vh - 76px);
   padding: var(--page-padding, 24px);
-  background: var(--color-bg-page, #F6F7F9);
+  background: var(--color-bg-page);
 }
 
 /* 可视化概览行 */
@@ -356,8 +356,8 @@ onBeforeUnmount(() => {
 }
 
 .nutr-viz-card {
-  background: #fff;
-  border: 1px solid #e8e8e8;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 14px 16px;
 }
@@ -366,7 +366,7 @@ onBeforeUnmount(() => {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .nutr-viz-chart {
@@ -384,7 +384,7 @@ onBeforeUnmount(() => {
 .nutr-viz-ring-label {
   margin-top: 8px;
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--color-text-tertiary);
 }
 
 /* 头部 */
@@ -405,7 +405,7 @@ onBeforeUnmount(() => {
   padding: 2px 10px;
   border-radius: var(--radius-tag, 4px);
   font-size: var(--text-caption, 12px);
-  color: var(--color-success, #16845B);
+  color: var(--color-success);
   background: var(--color-success-bg, rgba(22,132,91,0.08));
 }
 .nutr-header__right {
@@ -446,7 +446,7 @@ onBeforeUnmount(() => {
 }
 .section-count {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .nutr-queue__list {
   display: flex;
@@ -460,9 +460,9 @@ onBeforeUnmount(() => {
   justify-content: center;
   align-items: center;
   min-height: 120px;
-  border: 1px dashed var(--color-border, #E3E7EC);
+  border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg, 8px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   font-size: var(--text-body, 14px);
 }
 
@@ -474,10 +474,10 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-card {
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 8px);
   padding: var(--card-padding, 16px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
 }
 .sidebar-card--compact {
   padding: 12px;
@@ -489,7 +489,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding-bottom: 10px;
   margin-bottom: 10px;
-  border-bottom: 1px solid var(--color-border, #E3E7EC);
+  border-bottom: 1px solid var(--color-border);
 }
 .sidebar-card--compact .sidebar-card__head {
   padding-bottom: 8px;
@@ -498,12 +498,12 @@ onBeforeUnmount(() => {
 .sidebar-card__title {
   font-size: var(--text-card-title, 14px);
   font-weight: 650;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   margin: 0;
 }
 .sidebar-card__count {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .sidebar-card__list {
@@ -517,9 +517,9 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
   transition: border-color 0.15s;
   cursor: pointer;
   font-family: inherit;
@@ -528,11 +528,11 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 .sidebar-item:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
-.sidebar-item.tone-danger { border-left: 3px solid var(--color-danger, #D92D20); }
-.sidebar-item.tone-warning { border-left: 3px solid var(--color-warning, #B54708); }
-.sidebar-item.tone-info { border-left: 3px solid var(--color-primary, #2563EB); }
+.sidebar-item.tone-danger { border-left: 3px solid var(--color-danger); }
+.sidebar-item.tone-warning { border-left: 3px solid var(--color-warning); }
+.sidebar-item.tone-info { border-left: 3px solid var(--color-primary); }
 
 .sidebar-item__content {
   flex: 1;
@@ -542,7 +542,7 @@ onBeforeUnmount(() => {
   display: block;
   font-size: var(--text-body, 14px);
   font-weight: 600;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -550,14 +550,14 @@ onBeforeUnmount(() => {
 .sidebar-item__content span {
   display: block;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .sidebar-item small {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
@@ -565,7 +565,7 @@ onBeforeUnmount(() => {
   padding: 16px;
   text-align: center;
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 /* 路径分布 */
@@ -579,27 +579,27 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 8px;
-  border: 1px solid var(--color-border, #E3E7EC);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-surface, #fff);
+  background: var(--color-bg-surface);
   cursor: pointer;
   font-family: inherit;
   color: inherit;
   text-align: left;
 }
 .route-item:hover {
-  background: var(--color-bg-surface-secondary, #F1F3F5);
+  background: var(--color-bg-surface-secondary);
 }
 .route-item span {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 .route-item strong {
   margin-left: auto;
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text-primary, #18212B);
+  color: var(--color-text-primary);
 }
 .route-dot {
   width: 8px;
@@ -607,10 +607,10 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.route-dot--en { background: var(--color-success, #16845B); }
-.route-dot--pn { background: var(--color-primary, #2563EB); }
-.route-dot--mix { background: var(--color-warning, #B54708); }
-.route-dot--none { background: var(--color-text-secondary, #667085); }
+.route-dot--en { background: var(--color-success); }
+.route-dot--pn { background: var(--color-primary); }
+.route-dot--mix { background: var(--color-warning); }
+.route-dot--none { background: var(--color-text-secondary); }
 
 /* 7日趋势 */
 .trend-bars {
@@ -623,7 +623,7 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 6px;
   border-radius: 4px 4px 0 0;
-  background: var(--color-success, #16845B);
+  background: var(--color-success);
   opacity: 0.7;
 }
 

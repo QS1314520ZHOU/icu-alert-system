@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="patient-detail-layout" :class="{ 'layout-compact': densityMode === 'compact' }">
     <!-- 顶部患者上下文条 -->
     <header class="layout-context-bar">
@@ -16,10 +16,36 @@
         </div>
       </div>
       <div class="context-bar__right">
+        <!-- 体征快览（恢复自 PatientHeaderBar 拆分前的 header 体征展示） -->
+        <div class="context-bar__vitals">
+          <span v-for="v in quickVitals" :key="v.label" class="vital-chip" :class="`vital-${v.tone}`">
+            <span class="vital-label">{{ v.label }}</span>
+            <span class="vital-value">{{ v.value }}</span>
+          </span>
+        </div>
+        <!-- 床旁卡：器械 / 管路概览 -->
+        <span v-if="bedcardSummary" class="context-bar__bedcard" title="床旁器械与管路">
+          器械 {{ bedcardSummary.devices }} · 管路 {{ bedcardSummary.tubes }}
+        </span>
         <span class="context-bar__risk" :class="`risk-${primaryRiskLevel}`" @click="openEvidenceDrawer('risk', { title: '风险证据链' })" style="cursor: pointer;">
           {{ primaryRiskLabel }}
         </span>
         <span class="context-bar__time">数据 {{ heroMonitorUpdatedAt }}</span>
+        <a-button
+          size="small"
+          class="context-bar__summary-btn"
+          :loading="clinicalSummaryLoading"
+          @click="loadClinicalSummary"
+        >
+          生成查房摘要
+        </a-button>
+        <button
+          class="context-bar__btn context-bar__btn--density"
+          :title="densityMode === 'compact' ? '切换为完整密度' : '切换为紧凑密度'"
+          @click="toggleDensity"
+        >
+          {{ densityMode === 'compact' ? '标准' : '紧凑' }}
+        </button>
         <button class="context-bar__btn" @click="refreshData" title="刷新">↻</button>
       </div>
     </header>
@@ -52,11 +78,29 @@
       include-ai
       @close="evidenceDrawerOpen = false"
     />
+
+    <!-- 证据弹窗（知识库 chunk，含 tags；子视图 openEvidence 写入此状态） -->
+    <a-modal
+      :open="evidenceModalOpen"
+      :title="evidenceModal?.title || '证据详情'"
+      :footer="null"
+      width="640px"
+      @cancel="evidenceModalOpen = false"
+    >
+      <div v-if="evidenceModal" class="evidence-modal-body">
+        <p v-if="evidenceModal.source" class="evidence-source">来源：{{ evidenceModal.source }}</p>
+        <div class="evidence-content" v-html="evidenceModal.content"></div>
+        <div v-if="evidenceModal.tags?.length" class="evidence-tags">
+          <a-tag v-for="tag in evidenceModal.tags" :key="tag">{{ tag }}</a-tag>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, provide } from 'vue'
+import { Button as AButton, Modal as AModal, Tag as ATag } from 'ant-design-vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import { useAppNavigation } from '../../navigation/useAppNavigation'
 import ClinicalEvidenceDrawer from '../../components/evidence/ClinicalEvidenceDrawer.vue'
@@ -64,9 +108,11 @@ import type { ContextType, OrganSystem } from '../../api/clinicalEvidence'
 
 const { navigateBack } = useAppNavigation()
 const {
-  patient, alerts,
+  patient, alerts, vitals, bedcard,
   displayName, displayBed, displayDept, displayGenderAge,
   heroMonitorUpdatedAt,
+  clinicalSummaryLoading, loadClinicalSummary,
+  evidenceModalOpen, evidenceModal,
   initLifecycle, cleanupLifecycle,
 } = usePatientDetail()
 
@@ -94,6 +140,34 @@ provide('openEvidenceDrawer', openEvidenceDrawer)
 
 const densityMode = ref<'compact' | 'full'>('full')
 const cachedViews = ref(['PatientOverviewView', 'PatientMonitoringView'])
+
+function toggleDensity() {
+  densityMode.value = densityMode.value === 'compact' ? 'full' : 'compact'
+}
+
+// ── header 体征快览 / 床旁卡 ─────────────────────
+
+const quickVitals = computed(() => {
+  const v: any = vitals.value || {}
+  return [
+    { label: 'HR', value: v.hr ?? '—', tone: hrTone(v.hr) },
+    { label: 'MAP', value: v.ibp_map ?? v.nibp_map ?? '—', tone: mapTone(v.ibp_map ?? v.nibp_map) },
+    { label: 'SpO₂', value: v.spo2 != null ? `${v.spo2}%` : '—', tone: spo2Tone(v.spo2) },
+  ]
+})
+
+function hrTone(v: any) { if (v == null) return 'default'; return v > 120 || v < 50 ? 'critical' : v > 100 || v < 60 ? 'warning' : 'normal' }
+function mapTone(v: any) { if (v == null) return 'default'; return v < 55 ? 'critical' : v < 65 ? 'warning' : 'normal' }
+function spo2Tone(v: any) { if (v == null) return 'default'; return v < 88 ? 'critical' : v < 92 ? 'warning' : 'normal' }
+
+const bedcardSummary = computed(() => {
+  const b: any = bedcard.value
+  if (!b) return null
+  const devices = Array.isArray(b.devices) ? b.devices.length : 0
+  const tubes = Array.isArray(b.tubes) ? b.tubes.length : 0
+  if (!devices && !tubes) return null
+  return { devices, tubes }
+})
 
 // ── 风险等级 ─────────────────────────────────────
 
@@ -147,7 +221,7 @@ onBeforeUnmount(() => { cleanupLifecycle() })
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: var(--page-bg, #F4F7FB);
+  background: var(--color-bg-page);
 }
 
 /* ── 顶部上下文条 ────────────────────────────── */
@@ -156,9 +230,10 @@ onBeforeUnmount(() => { cleanupLifecycle() })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  background: #fff;
-  border-bottom: 1px solid var(--border, #DCE3EC);
+  gap: 16px;
+  padding: 10px 24px;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -172,16 +247,17 @@ onBeforeUnmount(() => { cleanupLifecycle() })
 
 .context-bar__back {
   padding: 4px 10px;
-  border: 1px solid var(--border, #DCE3EC);
-  border-radius: 4px;
-  background: #fff;
-  font-size: 12px;
-  color: var(--text-secondary, #52606D);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
 .context-bar__back:hover {
-  background: var(--hover-bg, #F0F6FF);
+  background: var(--color-bg-inset);
 }
 
 .context-bar__identity {
@@ -191,25 +267,25 @@ onBeforeUnmount(() => { cleanupLifecycle() })
 }
 
 .context-bar__name {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary, #182230);
+  font-size: var(--text-section-title);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-primary);
 }
 
 .context-bar__meta {
-  font-size: 11px;
-  color: var(--text-secondary, #52606D);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   display: flex;
   gap: 4px;
 }
 
 .context-bar__bed {
-  font-weight: 600;
-  color: var(--primary, #2563EB);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary);
 }
 
 .context-bar__sep {
-  color: var(--border, #DCE3EC);
+  color: var(--color-border-strong);
 }
 
 .context-bar__right {
@@ -218,21 +294,81 @@ onBeforeUnmount(() => { cleanupLifecycle() })
   gap: 12px;
 }
 
-.context-bar__risk {
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+/* ── 体征快览 ──────────────────────────────────── */
+
+.context-bar__vitals {
+  display: flex;
+  gap: 8px;
 }
 
-.risk-critical { background: #FEF2F2; color: #991B1B; }
-.risk-high { background: #FEF2F2; color: #DC2626; }
-.risk-warning { background: #FFFBEB; color: #92400E; }
-.risk-stable { background: #F0FDF4; color: #16A34A; }
+.vital-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  line-height: 1.3;
+}
+
+.vital-label {
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
+  font-weight: var(--weight-medium);
+}
+
+.vital-value {
+  font-size: var(--text-card-title);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-primary);
+}
+
+.vital-critical .vital-value { color: var(--color-critical); }
+.vital-warning .vital-value { color: var(--color-warning); }
+.vital-normal .vital-value { color: var(--color-normal); }
+
+.context-bar__bedcard {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+  padding: 3px 8px;
+  border-radius: var(--radius-tag);
+  background: var(--color-bg-surface-secondary);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.context-bar__summary-btn {
+  font-size: var(--text-label);
+}
+
+.context-bar__btn--density {
+  width: auto;
+  padding: 0 8px;
+  font-size: var(--text-label);
+}
+
+.context-bar__risk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-tag);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  border: 1px solid transparent;
+}
+
+.risk-critical { background: var(--color-critical-bg); color: var(--color-critical); border-color: var(--color-critical-border); }
+.risk-high { background: var(--color-high-risk-bg); color: var(--color-high-risk); border-color: var(--color-high-risk-border); }
+.risk-warning { background: var(--color-warning-soft-bg); color: var(--color-warning); border-color: var(--color-warning-soft-border); }
+.risk-stable { background: var(--color-normal-bg); color: var(--color-normal); border-color: var(--color-normal-border); }
 
 .context-bar__time {
-  font-size: 11px;
-  color: var(--text-tertiary, #94A3B8);
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .context-bar__btn {
@@ -241,16 +377,16 @@ onBeforeUnmount(() => { cleanupLifecycle() })
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border, #DCE3EC);
-  border-radius: 4px;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
   cursor: pointer;
-  font-size: 14px;
-  color: var(--text-secondary, #52606D);
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
 }
 
 .context-bar__btn:hover {
-  background: var(--hover-bg, #F0F6FF);
+  background: var(--color-bg-inset);
 }
 
 /* ── 安全条 ──────────────────────────────────── */
@@ -258,9 +394,9 @@ onBeforeUnmount(() => { cleanupLifecycle() })
 .safety-strip {
   display: flex;
   gap: 10px;
-  padding: 6px 20px;
-  background: #FFFDF7;
-  border-bottom: 1px solid #F3E8D0;
+  padding: 6px 24px;
+  background: var(--color-bg-surface-secondary);
+  border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
   align-items: center;
 }
@@ -269,34 +405,35 @@ onBeforeUnmount(() => { cleanupLifecycle() })
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--text-label);
   padding: 3px 10px;
-  border-radius: 20px;
-  font-weight: 500;
+  border-radius: 999px;
+  font-weight: var(--weight-medium);
   line-height: 1.4;
+  border: 1px solid transparent;
 }
 
 .safety-icon {
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1;
 }
 
 .safety-danger {
-  background: #FEF2F2;
-  color: #991B1B;
-  border: 1px solid rgba(220, 38, 38, 0.15);
+  background: var(--color-critical-bg);
+  color: var(--color-critical);
+  border-color: var(--color-critical-border);
 }
 
 .safety-warning {
-  background: #FFFBEB;
-  color: #92400E;
-  border: 1px solid rgba(217, 119, 6, 0.15);
+  background: var(--color-warning-soft-bg);
+  color: var(--color-warning);
+  border-color: var(--color-warning-soft-border);
 }
 
 .safety-info {
-  background: #EFF6FF;
-  color: #1E40AF;
-  border: 1px solid rgba(37, 99, 235, 0.15);
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  border-color: var(--color-info-border);
 }
 
 /* ── 主内容区 ────────────────────────────────── */
@@ -305,5 +442,41 @@ onBeforeUnmount(() => { cleanupLifecycle() })
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+/* ── 紧凑密度 ──────────────────────────────────── */
+
+.layout-compact .layout-context-bar {
+  padding: 6px 24px;
+}
+
+.layout-compact .safety-strip {
+  padding: 3px 24px;
+}
+
+/* ── 证据弹窗 ──────────────────────────────────── */
+
+.evidence-modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.evidence-source {
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
+  margin-bottom: 12px;
+}
+
+.evidence-content {
+  font-size: var(--text-body);
+  line-height: 1.8;
+  color: var(--color-text-primary);
+}
+
+.evidence-tags {
+  margin-top: 12px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 </style>

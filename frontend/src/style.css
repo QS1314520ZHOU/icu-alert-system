@@ -78,7 +78,7 @@ html.boot-mobile #app {
   --sidebar-item-active-border: var(--color-primary);
   --sidebar-text: var(--color-text-secondary);
   --sidebar-text-active: var(--color-text-primary);
-  --sidebar-group-label: var(--color-text-secondary);
+  --sidebar-group-label: var(--color-text-tertiary);
 
   /* 顶部栏 - 浅色风格 */
   --hdr-bg: rgba(255, 255, 255, 0.96);

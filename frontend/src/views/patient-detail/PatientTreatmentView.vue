@@ -1,5 +1,6 @@
 <template>
   <div class="treatment-view">
+    <PageHeader title="治疗方案" subtitle="用药、评估与脓毒症 Bundle 执行情况" />
     <CollapseSection default-open>
       <template #title><h3 style="margin:0;font-size:15px;font-weight:600">脓毒症 Bundle</h3></template>
       <template #extra>
@@ -145,6 +146,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import { Button as AButton, Empty as AEmpty, Spin as ASpin, Table as ATable, Tag as ATag } from 'ant-design-vue'
+import { PageHeader } from '../../components/common/design-system'
 import { computed, defineAsyncComponent } from 'vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
@@ -294,9 +297,9 @@ function sbtResultText(record: any) {
 }
 
 .treatment-section {
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
 }
 
@@ -309,9 +312,9 @@ function sbtResultText(record: any) {
 
 .section-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-section-title);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .bundle-actions {
@@ -332,24 +335,24 @@ function sbtResultText(record: any) {
 }
 
 .bundle-conclusion {
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .bundle-meta {
   display: flex;
   gap: 16px;
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  color: var(--color-text-tertiary);
 }
 
 .bundle-v2-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
 }
 
 /* Weaning */
@@ -366,20 +369,20 @@ function sbtResultText(record: any) {
 }
 
 .risk-label {
-  font-size: 13px;
-  color: #666;
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
 }
 
 .weaning-recommendation {
   margin: 0;
-  font-size: 13px;
-  color: #333;
+  font-size: var(--text-body);
+  color: var(--color-text-primary);
   line-height: 1.6;
 }
 
 .weaning-evidence {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
 }
 
 .evidence-label {
@@ -410,14 +413,14 @@ function sbtResultText(record: any) {
 
 .sbt-record {
   padding: 10px 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  background: #fafbfc;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
 .sbt-time {
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-caption);
+  color: var(--color-text-tertiary);
   margin-bottom: 4px;
 }
 
@@ -428,31 +431,32 @@ function sbtResultText(record: any) {
 }
 
 .sbt-type {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .sbt-result {
-  font-size: 12px;
+  font-size: var(--text-label);
   padding: 1px 6px;
-  border-radius: 4px;
-  background: #f5f5f5;
-  color: #666;
+  border-radius: var(--radius-tag);
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
 }
 
-.sbt-pass { background: #f6ffed; color: #52c41a; }
-.sbt-fail { background: #fff1f0; color: #ff4d4f; }
+.sbt-pass { background: var(--color-normal-bg); color: var(--color-normal); }
+.sbt-fail { background: var(--color-critical-bg); color: var(--color-danger); }
 
 .sbt-duration {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
 }
 
 .sbt-notes {
   margin: 6px 0 0;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
@@ -470,32 +474,35 @@ function sbtResultText(record: any) {
 
 .fluid-stat {
   display: flex;
+  font-variant-numeric: tabular-nums;
   flex-direction: column;
   gap: 4px;
   padding: 12px 16px;
-  border-radius: 6px;
-  background: #f5f5f5;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
 .fluid-stat .stat-label {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
 }
 
 .fluid-stat .stat-value {
-  font-size: 18px;
+  font-size: var(--text-metric-normal);
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
-.fluid-stat.net-positive-warn { background: #fff1f0; }
-.fluid-stat.net-positive-warn .stat-value { color: #ff4d4f; }
-.fluid-stat.net-positive { background: #fff7e6; }
-.fluid-stat.net-positive .stat-value { color: #fa8c16; }
-.fluid-stat.net-negative { background: #f6ffed; }
-.fluid-stat.net-negative .stat-value { color: #52c41a; }
-.fluid-stat.net-negative-warn { background: #f6ffed; }
-.fluid-stat.net-negative-warn .stat-value { color: #389e0d; }
+.fluid-stat.net-positive-warn { background: var(--color-critical-bg); }
+.fluid-stat.net-positive-warn .stat-value { color: var(--color-danger); }
+.fluid-stat.net-positive { background: var(--color-high-risk-bg); }
+.fluid-stat.net-positive .stat-value { color: var(--color-high-risk); }
+.fluid-stat.net-negative { background: var(--color-normal-bg); }
+.fluid-stat.net-negative .stat-value { color: var(--color-normal); }
+.fluid-stat.net-negative-warn { background: var(--color-normal-bg); }
+.fluid-stat.net-negative-warn .stat-value { color: var(--color-success); }
 
 /* eCASH Liberation */
 .liberation-list, .mobility-list, .nutrition-list {
@@ -506,14 +513,14 @@ function sbtResultText(record: any) {
 
 .liberation-item, .mobility-item, .nutrition-item {
   padding: 10px 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  background: #fafbfc;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-secondary);
 }
 
-.liberation-item.severity-critical { border-left: 3px solid #ff4d4f; }
-.liberation-item.severity-high { border-left: 3px solid #fa8c16; }
-.liberation-item.severity-medium { border-left: 3px solid #faad14; }
+.liberation-item.severity-critical { border-left: 3px solid var(--color-danger); }
+.liberation-item.severity-high { border-left: 3px solid var(--color-high-risk); }
+.liberation-item.severity-medium { border-left: 3px solid var(--color-warning); }
 
 .liberation-header, .mobility-header, .nutrition-header {
   display: flex;
@@ -523,22 +530,46 @@ function sbtResultText(record: any) {
 }
 
 .liberation-title, .mobility-title, .nutrition-title {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .liberation-desc, .mobility-desc, .nutrition-desc {
   margin: 0;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-label);
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
 .liberation-value, .nutrition-value {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
   margin-top: 4px;
+}
+/* ── 表格规范（DESIGN §7）── */
+.treatment-view :deep(.ant-table) {
+  font-variant-numeric: tabular-nums;
+}
+
+.treatment-view :deep(.ant-table-thead > tr > th) {
+  background: var(--color-bg-surface-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  border-bottom-color: var(--color-border);
+}
+
+.treatment-view :deep(.ant-table-tbody > tr > td) {
+  height: 44px;
+  font-size: var(--text-table);
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-divider);
+}
+
+.treatment-view :deep(.ant-table-tbody > tr:hover > td) {
+  background: var(--color-bg-inset);
 }
 </style>
 
