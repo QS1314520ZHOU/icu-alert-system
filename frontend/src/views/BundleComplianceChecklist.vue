@@ -170,7 +170,7 @@ button {
   min-height: 32px;
   padding: 0 10px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(125, 211, 252, .2);
+  border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   cursor: pointer;
@@ -187,7 +187,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   color: var(--color-text-secondary);
 }
 
-.error { color: var(--danger-soft); }
+.error { color: var(--color-danger); }
 
 .bundle-cards {
   display: grid;
@@ -199,7 +199,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   padding: 12px;
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   cursor: pointer;
   transition: border-color .2s;
 }
@@ -247,7 +247,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 
 .bundle-detail {
   background: var(--color-bg-surface);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 12px;
 }
@@ -363,7 +363,7 @@ html[data-theme='light'] .error { color: var(--danger); }
 
 html[data-theme='light'] button {
   background: var(--color-bg-surface);
-  border-color: rgba(37, 99, 235, 0.18);
+  border-color: var(--color-border);
   color: var(--color-primary);
 }
 </style>

@@ -1153,7 +1153,7 @@ onBeforeUnmount(() => {
 
 .intent-tag.is-risk {
   color: var(--color-danger);
-  border-color: var(--color-danger-bg);
+  border-color: var(--color-critical-border);
   background: var(--color-danger-bg);
 }
 
@@ -1171,7 +1171,7 @@ onBeforeUnmount(() => {
 
 .intent-tag.is-clarify {
   color: var(--color-success);
-  border-color: var(--color-success-bg);
+  border-color: var(--color-normal-border);
   background: var(--color-success-bg);
 }
 
@@ -1262,7 +1262,7 @@ onBeforeUnmount(() => {
 }
 
 .section-block.is-exam {
-  border-color: rgba(37, 99, 235, 0.2);
+  border-color: var(--color-border);
 }
 .section-block.is-exam .section-block__header {
   background: var(--color-primary-bg);
@@ -1344,7 +1344,7 @@ onBeforeUnmount(() => {
 /* 自主排查轨迹 */
 .autonomous-trace {
   padding: 10px 12px;
-  border: 1px solid rgba(5, 150, 105, 0.2);
+  border: 1px solid var(--color-normal-border);
   border-radius: var(--radius-md, 6px);
   background: var(--color-success-bg);
 }
@@ -1585,7 +1585,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 10px 12px;
   background: var(--color-warning-bg, var(--color-warning-soft-bg));
-  border: 1px solid rgba(217, 119, 6, 0.2);
+  border: 1px solid var(--color-high-risk-border);
   border-radius: var(--radius-lg, 8px);
 }
 

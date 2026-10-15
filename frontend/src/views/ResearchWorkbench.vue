@@ -645,7 +645,7 @@ onUnmounted(() => { document.removeEventListener('pointerdown', () => {}) })
 .cohort-strip {
   padding: 10px 16px; border-radius: var(--radius-md, 6px);
   background: var(--color-primary-bg, rgba(37,99,235,0.08));
-  border: 1px solid rgba(37,99,235,0.16);
+  border: 1px solid var(--color-border);
   color: var(--color-primary); font-size: 13px; cursor: pointer;
 }
 .cohort-strip.empty { background: var(--color-warning-bg, rgba(181,71,8,0.08)); border-color: var(--color-warning-soft-border); color: var(--color-warning); }
@@ -793,7 +793,7 @@ onUnmounted(() => { document.removeEventListener('pointerdown', () => {}) })
 }
 .var-chip:hover { border-color: var(--color-primary); }
 .var-chip.selected { background: var(--color-primary-bg, rgba(37,99,235,0.08)); border-color: var(--color-primary); color: var(--color-primary); }
-.var-chip.filtered { box-shadow: 0 0 0 1px var(--color-primary); }
+.var-chip.filtered { box-shadow: var(--color-primary) 0 0 0 1px; }
 .check, .expand { border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; line-height: 1; }
 .name { cursor: pointer; }
 .fsum { color: var(--color-primary); font-size: 11px; }
@@ -828,7 +828,7 @@ onUnmounted(() => { document.removeEventListener('pointerdown', () => {}) })
 .quality-pill {
   padding: 4px 10px; border-radius: var(--radius-tag, 4px);
   background: var(--color-warning-bg, rgba(181,71,8,0.08));
-  border: 1px solid rgba(245,158,11,0.24);
+  border: 1px solid var(--color-high-risk-border);
   color: var(--color-warning); font-size: 12px;
 }
 .result-table-wrap {

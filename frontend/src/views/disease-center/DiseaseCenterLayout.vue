@@ -81,7 +81,7 @@ const navTabs = computed(() => [
 .header-right { display: flex; align-items: center; gap: 16px; flex-shrink: 0 }
 .version-tags { display: flex; gap: 6px; flex-wrap: wrap }
 .version-tag { display: inline-flex; align-items: center; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); white-space: nowrap }
-.version-tag--success { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.08); border-color: rgba(22, 132, 91, 0.2) }
+.version-tag--success { color: var(--color-success, #16845B); background: var(--color-success-bg); border-color: var(--color-normal-border) }
 .header-actions { display: flex; gap: 8px }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: var(--text-body, 13px); font-weight: 500; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; white-space: nowrap; border: 1px solid transparent }
 .btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }

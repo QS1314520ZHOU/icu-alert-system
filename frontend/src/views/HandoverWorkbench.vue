@@ -813,7 +813,7 @@ function initEmptySections(): Record<string, any> {
   padding: 12px 20px;
   background: var(--color-bg-surface);
   border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--card-shadow);
 }
 .patient-banner {
   display: flex;
@@ -885,7 +885,7 @@ function initEmptySections(): Record<string, any> {
 .editor-col :deep(.ant-collapse-item) {
   background: var(--color-bg-surface);
   border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--card-shadow);
   border: none;
   overflow: hidden;
 }
@@ -944,7 +944,7 @@ function initEmptySections(): Record<string, any> {
   padding: 14px 20px;
   background: var(--color-bg-surface);
   border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--card-shadow);
 }
 
 /* ── Panel cards ──────────────────────────────────────────── */
@@ -952,7 +952,7 @@ function initEmptySections(): Record<string, any> {
 .panel-col :deep(> div) {
   background: var(--color-bg-surface);
   border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--card-shadow);
 }
 .panel-col :deep(.ant-alert) {
   border-radius: 10px;

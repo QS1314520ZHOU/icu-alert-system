@@ -343,7 +343,7 @@ const otherAlerts = computed(() => {
 }
 
 .card-expand:hover {
-  background: rgba(37, 99, 235, 0.03);
+  background: var(--color-primary-bg);
 }
 
 .expand-chevron {

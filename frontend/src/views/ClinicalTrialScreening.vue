@@ -469,7 +469,7 @@ onBeforeUnmount(() => { funnelChart?.dispose(); funnelChart = null })
 .scope-note {
   padding: 10px 14px; border-radius: var(--radius-md, 6px);
   background: var(--color-primary-bg, rgba(37,99,235,0.08));
-  border: 1px solid rgba(37,99,235,0.16);
+  border: 1px solid var(--color-border);
   color: var(--color-primary); font-size: 13px;
 }
 .match-detail { display: flex; flex-direction: column; gap: 16px; }

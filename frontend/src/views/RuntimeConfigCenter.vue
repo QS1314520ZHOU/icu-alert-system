@@ -356,7 +356,7 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 
 <style scoped>
 .runtime-page { display: grid; gap: 12px; padding: 14px; font-family: var(--app-display-font); }
-.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid rgba(125,211,252,.14); background: var(--color-bg-surface); border-radius: var(--radius-lg); }
+.runtime-header, .panel, .runtime-tabs, .error-strip { border: 1px solid var(--color-border); background: var(--color-bg-surface); border-radius: var(--radius-lg); }
 .runtime-header { display: flex; justify-content: space-between; gap: 16px; padding: 16px; }
 .runtime-header span, .runtime-header p, .panel-toolbar span, .metric-card span, .table-row span, .sub-panel h3 { color: var(--color-text-secondary); }
 .runtime-header h1 { margin: 2px 0; color: var(--color-text-primary); font-size: var(--text-page-title); font-weight: var(--text-page-title-weight); }
@@ -372,7 +372,7 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .panel-toolbar h2, .panel-toolbar h3 { margin: 0; color: var(--color-text-primary); }
 .panel-toolbar.slim { margin-top: 4px; }
 .metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-.metric-card, .sub-panel { border: 1px solid rgba(125,211,252,.12); border-radius: var(--radius-lg); background: var(--color-bg-surface); padding: 12px; }
+.metric-card, .sub-panel { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-surface); padding: 12px; }
 
 /* 配置完整度环 */
 .overview-ring-row {
@@ -388,7 +388,7 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
   align-items: center;
   gap: 8px;
   padding: 16px;
-  border: 1px solid rgba(125,211,252,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
@@ -407,10 +407,10 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 }
 .metric-card strong { display: block; color: var(--color-text-primary); font-size: var(--text-metric-normal); font-variant-numeric: tabular-nums; }
 .overview-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
-.overview-actions button { text-align: left; border: 1px solid rgba(125,211,252,.12); border-radius: var(--radius-lg); background: var(--color-bg-surface); color: var(--color-text-primary); padding: 12px; cursor: pointer; }
+.overview-actions button { text-align: left; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-surface); color: var(--color-text-primary); padding: 12px; cursor: pointer; }
 .overview-actions span, .chip-grid small { display: block; color: var(--color-text-secondary); font-size: 11px; }
 .dense-table { display: grid; gap: 6px; overflow-x: auto; }
-.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: var(--radius-lg); background: var(--color-bg-surface); border: 1px solid rgba(125,211,252,.08); color: var(--color-text-primary); }
+.table-row { display: grid; gap: 8px; align-items: center; min-width: 980px; padding: 8px; border-radius: var(--radius-lg); background: var(--color-bg-surface); border: 1px solid var(--color-border); color: var(--color-text-primary); }
 .table-head { color: var(--color-primary); font-weight: 900; background: var(--color-bg-surface); }
 .module-table .table-row { grid-template-columns: 90px 220px 1fr; }
 .provider-table .table-row { grid-template-columns: 70px 210px 130px 180px 1fr 90px 80px; }
@@ -425,11 +425,11 @@ onMounted(() => { Promise.all([loadConfig(), loadHistory()]) })
 .filter-bar { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip-grid button { min-height: 32px; padding: 0 10px; border-radius: var(--radius-lg); border: 1px solid rgba(125,211,252,.16); background: var(--color-bg-surface); color: var(--color-text-primary); cursor: pointer; }
+.chip-grid button { min-height: 32px; padding: 0 10px; border-radius: var(--radius-lg); border: 1px solid var(--color-border); background: var(--color-bg-surface); color: var(--color-text-primary); cursor: pointer; }
 .chip-grid button.active { background: var(--color-primary-bg); border-color: var(--color-primary-hover); color: var(--color-text-primary); }
 .stack { display: grid; gap: 6px; }
 .condition-edit { display: grid; grid-template-columns: 82px 1fr; gap: 6px; }
-.error-strip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--warning-soft); border-color: var(--color-warning-soft-border); background: rgba(124,45,18,.24); }
+.error-strip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--color-warning); border-color: var(--color-warning-soft-border); background: var(--color-warning-bg); }
 .error-strip span { flex: 1; }
 html[data-theme='light'] .runtime-header, html[data-theme='light'] .panel, html[data-theme='light'] .runtime-tabs { background: var(--color-bg-surface); border-color: var(--color-border); }
 html[data-theme='light'] .runtime-header h1, html[data-theme='light'] .panel-toolbar h2, html[data-theme='light'] .panel-toolbar h3, html[data-theme='light'] .metric-card strong, html[data-theme='light'] .runtime-tabs button strong { color: var(--color-text-primary); }

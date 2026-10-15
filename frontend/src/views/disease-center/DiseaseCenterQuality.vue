@@ -330,10 +330,10 @@ onMounted(() => {
 /* 概览卡 */ .overview-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px }
 .overview-card { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB) }
 .card-icon { width: 40px; height: 40px; border-radius: var(--radius-lg, 10px); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700 }
-.card-icon--success { background: rgba(22, 132, 91, 0.1); color: var(--color-success, #16845B) }
-.card-icon--info { background: rgba(37, 99, 235, 0.1); color: var(--color-primary, #2563EB) }
-.card-icon--warning { background: rgba(181, 71, 8, 0.1); color: var(--color-warning, #B54708) }
-.card-icon--danger { background: rgba(217, 45, 32, 0.1); color: var(--color-danger, #D92D20) }
+.card-icon--success { background: var(--color-success-bg); color: var(--color-success, #16845B) }
+.card-icon--info { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.card-icon--warning { background: var(--color-warning-bg); color: var(--color-warning, #B54708) }
+.card-icon--danger { background: var(--color-danger-bg); color: var(--color-danger, #D92D20) }
 .card-icon--ai { background: var(--color-ai-light, #F0EDFF); color: var(--color-ai, #6E5AE6) }
 .card-value  {  font-size: var(--text-metric-normal, 20px); font-weight: 700; color: var(--color-text-primary, #111827); line-height: 1 ; font-variant-numeric: tabular-nums }
 .card-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin-top: 2px }
@@ -348,7 +348,7 @@ onMounted(() => {
 .tab-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: var(--text-caption, 12px); font-weight: 500; border: none; border-radius: var(--radius-tag, 4px); background: transparent; color: var(--color-text-secondary, #4B5563); cursor: pointer; transition: all 0.15s }
 .tab-btn:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
 .tab-btn--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
-.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 3px; font-size: var(--text-caption, 12px); font-weight: 600; border-radius: var(--radius-md, 6px); background: rgba(0, 0, 0, 0.1) }
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 3px; font-size: var(--text-caption, 12px); font-weight: 600; border-radius: var(--radius-md, 6px); background: var(--color-bg-inset) }
 .tab-btn--active .tab-count { background: rgba(255, 255, 255, 0.3) }
 
 /* 问题列表 */ .issue-list { display: flex; flex-direction: column; gap: 12px }
@@ -358,9 +358,9 @@ onMounted(() => {
 .issue-card--low { border-left: 3px solid var(--color-primary, #2563EB) }
 .issue-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px }
 .severity-badge { display: inline-flex; padding: 1px 6px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
-.severity-badge--high { color: var(--color-danger, #D92D20); background: rgba(217, 45, 32, 0.1) }
-.severity-badge--medium { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1) }
-.severity-badge--low { color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.1) }
+.severity-badge--high { color: var(--color-danger, #D92D20); background: var(--color-danger-bg) }
+.severity-badge--medium { color: var(--color-warning, #B54708); background: var(--color-warning-bg) }
+.severity-badge--low { color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
 .issue-type { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 .issue-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 0 4px }
 .issue-desc { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin: 0 0 8px; line-height: 1.5 }

@@ -398,7 +398,7 @@ onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
 }
 .error-box {
   padding: 10px 14px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid var(--color-critical-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface-secondary);
   color: var(--color-danger);

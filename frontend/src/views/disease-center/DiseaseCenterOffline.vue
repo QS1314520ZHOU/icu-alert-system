@@ -312,8 +312,8 @@ onMounted(() => {
 .package-type { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 
 /* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
-.status-badge--published { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1) }
-.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1) }
+.status-badge--published { color: var(--color-success, #16845B); background: var(--color-success-bg) }
+.status-badge--draft { color: var(--color-warning, #B54708); background: var(--color-warning-bg) }
 .status-badge--deprecated { color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8) }
 .package-body { padding: 16px }
 
@@ -344,7 +344,7 @@ onMounted(() => {
 .modal__body { padding: 20px; display: flex; flex-direction: column; gap: 16px }
 
 /* 上传区域 */ .upload-area { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 20px; border: 2px dashed var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; position: relative }
-.upload-area:hover { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.02) }
+.upload-area:hover { border-color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
 .upload-text { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827); margin: 0 }
 .upload-hint { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin: 0 }
 .upload-input { position: absolute; inset: 0; opacity: 0; cursor: pointer }

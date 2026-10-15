@@ -282,21 +282,21 @@ onMounted(async () => {
 /* 分类树 */ .category-tree { display: flex; flex-direction: column; gap: 2px }
 .tree-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s }
 .tree-item:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.tree-item--active { background: rgba(37, 99, 235, 0.08); color: var(--color-primary, #2563EB) }
+.tree-item--active { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
 .tree-item__name { font-size: var(--text-body, 13px); font-weight: 500 }
 .tree-item__count { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8); padding: 1px 6px; border-radius: var(--radius-lg, 10px) }
-.tree-item--active .tree-item__count { background: rgba(37, 99, 235, 0.15); color: var(--color-primary, #2563EB) }
+.tree-item--active .tree-item__count { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
 
 /* 术语列表 */ .term-list { display: flex; flex-direction: column; gap: 4px }
 .term-item { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent }
 .term-item:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border, #E5E7EB) }
-.term-item--active { background: rgba(37, 99, 235, 0.06); border-color: rgba(37, 99, 235, 0.2) }
+.term-item--active { background: var(--color-primary-bg); border-color: var(--color-border) }
 .term-item__main { display: flex; flex-direction: column; gap: 4px }
 .term-item__name { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 .term-item__codes { display: flex; gap: 6px; flex-wrap: wrap }
 .code-tag { font-size: var(--text-caption, 12px); font-family: 'SF Mono', 'Consolas', monospace; padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-secondary, #4B5563) }
 .term-item__meta { display: flex; align-items: center; gap: 8px }
-.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: rgba(37, 99, 235, 0.08); color: var(--color-primary, #2563EB) }
+.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
 .meta-info { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
 /* 术语详情 */ .term-detail { display: flex; flex-direction: column; gap: 20px }
@@ -308,8 +308,8 @@ onMounted(async () => {
 .detail-value--code { font-family: 'SF Mono', 'Consolas', monospace; font-size: var(--text-caption, 12px); padding: 1px 6px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-tag, 4px) }
 
 /* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
-.status-badge--active { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1) }
-.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1) }
+.status-badge--active { color: var(--color-success, #16845B); background: var(--color-success-bg) }
+.status-badge--draft { color: var(--color-warning, #B54708); background: var(--color-warning-bg) }
 .status-badge--deprecated { color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8) }
 
 /* 同义词 */ .synonym-list { display: flex; flex-wrap: wrap; gap: 6px }

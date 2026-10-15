@@ -350,7 +350,7 @@ onBeforeUnmount(() => {
   margin: 0 0 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text-primary);
 }
 
 .academic-viz-chart {
@@ -368,7 +368,7 @@ onBeforeUnmount(() => {
 .academic-viz-ring-label {
   margin-top: 8px;
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--color-text-secondary);
 }
 .main-tabs {
   background: var(--color-bg-surface, #fff);

@@ -414,7 +414,7 @@ init()
   padding: 8px 12px;
   border-radius: var(--radius-md, 6px);
   background: var(--color-warning-bg, rgba(181,71,8,0.08));
-  border: 1px solid rgba(245,158,11,0.24);
+  border: 1px solid var(--color-high-risk-border);
   color: var(--color-warning);
   font-size: var(--text-caption, 12px);
 }
@@ -431,7 +431,7 @@ init()
   margin-top: 12px; padding: 12px;
   border-radius: var(--radius-md, 6px);
   background: var(--color-danger-bg, rgba(217,45,32,0.08));
-  border: 1px solid rgba(251,113,133,0.3);
+  border: 1px solid var(--color-critical-border);
 }
 .error-text { color: var(--color-danger); font-size: 13px; white-space: pre-wrap; }
 .history-section {

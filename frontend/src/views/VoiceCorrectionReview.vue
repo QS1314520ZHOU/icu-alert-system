@@ -290,7 +290,7 @@ onMounted(loadCandidates)
   border-radius: 6px;
   font-size: 14px;
   z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: var(--shadow-md);
 }
 .vcr-feedback-ok {
   background: var(--color-success-bg);

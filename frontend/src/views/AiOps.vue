@@ -590,7 +590,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ops-page { display: grid; gap: 16px; font-family: var(--app-display-font); }
-.ops-filter-card,.ops-panel { border: 1px solid rgba(80,199,255,.12); background: var(--color-bg-surface); }
+.ops-filter-card,.ops-panel { border: 1px solid var(--color-border); background: var(--color-bg-surface); }
 
 /* 可视化概览行 */
 .ops-viz-row {
@@ -601,7 +601,7 @@ onBeforeUnmount(() => {
 
 .ops-viz-card {
   background: var(--color-bg-surface);
-  border: 1px solid rgba(80,199,255,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
 }
@@ -671,14 +671,14 @@ onBeforeUnmount(() => {
 .ops-outcome { display: inline-flex; padding: 4px 10px; border-radius: var(--radius-lg); font-size: 12px; border: 1px solid var(--color-border); }
 .ops-outcome.is-confirmed,.ops-outcome.is-approved { color: var(--chart-2); border-color: var(--color-normal-border); }
 .ops-outcome.is-dismissed { color: var(--warning); border-color: var(--color-warning-soft-border); }
-.ops-outcome.is-inaccurate,.ops-outcome.is-rejected { color: var(--danger); border-color: rgba(251,113,133,.24); }
+.ops-outcome.is-inaccurate,.ops-outcome.is-rejected { color: var(--danger); border-color: var(--color-critical-border); }
 .ops-outcome.is-pending_review { color: var(--chart-1); border-color: var(--color-border); }
 html[data-theme='light'] .ops-page {
   --ops-text-main: var(--color-text-primary);
   --ops-text-sub: var(--color-text-secondary);
-  --ops-line: rgba(145, 176, 199, 0.36);
-  --ops-card-bg: var(--color-bg-surface) 0%, rgba(241, 247, 253, 0.94) 100%);
-  --ops-card-shadow: 0 14px 34px rgba(21, 53, 84, 0.1), 0 2px 0 rgba(255, 255, 255, 0.7) inset;
+  --ops-line: var(--color-border);
+  --ops-card-bg: var(--color-bg-surface) 0%, var(--color-bg-surface-secondary) 100%);
+  --ops-card-shadow: var(--card-shadow);
   color: var(--ops-text-main);
   position: relative;
   padding: 4px;
@@ -791,10 +791,10 @@ html[data-theme='light'] :deep(.ant-card-head-title) {
 html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-thead > tr > th) {
   color: var(--color-text-secondary);
   background: var(--color-bg-surface);
-  border-bottom: 1px solid rgba(145, 176, 199, 0.44);
+  border-bottom: 1px solid var(--color-border);
 }
 html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-tbody > tr > td) {
-  border-bottom: 1px solid rgba(167, 194, 214, 0.34);
+  border-bottom: 1px solid var(--color-border);
 }
 html[data-theme='light'] :deep(.ant-table-wrapper .ant-table-tbody > tr:hover > td) {
   background: var(--color-bg-surface-secondary);

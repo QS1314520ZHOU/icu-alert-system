@@ -551,20 +551,20 @@ watch([selectedDisease, selectedStatus], () => {
 
 /* 规则列表 */ .rule-list { display: flex; flex-direction: column; gap: 8px }
 .rule-card { padding: 12px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB); cursor: pointer; transition: all 0.15s }
-.rule-card:hover { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.02) }
-.rule-card--active { border-color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.06) }
+.rule-card:hover { border-color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
+.rule-card--active { border-color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
 .rule-card__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px }
 .rule-card__name { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 .rule-card__meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px }
-.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: rgba(37, 99, 235, 0.08); color: var(--color-primary, #2563EB) }
+.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
 .meta-version { font-size: var(--text-caption, 12px); font-family: 'SF Mono', 'Consolas', monospace; color: var(--color-text-secondary, #4B5563) }
 .rule-card__preview { display: flex; align-items: center; gap: 8px }
 .preview-op { font-size: var(--text-caption, 12px); font-weight: 600; padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-primary, #111827) }
 .preview-count { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
 /* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
-.status-badge--active { color: var(--color-success, #16845B); background: rgba(22, 132, 91, 0.1) }
-.status-badge--draft { color: var(--color-warning, #B54708); background: rgba(181, 71, 8, 0.1) }
+.status-badge--active { color: var(--color-success, #16845B); background: var(--color-success-bg) }
+.status-badge--draft { color: var(--color-warning, #B54708); background: var(--color-warning-bg) }
 .status-badge--disabled { color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8) }
 
 /* 编辑器 */ .editor-content { display: flex; flex-direction: column; gap: 20px }
@@ -596,7 +596,7 @@ watch([selectedDisease, selectedStatus], () => {
 .condition-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
 .btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: var(--radius-tag, 4px); cursor: pointer; transition: all 0.15s; background: transparent; color: var(--color-text-secondary, #4B5563) }
 .btn-icon:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.btn-icon--danger:hover { color: var(--color-danger, #D92D20); background: rgba(217, 45, 32, 0.08) }
+.btn-icon--danger:hover { color: var(--color-danger, #D92D20); background: var(--color-danger-bg) }
 
 /* 自然语言解释 */ .nl-explanation { padding: 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
 .nl-text { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827); margin: 0; line-height: 1.6 }

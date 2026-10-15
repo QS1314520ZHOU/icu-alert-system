@@ -803,7 +803,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 18px;
   padding: 18px;
-  border: 1px solid rgba(80,199,255,.16);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
   box-shadow: var(--card-shadow);
@@ -829,7 +829,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
 }
 .metric-card {
   padding: 14px;
-  border: 1px solid rgba(125,167,214,.14);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
@@ -844,7 +844,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   gap: 14px;
 }
 .census-panel, .summary-panel {
-  border: 1px solid rgba(80,199,255,.14);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
   box-shadow: var(--card-shadow);
@@ -885,7 +885,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   gap: 10px;
   align-items: center;
   padding: 12px;
-  border: 1px solid rgba(125,167,214,.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
   cursor: pointer;
@@ -904,7 +904,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   display: block;
   width: 16px;
   height: 16px;
-  border: 1px solid rgba(103,232,249,.28);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
@@ -941,7 +941,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
 }
 .summary-head {
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(80,199,255,.12);
+  border-bottom: 1px solid var(--color-border);
 }
 .summary-head h2 { margin-top: 8px; font-size: 24px; }
 .summary-head h2 span { color: var(--color-text-secondary); font-size: 14px; }
@@ -953,7 +953,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
 }
 .quick-strip article, .trend-card, .focus-card, .digest-grid article, .priority-card, .assessment-card {
   padding: 12px;
-  border: 1px solid rgba(125,167,214,.14);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
@@ -987,7 +987,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr);
   gap: 12px;
   padding: 14px;
-  border: 1px solid rgba(103,232,249,.14);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
@@ -1010,7 +1010,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
 .action-card {
   min-height: 76px;
   padding: 12px;
-  border: 1px solid rgba(125,211,252,.16);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   color: inherit;
   background: var(--color-bg-surface);
@@ -1023,7 +1023,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   border-color: var(--color-primary-hover);
 }
 .action-card.prio-high {
-  border-color: rgba(251,113,133,.28);
+  border-color: var(--color-critical-border);
 }
 .action-card strong,
 .action-card span {
@@ -1129,7 +1129,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   color: var(--color-text-primary);
 }
 .evidence-item em {
-  color: var(--warning-soft);
+  color: var(--color-warning);
 }
 .evidence-item i {
   color: var(--color-text-inverse);
@@ -1150,7 +1150,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   gap: 14px;
   padding: 14px;
-  border: 1px solid rgba(103,232,249,.14);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
@@ -1182,7 +1182,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   gap: 4px;
   padding: 10px 12px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(125,167,214,.14);
+  border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   text-align: left;
@@ -1223,7 +1223,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
 .editable-rounding {
   display: grid;
   gap: 10px;
-  border: 1px solid rgba(125,167,214,.16);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 12px;
   background: var(--color-bg-surface);
@@ -1232,7 +1232,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
   width: 100%;
   resize: vertical;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(125,211,252,.16);
+  border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   padding: 10px 12px;
@@ -1283,7 +1283,7 @@ h1 { margin-top: 4px; font-size: var(--text-page-title); color: var(--color-text
 .voice-rounding-section {
   margin-top: 14px;
   padding: 12px;
-  border: 1px solid rgba(125,167,214,.16);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
@@ -1295,7 +1295,7 @@ html[data-theme='light'] .rounding-page {
 html[data-theme='light'] .rounding-hero,
 html[data-theme='light'] .census-panel,
 html[data-theme='light'] .summary-panel {
-  border-color: rgba(203, 213, 225, .88);
+  border-color: var(--color-border);
   background: var(--color-bg-surface);
   box-shadow: var(--card-shadow);
 }
@@ -1357,7 +1357,7 @@ html[data-theme='light'] .briefing-side,
 html[data-theme='light'] .bodymap-visual,
 html[data-theme='light'] .organ-chip,
 html[data-theme='light'] .bodymap-note {
-  border-color: rgba(203, 213, 225, .82);
+  border-color: var(--color-border);
   background: var(--color-bg-surface);
   box-shadow: var(--card-shadow);
 }
@@ -1366,7 +1366,7 @@ html[data-theme='light'] .metric-card--cyan {
   background: var(--color-bg-surface);
 }
 html[data-theme='light'] .metric-card--red {
-  border-color: rgba(251, 113, 133, .24);
+  border-color: var(--color-critical-border);
   background: var(--color-bg-surface);
 }
 html[data-theme='light'] .metric-card--orange {
@@ -1395,7 +1395,7 @@ html[data-theme='light'] .patient-card.active {
 }
 html[data-theme='light'] .patient-card.active .bed-pill {
   background: var(--color-primary-bg);
-  border-color: rgba(37, 99, 235, .28);
+  border-color: var(--color-border);
   color: var(--color-primary);
 }
 html[data-theme='light'] .patient-card.active .patient-title strong {
@@ -1421,7 +1421,7 @@ html[data-theme='light'] .bed-large {
   color: var(--color-primary);
 }
 html[data-theme='light'] .summary-head {
-  border-bottom-color: rgba(203, 213, 225, .82);
+  border-bottom-color: var(--color-divider);
 }
 html[data-theme='light'] .briefing-section,
 html[data-theme='light'] .bodymap-section,
@@ -1429,7 +1429,7 @@ html[data-theme='light'] .priority-section,
 html[data-theme='light'] .trend-section,
 html[data-theme='light'] .ai-box,
 html[data-theme='light'] .system-tabs {
-  border: 1px solid rgba(203, 213, 225, .82);
+  border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
   box-shadow: var(--card-shadow);
 }
@@ -1439,7 +1439,7 @@ html[data-theme='light'] .digest-headline {
 html[data-theme='light'] .action-card {
   border-color: var(--color-border);
   background: var(--color-bg-surface-secondary);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, .06);
+  box-shadow: var(--card-shadow);
 }
 html[data-theme='light'] .action-card:hover {
   border-color: var(--color-primary-hover);
@@ -1458,12 +1458,12 @@ html[data-theme='light'] .muted {
 html[data-theme='light'] .version-row span {
   color: var(--color-text-secondary);
   background: var(--color-bg-surface-secondary);
-  border: 1px solid rgba(147, 197, 253, .46);
+  border: 1px solid var(--color-border);
 }
 html[data-theme='light'] .evidence-list span {
   color: var(--color-primary);
   background: var(--color-bg-surface-secondary);
-  border: 1px solid rgba(186, 230, 253, .88);
+  border: 1px solid var(--color-border);
 }
 html[data-theme='light'] .question-list em {
   color: var(--warning);
@@ -1472,7 +1472,7 @@ html[data-theme='light'] .question-list em {
   padding: 6px 8px;
 }
 html[data-theme='light'] .organ-chip.sev-critical {
-  border-color: rgba(251, 113, 133, .34);
+  border-color: var(--color-critical-border);
   background: var(--color-bg-surface);
 }
 html[data-theme='light'] .assessment-card {
@@ -1480,7 +1480,7 @@ html[data-theme='light'] .assessment-card {
 }
 html[data-theme='light'] .rounding-page :deep(.ant-input),
 html[data-theme='light'] .rounding-page :deep(.ant-select-selector) {
-  border-color: rgba(203, 213, 225, .92) !important;
+  border-color: var(--color-border) !important;
   background: var(--color-bg-surface-secondary) !important;
   color: var(--color-text-primary) !important;
 }
@@ -1501,7 +1501,7 @@ html[data-theme='light'] .rounding-page :deep(.ant-tabs-ink-bar) {
   background: var(--chart-1);
 }
 html[data-theme='light'] .rounding-page :deep(.ant-timeline-item-tail) {
-  border-inline-start-color: rgba(203, 213, 225, .9);
+  border-inline-start-color: var(--color-border);
 }
 html[data-theme='light'] .rounding-page :deep(.ant-empty-description) {
   color: var(--color-text-secondary);

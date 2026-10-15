@@ -340,7 +340,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   min-height: 36px;
   padding: 0 10px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(125, 211, 252, .2);
+  border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
 }
@@ -349,7 +349,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   min-height: 36px;
   padding: 0 12px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(125, 211, 252, .2);
+  border: 1px solid var(--color-border);
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   cursor: pointer;
@@ -369,7 +369,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 }
 
 .error {
-  color: var(--danger-soft);
+  color: var(--color-danger);
 }
 
 .overview-cards {
@@ -382,7 +382,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
   padding: 16px;
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
 }
 
 .overview-card span {
@@ -419,7 +419,7 @@ watch(() => [props.userId, props.deptCode, props.dept], () => {
 
 .section {
   background: var(--color-bg-surface);
-  border: 1px solid rgba(125, 211, 252, .14);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 16px;
 }
@@ -762,7 +762,7 @@ html[data-theme='light'] .comparison-item {
 html[data-theme='light'] .header-actions select,
 html[data-theme='light'] .header-actions button {
   background: var(--color-bg-surface);
-  border-color: rgba(37, 99, 235, 0.18);
+  border-color: var(--color-border);
   color: var(--color-primary);
 }
 

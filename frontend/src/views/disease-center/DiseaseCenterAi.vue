@@ -397,7 +397,7 @@ async function scrollToBottom() {
 .welcome-desc { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); margin: 0; max-width: 400px; line-height: 1.6 }
 .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px }
 .quick-btn { padding: 6px 12px; font-size: var(--text-caption, 12px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-lg, 10px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); cursor: pointer; transition: all 0.15s }
-.quick-btn:hover { border-color: var(--color-primary, #2563EB); color: var(--color-primary, #2563EB); background: rgba(37, 99, 235, 0.04) }
+.quick-btn:hover { border-color: var(--color-primary, #2563EB); color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
 
 /* 消息 */ .message { display: flex; gap: 10px }
 .message--user { flex-direction: row-reverse }
@@ -421,8 +421,8 @@ async function scrollToBottom() {
 /* 操作按钮 */ .message-actions { display: flex; gap: 6px }
 .action-btn { padding: 4px 10px; font-size: var(--text-caption, 12px); font-weight: 500; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); cursor: pointer; transition: all 0.15s }
 .action-btn:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.action-btn--accept { color: var(--color-success, #16845B); border-color: rgba(22, 132, 91, 0.3) }
-.action-btn--reject { color: var(--color-danger, #D92D20); border-color: rgba(217, 45, 32, 0.3) }
+.action-btn--accept { color: var(--color-success, #16845B); border-color: var(--color-normal-border) }
+.action-btn--reject { color: var(--color-danger, #D92D20); border-color: var(--color-critical-border) }
 
 /* 打字指示器 */ .typing-indicator { display: flex; gap: 4px; padding: 12px 16px }
 .typing-indicator span { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-tertiary, #9CA3AF); animation: typing 1.4s infinite ease-in-out both }
