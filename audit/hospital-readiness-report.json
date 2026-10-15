@@ -1,0 +1,45 @@
+{
+  "generated": "2026-08-30",
+  "commit": "6e1f3e9",
+  "branch": "master",
+  "phase": 3,
+  "backend": {
+    "routers": 34,
+    "endpoints": 417,
+    "alert_scanners": 69,
+    "mongodb_collections": 60,
+    "models": 137,
+    "roles": 8,
+    "test_results": {"passed": 1048, "failed": 0, "errors": 0}
+  },
+  "frontend": {
+    "routes": 57,
+    "stores": 5,
+    "axios_instances": 6,
+    "api_modules_migrated": 7,
+    "views": 88,
+    "components": 100,
+    "test_results": {"passed": 280, "failed": 0, "files_passed": 17, "files_failed": 0},
+    "type_check": "PASS",
+    "build": "PASS"
+  },
+  "auth": {
+    "unified_http_client": true,
+    "api_modules_using_shared_instances": 13,
+    "401_handling": "complete",
+    "403_handling": "complete",
+    "network_error_discrimination": true,
+    "cross_tab_logout": true,
+    "iframe_retry_limit": 3,
+    "iframe_exponential_backoff": true,
+    "auth_required_message": true,
+    "login_loop_prevention": true
+  },
+  "hospital_readiness": {
+    "overall_score": 0.68,
+    "recommendation": "ALLOW_HOSPITAL_TRIAL_WITH_CONDITIONS",
+    "p0_issues": 4,
+    "p1_issues": 6,
+    "p2_issues": 6
+  }
+}

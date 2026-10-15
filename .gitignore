@@ -57,5 +57,6 @@ backend/backend/
 
 # Debug scripts and patches
 _*.py
+!**/__init__.py
 _*.patch
 *.patch

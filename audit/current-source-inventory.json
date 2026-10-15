@@ -1,0 +1,32 @@
+{
+  "generated": "2026-08-30",
+  "commit": "6e1f3e9",
+  "branch": "master",
+  "phase": 3,
+  "inventory": {
+    "total_code_files": 1031,
+    "total_code_kb": 13591,
+    "backend_python_files": 482,
+    "frontend_vue_files": 216,
+    "frontend_ts_files": 118,
+    "frontend_js_files": 215,
+    "routers": 34,
+    "endpoints": 417,
+    "alert_scanners": 69,
+    "mongodb_collections": 60,
+    "models": 137,
+    "roles": 8,
+    "routes": 57,
+    "stores": 5,
+    "views": 88,
+    "components": 100,
+    "shared_axios_instances": 6,
+    "api_modules_migrated_to_shared": 7
+  },
+  "test_results": {
+    "backend": {"passed": 1048, "failed": 0, "errors": 0},
+    "frontend_unit": {"passed": 280, "failed": 0},
+    "frontend_type_check": "PASS",
+    "frontend_build": "PASS"
+  }
+}
