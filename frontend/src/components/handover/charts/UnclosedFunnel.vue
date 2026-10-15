@@ -87,7 +87,7 @@ onMounted(() => { nextTick(render) })
 watch(() => props.data, () => nextTick(render), { deep: true })
 </script>
 
-<style<style scoped>>
+<style scoped>
 .unclosed-funnel { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .funnel-header { margin-bottom: 8px; }
 .funnel-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }

@@ -98,7 +98,7 @@ onMounted(() => { nextTick(render) })
 watch(() => props.patients, () => nextTick(render), { deep: true })
 </script>
 
-<style<style scoped>>
+<style scoped>
 .patient-risk-ranking { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .ranking-header { margin-bottom: 8px; }
 .ranking-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }

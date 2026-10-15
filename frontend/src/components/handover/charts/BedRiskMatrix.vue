@@ -78,7 +78,7 @@ function handoverStatusLabel(status?: string) {
 }
 </script>
 
-<style<style scoped>>
+<style scoped>
 .bed-risk-matrix {
   background: var(--color-bg-surface);
   border-radius: var(--radius-lg);

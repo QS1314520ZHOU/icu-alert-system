@@ -41,7 +41,7 @@ function stepClass(step: FlowStep) {
 }
 </script>
 
-<style<style scoped>>
+<style scoped>
 .handover-flow { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .flow-header { margin-bottom: 12px; }
 .flow-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }

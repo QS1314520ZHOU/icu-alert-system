@@ -102,7 +102,7 @@ onMounted(() => { nextTick(render) })
 watch(() => props.events, () => nextTick(render), { deep: true })
 </script>
 
-<style<style scoped>>
+<style scoped>
 .shift-timeline { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .timeline-header { margin-bottom: 8px; }
 .timeline-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }

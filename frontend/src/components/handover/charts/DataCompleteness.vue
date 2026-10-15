@@ -42,7 +42,7 @@ function statusClass(status: string) {
 }
 </script>
 
-<style<style scoped>>
+<style scoped>
 .data-completeness { background: var(--color-bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px; }
 .completeness-header { margin-bottom: 12px; }
 .completeness-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 0; }
