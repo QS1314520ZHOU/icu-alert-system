@@ -150,6 +150,16 @@ async def batch_phenotype(req: BatchPhenotypeRequest):
 
 # ==================== 病例管理 ====================
 
+# 固定路径必须写在 /cases/{case_id} 之前，避免 statistics 被当成 case_id
+@router.get("/cases/statistics")
+async def case_statistics():
+    """获取病例统计概览。"""
+    _check_ready()
+    identifier = saki_identifier.SAKICaseIdentifier()
+    stats = await identifier.get_statistics(_db())
+    return serialize_doc(stats)
+
+
 @router.get("/cases")
 async def list_cases(
     page: int = Query(1, ge=1),
@@ -204,15 +214,6 @@ async def review_case(case_id: str, req: CaseReviewRequest):
     await audit.log_event(_db(), "case_reviewed", "saki_case", case_id, req.reviewer_id,
                           {"result": req.result, "notes": req.notes})
     return serialize_doc(result)
-
-
-@router.get("/cases/statistics")
-async def case_statistics():
-    """获取病例统计概览。"""
-    _check_ready()
-    identifier = saki_identifier.SAKICaseIdentifier()
-    stats = await identifier.get_statistics(_db())
-    return serialize_doc(stats)
 
 
 @router.post("/cases/identify")

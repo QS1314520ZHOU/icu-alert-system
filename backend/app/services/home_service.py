@@ -203,6 +203,45 @@ class RoleHomeService:
         ).limit(120)
         return [row async for row in cursor]
 
+    async def _ward_alert_fallback_patients(
+        self, *, dept: str | None = None, dept_code: str | None = None, limit: int = 8
+    ) -> list[dict[str, Any]]:
+        """无分管床位时，用科室近12h高优先级告警患者做临时关注列表。"""
+        since = datetime.now(API_TZ) - timedelta(hours=12)
+        alert_query: dict[str, Any] = {
+            "created_at": {"$gte": since},
+            "severity": {"$in": ["critical", "high", "危急", "高"]},
+        }
+        try:
+            alerts = await self.db.col("alert_records").find(
+                alert_query,
+                {"patient_id": 1, "severity": 1, "created_at": 1},
+            ).sort("created_at", -1).limit(800).to_list(length=800)
+        except Exception:
+            return []
+
+        seen: set[str] = set()
+        pids: list[str] = []
+        for alert in alerts:
+            pid = _text(alert.get("patient_id"))
+            if pid and pid not in seen:
+                seen.add(pid)
+                pids.append(pid)
+        if not pids:
+            return []
+
+        # 先按科室取在科患者，再按告警优先级排序，避免只取全院最近N条后科室为空
+        base = {"$and": [admitted_patient_query(), {"_id": {"$in": [ObjectId(pid) if ObjectId.is_valid(pid) else pid for pid in pids]}}]}
+        query = self._with_department_scope(base, dept=dept, dept_code=dept_code)
+        cursor = self.db.col("patient").find(
+            query,
+            {"name": 1, "hisName": 1, "hisBed": 1, "bed": 1, "bedNo": 1, "bedDoctorId": 1, "hisPid": 1, "clinicalDiagnosis": 1, "admissionDiagnosis": 1, "dept": 1, "hisDept": 1, "deptCode": 1},
+        )
+        patients = [row async for row in cursor]
+        rank = {pid: idx for idx, pid in enumerate(pids)}
+        patients.sort(key=lambda row: rank.get(str(row.get("_id")), 9999))
+        return patients[:limit]
+
     async def _fetch_alerts_for_patients(self, patients: list[dict[str, Any]], hours: int = 12) -> list[dict[str, Any]]:
         """批量获取患者告警记录。"""
         if not patients:
@@ -322,6 +361,11 @@ class RoleHomeService:
         dept, dept_code = self._account_scoped_dept(account, dept=dept, dept_code=dept_code)
         doctor_user_id = self._account_patient_user_id(account, user_id)
         patients = await self._doctor_patients(doctor_user_id, dept=dept, dept_code=dept_code)
+        used_ward_fallback = False
+        if not patients and account.get("found"):
+            # 无分管床位时回退到科室高优先级告警患者，避免首页完全空转
+            patients = await self._ward_alert_fallback_patients(dept=dept, dept_code=dept_code, limit=8)
+            used_ward_fallback = bool(patients)
 
         # 并行获取风险、告警、任务、质控
         patient_ids = [_patient_id(patient) for patient in patients]
@@ -376,12 +420,15 @@ class RoleHomeService:
             "dept": dept,
             "dept_code": dept_code,
             "managed_beds": len(patients),
+            "ward_fallback": used_ward_fallback,
             "empty_reason": "",
         }
         if not account.get("found"):
-            data_state["empty_reason"] = "当前账号未完成医生身份识别，请确认已使用医生账号进入。"
+            data_state["empty_reason"] = "未识别到当前医生账号"
         elif not patients:
-            data_state["empty_reason"] = "当前账号暂未匹配到分管在科患者，请确认患者主管医生信息已维护。"
+            data_state["empty_reason"] = "暂未匹配到分管在科患者"
+        elif used_ward_fallback:
+            data_state["empty_reason"] = "未匹配到分管床位，已展示科室重点患者"
         return {
             "account": account,
             "doctor_user_id": doctor_user_id,

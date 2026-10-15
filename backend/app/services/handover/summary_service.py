@@ -18,6 +18,19 @@ from app.utils.patient_helpers import patient_his_pid_candidates
 API_TZ = ZoneInfo("Asia/Shanghai")
 logger = logging.getLogger("icu-alert")
 
+_VASO_KEYWORDS = (
+    "去甲肾上腺素", "去甲", "多巴胺", "肾上腺素", "血管加压素", "加压素",
+    "去氧肾上腺素", "苯肾上腺素", "间羟胺", "多巴酚丁胺",
+    "norepinephrine", "norepi", "dopamine", "epinephrine", "vasopressin",
+    "phenylephrine", "dobutamine",
+)
+_HIGH_RISK_TUBES = (
+    "中心静脉", "cvc", "picc", "动脉", "气管插管", "气管切开", "人工气道",
+    "输液港", "hemodialysis", "hd管路",
+)
+_CRRT_KEYWORDS = ("crrt", "血滤", "血液滤过", "透析")
+_VENT_DIAG_KEYWORDS = ("呼吸机", "机械通气", "气管插管", "气管切开", "ventilator")
+
 
 class ShiftSummaryService:
     """Generates and manages full-ward shift handover summaries."""
@@ -32,14 +45,7 @@ class ShiftSummaryService:
         shift_code: str = "auto",
         operator: str = "",
     ) -> ShiftHandoverSummary:
-        """Generate a full-ward summary for the current shift.
-
-        1. Resolve shift time window
-        2. Query all patients in dept
-        3. Aggregate statistics
-        4. Build deterministic summary text
-        5. (Optional) Call AI for narrative enhancement
-        """
+        """Generate a full-ward summary for the current shift."""
         shift_svc = ShiftService(self.db, self.config)
         resolved = await shift_svc.resolve_shift(shift_code)
 
@@ -47,11 +53,9 @@ class ShiftSummaryService:
         data_start = resolved.start.astimezone(API_TZ).replace(tzinfo=None)
         data_end = min(now, resolved.end).astimezone(API_TZ).replace(tzinfo=None)
 
-        # Query patients
         patients = await self._query_patients(dept_code)
         patient_count = len(patients)
 
-        # Build per-patient stats
         patient_stats = []
         critical_count = 0
         vent_count = 0
@@ -78,22 +82,19 @@ class ShiftSummaryService:
                 crrt_count += 1
             if stat.get("isolation"):
                 isolation_count += 1
-            high_risk_line_count += stat.get("high_risk_line_count", 0)
+            high_risk_line_count += int(stat.get("high_risk_line_count") or 0)
             total_alerts += stat.get("alert_count", 0)
             unclosed_alerts += stat.get("unclosed_alert_count", 0)
             critical_values += stat.get("critical_value_count", 0)
 
-        # Check handover documents for completion status
         handover_docs = await self._query_handovers(dept_code, data_start, data_end)
         completed = sum(1 for d in handover_docs if d.get("status") in ("submitted", "acknowledged"))
         drafts = sum(1 for d in handover_docs if d.get("status") == "draft")
         submitted = sum(1 for d in handover_docs if d.get("status") == "submitted")
         acknowledged = sum(1 for d in handover_docs if d.get("status") == "acknowledged")
 
-        # Build priority items
         priority_items = self._build_priority_items(patient_stats)
 
-        # Build deterministic summary
         deterministic_summary = self._build_deterministic_summary(
             patient_count=patient_count,
             critical_count=critical_count,
@@ -102,8 +103,7 @@ class ShiftSummaryService:
             crrt_count=crrt_count,
             alert_count=total_alerts,
             unclosed_alerts=unclosed_alerts,
-            priority_items=priority_items,
-            shift_name=resolved.name,
+            high_risk_lines=high_risk_line_count,
         )
 
         summary = ShiftHandoverSummary(
@@ -137,7 +137,6 @@ class ShiftSummaryService:
             created_at=datetime.now(API_TZ).isoformat(),
         )
 
-        # Persist
         try:
             doc_dict = summary.model_dump()
             doc_dict["_created"] = datetime.now(API_TZ).isoformat()
@@ -149,20 +148,26 @@ class ShiftSummaryService:
 
     async def _query_patients(self, dept_code: str) -> list[dict[str, Any]]:
         """Query active patients in the department."""
-        query: dict[str, Any] = {
-            "$or": [
-                {"status": {"$nin": ["discharged", "invalid", "invaild"]}},
-                {"status": {"$exists": False}},
-            ]
-        }
+        filters: list[dict[str, Any]] = [
+            {
+                "$or": [
+                    {"status": {"$nin": ["discharged", "invalid", "invaild"]}},
+                    {"status": {"$exists": False}},
+                    {"status": None},
+                    {"status": ""},
+                ]
+            }
+        ]
         if dept_code:
-            query["$or"] = [
-                {"deptCode": dept_code},
-                {"dept_code": dept_code},
-                {"departmentCode": dept_code},
-                {"hisDeptCode": dept_code},
-            ]
-
+            filters.append({
+                "$or": [
+                    {"deptCode": dept_code},
+                    {"dept_code": dept_code},
+                    {"departmentCode": dept_code},
+                    {"hisDeptCode": dept_code},
+                ]
+            })
+        query: dict[str, Any] = {"$and": filters} if len(filters) > 1 else filters[0]
         cursor = self.db.col("patient").find(query)
         return await cursor.to_list(length=500)
 
@@ -173,55 +178,40 @@ class ShiftSummaryService:
         from app.utils.serialization import safe_oid
 
         oid = safe_oid(pid)
-        p_ids = patient_his_pid_candidates(p)
+        _ = patient_his_pid_candidates(p)
 
         bed = str(p.get("hisBed") or p.get("showBed") or p.get("bed") or p.get("bedNo") or "")
         name = str(p.get("name") or p.get("hisName") or "")
-        diagnosis = str(p.get("diagnosis") or p.get("diagnose") or p.get("hisDiagnosis") or "")
+        diagnosis = str(
+            p.get("clinicalDiagnosis")
+            or p.get("diagnosis")
+            or p.get("diagnose")
+            or p.get("admissionDiagnosis")
+            or p.get("hisDiagnosis")
+            or ""
+        )
         isolation = str(p.get("isolation") or p.get("isolationType") or "")
 
-        # Check ventilator
-        has_vent = False
-        try:
-            vent = await self.db.col("ventilator").find_one({"pid": pid})
-            if not vent and oid:
-                vent = await self.db.col("ventilator").find_one({"pid": oid})
-            has_vent = bool(vent)
-        except Exception:
-            pass
+        has_vent = await self._detect_ventilator(pid, oid, p)
+        alert_count, unclosed, crit_vals, has_unclosed_high = await self._detect_alerts(
+            pid, oid, start, end
+        )
+        has_vaso = await self._detect_vasoactive(pid, oid, start, end)
+        has_crrt, high_risk_lines = await self._detect_devices(pid, oid)
 
-        # Check alerts
-        alert_count = 0
-        unclosed = 0
-        crit_vals = 0
-        try:
-            pid_or = {"$or": [{"patient_id": oid}, {"patient_id": pid}]} if oid else {"patient_id": pid}
-            alerts = await self.db.col("alert_records").find({
-                **pid_or,
-                "created_at": {"$gte": start, "$lte": end},
-            }).to_list(length=100)
-            alert_count = len(alerts)
-            unclosed = sum(1 for a in alerts if not a.get("acknowledged_at") and not a.get("ack_disposition"))
-            crit_vals = sum(1 for a in alerts if str(a.get("priority", "")).lower() in ("critical", "危急"))
-        except Exception:
-            pass
-
-        # Check vasoactive meds
-        has_vaso = False
-        try:
-            pid_or = {"$or": [{"patient_id": oid}, {"patient_id": pid}]} if oid else {"patient_id": pid}
-            meds = await self.db.col("medication_given").find({
-                **pid_or,
-                "record_time": {"$gte": start, "$lte": end},
-            }).to_list(length=50)
-            vaso_keywords = ["去甲肾上腺素", "多巴胺", "肾上腺素", "血管加压素", "norepinephrine", "dopamine", "vasopressin"]
-            for m in meds:
-                drug = str(m.get("drug_name") or m.get("name") or "").lower()
-                if any(kw in drug for kw in vaso_keywords):
-                    has_vaso = True
-                    break
-        except Exception:
-            pass
+        is_critical = (
+            crit_vals > 0
+            or has_unclosed_high
+            or (unclosed > 2 and (has_vent or has_vaso or has_crrt))
+        )
+        if is_critical:
+            risk_level = "critical"
+        elif has_vaso or has_crrt or unclosed > 0:
+            risk_level = "high"
+        elif has_vent or high_risk_lines > 0:
+            risk_level = "medium"
+        else:
+            risk_level = "stable"
 
         return {
             "patient_id": pid,
@@ -229,15 +219,127 @@ class ShiftSummaryService:
             "name": name,
             "diagnosis": diagnosis,
             "isolation": isolation,
-            "is_critical": crit_vals > 0 or unclosed > 2,
+            "is_critical": is_critical,
+            "risk_level": risk_level,
             "has_ventilator": has_vent,
             "has_vasoactive": has_vaso,
-            "has_crrt": False,  # TODO: check CRRT devices
+            "has_crrt": has_crrt,
             "alert_count": alert_count,
             "unclosed_alert_count": unclosed,
             "critical_value_count": crit_vals,
-            "high_risk_line_count": 0,  # TODO: check tubeExe
+            "high_risk_line_count": high_risk_lines,
         }
+
+    async def _detect_ventilator(self, pid: str, oid: Any, p: dict) -> bool:
+        """Detect mechanical ventilation from deviceBind / diagnosis tags."""
+        try:
+            bind = await self.db.col("deviceBind").find_one({
+                "unBindTime": None,
+                "$or": [{"pid": pid}, {"patientId": pid}, {"patient_id": pid}],
+                "type": {"$regex": "vent|呼吸", "$options": "i"},
+            })
+            if bind:
+                return True
+            if oid is not None:
+                bind = await self.db.col("deviceBind").find_one({
+                    "unBindTime": None,
+                    "$or": [{"pid": oid}, {"patientId": oid}, {"patient_id": oid}],
+                    "type": {"$regex": "vent|呼吸", "$options": "i"},
+                })
+                if bind:
+                    return True
+        except Exception:
+            pass
+
+        haystack = " ".join([
+            str(p.get("clinicalDiagnosis") or ""),
+            str(p.get("diagnosis") or ""),
+            str(p.get("admissionDiagnosis") or ""),
+            str(p.get("clinicalTags") or ""),
+        ]).lower()
+        return any(kw in haystack for kw in _VENT_DIAG_KEYWORDS)
+
+    async def _detect_alerts(
+        self, pid: str, oid: Any, start: datetime, end: datetime
+    ) -> tuple[int, int, int, bool]:
+        """Return (alert_count, unclosed, critical_values, has_unclosed_high)."""
+        alert_count = 0
+        unclosed = 0
+        crit_vals = 0
+        has_unclosed_high = False
+        try:
+            pid_or = {"$or": [{"patient_id": oid}, {"patient_id": pid}]} if oid is not None else {"patient_id": pid}
+            alerts = await self.db.col("alert_records").find({
+                **pid_or,
+                "created_at": {"$gte": start, "$lte": end},
+            }).to_list(length=100)
+            alert_count = len(alerts)
+            for a in alerts:
+                closed = bool(a.get("acknowledged_at") or a.get("ack_disposition") or a.get("status") in ("closed", "resolved"))
+                severity = str(a.get("severity") or a.get("priority") or "").lower()
+                is_high = severity in ("critical", "high", "p0", "p1", "危急", "高")
+                is_critical_sev = severity in ("critical", "p0", "危急")
+                if not closed:
+                    unclosed += 1
+                    if is_high:
+                        has_unclosed_high = True
+                if is_critical_sev:
+                    crit_vals += 1
+        except Exception:
+            pass
+        return alert_count, unclosed, crit_vals, has_unclosed_high
+
+    async def _detect_vasoactive(self, pid: str, oid: Any, start: datetime, end: datetime) -> bool:
+        """Detect vasoactive drugs from drugExe.drugList."""
+        try:
+            pid_clause = {"$or": [{"pid": pid}, {"patient_id": pid}]} if oid is None else {
+                "$or": [{"pid": pid}, {"patient_id": pid}, {"pid": oid}, {"patient_id": oid}]
+            }
+            meds = await self.db.col("drugExe").find({
+                "$and": [
+                    pid_clause,
+                    {
+                        "$or": [
+                            {"orderTime": {"$gte": start, "$lte": end}},
+                            {"startTime": {"$gte": start, "$lte": end}},
+                            {"createdTime": {"$gte": start, "$lte": end}},
+                        ]
+                    },
+                ],
+            }).to_list(length=80)
+            for m in meds:
+                names = [
+                    str((item or {}).get("name") or "").lower()
+                    for item in (m.get("drugList") or [])
+                ]
+                names.append(str(m.get("drugName") or m.get("name") or "").lower())
+                if any(kw in " ".join(names) for kw in _VASO_KEYWORDS):
+                    return True
+        except Exception:
+            pass
+        return False
+
+    async def _detect_devices(self, pid: str, oid: Any) -> tuple[bool, int]:
+        """Return (has_crrt, high_risk_line_count) from tubeExe."""
+        has_crrt = False
+        high_risk_lines = 0
+        try:
+            pid_clause = {"$or": [{"pid": pid}]} if oid is None else {"$or": [{"pid": pid}, {"pid": oid}]}
+            tubes = await self.db.col("tubeExe").find({
+                "$and": [
+                    pid_clause,
+                    {"$or": [{"valid": {"$ne": False}}, {"valid": {"$exists": False}}]},
+                ],
+            }).to_list(length=80)
+            for t in tubes:
+                label = f"{t.get('name') or ''} {t.get('type') or ''}".lower()
+                if any(kw in label for kw in _CRRT_KEYWORDS):
+                    has_crrt = True
+                if any(kw in label for kw in _HIGH_RISK_TUBES):
+                    high_risk_lines += 1
+        except Exception:
+            pass
+        return has_crrt, high_risk_lines
 
     async def _query_handovers(
         self, dept_code: str, start: datetime, end: datetime
@@ -262,19 +364,26 @@ class ShiftSummaryService:
         items = []
         for p in patient_stats:
             if p.get("is_critical"):
+                reason_parts = []
+                if p.get("critical_value_count"):
+                    reason_parts.append(f"危急告警{p.get('critical_value_count')}条")
+                if p.get("unclosed_alert_count"):
+                    reason_parts.append(f"未闭环{p.get('unclosed_alert_count')}条")
                 items.append({
                     "patient_id": p["patient_id"],
                     "bed": p["bed"],
                     "name": p["name"],
-                    "reason": f"未闭环危急值{p.get('critical_value_count', 0)}条",
+                    "reason": "、".join(reason_parts) or "危急患者",
                     "severity": "critical",
                 })
-            elif p.get("has_vasoactive"):
+            elif p.get("has_vasoactive") or p.get("has_crrt"):
                 items.append({
                     "patient_id": p["patient_id"],
                     "bed": p["bed"],
                     "name": p["name"],
-                    "reason": "使用血管活性药",
+                    "reason": "使用血管活性药/CRRT" if p.get("has_crrt") and p.get("has_vasoactive") else (
+                        "使用CRRT" if p.get("has_crrt") else "使用血管活性药"
+                    ),
                     "severity": "high",
                 })
             elif p.get("has_ventilator"):
@@ -294,10 +403,9 @@ class ShiftSummaryService:
                     "severity": "medium",
                 })
 
-        # Sort: critical > high > medium
         severity_order = {"critical": 0, "high": 1, "medium": 2}
         items.sort(key=lambda x: severity_order.get(x.get("severity", ""), 99))
-        return items
+        return items[:80]
 
     def _build_deterministic_summary(
         self,
@@ -308,34 +416,21 @@ class ShiftSummaryService:
         crrt_count: int,
         alert_count: int,
         unclosed_alerts: int,
-        priority_items: list[dict],
-        shift_name: str,
+        high_risk_lines: int,
     ) -> str:
-        """Build deterministic summary text (no AI required)."""
-        parts = [
-            f"本{shift_name}共管理{patient_count}名患者",
-        ]
+        details: list[str] = [f"本班共管理{patient_count}名患者"]
         if critical_count:
-            parts.append(f"其中危重{critical_count}名")
-        details = []
+            details.append(f"其中危急患者{critical_count}名")
         if vent_count:
             details.append(f"{vent_count}名患者使用有创机械通气")
         if vaso_count:
             details.append(f"{vaso_count}名患者使用血管活性药")
         if crrt_count:
-            details.append(f"{crrt_count}名患者接受CRRT")
-        if details:
-            parts.append("，".join(details) + "。")
-
+            details.append(f"{crrt_count}名患者使用CRRT")
+        if high_risk_lines:
+            details.append(f"高风险管路{high_risk_lines}条")
         if alert_count:
-            parts.append(f"共有{alert_count}条高优先级告警")
-            if unclosed_alerts:
-                parts.append(f"其中{unclosed_alerts}条尚未闭环")
-            parts.append("。")
-
-        if priority_items:
-            top3 = priority_items[:3]
-            beds = "、".join(f"{item['bed']}床{item['name']}" for item in top3)
-            parts.append(f"下一班应重点关注：{beds}。")
-
-        return "".join(parts)
+            details.append(f"本班告警{alert_count}条")
+        if unclosed_alerts:
+            details.append(f"其中未闭环{unclosed_alerts}条")
+        return "；".join(details) + "。"
