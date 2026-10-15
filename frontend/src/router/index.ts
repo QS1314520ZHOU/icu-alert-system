@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePatientContext } from '../stores/patientContext'
-import { canAccessPatientModule } from '../config/featureFlags'
+import { canAccessPatientModule, isModuleRoleGuardEnabled } from '../config/featureFlags'
 import { PATIENT_MODULES } from '../config/patientModuleRegistry'
 
 const routeComponents = {
@@ -587,10 +587,10 @@ router.beforeEach((to, from) => {
   } catch {}
 })
 
-// ── 守卫 3: 角色权限检查 ──
+// ── 守卫 3: 角色权限检查（VITE_ENABLE_MODULE_ROLE_GUARD=true 时启用；默认不按角色拦截） ──
 router.beforeEach((to, _from, next) => {
   const requiredRoles = to.meta?.roles as string[] | undefined
-  if (requiredRoles && requiredRoles.length > 0) {
+  if (requiredRoles && requiredRoles.length > 0 && isModuleRoleGuardEnabled()) {
     const auth = useAuthStore()
     const userRole = String(auth.role || '').toLowerCase()
     if (!requiredRoles.includes(userRole)) {

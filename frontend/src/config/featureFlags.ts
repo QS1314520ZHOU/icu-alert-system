@@ -86,29 +86,43 @@ export function isFeatureEnabled(flag: string): boolean {
  * NOTE: If userRole is not set (empty/undefined), we allow access.
  * This is for development/testing convenience and for systems without
  * strict role enforcement. In production, role should always be set.
+ *
+ * 模块角色权限开关（.env → VITE_ENABLE_MODULE_ROLE_GUARD）：
+ * - 'true' 时按 requiredRoles 区分医生/护士等角色可见性（严格模式）
+ * - 缺省/false（默认）时跳过所有 requiredRoles 检查，任何角色均可打开全部模块
+ *   ——供不需要按角色控制模块权限的医院使用。
+ * featureFlag（功能灰度）不受此开关影响，始终生效。
  */
+export function isModuleRoleGuardEnabled(): boolean {
+  return import.meta.env.VITE_ENABLE_MODULE_ROLE_GUARD === 'true'
+}
+
 export function canAccessPatientModule(
   _moduleKey: string,
   moduleConfig?: { featureFlag?: string; requiredRoles?: string[] },
   userRole?: string
 ): boolean {
+  const roleGuard = isModuleRoleGuardEnabled()
+
   // Check feature flag
   if (moduleConfig?.featureFlag) {
     if (!isFeatureEnabled(moduleConfig.featureFlag)) {
       return false
     }
     // Also check flag-level role restriction
-    const flagConfig = FEATURE_FLAGS[moduleConfig.featureFlag]
-    if (flagConfig?.requiredRoles && flagConfig.requiredRoles.length > 0) {
-      // If role is not set, allow access (development mode / no role enforcement)
-      if (userRole && !flagConfig.requiredRoles.includes(userRole.toLowerCase())) {
-        return false
+    if (roleGuard) {
+      const flagConfig = FEATURE_FLAGS[moduleConfig.featureFlag]
+      if (flagConfig?.requiredRoles && flagConfig.requiredRoles.length > 0) {
+        // If role is not set, allow access (development mode / no role enforcement)
+        if (userRole && !flagConfig.requiredRoles.includes(userRole.toLowerCase())) {
+          return false
+        }
       }
     }
   }
 
   // Check module-level role restriction
-  if (moduleConfig?.requiredRoles && moduleConfig.requiredRoles.length > 0) {
+  if (roleGuard && moduleConfig?.requiredRoles && moduleConfig.requiredRoles.length > 0) {
     // If role is not set, allow access (development mode / no role enforcement)
     if (userRole && !moduleConfig.requiredRoles.includes(userRole.toLowerCase())) {
       return false

@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import { fileURLToPath } from 'node:url'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -20,6 +21,8 @@ export default defineConfig(({ mode }) => {
   console.info(`[vite] proxying /api and /health to ${backendTarget}`)
 
   return {
+    // VITE_* 变量统一从仓库根目录的 .env 读取（与后端共用同一份医院配置）
+    envDir: fileURLToPath(new URL('..', import.meta.url)),
     resolve: {
       // In restricted Windows environments, Vite's safe realpath optimization may attempt
       // to spawn `net use` and fail with EPERM. Preserving symlinks avoids that path.
