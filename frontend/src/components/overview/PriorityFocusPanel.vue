@@ -176,11 +176,11 @@ function compactReason(item: any) {
   font-size: 12px;
 }
 .tone-critical {
-  border-color: rgba(217, 45, 32, 0.25);
+  border-color: var(--color-critical-border);
   border-left: 3px solid var(--color-danger, #D92D20);
 }
 .tone-warning {
-  border-color: rgba(181, 71, 8, 0.2);
+  border-color: var(--color-high-risk-border);
   border-left: 3px solid var(--color-warning, #B54708);
 }
 .priority-empty {

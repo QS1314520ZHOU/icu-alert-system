@@ -1089,7 +1089,7 @@ onUnmounted(() => {
 .chip b { font-weight: 600; margin-left: 2px; }
 .chip--rescue {
   color: var(--color-danger);
-  border-color: rgba(217, 45, 32, 0.2);
+  border-color: var(--color-critical-border);
 }
 .chip--rescue:hover {
   border-color: var(--color-danger);
@@ -1307,19 +1307,19 @@ onUnmounted(() => {
 .lane-count--critical {
   background: var(--color-danger-bg);
   font-variant-numeric: tabular-nums;
-  border-color: rgba(217, 45, 32, 0.2);
+  border-color: var(--color-critical-border);
   color: var(--color-danger);
 }
 .lane-count--warning {
   background: var(--color-warning-bg);
   font-variant-numeric: tabular-nums;
-  border-color: rgba(181, 71, 8, 0.2);
+  border-color: var(--color-high-risk-border);
   color: var(--color-warning);
 }
 .lane-count--normal {
   background: var(--color-success-bg);
   font-variant-numeric: tabular-nums;
-  border-color: rgba(22, 132, 91, 0.2);
+  border-color: var(--color-normal-border);
   color: var(--color-success);
 }
 .lane-grid {
@@ -1449,8 +1449,8 @@ onUnmounted(() => {
   display: flex;
 }
 .lane-card-shell :deep(.card) {
-  height: 400px;
-  min-height: 400px;
+  height: auto;
+  min-height: 0;
 }
 .lane-brief {
   align-items: center;
