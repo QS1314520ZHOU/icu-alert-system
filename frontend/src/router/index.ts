@@ -117,6 +117,12 @@ const router = createRouter({
       meta: { title: '角色首页', navigationMode: 'global' }
     },
     {
+      path: '/login',
+      name: 'login',
+      component: routeComponents.home,
+      meta: { title: '登录', navigationMode: 'global', requiresAuth: false }
+    },
+    {
       path: '/doctor-home',
       name: 'doctor-home',
       component: routeComponents.doctorHome,
@@ -614,6 +620,25 @@ router.beforeEach((to, _from, next) => {
         }
       }
     }
+  }
+  next()
+})
+
+// ── 守卫 5: 防止循环跳转和认证通知处理 ──
+router.beforeEach((to, _from, next) => {
+  // 防止 /login 与目标页面之间循环跳转
+  // 如果连续跳转到 /login 超过 3 次，停止跳转
+  const navCount = Number(sessionStorage.getItem('_login_redirect_count') || '0')
+  if (to.name === 'login') {
+    if (navCount >= 3) {
+      sessionStorage.removeItem('_login_redirect_count')
+      // 停留在当前页面，不再跳转
+      next(false)
+      return
+    }
+    sessionStorage.setItem('_login_redirect_count', String(navCount + 1))
+  } else {
+    sessionStorage.removeItem('_login_redirect_count')
   }
   next()
 })

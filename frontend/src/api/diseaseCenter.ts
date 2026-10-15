@@ -6,11 +6,18 @@ import api from './index'
 
 // ---- 评分系统 ----
 
+export interface ScoringSystemVariant {
+  id: string
+  name: string
+  version: string
+}
+
 export interface ScoringSystem {
   name: string
-  score_name: string
-  rulepack_version: string
-  status: string
+  score_name?: string
+  rulepack_version?: string
+  status?: string
+  variants?: ScoringSystemVariant[]
 }
 
 export interface ScoringRule {
@@ -422,6 +429,10 @@ export interface OfflinePackage {
   model_version?: string
   prompt_version?: string
   sha256?: string
+  signature?: string
+  source_version?: string
+  diff_summary?: string
+  impact_summary?: string
   size?: string
   file_size_mb?: number
   file_size?: number
@@ -738,6 +749,7 @@ export type CaseStatus =
   | 'screening' | 'screen_positive' | 'pending_review'
   | 'confirmed' | 'excluded' | 'pathway_active'
   | 'completed' | 'transferred' | 'deceased'
+  | 'reconsideration_pending' | 'reopened'
 
 export interface DiseaseCase {
   id: string
@@ -859,6 +871,7 @@ export const getDiseaseCases = (diseaseId: string, params?: {
 /** 获取全部病例列表（跨病种） */
 export const getAllCases = (params?: {
   disease_id?: string
+  disease_code?: string
   status?: string
   patient_id?: string
   page?: number

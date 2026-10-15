@@ -7,7 +7,9 @@
  * - 校验消息来源和结构
  */
 
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, getCurrentInstance } from 'vue'
+import { useRouter } from 'vue-router'
+import { message as antdMessage } from 'ant-design-vue'
 import {
   createEmbedMessage,
   isHostMessage,
@@ -56,6 +58,9 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
 
   // 非 iframe 环境（直接渲染模式）：跳过所有 postMessage 逻辑
   const inIframe = isInIframe()
+
+  // 直渲模式下 OPEN_PATIENT_DETAIL 需要宿主路由（仅组件 setup 内可用）
+  const router = getCurrentInstance() ? useRouter() : null
 
   // ── 消息处理 ────────────────────────────────────
 
@@ -107,8 +112,58 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
 
   // ── 发送消息 ────────────────────────────────────
 
+  /**
+   * 直接渲染模式（无 iframe）下的本地等价处理：
+   * postMessage 无宿主可送达，改为在宿主页面内直接执行对应行为。
+   * 仅处理有明确宿主语义的消息；SET_DIRTY_STATE / RESIZE /
+   * NAVIGATE_MODULE / NAVIGATE_PATIENT 在直渲下没有对应的
+   * iframe 宿主对象（高度自适应与脏标记无接收方，导航由模块
+   * 内部路由或宿主组件自行处理），故不处理。
+   */
+  function handleDirect(message: EmbedMessage) {
+    switch (message.type) {
+      case 'UPDATE_TITLE': {
+        const title = message.payload?.title
+        if (title) document.title = `${title} - SmartCare AI`
+        break
+      }
+      case 'UPDATE_BREADCRUMB': {
+        const labels = (message.payload?.items || [])
+          .map((item: { label?: string }) => item?.label)
+          .filter(Boolean)
+        if (labels.length) document.title = `${labels.join(' · ')} - SmartCare AI`
+        break
+      }
+      case 'REQUEST_FULLSCREEN':
+        document.documentElement.requestFullscreen?.().catch(() => undefined)
+        break
+      case 'EXIT_FULLSCREEN':
+        if (document.fullscreenElement) document.exitFullscreen?.().catch(() => undefined)
+        break
+      case 'SHOW_NOTIFICATION': {
+        const payload = message.payload as NotificationPayload
+        const text = payload?.message ? `${payload.title}：${payload.message}` : payload?.title
+        if (!text) break
+        if (payload.type === 'success') antdMessage.success(text)
+        else if (payload.type === 'error') antdMessage.error(text)
+        else if (payload.type === 'warning') antdMessage.warning(text)
+        else antdMessage.info(text)
+        break
+      }
+      case 'OPEN_PATIENT_DETAIL': {
+        const pid = message.payload?.patientId
+        if (pid && router) void router.push(`/patient/${pid}/overview`)
+        break
+      }
+    }
+  }
+
   function postToHost(message: EmbedMessage) {
-    if (!inIframe) return // 直接渲染模式，无需 postMessage
+    if (!inIframe) {
+      // 直接渲染模式：无 iframe 可通信，在宿主页面本地执行等价处理
+      handleDirect(message)
+      return
+    }
     try {
       window.parent.postMessage(message, targetOrigin)
     } catch {}

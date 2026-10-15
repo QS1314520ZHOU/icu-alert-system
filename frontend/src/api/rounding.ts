@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL ?? '', timeout: 120000 })
+import { aiApi as api } from './http'
 
 export const getRoundingPatients = (params?: { dept?: string; dept_code?: string; limit?: number }) =>
   api.get('/api/rounding/patients', { params })

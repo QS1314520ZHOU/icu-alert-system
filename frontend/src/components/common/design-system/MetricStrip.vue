@@ -42,25 +42,41 @@ defineProps<Props>()
 
 <style scoped>
 .metric-strip {
-  display: flex;
-  gap: 1px;
-  background: var(--color-border, #E3E7EC);
-  border-radius: var(--radius-lg, 8px);
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
 }
 
 .metric-strip__item {
-  flex: 1;
-  padding: 16px;
+  position: relative;
+  padding: 14px 16px;
   background: var(--color-bg-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #E5E7EB);
+  border-radius: var(--radius-lg, 10px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  overflow: hidden;
 }
+
+/* 状态色条（有 variant 时） */
+.metric-strip__item--danger::before,
+.metric-strip__item--warning::before,
+.metric-strip__item--success::before,
+.metric-strip__item--info::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+.metric-strip__item--danger::before { background: var(--color-danger, #DC2626); }
+.metric-strip__item--warning::before { background: var(--color-warning, #D97706); }
+.metric-strip__item--success::before { background: var(--color-success, #16A34A); }
+.metric-strip__item--info::before { background: var(--color-primary, #2563EB); }
 
 .metric-strip__label {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary, #4B5563);
   font-weight: var(--weight-medium, 500);
 }
 
@@ -72,15 +88,17 @@ defineProps<Props>()
 
 .metric-strip__number {
   font-family: var(--font-digit, 'Rajdhani', sans-serif);
-  font-size: var(--text-metric-normal, 20px);
+  font-size: var(--text-metric-key, 26px);
   font-weight: 700;
-  line-height: 1.2;
-  color: var(--color-text-primary, #18212B);
+  line-height: 1.15;
+  color: var(--color-text-primary, #111827);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .metric-strip__unit {
   font-size: var(--text-caption, 12px);
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary, #4B5563);
 }
 
 .metric-strip__trend {
@@ -92,15 +110,15 @@ defineProps<Props>()
 }
 
 .metric-strip__trend--up {
-  color: var(--color-success, #16845B);
+  color: var(--color-success, #16A34A);
 }
 
 .metric-strip__trend--down {
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger, #DC2626);
 }
 
 .metric-strip__trend--stable {
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-tertiary, #9CA3AF);
 }
 
 .metric-strip__trend-value {
@@ -109,15 +127,15 @@ defineProps<Props>()
 
 /* 变体样式 */
 .metric-strip__item--danger .metric-strip__number {
-  color: var(--color-danger, #D92D20);
+  color: var(--color-danger, #DC2626);
 }
 
 .metric-strip__item--warning .metric-strip__number {
-  color: var(--color-warning, #B54708);
+  color: var(--color-warning, #D97706);
 }
 
 .metric-strip__item--success .metric-strip__number {
-  color: var(--color-success, #16845B);
+  color: var(--color-success, #16A34A);
 }
 
 .metric-strip__item--info .metric-strip__number {
@@ -126,18 +144,7 @@ defineProps<Props>()
 
 @media (max-width: 768px) {
   .metric-strip {
-    flex-direction: column;
-  }
-
-  .metric-strip__item {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-  }
-
-  .metric-strip__value {
-    align-items: center;
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

@@ -103,7 +103,7 @@ async function bootstrap() {
       getAccessToken: () => authStore.accessToken,
     })
 
-    // 初始化 iframe 认证
+    // 初始化 iframe 认证（内部会注册 401/403/网络错误事件监听）
     await authStore.initAuth()
   } catch (err) {
     console.warn('[Bootstrap] Auth init failed:', err)

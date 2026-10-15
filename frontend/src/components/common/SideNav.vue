@@ -171,6 +171,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { Dropdown as ADropdown, Menu as AMenu, MenuItem as AMenuItem } from 'ant-design-vue'
 import { usePatientContext } from '../../stores/patientContext'
 import { useAuthStore } from '../../stores/auth'
 import { resolveNavigation } from '../../navigation/navigationResolver'
@@ -346,10 +347,10 @@ function iconSvg(icon: string) {
 .side-nav {
   display: flex;
   flex-direction: column;
-  width: 208px;
+  width: 216px;
   min-height: 100vh;
   background: var(--sidebar-bg, #FFFFFF);
-  border-right: 1px solid var(--sidebar-border, #E3E7EC);
+  border-right: 1px solid var(--sidebar-border, #E5E7EB);
   transition: width 0.2s ease;
   flex-shrink: 0;
   overflow: hidden;
@@ -366,9 +367,9 @@ function iconSvg(icon: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
+  height: 52px;
   padding: 0 12px;
-  border-bottom: 1px solid var(--sidebar-border, #E3E7EC);
+  border-bottom: 1px solid var(--sidebar-border, #E5E7EB);
 }
 
 .side-nav__brand {
@@ -427,11 +428,11 @@ function iconSvg(icon: string) {
 }
 
 .side-nav__group-label {
-  padding: 12px 16px 4px;
-  font-size: 12px;
+  padding: 14px 16px 6px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--sidebar-group-label, #667085);
+  color: var(--sidebar-group-label, #9CA3AF);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -464,36 +465,39 @@ function iconSvg(icon: string) {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px;
-  color: var(--sidebar-text, #667085);
+  margin: 1px 8px;
+  padding: 8px 10px;
+  color: var(--sidebar-text, #4B5563);
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
-  border-left: 3px solid transparent;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
   white-space: nowrap;
   cursor: pointer;
   background: transparent;
   border: none;
-  border-left: 3px solid transparent;
-  width: 100%;
+  width: calc(100% - 16px);
   text-align: left;
 }
 
 .side-nav__item:hover {
-  background: var(--sidebar-item-hover, #F1F3F5);
-  color: var(--sidebar-text-active, #18212B);
+  background: var(--sidebar-item-hover, #F1F4F8);
+  color: var(--sidebar-text-active, #111827);
 }
 
 .side-nav__item--active {
-  background: var(--sidebar-item-active-bg, rgba(37, 99, 235, 0.08));
-  border-left-color: var(--sidebar-item-active-border, #2563EB);
-  color: var(--sidebar-text-active, #18212B);
+  background: var(--sidebar-item-active-bg, #EFF6FF);
+  color: var(--color-primary, #2563EB);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--sidebar-item-active-border, #2563EB);
+  border-radius: 0 6px 6px 0;
+  margin-left: 0;
+  width: calc(100% - 8px);
 }
 
 .side-nav__item--sub {
-  padding-left: 48px;
+  padding-left: 34px;
   font-size: 12px;
 }
 

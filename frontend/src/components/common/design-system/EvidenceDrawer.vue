@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import { Drawer as ADrawer } from 'ant-design-vue'
 interface Props {
   open: boolean
   title?: string

@@ -3,6 +3,16 @@
  *
  * 整合 iframe 宿主认证与本地认证。
  * 优先使用宿主 Token，本地认证作为开发/测试回退。
+ *
+ * 401 行为：
+ * - 立即清除认证状态
+ * - 通知所有标签页退出
+ * - 显示明确提示
+ * - 不触发 401 循环
+ *
+ * 403 行为：
+ * - 不清除有效登录状态
+ * - 仅显示"无权访问"提示
  */
 
 import { defineStore } from 'pinia'
@@ -17,8 +27,10 @@ import {
 } from '../auth/iframeAuth'
 import { getOperatorIdentity, setOperatorIdentity } from '../utils/operatorIdentity'
 import { usePatientContext } from './patientContext'
+import { onAuthEvent, resetRefreshState, type AuthEvent } from '../api/http'
 
 const AUTH_KEY = 'icu_auth_identity'
+const LOGOUT_BROADCAST_KEY = 'icu_logout_broadcast'
 
 export type AuthIdentity = {
   userId: string
@@ -67,27 +79,22 @@ export const useAuthStore = defineStore('auth', () => {
   const iframeAuthError = ref<string | null>(null)
   const iframeInitialized = ref(false)
 
+  // 401/403 通知状态（供 UI 层读取）
+  const authNotification = ref<{ type: '401' | '403' | 'network_error'; message: string } | null>(null)
+
   const effectiveUserId = computed(() => userId.value || userName.value || getOperatorIdentity())
 
-  /**
-   * 是否已认证（iframe 认证或本地认证）。
-   */
   const isAuthenticated = computed(() => {
     if (iframeInitialized.value) {
       return isIframeAuthenticated()
     }
-    // 回退：本地有用户标识即视为已认证
     return !!userId.value || !!userName.value
   })
 
-  /**
-   * 获取当前访问令牌。
-   */
   const accessToken = computed(() => {
     if (iframeInitialized.value) {
       return getAccessToken()
     }
-    // 回退：从 localStorage 读取
     try {
       return localStorage.getItem('icu_jwt_access_token') || ''
     } catch {
@@ -101,17 +108,74 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * 处理 401：清除认证状态，通知用户，广播给其他标签页。
+   */
+  function handle401(): void {
+    // 避免重复处理
+    if (!isAuthenticated.value && !userId.value) return
+
+    authNotification.value = { type: '401', message: '登录状态已失效，请重新登录' }
+
+    // 清除认证状态
+    userId.value = ''
+    userName.value = ''
+    role.value = ''
+    dept.value = ''
+    deptCode.value = ''
+    persist()
+    setOperatorIdentity('')
+    clearSensitiveData()
+
+    // 重置 HTTP 客户端的刷新状态
+    resetRefreshState()
+
+    // 广播给其他标签页
+    _broadcastLogout('401')
+  }
+
+  /**
+   * 处理 403：不清除登录状态，仅通知。
+   */
+  function handle403(): void {
+    authNotification.value = { type: '403', message: '无权访问该资源' }
+  }
+
+  /**
+   * 处理网络错误：不清除登录状态，仅通知。
+   */
+  function handleNetworkError(): void {
+    authNotification.value = { type: 'network_error', message: '网络连接失败，请检查网络后重试' }
+  }
+
+  /**
+   * 清除通知。
+   */
+  function clearNotification(): void {
+    authNotification.value = null
+  }
+
+  /**
    * 初始化 iframe 认证。
-   * 应在应用启动时调用一次。
    */
   async function initAuth(): Promise<void> {
+    // 订阅 HTTP 层的认证事件
+    onAuthEvent((event: AuthEvent) => {
+      switch (event.type) {
+        case '401': handle401(); break
+        case '403': handle403(); break
+        case 'network_error': handleNetworkError(); break
+      }
+    })
+
+    // 监听跨标签页退出
+    _listenCrossTabLogout()
+
     try {
       const state = await initIframeAuth()
       iframeInitialized.value = true
       iframeAuthStatus.value = state.status
       iframeAuthError.value = state.error
 
-      // 如果 iframe 认证成功，同步用户信息
       if (state.status === 'authenticated') {
         if (state.userId) userId.value = state.userId
         if (state.userName) userName.value = state.userName
@@ -120,7 +184,6 @@ export const useAuthStore = defineStore('auth', () => {
         persist()
       }
 
-      // 监听 iframe 认证状态变化
       const iframeAuth = useIframeAuth()
       watch(iframeAuth, (newState) => {
         iframeAuthStatus.value = newState.status
@@ -135,8 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         if (newState.status === 'unauthorized' || newState.status === 'expired') {
-          // 宿主退出或 Token 过期，清除敏感数据
-          clearSensitiveData()
+          handle401()
         }
       })
     } catch (err) {
@@ -145,11 +207,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * 清除敏感数据（宿主退出或切换用户时）。
-   */
   function clearSensitiveData(): void {
-    // 清除患者上下文
     try {
       usePatientContext().clearAllSessionData()
     } catch {
@@ -164,16 +222,64 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * Sync identity from route query parameters.
-   *
-   * Rules:
-   * - Identity (userId, userName) from URL is used as FALLBACK only —
-   *   if we already have a session identity, URL params don't overwrite it.
-   * - dept_code from URL is accepted if present, but NEVER cleared if absent.
-   * - role from URL is accepted if present, but NEVER cleared if absent.
-   * - URL params are for legacy system compatibility, not as auth source.
-   */
+  // ── 跨标签页退出 ────────────────────────────────
+
+  let _logoutChannel: BroadcastChannel | null = null
+
+  function _broadcastLogout(reason: string): void {
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        if (!_logoutChannel) _logoutChannel = new BroadcastChannel(LOGOUT_BROADCAST_KEY)
+        _logoutChannel.postMessage({ type: 'logout', reason, timestamp: Date.now() })
+      }
+      // 同时用 localStorage 事件作为降级（BroadcastChannel 不可用时）
+      localStorage.setItem(LOGOUT_BROADCAST_KEY, JSON.stringify({ type: 'logout', reason, timestamp: Date.now() }))
+    } catch {}
+  }
+
+  function _listenCrossTabLogout(): void {
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        if (!_logoutChannel) _logoutChannel = new BroadcastChannel(LOGOUT_BROADCAST_KEY)
+        _logoutChannel.onmessage = (event) => {
+          if (event.data?.type === 'logout') {
+            // 收到其他标签页的退出通知
+            userId.value = ''
+            userName.value = ''
+            role.value = ''
+            dept.value = ''
+            deptCode.value = ''
+            persist()
+            setOperatorIdentity('')
+            clearSensitiveData()
+            authNotification.value = { type: '401', message: '您的账号已在其他标签页退出，请重新登录' }
+          }
+        }
+      }
+      // 降级：监听 localStorage 变化
+      window.addEventListener('storage', (event) => {
+        if (event.key === LOGOUT_BROADCAST_KEY && event.newValue) {
+          try {
+            const data = JSON.parse(event.newValue)
+            if (data?.type === 'logout') {
+              userId.value = ''
+              userName.value = ''
+              role.value = ''
+              dept.value = ''
+              deptCode.value = ''
+              persist()
+              setOperatorIdentity('')
+              clearSensitiveData()
+              authNotification.value = { type: '401', message: '您的账号已在其他标签页退出，请重新登录' }
+            }
+          } catch {}
+        }
+      })
+    } catch {}
+  }
+
+  // ── URL 参数同步 ────────────────────────────────
+
   function hydrateFromQuery(query: LocationQuery) {
     const nextUserId = firstQuery(query, ['user_id', 'userId'])
     const nextUserName = firstQuery(query, ['userName', 'useName', 'username'])
@@ -181,17 +287,13 @@ export const useAuthStore = defineStore('auth', () => {
     const nextDept = firstQuery(query, ['dept'])
     const nextDeptCode = firstQuery(query, ['dept_code', 'deptCode'])
 
-    // Identity: only set from URL if no session identity exists
     if (!userId.value && !userName.value) {
       if (nextUserId) userId.value = nextUserId
       if (nextUserName) userName.value = nextUserName
       if (!nextUserId && nextUserName) userId.value = nextUserName
     }
 
-    // Role: accept from URL if present, don't clear if absent
     if (nextRole) role.value = nextRole
-
-    // Department: accept from URL if present, NEVER clear if absent
     if (nextDept) dept.value = nextDept
     if (nextDeptCode) deptCode.value = nextDeptCode
 
@@ -218,7 +320,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 登出：清除所有身份信息和患者上下文。
+   * 登出：清除所有身份信息和患者上下文，广播给其他标签页。
    */
   function logout() {
     userId.value = ''
@@ -229,11 +331,10 @@ export const useAuthStore = defineStore('auth', () => {
     persist()
     setOperatorIdentity('')
     clearSensitiveData()
+    resetRefreshState()
+    _broadcastLogout('manual')
   }
 
-  /**
-   * 切换科室：更新 dept/deptCode 并清除患者上下文。
-   */
   function switchDepartment(newDept: string, newDeptCode: string) {
     dept.value = newDept
     deptCode.value = newDeptCode
@@ -241,9 +342,6 @@ export const useAuthStore = defineStore('auth', () => {
     clearSensitiveData()
   }
 
-  /**
-   * 切换用户：清除旧身份，设置新身份，清除患者上下文。
-   */
   function switchUser(newUserId: string, newUserName: string, newRole?: string) {
     userId.value = newUserId
     userName.value = newUserName
@@ -267,6 +365,7 @@ export const useAuthStore = defineStore('auth', () => {
     iframeAuthStatus,
     iframeAuthError,
     iframeInitialized,
+    authNotification,
     initAuth,
     hydrateFromQuery,
     updateAccount,
@@ -274,5 +373,8 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     switchDepartment,
     switchUser,
+    handle401,
+    handle403,
+    clearNotification,
   }
 })

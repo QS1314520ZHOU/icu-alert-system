@@ -1,9 +1,4 @@
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
-  timeout: 120000, // ASR + LLM 可能较慢
-})
+import { aiApi as api } from './http'
 
 /**
  * 结构化 suspect 条目。

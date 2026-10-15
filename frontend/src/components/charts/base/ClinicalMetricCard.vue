@@ -122,10 +122,10 @@ function handleClick() {
 .metric-card {
   position: relative;
   background: var(--color-bg-surface, #fff);
-  border: 1px solid var(--color-border, #DCE5EF);
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 120px;
+  border: 1px solid var(--color-border, #E5E7EB);
+  border-radius: var(--radius-lg, 10px);
+  padding: 14px 16px;
+  min-height: 116px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -134,16 +134,16 @@ function handleClick() {
 
 .metric-card--clickable { cursor: pointer; }
 .metric-card--clickable:hover {
-  border-color: var(--color-primary, #1677FF);
-  box-shadow: 0 6px 18px rgba(16,24,40,0.10);
+  border-color: var(--color-primary, #2563EB);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
 }
 
 /* 状态色左侧条 */
-.metric-card--critical  { border-left: 4px solid #D92D20; }
-.metric-card--high-risk { border-left: 4px solid #F79009; }
-.metric-card--warning   { border-left: 4px solid #E5B700; }
-.metric-card--normal    { border-left: 4px solid #12A66A; }
-.metric-card--info      { border-left: 4px solid #1677FF; }
+.metric-card--critical  { border-left: 3px solid var(--color-critical, #991B1B); }
+.metric-card--high-risk { border-left: 3px solid var(--color-danger, #DC2626); }
+.metric-card--warning   { border-left: 3px solid var(--color-warning, #D97706); }
+.metric-card--normal    { border-left: 3px solid var(--color-success, #16A34A); }
+.metric-card--info      { border-left: 3px solid var(--color-primary, #2563EB); }
 
 .metric-card__header {
   display: flex;
@@ -154,16 +154,16 @@ function handleClick() {
 .metric-card__label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary, #4B5563);
 }
 
 .metric-card__status-icon {
   font-size: 16px;
 }
-.metric-card--critical .metric-card__status-icon { color: #D92D20; }
-.metric-card--high-risk .metric-card__status-icon { color: #F79009; }
-.metric-card--warning .metric-card__status-icon { color: #E5B700; }
-.metric-card--normal .metric-card__status-icon { color: #12A66A; }
+.metric-card--critical .metric-card__status-icon { color: var(--color-critical, #991B1B); }
+.metric-card--high-risk .metric-card__status-icon { color: var(--color-danger, #DC2626); }
+.metric-card--warning .metric-card__status-icon { color: var(--color-warning, #D97706); }
+.metric-card--normal .metric-card__status-icon { color: var(--color-success, #16A34A); }
 
 .metric-card__value-row {
   display: flex;
@@ -176,12 +176,14 @@ function handleClick() {
   font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif;
   font-weight: 700;
   line-height: 1.15;
-  color: var(--color-text-primary, #17233D);
+  color: var(--color-text-primary, #111827);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .metric-card__unit {
   font-size: 12px;
-  color: var(--color-text-tertiary, #8A94A6);
+  color: var(--color-text-tertiary, #9CA3AF);
 }
 
 .metric-card__footer {

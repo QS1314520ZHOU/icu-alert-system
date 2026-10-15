@@ -73,6 +73,8 @@ const HOST_TOKEN_REFRESHED_TYPE = 'ICU_HOST_TOKEN_REFRESHED'
 const MAX_TIMESTAMP_DRIFT = 5 * 60 * 1000 // 5 minutes
 const TOKEN_REFRESH_BUFFER = 60 * 1000 // 1 minute before expiry
 const AUTH_REQUEST_TIMEOUT = 10 * 1000 // 10 seconds
+const MAX_AUTH_RETRIES = 3 // 最多重试 3 次
+const INITIAL_RETRY_DELAY = 1000 // 初始重试延迟 1 秒
 
 // ── 全局状态 ──────────────────────────────────────
 
@@ -94,6 +96,7 @@ let messageHandler: ((event: MessageEvent) => void) | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 let authRequestTimer: ReturnType<typeof setTimeout> | null = null
 let pendingResolve: ((value: HostAuthPayload | null) => void) | null = null
+let _authRetryCount = 0
 
 // ── 工具函数 ──────────────────────────────────────
 
@@ -170,14 +173,30 @@ function requestAuthFromHost(targetOrigin: string): Promise<HostAuthPayload | nu
       return
     }
 
-    // 超时处理
+    // 超时处理（带指数退避重试）
     authRequestTimer = setTimeout(() => {
       if (pendingResolve === resolve) {
-        console.warn('[IframeAuth] Auth request timed out')
-        authState.value.status = 'host_unavailable'
-        authState.value.error = '宿主系统未响应认证请求'
         pendingResolve = null
-        resolve(null)
+        _authRetryCount++
+
+        if (_authRetryCount < MAX_AUTH_RETRIES) {
+          // 指数退避重试
+          const delay = INITIAL_RETRY_DELAY * Math.pow(2, _authRetryCount - 1)
+          console.warn(`[IframeAuth] Auth request timed out, retry ${_authRetryCount}/${MAX_AUTH_RETRIES} in ${delay}ms`)
+          authState.value.status = 'requesting'
+          authState.value.error = `正在重试认证（${_authRetryCount}/${MAX_AUTH_RETRIES}）...`
+          setTimeout(() => {
+            requestAuthFromHost(targetOrigin).then(resolve)
+          }, delay)
+        } else {
+          // 重试次数用尽
+          console.warn('[IframeAuth] Auth request timed out, max retries exhausted')
+          authState.value.status = 'host_unavailable'
+          authState.value.error = '未获取到宿主系统身份，请重新打开页面或联系管理员。'
+          // 向宿主发出 AUTH_REQUIRED 消息
+          _sendAuthRequiredToParent()
+          resolve(null)
+        }
       }
     }, AUTH_REQUEST_TIMEOUT)
   })
@@ -213,6 +232,7 @@ function handleAuthResponse(data: HostMessage<HostAuthPayload>): void {
   if (payload?.accessToken) {
     authState.value.accessToken = payload.accessToken
     authState.value.status = 'authenticated'
+    _authRetryCount = 0 // 认证成功，重置重试计数
 
     // 解析用户信息
     if (payload.userDisplay) {
@@ -333,7 +353,7 @@ export async function refreshToken(): Promise<string> {
           if (authState.value.accessToken) {
             resolve(authState.value.accessToken)
           } else {
-            reject(new Error('Token refresh failed'))
+            reject(new Error('登录状态已失效，请重新登录'))
           }
         }
       }, 100)
@@ -501,6 +521,25 @@ function handleHostUserChanged(_payload: any): void {
 }
 
 /**
+ * 向宿主发出 AUTH_REQUIRED 消息（认证失败时）。
+ */
+function _sendAuthRequiredToParent(): void {
+  if (!isIframe()) return
+  try {
+    const targetOrigin = getAllowedOrigins()[0] || '*'
+    window.parent.postMessage(
+      createEmbedMessage('ICU_AUTH_REQUIRED' as any, {
+        reason: 'auth_timeout',
+        maxRetries: MAX_AUTH_RETRIES,
+        retriesUsed: _authRetryCount,
+        timestamp: Date.now(),
+      }),
+      targetOrigin,
+    )
+  } catch {}
+}
+
+/**
  * 清除认证状态。
  */
 function clearAuthState(): void {
@@ -512,6 +551,7 @@ function clearAuthState(): void {
   authState.value.deptCode = ''
   authState.value.expiresAt = null
   authState.value.error = null
+  _authRetryCount = 0
 
   if (refreshTimer) {
     clearTimeout(refreshTimer)

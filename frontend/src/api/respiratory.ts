@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL ?? '', timeout: 60000 })
+import { aiApi as api } from './http'
 
 export type RespiratoryScopeParams = { dept?: string; dept_code?: string; patient_scope?: 'in_dept' | 'out_dept' | 'all' }
 

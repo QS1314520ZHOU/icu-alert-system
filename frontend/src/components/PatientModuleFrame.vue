@@ -37,6 +37,7 @@
     <div v-if="showToolbar && !loading && !error" class="frame-toolbar">
       <div class="frame-toolbar__left">
         <span class="frame-toolbar__title">{{ moduleTitle }}</span>
+        <span v-if="dirtyState" class="frame-toolbar__dirty" title="模块内有未保存的修改">● 未保存</span>
         <span v-if="lastUpdated" class="frame-toolbar__time">更新于 {{ lastUpdated }}</span>
       </div>
       <div class="frame-toolbar__right">
@@ -64,8 +65,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { message as antdMessage } from 'ant-design-vue'
 import { useHostBridge } from '../composables/useHostBridge'
-import { getModuleByKey, isIframeModule } from '../config/patientModuleRegistry'
+import { useThemeMode } from '../composables/themeMode'
+import { getModuleByKey, isIframeModule, PATIENT_MODULES } from '../config/patientModuleRegistry'
 import { canAccessPatientModule } from '../config/featureFlags'
 import { useAuthStore } from '../stores/auth'
 
@@ -90,8 +94,12 @@ const error = ref('')
 const noPermission = ref(false)
 const isFullscreen = ref(false)
 const lastUpdated = ref('')
+// iframe 内模块上报的脏状态（有未保存修改）
+const dirtyState = ref(false)
 
 const auth = useAuthStore()
+const router = useRouter()
+const themeMode = useThemeMode()
 
 const module = computed(() => getModuleByKey(props.moduleKey))
 const moduleTitle = computed(() => module.value?.title || props.moduleKey)
@@ -123,7 +131,12 @@ const origin = computed(() => {
 const moduleKeyRef = computed(() => props.moduleKey)
 const patientIdRef = computed(() => props.patientId)
 
-const { sendRefresh: bridgeRefresh } = useHostBridge({
+const {
+  sendRefresh: bridgeRefresh,
+  embedReady,
+  sendThemeChanged,
+  sendPermissionChanged,
+} = useHostBridge({
   iframeRef,
   moduleKey: moduleKeyRef,
   patientId: patientIdRef,
@@ -140,8 +153,39 @@ const { sendRefresh: bridgeRefresh } = useHostBridge({
   onNavigatePatient: (patientId) => {
     emit('navigate-patient', patientId)
   },
+  onOpenPatientDetail: (patientId) => {
+    if (patientId) void router.push(`/patient/${patientId}/overview`)
+  },
   onUpdateTitle: (title) => {
     emit('update-title', title)
+  },
+  onUpdateBreadcrumb: (payload) => {
+    const labels = (payload?.items || []).map(item => item?.label).filter(Boolean)
+    if (labels.length) document.title = `${labels.join(' · ')} - SmartCare AI`
+  },
+  onSetDirtyState: (dirty) => {
+    dirtyState.value = dirty
+  },
+  onRequestFullscreen: () => {
+    const el = iframeRef.value
+    if (el?.requestFullscreen) {
+      // 元素级全屏；失败（策略限制）时回退为容器覆盖式全屏
+      el.requestFullscreen().catch(() => { isFullscreen.value = true })
+    } else {
+      isFullscreen.value = true
+    }
+  },
+  onExitFullscreen: () => {
+    isFullscreen.value = false
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => undefined)
+  },
+  onShowNotification: (payload) => {
+    const text = payload?.message ? `${payload.title}：${payload.message}` : payload?.title
+    if (!text) return
+    if (payload.type === 'success') antdMessage.success(text)
+    else if (payload.type === 'error') antdMessage.error(text)
+    else if (payload.type === 'warning') antdMessage.warning(text)
+    else antdMessage.info(text)
   },
   onReportError: (payload) => {
     error.value = payload.message
@@ -153,6 +197,30 @@ const { sendRefresh: bridgeRefresh } = useHostBridge({
       iframeRef.value.style.height = `${h}px`
     }
   },
+})
+
+// ── 主题 / 权限变化时通知 iframe ──────────────────
+// 来源：全局主题状态（composables/themeMode）与 auth store 的 role。
+// 直渲模式（PatientToolView 直接渲染组件）无 iframe，模块自行读取
+// 全局主题与 auth store，无需消息，故仅在 embedReady（iframe 握手完成）后发送。
+function buildPermissionFeatures(): Record<string, boolean> {
+  const role = String(auth.role || '').toLowerCase()
+  const features: Record<string, boolean> = {}
+  for (const mod of PATIENT_MODULES) {
+    features[mod.moduleKey] = canAccessPatientModule(mod.moduleKey, {
+      featureFlag: mod.featureFlag,
+      requiredRoles: mod.requiredRoles,
+    }, role)
+  }
+  return features
+}
+
+watch([themeMode, embedReady], ([mode, ready]) => {
+  if (ready) sendThemeChanged(mode)
+})
+
+watch([() => auth.role, embedReady], ([, ready]) => {
+  if (ready) sendPermissionChanged([String(auth.role || '')], buildPermissionFeatures())
 })
 
 // ── 操作 ─────────────────────────────────────────
@@ -381,6 +449,12 @@ watch(() => props.patientId, () => {
 .frame-toolbar__time {
   font-size: 11px;
   color: var(--text-tertiary, #94A3B8);
+}
+
+.frame-toolbar__dirty {
+  font-size: 11px;
+  color: #D97706;
+  font-weight: 600;
 }
 
 .frame-toolbar__right {

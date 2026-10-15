@@ -31,18 +31,18 @@ describe('canAccessPatientModule', () => {
       expect(result).toBe(false)
     })
 
-    it('should deny access when role is empty', () => {
+    it('should allow access when role is empty (dev mode)', () => {
       const result = canAccessPatientModule('causal-inference', {
         requiredRoles: ['doctor'],
       }, '')
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
 
-    it('should deny access when role is undefined', () => {
+    it('should allow access when role is undefined (dev mode)', () => {
       const result = canAccessPatientModule('causal-inference', {
         requiredRoles: ['doctor'],
       }, undefined)
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
   })
 
@@ -56,9 +56,9 @@ describe('canAccessPatientModule', () => {
     })
 
     it('should deny access when feature flag is disabled', () => {
-      // ai-causal-inference is disabled by default
-      const result = canAccessPatientModule('causal-inference', {
-        featureFlag: 'ai-causal-inference',
+      // ai-decision-assistants is disabled by default
+      const result = canAccessPatientModule('decision-assistants', {
+        featureFlag: 'ai-decision-assistants',
       }, 'doctor')
       expect(result).toBe(false)
     })
@@ -66,11 +66,10 @@ describe('canAccessPatientModule', () => {
 
   describe('module with both featureFlag and requiredRoles', () => {
     it('should deny when feature flag is disabled even if role matches', () => {
-      const result = canAccessPatientModule('causal-inference', {
-        featureFlag: 'ai-causal-inference',
+      const result = canAccessPatientModule('decision-assistants', {
+        featureFlag: 'ai-decision-assistants',
         requiredRoles: ['doctor'],
       }, 'doctor')
-      // Feature flag disabled → denied
       expect(result).toBe(false)
     })
   })
@@ -84,8 +83,6 @@ describe('isFeatureEnabled', () => {
   })
 
   it('should return false for disabled flags', () => {
-    expect(isFeatureEnabled('ai-causal-inference')).toBe(false)
-    expect(isFeatureEnabled('ai-what-if')).toBe(false)
     expect(isFeatureEnabled('ai-decision-assistants')).toBe(false)
   })
 

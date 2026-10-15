@@ -1,17 +1,7 @@
 /**
  * Clinical document API wrappers.
  */
-import axios from 'axios'
-
-const aiApi = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
-  timeout: 45000,
-})
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
-  timeout: 10000,
-})
+import { aiApi, api } from './http'
 
 export interface GenerateReq {
   patient_id: string

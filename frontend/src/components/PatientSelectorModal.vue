@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { Modal as AModal, Spin as ASpin } from 'ant-design-vue'
 import { getPatients } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useNavigationContext } from '../navigation/useNavigationContext'
