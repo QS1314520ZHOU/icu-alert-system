@@ -45,7 +45,7 @@ async def create_package(package: OfflinePackage) -> OfflinePackage:
     package.id = _generate_id()
     package.created_at = datetime.utcnow()
     package.updated_at = datetime.utcnow()
-    package.status = PackageStatus.BUILDING
+    package.status = PackageStatus.DRAFT
 
     await _repo.create(package.model_dump())
     return package

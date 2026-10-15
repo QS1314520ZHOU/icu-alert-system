@@ -1,15 +1,57 @@
 """表型规则服务测试。"""
 
 import pytest
+from unittest.mock import AsyncMock, MagicMock
 from app.services import phenotype_service
 from app.models.disease_center import PhenotypeRule, PhenotypeRuleStatus
 
 
+class _MemoryRepo:
+    """In-memory mock for PhenotypeRepository."""
+
+    def __init__(self):
+        self._store: dict[str, dict] = {}
+
+    async def create(self, doc: dict):
+        self._store[doc["id"]] = doc
+
+    async def find_by_id(self, oid: str):
+        return self._store.get(oid)
+
+    async def find_all(self, disease_id=None, status=None, limit=100):
+        results = list(self._store.values())
+        if disease_id:
+            results = [r for r in results if r.get("disease_id") == disease_id]
+        if status:
+            results = [r for r in results if r.get("status") == status]
+        return results[:limit]
+
+    async def update(self, oid: str, doc: dict):
+        if oid in self._store:
+            self._store[oid] = doc
+
+    async def delete_one(self, flt: dict):
+        oid = flt.get("id")
+        if oid and oid in self._store:
+            del self._store[oid]
+            return True
+        return False
+
+    async def get_stats(self):
+        total = len(self._store)
+        by_status: dict[str, int] = {}
+        for doc in self._store.values():
+            s = doc.get("status", "unknown")
+            by_status[s] = by_status.get(s, 0) + 1
+        return {"total": total, "by_status": by_status}
+
+
 @pytest.fixture(autouse=True)
-async def clear_storage():
-    """每个测试前清空存储。"""
-    phenotype_service._phenotypes.clear()
-    yield
+def _mock_repo(monkeypatch):
+    """Replace the MongoDB repository with an in-memory mock."""
+    repo = _MemoryRepo()
+    monkeypatch.setattr(phenotype_service, "_repo", repo)
+    return repo
 
 
 @pytest.fixture

@@ -117,7 +117,7 @@ class LLMCorrectionTest(unittest.TestCase):
         return VoiceRoundingService(db, config)
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.voice_rounding.call_llm_chat")
     def test_llm_changes_number_rejected(self, mock_llm):
@@ -195,7 +195,7 @@ class DraftIsolationTest(unittest.TestCase):
     """草稿隔离：transcribe 只写草稿集合，不写正式记录集合。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.voice_rounding.preprocess_audio")
     @patch("app.services.voice_rounding.VoiceRoundingService._llm_correct")
@@ -294,14 +294,14 @@ class ASRClientModeTest(unittest.TestCase):
         self.assertEqual(client.mode, "ws")
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
 
 class AudioLengthLimitTest(unittest.TestCase):
     """音频时长限制测试。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.voice_rounding.preprocess_audio")
     def test_oversized_audio_rejected(self, mock_preprocess):
@@ -323,7 +323,7 @@ class ConfirmTest(unittest.TestCase):
     """确认入库测试。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_confirm_writes_to_records(self):
         from app.services.voice_rounding import VoiceRoundingService
@@ -467,7 +467,7 @@ class EditLogTest(unittest.TestCase):
     """编辑日志测试。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_confirm_writes_edit_log(self):
         """confirm 写入 voice_rounding_logs，edited_spans 正确捕获差异。"""
@@ -728,7 +728,7 @@ class ASRWebSocketProtocolTest(unittest.TestCase):
     """FunASR WebSocket 协议测试：多消息处理、is_final 逻辑、空文本处理。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.asr_client._asr_config")
     @patch("app.services.asr_client.websockets")
@@ -873,7 +873,7 @@ class EmptyTranscriptionPipelineTest(unittest.TestCase):
     """ASR 返回空文本时，LLM 不应被调用，草稿不应创建。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.voice_rounding.preprocess_audio")
     def test_empty_asr_raises_error_no_draft_created(self, mock_preprocess):

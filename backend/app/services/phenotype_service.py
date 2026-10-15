@@ -47,7 +47,7 @@ async def create_phenotype(phenotype: PhenotypeRule) -> PhenotypeRule:
     phenotype.created_at = datetime.utcnow()
     phenotype.updated_at = datetime.utcnow()
     phenotype.status = PhenotypeRuleStatus.DRAFT
-    phenotype.version = 1
+    phenotype.version = "v1"
 
     await _repo.create(phenotype.model_dump())
     return phenotype

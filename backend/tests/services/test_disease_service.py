@@ -5,18 +5,92 @@ from app.services import disease_service
 from app.models.disease_center import DiseaseDefinition, DiseaseStatus
 
 
+class _MemoryRepo:
+    """Generic in-memory mock repository."""
+
+    def __init__(self):
+        self._store: dict[str, dict] = {}
+
+    async def create(self, doc: dict):
+        oid = doc.get("id", "")
+        self._store[oid] = doc
+
+    async def find_by_id(self, oid: str):
+        return self._store.get(oid)
+
+    async def find_all(self, *args, **kwargs):
+        return list(self._store.values())
+
+    async def update(self, oid: str, updates: dict):
+        if oid in self._store:
+            self._store[oid].update(updates)
+
+    async def delete(self, oid: str):
+        if oid in self._store:
+            del self._store[oid]
+            return True
+        return False
+
+    async def delete_one(self, flt: dict):
+        oid = flt.get("id")
+        return await self.delete(oid) if oid else False
+
+    # Specialty methods used by disease_service
+    async def find_by_disease(self, disease_id: str):
+        for doc in self._store.values():
+            if doc.get("disease_id") == disease_id or doc.get("source_id") == disease_id:
+                return doc
+        return None
+
+
+class _DiseaseRepo(_MemoryRepo):
+    async def find_all(self, status=None, category=None, limit=100):
+        results = list(self._store.values())
+        if status:
+            results = [r for r in results if r.get("status") == status]
+        if category:
+            results = [r for r in results if r.get("category_id") == category]
+        return results[:limit]
+
+
+class _ReviewRepo(_MemoryRepo):
+    async def find_all(self, status=None):
+        results = list(self._store.values())
+        if status:
+            results = [r for r in results if r.get("status") == status]
+        return results
+
+
+class _AuditRepo(_MemoryRepo):
+    async def find_all(self, resource_type=None, resource_id=None, limit=100):
+        results = list(self._store.values())
+        if resource_type:
+            results = [r for r in results if r.get("resource_type") == resource_type]
+        if resource_id:
+            results = [r for r in results if r.get("resource_id") == resource_id]
+        return results[:limit]
+
+
+class _RelationRepo(_MemoryRepo):
+    async def find_by_disease(self, disease_id: str):
+        return [r for r in self._store.values()
+                if r.get("source_id") == disease_id or r.get("target_id") == disease_id]
+
+
 @pytest.fixture(autouse=True)
-async def clear_storage():
-    """每个测试前清空存储。"""
-    # 清空 MongoDB 仓储（如果可用）
-    for repo_attr in ['_disease_repo', '_review_repo', '_audit_repo', '_relation_repo', '_pathway_repo']:
-        try:
-            repo = getattr(disease_service, repo_attr, None)
-            if repo and hasattr(repo, 'delete_all'):
-                await repo.delete_all()
-        except Exception:
-            pass
-    yield
+def _mock_repos(monkeypatch):
+    """Replace all MongoDB repositories with in-memory mocks."""
+    disease_repo = _DiseaseRepo()
+    review_repo = _ReviewRepo()
+    audit_repo = _AuditRepo()
+    relation_repo = _RelationRepo()
+    pathway_repo = _MemoryRepo()
+
+    monkeypatch.setattr(disease_service, "_disease_repo", disease_repo)
+    monkeypatch.setattr(disease_service, "_review_repo", review_repo)
+    monkeypatch.setattr(disease_service, "_audit_repo", audit_repo)
+    monkeypatch.setattr(disease_service, "_relation_repo", relation_repo)
+    monkeypatch.setattr(disease_service, "_pathway_repo", pathway_repo)
 
 
 @pytest.fixture
@@ -133,7 +207,8 @@ async def test_delete_disease(sample_disease):
 async def test_delete_published_disease(sample_disease):
     """测试删除已发布病种。"""
     created = await disease_service.create_disease(sample_disease)
-    created.status = DiseaseStatus.PUBLISHED
+    # Directly update status in repo to simulate published state
+    disease_service._disease_repo._store[created.id]["status"] = DiseaseStatus.PUBLISHED
 
     with pytest.raises(ValueError, match="已发布版本不能直接删除"):
         await disease_service.delete_disease(created.id)

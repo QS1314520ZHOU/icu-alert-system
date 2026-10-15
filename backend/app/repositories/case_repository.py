@@ -153,6 +153,7 @@ class CaseRepository(MongoRepository):
     async def count_by_filters(
         self,
         disease_id: Optional[str] = None,
+        disease_code: Optional[str] = None,
         status: Optional[str] = None,
         patient_id: Optional[str] = None,
     ) -> int:
@@ -160,6 +161,8 @@ class CaseRepository(MongoRepository):
         query: dict[str, Any] = {}
         if disease_id:
             query["disease_id"] = disease_id
+        if disease_code:
+            query["disease_code"] = disease_code
         if status:
             query["status"] = status
         if patient_id:

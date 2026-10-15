@@ -13,6 +13,8 @@ class PackageStatus(StrEnum):
     """离线包状态。"""
     DRAFT = "draft"
     VALIDATING = "validating"
+    BUILDING = "building"
+    BUILT = "built"
     PUBLISHED = "published"
     DEPRECATED = "deprecated"
     ROLLBACK = "rollback"

@@ -13,7 +13,8 @@ class _DummyScenarioEngine(ExtendedScenarioMixin):
 
 class ExtendedScenarioCatalogTest(unittest.TestCase):
     def test_catalog_expanded_beyond_seventy(self):
-        cfg = yaml.safe_load(Path("backend/config.yaml").read_text(encoding="utf-8"))
+        cfg_path = Path(__file__).resolve().parents[1] / "config.yaml"
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
         scenario_cfg = cfg.get("extended_scenarios", {}) or {}
         total = 0
         names: list[str] = []

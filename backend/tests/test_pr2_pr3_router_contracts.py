@@ -99,7 +99,7 @@ async def test_vitals_forecast_router_filters_codes_and_clamps_horizon(monkeypat
     captured: dict[str, Any] = {}
 
     class _Service:
-        async def forecast(self, pid: str, codes: list[str], horizon_hours: int) -> dict[str, Any]:
+        async def forecast(self, pid: str, codes: list[str], horizon_hours: int, **kwargs) -> dict[str, Any]:
             captured.update({"pid": pid, "codes": codes, "horizon_hours": horizon_hours})
             return {
                 "available": False,

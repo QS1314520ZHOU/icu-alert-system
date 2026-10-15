@@ -47,7 +47,7 @@ async def create_terminology(terminology: Terminology) -> Terminology:
     terminology.created_at = datetime.utcnow()
     terminology.updated_at = datetime.utcnow()
     terminology.status = TerminologyStatus.DRAFT
-    terminology.version = 1
+    terminology.version = "v1"
 
     await _repo.create(terminology.model_dump())
     return terminology

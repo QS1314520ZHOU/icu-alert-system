@@ -11,7 +11,19 @@ from app.services.streaming_asr import _normalize_timestamp
 
 
 def _run_async(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
+
+
+def _blocking_recv():
+    """Return a future that never resolves (must be called in async context)."""
+    return asyncio.get_running_loop().create_future()
+
+
+def _resolved_ping():
+    """Return a resolved ping future (must be called in async context)."""
+    f = asyncio.get_running_loop().create_future()
+    f.set_result(None)
+    return f
 
 
 class VoiceRoundingStreamServiceTest(unittest.TestCase):
@@ -50,11 +62,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     @patch("app.services.streaming_asr.websockets")
     def test_llm_not_called_on_partial(self, mock_ws_module, mock_llm):
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())  # block
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)  # block
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:  # noqa
@@ -83,11 +93,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     @patch("app.services.streaming_asr.websockets")
     def test_stop_calls_llm_once_each(self, mock_ws_module, mock_llm_correct, mock_llm_chat):
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:
@@ -133,11 +141,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     @patch("app.services.streaming_asr.websockets")
     def test_correction_failure_degraded(self, mock_ws_module, mock_llm_correct):
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:
@@ -167,11 +173,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     @patch("app.services.streaming_asr.websockets")
     def test_summary_failure_draft_created(self, mock_ws_module, mock_llm_chat, mock_llm_correct):
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:
@@ -203,11 +207,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     @patch("app.services.streaming_asr.websockets")
     def test_only_partial_creates_degraded_draft(self, mock_ws_module):
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:
@@ -236,11 +238,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     @patch("app.services.streaming_asr.websockets")
     def test_empty_both_raises(self, mock_ws_module):
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:
@@ -262,11 +262,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     @patch("app.services.streaming_asr.websockets")
     def test_cancel_no_draft(self, mock_ws_module):
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:
@@ -289,11 +287,9 @@ class VoiceRoundingStreamServiceTest(unittest.TestCase):
     def test_wait_final_timeout_degraded(self, mock_ws_module):
         mock_ws = AsyncMock()
         # recv blocks forever — simulating FunASR not responding after stop
-        mock_ws.recv = AsyncMock(side_effect=asyncio.get_event_loop().create_future())
+        mock_ws.recv = AsyncMock(side_effect=_blocking_recv)
         mock_ws.send = AsyncMock()
-        ping_f = asyncio.get_event_loop().create_future()
-        ping_f.set_result(None)
-        mock_ws.ping = AsyncMock(return_value=ping_f)
+        mock_ws.ping = AsyncMock(side_effect=_resolved_ping)
 
         def mock_connect(*a, **kw):
             class F:

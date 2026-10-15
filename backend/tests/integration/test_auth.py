@@ -32,7 +32,8 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.auth import User, UserRole, get_current_user, require_patient_access
-from app.auth.jwt_handler import SECRET_KEY, ALGORITHM
+from app.auth.jwt_handler import _get_secret_key, ALGORITHM
+SECRET_KEY = _get_secret_key()
 from bson import ObjectId
 
 # ---------------------------------------------------------------------------

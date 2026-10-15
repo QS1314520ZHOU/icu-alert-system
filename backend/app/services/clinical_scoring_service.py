@@ -82,40 +82,41 @@ async def list_scoring_systems() -> list[dict[str, Any]]:
     service = get_scoring_service()
     registry = service.registry
 
-    systems: dict[str, dict[str, Any]] = {}
+    systems: list[dict[str, Any]] = []
     for name in registry.available_scores():
         calc = registry.get(name)
-        score_name = calc.score_name
-        if score_name not in systems:
-            systems[score_name] = {
-                "name": score_name,
-                "variants": [],
-            }
-        systems[score_name]["variants"].append({
-            "id": name,
-            "name": name,
-            "version": calc.rulepack_version,
+        systems.append({
+            "name": calc.score_name,
+            "score_name": name,
+            "rulepack_version": calc.rulepack_version,
+            "status": "active",
         })
 
-    return list(systems.values())
+    return systems
 
 
-async def get_scoring_rule(rule_id: str) -> dict[str, Any]:
+async def get_scoring_rule(rule_id: str) -> dict[str, Any] | None:
     """获取评分规则详情。"""
     service = get_scoring_service()
     registry = service.registry
 
     try:
         calc = registry.get(rule_id)
-        return {
-            "id": rule_id,
-            "name": calc.score_name,
-            "version": calc.rulepack_version,
-            "score_system": calc.score_name,
-            "score_variant": rule_id,
-        }
     except KeyError:
-        raise ValueError(f"未找到评分规则: {rule_id}")
+        return None
+
+    return {
+        "id": rule_id,
+        "name": calc.score_name,
+        "version": calc.rulepack_version,
+        "score_system": calc.score_name,
+        "score_variant": rule_id,
+        "description": "",
+        "inputs": [],
+        "thresholds": [],
+        "missing_policy": None,
+        "time_window": None,
+    }
 
 
 async def evaluate_score(

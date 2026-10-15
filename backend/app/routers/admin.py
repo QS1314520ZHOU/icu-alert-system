@@ -23,10 +23,13 @@ from app.services.alert_outcome_service import AlertOutcomeService
 from app.services.model_calibration_runtime import ModelCalibrationRuntime
 from app.services.outcome_inference_worker import OutcomeInferenceWorker
 from app.services.runtime_config_service import RuntimeConfigService
+from app.utils.cache import TTLCache
 from app.utils.serialization import serialize_doc
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 logger = logging.getLogger("icu-alert")
+
+_runtime_config_cache = TTLCache(ttl_seconds=300, max_entries=8)
 
 
 class ScannerTriggerRequest(BaseModel):
@@ -272,10 +275,15 @@ async def model_prediction_stats(
 
 @router.get("/runtime-config")
 async def runtime_config_overview():
+    _rc_cached = _runtime_config_cache.get("runtime-config")
+    if _rc_cached is not None:
+        return _rc_cached
     if runtime.db is None:
         raise HTTPException(status_code=503, detail="Database runtime not ready")
     result = await RuntimeConfigService(runtime.db).overview()
-    return {"code": 0, **serialize_doc(result)}
+    resp = {"code": 0, **serialize_doc(result)}
+    _runtime_config_cache.set("runtime-config", resp)
+    return resp
 
 
 @router.post("/runtime-config/modules")

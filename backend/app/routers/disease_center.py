@@ -91,7 +91,10 @@ async def scoring_list():
 @router.get("/scoring/{score_name}")
 async def scoring_get_rule(score_name: str):
     """获取评分规则。"""
-    rule = await get_scoring_rule(score_name)
+    try:
+        rule = await get_scoring_rule(score_name)
+    except (ValueError, KeyError):
+        raise HTTPException(404, f"评分系统 {score_name} 不存在")
     if rule is None:
         raise HTTPException(404, f"评分系统 {score_name} 不存在")
     return rule
@@ -101,7 +104,11 @@ async def scoring_get_rule(score_name: str):
 async def scoring_evaluate(score_name: str, observations: list[dict[str, Any]]):
     """执行评分。"""
     try:
-        return await evaluate_score(score_name, observations)
+        return await evaluate_score(
+            patient_id="api_call",
+            score_system=score_name,
+            inputs=observations,
+        )
     except Exception as e:
         raise HTTPException(400, str(e))
 
@@ -143,6 +150,7 @@ async def list_diseases(
 @router.get("/diseases/cases")
 async def list_all_cases(
     disease_id: Optional[str] = None,
+    disease_code: Optional[str] = None,
     status: Optional[str] = None,
     patient_id: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -153,6 +161,7 @@ async def list_all_cases(
     try:
         cases, total = await case_service.list_cases(
             disease_id=disease_id,
+            disease_code=disease_code,
             status=status,
             patient_id=patient_id,
             skip=skip,
@@ -747,6 +756,7 @@ async def list_disease_cases(
 @router.get("/cases")
 async def list_cases_root(
     disease_id: Optional[str] = None,
+    disease_code: Optional[str] = None,
     status: Optional[str] = None,
     patient_id: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -757,6 +767,7 @@ async def list_cases_root(
     try:
         cases, total = await case_service.list_cases(
             disease_id=disease_id,
+            disease_code=disease_code,
             status=status,
             patient_id=patient_id,
             skip=skip,

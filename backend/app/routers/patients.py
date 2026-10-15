@@ -14,8 +14,14 @@ from app.services.clinical_adoption_service import ClinicalAdoptionService, _nor
 from app.services.workflow_summary_service import build_clinical_summary, build_patient_priority
 from app.utils.analytics_ai import summarize_weaning_timeline
 from app.utils.alerting import derive_sepsis_bundle_status, normalize_sbt_status, normalize_weaning_status
+from app.utils.cache import TTLCache, make_cache_key
 from app.utils.patient_helpers import admitted_patient_query, calculate_age, infer_clinical_tags, research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
+
+# ── per-endpoint caches ─────────────────────────────────────────
+_bundle_status_cache = TTLCache(ttl_seconds=30, max_entries=64)
+_vitals_batch_cache = TTLCache(ttl_seconds=30, max_entries=32)
+_priority_cache = TTLCache(ttl_seconds=30, max_entries=32)
 
 def _dept_code_tokens(value: str) -> list[str]:
     """将逗号分隔的科室代码拆分为列表，支持中英文逗号"""
@@ -132,6 +138,15 @@ async def batch_vitals(
     debug_name: Optional[str] = Query(None, description="调试：按姓名查找患者，返回详细链路"),
 ):
     """批量获取在科患者最新生命体征。deviceCap 优先，bedside 兜底，alert_snapshot 兜底。"""
+    # ── cache check ──
+    if not debug_patient and not debug_name:
+        _vb_key = make_cache_key("vitals-batch", dept_code or "", dept or "", patient_scope or "in_dept")
+        _vb_cached = _vitals_batch_cache.get(_vb_key)
+        if _vb_cached is not None:
+            return _vb_cached
+    else:
+        _vb_key = None
+
     from app.routers.patient_data import _vital_codes, _fallback_vitals_from_alert_snapshot
     from app.utils.patient_data import cap_value, get_device_id_by_bed
 
@@ -414,7 +429,10 @@ async def batch_vitals(
 
         return {"code": 0, "vitals": {pid: serialize_doc(v) for pid, v in result.items()}, "debug": dinfo}
 
-    return {"code": 0, "vitals": {pid: serialize_doc(v) for pid, v in result.items()}}
+    resp = {"code": 0, "vitals": {pid: serialize_doc(v) for pid, v in result.items()}}
+    if _vb_key is not None:
+        _vitals_batch_cache.set(_vb_key, resp)
+    return resp
 
 
 @router.get("/api/patients/priority")
@@ -424,8 +442,14 @@ async def get_patient_priority(
     limit: int = Query(120, ge=1, le=300, description="返回患者上限"),
 ):
     """按临床工作流优先级返回今日重点关注患者。"""
+    _pr_key = make_cache_key("priority", dept_code or "", dept or "", limit)
+    _pr_cached = _priority_cache.get(_pr_key)
+    if _pr_cached is not None:
+        return _pr_cached
     rows = await build_patient_priority(runtime.db, dept=dept, dept_code=dept_code, limit=limit)
-    return {"code": 0, "data": rows}
+    resp = {"code": 0, "data": rows}
+    _priority_cache.set(_pr_key, resp)
+    return resp
 
 
 @router.get("/api/patients/resolve")
@@ -537,6 +561,12 @@ async def get_ai_watching(patient_id: str, hours: int = Query(1, ge=1, le=24)):
 @router.post("/api/patients/bundle-status")
 async def patient_bundle_statuses(patient_ids: list[str] = Body(default=[])):
     """批量获取患者 ABCDEF bundle 状态。"""
+    # ── cache check ──
+    _bs_key = make_cache_key("bundle-status", sorted(patient_ids or []))
+    _bs_cached = _bundle_status_cache.get(_bs_key)
+    if _bs_cached is not None:
+        return _bs_cached
+
     results: dict[str, dict] = {}
     ids = []
     for raw in patient_ids or []:
@@ -565,7 +595,9 @@ async def patient_bundle_statuses(patient_ids: list[str] = Body(default=[])):
 
     for patient_id, status in await asyncio.gather(*(build_status(patient) for patient in patients)):
         results[patient_id] = status
-    return {"code": 0, "statuses": results}
+    resp = {"code": 0, "statuses": results}
+    _bundle_status_cache.set(_bs_key, resp)
+    return resp
 
 
 @router.get("/api/patients/{patient_id}/discharge-readiness")

@@ -1580,16 +1580,15 @@ class TestForcedAlertsAPI:
     async def test_no_params_uses_shift_service(self):
         """Without since/until, the endpoint resolves via ShiftService."""
         from app.routers.handover import get_forced_alerts
+        from app.services.shift_service import ShiftInfo
 
         db = _mock_db_with_shifts(
             _make_shift_row("D", "白班", "08:00", "16:00"),
         )
-        # Also mock alert_records
         db.original_col = db.col
         def _col_side_effect(name):
             if name == "initSystemConfig":
-                return db  # already mocked by _mock_db_with_shifts
-            # For alert_records, return a fresh mock
+                return db
             m = MagicMock()
             m.find = MagicMock(return_value=m)
             m.sort = MagicMock(return_value=m)
@@ -1600,11 +1599,20 @@ class TestForcedAlertsAPI:
         cfg = {"handover": {"shift_cache_ttl_seconds": 999}}
 
         now = datetime(2026, 7, 16, 10, 0, tzinfo=API_TZ)
-        with patch("app.routers.handover.datetime") as mock_dt:
+        shift_info = ShiftInfo(
+            code="D", name="白班", start_time="08:00", end_time="16:00",
+            start=datetime(2026, 7, 16, 8, 0, tzinfo=API_TZ),
+            end=datetime(2026, 7, 16, 16, 0, tzinfo=API_TZ),
+            source="initSystemConfig.banCiInfoList",
+        )
+
+        with patch("app.routers.handover.datetime") as mock_dt, \
+             patch("app.routers.handover.ShiftService") as MockShiftSvc:
             mock_dt.now.return_value = now
             mock_dt.fromisoformat = datetime.fromisoformat
-            # Need to let the module-level _now work too
-            mock_dt.now.return_value = now
+            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+            # ShiftService().resolve_shift() returns pre-built ShiftInfo
+            MockShiftSvc.return_value.resolve_shift = AsyncMock(return_value=shift_info)
 
             result = await get_forced_alerts(
                 patient_id="P001", db=db, cfg=cfg, since=None, until=None,

@@ -15,7 +15,7 @@ VALID_OID = "665a1b2c3d4e5f6a7b8c9d0e"
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _mock_db():

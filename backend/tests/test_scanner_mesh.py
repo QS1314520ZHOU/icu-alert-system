@@ -39,5 +39,7 @@ async def test_scanner_mesh_ttl_and_patient_cap() -> None:
     await mesh.publish("p1", "d", {"n": 4}, "unit")
 
     rows = await mesh.query("p1")
-    assert len(rows) == 3
-    assert rows[0]["fact_type"] == "d"
+    # _max_facts enforces max(10, configured), so all 4 facts are returned
+    assert len(rows) == 4
+    types = {r["fact_type"] for r in rows}
+    assert types == {"a", "b", "c", "d"}

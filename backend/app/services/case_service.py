@@ -67,6 +67,7 @@ async def get_case(case_id: str) -> Optional[dict[str, Any]]:
 
 async def list_cases(
     disease_id: Optional[str] = None,
+    disease_code: Optional[str] = None,
     status: Optional[str] = None,
     patient_id: Optional[str] = None,
     dept: Optional[str] = None,
@@ -81,6 +82,7 @@ async def list_cases(
     """查询病例列表，返回 (列表, 总数)。"""
     cases = await _case_repo.find_all(
         disease_id=disease_id,
+        disease_code=disease_code,
         status=status,
         patient_id=patient_id,
         dept=dept,
@@ -94,6 +96,7 @@ async def list_cases(
     )
     total = await _case_repo.count_by_filters(
         disease_id=disease_id,
+        disease_code=disease_code,
         status=status,
         patient_id=patient_id,
     )

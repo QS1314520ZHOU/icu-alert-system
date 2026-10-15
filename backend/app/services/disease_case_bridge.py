@@ -495,13 +495,14 @@ async def add_conclusion(
 
     如果已有同 code 的当前结论，标记为 superseded 后创建新结论。
     """
-    # 查找现有同 code 结论
+    conclusion_id = _gen_id()
+
+    # 查找现有同 code 结论，一次性标记被新结论取代
     existing = await _conclusion_repo.find_by_case(case_id, current_only=True)
     for c in existing:
         if c.get("conclusion_code") == conclusion_code:
-            await _conclusion_repo.supersede(c["id"], "")
+            await _conclusion_repo.supersede(c["id"], conclusion_id)
 
-    conclusion_id = _gen_id()
     conclusion_data: dict[str, Any] = {
         "id": conclusion_id,
         "case_id": case_id,
@@ -521,10 +522,5 @@ async def add_conclusion(
     }
 
     await _conclusion_repo.create(conclusion_data)
-
-    # 更新 superseded_by
-    for c in existing:
-        if c.get("conclusion_code") == conclusion_code:
-            await _conclusion_repo.update(c["id"], {"superseded_by": conclusion_id})
 
     return conclusion_id

@@ -114,7 +114,7 @@ class InputValidationTest(unittest.TestCase):
     """输入校验测试。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_empty_audio_raises_empty_error(self):
         from app.services.audio_preprocessor import AudioEmptyError, preprocess_audio
@@ -166,7 +166,7 @@ class FFmpegCheckTest(unittest.TestCase):
     """FFmpeg 可用性检查测试。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.audio_preprocessor.asyncio.create_subprocess_exec")
     def test_ffmpeg_not_found_raises(self, mock_exec):
@@ -191,7 +191,7 @@ class PreprocessIntegrationTest(unittest.TestCase):
     """集成测试：完整预处理流程（mock FFmpeg）。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.audio_preprocessor._convert_to_pcm")
     @patch("app.services.audio_preprocessor._probe_duration", return_value=2.0)
@@ -258,7 +258,7 @@ class CheckAvailableTest(unittest.TestCase):
     """健康检查测试。"""
 
     def _run_async(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("app.services.audio_preprocessor._check_ffmpeg_available")
     def test_available(self, mock_check):

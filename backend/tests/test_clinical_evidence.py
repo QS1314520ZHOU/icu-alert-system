@@ -17,15 +17,20 @@ TEST_DB_NAME = "icu_alert_test_evidence"
 class FakeCursor:
     """模拟 async for 循环的游标。"""
     def __init__(self, docs):
-        self._docs = docs
+        self._docs = list(docs)
 
-    def sort(self, *args, **kwargs):
+    def sort(self, key_or_field, direction=1):
+        if isinstance(key_or_field, str):
+            field = key_or_field
+            rev = direction == -1
+            self._docs.sort(key=lambda d: d.get(field, ""), reverse=rev)
         return self
 
-    def limit(self, *args):
+    def limit(self, n):
+        self._docs = self._docs[:n]
         return self
 
-    def __ait__(self):
+    def __aiter__(self):
         return self
 
     async def __anext__(self):
@@ -55,6 +60,9 @@ class FakeCollection:
                     if op == "$gte":
                         if val is None or val < expected:
                             return False
+                    elif op == "$lte":
+                        if val is not None and val > expected:
+                            return False
                     elif op == "$ne":
                         if val == expected:
                             return False
@@ -62,40 +70,113 @@ class FakeCollection:
                         if val not in expected:
                             return False
                     elif op == "$or":
-                        pass  # 简化处理
+                        pass
+            elif isinstance(cond, list) and key == "$or":
+                # $or: list of sub-queries, at least one must match
+                if not any(self._match(doc, sub) for sub in cond):
+                    return False
             else:
                 if val != cond:
                     return False
         return True
 
-    async def find_one(self, query, projection=None):
+    async def find_one(self, query, projection=None, sort=None):
         docs = self._filter(query)
+        if sort and docs:
+            for field, direction in reversed(sort):
+                docs.sort(key=lambda d: d.get(field, ""), reverse=(direction == -1))
         return docs[0] if docs else None
 
     def find(self, query, projection=None):
         return FakeCursor(self._filter(query))
 
     async def aggregate(self, pipeline):
-        # 简化聚合：仅支持基本 $match + $group
-        docs = list(self._store.values())
+        docs = [dict(d) for d in self._store.values()]
         for stage in pipeline:
             if "$match" in stage:
                 docs = [d for d in docs if self._match(d, stage["$match"])]
+            elif "$sort" in stage:
+                for field, direction in stage["$sort"].items():
+                    docs.sort(key=lambda d: d.get(field, ""), reverse=(direction == -1))
             elif "$group" in stage:
                 group = stage["$group"]
-                id_field = group["_id"]
-                if isinstance(id_field, str) and id_field.startswith("$"):
-                    id_field = id_field[1:]
-                groups = {}
+                id_expr = group["_id"]
+                # Determine group key field
+                if isinstance(id_expr, str) and id_expr.startswith("$"):
+                    id_field = id_expr[1:]
+                    get_gid = lambda d: d.get(id_field, "")
+                elif isinstance(id_expr, dict):
+                    # Handle $ifNull: [field, fallback]
+                    if "$ifNull" in id_expr:
+                        primary = id_expr["$ifNull"][0]
+                        if isinstance(primary, str) and primary.startswith("$"):
+                            pf = primary[1:]
+                        else:
+                            pf = primary
+                        get_gid = lambda d: d.get(pf, "") or ""
+                    else:
+                        get_gid = lambda d: str(id_expr)
+                else:
+                    get_gid = lambda d: str(id_expr)
+
+                groups: dict = {}
                 for d in docs:
-                    gid = d.get(id_field, "")
+                    gid = get_gid(d)
                     if gid not in groups:
-                        groups[gid] = {"_id": gid, "count": 0, "confirmed": 0, "overridden": 0}
-                    groups[gid]["count"] += 1
-                    if d.get("acknowledged"):
-                        groups[gid]["confirmed"] += 1
-                    if d.get("overridden"):
-                        groups[gid]["overridden"] += 1
+                        groups[gid] = {"_id": gid}
+                    g = groups[gid]
+                    # Process accumulators
+                    for field_name, accum in group.items():
+                        if field_name == "_id":
+                            continue
+                        if not isinstance(accum, dict):
+                            continue
+                        if "$sum" in accum:
+                            g.setdefault(field_name, 0)
+                            val = accum["$sum"]
+                            if isinstance(val, (int, float)):
+                                g[field_name] += val
+                            elif isinstance(val, str) and val.startswith("$"):
+                                g[field_name] += d.get(val[1:], 0) or 0
+                            elif isinstance(val, dict) and "$cond" in val:
+                                # $cond: [condition_expr, then, else]
+                                cond_expr = val["$cond"]
+                                if isinstance(cond_expr, list):
+                                    cond_field = cond_expr[0]
+                                    if isinstance(cond_field, dict) and "$ifNull" in cond_field:
+                                        f = cond_field["$ifNull"][0]
+                                        if isinstance(f, str) and f.startswith("$"):
+                                            f = f[1:]
+                                        if d.get(f):
+                                            g[field_name] += 1
+                        elif "$first" in accum:
+                            field_ref = accum["$first"]
+                            if isinstance(field_ref, str) and field_ref.startswith("$"):
+                                rf = field_ref[1:]
+                            else:
+                                rf = field_ref
+                            if field_name not in g:
+                                g[field_name] = d.get(rf)
+                        elif "$min" in accum:
+                            field_ref = accum["$min"]
+                            if isinstance(field_ref, str) and field_ref.startswith("$"):
+                                rf = field_ref[1:]
+                            else:
+                                rf = field_ref
+                            v = d.get(rf)
+                            if v is not None:
+                                g.setdefault(field_name, v)
+                                g[field_name] = min(g[field_name], v)
+                        elif "$max" in accum:
+                            field_ref = accum["$max"]
+                            if isinstance(field_ref, str) and field_ref.startswith("$"):
+                                rf = field_ref[1:]
+                            else:
+                                rf = field_ref
+                            v = d.get(rf)
+                            if v is not None:
+                                g.setdefault(field_name, v)
+                                g[field_name] = max(g[field_name], v)
                 docs = list(groups.values())
         return FakeCursor(docs)
 
@@ -113,12 +194,12 @@ class FakeDB:
         return self._collections[name]
 
     def insert(self, collection: str, doc_id: str, doc: dict):
-        """测试辅助：插入文档。"""
-        # 确保集合已初始化
+        """测试辅助：插入文档。保留文档自身的 _id（如有），否则使用 doc_id。"""
         if collection not in self._stores:
             self._stores[collection] = {}
             self._collections[collection] = FakeCollection(collection, self._stores[collection])
-        doc["_id"] = doc_id
+        if "_id" not in doc:
+            doc["_id"] = doc_id
         self._stores[collection][doc_id] = doc
 
 
@@ -188,7 +269,7 @@ async def test_query_trends_returns_points(db, patient_a):
 
     now = datetime.now(timezone.utc)
     for i in range(5):
-        db.insert(f"t{i}", f"t{i}", {"patient_id": "P001", "code": "HR", "value": 70 + i, "time": now - timedelta(hours=5 - i)})
+        db.insert("bedside", f"t{i}", {"patient_id": "P001", "code": "HR", "value": 70 + i, "time": now - timedelta(hours=5 - i)})
 
     trends = await _query_trends(db, "P001", ["HR"], now - timedelta(hours=24))
     assert len(trends) == 1

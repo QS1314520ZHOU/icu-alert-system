@@ -5,11 +5,53 @@ from app.services import terminology_service
 from app.models.disease_center import Terminology
 
 
+class _MemoryRepo:
+    """In-memory mock for TerminologyRepository."""
+
+    def __init__(self):
+        self._store: dict[str, dict] = {}
+
+    async def create(self, doc: dict):
+        self._store[doc["id"]] = doc
+
+    async def find_by_id(self, oid: str):
+        return self._store.get(oid)
+
+    async def find_all(self, category=None, status=None, keyword=None, limit=100):
+        results = list(self._store.values())
+        if category:
+            results = [r for r in results if r.get("category") == category]
+        if status:
+            results = [r for r in results if r.get("status") == status]
+        if keyword:
+            results = [r for r in results if keyword in r.get("standard_name", "")]
+        return results[:limit]
+
+    async def update(self, oid: str, doc: dict):
+        if oid in self._store:
+            self._store[oid] = doc
+
+    async def delete_one(self, flt: dict):
+        oid = flt.get("id")
+        if oid and oid in self._store:
+            del self._store[oid]
+            return True
+        return False
+
+    async def get_categories(self):
+        cats: dict[str, int] = {}
+        for doc in self._store.values():
+            c = doc.get("category", "unknown")
+            cats[c] = cats.get(c, 0) + 1
+        return [{"category": k, "count": v} for k, v in cats.items()]
+
+
 @pytest.fixture(autouse=True)
-async def clear_storage():
-    """每个测试前清空存储。"""
-    terminology_service._terminologies.clear()
-    yield
+def _mock_repo(monkeypatch):
+    """Replace the MongoDB repository with an in-memory mock."""
+    repo = _MemoryRepo()
+    monkeypatch.setattr(terminology_service, "_repo", repo)
+    return repo
 
 
 @pytest.fixture

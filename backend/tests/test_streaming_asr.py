@@ -11,7 +11,7 @@ from app.services.streaming_asr import StreamingASRSession
 
 
 def _run_async(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class StreamingASRSessionTest(unittest.TestCase):
@@ -24,14 +24,12 @@ class StreamingASRSessionTest(unittest.TestCase):
             self._messages = list(messages)
             self._idx = 0
             self.send = AsyncMock()
-            self._ping_future = asyncio.get_event_loop().create_future()
-            self._ping_future.set_result(None)
-            self.ping = AsyncMock(return_value=self._ping_future)
+            self.ping = AsyncMock()
 
         async def recv(self):
             if self._idx >= len(self._messages):
                 # Block forever (simulating no more messages)
-                await asyncio.get_event_loop().create_future()
+                await asyncio.get_running_loop().create_future()
             msg = self._messages[self._idx]
             self._idx += 1
             return msg
