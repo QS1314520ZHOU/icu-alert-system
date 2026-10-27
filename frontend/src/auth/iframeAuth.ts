@@ -122,10 +122,39 @@ function getAllowedOrigins(): string[] {
   return []
 }
 
+/** 实际父窗口 origin：同源 embed.html 用本机；跨域宿主用白名单 */
+function resolveParentOrigin(): string {
+  try {
+    if (window.parent !== window) {
+      const parentOrigin = window.parent.location.origin
+      if (parentOrigin) return parentOrigin
+    }
+  } catch {
+    // 跨域：读不到 parent.location
+  }
+  // document.referrer 可拿到宿主页面 origin
+  try {
+    if (document.referrer) return new URL(document.referrer).origin
+  } catch {}
+  return getAllowedOrigins()[0] || '*'
+}
+
 function validateOrigin(origin: string): boolean {
   const allowed = getAllowedOrigins()
   if (allowed.includes('*')) return true
-  return allowed.includes(origin)
+  if (allowed.includes(origin)) return true
+  // 同源父窗口（embed.html 嵌套）永远合法
+  if (origin === window.location.origin) return true
+  return false
+}
+
+/** embed.html 已通过 __sc_token 注入的 token */
+function getInjectedToken(): string {
+  try {
+    return String((window as any).__SMARTCARE_TOKEN__ || '')
+  } catch {
+    return ''
+  }
 }
 
 // ── 核心认证逻辑 ──────────────────────────────────
@@ -142,6 +171,16 @@ function requestAuthFromHost(targetOrigin: string): Promise<HostAuthPayload | nu
         resolve(null)
         return
       }
+      resolve(null)
+      return
+    }
+
+    // embed.html 已注入 token：不再向父窗口要认证（父窗口是同源 embed.html，不处理 ICU_IFRAME_AUTH_*）
+    const injected = getInjectedToken()
+    if (injected) {
+      authState.value.status = 'authenticated'
+      authState.value.accessToken = injected
+      authState.value.error = null
       resolve(null)
       return
     }
@@ -163,14 +202,22 @@ function requestAuthFromHost(targetOrigin: string): Promise<HostAuthPayload | nu
       timestamp,
     })
 
+    // 目标 origin 以实际父窗口为准，避免写死宿主 origin 导致 postMessage 抛错
+    const postOrigin = targetOrigin === '*' ? resolveParentOrigin() : targetOrigin
+
     try {
-      window.parent.postMessage(message, targetOrigin)
+      window.parent.postMessage(message, postOrigin)
     } catch (err) {
-      console.error('[IframeAuth] Failed to send auth request:', err)
-      authState.value.status = 'error'
-      authState.value.error = '无法向宿主系统发送认证请求'
-      resolve(null)
-      return
+      // 再试一次本机/父窗口 origin
+      try {
+        window.parent.postMessage(message, resolveParentOrigin())
+      } catch (err2) {
+        console.error('[IframeAuth] Failed to send auth request:', err2)
+        authState.value.status = 'error'
+        authState.value.error = '无法向宿主系统发送认证请求'
+        resolve(null)
+        return
+      }
     }
 
     // 超时处理（带指数退避重试）
@@ -404,7 +451,7 @@ export async function refreshToken(): Promise<string> {
           }
         }
 
-        const targetOrigin = getAllowedOrigins()[0] || '*'
+        const targetOrigin = resolveParentOrigin()
         const message = createEmbedMessage(AUTH_REQUEST_TYPE as any, {
           requestId,
           nonce,
@@ -516,7 +563,7 @@ function handleHostUserChanged(_payload: any): void {
   clearAuthState()
   authState.value.status = 'initializing'
   // 重新请求认证
-  const targetOrigin = getAllowedOrigins()[0] || '*'
+  const targetOrigin = resolveParentOrigin()
   requestAuthFromHost(targetOrigin)
 }
 
@@ -526,7 +573,7 @@ function handleHostUserChanged(_payload: any): void {
 function _sendAuthRequiredToParent(): void {
   if (!isIframe()) return
   try {
-    const targetOrigin = getAllowedOrigins()[0] || '*'
+    const targetOrigin = resolveParentOrigin()
     window.parent.postMessage(
       createEmbedMessage('ICU_AUTH_REQUIRED' as any, {
         reason: 'auth_timeout',
@@ -566,7 +613,20 @@ function clearAuthState(): void {
  * 应在应用启动时调用。
  */
 export async function initIframeAuth(targetOrigin?: string): Promise<IframeAuthState> {
-  const origin = targetOrigin || getAllowedOrigins()[0] || '*'
+  // embed.html 路径：token 已由 URL/__SMARTCARE_TOKEN__ 注入，无需向父窗口握手
+  const injected = getInjectedToken()
+  if (injected) {
+    if (!messageHandler) {
+      messageHandler = handleMessage
+      window.addEventListener('message', messageHandler)
+    }
+    authState.value.status = 'authenticated'
+    authState.value.accessToken = injected
+    authState.value.error = null
+    return { ...authState.value }
+  }
+
+  const origin = targetOrigin || resolveParentOrigin()
 
   // 注册消息监听
   if (!messageHandler) {

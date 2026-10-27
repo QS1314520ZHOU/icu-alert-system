@@ -158,6 +158,28 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
     }
   }
 
+  function resolveTargetOrigin(): string {
+    if (targetOrigin && targetOrigin !== '*') {
+      try {
+        // 同源父窗口时必须用父窗口实际 origin，写死宿主地址会 postMessage 失败
+        if (window.parent !== window && window.parent.location.origin === targetOrigin) {
+          return targetOrigin
+        }
+      } catch {}
+    }
+    try {
+      if (window.parent !== window) {
+        const po = window.parent.location.origin
+        if (po) return po
+      }
+    } catch {}
+    if (targetOrigin && targetOrigin !== '*') return targetOrigin
+    try {
+      if (document.referrer) return new URL(document.referrer).origin
+    } catch {}
+    return window.location.origin
+  }
+
   function postToHost(message: EmbedMessage) {
     if (!inIframe) {
       // 直接渲染模式：无 iframe 可通信，在宿主页面本地执行等价处理
@@ -165,7 +187,7 @@ export function useEmbedBridge(options: EmbedBridgeOptions) {
       return
     }
     try {
-      window.parent.postMessage(message, targetOrigin)
+      window.parent.postMessage(message, resolveTargetOrigin())
     } catch {}
   }
 

@@ -509,8 +509,23 @@ export function useMdtWorkspace() {
 
   async function loadPatientOptions() {
     const deptCode = String(route.query.deptCode || route.query.dept_code || '')
-    const res = await getPatients(deptCode ? { dept_code: deptCode, patient_scope: 'in_dept' } : { patient_scope: 'in_dept' })
-    const list = Array.isArray(res.data?.patients) ? res.data.patients : []
+    let list: any[] = []
+    try {
+      const res = await getPatients(deptCode ? { dept_code: deptCode, patient_scope: 'in_dept' } : { patient_scope: 'in_dept' })
+      list = Array.isArray(res.data?.patients) ? res.data.patients : []
+    } catch { list = [] }
+    // 科室过滤可能返回空：降级为全部在院，再本地按科室筛
+    if (!list.length) {
+      try {
+        const res = await getPatients({ patient_scope: 'in_dept' })
+        list = Array.isArray(res.data?.patients) ? res.data.patients : []
+        if (deptCode) {
+          const filtered = list.filter((item: any) =>
+            String(item?.deptCode || item?.deptCode2 || item?.zrbqdm || '') === deptCode)
+          if (filtered.length) list = filtered
+        }
+      } catch { /* keep empty */ }
+    }
     const currentId = String(selectedPatientId.value || route.query.patient_id || route.query.patientId || '').trim()
     if (currentId && !list.some((item: any) => String(item?._id || '') === currentId)) {
       try {

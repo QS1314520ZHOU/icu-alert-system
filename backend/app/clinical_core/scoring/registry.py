@@ -49,9 +49,49 @@ class ScoreCalculatorRegistry:
         return list(self._calculators.keys())
 
     def calculate(self, name: str, observations: list[Observation]) -> ScoreResult:
-        """计算指定评分。"""
+        """计算指定评分（自动补 evaluation_time / window_spec）。"""
+        from datetime import UTC, datetime, timedelta
+        from .window_spec import ScoreWindowSpec, WindowSpec
+
         calc = self.get(name)
-        return calc.calculate(observations)
+        evaluation_time = datetime.now(UTC)
+
+        # 各评分默认 24h 窗口；分项名按计算器约定
+        component_names = {
+            "SOFA": [
+                "respiratory", "coagulation", "liver",
+                "cardiovascular", "central_nervous_system", "renal",
+            ],
+            "SOFA2": ["brain", "respiratory", "hemostasis", "liver", "kidney", "cardiovascular"],
+            "NEWS2": [
+                "respiratory_rate", "spo2", "air_or_oxygen",
+                "systolic_bp", "pulse", "consciousness", "temperature",
+            ],
+            "qSOFA": ["respiratory_rate", "systolic_bp", "gcs"],
+            "MEWS": ["respiratory_rate", "systolic_bp", "pulse", "temperature", "avpu"],
+            "GCS": ["eye", "verbal", "motor"],
+            "KDIGO_AKI": ["creatinine", "urine_output"],
+        }.get(name, ["respiratory", "coagulation", "liver", "cardiovascular", "cns", "renal"])
+
+        window_spec = ScoreWindowSpec(
+            spec_id=f"{name.lower()}-default-window",
+            score_name=calc.score_name,
+            rulepack_version=calc.rulepack_version,
+            components=[
+                WindowSpec(
+                    component_name=cn,
+                    lookback_window=timedelta(hours=24),
+                    max_staleness=timedelta(hours=12),
+                    aggregation="worst",
+                )
+                for cn in component_names
+            ],
+        )
+        return calc.calculate(
+            observations,
+            evaluation_time=evaluation_time,
+            window_spec=window_spec,
+        )
 
     def health_check(self) -> dict[str, dict]:
         """健康检查：检查所有已注册计算器。"""

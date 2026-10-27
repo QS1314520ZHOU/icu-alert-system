@@ -24,8 +24,9 @@ def filter_in_window(
 
 
 def filter_by_code(observations: list[Observation], codes: list[str]) -> list[Observation]:
-    """按代码过滤。"""
-    return [obs for obs in observations if obs.code in codes]
+    """按代码过滤（大小写不敏感）。"""
+    wanted = {c.lower() for c in codes}
+    return [obs for obs in observations if (obs.code or "").lower() in wanted]
 
 
 def get_latest(observations: list[Observation]) -> Observation | None:

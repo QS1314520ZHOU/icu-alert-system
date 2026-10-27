@@ -265,16 +265,20 @@ async function runTest() {
   error.value = null
 
   try {
-    // 使用示例数据运行测试
-    const sampleInputs = selectedRule.value.inputs.map((input) => ({
+    // 示例值：有 required 的用 1，可选用 0，便于跑通计算链路
+    const sampleInputs = (selectedRule.value.inputs || []).map((input) => ({
       code: input.name,
       display_name: input.label,
-      value: 0,
+      value: input.required ? 1 : 0,
       unit: input.unit,
     }))
 
-    // 用规则 ID（score_variant 或 id）作为评分系统名称
-    const scoreId = selectedRule.value.id || selectedRule.value.score_variant || selectedRule.value.score_system
+    // 优先用注册键 score_variant（如 SOFA2 / NEWS2），其次 score_system
+    const scoreId =
+      selectedRule.value.score_variant ||
+      selectedRule.value.id ||
+      selectedRule.value.score_system ||
+      selectedRule.value.name
     const { data } = await evaluateScore(scoreId, sampleInputs)
     testResult.value = data
   } catch (e: any) {

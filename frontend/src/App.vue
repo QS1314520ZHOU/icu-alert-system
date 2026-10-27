@@ -200,10 +200,9 @@ watch(() => [auth.userId, auth.userName], () => {
 }, { immediate: true })
 
 onMounted(() => {
-  // 运行时 iframe 保护：阻止完整 App Shell 在 iframe 中渲染
+  // iframe 内非 embed 路由：模板已走无壳分支，仅提示
   if (window.self !== window.top && !route.path.startsWith('/embed/')) {
-    console.warn('[App] Blocked full App Shell inside iframe, redirecting to embed route')
-    // 不渲染完整 shell，让 embed 路由接管
+    console.info('[App] Running in iframe without full shell:', route.path)
   }
   initTheme()
   preloadCoreRouteComponents()

@@ -1,6 +1,10 @@
 <template>
   <div class="documents-view">
     <PageHeader title="临床文档" subtitle="病历文档完整性与文书审阅" />
+
+    <!-- ICU 查房工作台：12/24/48h 文书生成 -->
+    <DocumentWorkbench :patient-id="patientId" />
+
     <section class="doc-overview-row">
       <div class="doc-overview-card">
         <h4>数据完整性</h4>
@@ -146,11 +150,16 @@
 import { Button as AButton, Empty as AEmpty, Spin as ASpin, Table as ATable, Tag as ATag } from 'ant-design-vue'
 import { PageHeader } from '../../components/common/design-system'
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import CollapseSection from '../../components/common/CollapseSection.vue'
+import DocumentWorkbench from '../../components/clinical-documents/DocumentWorkbench.vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import DataCompletenessRing from '../../components/charts/risk/DataCompletenessRing.vue'
 import ClinicalTimeline from '../../components/charts/timeline/ClinicalTimeline.vue'
 import type { TimelineEvent } from '../../components/charts'
+
+const route = useRoute()
+const patientId = computed(() => String(route.params.patientId || route.params.id || ''))
 
 const {
   aiLabSummary, aiLabLoading, aiLabError,

@@ -48,8 +48,8 @@
       </div>
     </div>
 
-    <!-- 主体布局 -->
-    <div v-else class="resp-layout">
+    <!-- 主体布局：有患者时也要显示队列，不能用 v-else 藏起来 -->
+    <div class="resp-layout">
       <!-- 左侧：患者队列 -->
       <section class="resp-queue">
         <div class="section-header">

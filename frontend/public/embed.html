@@ -25,7 +25,9 @@
     allowedHostOrigins: [
       'http://192.168.5.154',
       'http://192.168.5.154:8080',
-      'http://192.168.10.182:60000'
+      'http://192.168.10.182:60000',
+      'http://192.168.31.167:60000',
+      'http://192.168.31.167'
     ],
     // 白名单为空时是否拒绝全部宿主消息（true=安全默认，false=仅联调试用）
     requireOriginWhitelist: true,
@@ -221,9 +223,24 @@
 
     sendToHost('SmartCareNavigationStart', { requestId: requestId });
 
+    // 非患者页也尽量带上宿主当前患者（MDT/AI 等页面需要）
     if (!target.needPatient) {
-      var url = buildUrl(target.path, nav.resourceId || '');
-      navigate(url);
+      if (patient.mrn || patient.hisPid || patient._id || patient.id) {
+        resolvePatientId(patient).then(function (result) {
+          var pid = (result && result.id) || '';
+          var url = buildUrl(target.path, nav.resourceId || '');
+          if (pid) {
+            url += (url.indexOf('?') >= 0 ? '&' : '?') + 'patient_id=' + encodeURIComponent(pid);
+          } else if (patient.mrn) {
+            url += (url.indexOf('?') >= 0 ? '&' : '?') + 'mrn=' + encodeURIComponent(patient.mrn);
+          }
+          navigate(url);
+          sendToHost('SmartCareNavigationSuccess', { requestId: requestId, page: pageKey, patientId: pid });
+        });
+        return;
+      }
+      var url0 = buildUrl(target.path, nav.resourceId || '');
+      navigate(url0);
       sendToHost('SmartCareNavigationSuccess', { requestId: requestId, page: pageKey });
       return;
     }

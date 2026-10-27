@@ -33,16 +33,24 @@ def _observation_from_dict(d: dict[str, Any]) -> Observation:
     if observed_at.tzinfo is None:
         observed_at = observed_at.replace(tzinfo=timezone.utc)
 
-    quality_str = d.get("data_quality", "measured")
+    quality_str = d.get("data_quality", "valid")
     try:
         data_quality = DataQuality(quality_str)
     except ValueError:
-        data_quality = DataQuality.MEASURED
+        data_quality = DataQuality.VALID
+
+    value_number = d.get("value_number")
+    if value_number is None and d.get("value") is not None:
+        try:
+            value_number = float(d["value"])
+        except (TypeError, ValueError):
+            value_number = None
 
     return Observation(
         category=category,
         code=d.get("code", ""),
-        value_number=d.get("value_number"),
+        display_name=d.get("display_name", d.get("code", "")),
+        value_number=value_number,
         value_text=d.get("value_text"),
         unit=d.get("unit", ""),
         observed_at=observed_at,
