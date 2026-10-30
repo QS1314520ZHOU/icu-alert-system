@@ -56,7 +56,7 @@ echarts.use([LineChart, GridComponent, TooltipComponent, LegendComponent, MarkLi
 export interface VitalMetric {
   key: string
   name: string
-  data: number[]
+  data: (number | null)[]
   unit: string
   color?: string
   normalRange?: [number, number]
@@ -134,6 +134,7 @@ function render() {
       name: m.name,
       type: 'line',
       data: m.data,
+      connectNulls: true,
       smooth: true,
       symbol: 'circle',
       symbolSize: 4,

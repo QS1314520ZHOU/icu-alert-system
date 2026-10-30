@@ -1177,7 +1177,9 @@ function _createPatientDetail(_initialPatientId: string) {
     clinicalSummaryLoading.value = true
     try {
       const res = await getPatientClinicalSummary(patientId)
-      clinicalSummary.value = res.data?.summary || null
+      // 后端返回 { code, data }；兼容旧版 { summary }
+      const payload = res.data?.data ?? res.data?.summary
+      clinicalSummary.value = payload && typeof payload === 'object' ? payload : null
     } catch (e) { console.error('加载临床摘要失败', e) }
     finally { clinicalSummaryLoading.value = false }
   }

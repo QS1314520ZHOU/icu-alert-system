@@ -16,16 +16,33 @@
       <template #title><h3 style="margin:0;font-size:15px;font-weight:600">临床摘要</h3></template>
       <template #extra><a-spin v-if="clinicalSummaryLoading" size="small" /></template>
       <div v-if="clinicalSummary" class="clinical-summary">
-        <div v-if="topRisks.length" class="top-risks">
-          <div v-for="(risk, idx) in topRisks" :key="idx" class="risk-item" :class="`risk-${risk.tone || 'warn'}`">
+        <div v-if="topProblems.length" class="top-risks">
+          <div v-for="(risk, idx) in topProblems" :key="idx" class="risk-item" :class="`risk-${risk.tone}`">
             <span class="risk-index">{{ Number(idx) + 1 }}</span>
-            <span class="risk-text">{{ risk.text }}</span>
+            <div class="risk-body">
+              <div class="risk-head">
+                <span class="risk-text">{{ risk.text }}</span>
+                <span v-if="risk.status" class="risk-status" :class="{ 'risk-status--open': risk.status === '待处理' }">{{ risk.status }}</span>
+              </div>
+              <ul v-if="risk.evidence.length" class="risk-evidence">
+                <li v-for="e in risk.evidence" :key="e">{{ e }}</li>
+              </ul>
+              <div v-if="risk.suggestions.length" class="risk-suggest">建议：{{ risk.suggestions.join('；') }}</div>
+              <div v-if="risk.reviewTime" class="risk-review">复评时间 {{ fmtShort(risk.reviewTime) }}</div>
+            </div>
           </div>
         </div>
-        <div v-if="clinicalSummary.worsening_indicators?.length" class="worsening">
+        <div v-if="worseningItems.length" class="worsening">
           <span class="worsening-label">恶化指标：</span>
-          <span>{{ clinicalSummary.worsening_indicators.join('、') }}</span>
+          <span v-for="w in worseningItems" :key="w.key" class="worsening-item">
+            {{ w.name }}<b :class="`dir-${w.direction}`">{{ w.arrow }}</b>{{ w.value }}<span class="worsening-time">{{ w.time }}</span>
+          </span>
         </div>
+        <div v-if="pendingTaskCount" class="worsening">
+          <span class="worsening-label">待闭环：</span>
+          <span>{{ pendingTaskCount }} 项（未处理预警需确认处置并设置复评）</span>
+        </div>
+        <p class="summary-window">统计窗口：近 {{ clinicalSummary.hours || 24 }} 小时 · {{ clinicalSummary.safety_notice || '系统辅助摘要，需床旁确认' }}</p>
       </div>
       <a-empty v-else-if="!clinicalSummaryLoading" description="暂无临床摘要" :image-style="{ height: '40px' }" />
       </CollapseSection>
@@ -35,10 +52,12 @@
         <template #title><h3 style="margin:0;font-size:15px;font-weight:600">生命体征</h3></template>
         <template #extra><span class="section-meta">{{ vitalsSourceText }} · {{ heroMonitorUpdatedAt }}</span></template>
         <div class="vitals-grid">
-          <div v-for="v in vitalCards" :key="v.label" class="vital-card" :class="`vital-${v.tone}`">
+          <div v-for="v in vitalCards" :key="v.label" class="vital-card" :class="`vital-${v.tone}`" :title="v.rule">
             <span class="vital-label">{{ v.label }}</span>
             <span class="vital-value">{{ v.value }}</span>
             <span v-if="v.unit" class="vital-unit">{{ v.unit }}</span>
+            <span class="vital-ref">参考 {{ v.ref }}</span>
+            <span v-if="v.delta" class="vital-delta" :class="`delta-${v.deltaDir}`">{{ v.delta }}</span>
           </div>
         </div>
       </CollapseSection>
@@ -106,6 +125,8 @@
         :height="380"
         :loading="trendLoading"
         :explanation="trendExplanation"
+        :time-ranges="trendRanges"
+        default-range="24h"
         @range-change="onRangeChange"
       />
     </section>
@@ -126,7 +147,7 @@
 <script setup lang="ts">
 import { Empty as AEmpty, Spin as ASpin, Tag as ATag } from 'ant-design-vue'
 import { PageHeader } from '../../components/common/design-system'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import PatientPrimaryRisk from './components/PatientPrimaryRisk.vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
@@ -139,7 +160,7 @@ const {
   sepsisBundleStatusResolved, sepsisBundleStatusText, sepsisBundleConclusion,
   sepsisBundleTimelineText, sepsisBundleExtraText, sepsisBundleComplianceSummary,
   patientBodyMapDetails, patientBodyMapStates, patientActionRail,
-  vitalsSourceText, heroMonitorUpdatedAt, trendPoints,
+  vitalsSourceText, heroMonitorUpdatedAt, trendPoints, trendWindow, trendLoaded, loadTrend,
   acknowledgeAlert, openEvidence,
   normalizeSeverity,
 } = usePatientDetail()
@@ -155,27 +176,70 @@ const primaryAlert = computed(() => {
   })[0] || null
 })
 
-// 生命体征卡片
+// 生命体征卡片：当前值 + 参考范围 + 较窗口起点的变化（只给数值不给参照，床旁无法判断）
+function pointMap(p: any) { return p?.ibp_map ?? p?.nibp_map ?? p?.map }
+function firstInWindow(getter: (p: any) => any): number | null {
+  for (const p of trendPoints.value || []) {
+    const n = Number(getter(p))
+    if (getter(p) !== null && getter(p) !== undefined && Number.isFinite(n)) return n
+  }
+  return null
+}
+function deltaInfo(current: any, getter: (p: any) => any, digits = 0) {
+  const cur = Number(current)
+  const first = firstInWindow(getter)
+  if (current === null || current === undefined || !Number.isFinite(cur) || first === null) return { delta: '', deltaDir: 'flat' }
+  const d = cur - first
+  const txt = digits ? d.toFixed(digits) : String(Math.round(d))
+  const dir = Math.abs(d) < (digits ? 0.2 : 1) ? 'flat' : d > 0 ? 'up' : 'down'
+  return { delta: `较${trendWindow.value}前 ${d > 0 ? '+' : ''}${txt}`, deltaDir: dir }
+}
 const vitalCards = computed(() => {
   const v = vitals.value || {}
+  const map = v.ibp_map ?? v.nibp_map
   return [
-    { label: 'HR', value: v.hr ?? '—', unit: 'bpm', tone: hrTone(v.hr) },
-    { label: 'MAP', value: v.ibp_map ?? v.nibp_map ?? '—', unit: 'mmHg', tone: mapTone(v.ibp_map ?? v.nibp_map) },
-    { label: 'SpO₂', value: v.spo2 ?? '—', unit: '%', tone: spo2Tone(v.spo2) },
-    { label: 'RR', value: v.rr ?? '—', unit: '/min', tone: rrTone(v.rr) },
-    { label: 'T', value: v.temp != null ? Number(v.temp).toFixed(1) : '—', unit: '°C', tone: tempTone(v.temp) },
-    { label: '乳酸', value: v.lactate ?? '—', unit: 'mmol/L', tone: lactateTone(v.lactate) },
+    { label: 'HR', value: v.hr ?? '—', unit: 'bpm', tone: hrTone(v.hr), ref: '60–100', rule: '危急 >120 或 <50；警告 >100 或 <60', ...deltaInfo(v.hr, (p) => p.hr) },
+    { label: v.ibp_map != null ? 'MAP(有创)' : 'MAP(无创)', value: map ?? '—', unit: 'mmHg', tone: mapTone(map), ref: '≥65', rule: '危急 <55；警告 <65', ...deltaInfo(map, pointMap) },
+    { label: 'SpO₂', value: v.spo2 ?? '—', unit: '%', tone: spo2Tone(v.spo2), ref: '≥92', rule: '危急 <88；警告 <92', ...deltaInfo(v.spo2, (p) => p.spo2) },
+    { label: 'RR', value: v.rr ?? '—', unit: '/min', tone: rrTone(v.rr), ref: '12–25', rule: '危急 >35 或 <8；警告 >25 或 <12', ...deltaInfo(v.rr, (p) => p.rr) },
+    { label: 'T', value: v.temp != null ? Number(v.temp).toFixed(1) : '—', unit: '°C', tone: tempTone(v.temp), ref: '36.0–38.5', rule: '危急 >39.5 或 <35；警告 >38.5 或 <36', ...deltaInfo(v.temp, (p) => p.temp, 1) },
+    { label: '乳酸', value: v.lactate ?? '—', unit: 'mmol/L', tone: lactateTone(v.lactate), ref: '≤2', rule: '危急 >4；警告 >2', delta: '', deltaDir: 'flat' },
   ]
 })
 
-// 临床摘要：最危险的3件事
-const topRisks = computed(() => {
-  const items = clinicalSummary.value?.top_3_risks || []
-  return items.map((r: any) => ({
-    text: r.text || r.description || String(r),
-    tone: r.tone || r.severity || 'warn',
+function fmtShort(t: any) {
+  if (!t) return ''
+  const d = new Date(t)
+  if (Number.isNaN(d.getTime())) return String(t)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+// 临床摘要：主要问题 + 触发依据 + 建议（后端 top_problems；兼容旧字段 top_3_risks）
+const topProblems = computed(() => {
+  const cs = clinicalSummary.value || {}
+  const items: any[] = Array.isArray(cs.top_problems) && cs.top_problems.length ? cs.top_problems : (cs.top_3_risks || [])
+  const toneMap: Record<string, string> = { critical: 'critical', high: 'high', warning: 'warning', unknown: 'default' }
+  return items.slice(0, 3).map((r: any) => ({
+    text: typeof r === 'string' ? r : (r.problem || r.text || r.description || ''),
+    tone: toneMap[String(r?.risk || r?.tone || r?.severity || 'warning').toLowerCase()] || 'warning',
+    evidence: (Array.isArray(r?.evidence) ? r.evidence : r?.evidence ? [r.evidence] : []).map(String).slice(0, 4),
+    suggestions: (Array.isArray(r?.suggestions) ? r.suggestions : r?.suggestions ? [r.suggestions] : []).map(String).slice(0, 3),
+    status: r?.status || '',
+    reviewTime: r?.review_time || '',
   }))
 })
+const worseningItems = computed(() => {
+  const list = clinicalSummary.value?.worsening_indicators
+  if (!Array.isArray(list)) return []
+  return list.map((w: any, i: number) => {
+    if (typeof w === 'string') return { key: `${i}`, name: w, arrow: '', direction: 'change', value: '', time: '' }
+    const direction = w?.direction || 'change'
+    const value = w?.to !== undefined && w?.to !== null ? `${w.from != null ? `${w.from}→` : ''}${w.to}${w.unit || ''}` : ''
+    return { key: `${i}`, name: w?.name || '指标', arrow: direction === 'up' ? '↑' : direction === 'down' ? '↓' : '↕', direction, value, time: fmtShort(w?.time) }
+  })
+})
+const pendingTaskCount = computed(() => (Array.isArray(clinicalSummary.value?.pending_tasks) ? clinicalSummary.value.pending_tasks.length : 0))
 
 // 行动列表
 const actionItems = computed(() => {
@@ -235,19 +299,24 @@ const trendMetrics = computed<VitalMetric[]>(() => {
   const points = trendPoints.value
   if (!points?.length) return []
   const metrics: VitalMetric[] = []
-  const extractValues = (key: string) => points.map((p: any) => p[key]).filter((v: any) => v != null)
-  const hrVals = extractValues('hr')
-  const mapVals = extractValues('map')
-  const spo2Vals = extractValues('spo2')
-  const rrVals = extractValues('rr')
-  const tempVals = extractValues('temp')
-  const lactateVals = extractValues('lactate')
-  if (hrVals.length) metrics.push({ key: 'hr', name: '心率', data: hrVals, unit: 'bpm', normalRange: [60, 100] })
-  if (mapVals.length) metrics.push({ key: 'map', name: 'MAP', data: mapVals, unit: 'mmHg', normalRange: [65, 100] })
-  if (spo2Vals.length) metrics.push({ key: 'spo2', name: 'SpO₂', data: spo2Vals, unit: '%', normalRange: [95, 100] })
-  if (rrVals.length) metrics.push({ key: 'rr', name: '呼吸频率', data: rrVals, unit: '/min', normalRange: [12, 20] })
-  if (tempVals.length) metrics.push({ key: 'temp', name: '体温', data: tempVals, unit: '°C', normalRange: [36, 37.5] })
-  if (lactateVals.length) metrics.push({ key: 'lactate', name: '乳酸', data: lactateVals, unit: 'mmol/L', normalRange: [0, 2] })
+  // 保留空值以与时间轴对齐（过滤掉会导致曲线错位）
+  const extract = (getter: (p: any) => any) => points.map((p: any) => {
+    const n = Number(getter(p))
+    return getter(p) === null || getter(p) === undefined || !Number.isFinite(n) ? null : n
+  })
+  const hasAny = (arr: (number | null)[]) => arr.some((x) => x !== null)
+  const hrVals = extract((p) => p.hr)
+  const mapVals = extract(pointMap)
+  const spo2Vals = extract((p) => p.spo2)
+  const rrVals = extract((p) => p.rr)
+  const tempVals = extract((p) => p.temp)
+  const lactateVals = extract((p) => p.lactate)
+  if (hasAny(hrVals)) metrics.push({ key: 'hr', name: '心率', data: hrVals, unit: 'bpm', normalRange: [60, 100] })
+  if (hasAny(mapVals)) metrics.push({ key: 'map', name: 'MAP', data: mapVals, unit: 'mmHg', normalRange: [65, 100] })
+  if (hasAny(spo2Vals)) metrics.push({ key: 'spo2', name: 'SpO₂', data: spo2Vals, unit: '%', normalRange: [92, 100] })
+  if (hasAny(rrVals)) metrics.push({ key: 'rr', name: '呼吸频率', data: rrVals, unit: '/min', normalRange: [12, 25] })
+  if (hasAny(tempVals)) metrics.push({ key: 'temp', name: '体温', data: tempVals, unit: '°C', normalRange: [36, 38.5] })
+  if (hasAny(lactateVals)) metrics.push({ key: 'lactate', name: '乳酸', data: lactateVals, unit: 'mmol/L', normalRange: [0, 2] })
   return metrics
 })
 
@@ -268,10 +337,28 @@ const trendExplanation = computed(() => {
   }
 })
 
-function onRangeChange(range: string) {
+// 后端支持的窗口：6h/12h/24h/48h/7d
+const trendRanges = [
+  { label: '6h', value: '6h' },
+  { label: '12h', value: '12h' },
+  { label: '24h', value: '24h' },
+  { label: '48h', value: '48h' },
+  { label: '7天', value: '7d' },
+]
+async function onRangeChange(range: string) {
+  if (!range || range === trendWindow.value) return
   selectedRange.value = range
-  // TODO: 重新加载对应时间范围的趋势数据
+  trendWindow.value = range
+  trendLoading.value = true
+  try { await loadTrend() } finally { trendLoading.value = false }
 }
+onMounted(async () => {
+  selectedRange.value = trendWindow.value
+  if (!trendLoaded.value) {
+    trendLoading.value = true
+    try { await loadTrend() } finally { trendLoading.value = false }
+  }
+})
 
 // ── 24小时临床事件时间线 ──
 const eventsLoading = ref(false)
@@ -280,13 +367,16 @@ const timelineEvents = computed<TimelineEvent[]>(() => {
   // 从告警和临床数据中提取事件
   const events: TimelineEvent[] = []
   const alertList = alerts.value || []
+  const since = Date.now() - 24 * 3600 * 1000
   alertList.forEach((a: any) => {
+    const t = new Date(a.created_at || a.time).getTime()
+    if (Number.isFinite(t) && t < since) return
     events.push({
       id: a._id || a.id,
       time: a.created_at || a.time,
       type: '告警',
       title: a.name || a.rule_id || '告警',
-      description: a.description,
+      description: a.description || [a.parameter, a.value !== undefined && a.value !== null ? `当时值 ${a.value}` : '', a.condition ? `条件 ${typeof a.condition === 'object' ? JSON.stringify(a.condition) : a.condition}` : ''].filter(Boolean).join(' · '),
       source: '规则引擎',
       severity: normalizeSeverity(a.severity) === 'high' ? 'warning' : normalizeSeverity(a.severity) as 'critical' | 'warning' | 'info' | 'normal',
     })
@@ -295,11 +385,9 @@ const timelineEvents = computed<TimelineEvent[]>(() => {
   return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 20)
 })
 
+// 目前时间线只接入了告警事件，不展示无数据的用药/操作/检验筛选项
 const eventTypeFilters = [
   { label: '告警', value: '告警' },
-  { label: '用药', value: '用药' },
-  { label: '操作', value: '操作' },
-  { label: '检验', value: '检验' },
 ]
 </script>
 
@@ -556,6 +644,24 @@ const eventTypeFilters = [
   font-size: var(--text-body);
   color: var(--color-text-primary);
 }
+
+.risk-body { flex: 1; min-width: 0; }
+.risk-head { display: flex; align-items: center; gap: 8px; }
+.risk-status { font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--color-bg-inset); color: var(--color-text-secondary); }
+.risk-status--open { background: var(--color-critical-bg); color: var(--color-danger); }
+.risk-evidence { margin: 4px 0 0; padding-left: 16px; font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
+.risk-suggest { margin-top: 2px; font-size: 12px; color: var(--color-text-primary); }
+.risk-review { margin-top: 2px; font-size: 11px; color: var(--color-text-tertiary); }
+.worsening-item { margin-right: 10px; }
+.worsening-item b { margin: 0 2px; }
+.dir-up { color: var(--color-danger); }
+.dir-down { color: var(--color-primary); }
+.worsening-time { margin-left: 4px; font-size: 11px; color: var(--color-text-tertiary); }
+.summary-window { margin: 8px 0 0; font-size: 11px; color: var(--color-text-tertiary); }
+.vital-ref { font-size: 11px; color: var(--color-text-tertiary); }
+.vital-delta { font-size: 11px; color: var(--color-text-secondary); }
+.delta-up { color: var(--color-warning); }
+.delta-down { color: var(--color-primary); }
 </style>
 
 
