@@ -3,7 +3,7 @@
     <header class="layout-header">
       <div class="header-top">
         <div class="header-left">
-          <h1 class="header-title">🔬 S-AKI 单病种科研中心</h1>
+          <h1 class="header-title">S-AKI 单病种科研中心</h1>
           <p class="header-subtitle">脓毒症相关急性肾损伤 — 脓毒症电子表型 + KDIGO AKI + 时间关联识别 + 科研队列 + 统计分析</p>
         </div>
         <div class="header-right">
@@ -22,7 +22,6 @@
           class="nav-item"
           active-class="nav-item--active"
         >
-          <span class="nav-icon">{{ tab.icon }}</span>
           <span class="nav-label">{{ tab.label }}</span>
         </router-link>
       </nav>
@@ -46,13 +45,13 @@ import { ref, computed } from 'vue'
 const cachedViews = ref(['SAKIOverview'])
 
 const navTabs = computed(() => [
-  { key: 'overview', icon: '📊', label: '总览', to: '/disease-center/saki/overview' },
-  { key: 'cases', icon: '📋', label: '病例库', to: '/disease-center/saki/cases' },
-  { key: 'cohorts', icon: '👥', label: '队列构建', to: '/disease-center/saki/cohorts' },
-  { key: 'analysis', icon: '📈', label: '统计分析', to: '/disease-center/saki/analysis' },
-  { key: 'charts', icon: '📉', label: '图表', to: '/disease-center/saki/charts' },
-  { key: 'quality', icon: '✅', label: '数据质量', to: '/disease-center/saki/quality' },
-  { key: 'field-mapping', icon: '🗺️', label: '字段映射', to: '/disease-center/saki/field-mapping' },
+  { key: 'overview', label: '总览', to: '/disease-center/saki/overview' },
+  { key: 'cases', label: '病例库', to: '/disease-center/saki/cases' },
+  { key: 'cohorts', label: '队列构建', to: '/disease-center/saki/cohorts' },
+  { key: 'analysis', label: '统计分析', to: '/disease-center/saki/analysis' },
+  { key: 'charts', label: '图表', to: '/disease-center/saki/charts' },
+  { key: 'quality', label: '数据质量', to: '/disease-center/saki/quality' },
+  { key: 'field-mapping', label: '字段映射', to: '/disease-center/saki/field-mapping' },
 ])
 </script>
 

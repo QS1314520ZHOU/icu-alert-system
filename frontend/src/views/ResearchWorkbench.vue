@@ -18,9 +18,12 @@
     <!-- 数据就绪度 -->
     <div class="workbench-viz-row">
       <div class="workbench-viz-card workbench-viz-card--ring">
-        <h4>数据就绪度</h4>
-        <DataCompletenessRing :value="dataReadiness" :size="90" />
-        <span class="workbench-viz-ring-label">{{ selectedVariables.length }} 变量已选</span>
+        <h4>分析准备</h4>
+        <ul class="prep-list">
+          <li v-for="it in prepChecklist" :key="it.label" class="prep-item" :class="{ done: it.ok }">
+            <span class="prep-dot">{{ it.ok ? '✓' : '!' }}</span>{{ it.label }}<em>{{ it.detail }}</em>
+          </li>
+        </ul>
       </div>
       <div class="workbench-viz-card">
         <h4>分组分布</h4>
@@ -33,7 +36,7 @@
         </div>
       </div>
       <div class="workbench-viz-card">
-        <h4>变量覆盖率</h4>
+        <h4>已选变量</h4>
         <div class="workbench-var-coverage">
           <div class="workbench-var-bar">
             <div class="workbench-var-fill" :style="{ width: `${variableCoverage}%` }"></div>
@@ -119,10 +122,10 @@
                 </div>
               </template>
               <div class="var-chip" :class="{ selected: isVariableSelected(item.field), filtered: hasVariableFilter(item.field) }">
-                <button class="check" type="button" @click.stop="toggleVariable(item.field)">{{ isVariableSelected(item.field) ? '☑' : '☐' }}</button>
+                <button class="check" type="button" :aria-label="isVariableSelected(item.field) ? '取消选择' : '选择'" @click.stop="toggleVariable(item.field)"><CheckSquareFilled v-if="isVariableSelected(item.field)" /><BorderOutlined v-else /></button>
                 <span class="name" @click.stop="toggleVariable(item.field)">{{ item.label }}</span>
                 <span v-if="filterSummary(item.field)" class="fsum">{{ filterSummary(item.field) }}</span>
-                <button class="expand" type="button" @click.stop="toggleVariablePanel(item.field)">{{ expandedVariableField === item.field ? '▴' : '▾' }}</button>
+                <button class="expand" type="button" aria-label="设置筛选" @click.stop="toggleVariablePanel(item.field)"><UpOutlined v-if="expandedVariableField === item.field" /><DownOutlined v-else /></button>
               </div>
             </a-tooltip>
           </div>
@@ -324,6 +327,7 @@
 </template>
 
 <script setup lang="ts">
+import { CheckSquareFilled, BorderOutlined, UpOutlined, DownOutlined } from '@ant-design/icons-vue'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   Button as AButton, Drawer as ADrawer, Input as AInput, List as AList, Progress as AProgress,
@@ -334,7 +338,6 @@ import { PageHeader, SectionHeader, ActionBar, EmptyState } from '../components/
 import AiAssistPanel from '../components/research/AiAssistPanel.vue'
 import CohortBuilder from '../components/CohortBuilder.vue'
 import { useResearchWorkbench } from '../composables/useResearchWorkbench'
-import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
 
 type AnyRecord = Record<string, any>
 
@@ -406,15 +409,12 @@ const {
 } = wb
 
 // ── 数据就绪度 ──────────────────────────────────────────────────────
-const dataReadiness = computed(() => {
-  let total = 4
-  let filled = 0
-  if (cohortReady.value) filled++
-  if (selectedVariables.value.length > 0) filled++
-  if (selectedPatientIds.value.length > 0) filled++
-  if (groupSummaryCards.value.length > 0) filled++
-  return Math.round((filled / total) * 100)
-})
+// 准备清单：只陈述已完成/未完成的事实，不折算成“就绪度”百分比
+const prepChecklist = computed(() => [
+  { label: '研究队列', ok: !!cohortReady.value, detail: cohortReady.value ? (currentCohortSummary.value || '已选') : '未选择' },
+  { label: '纳入患者', ok: selectedPatientIds.value.length > 0, detail: `${selectedPatientIds.value.length} 例` },
+  { label: '分析变量', ok: selectedVariables.value.length > 0, detail: `${selectedVariables.value.length} 个` },
+])
 
 const variableCoverage = computed(() => {
   if (!variableCatalog.length) return 0
@@ -476,13 +476,13 @@ const stepItems = [
 
 /* ───── 分析选项 ───── */
 const analysisOptions = [
-  { key: 'table1', label: '基线特征表', desc: '表1：分组比较', icon: '📊' },
-  { key: 'survival', label: '生存分析', desc: 'Kaplan-Meier 曲线', icon: '📈' },
-  { key: 'regression', label: '回归分析', desc: '单/多因素回归', icon: '🔬' },
-  { key: 'roc', label: 'ROC 分析', desc: '受试者工作特征', icon: '📉' },
-  { key: 'subgroup', label: '亚组分析', desc: '森林图', icon: '🌲' },
-  { key: 'trend', label: '趋势分析', desc: '时间序列', icon: '⏰' },
-  { key: 'correlation', label: '相关性', desc: '热图', icon: '🔥' },
+  { key: 'table1', label: '基线特征表', desc: '表1：分组比较', icon: 'T1' },
+  { key: 'survival', label: '生存分析', desc: 'Kaplan-Meier 曲线', icon: 'KM' },
+  { key: 'regression', label: '回归分析', desc: '单/多因素回归', icon: 'OR' },
+  { key: 'roc', label: 'ROC 分析', desc: '受试者工作特征', icon: 'ROC' },
+  { key: 'subgroup', label: '亚组分析', desc: '森林图', icon: '亚组' },
+  { key: 'trend', label: '趋势分析', desc: '时间序列', icon: '趋势' },
+  { key: 'correlation', label: '相关性', desc: '热图', icon: 'r' },
 ]
 
 const activeResultTab = ref('')
@@ -808,7 +808,7 @@ onUnmounted(() => { document.removeEventListener('pointerdown', () => {}) })
 }
 .analysis-card:hover { border-color: var(--color-primary); }
 .analysis-card.done { background: var(--color-success-bg, rgba(22,132,91,0.04)); }
-.analysis-icon { font-size: 24px; }
+.analysis-icon { flex-shrink: 0; min-width: 36px; height: 36px; padding: 0 6px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #2563EB; background: #EEF4FF; border: 1px solid #BFD5FF; }
 .analysis-info strong { display: block; font-size: 13px; color: var(--color-text-primary); }
 .analysis-info small { font-size: 11px; color: var(--color-text-secondary); }
 .done-badge { position: absolute; top: 8px; right: 8px; color: var(--color-success); font-weight: var(--weight-bold, 700); }
@@ -843,4 +843,10 @@ onUnmounted(() => { document.removeEventListener('pointerdown', () => {}) })
 .footnote { margin: 8px 0 0; font-size: 11px; color: var(--color-text-secondary); font-style: italic; }
 @media (max-width: 1024px) { .prep-grid { grid-template-columns: 1fr; } .analysis-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 768px) { .analysis-grid { grid-template-columns: 1fr; } .var-category-row { flex-direction: column; } .var-cat-label { width: auto; text-align: left; } }
+
+.prep-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.prep-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; }
+.prep-dot { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #FCD34D; background: #FFFBEB; color: #B45309; }
+.prep-item.done .prep-dot { border-color: #A7D9BF; background: #E7F5EE; color: #2F7D55; }
+.prep-item em { margin-left: auto; font-style: normal; font-size: 12px; color: #6B7280; }
 </style>

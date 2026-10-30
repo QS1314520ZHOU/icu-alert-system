@@ -40,7 +40,7 @@
       <div class="nutr-viz-card nutr-viz-card--ring">
         <h4>数据完整性</h4>
         <DataCompletenessRing :value="dataCompleteness" :size="100" />
-        <span class="nutr-viz-ring-label">{{ ctx.patients.value.length }} 人在科</span>
+        <span class="nutr-viz-ring-label">{{ ctx.patients.value.length }} 人在科{{ topMissing ? ` · 缺：${topMissing}` : '' }}</span>
       </div>
     </div>
 
@@ -178,15 +178,18 @@
         <div class="sidebar-card sidebar-card--compact">
           <div class="sidebar-card__head">
             <h3 class="sidebar-card__title">7日达标趋势</h3>
-            <span class="sidebar-card__count">{{ ctx.avgTrend.value }}%</span>
+            <span class="sidebar-card__count">{{ ctx.avgTrend.value != null ? `${ctx.avgTrend.value}%` : '—' }}</span>
           </div>
-          <div class="trend-bars">
+          <div v-if="ctx.avgTrend.value != null" class="trend-bars">
             <span
               v-for="(bar, idx) in ctx.wardTrend.value"
               :key="idx"
-              :style="{ height: `${Math.max(8, bar)}%` }"
+              :class="{ 'is-unknown': bar == null }"
+              :title="bar == null ? '无可计算数据' : `${bar}%`"
+              :style="{ height: `${bar == null ? 100 : Math.max(4, Math.min(100, bar))}%` }"
             />
           </div>
+          <div v-else class="sidebar-empty">暂无可计算的达标数据</div>
         </div>
       </aside>
     </div>
@@ -239,11 +242,16 @@ const trendChartRef = ref<HTMLElement>()
 let routeChart: echarts.ECharts | null = null
 let trendChart: echarts.ECharts | null = null
 
+// 资料完整度：取后端逐例 data_quality.completeness 的平均，缺失不计
 const dataCompleteness = computed(() => {
-  const total = ctx.patients.value?.length || 0
-  if (!total) return 0
-  const withData = ctx.patients.value.filter((p: any) => p.calories_actual || p.route).length
-  return Math.round((withData / total) * 100)
+  const vals = (ctx.patients.value || []).map((p: any) => p?.data_quality?.completeness).filter((v: any) => typeof v === 'number')
+  if (!vals.length) return 0
+  return Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length)
+})
+const topMissing = computed(() => {
+  const cnt = new Map<string, number>()
+  for (const p of ctx.patients.value || []) for (const m of p?.data_quality?.missing || []) cnt.set(m, (cnt.get(m) || 0) + 1)
+  return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${v}`).join('、')
 })
 
 const routeChartOption = computed(() => ({
@@ -264,19 +272,20 @@ const routeChartOption = computed(() => ({
 }))
 
 const trendChartOption = computed(() => {
+  // trend_7d 按时间正序：索引 0 = 6 天前，最后一项 = 今天
   const data = ctx.wardTrend.value || []
-  const days = data.map((_: any, i: number) => `${7 - i}天前`)
+  const days = data.map((_: any, i: number) => (i === data.length - 1 ? '今天' : `${data.length - 1 - i}天前`))
   return {
     ...icuGrid,
     ...icuTooltip,
-    xAxis: { type: 'category', data: days.reverse(), axisLabel: { color: '#8C8C8C', fontSize: 11 }, axisLine: { lineStyle: { color: '#E8E8E8' } }, axisTick: { show: false } },
+    xAxis: { type: 'category', data: days, axisLabel: { color: '#8C8C8C', fontSize: 11 }, axisLine: { lineStyle: { color: '#E8E8E8' } }, axisTick: { show: false } },
     yAxis: { type: 'value', max: 100, axisLabel: { color: '#8C8C8C', fontSize: 11, formatter: '{value}%' }, splitLine: { lineStyle: { color: '#F0F0F0', type: 'dashed' } } },
     series: [{
       type: 'bar',
-      data: [...data].reverse(),
+      data: data.map((v: number | null) => (v == null ? '-' : v)),
       itemStyle: { color: getChartColor(3), borderRadius: [4, 4, 0, 0] },
       barMaxWidth: 30,
-      label: { show: true, position: 'top', fontSize: 10, color: '#8C8C8C', formatter: '{c}%' },
+      label: { show: true, position: 'top', fontSize: 10, color: '#8C8C8C', formatter: (p: any) => (p.value === '-' || p.value == null ? '' : `${p.value}%`) },
     }],
     grid: { left: 50, right: 16, top: 16, bottom: 40 },
   }
@@ -299,13 +308,15 @@ function initCharts() {
 
 /* 行级状态映射 */
 function getToleranceLabel(p: any): string {
+  if (!p?.route || p.route === '未开始' || p.route === 'PN') return '未行EN'
   const level = p?.tolerance?.level
-  if (level === 'danger') return '中断'
-  if (level === 'warn') return '观察'
-  if (level === 'stable') return '平稳'
-  return '—'
+  if (level === 'danger') return '耐受·中断'
+  if (level === 'warn') return '耐受·观察'
+  if (level === 'stable') return '耐受·平稳'
+  return '耐受·未知'
 }
 function getToleranceClass(p: any): string {
+  if (!p?.route || p.route === '未开始' || p.route === 'PN') return 'tag-muted'
   const level = p?.tolerance?.level
   if (level === 'danger') return 'tag-danger'
   if (level === 'warn') return 'tag-warn'
@@ -314,10 +325,10 @@ function getToleranceClass(p: any): string {
 }
 function getRefeedingLabel(p: any): string {
   const level = p?.refeeding?.level
-  if (level === 'danger') return '高危'
-  if (level === 'warn') return '关注'
-  if (level === 'stable') return '平稳'
-  return '—'
+  if (level === 'danger') return '再喂养·高危'
+  if (level === 'warn') return '再喂养·关注'
+  if (level === 'stable') return '再喂养·低危'
+  return '再喂养·未评'
 }
 function getRefeedingClass(p: any): string {
   const level = p?.refeeding?.level
@@ -619,6 +630,7 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   gap: 6px;
 }
+.trend-bars span.is-unknown { background: repeating-linear-gradient(45deg, #E2E8F0, #E2E8F0 3px, #F8FAFC 3px, #F8FAFC 6px) !important; }
 .trend-bars span {
   flex: 1;
   min-height: 6px;

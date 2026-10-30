@@ -112,6 +112,15 @@ def _weight(patient: dict[str, Any]) -> float:
     return 60.0
 
 
+def _weight_recorded(patient: dict[str, Any]) -> bool:
+    """体重是否来自真实记录；否则目标按默认 60kg 估算，需在界面上标注。"""
+    for key in ("weight", "bodyWeight", "体重", "admissionWeight"):
+        val = _num(patient.get(key))
+        if val and 25 <= val <= 250:
+            return True
+    return False
+
+
 def _parse_volume_ml(text: str, fallback: Any = None) -> float | None:
     val = _num(fallback)
     if val and val > 0:
@@ -623,32 +632,44 @@ def _estimate_delivery(orders: list[dict[str, Any]], weight: float) -> dict[str,
     dated = [row for row in orders if _dt(row.get("time"))]
     anchor = max((_dt(row.get("time")) for row in dated), default=datetime.now())
     window_start = anchor - timedelta(hours=24)
-    window_rows = [row for row in orders if (not _dt(row.get("time")) or _dt(row.get("time")) >= window_start)]
+    # 24h 窗口左开右闭，避免把前一天同一时刻的每日医嘱重复计入
+    window_rows = [row for row in orders if (not _dt(row.get("time")) or _dt(row.get("time")) > window_start)]
     kcal_delivered = sum(float(row.get("kcal") or 0) for row in window_rows)
     protein_delivered = sum(float(row.get("protein_g") or 0) for row in window_rows)
     volume_ml = sum(float(row.get("volume_ml") or 0) for row in window_rows)
-    if route != "未开始" and kcal_delivered <= 0:
-        kcal_delivered = kcal_goal * (0.45 if route == "EN" else 0.6 if route == "PN" else 0.7)
-    if route != "未开始" and protein_delivered <= 0:
-        protein_delivered = protein_goal * (0.42 if route == "EN" else 0.55 if route == "PN" else 0.65)
-    kcal_pct = round(min(160, kcal_delivered / kcal_goal * 100)) if kcal_goal else 0
-    protein_pct = round(min(160, protein_delivered / protein_goal * 100)) if protein_goal else 0
+    # 缺失即未知：已启动营养但医嘱/执行中解析不出热量或蛋白时，不再按固定比例臆造“已给予量”
+    kcal_known = route == "未开始" or kcal_delivered > 0
+    protein_known = route == "未开始" or protein_delivered > 0
+    kcal_pct = (round(min(160, kcal_delivered / kcal_goal * 100)) if kcal_goal else 0) if kcal_known else None
+    protein_pct = (round(min(160, protein_delivered / protein_goal * 100)) if protein_goal else 0) if protein_known else None
+    if not window_rows:
+        source = "无营养医嘱"
+    elif not (kcal_known and protein_known):
+        source = "医嘱未含热量/蛋白信息，无法计算"
+    else:
+        source = "实际执行" if any(row.get("source") == "drugExe" for row in window_rows) else "医嘱估算"
     return {
         "kcal_goal": kcal_goal,
         "protein_goal": protein_goal,
         "kcal_achieved_pct": kcal_pct,
         "protein_achieved_pct": protein_pct,
-        "kcal_delivered": round(kcal_delivered),
-        "protein_delivered": round(protein_delivered, 1),
-        "kcal_gap": round(max(0, kcal_goal - kcal_delivered)),
-        "protein_gap": round(max(0, protein_goal - protein_delivered), 1),
+        "kcal_delivered": round(kcal_delivered) if kcal_known else None,
+        "protein_delivered": round(protein_delivered, 1) if protein_known else None,
+        "kcal_gap": round(max(0, kcal_goal - kcal_delivered)) if kcal_known else None,
+        "protein_gap": round(max(0, protein_goal - protein_delivered), 1) if protein_known else None,
         "volume_ml_24h": round(volume_ml, 1),
         "delivery_window_end": anchor,
-        "delivery_source": "实际执行" if any(row.get("source") == "drugExe" for row in window_rows) else "医嘱估算",
+        "delivery_source": source,
     }
 
 
 def _nutrition_prescription(delivery: dict[str, Any], route: str, tolerance: dict[str, Any], labs: dict[str, Any]) -> dict[str, Any]:
+    if delivery.get("kcal_gap") is None or delivery.get("protein_gap") is None:
+        return {
+            "level": "unknown", "title": "无法计算差额", "route": route,
+            "kcal_gap": delivery.get("kcal_gap"), "protein_gap": delivery.get("protein_gap"),
+            "suggestions": [], "reason": delivery.get("delivery_source") or "热量/蛋白数据缺失",
+        }
     kcal_gap = float(delivery.get("kcal_gap") or 0)
     protein_gap = float(delivery.get("protein_gap") or 0)
     glucose = (labs.get("glucose") or {}).get("value")
@@ -690,7 +711,8 @@ def _delivery_trend(orders: list[dict[str, Any]], weight: float) -> list[dict[st
         kcal = sum(float(row.get("kcal") or 0) for row in rows)
         protein = sum(float(row.get("protein_g") or 0) for row in rows)
         route = _nutrition_route(rows)
-        pct = round(min(160, kcal / kcal_goal * 100)) if kcal > 0 else 0
+        # 无医嘱当日=0（确实未给）；有医嘱但无热量信息=None（未知）
+        pct = (round(min(160, kcal / kcal_goal * 100)) if kcal > 0 else None) if rows else 0
         days.append({"day": day.strftime("%m-%d"), "pct": pct, "kcal": round(kcal), "protein_g": round(protein, 1), "route": route})
     return days
 
@@ -728,7 +750,7 @@ def _closed_loop_summary(row: dict[str, Any]) -> dict[str, Any]:
 
 def _data_quality(row: dict[str, Any]) -> dict[str, Any]:
     missing: list[str] = []
-    if row.get("weight") in (None, 60.0):
+    if row.get("weight") is None or row.get("weight_estimated"):
         missing.append("体重")
     if row.get("nrs2002") is None:
         missing.append("NRS2002")
@@ -740,6 +762,8 @@ def _data_quality(row: dict[str, Any]) -> dict[str, Any]:
             missing.append(label)
     if not row.get("orders"):
         missing.append("执行营养")
+    elif row.get("kcal_achieved_pct") is None:
+        missing.append("医嘱热量")
     completeness = max(0, round(100 - len(missing) * 12))
     return {"completeness": completeness, "missing": missing[:6], "level": "danger" if completeness < 55 else "warn" if completeness < 80 else "stable"}
 
@@ -795,7 +819,11 @@ def _refeeding_panel(labs: dict[str, Any], nrs: float | None, nutric: float | No
         value = (labs.get(key) or {}).get("value")
         items.append({"key": key, "label": label, "value": value, "level": "danger" if value is not None and float(value) < low else "unknown" if value is None else "stable"})
     score_risk = (nrs is not None and nrs >= 3) or (nutric is not None and nutric >= 4)
-    level = "danger" if any(item["level"] == "danger" for item in items) and score_risk else "warn" if score_risk else "stable"
+    if nrs is None and nutric is None:
+        # 未做 NRS2002 / NUTRIC 评估：再喂养风险未知，不判为“平稳”
+        level = "warn" if any(item["level"] == "danger" for item in items) else "unknown"
+    else:
+        level = "danger" if any(item["level"] == "danger" for item in items) and score_risk else "warn" if score_risk else "stable"
     return {"level": level, "electrolytes": items, "score_risk": score_risk}
 
 
@@ -830,9 +858,13 @@ def _risk_tags(route: str, delivery: dict[str, Any], labs: dict[str, Any], nrs: 
     tags: list[str] = []
     if route == "未开始" and (icu_days is None or icu_days >= 1):
         tags.append("未启动")
-    if delivery.get("kcal_achieved_pct", 0) < 60 and route != "未开始":
+    kcal_pct = delivery.get("kcal_achieved_pct")
+    protein_pct = delivery.get("protein_achieved_pct")
+    if route != "未开始" and (kcal_pct is None or protein_pct is None):
+        tags.append("达标率未知")
+    if kcal_pct is not None and kcal_pct < 60 and route != "未开始":
         tags.append("热量未达标")
-    if delivery.get("protein_achieved_pct", 0) < 60 and route != "未开始":
+    if protein_pct is not None and protein_pct < 60 and route != "未开始":
         tags.append("蛋白未达标")
     low_p = (labs.get("p") or {}).get("value") is not None and float((labs.get("p") or {}).get("value")) < 0.8
     low_k = (labs.get("k") or {}).get("value") is not None and float((labs.get("k") or {}).get("value")) < 3.5
@@ -866,6 +898,8 @@ def _actions(row: dict[str, Any]) -> list[dict[str, Any]]:
         actions.append({"priority": "high", "title": "评估启动 EN/PN", "target": "24-48h 内营养路径"})
     if "热量未达标" in tags or "蛋白未达标" in tags:
         actions.append({"priority": "medium", "title": "复核达标率", "target": "热量/蛋白目标"})
+    if "达标率未知" in tags:
+        actions.append({"priority": "medium", "title": "核对营养医嘱", "target": "医嘱缺少热量/蛋白含量，无法计算达标率"})
     if "再喂养风险" in tags:
         actions.append({"priority": "high", "title": "先补电解质", "target": "P/K/Mg + 慢速递增"})
     if "脂肪乳风险" in tags:
@@ -891,11 +925,6 @@ def _completion_score(row: dict[str, Any]) -> dict[str, Any]:
     ]
     pct = round(sum(1 for item in checks if item) / len(checks) * 100)
     return {"percent": pct, "level": "stable" if pct >= 90 else "warn" if pct >= 70 else "danger"}
-
-
-def _trend(delivery: dict[str, Any]) -> list[dict[str, Any]]:
-    base = int(delivery.get("kcal_achieved_pct") or 0)
-    return [{"day": f"D-{6 - idx}", "pct": max(0, min(100, base - (6 - idx) * 4 + (idx % 3) * 3))} for idx in range(7)]
 
 
 async def build_nutrition_row(patient: dict[str, Any]) -> dict[str, Any]:
@@ -932,6 +961,7 @@ async def build_nutrition_row(patient: dict[str, Any]) -> dict[str, Any]:
         "diagnosis": _diagnosis(patient),
         "department": patient.get("hisDept") or patient.get("dept") or patient.get("department"),
         "weight": weight,
+        "weight_estimated": not _weight_recorded(patient),
         "icu_days": round(icu_days, 1) if icu_days is not None else None,
         "route": route,
         **delivery,
@@ -1020,6 +1050,7 @@ def build_nutrition_light_row(patient: dict[str, Any]) -> dict[str, Any]:
         "diagnosis": _diagnosis(patient),
         "department": patient.get("hisDept") or patient.get("dept") or patient.get("department"),
         "weight": weight,
+        "weight_estimated": not _weight_recorded(patient),
         "icu_days": round(icu_days, 1) if icu_days is not None else None,
         "route": route,
         **delivery,
@@ -1098,7 +1129,8 @@ async def nutrition_dashboard(*, department: str | None = None, dept_code: str |
                 "refeeding_count": 0,
                 "not_started_count": 0,
                 "pn_review_count": 0,
-                "avg_kcal_pct": 0,
+                "avg_kcal_pct": None,
+                "kcal_known_count": 0,
                 "route_counts": {"待评估": len(rows)},
                 "is_light": True,
             },
@@ -1117,12 +1149,17 @@ async def nutrition_dashboard(*, department: str | None = None, dept_code: str |
 
     rows = [row for row in await asyncio.gather(*(_safe_row(patient) for patient in patients)) if row]
     rows.sort(key=lambda row: ({"high": 0, "medium": 1, "low": 2}.get(row.get("risk_level"), 3), str(row.get("bed_no") or "")))
+    stats = _dashboard_stats(rows)
+    return {"stats": stats, "patients": rows, "priorities": _ward_priorities(rows), "role_actions": _role_actions(rows)}
+
+
+def _dashboard_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
     route_counts: dict[str, int] = {}
     for row in rows:
         route_counts[row.get("route") or "未开始"] = route_counts.get(row.get("route") or "未开始", 0) + 1
-    kcal_values = [float(row.get("kcal_achieved_pct") or 0) for row in rows]
+    kcal_values = [float(row["kcal_achieved_pct"]) for row in rows if row.get("kcal_achieved_pct") is not None]
     quality_values = [float((row.get("data_quality") or {}).get("completeness") or 0) for row in rows]
-    stats = {
+    return {
         "patient_count": len(rows),
         "not_reached_count": sum(1 for row in rows if "热量未达标" in (row.get("risk_tags") or []) or "蛋白未达标" in (row.get("risk_tags") or [])),
         "refeeding_count": sum(1 for row in rows if "再喂养风险" in (row.get("risk_tags") or [])),
@@ -1130,10 +1167,10 @@ async def nutrition_dashboard(*, department: str | None = None, dept_code: str |
         "pn_review_count": sum(1 for row in rows if "PN复核" in (row.get("risk_tags") or [])),
         "open_task_count": sum(int(row.get("open_task_count") or 0) for row in rows),
         "data_quality_avg": round(sum(quality_values) / len(quality_values), 1) if quality_values else 0,
-        "avg_kcal_pct": round(sum(kcal_values) / len(kcal_values), 1) if kcal_values else 0,
+        "avg_kcal_pct": round(sum(kcal_values) / len(kcal_values), 1) if kcal_values else None,
+        "kcal_known_count": len(kcal_values),
         "route_counts": route_counts,
     }
-    return {"stats": stats, "patients": rows, "priorities": _ward_priorities(rows), "role_actions": _role_actions(rows)}
 
 
 async def nutrition_patient_detail(patient_id: str) -> dict[str, Any]:

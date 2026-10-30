@@ -24,6 +24,15 @@ DEFAULT_TABLE1_VARIABLES: list[dict[str, Any]] = [
 ]
 
 
+# 未指定预测变量时的默认候选（单因素 p<0.1 进入多因素）
+DEFAULT_PREDICTORS: list[str] = [
+    "age", "sofa_admission", "apache2", "lactate_admission", "creatinine_admission",
+    "mechanical_ventilation", "vasopressor",
+]
+# ROC 默认评估的连续评分
+DEFAULT_ROC_SCORES: list[str] = ["sofa_admission", "apache2", "lactate_admission"]
+
+
 class SAKIStatistics:
     """S-AKI 统计分析。"""
 
@@ -37,7 +46,10 @@ class SAKIStatistics:
             return {"error": "无可用患者", "table": {}}
         try:
             from app.services.research_analytics import generate_table1
-            return await generate_table1(db, patient_ids=ids, group_by=group_by, variables=variables or DEFAULT_TABLE1_VARIABLES)
+            return await generate_table1(
+                patient_ids=ids, group_by=group_by, group_definitions={},
+                variables=variables or DEFAULT_TABLE1_VARIABLES, db=db,
+            )
         except Exception as exc:
             logger.error("Table1 生成失败，不使用回退: %s", exc)
             return {"error": f"Table1 分析失败: {exc}", "table": {}}
@@ -53,8 +65,10 @@ class SAKIStatistics:
             return {"error": "无可用患者"}
         try:
             from app.services.research_analytics import survival_analysis
-            return await survival_analysis(db, patient_ids=ids, time_field=time_field,
-                                           event_field=event_field, group_by=group_by, max_time=max_time)
+            return await survival_analysis(
+                patient_ids=ids, time_field=time_field, event_field=event_field,
+                group_by=group_by, max_time=max_time, db=db,
+            )
         except Exception as exc:
             logger.warning("KM 分析失败: %s", exc)
             return {"error": str(exc)}
@@ -69,7 +83,10 @@ class SAKIStatistics:
             return {"error": "无可用患者"}
         try:
             from app.services.research_analytics import regression_analysis
-            return await regression_analysis(db, patient_ids=ids, outcome=outcome, predictors=predictors or [], model_type="logistic")
+            return await regression_analysis(
+                patient_ids=ids, outcome=outcome, outcome_type="binary",
+                predictors=predictors or DEFAULT_PREDICTORS, db=db,
+            )
         except Exception as exc:
             logger.warning("Logistic 回归失败: %s", exc)
             return {"error": str(exc)}
@@ -85,8 +102,10 @@ class SAKIStatistics:
             return {"error": "无可用患者"}
         try:
             from app.services.research_analytics import regression_analysis
-            return await regression_analysis(db, patient_ids=ids, outcome=event_field, predictors=predictors or [],
-                                             model_type="cox", time_field=time_field, max_time=max_time)
+            return await regression_analysis(
+                patient_ids=ids, outcome=event_field, outcome_type="survival",
+                predictors=predictors or DEFAULT_PREDICTORS, time_field=time_field, db=db,
+            )
         except Exception as exc:
             logger.warning("Cox 回归失败: %s", exc)
             return {"error": str(exc)}
@@ -101,7 +120,7 @@ class SAKIStatistics:
             return {"error": "无可用患者"}
         try:
             from app.services.research_analytics import roc_analysis as _roc
-            return await _roc(db, patient_ids=ids, outcome=outcome, predictors=predictors or [])
+            return await _roc(patient_ids=ids, outcome=outcome, predictors=predictors or DEFAULT_ROC_SCORES, db=db)
         except Exception as exc:
             logger.warning("ROC 分析失败: %s", exc)
             return {"error": str(exc)}
@@ -154,7 +173,13 @@ class SAKIStatistics:
     ) -> dict[str, Any]:
         """森林图数据。"""
         result = await self.logistic_regression(db, patient_ids, cohort_id, outcome, factors)
-        return {"forest_data": result.get("coefficients", []), "error": result.get("error")}
+        rows = result.get("multivariate") or result.get("univariate") or []
+        return {
+            "forest_data": rows,
+            "model": "multivariate" if result.get("multivariate") else "univariate",
+            "reason": result.get("reason"),
+            "error": result.get("error"),
+        }
 
     async def hospital_outcomes(
         self, db: Any, patient_ids: list[str] | None = None, cohort_id: str | None = None,
@@ -202,7 +227,18 @@ class SAKIStatistics:
                 builder = SAKICohortBuilder()
                 patients = await builder.get_cohort_patients(db, cohort_id, page=1, page_size=10000)
                 return [c.get("patient_id", "") for c in patients.get("cases", []) if c.get("patient_id")]
-        return []
+            return []
+        # 未指定患者/队列时，默认使用 S-AKI 病例库全部病例（原实现返回空，导致所有分析均“无可用患者”）
+        ids: list[str] = []
+        try:
+            cursor = db.col("saki_cases").find({}, {"patient_id": 1}).limit(5000)
+            async for doc in cursor:
+                pid = str(doc.get("patient_id") or "").strip()
+                if pid and pid not in ids:
+                    ids.append(pid)
+        except Exception as exc:
+            logger.warning("加载 S-AKI 病例库患者失败: %s", exc)
+        return ids
 
     async def _fallback_table1(self, db: Any, ids: list[str], group_by: str) -> dict[str, Any]:
         """回退的 Table1（不依赖 research_analytics）。"""

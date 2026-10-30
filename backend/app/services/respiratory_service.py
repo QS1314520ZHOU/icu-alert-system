@@ -442,7 +442,7 @@ def _worklist_actions(row: dict[str, Any]) -> list[dict[str, Any]]:
         actions.append({"priority": "medium", "title": "测量气囊压", "detail": "建议补录气囊压力、固定深度和湿化状态。"})
     sbt = row.get("sbt_candidate_status") or {}
     if sbt.get("status") == "candidate":
-        actions.append({"priority": "medium", "title": "今日 SBT 评估", "detail": "满足默认可评估条件，请床旁确认禁忌证后记录结果。"})
+        actions.append({"priority": "medium", "title": "今日 SBT 评估" if sbt.get("verified") else "SBT 初筛待核实", "detail": "满足默认可评估条件，请床旁确认禁忌证后记录结果。" if sbt.get("verified") else (sbt.get("recommendation") or "需床旁核实循环与镇静")})
     if row.get("difficult_airway"):
         actions.append({"priority": "high", "title": "确认困难气道预案", "detail": "查阅备选设备和联系人，确保急救流程清晰。"})
     return actions[:5]
@@ -453,10 +453,10 @@ def _respiratory_completion(rows: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(rows)
     if not total:
         return {
-            "percent": 100,
-            "status": "ready",
+            "percent": None,
+            "status": "empty",
             "label": "暂无机械通气患者",
-            "data_quality": {"percent": 100, "missing": []},
+            "data_quality": {"percent": None, "missing": []},
             "tasks": [],
             "gaps": [],
         }
@@ -608,7 +608,7 @@ async def build_ventilated_patient_row(
         "data_source": "deviceCap+deviceBind+score+LIS",
     }
     row["risk_tags"] = _risk_tags(row)
-    row["sbt_candidate_status"] = evaluate_sbt_candidate(row, True if fast else await _hemodynamic_stable(patient), rass)
+    row["sbt_candidate_status"] = evaluate_sbt_candidate(row, None if fast else await _hemodynamic_stable(patient), rass)
     row["parameter_completeness"] = _parameter_completeness(row)
     row["safety_score"] = _safety_score(row)
     row["worklist_actions"] = _worklist_actions(row)
@@ -671,7 +671,7 @@ def sbt_default_config() -> dict[str, Any]:
     return {"fio2_max": 0.5, "peep_max": 8, "pf_ratio_min": 150, "rass_min": -2, "rass_max": 1}
 
 
-def evaluate_sbt_candidate(row: dict[str, Any], hemodynamic_stable: bool = True, rass: float | None = None) -> dict[str, Any]:
+def evaluate_sbt_candidate(row: dict[str, Any], hemodynamic_stable: bool | None = True, rass: float | None = None) -> dict[str, Any]:
     cfg = sbt_default_config()
     reasons = []
     fio2 = _fio2_fraction(row.get("fio2"))
@@ -687,8 +687,14 @@ def evaluate_sbt_candidate(row: dict[str, Any], hemodynamic_stable: bool = True,
         reasons.append(f"PEEP {peep} 高于阈值")
     if pf_ratio is not None and pf_ratio < float(cfg.get("pf_ratio_min", 150)):
         reasons.append(f"P/F {pf_ratio} 偏低")
-    if not hemodynamic_stable:
+    # 缺失即未知：未核实的条件不当作满足，标记为待床旁核实
+    unverified: list[str] = []
+    if hemodynamic_stable is None:
+        unverified.append("循环稳定性未核实")
+    elif not hemodynamic_stable:
         reasons.append("仍需血管活性药或循环不稳")
+    if rass is None:
+        unverified.append("RASS 未记录")
     if rass is not None and not (float(cfg.get("rass_min", -2)) <= rass <= float(cfg.get("rass_max", 1))):
         reasons.append(f"RASS {rass} 不在目标范围")
     score = 50
@@ -698,13 +704,20 @@ def evaluate_sbt_candidate(row: dict[str, Any], hemodynamic_stable: bool = True,
         score += 10
     if pf_ratio is not None and pf_ratio >= float(cfg.get("pf_ratio_min", 150)):
         score += 15
-    if hemodynamic_stable:
+    if hemodynamic_stable is True:
         score += 10
     if rass is not None and float(cfg.get("rass_min", -2)) <= rass <= float(cfg.get("rass_max", 1)):
         score += 5
-    recommendation = "建议评估 SBT" if not reasons else f"暂不建议 SBT：{'；'.join(reasons[:3])}"
+    if reasons:
+        recommendation = f"暂不建议 SBT：{'；'.join(reasons[:3])}"
+    elif unverified:
+        recommendation = f"氧合/PEEP 初筛通过，需床旁核实（{'、'.join(unverified)}）后再行 SBT"
+    else:
+        recommendation = "建议评估 SBT"
     return {
         "status": "candidate" if not reasons else "not_suitable",
+        "verified": not reasons and not unverified,
+        "unverified": unverified,
         "reasons": reasons,
         "criteria": cfg,
         "score": max(0, min(100, score - len(reasons) * 8)),
@@ -726,7 +739,7 @@ async def respiratory_worklist(*, department: str | None = None, dept_code: str 
                     "patient_id": row.get("patient_id"),
                     "bed_no": row.get("bed_no"),
                     "name": row.get("name"),
-                    "title": f"评估 {row.get('bed_no') or '--'}床 SBT 候选",
+                    "title": f"评估 {row.get('bed_no') or '--'}床 SBT 候选" if sbt.get("verified") else f"{row.get('bed_no') or '--'}床 SBT 初筛通过，待床旁核实",
                     "reason": sbt.get("recommendation") or "建议评估 SBT",
                     "priority": "medium",
                     "category": "sbt",
@@ -778,7 +791,7 @@ async def respiratory_dashboard(*, department: str | None = None, dept_code: str
             tasks.append({
                 "task_id": f"sbt:{row.get('patient_id')}", "patient_id": row.get("patient_id"),
                 "bed_no": row.get("bed_no"), "name": row.get("name"),
-                "title": f"评估 {row.get('bed_no') or '--'}床 SBT 候选",
+                "title": f"评估 {row.get('bed_no') or '--'}床 SBT 候选" if sbt.get("verified") else f"{row.get('bed_no') or '--'}床 SBT 初筛通过，待床旁核实",
                 "reason": sbt.get("recommendation") or "建议评估 SBT",
                 "priority": "medium", "category": "sbt", "score": sbt.get("score"),
                 "status": "open", "created_at": datetime.now(),

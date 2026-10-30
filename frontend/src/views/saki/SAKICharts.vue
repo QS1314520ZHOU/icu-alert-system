@@ -32,14 +32,14 @@
 import { Button as AButton, TabPane as ATabPane, Tabs as ATabs } from 'ant-design-vue'
 import { ref, computed } from 'vue'
 import { use } from 'echarts/core'
-import { LineChart, BarChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components'
+import { LineChart, BarChart, PieChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent, TitleComponent, MarkLineComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { runCreatinineTrajectory, runForest, runOutcomes } from '../../api/saki'
 import { EmptyState } from '../../components/common/design-system'
 
-use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
+use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, MarkLineComponent])
 
 const activeChart = ref('trajectory')
 const loading = ref(false)
@@ -65,14 +65,20 @@ const trajectoryOption = computed(() => {
   }
 })
 
+const FOREST_LABELS: Record<string, string> = { age: '年龄', sofa_admission: '入科 SOFA', apache2: 'APACHE II', lactate_admission: '入科乳酸', creatinine_admission: '入科肌酐', mechanical_ventilation: '机械通气', vasopressor: '血管活性药' }
 const forestOption = computed(() => {
   if (!forestData.value?.forest_data?.length) return undefined
   const data = forestData.value.forest_data
   return {
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'value', name: 'OR / HR' },
-    yAxis: { type: 'category', data: data.map((d: any) => d.variable || d.name || '') },
-    series: [{ type: 'bar', data: data.map((d: any) => d.coef || d.or || 0) }],
+    tooltip: { trigger: 'axis', valueFormatter: (v: any) => Number(v).toFixed(2) },
+    grid: { left: 110, right: 30, top: 20, bottom: 30 },
+    xAxis: { type: 'log', name: 'OR', min: 0.1 },
+    yAxis: { type: 'category', data: data.map((d: any) => FOREST_LABELS[d.variable] || d.variable || d.name || '') },
+    series: [{
+      type: 'bar',
+      data: data.map((d: any) => ({ value: d.estimate ?? d.coef ?? d.or ?? 1, itemStyle: { color: (d.p ?? 1) < 0.05 ? ((d.estimate ?? 1) > 1 ? '#B91C1C' : '#2F7D55') : '#94A3B8' } })),
+      markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#5392FF' }, data: [{ xAxis: 1 }], label: { show: false } },
+    }],
   }
 })
 
@@ -84,7 +90,7 @@ const outcomesOption = computed(() => {
     series: [{
       type: 'pie',
       radius: ['40%', '65%'],
-      data: Object.entries(dist).map(([k, v]) => ({ name: `Stage ${k}`, value: v })),
+      data: Object.entries(dist).map(([k, v]) => ({ name: k === '0' ? '无 AKI' : `${k} 期`, value: v })),
     }],
   }
 })

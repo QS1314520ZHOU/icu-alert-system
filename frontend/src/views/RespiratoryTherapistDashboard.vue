@@ -34,17 +34,19 @@
         <div ref="ventChartRef" class="resp-viz-chart"></div>
       </div>
       <div class="resp-viz-card">
-        <h4>脱机路径进度</h4>
-        <WorkflowDiagram
-          :nodes="weaningNodes"
-          direction="horizontal"
-          size="small"
-        />
+        <h4>脱机进程（当前在科）</h4>
+        <div class="wean-tiles">
+          <div v-for="n in weaningNodes" :key="n.id" class="wean-tile" :class="`wean-tile--${n.tone}`">
+            <span class="wean-tile__label">{{ n.name }}</span>
+            <b class="wean-tile__value">{{ n.count }}</b>
+            <em v-if="n.hint" class="wean-tile__hint">{{ n.hint }}</em>
+          </div>
+        </div>
       </div>
       <div class="resp-viz-card resp-viz-card--ring">
         <h4>数据完整性</h4>
         <DataCompletenessRing :value="ctx.completion.value?.data_quality?.percent ?? 0" :size="100" />
-        <span class="resp-viz-ring-label">完成率 {{ ctx.completion.value?.percent ?? 0 }}%</span>
+        <span class="resp-viz-ring-label">闭环完成率 {{ ctx.completion.value?.percent != null ? `${ctx.completion.value.percent}%` : '—' }}</span>
       </div>
     </div>
 
@@ -70,8 +72,8 @@
             :fio2="ctx.fmtVentParam('fio2', patient.fio2)"
             :peep="ctx.fmtVentParam('peep', patient.peep)"
             :pf="ctx.fmtVentParam('pf_ratio', patient.pf_ratio)"
-            :sbt-label="patient.sbt_candidate_status?.status === 'candidate' ? 'SBT可评估' : '—'"
-            :sbt-class="patient.sbt_candidate_status?.status === 'candidate' ? 'sbt-ok' : 'sbt-no'"
+            :sbt-label="patient.sbt_candidate_status?.status === 'candidate' ? (patient.sbt_candidate_status?.verified === false ? 'SBT初筛·待核实' : 'SBT可评估') : '—'"
+            :sbt-class="patient.sbt_candidate_status?.status === 'candidate' ? (patient.sbt_candidate_status?.verified === false ? 'sbt-pending' : 'sbt-ok') : 'sbt-no'"
             :issue="ctx.shortIssue(patient)"
             :action-label="ctx.nextAction(patient)"
             @click="ctx.openPatient(patient)"
@@ -81,7 +83,7 @@
         <!-- SBT 评估队列 -->
         <div v-if="ctx.sbt.value?.todo?.length" class="resp-queue__sbt">
           <div class="section-header">
-            <h2 class="section-title">SBT 可评估</h2>
+            <h2 class="section-title">SBT 初筛通过</h2>
             <span class="section-count">{{ ctx.sbt.value.todo.length }} 人</span>
           </div>
           <div class="sbt-rows">
@@ -92,7 +94,7 @@
             >
               <span class="sbt-row__bed">{{ item.bed_no }}床</span>
               <span class="sbt-row__name">{{ item.name }}</span>
-              <span class="sbt-row__score">候选 {{ ctx.sbtCandidateScore(item) }}/100</span>
+              <span class="sbt-row__score">{{ ctx.sbtCandidateScore(item) }}</span>
               <span class="sbt-row__reason">{{ ctx.sbtCandidateReason(item) }}</span>
               <div class="sbt-row__actions">
                 <a-button size="small" type="primary" @click.stop="ctx.recordSbt(item, 'completed')">完成</a-button>
@@ -178,16 +180,16 @@
           </div>
           <div class="progress-row">
             <span>完成率</span>
-            <strong>{{ ctx.completion.value?.percent ?? 100 }}%</strong>
+            <strong>{{ ctx.completion.value?.percent != null ? `${ctx.completion.value.percent}%` : '—' }}</strong>
             <div class="progress-bar">
-              <div class="progress-bar__fill" :style="{ width: `${ctx.completion.value?.percent ?? 100}%` }" />
+              <div class="progress-bar__fill" :style="{ width: `${ctx.completion.value?.percent ?? 0}%` }" />
             </div>
           </div>
           <div class="progress-row">
             <span>数据质量</span>
-            <strong>{{ ctx.completion.value?.data_quality?.percent ?? 100 }}%</strong>
+            <strong>{{ ctx.completion.value?.data_quality?.percent != null ? `${ctx.completion.value.data_quality.percent}%` : '—' }}</strong>
             <div class="progress-bar">
-              <div class="progress-bar__fill" :style="{ width: `${ctx.completion.value?.data_quality?.percent ?? 100}%` }" />
+              <div class="progress-bar__fill" :style="{ width: `${ctx.completion.value?.data_quality?.percent ?? 0}%` }" />
             </div>
           </div>
         </div>
@@ -221,9 +223,7 @@ import { useRespiratoryDashboard } from '../composables/useRespiratoryDashboard'
 import RespiratoryPatientRow from '../components/respiratory/RespiratoryPatientRow.vue'
 import RespiratoryDrawer from '../components/respiratory/RespiratoryDrawer.vue'
 import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
-import WorkflowDiagram from '../components/charts/flow/WorkflowDiagram.vue'
 import { icuGrid, icuTooltip, getChartColor } from '../charts/icuTheme'
-import type { WorkflowNode } from '../components/charts'
 
 echarts.use([BarChart, GaugeChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -236,22 +236,25 @@ let ventChart: echarts.ECharts | null = null
 const ventOption = computed(() => {
   const pts = ctx.patients.value || []
   const beds = pts.map((p: any) => p.bed_no || '?')
-  const fio2 = pts.map((p: any) => Number(p.fio2 || 0))
-  const peep = pts.map((p: any) => Number(p.peep || 0))
-  const pf = pts.map((p: any) => Number(p.pf_ratio || 0))
+  const fio2 = pts.map((p: any) => (p.fio2 == null ? null : Number(p.fio2) <= 1 ? Math.round(Number(p.fio2) * 100) : Number(p.fio2)))
+  const peep = pts.map((p: any) => (p.peep == null ? null : Number(p.peep)))
+  const pf = pts.map((p: any) => (p.pf_ratio == null ? null : Number(p.pf_ratio)))
 
   return {
     ...icuGrid,
     ...icuTooltip,
     legend: { data: ['FiO₂(%)', 'PEEP(cmH₂O)', 'P/F比'], bottom: 0, textStyle: { color: '#8C8C8C', fontSize: 11 } },
     xAxis: { type: 'category', data: beds, axisLabel: { color: '#8C8C8C', fontSize: 11 }, axisLine: { lineStyle: { color: '#E8E8E8' } }, axisTick: { show: false } },
-    yAxis: { type: 'value', axisLabel: { color: '#8C8C8C', fontSize: 11 }, splitLine: { lineStyle: { color: '#F0F0F0', type: 'dashed' } } },
+    yAxis: [
+      { type: 'value', name: 'FiO₂% / PEEP', nameTextStyle: { color: '#8C8C8C', fontSize: 11 }, axisLabel: { color: '#8C8C8C', fontSize: 11 }, splitLine: { lineStyle: { color: '#F0F0F0', type: 'dashed' } } },
+      { type: 'value', name: 'P/F', nameTextStyle: { color: '#8C8C8C', fontSize: 11 }, axisLabel: { color: '#8C8C8C', fontSize: 11 }, splitLine: { show: false } },
+    ],
     series: [
       { name: 'FiO₂(%)', type: 'bar', data: fio2, itemStyle: { color: getChartColor(0), borderRadius: [4, 4, 0, 0] }, barMaxWidth: 20 },
       { name: 'PEEP(cmH₂O)', type: 'bar', data: peep, itemStyle: { color: getChartColor(1), borderRadius: [4, 4, 0, 0] }, barMaxWidth: 20 },
-      { name: 'P/F比', type: 'bar', data: pf, itemStyle: { color: getChartColor(2), borderRadius: [4, 4, 0, 0] }, barMaxWidth: 20 },
+      { name: 'P/F比', type: 'bar', yAxisIndex: 1, data: pf, itemStyle: { color: getChartColor(2), borderRadius: [4, 4, 0, 0] }, barMaxWidth: 20 },
     ],
-    grid: { left: 50, right: 16, top: 12, bottom: 40 },
+    grid: { left: 50, right: 44, top: 30, bottom: 40 },
   }
 })
 
@@ -266,18 +269,16 @@ function initVentChart() {
 watch(ventOption, (opt) => { ventChart?.setOption(opt, true) }, { deep: true })
 
 // ── 脱机路径节点 ──────────────────────────────────────────────────
-const weaningNodes = computed<WorkflowNode[]>(() => {
-  const totalPatients = ctx.patients.value?.length || 0
-  const sbtCandidates = ctx.sbt.value?.todo?.length || 0
-  const sbtDone = ctx.sbt.value?.done?.length || 0
-  const completionPct = ctx.completion.value?.percent ?? 0
-
+const weaningNodes = computed(() => {
+  const sbt = ctx.sbt.value || {}
+  const todo = sbt.todo || []
+  const pending = todo.filter((r: any) => !r?.sbt_candidate_status?.verified).length
   return [
-    { id: '1', name: '评估', status: totalPatients > 0 ? 'completed' : 'pending' as const, count: totalPatients },
-    { id: '2', name: 'SBT筛选', status: sbtCandidates > 0 ? 'running' : 'completed' as const, count: sbtCandidates },
-    { id: '3', name: 'SBT试验', status: sbtDone > 0 ? 'completed' : sbtCandidates > 0 ? 'pending' : 'unknown' as const, count: sbtDone },
-    { id: '4', name: '脱机拔管', status: completionPct >= 80 ? 'completed' : completionPct >= 50 ? 'running' : 'pending' as const },
-    { id: '5', name: '48h稳定', status: 'pending' as const },
+    { id: 'vent', name: '机械通气', count: ctx.patients.value?.length || 0, tone: 'info', hint: '' },
+    { id: 'todo', name: '初筛通过', count: todo.length, tone: todo.length ? 'warn' : 'muted', hint: pending ? `${pending} 人待核实` : '' },
+    { id: 'ns', name: '暂不适合', count: (sbt.not_suitable || []).length, tone: 'muted', hint: '' },
+    { id: 'pass', name: 'SBT 通过', count: (sbt.completed || []).length, tone: (sbt.completed || []).length ? 'ok' : 'muted', hint: '' },
+    { id: 'fail', name: 'SBT 失败', count: (sbt.failed || []).length, tone: (sbt.failed || []).length ? 'crit' : 'muted', hint: '' },
   ]
 })
 
@@ -293,6 +294,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.wean-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.wean-tile { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 8px; background: #F9FAFB; }
+.wean-tile__label { font-size: 12px; color: #6B7280; }
+.wean-tile__value { font-size: 22px; line-height: 1.1; color: #111827; font-variant-numeric: tabular-nums; }
+.wean-tile__hint { font-style: normal; font-size: 11px; color: #B45309; }
+.wean-tile--info { border-color: #BFD5FF; background: #EEF4FF; }
+.wean-tile--warn { border-color: #FCD34D; background: #FFFBEB; }
+.wean-tile--warn .wean-tile__value { color: #B45309; }
+.wean-tile--ok { border-color: #A7D9BF; background: #E7F5EE; }
+.wean-tile--ok .wean-tile__value { color: #2F7D55; }
+.wean-tile--crit { border-color: #FCA5A5; background: #FEF2F2; }
+.wean-tile--crit .wean-tile__value { color: #B91C1C; }
 .resp-page {
   min-height: calc(100vh - 76px);
   padding: var(--page-padding, 24px);

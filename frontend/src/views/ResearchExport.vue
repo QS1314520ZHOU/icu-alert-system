@@ -11,9 +11,12 @@
     <!-- 导出就绪度 -->
     <div class="export-viz-row">
       <div class="export-viz-card export-viz-card--ring">
-        <h4>导出就绪度</h4>
-        <DataCompletenessRing :value="exportReadiness" :size="100" />
-        <span class="export-viz-ring-label">{{ form.data_types.length }} 类数据已选</span>
+        <h4>导出前核对</h4>
+        <ul class="prep-list">
+          <li v-for="it in prepChecklist" :key="it.label" class="prep-item" :class="{ done: it.ok }">
+            <span class="prep-dot">{{ it.ok ? '✓' : '!' }}</span>{{ it.label }}<em>{{ it.detail }}</em>
+          </li>
+        </ul>
       </div>
       <div class="export-viz-card">
         <h4>已选数据类型</h4>
@@ -172,7 +175,7 @@
     <div class="history-section">
       <div class="history-toggle" @click="showHistory = !showHistory">
         <span>导出历史（{{ history.length }}）</span>
-        <span>{{ showHistory ? '▲' : '▼' }}</span>
+        <span><UpOutlined v-if="showHistory" /><DownOutlined v-else /></span>
       </div>
       <div v-show="showHistory" class="history-content">
         <a-table :data-source="history" :columns="historyColumns" :pagination="{ pageSize: 8, hideOnSinglePage: true }" row-key="task_id" size="small" :custom-row="historyRowProps">
@@ -221,11 +224,11 @@
 </template>
 
 <script setup lang="ts">
+import { UpOutlined, DownOutlined } from '@ant-design/icons-vue'
 import { computed, ref, watch } from 'vue'
 import { Button as AButton, Checkbox as ACheckbox, DatePicker, Drawer as ADrawer, Progress as AProgress, Radio as ARadio, Select as ASelect, Space as ASpace, Steps as ASteps, Table as ATable, Tag as ATag } from 'ant-design-vue'
 import { PageHeader, SectionHeader, MetricStrip, ActionBar, EmptyState } from '../components/common/design-system'
 import { useResearchExport } from '../composables/useResearchExport'
-import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
 
 const ARangePicker = DatePicker.RangePicker
 const ACheckboxGroup = ACheckbox.Group
@@ -300,15 +303,12 @@ function historyRowProps(record: any) {
 }
 
 // ── 导出就绪度 ──────────────────────────────────────────────────────
-const exportReadiness = computed(() => {
-  let total = 4
-  let filled = 0
-  if (form.value.cohort_id || form.value.department || form.value.patient_scope !== 'all') filled++
-  if (form.value.data_types.length > 0) filled++
-  if (form.value.format) filled++
-  if (form.value.desensitize || form.value.include_data_dict) filled++
-  return Math.round((filled / total) * 100)
-})
+// 导出前核对：逐项陈述，不折算成百分比
+const prepChecklist = computed(() => [
+  { label: '数据范围', ok: true, detail: form.value.cohort_id ? '已选队列' : form.value.department ? '按科室' : form.value.patient_scope !== 'all' ? '按在/出科' : '全部患者' },
+  { label: '数据类型', ok: form.value.data_types.length > 0, detail: `${form.value.data_types.length} 类` },
+  { label: '脱敏', ok: !!form.value.desensitize, detail: form.value.desensitize ? '已开启' : '未开启' },
+])
 
 function dataTypeLabel(dt: string): string {
   const map: Record<string, string> = {
@@ -465,4 +465,10 @@ init()
   .form-row { grid-template-columns: 1fr; }
   .form-row .form-label { margin-bottom: 4px; }
 }
+
+.prep-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.prep-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; }
+.prep-dot { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #FCD34D; background: #FFFBEB; color: #B45309; }
+.prep-item.done .prep-dot { border-color: #A7D9BF; background: #E7F5EE; color: #2F7D55; }
+.prep-item em { margin-left: auto; font-style: normal; font-size: 12px; color: #6B7280; }
 </style>

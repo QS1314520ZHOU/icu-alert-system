@@ -16,9 +16,11 @@
         <div ref="funnelChartRef" class="trial-viz-chart"></div>
       </div>
       <div class="trial-viz-card trial-viz-card--ring">
-        <h4>数据完整性</h4>
-        <DataCompletenessRing :value="screeningCompleteness" :size="100" />
-        <span class="trial-viz-ring-label">{{ trials.length }} 项试验</span>
+        <h4>候选处理状态</h4>
+        <ul class="trial-status-list">
+          <li v-for="it in candidateStatusSummary" :key="it.label" :class="`tone-${it.tone}`"><span>{{ it.label }}</span><b>{{ it.value }}</b></li>
+        </ul>
+        <span class="trial-viz-ring-label">{{ trials.length }} 项试验 · {{ activeTrialCount }} 项招募中</span>
       </div>
     </div>
 
@@ -251,7 +253,6 @@ import {
 } from 'ant-design-vue'
 import { PageHeader, SectionHeader, MetricStrip, ActionBar, EmptyState } from '../components/common/design-system'
 import { useClinicalTrial } from '../composables/useClinicalTrial'
-import DataCompletenessRing from '../components/charts/risk/DataCompletenessRing.vue'
 
 echarts.use([FunnelChart, TooltipComponent, CanvasRenderer])
 
@@ -318,12 +319,17 @@ const candidateRows = computed(() => candidates.value.map((c, idx) => ({ ...c, r
 const funnelChartRef = ref<HTMLElement>()
 let funnelChart: echarts.ECharts | null = null
 
-const screeningCompleteness = computed(() => {
-  const total = trials.value.length
-  const active = activeTrialCount.value
-  const withCandidates = candidates.value.length > 0 ? 1 : 0
-  if (!total) return 0
-  return Math.round(((active + withCandidates) / (total + 1)) * 100)
+// 候选处理状态：直接计数，不折算“完整性”百分比
+const candidateStatusSummary = computed(() => {
+  const list = candidates.value as any[]
+  const enrolled = list.filter((c) => c.status === 'enrolled').length
+  const pending = list.filter((c) => c.status === 'pending').length
+  return [
+    { label: '候选患者', value: list.length, tone: 'info' },
+    { label: '待确认', value: pending, tone: pending ? 'warn' : 'muted' },
+    { label: '已处理', value: list.length - pending - enrolled, tone: 'muted' },
+    { label: '已入组', value: enrolled, tone: enrolled ? 'ok' : 'muted' },
+  ]
 })
 
 const funnelOption = computed(() => {
@@ -344,7 +350,7 @@ const funnelOption = computed(() => {
       data: [
         { value: scanned, name: '扫描患者', itemStyle: { color: '#2F6FED' } },
         { value: candidatesCount, name: '候选匹配', itemStyle: { color: '#12B76A' } },
-        { value: notified, name: '已通知', itemStyle: { color: '#F79009' } },
+        { value: notified, name: '已处理', itemStyle: { color: '#F79009' } },
         { value: enrolled, name: '已入组', itemStyle: { color: '#7C3AED' } },
       ].filter(d => d.value > 0),
     }],
@@ -497,4 +503,12 @@ onBeforeUnmount(() => { funnelChart?.dispose(); funnelChart = null })
   .trial-grid { grid-template-columns: 1fr; }
   .diag-row { flex-wrap: wrap; }
 }
+.trial-status-list { list-style: none; margin: 8px 0 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.trial-status-list li { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 6px; border: 1px solid #E5E7EB; background: #F9FAFB; font-size: 12px; color: #6B7280; }
+.trial-status-list li b { font-size: 16px; color: #111827; font-variant-numeric: tabular-nums; }
+.trial-status-list li.tone-info { border-color: #BFD5FF; background: #EEF4FF; }
+.trial-status-list li.tone-warn { border-color: #FCD34D; background: #FFFBEB; }
+.trial-status-list li.tone-warn b { color: #B45309; }
+.trial-status-list li.tone-ok { border-color: #A7D9BF; background: #E7F5EE; }
+.trial-status-list li.tone-ok b { color: #2F7D55; }
 </style>

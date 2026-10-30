@@ -26,12 +26,13 @@
       <section class="target-card">
         <div>
           <span>热量</span>
-          <strong>{{ patient.kcal_delivered || 0 }} / {{ patient.kcal_goal || 0 }} kcal</strong>
+          <strong>{{ patient.kcal_delivered ?? '—' }} / {{ patient.kcal_goal || 0 }} kcal<em v-if="patient.weight_estimated" class="est-tag" title="未记录体重，目标按 60kg 估算">体重估算</em></strong>
           <meter min="0" max="100" :value="patient.kcal_achieved_pct || 0"></meter>
+          <small v-if="patient.kcal_achieved_pct == null && patient.delivery_source" class="unknown-note">{{ patient.delivery_source }}</small>
         </div>
         <div>
           <span>蛋白</span>
-          <strong>{{ patient.protein_delivered || 0 }} / {{ patient.protein_goal || 0 }} g</strong>
+          <strong>{{ patient.protein_delivered ?? '—' }} / {{ patient.protein_goal || 0 }} g</strong>
           <meter min="0" max="100" :value="patient.protein_achieved_pct || 0"></meter>
         </div>
       </section>
@@ -74,8 +75,8 @@
       <section class="rx-card" :class="`level-${patient.prescription?.level || 'unknown'}`">
         <div>
           <span>今日差额</span>
-          <strong>{{ patient.prescription?.kcal_gap || 0 }} kcal</strong>
-          <small>蛋白 {{ patient.prescription?.protein_gap || 0 }} g</small>
+          <strong>{{ patient.prescription?.kcal_gap ?? '—' }} kcal</strong>
+          <small>{{ patient.prescription?.level === 'unknown' ? (patient.prescription?.reason || '热量/蛋白数据缺失') : `蛋白 ${patient.prescription?.protein_gap ?? '—'} g` }}</small>
         </div>
         <div>
           <span>建议路径</span>
@@ -95,9 +96,9 @@
       <!-- 趋势图 -->
       <section class="chart-grid">
         <article>
-          <div class="chart-head"><span>7日热量</span><strong>{{ patient.kcal_achieved_pct || 0 }}%</strong></div>
+          <div class="chart-head"><span>7日热量</span><strong>{{ patient.kcal_achieved_pct != null ? `${patient.kcal_achieved_pct}%` : '—' }}</strong></div>
           <div class="spark-bars">
-            <span v-for="item in patient.trend_7d || []" :key="item.day" :style="{ height: `${Math.max(8, Number(item.pct || 0))}%` }"></span>
+            <span v-for="item in patient.trend_7d || []" :key="item.day" :class="{ 'is-unknown': item.pct == null }" :title="`${item.day}：${item.pct == null ? '有医嘱但无热量信息' : item.pct + '%'}`" :style="{ height: `${item.pct == null ? 100 : Math.max(4, Math.min(100, Number(item.pct)))}%` }"></span>
           </div>
         </article>
         <article>
@@ -572,4 +573,7 @@ defineEmits<{
   .chart-grid,
   .rx-card { grid-template-columns: 1fr; }
 }
+.est-tag { font-style: normal; font-size: 11px; margin-left: 6px; padding: 0 6px; border-radius: 8px; background: #FFFBEB; color: #B45309; border: 1px solid #FCD34D; }
+.unknown-note { display: block; font-size: 11px; color: #B45309; }
+.spark-bars span.is-unknown { background: repeating-linear-gradient(45deg, #E2E8F0, #E2E8F0 3px, #F8FAFC 3px, #F8FAFC 6px) !important; }
 </style>

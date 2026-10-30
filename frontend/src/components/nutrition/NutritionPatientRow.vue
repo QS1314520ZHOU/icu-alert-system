@@ -162,11 +162,12 @@ const tone = computed(() => props.tone || 'stable')
 .nutr-row__tolerance,
 .nutr-row__refeeding {
   flex-shrink: 0;
-  width: 72px;
+  width: 92px;
   text-align: center;
 }
 .nutr-row__tag {
   display: inline-block;
+  white-space: nowrap;
   padding: 2px 8px;
   border-radius: var(--radius-tag, 4px);
   font-size: var(--text-label, 12px);

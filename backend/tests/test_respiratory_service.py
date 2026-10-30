@@ -45,3 +45,13 @@ def test_respiratory_worklist_scores_high_risk_patient() -> None:
     actions = _worklist_actions({**row, "sbt_candidate_status": {"status": "candidate"}})
     assert any(item["title"] == "复核肺保护通气" for item in actions)
     assert any(item["title"] == "确认困难气道预案" for item in actions)
+
+
+def test_sbt_unverified_conditions_are_not_assumed_met() -> None:
+    runtime.config = SimpleNamespace(yaml_cfg={})
+    row = {"fio2": 0.4, "peep": 5, "pf_ratio": 220}
+    result = evaluate_sbt_candidate(row, hemodynamic_stable=None, rass=None)
+    assert result["status"] == "candidate"
+    assert result["verified"] is False
+    assert "循环稳定性未核实" in result["unverified"] and "RASS 未记录" in result["unverified"]
+    assert "核实" in result["recommendation"]

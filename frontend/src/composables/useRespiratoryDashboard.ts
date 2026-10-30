@@ -173,24 +173,23 @@ export function useRespiratoryDashboard() {
     return 'stable'
   }
 
+  /** SBT 初筛结论：以后端判定为准；未核实条件不当作满足 */
   function sbtCandidateScore(row: any) {
-    let score = 50
-    if (Number(row?.pf_ratio || 0) >= 150) score += 15
-    if (Number(row?.peep || 99) <= 8) score += 10
-    if (Number(row?.fio2 || 1) <= 0.5) score += 10
-    const rass = Number(row?.rass)
-    if (Number.isFinite(rass) && rass >= -2 && rass <= 1) score += 10
-    if (!(row?.risk_tags || []).includes('低氧合')) score += 5
-    return Math.min(100, score)
+    const st = row?.sbt_candidate_status || {}
+    if (st.status === 'candidate') return st.verified ? '初筛通过' : '初筛通过·待核实'
+    if (st.status === 'not_suitable') return '暂不适合'
+    return '未评估'
   }
 
   function sbtCandidateReason(row: any) {
-    const blockers = []
-    if (row?.rass == null) blockers.push('RASS缺失')
-    if (Number(row?.fio2 || 0) > 0.5) blockers.push('FiO2偏高')
-    if (Number(row?.peep || 0) > 8) blockers.push('PEEP偏高')
-    if ((row?.risk_tags || []).includes('低氧合')) blockers.push('氧合不稳')
-    return blockers.length ? `阻碍：${blockers.slice(0, 2).join('、')}` : '建议评估'
+    const st = row?.sbt_candidate_status || {}
+    const reasons: string[] = st.reasons || []
+    const unverified: string[] = st.unverified || []
+    if (reasons.length) return `阻碍：${reasons.slice(0, 2).join('、')}`
+    if (unverified.length) return `待核实：${unverified.join('、')}`
+    if (st.status === 'candidate') return '条件已核实，可行 SBT'
+    if (row?.rass == null) return '待核实：RASS 未记录'
+    return '—'
   }
 
   function shortIssue(patient: any): string {
@@ -199,7 +198,7 @@ export function useRespiratoryDashboard() {
     if (tags.includes('高驱动压')) return '驱动压偏高'
     if (tags.includes('气囊压待测')) return '气囊压待测'
     if (tags.includes('困难气道')) return '困难气道'
-    if (patient?.sbt_candidate_status?.status === 'candidate') return 'SBT可评估'
+    if (patient?.sbt_candidate_status?.status === 'candidate') return patient.sbt_candidate_status.verified ? 'SBT可评估' : 'SBT待核实'
     return '常规复核'
   }
 

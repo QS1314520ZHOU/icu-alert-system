@@ -178,6 +178,10 @@ const tone = computed(() => props.tone || 'stable')
   background: var(--color-success-bg, rgba(22,132,91,0.08));
   color: var(--color-success);
 }
+.resp-row__tag.sbt-pending {
+  background: #FFFBEB;
+  color: #B45309;
+}
 .resp-row__tag.sbt-no {
   background: var(--color-bg-surface-secondary);
   color: var(--color-text-secondary);

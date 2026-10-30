@@ -20,9 +20,10 @@
         <div ref="topicChartRef" class="academic-viz-chart"></div>
       </div>
       <div class="academic-viz-card academic-viz-card--ring">
-        <h4>数据质量</h4>
-        <DataCompletenessRing :value="dataQualityScore" :size="100" />
-        <span class="academic-viz-ring-label">{{ quality.value.patient_count || 0 }} 例患者</span>
+        <h4>字段完整度</h4>
+        <DataCompletenessRing v-if="dataQualityScore != null" :value="dataQualityScore" :size="100" />
+        <span v-else class="academic-viz-ring-empty">未评估</span>
+        <span class="academic-viz-ring-label">{{ quality?.patient_count != null ? `${quality.patient_count} 例患者` : '尚未运行数据质量检查' }}</span>
       </div>
     </div>
 
@@ -251,12 +252,11 @@ const topicChartRef = ref<HTMLElement>()
 let statusChart: echarts.ECharts | null = null
 let topicChart: echarts.ECharts | null = null
 
-const dataQualityScore = computed(() => {
-  const missing = missingRows.value.length
-  const outliers = quality.value.outliers?.length || 0
-  const issues = missing + outliers
-  if (issues === 0) return 100
-  return Math.max(0, Math.round(100 - issues * 5))
+// 字段完整度 = 1 - 平均缺失率；未拿到缺失率报告时为“未评估”，不给满分
+const dataQualityScore = computed<number | null>(() => {
+  const rates = Object.values(quality.value?.missing_rate || {}).map(Number).filter((v) => Number.isFinite(v))
+  if (!rates.length) return null
+  return Math.round((1 - rates.reduce((x, y) => x + y, 0) / rates.length) * 100)
 })
 
 const statusChartOption = computed(() => {
@@ -365,6 +365,7 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
+.academic-viz-ring-empty { display: flex; align-items: center; justify-content: center; width: 100px; height: 100px; border-radius: 50%; border: 8px solid #E5E7EB; font-size: 13px; color: #6B7280; }
 .academic-viz-ring-label {
   margin-top: 8px;
   font-size: 12px;

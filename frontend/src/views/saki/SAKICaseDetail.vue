@@ -62,9 +62,9 @@
         <h3>人工复核</h3>
         <p>当前状态: <a-tag>{{ reviewLabel(caseData.review_status) }}</a-tag></p>
         <div class="review-actions">
-          <a-button type="primary" size="small" @click="submitReview('confirmed')">✅ 确认</a-button>
-          <a-button danger size="small" @click="submitReview('rejected')">❌ 驳回</a-button>
-          <a-button size="small" @click="submitReview('modified')">✏️ 修改</a-button>
+          <a-button type="primary" size="small" @click="submitReview('confirmed')">确认</a-button>
+          <a-button danger size="small" @click="submitReview('rejected')">驳回</a-button>
+          <a-button size="small" @click="submitReview('modified')">修改</a-button>
         </div>
         <a-textarea v-model:value="reviewNotes" placeholder="复核备注" :rows="2" style="margin-top:8px;max-width:400px" />
       </div>

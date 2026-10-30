@@ -137,13 +137,24 @@ export function useNutritionDashboard() {
 
   /** 需要医生确认（PN 复核 + 主任关注） */
   const doctorConfirmItems = computed(() => {
-    const rows: any[] = []
-    for (const item of (roleActions.value?.doctor || []).slice(0, 3)) {
-      rows.push({ ...item, tone: 'warning' })
+    const byPatient = new Map<string, any>()
+    const push = (item: any, tone: string) => {
+      const key = String(item.patient_id || item.bed_no || item.label)
+      const prev = byPatient.get(key)
+      if (prev) {
+        if (item.label && !prev.labels.includes(item.label)) prev.labels.push(item.label)
+        if (tone === 'danger') prev.tone = 'danger'
+      } else {
+        byPatient.set(key, { ...item, tone, labels: item.label ? [item.label] : [] })
+      }
     }
-    for (const item of (roleActions.value?.director || []).slice(0, 2)) {
-      rows.push({ ...item, tone: 'danger' })
-    }
+    for (const item of (roleActions.value?.doctor || []).slice(0, 4)) push(item, item.tone === 'danger' ? 'danger' : 'warning')
+    for (const item of (roleActions.value?.director || []).slice(0, 4)) push(item, 'danger')
+    const rows = [...byPatient.values()].map((r) => {
+      const p = patients.value.find((x: any) => x.patient_id === r.patient_id)
+      const why = (p?.risk_tags || []).filter((t: string) => ['未启动', '热量未达标', '蛋白未达标', '脂肪乳风险', '再喂养风险'].includes(t))
+      return { ...r, action: [r.labels.join(' / '), why.join('、')].filter(Boolean).join(' · ') }
+    })
     return rows.slice(0, 4)
   })
 
@@ -153,19 +164,23 @@ export function useNutritionDashboard() {
     { key: 'refeeding', label: '再喂养', value: stats.value.refeeding_count || 0, tone: 'danger', filter: '再喂养风险' },
     { key: 'not-started', label: '未启动', value: stats.value.not_started_count || 0, tone: 'danger', filter: '未开始' },
     { key: 'pn', label: 'PN复核', value: stats.value.pn_review_count || 0, tone: 'info', filter: 'PN' },
-    { key: 'avg', label: '平均达标', value: `${stats.value.avg_kcal_pct || 0}%`, tone: 'stable', filter: 'all' },
+    { key: 'avg', label: '平均达标', value: stats.value.avg_kcal_pct != null ? `${stats.value.avg_kcal_pct}%` : '—', tone: 'stable', filter: 'all' },
   ])
 
   /* ── 趋势数据 ── */
   const wardTrend = computed(() => {
+    // 仅对已知达标率求均值；当日无任何已知值则为 null（不显示为 0）
     const rows = patients.value.filter((row) => Array.isArray(row.trend_7d))
-    if (!rows.length) return [0, 0, 0, 0, 0, 0, 0]
+    if (!rows.length) return [null, null, null, null, null, null, null] as Array<number | null>
     return Array.from({ length: 7 }, (_, idx) => {
-      const values = rows.map((row) => Number(row.trend_7d?.[idx]?.pct || 0))
-      return Math.round(values.reduce((sum, item) => sum + item, 0) / Math.max(1, values.length))
+      const values = rows.map((row) => row.trend_7d?.[idx]?.pct).filter((v: any) => v != null && Number.isFinite(Number(v))).map(Number)
+      return values.length ? Math.round(values.reduce((sum: number, item: number) => sum + item, 0) / values.length) : null
     })
   })
-  const avgTrend = computed(() => Math.round(wardTrend.value.reduce((sum, item) => sum + item, 0) / Math.max(1, wardTrend.value.length)))
+  const avgTrend = computed<number | null>(() => {
+    const known = wardTrend.value.filter((v): v is number => v != null)
+    return known.length ? Math.round(known.reduce((sum, item) => sum + item, 0) / known.length) : null
+  })
 
   /* ── 抽屉相关计算 ── */
   const toleranceText = computed(() => {
@@ -249,6 +264,8 @@ export function useNutritionDashboard() {
     if (tags.includes('血糖风险')) return '血糖风险'
     if (tags.includes('未启动')) return '营养未启动'
     if (tags.includes('脂肪乳风险')) return '脂肪乳风险'
+    if (tags.includes('达标率未知')) return '达标率未知'
+    if (tags.includes('NRS待评') || tags.includes('NUTRIC待评')) return '风险待评'
     if (patient?.risk_level === 'high') return '高风险'
     return '稳定'
   }
