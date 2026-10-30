@@ -14,6 +14,7 @@
       <p v-else-if="sepsisBundleStatusResolved" class="bundle-none">未进入脓毒症集束化计时（未触发筛查或未经临床确认）。</p>
       <a-empty v-else description="暂无脓毒症Bundle数据" :image-style="{ height: '40px' }" />
     </CollapseSection>
+    <HemodynamicLoadPanel :patient-id="patientId" />
     <div class="treatment-grid">
       <CollapseSection default-open>
         <template #title><h3 style="margin:0;font-size:15px;font-weight:600">脱机评估</h3></template>
@@ -139,6 +140,7 @@ import { computed, defineAsyncComponent } from 'vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import SepsisBundleCard from '../../components/sepsis/SepsisBundleCard.vue'
+import HemodynamicLoadPanel from '../../components/patient-detail/HemodynamicLoadPanel.vue'
 
 const LongTermFollowupTab = defineAsyncComponent(() => import('../../components/patient-detail/LongTermFollowupTab.vue'))
 

@@ -1340,3 +1340,77 @@ async def patient_bedcard_batch(patient_ids: list[str] = Body(...)):
         await asyncio.gather(*[_run(pid) for pid in to_fetch])
 
     return {"code": 0, "data": results}
+
+
+@router.get("/api/patients/{patient_id}/hemodynamic-load")
+async def patient_hemodynamic_load(patient_id: str, hours: int = Query(24, ge=6, le=72)):
+    """出入量与血管活性药负荷：逐小时出入量、累计平衡、尿量 ml/kg/h、NEE/VIS 及数据缺口。"""
+    from app.clinical_core.hemodynamic_load import (
+        INTAKE_CODES, OUTPUT_CODES, URINE_CODES, Observation, compute, to_float,
+    )
+
+    try:
+        pid = ObjectId(patient_id)
+    except Exception:
+        return {"code": 400, "message": "无效患者ID"}
+    now = datetime.now()
+    since = now - timedelta(hours=hours + 1)
+    pid_str = str(pid)
+    patient_doc = await runtime.db.col("patient").find_one({"_id": pid}) or {}
+    weight = None
+    for key in ("weight", "bodyWeight", "body_weight", "weightKg", "weight_kg"):
+        w = to_float(patient_doc.get(key))
+        if w is not None and 20 < w < 300:
+            weight = w
+            break
+
+    cfg = getattr(get_config(), "yaml_cfg", None) or {}
+    extra_urine = (((cfg.get("alert_engine") or {}).get("data_mapping") or {}).get("urine_output") or {}).get("codes") or []
+    cumulative = {"param_udd_urine_total", "param_udd_urine_24h", "param_out_day", "param_out_hour_sum"}
+    urine_codes = (set(URINE_CODES) | {str(c) for c in extra_urine}) - cumulative
+    all_codes = set(urine_codes)
+    for group in (OUTPUT_CODES, INTAKE_CODES):
+        for codes in group.values():
+            all_codes |= codes
+
+    drug_docs: list[dict] = []
+    try:
+        cursor = runtime.db.col("drugExe").find(
+            {"pid": pid_str, "$or": [{"startTime": {"$gte": now - timedelta(hours=hours + 72)}},
+                                     {"executeTime": {"$gte": now - timedelta(hours=hours + 72)}}]},
+        ).sort("startTime", -1).limit(1500)
+        drug_docs = [d async for d in cursor]
+        drug_failed = False
+    except Exception as exc:  # 数据源失败与"无记录"区分
+        logger.warning("hemodynamic-load drugExe failed patient_id=%s error=%s", patient_id, exc)
+        drug_failed = True
+
+    observations: list = []
+    bedside_failed = False
+    try:
+        cursor = runtime.db.col("bedside").find(
+            {"pid": pid_str, "time": {"$gte": since}, "code": {"$in": list(all_codes)}},
+            {"time": 1, "code": 1, "fVal": 1, "intVal": 1, "strVal": 1, "value": 1},
+        ).limit(5000)
+        async for row in cursor:
+            t = row.get("time")
+            if not isinstance(t, datetime):
+                continue
+            val = None
+            for k in ("fVal", "intVal", "value", "strVal"):
+                val = to_float(row.get(k))
+                if val is not None:
+                    break
+            if val is None:
+                continue
+            observations.append(Observation(time=t.replace(tzinfo=None), code=str(row.get("code") or ""), value=val))
+    except Exception as exc:
+        logger.warning("hemodynamic-load bedside failed patient_id=%s error=%s", patient_id, exc)
+        bedside_failed = True
+
+    result = compute(infusion_docs=drug_docs, bedside=observations, weight_kg=weight, now=now, hours=hours, urine_codes=urine_codes)
+    if drug_failed:
+        result["data_gaps"].append("用药执行记录读取失败：入量与血管活性药为未知")
+    if bedside_failed:
+        result["data_gaps"].append("护理记录读取失败：出量与尿量为未知")
+    return {"code": 0, "data": result}

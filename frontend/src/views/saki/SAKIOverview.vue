@@ -37,7 +37,6 @@
       </a-table>
     </div>
 
-    <div class="disclaimer-banner">⚠️ 仅用于科研分析与临床决策支持，不替代医生诊断和治疗决策。</div>
   </div>
 </template>
 

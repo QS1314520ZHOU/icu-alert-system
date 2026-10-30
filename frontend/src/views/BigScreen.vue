@@ -9,7 +9,7 @@
         <div class="header-sub">抢救、流程、人力与装置风险统一驾驶舱</div>
         <div class="header-context-row">
           <span class="header-context-chip">当前范围 {{ scopeLabel }}</span>
-          <span class="header-context-chip">高危 / 危急 {{ severeAlertCount }}</span>
+          <span class="header-context-chip">高危/危急告警 {{ severeAlertCount }} 条</span>
           <span class="header-context-chip">抢救期床位 {{ rescuePatientCount }}</span>
         </div>
         <div class="header-filters">
@@ -36,7 +36,7 @@
           <strong>{{ highDeviceRiskCount }}</strong>
         </div>
         <div class="kpi-chip">
-          <span class="kpi-label">{{ rescueOnly ? '抢救期告警' : '实时告警' }}</span>
+          <span class="kpi-label">{{ rescueOnly ? '抢救期告警（条）' : '近期告警（条）' }}</span>
           <strong>{{ filteredAlerts.length }}</strong>
         </div>
       </div>

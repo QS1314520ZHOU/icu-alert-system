@@ -24,7 +24,7 @@
 
     <div class="cohorts-list">
       <h3>已有队列</h3>
-      <a-table :dataSource="cohorts" :columns="columns" :pagination="false" size="small" rowKey="cohort_id">
+      <a-table :dataSource="cohorts" :columns="columns" :pagination="false" size="small" rowKey="cohort_id" :locale="{ emptyText: '暂无队列，请在上方设置条件后点击“构建队列”' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
             <a-button type="link" size="small" @click="viewPatients(record)">查看</a-button>

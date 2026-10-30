@@ -1,23 +1,28 @@
 <template>
   <div class="saki-analysis">
     <a-tabs v-model:activeKey="activeTab">
-      <a-tab-pane key="table1" tab="Table 1">
+      <a-tab-pane key="table1" tab="基线特征表 (Table 1)">
         <div class="analysis-form">
-          <a-button type="primary" @click="runAnalysis('table1')" :loading="loading">运行 Table 1</a-button>
+          <a-button type="primary" @click="runAnalysis('table1')" :loading="loading">生成基线特征表</a-button>
+          <span class="analysis-hint">默认纳入年龄、性别、SOFA、APACHE II、乳酸、肌酐、机械通气、血管活性药、CRRT、ICU 住院天数与死亡</span>
         </div>
-        <div v-if="table1Data" class="result-panel">
-          <table class="stat-table">
-            <thead><tr><th>指标</th><th v-for="(v, k) in table1Data.table?.columns || {}" :key="k">{{ v }}</th></tr></thead>
+        <div v-if="table1Data?.error" class="result-panel error">{{ table1Data.error }}</div>
+        <div v-else-if="table1Data" class="result-panel">
+          <div class="result-title">{{ table1Data.title || '基线特征表' }}<span v-if="table1Data.n_total != null">（n={{ table1Data.n_total }}）</span></div>
+          <table v-if="(table1Data.rows || []).length" class="stat-table">
+            <thead><tr><th>变量</th><th v-for="g in table1Data.groups || []" :key="g">{{ g }}</th><th>P 值</th></tr></thead>
             <tbody>
-              <tr v-for="(row, i) in (table1Data.table?.rows || []).slice(0, 20)" :key="i">
-                <td>{{ row.patient_id }}</td>
-                <td>{{ row.aki_stage }}</td>
-                <td>{{ row.sofa_score }}</td>
-                <td>{{ row.sofa_delta }}</td>
+              <tr v-for="(row, i) in table1Data.rows" :key="i">
+                <td>{{ row.variable }}</td>
+                <td v-for="(v, j) in row.values || []" :key="j">{{ v }}</td>
+                <td :class="{ 'p-sig': row.significant }">{{ row.p_display ?? '—' }}</td>
               </tr>
             </tbody>
           </table>
+          <a-empty v-else description="无可用数据" />
+          <p v-if="table1Data.footnote" class="result-foot">{{ table1Data.footnote }}</p>
         </div>
+        <a-empty v-else description="点击“生成基线特征表”，按当前 S-AKI 病例库计算" />
       </a-tab-pane>
 
       <a-tab-pane key="km" tab="生存分析 (KM)">
@@ -70,7 +75,7 @@
         </div>
       </a-tab-pane>
     </a-tabs>
-    <div class="disclaimer">⚠️ 统计分析结果基于观察性数据，仅提示关联性，不可作为因果推断依据。</div>
+    <div class="disclaimer">统计分析结果基于观察性数据，仅提示关联性，不可作为因果推断依据。</div>
   </div>
 </template>
 
@@ -117,7 +122,11 @@ const runAnalysis = async (type: string) => {
 
 <style scoped>
 .saki-analysis { display: flex; flex-direction: column; gap: 16px; }
-.analysis-form { margin-bottom: 12px; }
+.analysis-form { margin-bottom: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.analysis-hint { font-size: var(--text-caption); color: var(--color-text-tertiary); }
+.result-title { font-weight: 600; margin-bottom: 8px; }
+.result-foot { margin: 8px 0 0; font-size: var(--text-caption); color: var(--color-text-tertiary); }
+.p-sig { color: var(--color-danger); font-weight: 600; }
 .result-panel { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; font-variant-numeric: tabular-nums; }
 .result-panel.error { color: var(--color-danger); }
 .stat-table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }

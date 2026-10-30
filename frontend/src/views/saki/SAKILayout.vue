@@ -35,7 +35,7 @@
       </router-view>
     </main>
     <footer class="layout-footer">
-      <p class="disclaimer-text">⚠️ 仅用于科研分析与临床决策支持，不替代医生诊断和治疗决策。</p>
+      <p class="disclaimer-text">仅用于科研分析与临床决策支持，不替代医生诊断和治疗决策。</p>
     </footer>
   </div>
 </template>

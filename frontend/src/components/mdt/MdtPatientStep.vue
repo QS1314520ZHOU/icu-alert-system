@@ -33,9 +33,10 @@
       <div class="organ-panel">
         <div class="panel-title">
           <strong>七大系统风险</strong>
-          <span>点击查看详情</span>
+          <span>{{ organRows.some((r: any) => r.severity !== 'pending') ? '点击查看详情' : '生成会诊后显示各系统评估' }}</span>
         </div>
         <OrganHeatmapFigure
+          v-if="organRows.some((r: any) => r.severity !== 'pending')"
           compact
           show-legend
           :organ-states="organStates"
@@ -216,6 +217,13 @@ label {
 }
 .organ-pill.is-warning b {
   color: var(--color-warning);
+}
+.organ-pill.is-normal b {
+  color: #2F7D55;
+}
+.organ-pill.is-pending b {
+  color: var(--color-text-tertiary, #94a3b8);
+  font-weight: 500;
 }
 @media (max-width: 980px) {
   .patient-step-grid {

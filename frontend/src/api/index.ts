@@ -782,3 +782,6 @@ export default api
 
 
 
+
+export const getPatientHemodynamicLoad = (patientId: string, hours = 24) =>
+  api.get(`/api/patients/${patientId}/hemodynamic-load`, { params: { hours } })

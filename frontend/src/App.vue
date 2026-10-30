@@ -1,4 +1,5 @@
 <template>
+  <a-config-provider :locale="zhCN">
   <component :is="themeWrapperComponent" v-bind="themeWrapperProps">
     <div class="root" :class="[isMobileRoute ? 'theme-light' : `theme-${themeMode}`, { 'root--mobile': isMobileRoute }]">
       <template v-if="isEmbedRoute || (isInIframe && route.path.startsWith('/embed/'))">
@@ -36,11 +37,17 @@
       </template>
     </div>
   </component>
+  </a-config-provider>
 </template>
 
 <script setup lang="ts">
 import { computed, markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { ConfigProvider as AConfigProvider } from 'ant-design-vue'
+import zhCN from 'ant-design-vue/es/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
+dayjs.locale('zh-cn')
 import { useAuthStore } from './stores/auth'
 import { usePatientContext } from './stores/patientContext'
 import { getClinicalAccount } from './api'

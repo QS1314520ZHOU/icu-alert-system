@@ -53,7 +53,7 @@
           :patient-headline="patientHeadline"
           :patient-subline="patientSubline"
           :severity-label="mdtSeverityLabel"
-          :decision-total-count="decisionRows.length"
+          :decision-total-count="realDecisionRows.length"
           :pending-confirmation-count="pendingConfirmationCount"
           :completed-decision-count="completedDecisionCount"
           :closure-percent="closurePercent"
@@ -193,7 +193,7 @@ const {
   // 派生
   patientOptions, specialistRows, conflictRows, metaSummary, activeSpecialist,
   syncableAiActions, systemCards, mdtOrganRows, mdtOrganStates, mdtOrganTooltips,
-  isGeneratingAssessment, decisionRows, guidedDecisionRows,
+  isGeneratingAssessment, realDecisionRows, guidedDecisionRows,
   pendingConfirmationCount, pendingDecisionCount, inProgressDecisionCount,
   completedDecisionCount, dismissedDecisionCount, closurePercent,
   documentStatusRows, latestMdtDocumentPreview, autoSessionSummary,
@@ -306,6 +306,7 @@ onBeforeUnmount(() => { mdtGraph?.dispose(); mdtGraph = null })
 <style scoped>
 .mdt-page {
   display: grid;
+  align-content: start;
   gap: 14px;
   min-height: calc(100vh - 88px);
   padding: 16px;

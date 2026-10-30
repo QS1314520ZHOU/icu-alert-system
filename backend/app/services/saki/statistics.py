@@ -8,6 +8,22 @@ from typing import Any
 logger = logging.getLogger("icu-alert")
 
 
+# 未指定变量时的默认基线特征（未传 variables 时原实现返回空表）
+DEFAULT_TABLE1_VARIABLES: list[dict[str, Any]] = [
+    {"field": "age", "label": "年龄（岁）", "type": "continuous"},
+    {"field": "sex", "label": "男性", "type": "binary", "positive": "M", "categories": ["M", "F"]},
+    {"field": "sofa_admission", "label": "入科 SOFA", "type": "continuous"},
+    {"field": "apache2", "label": "APACHE II", "type": "continuous"},
+    {"field": "lactate_admission", "label": "入科乳酸（mmol/L）", "type": "continuous"},
+    {"field": "creatinine_admission", "label": "入科肌酐（μmol/L）", "type": "continuous"},
+    {"field": "mechanical_ventilation", "label": "机械通气", "type": "binary", "positive": "1", "categories": ["1", "0"]},
+    {"field": "vasopressor", "label": "血管活性药", "type": "binary", "positive": "1", "categories": ["1", "0"]},
+    {"field": "crrt", "label": "CRRT", "type": "binary", "positive": "1", "categories": ["1", "0"]},
+    {"field": "los_icu_days", "label": "ICU 住院天数", "type": "continuous"},
+    {"field": "icu_mortality", "label": "ICU 死亡", "type": "binary", "positive": "1", "categories": ["1", "0"]},
+]
+
+
 class SAKIStatistics:
     """S-AKI 统计分析。"""
 
@@ -21,7 +37,7 @@ class SAKIStatistics:
             return {"error": "无可用患者", "table": {}}
         try:
             from app.services.research_analytics import generate_table1
-            return await generate_table1(db, patient_ids=ids, group_by=group_by, variables=variables or [])
+            return await generate_table1(db, patient_ids=ids, group_by=group_by, variables=variables or DEFAULT_TABLE1_VARIABLES)
         except Exception as exc:
             logger.error("Table1 生成失败，不使用回退: %s", exc)
             return {"error": f"Table1 分析失败: {exc}", "table": {}}

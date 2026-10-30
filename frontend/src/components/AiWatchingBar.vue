@@ -7,7 +7,7 @@
       </div>
       <div class="watching-track">
         <transition name="watching-fade" mode="out-in">
-          <div :key="activeSlide" class="watching-text">{{ visibleSlides[activeSlide] }}</div>
+          <div :key="activeSlide" class="watching-text" :title="visibleSlides[activeSlide]">{{ visibleSlides[activeSlide] }}</div>
         </transition>
       </div>
       <span v-if="!compact && data?.findings?.length" class="watching-badge">{{ data.findings.length }}</span>
@@ -57,7 +57,7 @@ let slideTimer: number | null = null
 const visibleSlides = computed(() => {
   const stats = data.value?.stats || {}
   const first = `过去 1 小时 AI 替你看了 ${stats.labs_reviewed || 0} 项化验、${stats.drugs_reviewed || 0} 条医嘱、${stats.imaging_reports_reviewed || 0} 份影像报告`
-  if (props.compact) return [first]
+  if (props.compact) return [`近1h 化验${stats.labs_reviewed || 0}·医嘱${stats.drugs_reviewed || 0}·影像${stats.imaging_reports_reviewed || 0}`]
   const slides = [first]
   const findings = data.value?.findings || []
   if (findings.length) {

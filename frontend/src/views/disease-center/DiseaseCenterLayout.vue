@@ -36,7 +36,6 @@
           class="nav-item"
           active-class="nav-item--active"
         >
-          <span class="nav-icon">{{ tab.icon }}</span>
           <span class="nav-label">{{ tab.label }}</span>
         </router-link>
       </nav>

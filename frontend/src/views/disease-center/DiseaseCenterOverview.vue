@@ -7,7 +7,7 @@
           <span class="kpi-label">{{ kpi.label }}</span>
           <span class="kpi-value">{{ kpi.value }}</span>
         </div>
-        <span class="kpi-icon" :style="{ background: kpi.iconBg }">{{ kpi.icon }}</span>
+
       </div>
     </div>
 
@@ -18,7 +18,7 @@
           <span class="kpi-label">{{ qm.label }}</span>
           <span class="kpi-value">{{ qm.value }}</span>
         </div>
-        <span class="kpi-icon" :style="{ background: qm.iconBg }">{{ qm.icon }}</span>
+
       </div>
     </div>
 
@@ -75,6 +75,7 @@
         :pagination="false"
         row-key="id"
         size="small"
+        :locale="{ emptyText: '暂无待临床确认病例' }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'patient_id'">
@@ -96,7 +97,6 @@
           </template>
         </template>
       </a-table>
-      <a-empty v-if="!pendingLoading && pendingCases.length === 0" description="暂无待临床确认病例" />
     </div>
 
     <!-- 快速确认对话框 -->

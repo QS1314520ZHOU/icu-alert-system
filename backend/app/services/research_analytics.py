@@ -632,6 +632,28 @@ def _build_group_masks(
     return [("全部", pd.Series([True] * len(df), index=df.index))]
 
 
+def _categorical_strings(series: pd.Series | None) -> pd.Series:
+    """分类变量统一为字符串：缺失保持缺失（不计入分母），1.0→"1"。"""
+    if series is None:
+        return pd.Series([], dtype=object)
+
+    def _norm(value: Any) -> Any:
+        if value is None:
+            return None
+        try:
+            if pd.isna(value):
+                return None
+        except (TypeError, ValueError):
+            pass
+        if isinstance(value, bool):
+            return "1" if value else "0"
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+        return str(value)
+
+    return series.map(_norm).astype(object)
+
+
 def _format_cat_cell(group_series: pd.Series, target: Any) -> str:
     total = int(group_series.notna().sum())
     if total <= 0:
@@ -766,10 +788,10 @@ async def generate_table1(
             )
             continue
 
-        series_groups = [group_df.get(field, pd.Series([], dtype=object)).astype(str) for group_df in group_series]
+        series_groups = [_categorical_strings(group_df.get(field, pd.Series([], dtype=object))) for group_df in group_series]
         raw_categories = item.get("categories")
         categories = raw_categories if isinstance(raw_categories, list) and raw_categories else sorted(
-            [str(v) for v in source.dropna().astype(str).unique().tolist()]
+            [str(v) for v in _categorical_strings(source).dropna().unique().tolist()]
         )
         if not categories:
             categories = ["1", "0"] if var_type == "binary" else ["是", "否"]

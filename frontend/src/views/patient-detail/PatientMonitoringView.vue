@@ -20,7 +20,7 @@
     <div class="monitoring-grid">
       <!-- 波形数据 -->
       <CollapseSection>
-        <template #title><h3 style="margin:0;font-size:15px;font-weight:600">生命体征波形</h3></template>
+        <template #title><h3 style="margin:0;font-size:15px;font-weight:600">床旁参数原始记录</h3></template>
         <template #extra>
           <div class="waveform-controls">
             <a-radio-group v-model:value="waveformHours" size="small" button-style="solid" @change="loadWaveform">
@@ -28,8 +28,8 @@
               <a-radio-button :value="6">6h</a-radio-button>
               <a-radio-button :value="12">12h</a-radio-button>
             </a-radio-group>
-            <a-select v-model:value="waveformSelectedChannel" size="small" style="width: 120px;" @change="loadWaveform">
-              <a-select-option v-for="ch in waveformChannels" :key="ch.key" :value="ch.key">{{ ch.label }}</a-select-option>
+            <a-select :value="waveformSelectedChannel || undefined" @update:value="(v: any) => (waveformSelectedChannel = String(v || ''))" size="small" style="width: 170px;" :placeholder="waveformChannels.length ? '选择参数' : '无可用参数'" :not-found-content="'近' + waveformHours + 'h 无床旁参数记录'" @change="loadWaveform">
+              <a-select-option v-for="ch in waveformChannels" :key="channelKey(ch)" :value="channelKey(ch)">{{ channelLabel(ch) }}</a-select-option>
             </a-select>
           </div>
         </template>
@@ -50,7 +50,7 @@
         </div>
         <div v-else class="waveform-empty">
           <span class="waveform-empty__icon">📊</span>
-          <span class="waveform-empty__title">暂无波形数据</span>
+          <span class="waveform-empty__title">{{ waveformChannels.length ? '该参数在窗口内无记录' : '暂无床旁参数记录' }}</span>
           <span class="waveform-empty__desc">请确认监护设备已连接且数据同步正常</span>
           <button class="waveform-empty__btn" @click="loadWaveform">重新加载</button>
         </div>
@@ -90,6 +90,20 @@ import { usePatientDetail } from '../../composables/usePatientDetail'
 import VitalSmallMultiples from '../../components/charts/VitalSmallMultiples.vue'
 import WaveformChart from './components/WaveformChart.vue'
 
+// 后端返回 { channel, sample_points, latest_time }；旧模板读取 key/label，导致下拉选项为空
+const CHANNEL_NAMES: Record<string, string> = {
+  param_HR: '心率', param_spo2: 'SpO₂', param_resp: '呼吸频率', param_T: '体温',
+  param_nibp_s: '无创收缩压', param_nibp_d: '无创舒张压', param_nibp_m: '无创平均压',
+  param_ibp_s: '有创收缩压', param_ibp_d: '有创舒张压', param_ibp_m: '有创平均压',
+  param_cvp: 'CVP', param_etco2: 'EtCO₂', param_niaoLiang: '尿量', param_pr: '脉率',
+}
+function channelKey(ch: any): string { return String(ch?.channel ?? ch?.key ?? ch?.code ?? '') }
+function channelLabel(ch: any): string {
+  const k = channelKey(ch)
+  const name = ch?.label || CHANNEL_NAMES[k] || k
+  return ch?.sample_points ? `${name}（${ch.sample_points}点）` : name
+}
+
 const {
   trendWindow, trendPoints, trendLoaded, loadTrend,
   waveformHours, waveformSelectedChannel, waveformChannels,
@@ -109,6 +123,7 @@ function labFlagClass(exam: any) {
 
 onMounted(() => {
   if (!trendLoaded.value) loadTrend()
+  if (!waveformChannels.value.length) void loadWaveform()
 })
 </script>
 

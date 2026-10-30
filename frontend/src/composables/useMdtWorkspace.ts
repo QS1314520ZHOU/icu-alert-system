@@ -260,6 +260,7 @@ export function useMdtWorkspace() {
   )
   const assessmentRecord = computed(() => assessment.value?.assessment || assessment.value || null)
   const assessmentResult = computed(() => assessmentRecord.value?.result || assessmentRecord.value || {})
+  const hasAssessment = computed(() => Boolean(assessmentRecord.value) && Object.keys(assessmentResult.value || {}).length > 0)
   const specialistRows = computed(() => Object.values(assessmentResult.value?.assessments || {}) as any[])
   const conflictRows = computed(() => Array.isArray(assessmentResult.value?.conflicts) ? assessmentResult.value.conflicts : [])
   const metaSummaryRecord = computed(() => assessmentResult.value?.meta_agent || {})
@@ -308,16 +309,16 @@ export function useMdtWorkspace() {
     renal: 'renal', neuro: 'neurologic', nutrition: 'hepatic', pharmacy: 'coagulation',
   }
   const mdtOrganRows = computed(() => systemCards.value.map((item: any) => {
-    const severity = priorityToBodySeverity(item.priority)
-    return { ...item, organKey: mdtDomainToOrgan[item.domain] || '', severity, text: bodyMapSeverityText(severity) }
-  }).sort((a: any, b: any) => bodySeverityRank(b.severity) - bodySeverityRank(a.severity)))
+    const severity = item.hasData ? priorityToBodySeverity(item.priority) : 'normal'
+    return { ...item, organKey: mdtDomainToOrgan[item.domain] || '', severity: item.hasData ? severity : 'pending', text: item.hasData ? bodyMapSeverityText(severity) : '未评估' }
+  }).sort((a: any, b: any) => bodySeverityRank(b.severity === 'pending' ? 'normal' : b.severity) - bodySeverityRank(a.severity === 'pending' ? 'normal' : a.severity)))
   const mdtOrganStates = computed(() => {
     const states: Record<string, BodyMapSeverity> = {
       neurologic: 'normal', respiratory: 'normal', circulatory: 'normal',
       hepatic: 'normal', coagulation: 'normal', renal: 'normal',
     }
     for (const row of mdtOrganRows.value) {
-      if (!row.organKey) continue
+      if (!row.organKey || row.severity === 'pending') continue
       if (bodySeverityRank(row.severity) > bodySeverityRank(states[row.organKey])) states[row.organKey] = row.severity
     }
     return states
@@ -337,17 +338,18 @@ export function useMdtWorkspace() {
     id: 'decision-1',
     action: metaActions.value[0] || '等待 MDT 形成结构化决议后展示执行追踪。',
     owner: '值班医生', deadline: '6h', monitoring: '按系统指标复评', review_time: '6h',
-    status: 'pending_confirmation', note: '', requires_confirmation: true, confirmation_status: 'pending',
-  }])
-  const pendingConfirmationCount = computed(() => decisionRows.value.filter((item) => needsDoctorConfirmation(item)).length)
-  const pendingDecisionCount = computed(() => decisionRows.value.filter((item) => ['doctor_confirmed', 'pending'].includes(String(item.status || '').toLowerCase())).length)
-  const inProgressDecisionCount = computed(() => decisionRows.value.filter((item) => String(item.status || '') === 'in_progress').length)
-  const completedDecisionCount = computed(() => decisionRows.value.filter((item) => String(item.status || '') === 'completed').length)
-  const dismissedDecisionCount = computed(() => decisionRows.value.filter((item) => ['dismissed', 'rejected'].includes(String(item.status || '').toLowerCase())).length)
+    status: 'pending_confirmation', note: '', requires_confirmation: true, confirmation_status: 'pending', __placeholder: true,
+  } as MdtDecision])
+  const realDecisionRows = computed<MdtDecision[]>(() => decisionRows.value.filter((item: any) => !item.__placeholder))
+  const pendingConfirmationCount = computed(() => realDecisionRows.value.filter((item) => needsDoctorConfirmation(item)).length)
+  const pendingDecisionCount = computed(() => realDecisionRows.value.filter((item) => ['doctor_confirmed', 'pending'].includes(String(item.status || '').toLowerCase())).length)
+  const inProgressDecisionCount = computed(() => realDecisionRows.value.filter((item) => String(item.status || '') === 'in_progress').length)
+  const completedDecisionCount = computed(() => realDecisionRows.value.filter((item) => String(item.status || '') === 'completed').length)
+  const dismissedDecisionCount = computed(() => realDecisionRows.value.filter((item) => ['dismissed', 'rejected'].includes(String(item.status || '').toLowerCase())).length)
   const guidedDecisionRows = computed(() => decisionRows.value.slice(0, 6))
 
   const closurePercent = computed(() => {
-    const total = decisionRows.value.length
+    const total = realDecisionRows.value.length
     if (!total) return 0
     return Math.round((completedDecisionCount.value / total) * 100)
   })
@@ -416,17 +418,19 @@ export function useMdtWorkspace() {
   const sessionParticipants = computed(() => participantsText.value.split(/[\n,，;；]+/g).map((item) => item.trim()).filter(Boolean))
   const sessionTags = computed(() => tagsText.value.split(/[\n,，;；]+/g).map((item) => item.trim()).filter(Boolean))
 
-  const patientHeadline = computed(() => patient.value?.name || patient.value?.hisName || '未选择患者')
+  const listedPatient = computed(() => patients.value.find((item: any) => String(item?._id || '') === String(selectedPatientId.value || '')) || null)
+  const shownPatient = computed(() => patient.value || listedPatient.value)
+  const patientHeadline = computed(() => shownPatient.value?.name || shownPatient.value?.hisName || (selectedPatientId.value ? '患者信息加载中' : '未选择患者'))
   const patientSubline = computed(() => {
-    if (selectedPatientId.value && loading.value && !patient.value) return '患者信息加载中'
-    if (!patient.value) return '可从患者详情页带入，或在本页直接选择'
-    const bed = patient.value?.hisBed || patient.value?.bed || '--'
-    const diagnosis = patient.value?.clinicalDiagnosis || patient.value?.admissionDiagnosis || '暂无诊断'
+    const p = shownPatient.value
+    if (!p) return selectedPatientId.value ? (loading.value ? '患者信息加载中' : '患者信息未能加载，可点击“生成 MDT 会诊”重试') : '可从患者详情页带入，或在本页直接选择'
+    const bed = p?.hisBed || p?.bed || '--'
+    const diagnosis = p?.clinicalDiagnosis || p?.admissionDiagnosis || '暂无诊断'
     return `${bed}床 · ${diagnosis}`
   })
   const selectedPatientLabel = computed(() => {
-    if (patient.value) {
-      const bed = patient.value?.hisBed || patient.value?.bed || '--'
+    if (shownPatient.value) {
+      const bed = shownPatient.value?.hisBed || shownPatient.value?.bed || '--'
       return `${bed}床 · ${patientHeadline.value}`
     }
     return selectedPatientId.value ? '患者已选择' : '未选择患者'
@@ -437,13 +441,14 @@ export function useMdtWorkspace() {
   })
 
   const mdtSeverityTone = computed(() => {
+    if (!hasAssessment.value) return 'pending'
     if (conflictRows.value.length >= 2) return 'critical'
     if (priorityRows.value.some((item: any) => String(item.priority || '').toLowerCase() === 'critical')) return 'critical'
     if (conflictRows.value.length || priorityRows.value.some((item: any) => String(item.priority || '').toLowerCase() === 'high')) return 'warning'
     return 'soft'
   })
   const mdtSeverityLabel = computed(() => {
-    return ({ critical: '高风险', warning: '需关注', soft: '相对平稳' } as Record<string, string>)[mdtSeverityTone.value] || '相对平稳'
+    return ({ critical: '高风险', warning: '需关注', soft: '相对平稳', pending: '未评估' } as Record<string, string>)[mdtSeverityTone.value] || '未评估'
   })
 
   const autoSessionSummary = computed(() => {
@@ -465,9 +470,9 @@ export function useMdtWorkspace() {
   const nextActionText = computed(() => metaActions.value[0] || todoRows.value[0]?.action || '等待总控智能体生成行动建议')
 
   const mdtStepRows = computed<MdtStepRow[]>(() => [
-    { key: 'patient', index: '01', title: '选择患者', desc: '选择患者并生成 MDT', done: Boolean(selectedPatientId.value && assessmentResult.value) },
-    { key: 'review', index: '02', title: '审阅意见', desc: '总控结论与专科意见', done: Boolean(decisionRows.value.length || syncableAiActions.value.length) },
-    { key: 'decision', index: '03', title: '决议确认', desc: '形成决议并确认', done: decisionRows.value.length > 0 && pendingConfirmationCount.value === 0 },
+    { key: 'patient', index: '01', title: '选择患者', desc: '选择患者并生成 MDT', done: Boolean(selectedPatientId.value && hasAssessment.value) },
+    { key: 'review', index: '02', title: '审阅意见', desc: '总控结论与专科意见', done: Boolean(hasAssessment.value && (realDecisionRows.value.length || syncableAiActions.value.length)) },
+    { key: 'decision', index: '03', title: '决议确认', desc: '形成决议并确认', done: realDecisionRows.value.length > 0 && pendingConfirmationCount.value === 0 },
     { key: 'archive', index: '04', title: '文书归档', desc: '生成记录并归档', done: isSessionClosed.value },
   ])
 
@@ -586,14 +591,15 @@ export function useMdtWorkspace() {
     systemPanels.value = {}
     activeAgent.value = ''
     try {
-      const [patientRes, assessmentRes] = await Promise.all([
+      const [patientRes, assessmentRes] = await Promise.allSettled([
         getPatientDetail(selectedPatientId.value),
         getAiMultiAgentAssessment(selectedPatientId.value, { refresh }),
         loadWorkspaceExtras(selectedPatientId.value),
       ])
       if (loadToken !== currentLoadToken.value) return
-      patient.value = patientRes.data?.patient || null
-      assessment.value = assessmentRes.data || null
+      patient.value = patientRes.status === 'fulfilled' ? (patientRes.value.data?.patient || null) : null
+      if (assessmentRes.status !== 'fulfilled') throw assessmentRes.reason
+      assessment.value = assessmentRes.value.data || null
       activeAgent.value = specialistRows.value[0]?.agent || ''
       if (!decisions.value.length && metaActions.value.length) {
         decisions.value = metaActions.value.slice(0, 4).map((item: string, idx: number) => normalizeDecision({
@@ -917,6 +923,7 @@ export function useMdtWorkspace() {
     // 派生
     patientOptions, assessmentRecord, assessmentResult, specialistRows, conflictRows,
     metaSummary, metaActions, priorityRows, activeSpecialist, syncableAiActions,
+    hasAssessment, realDecisionRows,
     systemCards, mdtOrganRows, mdtOrganStates, mdtOrganTooltips, isGeneratingAssessment,
     decisionRows, pendingConfirmationCount, pendingDecisionCount, inProgressDecisionCount,
     completedDecisionCount, dismissedDecisionCount, guidedDecisionRows,
