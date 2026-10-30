@@ -177,9 +177,9 @@
     </template>
 
     <div v-else class="dw-empty">
-      <div class="dw-empty-icon">ICU</div>
-      <div class="dw-empty-title">生成 ICU 查房工作台</div>
-      <div class="dw-empty-hint">系统会基于过去{{ hours }}小时临床数据生成结构化A/P、今日目标、风险任务和可签署病程。</div>
+      <div class="dw-empty-title">尚未生成今日查房草稿</div>
+      <div class="dw-empty-hint">点击"生成查房工作台"，基于过去{{ hours }}小时数据生成：①患者状态与趋势 ②分系统 A/P ③今日目标与风险任务 ④可签署病程。草稿需医生逐段核对后再签署。</div>
+      <a-button type="primary" :loading="generating" style="margin-top:12px" @click="handleGenerate">生成查房工作台</a-button>
     </div>
 
     <a-drawer v-model:open="evidenceDrawerOpen" title="引用依据" placement="right" width="420">
@@ -879,7 +879,7 @@ function formatTime(raw: any): string {
   width: 132px;
 }
 
-.dw-finalize-btn {
+.dw-finalize-btn:not(:disabled) {
   background: var(--success) !important;
   border-color: var(--success) !important;
 }
@@ -1254,7 +1254,9 @@ function formatTime(raw: any): string {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 420px;
+  min-height: 160px;
+  padding: 20px;
+  text-align: center;
   color: var(--text-muted);
 }
 
@@ -1272,15 +1274,17 @@ function formatTime(raw: any): string {
 }
 
 .dw-empty-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: #37352F;
   margin-bottom: 8px;
 }
 
 .dw-empty-hint {
   font-size: 13px;
-  color: var(--text-muted);
+  max-width: 640px;
+  line-height: 1.6;
+  color: #55534E;
 }
 
 @media (max-width: 1400px) {

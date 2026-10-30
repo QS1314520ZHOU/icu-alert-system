@@ -3,8 +3,8 @@
     <div class="followup-head">
       <div>
         <div class="followup-kicker">长期随访</div>
-        <h3 class="followup-title">把 PICS 风险转成随访对象池与任务池</h3>
-        <p class="followup-sub">住院内识别出的身体、认知、心理恢复风险，会在这里沉淀成随访案、任务和康复转介。</p>
+        <h3 class="followup-title">PICS 出院后随访</h3>
+        <p class="followup-sub">住院期识别的身体、认知、心理恢复风险（PICS）在此形成随访案、随访任务和康复转介。</p>
       </div>
       <div class="followup-head-actions">
         <a-button size="small" :loading="loading" @click="loadOverview()">刷新</a-button>
@@ -80,10 +80,11 @@
           <div class="followup-panel-head">
             <div>
               <div class="followup-panel-title">一键转任务</div>
-              <div class="followup-panel-sub">把 PICS 风险直接变成运营动作</div>
+              <div class="followup-panel-sub">按 PICS 风险生成随访任务或康复转介</div>
             </div>
           </div>
 
+          <div v-if="!currentAssessment" class="followup-action-hint">需先有 PICS 风险评估结果才能一键生成任务：点击右上角"刷新 PICS 并入池"。自定义任务不受此限制。</div>
           <div class="followup-action-grid">
             <button class="followup-action" :disabled="actingTask || !currentAssessment" @click="createTask('pics_7d_call')">
               <strong>7天电话随访</strong>
@@ -178,7 +179,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import dayjs from 'dayjs'
-import { message } from 'ant-design-vue'
+import { message, Button as AButton, Spin as ASpin } from 'ant-design-vue'
 import {
   createPatientFollowupTask,
   createPatientRehabReferral,
@@ -471,7 +472,9 @@ watch(() => props.patientId, () => {
 .followup-action-grid { display: grid; gap: 10px; margin-top: 12px; }
 .followup-action { text-align: left; border: 1px solid var(--color-border); border-radius: var(--card-radius); background: var(--bg-surface); padding: 12px 14px; color: inherit; cursor: pointer; transition: transform .18s ease, border-color .18s ease; }
 .followup-action:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--color-border); }
-.followup-action:disabled { opacity: .58; cursor: not-allowed; }
+.followup-action:disabled { cursor: not-allowed; background: #F7F7F5 !important; }
+.followup-action:disabled strong { color: #7A7975; }
+.followup-action-hint { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #FFFBEB; border: 1px solid #FCD34D; color: #B45309; font-size: 12px; line-height: 1.6; }
 .followup-action strong { display: block; color: var(--text-primary); font-size: var(--text-body); }
 .followup-action span { display: block; margin-top: 6px; color: var(--color-text-secondary); font-size: var(--text-caption); line-height: 1.6; }
 .followup-inline-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 12px; }

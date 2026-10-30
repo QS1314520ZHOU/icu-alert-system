@@ -12,12 +12,7 @@
         </a-radio-group>
       </div>
       <div class="trend-chart-placeholder">
-        <VitalTrendChart
-          :points="trendPoints"
-          :loading="!trendLoaded"
-          :forecast-meta="forecastMeta"
-          :window="trendWindow"
-        />
+        <VitalSmallMultiples :points="trendPoints" :loading="!trendLoaded" :height="130" />
       </div>
     </section>
 
@@ -92,7 +87,7 @@ import { onMounted } from 'vue'
 import { RadioGroup as ARadioGroup, RadioButton as ARadioButton } from 'ant-design-vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
-import VitalTrendChart from './components/VitalTrendChart.vue'
+import VitalSmallMultiples from '../../components/charts/VitalSmallMultiples.vue'
 import WaveformChart from './components/WaveformChart.vue'
 
 const {
@@ -100,7 +95,7 @@ const {
   waveformHours, waveformSelectedChannel, waveformChannels,
   waveformPoints, waveformLoading, waveformError,
   labs, labsLoaded, loadLabs, loadWaveform,
-  forecastMeta, fmtTime,
+  fmtTime,
 } = usePatientDetail()
 
 function labFlagClass(exam: any) {

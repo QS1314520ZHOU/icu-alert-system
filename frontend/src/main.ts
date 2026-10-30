@@ -1,4 +1,8 @@
 import { createApp } from 'vue'
+import {
+  Button, Tag, Input, Textarea, Form, FormItem, Empty, Table, Tabs, TabPane, Select, SelectOption, Spin, Modal,
+  Space, Radio, RadioGroup, RadioButton, PageHeader, Collapse, CollapsePanel, InputSearch, Popconfirm, Switch,
+} from 'ant-design-vue'
 import 'ant-design-vue/dist/reset.css'
 import { registerSW } from 'virtual:pwa-register'
 import { registerClinicalThemes } from './charts/clinicalThemes'
@@ -91,6 +95,16 @@ async function bootstrap() {
   const pinia = createPinia()
   app.use(pinia)
   app.use(router)
+  // 部分页面模板直接使用 <a-button>/<a-tag> 等却未局部引入，未注册时会渲染成纯文本（按钮看起来像普通文字）。
+  // 这里全局注册这些常用组件兜底。
+  const antd: Record<string, any> = {
+    AButton: Button, ATag: Tag, AInput: Input, ATextarea: Textarea, AForm: Form, AFormItem: FormItem, AEmpty: Empty,
+    ATable: Table, ATabs: Tabs, ATabPane: TabPane, ASelect: Select, ASelectOption: SelectOption, ASpin: Spin,
+    AModal: Modal, ASpace: Space, ARadio: Radio, ARadioGroup: RadioGroup, ARadioButton: RadioButton,
+    APageHeader: PageHeader, ACollapse: Collapse, ACollapsePanel: CollapsePanel, AInputSearch: InputSearch,
+    APopconfirm: Popconfirm, ASwitch: Switch,
+  }
+  for (const [name, comp] of Object.entries(antd)) app.component(name, comp)
 
   // 初始化认证（必须在组件挂载前完成）
   try {

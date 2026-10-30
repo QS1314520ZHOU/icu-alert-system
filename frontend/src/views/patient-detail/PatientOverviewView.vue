@@ -109,17 +109,13 @@
 
     <!-- 生命体征趋势图 -->
     <section class="overview-section">
-      <MultiVitalTrendChart
-        title="生命体征趋势"
-        :x-data="trendXData"
-        :metrics="trendMetrics"
-        :height="380"
-        :loading="trendLoading"
-        :explanation="trendExplanation"
-        :time-ranges="trendRanges"
-        default-range="24h"
-        @range-change="onRangeChange"
-      />
+      <div class="trend-head">
+        <h3>生命体征趋势</h3>
+        <a-radio-group :value="trendWindow" size="small" @change="(e: any) => onRangeChange(e.target.value)">
+          <a-radio-button v-for="r in trendRanges" :key="r.value" :value="r.value">{{ r.label }}</a-radio-button>
+        </a-radio-group>
+      </div>
+      <VitalSmallMultiples :points="trendPoints" :loading="trendLoading" :height="110" />
     </section>
 
     <!-- 24小时临床事件时间线 -->
@@ -142,8 +138,8 @@ import { usePatientDetail } from '../../composables/usePatientDetail'
 import PatientPrimaryRisk from './components/PatientPrimaryRisk.vue'
 import SepsisBundleCard from '../../components/sepsis/SepsisBundleCard.vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
-import { MultiVitalTrendChart, ClinicalTimeline } from '../../components/charts'
-import type { VitalMetric } from '../../components/charts'
+import { ClinicalTimeline } from '../../components/charts'
+import VitalSmallMultiples from '../../components/charts/VitalSmallMultiples.vue'
 import type { TimelineEvent } from '../../components/charts'
 
 const {
@@ -328,59 +324,6 @@ function lactateTone(v: any) { if (v == null) return 'default'; return v > 4 ? '
 // ── 生命体征趋势图数据 ──
 const trendLoading = ref(false)
 const selectedRange = ref('24h')
-
-const trendXData = computed(() => {
-  const points = trendPoints.value
-  if (!points?.length) return []
-  return points.map((p: any) => {
-    const t = p.time || p.timestamp
-    if (!t) return ''
-    const d = new Date(t)
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  })
-})
-
-const trendMetrics = computed<VitalMetric[]>(() => {
-  const points = trendPoints.value
-  if (!points?.length) return []
-  const metrics: VitalMetric[] = []
-  // 保留空值以与时间轴对齐（过滤掉会导致曲线错位）
-  const extract = (getter: (p: any) => any) => points.map((p: any) => {
-    const n = Number(getter(p))
-    return getter(p) === null || getter(p) === undefined || !Number.isFinite(n) ? null : n
-  })
-  const hasAny = (arr: (number | null)[]) => arr.some((x) => x !== null)
-  const hrVals = extract((p) => p.hr)
-  const mapVals = extract(pointMap)
-  const spo2Vals = extract((p) => p.spo2)
-  const rrVals = extract((p) => p.rr)
-  const tempVals = extract((p) => p.temp)
-  const lactateVals = extract((p) => p.lactate)
-  if (hasAny(hrVals)) metrics.push({ key: 'hr', name: '心率', data: hrVals, unit: 'bpm', normalRange: [60, 100] })
-  if (hasAny(mapVals)) metrics.push({ key: 'map', name: 'MAP', data: mapVals, unit: 'mmHg', normalRange: [65, 100] })
-  if (hasAny(spo2Vals)) metrics.push({ key: 'spo2', name: 'SpO₂', data: spo2Vals, unit: '%', normalRange: [92, 100] })
-  if (hasAny(rrVals)) metrics.push({ key: 'rr', name: '呼吸频率', data: rrVals, unit: '/min', normalRange: [12, 25] })
-  if (hasAny(tempVals)) metrics.push({ key: 'temp', name: '体温', data: tempVals, unit: '°C', normalRange: [36, 38.5] })
-  if (hasAny(lactateVals)) metrics.push({ key: 'lactate', name: '乳酸', data: lactateVals, unit: 'mmol/L', normalRange: [0, 2] })
-  return metrics
-})
-
-const trendExplanation = computed(() => {
-  if (!trendMetrics.value.length) return undefined
-  const v = vitals.value || {}
-  const findings: string[] = []
-  if (v.hr > 120) findings.push('心率偏快')
-  if (v.hr < 50) findings.push('心率偏慢')
-  if ((v.ibp_map ?? v.nibp_map) < 65) findings.push('MAP偏低')
-  if (v.spo2 < 92) findings.push('SpO₂偏低')
-  if (v.lactate > 2) findings.push('乳酸升高')
-  return {
-    description: `该图显示患者过去${selectedRange.value}的生命体征趋势变化。`,
-    keyFinding: findings.length ? `当前关注: ${findings.join('、')}` : undefined,
-    source: '监护仪、LIS',
-    dataTime: heroMonitorUpdatedAt.value,
-  }
-})
 
 // 后端支持的窗口：6h/12h/24h/48h/7d
 const trendRanges = [
@@ -732,6 +675,8 @@ const eventTypeFilters = [
 .organ-card:has(.organ-warning) { background: #FFFBEB; border-color: #FCD34D; }
 .overview-block { margin-bottom: 12px; }
 .organ-source { margin: 8px 0 0; font-size: 12px; color: #8F959E; }
+.trend-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.trend-head h3 { margin: 0; font-size: 15px; font-weight: 600; color: #37352F; padding-left: 8px; border-left: 3px solid #5392FF; }
 </style>
 
 

@@ -7,9 +7,15 @@
 
     <section class="doc-overview-row">
       <div class="doc-overview-card">
-        <h4>数据完整性</h4>
-        <DataCompletenessRing :value="dataCompleteness" :size="110" />
-        <p class="doc-overview-hint">病历所需检验、影像、护理记录的完整度</p>
+        <h4>文书依据数据 <small>{{ sourceReadyCount }}/{{ docSources.length }} 类可用</small></h4>
+        <ul class="doc-source-list">
+          <li v-for="s in docSources" :key="s.key" :class="s.ready === null ? 'is-pending' : s.ready ? 'is-ok' : 'is-miss'">
+            <span class="doc-source-dot"></span>
+            <span class="doc-source-name">{{ s.label }}</span>
+            <span class="doc-source-val">{{ s.text }}</span>
+          </li>
+        </ul>
+        <p class="doc-overview-hint">缺失类别生成的文书中对应段落会为空或标注"未获取"，签署前请人工补充。</p>
       </div>
       <div class="doc-overview-card doc-overview-timeline">
         <h4>文书事件时间线</h4>
@@ -149,12 +155,11 @@
 <script setup lang="ts">
 import { Button as AButton, Empty as AEmpty, Spin as ASpin, Table as ATable, Tag as ATag } from 'ant-design-vue'
 import { PageHeader } from '../../components/common/design-system'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import CollapseSection from '../../components/common/CollapseSection.vue'
 import DocumentWorkbench from '../../components/clinical-documents/DocumentWorkbench.vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
-import DataCompletenessRing from '../../components/charts/risk/DataCompletenessRing.vue'
 import ClinicalTimeline from '../../components/charts/timeline/ClinicalTimeline.vue'
 import type { TimelineEvent } from '../../components/charts'
 
@@ -171,7 +176,8 @@ const {
   knowledgeDocs, selectedKnowledgeDocId, knowledgeLoading,
   knowledgeScopeText,
   loadKnowledgeDocs, loadKnowledgeDocument, handleReloadKnowledge,
-  normalizeList, alerts,
+  normalizeList, alerts, vitals,
+  labs, drugs, assessments, labsLoaded, drugsLoaded, assessmentsLoaded, loadLabs, loadDrugs, loadAssessments,
   metabolicPhaseRecord, metabolicPhaseLoading, metabolicPhaseError, loadMetabolicPhase,
   betaBlockerAdvisorRecord, betaBlockerAdvisorLoading, betaBlockerAdvisorError, loadBetaBlockerAdvisor,
   fibrinolysisRecord, fibrinolysisLoading, fibrinolysisError, loadFibrinolysis,
@@ -179,17 +185,27 @@ const {
   picsRiskRecord, picsRiskLoading, picsRiskError, loadPicsRisk,
 } = usePatientDetail()
 
-// ── 数据完整性 ──────────────────────────────────────────────────────
-const dataCompleteness = computed(() => {
-  // 基于已加载的数据类型计算完整性
-  let total = 5
-  let filled = 0
-  if (aiLabSummary.value) filled++
-  if (aiRuleRows.value?.length) filled++
-  if (aiHandoff.value) filled++
-  if (similarCaseReview.value) filled++
-  if (knowledgeDocs.value?.length) filled++
-  return Math.round((filled / total) * 100)
+// ── 文书依据数据：只统计真实临床数据源，不把 AI 面板加载情况当完整度 ──
+const docSources = computed(() => {
+  const v = vitals.value || {}
+  const hasVitals = [v.hr, v.spo2, v.rr, v.ibp_map, v.nibp_map, v.temp].some((x: any) => x !== null && x !== undefined && x !== '')
+  const list = (arr: any) => (Array.isArray(arr) ? arr.length : 0)
+  const row = (key: string, label: string, loaded: boolean, count: number, unit: string) => ({
+    key, label, ready: loaded ? count > 0 : null, text: loaded ? (count > 0 ? `${count} ${unit}` : '无记录') : '加载中',
+  })
+  return [
+    { key: 'vitals', label: '生命体征', ready: vitals.value ? hasVitals : null, text: vitals.value ? (hasVitals ? '已获取' : '无记录') : '加载中' },
+    row('labs', '检验结果', !!labsLoaded.value, list(labs.value), '项'),
+    row('drugs', '用药医嘱', !!drugsLoaded.value, list(drugs.value), '条'),
+    row('assess', '护理评估', !!assessmentsLoaded.value, list(assessments.value), '条'),
+    { key: 'alerts', label: '预警记录', ready: true, text: list(alerts.value) ? `${list(alerts.value)} 条` : '无（非缺失）' },
+  ]
+})
+const sourceReadyCount = computed(() => docSources.value.filter((s) => s.ready).length)
+onMounted(() => {
+  if (!labsLoaded.value) loadLabs()
+  if (!drugsLoaded.value) loadDrugs()
+  if (!assessmentsLoaded.value) loadAssessments()
 })
 
 // ── 文书事件时间线 ──────────────────────────────────────────────────
@@ -296,7 +312,7 @@ function selectKnowledgeDoc(doc: any) {
   margin: 8px 0 0;
   font-size: var(--text-label);
   color: var(--color-text-tertiary);
-  text-align: center;
+  text-align: left;
 }
 
 .doc-overview-timeline {
@@ -560,6 +576,16 @@ function selectKnowledgeDoc(doc: any) {
 .documents-view :deep(.ant-table-tbody > tr:hover > td) {
   background: var(--color-bg-inset);
 }
+.doc-overview-card h4 small { font-weight: 400; color: #7A7975; margin-left: 6px; font-size: 12px; }
+.doc-source-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.doc-source-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #37352F; }
+.doc-source-dot { width: 8px; height: 8px; border-radius: 50%; background: #C7C6C3; flex: none; }
+.doc-source-name { flex: 1; }
+.doc-source-val { font-size: 12px; color: #7A7975; }
+.is-ok .doc-source-dot { background: #2F7D55; }
+.is-ok .doc-source-val { color: #2F7D55; }
+.is-miss .doc-source-dot { background: #B45309; }
+.is-miss .doc-source-val { color: #B45309; font-weight: 600; }
 </style>
 
 
