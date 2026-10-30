@@ -1,8 +1,8 @@
 <template>
   <div class="risk-prediction">
     <!-- 状态提示区 -->
-    <div class="rp-alerts">
-      <div v-if="!modelAvailable" class="rp-alert rp-alert--info">
+    <div v-if="(!modelAvailable && !isRuleEstimate) || (modelAvailable && !calculable) || hasScaleMissing" class="rp-alerts">
+      <div v-if="!modelAvailable && !isRuleEstimate" class="rp-alert rp-alert--info">
         <span class="rp-alert__icon">ℹ️</span>
         <span class="rp-alert__text">{{ modelUnavailableReason }}</span>
       </div>
@@ -16,37 +16,39 @@
       </div>
     </div>
 
-    <!-- 主内容区：左侧风险概览 + 右侧趋势图 -->
-    <div class="rp-main-layout">
-      <!-- 左侧：风险指标卡片 -->
-      <div class="rp-overview-panel">
-        <div class="rp-panel-header">
-          <h3 class="rp-panel-title">风险概览</h3>
-          <span class="rp-panel-badge">{{ displayLabel }}</span>
-        </div>
-        <div v-if="riskCards.length" class="rp-risk-cards">
-          <div v-for="card in riskCards" :key="card.key" class="rp-risk-card" :class="`rp-risk-card--${card.level}`">
-            <div class="rp-risk-card__ring">
-              <svg viewBox="0 0 36 36">
-                <path class="rp-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path class="rp-ring-fill" :class="`rp-ring-fill--${card.level}`" :stroke-dasharray="`${card.value}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              </svg>
-              <span class="rp-ring-value">{{ card.value }}%</span>
-            </div>
-            <div class="rp-risk-card__info">
-              <span class="rp-risk-card__label">{{ card.label }}</span>
-              <div class="rp-risk-card__meta">
-                <span v-if="card.change != null" class="rp-risk-change" :class="card.change > 0 ? 'rp-change-up' : card.change < 0 ? 'rp-change-down' : ''">
-                  {{ card.change > 0 ? '↑' : card.change < 0 ? '↓' : '—' }}{{ Math.abs(card.change) }}%
-                </span>
-                <span class="rp-risk-horizon">{{ card.horizon }}</span>
-              </div>
-            </div>
+    <!-- 结论先行 -->
+    <section class="rp-brief">
+      <header class="rp-brief__head">
+        <span>风险预测结论</span>
+        <span class="rp-brief__src">{{ displayLabel }}</span>
+      </header>
+      <div class="rp-brief__body">
+        <div class="rp-brief__main">
+          <span class="rp-brief__level" :class="`rp-lv--${briefLevel.tone}`">{{ briefLevel.text }}</span>
+          <p class="rp-brief__headline">{{ briefHeadline }}</p>
+          <div v-if="riskCards.length" class="rp-brief__chips">
+            <span v-for="card in riskCards" :key="card.key" class="rp-brief__chip" :class="`rp-chip--${chipTone(card.value)}`">
+              {{ card.horizon === '当前' ? '当前' : `${card.horizon}后` }} <b>{{ card.value }}{{ isRuleEstimate ? '' : '%' }}</b>
+            </span>
           </div>
+          <p class="rp-brief__meta">
+            <template v-if="isRuleEstimate">规则风险指数 0–100，非概率；</template>
+            <template v-if="updatedAt">更新于 {{ updatedAt }}</template>
+          </p>
         </div>
-        <div v-else class="rp-empty-state">暂无风险数据</div>
+        <div v-if="topContributors.length" class="rp-brief__side">
+          <div class="rp-brief__side-title">主要驱动因素</div>
+          <ol class="rp-brief__drivers">
+            <li v-for="(c, i) in topContributors.slice(0, 4)" :key="i">
+              <b>{{ c.feature || c.name }}</b><span v-if="c.evidence">{{ c.evidence }}</span>
+            </li>
+          </ol>
+        </div>
       </div>
+    </section>
 
+    <!-- 主内容区：左侧风险概览 + 右侧趋势图 -->
+    <div v-if="trendChartOption" class="rp-main-layout rp-main-layout--single">
       <!-- 右侧：趋势图 -->
       <div class="rp-trend-panel">
         <div class="rp-panel-header">
@@ -61,10 +63,10 @@
     </div>
 
     <!-- 图表行：器官风险 + 特征贡献 -->
-    <div class="rp-charts-row">
+    <div v-if="hasAnyChart" class="rp-charts-row">
       <div class="rp-chart-card">
         <div class="rp-panel-header">
-          <h3 class="rp-panel-title">器官风险</h3>
+          <h3 class="rp-panel-title">器官风险（相对强度）</h3>
         </div>
         <div v-if="organChartOption" class="rp-chart-container">
           <ClinicalChart :option="organChartOption" :loading="loading" :height="220" />
@@ -143,6 +145,20 @@
             <span class="rp-info-value rp-status-warn">{{ fallbackReasonDisplay }}</span>
           </div>
         </div>
+        <div v-else class="rp-info-grid">
+          <div class="rp-info-item">
+            <span class="rp-info-label">预测来源</span>
+            <span class="rp-info-value">{{ displayLabel }}</span>
+          </div>
+          <div class="rp-info-item">
+            <span class="rp-info-label">模型状态</span>
+            <span class="rp-info-value rp-status-warn">{{ modelStatusDisplay }}</span>
+          </div>
+          <div v-if="modelMeta.fallback_reason" class="rp-info-item">
+            <span class="rp-info-label">降级原因</span>
+            <span class="rp-info-value rp-status-warn">{{ fallbackReasonDisplay }}</span>
+          </div>
+        </div>
       </div>
       <div class="rp-info-card">
         <div class="rp-panel-header">
@@ -162,10 +178,10 @@
       <div class="rp-ai-content">
         <div class="rp-contributors-list">
           <div v-for="(c, idx) in topContributors" :key="idx" class="rp-contributor-item">
-            <span class="rp-contributor-rank" :class="c.direction > 0 ? 'rp-rank-up' : 'rp-rank-down'">{{ Number(idx) + 1 }}</span>
-            <span class="rp-contributor-name">{{ c.feature || c.name || '' }}</span>
-            <span class="rp-contributor-impact" :class="c.direction > 0 ? 'rp-change-up' : 'rp-change-down'">
-              {{ c.direction > 0 ? '↑' : '↓' }}{{ (Math.abs(c.impact || c.weight || 0) * 100).toFixed(1) }}%
+            <span class="rp-contributor-rank" :class="(c.direction ?? 1) >= 0 ? 'rp-rank-up' : 'rp-rank-down'">{{ Number(idx) + 1 }}</span>
+            <span class="rp-contributor-name">{{ c.feature || c.name || '' }}<small v-if="c.evidence" class="rp-contributor-ev">{{ c.evidence }}</small></span>
+            <span class="rp-contributor-impact" :class="(c.direction ?? 1) >= 0 ? 'rp-change-up' : 'rp-change-down'">
+              {{ (c.direction ?? 1) >= 0 ? '↑' : '↓' }}{{ (Math.abs(contribWeight(c)) * 100).toFixed(1) }}%
             </span>
           </div>
         </div>
@@ -381,7 +397,7 @@ const riskCards = computed(() => {
   return cards
 })
 
-const topContributors = computed(() => rawData.value?.top_contributors || [])
+const topContributors = computed<any[]>(() => rawData.value?.top_contributors || [])
 
 const organRiskScores = computed(() => rawData.value?.organ_risk_scores || {})
 
@@ -395,7 +411,8 @@ const trendChartOption = computed<any>(() => {
 
   // 只保留有显式 scale 的数据点，null 表示量纲缺失
   const yData = all.map((p: any) => toPercent(p.probability ?? p.value, p.scale))
-  const xData = all.map((p: any) => p.time || p.t || '')
+  const xData = all.map((p: any) => p.label || shortTime(p.time || p.t || ''))
+  const unit = isRuleEstimate.value ? '' : '%'
   const isHistory = all.map((_: any, i: number) => i < history.length)
 
   // 如果所有数据点都为 null（全部量纲缺失），不展示图表
@@ -411,7 +428,7 @@ const trendChartOption = computed<any>(() => {
     legend: { data: ['历史风险', '预测风险', ...(thresholdValue != null ? ['高风险阈值'] : [])], top: 0 },
     grid: { left: 12, right: 16, top: 40, bottom: 30, containLabel: true },
     xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 11 } },
-    yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%', fontSize: 11 } },
+    yAxis: { type: 'value', max: 100, axisLabel: { formatter: `{value}${unit}`, fontSize: 11 } },
     series: [
       {
         name: '历史风险',
@@ -425,7 +442,7 @@ const trendChartOption = computed<any>(() => {
       {
         name: '预测风险',
         type: 'line',
-        data: yData.map((v: number | null, i: number) => !isHistory[i] ? v : null),
+        data: yData.map((v: number | null, i: number) => (!isHistory[i] || i === history.length - 1) ? v : null),
         smooth: true,
         lineStyle: { width: 2, type: 'dashed' },
         areaStyle: { color: 'rgba(37,99,235,0.04)' },
@@ -487,8 +504,8 @@ const contributorChartOption = computed<EChartsOption | null>(() => {
 
   const data = contribs.slice(0, 8).map((c: any) => ({
     name: c.feature || c.name || '',
-    value: Math.abs(c.weight || c.impact || 0),
-    direction: c.direction || (c.weight > 0 ? 1 : -1),
+    value: Math.abs(contribWeight(c)),
+    direction: c.direction || (contribWeight(c) >= 0 ? 1 : -1),
   })).filter((d: { value: number }) => d.value > 0)
 
   if (!data.length) return null
@@ -528,6 +545,47 @@ async function loadData() {
   }
 }
 
+// ── 结论卡 ──────────────────────────────────────
+const LEVEL_TEXT: Record<string, { text: string; tone: string }> = {
+  critical: { text: '危急', tone: 'crit' },
+  high: { text: '高风险', tone: 'crit' },
+  warning: { text: '警戒', tone: 'warn' },
+  medium: { text: '中风险', tone: 'warn' },
+  moderate: { text: '中风险', tone: 'warn' },
+  low: { text: '低风险', tone: 'ok' },
+}
+const briefLevel = computed(() => {
+  if (!calculable.value) return { text: '无法评估', tone: 'muted' }
+  const lv = String(rawData.value?.risk_level || '').toLowerCase()
+  return LEVEL_TEXT[lv] || { text: '已评估', tone: 'muted' }
+})
+const briefHeadline = computed(() => {
+  if (loading.value && !rawData.value) return '正在加载风险评估…'
+  if (!rawData.value) return '风险服务暂不可用，请稍后刷新。'
+  if (!calculable.value) {
+    return modelAvailable.value
+      ? '当前无法评估风险等级：数据不足或模型未返回有效结果。'
+      : `当前无法评估风险等级：${modelUnavailableReason.value}。`
+  }
+  const summary = String(rawData.value?.risk_summary || '').trim()
+  return summary || '已完成风险评估，详见下方趋势与驱动因素。'
+})
+const hasAnyChart = computed(() => !!(riskCards.value.length || trendChartOption.value || organChartOption.value || contributorChartOption.value))
+function chipTone(v: number) {
+  if (v >= 64) return 'crit'
+  if (v >= 42) return 'warn'
+  return 'ok'
+}
+function shortTime(t: string) {
+  const d = new Date(t)
+  if (!t || Number.isNaN(d.getTime())) return t
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+function contribWeight(c: any): number {
+  const n = Number(c?.impact ?? c?.weight ?? c?.score ?? 0)
+  return Number.isFinite(n) ? n : 0
+}
+
 onMounted(() => {
   sendUpdateTitle('风险预测')
   loadData()
@@ -539,7 +597,30 @@ watch(patientId, (id, prev) => {
 })
 </script>
 
-<style scoped>.risk-prediction { display: flex; flex-direction: column; gap: 20px; padding: 4px }
+<style scoped>
+.rp-main-layout--single { grid-template-columns: 1fr !important; min-height: 0 !important }
+.rp-brief { background: #fff; border: 1px solid #E6E5E3; border-radius: 10px; overflow: hidden }
+.rp-brief__head { height: 38px; background: #5392FF; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 14px; font-weight: 600 }
+.rp-brief__src { font-size: 12px; font-weight: 400; background: rgba(255,255,255,0.18); padding: 2px 8px; border-radius: 999px }
+.rp-brief__body { display: flex; gap: 20px; padding: 14px 16px }
+.rp-brief__main { flex: 1 1 auto; min-width: 0 }
+.rp-brief__level { display: inline-block; font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 999px; border: 1px solid #E6E5E3; background: #FAFAF9; color: #57534E }
+.rp-lv--crit, .rp-chip--crit { background: #FEF2F2 !important; color: #B91C1C !important; border-color: #FCA5A5 !important }
+.rp-lv--warn, .rp-chip--warn { background: #FFFBEB !important; color: #B45309 !important; border-color: #FCD34D !important }
+.rp-lv--ok, .rp-chip--ok { background: #E7F5EE !important; color: #2F7D55 !important; border-color: #A7D9BF !important }
+.rp-brief__headline { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: #1C1917; line-height: 1.5 }
+.rp-brief__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px }
+.rp-brief__chip { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid #E6E5E3 }
+.rp-brief__chip b { font-size: 14px; margin-left: 2px }
+.rp-brief__meta { margin: 8px 0 0; font-size: 12px; color: #A8A29E }
+.rp-brief__side { flex: 0 0 340px; border-left: 1px solid #F0EFED; padding-left: 16px }
+.rp-brief__side-title { font-size: 13px; font-weight: 600; color: #1C1917; padding-left: 8px; border-left: 3px solid #5392FF; line-height: 1.2 }
+.rp-brief__drivers { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: #44403C }
+.rp-brief__drivers li { margin: 3px 0 }
+.rp-brief__drivers span { margin-left: 6px; color: #78716C; font-size: 12px }
+.rp-contributor-ev { display: block; font-size: 12px; color: #78716C; font-weight: 400 }
+@media (max-width: 900px) { .rp-brief__body { flex-direction: column } .rp-brief__side { flex-basis: auto; border-left: 0; padding-left: 0 } }
+.risk-prediction { display: flex; flex-direction: column; gap: 20px; padding: 4px }
 
 /* ── 状态提示 ── */ .rp-alerts { display: flex; flex-direction: column; gap: 8px }
 .rp-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px) }

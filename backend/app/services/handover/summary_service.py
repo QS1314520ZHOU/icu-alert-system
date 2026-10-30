@@ -207,7 +207,13 @@ class ShiftSummaryService:
             or p.get("hisDiagnosis")
             or ""
         )
-        isolation = str(p.get("isolation") or p.get("isolationType") or "")
+        raw_isolation = p.get("isolationType") or p.get("isolation") or ""
+        if isinstance(raw_isolation, bool) or str(raw_isolation).strip().lower() in {"true", "1", "yes"}:
+            isolation = "隔离"  # 布尔标记无具体类型时不输出 "True"
+        elif str(raw_isolation).strip().lower() in {"false", "0", "no", "none"}:
+            isolation = ""
+        else:
+            isolation = str(raw_isolation)
 
         has_vent = await self._detect_ventilator(pid, oid, p)
         alert_count, unclosed, crit_vals, has_unclosed_high = await self._detect_alerts(

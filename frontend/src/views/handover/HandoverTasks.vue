@@ -13,9 +13,9 @@
     <div v-if="summary" class="ht-metrics ht-block">
       <div class="ht-metric ht-metric--critical"><b>{{ summary.critical_value_count }}</b><span>危急值</span></div>
       <div class="ht-metric ht-metric--warning"><b>{{ summary.unclosed_alert_count }}</b><span>未闭环告警</span></div>
-      <div class="ht-metric"><b>{{ countOrNA(summary.pending_order_count, 'orders') }}</b><span>待执行医嘱</span></div>
-      <div class="ht-metric"><b>{{ countOrNA(summary.pending_task_count, 'tasks') }}</b><span>待办任务</span></div>
-      <div class="ht-metric ht-metric--warning"><b>{{ countOrNA(summary.overdue_task_count, 'tasks') }}</b><span>逾期任务</span></div>
+      <div class="ht-metric" :class="isGap('orders') ? 'ht-metric--na' : ''"><b>{{ countOrNA(summary.pending_order_count, 'orders') }}</b><span>待执行医嘱</span></div>
+      <div class="ht-metric" :class="isGap('tasks') ? 'ht-metric--na' : ''"><b>{{ countOrNA(summary.pending_task_count, 'tasks') }}</b><span>待办任务</span></div>
+      <div class="ht-metric" :class="isGap('tasks') ? 'ht-metric--na' : (summary.overdue_task_count ? 'ht-metric--warning' : '')"><b>{{ countOrNA(summary.overdue_task_count, 'tasks') }}</b><span>逾期任务</span></div>
       <div class="ht-metric"><b>{{ bedsWithItems.length }}</b><span>涉及床位</span></div>
     </div>
 
@@ -111,6 +111,10 @@ const sourceGaps = computed(() => {
   return Array.from(new Set(list.map((x: string) => SOURCE_LABELS[x] || x)))
 })
 
+function isGap(source: string) {
+  const s = summary.value || {}
+  return [...(s.missing_sources || []), ...(s.failed_sources || [])].includes(source)
+}
 function countOrNA(value: number, source: string) {
   const s = summary.value || {}
   const gaps = [...(s.missing_sources || []), ...(s.failed_sources || [])]
@@ -181,6 +185,8 @@ onMounted(reload)
 </script>
 
 <style scoped>
+.ht-metric--na b { font-size: 14px !important; font-weight: 500 !important; color: var(--color-text-tertiary, #A8A29E) !important; }
+
 .handover-tasks { padding: var(--page-padding, 24px); max-width: 1400px; margin: 0 auto; width: 100%; }
 .ht-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .ht-title { margin: 0; font-size: var(--text-page-title, 20px); font-weight: 600; color: var(--color-text-primary); }

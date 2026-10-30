@@ -843,6 +843,12 @@ function _createPatientDetail(_initialPatientId: string) {
   }
 
   function alertTypeText(raw: any) {
+    // 兼容传入整条预警记录：优先用规则名称（后端 name），其次按 alert_type 映射
+    if (raw && typeof raw === 'object') {
+      const name = String(raw.name || raw.title || '').trim()
+      if (name) return name
+      return alertTypeText(raw.alert_type || raw.rule_id || '')
+    }
     const t = String(raw || '')
     if (!t) return ''
     const map: Record<string, string> = {
@@ -1003,7 +1009,10 @@ function _createPatientDetail(_initialPatientId: string) {
       if (v == null) return '—'
       return label ? `${label}=${v}${unit}` : `${v}${unit}`
     }
-    return v ?? '—'
+    const raw = v ?? extra?.value
+    if (raw == null || raw === '' || typeof raw === 'object') return '—'
+    const unit = String(extra?.unit || '')
+    return unit && !String(raw).endsWith(unit) ? `${raw}${unit === '%' ? '' : ' '}${unit}` : String(raw)
   }
 
   function formatDrugName(row: any) {

@@ -337,26 +337,34 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
   height: var(--button-height) !important;
   box-shadow: none !important;
 }
-.ant-btn-default,
+.ant-btn-default:not(.ant-btn-dangerous),
 .ant-btn-color-default,
-.ant-btn-variant-outlined {
+.ant-btn-variant-outlined:not(.ant-btn-dangerous) {
   background: var(--bg-surface) !important;
   border-color: var(--border-color) !important;
   color: var(--text-main) !important;
 }
-.ant-btn-default:hover,
-.ant-btn-color-default:hover,
-.ant-btn-variant-outlined:hover {
+.ant-btn-default:not(.ant-btn-dangerous):not(:disabled):hover,
+.ant-btn-color-default:not(:disabled):hover,
+.ant-btn-variant-outlined:not(.ant-btn-dangerous):not(:disabled):hover {
   background: var(--bg-surface-2) !important;
   border-color: var(--text-secondary) !important;
   color: var(--text-main) !important;
 }
-.ant-btn-primary {
+/* 禁用态必须可辨识：避免全局品牌色覆盖导致“看起来可点” */
+.ant-btn:disabled,
+.ant-btn.ant-btn-disabled {
+  background: #F5F5F4 !important;
+  border-color: #E6E5E3 !important;
+  color: #A8A29E !important;
+  cursor: not-allowed !important;
+}
+.ant-btn-primary:not(:disabled):not(.ant-btn-dangerous):not(.ant-btn-background-ghost) {
   background: var(--brand) !important;
   border-color: var(--brand) !important;
   color: #FFFFFF !important;
 }
-.ant-btn-primary:hover {
+.ant-btn-primary:not(:disabled):not(.ant-btn-dangerous):not(.ant-btn-background-ghost):hover {
   background: var(--color-primary-hover) !important;
 }
 .ant-btn-link {

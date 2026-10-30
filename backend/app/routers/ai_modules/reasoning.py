@@ -214,8 +214,27 @@ async def ai_risk_forecast(
         else None
     )
 
+    # 引擎内部统一输出 0-1 数值：trained_model 写 current_probability/horizon_probabilities，
+    # rule_estimate 写 current_risk_score/future_risk_scores。规则分数按契约换算为 0-100 指数，
+    # 否则 0.58 会被当作 0.58% 展示，且 calculable 永远为 false。
+    def _rule_to_percent(value):
+        if not is_rule_estimate_src or value is None:
+            return value
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            return value
+        return round(num * 100, 1) if 0.0 <= num <= 1.0 else num
+
+    is_rule_estimate_src = prediction_source == "rule_estimate"
+    if is_rule_estimate_src:
+        if forecast.get("current_probability") is None and forecast.get("current_risk_score") is not None:
+            forecast["current_probability"] = forecast.get("current_risk_score")
+        if not forecast.get("horizon_probabilities") and forecast.get("future_risk_scores"):
+            forecast["horizon_probabilities"] = [dict(hp) for hp in forecast.get("future_risk_scores") or [] if isinstance(hp, dict)]
+
     # 处理 current_probability：禁止 or 0 兜底
-    raw_probability = forecast.get("current_probability")
+    raw_probability = _rule_to_percent(forecast.get("current_probability"))
     current_probability = _validate_scaled_value(raw_probability, probability_scale)
 
     # 处理 risk_level：禁止 or "low" 兜底
@@ -242,7 +261,7 @@ async def ai_risk_forecast(
             if "scale" not in hp:
                 hp["scale"] = probability_scale
             if "probability" in hp:
-                hp["probability"] = _validate_scaled_value(hp["probability"], hp.get("scale"))
+                hp["probability"] = _validate_scaled_value(_rule_to_percent(hp["probability"]), hp.get("scale"))
 
     # 为 history_risk_curve / forecast_risk_curve 添加 scale 并校验值
     for curve_key in ("history_risk_curve", "forecast_risk_curve"):
@@ -252,9 +271,9 @@ async def ai_risk_forecast(
                 if "scale" not in point:
                     point["scale"] = probability_scale
                 if "probability" in point:
-                    point["probability"] = _validate_scaled_value(point["probability"], point.get("scale"))
+                    point["probability"] = _validate_scaled_value(_rule_to_percent(point["probability"]), point.get("scale"))
                 if "value" in point:
-                    point["value"] = _validate_scaled_value(point["value"], point.get("scale"))
+                    point["value"] = _validate_scaled_value(_rule_to_percent(point["value"]), point.get("scale"))
 
     # 为 threshold_bands 添加 scale 并校验值
     threshold_bands = forecast.get("threshold_bands") or []
@@ -266,7 +285,8 @@ async def ai_risk_forecast(
                 band["value"] = _validate_scaled_value(band["value"], band.get("scale"))
 
     # 标准化 organ_risk_scores（处理数字型和字典型）
-    organ_scores = _normalize_organ_scores(forecast.get("organ_risk_scores") or {})
+    # 器官分数为相对强度（按最大值归一化到 0-1），量纲为 probability_0_1
+    organ_scores = _normalize_organ_scores(forecast.get("organ_risk_scores") or {}, default_scale="probability_0_1")
 
     return {
         "code": 0,

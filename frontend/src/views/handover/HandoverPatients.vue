@@ -78,7 +78,7 @@
             <a-tag v-if="record.has_vasoactive" color="volcano">血管活性药</a-tag>
             <a-tag v-if="record.has_crrt" color="purple">CRRT</a-tag>
             <a-tag v-if="record.high_risk_line_count" color="orange">高危管路×{{ record.high_risk_line_count }}</a-tag>
-            <a-tag v-if="record.isolation" color="magenta">隔离:{{ record.isolation }}</a-tag>
+            <a-tag v-if="isolationText(record.isolation)" color="magenta">{{ isolationText(record.isolation) }}</a-tag>
             <span v-if="!hasSupport(record)" class="hp-muted">—</span>
           </div>
         </template>
@@ -137,7 +137,7 @@ function statusOf(p: any): string {
   return p.handover_status || 'not_started'
 }
 function hasSupport(p: any) {
-  return p.has_ventilator || p.has_vasoactive || p.has_crrt || p.high_risk_line_count > 0 || !!p.isolation
+  return p.has_ventilator || p.has_vasoactive || p.has_crrt || p.high_risk_line_count > 0 || !!isolationText(p.isolation)
 }
 
 const statusCount = computed(() => {
@@ -193,6 +193,12 @@ function actionLabel(p: any) {
   if (s === 'draft' || s === 'returned') return '继续编辑'
   if (s === 'submitted') return '核对签收'
   return '查看'
+}
+function isolationText(v: unknown) {
+  const t = String(v ?? '').trim()
+  if (!t || ['false', '0', 'no', 'none', 'null'].includes(t.toLowerCase())) return ''
+  if (['true', '1', 'yes', '隔离'].includes(t.toLowerCase())) return '隔离'
+  return t.includes('隔离') ? t : `隔离:${t}`
 }
 function openIsbar(patientId: string) {
   router.push({ name: 'handover-patient', params: { patientId } })

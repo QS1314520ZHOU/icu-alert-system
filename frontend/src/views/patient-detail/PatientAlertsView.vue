@@ -61,7 +61,7 @@
             </div>
             <p class="row-desc">{{ alert.description || alert.extra?.description || '—' }}</p>
             <div class="row-values">
-              <span v-if="formatAlertValue(alert)" class="row-val">
+              <span v-if="formatAlertValue(alert) && formatAlertValue(alert) !== '—'" class="row-val">
                 当前 <strong>{{ formatAlertValue(alert) }}</strong>
               </span>
               <span v-if="alert.extra?.threshold" class="row-val row-val--dim">

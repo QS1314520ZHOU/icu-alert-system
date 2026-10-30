@@ -13,7 +13,7 @@
           :class="{ 'patient-item--active': p.patient_id === activePatientId }"
           @click="selectPatient(p)"
         >
-          <span class="patient-bed">{{ p.bed }}床</span>
+          <span class="patient-bed">{{ p.bed ? `${p.bed}床` : '—' }}</span>
           <span class="patient-name">{{ p.name }}</span>
           <span v-if="p.is_critical" class="patient-badge patient-badge--critical">危</span>
           <span v-if="p.has_ventilator" class="patient-badge patient-badge--vent">V</span>
@@ -33,14 +33,15 @@
           <!-- Toolbar -->
           <div class="isbar-toolbar">
             <div class="toolbar-patient">
-              <span class="toolbar-bed">{{ currentHandover?.sections?.identify?.bed || '?' }}床</span>
-              <span class="toolbar-name">{{ currentHandover?.sections?.identify?.name || '未知' }}</span>
+              <span class="toolbar-bed">{{ toolbarBed ? `${toolbarBed}床` : '—' }}</span>
+              <span class="toolbar-name">{{ toolbarName || '未知患者' }}</span>
+              <span v-if="activePatient?.risk_level" class="toolbar-risk" :class="`toolbar-risk--${activePatient.risk_level}`">{{ RISK_TEXT[activePatient.risk_level] || activePatient.risk_level }}</span>
               <a-tag v-if="currentHandover?.ai_status?.status === 'unavailable'" color="orange">AI不可用</a-tag>
               <a-tag v-else-if="currentHandover?.ai_status?.status === 'success'" color="blue">AI已生成</a-tag>
             </div>
             <div class="toolbar-actions">
               <a-button size="small" :loading="generating" @click="onGenerate">生成草稿</a-button>
-              <a-button size="small" :loading="saving" @click="onSave">保存</a-button>
+              <a-button size="small" :disabled="!currentHandover?.handover_id" :loading="saving" @click="onSave">保存</a-button>
               <a-button size="small" type="primary" :disabled="!canSubmit" :loading="submitting" @click="onSubmit">提交</a-button>
             </div>
           </div>
@@ -54,6 +55,14 @@
             :banner="true"
             style="margin-bottom: 12px"
           />
+
+          <div v-if="!currentHandover && !loading" class="no-draft">
+            <div class="no-draft__title">本班尚无该患者交班单</div>
+            <div class="no-draft__text">点击「生成草稿」由系统预填 ISBAR，再人工核对补充后提交。</div>
+            <ul v-if="activePatient?.risk_reasons?.length" class="no-draft__reasons">
+              <li v-for="r in activePatient.risk_reasons" :key="r">{{ r }}</li>
+            </ul>
+          </div>
 
           <!-- ISBAR Editor -->
           <IsbarEditor
@@ -125,8 +134,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Spin as ASpin, Button as AButton, Input as AInput, Tag as ATag, Alert as AAlert, Tabs as ATabs, TabPane as ATabPane, message } from 'ant-design-vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
@@ -144,6 +153,7 @@ import AcknowledgementPanel from '../../components/handover/AcknowledgementPanel
 import { DataCompleteness } from '../../components/handover/charts'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 // State
@@ -176,6 +186,11 @@ const filteredPatients = computed(() => {
   )
 })
 
+const RISK_TEXT: Record<string, string> = { critical: '危急', high: '高危', medium: '中危', stable: '平稳' }
+const activePatient = computed<any>(() => patients.value.find((p) => p.patient_id === activePatientId.value) || null)
+const toolbarBed = computed(() => currentHandover.value?.sections?.identify?.bed || activePatient.value?.bed || '')
+const toolbarName = computed(() => currentHandover.value?.sections?.identify?.name || activePatient.value?.name || '')
+
 const canSubmit = computed(() =>
   currentHandover.value?.status === 'draft' && authStore.effectiveUserId
 )
@@ -197,12 +212,33 @@ const completenessItems = computed(() => {
 })
 
 // Load patients
+// 优先使用本班交接统计（含床号/风险/生命支持），失败时回退到在科患者列表
 async function loadPatients() {
   try {
+    const res = await api.get('/api/handover/shifts/current/summary', { params: { dept_code: deptCode.value } })
+    const rows = res.data?.summary?.patients
+    if (Array.isArray(rows) && rows.length) {
+      patients.value = rows.map(normalizePatient)
+      return
+    }
+  } catch { /* 回退 */ }
+  try {
     const res = await api.get('/api/patients', { params: { dept_code: deptCode.value, patient_scope: 'in_dept' } })
-    patients.value = res.data?.patients || []
+    patients.value = (res.data?.patients || []).map(normalizePatient)
   } catch (e: any) {
     console.error('Failed to load patients:', e)
+  }
+}
+
+function normalizePatient(p: any) {
+  const risk = String(p?.risk_level || '')
+  return {
+    ...p,
+    patient_id: String(p?.patient_id || p?._id || ''),
+    bed: String(p?.bed || p?.hisBed || '').replace(/床$/, ''),
+    name: p?.name || p?.hisName || '',
+    is_critical: p?.is_critical === true || risk === 'critical',
+    has_ventilator: !!p?.has_ventilator,
   }
 }
 
@@ -210,6 +246,9 @@ async function loadPatients() {
 async function selectPatient(p: any) {
   activePatientId.value = p.patient_id || p._id || ''
   if (!activePatientId.value) return
+  if (String(route.params.patientId || '') !== activePatientId.value) {
+    router.replace({ name: 'handover-patient', params: { patientId: activePatientId.value }, query: route.query })
+  }
 
   loading.value = true
   try {
@@ -353,12 +392,33 @@ function onFieldEdit(fieldPath: string) {
   }
 }
 
-onMounted(() => {
-  loadPatients()
+onMounted(async () => {
+  await loadPatients()
+  const pid = String(route.params.patientId || '')
+  if (pid) {
+    const hit = patients.value.find((p) => p.patient_id === pid)
+    selectPatient(hit || { patient_id: pid })
+  }
+})
+
+watch(() => route.params.patientId, (pid) => {
+  const id = String(pid || '')
+  if (id && id !== activePatientId.value) {
+    selectPatient(patients.value.find((p) => p.patient_id === id) || { patient_id: id })
+  }
 })
 </script>
 
 <style scoped>
+.toolbar-risk { margin-left: 8px; font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid #E6E5E3; color: #57534E; background: #FAFAF9; }
+.toolbar-risk--critical { background: #FEF2F2; color: #B91C1C; border-color: #FCA5A5; }
+.toolbar-risk--high { background: #FFFBEB; color: #B45309; border-color: #FCD34D; }
+.toolbar-risk--stable { background: #E7F5EE; color: #2F7D55; border-color: #A7D9BF; }
+.no-draft { background: #fff; border: 1px solid #E6E5E3; border-left: 3px solid #5392FF; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+.no-draft__title { font-size: 14px; font-weight: 600; color: #1C1917; }
+.no-draft__text { margin-top: 4px; font-size: 13px; color: #57534E; }
+.no-draft__reasons { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: #B91C1C; }
+
 .isbar-page {
   display: grid;
   grid-template-columns: 240px 1fr 300px;

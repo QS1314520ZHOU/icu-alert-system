@@ -1817,9 +1817,9 @@ class BaseEngine:
             elif sev == "high":
                 recent_high += 1
         if recent_critical > 0:
-            self._append_temporal_signal(contributors, organ_scores, organ="circulatory", feature="近期危急预警", score=min(0.14, 0.06 * recent_critical), evidence=f"{recent_critical} 条 critical 预警")
+            self._append_temporal_signal(contributors, organ_scores, organ="circulatory", feature="近期危急预警", score=min(0.14, 0.06 * recent_critical), evidence=f"{recent_critical} 条危急预警")
         elif recent_high >= 2:
-            self._append_temporal_signal(contributors, organ_scores, organ="circulatory", feature="近期高危预警", score=min(0.10, 0.04 * recent_high), evidence=f"{recent_high} 条 high 预警")
+            self._append_temporal_signal(contributors, organ_scores, organ="circulatory", feature="近期高危预警", score=min(0.10, 0.04 * recent_high), evidence=f"{recent_high} 条高危预警")
 
         contributors.sort(key=lambda x: float(x.get("score") or 0), reverse=True)
         raw_score = 0.10 + sum(float(item.get("score") or 0) for item in contributors)
