@@ -828,6 +828,35 @@ async def generate_summary(
     return {"code": 0, "summary": summary.model_dump()}
 
 
+@router.get("/shifts/history")
+async def list_summary_history(
+    db: DbDep,
+    dept_code: str = Query("", description="Department code"),
+    limit: int = Query(30, ge=1, le=200),
+):
+    """List persisted shift summaries (newest first), one row per shift window."""
+    query: dict[str, Any] = {}
+    if dept_code:
+        query["dept_code"] = dept_code
+    projection = {
+        "_id": 0, "patients": 0, "priority_items": 0, "department_changes": 0, "handover_tasks": 0,
+    }
+    cursor = db.col("shift_handover_summaries").find(query, projection).sort("created_at", -1).limit(limit * 10)
+    docs = await cursor.to_list(length=limit * 10)
+    # GET /shifts/current/summary 每次都会落库，同一班次只保留最新一份
+    seen: set[str] = set()
+    items: list[dict[str, Any]] = []
+    for doc in docs:
+        key = f"{doc.get('dept_code', '')}|{doc.get('shift_code', '')}|{doc.get('scheduled_start', '')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append(serialize_doc(doc))
+        if len(items) >= limit:
+            break
+    return {"code": 0, "items": items}
+
+
 @router.get("/shifts/{summary_id}")
 async def get_summary(summary_id: str, db: DbDep):
     """Get a specific shift summary by ID."""

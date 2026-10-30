@@ -38,7 +38,7 @@
         <div class="stat-label">未闭环告警</div>
       </div>
       <div class="stat-card stat-card--task">
-        <div class="stat-value">{{ summary.overdue_task_count }}</div>
+        <div class="stat-value">{{ (summary.missing_sources || []).includes('tasks') ? '未接入' : summary.overdue_task_count }}</div>
         <div class="stat-label">逾期任务</div>
       </div>
     </div>

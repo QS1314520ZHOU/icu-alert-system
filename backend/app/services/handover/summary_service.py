@@ -93,6 +93,21 @@ class ShiftSummaryService:
         submitted = sum(1 for d in handover_docs if d.get("status") == "submitted")
         acknowledged = sum(1 for d in handover_docs if d.get("status") == "acknowledged")
 
+        # 逐患者交班单状态（取该患者本班最新一份交班单）
+        latest_by_patient: dict[str, dict[str, Any]] = {}
+        for d in handover_docs:
+            hpid = str(d.get("patient_id") or "")
+            if not hpid:
+                continue
+            prev = latest_by_patient.get(hpid)
+            if prev is None or str(d.get("updated_at") or d.get("created_at") or "") >= str(prev.get("updated_at") or prev.get("created_at") or ""):
+                latest_by_patient[hpid] = d
+        for stat in patient_stats:
+            doc = latest_by_patient.get(str(stat.get("patient_id") or ""))
+            stat["handover_status"] = str(doc.get("status") or "draft") if doc else "not_started"
+            stat["handover_id"] = str(doc.get("handover_id") or doc.get("_id") or "") if doc else ""
+            stat["handover_updated_at"] = str(doc.get("updated_at") or doc.get("created_at") or "") if doc else ""
+
         priority_items = self._build_priority_items(patient_stats)
 
         deterministic_summary = self._build_deterministic_summary(
@@ -132,6 +147,8 @@ class ShiftSummaryService:
             patients=patient_stats,
             priority_items=priority_items,
             deterministic_summary=deterministic_summary,
+            # 医嘱执行/护理任务计数尚未接入本服务，显式标记，避免前端把 0 当成"无待办"
+            missing_sources=["orders", "tasks"],
             status="draft",
             created_by=operator,
             created_at=datetime.now(API_TZ).isoformat(),
@@ -204,6 +221,25 @@ class ShiftSummaryService:
             or has_unclosed_high
             or (unclosed > 2 and (has_vent or has_vaso or has_crrt))
         )
+        # 风险判定依据：与下方分级规则一一对应，供前端展示"为什么是这个等级"
+        risk_reasons: list[str] = []
+        if crit_vals > 0:
+            risk_reasons.append(f"本班危急值{crit_vals}条")
+        if has_unclosed_high:
+            risk_reasons.append("存在未闭环高危/危急告警")
+        if unclosed > 2 and (has_vent or has_vaso or has_crrt):
+            risk_reasons.append(f"生命支持中且未闭环告警{unclosed}条(>2)")
+        if has_vaso:
+            risk_reasons.append("使用血管活性药")
+        if has_crrt:
+            risk_reasons.append("CRRT治疗中")
+        if unclosed > 0 and not (unclosed > 2 and (has_vent or has_vaso or has_crrt)):
+            risk_reasons.append(f"未闭环告警{unclosed}条")
+        if has_vent:
+            risk_reasons.append("机械通气中")
+        if high_risk_lines > 0:
+            risk_reasons.append(f"高危管路{high_risk_lines}条")
+
         if is_critical:
             risk_level = "critical"
         elif has_vaso or has_crrt or unclosed > 0:
@@ -228,6 +264,8 @@ class ShiftSummaryService:
             "unclosed_alert_count": unclosed,
             "critical_value_count": crit_vals,
             "high_risk_line_count": high_risk_lines,
+            "risk_reasons": risk_reasons,
+            "risk_rule": "危急: 危急值>0 或 未闭环高危告警 或 (生命支持且未闭环告警>2)；高危: 血管活性药/CRRT/未闭环告警；中危: 机械通气/高危管路",
         }
 
     async def _detect_ventilator(self, pid: str, oid: Any, p: dict) -> bool:
