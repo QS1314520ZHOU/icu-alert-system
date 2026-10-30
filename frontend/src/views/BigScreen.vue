@@ -489,7 +489,7 @@ const deviceHeatmapOption = computed(() => {
       bottom: 0,
       calculable: false,
       text: ['高风险', '低风险'],
-      inRange: { color: isLightTheme.value ? ['#eff6ff', '#bfdbfe', '#1A9C5B', '#E8901C', '#D9342B'] : ['#0b2538', '#0e7490', '#1A9C5B', '#E8901C', '#fb5a7a'] },
+      inRange: { color: isLightTheme.value ? ['#E8F0FE', '#bfdbfe', '#1A9C5B', '#E8901C', '#D9342B'] : ['#0b2538', '#0e7490', '#1A9C5B', '#E8901C', '#fb5a7a'] },
       textStyle: { color: tokens.heatmapText, fontSize: 10 },
     },
     series: [{ type: 'heatmap', data, itemStyle: { borderRadius: 8, borderColor: tokens.axisLine, borderWidth: 1 } }],

@@ -346,7 +346,7 @@ watch(patientId, (id, prev) => {
 </script>
 
 <style scoped>.evidence { display: flex; flex-direction: column; gap: 14px }
-.ev-question-card { background: var(--color-primary-bg, #EFF6FF); border: 1px solid var(--color-info-bg, #EAF4FF); border-radius: var(--radius-lg, 10px); padding: 16px }
+.ev-question-card { background: var(--color-primary-bg, #E8F0FE); border: 1px solid var(--color-info-bg, #EAF4FF); border-radius: var(--radius-lg, 10px); padding: 16px }
 .ev-card-title { margin: 0 0 10px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 .ev-question-display { display: flex; flex-direction: column; gap: 6px }
 .ev-question-text { font-size: var(--text-section-title, 15px); color: var(--color-text-primary, #111827) }
@@ -367,23 +367,23 @@ watch(patientId, (id, prev) => {
 .ev-error { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; text-align: center }
 .ev-error__icon { font-size: 24px }
 .ev-error__text { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563) }
-.ev-retry-btn { padding: 4px 16px; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF); font-size: var(--text-caption, 12px); cursor: pointer; color: var(--color-primary, #2563EB) }
+.ev-retry-btn { padding: 4px 16px; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF); font-size: var(--text-caption, 12px); cursor: pointer; color: var(--color-primary, #2F6FED) }
 .ev-empty-reasoning { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 32px 20px; text-align: center }
 .ev-empty-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 .ev-empty-desc { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); max-width: 400px }
 .ev-section { margin-top: 14px }
 .ev-section:first-child { margin-top: 0 }
-.ev-section-title { margin: 0 0 8px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-primary, #2563EB) }
+.ev-section-title { margin: 0 0 8px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-primary, #2F6FED) }
 .ev-section-text { margin: 0; font-size: var(--text-body, 13px); line-height: 1.6; color: var(--color-text-secondary, #4B5563); white-space: pre-wrap }
 .ev-steps-list { display: flex; flex-direction: column; gap: 8px }
 .ev-step-item { display: flex; gap: 10px; padding: 8px 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
-.ev-step-num { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-radius: 50%; font-size: 11px; font-weight: 600; flex-shrink: 0 }
+.ev-step-num { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-radius: 50%; font-size: 11px; font-weight: 600; flex-shrink: 0 }
 .ev-step-text { font-size: var(--text-body, 13px); line-height: 1.5; color: var(--color-text-secondary, #4B5563) }
 .ev-citations-list { display: flex; flex-direction: column; gap: 8px }
 .ev-citation-item { display: flex; gap: 10px; padding: 10px 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
 .ev-citation-rank { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--color-bg-inset, #E9EEF5); border-radius: 50%; font-size: var(--text-caption, 12px); font-weight: 600; flex-shrink: 0 }
 .ev-citation-content { flex: 1 }
-.ev-citation-source { font-size: var(--text-caption, 12px); color: var(--color-primary, #2563EB); font-weight: 500 }
+.ev-citation-source { font-size: var(--text-caption, 12px); color: var(--color-primary, #2F6FED); font-weight: 500 }
 .ev-citation-text { margin: 4px 0 0; font-size: var(--text-caption, 12px); line-height: 1.5; color: var(--color-text-secondary, #4B5563) }
 .ev-meta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-border, #E5E7EB); font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 .ev-ai-disclaimer { margin-top: 10px; padding: 8px 12px; background: var(--color-warning-soft-bg, #FFF9D8); border: 1px solid var(--color-warning-soft-border, #FFE58F); border-radius: var(--radius-md, 6px); font-size: var(--text-caption, 12px); color: var(--color-warning, #B54708) }
@@ -393,10 +393,10 @@ watch(patientId, (id, prev) => {
 .ev-doc-info { display: flex; flex-direction: column; gap: 4px; flex: 1 }
 .ev-doc-name { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 .ev-doc-meta-row { display: flex; flex-wrap: wrap; gap: 6px; font-size: var(--text-caption, 12px) }
-.ev-doc-tag { padding: 1px 6px; background: var(--color-primary-bg, #EFF6FF); color: var(--color-primary, #2563EB); border-radius: var(--radius-tag, 4px) }
+.ev-doc-tag { padding: 1px 6px; background: var(--color-primary-bg, #E8F0FE); color: var(--color-primary, #2F6FED); border-radius: var(--radius-tag, 4px) }
 .ev-doc-guideline { color: var(--color-text-secondary, #4B5563) }
 .ev-doc-institution { color: var(--color-text-tertiary, #9CA3AF) }
-.ev-doc-version { color: var(--color-primary, #2563EB); font-weight: 500 }
+.ev-doc-version { color: var(--color-primary, #2F6FED); font-weight: 500 }
 .ev-doc-year { color: var(--color-text-tertiary, #9CA3AF) }
 .ev-doc-stats { display: flex; gap: 10px; font-size: var(--text-caption, 12px) }
 .ev-doc-chunks { color: var(--color-text-secondary, #4B5563) }
@@ -409,7 +409,7 @@ watch(patientId, (id, prev) => {
 .ev-disclaimer { padding: 10px 16px; background: var(--color-warning-soft-bg, #FFF9D8); border: 1px solid var(--color-warning-soft-border, #FFE58F); border-radius: var(--radius-md, 6px); font-size: var(--text-caption, 12px); color: var(--color-warning, #B54708) }
 .ev-unindexed-section { margin-top: 8px; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); overflow: hidden }
 .ev-unindexed-section summary { padding: 8px 12px; font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); cursor: pointer; background: var(--color-bg-surface-secondary, #F1F4F8) }
-.ev-unindexed-section summary:hover { background: var(--color-primary-bg, #EFF6FF) }
+.ev-unindexed-section summary:hover { background: var(--color-primary-bg, #E8F0FE) }
 .ev-doc-item--unindexed { opacity: 0.6 }
 
 </style>

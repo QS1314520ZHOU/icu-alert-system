@@ -543,7 +543,7 @@ watch(patientId, (id, prev) => {
 
 /* ── 状态提示 ── */ .rp-alerts { display: flex; flex-direction: column; gap: 8px }
 .rp-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px) }
-.rp-alert--info { background: var(--color-primary-bg, #EFF6FF); border: 1px solid var(--color-info-bg, #EAF4FF); color: var(--color-primary, #2563EB) }
+.rp-alert--info { background: var(--color-primary-bg, #E8F0FE); border: 1px solid var(--color-info-bg, #EAF4FF); color: var(--color-primary, #2F6FED) }
 .rp-alert--warning { background: var(--color-warning-soft-bg, #FFF9D8); border: 1px solid var(--color-warning-soft-border, #FFE58F); color: var(--color-warning, #B54708) }
 .rp-alert__icon { font-size: 16px }
 

@@ -285,7 +285,7 @@ watch(patientId, (id, prev) => {
 .dt-window-selector { display: flex; align-items: center; gap: 8px; background: var(--color-bg-surface, #FFFFFF); padding: 10px 14px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
 .dt-window-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-weight: 500 }
 .dt-window-btn { padding: 4px 12px; border-radius: var(--radius-tag, 4px); border: 1px solid var(--color-border, #E5E7EB); background: var(--color-bg-surface, #FFFFFF); font-size: var(--text-caption, 12px); cursor: pointer; transition: all 0.15s }
-.dt-window-btn--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.dt-window-btn--active { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .dt-timeline-card, .dt-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 16px; border: 1px solid var(--color-border, #E5E7EB) }
 .dt-card-title { margin: 0 0 12px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 .dt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }

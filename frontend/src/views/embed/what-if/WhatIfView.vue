@@ -409,13 +409,13 @@ watch(patientId, (id, prev) => {
 
 /* Controls */ .wi-controls-grid { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px }
 .wi-control-label { display: flex; justify-content: space-between; font-size: var(--text-caption, 12px); font-weight: 500; color: var(--color-text-secondary, #4B5563); margin-bottom: 4px }
-.wi-control-value { font-weight: 700; color: var(--color-primary, #2563EB); font-family: var(--font-digit, monospace) }
+.wi-control-value { font-weight: 700; color: var(--color-primary, #2F6FED); font-family: var(--font-digit, monospace) }
 .wi-slider { width: 100%; height: 4px; appearance: none; background: var(--color-bg-inset, #E9EEF5); border-radius: var(--radius-tag, 4px); outline: none }
-.wi-slider::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; background: var(--color-primary, #2563EB); border-radius: 50%; cursor: pointer }
+.wi-slider::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; background: var(--color-primary, #2F6FED); border-radius: 50%; cursor: pointer }
 .wi-control-range { display: flex; justify-content: space-between; font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); margin-top: 2px }
 .wi-actions { display: flex; gap: 8px }
 .wi-btn { flex: 1; padding: 8px; border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); background: var(--color-bg-surface, #FFFFFF); cursor: pointer; transition: all 0.15s }
-.wi-btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.wi-btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .wi-btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 .wi-btn:disabled { opacity: 0.5; cursor: not-allowed }
 
@@ -449,7 +449,7 @@ watch(patientId, (id, prev) => {
 .wi-option { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; padding: 8px; border: 1px solid var(--color-border, #E5E7EB); border-radius: 6px; cursor: pointer; font-size: 13px }
 .wi-option input { grid-row: span 2 }
 .wi-option-desc { font-size: 12px; color: var(--color-text-tertiary, #9CA3AF) }
-.wi-option--active { border-color: var(--color-primary, #2563EB); background: var(--color-primary-soft-bg, #EFF6FF) }
+.wi-option--active { border-color: var(--color-primary, #2F6FED); background: var(--color-primary-soft-bg, #E8F0FE) }
 .wi-control-item { margin-bottom: 12px }
 .wi-select { width: 100%; padding: 6px; border: 1px solid var(--color-border, #E5E7EB); border-radius: 6px; font-size: 13px }
 .wi-error { margin-top: 8px; padding: 8px; font-size: 12px; color: var(--color-danger, #D92D20); background: var(--color-danger-soft-bg, #FEF3F2); border-radius: 6px }

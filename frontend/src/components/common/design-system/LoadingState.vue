@@ -37,7 +37,7 @@ defineProps<Props>()
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-primary, #2563EB);
+  background: var(--color-primary, #2F6FED);
   animation: loading-bounce 1.4s ease-in-out infinite both;
 }
 

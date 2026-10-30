@@ -67,11 +67,11 @@ withDefaults(defineProps<Props>(), {
 
 .status-badge--info {
   background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary, #2F6FED);
 }
 
 .status-badge--info .status-badge__dot {
-  background: var(--color-primary, #2563EB);
+  background: var(--color-primary, #2F6FED);
 }
 
 .status-badge--default {

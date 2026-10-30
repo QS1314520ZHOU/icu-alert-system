@@ -551,12 +551,12 @@ watch([selectedDisease, selectedStatus], () => {
 
 /* 规则列表 */ .rule-list { display: flex; flex-direction: column; gap: 8px }
 .rule-card { padding: 12px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB); cursor: pointer; transition: all 0.15s }
-.rule-card:hover { border-color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
-.rule-card--active { border-color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
+.rule-card:hover { border-color: var(--color-primary, #2F6FED); background: var(--color-primary-bg) }
+.rule-card--active { border-color: var(--color-primary, #2F6FED); background: var(--color-primary-bg) }
 .rule-card__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px }
 .rule-card__name { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
 .rule-card__meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px }
-.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 .meta-version { font-size: var(--text-caption, 12px); font-family: 'SF Mono', 'Consolas', monospace; color: var(--color-text-secondary, #4B5563) }
 .rule-card__preview { display: flex; align-items: center; gap: 8px }
 .preview-op { font-size: var(--text-caption, 12px); font-weight: 600; padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-primary, #111827) }
@@ -576,15 +576,15 @@ watch([selectedDisease, selectedStatus], () => {
 .form-item--full { grid-column: 1 / -1 }
 .form-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-weight: 500 }
 .form-input, .form-select, .form-textarea { padding: 8px 12px; font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); outline: none; transition: border-color 0.15s }
-.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--color-primary, #2563EB) }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--color-primary, #2F6FED) }
 .form-textarea { resize: vertical; min-height: 60px }
 
 /* 逻辑编辑器 */ .logic-editor { display: flex; flex-direction: column; gap: 16px }
 .logic-operator { display: flex; flex-direction: column; gap: 8px }
 .operator-tabs { display: flex; gap: 4px }
 .op-tab { padding: 6px 16px; font-size: var(--text-body, 13px); font-weight: 500; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); cursor: pointer; transition: all 0.15s }
-.op-tab:hover { border-color: var(--color-primary, #2563EB) }
-.op-tab--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.op-tab:hover { border-color: var(--color-primary, #2F6FED) }
+.op-tab--active { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .operator-hint { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 
 /* 条件列表 */ .conditions-list { display: flex; flex-direction: column; gap: 12px }
@@ -608,12 +608,12 @@ watch([selectedDisease, selectedStatus], () => {
 .btn--sm { padding: 4px 10px; font-size: var(--text-caption, 12px) }
 .btn--outline { background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); border-color: var(--color-border, #E5E7EB) }
 .btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border-strong, #D1D5DB) }
-.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 .btn--block { width: 100% }
 
 /* 加载和空状态 */ .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center }
-.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2F6FED); border-radius: 50%; animation: spin 0.8s linear infinite }
 
 @keyframes spin {to { transform: rotate(360deg) }
  }

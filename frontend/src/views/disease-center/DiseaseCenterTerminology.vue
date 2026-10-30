@@ -282,10 +282,10 @@ onMounted(async () => {
 /* 分类树 */ .category-tree { display: flex; flex-direction: column; gap: 2px }
 .tree-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s }
 .tree-item:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.tree-item--active { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.tree-item--active { background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 .tree-item__name { font-size: var(--text-body, 13px); font-weight: 500 }
 .tree-item__count { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8); padding: 1px 6px; border-radius: var(--radius-lg, 10px) }
-.tree-item--active .tree-item__count { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.tree-item--active .tree-item__count { background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 
 /* 术语列表 */ .term-list { display: flex; flex-direction: column; gap: 4px }
 .term-item { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent }
@@ -296,7 +296,7 @@ onMounted(async () => {
 .term-item__codes { display: flex; gap: 6px; flex-wrap: wrap }
 .code-tag { font-size: var(--text-caption, 12px); font-family: 'SF Mono', 'Consolas', monospace; padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-secondary, #4B5563) }
 .term-item__meta { display: flex; align-items: center; gap: 8px }
-.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.meta-tag { font-size: var(--text-caption, 12px); padding: 1px 6px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 .meta-info { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
 /* 术语详情 */ .term-detail { display: flex; flex-direction: column; gap: 20px }
@@ -321,7 +321,7 @@ onMounted(async () => {
 .related-name { font-size: var(--text-caption, 12px); color: var(--color-text-primary, #111827) }
 
 /* 加载和空状态 */ .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center }
-.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2F6FED); border-radius: 50%; animation: spin 0.8s linear infinite }
 
 @keyframes spin {to { transform: rotate(360deg) }
 

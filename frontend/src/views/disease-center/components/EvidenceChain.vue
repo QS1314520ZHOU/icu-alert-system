@@ -320,7 +320,7 @@ onMounted(() => {
 /* Completeness */ .completeness-bar { padding: 12px 16px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-md, 6px) }
 .completeness-header { display: flex; justify-content: space-between; margin-bottom: 8px }
 .completeness-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827) }
-.completeness-score { font-size: var(--text-body, 13px); font-weight: 700; color: var(--color-primary, #2563EB) }
+.completeness-score { font-size: var(--text-body, 13px); font-weight: 700; color: var(--color-primary, #2F6FED) }
 .completeness-detail { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px }
 .completeness-item { display: flex; align-items: center; gap: 4px; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 .dot { width: 6px; height: 6px; border-radius: 50% }
@@ -334,7 +334,7 @@ onMounted(() => {
 .connector-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-border, #E5E7EB); flex-shrink: 0 }
 .dot-matched { background: var(--color-success, #16845B) }
 .dot-missing { background: var(--color-danger, #D92D20) }
-.dot-normal { background: var(--color-primary, #2563EB) }
+.dot-normal { background: var(--color-primary, #2F6FED) }
 .node-content { flex: 1; padding: 8px 12px; background: var(--color-bg-surface, #FFFFFF); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); margin-bottom: 8px }
 .node-stage { display: flex; align-items: center; gap: 8px; margin-bottom: 8px }
 .node-time { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }

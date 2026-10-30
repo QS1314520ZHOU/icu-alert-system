@@ -46,7 +46,7 @@ export function useClinicalEvidence() {
       critical: '#DC2626',
       high: '#EA580C',
       warning: '#D97706',
-      info: '#2563EB',
+      info: '#2F6FED',
       stable: '#16A34A',
     }
     return map[evidence.value?.severity ?? 'info'] || '#6B7280'

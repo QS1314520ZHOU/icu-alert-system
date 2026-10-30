@@ -210,7 +210,7 @@ onMounted(load)
 .hp-progress { background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg, 10px); padding: 12px 16px; }
 .hp-progress__bar { display: flex; height: 8px; border-radius: 4px; background: var(--color-bg-inset); overflow: hidden; }
 .hp-progress__seg--ack { background: var(--color-normal, #12A66A); }
-.hp-progress__seg--sub { background: var(--color-primary, #2563EB); }
+.hp-progress__seg--sub { background: var(--color-primary, #2F6FED); }
 .hp-progress__seg--draft { background: var(--color-warning, #B54708); }
 .hp-progress__legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .hp-progress__total { margin-left: auto; font-size: var(--text-caption, 12px); color: var(--color-text-secondary); }

@@ -6,95 +6,64 @@
     @focusin="handleCardIntent"
     @click="emit('select', patient._id)"
   >
-    <section class="sec-top">
-      <header class="card-header">
-        <div class="patient-identity">
-          <span class="bed-no">{{ patient.hisBed }}</span>
-          <div class="identity-copy">
-            <div class="monitor-line">
-              <span class="monitor-label">重症监护</span>
-              <span class="monitor-sep"></span>
-              <span class="monitor-code">床位 {{ patient.hisBed || '--' }}</span>
-            </div>
-            <div class="name-row">
-              <h2 class="patient-name">{{ patient.name || '—' }}</h2>
-              <span class="patient-meta">{{ genderLabel }}/{{ patient.age || '—' }}</span>
-            </div>
-            <p class="diag-text" :title="patient.clinicalDiagnosis">{{ shortDiag(patient.clinicalDiagnosis) || '无初步诊断' }}</p>
-            <div class="monitor-meta-row">
-              <span class="monitor-meta-chip">{{ monitorSourceText }}</span>
-              <span class="monitor-meta-chip">{{ monitorUpdatedText }}</span>
-              <span v-if="patient.hasRescueRisk" class="monitor-meta-chip monitor-meta-chip--rescue">抢救期风险</span>
-            </div>
-          </div>
+    <!-- 卡片头：与公司 patient_card 统一（蓝色头条：床号 | 姓名 | 入科天数） -->
+    <header class="pc-head">
+      <span class="pc-bed">{{ patient.hisBed || '--' }}床</span>
+      <span class="pc-name" :title="patient.name">{{ patient.name || '—' }}</span>
+      <span class="pc-head-right">
+        <span v-if="admitDays !== null" class="pc-days">入科{{ admitDays }}天</span>
+        <span v-if="admitDays !== null && admitDays >= 14" class="pc-days pc-days--long" title="ICU 住院已达 14 天以上，晨会重点评估">长程</span>
+        <span v-if="statusPill" :class="['pc-status', `pc-status--${patient.alertLevel}`]">{{ alertStatus }}</span>
+      </span>
+    </header>
+
+    <div class="pc-body">
+      <div class="pc-profile">
+        <img class="pc-avatar" :src="avatarSrc" alt="" width="52" height="52" loading="lazy" />
+        <span :class="['pc-gender', genderLabel === '男' ? 'is-male' : genderLabel === '女' ? 'is-female' : '']">{{ genderLabel }}</span>
+        <span class="pc-age">{{ patient.age ? patient.age + '岁' : '—' }}</span>
+      </div>
+      <div class="pc-details">
+        <div class="pc-meta">
+          <span>住院号 <b>{{ patient.mrn || patient.hisPid || patient.hisPID || '—' }}</b></span>
+          <span v-if="admitTimeText">入科 <b>{{ admitTimeText }}</b></span>
         </div>
-        <div :class="['status-badge', 'ds-badge', `status-badge--${patient.alertLevel || 'none'}`]">
-          <strong>{{ alertStatus }}</strong>
+        <p class="pc-diag" :title="patient.clinicalDiagnosis">{{ diagText(patient.clinicalDiagnosis || patient.admissionDiagnosis) }}</p>
+        <div class="pc-who">
+          <b>{{ (patient.bedDoctor || '').trim() || '未分配' }}</b> · {{ patient.medicalGroup || '未分组' }}
+          <span v-if="bedcard?.identity?.allergies || patient.allergies" class="pc-allergy">过敏 {{ bedcard?.identity?.allergies || patient.allergies }}</span>
         </div>
-      </header>
-      <div class="patient-tags">
-        <span v-if="bedcard?.identity?.allergies || patient.allergies" class="allergy-tag">
-          过敏：{{ bedcard?.identity?.allergies || patient.allergies }}
+      </div>
+    </div>
+
+    <div class="pc-clinical">
+      <!-- 体征一行：异常值直接着色，不需要逐个读数 -->
+      <div class="pc-vitals">
+        <span v-for="v in vitalsData" :key="v.key" :class="['pc-vital', v.colorClass]">
+          <em>{{ v.label }}</em><b>{{ v.value }}</b><small v-if="v.unit && v.value !== '--'">{{ v.unit }}</small>
         </span>
-        <button type="button" class="detail-btn" @click.stop="emit('select', patient._id)">查看详情</button>
       </div>
-    </section>
 
-    <section class="sec-vitals">
-      <div class="section-head">
-        <span class="section-title">生命体征</span>
-        <span class="section-desc">最近一次监测</span>
+      <!-- 当前最重要的一个问题 -->
+      <div v-if="focusTitle" :class="['pc-focus', `pc-focus--${focusTone}`]">
+        <span class="pc-focus__tag">{{ focusLabel }}</span>
+        <span class="pc-focus__text" :title="focusTitle">{{ focusTitle }}</span>
       </div>
-      <div class="vital-grid ds-vital-grid">
-        <div v-for="v in vitalsData.slice(0, 3)" :key="v.key" :class="['vital-item', `vital-item--${v.key}`, v.colorClass]">
-          <span class="v-label">{{ v.label }}</span>
-          <span class="v-val">{{ v.value }}<small v-if="v.unit && v.value !== '--'">{{ v.unit }}</small></span>
-        </div>
-      </div>
-    </section>
+    </div>
 
-    <section class="sec-focus" v-if="summaryCard || alertNotes.length || fallbackNotes.length">
-      <div class="focus-issue">
-        <span class="focus-tag">当前问题</span>
-        <span class="focus-issue-text">{{ summaryCard ? (isRescueSummary(summaryCard) ? summaryRescueTitle(summaryCard) : (summaryCard.title || '综合预警')) : (alertNotes.length ? (alertNotes[0].title || '护理提醒') : fallbackNotes[0]) }}</span>
-      </div>
-      <div
-        class="focus-tasks"
-        v-if="(summaryCard ? alertNotes : (alertNotes.length ? alertNotes.slice(1) : fallbackNotes.slice(1))).length > 0"
-      >
-        <span class="focus-tag">本班任务</span>
-        <span
-          v-for="(line, idx) in (summaryCard ? alertNotes : (alertNotes.length ? alertNotes.slice(1) : fallbackNotes.slice(1)))"
-          :key="`focus-task-${idx}`"
-          class="focus-task-line"
-        ><span class="focus-task-text">{{ alertNotes.length ? line.title : line }}</span></span>
-      </div>
-    </section>
-
-    <button
-      type="button"
-      class="details-toggle"
-      :aria-expanded="detailsOpen ? 'true' : 'false'"
-      @click.stop="detailsOpen = !detailsOpen"
-    >
-      <span class="details-toggle__label">{{ detailsOpen ? '收起详情' : '展开详情' }}</span>
-      <span class="details-toggle__hint">器官风险 · AI摘要与证据 · 设备管路 · 护理提醒 · Bundle</span>
-      <span class="details-toggle__icon" :class="{ 'is-open': detailsOpen }">▾</span>
-    </button>
+    <!-- 底部标签：设备 / 管路 / 关键指标 -->
+    <footer class="pc-chips">
+      <span v-for="c in footerChips" :key="c.key" :class="['pc-chip', c.tone ? `pc-chip--${c.tone}` : '']">{{ c.text }}</span>
+      <button
+        type="button"
+        class="pc-more"
+        :title="`${monitorUpdatedText} · ${monitorSourceText}`"
+        :aria-expanded="detailsOpen ? 'true' : 'false'"
+        @click.stop="detailsOpen = !detailsOpen"
+      >{{ detailsOpen ? '收起' : '详情' }}<i :class="{ 'is-open': detailsOpen }"></i></button>
+    </footer>
 
     <div class="sec-details" v-show="detailsOpen">
-      <section v-if="vitalsData.length > 3" class="sec-vitals-extra">
-        <div class="section-head">
-          <span class="section-title">其他体征</span>
-          <span class="section-desc">最近一次监测</span>
-        </div>
-        <div class="vital-grid ds-vital-grid">
-          <div v-for="v in vitalsData.slice(3)" :key="v.key" :class="['vital-item', `vital-item--${v.key}`, v.colorClass]">
-            <span class="v-label">{{ v.label }}</span>
-            <span class="v-val">{{ v.value }}<small v-if="v.unit && v.value !== '--'">{{ v.unit }}</small></span>
-          </div>
-        </div>
-      </section>
 
     <section class="sec-risk-fingerprint">
       <div class="section-head">
@@ -348,19 +317,6 @@
       </div>
     </aside>
 
-    <section
-      v-if="bedcard?.identity?.isolation || patientDiet(patient) || (patient.alertLevel && patient.alertLevel !== 'none')"
-      class="sec-footer"
-    >
-      <div class="footer-pills">
-        <span
-          v-if="patient.alertLevel && patient.alertLevel !== 'none'"
-          :class="['pill', 'pill--severity', `pill--severity-${patient.alertLevel}`]"
-        >{{ alertStatus }}</span>
-        <span v-if="bedcard?.identity?.isolation" class="pill pill--iso">{{ bedcard.identity.isolation }}</span>
-        <span v-if="patientDiet(patient)" class="pill pill--diet">{{ patientDiet(patient) }}</span>
-      </div>
-    </section>
   </article>
 </template>
 
@@ -401,7 +357,74 @@ const detailsOpen = ref(false)
 const cardEl = ref<HTMLElement | null>(null)
 const shouldLoadBedcard = ref(false)
 let cardObserver: IntersectionObserver | null = null
-const genderLabel = computed(() => props.patient?.gender === 'Female' ? '女' : props.patient?.gender === 'Male' ? '男' : '—')
+const genderLabel = computed(() => {
+  const g = String(props.patient?.gender ?? props.patient?.sex ?? '').trim().toLowerCase()
+  if (['female', 'f', '女', '2'].includes(g)) return '女'
+  if (['male', 'm', '男', '1'].includes(g)) return '男'
+  return '—'
+})
+const admitTime = computed(() => {
+  const raw = props.patient?.icuAdmissionTime || props.patient?.admissionTime || props.patient?.inTime
+  if (!raw) return null
+  const d = new Date(raw)
+  return Number.isFinite(d.getTime()) ? d : null
+})
+const admitDays = computed(() => (admitTime.value ? Math.max(0, Math.floor((Date.now() - admitTime.value.getTime()) / 86400000)) : null))
+const admitTimeText = computed(() => {
+  const d = admitTime.value
+  if (!d) return ''
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  return `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`
+})
+/** 头像规则与公司 patient_card 一致：按年龄段 + 性别 */
+const avatarSrc = computed(() => {
+  const g = genderLabel.value === '男' ? 'man' : 'woman'
+  const age = Number(props.patient?.age)
+  let stage = 'elderly'
+  if (!age) stage = 'baby'
+  else if (age <= 6) stage = 'toddler'
+  else if (age <= 14) stage = 'child'
+  else if (age <= 16) stage = 'teen'
+  else if (age <= 24) stage = 'young'
+  else if (age < 60) stage = 'adult'
+  return `/avatars/${stage}-${g}.webp`
+})
+const statusPill = computed(() => ['critical', 'high', 'warning'].includes(String(props.patient?.alertLevel || '')))
+const focusTitle = computed(() => {
+  const sc = summaryCard.value
+  if (sc) return isRescueSummary(sc) ? summaryRescueTitle(sc) : (sc.title || '综合预警')
+  if (alertNotes.value.length) return alertNotes.value[0].title || '护理提醒'
+  return fallbackNotes.value[0] || ''
+})
+const focusLabel = computed(() => (summaryCard.value || alertNotes.value.length ? '当前问题' : '提醒'))
+const focusTone = computed(() => {
+  const sev = String(summaryCard.value?.severity || alertNotes.value[0]?.severity || '').toLowerCase()
+  if (sev === 'critical') return 'critical'
+  if (sev === 'high' || sev === 'warning') return 'warning'
+  return 'info'
+})
+const footerChips = computed(() => {
+  const chips: Array<{ key: string; text: string; tone?: string }> = []
+  for (const [i, dev] of (bedcard.value?.devices || []).slice(0, 2).entries()) {
+    if (dev?.name) chips.push({ key: `d${i}`, text: String(dev.name), tone: 'info' })
+  }
+  for (const [i, t] of (bedcard.value?.tubes || []).slice(0, 3).entries()) {
+    const d = parseInt(t?.dwellDays)
+    chips.push({ key: `t${i}`, text: `${t?.name || '管路'}${Number.isFinite(d) ? ' D' + d : ''}`, tone: d >= 14 ? 'danger' : d >= 7 ? 'warn' : '' })
+  }
+  const more = (bedcard.value?.tubes || []).length - 3
+  if (more > 0) chips.push({ key: 'tmore', text: `+${more} 管路` })
+  const sofa = bedcard.value?.metrics?.sofa
+  if (sofa !== null && sofa !== undefined && sofa !== '') chips.push({ key: 'sofa', text: `SOFA ${sofa}`, tone: Number(sofa) >= 10 ? 'danger' : Number(sofa) >= 6 ? 'warn' : '' })
+  const net = bedcard.value?.metrics?.netFluid24h
+  if (net !== null && net !== undefined && Number.isFinite(Number(net))) chips.push({ key: 'net', text: `24h净 ${Number(net) > 0 ? '+' : ''}${Math.round(Number(net))}ml` })
+  if (bundleProgress.value) chips.push({ key: 'bundle', text: `Bundle ${bundleProgress.value}` })
+  if (props.patient?.hasRescueRisk) chips.push({ key: 'rescue', text: '抢救期风险', tone: 'danger' })
+  if (bedcard.value?.identity?.isolation) chips.push({ key: 'iso', text: String(bedcard.value.identity.isolation), tone: 'iso' })
+  const diet = patientDiet(props.patient)
+  if (diet) chips.push({ key: 'diet', text: diet })
+  return chips
+})
 const alertStatus = computed(() => {
   const map: Record<string, string> = {
     critical: '危急',
@@ -435,10 +458,12 @@ const vitalsData = computed(() => {
   const hr = pickVital(v.hr)
   const spo2 = pickVital(v.spo2)
   const temperature = pickVital(v.t, v.temp)
+  const rr = pickVital(v.rr, v.resp)
   return [
     { key: 'hr', label: 'HR', value: formatVitalNumber(hr, 0), colorClass: vitalClass('hr', hr) },
     { key: 'bp', label: 'BP', value: sbp != null ? `${formatVitalNumber(sbp, 0)}/${dbp != null ? formatVitalNumber(dbp, 0) : '--'}` : '--', colorClass: vitalClass('bp', sbp) },
     { key: 'spo2', label: 'SpO₂', value: formatVitalNumber(spo2, 0), unit: '%', colorClass: vitalClass('spo2', spo2) },
+    { key: 'rr', label: 'RR', value: formatVitalNumber(rr, 0), colorClass: vitalClass('rr', rr) },
     { key: 'temp', label: 'T', value: temp(temperature), unit: '℃', colorClass: vitalClass('t', temperature) }
   ]
 })
@@ -676,6 +701,10 @@ function vitalClass(type: string, val: any) {
     if (n <= 85) return 'vital--red'
     if (n <= 90) return 'vital--orange'
   }
+  if (type === 'rr') {
+    if (n >= 35 || n <= 8) return 'vital--red'
+    if (n >= 25 || n <= 10) return 'vital--orange'
+  }
   if (type === 't') {
     if (n >= 39 || n <= 35) return 'vital--red'
     if (n >= 38 || n <= 36) return 'vital--orange'
@@ -895,10 +924,10 @@ function temp(v: any) {
   return Number.isNaN(n) ? '--' : n.toFixed(1)
 }
 
-function shortDiag(s: string) {
+/** 诊断全部展示（两行截断），竖线分隔改为顿号，主诊断在前 */
+function diagText(s: string) {
   if (!s) return '无初步诊断'
-  const first = s.split('|')[0] ?? s
-  return first.length > 20 ? `${first.slice(0, 20)}…` : first
+  return String(s).split(/[|｜]/).map(x => x.trim()).filter(Boolean).join('、')
 }
 
 function patientDiet(patient: any) {
@@ -2462,6 +2491,70 @@ html[data-theme='light'] .risk-fingerprint__chip {
     justify-items: center;
   }
 }
+
+/* ── 统一患者卡片（对齐公司 patient_card：白底、蓝色强调、头部床号姓名、底部标签） ── */
+.card { padding: 0; gap: 0; border-radius: 8px; border: 1px solid var(--color-border, #E6E5E3); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); overflow: hidden; font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }
+.card::after, .card::before { display: none; }
+.card:hover { transform: none; border-color: var(--color-primary, #2F6FED); box-shadow: 0 4px 12px rgba(47, 111, 237, .12); }
+.card:hover { border-color: #C9D7F5; box-shadow: 0 2px 8px rgba(47, 111, 237, .08); }
+.pc-head { height: 40px; flex: 0 0 40px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: #5392FF; color: #fff; }
+.pc-bed { min-width: 48px; font-size: 16px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.pc-name { flex: 1; min-width: 0; text-align: center; font-size: 15px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-head-right { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 72px; }
+.pc-days { font-size: 11px; border-radius: 4px; padding: 1px 6px; white-space: nowrap; color: #fff; background: rgba(255, 255, 255, .2); }
+.pc-days--long { color: #7C2D12; background: #FDE68A; border: 1px solid #FCD34D; font-weight: 700; }
+.pc-profile { flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pc-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: #E8E6E3; display: block; }
+.pc-gender { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #64748B; background: #F1F5F9; }
+.pc-gender.is-male { color: #2783DE; background: #E5F2FC; }
+.pc-gender.is-female { color: #D95C77; background: #FCE8ED; }
+.pc-age { font-size: 12px; font-weight: 700; color: var(--color-text-primary, #2C2C2B); }
+.pc-details { flex: 1; min-width: 0; font-size: 13px; color: #4A4A48; }
+.pc-who { font-size: 12px; color: #7D7A75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-who b { color: #4A4A48; font-weight: 600; }
+.pc-who .pc-allergy { margin-left: 8px; }
+.pc-meta b { color: #4A4A48; font-weight: 500; }
+.pc-clinical { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 8px; }
+.pc-status { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; background: #fff; }
+.pc-status--critical { color: #B91C1C; background: #FEE2E2; }
+.pc-status--high, .pc-status--warning { color: #B45309; background: #FEF3C7; }
+.pc-body { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 0; }
+.pc-meta { display: flex; gap: 10px; font-size: 12px; color: #7D7A75; white-space: nowrap; overflow: hidden; margin-bottom: 2px; }
+.pc-allergy { color: var(--color-danger, #D95C58); font-weight: 600; }
+.pc-diag { margin: 8px 0; font-size: 13px; line-height: 1.5; color: #334155; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 39px; word-break: break-word; }
+.pc-vitals { display: flex; flex-wrap: wrap; gap: 4px; }
+.pc-vital { display: inline-flex; align-items: baseline; gap: 3px; padding: 2px 6px; border-radius: 4px; background: var(--color-bg-surface-secondary, #F7F8FA); font-variant-numeric: tabular-nums; }
+.pc-vital em { font-style: normal; font-size: 11px; color: var(--color-text-tertiary, #7D7A75); }
+.pc-vital b { font-size: 14px; font-weight: 700; color: var(--color-text-primary, #2C2C2B); }
+.pc-vital small { font-size: 10px; color: var(--color-text-tertiary, #7D7A75); }
+.pc-vital.vital--orange { background: var(--color-high-risk-bg, #FBF0DC); }
+.pc-vital.vital--orange b { color: var(--color-warning, #C47B1A); }
+.pc-vital.vital--red { background: var(--color-critical-bg, #FDECEC); }
+.pc-vital.vital--red b { color: var(--color-danger, #D95C58); }
+.pc-focus { display: flex; gap: 6px; align-items: center; padding: 5px 8px; border-radius: 4px; font-size: 12px; background: var(--color-primary-bg, #E8F0FE); }
+.pc-focus__tag { flex: none; font-weight: 700; color: var(--color-primary, #2F6FED); }
+.pc-focus__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary, #2C2C2B); }
+.pc-focus--critical { background: var(--color-critical-bg, #FDECEC); }
+.pc-focus--critical .pc-focus__tag { color: var(--color-danger, #D95C58); }
+.pc-focus--warning { background: var(--color-high-risk-bg, #FBF0DC); }
+.pc-focus--warning .pc-focus__tag { color: var(--color-warning, #C47B1A); }
+.pc-chips { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 8px 10px 10px; border-top: 1px solid #F5F3F1; min-height: 38px; }
+.pc-chip { display: inline-flex; align-items: center; height: 22px; font-size: 11px; font-weight: 500; padding: 0 7px; border-radius: 4px; border: 1px solid #E2E8F0; color: #64748B; background: #F1F5F9; white-space: nowrap; }
+.pc-chip--info { font-weight: 600; background: #E0F2FE; color: #0369A1; border-color: #7DD3FC; }
+.pc-chip--warn { font-weight: 600; background: #FEF3C7; color: #B45309; border-color: #FCD34D; }
+.pc-chip--danger { font-weight: 600; background: #FEE2E2; color: #B91C1C; border-color: #FCA5A5; }
+.pc-updated { margin-left: auto; font-size: 11px; color: var(--color-text-tertiary, #9A978F); white-space: nowrap; }
+.pc-more { margin-left: auto; border: none; background: none; padding: 0 0 0 6px; font-size: 12px; color: var(--color-primary, #2F6FED); cursor: pointer; }
+.pc-more i { display: inline-block; width: 6px; height: 6px; margin-left: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s; }
+.pc-more i.is-open { transform: translateY(1px) rotate(225deg); }
+.pc-chip--iso { font-weight: 600; background: #F3E5F5; color: #6A1B9A; border-color: #CE93D8; }
+html[data-theme='light'] .card, html[data-theme='light'] .card--high, html[data-theme='light'] .card--warning, html[data-theme='light'] .card--normal, html[data-theme='light'] .card--none { border-color: var(--color-border, #E6E5E3); background: #fff; }
+html[data-theme='light'] .card--critical { border-color: #F3B8B5; background: #fff; }
+html[data-theme='light'] .card:hover { border-color: #C9D7F5; }
+.pc-vitals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+.pc-vital { justify-content: center; padding: 2px 2px; min-width: 0; white-space: nowrap; }
+.pc-vital b { font-size: 13px; }
+.sec-details { padding: 0 12px 10px; }
 </style>
 
 

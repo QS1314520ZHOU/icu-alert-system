@@ -374,7 +374,7 @@ async function scrollToBottom() {
 .capability-tabs { display: flex; gap: 4px; overflow-x: auto }
 .cap-tab { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: var(--text-caption, 12px); font-weight: 500; border: none; border-radius: var(--radius-md, 6px); background: transparent; color: var(--color-text-secondary, #4B5563); cursor: pointer; transition: all 0.15s; white-space: nowrap }
 .cap-tab:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.cap-tab--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
+.cap-tab--active { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF) }
 .cap-icon { font-size: 14px }
 .capability-info { display: flex; align-items: center; gap: 12px }
 .info-model { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-family: 'SF Mono', 'Consolas', monospace }
@@ -397,15 +397,15 @@ async function scrollToBottom() {
 .welcome-desc { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); margin: 0; max-width: 400px; line-height: 1.6 }
 .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px }
 .quick-btn { padding: 6px 12px; font-size: var(--text-caption, 12px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-lg, 10px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); cursor: pointer; transition: all 0.15s }
-.quick-btn:hover { border-color: var(--color-primary, #2563EB); color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
+.quick-btn:hover { border-color: var(--color-primary, #2F6FED); color: var(--color-primary, #2F6FED); background: var(--color-primary-bg) }
 
 /* 消息 */ .message { display: flex; gap: 10px }
 .message--user { flex-direction: row-reverse }
 .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--color-bg-surface-secondary, #F1F4F8); display: flex; align-items: center; justify-content: center; font-size: var(--text-section-title, 15px); flex-shrink: 0 }
-.message--user .message-avatar { background: var(--color-primary, #2563EB) }
+.message--user .message-avatar { background: var(--color-primary, #2F6FED) }
 .message-content { max-width: 80%; display: flex; flex-direction: column; gap: 8px }
 .message-text { padding: 10px 14px; border-radius: var(--radius-lg, 10px); font-size: var(--text-body, 13px); line-height: 1.6; color: var(--color-text-primary, #111827); background: var(--color-bg-surface-secondary, #F1F4F8); border: 1px solid var(--color-border, #E5E7EB) }
-.message--user .message-text { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.message--user .message-text { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .message-text :deep(p) { margin: 0 0 8px }
 .message-text :deep(p:last-child) { margin: 0 }
 .message-text :deep(ul) { margin: 4px 0; padding-left: 20px }
@@ -437,7 +437,7 @@ async function scrollToBottom() {
 
 /* 输入区 */ .input-area { padding: 12px 16px; border-top: 1px solid var(--color-divider, #F0F2F5) }
 .input-textarea { width: 100%; padding: 10px 12px; font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); resize: none; outline: none; font-family: inherit; color: var(--color-text-primary, #111827) }
-.input-textarea:focus { border-color: var(--color-primary, #2563EB) }
+.input-textarea:focus { border-color: var(--color-primary, #2F6FED) }
 .input-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px }
 .input-hint { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
@@ -459,7 +459,7 @@ async function scrollToBottom() {
 .meta-val { color: var(--color-text-primary, #111827); font-weight: 500 }
 
 /* 按钮 */ .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; font-size: var(--text-body, 13px); font-weight: 500; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent }
-.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
+.btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF) }
 .btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 .btn--primary:disabled { opacity: 0.5; cursor: not-allowed }
 

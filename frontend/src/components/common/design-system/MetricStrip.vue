@@ -72,7 +72,7 @@ defineProps<Props>()
 .metric-strip__item--danger::before { background: var(--color-danger, #DC2626); }
 .metric-strip__item--warning::before { background: var(--color-warning, #D97706); }
 .metric-strip__item--success::before { background: var(--color-success, #16A34A); }
-.metric-strip__item--info::before { background: var(--color-primary, #2563EB); }
+.metric-strip__item--info::before { background: var(--color-primary, #2F6FED); }
 
 .metric-strip__label {
   font-size: var(--text-caption, 12px);
@@ -139,7 +139,7 @@ defineProps<Props>()
 }
 
 .metric-strip__item--info .metric-strip__number {
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary, #2F6FED);
 }
 
 @media (max-width: 768px) {

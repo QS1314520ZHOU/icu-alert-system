@@ -169,7 +169,7 @@ watch(patientId, (id, prev) => {
 <style scoped>.similar-cases { display: flex; flex-direction: column; gap: 16px }
 .sc-overview-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px }
 .sc-stat-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 14px 16px; border: 1px solid var(--color-border, #E5E7EB); display: flex; flex-direction: column; align-items: center; gap: 4px }
-.sc-stat-value  {  font-size: var(--text-metric-key, 26px); font-weight: 700; font-family: var(--font-digit, monospace); color: var(--color-primary, #2563EB) ; font-variant-numeric: tabular-nums }
+.sc-stat-value  {  font-size: var(--text-metric-key, 26px); font-weight: 700; font-family: var(--font-digit, monospace); color: var(--color-primary, #2F6FED) ; font-variant-numeric: tabular-nums }
 .sc-stat-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 .sc-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
 .sc-chart-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 16px; border: 1px solid var(--color-border, #E5E7EB) }
@@ -203,7 +203,7 @@ watch(patientId, (id, prev) => {
 .sc-outcome-bad { color: var(--color-danger, #D92D20) }
 .sc-case-footer { display: flex; gap: 8px; padding: 8px 14px 12px }
 .sc-case-btn { flex: 1; padding: 6px; font-size: var(--text-caption, 12px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-tag, 4px); background: var(--color-bg-surface, #FFFFFF); cursor: pointer; transition: all 0.15s }
-.sc-case-btn:hover { background: var(--color-primary-bg, #EFF6FF); border-color: var(--color-primary, #2563EB); color: var(--color-primary, #2563EB) }
+.sc-case-btn:hover { background: var(--color-primary-bg, #E8F0FE); border-color: var(--color-primary, #2F6FED); color: var(--color-primary, #2F6FED) }
 
 @media (max-width: 1200px) {.sc-chart-row { grid-template-columns: 1fr }
 .sc-overview-row { grid-template-columns: repeat(2, 1fr) }

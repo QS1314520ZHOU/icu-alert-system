@@ -497,10 +497,10 @@ function iconSvg(icon: string) {
 }
 
 .side-nav__item--active {
-  background: var(--sidebar-item-active-bg, #EFF6FF);
-  color: var(--color-primary, #2563EB);
+  background: var(--sidebar-item-active-bg, #E8F0FE);
+  color: var(--color-primary, #2F6FED);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--sidebar-item-active-border, #2563EB);
+  box-shadow: inset 3px 0 0 var(--sidebar-item-active-border, #2F6FED);
   border-radius: 0 6px 6px 0;
   margin-left: 0;
   width: calc(100% - 8px);
@@ -526,7 +526,7 @@ function iconSvg(icon: string) {
 }
 
 .side-nav__back-btn {
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary, #2F6FED);
   font-weight: 500;
 }
 

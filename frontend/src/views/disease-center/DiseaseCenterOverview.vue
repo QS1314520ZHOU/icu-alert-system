@@ -81,12 +81,12 @@
             <a @click="goCaseDetail(record.id)">{{ record.patient_id }}</a>
           </template>
           <template v-if="column.key === 'disease_name'">
-            <a-tag color="var(--color-primary-bg, #EFF6FF)">
-              <span style="color: var(--color-primary, #2563EB)">{{ record.disease_name || record.disease_code }}</span>
+            <a-tag color="var(--color-primary-bg, #E8F0FE)">
+              <span style="color: var(--color-primary, #2F6FED)">{{ record.disease_name || record.disease_code }}</span>
             </a-tag>
           </template>
           <template v-if="column.key === 'status'">
-            <a-tag color="var(--color-primary, #2563EB)">待临床确认</a-tag>
+            <a-tag color="var(--color-primary, #2F6FED)">待临床确认</a-tag>
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>

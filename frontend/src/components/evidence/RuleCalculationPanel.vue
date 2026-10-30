@@ -94,7 +94,7 @@ function formatTime(t: string): string {
   font-size: 13px;
   color: var(--text-secondary, #6B7280);
 }
-.calc-total strong { font-size: 18px; color: var(--color-primary, #2563EB); }
+.calc-total strong { font-size: 18px; color: var(--color-primary, #2F6FED); }
 .calc-time { font-size: 11px; color: var(--text-tertiary, #9CA3AF); margin-left: auto; }
 .calc-desc { font-size: 12px; color: var(--text-secondary, #6B7280); margin-bottom: 8px; }
 .calc-scope { font-size: 12px; color: var(--text-tertiary, #9CA3AF); margin-bottom: 8px; font-style: italic; }
@@ -133,7 +133,7 @@ function formatTime(t: string): string {
   font-size: 12px;
 }
 .item-label { flex: 1; color: var(--text-primary, #182230); }
-.item-score { font-weight: 700; color: var(--color-primary, #2563EB); }
+.item-score { font-weight: 700; color: var(--color-primary, #2F6FED); }
 .item-value { color: var(--text-secondary, #6B7280); }
 .item-status {
   font-size: 10px;

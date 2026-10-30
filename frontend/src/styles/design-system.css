@@ -79,7 +79,7 @@
    ============================================ */
 :root {
   /* 页面背景（冷灰蓝） */
-  --color-bg-page: #F6F8FB;
+  --color-bg-page: #F7F8FA;
 
   /* 主要表面 */
   --color-bg-surface: #FFFFFF;
@@ -105,17 +105,17 @@
   --color-divider: #F0F2F5;
 
   /* 主操作蓝 */
-  --color-primary: #2563EB;
-  --color-primary-hover: #3B82F6;
-  --color-primary-bg: #EFF6FF;
+  --color-primary: #2F6FED;
+  --color-primary-hover: #255DD0;
+  --color-primary-bg: #E8F0FE;
 
   /* 辅助青色 - 数据、趋势 */
   --color-accent: #0891B2;
   --accent: #0891B2;
 
   /* AI紫 - AI生成内容 */
-  --color-ai: #7C3AED;
-  --color-ai-light: #F5F3FF;
+  --color-ai: #2F6FED;  /* 公司蓝白主色：AI 不再单独使用紫色 */
+  --color-ai-light: #E8F0FE;
 
   /* 危急红 - 需要立即干预 */
   --color-danger: #D92D20;

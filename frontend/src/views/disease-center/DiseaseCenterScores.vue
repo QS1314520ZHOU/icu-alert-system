@@ -314,12 +314,12 @@ onMounted(() => {
 /* 三栏布局 */ .content-grid { display: grid; grid-template-columns: 200px 1fr 360px; gap: 16px; min-height: 600px }
 
 /* 总分 */ .total-score { display: flex; justify-content: center; padding: 24px }
-.score-value  {  font-size: var(--text-metric-key, 26px); font-weight: 700; color: var(--color-primary, #2563EB) ; font-variant-numeric: tabular-nums }
+.score-value  {  font-size: var(--text-metric-key, 26px); font-weight: 700; color: var(--color-primary, #2F6FED) ; font-variant-numeric: tabular-nums }
 
 /* 面板 */ .panel { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); display: flex; flex-direction: column; overflow: hidden }
 .panel__header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
 .panel__title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 }
-.panel__badge { font-size: var(--text-caption, 12px); font-weight: 500; padding: 2px 8px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.panel__badge { font-size: var(--text-caption, 12px); font-weight: 500; padding: 2px 8px; border-radius: var(--radius-tag, 4px); background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 .panel__body { flex: 1; overflow-y: auto; padding: 12px }
 
 /* 评分树 */ .score-tree { display: flex; flex-direction: column; gap: 12px }
@@ -328,10 +328,10 @@ onMounted(() => {
 .group-name { font-size: var(--text-caption, 12px); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary, #4B5563) }
 .tree-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s }
 .tree-item:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.tree-item--active { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.tree-item--active { background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 .tree-item__name { font-size: var(--text-body, 13px); font-weight: 500 }
 .tree-item__version { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-family: 'SF Mono', 'Consolas', monospace }
-.tree-item--active .tree-item__version { color: var(--color-primary, #2563EB) }
+.tree-item--active .tree-item__version { color: var(--color-primary, #2F6FED) }
 
 /* 规则详情 */ .rule-detail { display: flex; flex-direction: column; gap: 20px }
 .detail-section { display: flex; flex-direction: column; gap: 10px }
@@ -364,9 +364,9 @@ onMounted(() => {
 .threshold-severity--high, .threshold-severity--critical, .threshold-severity--severe { color: var(--color-danger, #D92D20); background: var(--color-danger-bg) }
 
 /* 测试结果 */ .test-result { display: flex; flex-direction: column; gap: 16px }
-.result-total { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; background: var(--color-primary-bg, #EFF6FF); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border) }
+.result-total { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; background: var(--color-primary-bg, #E8F0FE); border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border) }
 .result-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
-.result-score  {  font-size: var(--text-metric-key, 26px); font-weight: 700; color: var(--color-primary, #2563EB); line-height: 1 ; font-variant-numeric: tabular-nums }
+.result-score  {  font-size: var(--text-metric-key, 26px); font-weight: 700; color: var(--color-primary, #2F6FED); line-height: 1 ; font-variant-numeric: tabular-nums }
 .result-section { display: flex; flex-direction: column; gap: 8px }
 
 /* 分项得分 */ .component-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px }
@@ -396,7 +396,7 @@ onMounted(() => {
 .btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
 
 /* 加载和空状态 */ .loading-state, .empty-state, .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center }
-.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2F6FED); border-radius: 50%; animation: spin 0.8s linear infinite }
 
 @keyframes spin {to { transform: rotate(360deg) }
 

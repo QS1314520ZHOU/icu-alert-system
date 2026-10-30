@@ -357,7 +357,7 @@ onMounted(async () => {
 .pathway-desc { font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); margin-bottom: 12px }
 .pathway-tasks { display: flex; flex-direction: column; gap: 8px }
 .pathway-task-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-sm, 4px) }
-.task-idx { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-radius: 50%; font-size: var(--text-caption, 12px); font-weight: 600; flex-shrink: 0 }
+.task-idx { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-radius: 50%; font-size: var(--text-caption, 12px); font-weight: 600; flex-shrink: 0 }
 .task-name { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827) }
 
 @media (max-width: 768px) {.overview-charts { grid-template-columns: 1fr }

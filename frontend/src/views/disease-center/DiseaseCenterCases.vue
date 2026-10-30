@@ -68,8 +68,8 @@
         </template>
 
         <template v-if="column.key === 'disease_name'">
-          <a-tag color="var(--color-primary-bg, #EFF6FF)">
-            <span style="color: var(--color-primary, #2563EB)">{{ record.disease_name || record.disease_code }}</span>
+          <a-tag color="var(--color-primary-bg, #E8F0FE)">
+            <span style="color: var(--color-primary, #2F6FED)">{{ record.disease_name || record.disease_code }}</span>
           </a-tag>
         </template>
 
@@ -168,7 +168,7 @@ const pageSize = ref(20)
 const statusOptions = [
   { value: 'screening', label: '筛查中', color: '#667085' },
   { value: 'screen_positive', label: '筛查阳性', color: '#DC6803' },
-  { value: 'pending_review', label: '待临床确认', color: '#2563EB' },
+  { value: 'pending_review', label: '待临床确认', color: '#2F6FED' },
   { value: 'confirmed', label: '已纳入确认', color: '#16845B' },
   { value: 'excluded', label: '已排除', color: '#98A2B3' },
   { value: 'pathway_active', label: '路径执行中', color: '#1D6F63' },
@@ -316,7 +316,7 @@ onMounted(() => {
 .filter-label { flex-shrink: 0; min-width: 64px; font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); line-height: 28px }
 .chip-group { display: flex; flex-wrap: wrap; gap: 8px }
 .filter-chip { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-secondary, #4B5563); font-size: var(--text-caption, 12px); font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap }
-.filter-chip:hover { border-color: var(--color-primary, #2563EB); color: var(--color-primary, #2563EB) }
+.filter-chip:hover { border-color: var(--color-primary, #2F6FED); color: var(--color-primary, #2F6FED) }
 .filter-chip.active { font-weight: 600 }
 .chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0 }
 .filter-actions { display: flex; align-items: center; gap: 10px }

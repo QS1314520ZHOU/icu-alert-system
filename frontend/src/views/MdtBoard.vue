@@ -230,7 +230,7 @@ const mdtGraphOption = computed(() => {
     id: 'patient',
     name: patientHeadline.value || '患者',
     symbolSize: 50,
-    itemStyle: { color: '#2563EB', borderColor: '#fff', borderWidth: 2 },
+    itemStyle: { color: '#2F6FED', borderColor: '#fff', borderWidth: 2 },
     label: { show: true, fontSize: 12, fontWeight: 'bold' },
   })
 

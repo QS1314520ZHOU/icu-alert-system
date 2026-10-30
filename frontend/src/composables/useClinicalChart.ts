@@ -73,7 +73,7 @@ export function useClinicalChart(opts: ClinicalChartOptions) {
       if (loading?.value) {
         chartInstance.value.showLoading('default', {
           text: '',
-          color: '#2563EB',
+          color: '#2F6FED',
           maskColor: 'rgba(255,255,255,0.8)',
           spinnerRadius: 12,
           lineWidth: 2,
@@ -101,7 +101,7 @@ export function useClinicalChart(opts: ClinicalChartOptions) {
   function showLoading() {
     chartInstance.value?.showLoading('default', {
       text: '',
-      color: '#2563EB',
+      color: '#2F6FED',
       maskColor: 'rgba(255,255,255,0.8)',
       spinnerRadius: 12,
       lineWidth: 2,

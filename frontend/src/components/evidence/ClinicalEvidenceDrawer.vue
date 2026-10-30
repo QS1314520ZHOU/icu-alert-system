@@ -281,7 +281,7 @@ watch(
   user-select: none;
   padding: 2px 0;
 }
-.ev-section-title:hover { color: var(--color-primary, #2563EB); }
+.ev-section-title:hover { color: var(--color-primary, #2F6FED); }
 .ev-toggle { font-size: 10px; color: var(--text-tertiary, #9CA3AF); margin-left: auto; }
 .ev-badge-ai {
   padding: 1px 5px;

@@ -402,10 +402,10 @@ onMounted(() => {
 <style scoped>.causal-inference { display: flex; flex-direction: column; gap: 20px }
 .ci-steps { display: flex; gap: 4px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-md, 6px); padding: 12px 16px; border: 1px solid var(--color-border, #E5E7EB) }
 .ci-step { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); color: var(--color-text-tertiary, #9CA3AF); flex: 1; justify-content: center }
-.ci-step--active { background: var(--color-primary-bg, #EFF6FF); color: var(--color-primary, #2563EB); font-weight: 600 }
+.ci-step--active { background: var(--color-primary-bg, #E8F0FE); color: var(--color-primary, #2F6FED); font-weight: 600 }
 .ci-step--done { color: var(--color-normal, #12A66A) }
 .ci-step-num { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--color-border, #E5E7EB); font-size: 11px; font-weight: 600 }
-.ci-step--active .ci-step-num { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
+.ci-step--active .ci-step-num { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF) }
 .ci-step--done .ci-step-num { background: var(--color-normal, #12A66A); color: var(--color-text-inverse, #FFFFFF) }
 .ci-section { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); padding: 20px; border: 1px solid var(--color-border, #E5E7EB) }
 .ci-section-title { margin: 0 0 16px; font-size: var(--text-section-title, 15px); font-weight: 600 }
@@ -413,7 +413,7 @@ onMounted(() => {
 .ci-form-item label { display: block; font-size: var(--text-caption, 12px); font-weight: 500; color: var(--color-text-secondary, #4B5563); margin-bottom: 4px }
 .ci-select { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); background: var(--color-bg-surface, #FFFFFF) }
 .ci-btn { padding: 8px 20px; border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); font-weight: 500; cursor: pointer; border: 1px solid var(--color-border, #E5E7EB); background: var(--color-bg-surface, #FFFFFF); transition: all 0.15s }
-.ci-btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.ci-btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .ci-btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 .ci-btn:disabled { opacity: 0.5; cursor: not-allowed }
 .ci-dag-area { margin-bottom: 12px }
@@ -421,7 +421,7 @@ onMounted(() => {
 .ci-dag-legend { display: flex; gap: 16px; margin-bottom: 16px }
 .ci-legend-item { display: flex; align-items: center; gap: 6px; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 .ci-dot { width: 10px; height: 10px; border-radius: 50% }
-.ci-dot--exposure { background: var(--color-primary, #2563EB) }
+.ci-dot--exposure { background: var(--color-primary, #2F6FED) }
 .ci-dot--outcome { background: var(--color-critical, #D92D20) }
 .ci-dot--confounder { background: var(--color-warning, #B54708) }
 .ci-dot--mediator { background: var(--color-accent, #0891B2) }
@@ -430,14 +430,14 @@ onMounted(() => {
 .ci-chart-card h4 { margin: 0 0 8px; font-size: var(--text-body, 13px); font-weight: 600 }
 .ci-chart-area { height: 220px }
 .ci-flow-diagram { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px }
-.ci-flow-node { padding: 10px 20px; background: var(--color-primary-bg, #EFF6FF); border: 1px solid var(--color-primary, #2563EB); border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); font-weight: 500 }
+.ci-flow-node { padding: 10px 20px; background: var(--color-primary-bg, #E8F0FE); border: 1px solid var(--color-primary, #2F6FED); border-radius: var(--radius-md, 6px); font-size: var(--text-body, 13px); font-weight: 500 }
 .ci-flow-node--included { background: var(--color-normal-bg, #E8F7F0); border-color: var(--color-normal, #12A66A) }
 .ci-flow-node--excluded { background: var(--color-critical-bg, #FEECEB); border-color: var(--color-danger, #D92D20) }
 .ci-flow-arrow { font-size: var(--text-section-title, 15px); color: var(--color-text-tertiary, #9CA3AF) }
 .ci-effect-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px }
 .ci-effect-card { background: var(--color-bg-surface-secondary, #F1F4F8); border-radius: var(--radius-lg, 10px); padding: 16px; text-align: center; border: 1px solid var(--color-border, #E5E7EB) }
 .ci-effect-label { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin-bottom: 8px }
-.ci-effect-value  {  display: block; font-size: var(--text-metric-key, 26px); font-weight: 700; font-family: var(--font-digit, monospace); color: var(--color-primary, #2563EB) ; font-variant-numeric: tabular-nums }
+.ci-effect-value  {  display: block; font-size: var(--text-metric-key, 26px); font-weight: 700; font-family: var(--font-digit, monospace); color: var(--color-primary, #2F6FED) ; font-variant-numeric: tabular-nums }
 .ci-effect-ci { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF); margin-top: 4px }
 .ci-disclaimer { background: var(--color-warning-soft-bg, #FFF9D8); border: 1px solid var(--color-warning-soft-border, #FFE58F); border-radius: var(--radius-md, 6px); padding: 16px; margin-top: 16px }
 .ci-disclaimer--inline { margin: 0 0 12px; padding: 8px 12px; font-size: var(--text-caption, 12px); color: var(--color-warning, #B54708) }

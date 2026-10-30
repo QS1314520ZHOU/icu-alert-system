@@ -111,7 +111,7 @@ function compactReason(item: any) {
   transition: border-color 0.15s;
 }
 .priority-row:hover {
-  border-color: var(--color-primary, #2563EB);
+  border-color: var(--color-primary, #2F6FED);
 }
 .priority-row__rank {
   display: grid;
@@ -120,7 +120,7 @@ function compactReason(item: any) {
   height: 24px;
   border-radius: 4px;
   background: var(--color-primary-bg, rgba(37, 99, 235, 0.08));
-  color: var(--color-primary, #2563EB);
+  color: var(--color-primary, #2F6FED);
   font-size: 12px;
   font-weight: 600;
 }

@@ -1,10 +1,9 @@
 <template>
   <div class="overview">
-    <PageHeader title="患者总览" subtitle="在科患者风险分层、科室与标签快速筛选" />
-
-    <!-- ====== 顶部信息带 ====== -->
+    <!-- ====== 顶部信息带：标题 + 单行 KPI（对齐公司病区概览，第一屏尽量留给床位卡片） ====== -->
     <header class="top-bar">
       <div class="summary-row">
+        <h1 class="ov-title">患者总览</h1>
         <div class="sum-block sum-block--total">
           <span class="sum-val">{{ filteredPatients.length }}</span>
           <span class="sum-lbl">在科</span>
@@ -83,7 +82,7 @@
     </header>
 
     <PriorityFocusPanel
-      v-if="!loading"
+      v-if="!loading && priorityRows.length"
       :rows="priorityRows"
       @select="goDetail"
     />
@@ -141,15 +140,6 @@
             {{ lane.rows.length }} 床
           </div>
         </div>
-        <div v-if="lane.featuredRows?.length" class="lane-brief">
-          <span class="lane-brief__label">重点</span>
-          <div class="lane-brief__list">
-            <span v-for="row in lane.featuredRows" :key="`${lane.key}-${row.patient_id}`" class="lane-brief__chip">
-              <strong>{{ row.bed || '--' }}床</strong>
-              <span>{{ row.name || '未知患者' }}</span>
-            </span>
-          </div>
-        </div>
         <div class="lane-grid">
           <div
             v-for="p in lane.rows"
@@ -173,7 +163,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth'
 import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
-import { PageHeader, LoadingState, EmptyState } from '../components/common/design-system'
+import { LoadingState, EmptyState } from '../components/common/design-system'
 import { useRoute, useRouter } from 'vue-router'
 import { getDepartments, getPatients, getPatientBundleStatuses, getPatientVitalsForecast, getRecentAlerts, getPatientPriority, getRuntimeConfig, getBatchVitals, getPatientBedcardBatch } from '../api'
 import { onAlertMessage } from '../services/alertSocket'
@@ -1495,5 +1485,42 @@ onUnmounted(() => {
     min-height: 0;
   }
 }
+
+/* ── 紧凑布局：单行 KPI、筛选同排、卡片自适应列宽（参照公司 patient_card 病区概览） ── */
+.overview { padding: 12px 16px; gap: 10px; background: var(--color-bg-page, #F7F8FA); }
+.top-bar { padding: 8px 12px; gap: 8px; border: 1px solid var(--color-border, #E6E5E3); box-shadow: none; background: #fff; }
+.summary-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.ov-title { margin: 0 12px 0 0; font-size: 16px; font-weight: 700; color: var(--color-text-primary, #2C2C2B); }
+.sum-block { flex: none; display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 12px; border: none; border-radius: 6px; background: transparent; box-shadow: none; min-height: 0; border-right: 1px solid var(--color-divider, #EFEEEC); }
+.sum-block .sum-val { font-size: 18px; font-weight: 700; }
+.sum-block .sum-lbl { font-size: 12px; color: var(--color-text-tertiary, #7D7A75); }
+.sum-block.clickable:hover { background: var(--color-primary-bg, #E8F0FE); }
+.sum-block.chosen { background: var(--color-primary, #2F6FED); }
+.sum-block.chosen .sum-val, .sum-block.chosen .sum-lbl { color: #fff; }
+.sum-block--critical .sum-val { color: var(--color-danger, #D95C58); }
+.sum-block--warning .sum-val { color: var(--color-warning, #C47B1A); }
+.dept-nav, .tag-chips { gap: 4px; }
+.forecast-strip { display: none; }
+.quick-filter-panel { padding: 6px 10px; gap: 6px; border: 1px solid var(--color-border, #E6E5E3); box-shadow: none; background: #fff; }
+.quick-filter-btn { border-radius: 999px; padding: 3px 12px; font-size: 12px; min-height: 0; }
+.quick-filter-btn.active { background: var(--color-primary, #2F6FED); border-color: var(--color-primary, #2F6FED); color: #fff; }
+.quick-filter-select { height: 26px; font-size: 12px; }
+.lane-stack { gap: 12px; }
+.lane-panel { padding: 0; gap: 0; border: none; background: transparent; box-shadow: none; }
+.lane-panel::before { display: none; }
+.lane-head { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 4px 2px 8px; }
+.lane-copy { flex: none; }
+.top-bar { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; }
+.top-bar .summary-row { justify-content: flex-start; flex: 1 1 auto; width: auto; }
+.top-bar .dept-nav { flex: none; margin-left: auto; padding-bottom: 0; }
+.top-bar .tag-chips, .top-bar .filter-summary { flex-basis: 100%; }
+.lane-copy { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lane-title { font-size: 14px; font-weight: 700; }
+.lane-panel--critical .lane-title { color: var(--color-danger, #D95C58); }
+.lane-panel--warning .lane-title { color: var(--color-warning, #C47B1A); }
+.lane-meta { font-size: 12px; color: var(--color-text-tertiary, #7D7A75); }
+.lane-count { order: -1; font-size: 12px; padding: 1px 8px; border-radius: 999px; }
+.lane-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); justify-content: stretch; gap: 10px; }
+.lane-card-shell { max-width: none; justify-self: stretch; border: none; padding: 0; background: none; box-shadow: none; }
 </style>
 

@@ -332,7 +332,7 @@ onMounted(() => {
 .stat-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); padding: 14px 16px; text-align: center }
 .stat-value { font-size: var(--text-metric-key, 26px); font-weight: 700; color: var(--color-text-primary, #111827); line-height: 1.15; font-variant-numeric: tabular-nums }
 .stat-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin-bottom: 4px }
-.stat-card--info .stat-value { color: var(--color-primary, #2563EB) }
+.stat-card--info .stat-value { color: var(--color-primary, #2F6FED) }
 .stat-card--success .stat-value { color: var(--color-success, #16845B) }
 .stat-card--danger .stat-value { color: var(--color-danger, #D92D20) }
 
@@ -340,7 +340,7 @@ onMounted(() => {
 .filter-tabs { display: flex; gap: 4px }
 .tab-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: var(--text-body, 13px); font-weight: 500; border: none; border-radius: var(--radius-md, 6px); background: transparent; color: var(--color-text-secondary, #4B5563); cursor: pointer; transition: all 0.15s }
 .tab-btn:hover { background: var(--color-bg-surface-secondary, #F1F4F8); color: var(--color-text-primary, #111827) }
-.tab-btn--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
+.tab-btn--active { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF) }
 .tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; font-size: var(--text-caption, 12px); font-weight: 600; border-radius: var(--radius-md, 6px); background: var(--color-bg-inset) }
 .tab-btn--active .tab-count { background: rgba(255, 255, 255, 0.3) }
 
@@ -353,7 +353,7 @@ onMounted(() => {
 
 /* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 10px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
 .status-badge--pending { color: var(--color-warning, #B54708); background: var(--color-warning-bg) }
-.status-badge--reviewing { color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
+.status-badge--reviewing { color: var(--color-primary, #2F6FED); background: var(--color-primary-bg) }
 .status-badge--approved { color: var(--color-success, #16845B); background: var(--color-success-bg) }
 .status-badge--rejected { color: var(--color-danger, #D92D20); background: var(--color-danger-bg) }
 .review-body { padding: 16px }
@@ -392,7 +392,7 @@ onMounted(() => {
 .btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border-strong, #D1D5DB) }
 .btn--outline.btn--danger { color: var(--color-danger, #D92D20); border-color: var(--color-critical-border) }
 .btn--outline.btn--danger:hover { background: var(--color-danger-bg) }
-.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 
 /* 响应式 */

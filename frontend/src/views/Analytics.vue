@@ -1130,7 +1130,7 @@ const nursingHeatmapOption = computed(() => ({
   grid: icuGrid({ left: 88, right: 22, top: 20, bottom: 72 }),
   xAxis: icuCategoryAxis(nursingHeatmapX.value, { axisLabel: { color: icuChartTokens().axisLabel, fontSize: 10, rotate: 28, margin: 12 } }),
   yAxis: icuCategoryAxis(nursingHeatmapY.value, { axisLabel: { color: icuChartTokens().axisLabelStrong, fontSize: 10, margin: 14 } }),
-  visualMap: { min: 20, max: 100, orient: 'horizontal', left: 'center', bottom: 8, text: ['高负荷', '低负荷'], textStyle: { color: icuChartTokens().heatmapText, fontSize: 10 }, inRange: { color: ['#eff6ff', '#bfdbfe', '#60a5fa', 'var(--color-warning)', '#D9342B'] } },
+  visualMap: { min: 20, max: 100, orient: 'horizontal', left: 'center', bottom: 8, text: ['高负荷', '低负荷'], textStyle: { color: icuChartTokens().heatmapText, fontSize: 10 }, inRange: { color: ['#E8F0FE', '#bfdbfe', '#60a5fa', 'var(--color-warning)', '#D9342B'] } },
   series: [{ type: 'heatmap', data: nursingHeatmapData.value, label: { show: true, formatter: ({ value }: any) => value?.[2] || '', color: icuChartTokens().labelStrong, fontSize: 10, fontWeight: 700 }, itemStyle: { borderRadius: 8, borderColor: icuChartTokens().axisLine, borderWidth: 1 } }],
 }))
 const scenarioColumns = [

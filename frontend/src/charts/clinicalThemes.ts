@@ -8,7 +8,7 @@ import * as echarts from 'echarts'
 import { FONT_FAMILY, FONT_SIZE } from '../styles/tokens/typography'
 
 const LIGHT = {
-  color: ['#2563EB', '#16A34A', '#0891B2', '#F59E0B', '#7C3AED', '#DC2626', '#0284C7', '#94A3B8'],
+  color: ['#2F6FED', '#16A34A', '#0891B2', '#F59E0B', '#7C3AED', '#DC2626', '#0284C7', '#94A3B8'],
   backgroundColor: 'transparent',
   textStyle: {
     fontFamily: FONT_FAMILY.primary,

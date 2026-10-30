@@ -84,15 +84,15 @@ const navTabs = computed(() => [
 .version-tag--success { color: var(--color-success, #16845B); background: var(--color-success-bg); border-color: var(--color-normal-border) }
 .header-actions { display: flex; gap: 8px }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: var(--text-body, 13px); font-weight: 500; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; white-space: nowrap; border: 1px solid transparent }
-.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 .btn--outline { background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); border-color: var(--color-border, #E5E7EB) }
 .btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border-strong, #D1D5DB) }
 .layout-nav { display: flex; gap: 2px; padding: 0 24px; border-top: 1px solid var(--color-divider, #F0F2F5); background: var(--color-bg-surface-secondary, #F1F4F8); overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none }
 .layout-nav::-webkit-scrollbar { display: none }
 .nav-item { display: flex; align-items: center; gap: 6px; padding: 10px 14px; font-size: var(--text-body, 13px); color: var(--color-text-secondary, #4B5563); text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; flex-shrink: 0 }
-.nav-item:hover { color: var(--color-primary, #2563EB); background: var(--color-primary-bg, #EFF6FF) }
-.nav-item--active { color: var(--color-primary, #2563EB); border-bottom-color: var(--color-primary, #2563EB); font-weight: 600 }
+.nav-item:hover { color: var(--color-primary, #2F6FED); background: var(--color-primary-bg, #E8F0FE) }
+.nav-item--active { color: var(--color-primary, #2F6FED); border-bottom-color: var(--color-primary, #2F6FED); font-weight: 600 }
 .nav-icon { font-size: 14px }
 .layout-main { flex: 1; padding: 16px 24px 32px; max-width: 1400px; width: 100%; margin: 0 auto }
 

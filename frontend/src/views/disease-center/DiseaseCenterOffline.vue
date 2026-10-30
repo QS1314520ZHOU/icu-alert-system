@@ -304,7 +304,7 @@ onMounted(() => {
 /* 包网格 */ .packages-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px }
 
 /* 包卡片 */ .package-card { background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB); overflow: hidden; transition: all 0.15s }
-.package-card:hover { border-color: var(--color-primary, #2563EB) }
+.package-card:hover { border-color: var(--color-primary, #2F6FED) }
 .package-header { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--color-divider, #F0F2F5) }
 .package-icon { font-size: 28px }
 .package-info { flex: 1; min-width: 0 }
@@ -344,7 +344,7 @@ onMounted(() => {
 .modal__body { padding: 20px; display: flex; flex-direction: column; gap: 16px }
 
 /* 上传区域 */ .upload-area { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 20px; border: 2px dashed var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; position: relative }
-.upload-area:hover { border-color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
+.upload-area:hover { border-color: var(--color-primary, #2F6FED); background: var(--color-primary-bg) }
 .upload-text { font-size: var(--text-body, 13px); color: var(--color-text-primary, #111827); margin: 0 }
 .upload-hint { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin: 0 }
 .upload-input { position: absolute; inset: 0; opacity: 0; cursor: pointer }
@@ -353,13 +353,13 @@ onMounted(() => {
 /* 表单 */ .form-item { display: flex; flex-direction: column; gap: 6px }
 .form-label { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); font-weight: 500 }
 .form-input, .form-select { padding: 8px 12px; font-size: var(--text-body, 13px); border: 1px solid var(--color-border, #E5E7EB); border-radius: var(--radius-md, 6px); background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); outline: none }
-.form-input:focus, .form-select:focus { border-color: var(--color-primary, #2563EB) }
+.form-input:focus, .form-select:focus { border-color: var(--color-primary, #2F6FED) }
 
 /* 按钮 */ .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; font-size: var(--text-body, 13px); font-weight: 500; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent; white-space: nowrap }
 .btn--sm { padding: 4px 10px; font-size: var(--text-caption, 12px) }
 .btn--outline { background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); border-color: var(--color-border, #E5E7EB) }
 .btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8); border-color: var(--color-border-strong, #D1D5DB) }
-.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 
 /* 响应式 */

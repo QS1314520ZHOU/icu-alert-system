@@ -429,11 +429,11 @@ onMounted(() => {
 /* 分类树 */ .category-tree { display: flex; flex-direction: column; gap: 2px }
 .tree-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s }
 .tree-item:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.tree-item--active { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.tree-item--active { background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 .tree-item__icon { font-size: 16px }
 .tree-item__name { flex: 1; font-size: var(--text-body, 13px); font-weight: 500 }
 .tree-item__count { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); background: var(--color-bg-surface-secondary, #F1F4F8); padding: 1px 6px; border-radius: var(--radius-lg, 10px) }
-.tree-item--active .tree-item__count { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.tree-item--active .tree-item__count { background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 
 /* 病种列表 */ .disease-list { display: flex; flex-direction: column; gap: 4px }
 .disease-item { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--radius-md, 6px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent }
@@ -450,7 +450,7 @@ onMounted(() => {
 /* 状态徽章 */ .status-badge { display: inline-flex; padding: 2px 8px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
 .status-badge--published { color: var(--color-success, #16845B); background: var(--color-success-bg) }
 .status-badge--draft { color: var(--color-warning, #B54708); background: var(--color-warning-bg) }
-.status-badge--review, .status-badge--review_pending, .status-badge--reviewing { color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
+.status-badge--review, .status-badge--review_pending, .status-badge--reviewing { color: var(--color-primary, #2F6FED); background: var(--color-primary-bg) }
 .status-badge--approved { color: var(--color-success, #16845B); background: var(--color-success-bg) }
 .status-badge--validating { color: var(--color-ai, #6E5AE6); background: var(--color-ai-light, #F0EDFF) }
 .status-badge--changes_requested { color: var(--color-danger, #D92D20); background: var(--color-warning-bg, rgba(181, 71, 8, 0.08)) }
@@ -481,11 +481,11 @@ onMounted(() => {
 
 /* 按钮 */ .btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px); cursor: pointer; transition: all 0.15s; border: 1px solid transparent }
 .btn--sm { padding: 3px 8px; font-size: var(--text-caption, 12px) }
-.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2563EB) }
+.btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF); border-color: var(--color-primary, #2F6FED) }
 .btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 
 /* 加载和空状态 */ .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center }
-.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2563EB); border-radius: 50%; animation: spin 0.8s linear infinite }
+.spinner { width: 24px; height: 24px; border: 2px solid var(--color-border, #E5E7EB); border-top-color: var(--color-primary, #2F6FED); border-radius: 50%; animation: spin 0.8s linear infinite }
 
 @keyframes spin {to { transform: rotate(360deg) }
  }

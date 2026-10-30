@@ -110,7 +110,7 @@ const chartOption = computed<EChartsOption | null>(() => {
       data: yData,
       smooth: false,
       symbol: 'none',
-      lineStyle: { width: 1.5, color: '#2563EB' },
+      lineStyle: { width: 1.5, color: '#2F6FED' },
       areaStyle: { color: 'rgba(37,99,235,0.06)' },
     }],
   }

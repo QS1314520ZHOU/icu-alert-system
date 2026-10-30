@@ -9,10 +9,10 @@
 // ── 基础色板 ──────────────────────────────────────
 
 /** 主色蓝 — 操作、选中、信息 */
-export const PRIMARY = '#2563EB'
+export const PRIMARY = '#2F6FED'
 export const PRIMARY_DARK = '#1E40AF'
-export const PRIMARY_LIGHT = '#EFF6FF'
-export const PRIMARY_HOVER = '#3B82F6'
+export const PRIMARY_LIGHT = '#E8F0FE'
+export const PRIMARY_HOVER = '#255DD0'
 export const PRIMARY_ACTIVE = '#1D4ED8'
 
 /** 辅助青色 — 数据、趋势、辅助操作 */
@@ -22,20 +22,20 @@ export const ACCENT_HOVER = '#06B6D4'
 export const ACCENT_ACTIVE = '#0E7490'
 
 /** AI紫色 — AI生成内容、模型状态 */
-export const AI = '#7C3AED'
-export const AI_LIGHT = '#F5F3FF'
+export const AI = '#2F6FED'
+export const AI_LIGHT = '#E8F0FE'
 export const AI_HOVER = '#8B5CF6'
 export const AI_ACTIVE = '#6D28D9'
 
 // ── 页面背景与表面 ────────────────────────────────
 
-export const PAGE_BG = '#F6F8FB'
+export const PAGE_BG = '#F7F8FA'
 export const SIDEBAR_BG = '#FFFFFF'
 export const SIDEBAR_TEXT = '#4B5563'
-export const SIDEBAR_TEXT_ACTIVE = '#2563EB'
+export const SIDEBAR_TEXT_ACTIVE = '#2F6FED'
 export const SIDEBAR_HOVER = 'rgba(37, 99, 235, 0.06)'
 export const CARD_BG = '#FFFFFF'
-export const HOVER_BG = '#EFF6FF'
+export const HOVER_BG = '#E8F0FE'
 export const SELECTED_BG = '#DBEAFE'
 
 // ── 文字 ──────────────────────────────────────────
@@ -50,7 +50,7 @@ export const TEXT_INVERSE = '#FFFFFF'
 
 export const BORDER = '#E5E7EB'
 export const DIVIDER = '#F0F2F5'
-export const BORDER_FOCUS = '#2563EB'
+export const BORDER_FOCUS = '#2F6FED'
 
 // ── 临床状态色 ────────────────────────────────────
 
@@ -87,7 +87,7 @@ export const UNKNOWN_BORDER = '#CBD5E1'
 // ── 图表序列颜色（8色循环）──────────────────────
 
 export const CHART_SERIES = [
-  '#2563EB', '#16A34A', '#0891B2', '#F59E0B',
+  '#2F6FED', '#16A34A', '#0891B2', '#F59E0B',
   '#7C3AED', '#DC2626', '#0284C7', '#94A3B8',
 ] as const
 
@@ -95,7 +95,7 @@ export const CHART_SERIES = [
 
 export const METRIC = {
   heartRate: '#DC2626',
-  systolicBP: '#2563EB',
+  systolicBP: '#2F6FED',
   diastolicBP: '#3B82F6',
   map: '#1D4ED8',
   spo2: '#0891B2',
@@ -109,13 +109,13 @@ export const METRIC = {
   fio2: '#94A3B8',
   peep: '#64748B',
   urineOutput: '#0891B2',
-  gcs: '#2563EB',
+  gcs: '#2F6FED',
 } as const
 
 // ── 评分颜色 ──────────────────────────────────────
 
 export const SCORE = {
-  sofa: '#2563EB',
+  sofa: '#2F6FED',
   sofa2: '#1D4ED8',
   news2: '#F59E0B',
   qsofa: '#7C3AED',
@@ -151,7 +151,7 @@ export type FlowNodeStatus = 'pending' | 'running' | 'completed' | 'warning' | '
 
 export const FLOW_STATUS_MAP: Record<FlowNodeStatus, { color: string; bgColor: string; label: string }> = {
   pending:   { color: '#94A3B8', bgColor: '#F1F5F9', label: '待处理' },
-  running:   { color: '#2563EB', bgColor: '#EFF6FF', label: '进行中' },
+  running:   { color: '#2F6FED', bgColor: '#E8F0FE', label: '进行中' },
   completed: { color: '#16A34A', bgColor: '#F0FDF4', label: '已完成' },
   warning:   { color: '#F59E0B', bgColor: '#FFFBEB', label: '有警告' },
   failed:    { color: '#DC2626', bgColor: '#FEF2F2', label: '失败' },

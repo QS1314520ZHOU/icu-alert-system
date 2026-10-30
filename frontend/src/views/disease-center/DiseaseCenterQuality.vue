@@ -331,7 +331,7 @@ onMounted(() => {
 .overview-card { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--color-bg-surface, #FFFFFF); border-radius: var(--radius-lg, 10px); border: 1px solid var(--color-border, #E5E7EB) }
 .card-icon { width: 40px; height: 40px; border-radius: var(--radius-lg, 10px); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700 }
 .card-icon--success { background: var(--color-success-bg); color: var(--color-success, #16845B) }
-.card-icon--info { background: var(--color-primary-bg); color: var(--color-primary, #2563EB) }
+.card-icon--info { background: var(--color-primary-bg); color: var(--color-primary, #2F6FED) }
 .card-icon--warning { background: var(--color-warning-bg); color: var(--color-warning, #B54708) }
 .card-icon--danger { background: var(--color-danger-bg); color: var(--color-danger, #D92D20) }
 .card-icon--ai { background: var(--color-ai-light, #F0EDFF); color: var(--color-ai, #6E5AE6) }
@@ -347,7 +347,7 @@ onMounted(() => {
 .header-tabs { display: flex; gap: 4px }
 .tab-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: var(--text-caption, 12px); font-weight: 500; border: none; border-radius: var(--radius-tag, 4px); background: transparent; color: var(--color-text-secondary, #4B5563); cursor: pointer; transition: all 0.15s }
 .tab-btn:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.tab-btn--active { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
+.tab-btn--active { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF) }
 .tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 3px; font-size: var(--text-caption, 12px); font-weight: 600; border-radius: var(--radius-md, 6px); background: var(--color-bg-inset) }
 .tab-btn--active .tab-count { background: rgba(255, 255, 255, 0.3) }
 
@@ -355,12 +355,12 @@ onMounted(() => {
 .issue-card { padding: 14px; border-radius: var(--radius-md, 6px); border: 1px solid var(--color-border, #E5E7EB) }
 .issue-card--high { border-left: 3px solid var(--color-danger, #D92D20) }
 .issue-card--medium { border-left: 3px solid var(--color-warning, #B54708) }
-.issue-card--low { border-left: 3px solid var(--color-primary, #2563EB) }
+.issue-card--low { border-left: 3px solid var(--color-primary, #2F6FED) }
 .issue-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px }
 .severity-badge { display: inline-flex; padding: 1px 6px; font-size: var(--text-caption, 12px); font-weight: 500; border-radius: var(--radius-tag, 4px) }
 .severity-badge--high { color: var(--color-danger, #D92D20); background: var(--color-danger-bg) }
 .severity-badge--medium { color: var(--color-warning, #B54708); background: var(--color-warning-bg) }
-.severity-badge--low { color: var(--color-primary, #2563EB); background: var(--color-primary-bg) }
+.severity-badge--low { color: var(--color-primary, #2F6FED); background: var(--color-primary-bg) }
 .issue-type { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 .issue-title { font-size: var(--text-body, 13px); font-weight: 600; color: var(--color-text-primary, #111827); margin: 0 0 4px }
 .issue-desc { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin: 0 0 8px; line-height: 1.5 }
@@ -382,7 +382,7 @@ onMounted(() => {
 .bar-label { font-size: var(--text-caption, 12px); color: var(--color-text-tertiary, #9CA3AF) }
 
 /* 链接 */ .link-desc { font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563); margin: 0 0 10px; line-height: 1.5 }
-.health-link { display: flex; align-items: center; gap: 6px; font-size: var(--text-body, 13px); color: var(--color-primary, #2563EB); text-decoration: none }
+.health-link { display: flex; align-items: center; gap: 6px; font-size: var(--text-body, 13px); color: var(--color-primary, #2F6FED); text-decoration: none }
 .health-link:hover { text-decoration: underline }
 
 /* 金标准 */ .gold-stats { display: flex; gap: 16px; margin-bottom: 12px }
@@ -415,7 +415,7 @@ onMounted(() => {
 .btn--sm { padding: 4px 10px; font-size: var(--text-caption, 12px) }
 .btn--outline { background: var(--color-bg-surface, #FFFFFF); color: var(--color-text-primary, #111827); border-color: var(--color-border, #E5E7EB) }
 .btn--outline:hover { background: var(--color-bg-surface-secondary, #F1F4F8) }
-.btn--primary { background: var(--color-primary, #2563EB); color: var(--color-text-inverse, #FFFFFF) }
+.btn--primary { background: var(--color-primary, #2F6FED); color: var(--color-text-inverse, #FFFFFF) }
 .btn--primary:hover { background: var(--color-primary-hover, #3B82F6) }
 
 /* 响应式 */

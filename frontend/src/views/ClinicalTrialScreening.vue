@@ -342,7 +342,7 @@ const funnelOption = computed(() => {
       gap: 4,
       label: { show: true, position: 'inside', fontSize: 12, color: '#fff' },
       data: [
-        { value: scanned, name: '扫描患者', itemStyle: { color: '#2563EB' } },
+        { value: scanned, name: '扫描患者', itemStyle: { color: '#2F6FED' } },
         { value: candidatesCount, name: '候选匹配', itemStyle: { color: '#12B76A' } },
         { value: notified, name: '已通知', itemStyle: { color: '#F79009' } },
         { value: enrolled, name: '已入组', itemStyle: { color: '#7C3AED' } },

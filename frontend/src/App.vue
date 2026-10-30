@@ -75,12 +75,12 @@ const themeConfig = computed(() => {
       ? antTheme.value.darkAlgorithm
       : antTheme.value.defaultAlgorithm,
     token: {
-      colorPrimary: dark ? '#3B82F6' : '#2563EB',
+      colorPrimary: dark ? '#3B82F6' : '#2F6FED',
       colorInfo: dark ? '#38BDF8' : '#0284C7',
       colorSuccess: dark ? '#22C55E' : '#16A34A',
       colorWarning: dark ? '#F59E0B' : '#D97706',
       colorError: dark ? '#EF4444' : '#DC2626',
-      colorBgBase: dark ? '#0B1220' : '#F6F8FB',
+      colorBgBase: dark ? '#0B1220' : '#F7F8FA',
       colorBgContainer: dark ? '#111A2B' : '#FFFFFF',
       colorBgElevated: dark ? '#16213A' : '#FFFFFF',
       colorText: dark ? '#E5E7EB' : '#111827',
@@ -239,7 +239,7 @@ onUnmounted(() => clearInterval(t))
 }
 .topbar__crumb::before {
   content: ''; display: inline-block; width: 8px; height: 8px;
-  border-radius: 2px; background: var(--color-primary, #2563EB);
+  border-radius: 2px; background: var(--color-primary, #2F6FED);
   margin-right: 8px; vertical-align: 1px;
 }
 .topbar__brand {
