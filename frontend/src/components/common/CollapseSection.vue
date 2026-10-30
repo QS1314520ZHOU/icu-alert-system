@@ -2,7 +2,7 @@
   <div class="collapse-section" :class="{ 'is-open': isOpen }">
     <div class="collapse-header" @click="toggle">
       <div class="collapse-header-left">
-        <span class="collapse-arrow">{{ isOpen ? '▾' : '▸' }}</span>
+        <span class="collapse-arrow" :class="{ open: isOpen }" aria-hidden="true"></span>
         <slot name="title" />
       </div>
       <div class="collapse-header-right">
@@ -54,7 +54,7 @@ onMounted(() => {
   border-color: var(--color-border);
 }
 .collapse-section.is-open {
-  border-color: var(--color-primary);
+  border-color: var(--color-border);
 }
 
 .collapse-header {
@@ -77,12 +77,17 @@ onMounted(() => {
 }
 
 .collapse-arrow {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-  transition: transform 0.2s;
   flex-shrink: 0;
-  width: 14px;
-  text-align: center;
+  width: 7px;
+  height: 7px;
+  margin: 0 4px 0 2px;
+  border-right: 1.5px solid var(--color-text-tertiary);
+  border-bottom: 1.5px solid var(--color-text-tertiary);
+  transform: rotate(-45deg);
+  transition: transform 0.2s;
+}
+.collapse-arrow.open {
+  transform: rotate(45deg) translate(-1px, -1px);
 }
 
 .collapse-header-right {

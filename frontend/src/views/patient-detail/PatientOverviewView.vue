@@ -1,8 +1,34 @@
 <template>
   <div class="overview-view">
-    <PageHeader title="患者概览" subtitle="风险、生命体征与核心临床信息总览" />
+    <!-- 结论先行：当前判断 + 异常要点 + 下一步 -->
+    <section class="pov-brief" :class="`pov-brief--${briefTone}`">
+      <div class="pov-brief-head">
+        <span class="pov-brief-title">当前判断</span>
+        <span class="pov-brief-meta">{{ vitalsSourceText }} · {{ heroMonitorUpdatedAt }}</span>
+      </div>
+      <div class="pov-brief-body">
+        <div class="pov-brief-main">
+          <div class="pov-headline" :class="`pov-headline--${briefTone}`">{{ briefHeadline }}</div>
+          <div class="pov-chips">
+            <span v-for="c in abnormalVitals" :key="c.label" class="pov-chip" :class="c.tone === 'critical' ? 'crit' : 'warn'">{{ c.label }} {{ c.value }}</span>
+            <span v-for="o in abnormalOrgans" :key="o.key" class="pov-chip" :class="organStatusClass(o.key) === 'organ-critical' ? 'crit' : 'warn'">{{ o.label }}{{ organStatusText(o.key) }}</span>
+            <span v-if="sepsisActive" class="pov-chip warn">脓毒症 {{ sepsisBundleStatusText }}</span>
+            <span v-if="openAlertCount" class="pov-chip crit">未处理预警 {{ openAlertCount }}</span>
+            <span v-else class="pov-chip ok">无未处理预警</span>
+          </div>
+        </div>
+        <div class="pov-next">
+          <div class="pov-next-title">下一步</div>
+          <ol>
+            <li v-for="(a, i) in actionItems.slice(0, 4)" :key="i">{{ a.text }}</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
     <!-- 主风险区：只展开1条最严重预警 -->
     <PatientPrimaryRisk
+      v-if="primaryAlert"
       :alert="primaryAlert"
       :patient="patient"
       :sepsis="sepsisBundleStatusResolved"
@@ -63,58 +89,23 @@
       </CollapseSection>
     </div>
 
-    <!-- 双栏：脓毒症Bundle + 器官系统 -->
-    <div class="overview-grid" v-if="sepsisBundleStatusResolved?.status !== 'none'">
-      <CollapseSection default-open>
-        <template #title><h3 style="margin:0;font-size:15px;font-weight:600">脓毒症 Bundle</h3></template>
-        <template #extra><a-tag :color="bundleLightColor">{{ sepsisBundleStatusText }}</a-tag></template>
-        <div class="bundle-summary">
-          <p class="bundle-conclusion">{{ sepsisBundleConclusion }}</p>
-          <div class="bundle-meta">
-            <span v-if="sepsisBundleTimelineText">{{ sepsisBundleTimelineText }}</span>
-            <span v-if="sepsisBundleExtraText">{{ sepsisBundleExtraText }}</span>
-            <span v-if="sepsisBundleComplianceSummary">{{ sepsisBundleComplianceSummary }}</span>
-          </div>
-        </div>
-      </CollapseSection>
-      <CollapseSection default-open>
-        <template #title><h3 style="margin:0;font-size:15px;font-weight:600">器官系统</h3></template>
-        <div class="organs-grid">
-          <div v-for="organ in patientBodyMapDetails" :key="organ.key" class="organ-card">
-            <div class="organ-header">
-              <span class="organ-label">{{ organ.label }}</span>
-              <span class="organ-status" :class="organStatusClass(organ.key)">{{ organStatusText(organ.key) }}</span>
-            </div>
-            <p v-if="organ.evidence" class="organ-evidence">{{ organ.evidence }}</p>
-          </div>
-        </div>
-      </CollapseSection>
-    </div>
+    <!-- 脓毒症集束化：结论 + 1h/3h 时窗 + 要素三态 -->
+    <SepsisBundleCard v-if="sepsisBundleStatusResolved?.status !== 'none'" :status="sepsisBundleStatusResolved" class="overview-block" />
 
-    <!-- 器官系统 (无脓毒症时单独展示) -->
-    <section v-if="sepsisBundleStatusResolved?.status === 'none'" class="overview-section">
-      <div class="section-header"><h3>器官系统</h3></div>
+    <!-- 器官系统：异常排前 -->
+    <CollapseSection default-open class="overview-block">
+      <template #title><h3 style="margin:0;font-size:15px;font-weight:600">器官系统</h3></template>
       <div class="organs-grid">
-        <div v-for="organ in patientBodyMapDetails" :key="organ.key" class="organ-card">
+        <div v-for="organ in sortedOrgans" :key="organ.key" class="organ-card">
           <div class="organ-header">
             <span class="organ-label">{{ organ.label }}</span>
             <span class="organ-status" :class="organStatusClass(organ.key)">{{ organStatusText(organ.key) }}</span>
           </div>
-          <p v-if="organ.evidence" class="organ-evidence">{{ organ.evidence }}</p>
+          <p v-if="organ.evidence || organHintEvidence(organ.key)" class="organ-evidence">{{ [organHintEvidence(organ.key), organ.evidence].filter(Boolean).join('；') }}</p>
         </div>
       </div>
-    </section>
-
-    <!-- 下一步行动 (半宽) -->
-    <section class="overview-section overview-section--narrow">
-      <div class="section-header"><h3>下一步行动</h3></div>
-      <div class="actions-list">
-        <div v-for="(action, idx) in actionItems" :key="idx" class="action-item">
-          <span class="action-priority" :class="`priority-${action.tone || 'default'}`">{{ action.priority || '建议' }}</span>
-          <span class="action-text">{{ action.text }}</span>
-        </div>
-      </div>
-    </section>
+      <p class="organ-source">器官状态来自近期预警与当前 MAP/乳酸/SpO₂/RR；肾、肝、凝血、神经未见预警时显示"未见异常"，不代表已完成实验室评估。</p>
+    </CollapseSection>
 
     <!-- 生命体征趋势图 -->
     <section class="overview-section">
@@ -145,11 +136,11 @@
 </template>
 
 <script setup lang="ts">
-import { Empty as AEmpty, Spin as ASpin, Tag as ATag } from 'ant-design-vue'
-import { PageHeader } from '../../components/common/design-system'
+import { Empty as AEmpty, Spin as ASpin } from 'ant-design-vue'
 import { computed, onMounted, ref } from 'vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
 import PatientPrimaryRisk from './components/PatientPrimaryRisk.vue'
+import SepsisBundleCard from '../../components/sepsis/SepsisBundleCard.vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
 import { MultiVitalTrendChart, ClinicalTimeline } from '../../components/charts'
 import type { VitalMetric } from '../../components/charts'
@@ -157,8 +148,7 @@ import type { TimelineEvent } from '../../components/charts'
 
 const {
   patient, vitals, alerts, clinicalSummary, clinicalSummaryLoading,
-  sepsisBundleStatusResolved, sepsisBundleStatusText, sepsisBundleConclusion,
-  sepsisBundleTimelineText, sepsisBundleExtraText, sepsisBundleComplianceSummary,
+  sepsisBundleStatusResolved, sepsisBundleStatusText,
   patientBodyMapDetails, patientBodyMapStates, patientActionRail,
   vitalsSourceText, heroMonitorUpdatedAt, trendPoints, trendWindow, trendLoaded, loadTrend,
   acknowledgeAlert, openEvidence,
@@ -207,6 +197,34 @@ const vitalCards = computed(() => {
   ]
 })
 
+// ── 结论先行 ──
+const TONE_RANK: Record<string, number> = { critical: 0, warning: 1 }
+const abnormalVitals = computed(() => vitalCards.value
+  .filter((c) => c.tone === 'critical' || c.tone === 'warning')
+  .sort((a, b) => (TONE_RANK[a.tone] ?? 9) - (TONE_RANK[b.tone] ?? 9)))
+const ORGAN_RANK: Record<string, number> = { 'organ-critical': 0, 'organ-warning': 1, 'organ-caution': 2, 'organ-normal': 3, 'organ-unknown': 4 }
+const sortedOrgans = computed(() => [...(patientBodyMapDetails.value || [])]
+  .sort((a: any, b: any) => (ORGAN_RANK[organStatusClass(a.key)] ?? 9) - (ORGAN_RANK[organStatusClass(b.key)] ?? 9)))
+const abnormalOrgans = computed(() => sortedOrgans.value.filter((o: any) => ['organ-critical', 'organ-warning'].includes(organStatusClass(o.key))))
+const sepsisActive = computed(() => {
+  const st = String(sepsisBundleStatusResolved.value?.status || 'none').toLowerCase()
+  return !['none', 'completed', 'inactive', ''].includes(st)
+})
+const openAlertCount = computed(() => (alerts.value || []).filter((a: any) => !a?.acknowledged && !a?.is_acknowledged && !a?.handled).length)
+const briefTone = computed(() => {
+  if (topProblems.value[0]?.tone === 'critical' || abnormalVitals.value.some((c) => c.tone === 'critical')) return 'critical'
+  if (topProblems.value.length || abnormalVitals.value.length || sepsisActive.value || openAlertCount.value) return 'warning'
+  return 'ok'
+})
+const briefHeadline = computed(() => {
+  if (topProblems.value[0]?.text) return topProblems.value[0].text
+  const crit = abnormalVitals.value.filter((c) => c.tone === 'critical')
+  if (crit.length) return `${crit.length} 项体征达危急阈值：${crit.map((c) => `${c.label} ${c.value}${c.unit}`).join('，')}`
+  if (abnormalVitals.value.length) return `${abnormalVitals.value.length} 项体征偏离参考范围`
+  if (sepsisActive.value) return `脓毒症集束化治疗：${sepsisBundleStatusText.value}`
+  return '当前体征在参考范围内，无未处理预警'
+})
+
 function fmtShort(t: any) {
   if (!t) return ''
   const d = new Date(t)
@@ -247,17 +265,45 @@ const actionItems = computed(() => {
   return [{ priority: '建议', text: '暂无待办事项', tone: 'default' }]
 })
 
-// 脓毒症灯光颜色
-const bundleLightColor = computed(() => {
-  const map: Record<string, string> = { green: 'success', blue: 'processing', yellow: 'warning', orange: 'warning', red: 'error', gray: 'default' }
-  return map[sepsisBundleStatusResolved.value?.light] || 'default'
+// 器官状态：预警推导 + 当前体征/乳酸兜底（仅靠预警时，无预警会全部显示"正常"，与乳酸 4.2 等事实矛盾）
+const LEVEL_RANK: Record<string, number> = { critical: 0, failure: 0, high: 1, impaired: 1, warning: 2, normal: 3 }
+const vitalOrganHints = computed<Record<string, { level: string; evidence: string }>>(() => {
+  const v = vitals.value || {}
+  const out: Record<string, { level: string; evidence: string }> = {}
+  const map = Number(v.ibp_map ?? v.nibp_map ?? v.map)
+  const lac = Number(v.lactate)
+  const spo2 = Number(v.spo2)
+  const rr = Number(v.rr)
+  const circ: string[] = []
+  let circLevel = ''
+  if (Number.isFinite(map) && (v.ibp_map ?? v.nibp_map ?? v.map) != null) {
+    if (map < 55) { circLevel = 'critical'; circ.push(`MAP ${map}`) } else if (map < 65) { circLevel = circLevel || 'impaired'; circ.push(`MAP ${map}`) }
+  }
+  if (Number.isFinite(lac) && v.lactate != null) {
+    if (lac > 4) { circLevel = 'critical'; circ.push(`乳酸 ${lac}`) } else if (lac > 2) { circLevel = circLevel || 'impaired'; circ.push(`乳酸 ${lac}`) }
+  }
+  if (circLevel) out.circulatory = { level: circLevel, evidence: `当前 ${circ.join('、')}` }
+  const resp: string[] = []
+  let respLevel = ''
+  if (Number.isFinite(spo2) && v.spo2 != null) {
+    if (spo2 < 88) { respLevel = 'critical'; resp.push(`SpO₂ ${spo2}%`) } else if (spo2 < 92) { respLevel = 'impaired'; resp.push(`SpO₂ ${spo2}%`) }
+  }
+  if (Number.isFinite(rr) && v.rr != null && (rr > 25 || rr < 8)) { respLevel = respLevel || 'impaired'; resp.push(`RR ${rr}`) }
+  if (respLevel) out.respiratory = { level: respLevel, evidence: `当前 ${resp.join('、')}` }
+  return out
 })
-
-// 器官状态
-function organStatusClass(key: string) {
+function organLevel(key: string): string {
   const state = (patientBodyMapStates.value as any)?.[key]
-  if (!state) return 'organ-unknown'
-  const level = String(state.level || state || '').toLowerCase()
+  const alertLevel = state ? String(state.level || state || '').toLowerCase() : ''
+  const hint = vitalOrganHints.value[key]?.level || ''
+  if (!alertLevel) return hint
+  if (!hint) return alertLevel
+  return (LEVEL_RANK[hint] ?? 9) < (LEVEL_RANK[alertLevel] ?? 9) ? hint : alertLevel
+}
+function organHintEvidence(key: string) { return vitalOrganHints.value[key]?.evidence || '' }
+function organStatusClass(key: string) {
+  const level = organLevel(key)
+  if (!level) return 'organ-unknown'
   if (level === 'critical' || level === 'failure') return 'organ-critical'
   if (level === 'high' || level === 'impaired') return 'organ-warning'
   if (level === 'warning') return 'organ-caution'
@@ -265,10 +311,9 @@ function organStatusClass(key: string) {
 }
 
 function organStatusText(key: string) {
-  const state = (patientBodyMapStates.value as any)?.[key]
-  if (!state) return '—'
-  const level = String(state.level || state || '').toLowerCase()
-  const map: Record<string, string> = { normal: '正常', impaired: '受损', failure: '衰竭', warning: '预警', high: '高风险', critical: '危急' }
+  const level = organLevel(key)
+  if (!level) return '—'
+  const map: Record<string, string> = { normal: '未见异常', impaired: '受损', failure: '衰竭', warning: '预警', high: '高风险', critical: '危急' }
   return map[level] || level || '—'
 }
 
@@ -451,7 +496,7 @@ const eventTypeFilters = [
 /* Vitals grid */
 .vitals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
   gap: 10px;
 }
 
@@ -662,6 +707,31 @@ const eventTypeFilters = [
 .vital-delta { font-size: 11px; color: var(--color-text-secondary); }
 .delta-up { color: var(--color-warning); }
 .delta-down { color: var(--color-primary); }
+
+/* 结论先行卡片（公司蓝白卡片样式） */
+.pov-brief { background: #fff; border: 1px solid #E6E5E3; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+.pov-brief-head { height: 38px; background: #5392FF; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.pov-brief-title { font-size: 15px; font-weight: 600; }
+.pov-brief-meta { font-size: 12px; opacity: .9; }
+.pov-brief-body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; padding: 14px 16px; }
+@media (max-width: 900px) { .pov-brief-body { grid-template-columns: 1fr; } }
+.pov-headline { font-size: 18px; font-weight: 700; line-height: 1.45; color: #1F2329; }
+.pov-headline--critical { color: #B91C1C; }
+.pov-headline--warning { color: #B45309; }
+.pov-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pov-chip { font-size: 12px; padding: 2px 8px; border-radius: 4px; border: 1px solid; font-weight: 500; }
+.pov-chip.crit { background: #FEF2F2; color: #B91C1C; border-color: #FCA5A5; }
+.pov-chip.warn { background: #FFFBEB; color: #B45309; border-color: #FCD34D; }
+.pov-chip.ok { background: #E7F5EE; color: #2F7D55; border-color: #A7D9BF; }
+.pov-next { background: #F7F8FA; border-radius: 8px; padding: 10px 12px; }
+.pov-next-title { font-size: 13px; font-weight: 600; color: #5392FF; margin-bottom: 4px; }
+.pov-next ol { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; color: #1F2329; }
+.overview-view :deep(.collapse-section) { border-color: #E6E5E3; border-radius: 10px; }
+.overview-view :deep(.collapse-header h3) { border-left: 3px solid #5392FF; padding-left: 8px; }
+.organ-card:has(.organ-critical) { background: #FEF2F2; border-color: #FCA5A5; }
+.organ-card:has(.organ-warning) { background: #FFFBEB; border-color: #FCD34D; }
+.overview-block { margin-bottom: 12px; }
+.organ-source { margin: 8px 0 0; font-size: 12px; color: #8F959E; }
 </style>
 
 

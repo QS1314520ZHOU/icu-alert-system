@@ -173,7 +173,10 @@ const bedcardSummary = computed(() => {
 
 const primaryRiskLevel = computed(() => {
   const a = alerts.value
-  if (!a?.length) return 'stable'
+  if (!a?.length) {
+    const lv = String((patient.value as any)?.alertLevel || '').toLowerCase()
+    return ['critical', 'high', 'warning'].includes(lv) ? lv : 'stable'
+  }
   const hasCritical = a.some((x: any) => x.severity === 'critical')
   if (hasCritical) return 'critical'
   const hasHigh = a.some((x: any) => x.severity === 'high')
@@ -185,9 +188,9 @@ const primaryRiskLevel = computed(() => {
 
 const primaryRiskLabel = computed(() => {
   const labels: Record<string, string> = {
-    critical: '危急', high: '高风险', warning: '预警', stable: '稳定',
+    critical: '危急', high: '高风险', warning: '预警', stable: '无预警',
   }
-  return labels[primaryRiskLevel.value] || '稳定'
+  return labels[primaryRiskLevel.value] || '无预警'
 })
 
 // ── 安全条 ───────────────────────────────────────

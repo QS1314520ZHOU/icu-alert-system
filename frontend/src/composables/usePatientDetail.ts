@@ -321,7 +321,9 @@ function _createPatientDetail(_initialPatientId: string) {
   const sepsisBundleStatusResolved = computed(() => {
     const status = sepsisBundleStatus.value || {}
     const now = sepsisBundleNow.value
-    const rawStatus = String(status?.status || 'none').toLowerCase()
+    let rawStatus = String(status?.status || 'none').toLowerCase()
+    // 兼容旧/外部数据：active/running/in_progress 等价于计时中（pending）
+    if (['active', 'running', 'in_progress', 'started'].includes(rawStatus)) rawStatus = 'pending'
     const deadline1h = status?.deadline_1h ? dayjs(status.deadline_1h).valueOf() : null
     const deadline3h = status?.deadline_3h ? dayjs(status.deadline_3h).valueOf() : null
     let effectiveStatus = rawStatus || 'none'
@@ -419,12 +421,14 @@ function _createPatientDetail(_initialPatientId: string) {
     if (r?.status === 'met' || r?.status === 'met_late') {
       return r.elapsed_minutes != null ? `耗时 ${r.elapsed_minutes} 分钟` : ''
     }
-    if (r?.remaining_seconds_to_1h != null) return `距 1h 时限 ${formatCountdown(r.remaining_seconds_to_1h)}`
-    return ''
+    if (r?.status === 'none' || r?.remaining_seconds_to_1h == null) return ''
+    const sec = r.remaining_seconds_to_1h
+    if (sec < 0) return `已超过 1h 时限 ${formatCountdown(-sec)}`
+    return `距 1h 时限 ${formatCountdown(sec)}`
   })
   const sepsisBundleExtraText = computed(() => {
     const r = sepsisBundleStatusResolved.value
-    if (r?.status === 'pending' && r.remaining_seconds_to_3h != null) {
+    if ((r?.status === 'pending' || r?.status === 'overdue_1h') && r.remaining_seconds_to_3h != null && r.remaining_seconds_to_3h > 0) {
       return `距 3h 时限 ${formatCountdown(r.remaining_seconds_to_3h)}`
     }
     return ''

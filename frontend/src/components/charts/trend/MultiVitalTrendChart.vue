@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <div class="multi-vital__body" ref="chartRef" :style="{ height: height + 'px' }" />
+    <div class="multi-vital__body" ref="chartRef" :style="{ height: (hasData || loading ? height : 0) + 'px' }" />
 
     <ClinicalEmptyState
       v-if="loading"
