@@ -50,6 +50,7 @@ vi.mock('../config/roleHomeConfig', () => ({
     { key: 'more', label: '更多', items: [{ key: 'mdt', label: 'MDT会诊', icon: 'network', path: '/mdt' }] },
   ],
   moreMenuItems: [{ key: 'mdt', label: 'MDT会诊', icon: 'network', path: '/mdt' }],
+  roleHomeKeys: {},
 }))
 
 import { resolveNavigation, getAccessibleModuleKeys } from '../navigation/navigationResolver'

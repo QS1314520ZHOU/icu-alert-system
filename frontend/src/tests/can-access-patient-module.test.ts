@@ -87,7 +87,7 @@ describe('canAccessPatientModule', () => {
     it('featureFlag gating still applies when guard disabled', () => {
       delete import.meta.env[GUARD_KEY]
       const result = canAccessPatientModule('decision-assistants', {
-        featureFlag: 'ai-decision-assistants',
+        featureFlag: 'ai-unreleased-module',
         requiredRoles: ['doctor'],
       }, 'nurse')
       expect(result).toBe(false)
@@ -104,9 +104,9 @@ describe('canAccessPatientModule', () => {
     })
 
     it('should deny access when feature flag is disabled', () => {
-      // ai-decision-assistants is disabled by default
+      // unknown / unreleased flags are disabled by default
       const result = canAccessPatientModule('decision-assistants', {
-        featureFlag: 'ai-decision-assistants',
+        featureFlag: 'ai-unreleased-module',
       }, 'doctor')
       expect(result).toBe(false)
     })
@@ -122,7 +122,7 @@ describe('canAccessPatientModule', () => {
 
     it('should deny when feature flag is disabled even if role matches', () => {
       const result = canAccessPatientModule('decision-assistants', {
-        featureFlag: 'ai-decision-assistants',
+        featureFlag: 'ai-unreleased-module',
         requiredRoles: ['doctor'],
       }, 'doctor')
       expect(result).toBe(false)
@@ -138,7 +138,8 @@ describe('isFeatureEnabled', () => {
   })
 
   it('should return false for disabled flags', () => {
-    expect(isFeatureEnabled('ai-decision-assistants')).toBe(false)
+    expect(isFeatureEnabled('ai-unreleased-module')).toBe(false)
+    expect(isFeatureEnabled('ai-decision-assistants')).toBe(true)
   })
 
   it('should return true for enabled flags', () => {

@@ -5,7 +5,7 @@
  * SideNav.vue calls this; it never builds menus directly.
  */
 import type { NavGroup, NavItem, ResolvedNavigation, NavigationResolveOptions } from './navigationTypes'
-import { navGroups as globalNavGroups, moreMenuItems } from '../config/roleHomeConfig'
+import { navGroups as globalNavGroups, moreMenuItems, roleHomeKeys } from '../config/roleHomeConfig'
 import { PATIENT_MODULES, MODULE_GROUPS, type PatientModule } from '../config/patientModuleRegistry'
 import { canAccessPatientModule } from '../config/featureFlags'
 
@@ -33,12 +33,16 @@ export function resolveNavigation(opts: NavigationResolveOptions): ResolvedNavig
  * plus patient AI-analysis modules appended to the "AI 助手" group.
  */
 function resolveGlobalNavigation(role?: string): ResolvedNavigation {
+  const homeKeys = roleHomeKeys?.[String(role || '').toLowerCase()]
   const filteredGroups: NavGroup[] = globalNavGroups
     .filter(g => g.key !== 'more')
     .map(group => ({
       key: group.key,
       label: group.label,
-      items: group.items.map(item => ({
+      items: group.items
+        // 今日工作只显示本角色首页，避免护士看到“主任首页”等无关入口
+        .filter(item => group.key !== 'today' || !homeKeys || homeKeys.includes(item.key))
+        .map(item => ({
         key: item.key,
         label: item.label,
         icon: item.icon,

@@ -24,11 +24,11 @@ export type NavGroup = {
  *
  * 一级导航分组：
  * 1. 今日工作 - 角色首页
- * 2. 患者 - 患者总览、临床工作台
+ * 2. 患者 - 患者总览、临床工作台、智能查房（医生每日高频，不放在“更多”）
  * 3. 交接班 - 智能交接班
  * 4. AI 助手 - AI问诊（患者智能分析模块由 navigationResolver 追加到此组）
  * 5. 临床知识 - 病种中心
- * 6. 更多 - 查房、科研、MDT、呼吸、营养、质控、大屏、运营、管理配置
+ * 6. 更多 - 科研、MDT、呼吸、营养、质控、大屏、运营、管理配置
  *    （更多组内容以 moreMenuItems 为准，resolver 会过滤本文件的 more 组）
  */
 export const navGroups: NavGroup[] = [
@@ -48,6 +48,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { key: 'overview',       lines: ['患者','总览'],   label: '患者总览',   icon: 'users',        path: '/patients' },
       { key: 'clinical-workflow',lines: ['临床','工作台'],label: '临床工作台', icon: 'activity',     path: '/clinical-workflow' },
+      { key: 'rounding-sheet', lines: ['智能','查房'],   label: '智能查房',   icon: 'clipboard',    path: '/rounding-sheet' },
     ],
   },
   {
@@ -111,7 +112,6 @@ export const roleHomeConfig = {
  * 这些项目在侧边栏收起时显示在"更多"下拉菜单中
  */
 export const moreMenuItems = [
-  { key: 'rounding-sheet', label: '智能查房', icon: 'clipboard', path: '/rounding-sheet' },
   { key: 'academic-research', label: '学术科研', icon: 'book', path: '/academic-research' },
   { key: 'clinical-trials', label: '临床试验', icon: 'calendar', path: '/clinical-trials' },
   { key: 'research-workbench', label: '科研工作台', icon: 'flask', path: '/research-workbench' },
@@ -126,3 +126,12 @@ export const moreMenuItems = [
   { key: 'voice-correction-review', label: '语音纠错', icon: 'sparkles', path: '/admin/voice-correction-review' },
   { key: 'runtime-config', label: '配置中心', icon: 'settings', path: '/admin/runtime-config' },
 ]
+
+/** 角色 → “今日工作”中显示的首页（未识别角色时显示全部，便于开发/未接入角色的医院） */
+export const roleHomeKeys: Record<string, NavItemKey[]> = {
+  doctor: ['doctor-home'],
+  nurse: ['nurse-home'],
+  head_nurse: ['head-nurse-home', 'nurse-home'],
+  charge_nurse: ['head-nurse-home', 'nurse-home'],
+  director: ['director-home', 'doctor-home'],
+}

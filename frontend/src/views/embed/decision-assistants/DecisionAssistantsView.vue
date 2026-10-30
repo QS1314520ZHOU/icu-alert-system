@@ -32,7 +32,8 @@
             </tr>
           </tbody>
         </table>
-        <p class="da-footnote">参考标准为常用自主呼吸试验（SBT）前筛查阈值，科室可按本院流程调整；最终是否 SBT 由主管医生决定。</p>
+        <p class="da-footnote">系统未采集、需床旁人工核对：导致呼吸衰竭的原发病已好转；pH &gt; 7.25；体温 ≤ 38.5 ℃；无新发感染/心肌缺血；能自主触发吸气；咳痰与气道保护能力；升压药为低剂量或已停用。</p>
+        <p class="da-footnote">阈值参考 AARC 2024 SBT 临床实践指南与 ACCP/ATS 2017 撤机指南的常用筛查标准（AARC 指南不建议把 RSBI 作为进入 SBT 的必需条件），科室可按本院流程调整；最终是否 SBT 由主管医生决定。</p>
 
         <template v-if="gateFailures.length">
           <h4 class="da-h4">2. 未通过的门控条件（系统判定）</h4>
@@ -171,8 +172,8 @@ const EXEC_LABELS: Record<string, [string, Verdict]> = {
 }
 const ELEMENT_LABELS: Record<string, string> = {
   lactate: '血乳酸测定', lactate_repeat: '乳酸复查（初值≥2 mmol/L）', blood_culture: '抗生素前血培养',
-  antibiotic_assessment: '广谱抗生素评估', first_antibiotic: '首剂广谱抗生素', infection_source: '感染源评估与控制',
-  clinician_path_confirmation: '医生确认诊疗路径', fluid_resuscitation: '晶体液复苏 30 ml/kg', vasopressor: '血管活性药（MAP<65）',
+  antibiotic_assessment: '广谱抗生素评估', first_antibiotic: '首剂广谱抗生素（休克/高度可能脓毒症 1h 内；可能脓毒症无休克 3h 内评估后）', infection_source: '感染源评估与控制',
+  clinician_path_confirmation: '医生确认诊疗路径', fluid_resuscitation: '晶体液复苏 ≥30 ml/kg（低灌注/休克，3h 内，SSC 弱推荐）', vasopressor: '血管活性药（液体复苏后 MAP<65，首选去甲肾上腺素）',
 }
 const TRIGGER_LABELS: Record<string, string> = {
   suspected_sepsis_screening: '脓毒症筛查阳性', 'initial_lactate>=2': '初始乳酸≥2', 'lactate>=4': '乳酸≥4', hypotension: '低血压',
@@ -256,15 +257,15 @@ function remainClass(sec: unknown) {
 const weaningRows = computed(() => {
   const w = weaning.value || {}
   const rows: { key: string; label: string; value: number | null; display: string; ref: string; test: (v: number) => boolean }[] = [
-    { key: 'pf', label: '氧合指数 P/F', value: toNum(w.pf_ratio), display: num(w.pf_ratio, ' mmHg'), ref: '≥ 150 mmHg', test: (v) => v >= 150 },
+    { key: 'pf', label: '氧合指数 P/F', value: toNum(w.pf_ratio), display: num(w.pf_ratio, ' mmHg'), ref: '≥ 150 mmHg（或 FiO₂≤40% 时 SpO₂≥90%）', test: (v) => v >= 150 },
     { key: 'fio2', label: 'FiO₂', value: fio2Pct(w.fio2), display: fio2Text(w.fio2), ref: '≤ 40%', test: (v) => v <= 40 },
-    { key: 'peep', label: 'PEEP', value: toNum(w.peep), display: num(w.peep, ' cmH₂O'), ref: '≤ 8 cmH₂O', test: (v) => v <= 8 },
-    { key: 'rsbi', label: '浅快呼吸指数 RSBI', value: toNum(w.rsbi), display: num(w.rsbi), ref: '< 105 次/(min·L)', test: (v) => v < 105 },
+    { key: 'peep', label: 'PEEP', value: toNum(w.peep), display: num(w.peep, ' cmH₂O'), ref: '≤ 8 cmH₂O（部分方案 ≤10）', test: (v) => v <= 8 },
+    { key: 'rsbi', label: '浅快呼吸指数 RSBI（仅参考，不作为必需门槛）', value: toNum(w.rsbi), display: num(w.rsbi), ref: '< 105 次/(min·L)', test: (v) => v < 105 },
     { key: 'rr', label: '呼吸频率', value: toNum(w.rr), display: num(w.rr, ' 次/分'), ref: '< 35 次/分', test: (v) => v < 35 },
-    { key: 'vte', label: '潮气量 VT', value: toNum(w.vte_ml), display: num(w.vte_ml, ' ml'), ref: '≥ 5 ml/kg（约≥300 ml）', test: (v) => v >= 300 },
-    { key: 'map', label: '平均动脉压 MAP', value: toNum(w.map), display: num(w.map, ' mmHg'), ref: '≥ 65 mmHg 且无大剂量升压药', test: (v) => v >= 65 },
+    { key: 'vte', label: '潮气量 VT', value: toNum(w.vte_ml), display: num(w.vte_ml, ' ml'), ref: '≥ 5 ml/kg PBW（无体重时按 300 ml 判断）', test: (v) => v >= 300 },
+    { key: 'map', label: '平均动脉压 MAP', value: toNum(w.map), display: num(w.map, ' mmHg'), ref: '≥ 65 mmHg；升压药剂量需人工核对（NE ≤0.1 μg/kg/min）', test: (v) => v >= 65 },
     { key: 'rass', label: 'RASS', value: toNum(w.rass), display: num(w.rass), ref: '-2 ~ +1', test: (v) => v >= -2 && v <= 1 },
-    { key: 'gcs', label: 'GCS', value: toNum(w.gcs), display: num(w.gcs), ref: '≥ 8（能配合）', test: (v) => v >= 8 },
+    { key: 'gcs', label: 'GCS（拔管气道保护参考）', value: toNum(w.gcs), display: num(w.gcs), ref: '≥ 8', test: (v) => v >= 8 },
     { key: 'fo', label: '液体超负荷', value: toNum(w.fluid_overload_pct), display: num(w.fluid_overload_pct, '%'), ref: '< 10%', test: (v) => v < 10 },
   ]
   return rows.map((r) => ({ ...r, verdict: (r.value === null ? 'na' : r.test(r.value) ? 'pass' : 'fail') as Verdict }))

@@ -49,9 +49,9 @@ export const FEATURE_FLAGS: Record<string, FeatureFlagConfig> = {
     description: '循证证据检索',
   },
   'ai-decision-assistants': {
-    defaultEnabled: false,
+    defaultEnabled: true,
     requiredRoles: ['doctor', 'director'],
-    description: '专项决策助手（无真实API时默认关闭）',
+    description: '专项决策助手（撤机/SBT、脓毒症集束，已接入真实接口）',
   },
   'ai-documents': {
     defaultEnabled: true,

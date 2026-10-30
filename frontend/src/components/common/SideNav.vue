@@ -212,8 +212,8 @@ function loadCollapsedGroups(): Set<string> {
     const saved = localStorage.getItem(GROUP_STORAGE_KEY)
     if (saved) return new Set(JSON.parse(saved))
   } catch {}
-  // 默认除今日工作外全部收起
-  return new Set(['patients', 'handover', 'ai', 'clinical-knowledge', 'more'])
+  // 默认展开今日工作/患者/交接班/AI（高频入口），收起低频的临床知识与更多
+  return new Set(['clinical-knowledge', 'more'])
 }
 const collapsedGlobalGroups = ref(loadCollapsedGroups())
 function toggleGroupCollapse(key: string) {
