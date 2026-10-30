@@ -16,19 +16,41 @@
         <span class="ir-state__text">当前展示最近一次综合风险报告（{{ updatedAt }}），AI服务额度不足，暂时无法更新，请结合最新床旁情况判断。</span>
       </div>
 
-      <!-- 结论：等级 + 一句话态势 + 等级是怎么来的 -->
-      <div class="ir-section ir-conclusion" :class="`ir-conclusion--${riskLevel}`">
-        <div class="ir-card-header">
-          <span class="ir-situation-dot" :class="`ir-dot--${riskLevel}`" />
-          <h3 class="ir-card-title">综合风险：{{ RISK_LEVEL_LABELS[riskLevel] }}</h3>
-          <span class="ir-source" :class="sourceIsLlm ? 'ir-source--ai' : 'ir-source--rule'">{{ sourceLabel }}</span>
-          <span class="ir-card-time">报告时间 {{ updatedAt || '—' }}</span>
+      <!-- 结论先行：等级 + 一句话态势 + 关键数字 + 优先处理 -->
+      <section class="ir-brief" :class="`ir-brief--${riskLevel}`">
+        <header class="ir-brief__head">
+          <span class="ir-brief__title">综合风险</span>
+          <span class="ir-brief__meta">
+            <span class="ir-brief__src" :class="sourceIsLlm ? 'is-ai' : 'is-rule'">{{ sourceLabel }}</span>
+            <span>报告 {{ updatedAt || '—' }}</span>
+          </span>
+        </header>
+        <div class="ir-brief__body">
+          <div class="ir-brief__main">
+            <div class="ir-brief__level-row">
+              <span class="ir-level" :class="`ir-level--${riskLevel}`">{{ RISK_LEVEL_LABELS[riskLevel] }}</span>
+              <span class="ir-brief__headline">{{ localize(situationText) || '综合风险分析完成' }}</span>
+            </div>
+            <div class="ir-brief__chips">
+              <span v-if="density.critical_count" class="ir-chip crit">危急告警 {{ density.critical_count }}</span>
+              <span v-if="density.high_count" class="ir-chip warn">高危告警 {{ density.high_count }}</span>
+              <span v-if="density.total_alerts !== undefined" class="ir-chip" :class="density.accelerating ? 'crit' : 'ok'">{{ density.accelerating ? `告警加速 ${density.early_half_count ?? 0}→${density.late_half_count ?? 0}` : '告警密度未加速' }}</span>
+              <span v-for="g in alertGroups" :key="'s' + g.system" class="ir-chip" :class="g.highest === 'critical' ? 'crit' : g.highest === 'high' ? 'warn' : ''">{{ g.system }} {{ g.count }}</span>
+            </div>
+            <p class="ir-basis"><b>等级依据：</b>{{ levelBasis }}</p>
+          </div>
+          <div v-if="topActions.length" class="ir-next">
+            <div class="ir-next__title">优先处理</div>
+            <div v-for="(action, idx) in topActions" :key="idx" class="ir-next__item">
+              <span class="ir-next__badge" :class="`ir-next__badge--${action.priority}`">{{ action.urgencyLabel }}</span>
+              <div class="ir-next__content">
+                <p class="ir-next__text">{{ action.text }}</p>
+                <p v-if="action.evidence" class="ir-next__why">理由：{{ localize(action.evidence) }}</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <p class="ir-situation-text">{{ situationText || '综合风险分析完成' }}</p>
-        <p class="ir-basis">
-          <b>等级依据：</b>{{ levelBasis }}
-        </p>
-      </div>
+      </section>
 
       <!-- 多器官状态（旧版报告/外部模型提供时展示） -->
       <div v-if="organs.length" class="ir-section">
@@ -44,51 +66,10 @@
         </div>
       </div>
 
-      <!-- 第1步：输入了哪些告警 -->
-      <div class="ir-section">
-        <div class="ir-section-header">
-          <h3 class="ir-section-title"><span class="ir-step">1</span>输入数据：活跃告警按器官系统归类</h3>
-          <span class="ir-section-hint">共 {{ density.total_alerts ?? alertTotal }} 条，纳入推理的告警 ID {{ sourceAlertCount }} 个</span>
-        </div>
-        <div v-if="density.total_alerts !== undefined" class="ir-density">
-          <span class="ir-density__item">危急 <b class="ir-c-critical">{{ density.critical_count ?? 0 }}</b></span>
-          <span class="ir-density__item">高危 <b class="ir-c-high">{{ density.high_count ?? 0 }}</b></span>
-          <span class="ir-density__item">回看窗口前半段 <b>{{ density.early_half_count ?? 0 }}</b> 条 → 后半段 <b>{{ density.late_half_count ?? 0 }}</b> 条</span>
-          <span class="ir-density__trend" :class="density.accelerating ? 'ir-c-critical' : ''">
-            {{ density.accelerating ? '告警密度加速（后半段比前半段多≥2条）' : '告警密度未明显加速' }}
-          </span>
-        </div>
-        <div v-if="alertGroups.length" class="ir-groups">
-          <details v-for="g in alertGroups" :key="g.system" class="ir-group" :open="g.rank >= 2">
-            <summary class="ir-group__head">
-              <span class="ir-group__name">{{ g.system }}</span>
-              <span class="ir-evidence-type" :class="`ir-ev--${g.highest}`">{{ SEVERITY_LABELS[g.highest] || g.highest }}</span>
-              <span class="ir-group__count">{{ g.count }} 条</span>
-            </summary>
-            <div v-for="a in g.alerts" :key="a.alert_id || a.title + a.timestamp" class="ir-evidence-item">
-              <span class="ir-evidence-time">{{ fmtTime(a.timestamp) }}</span>
-              <span class="ir-evidence-type" :class="`ir-ev--${a.level || 'info'}`">{{ SEVERITY_LABELS[a.level] || a.level || '—' }}</span>
-              <span class="ir-evidence-text">
-                {{ a.title }}
-                <span v-for="kv in detailPairs(a.detail)" :key="kv" class="ir-kv">{{ kv }}</span>
-              </span>
-            </div>
-          </details>
-        </div>
-        <p v-else-if="evidenceList.length === 0" class="ir-causal-text">报告未保存告警明细（旧版报告），请在“告警”页查看原始记录。</p>
-        <div v-if="evidenceList.length" class="ir-evidence-list">
-          <div v-for="(ev, idx) in evidenceList" :key="idx" class="ir-evidence-item">
-            <span class="ir-evidence-time">{{ ev.time }}</span>
-            <span class="ir-evidence-type" :class="`ir-ev--${ev.level}`">{{ ev.type }}</span>
-            <span class="ir-evidence-text">{{ ev.text }}</span>
-          </div>
-        </div>
-      </div>
-
       <!-- 第2步：推理过程 -->
       <div v-if="causalChain.length || causalChainText || forecastText || differentials.length" class="ir-section">
         <div class="ir-section-header">
-          <h3 class="ir-section-title"><span class="ir-step">2</span>推理过程</h3>
+          <h3 class="ir-section-title"><span class="ir-step">1</span>推理过程</h3>
         </div>
         <div v-if="causalChain.length || causalChainText" class="ir-reason-block">
           <h4 class="ir-h4">病理生理关联（风险因果链）</h4>
@@ -102,11 +83,11 @@
               <span v-if="Number(idx) < causalChain.length - 1" class="ir-chain-arrow">→</span>
             </div>
           </div>
-          <p v-else class="ir-causal-text">{{ causalChainText }}</p>
+          <p v-else class="ir-causal-text">{{ localize(causalChainText) }}</p>
         </div>
         <div v-if="forecastText" class="ir-reason-block">
           <h4 class="ir-h4">未来 4–12 小时恶化预判</h4>
-          <p class="ir-causal-text">{{ forecastText }}</p>
+          <p class="ir-causal-text">{{ localize(forecastText) }}</p>
         </div>
         <div v-if="differentials.length" class="ir-reason-block">
           <h4 class="ir-h4">需要鉴别 / 排除</h4>
@@ -116,18 +97,43 @@
         </div>
       </div>
 
-      <!-- 第3步：行动建议，带理由和时限 -->
-      <div v-if="topActions.length" class="ir-section">
+      <!-- 第1步：输入了哪些告警 -->
+      <div class="ir-section">
         <div class="ir-section-header">
-          <h3 class="ir-section-title"><span class="ir-step">3</span>行动建议（按时限排序）</h3>
+          <h3 class="ir-section-title"><span class="ir-step">2</span>依据：活跃告警按器官系统归类</h3>
+          <span class="ir-section-hint">共 {{ density.total_alerts ?? alertTotal }} 条，纳入推理的告警 ID {{ sourceAlertCount }} 个</span>
         </div>
-        <div class="ir-actions-list">
-          <div v-for="(action, idx) in topActions" :key="idx" class="ir-action-item" :class="`ir-action--${action.priority}`">
-            <div class="ir-action-badge">{{ action.urgencyLabel }}</div>
-            <div class="ir-action-content">
-              <p class="ir-action-text">{{ action.text }}</p>
-              <p v-if="action.evidence" class="ir-action-evidence">理由：{{ action.evidence }}</p>
+        <div v-if="density.total_alerts !== undefined" class="ir-density">
+          <span class="ir-density__item">危急 <b class="ir-c-critical">{{ density.critical_count ?? 0 }}</b></span>
+          <span class="ir-density__item">高危 <b class="ir-c-high">{{ density.high_count ?? 0 }}</b></span>
+          <span class="ir-density__item">回看窗口前半段 <b>{{ density.early_half_count ?? 0 }}</b> 条 → 后半段 <b>{{ density.late_half_count ?? 0 }}</b> 条</span>
+          <span class="ir-density__trend" :class="density.accelerating ? 'ir-c-critical' : ''">
+            {{ density.accelerating ? '告警密度加速（后半段比前半段多≥2条）' : '告警密度未明显加速' }}
+          </span>
+        </div>
+        <div v-if="alertGroups.length" class="ir-groups">
+          <details v-for="g in alertGroups" :key="g.system" class="ir-group" :open="g.rank >= 3">
+            <summary class="ir-group__head">
+              <span class="ir-group__name">{{ g.system }}</span>
+              <span class="ir-evidence-type" :class="`ir-ev--${g.highest}`">{{ SEVERITY_LABELS[g.highest] || g.highest }}</span>
+              <span class="ir-group__count">{{ g.count }} 条</span>
+            </summary>
+            <div v-for="a in g.alerts" :key="a.alert_id || a.title + a.timestamp" class="ir-evidence-item">
+              <span class="ir-evidence-time">{{ fmtTime(a.timestamp) }}</span>
+              <span class="ir-evidence-type" :class="`ir-ev--${a.level || 'info'}`">{{ SEVERITY_LABELS[a.level] || a.level || '—' }}</span>
+              <span class="ir-evidence-text">
+                {{ localize(a.title) }}
+                <span v-for="kv in detailPairs(a.detail)" :key="kv" class="ir-kv">{{ kv }}</span>
+              </span>
             </div>
+          </details>
+        </div>
+        <p v-else-if="evidenceList.length === 0" class="ir-causal-text">报告未保存告警明细（旧版报告），请在“告警”页查看原始记录。</p>
+        <div v-if="evidenceList.length" class="ir-evidence-list">
+          <div v-for="(ev, idx) in evidenceList" :key="idx" class="ir-evidence-item">
+            <span class="ir-evidence-time">{{ ev.time }}</span>
+            <span class="ir-evidence-type" :class="`ir-ev--${ev.level}`">{{ ev.type }}</span>
+            <span class="ir-evidence-text">{{ ev.text }}</span>
           </div>
         </div>
       </div>
@@ -267,15 +273,27 @@ const alertGroups = computed(() => {
 const alertTotal = computed(() => alertGroups.value.reduce((n, g) => n + g.count, 0))
 
 /** 从告警 extra 里挑出可读的数值字段，展示“触发时的实际值” */
+const DETAIL_LABELS: Record<string, string> = {
+  map: 'MAP', sbp: '收缩压', dbp: '舒张压', hr: 'HR', rr: 'RR', spo2: 'SpO₂', temp: '体温', lactate: '乳酸', pct: 'PCT',
+  pf_ratio: 'P/F', fio2: 'FiO₂', peep: 'PEEP', gcs: 'GCS', rass: 'RASS', creatinine: '肌酐', urine_ml_kg_h: '尿量 ml/kg/h',
+  ne_dose: '去甲 μg/kg/min', duration_min: '持续(分钟)', platelet: '血小板', bilirubin: '胆红素', sofa: 'SOFA', delta: '变化',
+  value: '值', threshold: '阈值', score: '评分',
+}
+/** 后端模板文本里夹带的英文等级词转中文 */
+function localize(text: unknown): string {
+  return String(text || '')
+    .replace(/\bcritical\b/gi, '危急').replace(/\bhigh\b/gi, '高危').replace(/\bwarning\b/gi, '警告')
+}
 const DETAIL_SKIP = new Set(['patient_id', 'rule_id', 'alert_id', 'id', '_id', 'explanation', 'suggestion', 'summary', 'text', 'evidence', 'detail'])
 function detailPairs(detail: unknown): string[] {
   if (!detail || typeof detail !== 'object') return []
   const out: string[] = []
   for (const [k, v] of Object.entries(detail as Record<string, unknown>)) {
     if (DETAIL_SKIP.has(k)) continue
-    if (typeof v === 'number') out.push(`${k}=${Number.isInteger(v) ? v : v.toFixed(2)}`)
-    else if (typeof v === 'string' && v.length <= 24 && v.trim()) out.push(`${k}=${v}`)
-    else if (typeof v === 'boolean' && v) out.push(k)
+    const label = DETAIL_LABELS[k] || k
+    if (typeof v === 'number') out.push(`${label} ${Number.isInteger(v) ? v : Number(v.toFixed(2))}`)
+    else if (typeof v === 'string' && v.length <= 24 && v.trim()) out.push(`${label} ${v}`)
+    else if (typeof v === 'boolean' && v) out.push(label)
     if (out.length >= 4) break
   }
   return out
@@ -513,8 +531,8 @@ watch(patientId, (id, prev) => {
 .ir-group:last-child { border-bottom: none }
 .ir-group__head { display: flex; align-items: center; gap: 10px; padding: 10px 0; cursor: pointer; list-style: none }
 .ir-group__head::-webkit-details-marker { display: none }
-.ir-group__head::before { content: '▸'; color: var(--color-text-tertiary, #9CA3AF) }
-.ir-group[open] > .ir-group__head::before { content: '▾' }
+.ir-group__head::before { content: ''; width: 7px; height: 7px; border-right: 1.5px solid #9CA3AF; border-bottom: 1.5px solid #9CA3AF; transform: rotate(-45deg); transition: transform .2s; flex-shrink: 0 }
+.ir-group[open] > .ir-group__head::before { transform: rotate(45deg) translate(-1px, -1px) }
 .ir-group__name { font-weight: 600; color: var(--color-text-primary, #111827); font-size: var(--text-body, 13px) }
 .ir-group__count { margin-left: auto; font-size: var(--text-caption, 12px); color: var(--color-text-secondary, #4B5563) }
 .ir-group .ir-evidence-item { grid-template-columns: 90px 56px 1fr; padding: 8px 0 8px 18px }
@@ -541,4 +559,37 @@ watch(patientId, (id, prev) => {
 
 }
 
+
+/* 结论先行卡片（公司蓝白样式） */
+.ir-brief { background: #fff; border: 1px solid #E6E5E3; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+.ir-brief__head { height: 38px; background: #5392FF; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.ir-brief__title { font-size: 15px; font-weight: 600; }
+.ir-brief__meta { display: flex; gap: 10px; align-items: center; font-size: 12px; }
+.ir-brief__src { background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 8px; }
+.ir-brief__body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 16px; padding: 14px 16px; }
+@media (max-width: 900px) { .ir-brief__body { grid-template-columns: 1fr; } }
+.ir-brief__level-row { display: flex; gap: 10px; align-items: flex-start; }
+.ir-level { flex-shrink: 0; font-size: 14px; font-weight: 700; padding: 3px 10px; border-radius: 6px; border: 1px solid; }
+.ir-level--critical { background: #FEF2F2; color: #B91C1C; border-color: #FCA5A5; }
+.ir-level--high { background: #FFF7ED; color: #C2410C; border-color: #FDBA74; }
+.ir-level--warning { background: #FFFBEB; color: #B45309; border-color: #FCD34D; }
+.ir-level--normal { background: #E7F5EE; color: #2F7D55; border-color: #A7D9BF; }
+.ir-brief__headline { font-size: 16px; font-weight: 600; line-height: 1.55; color: #1F2329; }
+.ir-brief__chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.ir-chip { font-size: 12px; padding: 2px 8px; border-radius: 4px; border: 1px solid #E6E5E3; background: #F7F8FA; color: #1F2329; }
+.ir-chip.crit { background: #FEF2F2; color: #B91C1C; border-color: #FCA5A5; }
+.ir-chip.warn { background: #FFFBEB; color: #B45309; border-color: #FCD34D; }
+.ir-chip.ok { background: #E7F5EE; color: #2F7D55; border-color: #A7D9BF; }
+.ir-next { background: #F7F8FA; border-radius: 8px; padding: 10px 12px; }
+.ir-next__title { font-size: 13px; font-weight: 600; color: #5392FF; margin-bottom: 6px; }
+.ir-next__item { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid #EBEDF0; }
+.ir-next__item:first-of-type { border-top: 0; }
+.ir-next__badge { flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; height: fit-content; white-space: nowrap; }
+.ir-next__badge--critical { background: #FEF2F2; color: #B91C1C; }
+.ir-next__badge--high { background: #FFF7ED; color: #C2410C; }
+.ir-next__badge--medium, .ir-next__badge--low { background: #EEF4FF; color: #2F6FED; }
+.ir-next__text { margin: 0; font-size: 13px; font-weight: 500; color: #1F2329; }
+.ir-next__why { margin: 2px 0 0; font-size: 12px; color: #646A73; }
+.ir-section-title { border-left: 3px solid #5392FF; padding-left: 8px; }
+.ir-brief .ir-basis { padding: 0; }
 </style>

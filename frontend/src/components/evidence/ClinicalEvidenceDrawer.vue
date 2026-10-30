@@ -36,7 +36,7 @@
         <section class="ev-section">
           <div class="ev-section-title" @click="toggleSection('metrics')">
             <span>关键指标</span>
-            <span class="ev-toggle">{{ expanded.metrics ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.metrics }" aria-hidden="true"></span>
           </div>
           <EvidenceMetricCards v-if="expanded.metrics" :metrics="evidence.metrics" />
         </section>
@@ -45,7 +45,7 @@
         <section class="ev-section">
           <div class="ev-section-title" @click="toggleSection('trends')">
             <span>趋势图</span>
-            <span class="ev-toggle">{{ expanded.trends ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.trends }" aria-hidden="true"></span>
           </div>
           <EvidenceTrendChart v-if="expanded.trends" :trends="evidence.trends" />
         </section>
@@ -54,7 +54,7 @@
         <section class="ev-section">
           <div class="ev-section-title" @click="toggleSection('rows')">
             <span>原始证据 ({{ evidence.evidence_rows.length }})</span>
-            <span class="ev-toggle">{{ expanded.rows ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.rows }" aria-hidden="true"></span>
           </div>
           <EvidenceTable v-if="expanded.rows" :rows="evidence.evidence_rows" show-source />
         </section>
@@ -63,7 +63,7 @@
         <section class="ev-section">
           <div class="ev-section-title" @click="toggleSection('rule')">
             <span>评分计算明细</span>
-            <span class="ev-toggle">{{ expanded.rule ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.rule }" aria-hidden="true"></span>
           </div>
           <RuleCalculationPanel v-if="expanded.rule" :rule-calc="evidence.rule_calculation" />
         </section>
@@ -73,7 +73,7 @@
           <div class="ev-section-title" @click="toggleSection('ai')">
             <span>AI 分析</span>
             <span v-if="evidence.ai_analysis" class="ev-badge-ai">AI</span>
-            <span class="ev-toggle">{{ expanded.ai ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.ai }" aria-hidden="true"></span>
           </div>
           <div v-if="expanded.ai">
             <AiEvidenceAnalysis v-if="evidence.ai_analysis" :ai-analysis="evidence.ai_analysis" />
@@ -85,7 +85,7 @@
         <section class="ev-section">
           <div class="ev-section-title" @click="toggleSection('timeline')">
             <span>临床事件时间线 ({{ evidence.timeline.length }})</span>
-            <span class="ev-toggle">{{ expanded.timeline ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.timeline }" aria-hidden="true"></span>
           </div>
           <EvidenceTimeline v-if="expanded.timeline" :events="evidence.timeline" />
         </section>
@@ -94,7 +94,7 @@
         <section class="ev-section ev-provenance">
           <div class="ev-section-title" @click="toggleSection('provenance')">
             <span>数据来源与版本</span>
-            <span class="ev-toggle">{{ expanded.provenance ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.provenance }" aria-hidden="true"></span>
           </div>
           <div v-if="expanded.provenance" class="prov-body">
             <div class="prov-row">
@@ -124,7 +124,7 @@
         <section v-if="evidence.missing_data.length" class="ev-section ev-missing">
           <div class="ev-section-title missing-title" @click="toggleSection('missing')">
             <span>⚠ 数据缺失 ({{ evidence.missing_data.length }})</span>
-            <span class="ev-toggle">{{ expanded.missing ? '▾' : '▸' }}</span>
+            <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.missing }" aria-hidden="true"></span>
           </div>
           <div v-if="expanded.missing" class="missing-body">
             <div v-for="item in evidence.missing_data" :key="item.code" class="missing-item">

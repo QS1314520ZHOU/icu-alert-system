@@ -1,6 +1,6 @@
 <template>
-  <section class="sbc" aria-label="脓毒症集束化">
-    <header class="sbc-head">
+  <section class="sbc" :class="{ 'sbc--embedded': embedded }" aria-label="脓毒症集束化">
+    <header v-if="!embedded" class="sbc-head">
       <span class="sbc-title">脓毒症集束化</span>
       <span class="sbc-head-meta">
         <span v-if="t0">T0 {{ t0 }}</span>
@@ -8,7 +8,10 @@
       </span>
     </header>
     <div class="sbc-body">
-      <div class="sbc-headline" :class="`t-${headline.tone}`">{{ headline.text }}</div>
+      <div class="sbc-headline" :class="`t-${headline.tone}`">
+        <span v-if="embedded" class="sbc-inline-status">{{ status?.label || '未进入计时' }}</span>
+        {{ headline.text }}<small v-if="embedded && t0" class="sbc-t0">T0 {{ t0 }}</small>
+      </div>
 
       <div v-if="gateGroups.length" class="sbc-gate">
         <span v-for="g in gateGroups" :key="g.label" class="sbc-gate-group">
@@ -57,7 +60,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { buildBundleRows, buildWindows, bundleHeadline, fmtHm } from './sepsisBundleModel'
 
-const props = defineProps<{ status: any }>()
+const props = defineProps<{ status: any; embedded?: boolean }>()
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | null = null
 onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 30_000) })
@@ -128,4 +131,8 @@ const gateGroups = computed(() => {
 .sbc-rules { margin-top: 8px; font-size: 12px; color: #646A73; }
 .sbc-rules summary { cursor: pointer; color: #5392FF; }
 .sbc-rules ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
+.sbc--embedded { border: 0; border-radius: 0; }
+.sbc--embedded .sbc-body { padding: 0; }
+.sbc-inline-status { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 4px; background: #EEF4FF; color: #2F6FED; margin-right: 6px; vertical-align: 2px; }
+.sbc-t0 { font-size: 12px; font-weight: 400; color: #8F959E; margin-left: 8px; }
 </style>

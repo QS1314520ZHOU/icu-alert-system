@@ -5,8 +5,9 @@
     <!-- 顶部工具栏 -->
     <div class="toolbar">
       <div class="toolbar-left">
-        <span class="alert-count" v-if="filteredAlerts.length">{{ filteredAlerts.length }} 条活跃</span>
-        <span class="alert-count alert-count--ok" v-else>暂无活跃预警</span>
+        <span class="alert-count" v-if="filteredAlerts.length">{{ isFiltered ? `筛选后 ${filteredAlerts.length} / ${allCount} 条` : `${allCount} 条活跃` }}</span>
+        <span class="alert-count alert-count--ok" v-else-if="!allCount">暂无活跃预警</span>
+        <span class="alert-count" v-else>筛选后 0 / {{ allCount }} 条</span>
       </div>
 
       <div class="toolbar-right">
@@ -19,7 +20,7 @@
             @click="severityFilter = severityFilter === s.value ? undefined : s.value"
           >
             <span class="seg-dot" :class="`seg-dot--${s.value}`"></span>
-            {{ s.label }}
+            {{ s.label }}<b v-if="severityCounts[s.value]" class="seg-count">{{ severityCounts[s.value] }}</b>
           </button>
         </div>
 
@@ -31,7 +32,7 @@
 
         <!-- 刷新 -->
         <button class="icon-btn" @click="handleRefresh" :disabled="alertsLoading" title="刷新数据">
-          <span :class="{ spinning: alertsLoading }">↻</span>
+          <span :class="{ spinning: alertsLoading }" style="display:inline-flex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></span>
         </button>
       </div>
     </div>
@@ -81,9 +82,15 @@
 
       <!-- 空状态 -->
       <div v-else class="empty-state">
-        <div class="empty-icon">✓</div>
-        <p class="empty-text">所有预警已处理</p>
-        <p class="empty-hint">当前无活跃风险指标</p>
+        <template v-if="allCount">
+          <p class="empty-text">当前筛选条件下没有预警</p>
+          <p class="empty-hint">共有 {{ allCount }} 条活跃预警，<a href="#" @click.prevent="clearFilters">清除筛选</a></p>
+        </template>
+        <template v-else>
+          <div class="empty-icon">✓</div>
+          <p class="empty-text">暂无未处理预警</p>
+          <p class="empty-hint">无预警不等于病情平稳，请结合生命体征与床旁评估</p>
+        </template>
       </div>
     </div>
 
@@ -164,6 +171,21 @@ const filteredAlerts = computed(() => {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 })
+
+const allCount = computed(() => (alerts.value || []).length)
+const isFiltered = computed(() => !!severityFilter.value || !!domainFilter.value)
+const severityCounts = computed(() => {
+  const out: Record<string, number> = {}
+  for (const a of alerts.value || []) {
+    const k = normalizeSeverity(a?.severity)
+    out[k] = (out[k] || 0) + 1
+  }
+  return out
+})
+function clearFilters() {
+  severityFilter.value = undefined
+  domainFilter.value = ''
+}
 
 function severityShort(alert: any) {
   const sev = normalizeSeverity(alert.severity)
@@ -604,4 +626,5 @@ function severityShort(alert: any) {
     padding: 4px 8px;
   }
 }
+.seg-count { margin-left: 4px; font-weight: 700; font-variant-numeric: tabular-nums; }
 </style>

@@ -1,120 +1,79 @@
 <template>
   <div class="handover-overview">
-    <!-- Header -->
     <header class="overview-header">
       <div class="header-left">
         <h1 class="page-title">智能交接班</h1>
         <span class="dept-name">{{ deptName || '全院' }}</span>
-        <span v-if="currentShift" class="shift-badge">{{ currentShift.name }}</span>
+        <span v-if="currentShift?.name" class="shift-badge">{{ currentShift.name }}<template v-if="currentShift.start_time"> {{ currentShift.start_time }}–{{ currentShift.end_time }}</template></span>
       </div>
       <div class="header-right">
-        <a-button type="primary" :loading="generating" @click="onGenerate">
-          生成总结
-        </a-button>
-        <a-button @click="onRefresh">刷新</a-button>
+        <a-button type="primary" :loading="generating" @click="onGenerate">生成并保存总结</a-button>
+        <a-button :loading="loading" @click="onRefresh">刷新</a-button>
       </div>
     </header>
 
-    <!-- Stats cards -->
-    <div class="stats-row" v-if="summary">
-      <div class="stat-card">
-        <div class="stat-value">{{ summary.patient_count }}</div>
-        <div class="stat-label">在科患者</div>
-      </div>
-      <div class="stat-card stat-card--critical">
-        <div class="stat-value">{{ summary.critical_patient_count }}</div>
-        <div class="stat-label">危重患者</div>
-      </div>
-      <div class="stat-card stat-card--warning">
-        <div class="stat-value">{{ summary.draft_patient_count }}</div>
-        <div class="stat-label">未完成交班</div>
-      </div>
-      <div class="stat-card stat-card--info">
-        <div class="stat-value">{{ summary.submitted_patient_count }}</div>
-        <div class="stat-label">待签收</div>
-      </div>
-      <div class="stat-card stat-card--alert">
-        <div class="stat-value">{{ summary.unclosed_alert_count }}</div>
-        <div class="stat-label">未闭环告警</div>
-      </div>
-      <div class="stat-card stat-card--task">
-        <div class="stat-value">{{ (summary.missing_sources || []).includes('tasks') ? '未接入' : summary.overdue_task_count }}</div>
-        <div class="stat-label">逾期任务</div>
-      </div>
-    </div>
-
-    <!-- Summary text -->
-    <a-card v-if="summary?.deterministic_summary" class="summary-card" title="整体交班摘要">
-      <p class="summary-text">{{ summary.deterministic_summary }}</p>
-      <p v-if="summary.ai_summary" class="ai-summary-text">{{ summary.ai_summary }}</p>
-      <div class="summary-meta">
-        数据截止：{{ summary.data_end }} | 生成时间：{{ summary.created_at }}
-      </div>
-    </a-card>
-
-    <!-- Priority items -->
-    <a-card v-if="summary?.priority_items?.length" class="priority-card" title="重点患者">
-      <a-table
-        :data-source="summary.priority_items"
-        :columns="priorityColumns"
-        size="small"
-        :pagination="false"
-        row-key="patient_id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'severity'">
-            <a-tag :color="severityColor(record.severity)">{{ record.severity }}</a-tag>
-          </template>
-          <template v-if="column.key === 'action'">
-            <a @click="goToPatient(record.patient_id)">查看ISBAR</a>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
-
-    <!-- Life support summary -->
-    <div class="life-support-row" v-if="summary">
-      <a-card class="ls-card" title="生命支持统计" size="small">
-        <div class="ls-grid">
-          <div class="ls-item">
-            <span class="ls-value">{{ summary.ventilator_patient_count }}</span>
-            <span class="ls-label">呼吸机</span>
-          </div>
-          <div class="ls-item">
-            <span class="ls-value">{{ summary.vasoactive_patient_count }}</span>
-            <span class="ls-label">血管活性药</span>
-          </div>
-          <div class="ls-item">
-            <span class="ls-value">{{ summary.crrt_patient_count }}</span>
-            <span class="ls-label">CRRT</span>
-          </div>
-          <div class="ls-item">
-            <span class="ls-value">{{ summary.isolation_patient_count }}</span>
-            <span class="ls-label">隔离</span>
-          </div>
-          <div class="ls-item">
-            <span class="ls-value">{{ summary.high_risk_line_count }}</span>
-            <span class="ls-label">高危管路</span>
-          </div>
+    <template v-if="summary">
+      <!-- 结论先行：本班交接重点 -->
+      <section class="ho-brief">
+        <div class="ho-brief__head">
+          <span class="ho-brief__title">本班交接重点</span>
+          <span class="ho-brief__meta">数据 {{ fmtTime(summary.data_start) }} — {{ fmtTime(summary.data_end) }}</span>
         </div>
-      </a-card>
-    </div>
+        <div class="ho-brief__body">
+          <p class="ho-brief__headline">{{ summary.deterministic_summary || '本班暂无交班摘要' }}</p>
+          <div class="ho-tiles">
+            <div class="ho-tile"><span>在科患者</span><b>{{ summary.patient_count ?? '—' }}</b></div>
+            <div class="ho-tile" :class="{ crit: summary.critical_patient_count }"><span>危急患者</span><b>{{ summary.critical_patient_count ?? 0 }}</b></div>
+            <div class="ho-tile" :class="{ crit: summary.unclosed_alert_count }"><span>未闭环告警</span><b>{{ summary.unclosed_alert_count ?? 0 }}</b></div>
+            <div class="ho-tile" :class="{ warn: summary.draft_patient_count }"><span>未完成交班</span><b>{{ summary.draft_patient_count ?? 0 }}</b></div>
+            <div class="ho-tile" :class="{ warn: summary.submitted_patient_count }"><span>待签收</span><b>{{ summary.submitted_patient_count ?? 0 }}</b></div>
+            <div class="ho-tile" :class="{ warn: !tasksMissing && summary.overdue_task_count }"><span>逾期任务</span><b>{{ tasksMissing ? '未接入' : (summary.overdue_task_count ?? 0) }}</b></div>
+          </div>
+          <div class="ho-support">
+            <span class="ho-support__label">生命支持</span>
+            <span class="ho-chip">呼吸机 {{ summary.ventilator_patient_count ?? 0 }}</span>
+            <span class="ho-chip">血管活性药 {{ summary.vasoactive_patient_count ?? 0 }}</span>
+            <span class="ho-chip">CRRT {{ summary.crrt_patient_count ?? 0 }}</span>
+            <span class="ho-chip">隔离 {{ summary.isolation_patient_count ?? 0 }}</span>
+            <span class="ho-chip" :class="{ warn: summary.high_risk_line_count }">高危管路 {{ summary.high_risk_line_count ?? 0 }}</span>
+            <span v-if="movementText" class="ho-chip">{{ movementText }}</span>
+          </div>
+          <p v-if="sourceWarning" class="ho-warn">{{ sourceWarning }}</p>
+          <p v-if="summary.ai_summary" class="ai-summary-text">AI 补充：{{ summary.ai_summary }}</p>
+        </div>
+      </section>
 
-    <!-- Charts row -->
-    <div class="charts-row" v-if="summary">
+      <!-- 重点患者：按后端风险等级排序，列出全部判定原因 -->
+      <section class="ho-card">
+        <div class="ho-card__head">
+          <h3>重点患者 <small>{{ focusPatients.length }} 名</small></h3>
+          <span class="ho-card__hint">危急：危急值或未闭环高危告警；高危：血管活性药/CRRT/未闭环告警；中危：机械通气/高危管路</span>
+        </div>
+        <div v-if="focusPatients.length" class="ho-focus">
+          <button v-for="p in focusPatients" :key="p.patient_id" type="button" class="ho-focus__row" :class="`lv-${p.risk_level}`" @click="goToPatient(p.patient_id)">
+            <span class="ho-focus__level">{{ LEVEL_LABELS[p.risk_level] || p.risk_level }}</span>
+            <span class="ho-focus__bed">{{ p.bed }}床</span>
+            <span class="ho-focus__name">{{ p.name }}</span>
+            <span class="ho-focus__dx">{{ p.diagnosis }}</span>
+            <span class="ho-focus__reasons">
+              <i v-for="r in p.reasons" :key="r">{{ r }}</i>
+            </span>
+            <span class="ho-focus__go">ISBAR</span>
+          </button>
+        </div>
+        <p v-else class="ho-empty">本班无危急/高危/中危患者。</p>
+      </section>
+
       <BedRiskMatrix
+        class="ho-matrix"
         :beds="summary.patients || []"
-        :time-range="`${summary.data_start} — ${summary.data_end}`"
-        :updated-at="summary.created_at"
-        @select="(bed) => goToPatient(bed.patient_id)"
+        :time-range="`${fmtTime(summary.data_start)} — ${fmtTime(summary.data_end)}`"
+        :updated-at="fmtTime(summary.created_at)"
+        @select="(bed: any) => goToPatient(bed.patient_id)"
       />
-      <PatientRiskRanking
-        :patients="riskPatients"
-        @select="goToPatient"
-      />
-    </div>
+      <p class="summary-meta">生成时间：{{ fmtTime(summary.created_at) || '—' }}；摘要由规则统计生成，交班内容以各患者 ISBAR 为准。</p>
+    </template>
 
-    <!-- Empty state -->
     <a-empty v-if="!loading && !summary" description="暂无交班总结数据，请点击生成" />
   </div>
 </template>
@@ -122,10 +81,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Card as ACard, Button as AButton, Table as ATable, Tag as ATag, Empty as AEmpty, message } from 'ant-design-vue'
+import { Button as AButton, Empty as AEmpty, message } from 'ant-design-vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
-import { BedRiskMatrix, PatientRiskRanking } from '../../components/handover/charts'
+import { BedRiskMatrix } from '../../components/handover/charts'
 
 const route = useRoute()
 const router = useRouter()
@@ -139,40 +98,44 @@ const currentShift = ref<any>(null)
 const deptCode = computed(() => authStore.deptCode || (route.query.dept_code as string) || '')
 const deptName = computed(() => authStore.dept || (route.query.dept as string) || '')
 
-// Build risk patients for the ranking chart
-const riskPatients = computed(() => {
-  const patients = summary.value?.patients || []
-  return patients.map((p: any) => {
-    let score = 0
-    const factors: string[] = []
-    if (p.critical_value_count > 0) { score += 30; factors.push('危急值') }
-    if (p.unclosed_alert_count > 0) { score += 20; factors.push(`${p.unclosed_alert_count}条未闭环`) }
-    if (p.has_vasoactive) { score += 25; factors.push('血管活性药') }
-    if (p.has_ventilator) { score += 15; factors.push('呼吸机') }
-    if (p.has_crrt) { score += 20; factors.push('CRRT') }
-    if (p.isolation) { score += 5; factors.push('隔离') }
-    return {
-      patient_id: p.patient_id,
-      bed: p.bed,
-      name: p.name,
-      risk_score: Math.min(score, 100),
-      risk_factors: factors,
-    }
-  }).filter((p: any) => p.risk_score > 0).sort((a: any, b: any) => b.risk_score - a.risk_score)
+const LEVEL_LABELS: Record<string, string> = { critical: '危急', high: '高危', medium: '中危', stable: '平稳' }
+const LEVEL_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2 }
+// 重点患者：直接使用后端 risk_level / risk_reasons，不在前端另造“风险分”
+const focusPatients = computed(() => {
+  const list = Array.isArray(summary.value?.patients) ? summary.value.patients : []
+  return list
+    .filter((p: any) => p && p.risk_level in LEVEL_RANK)
+    .map((p: any) => ({
+      ...p,
+      reasons: Array.isArray(p.risk_reasons) && p.risk_reasons.length ? p.risk_reasons : [p.is_critical ? '危急患者' : '需关注'],
+    }))
+    .sort((a: any, b: any) => (LEVEL_RANK[a.risk_level] ?? 9) - (LEVEL_RANK[b.risk_level] ?? 9) || String(a.bed).localeCompare(String(b.bed), 'zh', { numeric: true }))
 })
-
-const priorityColumns = [
-  { title: '床号', dataIndex: 'bed', key: 'bed', width: 80 },
-  { title: '姓名', dataIndex: 'name', key: 'name', width: 100 },
-  { title: '原因', dataIndex: 'reason', key: 'reason' },
-  { title: '等级', key: 'severity', width: 80 },
-  { title: '操作', key: 'action', width: 100 },
-]
-
-function severityColor(s: string) {
-  if (s === 'critical') return 'red'
-  if (s === 'high') return 'orange'
-  return 'blue'
+const tasksMissing = computed(() => (summary.value?.missing_sources || []).includes('tasks'))
+const SOURCE_LABELS: Record<string, string> = { tasks: '任务', alerts: '告警', orders: '医嘱', handovers: '交班记录', devices: '设备', labs: '检验', vitals: '体征' }
+const sourceWarning = computed(() => {
+  const miss = (summary.value?.missing_sources || []).map((x: string) => SOURCE_LABELS[x] || x)
+  const fail = (summary.value?.failed_sources || []).map((x: string) => SOURCE_LABELS[x] || x)
+  const parts: string[] = []
+  if (fail.length) parts.push(`读取失败：${fail.join('、')}`)
+  if (miss.length) parts.push(`未接入：${miss.join('、')}`)
+  return parts.length ? `数据来源提示 — ${parts.join('；')}。相关数字不代表 0。` : ''
+})
+const movementText = computed(() => {
+  const s = summary.value || {}
+  const bits: string[] = []
+  if (s.new_admission_count) bits.push(`新入 ${s.new_admission_count}`)
+  if (s.transfer_in_count) bits.push(`转入 ${s.transfer_in_count}`)
+  if (s.transfer_out_count) bits.push(`转出 ${s.transfer_out_count}`)
+  if (s.death_count) bits.push(`死亡 ${s.death_count}`)
+  return bits.join(' · ')
+})
+function fmtTime(t: unknown): string {
+  if (!t) return ''
+  const d = new Date(String(t))
+  if (Number.isNaN(d.getTime())) return String(t)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 async function loadSummary() {
@@ -233,6 +196,8 @@ onMounted(() => {
 .handover-overview {
   padding: var(--page-padding, 24px);
   max-width: 1400px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
 }
 
@@ -374,4 +339,43 @@ onMounted(() => {
     padding: 12px;
   }
 }
+
+.ho-brief, .ho-card { background: #fff; border: 1px solid #E6E5E3; border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
+.ho-brief__head { height: 38px; background: #5392FF; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.ho-brief__title { font-size: 15px; font-weight: 600; }
+.ho-brief__meta { font-size: 12px; opacity: .9; }
+.ho-brief__body { padding: 14px 16px; }
+.ho-brief__headline { margin: 0 0 12px; font-size: 16px; font-weight: 600; line-height: 1.6; color: #1F2329; }
+.ho-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.ho-tile { background: #F7F8FA; border: 1px solid #EBEDF0; border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; }
+.ho-tile span { font-size: 12px; color: #646A73; }
+.ho-tile b { font-size: 22px; font-variant-numeric: tabular-nums; color: #1F2329; }
+.ho-tile.crit { background: #FEF2F2; border-color: #FCA5A5; } .ho-tile.crit b { color: #B91C1C; }
+.ho-tile.warn { background: #FFFBEB; border-color: #FCD34D; } .ho-tile.warn b { color: #B45309; }
+.ho-support { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+.ho-support__label { font-size: 12px; color: #646A73; margin-right: 2px; }
+.ho-chip { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #F2F3F5; color: #1F2329; border: 1px solid #E6E5E3; }
+.ho-chip.warn { background: #FFFBEB; color: #B45309; border-color: #FCD34D; }
+.ho-warn { margin: 10px 0 0; font-size: 12px; color: #B45309; }
+.ho-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #EFF0F1; }
+.ho-card__head h3 { margin: 0; font-size: 15px; font-weight: 600; border-left: 3px solid #5392FF; padding-left: 8px; }
+.ho-card__head small { font-weight: 400; color: #8F959E; margin-left: 4px; }
+.ho-card__hint { font-size: 12px; color: #8F959E; }
+.ho-focus { display: flex; flex-direction: column; }
+.ho-focus__row { display: grid; grid-template-columns: 52px 56px 72px minmax(120px, 220px) 1fr 52px; gap: 10px; align-items: center; padding: 9px 16px; border: 0; border-bottom: 1px solid #F2F3F5; background: #fff; text-align: left; cursor: pointer; font: inherit; }
+.ho-focus__row:hover { background: #F5F8FF; }
+.ho-focus__level { font-size: 12px; font-weight: 700; text-align: center; border-radius: 4px; padding: 1px 0; }
+.lv-critical .ho-focus__level { background: #FEF2F2; color: #B91C1C; }
+.lv-high .ho-focus__level { background: #FFF7ED; color: #C2410C; }
+.lv-medium .ho-focus__level { background: #FFFBEB; color: #B45309; }
+.ho-focus__bed { font-weight: 700; color: #1F2329; }
+.ho-focus__name { color: #1F2329; }
+.ho-focus__dx { color: #646A73; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ho-focus__reasons { display: flex; flex-wrap: wrap; gap: 4px; }
+.ho-focus__reasons i { font-style: normal; font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #F2F3F5; color: #1F2329; }
+.lv-critical .ho-focus__reasons i:first-child { background: #FEF2F2; color: #B91C1C; }
+.ho-focus__go { font-size: 12px; color: #5392FF; text-align: right; }
+.ho-empty { padding: 16px; margin: 0; color: #8F959E; font-size: 13px; }
+.ho-matrix { margin-bottom: 8px; }
+@media (max-width: 900px) { .ho-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ho-focus__row { grid-template-columns: 52px 56px 1fr; } .ho-focus__dx, .ho-focus__reasons, .ho-focus__go { grid-column: 1 / -1; } }
 </style>

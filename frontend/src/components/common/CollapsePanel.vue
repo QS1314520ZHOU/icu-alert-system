@@ -1,7 +1,7 @@
 <template>
   <div class="collapse-panel" :class="[`collapse-panel--${tone}`]">
     <div class="collapse-panel__header" @click="toggle">
-      <span class="collapse-panel__chevron">{{ open ? '▾' : '▸' }}</span>
+      <span class="collapse-panel__chevron ui-chevron" :class="{ 'is-open': open }" aria-hidden="true"></span>
       <span class="collapse-panel__title">{{ title }}</span>
       <span v-if="badge" class="collapse-panel__badge">{{ badge }}</span>
       <span v-if="digest" class="collapse-panel__digest">{{ digest }}</span>
@@ -79,7 +79,7 @@ function toggle() {
 .collapse-panel__chevron {
   font-size: 10px;
   color: var(--color-text-tertiary);
-  flex: 0 0 12px;
+  flex: 0 0 7px;
 }
 .collapse-panel__title {
   flex: 0 0 auto;

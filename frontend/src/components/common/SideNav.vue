@@ -87,7 +87,7 @@
               @click="toggleGroupCollapse(group.key)"
             >
               {{ group.label }}
-              <span class="side-nav__toggle-arrow" :class="{ 'side-nav__toggle-arrow--open': isGroupExpanded(group.key) }">▸</span>
+              <span class="side-nav__toggle-arrow ui-chevron" :class="{ 'is-open': isGroupExpanded(group.key) }" aria-hidden="true"></span>
             </button>
             <!-- 收起态：点击展开该组 -->
             <button

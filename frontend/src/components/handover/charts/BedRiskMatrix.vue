@@ -4,9 +4,9 @@
       <h3 class="matrix-title">床位风险矩阵</h3>
       <div class="matrix-legend">
         <span class="legend-item"><span class="dot dot--critical"></span>危急</span>
-        <span class="legend-item"><span class="dot dot--high"></span>高风险</span>
-        <span class="legend-item"><span class="dot dot--medium"></span>提醒</span>
-        <span class="legend-item"><span class="dot dot--stable"></span>稳定</span>
+        <span class="legend-item"><span class="dot dot--high"></span>高危</span>
+        <span class="legend-item"><span class="dot dot--medium"></span>中危</span>
+        <span class="legend-item"><span class="dot dot--stable"></span>平稳</span>
         <span class="legend-item"><span class="dot dot--nodata"></span>无数据</span>
       </div>
     </div>
@@ -21,10 +21,10 @@
         <div class="bed-number">{{ bed.bed || '?' }}</div>
         <div class="bed-name">{{ bed.name || '空床' }}</div>
         <div class="bed-icons">
-          <span v-if="bed.has_ventilator" class="icon-tag icon-tag--vent" title="呼吸机">V</span>
-          <span v-if="bed.has_vasoactive" class="icon-tag icon-tag--vaso" title="血管活性药">P</span>
-          <span v-if="bed.has_crrt" class="icon-tag icon-tag--crrt" title="CRRT">C</span>
-          <span v-if="bed.unclosed_alert_count && bed.unclosed_alert_count > 0" class="icon-tag icon-tag--alert" :title="`${bed.unclosed_alert_count}条未闭环告警`">{{ bed.unclosed_alert_count }}</span>
+          <span v-if="bed.has_ventilator" class="icon-tag icon-tag--vent" title="呼吸机">机</span>
+          <span v-if="bed.has_vasoactive" class="icon-tag icon-tag--vaso" title="血管活性药">升压</span>
+          <span v-if="bed.has_crrt" class="icon-tag icon-tag--crrt" title="CRRT">CRRT</span>
+          <span v-if="bed.unclosed_alert_count && bed.unclosed_alert_count > 0" class="icon-tag icon-tag--alert" :title="`${bed.unclosed_alert_count}条未闭环告警`">警 {{ bed.unclosed_alert_count }}</span>
         </div>
         <div class="bed-status">{{ handoverStatusLabel(bed.handover_status) }}</div>
       </div>
@@ -59,11 +59,16 @@ const props = defineProps<{
 
 defineEmits<{ select: [bed: BedPatient] }>()
 
+// 优先使用后端 risk_level（与交班重点患者同一口径）；缺失时再按字段推断
 function cellClass(bed: BedPatient) {
-  if (bed.is_critical || bed.risk_level === 'critical') return 'bed-cell--critical'
-  if (bed.has_vasoactive || bed.risk_level === 'high') return 'bed-cell--high'
-  if (bed.unclosed_alert_count && bed.unclosed_alert_count > 0) return 'bed-cell--medium'
   if (!bed.name) return 'bed-cell--nodata'
+  const lv = String(bed.risk_level || '')
+  if (lv === 'critical' || bed.is_critical) return 'bed-cell--critical'
+  if (lv === 'high') return 'bed-cell--high'
+  if (lv === 'medium') return 'bed-cell--medium'
+  if (lv === 'stable') return 'bed-cell--stable'
+  if (bed.has_vasoactive || (bed.unclosed_alert_count && bed.unclosed_alert_count > 0)) return 'bed-cell--high'
+  if (bed.has_ventilator) return 'bed-cell--medium'
   return 'bed-cell--stable'
 }
 

@@ -476,7 +476,13 @@ function _createPatientDetail(_initialPatientId: string) {
   })
   const weaningTopEvidence = computed(() => {
     const rows = Array.isArray(weaningAssessment.value?.factors) ? weaningAssessment.value.factors : []
-    return rows.map((row: any) => String(row?.evidence || '').trim()).filter(Boolean).slice(0, 3)
+    // 因子名 + 证据一起显示（只显示 "+12%" 无法知道是什么指标）
+    return rows.map((row: any) => {
+      const label = String(row?.label || row?.factor || row?.name || '').trim()
+      const ev = String(row?.evidence || '').trim()
+      if (label && ev) return ev.includes(label) ? ev : `${label}：${ev}`
+      return label || ev
+    }).filter(Boolean).slice(0, 3)
   })
 
   // ─── Post-extubation hero ───

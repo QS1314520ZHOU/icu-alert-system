@@ -2,7 +2,7 @@
   <div class="treatment-view">
     <PageHeader title="治疗方案" subtitle="用药、评估与脓毒症 Bundle 执行情况" />
     <CollapseSection default-open>
-      <template #title><h3 style="margin:0;font-size:15px;font-weight:600">脓毒症 Bundle</h3></template>
+      <template #title><h3 style="margin:0;font-size:15px;font-weight:600">脓毒症集束化</h3></template>
       <template #extra>
         <div class="bundle-actions">
           <a-button size="small" @click="loadSepsisBundleStatus">刷新</a-button>
@@ -10,21 +10,8 @@
           <a-button size="small" @click="openSepsisBundleExecutionDialog">记录执行</a-button>
         </div>
       </template>
-      <div v-if="sepsisBundleStatusResolved" class="bundle-detail">
-        <div class="bundle-status-row">
-          <a-tag :color="bundleLightColor">{{ sepsisBundleStatusText }}</a-tag>
-          <span class="bundle-conclusion">{{ sepsisBundleConclusion }}</span>
-        </div>
-        <div class="bundle-meta">
-          <span v-if="sepsisBundleTimelineText">{{ sepsisBundleTimelineText }}</span>
-          <span v-if="sepsisBundleExtraText">{{ sepsisBundleExtraText }}</span>
-          <span v-if="sepsisBundleComplianceSummary">{{ sepsisBundleComplianceSummary }}</span>
-        </div>
-        <div v-if="sepsisBundleV2Info" class="bundle-v2-info">
-          <a-tag color="blue">Bundle v2</a-tag>
-          <span>感染判定：{{ sepsisInfectionVerdictText }}</span>
-        </div>
-      </div>
+      <SepsisBundleCard v-if="sepsisBundleStatusResolved && sepsisBundleStatusResolved.status !== 'none'" :status="sepsisBundleStatusResolved" embedded />
+      <p v-else-if="sepsisBundleStatusResolved" class="bundle-none">未进入脓毒症集束化计时（未触发筛查或未经临床确认）。</p>
       <a-empty v-else description="暂无脓毒症Bundle数据" :image-style="{ height: '40px' }" />
     </CollapseSection>
     <div class="treatment-grid">
@@ -151,14 +138,13 @@ import { PageHeader } from '../../components/common/design-system'
 import { computed, defineAsyncComponent } from 'vue'
 import CollapseSection from '../../components/common/CollapseSection.vue'
 import { usePatientDetail } from '../../composables/usePatientDetail'
+import SepsisBundleCard from '../../components/sepsis/SepsisBundleCard.vue'
 
 const LongTermFollowupTab = defineAsyncComponent(() => import('../../components/patient-detail/LongTermFollowupTab.vue'))
 
 const {
   patient, route,
-  sepsisBundleStatusResolved, sepsisBundleStatusText, sepsisBundleConclusion,
-  sepsisBundleTimelineText, sepsisBundleExtraText, sepsisBundleComplianceSummary,
-  sepsisBundleV2Info, sepsisInfectionVerdictText, sepsisBundleHasReviewPending,
+  sepsisBundleStatusResolved, sepsisBundleHasReviewPending,
   loadSepsisBundleStatus, openSepsisBundleReviewDialog, openSepsisBundleExecutionDialog,
   weaningStatus, weaningRiskTone, weaningRiskLabel, weaningRecommendationText,
   weaningTopEvidence, loadWeaningStatus,
@@ -254,11 +240,6 @@ function severityLabel(severity: string): string {
   const map: Record<string, string> = { critical: '危急', high: '高', medium: '中', low: '低', info: '信息' }
   return map[s] || severity
 }
-
-const bundleLightColor = computed(() => {
-  const map: Record<string, string> = { green: 'success', blue: 'processing', yellow: 'warning', orange: 'warning', red: 'error', gray: 'default' }
-  return map[sepsisBundleStatusResolved.value?.light] || 'default'
-})
 
 function sbtResultClass(record: any) {
   const result = String(record?.result || record?.status || '').toLowerCase()
@@ -571,6 +552,7 @@ function sbtResultText(record: any) {
 .treatment-view :deep(.ant-table-tbody > tr:hover > td) {
   background: var(--color-bg-inset);
 }
+.bundle-none { margin: 0; font-size: 13px; color: #646A73; }
 </style>
 
 

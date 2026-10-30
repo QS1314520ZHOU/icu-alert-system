@@ -41,7 +41,7 @@
         <span v-if="lastUpdated" class="frame-toolbar__time">更新于 {{ lastUpdated }}</span>
       </div>
       <div class="frame-toolbar__right">
-        <button class="frame-icon-btn" title="刷新" @click="refresh">↻</button>
+        <button class="frame-icon-btn" title="刷新" aria-label="刷新" @click="refresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
         <button class="frame-icon-btn" :title="isFullscreen ? '退出全屏' : '全屏'" @click="toggleFullscreen">
           {{ isFullscreen ? '⊟' : '⊞' }}
         </button>

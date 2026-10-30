@@ -17,8 +17,8 @@
           </div>
         </div>
         <div class="wi-section">
-          <h4>生理参数（回看 {{ lookbackHours }}h）</h4>
-          <div v-if="!baselineState" class="wi-muted">运行任一模拟后显示模拟器实际读取的数值</div>
+          <h4>{{ baselineState ? `生理参数（模拟器读取，回看 ${lookbackHours}h）` : `生理参数（监护最新值${liveTime ? ' · ' + liveTime : ''}）` }}</h4>
+          <div v-if="!baselineState && !liveState" class="wi-muted">暂无监护数据；运行模拟后显示模拟器实际读取的数值</div>
           <div v-else class="wi-vitals-grid">
             <div v-for="v in stateItems" :key="v.key" class="wi-vital-item">
               <span class="wi-vital-label">{{ v.label }}</span>
@@ -82,6 +82,7 @@
             <strong>{{ result.intervention_label || selectedOption.label }}</strong>
             <span v-if="result.data_available === false" class="wi-tag wi-tag--warn">数据不足</span>
           </div>
+          <div v-if="resultHeadline" class="wi-headline" :class="`wi-headline--${resultHeadline.tone}`">{{ resultHeadline.text }}</div>
           <div v-if="result.summary" class="wi-summary">{{ result.summary }}</div>
           <div v-if="result.ood_warning?.is_ood" class="wi-error">
             超出模型适用范围：{{ (result.ood_warning.reasons || []).join('；') || '输入偏离训练分布' }}，结果可信度低
@@ -157,7 +158,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEmbedBridge } from '../../../composables/useEmbedBridge'
-import { getAiRiskForecast, postAiWhatIfSimulation } from '../../../api'
+import { getAiRiskForecast, getPatientVitals, postAiWhatIfSimulation } from '../../../api'
 
 type InterventionType = 'vasopressor_up' | 'fluid_bolus' | 'diuresis' | 'fio2_up' | 'peep_up'
 interface ParamDef { field: 'dose_delta_pct' | 'fluid_bolus_ml' | 'diuretic_intensity' | 'fio2_delta' | 'peep_delta'; label: string; unit: string; min: number; max: number; step: number; def: number }
@@ -231,6 +232,22 @@ const baseline = ref<any>(null)
 const history = ref<Array<{ label: string; horizon: number; net: Record<string, number | null>; ood: boolean }>>([])
 
 const baselineState = computed(() => result.value?.current_state || baseline.value?.current_state || null)
+// 未运行模拟前先显示监护最新值（只读接口，不产生模拟记录）
+const liveState = ref<Record<string, any> | null>(null)
+const liveTime = ref('')
+async function loadLive() {
+  if (!patientId.value) return
+  try {
+    const res = await getPatientVitals(patientId.value)
+    const v = res.data?.vitals || null
+    if (!v) { liveState.value = null; return }
+    liveState.value = { map: v.ibp_map ?? v.nibp_map ?? v.map, hr: v.hr, spo2: v.spo2, lactate: v.lactate, fio2: v.fio2, peep: v.peep }
+    const t = v.time ? new Date(v.time) : null
+    liveTime.value = t && !Number.isNaN(t.getTime()) ? `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` : ''
+  } catch {
+    liveState.value = null
+  }
+}
 const lookbackHours = computed(() => result.value?.model_meta?.lookback_hours ?? baseline.value?.model_meta?.lookback_hours ?? '—')
 
 function num(v: unknown): number | null {
@@ -267,8 +284,8 @@ const STATE_DEFS: Array<{ key: string; label: string; unit: string; digits: numb
   { key: 'vaso_dose_ug_kg_min', label: 'NE当量', unit: 'μg/kg/min', digits: 2, abnormal: n => n >= 0.3 },
 ]
 const stateItems = computed(() => {
-  const s = baselineState.value || {}
-  return STATE_DEFS.map(d => {
+  const s = baselineState.value || liveState.value || {}
+  return STATE_DEFS.filter(d => baselineState.value || s[d.key] != null).map(d => {
     const n = num(s[d.key])
     return {
       key: d.key, label: d.label,
@@ -321,6 +338,26 @@ const compareRows = computed(() => METRICS
     }
   }))
 
+// 一句话结论：相对不干预基线的 30 分钟净效应
+const resultHeadline = computed(() => {
+  if (!result.value) return null
+  if (result.value.data_available === false) return { text: '数据不足，无法给出可靠推演', tone: 'muted' }
+  const parts: string[] = []
+  let good = 0
+  let bad = 0
+  for (const m of METRICS) {
+    const n = netEffect(m.key)
+    const minAbs = m.key === 'lactate' ? 0.1 : 1
+    if (n == null || Math.abs(n) < minAbs) continue
+    parts.push(`${m.label.split(' ')[0]} ${fmtDelta(n, m.digits)}`)
+    if ((n > 0) === m.goodUp) good++
+    else bad++
+  }
+  if (!parts.length) return { text: '相对不干预，30 分钟内预计无明显差异', tone: 'muted' }
+  const tone = result.value.ood_warning?.is_ood ? 'warn' : bad > good ? 'bad' : good ? 'good' : 'muted'
+  return { text: `相对不干预，30 分钟后：${parts.join('，')}${result.value.ood_warning?.is_ood ? '（超出适用范围，仅供参考）' : ''}`, tone }
+})
+
 const curveRows = computed(() => {
   const curves = result.value?.response_curve || {}
   const labels: Record<string, string> = { map: 'MAP', spo2: 'SpO₂', lactate: '乳酸' }
@@ -372,11 +409,13 @@ function resetAll() {
   history.value = []
   errorText.value = ''
   loadRisk()
+  loadLive()
 }
 
 onMounted(() => {
   sendUpdateTitle('What-if模拟')
   loadRisk()
+  loadLive()
 })
 
 watch(patientId, (id, prev) => {
@@ -467,5 +506,12 @@ watch(patientId, (id, prev) => {
 .wi-process { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px }
 .wi-process ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.6; color: var(--color-text-secondary, #4B5563) }
 .wi-cautions li { color: var(--color-warning, #B54708) }
+
+.wi-panel-title { border-left: 3px solid #5392FF; padding-left: 8px; }
+.wi-headline { font-size: 15px; font-weight: 700; line-height: 1.5; padding: 8px 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid; }
+.wi-headline--good { background: #E7F5EE; color: #2F7D55; border-color: #A7D9BF; }
+.wi-headline--bad { background: #FEF2F2; color: #B91C1C; border-color: #FCA5A5; }
+.wi-headline--warn { background: #FFFBEB; color: #B45309; border-color: #FCD34D; }
+.wi-headline--muted { background: #F7F8FA; color: #646A73; border-color: #E6E5E3; }
 </style>
 

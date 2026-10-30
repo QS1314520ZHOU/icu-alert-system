@@ -516,11 +516,15 @@ html[data-theme='light'] .ant-menu-light .ant-menu-item-selected {
 
 .ant-tag {
   border-radius: var(--radius-tag) !important;
+  font-size: var(--text-label) !important;
+  font-weight: var(--weight-medium) !important;
+}
+/* 只给未指定颜色的默认标签套品牌色；带 color（error/warning/success/red…）的状态标签保留语义色，
+   否则“高风险/危急”等标签会全部显示成蓝色 */
+.ant-tag:not([class*=" ant-tag-"]) {
   border-color: var(--border-color) !important;
   background: var(--brand-soft) !important;
   color: var(--brand) !important;
-  font-size: var(--text-label) !important;
-  font-weight: var(--weight-medium) !important;
 }
 
 .ant-table-wrapper .ant-table {
