@@ -28,6 +28,10 @@
         <div class="bed-diag-label">当前诊断</div>
         <div class="bed-diag">{{ shortDiag(patient.clinicalDiagnosis || patient.admissionDiagnosis) }}</div>
       </div>
+      <AiWatchingBar class="bed-watching" :patient-id="String(patient._id || '')" compact />
+      <div class="bed-bodymap-wrap">
+        <OrganHeatmapFigure compact :organ-states="patient.organMap || {}" :silhouette="silhouetteByGender(patient.gender)" />
+      </div>
       <div class="bed-vitals">
         <div class="vital-cell">
           <span>心率</span>
@@ -46,14 +50,6 @@
           <b>{{ formatBp(patient.vitals) }}</b>
         </div>
       </div>
-      <div class="bed-organs">
-        <span class="bed-organs__label">受累器官</span>
-        <template v-if="abnormalOrgans(patient.organMap).length">
-          <span v-for="o in abnormalOrgans(patient.organMap)" :key="o.key" :class="['organ-chip', `organ-chip--${o.tone}`]">{{ o.label }}</span>
-        </template>
-        <span v-else class="bed-organs__none">暂无器官告警</span>
-      </div>
-      <AiWatchingBar class="bed-watching" :patient-id="String(patient._id || '')" compact />
       <div
         v-if="patient.postExtubationRisk?.has_alert"
         :class="['extub-risk-card', `extub-risk-card--${riskTone(patient.postExtubationRisk?.severity)}`]"
@@ -109,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { BODY_MAP_ORGAN_ORDER, BODY_MAP_ORGAN_LABELS, normalizeBodyMapSeverity, bodyMapSeverityRank } from '../../utils/bodyMap'
+import OrganHeatmapFigure from '../common/OrganHeatmapFigure.vue'
 import AiWatchingBar from '../AiWatchingBar.vue'
 import { formatSeverityLabel } from '../../utils/displayLabels'
 
@@ -123,13 +119,11 @@ function genderText(v: any) {
   return '—'
 }
 
-function abnormalOrgans(map: any) {
-  const m = map && typeof map === 'object' ? map : {}
-  return BODY_MAP_ORGAN_ORDER
-    .map((key) => ({ key, sev: normalizeBodyMapSeverity(m[key]) }))
-    .filter((o) => o.sev !== 'normal')
-    .sort((x, y) => bodyMapSeverityRank(y.sev) - bodyMapSeverityRank(x.sev))
-    .map((o) => ({ key: o.key, label: BODY_MAP_ORGAN_LABELS[o.key], tone: o.sev === 'warning' ? 'warn' : 'crit' }))
+function silhouetteByGender(v: any) {
+  const text = String(v || '').toLowerCase()
+  if (text.includes('female') || text.includes('女')) return 'female'
+  if (text.includes('male') || text.includes('男')) return 'male'
+  return 'female'
 }
 
 function alertText(v: any) {
@@ -371,19 +365,11 @@ function riskSuggestion(value: any) {
   line-height: 1.4;
   min-height: 30px;
 }
-.bed-organs {
+.bed-bodymap-wrap {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
+  justify-content: center;
   margin-top: 8px;
-  min-height: 22px;
 }
-.bed-organs__label { font-size: 11px; color: var(--color-text-tertiary); margin-right: 2px; }
-.bed-organs__none { font-size: 11px; color: #2F7D55; }
-.organ-chip { font-size: 11px; line-height: 18px; padding: 0 6px; border-radius: 9px; border: 1px solid; }
-.organ-chip--crit { background: #FEF2F2; color: #B91C1C; border-color: #FCA5A5; }
-.organ-chip--warn { background: #FFFBEB; color: #B45309; border-color: #FCD34D; }
 .bed-watching {
   margin-top: 8px;
 }
