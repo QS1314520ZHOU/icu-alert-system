@@ -435,6 +435,8 @@ class RoleHomeService:
             "data_state": data_state,
             "shift": shift.to_dict() if shift else None,
             "managed_beds": len(patients),
+            # 分管患者全集（科室回退时为空，前端展示全科），供首页床位概览筛选
+            "managed_patient_ids": [] if used_ward_fallback else patient_ids,
             "focus_patients": focus[:5],
             "ai_night_watch": ai_watch,
             "pending_tasks": open_tasks,

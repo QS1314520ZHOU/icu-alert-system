@@ -508,14 +508,14 @@ async def patient_labs(patient_id: str):
 @router.get("/api/patients/{patient_id}/vitals/trend")
 async def patient_vitals_trend(
     patient_id: str,
-    window: str = Query("24h", pattern="^(6h|12h|24h|48h|7d)$"),
+    window: str = Query("24h", pattern="^(6h|12h|24h|48h|72h|7d)$"),
 ):
     try:
         pid = ObjectId(patient_id)
     except Exception:
         return {"code": 400, "message": "无效患者ID"}
 
-    hours_map = {"6h": 6, "12h": 12, "24h": 24, "48h": 48, "7d": 168}
+    hours_map = {"6h": 6, "12h": 12, "24h": 24, "48h": 48, "72h": 72, "7d": 168}
     since = datetime.now() - timedelta(hours=hours_map.get(window, 24))
 
     # 预解析 hisPid，避免 10 次重复查询

@@ -12,13 +12,7 @@
     <LoadingState v-if="loading" message="正在汇总全科床位、护理负荷 and 质控数据..." />
     <ErrorState v-else-if="error" :description="error" />
     <template v-else>
-      <section class="start-guide">
-        <div>
-          <span>护士长看板</span>
-          <strong>先看全科床位，再看护理负荷，最后追踪评估依从和质控事件。</strong>
-        </div>
-        <a-button size="small" @click="showOnboarding = true">查看3步引导</a-button>
-      </section>
+      <WardClinicalBoard class="hn-board" title="全科床位临床概览" />
 
       <MetricStrip
         :metrics="summaryCards.map((c) => ({
@@ -55,29 +49,6 @@
       </section>
 
       <main class="head-nurse-grid">
-        <!-- 左侧 -->
-        <section class="panel">
-          <div class="panel-head">
-            <strong>全科床位</strong>
-            <span>{{ beds.length }} 床</span>
-          </div>
-          <div class="bed-cloud">
-            <span v-for="b in sortedBeds" :key="b.patient_id" class="ds-list-item">
-              <i :class="['ds-dot', bedDotClass(b)]"></i>
-              <b>{{ displayBed(b.bed) }}</b>
-              <em>{{ b.name || '未知患者' }}</em>
-            </span>
-          </div>
-          <div v-if="pendingHandover.length" class="pending-handover">
-            <strong>待交接床位 ({{ pendingHandover.length }})</strong>
-            <div class="handover-list">
-              <span v-for="b in pendingHandover" :key="b.patient_id">
-                {{ displayBed(b.bed) }} {{ b.name }}
-              </span>
-            </div>
-          </div>
-        </section>
-
         <!-- 右侧 -->
         <section class="panel">
           <div class="panel-head">
@@ -282,6 +253,7 @@
 </template>
 
 <script setup lang="ts">
+import WardClinicalBoard from '../components/home/WardClinicalBoard.vue'
 import { Button as AButton } from 'ant-design-vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -318,7 +290,6 @@ const routeDeptCode = computed(() => String(route.query.dept_code || route.query
 const routeDept = computed(() => String(route.query.dept || route.query.department || auth.dept || '').trim())
 
 const accountName = computed(() => home.value?.account?.display_name || home.value?.account?.userName || userId.value || '未识别护士长')
-const beds = computed(() => home.value?.beds || [])
 const pendingHandover = computed(() => home.value?.pending_handover || [])
 const workload = computed(() => home.value?.workload || {})
 const heatmap = computed(() => workload.value?.heatmap || [])
@@ -339,14 +310,12 @@ const summaryCards = computed(() => {
   const compliance = assessmentCompliance.value
   const alerts = alertStats.value
   return [
-    { key: 'beds', label: '全科床位', value: beds.value.length, hint: `${pendingHandover.value.length} 床待交接`, tone: 'blue' },
-    { key: 'handover', label: '待交接', value: pendingHandover.value.length, hint: '需关注', tone: pendingHandover.value.length ? 'yellow' : 'green' },
-    { key: 'compliance', label: '评估依从率', value: `${compliance.compliance_rate || 0}%`, hint: `${compliance.active_overdue || 0} 项逾期`, tone: (compliance.active_overdue || 0) > 0 ? 'red' : 'green' },
-    { key: 'alerts', label: '告警处置率', value: `${alerts.handle_rate || 0}%`, hint: `${alerts.pending || 0} 项待处理`, tone: (alerts.pending || 0) > 0 ? 'yellow' : 'green' },
+    { key: 'handover', label: '待交接床位', value: pendingHandover.value.length, hint: pendingHandover.value.length ? '下班前需完成' : '均已交接或未开始统计', tone: pendingHandover.value.length ? 'yellow' : 'blue' },
+    { key: 'compliance', label: '评估依从率', value: compliance.total_reminders ? `${compliance.compliance_rate || 0}%` : '—', hint: compliance.total_reminders ? `${compliance.active_overdue || 0} 项逾期` : '暂无评估提醒数据', tone: !compliance.total_reminders ? 'blue' : (compliance.active_overdue || 0) > 0 ? 'red' : 'green' },
+    { key: 'alerts', label: '告警处置率', value: alerts.total_alerts ? `${alerts.handle_rate || 0}%` : '—', hint: alerts.total_alerts ? `${alerts.pending || 0} 项待处理` : '近12小时无告警数据', tone: !alerts.total_alerts ? 'blue' : (alerts.pending || 0) > 0 ? 'yellow' : 'green' },
   ]
 })
 
-const sortedBeds = computed(() => sortBeds(beds.value))
 
 // ── 流程/质控聚合统计 ──
 const allActiveAlerts = computed(() => home.value?.active_alerts || [])
@@ -381,39 +350,8 @@ function displayBed(value: any) {
   return text.includes('床') ? text : `${text}床`
 }
 
-function bedSortParts(value: any) {
-  const raw = String(value || '').trim()
-  const normalized = raw
-    .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
-    .replace(/[\s_-]+/g, '')
-  const numberHit = normalized.match(/\d+/)
-  return {
-    hasNumber: numberHit ? 0 : 1,
-    number: numberHit ? Number(numberHit[0]) : Number.MAX_SAFE_INTEGER,
-    suffix: numberHit ? normalized.slice((numberHit.index || 0) + numberHit[0].length) : normalized,
-    raw: normalized,
-  }
-}
-
-function sortBeds(rows: any[]) {
-  return [...(rows || [])].sort((a: any, b: any) => {
-    const left = bedSortParts(a?.bed)
-    const right = bedSortParts(b?.bed)
-    if (left.hasNumber !== right.hasNumber) return left.hasNumber - right.hasNumber
-    if (left.number !== right.number) return left.number - right.number
-    return left.suffix.localeCompare(right.suffix, 'zh-CN', { numeric: true, sensitivity: 'base' })
-  })
-}
-
 function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
-}
-
-function bedDotClass(row: any) {
-  const key = String(row?.risk_level || row?.severity || row?.status || '').toLowerCase()
-  if (['critical', 'danger', 'red', '危急'].includes(key)) return 'is-critical'
-  if (['high', 'warning', 'warn', 'yellow', '关注', '高危'].includes(key)) return 'is-warn'
-  return 'is-muted'
 }
 
 function eventDotClass(row: any) {
@@ -463,10 +401,6 @@ onMounted(() => {
   tick()
   timer = setInterval(tick, 1000)
   void load()
-  if (typeof window !== 'undefined') {
-    const key = roleHomeConfig.headNurse?.onboardingKey || 'head_nurse_onboarding'
-    if (!window.localStorage.getItem(key)) showOnboarding.value = true
-  }
 })
 
 onUnmounted(() => clearInterval(timer))
@@ -478,6 +412,7 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 </script>
 
 <style scoped>
+.hn-board { margin-bottom: 12px; }
 .head-nurse-home {
   padding: var(--page-padding);
   padding-bottom: 80px;

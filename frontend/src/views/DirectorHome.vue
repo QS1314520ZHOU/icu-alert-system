@@ -12,13 +12,7 @@
     <LoadingState v-if="loading" message="正在汇总科室质控、KPI和科研数据..." />
     <ErrorState v-else-if="error" :description="error" />
     <template v-else>
-      <section class="start-guide">
-        <div>
-          <span>主任看板</span>
-          <strong>先看科室概览，再看质控大屏，最后追踪KPI和科研动态。</strong>
-        </div>
-        <a-button size="small" @click="showOnboarding = true">查看3步引导</a-button>
-      </section>
+      <WardClinicalBoard class="dr-board" title="科室患者临床概览" default-filter="focus" />
 
       <MetricStrip
         :metrics="summaryCards.map((c) => ({
@@ -137,19 +131,15 @@
               </div>
             </div>
             <div class="kpi-section">
-              <strong>AI 采纳</strong>
+              <strong>AI 推理</strong>
               <div class="kpi-items">
                 <div class="kpi-item">
-                  <span>综合推理</span>
+                  <span>综合推理生成</span>
                   <b>{{ aiStats.integrated_reasoning || 0 }}</b>
                 </div>
                 <div class="kpi-item">
-                  <span>已采纳</span>
-                  <b>{{ aiStats.integrated_adopted || 0 }}</b>
-                </div>
-                <div class="kpi-item">
-                  <span>采纳率</span>
-                  <b>{{ aiStats.adoption_rate || 0 }}%</b>
+                  <span>临床确认采纳</span>
+                  <b title="后端 adopted 字段仅记录前端点击，不能代表临床采纳">未统计</b>
                 </div>
               </div>
             </div>
@@ -260,6 +250,7 @@
 </template>
 
 <script setup lang="ts">
+import WardClinicalBoard from '../components/home/WardClinicalBoard.vue'
 import { Button as AButton } from 'ant-design-vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -315,13 +306,12 @@ const shiftText = computed(() => {
 const summaryCards = computed(() => {
   const occRate = overview.value?.occupancy_rate || 0
   const handleRate = alertStats.value?.handle_rate || 0
-  const adoptRate = aiStats.value?.adoption_rate || 0
   const researchTotal = researchSummary.value?.total || 0
   return [
-    { key: 'beds', label: '床位使用率', value: `${occRate}%`, hint: `${overview.value?.occupied_beds || 0}/${overview.value?.total_beds || 0}`, tone: occRate > 90 ? 'red' : occRate > 80 ? 'yellow' : 'green' },
-    { key: 'alerts', label: '告警处置率', value: `${handleRate}%`, hint: `${alertStats.value?.pending_24h || 0} 项待处理`, tone: (alertStats.value?.pending_24h || 0) > 0 ? 'yellow' : 'green' },
-    { key: 'ai', label: 'AI采纳率', value: `${adoptRate}%`, hint: `${aiStats.value?.integrated_adopted || 0}/${aiStats.value?.integrated_reasoning || 0}`, tone: adoptRate > 80 ? 'green' : adoptRate > 60 ? 'yellow' : 'red' },
-    { key: 'research', label: '科研任务', value: researchTotal, hint: `${researchSummary.value?.pending || 0} 个待处理`, tone: (researchSummary.value?.pending || 0) > 0 ? 'yellow' : 'green' },
+    { key: 'beds', label: '床位使用率', value: overview.value?.total_beds ? `${occRate}%` : '—', hint: overview.value?.total_beds ? `${overview.value?.occupied_beds || 0}/${overview.value?.total_beds}` : '床位数未配置', tone: !overview.value?.total_beds ? 'blue' : occRate > 90 ? 'red' : occRate > 80 ? 'yellow' : 'green' },
+    { key: 'alerts', label: '告警处置率', value: alertStats.value?.total_24h ? `${handleRate}%` : '—', hint: alertStats.value?.total_24h ? `${alertStats.value?.pending_24h || 0} 项待处理` : '暂无告警数据', tone: !alertStats.value?.total_24h ? 'blue' : (alertStats.value?.pending_24h || 0) > 0 ? 'yellow' : 'green' },
+    { key: 'ai', label: '近24h AI推理', value: aiStats.value?.integrated_reasoning || 0, hint: '生成条数（暂无临床确认采纳数据）', tone: 'blue' },
+    { key: 'research', label: '科研任务', value: researchTotal, hint: `${researchSummary.value?.pending || 0} 个待处理`, tone: (researchSummary.value?.pending || 0) > 0 ? 'yellow' : 'blue' },
   ]
 })
 
@@ -368,10 +358,6 @@ onMounted(() => {
   tick()
   timer = setInterval(tick, 1000)
   void load()
-  if (typeof window !== 'undefined') {
-    const key = roleHomeConfig.director?.onboardingKey || 'director_onboarding'
-    if (!window.localStorage.getItem(key)) showOnboarding.value = true
-  }
 })
 
 onUnmounted(() => clearInterval(timer))
@@ -383,6 +369,7 @@ watch(() => [route.query.user_id, route.query.userId, route.query.userName, rout
 </script>
 
 <style scoped>
+.dr-board { margin-bottom: 12px; }
 .director-home {
   padding: var(--page-padding);
   padding-bottom: 80px;

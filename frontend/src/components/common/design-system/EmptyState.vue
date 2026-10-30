@@ -2,8 +2,8 @@
   <div class="empty-state">
     <div class="empty-state__icon">
       <slot name="icon">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-          <path d="M24 4C12.96 4 4 12.96 4 24s8.96 20 20 20 20-8.96 20-20S35.04 4 24 4zm0 36c-8.84 0-16-7.16-16-16S15.16 8 24 8s16 7.16 16 16-7.16 16-16 16zm-2-22h4v12h-4V18zm0 16h4v4h-4v-4z" fill="currentColor"/>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 13h5l1.5 2.5h5L16 13h5" /><path d="M5.5 5h13L21 13v6H3v-6z" />
         </svg>
       </slot>
     </div>
@@ -36,14 +36,14 @@ defineProps<Props>()
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  padding: 20px 16px;
   text-align: center;
 }
 
 .empty-state__icon {
   color: var(--color-text-secondary, #667085);
-  margin-bottom: 16px;
-  opacity: 0.5;
+  margin-bottom: 6px;
+  opacity: 0.6;
 }
 
 .empty-state__content {

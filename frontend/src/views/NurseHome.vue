@@ -8,6 +8,7 @@
       <template #actions>
         <span class="page-meta">{{ accountName }}</span>
         <span class="page-meta">{{ shiftText }}</span>
+        <span v-if="workload.estimated_minutes" class="page-meta">工作负荷 {{ workload.used_minutes || 0 }}/{{ workload.estimated_minutes }} 分钟</span>
         <a-button size="small" @click="load">刷新</a-button>
       </template>
     </PageHeader>
@@ -17,27 +18,18 @@
     <ErrorState v-else-if="error" :description="error" />
 
     <template v-else>
-      <!-- KPI 摘要条 -->
-      <MetricStrip
-        :metrics="[
-          { label: '我的床位', value: sortedBeds.length, unit: '人' },
-          { label: '危急风险', value: criticalAlerts.length, unit: '项', variant: criticalAlerts.length > 0 ? 'danger' : 'success' },
-          { label: '逾期任务', value: overdueCount, unit: '项', variant: overdueCount > 0 ? 'warning' : 'success' },
-          { label: '工作负荷', value: `${workload.used_minutes || 0}/${workload.estimated_minutes || 0}`, unit: '分' },
-        ]"
+      <!-- 床位临床概览（我的床位；未匹配到分管时展示全科） -->
+      <WardClinicalBoard
+        class="nurse-board"
+        :title="myBedIds.length ? `我的床位 · 逾期任务 ${overdueCount} 项` : '科室床位概览（未匹配到分管床位）'"
+        :patient-ids="myBedIds"
+        :scope-label="myBedIds.length ? '我的床位' : '在科患者'"
       />
 
       <!-- 主内容区 -->
       <div class="main-grid">
         <!-- 左列：床位 + 危急风险 -->
         <div class="col-left">
-          <!-- 我的床位 - ICU床位地图 -->
-          <ICUBedMap
-            :beds="bedMapData"
-            :columns="4"
-            @bed-click="(bed) => bed.patientId && goPatient(bed.patientId)"
-          />
-
           <!-- 危急/高风险 -->
           <section v-if="criticalAlerts.length" class="panel panel--critical">
             <div class="panel-head">
@@ -49,6 +41,7 @@
                 v-for="item in criticalAlerts.slice(0, 8)"
                 :key="item._id || item.created_at"
                 class="alert-row"
+                @click="item.patient_id && goPatient(item.patient_id)"
               >
                 <i :class="['alert-dot', priorityDot(item.priority)]"></i>
                 <div class="alert-row__info">
@@ -90,29 +83,6 @@
         </div>
       </div>
 
-      <!-- 首次引导 -->
-      <div v-if="showOnboarding" class="onboarding-mask" @click.self="dismissOnboarding">
-        <div class="onboarding-card">
-          <div class="onboarding-head">
-            <strong>护士首页 3 步用法</strong>
-            <a-button size="small" @click="dismissOnboarding">知道了</a-button>
-          </div>
-          <ol>
-            <li>
-              <b>看我的床位</b>
-              <span>点击床位进入患者详情，红点表示有风险提醒。</span>
-            </li>
-            <li>
-              <b>处理本班任务</b>
-              <span>点击任务可执行、推迟、转交或标记不适用。</span>
-            </li>
-            <li>
-              <b>下班前交班</b>
-              <span>系统自动展开交班入口，一键生成交班单。</span>
-            </li>
-          </ol>
-        </div>
-      </div>
     </template>
   </section>
 </template>
@@ -124,10 +94,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { postNurseHandoffGenerate } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useNurseHome } from '../composables/useNurseHome'
-import { roleHomeConfig } from '../config/roleHomeConfig'
-import { PageHeader, LoadingState, ErrorState, MetricStrip } from '../components/common/design-system'
-import { ICUBedMap } from '../components/charts'
-import type { BedInfo } from '../components/charts'
+import { PageHeader, LoadingState, ErrorState } from '../components/common/design-system'
+import WardClinicalBoard from '../components/home/WardClinicalBoard.vue'
 import NurseShiftTasks from '../components/nurse/NurseShiftTasks.vue'
 import NurseSafetyChecklist from '../components/nurse/NurseSafetyChecklist.vue'
 import NurseHandoffEntry from '../components/nurse/NurseHandoffEntry.vue'
@@ -161,51 +129,12 @@ const {
   priorityDot,
 } = useNurseHome()
 
-const showOnboarding = ref(false)
+const myBedIds = computed<string[]>(() => sortedBeds.value.map((b: any) => String(b.patient_id || '')).filter(Boolean))
 const handoffLoading = ref(false)
 const handoffId = ref('')
 
 // ── 计算 ──
 const overdueCount = computed(() => timeline.value.filter((t: any) => t.status === 'overdue').length)
-
-// ICU床位地图数据
-const bedMapData = computed<BedInfo[]>(() => {
-  return sortedBeds.value.map((bed: any) => {
-    const riskLevel = String(bed.risk_level || '').toLowerCase()
-    let status: BedInfo['status'] = 'normal'
-    if (['critical', 'danger', 'red'].includes(riskLevel)) status = 'critical'
-    else if (['high', 'warning', 'warn', 'medium'].includes(riskLevel)) status = 'high'
-    return {
-      bedNo: displayBed(bed.bed),
-      patientId: bed.patient_id,
-      patientName: bed.name || '未知',
-      age: bed.age,
-      gender: bed.gender,
-      status,
-      hr: bed.hr ?? bed.heart_rate,
-      bp: bed.bp ?? (bed.sbp && bed.dbp ? `${bed.sbp}/${bed.dbp}` : undefined),
-      spo2: bed.spo2 ?? bed.sp_o2,
-      device: bed.device || bed.ventilator_mode,
-      alertCount: bed.alert_count || (tasksByBed(bed.patient_id).length || 0),
-    }
-  })
-})
-
-// ── 按床位分组任务（避免在 v-for 中重复过滤） ──
-const tasksByBedMap = computed(() => {
-  const map = new Map<string, any[]>()
-  for (const t of timeline.value) {
-    const pid = (t as any).patient_id
-    if (!pid) continue
-    if (!map.has(pid)) map.set(pid, [])
-    map.get(pid)!.push(t)
-  }
-  return map
-})
-
-function tasksByBed(patientId: string) {
-  return tasksByBedMap.value.get(patientId) || []
-}
 
 // ── 任务操作 ──
 async function handleTaskExecute(task: any, action: string) {
@@ -239,24 +168,11 @@ function goHandover() {
   router.push({ path: '/handover', query: route.query })
 }
 
-// ── 引导 ──
-function dismissOnboarding() {
-  showOnboarding.value = false
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(roleHomeConfig.nurse.onboardingKey, '1')
-  }
-}
-
 // ── 生命周期 ──
 onMounted(() => {
   auth.hydrateFromQuery(route.query)
   cleanDuplicateIdentityQuery()
   void load()
-  if (typeof window !== 'undefined') {
-    if (!window.localStorage.getItem(roleHomeConfig.nurse.onboardingKey)) {
-      showOnboarding.value = true
-    }
-  }
 })
 
 watch(
@@ -279,6 +195,7 @@ watch(
 </script>
 
 <style scoped>
+.nurse-board { margin-bottom: 12px; }
 .nurse-home {
   padding: var(--page-padding);
   padding-bottom: 80px;
@@ -360,7 +277,7 @@ watch(
   gap: 1px;
 }
 
-.alert-row {
+.alert-row { cursor: pointer;
   display: flex;
   align-items: center;
   gap: 10px;

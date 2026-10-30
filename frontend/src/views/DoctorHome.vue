@@ -17,14 +17,11 @@
 
     <!-- 主内容 -->
     <template v-else>
-      <!-- 关键指标卡 -->
-      <MetricStrip
-        :metrics="[
-          { label: 'ICU在科患者', value: sortedFocusPatients.length, unit: '人', trend: 'stable', trendValue: `较昨日${focusPatientsDelta >= 0 ? '+' : ''}${focusPatientsDelta}` },
-          { label: '危急患者', value: criticalCount, unit: '人', variant: 'danger' },
-          { label: '未签收告警', value: unackedAlertCount, unit: '条', variant: unackedAlertCount > 0 ? 'warning' : 'success' },
-          { label: '即将超时', value: timeoutItems.length, unit: '项', variant: timeoutItems.length > 0 ? 'warning' : 'success' },
-        ]"
+      <!-- 床位临床概览：结论先行，数据来自本班统计与实时体征 -->
+      <WardClinicalBoard
+        :title="managedIds.length ? '我的分管患者' : '科室患者概览'"
+        :patient-ids="managedIds"
+        :scope-label="managedIds.length ? '分管患者' : '在科患者'"
       />
 
       <!-- 昨夜AI摘要：一句话自然语言 -->
@@ -34,29 +31,12 @@
         <span class="ai-summary-link">查看详情 →</span>
       </section>
 
-      <!-- 可视化区：风险矩阵 + 告警漏斗 -->
-      <div class="viz-row">
-        <div class="viz-matrix">
-          <RiskMatrix
-            :patients="riskMatrixPatients"
-            :height="320"
-            @patient-click="(p) => goPatient(p.id)"
-          />
-        </div>
-        <div class="viz-funnel">
-          <AlertFunnel
-            :stages="alertFunnelStages"
-            :height="320"
-          />
-        </div>
-      </div>
-
       <!-- 主网格：4个核心区域 -->
       <main class="doctor-grid">
         <!-- 1. 我的重点患者 -->
-        <section class="panel focus-panel">
+        <section v-if="sortedFocusPatients.length" class="panel focus-panel">
           <div class="panel-head">
-            <strong>重点患者</strong>
+            <strong>综合风险推理提示</strong>
             <span class="panel-count" v-if="sortedFocusPatients.length">{{ sortedFocusPatients.length }}人</span>
           </div>
           <div class="patient-list">
@@ -166,10 +146,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { getDoctorHome } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { formatRiskLevelLabel } from '../utils/displayLabels'
-import { PageHeader, MetricStrip, LoadingState, ErrorState, EmptyState } from '../components/common/design-system'
-import { RiskMatrix, AlertFunnel } from '../components/charts'
-import type { MatrixPatient } from '../components/charts'
-import type { FunnelStage } from '../components/charts'
+import { PageHeader, LoadingState, ErrorState, EmptyState } from '../components/common/design-system'
+import WardClinicalBoard from '../components/home/WardClinicalBoard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -198,6 +176,7 @@ const accountName = computed(() => home.value?.account?.display_name || home.val
 
 // ─── 数据派生 ────────────────────────────────────────────────────────────────
 const focusPatients = computed(() => home.value?.focus_patients || [])
+const managedIds = computed<string[]>(() => (home.value?.managed_patient_ids || []).map(String))
 const sortedFocusPatients = computed(() => sortBeds(focusPatients.value, (row: any) => row?.bed))
 const pendingTasks = computed(() => (home.value?.pending_tasks || []).slice(0, 8))
 const doctorEmptyText = computed(() => cleanEmptyText(home.value?.data_state?.empty_reason, '当前暂无需要置顶的分管患者'))
@@ -264,53 +243,6 @@ const timeoutItems = computed(() => {
     }
   })
   return items.slice(0, 5)
-})
-
-// ─── 可视化数据 ────────────────────────────────────────────────────────────
-
-// 风险矩阵数据
-const riskMatrixPatients = computed<MatrixPatient[]>(() => {
-  return focusPatients.value.map((p: any) => ({
-    id: p.patient_id || p.id,
-    name: p.name || '未知',
-    bedNo: displayBed(p.bed),
-    diagnosis: p.diagnosis || p.reason || '',
-    riskScore: Number(p.risk_score || 0),
-    riskVelocity: Number(p.risk_velocity || p.risk_delta || 0),
-    pendingIssues: Number(p.pending_issues || p.alert_count || 0),
-  }))
-})
-
-// 危急患者数
-const criticalCount = computed(() => {
-  return focusPatients.value.filter((p: any) => {
-    const level = String(p.risk_level || '').toLowerCase()
-    return ['critical', 'danger', 'red'].includes(level)
-  }).length
-})
-
-// 未签收告警数
-const unackedAlertCount = computed(() => {
-  return Number(home.value?.ai_night_watch?.pending_followup || 0)
-})
-
-// 患者数变化
-const focusPatientsDelta = computed(() => {
-  return Number(home.value?.patient_delta || 0)
-})
-
-// 告警漏斗数据
-const alertFunnelStages = computed<FunnelStage[]>(() => {
-  const a = home.value?.ai_night_watch || {}
-  const total = a.total_alerts || 0
-  const handled = a.handled || 0
-  const pending = a.pending_followup || 0
-  return [
-    { name: '告警触发', value: total, color: '#D92D20' },
-    { name: '已签收', value: total - pending, color: '#F79009' },
-    { name: '已处置', value: handled, color: '#1677FF' },
-    { name: '已关闭', value: Math.max(0, handled - 2), color: '#12A66A' },
-  ]
 })
 
 // 科室质控：只显示异常

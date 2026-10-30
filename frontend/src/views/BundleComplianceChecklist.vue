@@ -6,9 +6,10 @@
         <span>{{ summary?.date || '--' }} · {{ summary?.patient_count || 0 }} 名患者</span>
       </div>
       <div class="header-right">
-        <span class="overall-score" :class="summary?.overall_tone || 'red'">
+        <span v-if="summary?.patient_count" class="overall-score" :class="summary?.overall_tone || 'red'">
           综合 {{ summary?.overall_score || 0 }}%
         </span>
+        <span v-else class="overall-score overall-score--na">暂无核查数据</span>
         <button type="button" @click="load" :disabled="loading">
           {{ loading ? '加载中...' : '刷新' }}
         </button>
@@ -127,6 +128,7 @@ watch(() => [props.deptCode, props.dept], () => { void load() })
 </script>
 
 <style scoped>
+.overall-score--na { background: #F5F5F4 !important; color: #78716C !important; }
 .bundle-compliance {
   display: grid;
   gap: 12px;
