@@ -33,7 +33,7 @@
           <!-- 危急/高风险 -->
           <section v-if="criticalAlerts.length" class="panel panel--critical">
             <div class="panel-head">
-              <strong>⚠ 危急/高风险</strong>
+              <strong>危急/高风险</strong>
               <span class="badge-danger">{{ criticalAlerts.length }}</span>
             </div>
             <div class="alert-list">

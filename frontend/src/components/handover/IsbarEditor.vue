@@ -1,7 +1,7 @@
 <template>
   <div class="isbar-editor">
     <div class="editor-toolbar">
-      <h3 class="editor-title">📋 ISBAR 结构化交班</h3>
+      <h3 class="editor-title">ISBAR 结构化交班</h3>
       <div class="editor-actions">
         <a-tag v-if="aiGeneratedCount" color="blue">AI 生成: {{ aiGeneratedCount }} 字段</a-tag>
         <span class="status-badge" :class="`status-${status}`">{{ statusLabel }}</span>
@@ -90,7 +90,7 @@
       <a-collapse-panel key="recommendation" header="R 建议">
         <!-- Critical alerts (always first, highlighted) -->
         <div class="critical-section" v-if="localSections.recommendation.critical_first?.length">
-          <h4 class="critical-title">🚨 危急值与未闭环预警（强制交接）</h4>
+          <h4 class="critical-title">危急值与未闭环预警（强制交接）</h4>
           <div
             v-for="(alert, ai) in localSections.recommendation.critical_first"
             :key="ai"
@@ -126,7 +126,7 @@
           />
         </div>
         <div class="field-row" :class="sourceClass('recommendation.escalation')">
-          <label>🆘 紧急升级条件</label>
+          <label>紧急升级条件</label>
           <a-textarea
             v-model:value="escalationText"
             :rows="2"
@@ -197,12 +197,12 @@ const backgroundFields = [
   { key: 'allergies', label: '过敏' },
 ]
 const assessmentSystems = [
-  { key: 'neuro', label: '🧠 神经' }, { key: 'resp', label: '🫁 呼吸' },
-  { key: 'circ', label: '❤️ 循环' }, { key: 'temp', label: '🌡️ 体温' },
-  { key: 'gi', label: '🫄 消化' }, { key: 'heme', label: '🩸 血液' },
-  { key: 'specialty', label: '🔬 专科要点' }, { key: 'nursing', label: '💊 护理要点' },
-  { key: 'lines', label: '🪡 管路' }, { key: 'skin', label: '🖐️ 皮肤' },
-  { key: 'items', label: '📦 物品交接' },
+  { key: 'neuro', label: '神经' }, { key: 'resp', label: '呼吸' },
+  { key: 'circ', label: '循环' }, { key: 'temp', label: '体温' },
+  { key: 'gi', label: '消化' }, { key: 'heme', label: '血液' },
+  { key: 'specialty', label: '专科要点' }, { key: 'nursing', label: '护理要点' },
+  { key: 'lines', label: '管路' }, { key: 'skin', label: '皮肤' },
+  { key: 'items', label: '物品交接' },
 ]
 
 const tasksText = ref((props.sections.recommendation?.tasks || []).join('\n'))

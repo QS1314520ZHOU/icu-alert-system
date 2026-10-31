@@ -55,7 +55,7 @@
     <!-- 安全条 -->
     <div v-if="safetyItems.length" class="safety-strip">
       <span v-for="item in safetyItems" :key="item.key" :class="['safety-tag', `safety-${item.level}`]">
-        <span class="safety-icon">{{ item.level === 'danger' ? '✕' : item.level === 'warning' ? '⚠' : 'ℹ' }}</span>
+        <span class="safety-icon">{{ item.level === 'danger' ? '✕' : item.level === 'warning' ? '' : 'ℹ' }}</span>
         {{ item.text }}
       </span>
     </div>

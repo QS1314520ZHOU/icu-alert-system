@@ -123,7 +123,7 @@
     <section v-if="currentStep === 3" class="ci-section">
       <h3 class="ci-section-title">因果效应估计</h3>
       <div class="ci-disclaimer ci-disclaimer--inline">
-        ⚠ 当前为探索性分析结果，不等同于正式因果推断。ATE/ATT 基于观察性数据的近似估计，不可直接用于临床决策。
+        当前为探索性分析结果，不等同于正式因果推断。ATE/ATT 基于观察性数据的近似估计，不可直接用于临床决策。
       </div>
       <div class="ci-effect-cards">
         <div class="ci-effect-card">
@@ -150,7 +150,7 @@
 
       <!-- 重要声明 -->
       <div class="ci-disclaimer">
-        <h4>⚠ 重要声明</h4>
+        <h4>重要声明</h4>
         <ul>
           <li>这是基于观察性数据的估计，不能替代随机对照试验</li>
           <li>未测量混杂仍可能存在</li>

@@ -61,7 +61,7 @@
               ✓ 执行
             </button>
             <button class="action-btn" @click="handleAction('delay_15m')">
-              ⏱ 推迟15分钟
+              推迟15分钟
             </button>
             <button class="action-btn" @click="handleAction('handover')">
               ↗ 转交

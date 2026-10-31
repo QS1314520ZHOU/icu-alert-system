@@ -8,7 +8,6 @@
         :disabled="loading"
         @click="startRecord"
       >
-        <span class="vr-icon">🎤</span>
         <span>开始口述</span>
       </button>
       <button
@@ -16,7 +15,6 @@
         class="vr-btn vr-btn--stop"
         @click="stopRecord"
       >
-        <span class="vr-icon">⏹</span>
         <span>结束并转写</span>
       </button>
 
@@ -40,7 +38,7 @@
 
     <!-- 超时提示 -->
     <div v-if="timeoutWarning" class="vr-timeout-warn">
-      ⏰ 录音已达到最大时长（{{ maxRecordingSeconds }}秒），已自动停止。
+      录音已达到最大时长（{{ maxRecordingSeconds }}秒），已自动停止。
     </div>
 
     <!-- 实时字幕（流式模式） -->
@@ -65,7 +63,7 @@
     <div v-if="draft" class="vr-result">
       <!-- 人工审核警告 -->
       <div v-if="draft.needs_human_review" class="vr-warn">
-        <strong>⚠️ 需人工核对（可能涉及数值/剂量）：</strong>
+        <strong>需人工核对（可能涉及数值/剂量）：</strong>
         <ul>
           <li
             v-for="(s, i) in draft.suspect"

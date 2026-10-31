@@ -3,7 +3,6 @@
     <div class="forbidden-card">
       <ErrorState title="权限不足" description="您没有权限访问此页面或模块。">
         <template #icon>
-          <span class="forbidden-icon" aria-hidden="true">🔒</span>
         </template>
         <template #action>
           <p class="forbidden-hint">

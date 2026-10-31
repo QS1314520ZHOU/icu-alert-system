@@ -90,7 +90,7 @@
         </div>
         <button class="voice-toggle ghost" @click="testSpeech">试播</button>
       </div>
-      <div v-if="patientAlerts.length === 0" class="bedside-alerts__empty">暂无活跃预警</div>
+      <div v-if="patientAlerts.length === 0" class="bedside-alerts__empty">当前无未处理预警，病情变化时以中央站提示为准。</div>
       <div
         v-for="alert in patientAlerts.slice(0, 3)"
         :key="alert._id || alert.rule_id"

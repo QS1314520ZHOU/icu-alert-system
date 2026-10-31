@@ -49,7 +49,10 @@ vi.mock('../config/roleHomeConfig', () => ({
     { key: 'patients', label: '患者', items: [{ key: 'overview', label: '患者总览', icon: 'users', path: '/patients' }] },
     { key: 'more', label: '更多', items: [{ key: 'mdt', label: 'MDT会诊', icon: 'network', path: '/mdt' }] },
   ],
-  moreMenuItems: [{ key: 'mdt', label: 'MDT会诊', icon: 'network', path: '/mdt' }],
+  secondaryNavGroups: [
+    { key: 'specialty', label: '专科治疗', items: [{ key: 'mdt', label: 'MDT会诊', icon: 'network', path: '/mdt' }] },
+    { key: 'system', label: '系统管理', defaultCollapsed: true, items: [] },
+  ],
   roleHomeKeys: {},
 }))
 
@@ -65,11 +68,17 @@ describe('Navigation Resolver', () => {
       expect(result.groups.some(g => g.key === 'patients')).toBe(true)
     })
 
-    it('should include more menu items', () => {
+    it('should append secondary groups and drop the legacy more group', () => {
       const result = resolveNavigation({ mode: 'global' })
-      const moreGroup = result.groups.find(g => g.key === 'more')
-      expect(moreGroup).toBeDefined()
-      expect(moreGroup!.items.length).toBeGreaterThan(0)
+      const specialty = result.groups.find(g => g.key === 'specialty')
+      expect(specialty).toBeDefined()
+      expect(specialty!.items.map(i => i.key)).toEqual(['mdt'])
+      // 旧“更多”组被过滤；空分组不渲染
+      expect(result.groups.some(g => g.key === 'more')).toBe(false)
+      expect(result.groups.some(g => g.key === 'system')).toBe(false)
+      // 同一入口不重复出现
+      const keys = result.groups.flatMap(g => g.items.map(i => i.key))
+      expect(new Set(keys).size).toBe(keys.length)
     })
   })
 

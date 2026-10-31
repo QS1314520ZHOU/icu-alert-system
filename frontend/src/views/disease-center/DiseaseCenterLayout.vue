@@ -58,16 +58,16 @@ import { ref, computed } from 'vue'
 const cachedViews = ref(['DiseaseCenterOverview'])
 
 const navTabs = computed(() => [
-  { key: 'overview', icon: '📊', label: '总览', to: '/disease-center/overview' },
-  { key: 'cases', icon: '🩺', label: '病例中心', to: '/disease-center/cases' },
-  { key: 'diseases', icon: '📁', label: '病种目录', to: '/disease-center/diseases' },
-  { key: 'terminology', icon: '🔤', label: '术语编码', to: '/disease-center/terminology' },
-  { key: 'scores', icon: '📈', label: '评分规则', to: '/disease-center/scores' },
-  { key: 'phenotypes', icon: '🧬', label: '表型规则', to: '/disease-center/phenotypes' },
-  { key: 'offline', icon: '📦', label: '离线知识包', to: '/disease-center/offline-packages' },
-  { key: 'reviews', icon: '✅', label: '审核发布', to: '/disease-center/reviews' },
-  { key: 'ai', icon: '🤖', label: 'AI助手', to: '/disease-center/ai' },
-  { key: 'quality', icon: '🔍', label: '质量监控', to: '/disease-center/quality' },
+  { key: 'overview', icon: '', label: '总览', to: '/disease-center/overview' },
+  { key: 'cases', icon: '', label: '病例中心', to: '/disease-center/cases' },
+  { key: 'diseases', icon: '', label: '病种目录', to: '/disease-center/diseases' },
+  { key: 'terminology', icon: '', label: '术语编码', to: '/disease-center/terminology' },
+  { key: 'scores', icon: '', label: '评分规则', to: '/disease-center/scores' },
+  { key: 'phenotypes', icon: '', label: '表型规则', to: '/disease-center/phenotypes' },
+  { key: 'offline', icon: '', label: '离线知识包', to: '/disease-center/offline-packages' },
+  { key: 'reviews', icon: '', label: '审核发布', to: '/disease-center/reviews' },
+  { key: 'ai', icon: '', label: 'AI助手', to: '/disease-center/ai' },
+  { key: 'quality', icon: '', label: '质量监控', to: '/disease-center/quality' },
 ])
 </script>
 

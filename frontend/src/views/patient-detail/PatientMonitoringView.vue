@@ -37,7 +37,7 @@
           <a-spin />
         </div>
         <div v-else-if="waveformError" class="waveform-error">
-          <span class="waveform-error__icon">⚠️</span>
+          <span class="waveform-error__icon">!</span>
           <span class="waveform-error__text">{{ waveformError }}</span>
           <button class="waveform-empty__btn" @click="loadWaveform">重试</button>
         </div>
@@ -49,7 +49,6 @@
           />
         </div>
         <div v-else class="waveform-empty">
-          <span class="waveform-empty__icon">📊</span>
           <span class="waveform-empty__title">{{ waveformChannels.length ? '该参数在窗口内无记录' : '暂无床旁参数记录' }}</span>
           <span class="waveform-empty__desc">请确认监护设备已连接且数据同步正常</span>
           <button class="waveform-empty__btn" @click="loadWaveform">重新加载</button>

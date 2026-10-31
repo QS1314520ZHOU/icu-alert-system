@@ -1,6 +1,6 @@
 <template>
   <div class="evidence-panel">
-    <h4 class="panel-title">📎 生成依据</h4>
+    <h4 class="panel-title">生成依据</h4>
     <div v-if="!items.length" class="empty-hint">暂无依据数据</div>
     <div v-for="item in items" :key="item.field + item.time" class="evidence-item">
       <span class="evidence-field">{{ item.field }}</span>

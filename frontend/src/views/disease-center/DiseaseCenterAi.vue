@@ -9,7 +9,7 @@
           :class="['cap-tab', { 'cap-tab--active': activeCapability === cap.key }]"
           @click="activeCapability = cap.key"
         >
-          <span class="cap-icon">{{ cap.icon }}</span>
+          <span v-if="cap.icon" class="cap-icon">{{ cap.icon }}</span>
           <span class="cap-label">{{ cap.label }}</span>
         </button>
       </div>
@@ -34,7 +34,6 @@
         <!-- 消息列表 -->
         <div class="message-list" ref="messageList">
           <div v-if="messages.length === 0" class="welcome-state">
-            <span class="welcome-icon">🤖</span>
             <h3 class="welcome-title">病种中心 AI 助手</h3>
             <p class="welcome-desc">{{ currentCapability?.welcome }}</p>
             <div class="quick-actions">
@@ -51,8 +50,8 @@
 
           <div v-for="(msg, i) in messages" :key="i" :class="['message', `message--${msg.role}`]">
             <div class="message-avatar">
-              <span v-if="msg.role === 'user'">👤</span>
-              <span v-else>🤖</span>
+              <span v-if="msg.role === 'user'">我</span>
+              <span v-else>AI</span>
             </div>
             <div class="message-content">
               <div class="message-text" v-html="msg.content"></div>
@@ -84,7 +83,7 @@
           </div>
 
           <div v-if="loading" class="message message--assistant">
-            <div class="message-avatar">🤖</div>
+            <div class="message-avatar">AI</div>
             <div class="message-content">
               <div class="typing-indicator">
                 <span></span><span></span><span></span>
@@ -150,7 +149,7 @@
                   <span class="meta-val">v1.5.0 (2024 Q1)</span>
                 </div>
                 <div class="meta-row">
-                  <span class="meta-key">Prompt</span>
+                  <span class="meta-key">提示词</span>
                   <span class="meta-val">v2.1.0</span>
                 </div>
               </div>
@@ -205,7 +204,7 @@ interface Capability {
 const capabilities: Capability[] = [
   {
     key: 'disease',
-    icon: '📁',
+    icon: '',
     label: '病种编辑',
     hint: '从指南提取定义、推荐分型分期、推荐指标',
     welcome: '我可以帮您从医学指南中提取病种定义、推荐分型分期标准、发现缺失内容，并生成逐字段草稿。',
@@ -215,7 +214,7 @@ const capabilities: Capability[] = [
   },
   {
     key: 'terminology',
-    icon: '🔤',
+    icon: '',
     label: '术语编码',
     hint: '智能搜索、同义词推荐、ICD候选',
     welcome: '我可以帮您智能搜索术语、推荐同义词、查找 ICD 编码候选，并解释编码冲突。',
@@ -225,7 +224,7 @@ const capabilities: Capability[] = [
   },
   {
     key: 'scoring',
-    icon: '📈',
+    icon: '',
     label: '评分规则',
     hint: '解释评分过程、检查缺失数据、比较版本',
     welcome: '我可以帮您解释评分计算过程、检查缺失数据、比较 Classic SOFA 和 SOFA-2 差异，并生成测试病例。',
@@ -235,7 +234,7 @@ const capabilities: Capability[] = [
   },
   {
     key: 'phenotype',
-    icon: '🧬',
+    icon: '',
     label: '表型规则',
     hint: '指南转DSL、生成测试、检查冲突',
     welcome: '我可以帮您把指南文字转换成 JSON DSL 草稿、生成边界测试、检查逻辑冲突，并解释规则含义。',
@@ -245,7 +244,7 @@ const capabilities: Capability[] = [
   },
   {
     key: 'review',
-    icon: '✅',
+    icon: '',
     label: '审核发布',
     hint: '总结差异、分析影响、检查来源',
     welcome: '我可以帮您总结版本差异、分析影响范围、检查来源完整性，并提示高风险修改。',
@@ -255,7 +254,7 @@ const capabilities: Capability[] = [
   },
   {
     key: 'quality',
-    icon: '🔍',
+    icon: '',
     label: '质量监控',
     hint: '分析误报漏报、发现规则漂移',
     welcome: '我可以帮您分析误报和漏报、发现规则漂移、发现重复病种和异常映射。',

@@ -150,17 +150,17 @@ const kpiCards = computed(() => {
   const d = dashboard.value
   if (!d) {
     return [
-      { key: 'diseases', label: '疾病数', value: '-', icon: '📁', iconBg: 'rgba(29,111,99,0.1)' },
-      { key: 'today', label: '今日新增', value: '-', icon: '🆕', iconBg: 'rgba(59,130,246,0.1)' },
-      { key: 'pending', label: '待临床确认', value: '-', icon: '⏳', iconBg: 'rgba(217,45,32,0.1)' },
-      { key: 'active', label: '路径执行中', value: '-', icon: '🚀', iconBg: 'rgba(22,132,91,0.1)' },
+      { key: 'diseases', label: '疾病数', value: '-', icon: '', iconBg: 'rgba(29,111,99,0.1)' },
+      { key: 'today', label: '今日新增', value: '-', icon: '', iconBg: 'rgba(59,130,246,0.1)' },
+      { key: 'pending', label: '待临床确认', value: '-', icon: '', iconBg: 'rgba(217,45,32,0.1)' },
+      { key: 'active', label: '路径执行中', value: '-', icon: '', iconBg: 'rgba(22,132,91,0.1)' },
     ]
   }
   return [
-    { key: 'diseases', label: '疾病数', value: d.disease_count ?? d.disease_total ?? 0, icon: '📁', iconBg: 'rgba(29,111,99,0.1)' },
-    { key: 'today', label: '今日新增', value: d.today_new ?? d.today_new_cases ?? 0, icon: '🆕', iconBg: 'rgba(59,130,246,0.1)' },
-    { key: 'pending', label: '待临床确认', value: d.pending_review ?? 0, icon: '⏳', iconBg: 'rgba(217,45,32,0.1)' },
-    { key: 'active', label: '路径执行中', value: d.pathway_active ?? d.active_cases ?? 0, icon: '🚀', iconBg: 'rgba(22,132,91,0.1)' },
+    { key: 'diseases', label: '疾病数', value: d.disease_count ?? d.disease_total ?? 0, icon: '', iconBg: 'rgba(29,111,99,0.1)' },
+    { key: 'today', label: '今日新增', value: d.today_new ?? d.today_new_cases ?? 0, icon: '', iconBg: 'rgba(59,130,246,0.1)' },
+    { key: 'pending', label: '待临床确认', value: d.pending_review ?? 0, icon: '', iconBg: 'rgba(217,45,32,0.1)' },
+    { key: 'active', label: '路径执行中', value: d.pathway_active ?? d.active_cases ?? 0, icon: '', iconBg: 'rgba(22,132,91,0.1)' },
   ]
 })
 
@@ -171,10 +171,10 @@ const qualityCards = computed(() => {
   if (!q) return []
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`
   return [
-    { key: 'confirm_rate', label: '纳入确认率', value: pct(q.confirmation_rate), icon: '✅', iconBg: 'rgba(22,132,91,0.1)' },
-    { key: 'exclude_rate', label: '排除率', value: pct(q.exclusion_rate), icon: '❌', iconBg: 'rgba(217,45,32,0.1)' },
-    { key: 'pathway_start', label: '路径启动率', value: pct(q.pathway_start_rate), icon: '📋', iconBg: 'rgba(59,130,246,0.1)' },
-    { key: 'pathway_complete', label: '路径完成率', value: pct(q.pathway_completion_rate), icon: '🏁', iconBg: 'rgba(22,132,91,0.1)' },
+    { key: 'confirm_rate', label: '纳入确认率', value: pct(q.confirmation_rate), icon: '', iconBg: 'rgba(22,132,91,0.1)' },
+    { key: 'exclude_rate', label: '排除率', value: pct(q.exclusion_rate), icon: '', iconBg: 'rgba(217,45,32,0.1)' },
+    { key: 'pathway_start', label: '路径启动率', value: pct(q.pathway_start_rate), icon: '', iconBg: 'rgba(59,130,246,0.1)' },
+    { key: 'pathway_complete', label: '路径完成率', value: pct(q.pathway_completion_rate), icon: '', iconBg: 'rgba(22,132,91,0.1)' },
   ]
 })
 

@@ -17,7 +17,7 @@
         </div>
       </div>
       <div class="overview-card">
-        <div class="card-icon card-icon--warning">⚠</div>
+        <div class="card-icon card-icon--warning">!</div>
         <div class="card-info">
           <div class="card-value">{{ overview.version_issues }}</div>
           <div class="card-label">版本问题</div>
@@ -59,7 +59,6 @@
         </div>
         <div class="panel__body">
           <div v-if="filteredIssues.length === 0" class="empty-state">
-            <span class="empty-icon">✅</span>
             <span class="empty-text">暂无{{ activeTab === 'all' ? '' : tabLabel(activeTab) }}异常</span>
           </div>
           <div v-else class="issue-list">
@@ -110,7 +109,7 @@
             <h3 class="card__title">系统级规则健康</h3>
           </div>
           <div class="card__body">
-            <p class="link-desc">查看 Scanner 运行状态、扫描次数、告警数量、运行时延等系统级指标。</p>
+            <p class="link-desc">查看规则扫描器运行状态、扫描次数、告警数量、运行时延等系统级指标。</p>
             <a href="/admin/scanner-health" class="health-link">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               打开规则健康页面

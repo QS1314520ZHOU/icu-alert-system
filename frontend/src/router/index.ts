@@ -277,7 +277,7 @@ const router = createRouter({
       path: '/admin/voice-correction-review',
       name: 'voice-correction-review',
       component: routeComponents.voiceCorrectionReview,
-      meta: { title: '语音纠错Review', useAntdTheme: true, navigationMode: 'global' }
+      meta: { title: '语音纠错审核', useAntdTheme: true, navigationMode: 'global' }
     },
     {
       path: '/ai-consult',

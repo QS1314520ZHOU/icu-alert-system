@@ -26,7 +26,6 @@
 
       <!-- 昨夜AI摘要：一句话自然语言 -->
       <section v-if="aiSummary" class="ai-summary" @click="$router.push({ path: '/clinical-workflow', query: route.query })">
-        <span class="ai-summary-icon">✨</span>
         <span class="ai-summary-text">{{ aiSummary }}</span>
         <span class="ai-summary-link">查看详情 →</span>
       </section>
@@ -128,7 +127,7 @@
 
       <!-- 科室质控：只显示异常项 -->
       <section v-if="qualityAbnormal" class="quality-bar" @click="$router.push('/analytics')">
-        <span class="quality-icon">⚠️</span>
+        <span class="quality-icon">!</span>
         <span>{{ qualityAbnormal }}</span>
         <span class="quality-link">查看详情 →</span>
       </section>
@@ -219,7 +218,7 @@ const nightChanges = computed(() => {
   // 从AI数据中提取关键事件
   if (a.pending_followup > 0) {
     changes.push({
-      icon: '🔔',
+      icon: '!',
       text: `${a.pending_followup} 条告警待跟进`,
       tone: 'warn'
     })

@@ -89,18 +89,37 @@
               {{ group.label }}
               <span class="side-nav__toggle-arrow ui-chevron" :class="{ 'is-open': isGroupExpanded(group.key) }" aria-hidden="true"></span>
             </button>
-            <!-- 收起态：点击展开该组 -->
-            <button
-              v-else
-              class="side-nav__item"
-              :title="group.label"
-              @click="toggleGroupCollapse(group.key)"
+            <!-- 收起态：低频分组用下拉菜单，避免窄栏图标过长 -->
+            <a-dropdown
+              v-else-if="isDropdownGroup(group.key)"
+              :trigger="['click']"
+              placement="bottomRight"
+              overlay-class-name="side-nav__more-dropdown"
             >
-              <span class="side-nav__icon" v-html="iconSvg(groupIcon(group.key))"></span>
-            </button>
+              <button
+                :class="['side-nav__item', 'side-nav__more-trigger', { 'side-nav__item--active': groupHasActive(group) }]"
+                :title="group.label"
+              >
+                <span class="side-nav__icon" v-html="iconSvg(groupIcon(group.key))"></span>
+              </button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item-group :title="group.label">
+                    <a-menu-item v-for="item in group.items" :key="item.key">
+                      <router-link :to="item.path" class="side-nav__more-item">
+                        <span v-html="iconSvg(item.icon)"></span>
+                        <span>{{ item.label }}</span>
+                      </router-link>
+                    </a-menu-item>
+                  </a-menu-item-group>
+                </a-menu>
+              </template>
+            </a-dropdown>
+            <!-- 收起态：高频分组直接显示图标，仅用分隔线区分（避免分组图标与菜单图标重复） -->
+            <div v-else class="side-nav__group-divider" aria-hidden="true"></div>
 
             <!-- 组内菜单项 -->
-            <div v-show="isGroupExpanded(group.key)">
+            <div v-show="collapsed ? !isDropdownGroup(group.key) : isGroupExpanded(group.key)">
               <!-- AI 助手组：AI问诊为路由链接，患者智能分析模块点击选患者 -->
               <template v-if="group.key === 'ai'">
                 <template v-for="item in group.items" :key="item.key">
@@ -125,30 +144,7 @@
                 </template>
               </template>
 
-              <!-- 更多组：折叠态侧边栏用 dropdown -->
-              <template v-else-if="group.key === 'more' && collapsed">
-                <a-dropdown
-                  :trigger="['click']"
-                  placement="bottomRight"
-                  overlay-class-name="side-nav__more-dropdown"
-                >
-                  <button class="side-nav__item side-nav__more-trigger" title="更多">
-                    <span class="side-nav__icon" v-html="iconSvg('more')"></span>
-                  </button>
-                  <template #overlay>
-                    <a-menu>
-                      <a-menu-item v-for="item in group.items" :key="item.key">
-                        <router-link :to="item.path" class="side-nav__more-item">
-                          <span v-html="iconSvg(item.icon)"></span>
-                          <span>{{ item.label }}</span>
-                        </router-link>
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
-              </template>
-
-              <!-- 普通组 / 更多组展开态 -->
+              <!-- 普通组 -->
               <template v-else>
                 <router-link
                   v-for="item in group.items"
@@ -179,9 +175,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Dropdown as ADropdown, Menu as AMenu, MenuItem as AMenuItem } from 'ant-design-vue'
+import { Dropdown as ADropdown, Menu as AMenu, MenuItem as AMenuItem, MenuItemGroup as AMenuItemGroup } from 'ant-design-vue'
+import { secondaryNavGroups } from '../../config/roleHomeConfig'
 import { usePatientContext } from '../../stores/patientContext'
 import { useAuthStore } from '../../stores/auth'
 import { resolveNavigation } from '../../navigation/navigationResolver'
@@ -201,8 +198,13 @@ const {
 } = useAppNavigation()
 
 const STORAGE_KEY = 'side-nav-collapsed'
-// v2：分组结构调整（alerts/research 撤销，新增 handover/ai），旧存储键作废
-const GROUP_STORAGE_KEY = 'side-nav-collapsed-groups-v2'
+// v3：“更多”拆分为 专科治疗/科研/质控运营/系统管理，旧存储键作废
+const GROUP_STORAGE_KEY = 'side-nav-collapsed-groups-v3'
+// 收起态侧栏中以下拉菜单展示的低频分组
+const DROPDOWN_GROUP_KEYS = new Set(['clinical-knowledge', ...secondaryNavGroups.map((g) => g.key)])
+function isDropdownGroup(key: string) {
+  return DROPDOWN_GROUP_KEYS.has(key)
+}
 const collapsed = ref(localStorage.getItem(STORAGE_KEY) === 'true')
 const expandedGroups = ref(new Set<string>())
 
@@ -212,11 +214,22 @@ function loadCollapsedGroups(): Set<string> {
     const saved = localStorage.getItem(GROUP_STORAGE_KEY)
     if (saved) return new Set(JSON.parse(saved))
   } catch {}
-  // 默认展开今日工作/患者/交接班/AI（高频入口），收起低频的临床知识与更多
-  return new Set(['clinical-knowledge', 'more'])
+  // 默认展开今日工作/患者/交接班/AI/专科治疗（高频入口），收起临床知识与科研/质控/系统管理
+  return new Set(['clinical-knowledge', ...secondaryNavGroups.filter((g) => g.defaultCollapsed).map((g) => g.key)])
 }
 const collapsedGlobalGroups = ref(loadCollapsedGroups())
+// 用户在当前页面主动收起了所在分组时，尊重其选择（切换页面后复位）
+const userCollapsedActive = ref('')
 function toggleGroupCollapse(key: string) {
+  if (key === activeGroupKey.value && isGroupExpanded(key)) {
+    userCollapsedActive.value = key
+    const set = new Set(collapsedGlobalGroups.value)
+    set.add(key)
+    collapsedGlobalGroups.value = set
+    localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify([...set]))
+    return
+  }
+  if (key === userCollapsedActive.value) userCollapsedActive.value = ''
   const set = new Set(collapsedGlobalGroups.value)
   if (set.has(key)) set.delete(key)
   else set.add(key)
@@ -224,6 +237,8 @@ function toggleGroupCollapse(key: string) {
   localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify([...set]))
 }
 function isGroupExpanded(key: string) {
+  // 当前页面所在分组始终展开，避免进入页面后侧栏看不到高亮项
+  if (key === activeGroupKey.value && userCollapsedActive.value !== key) return true
   return !collapsedGlobalGroups.value.has(key)
 }
 
@@ -274,6 +289,29 @@ const globalResolved = computed(() => {
 // All global groups — each group is collapsible via toggleGroupCollapse
 const globalNavGroups = computed(() => globalResolved.value.groups)
 
+function pathMatches(path: string) {
+  return !!path && (route.path === path || route.path.startsWith(path + '/'))
+}
+// 最长前缀匹配：/disease-center/saki 只高亮“S-AKI 专病库”，不同时高亮“病种中心”
+const activeGlobalPath = computed(() => {
+  let best = ''
+  for (const g of globalNavGroups.value) {
+    for (const item of g.items) {
+      if (pathMatches(item.path) && item.path.length > best.length) best = item.path
+    }
+  }
+  return best
+})
+const activeGroupKey = computed(() => {
+  const p = activeGlobalPath.value
+  if (!p) return ''
+  return globalNavGroups.value.find((g) => g.items.some((i) => i.path === p))?.key || ''
+})
+watch(() => route.path, () => { userCollapsedActive.value = '' })
+function groupHasActive(group: { items: NavItem[] }) {
+  return !!activeGlobalPath.value && group.items.some((i) => i.path === activeGlobalPath.value)
+}
+
 // ── AI Intelligence in global mode ──
 function onGlobalAiClick(moduleKey: string) {
   navToModule(moduleKey)
@@ -287,6 +325,10 @@ function groupIcon(key: string): string {
     handover: 'exchange',
     ai: 'brain',
     'clinical-knowledge': 'database',
+    specialty: 'lungs',
+    research: 'flask',
+    quality: 'chart',
+    system: 'settings',
     more: 'more',
   }
   return map[key] || 'more'
@@ -313,7 +355,8 @@ function handleBackToPatients() {
 }
 
 function isActiveRoute(path: string): boolean {
-  return route.path === path || route.path.startsWith(path + '/')
+  if (!isPatientMode.value && activeGlobalPath.value) return path === activeGlobalPath.value
+  return pathMatches(path)
 }
 
 // ── SVG icons ──
@@ -553,6 +596,11 @@ function iconSvg(icon: string) {
   text-overflow: ellipsis;
 }
 
+.side-nav__group-divider {
+  height: 1px;
+  margin: 6px 12px;
+  background: #E5E7EB;
+}
 .side-nav__more-trigger {
   border-left: 3px solid transparent;
 }

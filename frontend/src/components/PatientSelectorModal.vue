@@ -29,7 +29,7 @@
 
       <!-- 错误状态 -->
       <div v-else-if="loadError" class="selector-error">
-        <span class="selector-error__icon">⚠</span>
+        <span class="selector-error__icon">!</span>
         <span class="selector-error__text">{{ loadError }}</span>
         <button class="selector-retry-btn" @click="loadPatients">重试</button>
       </div>

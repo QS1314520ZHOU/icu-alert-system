@@ -149,7 +149,7 @@
             <small>{{ item.desc }}</small>
           </div>
           <span v-if="(navCompletion as any)[item.key]" class="done-badge">✓</span>
-          <span v-if="(loading as any)[item.key]" class="loading-badge">⏳</span>
+          <span v-if="(loading as any)[item.key]" class="loading-badge"></span>
         </div>
       </div>
 

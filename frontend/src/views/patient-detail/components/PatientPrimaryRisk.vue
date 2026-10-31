@@ -36,7 +36,7 @@
       <p v-if="description" class="card-desc">{{ description }}</p>
 
       <!-- Bundle -->
-      <div v-if="showBundleHint" class="card-bundle">⏱ {{ bundleHintText }}</div>
+      <div v-if="showBundleHint" class="card-bundle">{{ bundleHintText }}</div>
     </div>
 
     <!-- 其他预警 -->

@@ -15,7 +15,7 @@
           <div class="forecast-popover-section-title">各指标数据点</div>
           <div v-for="item in indicatorDetails" :key="item.code" class="forecast-indicator-row">
             <span class="forecast-indicator-code">{{ item.code }}</span>
-            <span :class="['forecast-indicator-count', item.insufficient ? 'forecast-indicator-warn' : '']">{{ item.points }}点{{ item.insufficient ? ' ⚠' : '' }}</span>
+            <span :class="['forecast-indicator-count', item.insufficient ? 'forecast-indicator-warn' : '']">{{ item.points }}点{{ item.insufficient ? '（不足）' : '' }}</span>
           </div>
         </template>
       </div>

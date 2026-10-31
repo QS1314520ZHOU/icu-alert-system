@@ -2,12 +2,12 @@
   <div class="vcr-page">
     <header class="vcr-header">
       <div>
-        <h1>语音查房纠错 Review</h1>
-        <p>系统性错例候选清单。采纳后自动写回 correction_hints.yaml 并热重载。</p>
+        <h1>语音查房纠错审核</h1>
+        <p>系统性错例候选清单。采纳后自动写回纠错词表（correction_hints.yaml）并热重载。</p>
       </div>
       <div class="header-actions">
         <a-button :loading="loading" @click="loadCandidates">刷新</a-button>
-        <a-button :loading="reloading" @click="reloadHints">重载 Hints</a-button>
+        <a-button :loading="reloading" @click="reloadHints">重载纠错词表</a-button>
       </div>
     </header>
 
@@ -19,8 +19,8 @@
 
     <!-- 药名严审区（置顶） -->
     <section v-if="drugCandidates.length" class="vcr-drug-warning">
-      <h2>⚠️ 药名易混严审区</h2>
-      <p>以下候选涉及易混药名，<strong>禁止走快速采纳</strong>，必须由临床负责人在 yaml 中手动审定。</p>
+      <h2>药名易混严审区</h2>
+      <p>以下候选涉及易混药名，<strong>禁止走快速采纳</strong>，必须由临床负责人在纠错词表中手动审定。</p>
       <table class="vcr-table">
         <thead>
           <tr>

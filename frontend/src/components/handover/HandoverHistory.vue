@@ -1,6 +1,6 @@
 <template>
   <div class="history-panel">
-    <h4 class="history-title">📜 交班历史</h4>
+    <h4 class="history-title">交班历史</h4>
     <a-spin :spinning="loading">
       <div v-if="!items.length && !loading" class="empty-hint">暂无交班记录</div>
       <div v-for="item in items" :key="item.handover_id" class="history-item" @click="emit('select', item)">

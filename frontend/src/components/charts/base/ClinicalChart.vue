@@ -10,22 +10,21 @@
 
     <!-- 空状态 -->
     <div v-if="!loading && isEmpty" class="clinical-chart__empty">
-      <span class="clinical-chart__empty-icon">📊</span>
       <span class="clinical-chart__empty-text">{{ emptyText }}</span>
     </div>
 
     <!-- 错误状态 -->
     <div v-if="error" class="clinical-chart__error">
-      <span class="clinical-chart__error-icon">⚠</span>
+      <span class="clinical-chart__error-icon">!</span>
       <span class="clinical-chart__error-text">{{ error }}</span>
       <button class="clinical-chart__retry" @click="$emit('retry')">重试</button>
     </div>
 
     <!-- 工具栏 -->
     <div v-if="showToolbar && !loading && !isEmpty" class="clinical-chart__toolbar">
-      <button title="导出PNG" @click="handleExportPNG" class="clinical-chart__tool-btn">📷</button>
-      <button title="导出SVG" @click="handleExportSVG" class="clinical-chart__tool-btn">📐</button>
-      <button v-if="description" title="图表说明" @click="showDescription = !showDescription" class="clinical-chart__tool-btn">❓</button>
+      <button title="导出PNG" @click="handleExportPNG" class="clinical-chart__tool-btn">PNG</button>
+      <button title="导出SVG" @click="handleExportSVG" class="clinical-chart__tool-btn">SVG</button>
+      <button v-if="description" title="图表说明" @click="showDescription = !showDescription" class="clinical-chart__tool-btn">说明</button>
     </div>
 
     <!-- 图表说明 -->

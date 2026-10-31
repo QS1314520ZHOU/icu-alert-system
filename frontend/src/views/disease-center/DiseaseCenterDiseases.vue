@@ -39,7 +39,7 @@
               :class="['tree-item', { 'tree-item--active': selectedCategory === cat.id }]"
               @click="selectCategory(cat.id)"
             >
-              <span class="tree-item__icon">{{ cat.icon }}</span>
+              <span v-if="cat.icon" class="tree-item__icon">{{ cat.icon }}</span>
               <span class="tree-item__name">{{ cat.name }}</span>
               <span class="tree-item__count">{{ getCategoryCount(cat.id) }}</span>
             </div>
@@ -59,12 +59,11 @@
             <span>加载中...</span>
           </div>
           <div v-else-if="error" class="error-state">
-            <span class="error-icon">⚠️</span>
+            <span class="error-icon">!</span>
             <span class="error-text">{{ error }}</span>
             <button class="btn btn--sm btn--outline" @click="onSearch">重试</button>
           </div>
           <div v-else-if="filteredDiseases.length === 0" class="empty-state">
-            <span class="empty-icon">📁</span>
             <span class="empty-text">暂无病种数据</span>
           </div>
           <div v-else class="disease-list">
@@ -102,7 +101,6 @@
         </div>
         <div class="panel__body">
           <div v-if="!selectedDisease" class="empty-state">
-            <span class="empty-icon">👈</span>
             <span class="empty-text">选择左侧病种查看详情</span>
           </div>
           <div v-else class="disease-detail">
@@ -236,14 +234,14 @@ const selectedDisease = ref<DiseaseExtended | null>(null)
 
 // 分类数据
 const categories = ref([
-  { id: 'infection', name: '感染', icon: '🦠' },
-  { id: 'respiratory', name: '呼吸', icon: '🫁' },
-  { id: 'circulation', name: '循环', icon: '❤️' },
-  { id: 'neurology', name: '神经', icon: '🧠' },
-  { id: 'nephrology', name: '肾脏', icon: '🫘' },
-  { id: 'coagulation', name: '凝血', icon: '🩸' },
-  { id: 'digestive', name: '消化', icon: '🏥' },
-  { id: 'nutrition', name: '营养', icon: '🍎' },
+  { id: 'infection', name: '感染', icon: '' },
+  { id: 'respiratory', name: '呼吸', icon: '' },
+  { id: 'circulation', name: '循环', icon: '' },
+  { id: 'neurology', name: '神经', icon: '' },
+  { id: 'nephrology', name: '肾脏', icon: '' },
+  { id: 'coagulation', name: '凝血', icon: '' },
+  { id: 'digestive', name: '消化', icon: '' },
+  { id: 'nutrition', name: '营养', icon: '' },
 ])
 
 // 计算分类数量

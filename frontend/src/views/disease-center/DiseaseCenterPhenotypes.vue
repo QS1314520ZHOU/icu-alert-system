@@ -40,7 +40,6 @@
             <span>加载中...</span>
           </div>
           <div v-else-if="rules.length === 0" class="empty-state">
-            <span class="empty-icon">🧬</span>
             <span class="empty-text">暂无表型规则</span>
           </div>
           <div v-else class="rule-list">
@@ -78,7 +77,6 @@
         </div>
         <div class="panel__body">
           <div v-if="!selectedRule && !isCreating" class="empty-state">
-            <span class="empty-icon">👈</span>
             <span class="empty-text">选择左侧规则编辑，或点击"新建规则"</span>
           </div>
           <div v-else class="editor-content">

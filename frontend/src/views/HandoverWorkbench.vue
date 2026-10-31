@@ -6,7 +6,7 @@
     <!-- Left sidebar: Patient list -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h2 class="page-title">🩺 智能交接班</h2>
+        <h2 class="page-title">智能交接班</h2>
         <a-select
           v-if="!routeDeptCode"
           v-model:value="deptFilter"
@@ -53,7 +53,6 @@
       <a-spin :spinning="loading">
         <template v-if="!activePatientId">
           <div class="placeholder">
-            <div class="placeholder-icon">👈</div>
             <div class="placeholder-text">请从左侧选择患者开始交接班</div>
             <div class="placeholder-sub">选择患者后，系统将自动带出身份与现况信息</div>
           </div>
@@ -65,7 +64,7 @@
             <div class="patient-banner">
               <span class="banner-bed">{{ currentHandover?.sections?.identify?.bed || activePatient?.bed || '?' }}床</span>
               <span class="banner-name">{{ currentHandover?.sections?.identify?.name || activePatient?.name || '未选择患者' }}</span>
-              <span v-if="activePatient?.has_critical" class="banner-badge banner-critical">⚠️ {{ activePatient.critical_count }}</span>
+              <span v-if="activePatient?.has_critical" class="banner-badge banner-critical">{{ activePatient.critical_count }}</span>
               <span v-if="activePatient?.diagnosis" class="banner-diagnosis">{{ activePatient.diagnosis }}</span>
               <span class="banner-meta">{{ editableSections?.identify?.admission_no || activePatient?.raw?.mrn || activePatient?.raw?.hisPid || '' }}</span>
             </div>
@@ -76,17 +75,17 @@
                 @click="onGenerate"
                 :disabled="!activePatientId"
               >
-                🤖 AI 生成草稿
+                AI 生成草稿
               </a-button>
-              <a-button @click="onViewBrief" :disabled="!currentHandover">📄 简报</a-button>
-              <a-button @click="onViewHistory" :disabled="!activePatientId">📜 历史</a-button>
+              <a-button @click="onViewBrief" :disabled="!currentHandover">简报</a-button>
+              <a-button @click="onViewHistory" :disabled="!activePatientId">历史</a-button>
               <a-button
                 type="default"
                 :loading="saving"
                 @click="onSave"
                 :disabled="!currentHandover"
               >
-                💾 保存
+                保存
               </a-button>
             </div>
           </div>

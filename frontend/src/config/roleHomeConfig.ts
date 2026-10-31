@@ -5,7 +5,7 @@ export type NavItemKey =
   | 'research-workbench' | 'research-export' | 'clinical-trials'
   | 'mdt' | 'respiratory-dashboard' | 'nutrition-support'
   | 'ai-ops' | 'runtime-config' | 'academic-research' | 'handover'
-  | 'disease-center' | 'voice-correction-review'
+  | 'disease-center' | 'voice-correction-review' | 'saki-center'
 
 export type NavGroup = {
   key: string
@@ -27,9 +27,10 @@ export type NavGroup = {
  * 2. 患者 - 患者总览、临床工作台、智能查房（医生每日高频，不放在“更多”）
  * 3. 交接班 - 智能交接班
  * 4. AI 助手 - AI问诊（患者智能分析模块由 navigationResolver 追加到此组）
- * 5. 临床知识 - 病种中心
- * 6. 更多 - 科研、MDT、呼吸、营养、质控、大屏、运营、管理配置
- *    （更多组内容以 moreMenuItems 为准，resolver 会过滤本文件的 more 组）
+ * 5. 临床知识 - 病种中心、S-AKI 专病库
+ * 其后为低频分组（secondaryNavGroups）：专科治疗 / 科研 / 质控运营 / 系统管理。
+ * 原“更多”平铺 13 项不利于查找，按使用场景拆分为带标题的分组；
+ * resolver 仍会过滤本文件中 key 为 more 的旧组。
  */
 export const navGroups: NavGroup[] = [
   {
@@ -70,6 +71,7 @@ export const navGroups: NavGroup[] = [
     label: '临床知识',
     items: [
       { key: 'disease-center', lines: ['病种', '中心'], label: '病种中心', icon: 'database', path: '/disease-center' },
+      { key: 'saki-center', lines: ['S-AKI', '专病'], label: 'S-AKI 专病库', icon: 'activity', path: '/disease-center/saki' },
     ],
   },
 ]
@@ -111,21 +113,57 @@ export const roleHomeConfig = {
  * "更多"菜单中的项目（一级导航唯一的低频入口聚合点）
  * 这些项目在侧边栏收起时显示在"更多"下拉菜单中
  */
-export const moreMenuItems = [
-  { key: 'academic-research', label: '学术科研', icon: 'book', path: '/academic-research' },
-  { key: 'clinical-trials', label: '临床试验', icon: 'calendar', path: '/clinical-trials' },
-  { key: 'research-workbench', label: '科研工作台', icon: 'flask', path: '/research-workbench' },
-  { key: 'research-export', label: '科研导出', icon: 'chart', path: '/research-export' },
-  { key: 'mdt', label: 'MDT会诊', icon: 'network', path: '/mdt' },
-  { key: 'respiratory-dashboard', label: '呼吸治疗', icon: 'lungs', path: '/respiratory-dashboard' },
-  { key: 'nutrition-support', label: '营养支持', icon: 'apple', path: '/nutrition-support' },
-  { key: 'analytics', label: '质控分析', icon: 'chart', path: '/analytics' },
-  { key: 'bigscreen', label: '护士站大屏', icon: 'grid', path: '/bigscreen' },
-  { key: 'ai-ops', label: 'AI运营', icon: 'cpu', path: '/ai-ops' },
-  { key: 'scanner-health', label: '规则健康', icon: 'alert', path: '/admin/scanner-health' },
-  { key: 'voice-correction-review', label: '语音纠错', icon: 'sparkles', path: '/admin/voice-correction-review' },
-  { key: 'runtime-config', label: '配置中心', icon: 'settings', path: '/admin/runtime-config' },
+/**
+ * 低频入口分组（替代原“更多”平铺列表），按使用场景归类。
+ * defaultCollapsed：首次进入时默认收起，用户手动展开后记忆在本地。
+ */
+export const secondaryNavGroups: Array<NavGroup & { defaultCollapsed?: boolean }> = [
+  {
+    key: 'specialty',
+    label: '专科治疗',
+    items: [
+      { key: 'respiratory-dashboard', lines: ['呼吸', '治疗'], label: '呼吸治疗', icon: 'lungs', path: '/respiratory-dashboard' },
+      { key: 'nutrition-support', lines: ['营养', '支持'], label: '营养支持', icon: 'apple', path: '/nutrition-support' },
+      { key: 'mdt', lines: ['MDT', '会诊'], label: 'MDT会诊', icon: 'network', path: '/mdt' },
+    ],
+  },
+  {
+    key: 'research',
+    label: '科研',
+    defaultCollapsed: true,
+    items: [
+      { key: 'academic-research', lines: ['学术', '科研'], label: '学术科研', icon: 'book', path: '/academic-research' },
+      { key: 'clinical-trials', lines: ['临床', '试验'], label: '临床试验', icon: 'calendar', path: '/clinical-trials' },
+      { key: 'research-workbench', lines: ['科研', '工作台'], label: '科研工作台', icon: 'flask', path: '/research-workbench' },
+      { key: 'research-export', lines: ['科研', '导出'], label: '科研导出', icon: 'chart', path: '/research-export' },
+    ],
+  },
+  {
+    key: 'quality',
+    label: '质控运营',
+    defaultCollapsed: true,
+    items: [
+      { key: 'analytics', lines: ['质控', '分析'], label: '质控分析', icon: 'chart', path: '/analytics' },
+      { key: 'bigscreen', lines: ['护士站', '大屏'], label: '护士站大屏', icon: 'grid', path: '/bigscreen' },
+      { key: 'ai-ops', lines: ['AI', '运营'], label: 'AI运营', icon: 'cpu', path: '/ai-ops' },
+    ],
+  },
+  {
+    key: 'system',
+    label: '系统管理',
+    defaultCollapsed: true,
+    items: [
+      { key: 'scanner-health', lines: ['规则', '健康'], label: '规则健康', icon: 'alert', path: '/admin/scanner-health' },
+      { key: 'voice-correction-review', lines: ['语音', '纠错'], label: '语音纠错', icon: 'sparkles', path: '/admin/voice-correction-review' },
+      { key: 'runtime-config', lines: ['配置', '中心'], label: '配置中心', icon: 'settings', path: '/admin/runtime-config' },
+    ],
+  },
 ]
+
+/** 兼容旧引用：低频入口的平铺列表 */
+export const moreMenuItems = secondaryNavGroups.flatMap((g) =>
+  g.items.map(({ key, label, icon, path }) => ({ key, label, icon, path })),
+)
 
 /** 角色 → “今日工作”中显示的首页（未识别角色时显示全部，便于开发/未接入角色的医院） */
 export const roleHomeKeys: Record<string, NavItemKey[]> = {

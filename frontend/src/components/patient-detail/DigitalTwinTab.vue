@@ -430,7 +430,7 @@ const whatIfBannerMuted = computed(() => {
 const whatIfBanner = computed(() => {
   const meta = whatIfRecord.value?.model_meta
   // No data → no simulation possible
-  if (whatIfRecord.value?.data_available === false && whatIfNoData.value) return '⚠️ 当前患者暂无生命体征数据，反事实模拟无法执行。请确认监护仪数据已接入。'
+  if (whatIfRecord.value?.data_available === false && whatIfNoData.value) return '当前患者暂无生命体征数据，反事实模拟无法执行。请确认监护仪数据已接入。'
   // Scenarios B/C: explicit transformer requested but degraded (inference failed or unavailable with allow_fallback)
   if (meta?.degraded) {
     const reason = meta?.fallback_reason || 'unknown'
@@ -447,7 +447,7 @@ const whatIfBanner = computed(() => {
   }
   // OOD warning (only when transformer is running normally)
   const ood = whatIfRecord.value?.ood_warning
-  if (ood?.is_ood) return `⚠️ 该患者状态在历史数据中罕见，预测可信度低：${(ood.reasons || []).join('；')}`
+  if (ood?.is_ood) return `该患者状态在历史数据中罕见，预测可信度低：${(ood.reasons || []).join('；')}`
   // Transformer successful — no banner needed
   return ''
 })

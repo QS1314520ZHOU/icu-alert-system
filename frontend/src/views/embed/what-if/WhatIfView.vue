@@ -1,7 +1,7 @@
 <template>
   <div class="what-if">
     <div class="wi-disclaimer">
-      ⚠ What-if 为基于近期生理数据和简化生理方程的推演，不代表真实因果效应；仅用于讨论方案，执行前需床旁评估。
+      What-if 为基于近期生理数据和简化生理方程的推演，不代表真实因果效应；仅用于讨论方案，执行前需床旁评估。
     </div>
 
     <div class="wi-layout">

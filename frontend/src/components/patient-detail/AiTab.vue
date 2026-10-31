@@ -357,10 +357,10 @@
         <div v-if="latestAiRiskAlert || hasRiskForecast" :class="['ai-risk-card', aiConfidenceClass(aiRiskConfidenceLevel(latestAiRiskAlert || {}))]">
           <!-- Prediction source badge -->
           <div v-if="forecastPredictionSourceLabel" class="forecast-source-badge">
-            <span v-if="forecastPredictionSourceLabel === '未经本院校准'" class="forecast-uncalibrated-badge">⚠ 未经本院校准</span>
-            <span v-else-if="forecastPredictionSourceLabel === '规则估算'" class="forecast-rule-badge">📋 规则估算风险</span>
-            <span v-else-if="forecastPredictionSourceLabel === '模型不可用'" class="forecast-unavailable-badge">⚠ 模型当前不可用</span>
-            <span v-else-if="forecastPredictionSourceLabel === '来源未知'" class="forecast-unknown-badge">❓ 来源未知 · 旧版本记录</span>
+            <span v-if="forecastPredictionSourceLabel === '未经本院校准'" class="forecast-uncalibrated-badge">未经本院校准</span>
+            <span v-else-if="forecastPredictionSourceLabel === '规则估算'" class="forecast-rule-badge">规则估算风险</span>
+            <span v-else-if="forecastPredictionSourceLabel === '模型不可用'" class="forecast-unavailable-badge">模型当前不可用</span>
+            <span v-else-if="forecastPredictionSourceLabel === '来源未知'" class="forecast-unknown-badge">来源未知 · 旧版本记录</span>
           </div>
           <div class="workbench-kpis">
             <div class="wb-kpi">

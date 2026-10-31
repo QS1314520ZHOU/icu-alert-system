@@ -34,12 +34,11 @@
             <span>加载中...</span>
           </div>
           <div v-else-if="error" class="error-state">
-            <span class="error-icon">⚠️</span>
+            <span class="error-icon">!</span>
             <span class="error-text">{{ error }}</span>
             <button class="btn btn--sm btn--outline" @click="loadScoringSystems">重试</button>
           </div>
           <div v-else-if="!selectedRule" class="empty-state">
-            <span class="empty-icon">📈</span>
             <span class="empty-text">选择左侧评分体系查看详情</span>
           </div>
           <div v-else class="rule-detail">
@@ -117,7 +116,6 @@
         </div>
         <div class="panel__body">
           <div v-if="!selectedRule" class="empty-state">
-            <span class="empty-icon">🧪</span>
             <span class="empty-text">选择评分体系后运行测试</span>
           </div>
           <div v-else-if="testRunning" class="loading-state">
@@ -125,7 +123,7 @@
             <span>正在计算...</span>
           </div>
           <div v-else-if="error" class="error-state">
-            <span class="error-icon">⚠️</span>
+            <span class="error-icon">!</span>
             <span class="error-text">{{ error }}</span>
             <button class="btn btn--sm btn--outline" @click="runTest">重试</button>
           </div>

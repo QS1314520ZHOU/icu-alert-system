@@ -5,7 +5,7 @@
  * SideNav.vue calls this; it never builds menus directly.
  */
 import type { NavGroup, NavItem, ResolvedNavigation, NavigationResolveOptions } from './navigationTypes'
-import { navGroups as globalNavGroups, moreMenuItems, roleHomeKeys } from '../config/roleHomeConfig'
+import { navGroups as globalNavGroups, secondaryNavGroups, roleHomeKeys } from '../config/roleHomeConfig'
 import { PATIENT_MODULES, MODULE_GROUPS, type PatientModule } from '../config/patientModuleRegistry'
 import { canAccessPatientModule } from '../config/featureFlags'
 
@@ -82,17 +82,20 @@ function resolveGlobalNavigation(role?: string): ResolvedNavigation {
     }
   }
 
-  // Add "更多" group at the end
-  filteredGroups.push({
-    key: 'more',
-    label: '更多',
-    items: moreMenuItems.map(item => ({
-      key: item.key,
-      label: item.label,
-      icon: item.icon,
-      path: item.path,
-    })),
-  })
+  // 低频入口：按场景分组追加（专科治疗 / 科研 / 质控运营 / 系统管理）
+  for (const group of secondaryNavGroups || []) {
+    if (!group.items.length) continue
+    filteredGroups.push({
+      key: group.key,
+      label: group.label,
+      items: group.items.map(item => ({
+        key: item.key,
+        label: item.label,
+        icon: item.icon,
+        path: item.path,
+      })),
+    })
+  }
 
   return { groups: filteredGroups, mode: 'global' }
 }

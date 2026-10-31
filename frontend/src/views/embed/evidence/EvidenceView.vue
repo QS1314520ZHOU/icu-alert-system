@@ -29,7 +29,7 @@
     <div v-else-if="loadError" class="ev-card">
       <h3 class="ev-card-title">个体化诊疗推理</h3>
       <div class="ev-error">
-        <span class="ev-error__icon">⚠</span>
+        <span class="ev-error__icon">!</span>
         <span class="ev-error__text">{{ loadError }}</span>
         <button class="ev-retry-btn" @click="loadData">重试</button>
       </div>
@@ -39,7 +39,6 @@
     <div v-else-if="reasoningState === 'empty'" class="ev-card">
       <h3 class="ev-card-title">个体化诊疗推理</h3>
       <div class="ev-empty-reasoning">
-        <span class="ev-empty-icon">🧠</span>
         <span class="ev-empty-title">暂无足够证据生成推理</span>
         <span class="ev-empty-desc">当前患者数据不足以支持AI推理，请确认患者数据已同步或稍后重试</span>
       </div>
@@ -115,7 +114,7 @@
           <span v-if="plan.generated_at" class="ev-meta-item">AI生成时间：{{ formatTime(plan.generated_at) }}</span>
           <span v-if="dataCutoffTime" class="ev-meta-item">数据截止：{{ dataCutoffTime }}</span>
         </div>
-        <div class="ev-ai-disclaimer">⚠ AI生成，待临床确认。以上推理基于RAG检索的临床知识，仅供参考。</div>
+        <div class="ev-ai-disclaimer">AI生成，待临床确认。以上推理基于RAG检索的临床知识，仅供参考。</div>
       </div>
     </template>
 
@@ -129,30 +128,26 @@
       </div>
       <!-- 权限不足 -->
       <div v-else-if="docsState === 'forbidden'" class="ev-empty-docs">
-        <span class="ev-empty-icon">🔒</span>
         <span class="ev-empty-title">当前账号无权访问临床知识库</span>
       </div>
       <!-- 接口错误 -->
       <div v-else-if="docsState === 'error'" class="ev-error">
-        <span class="ev-error__icon">⚠</span>
+        <span class="ev-error__icon">!</span>
         <span class="ev-error__text">{{ docsError }}</span>
         <button class="ev-retry-btn" @click="loadData">重试</button>
       </div>
       <!-- 无知识库 -->
       <div v-else-if="docsState === 'empty'" class="ev-empty-docs">
-        <span class="ev-empty-icon">📚</span>
         <span class="ev-empty-title">当前没有配置可用知识库</span>
       </div>
       <!-- 全部未索引 -->
       <div v-else-if="docsState === 'unindexed'" class="ev-empty-docs">
-        <span class="ev-empty-icon">📦</span>
         <span class="ev-empty-title">知识库已配置，但尚未完成索引</span>
         <span class="ev-empty-desc">当前无法用于循证检索。配置文档数：{{ documents.length }}，待索引：{{ unindexedDocuments.length }}</span>
       </div>
       <!-- 部分或全部已索引 -->
       <div v-else class="ev-docs-grid">
         <div v-for="doc in indexedDocuments" :key="doc.id || doc.filename || doc.name" class="ev-doc-item">
-          <span class="ev-doc-icon">📄</span>
           <div class="ev-doc-info">
             <span class="ev-doc-name">{{ doc.title || doc.name || doc.filename || '未命名文档' }}</span>
             <div class="ev-doc-meta-row">
@@ -174,7 +169,6 @@
         <details v-if="unindexedDocuments.length > 0" class="ev-unindexed-section">
           <summary>未完成索引的知识库 ({{ unindexedDocuments.length }})</summary>
           <div v-for="doc in unindexedDocuments" :key="doc.id || doc.filename || doc.name" class="ev-doc-item ev-doc-item--unindexed">
-            <span class="ev-doc-icon">📄</span>
             <div class="ev-doc-info">
               <span class="ev-doc-name">{{ doc.title || doc.name || doc.filename || '未命名文档' }}</span>
               <span class="ev-doc-chunks">可检索片段：0</span>
@@ -185,7 +179,7 @@
     </div>
 
     <div class="ev-disclaimer">
-      ⚠ 以上推理基于RAG检索的临床知识，仅供参考。临床决策请结合患者实际情况和专业判断。
+      以上推理基于RAG检索的临床知识，仅供参考。临床决策请结合患者实际情况和专业判断。
     </div>
   </div>
 </template>

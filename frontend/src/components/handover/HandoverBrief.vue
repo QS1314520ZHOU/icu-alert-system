@@ -1,7 +1,7 @@
 <template>
   <div class="brief-container">
     <div class="brief-toolbar">
-      <h3 class="brief-title">📄 交班简报</h3>
+      <h3 class="brief-title">交班简报</h3>
       <a-segmented
         v-model:value="currentMode"
         :options="modeOptions"

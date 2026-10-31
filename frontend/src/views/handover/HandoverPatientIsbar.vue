@@ -26,7 +26,7 @@
       <a-spin :spinning="loading">
         <template v-if="!activePatientId">
           <div class="empty-hint">
-            <p>👈 请从左侧选择患者</p>
+            <p>请从左侧选择患者</p>
           </div>
         </template>
         <template v-else>

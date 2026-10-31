@@ -29,7 +29,7 @@
           <span>{{ p.diagnosis || '—' }}</span>
         </div>
         <div v-if="p.has_critical" class="card-alert">
-          ⚠️ {{ p.critical_count }}条危急值
+          {{ p.critical_count }}条危急值
         </div>
       </div>
     </a-spin>

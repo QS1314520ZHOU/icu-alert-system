@@ -20,7 +20,7 @@
 
     <!-- 临床决策支持声明 -->
     <footer class="embed-footer">
-      <span class="embed-disclaimer">⚠ 仅供临床决策支持，不替代医生判断</span>
+      <span class="embed-disclaimer">仅供临床决策支持，不替代医生判断</span>
       <span v-if="modelVersion" class="embed-model-version">模型 {{ modelVersion }}</span>
     </footer>
   </div>

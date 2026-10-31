@@ -17,7 +17,7 @@
 
     <!-- 错误状态 -->
     <div v-if="error && !loading" class="frame-error">
-      <div class="frame-error-icon">⚠</div>
+      <div class="frame-error-icon">!</div>
       <h3 class="frame-error-title">加载失败</h3>
       <p class="frame-error-desc">{{ error }}</p>
       <div class="frame-error-actions">
@@ -28,7 +28,6 @@
 
     <!-- 权限不足 -->
     <div v-if="noPermission && !loading" class="frame-error">
-      <div class="frame-error-icon">🔒</div>
       <h3 class="frame-error-title">权限不足</h3>
       <p class="frame-error-desc">您没有权限访问此模块</p>
     </div>

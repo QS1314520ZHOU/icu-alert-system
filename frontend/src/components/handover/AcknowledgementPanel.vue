@@ -1,11 +1,11 @@
 <template>
   <div class="ack-panel">
-    <h4 class="ack-title">✅ 接班签收</h4>
+    <h4 class="ack-title">接班签收</h4>
 
     <!-- Forced confirmations -->
     <div v-if="forcedItems.length" class="forced-section">
       <div class="forced-header">
-        <span>⚠️ 强制确认项（{{ confirmedCount }}/{{ forcedItems.length }}）</span>
+        <span>强制确认项（{{ confirmedCount }}/{{ forcedItems.length }}）</span>
       </div>
       <a-checkbox-group v-model:value="checkedIds" @change="onCheckChange">
         <div v-for="item in forcedItems" :key="item.item_id" class="forced-item">

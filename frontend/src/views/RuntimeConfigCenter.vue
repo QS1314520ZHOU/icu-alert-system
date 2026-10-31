@@ -2,7 +2,7 @@
   <div class="runtime-page">
     <header class="runtime-header">
       <div>
-        <span>Runtime Config Center</span>
+        <span>运行配置中心</span>
         <h1>配置中心</h1>
         <p>配置写入数据库后立即生效，支持版本审计、导出和回滚。</p>
       </div>
@@ -30,11 +30,11 @@
         <div class="overview-ring-card">
           <h4>配置完整度</h4>
           <DataCompletenessRing :value="configCompleteness" :size="100" />
-          <span class="overview-ring-hint">模块 + Provider + 规则 + 映射</span>
+          <span class="overview-ring-hint">模块 + 模型服务 + 规则 + 映射</span>
         </div>
         <div class="metric-grid">
           <div class="metric-card"><span>模块启用</span><strong>{{ enabledModuleCount }}/{{ modules.length }}</strong></div>
-          <div class="metric-card"><span>AI Provider</span><strong>{{ enabledProviderCount }}/{{ aiProviders.length }}</strong></div>
+          <div class="metric-card"><span>AI 模型服务</span><strong>{{ enabledProviderCount }}/{{ aiProviders.length }}</strong></div>
           <div class="metric-card"><span>轨迹预测</span><strong>{{ trajectory.enabled === false ? '关闭' : '启用' }}</strong></div>
           <div class="metric-card"><span>启用规则</span><strong>{{ enabledRuleCount }}/{{ alertRules.length }}</strong></div>
           <div class="metric-card"><span>字段映射</span><strong>{{ mappings.length }}</strong></div>
@@ -67,7 +67,7 @@
       <div class="panel-toolbar">
         <div><h2>AI 模型</h2><span>{{ ai.enabled === false ? '总开关关闭' : '总开关启用' }}</span></div>
         <div class="toolbar-actions">
-          <a-button @click="addProvider">新增 Provider</a-button>
+          <a-button @click="addProvider">新增模型服务</a-button>
           <a-button type="primary" :loading="saving.ai" @click="saveAi">保存 AI</a-button>
         </div>
       </div>

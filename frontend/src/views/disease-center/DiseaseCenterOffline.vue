@@ -18,7 +18,7 @@
     <div class="packages-grid">
       <div v-for="pkg in packages" :key="pkg.id" class="package-card">
         <div class="package-header">
-          <div class="package-icon">{{ packageIcon(pkg.package_type) }}</div>
+          <div v-if="packageIcon(pkg.package_type)" class="package-icon">{{ packageIcon(pkg.package_type) }}</div>
           <div class="package-info">
             <h4 class="package-name">{{ pkg.name }}</h4>
             <span class="package-type">{{ pkg.package_type }}</span>
@@ -64,7 +64,6 @@
 
       <!-- 空状态 -->
       <div v-if="packages.length === 0" class="empty-card">
-        <span class="empty-icon">📦</span>
         <span class="empty-text">暂无离线知识包</span>
         <span class="empty-hint">点击"上传离线包"导入资源</span>
       </div>
@@ -156,14 +155,14 @@ const error = ref<string | null>(null)
 // 包类型图标
 function packageIcon(type?: string) {
   const icons: Record<string, string> = {
-    'icd': '📋',
-    'terminology': '📖',
-    'guidelines': '📚',
-    'model': '🤖',
-    'embedding': '🔢',
-    'vector': '🗂️',
+    'icd': '',
+    'terminology': '',
+    'guidelines': '',
+    'model': '',
+    'embedding': '',
+    'vector': '',
   }
-  return type ? (icons[type] || '📦') : '📦'
+  return type ? (icons[type] || '') : ''
 }
 
 // 格式化文件大小

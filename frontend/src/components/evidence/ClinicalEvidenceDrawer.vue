@@ -123,7 +123,7 @@
         <!-- 9. 数据缺失与质量提示 -->
         <section v-if="evidence.missing_data.length" class="ev-section ev-missing">
           <div class="ev-section-title missing-title" @click="toggleSection('missing')">
-            <span>⚠ 数据缺失 ({{ evidence.missing_data.length }})</span>
+            <span>数据缺失 ({{ evidence.missing_data.length }})</span>
             <span class="ev-toggle ui-chevron" :class="{ 'is-open': expanded.missing }" aria-hidden="true"></span>
           </div>
           <div v-if="expanded.missing" class="missing-body">

@@ -40,7 +40,7 @@
       <div v-for="item in filteredReviews" :key="item.id" class="review-card">
         <div class="review-header">
           <div class="review-type">
-            <span class="type-icon">{{ typeIcon(item.resource_type) }}</span>
+            <span v-if="typeIcon(item.resource_type)" class="type-icon">{{ typeIcon(item.resource_type) }}</span>
             <span class="type-text">{{ resourceTypeText(item.resource_type) }}</span>
           </div>
           <span :class="['status-badge', `status-badge--${item.status}`]">{{ statusText(item.status) }}</span>
@@ -90,7 +90,6 @@
 
       <!-- 空状态 -->
       <div v-if="filteredReviews.length === 0" class="empty-state">
-        <span class="empty-icon">✅</span>
         <span class="empty-text">暂无{{ activeTab === 'all' ? '' : statusLabel(activeTab) }}审核事项</span>
       </div>
     </div>
@@ -154,8 +153,8 @@ const filteredReviews = computed(() => {
 
 // 类型图标
 function typeIcon(type: string) {
-  const icons: Record<string, string> = { disease: '📋', rule: '📐', terminology: '📖', offline: '📦', phenotype_rule: '🧬', clinical_pathway: '🗺️', quality_indicator: '📊', scoring: '🎯' }
-  return icons[type] || '📄'
+  const icons: Record<string, string> = { disease: '', rule: '', terminology: '', offline: '', phenotype_rule: '', clinical_pathway: '', quality_indicator: '', scoring: '' }
+  return icons[type] || ''
 }
 
 // 资源类型文本

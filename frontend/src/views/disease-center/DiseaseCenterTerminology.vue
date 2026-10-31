@@ -64,7 +64,6 @@
             <span>加载中...</span>
           </div>
           <div v-else-if="filteredItems.length === 0" class="empty-state">
-            <span class="empty-icon">🔤</span>
             <span class="empty-text">暂无术语数据</span>
             <span class="empty-hint">请尝试调整搜索条件</span>
           </div>
@@ -98,7 +97,6 @@
         </div>
         <div class="panel__body">
           <div v-if="!selectedTerm" class="empty-state">
-            <span class="empty-icon">👈</span>
             <span class="empty-text">选择左侧术语查看详情</span>
           </div>
           <div v-else class="term-detail">

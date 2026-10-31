@@ -7,11 +7,11 @@
         <span class="rp-alert__text">{{ modelUnavailableReason }}</span>
       </div>
       <div v-else-if="!calculable" class="rp-alert rp-alert--warning">
-        <span class="rp-alert__icon">⚠️</span>
+        <span class="rp-alert__icon">!</span>
         <span class="rp-alert__text">当前无法评估风险等级，数据不足或模型未返回有效结果。</span>
       </div>
       <div v-if="hasScaleMissing" class="rp-alert rp-alert--warning">
-        <span class="rp-alert__icon">⚠️</span>
+        <span class="rp-alert__icon">!</span>
         <span class="rp-alert__text">风险值量纲缺失，当前无法展示部分数据。请联系管理员确认后端返回的 scale 字段。</span>
       </div>
     </div>
@@ -172,7 +172,6 @@
     <!-- AI解释折叠区 -->
     <details v-if="topContributors.length" class="rp-ai-explanation">
       <summary class="rp-ai-summary">
-        <span class="rp-ai-summary__icon">🤖</span>
         <span>AI解释与证据（{{ topContributors.length }}个因素）</span>
       </summary>
       <div class="rp-ai-content">
@@ -186,7 +185,7 @@
           </div>
         </div>
         <div class="rp-ai-disclaimer">
-          <span class="rp-ai-disclaimer__icon">⚠️</span>
+          <span class="rp-ai-disclaimer__icon">!</span>
           <span>以上为模型输入特征的贡献度分析，不代表因果关系。预测结果仅供临床决策参考，不替代医生判断。</span>
         </div>
       </div>

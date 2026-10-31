@@ -100,7 +100,6 @@
 
           <!-- 空状态 -->
           <div v-if="!messages.length && !sending" class="chat-empty">
-            <div class="chat-empty__icon">💬</div>
             <div class="chat-empty__text">开始一次新的问诊对话</div>
           </div>
         </div>
@@ -200,7 +199,7 @@
 
         <!-- 安全提示（常驻底部） -->
         <div class="ctx-safety">
-          <span class="ctx-safety__icon">⚠</span>
+          <span class="ctx-safety__icon">!</span>
           <span class="ctx-safety__text">AI 回答仅供临床参考，需结合床旁评估</span>
         </div>
       </aside>

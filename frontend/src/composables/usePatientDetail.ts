@@ -779,7 +779,7 @@ function _createPatientDetail(_initialPatientId: string) {
   function statusLabel(status: string | undefined | null) {
     const map: Record<string, string> = {
       met: '✓ 符合', not_met: '✗ 不符合', unknown: '? 待确认',
-      not_excluded: '⚠ 未排除', supported: '✓ 可排除',
+      not_excluded: '未排除', supported: '✓ 可排除',
     }
     return map[String(status ?? '')] ?? '—'
   }
