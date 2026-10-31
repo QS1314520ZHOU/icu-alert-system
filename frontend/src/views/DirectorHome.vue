@@ -30,26 +30,121 @@
       </section>
 
       <main class="director-grid">
+        <!-- 主任视角：先看告警闭环与质控安全，再看床位人力、规则质量与科研 -->
+        <!-- KPI 摘要 -->
+        <section class="panel">
+          <div class="panel-head">
+            <strong>KPI 摘要</strong>
+            <span>近24小时</span>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-section">
+              <strong>告警处置</strong>
+              <div class="kpi-items">
+                <div class="kpi-item">
+                  <span>告警总数</span>
+                  <b>{{ nv(alertStats.total_24h) }}</b>
+                </div>
+                <div class="kpi-item">
+                  <span>已处置</span>
+                  <b>{{ nv(alertStats.handled_24h) }}</b>
+                </div>
+                <div class="kpi-item">
+                  <span>待处理</span>
+                  <b :class="{ 'text-warning': (alertStats.pending_24h || 0) > 0 }">{{ nv(alertStats.pending_24h) }}</b>
+                </div>
+                <div class="kpi-item">
+                  <span>处置率</span>
+                  <b>{{ alertStats.total_24h ? pctv(alertStats.handle_rate) : '—' }}</b>
+                </div>
+              </div>
+            </div>
+            <div class="kpi-section">
+              <strong>AI 推理</strong>
+              <div class="kpi-items">
+                <div class="kpi-item">
+                  <span>综合推理生成</span>
+                  <b>{{ nv(aiStats.integrated_reasoning) }}</b>
+                </div>
+                <div class="kpi-item">
+                  <span>临床确认采纳</span>
+                  <b title="后端 adopted 字段仅记录前端点击，不能代表临床采纳">未统计</b>
+                </div>
+              </div>
+            </div>
+            <div class="kpi-section">
+              <strong>护理负荷</strong>
+              <div class="kpi-items">
+                <div class="kpi-item">
+                  <span>平均负荷</span>
+                  <b>{{ pctv(workloadStats.avg_nursing_workload_percent) }}</b>
+                </div>
+                <div class="kpi-item">
+                  <span>高负荷床</span>
+                  <b :class="{ 'text-warning': (workloadStats.high_workload_beds || 0) > 0 }">{{ nv(workloadStats.high_workload_beds) }}</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 质控大屏 -->
+        <section class="panel">
+          <div class="panel-head">
+            <strong>质控安全事件</strong>
+            <span>近7天</span>
+          </div>
+          <div class="quality-section">
+            <strong>质控事件</strong>
+            <div class="quality-grid">
+              <div class="quality-item">
+                <span>跌倒</span>
+                <b>{{ nv(qualityEvents.falls) }}</b>
+              </div>
+              <div class="quality-item">
+                <span>压疮</span>
+                <b>{{ nv(qualityEvents.pressure_ulcers) }}</b>
+              </div>
+              <div class="quality-item">
+                <span>管路脱出</span>
+                <b>{{ nv(qualityEvents.line_displacement) }}</b>
+              </div>
+              <div class="quality-item">
+                <span>给药差错</span>
+                <b>{{ nv(qualityEvents.medication_errors) }}</b>
+              </div>
+            </div>
+          </div>
+          <div class="adoption-section">
+            <strong>信号采纳</strong>
+            <div class="adoption-stats">
+              <span>总信号 {{ nv(adoptionSummary.total_signals) }}</span>
+              <span>已采纳 {{ nv(adoptionSummary.adopted) }}</span>
+              <span>采纳率 {{ adoptionSummary.total_signals ? pctv(adoptionSummary.adoption_rate) : '—' }}</span>
+            </div>
+          </div>
+        </section>
+
         <!-- 科室概览 -->
         <section class="panel">
           <div class="panel-head">
             <strong>科室概览</strong>
-            <span>{{ overview.total_beds || 0 }} 床</span>
+            <span>{{ overview.total_beds ? `${overview.total_beds} 床` : '床位数未配置' }}</span>
           </div>
           <div class="overview-stats">
             <div class="overview-item">
               <span>床位使用率</span>
-              <strong>{{ overview.occupancy_rate || 0 }}%</strong>
-              <em>{{ overview.occupied_beds || 0 }}/{{ overview.total_beds || 0 }}</em>
+              <strong>{{ overview.total_beds ? pctv(overview.occupancy_rate) : '—' }}</strong>
+              <em>{{ nv(overview.occupied_beds) }}/{{ nv(overview.total_beds) }}</em>
             </div>
             <div class="overview-item">
               <span>主管医生</span>
-              <strong>{{ (overview.doctors || []).length }}</strong>
+              <strong>{{ Array.isArray(overview.doctors) ? overview.doctors.length : '—' }}</strong>
               <em>人</em>
             </div>
             <div class="overview-item">
               <span>责任护士</span>
-              <strong>{{ (overview.nurses || []).length }}</strong>
+              <strong>{{ Array.isArray(overview.nurses) ? overview.nurses.length : '—' }}</strong>
               <em>人</em>
             </div>
           </div>
@@ -65,114 +160,40 @@
           </div>
         </section>
 
-        <!-- 质控大屏 -->
+        <!-- 规则健康度 -->
         <section class="panel">
           <div class="panel-head">
-            <strong>质控大屏</strong>
+            <strong>规则健康度</strong>
             <span>近7天</span>
           </div>
-          <div class="quality-section">
-            <strong>质控事件</strong>
-            <div class="quality-grid">
-              <div class="quality-item">
-                <span>跌倒</span>
-                <b>{{ qualityEvents.falls || 0 }}</b>
+          <div class="scanner-list">
+            <article v-for="row in scannerRows" :key="row.scanner_name" class="scanner-item">
+              <strong>{{ row.name || row.scanner_name }}</strong>
+              <div class="scanner-stats">
+                <span>触发 {{ nv(row.fire_count) }}</span>
+                <span>确认率 {{ pctv(row.ack_rate) }}</span>
+                <span :class="{ 'text-warning': (row.noise_score || 0) > 30 }">噪音 {{ pctv(row.noise_score) }}</span>
               </div>
-              <div class="quality-item">
-                <span>压疮</span>
-                <b>{{ qualityEvents.pressure_ulcers || 0 }}</b>
-              </div>
-              <div class="quality-item">
-                <span>管路脱出</span>
-                <b>{{ qualityEvents.line_displacement || 0 }}</b>
-              </div>
-              <div class="quality-item">
-                <span>给药差错</span>
-                <b>{{ qualityEvents.medication_errors || 0 }}</b>
-              </div>
-            </div>
+            </article>
           </div>
-          <div class="adoption-section">
-            <strong>信号采纳</strong>
-            <div class="adoption-stats">
-              <span>总信号 {{ adoptionSummary.total_signals || 0 }}</span>
-              <span>已采纳 {{ adoptionSummary.adopted || 0 }}</span>
-              <span>采纳率 {{ adoptionSummary.adoption_rate || 0 }}%</span>
-            </div>
-          </div>
-        </section>
-
-        <!-- KPI 摘要 -->
-        <section class="panel">
-          <div class="panel-head">
-            <strong>KPI 摘要</strong>
-            <span>近24小时</span>
-          </div>
-          <div class="kpi-grid">
-            <div class="kpi-section">
-              <strong>告警处置</strong>
-              <div class="kpi-items">
-                <div class="kpi-item">
-                  <span>告警总数</span>
-                  <b>{{ alertStats.total_24h || 0 }}</b>
-                </div>
-                <div class="kpi-item">
-                  <span>已处置</span>
-                  <b>{{ alertStats.handled_24h || 0 }}</b>
-                </div>
-                <div class="kpi-item">
-                  <span>待处理</span>
-                  <b :class="{ 'text-warning': (alertStats.pending_24h || 0) > 0 }">{{ alertStats.pending_24h || 0 }}</b>
-                </div>
-                <div class="kpi-item">
-                  <span>处置率</span>
-                  <b>{{ alertStats.handle_rate || 0 }}%</b>
-                </div>
-              </div>
-            </div>
-            <div class="kpi-section">
-              <strong>AI 推理</strong>
-              <div class="kpi-items">
-                <div class="kpi-item">
-                  <span>综合推理生成</span>
-                  <b>{{ aiStats.integrated_reasoning || 0 }}</b>
-                </div>
-                <div class="kpi-item">
-                  <span>临床确认采纳</span>
-                  <b title="后端 adopted 字段仅记录前端点击，不能代表临床采纳">未统计</b>
-                </div>
-              </div>
-            </div>
-            <div class="kpi-section">
-              <strong>护理负荷</strong>
-              <div class="kpi-items">
-                <div class="kpi-item">
-                  <span>平均负荷</span>
-                  <b>{{ workloadStats.avg_nursing_workload_percent || 0 }}%</b>
-                </div>
-                <div class="kpi-item">
-                  <span>高负荷床</span>
-                  <b :class="{ 'text-warning': (workloadStats.high_workload_beds || 0) > 0 }">{{ workloadStats.high_workload_beds || 0 }}</b>
-                </div>
-              </div>
-            </div>
-          </div>
+          <EmptyState v-if="!scannerRows.length" description="暂无规则健康数据。" />
+          <a-button class="full-btn" type="primary" @click="$router.push({ path: '/admin/scanner-health', query: route.query })">查看规则健康详情</a-button>
         </section>
 
         <!-- 科研动态 -->
         <section class="panel">
           <div class="panel-head">
             <strong>科研动态</strong>
-            <span>{{ researchSummary.total || 0 }} 个任务</span>
+            <span>{{ researchSummary.total != null ? `${researchSummary.total} 个任务` : '未接入' }}</span>
           </div>
           <div class="research-stats">
             <div class="research-item">
               <span>待处理</span>
-              <b>{{ researchSummary.pending || 0 }}</b>
+              <b>{{ nv(researchSummary.pending) }}</b>
             </div>
             <div class="research-item">
               <span>已完成</span>
-              <b>{{ researchSummary.completed || 0 }}</b>
+              <b>{{ nv(researchSummary.completed) }}</b>
             </div>
           </div>
           <div class="research-list">
@@ -182,7 +203,7 @@
             </article>
           </div>
           <EmptyState v-if="!(researchSummary.recent_exports || []).length" description="暂无科研任务。" />
-          <a-button class="full-btn" type="primary" @click="$router.push({ path: '/academic-research', query: route.query })">进入科研工作台</a-button>
+          <a-button class="full-btn" type="primary" @click="$router.push({ path: '/research-workbench', query: route.query })">进入科研工作台</a-button>
         </section>
 
         <!-- 角色分布 -->
@@ -194,41 +215,21 @@
           <div class="role-grid">
             <div class="role-item">
               <span>医生</span>
-              <b>{{ roleDistribution.doctors || 0 }}</b>
+              <b>{{ nv(roleDistribution.doctors) }}</b>
             </div>
             <div class="role-item">
               <span>护士</span>
-              <b>{{ roleDistribution.nurses || 0 }}</b>
+              <b>{{ nv(roleDistribution.nurses) }}</b>
             </div>
             <div class="role-item">
               <span>药师</span>
-              <b>{{ roleDistribution.pharmacists || 0 }}</b>
+              <b>{{ nv(roleDistribution.pharmacists) }}</b>
             </div>
             <div class="role-item">
               <span>护士长</span>
-              <b>{{ roleDistribution.head_nurses || 0 }}</b>
+              <b>{{ nv(roleDistribution.head_nurses) }}</b>
             </div>
           </div>
-        </section>
-
-        <!-- 规则健康度 -->
-        <section class="panel">
-          <div class="panel-head">
-            <strong>规则健康度</strong>
-            <span>近7天</span>
-          </div>
-          <div class="scanner-list">
-            <article v-for="row in scannerRows" :key="row.scanner_name" class="scanner-item">
-              <strong>{{ row.name || row.scanner_name }}</strong>
-              <div class="scanner-stats">
-                <span>触发 {{ row.fire_count || 0 }}</span>
-                <span>确认率 {{ row.ack_rate || 0 }}%</span>
-                <span :class="{ 'text-warning': (row.noise_score || 0) > 30 }">噪音 {{ row.noise_score || 0 }}%</span>
-              </div>
-            </article>
-          </div>
-          <EmptyState v-if="!scannerRows.length" description="暂无规则健康数据。" />
-          <a-button class="full-btn" type="primary" @click="$router.push({ path: '/admin/scanner-health', query: route.query })">查看规则健康详情</a-button>
         </section>
       </main>
 
@@ -306,15 +307,25 @@ const shiftText = computed(() => {
 const summaryCards = computed(() => {
   const occRate = overview.value?.occupancy_rate || 0
   const handleRate = alertStats.value?.handle_rate || 0
-  const researchTotal = researchSummary.value?.total || 0
+  const researchTotal = nv(researchSummary.value?.total)
   return [
     { key: 'beds', label: '床位使用率', value: overview.value?.total_beds ? `${occRate}%` : '—', hint: overview.value?.total_beds ? `${overview.value?.occupied_beds || 0}/${overview.value?.total_beds}` : '床位数未配置', tone: !overview.value?.total_beds ? 'blue' : occRate > 90 ? 'red' : occRate > 80 ? 'yellow' : 'green' },
     { key: 'alerts', label: '告警处置率', value: alertStats.value?.total_24h ? `${handleRate}%` : '—', hint: alertStats.value?.total_24h ? `${alertStats.value?.pending_24h || 0} 项待处理` : '暂无告警数据', tone: !alertStats.value?.total_24h ? 'blue' : (alertStats.value?.pending_24h || 0) > 0 ? 'yellow' : 'green' },
-    { key: 'ai', label: '近24h AI推理', value: aiStats.value?.integrated_reasoning || 0, hint: '生成条数（暂无临床确认采纳数据）', tone: 'blue' },
-    { key: 'research', label: '科研任务', value: researchTotal, hint: `${researchSummary.value?.pending || 0} 个待处理`, tone: (researchSummary.value?.pending || 0) > 0 ? 'yellow' : 'blue' },
+    { key: 'ai', label: '近24h AI推理', value: nv(aiStats.value?.integrated_reasoning), hint: '生成条数（暂无临床确认采纳数据）', tone: 'blue' },
+    { key: 'research', label: '科研任务', value: researchTotal, hint: researchSummary.value?.pending != null ? `${researchSummary.value.pending} 个待处理` : '科研数据未接入', tone: (researchSummary.value?.pending || 0) > 0 ? 'yellow' : 'blue' },
   ]
 })
 
+/** 缺失即未知：后端未返回时显示“—”，不把缺失当作 0 */
+function nv(value: any) {
+  if (value == null || value === '') return '—'
+  const n = Number(value)
+  return Number.isFinite(n) ? n : '—'
+}
+function pctv(value: any) {
+  const v = nv(value)
+  return v === '—' ? '—' : `${v}%`
+}
 function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }

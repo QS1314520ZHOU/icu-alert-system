@@ -2,8 +2,8 @@
   <section class="bundle-compliance">
     <div class="bundle-header">
       <div>
-        <strong>Bundle 合规核查</strong>
-        <span>{{ summary?.date || '--' }} · {{ summary?.patient_count || 0 }} 名患者</span>
+        <strong>集束化治疗（Bundle）合规核查</strong>
+        <span>{{ summary?.patient_count ? `${summary?.date ? summary.date + ' · ' : ''}${summary.patient_count} 名患者` : '' }}</span>
       </div>
       <div class="header-right">
         <span v-if="summary?.patient_count" class="overall-score" :class="summary?.overall_tone || 'red'">

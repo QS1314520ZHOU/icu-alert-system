@@ -40,6 +40,11 @@
           <div class="wcb-card__top">
             <span class="wcb-card__bed">{{ p.bed || '—' }}<small>床</small></span>
             <span class="wcb-card__name">{{ p.name || '未知' }}</span>
+            <span
+              v-if="vitalMismatch(p)"
+              class="wcb-chip chip-warn"
+              title="分级来自已触发的预警规则；当前体征已超出危急阈值但尚未触发预警，请床旁复核"
+            >体征异常</span>
             <span class="wcb-chip" :class="`chip-${riskTone(p.risk_level)}`">{{ RISK_LABELS[p.risk_level] || '未评估' }}</span>
           </div>
           <div class="wcb-card__diag" :title="p.diagnosis">{{ p.diagnosis || '诊断未记录' }}</div>
@@ -48,12 +53,20 @@
             <span v-for="v in vitalCells(p.patient_id)" :key="v.k" class="wcb-vital" :class="v.tone && `is-${v.tone}`">
               <i>{{ v.k }}</i>{{ v.v }}
             </span>
-            <span v-if="vitalTime(p.patient_id)" class="wcb-vital-time">{{ vitalTime(p.patient_id) }}</span>
+            <span
+              v-if="vitalTime(p.patient_id)"
+              class="wcb-vital-time"
+              :class="{ 'is-stale': vitalStale(p.patient_id) }"
+              :title="vitalStale(p.patient_id) ? '最近一次体征记录超过 1 小时，数值可能已变化' : '最近一次体征记录时间'"
+            >{{ vitalTime(p.patient_id) }}{{ vitalStale(p.patient_id) ? ' 已超1h' : '' }}</span>
           </div>
 
           <ul v-if="reasonsOf(p).length" class="wcb-reasons">
             <li v-for="r in reasonsOf(p).slice(0, 3)" :key="r">{{ r }}</li>
           </ul>
+          <div v-else-if="abnormalVitals(p.patient_id).length" class="wcb-reasons wcb-reasons--vital">
+            未触发预警，但体征异常：{{ abnormalVitals(p.patient_id).join('、') }}
+          </div>
           <div v-else class="wcb-reasons wcb-reasons--none">本班无触发项</div>
 
           <div class="wcb-card__foot">
@@ -208,6 +221,21 @@ function vitalCells(pid: string) {
   ]
   return cells.map((c) => ({ k: c.k, v: c.n == null ? '—' : c.fmt(c.n), tone: tone(c.k, c.n) }))
 }
+/** 超出危急阈值的体征（仅展示，不改变后端分级） */
+function abnormalVitals(pid: string) {
+  return vitalCells(pid).filter((c) => c.tone === 'crit').map((c) => `${c.k} ${c.v}`)
+}
+/** 分级为平稳/低危/未评估，但体征已达危急阈值：提示复核 */
+function vitalMismatch(p: ShiftPatientStat) {
+  if (p.risk_level === 'critical' || p.risk_level === 'high') return false
+  return abnormalVitals(p.patient_id).length > 0
+}
+function vitalStale(pid: string) {
+  const t = vitals.value[pid]?.time
+  if (!t) return false
+  const ms = new Date(t).getTime()
+  return Number.isFinite(ms) && Date.now() - ms > 60 * 60 * 1000
+}
 function vitalTime(pid: string) {
   const t = vitals.value[pid]?.time
   return t ? formatDateTime(t).slice(6) : ''
@@ -284,6 +312,8 @@ defineExpose({ reload })
 .wcb-reasons { margin: 0; padding-left: 16px; font-size: 12px; color: #991B1B; line-height: 1.6 }
 .risk-high .wcb-reasons, .risk-medium .wcb-reasons { color: #92400E }
 .wcb-reasons--none { padding-left: 0; color: #78716C }
+.wcb-reasons--vital { padding-left: 0; color: #B45309 }
+.wcb-vital-time.is-stale { color: #B45309 }
 .wcb-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; border-top: 1px dashed #EDECEA }
 .wcb-support { display: flex; flex-wrap: wrap; gap: 4px }
 .wcb-support em { font-style: normal; font-size: 11px; padding: 0 6px; border-radius: 4px; background: #EEF4FF; color: #1D4ED8 }

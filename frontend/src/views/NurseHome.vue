@@ -27,9 +27,10 @@
       />
 
       <!-- 主内容区 -->
-      <div class="main-grid">
+      <!-- 无危急/高风险时左列为空，改为单列并让右侧卡片横向铺开，避免左半屏留白 -->
+      <div :class="['main-grid', { 'main-grid--single': !criticalAlerts.length }]">
         <!-- 左列：床位 + 危急风险 -->
-        <div class="col-left">
+        <div v-if="criticalAlerts.length" class="col-left">
           <!-- 危急/高风险 -->
           <section v-if="criticalAlerts.length" class="panel panel--critical">
             <div class="panel-head">
@@ -224,6 +225,14 @@ watch(
   display: grid;
   gap: var(--element-gap-lg);
   align-content: start;
+}
+
+.main-grid--single {
+  grid-template-columns: 1fr;
+}
+.main-grid--single .col-right {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
 }
 
 /* ── 面板通用 ── */

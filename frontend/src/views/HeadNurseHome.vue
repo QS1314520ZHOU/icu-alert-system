@@ -9,7 +9,7 @@
       </template>
     </PageHeader>
 
-    <LoadingState v-if="loading" message="正在汇总全科床位、护理负荷 and 质控数据..." />
+    <LoadingState v-if="loading" message="正在汇总全科床位、护理负荷与质控数据..." />
     <ErrorState v-else-if="error" :description="error" />
     <template v-else>
       <WardClinicalBoard class="hn-board" title="全科床位临床概览" />
@@ -56,7 +56,7 @@
             <span>本班护理记录密度</span>
           </div>
           <div class="workload-summary">
-            <span>已用 {{ workload.used_minutes || 0 }} / 预计 {{ workload.estimated_minutes || 0 }} 分钟</span>
+            <span>{{ workload.estimated_minutes ? `已用 ${workload.used_minutes ?? '—'} / 预计 ${workload.estimated_minutes} 分钟` : '护理工时未配置，无法计算负荷' }}</span>
             <i><b :style="{ width: `${workload.percent || 0}%` }"></b></i>
           </div>
           <div class="heatmap">
@@ -76,12 +76,12 @@
         <section class="panel">
           <div class="panel-head">
             <strong>评估依从率</strong>
-            <span>{{ assessmentCompliance.compliance_rate }}%</span>
+            <span>{{ pctv(assessmentCompliance.compliance_rate) }}</span>
           </div>
           <div class="compliance-summary">
-            <span>总计 {{ assessmentCompliance.total_reminders }} 项</span>
-            <span>逾期 {{ assessmentCompliance.active_overdue }} 项</span>
-            <span>按时完成 {{ assessmentCompliance.resolved_ontime }} 项</span>
+            <span>总计 {{ nv(assessmentCompliance.total_reminders) }} 项</span>
+            <span>逾期 {{ nv(assessmentCompliance.active_overdue) }} 项</span>
+            <span>按时完成 {{ nv(assessmentCompliance.resolved_ontime) }} 项</span>
           </div>
           <div class="compliance-list">
             <article v-for="item in assessmentCompliance.by_type || []" :key="item.score_type" class="compliance-item">
@@ -89,7 +89,7 @@
               <div class="compliance-bar">
                 <i :style="{ width: `${item.compliance_rate}%` }"></i>
               </div>
-              <span>{{ item.compliance_rate }}% ({{ item.overdue }}/{{ item.total }} 逾期)</span>
+              <span>{{ pctv(item.compliance_rate) }} ({{ item.overdue }}/{{ item.total }} 逾期)</span>
             </article>
           </div>
           <EmptyState v-if="!(assessmentCompliance.by_type || []).length" description="暂无评估提醒数据。" />
@@ -104,23 +104,23 @@
           <div class="alert-stats">
             <div class="stat-item">
               <span>告警总数</span>
-              <strong>{{ alertStats.total_alerts || 0 }}</strong>
+              <strong>{{ nv(alertStats.total_alerts) }}</strong>
             </div>
             <div class="stat-item">
               <span>已处置</span>
-              <strong>{{ alertStats.handled || 0 }}</strong>
+              <strong>{{ nv(alertStats.handled) }}</strong>
             </div>
             <div class="stat-item">
               <span>待处理</span>
-              <strong :class="{ 'text-warning': alertStats.pending > 0 }">{{ alertStats.pending || 0 }}</strong>
+              <strong :class="{ 'text-warning': alertStats.pending > 0 }">{{ nv(alertStats.pending) }}</strong>
             </div>
             <div class="stat-item">
               <span>处置率</span>
-              <strong>{{ alertStats.handle_rate || 0 }}%</strong>
+              <strong>{{ alertStats.total_alerts ? pctv(alertStats.handle_rate) : '—' }}</strong>
             </div>
             <div class="stat-item">
               <span>平均响应</span>
-              <strong>{{ alertStats.avg_response_minutes || 0 }}分钟</strong>
+              <strong>{{ nv(alertStats.avg_response_minutes) === '—' ? '—' : `${alertStats.avg_response_minutes} 分钟` }}</strong>
             </div>
           </div>
         </section>
@@ -142,10 +142,10 @@
           </div>
           <EmptyState v-if="!qualityEvents.length" description="本班暂无未闭环质控事件。" />
           <div class="quality-row">
-            <span>跌倒 {{ qualitySummary.falls || 0 }}</span>
-            <span>压疮 {{ qualitySummary.pressure_ulcers || 0 }}</span>
-            <span>管路脱出 {{ qualitySummary.line_displacement || 0 }}</span>
-            <span>给药差错 {{ qualitySummary.medication_errors || 0 }}</span>
+            <span>跌倒 {{ nv(qualitySummary.falls) }}</span>
+            <span>压疮 {{ nv(qualitySummary.pressure_ulcers) }}</span>
+            <span>管路脱出 {{ nv(qualitySummary.line_displacement) }}</span>
+            <span>给药差错 {{ nv(qualitySummary.medication_errors) }}</span>
           </div>
         </section>
 
@@ -159,9 +159,9 @@
             <article v-for="row in scannerRows" :key="row.scanner_name" class="scanner-item">
               <strong>{{ row.name || row.scanner_name }}</strong>
               <div class="scanner-stats">
-                <span>触发 {{ row.fire_count || 0 }}</span>
-                <span>确认率 {{ row.ack_rate || 0 }}%</span>
-                <span :class="{ 'text-warning': (row.noise_score || 0) > 30 }">噪音 {{ row.noise_score || 0 }}%</span>
+                <span>触发 {{ nv(row.fire_count) }}</span>
+                <span>确认率 {{ pctv(row.ack_rate) }}</span>
+                <span :class="{ 'text-warning': (row.noise_score || 0) > 30 }">噪音 {{ pctv(row.noise_score) }}</span>
               </div>
             </article>
           </div>
@@ -310,7 +310,10 @@ const summaryCards = computed(() => {
   const compliance = assessmentCompliance.value
   const alerts = alertStats.value
   return [
-    { key: 'handover', label: '待交接床位', value: pendingHandover.value.length, hint: pendingHandover.value.length ? '下班前需完成' : '均已交接或未开始统计', tone: pendingHandover.value.length ? 'yellow' : 'blue' },
+    // 后端未返回 pending_handover 时为“未统计”，不能显示为 0（会被误读为全部交接完成）
+    Array.isArray(home.value?.pending_handover)
+      ? { key: 'handover', label: '待交接床位', value: pendingHandover.value.length, hint: pendingHandover.value.length ? '下班前需完成' : '本班已全部交接', tone: pendingHandover.value.length ? 'yellow' : 'green' }
+      : { key: 'handover', label: '待交接床位', value: '—', hint: '交班状态未统计，请到智能交接班查看', tone: 'blue' },
     { key: 'compliance', label: '评估依从率', value: compliance.total_reminders ? `${compliance.compliance_rate || 0}%` : '—', hint: compliance.total_reminders ? `${compliance.active_overdue || 0} 项逾期` : '暂无评估提醒数据', tone: !compliance.total_reminders ? 'blue' : (compliance.active_overdue || 0) > 0 ? 'red' : 'green' },
     { key: 'alerts', label: '告警处置率', value: alerts.total_alerts ? `${alerts.handle_rate || 0}%` : '—', hint: alerts.total_alerts ? `${alerts.pending || 0} 项待处理` : '近12小时无告警数据', tone: !alerts.total_alerts ? 'blue' : (alerts.pending || 0) > 0 ? 'yellow' : 'green' },
   ]
@@ -350,6 +353,16 @@ function displayBed(value: any) {
   return text.includes('床') ? text : `${text}床`
 }
 
+/** 缺失即未知：后端未返回时显示“—”，不把缺失当作 0 */
+function nv(value: any) {
+  if (value == null || value === '') return '—'
+  const n = Number(value)
+  return Number.isFinite(n) ? n : '—'
+}
+function pctv(value: any) {
+  const v = nv(value)
+  return v === '—' ? '—' : `${v}%`
+}
 function fmt(value: any) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
 }
