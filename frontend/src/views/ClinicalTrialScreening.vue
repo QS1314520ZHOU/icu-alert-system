@@ -95,7 +95,9 @@
                 </div>
               </template>
               <template v-else-if="column.key === 'match_pct'">
-                <span class="match-pct">{{ Math.round((record.match_evidence?.confidence || 0) * 100) }}%</span>
+                <span v-if="record.match_evidence?.criteria_total" class="match-pct" title="有数据且已核实的入排条件数 / 全部条件数；缺失数据不计为满足">{{ record.match_evidence.criteria_verified }}/{{ record.match_evidence.criteria_total }}</span>
+                <span v-else-if="record.match_evidence?.confidence != null" class="match-pct">{{ Math.round(record.match_evidence.confidence * 100) }}%</span>
+                <span v-else class="muted">—</span>
               </template>
               <template v-else-if="column.key === 'main_criteria'">
                 <div class="criteria-cell">
@@ -111,8 +113,12 @@
                 </a-tag>
               </template>
               <template v-else-if="column.key === 'exclusion_risk'">
-                <span v-if="record.match_evidence?.exclusion_risk" class="exclusion-risk">{{ record.match_evidence.exclusion_risk }}</span>
-                <span v-else class="muted">无</span>
+                <span v-if="record.match_evidence?.triggered_exclusion?.length" class="exclusion-risk">触发 {{ record.match_evidence.triggered_exclusion.length }} 项</span>
+                <a-tooltip v-else-if="record.match_evidence?.missing_exclusion?.length" :title="record.match_evidence.missing_exclusion.map((m: any) => m.rule?.label || m.reason).join('、')">
+                  <span class="exclusion-unknown">{{ record.match_evidence.missing_exclusion.length }} 项未核实</span>
+                </a-tooltip>
+                <span v-else-if="record.match_evidence?.missing_exclusion" class="muted">未触发</span>
+                <span v-else class="muted">—</span>
               </template>
               <template v-else-if="column.key === 'status'">
                 <a-tag :color="statusTagColor(record.status)">{{ statusLabel(record.status) }}</a-tag>
@@ -305,10 +311,10 @@ const kpiMetrics = computed(() => [
 
 const candidateColumns = [
   { title: '患者', key: 'patient', width: 150 },
-  { title: '匹配度', key: 'match_pct', width: 80 },
+  { title: '已核实条件', key: 'match_pct', width: 96 },
   { title: '满足条件', key: 'main_criteria', width: 240 },
   { title: '缺失数据', key: 'missing_count', width: 90 },
-  { title: '排除风险', key: 'exclusion_risk', width: 120 },
+  { title: '排除标准', key: 'exclusion_risk', width: 120 },
   { title: '确认状态', key: 'status', width: 110 },
   { title: '操作', key: 'action', width: 70 },
 ]
@@ -504,11 +510,12 @@ onBeforeUnmount(() => { funnelChart?.dispose(); funnelChart = null })
   .diag-row { flex-wrap: wrap; }
 }
 .trial-status-list { list-style: none; margin: 8px 0 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.trial-status-list li { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 6px; border: 1px solid #E5E7EB; background: #F9FAFB; font-size: 12px; color: #6B7280; }
+.trial-status-list li { display: flex; justify-content: space-between; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 6px; border: 1px solid #E5E7EB; background: #F9FAFB; font-size: 12px; color: #6B7280; }
 .trial-status-list li b { font-size: 16px; color: #111827; font-variant-numeric: tabular-nums; }
 .trial-status-list li.tone-info { border-color: #BFD5FF; background: #EEF4FF; }
 .trial-status-list li.tone-warn { border-color: #FCD34D; background: #FFFBEB; }
 .trial-status-list li.tone-warn b { color: #B45309; }
 .trial-status-list li.tone-ok { border-color: #A7D9BF; background: #E7F5EE; }
 .trial-status-list li.tone-ok b { color: #2F7D55; }
+.exclusion-unknown { color: #B45309; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 4px; padding: 1px 6px; font-size: 12px; white-space: nowrap; }
 </style>

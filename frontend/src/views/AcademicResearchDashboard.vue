@@ -17,7 +17,8 @@
       </div>
       <div class="academic-viz-card">
         <h4>课题可行性分布</h4>
-        <div ref="topicChartRef" class="academic-viz-chart"></div>
+        <div v-show="scoredTopicCount" ref="topicChartRef" class="academic-viz-chart"></div>
+        <div v-if="!scoredTopicCount" class="academic-viz-empty">{{ topics.length ? '当前为内置模板课题，未做可行性评分' : '暂无课题建议' }}</div>
       </div>
       <div class="academic-viz-card academic-viz-card--ring">
         <h4>字段完整度</h4>
@@ -104,7 +105,7 @@
                   <span>字段</span><span>缺失率</span>
                 </div>
                 <div v-for="row in missingRows.slice(0, 10)" :key="row.field" class="quality-row">
-                  <span>{{ fieldLabel(row.field) }}</span><span>{{ row.rate }}</span>
+                  <span>{{ fieldLabel(row.field) }}</span><span :class="{ 'rate-high': row.high }">{{ row.rate }}</span>
                 </div>
               </div>
               <div v-else class="soft-empty">当前未发现明显字段缺失。</div>
@@ -120,7 +121,7 @@
                   </a-tag>
                   <div>
                     <strong>{{ item.title }}</strong>
-                    <p>{{ item.detail }}</p>
+                    <p>{{ localizeFieldList(item.detail) }}</p>
                   </div>
                 </article>
               </div>
@@ -156,8 +157,8 @@
                   <div v-if="showOriginalTitle(topic.title)" class="topic-original">原题：{{ topic.title }}</div>
                   <div class="topic-meta">
                     <span>{{ localizeStudyDesign(topic.study_design) }}</span>
-                    <span>可行性 {{ topic.feasibility_score || '—' }}</span>
-                    <span>{{ confidenceLabel(topic.confidence) }}</span>
+                    <span>可行性 {{ topic.feasibility_score != null ? topic.feasibility_score : '未评估' }}</span>
+                    <span>{{ topic.is_template ? '内置模板' : confidenceLabel(topic.confidence) }}</span>
                   </div>
                   <p class="topic-question">{{ localizeQuestion(topic.clinical_question) }}</p>
                   <div class="evidence-box">
@@ -169,7 +170,7 @@
                     <div><dt>伦理风险</dt><dd>{{ localizeEthicalRisk(topic.ethical_risk) }}</dd></div>
                   </div>
                   <div class="topic-foot">
-                    <span>{{ topic.multi_center_potential ? '适合多中心' : '单中心优先' }}</span>
+                    <span>{{ topic.multi_center_potential == null ? '多中心潜力待评' : topic.multi_center_potential ? '适合多中心' : '单中心优先' }}</span>
                     <span>需 PI 复核</span>
                   </div>
                 </article>
@@ -221,11 +222,11 @@ const ATabPane = ATabs.TabPane
 
 const {
   loading, topicLoading, omopLoading, saving, drawerOpen,
-  projects, topics, quality, governance,
+  projects, topics, topicIsFallback, quality, governance,
   form, typeOptions, statusOptions,
   missingRows, topicSourceLabel, statusRows, milestones,
   localizeTitle, showOriginalTitle, localizeQuestion, localizeStudyDesign,
-  localizeOutcome, localizeEthicalRisk, localizeText, fieldLabel,
+  localizeOutcome, localizeEthicalRisk, localizeText, fieldLabel, localizeFieldList,
   ownerLabel, statusColor, confidenceLabel,
   openProjectDrawer, createProjectFromTopic,
   loadAll, generateTopics, exportOmop, saveProject,
@@ -235,13 +236,14 @@ const activeTab = ref('projects')
 
 const kpiMetrics = computed(() => [
   { label: '在管项目', value: projects.value.length, variant: 'info' as const },
-  { label: 'AI 课题', value: topics.value.length, variant: 'default' as const },
+  { label: topicIsFallback.value ? '课题建议（模板）' : 'AI 课题', value: topics.value.length, variant: 'default' as const },
   { label: '数据仓患者', value: quality.value.patient_count || 0, variant: 'default' as const },
   { label: '数据问题', value: (quality.value.time_logic_errors?.length || 0), variant: 'warning' as const },
 ])
 
 const qualityMetrics = computed(() => [
-  { label: '缺失字段', value: missingRows.value.length, variant: 'warning' as const },
+  { label: '有缺失的字段', value: missingRows.value.filter((r) => r.value > 0).length, variant: 'warning' as const },
+  { label: '缺失≥20%', value: missingRows.value.filter((r) => r.high).length, variant: 'danger' as const },
   { label: '异常值', value: quality.value.outliers?.length || 0, variant: 'danger' as const },
   { label: '单位问题', value: quality.value.unit_inconsistencies?.length || 0, variant: 'warning' as const },
 ])
@@ -278,9 +280,12 @@ const statusChartOption = computed(() => {
   }
 })
 
+const scoredTopicCount = computed(() => (topics.value || []).filter((t: any) => t.feasibility_score != null).length)
+
 const topicChartOption = computed(() => {
-  const tps = topics.value || []
-  const scores = tps.map((t: any) => Number(t.feasibility_score || 0))
+  // 只画有可行性评分的课题；模板课题没有评分，不当作 0 分
+  const tps = (topics.value || []).filter((t: any) => t.feasibility_score != null && Number.isFinite(Number(t.feasibility_score)))
+  const scores = tps.map((t: any) => Number(t.feasibility_score))
   const labels = tps.map((t: any) => (t.title || '').slice(0, 12))
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -365,6 +370,8 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
+.rate-high { color: #B91C1C; font-weight: 600; }
+.academic-viz-empty { display: flex; align-items: center; justify-content: center; height: 160px; font-size: 13px; color: #6B7280; text-align: center; }
 .academic-viz-ring-empty { display: flex; align-items: center; justify-content: center; width: 100px; height: 100px; border-radius: 50%; border: 8px solid #E5E7EB; font-size: 13px; color: #6B7280; }
 .academic-viz-ring-label {
   margin-top: 8px;

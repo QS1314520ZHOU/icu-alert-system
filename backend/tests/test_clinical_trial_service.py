@@ -63,3 +63,18 @@ def test_rule_evaluator_supports_respiratory_alias_fields() -> None:
     result = RuleEvaluator().explain_match(patient, trial)
     assert result["possible_match"] is True
     assert result["human_review_required"] is True
+
+
+def test_missing_exclusion_data_is_not_counted_as_verified():
+    from app.services.clinical_trial_service import RuleEvaluator
+
+    trial = {
+        "trial_name": "T",
+        "inclusion_rules": [{"field": "age", "operator": ">=", "value": 18}],
+        "exclusion_rules": [{"field": "pregnant", "operator": "eq", "value": "是"}],
+    }
+    ex = RuleEvaluator().explain_match({"age": 50}, trial)
+    assert ex["criteria_total"] == 2 and ex["criteria_verified"] == 1
+    assert ex["confidence"] == 0.5
+    ex2 = RuleEvaluator().explain_match({"age": 50, "pregnant": "否"}, trial)
+    assert ex2["criteria_verified"] == 2 and ex2["confidence"] == 1.0

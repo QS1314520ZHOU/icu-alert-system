@@ -55,3 +55,22 @@ def test_sbt_unverified_conditions_are_not_assumed_met() -> None:
     assert result["verified"] is False
     assert "循环稳定性未核实" in result["unverified"] and "RASS 未记录" in result["unverified"]
     assert "核实" in result["recommendation"]
+
+
+def test_cuff_pressure_due_rules():
+    from datetime import datetime, timedelta
+    from app.services.respiratory_service import _cuff_pressure_due
+
+    now = datetime(2026, 10, 30, 12, 0)
+    base = {"artificial_airway": True, "airway_type": "气管插管"}
+    # 快速模式未查询：不下结论
+    assert _cuff_pressure_due({**base, "cuff_pressure_queried": False}, now) is False
+    # 无人工气道：不提示
+    assert _cuff_pressure_due({"artificial_airway": False, "airway_type": "无", "cuff_pressure_queried": True}, now) is False
+    # 无记录：提示
+    assert _cuff_pressure_due({**base, "cuff_pressure_queried": True}, now) is True
+    # 8h 内有记录：不提示；超过 8h：提示
+    recent = (now - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S")
+    old = (now - timedelta(hours=9)).isoformat()
+    assert _cuff_pressure_due({**base, "cuff_pressure_queried": True, "latest_cuff_pressure": 26, "latest_cuff_pressure_time": recent}, now) is False
+    assert _cuff_pressure_due({**base, "cuff_pressure_queried": True, "latest_cuff_pressure": 26, "latest_cuff_pressure_time": old}, now) is True

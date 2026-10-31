@@ -385,6 +385,69 @@ async def _latest_spo2_rr(patient: dict[str, Any]) -> tuple[float | None, float 
     return _num(spo2), _num(vitals.get("rr"))
 
 
+CUFF_PRESSURE_INTERVAL_HOURS = 8
+
+
+def _as_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str) and value.strip():
+        text = value.strip().replace("Z", "")
+        for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
+            try:
+                return datetime.strptime(text[:26], fmt)
+            except ValueError:
+                continue
+    return None
+
+
+def _cuff_pressure_due(row: dict[str, Any], now: datetime | None = None) -> bool:
+    """有人工气道且近 8h 无气囊压记录时才提示；未查询记录时不下结论。"""
+    if row.get("cuff_pressure_queried") is False:
+        return False
+    airway = str(row.get("airway_type") or "")
+    if not row.get("artificial_airway") and not any(k in airway for k in ("插管", "气切")):
+        return False
+    if row.get("latest_cuff_pressure") in (None, ""):
+        return True
+    ts = _as_datetime(row.get("latest_cuff_pressure_time"))
+    if ts is None:
+        return True
+    return (now or datetime.now()) - ts > timedelta(hours=CUFF_PRESSURE_INTERVAL_HOURS)
+
+
+async def _latest_cuff_record(patient_id: str) -> dict[str, Any]:
+    doc = await runtime.db.col("airway_records").find_one(
+        {"patient_id": patient_id, "cuff_pressure": {"$nin": [None, ""]}},
+        sort=[("recorded_at", -1), ("created_at", -1)],
+    )
+    return serialize_doc(doc) if doc else {}
+
+
+async def _bulk_latest_airway(patient_ids: list[str]) -> dict[str, dict[str, Any]]:
+    """批量取每位患者最新气道记录与最新气囊压记录（各一次聚合）。"""
+    ids = [pid for pid in {str(p) for p in patient_ids} if pid]
+    out: dict[str, dict[str, Any]] = {pid: {"latest": {}, "cuff": {}} for pid in ids}
+    if not ids:
+        return out
+    col = runtime.db.col("airway_records")
+    for key, match in (("latest", {"patient_id": {"$in": ids}}), ("cuff", {"patient_id": {"$in": ids}, "cuff_pressure": {"$nin": [None, ""]}})):
+        try:
+            cursor = col.aggregate([
+                {"$match": match},
+                {"$sort": {"recorded_at": -1, "created_at": -1}},
+                {"$group": {"_id": "$patient_id", "doc": {"$first": "$$ROOT"}}},
+            ])
+            async for item in cursor:
+                pid = str(item.get("_id"))
+                if pid in out:
+                    out[pid][key] = serialize_doc(item.get("doc") or {})
+        except Exception as exc:  # 聚合失败时退回“未查询”，不误报
+            logger.warning("bulk airway lookup failed: %s", exc)
+            return {}
+    return out
+
+
 def _risk_tags(row: dict[str, Any]) -> list[str]:
     tags = []
     if row.get("driving_pressure") is not None and float(row["driving_pressure"]) > 15:
@@ -396,7 +459,7 @@ def _risk_tags(row: dict[str, Any]) -> list[str]:
         tags.append("高 FiO2")
     if row.get("peep") is not None and float(row["peep"]) >= 10:
         tags.append("高 PEEP")
-    if not row.get("latest_cuff_pressure"):
+    if _cuff_pressure_due(row):
         tags.append("气囊压待测")
     if row.get("difficult_airway"):
         tags.append("困难气道")
@@ -461,22 +524,31 @@ def _respiratory_completion(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "gaps": [],
         }
     completed = 0
+    denominator = 0
     gaps: list[dict[str, Any]] = []
     tasks: list[dict[str, Any]] = []
     missing_counter: dict[str, int] = {}
     for row in rows:
+        # 每例 5 项床旁评估是否已有记录（缺失即未完成，不按“字段存在”凑分）
         row_done = 0
-        if row.get("safety_score") is not None:
-            row_done += 1
-        if row.get("risk_tags") is not None:
-            row_done += 1
-        if row.get("sbt_candidate_status"):
-            row_done += 1
+        row_items = 5
         if row.get("airway_type") and row.get("airway_type") != "气管插管/气切待确认":
             row_done += 1
-        if row.get("latest_cuff_pressure"):
+        if row.get("cuff_pressure_queried") is not False and not _cuff_pressure_due(row):
+            row_done += 1
+        if row.get("rass") is not None:
+            row_done += 1
+        elif row.get("rass_queried") is False:
+            row_items -= 1  # 快速模式未查询 RASS：不计入分母
+        if row.get("cuff_pressure_queried") is False:
+            row_items -= 1
+        if row.get("pf_ratio") is not None:
+            row_done += 1
+        sbt = row.get("sbt_candidate_status") or {}
+        if sbt.get("status") == "not_suitable" or sbt.get("verified"):
             row_done += 1
         completed += row_done
+        denominator += row_items
         for key in (row.get("parameter_completeness") or {}).get("missing") or []:
             missing_counter[key] = missing_counter.get(key, 0) + 1
         for action in row.get("worklist_actions") or []:
@@ -491,13 +563,12 @@ def _respiratory_completion(rows: list[dict[str, Any]]) -> dict[str, Any]:
                     "action": "进入患者",
                 }
             )
-    denominator = total * 5
-    percent = round(completed / denominator * 100) if denominator else 100
+    percent = round(completed / denominator * 100) if denominator else None
     for key, count in sorted(missing_counter.items(), key=lambda item: item[1], reverse=True)[:5]:
         gaps.append({"key": key, "label": _respiratory_field_label(key), "count": count})
     return {
-        "percent": max(0, min(100, percent)),
-        "status": "ready" if percent >= 90 else "open",
+        "percent": max(0, min(100, percent)) if percent is not None else None,
+        "status": "ready" if percent is not None and percent >= 90 else "open",
         "label": f"{total} 人机械通气，{len(tasks)} 个待办",
         "data_quality": {
             "percent": max(0, min(100, round((1 - sum(missing_counter.values()) / max(1, total * 9)) * 100))),
@@ -532,6 +603,7 @@ async def build_ventilated_patient_row(
     bga_hint: dict[str, float] | None = None,
     *,
     fast: bool = False,
+    airway_hint: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     bind, cap = await _active_ventilator(patient, bind_hint=bind_hint, cap_hint=cap_hint)
     if not bind and not cap:
@@ -569,7 +641,16 @@ async def build_ventilated_patient_row(
     spo2, rr_vital = (None, None) if fast else await _latest_spo2_rr(patient)
     rass = None if fast else await _latest_rass(patient)
     airway_plan = {"plan": {}} if fast else await get_airway_plan(str(patient.get("_id")))
-    latest_airway = {} if fast else await latest_airway_record(str(patient.get("_id")))
+    if airway_hint is not None:
+        latest_airway = airway_hint.get("latest") or {}
+        latest_cuff = airway_hint.get("cuff") or {}
+    elif fast:
+        latest_airway, latest_cuff = {}, {}
+    else:
+        latest_airway = await latest_airway_record(str(patient.get("_id")))
+        latest_cuff = await _latest_cuff_record(str(patient.get("_id")))
+    # 快速模式且未批量查询气道记录时，气囊压为“未查询”而非“缺失”
+    cuff_queried = airway_hint is not None or not fast
     row = {
         "patient_id": str(patient.get("_id")),
         "bed_no": patient.get("hisBed") or patient.get("bed") or "",
@@ -597,11 +678,14 @@ async def build_ventilated_patient_row(
         "spo2": spo2,
         "pao2": pao2,
         "pf_ratio": pf_ratio,
-        "prone_position": False if fast else await _has_recent_text(str(patient.get("_id")), ["俯卧", "prone"], hours=24),
+        "prone_position": None if fast else await _has_recent_text(str(patient.get("_id")), ["俯卧", "prone"], hours=24),
         "artificial_airway": bool(bind),
         "airway_type": latest_airway.get("airway_type") or ("气管插管/气切待确认" if bind else "无"),
         "rass": rass,
-        "latest_cuff_pressure": latest_airway.get("cuff_pressure"),
+        "latest_cuff_pressure": latest_cuff.get("cuff_pressure"),
+        "latest_cuff_pressure_time": serialize_doc(latest_cuff.get("recorded_at") or latest_cuff.get("created_at")),
+        "cuff_pressure_queried": cuff_queried,
+        "rass_queried": not fast,
         "difficult_airway": bool((airway_plan.get("plan") or {}).get("difficult_airway") or (airway_plan.get("plan") or {}).get("risk_level") in {"high", "critical"}),
         "ventilator_time": (cap or {}).get("time"),
         "bind_time": (bind or {}).get("bindTime"),
@@ -878,6 +962,7 @@ async def list_ventilated_patients(*, department: str | None = None, dept_code: 
             patient_by_pid[str(patient.get("_id"))] = patient
     code_map = await _respiratory_code_map()
     bga_by_patient = await _bulk_latest_bga_values(list(patient_by_pid.values()), code_map)
+    airway_by_patient = await _bulk_latest_airway([str(p.get("_id")) for p in patient_by_pid.values()])
     for bind in binds:
         pid = str(bind.get("pid") or "").strip()
         if not pid or pid in seen:
@@ -892,7 +977,7 @@ async def list_ventilated_patients(*, department: str | None = None, dept_code: 
         if not _patient_matches_department(patient, department=department, dept_code=dept_code):
             continue
         cap_hint = cap_by_device.get(str(bind.get("deviceID") or ""))
-        row = await build_ventilated_patient_row(patient, bind_hint=bind, cap_hint=cap_hint, bga_hint=bga_by_patient.get(str(patient.get("_id"))), fast=True)
+        row = await build_ventilated_patient_row(patient, bind_hint=bind, cap_hint=cap_hint, bga_hint=bga_by_patient.get(str(patient.get("_id"))), fast=True, airway_hint=airway_by_patient.get(str(patient.get("_id"))))
         if row:
             row["patient_status"] = patient.get("status")
             rows.append(row)

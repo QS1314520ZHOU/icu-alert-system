@@ -149,6 +149,15 @@ def _op_match(actual: Any, operator: str, expected: Any) -> tuple[bool, str]:
     return (str(actual or "").strip().lower() == str(expected or "").strip().lower(), f"{actual} == {expected}")
 
 
+def _verified_ratio(inclusion: dict[str, Any], exclusion: dict[str, Any], trial: dict[str, Any]) -> float:
+    total = len(trial.get("inclusion_rules") or []) + len(trial.get("exclusion_rules") or [])
+    if not total:
+        return 0.0
+    if exclusion.get("matched"):
+        return 0.0
+    return round((len(inclusion.get("matched") or []) + len(exclusion.get("unmet") or [])) / total, 2)
+
+
 class RuleEvaluator:
     def evaluate_rules(self, patient: dict[str, Any], rules: list[dict[str, Any]], *, exclusion: bool = False) -> dict[str, Any]:
         matched = []
@@ -176,7 +185,9 @@ class RuleEvaluator:
             diagnosis_passed = not diagnosis_rules or all(id(rule) in matched_diagnosis for rule in diagnosis_rules)
             passed = len(unmet) == 0 and diagnosis_passed and (len(matched) > 0 or not rules)
         total = max(1, len(rules or []))
-        confidence = round((len(matched) + (0 if missing else 0.2)) / total, 2) if not exclusion else round(1 - len(matched) / total, 2)
+        # 缺失即未知：只有“有数据且核实”的条件计入；入组看满足数，排除看“已核实未触发”数
+        verified = len(unmet) if exclusion else len(matched)
+        confidence = round(verified / total, 2) if rules else 1.0
         return {"passed": passed, "matched": matched, "unmet": unmet, "missing": missing, "confidence": max(0.0, min(1.0, confidence))}
 
     def explain_match(self, patient: dict[str, Any], trial: dict[str, Any]) -> dict[str, Any]:
@@ -189,8 +200,11 @@ class RuleEvaluator:
             "unmet_inclusion": inclusion["unmet"],
             "missing_data": [*inclusion["missing"], *exclusion["missing"]],
             "triggered_exclusion": exclusion["matched"],
+            "missing_exclusion": exclusion["missing"],
             "untriggered_exclusion": exclusion["unmet"],
-            "confidence": round((inclusion["confidence"] + exclusion["confidence"]) / 2, 2),
+            "criteria_total": len(trial.get("inclusion_rules") or []) + len(trial.get("exclusion_rules") or []),
+            "criteria_verified": len(inclusion["matched"]) + len(exclusion["unmet"]),
+            "confidence": _verified_ratio(inclusion, exclusion, trial),
             "human_review_required": True,
             "safety_notice": "系统仅提示可能符合，必须由主管医生和研究团队人工确认，不自动入组。",
             "message": f"该患者可能符合【{trial.get('trial_name') or trial.get('name')}】入组标准，请确认是否通知研究团队。" if possible else "当前证据不足或触发排除/未满足入组条件。",

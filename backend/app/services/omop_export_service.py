@@ -175,7 +175,7 @@ async def build_data_quality_report(scope: str = "all", department: str | None =
         "department": str(department or "").strip() or None,
         "dept_code": str(dept_code or "").strip() or None,
         "patient_count": total,
-        "missing_rate": {field: round(count / total, 4) if total else 0 for field, count in missing.items()},
+        "missing_rate": {field: round(count / total, 4) for field, count in missing.items()} if total else {},  # 无患者时缺失率未知，不报 0
         "time_logic_errors": issues[:100],
         "abnormal_values": [],
         "unit_inconsistency": [],

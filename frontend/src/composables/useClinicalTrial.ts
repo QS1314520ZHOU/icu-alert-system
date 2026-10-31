@@ -159,9 +159,18 @@ export function useClinicalTrial() {
     candidateOpen.value = true
   }
 
+  const RULE_FIELD_LABELS: Record<string, string> = {
+    age: '年龄', diagnosis: '诊断', lactate: '乳酸', sofa: 'SOFA', apache2: 'APACHE II', gender: '性别', sex: '性别',
+    pregnant: '妊娠', dnr: 'DNR', map: 'MAP', creatinine: '肌酐', pf_ratio: 'P/F', icd: 'ICD',
+  }
+  const RULE_OP_LABELS: Record<string, string> = { '>=': '≥', '<=': '≤', '>': '>', '<': '<', eq: '=', '==': '=', contains: '含', regex: '匹配', in: '属于' }
   function ruleText(item: any) {
     const rule = item.rule || {}
-    return `${rule.source_text || rule.field || '规则'}：${item.evidence || item.actual || ''}`
+    if (rule.label) return `${rule.label}（实际 ${item.actual ?? '—'}）`
+    if (rule.source_text) return rule.source_text
+    const field = RULE_FIELD_LABELS[String(rule.field || '').toLowerCase()] || rule.field || '规则'
+    const op = RULE_OP_LABELS[String(rule.operator || 'eq')] || rule.operator || ''
+    return `${field} ${op} ${rule.value ?? ''}（实际 ${item.actual ?? '—'}）`
   }
 
   /* ───── API ───── */

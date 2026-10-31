@@ -66,7 +66,9 @@ export function useAcademicResearch() {
   })
 
   /* ───── 计算属性 ───── */
-  const missingRows = computed(() => Object.entries(quality.value?.missing_rate || {}).map(([field, rate]) => ({ field, rate: `${Math.round(Number(rate) * 100)}%` })))
+  const missingRows = computed(() => Object.entries(quality.value?.missing_rate || {})
+    .map(([field, rate]) => ({ field, value: Number(rate), rate: `${Math.round(Number(rate) * 100)}%`, high: Number(rate) >= 0.2 }))
+    .sort((a, b) => b.value - a.value))
   const topicSourceLabel = computed(() => topicIsFallback.value ? '系统内置兜底建议' : 'AI / 数据摘要生成')
   const statusRows = computed(() => Object.entries(portfolio.value?.by_status || {}).map(([key, value]) => ({ key, value })))
   const milestones = computed(() => portfolio.value?.upcoming_milestones || [])
@@ -136,6 +138,8 @@ export function useAcademicResearch() {
       .replace('supports risk adjustment', '支持风险校正')
   }
   function fieldLabel(field: string) { return fieldMap[field] || field }
+  /** 把后端拼接的字段名串（如 “birthday、hisPid”）翻成中文 */
+  function localizeFieldList(text: string) { return String(text || '').split('、').map((t) => fieldMap[t.trim()] || t).join('、') }
   function ownerLabel(value: any) {
     const text = String(value || '').trim()
     if (!text || text.toLowerCase() === 'anonymous') return '待填写'
@@ -257,7 +261,7 @@ export function useAcademicResearch() {
     missingRows, topicSourceLabel, statusRows, milestones,
     // 翻译
     localizeTitle, showOriginalTitle, localizeQuestion, localizeStudyDesign,
-    localizeOutcome, localizeEthicalRisk, localizeText, fieldLabel,
+    localizeOutcome, localizeEthicalRisk, localizeText, fieldLabel, localizeFieldList,
     ownerLabel, statusColor, confidenceLabel,
     // 操作
     resetForm, openProjectDrawer, createProjectFromTopic,

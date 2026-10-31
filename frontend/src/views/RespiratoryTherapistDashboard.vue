@@ -46,7 +46,7 @@
       <div class="resp-viz-card resp-viz-card--ring">
         <h4>数据完整性</h4>
         <DataCompletenessRing :value="ctx.completion.value?.data_quality?.percent ?? 0" :size="100" />
-        <span class="resp-viz-ring-label">闭环完成率 {{ ctx.completion.value?.percent != null ? `${ctx.completion.value.percent}%` : '—' }}</span>
+        <span class="resp-viz-ring-label">床旁评估完成 {{ ctx.completion.value?.percent != null ? `${ctx.completion.value.percent}%` : '—' }}</span>
       </div>
     </div>
 
@@ -176,10 +176,10 @@
         <!-- 闭环进度 -->
         <div class="sidebar-card sidebar-card--progress">
           <div class="sidebar-card__head">
-            <h3 class="sidebar-card__title">闭环进度</h3>
+            <h3 class="sidebar-card__title">床旁评估</h3>
           </div>
           <div class="progress-row">
-            <span>完成率</span>
+            <span title="气道类型、气囊压(8h内)、RASS、P/F、SBT 判定是否已有记录">评估完成</span>
             <strong>{{ ctx.completion.value?.percent != null ? `${ctx.completion.value.percent}%` : '—' }}</strong>
             <div class="progress-bar">
               <div class="progress-bar__fill" :style="{ width: `${ctx.completion.value?.percent ?? 0}%` }" />

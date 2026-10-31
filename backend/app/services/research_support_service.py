@@ -187,10 +187,10 @@ def _fallback_topics(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
             "secondary_outcomes": ["机械通气天数", "ICU住院天数", "28天结局", "压力损伤发生率"],
             "required_data_fields": ["诊断", "PaO2", "FiO2", "PEEP", "俯卧位开始/结束时间", "结局"],
             "estimated_sample_size": "建议先做 3-6 个月病例盘点，再按主要结局估算样本量。",
-            "feasibility_score": 82,
+            "feasibility_score": None,
             "ethical_risk": "以脱敏质控数据为主，风险较低；涉及干预流程优化时需伦理备案。",
-            "multi_center_potential": True,
-            "confidence": "medium",
+            "multi_center_potential": None,
+            "confidence": "template",
             "limitations": snapshot.get("limitations") or [],
         },
         {
@@ -204,10 +204,10 @@ def _fallback_topics(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
             "secondary_outcomes": ["SBT失败", "再插管", "ICU住院天数"],
             "required_data_fields": ["FiO2", "PEEP", "Pplat", "VT", "结局"],
             "estimated_sample_size": "基于当前患者总量需进一步测算",
-            "feasibility_score": 72,
+            "feasibility_score": None,
             "ethical_risk": "回顾性脱敏数据，伦理风险较低；需伦理备案。",
-            "multi_center_potential": True,
-            "confidence": "medium",
+            "multi_center_potential": None,
+            "confidence": "template",
             "limitations": snapshot.get("limitations") or [],
         },
         {
@@ -221,10 +221,10 @@ def _fallback_topics(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
             "secondary_outcomes": ["抗菌药物给药时间", "乳酸复查率", "升压药使用"],
             "required_data_fields": ["诊断", "乳酸", "血培养", "抗菌药物", "时间戳"],
             "estimated_sample_size": "按月度病例量滚动评估",
-            "feasibility_score": 78,
+            "feasibility_score": None,
             "ethical_risk": "流程改进研究需避免影响临床自主决策。",
-            "multi_center_potential": True,
-            "confidence": "medium",
+            "multi_center_potential": None,
+            "confidence": "template",
             "limitations": snapshot.get("limitations") or [],
         },
         {
@@ -238,13 +238,16 @@ def _fallback_topics(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
             "secondary_outcomes": ["字段缺失率", "异常值比例", "单位不一致率", "时间逻辑错误率"],
             "required_data_fields": ["患者主索引", "诊断", "时间戳", "实验室指标", "呼吸机参数", "医嘱/用药"],
             "estimated_sample_size": "可覆盖全量科研数据仓记录。",
-            "feasibility_score": 90,
+            "feasibility_score": None,
             "ethical_risk": "完全脱敏方法学研究，伦理风险较低；需记录数据治理流程。",
-            "multi_center_potential": True,
-            "confidence": "high",
+            "multi_center_potential": None,
+            "confidence": "template",
             "limitations": snapshot.get("limitations") or [],
         },
     ]
+    # 兜底模板：可行性/多中心潜力未经评估，不给分值（缺失即未知）
+    for topic in topics:
+        topic["is_template"] = True
     return topics
 
 
