@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN dnf install -y oracle-epel-release-el8 && \
     dnf module reset nodejs -y 2>/dev/null && \
-    dnf module enable python311 nodejs:18 -y && \
+    dnf module enable nodejs:18 -y && \
     dnf install -y \
         gcc gcc-c++ make \
         python3.11 python3.11-devel python3.11-pip \
