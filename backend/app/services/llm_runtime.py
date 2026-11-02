@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import asyncio
 import hashlib
 import logging
@@ -511,6 +513,92 @@ def sanitize_llm_text(text: Any) -> str:
     return cleaned.strip()
 
 
+_THINKING_ON = {"on", "true", "1", "yes", "enable", "enabled", "开", "开启"}
+_THINKING_OFF = {"off", "false", "0", "no", "disable", "disabled", "关", "关闭"}
+
+
+def normalize_thinking_mode(value: Any) -> str:
+    """Normalize a thinking switch to 'on' / 'off' / 'auto'."""
+    if isinstance(value, bool):
+        return "on" if value else "off"
+    text = str(value or "").strip().lower()
+    if text in _THINKING_ON:
+        return "on"
+    if text in _THINKING_OFF:
+        return "off"
+    return "auto"
+
+
+def thinking_payload(mode: str) -> dict[str, Any]:
+    """Extra request fields for vLLM / Qwen3-style chat templates. 'auto' sends nothing."""
+    if mode == "on":
+        return {"chat_template_kwargs": {"enable_thinking": True}}
+    if mode == "off":
+        return {"chat_template_kwargs": {"enable_thinking": False}}
+    return {}
+
+
+def default_thinking_mode(cfg: Any) -> str:
+    settings = getattr(cfg, "settings", None)
+    return normalize_thinking_mode(getattr(settings, "LLM_THINKING", "auto"))
+
+
+class LLMEmptyContentError(RuntimeError):
+    """Gateway answered 200 but without usable answer text (e.g. all tokens spent on reasoning)."""
+
+
+def _message_text_from_response(data: Any) -> tuple[str, bool, str]:
+    """Extract answer text from an OpenAI-compatible (or close variant) response.
+
+    Returns (text, has_reasoning, finish_reason). Reasoning/thinking blocks are never
+    returned as answer text.
+    """
+    if isinstance(data, dict) and isinstance(data.get("data"), dict) and "choices" not in data:
+        data = data["data"]
+    if not isinstance(data, dict):
+        return "", False, ""
+    # Anthropic-style: {"content": [{"type": "text", "text": ...}, {"type": "thinking", ...}]}
+    if isinstance(data.get("content"), list) and "choices" not in data:
+        texts, has_reasoning = [], False
+        for block in data["content"]:
+            if not isinstance(block, dict):
+                continue
+            btype = str(block.get("type") or "").lower()
+            if "think" in btype or "reason" in btype:
+                has_reasoning = True
+                continue
+            if isinstance(block.get("text"), str):
+                texts.append(block["text"])
+        return "".join(texts), has_reasoning, str(data.get("stop_reason") or "")
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        return "", False, ""
+    first = choices[0]
+    finish_reason = str(first.get("finish_reason") or "")
+    message = first.get("message") if isinstance(first.get("message"), dict) else {}
+    has_reasoning = bool(message.get("reasoning") or message.get("reasoning_content") or message.get("thinking"))
+    content = message.get("content")
+    text = ""
+    if isinstance(content, str):
+        text = content
+    elif isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                itype = str(item.get("type") or "").lower()
+                if "think" in itype or "reason" in itype:
+                    has_reasoning = True
+                    continue
+                if isinstance(item.get("text"), str):
+                    parts.append(item["text"])
+        text = "".join(parts)
+    if not text and isinstance(first.get("text"), str):
+        text = first["text"]
+    return text, has_reasoning, finish_reason
+
+
 async def call_llm_chat(
     *,
     cfg,
@@ -522,7 +610,9 @@ async def call_llm_chat(
     timeout_seconds: float = 60,
     response_format: dict[str, Any] | None = None,
     client: httpx.AsyncClient | None = None,
+    thinking: str | bool | None = None,
 ) -> dict[str, Any]:
+    """thinking: 'on' / 'off' / 'auto'; None = runtime config / provider / LLM_THINKING."""
     global _LLM_SEMAPHORE, _LLM_CONCURRENCY_LIMIT
     runtime_ai = await _runtime_ai_config()
     if runtime_ai and runtime_ai.get("enabled") is False:
@@ -531,7 +621,14 @@ async def call_llm_chat(
         temperature = float(runtime_ai.get("temperature", temperature) or temperature)
         max_tokens = int(runtime_ai.get("max_tokens", max_tokens) or max_tokens)
         timeout_seconds = float(runtime_ai.get("timeout", timeout_seconds) or timeout_seconds)
-    cache_key = _prompt_hash(model or "", temperature, max_tokens, response_format or {}, system_prompt, user_prompt)
+    explicit_thinking = thinking is not None
+    if explicit_thinking:
+        thinking_mode = normalize_thinking_mode(thinking)
+    elif runtime_ai and runtime_ai.get("thinking") is not None:
+        thinking_mode = normalize_thinking_mode(runtime_ai.get("thinking"))
+    else:
+        thinking_mode = default_thinking_mode(cfg)
+    cache_key = _prompt_hash(model or "", temperature, max_tokens, response_format or {}, thinking_mode, system_prompt, user_prompt)
     ttl_seconds = _cache_ttl_seconds(runtime_ai)
     cached = await _get_cache(cache_key, ttl_seconds)
     if cached:
@@ -585,6 +682,8 @@ async def call_llm_chat(
                 "timeout": float(candidate.get("timeout", timeout_seconds) or timeout_seconds),
                 "provider_id": str(candidate.get("id") or ""),
                 "provider_name": str(candidate.get("name") or candidate.get("id") or ""),
+                "thinking": thinking_mode if explicit_thinking or candidate.get("thinking") is None
+                else normalize_thinking_mode(candidate.get("thinking")),
             }
         return {
             "model": str(candidate or "").strip(),
@@ -595,9 +694,10 @@ async def call_llm_chat(
             "timeout": timeout_seconds,
             "provider_id": "",
             "provider_name": "",
+            "thinking": thinking_mode,
         }
 
-    async def _send(req_client: httpx.AsyncClient, parts: dict[str, Any]) -> dict[str, Any]:
+    async def _send(req_client: httpx.AsyncClient, parts: dict[str, Any], extra: dict[str, Any] | None = None) -> dict[str, Any]:
         model_name = str(parts.get("model") or "").strip()
         if not model_name:
             raise LLMRuntimeUnavailableError(
@@ -623,6 +723,9 @@ async def call_llm_chat(
         }
         if response_format:
             payload["response_format"] = response_format
+        payload.update(thinking_payload(parts.get("thinking", "auto")))
+        if extra:
+            payload.update(extra)
         max_retries = 3
         for attempt in range(max_retries + 1):
             resp = await req_client.post(llm_url, json=payload, headers=headers)
@@ -674,14 +777,42 @@ async def call_llm_chat(
                 try:
                     parts = _candidate_parts(candidate)
                     data = await _send(req_client, parts)
+                    raw_text, has_reasoning, finish_reason = _message_text_from_response(data)
+                    text = sanitize_llm_text(raw_text)
+                    if (
+                        not text.strip()
+                        and parts.get("thinking", "auto") == "auto"
+                        and (has_reasoning or finish_reason == "length")
+                    ):
+                        # Thinking model spent the whole max_tokens budget on reasoning.
+                        # Retry once with thinking disabled (vLLM / Qwen3 chat template).
+                        logger.warning(
+                            "LLM returned reasoning without content (model=%s finish_reason=%s); retrying with thinking disabled",
+                            parts.get("model", ""), finish_reason,
+                        )
+                        try:
+                            data = await _send(req_client, parts, {"chat_template_kwargs": {"enable_thinking": False}})
+                            raw_text, has_reasoning, finish_reason = _message_text_from_response(data)
+                            text = sanitize_llm_text(raw_text)
+                        except httpx.HTTPStatusError as retry_exc:
+                            # Gateway may reject chat_template_kwargs; keep the original empty result.
+                            logger.warning("Retry without thinking rejected by gateway: %s", _redact_sensitive(str(retry_exc)[:200]))
+                    if not text.strip():
+                        logger.error(
+                            "LLM response without content: model=%s finish_reason=%s body=%s",
+                            parts.get("model", ""), finish_reason,
+                            _redact_sensitive(json.dumps(data, ensure_ascii=False)[:800]),
+                        )
+                        raise LLMEmptyContentError(
+                            f"LLM 返回无正文（finish_reason={finish_reason or 'unknown'}，thinking={parts.get('thinking', 'auto')}），"
+                            "可能是思考占满了 max_tokens，可设置 LLM_THINKING=off 或调大 max_tokens"
+                        )
                     used_model = parts["model"]
                     # degraded_mode: whether this call switched to a fallback model because a
                     # prior candidate failed.  It describes *actual* failover behaviour, not
                     # whether the current provider carries a "fallback" label.
                     used_fallback = degraded_mode or (idx > 0) or (used_model == models_meta.get("fallback_model") and has_real_degrade)
                     await _FAILURE_TRACKER.record_success()
-                    message = data["choices"][0].get("message") or {}
-                    text = sanitize_llm_text(message.get("content") or "")
                     usage = data.get("usage") if isinstance(data, dict) else None
                     result = {
                         "text": text,

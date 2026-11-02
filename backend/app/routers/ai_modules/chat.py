@@ -18,7 +18,7 @@ from app import runtime
 from app.services.patient_narrative_service import PatientNarrativeService
 from app.config import get_config
 from app.services.audit_service import normalize_actor, write_ai_generation_log
-from app.services.llm_runtime import LLMRuntimeUnavailableError
+from app.services.llm_runtime import LLMRuntimeUnavailableError, default_thinking_mode, thinking_payload
 from app.utils.api_llm import call_api_llm
 from app.utils.patient_helpers import bed_match, normalize_bed, patient_his_pid_candidates
 
@@ -1693,6 +1693,7 @@ async def _iter_llm_stream(
             {"role": "user", "content": user_prompt},
         ],
     }
+    payload.update(thinking_payload(default_thinking_mode(cfg)))
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {cfg.settings.LLM_API_KEY}",

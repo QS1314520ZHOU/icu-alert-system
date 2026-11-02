@@ -269,6 +269,7 @@ services:
     environment:
       - SMARTCARE_DB_HOST=${SMARTCARE_DB_HOST:-127.0.0.1}
       - LLM_BASE_URL=${LLM_BASE_URL:-https://notion.jylb.fun/v1}
+      - LLM_THINKING=${LLM_THINKING:-auto}   # 思考模式：on 开启 / off 关闭 / auto 正文为空时自动关闭重试
       # 更多环境变量...
     depends_on:
       - redis

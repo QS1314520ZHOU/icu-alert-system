@@ -73,6 +73,8 @@ class Settings(BaseSettings):
     LLM_MODEL_MEDICAL: str = ""
     LLM_FALLBACK_MODEL: str = ""
     LLM_REASONING_MODEL: str = ""
+    # 思考模式：on=开启 | off=关闭 | auto=按模型默认，正文为空时自动关闭思考重试一次
+    LLM_THINKING: str = "auto"
 
     # ASR
     ASR_BASE_URL: str = "http://127.0.0.1:10096"
