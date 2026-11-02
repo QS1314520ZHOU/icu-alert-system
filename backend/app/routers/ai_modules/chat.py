@@ -18,9 +18,10 @@ from app import runtime
 from app.services.patient_narrative_service import PatientNarrativeService
 from app.config import get_config
 from app.services.audit_service import normalize_actor, write_ai_generation_log
-from app.services.llm_runtime import LLMRuntimeUnavailableError, default_thinking_mode, thinking_payload
+from app.services.llm_runtime import LLMRuntimeUnavailableError, thinking_payload
 from app.utils.api_llm import call_api_llm
 from app.utils.patient_helpers import bed_match, normalize_bed, patient_his_pid_candidates
+from app.services.llm_runtime import thinking_for
 
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
@@ -577,6 +578,7 @@ async def propose_information_gaps(patient_context) -> list[dict[str, Any]]:
                 cfg.llm_fast_model or cfg.llm_model_medical or None,
                 max_tokens=600,
                 timeout_seconds=min(20, _AI_CONSULT_LLM_TIMEOUT_SECONDS),
+                thinking=thinking_for("chat"),
             ),
             timeout=25,
         )
@@ -1693,7 +1695,7 @@ async def _iter_llm_stream(
             {"role": "user", "content": user_prompt},
         ],
     }
-    payload.update(thinking_payload(default_thinking_mode(cfg)))
+    payload.update(thinking_payload(thinking_for("chat", cfg)))
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {cfg.settings.LLM_API_KEY}",
@@ -1806,6 +1808,7 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
                 model_name or None,
                 max_tokens=max_tokens,
                 timeout_seconds=llm_timeout_seconds,
+                thinking=thinking_for("chat"),
             ),
             timeout=total_timeout_seconds,
         )
@@ -1825,6 +1828,7 @@ async def ai_chat_consult(payload: ChatConsultPayload, request: Request):
                     model_name or None,
                     max_tokens=max_tokens,
                     timeout_seconds=llm_timeout_seconds,
+                    thinking=thinking_for("chat"),
                 ),
                 timeout=total_timeout_seconds,
             )
@@ -2016,6 +2020,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                 model_name,
                 max_tokens=_AI_CONSULT_PREVIEW_MAX_TOKENS,
                 timeout_seconds=_AI_CONSULT_PREVIEW_TIMEOUT_SECONDS,
+                thinking=thinking_for("chat"),
             )
         )
 
@@ -2092,6 +2097,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                         model_name,
                         max_tokens=max_tokens,
                         timeout_seconds=llm_timeout_seconds,
+                        thinking=thinking_for("chat"),
                     ),
                     timeout=total_timeout_seconds,
                 )
@@ -2185,6 +2191,7 @@ async def ai_chat_consult_stream(payload: ChatConsultPayload, request: Request):
                         model_name,
                         max_tokens=max_tokens,
                         timeout_seconds=llm_timeout_seconds,
+                        thinking=thinking_for("chat"),
                     ),
                     timeout=total_timeout_seconds,
                 )

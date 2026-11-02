@@ -9,6 +9,7 @@ from app.services.home_service import RoleHomeService
 from app.services.shift_service import ShiftService
 from app.utils.api_llm import call_api_llm
 from app.utils.serialization import serialize_doc
+from app.services.llm_runtime import thinking_for
 
 router = APIRouter(tags=["role-home"])
 
@@ -18,7 +19,7 @@ def _service() -> RoleHomeService:
         runtime.db,
         config=runtime.config,
         ai_handoff_service=runtime.ai_handoff_service,
-        llm_call=lambda system_prompt, user_prompt, model=None: call_api_llm(system_prompt, user_prompt, model),
+        llm_call=lambda system_prompt, user_prompt, model=None: call_api_llm(system_prompt, user_prompt, model, thinking=thinking_for("handover")),
     )
 
 

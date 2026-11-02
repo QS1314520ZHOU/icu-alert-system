@@ -15,6 +15,7 @@ import httpx
 import numpy as np
 from app.services.llm_runtime import call_llm_chat
 from .scanner_adaptive_thresholds import AdaptiveThresholdsScanner
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -379,6 +380,7 @@ class AdaptiveThresholdAdvisorMixin:
                 max_tokens=int(cfg.get("llm_max_tokens", cfg.get("max_tokens", 2048))),
                 timeout_seconds=float(cfg.get("llm_timeout", cfg.get("timeout", 45))),
                 client=http_client,
+                thinking=thinking_for("threshold_advisor"),
             )
             text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
             text = re.sub(r"^\s*```(?:json)?\s*", "", text.strip(), flags=re.IGNORECASE)

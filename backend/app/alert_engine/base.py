@@ -26,6 +26,7 @@ from app.utils.bed_matching import _bed_match, _normalize_bed
 from app.utils.clinical import _cap_time, _cap_value, _detect_trend, _eval_condition, _extract_param
 from app.utils.labs import _convert_lab_value, _lab_time, _match_lab_test
 from app.utils.parse import API_TZ, _parse_dt, _parse_number, _safe_oid, _to_output_iso
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -3049,6 +3050,7 @@ class BaseEngine:
                 temperature=0.1,
                 max_tokens=220,
                 timeout_seconds=12,
+                thinking=thinking_for("alert_polish"),
             )
             text = str((result or {}).get("text") or "").strip()
             if text:

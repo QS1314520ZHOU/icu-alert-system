@@ -8,6 +8,7 @@ from typing import Any, AsyncIterator
 
 from app.services.agent_tools import AutonomousAgentTools
 from app.services.llm_runtime import call_llm_chat
+from app.services.llm_runtime import thinking_for
 
 
 class AutonomousInvestigationAgent:
@@ -32,7 +33,7 @@ class AutonomousInvestigationAgent:
         system = "你是ICU自主排查Agent。基于工具证据生成简洁结论，列出证据、主要风险、下一步核对点。不得生成正式医嘱。"
         user = json.dumps({"question": question, "tool_results": tool_results}, ensure_ascii=False, default=str)
         try:
-            result = await call_llm_chat(cfg=self.config, system_prompt=system, user_prompt=user, model=self.config.llm_fast_model or self.config.llm_model_medical, temperature=0.1, max_tokens=1200, timeout_seconds=30)
+            result = await call_llm_chat(cfg=self.config, system_prompt=system, user_prompt=user, model=self.config.llm_fast_model or self.config.llm_model_medical, temperature=0.1, max_tokens=1200, timeout_seconds=30, thinking=thinking_for("autonomous_agent"))
             text = str(result.get("text") or "").strip()
             if text:
                 return text

@@ -16,6 +16,7 @@ from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
 
 from .scanner_alert_reasoning import AlertReasoningScanner
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -623,6 +624,7 @@ JSON结构:
                 max_tokens=max_tokens,
                 timeout_seconds=timeout_sec,
                 client=client,
+                thinking=thinking_for("alert_reasoning"),
             )
             raw_text = str(result.get("text") or "")
             usage = result.get("usage")

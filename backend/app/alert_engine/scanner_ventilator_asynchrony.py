@@ -8,6 +8,7 @@ from typing import Any
 from app.services.llm_runtime import call_llm_chat
 
 from .scanners import BaseScanner, ScannerSpec
+from app.services.llm_runtime import thinking_for
 
 
 def _to_float(value: Any) -> float | None:
@@ -687,6 +688,7 @@ class VentilatorAsynchronyScanner(BaseScanner):
                 temperature=float(cfg.get("llm_temperature", 0.1) or 0.1),
                 max_tokens=int(cfg.get("llm_max_tokens", 600) or 600),
                 timeout_seconds=float(cfg.get("llm_timeout", 20) or 20),
+                thinking=thinking_for("ventilator_asynchrony"),
             ),
             fallback=None,
             timeout=float(cfg.get("llm_timeout", 20) or 20),

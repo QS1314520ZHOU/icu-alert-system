@@ -26,6 +26,7 @@ from app.services.mdt_prompts import (
 )
 from app.services.patient_digital_twin import PatientDigitalTwinService
 from app.services.patient_narrative_service import PatientNarrativeService
+from app.services.llm_runtime import thinking_for
 
 
 @dataclass(frozen=True)
@@ -127,6 +128,7 @@ class ICUMultiAgentOrchestrator:
                 max_tokens=1600,
                 timeout_seconds=20,
                 response_format={"type": "json_object"},
+                thinking=thinking_for("json_repair"),
             )
             return self._parse_json_object(str(result.get("text") or ""))
         except Exception:
@@ -364,6 +366,7 @@ class ICUMultiAgentOrchestrator:
             max_tokens=2000,
             timeout_seconds=60,
             response_format={"type": "json_object"},
+            thinking=thinking_for("mdt"),
         )
         raw = await self._schema_self_heal(str(result.get("text") or ""), target="specialist") or {}
         valid_ids = {str(c.get("chunk_id")) for c in knowledge_chunks if c.get("chunk_id")}
@@ -400,7 +403,7 @@ class ICUMultiAgentOrchestrator:
         if not self._use_llm_agents():
             return {"debate_summary": "规则辩论：存在跨专科冲突，需MDT主持人裁决。", "revised_focus": [c.get("resolution_focus") for c in conflicts if c.get("resolution_focus")], "unresolved_conflicts": [c.get("summary") for c in conflicts if c.get("summary")]}
         try:
-            result = await call_llm_chat(cfg=self.config, system_prompt=DEBATE_SYSTEM, user_prompt=json.dumps({"patient": twin.get("patient"), "assessments": assessments, "conflicts": conflicts, "failure_few_shots": failures}, ensure_ascii=False, default=str), model=self.config.llm_reasoning_model or self.config.llm_fast_model, temperature=0.1, max_tokens=1200, timeout_seconds=30, response_format={"type": "json_object"})
+            result = await call_llm_chat(cfg=self.config, system_prompt=DEBATE_SYSTEM, user_prompt=json.dumps({"patient": twin.get("patient"), "assessments": assessments, "conflicts": conflicts, "failure_few_shots": failures}, ensure_ascii=False, default=str), model=self.config.llm_reasoning_model or self.config.llm_fast_model, temperature=0.1, max_tokens=1200, timeout_seconds=30, response_format={"type": "json_object"}, thinking=thinking_for("mdt"))
             return await self._schema_self_heal(str(result.get("text") or ""), target="debate") or {}
         except Exception:
             return {"debate_summary": "辩论轮降级：LLM不可用，保留规则冲突。", "revised_focus": [], "unresolved_conflicts": [c.get("summary") for c in conflicts]}
@@ -410,7 +413,7 @@ class ICUMultiAgentOrchestrator:
             meta_plan["reflection"] = {"reflection_summary": "规则反思：已加入失败案例提醒和人工确认边界。", "revisions": [], "confidence_adjustment": "same"}
             return meta_plan
         try:
-            result = await call_llm_chat(cfg=self.config, system_prompt=REFLECTION_SYSTEM, user_prompt=json.dumps({"meta_plan": meta_plan, "failure_few_shots": failures}, ensure_ascii=False, default=str), model=self.config.llm_fast_model or self.config.llm_model_medical, temperature=0.1, max_tokens=1000, timeout_seconds=25, response_format={"type": "json_object"})
+            result = await call_llm_chat(cfg=self.config, system_prompt=REFLECTION_SYSTEM, user_prompt=json.dumps({"meta_plan": meta_plan, "failure_few_shots": failures}, ensure_ascii=False, default=str), model=self.config.llm_fast_model or self.config.llm_model_medical, temperature=0.1, max_tokens=1000, timeout_seconds=25, response_format={"type": "json_object"}, thinking=thinking_for("mdt"))
             meta_plan["reflection"] = await self._schema_self_heal(str(result.get("text") or ""), target="reflection") or {}
         except Exception:
             meta_plan["reflection"] = {"reflection_summary": "反思轮降级：LLM不可用。", "revisions": [], "confidence_adjustment": "same"}
@@ -483,6 +486,7 @@ class ICUMultiAgentOrchestrator:
             max_tokens=2500,
             timeout_seconds=90,
             response_format={"type": "json_object"},
+            thinking=thinking_for("mdt"),
         )
         raw = await self._schema_self_heal(str(result.get("text") or ""), target="moderator") or {}
         valid_ids = {str(c.get("chunk_id")) for c in knowledge_chunks if c.get("chunk_id")}

@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from bson import ObjectId
 
 from app.services.llm_runtime import LLMRuntimeUnavailableError, call_llm_chat
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -386,6 +387,7 @@ class WardRoundGenerator:
                 max_tokens=2000,
                 timeout_seconds=60,
                 response_format={"type": "json_object"},
+                thinking=thinking_for("rounding"),
             )
             model = str(result.get("model") or model)
             parsed = self._parse_json(str(result.get("text") or ""))

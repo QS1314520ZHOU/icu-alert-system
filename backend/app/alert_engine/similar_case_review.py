@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
 from app.utils.ai_acceleration import sentence_transformer_kwargs
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -337,6 +338,7 @@ class SimilarCaseReviewMixin:
                 temperature=0.1,
                 max_tokens=900,
                 timeout_seconds=30,
+                thinking=thinking_for("similar_case"),
             )
             raw_text = str(result.get("text") or "")
             usage = result.get("usage")

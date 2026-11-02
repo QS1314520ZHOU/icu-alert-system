@@ -12,6 +12,7 @@ from app.services.audit_service import write_ai_generation_log, write_audit_log
 from app.services.llm_runtime import call_llm_chat
 from app.utils.patient_helpers import calculate_age, research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -304,7 +305,7 @@ async def parse_criteria(trial_id: str, payload: dict[str, Any], actor: str) -> 
     model = str(getattr(cfg, "llm_fast_model", "") or getattr(cfg.settings, "LLM_MODEL", "") or "unknown")
     try:
         system_prompt, user_prompt = build_clinical_trial_parse_prompts(inclusion, exclusion)
-        llm = await call_llm_chat(cfg=cfg, system_prompt=system_prompt, user_prompt=user_prompt, model=model, temperature=0.0, max_tokens=1800, timeout_seconds=60)
+        llm = await call_llm_chat(cfg=cfg, system_prompt=system_prompt, user_prompt=user_prompt, model=model, temperature=0.0, max_tokens=1800, timeout_seconds=60, thinking=thinking_for("trial_screening"))
         model = str(llm.get("model") or model)
         parsed = extract_json_object(str(llm.get("text") or ""))
         degraded = False

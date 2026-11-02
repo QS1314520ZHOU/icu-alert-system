@@ -13,6 +13,7 @@ from bson import ObjectId
 from app.services.ai_monitor import AiMonitor
 from app.utils.parse import _parse_dt
 from app.utils.serialization import serialize_doc
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -424,7 +425,7 @@ class PulseService:
         model = str(self._cfg().get("narrate_model") or "fast")
         usage = None
         try:
-            res = await call_llm_chat(cfg=self.config, system_prompt=system, user_prompt=f"{prompt}\nOutput JSON: {{\"headline\": str, \"action_hint\": str, \"tone\": \"info|warn|critical\"}}", model=model, max_tokens=320, timeout_seconds=20)
+            res = await call_llm_chat(cfg=self.config, system_prompt=system, user_prompt=f"{prompt}\nOutput JSON: {{\"headline\": str, \"action_hint\": str, \"tone\": \"info|warn|critical\"}}", model=model, max_tokens=320, timeout_seconds=20, thinking=thinking_for("pulse"))
             output = str(res.get("text") or "")
             usage = res.get("usage")
             model = str(res.get("model") or model)

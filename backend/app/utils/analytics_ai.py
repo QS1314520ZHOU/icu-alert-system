@@ -6,6 +6,7 @@ from typing import Any
 
 from app.services.llm_runtime import llm_runtime_snapshot
 from app.utils.api_llm import call_api_llm
+from app.services.llm_runtime import thinking_for
 
 
 def _parse_json(text: str) -> dict[str, Any] | None:
@@ -152,7 +153,7 @@ async def summarize_weaning_timeline(payload: dict[str, Any]) -> dict[str, Any]:
     )
     user_prompt = "请总结以下脱机时间线，重点识别SBT趋势、Liberation Bundle短板和下一步动作：\n" + json.dumps(payload, ensure_ascii=False, default=str)
     try:
-        raw = await call_api_llm(system_prompt, user_prompt)
+        raw = await call_api_llm(system_prompt, user_prompt, thinking=thinking_for("analytics"))
         parsed = _parse_json(raw)
         if isinstance(parsed, dict):
             return {
@@ -177,7 +178,7 @@ async def summarize_sepsis_bundle_analytics(payload: dict[str, Any]) -> dict[str
     )
     user_prompt = "请总结以下脓毒症1h bundle质控统计，指出主要短板、重点科室和改进动作：\n" + json.dumps(payload, ensure_ascii=False, default=str)
     try:
-        raw = await call_api_llm(system_prompt, user_prompt)
+        raw = await call_api_llm(system_prompt, user_prompt, thinking=thinking_for("analytics"))
         parsed = _parse_json(raw)
         if isinstance(parsed, dict):
             return {

@@ -513,6 +513,7 @@ def sanitize_llm_text(text: Any) -> str:
     return cleaned.strip()
 
 
+_THINKING_MIN_TOKENS = 4096
 _THINKING_ON = {"on", "true", "1", "yes", "enable", "enabled", "开", "开启"}
 _THINKING_OFF = {"off", "false", "0", "no", "disable", "disabled", "关", "关闭"}
 
@@ -541,6 +542,71 @@ def thinking_payload(mode: str) -> dict[str, Any]:
 def default_thinking_mode(cfg: Any) -> str:
     settings = getattr(cfg, "settings", None)
     return normalize_thinking_mode(getattr(settings, "LLM_THINKING", "auto"))
+
+
+# 各模块默认思考开关。on=需要多步推理、在后台运行；off=有人等结果、或以总结/写作为主。
+# 可用环境变量 LLM_THINKING_OVERRIDES 覆盖，例如 "chat=on,mdt=off"。
+MODULE_THINKING_DEFAULTS: dict[str, str] = {
+    # 开启思考
+    "alert_reasoning": "on",        # 预警推理
+    "integrated_risk": "on",        # 综合风险推理
+    "ai_risk": "on",                # AI 风险评估
+    "clinical_reasoning": "on",     # 临床推理（多阶段）
+    "threshold_advisor": "on",      # 自适应阈值建议
+    "ventilator_asynchrony": "on",  # 人机不同步分析
+    "trial_screening": "on",        # 临床试验入排标准解析
+    "mdt": "on",                    # 多学科会诊（专科意见/辩论/汇总）
+    "research_plan": "on",          # 科研分析方案
+    # 关闭思考
+    "chat": "off",                  # AI 辅助对话/会诊（含流式）
+    "handover": "off",              # 交接班
+    "lab_and_rules": "off",         # 检验摘要、规则推荐
+    "documents": "off",             # 文书/病程生成
+    "rounding": "off",              # 查房
+    "voice": "off",                 # 语音查房/纠错
+    "alert_polish": "off",          # 预警文字润色
+    "similar_case": "off",          # 相似病例解读
+    "case_summary": "off",          # 病例摘要
+    "nutrition": "off",             # 营养建议
+    "pulse": "off",                 # 病区动态播报
+    "research_interpret": "off",    # 科研结果解读
+    "research_topics": "off",       # 科研选题建议
+    "analytics": "off",             # 统计摘要
+    "autonomous_agent": "off",      # 快速模型合成
+    "prediction": "off",
+    "json_repair": "off",           # JSON 修复
+}
+
+
+def _thinking_overrides(cfg: Any = None) -> dict[str, str]:
+    raw = ""
+    try:
+        from app.config import get_config  # local import to avoid cycles
+        cfg = cfg or get_config()
+        raw = str(getattr(cfg.settings, "LLM_THINKING_OVERRIDES", "") or "")
+    except Exception:
+        raw = ""
+    result: dict[str, str] = {}
+    for item in re.split(r"[,，;；\s]+", raw):
+        if "=" in item:
+            key, value = item.split("=", 1)
+            if key.strip():
+                result[key.strip()] = normalize_thinking_mode(value)
+    return result
+
+
+def thinking_for(module: str, cfg: Any = None) -> str:
+    """Resolve the thinking mode for a module: override > module default > LLM_THINKING."""
+    overrides = _thinking_overrides(cfg)
+    if module in overrides:
+        return overrides[module]
+    if module in MODULE_THINKING_DEFAULTS:
+        return MODULE_THINKING_DEFAULTS[module]
+    try:
+        from app.config import get_config
+        return default_thinking_mode(cfg or get_config())
+    except Exception:
+        return "auto"
 
 
 class LLMEmptyContentError(RuntimeError):
@@ -724,6 +790,9 @@ async def call_llm_chat(
         if response_format:
             payload["response_format"] = response_format
         payload.update(thinking_payload(parts.get("thinking", "auto")))
+        if parts.get("thinking") == "on":
+            # 思考 token 也计入 max_tokens，额度太小会导致只有思考没有正文
+            payload["max_tokens"] = max(int(payload["max_tokens"] or 0), _THINKING_MIN_TOKENS)
         if extra:
             payload.update(extra)
         max_retries = 3

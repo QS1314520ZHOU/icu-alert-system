@@ -16,6 +16,7 @@ from app.utils.api_llm import call_api_llm
 from app.utils.patient_data import fetch_dc_exam_items_by_his_pid
 from app.utils.patient_helpers import patient_his_pid_candidates
 from app.utils.serialization import safe_oid, serialize_doc
+from app.services.llm_runtime import thinking_for
 
 router = APIRouter()
 logger = logging.getLogger("icu-alert")
@@ -64,6 +65,7 @@ async def patient_handoff_summary(patient_id: str):
                 model,
                 max_tokens=1200,
                 timeout_seconds=35,
+                thinking=thinking_for("handover"),
             ),
             model=cfg.llm_fast_model or None,
         )
@@ -237,6 +239,7 @@ async def ai_rule_recommendations(patient_id: str):
             user_prompt,
             max_tokens=1200,
             timeout_seconds=120,
+            thinking=thinking_for("lab_and_rules"),
         )
         normalized_text = text or ""
         try:
@@ -309,6 +312,7 @@ async def ai_lab_summary(patient_id: str):
             cfg.llm_fast_model or None,
             max_tokens=1400,
             timeout_seconds=180,
+            thinking=thinking_for("lab_and_rules"),
         )
         return {"code": 0, "summary": sanitize_llm_text(summary)}
     except Exception as exc:

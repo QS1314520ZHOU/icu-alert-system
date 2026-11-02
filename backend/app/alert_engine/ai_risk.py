@@ -19,6 +19,7 @@ from app.services.llm_runtime import call_llm_chat
 from app.services.rag_service import RagService
 
 from .scanner_ai_risk import AiRiskScanner
+from app.services.llm_runtime import thinking_for
 
 
 class AiRiskMixin:
@@ -1029,6 +1030,7 @@ JSON结构:
                 max_tokens=max_tokens,
                 timeout_seconds=timeout_sec,
                 client=client,
+                thinking=thinking_for("ai_risk"),
             )
             raw_text = str(result.get("text") or "")
             usage = result.get("usage")

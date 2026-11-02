@@ -39,6 +39,7 @@ from app.services.streaming_asr import (
     OnError,
 )
 from app.utils.runtime_paths import package_root
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -320,6 +321,7 @@ class VoiceRoundingStreamService:
                 temperature=0.1,
                 max_tokens=2048,
                 timeout_seconds=30.0,
+                thinking=thinking_for("voice"),
             )
             raw = result.get("text") if isinstance(result, dict) else str(result)
             data = self._parse_summary_json(raw)

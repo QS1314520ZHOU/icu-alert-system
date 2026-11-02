@@ -13,6 +13,7 @@ from app.services.audit_service import write_audit_log
 from app.services.llm_runtime import call_llm_chat, sanitize_llm_text
 from app.utils.patient_helpers import calculate_age, patient_his_pid, patient_his_pid_candidates, research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -1255,6 +1256,7 @@ async def nutrition_ai_advice(patient_id: str, refresh: bool = False) -> dict[st
                 temperature=0.1,
                 max_tokens=700,
                 timeout_seconds=25,
+                thinking=thinking_for("nutrition"),
             )
             text = sanitize_llm_text(llm.get("text") or "")
             if text:

@@ -15,6 +15,7 @@ async def call_api_llm(
     temperature: float = 0.1,
     max_tokens: int = 4096,
     timeout_seconds: float = 60,
+    thinking: str | bool | None = None,
 ) -> str:
     """统一调用 API 侧 LLM，并写入监控。"""
     cfg = get_config()
@@ -32,6 +33,7 @@ async def call_api_llm(
             temperature=temperature,
             max_tokens=max_tokens,
             timeout_seconds=timeout_seconds,
+            thinking=thinking,
         )
         text = str(result.get("text") or "")
         usage = result.get("usage")

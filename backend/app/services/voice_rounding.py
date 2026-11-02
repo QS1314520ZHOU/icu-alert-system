@@ -20,6 +20,7 @@ from app.services.audio_preprocessor import (
 )
 from app.services.llm_runtime import call_llm_chat
 from app.utils.runtime_paths import package_root
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -628,6 +629,7 @@ class VoiceRoundingService:
                 temperature=float(llm_cfg.get("temperature", 0.1)),
                 max_tokens=int(llm_cfg.get("max_tokens", 2048)),
                 timeout_seconds=float(llm_cfg.get("timeout", 30)),
+                thinking=thinking_for("voice"),
             )
             raw = result.get("text") if isinstance(result, dict) else str(result)
             corrected, llm_suspects = self._parse_llm_json(raw, fallback=cleaned_text)

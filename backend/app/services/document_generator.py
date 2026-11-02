@@ -14,6 +14,7 @@ from bson import ObjectId
 from app.services.ai_monitor import AiMonitor
 from app.services.llm_runtime import call_llm_chat
 from app.clinical_documents.daily_progress_renderer import render_daily_progress_from_structured
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -648,6 +649,7 @@ class ClinicalDocumentGenerator:
                 temperature=float(self._cfg().get("temperature", llm_cfg.get("temperature", 0.1)) or 0.1),
                 max_tokens=min(3200, int(self._cfg().get("max_tokens", llm_cfg.get("max_tokens", 4096)) or 3200)),
                 timeout_seconds=float(self._cfg().get("timeout", llm_cfg.get("timeout", 60)) or 60),
+                thinking=thinking_for("documents"),
             )
             raw_text = str(result.get("text") or "")
             usage = result.get("usage")

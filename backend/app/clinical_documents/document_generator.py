@@ -19,6 +19,7 @@ from typing import Any
 from jinja2 import Template
 
 from .schemas import ProgressNoteContext, RoundingWorkbenchDraft
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -341,6 +342,7 @@ class ProgressNoteGenerator:
             max_tokens=3500,
             timeout_seconds=25,
             response_format={"type": "json_object"},
+            thinking=thinking_for("documents"),
         )
         raw_text = resp.get("text", "")
         cleaned = re.sub(r"^```(?:json)?\s*", "", raw_text.strip())

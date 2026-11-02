@@ -38,3 +38,16 @@ def test_thinking_switch():
     assert thinking_payload("off") == {"chat_template_kwargs": {"enable_thinking": False}}
     assert thinking_payload("on") == {"chat_template_kwargs": {"enable_thinking": True}}
     assert thinking_payload("auto") == {}
+
+
+def test_module_thinking_defaults_and_overrides(monkeypatch):
+    from app.config import get_config
+    from app.services import llm_runtime as rt
+    cfg = get_config()
+    monkeypatch.setattr(cfg.settings, "LLM_THINKING_OVERRIDES", "", raising=False)
+    assert rt.thinking_for("alert_reasoning", cfg) == "on"
+    assert rt.thinking_for("chat", cfg) == "off"
+    monkeypatch.setattr(cfg.settings, "LLM_THINKING_OVERRIDES", "chat=on, mdt=off", raising=False)
+    assert rt.thinking_for("chat", cfg) == "on"
+    assert rt.thinking_for("mdt", cfg) == "off"
+    assert rt.thinking_for("alert_reasoning", cfg) == "on"

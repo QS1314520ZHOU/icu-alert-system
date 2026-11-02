@@ -22,6 +22,7 @@ from app.services.handover.schemas import (
     ISbarSections,
 )
 from app.services.llm_runtime import call_llm_chat
+from app.services.llm_runtime import thinking_for
 
 API_TZ = ZoneInfo("Asia/Shanghai")
 logger = logging.getLogger("icu-alert")
@@ -134,6 +135,7 @@ class HandoverGenerationService:
                 max_tokens=4096,
                 timeout_seconds=60,
                 response_format={"type": "json_object"},
+                thinking=thinking_for("handover"),
             )
             raw_text = str(result.get("text") or "")
             parsed = self._parse_json(raw_text)
@@ -443,6 +445,7 @@ class HandoverGenerationService:
                 max_tokens=4096,
                 timeout_seconds=60,
                 response_format={"type": "json_object"},
+                thinking=thinking_for("handover"),
             )
             raw_text = str(result.get("text") or "")
             parsed = self._parse_json(raw_text)
@@ -550,6 +553,7 @@ class HandoverGenerationService:
                 max_tokens=4096,
                 timeout_seconds=60,
                 response_format={"type": "json_object"},
+                thinking=thinking_for("handover"),
             )
             raw_text = str(result.get("text") or "")
             return self._parse_json(raw_text)
@@ -632,6 +636,7 @@ class HandoverGenerationService:
                 max_tokens=4096,
                 timeout_seconds=60,
                 response_format={"type": "json_object"},
+                thinking=thinking_for("handover"),
             )
             raw_text = str(result.get("text") or "")
             return self._parse_json(raw_text)

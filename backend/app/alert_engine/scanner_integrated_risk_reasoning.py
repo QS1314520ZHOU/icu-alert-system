@@ -10,6 +10,7 @@ from app.services.llm_runtime import call_llm_chat
 from app.services.rag_service import RagService
 
 from .scanners import BaseScanner, ScannerSpec
+from app.services.llm_runtime import thinking_for
 
 
 def _to_float(value: Any) -> float | None:
@@ -463,6 +464,7 @@ class IntegratedRiskReasoningScanner(BaseScanner):
                 temperature=0.1,
                 max_tokens=int(cfg.get("max_tokens", 2000) or 2000),
                 timeout_seconds=float(self.engine._cfg("ai_service", "llm", "timeout", default=60) or 60),
+                thinking=thinking_for("integrated_risk"),
             ),
             fallback=None,
         )

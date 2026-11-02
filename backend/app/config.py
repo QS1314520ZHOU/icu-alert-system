@@ -73,8 +73,11 @@ class Settings(BaseSettings):
     LLM_MODEL_MEDICAL: str = ""
     LLM_FALLBACK_MODEL: str = ""
     LLM_REASONING_MODEL: str = ""
-    # 思考模式：on=开启 | off=关闭 | auto=按模型默认，正文为空时自动关闭思考重试一次
+    # 思考模式：各模块默认值见 app/services/llm_runtime.py 的 MODULE_THINKING_DEFAULTS
+    # LLM_THINKING：未列入表中的调用的默认值，on | off | auto（正文为空时自动关闭思考重试一次）
     LLM_THINKING: str = "auto"
+    # 按模块覆盖，例如 "chat=on,mdt=off"
+    LLM_THINKING_OVERRIDES: str = ""
 
     # ASR
     ASR_BASE_URL: str = "http://127.0.0.1:10096"

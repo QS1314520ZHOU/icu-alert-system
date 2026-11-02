@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.config import get_config
 from app.services.llm_runtime import call_llm_chat
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -259,6 +260,7 @@ async def generate_case_ai_summary(
             temperature=0.1,
             max_tokens=2048,
             timeout_seconds=30,
+            thinking=thinking_for("case_summary"),
         )
 
         content = result.get("content", "")

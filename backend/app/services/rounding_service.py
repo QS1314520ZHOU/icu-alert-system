@@ -19,6 +19,7 @@ from app.services.audit_service import source_hash, write_ai_generation_log, wri
 from app.services.llm_runtime import call_llm_chat
 from app.utils.patient_helpers import calculate_age, patient_his_pid, research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -577,6 +578,7 @@ async def generate_ai_focus_points(patient_id: str, hours: int = 24, actor: str 
             temperature=0.1,
             max_tokens=1200,
             timeout_seconds=45,
+            thinking=thinking_for("rounding"),
         )
         model = str(llm.get("model") or model)
         parsed = extract_json_object(str(llm.get("text") or ""))

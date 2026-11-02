@@ -12,6 +12,7 @@ from app.services.llm_runtime import call_llm_chat
 from app.services.omop_export_service import build_data_quality_report
 from app.utils.patient_helpers import research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -270,7 +271,7 @@ async def generate_topic_suggestions(actor: str, department: str | None = None, 
     model = str(getattr(cfg, "llm_fast_model", "") or getattr(cfg.settings, "LLM_MODEL", "") or "unknown")
     try:
         system_prompt, user_prompt = build_research_topic_prompts(snapshot)
-        llm = await call_llm_chat(cfg=cfg, system_prompt=system_prompt, user_prompt=user_prompt, model=model, temperature=0.1, max_tokens=2200, timeout_seconds=60)
+        llm = await call_llm_chat(cfg=cfg, system_prompt=system_prompt, user_prompt=user_prompt, model=model, temperature=0.1, max_tokens=2200, timeout_seconds=60, thinking=thinking_for("research_topics"))
         model = str(llm.get("model") or model)
         parsed = extract_json_object(str(llm.get("text") or ""))
         topics = parsed.get("topic_suggestions") if isinstance(parsed.get("topic_suggestions"), list) else []

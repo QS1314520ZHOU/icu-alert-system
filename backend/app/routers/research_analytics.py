@@ -36,6 +36,7 @@ from app.services.research_analytics import (
 )
 from app.utils.patient_helpers import research_patient_scope_query
 from app.utils.serialization import safe_oid, serialize_doc
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 
@@ -929,6 +930,7 @@ JSON 结构：
             temperature=0.1,
             max_tokens=2200,
             timeout_seconds=90,
+            thinking=thinking_for("research_plan"),
         )
         parsed = _extract_json_object(str(llm_result.get("text") or "")) or {}
         normalized = _normalize_ai_plan(parsed)
@@ -971,6 +973,7 @@ async def api_ai_interpret(req: AIInterpretRequest):
             temperature=0.2,
             max_tokens=1800,
             timeout_seconds=90,
+            thinking=thinking_for("research_interpret"),
         )
         parsed = _extract_json_object(str(llm_result.get("text") or ""))
         if not parsed:

@@ -18,6 +18,7 @@ from app.services.prediction_contract import (
     format_temporal_forecast_for_llm,
 )
 from app.services.patient_digital_twin import PatientDigitalTwinService
+from app.services.llm_runtime import thinking_for
 
 logger = logging.getLogger("icu-alert")
 API_TZ = ZoneInfo("Asia/Shanghai")
@@ -317,6 +318,7 @@ R / Reflect：综合证据后输出最终建议，并自评信心与潜在失败
                 temperature=float(llm_cfg.get("temperature", 0.1) or 0.1),
                 max_tokens=max_tokens,
                 timeout_seconds=float(llm_cfg.get("timeout", 60) or 60),
+                thinking=thinking_for("clinical_reasoning"),
             )
             raw_text = str(result.get("text") or "")
             usage = result.get("usage")
