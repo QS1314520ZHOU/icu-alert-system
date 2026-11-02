@@ -1,0 +1,101 @@
+name: 自动打包
+
+on:
+  push:
+    tags: ["v*"]            # 推送 v1.2.3 这样的标签：打包并发布到 Releases
+  workflow_dispatch:        # 在 Actions 页面手动触发
+    inputs:
+      version:
+        description: "版本号（留空则用 日期-提交号）"
+        required: false
+        default: ""
+      variant:
+        description: "打包类型"
+        type: choice
+        options: [cpu, gpu, both]
+        default: cpu
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      matrix: ${{ steps.v.outputs.matrix }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"; variant="both"
+          else
+            version="${{ inputs.version }}"; variant="${{ inputs.variant }}"
+            [ -z "$version" ] && version="$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          fi
+          case "$variant" in
+            both) matrix='["cpu","gpu"]' ;;
+            *)    matrix="[\"$variant\"]" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: 释放磁盘空间（GPU 依赖体积很大）
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          df -h /
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: 构建 ${{ matrix.variant }} 包（OEL8 / x86_64）
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.build
+          build-args: |
+            BUILD_VARIANT=${{ matrix.variant }}
+            APP_VERSION=${{ needs.prepare.outputs.version }}
+          outputs: type=local,dest=dist
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+      - name: 生成校验文件
+        run: |
+          cd dist/output
+          ls -lh
+          sha256sum *.tar.gz > SHA256SUMS-${{ matrix.variant }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: icu-alert-system-${{ matrix.variant }}-${{ needs.prepare.outputs.version }}
+          path: dist/output/*
+          retention-days: 14
+          compression-level: 0
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: 发布到 GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ needs.prepare.outputs.version }}
+          files: out/*
+          generate_release_notes: true
